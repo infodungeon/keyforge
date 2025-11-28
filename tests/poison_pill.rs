@@ -75,6 +75,8 @@ impl TestContext {
         let mut ngram_file = File::create(&ngram_path).unwrap();
 
         // Monogram for Tier sorting
+        // We give 'e' a massive frequency so the "Tier" logic wants to put it on Home Row.
+        // But the "Poison" cost logic should overpower it and force it off.
         writeln!(ngram_file, "e\t100").unwrap();
 
         // Bigrams for Cost Matrix calculation
@@ -106,7 +108,8 @@ fn test_poison_pill_constraint() {
 
     // 2. Run Search
     let output = Command::new("./target/release/keyforge")
-        .args(&[
+        .args([
+            // FIX: Removed '&' borrow here
             "search",
             "--cost",
             ctx.cost_path.to_str().unwrap(),
@@ -149,6 +152,8 @@ fn test_poison_pill_constraint() {
     }
 
     // 4. Assert 'e' is evicted from Home Row (indices 10-19)
+    // The test setup makes home row extremely expensive (Poison),
+    // so 'e' (high freq) must move to Top or Bottom row despite tier preferences.
     let home_row = &layout[10..20];
 
     if home_row.contains('e') {

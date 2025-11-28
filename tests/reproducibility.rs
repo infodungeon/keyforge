@@ -19,28 +19,30 @@ impl TestContext {
         // Minimal Cost Matrix
         let mut cost_file = File::create(&cost_path).unwrap();
         writeln!(cost_file, "From,To,Cost").unwrap();
-        writeln!(cost_file, "KeyQ,KeyW,1.0").unwrap();
+        // Set high base cost to prevent negative scores during optimization
+        writeln!(cost_file, "KeyQ,KeyW,1000.0").unwrap();
+
+        // Fillers to satisfy loader requirements (>10 keys)
+        let filler = [
+            "KeyE", "KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO", "KeyP",
+        ];
+        for k in filler {
+            writeln!(cost_file, "KeyQ,{},1000.0", k).unwrap();
+        }
 
         // Minimal N-Grams
         let mut ngram_file = File::create(&ngram_path).unwrap();
 
-        // FIX: Add Monograms so char_freqs > 0.0
-        writeln!(ngram_file, "t\t1000").unwrap();
-        writeln!(ngram_file, "h\t1000").unwrap();
-        writeln!(ngram_file, "e\t1000").unwrap();
-        writeln!(ngram_file, "a\t1000").unwrap();
-        writeln!(ngram_file, "n\t1000").unwrap();
-        writeln!(ngram_file, "d\t1000").unwrap();
+        // Monograms (Required so char_freqs > 0.0)
+        writeln!(ngram_file, "q\t1000").unwrap();
+        writeln!(ngram_file, "w\t1000").unwrap();
 
-        // FIX: Add Bigrams so bigrams is not empty
-        writeln!(ngram_file, "th\t500").unwrap();
-        writeln!(ngram_file, "he\t500").unwrap();
-        writeln!(ngram_file, "an\t500").unwrap();
-        writeln!(ngram_file, "nd\t500").unwrap();
+        // Bigrams (Required so bigrams list is not empty)
+        writeln!(ngram_file, "qw\t1000").unwrap();
+        writeln!(ngram_file, "wq\t1000").unwrap();
 
         // Trigrams
-        writeln!(ngram_file, "the\t1000").unwrap();
-        writeln!(ngram_file, "and\t500").unwrap();
+        writeln!(ngram_file, "qwq\t1000").unwrap();
 
         Self {
             _dir: dir,
@@ -52,6 +54,7 @@ impl TestContext {
 
 fn extract_score(output: &str) -> String {
     for line in output.lines() {
+        // The output format is "Score: 12345.67"
         if line.starts_with("Score:") {
             return line.to_string();
         }
@@ -61,15 +64,18 @@ fn extract_score(output: &str) -> String {
 
 #[test]
 fn test_deterministic_output() {
+    // 1. Build the binary to ensure it's up to date
     let _ = Command::new("cargo")
         .arg("build")
         .arg("--release")
         .status()
         .unwrap();
+
     let ctx = TestContext::new();
     let bin = "./target/release/keyforge";
 
-    // Shared args
+    // Shared args for both runs
+    // We use a specific seed to ensure determinism
     let args = [
         "search",
         "--seed",
@@ -87,22 +93,17 @@ fn test_deterministic_output() {
     ];
 
     // Run A
-    let output_a = Command::new(bin)
-        .args(&args)
-        .output()
-        .expect("Run A failed");
+    let output_a = Command::new(bin).args(args).output().expect("Run A failed");
+
     // Run B
-    let output_b = Command::new(bin)
-        .args(&args)
-        .output()
-        .expect("Run B failed");
+    let output_b = Command::new(bin).args(args).output().expect("Run B failed");
 
     let stdout_a = String::from_utf8_lossy(&output_a.stdout);
     let stdout_b = String::from_utf8_lossy(&output_b.stdout);
 
-    // FIX: Print stderr if execution failed (helps debugging if this persists)
     if !output_a.status.success() {
         println!("STDERR A:\n{}", String::from_utf8_lossy(&output_a.stderr));
+        panic!("Run A failed execution");
     }
 
     let score_a = extract_score(&stdout_a);
@@ -113,6 +114,6 @@ fn test_deterministic_output() {
         println!("--- RUN B ---\n{}", stdout_b);
     }
 
-    assert_eq!(score_a, score_b, "Determinism check failed");
+    assert_eq!(score_a, score_b, "Determinism check failed: Scores differ");
     assert_ne!(score_a, "NOT_FOUND", "Failed to parse score from output");
 }

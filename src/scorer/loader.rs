@@ -1,3 +1,4 @@
+use csv;
 use std::collections::HashSet;
 use std::fs::File;
 use std::process;
@@ -16,14 +17,14 @@ pub struct RawCostData {
 
 pub fn load_cost_matrix(path: &str, debug: bool) -> RawCostData {
     if debug {
-        println!("📖 Loading Costs from: {}", path);
+        println!("   Loading Costs from: {}", path);
     }
 
     let file = match File::open(path) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("\n❌ FATAL: Could not open Cost Matrix file at '{}'", path);
-            eprintln!("   Error: {}", e);
+            eprintln!("    Error: {}", e);
             process::exit(1);
         }
     };
@@ -79,7 +80,7 @@ pub fn load_cost_matrix(path: &str, debug: bool) -> RawCostData {
 
     if skipped_count > 0 {
         eprintln!(
-            "⚠️  WARNING: Skipped {} invalid rows in Cost Matrix.",
+            "   ⚠️  WARNING: Skipped {} invalid rows in Cost Matrix.",
             skipped_count
         );
     }
@@ -98,14 +99,14 @@ pub struct RawNgrams {
 
 pub fn load_ngrams(path: &str, valid: &HashSet<u8>, corpus_scale: f32, debug: bool) -> RawNgrams {
     if debug {
-        println!("📖 Loading Ngrams from: {}", path);
+        println!("   Loading Ngrams from: {}", path);
     }
 
     let file = match File::open(path) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("\n❌ FATAL: Could not open N-grams file at '{}'", path);
-            eprintln!("   Error: {}", e);
+            eprintln!("    Error: {}", e);
             process::exit(1);
         }
     };
@@ -115,7 +116,7 @@ pub fn load_ngrams(path: &str, valid: &HashSet<u8>, corpus_scale: f32, debug: bo
         .delimiter(b'\t')
         .has_headers(false)
         .quoting(false)
-        .flexible(true)
+        .flexible(true) // Allow rows with varying column counts
         .from_reader(file);
 
     let mut bigrams = Vec::new();
@@ -154,6 +155,7 @@ pub fn load_ngrams(path: &str, valid: &HashSet<u8>, corpus_scale: f32, debug: bo
                 let normalized_freq = count_val / corpus_scale;
                 let bytes = s.as_bytes();
 
+                // Check char validity
                 let all_valid = bytes.iter().all(|b| valid.contains(b));
                 if !all_valid {
                     skipped_char += 1;
@@ -168,6 +170,7 @@ pub fn load_ngrams(path: &str, valid: &HashSet<u8>, corpus_scale: f32, debug: bo
                 } else if len == 3 {
                     trigrams.push((bytes[0], bytes[1], bytes[2], normalized_freq));
                 }
+                // Lengths > 3 are silently ignored (expected for mixed n-gram files)
             }
             Err(_) => {
                 skipped_format += 1;
@@ -175,13 +178,11 @@ pub fn load_ngrams(path: &str, valid: &HashSet<u8>, corpus_scale: f32, debug: bo
         }
     }
 
-    if skipped_format > 0 || skipped_char > 0 {
-        if debug {
-            eprintln!(
-                "   ⚠️  Skipped {} lines (Format) and {} lines (Invalid Char)",
-                skipped_format, skipped_char
-            );
-        }
+    if debug && (skipped_format > 0 || skipped_char > 0) {
+        eprintln!(
+            "   ⚠️  Skipped {} lines (Format) and {} lines (Invalid Char)",
+            skipped_format, skipped_char
+        );
     }
 
     if debug {

@@ -14,8 +14,7 @@ fn fast_exp(x: f32) -> f32 {
     let x = x * x;
     let x = x * x;
     let x = x * x;
-    let x = x * x;
-    x
+    x * x
 }
 
 #[repr(align(64))]
@@ -33,6 +32,7 @@ pub struct Replica {
     pub temperature: f32,
     pub debug: bool,
 
+    // Optimization limits now stored locally since Scorer doesn't hold SearchParams
     pub current_limit: usize,
     pub limit_fast: usize,
     pub limit_slow: usize,
@@ -58,13 +58,13 @@ impl Replica {
         let mut layout;
         let mut pos_map;
         loop {
-            // DYNAMIC: Pass geometry to generator
-            layout = generate_tiered_layout(&mut rng, &scorer.defs, &scorer.geometry);
-            pos_map = build_pos_map(&layout);
+            // DYNAMIC GEOMETRY: Pass geometry to generator
+            layout = mutation::generate_tiered_layout(&mut rng, &scorer.defs, &scorer.geometry);
+            pos_map = mutation::build_pos_map(&layout);
 
             let critical = scorer.defs.get_critical_bigrams();
-            // DYNAMIC: Pass geometry to sanity check
-            if !fails_sanity(&pos_map, &critical, &scorer.geometry) {
+            // DYNAMIC GEOMETRY: Pass geometry to sanity check
+            if !mutation::fails_sanity(&pos_map, &critical, &scorer.geometry) {
                 break;
             }
         }
@@ -126,16 +126,21 @@ impl Replica {
         let freq_a = self.scorer.char_freqs[char_a];
         let freq_b = self.scorer.char_freqs[char_b];
 
+        // A goes from idx_a to idx_b.
         delta_score +=
             (self.local_monogram_costs[idx_b] - self.local_monogram_costs[idx_a]) * freq_a;
+        // B goes from idx_b to idx_a.
         delta_score +=
             (self.local_monogram_costs[idx_a] - self.local_monogram_costs[idx_b]) * freq_b;
 
+        // Tier Delta
         let tier_char_a = self.scorer.char_tier_map[char_a] as usize;
         let tier_char_b = self.scorer.char_tier_map[char_b] as usize;
+
         if tier_char_a < 3 && tier_char_b < 3 {
             let tier_slot_a = self.scorer.slot_tier_map[idx_a] as usize;
             let tier_slot_b = self.scorer.slot_tier_map[idx_b] as usize;
+
             if tier_char_a < 3 {
                 delta_score -= self.scorer.tier_penalty_matrix[tier_char_a][tier_slot_a] * freq_a;
                 delta_score += self.scorer.tier_penalty_matrix[tier_char_a][tier_slot_b] * freq_a;
@@ -201,6 +206,7 @@ impl Replica {
             let cbb = self.local_cost_matrix[idx_b][idx_b];
             delta_score += (cba + cab - cbb - caa) * freq_ab;
         }
+
         let freq_ba = self.scorer.freq_matrix[char_b][char_a];
         if freq_ba > 0.0 {
             let cba = self.local_cost_matrix[idx_b][idx_a];
@@ -209,12 +215,14 @@ impl Replica {
             let caa = self.local_cost_matrix[idx_a][idx_a];
             delta_score += (cab + cba - caa - cbb) * freq_ba;
         }
+
         let freq_aa = self.scorer.freq_matrix[char_a][char_a];
         if freq_aa > 0.0 {
             delta_score += (self.local_cost_matrix[idx_b][idx_b]
                 - self.local_cost_matrix[idx_a][idx_a])
                 * freq_aa;
         }
+
         let freq_bb = self.scorer.freq_matrix[char_b][char_b];
         if freq_bb > 0.0 {
             delta_score += (self.local_cost_matrix[idx_a][idx_a]
@@ -246,6 +254,7 @@ impl Replica {
                 } else {
                     p1_old
                 };
+
                 let p2_new = if o2 == char_b {
                     idx_a
                 } else if o2 == char_a {
@@ -264,6 +273,7 @@ impl Replica {
                     1 => self.local_trigram_costs[p1_new * 900 + idx_b * 30 + p2_new],
                     _ => self.local_trigram_costs[p1_new * 900 + p2_new * 30 + idx_b],
                 };
+
                 delta_score += (cost_new - cost_old) * t.freq;
             }
         }
@@ -301,15 +311,14 @@ impl Replica {
                     1 => self.local_trigram_costs[p1_new * 900 + idx_a * 30 + p2_new],
                     _ => self.local_trigram_costs[p1_new * 900 + p2_new * 30 + idx_a],
                 };
+
                 delta_score += (cost_new - cost_old) * t.freq;
             }
         }
 
         // Load Balance Delta
         let mut delta_left_load = 0.0;
-
         // DYNAMIC: Check hand assignment from geometry
-        // Previously: let is_left_a = (idx_a % 10) < 5;
         let is_left_a = self.scorer.geometry.keys[idx_a].hand == 0;
         let is_left_b = self.scorer.geometry.keys[idx_b].hand == 0;
 
@@ -337,6 +346,7 @@ impl Replica {
             self.current_limit = target_limit;
             let (new_base, new_left, _) = self.scorer.score_full(&self.pos_map, target_limit);
 
+            // Ensure we reset to Base + Imbalance when limits change
             let new_imb = self.imbalance_penalty(new_left);
             self.score = new_base + new_imb;
         }
@@ -344,11 +354,13 @@ impl Replica {
         for _ in 0..steps {
             let idx_a = self.rng.usize(0..30);
             let idx_b = self.rng.usize(0..30);
+
             if idx_a == idx_b {
                 continue;
             }
 
             let (delta_base, delta_load) = self.calc_delta(idx_a, idx_b, self.current_limit);
+
             if delta_base == f32::INFINITY {
                 continue;
             }
@@ -356,12 +368,11 @@ impl Replica {
             // self.score is TOTAL.
             let old_imbalance_pen = self.imbalance_penalty(self.left_load);
             let old_base = self.score - old_imbalance_pen;
-
             let new_base = old_base + delta_base;
             let new_left_load = self.left_load + delta_load;
             let new_imbalance_pen = self.imbalance_penalty(new_left_load);
-
             let new_total = new_base + new_imbalance_pen;
+
             let total_delta = new_total - self.score;
 
             if total_delta < 0.0 || self.rng.f32() < fast_exp(-total_delta / self.temperature) {
@@ -387,6 +398,7 @@ impl Replica {
                 }
             }
         }
+
         (accepted, steps)
     }
 

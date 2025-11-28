@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+settings.json
+Cargo.lock
+flamegraph.svg
+perf.data
+perft.data.old

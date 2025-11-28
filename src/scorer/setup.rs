@@ -16,25 +16,40 @@ pub fn build_scorer(
 ) -> Scorer {
     if debug {
         println!(
-            "\n🔧 [Debug] SFB Base: {:.1} | Long: {:.1} | Lat: {:.1} | Weak Mul: {:.1}",
+            "\n   [Debug] SFB Base: {:.1} | Long: {:.1} | Lat: {:.1} | Weak Lat: {:.1}",
             weights.penalty_sfb_base,
             weights.penalty_sfb_long,
             weights.penalty_sfb_lateral,
-            weights.weight_weak_finger_sfb
+            weights.penalty_sfb_lateral_weak
+        );
+        println!(
+            "   [Debug] Bigram Rolls: In -{:.1} | Out -{:.1}",
+            weights.bonus_bigram_roll_in, weights.bonus_bigram_roll_out
         );
     }
 
-    let w = &weights;
     let tier_penalty_matrix = [
-        [0.0, w.penalty_high_in_med, w.penalty_high_in_low],
-        [w.penalty_med_in_prime, 0.0, w.penalty_med_in_low],
-        [w.penalty_low_in_prime, w.penalty_low_in_med, 0.0],
+        [
+            0.0,
+            weights.penalty_high_in_med,
+            weights.penalty_high_in_low,
+        ],
+        [
+            weights.penalty_med_in_prime,
+            0.0,
+            weights.penalty_med_in_low,
+        ],
+        [
+            weights.penalty_low_in_prime,
+            weights.penalty_low_in_med,
+            0.0,
+        ],
     ];
 
     let costs = load_cost_matrix(cost_path, debug);
     let mut raw_user_matrix = [[0.0; 30]; 30];
-    // ... (Standard Key loading omitted for brevity, same as before) ...
-    // FILLER LOGIC START
+
+    // FILLER LOGIC START (Ensures valid matrix even with sparse CSV)
     let standard_keys = [
         "keyq",
         "keyw",
@@ -81,11 +96,13 @@ pub fn build_scorer(
             loaded_count += 1;
         }
     }
+
+    // FIX: Use iterator to fill missing values (needless_range_loop)
     if loaded_count < 10 {
-        for r in 0..30 {
-            for col in 0..30 {
+        for (r, row) in raw_user_matrix.iter_mut().enumerate() {
+            for (col, val) in row.iter_mut().enumerate() {
                 if r != col {
-                    raw_user_matrix[r][col] = weights.default_cost_ms;
+                    *val = weights.default_cost_ms;
                 }
             }
         }
@@ -93,82 +110,96 @@ pub fn build_scorer(
     // FILLER LOGIC END
 
     let mut full_cost_matrix = raw_user_matrix;
-    for i in 0..30 {
-        for j in 0..30 {
+
+    // FIX: Use iterator for matrix construction (needless_range_loop)
+    for (i, row) in full_cost_matrix.iter_mut().enumerate() {
+        for (j, val) in row.iter_mut().enumerate() {
             if i == j {
                 continue;
             }
 
             let m = analyze_interaction(&geometry, i, j);
-
             if m.is_same_hand {
                 // Add Physical Distance to Base Cost
                 let dist = get_geo_dist(&geometry, i, j, weights.weight_geo_dist);
-                full_cost_matrix[i][j] += dist;
+                *val += dist;
 
-                // === BIOMECHANICAL HIERARCHY ===
+                // === BIGRAM FLOW BONUSES ===
+                // Rewards rolling motion between different fingers
+                if m.is_roll_in {
+                    *val -= weights.bonus_bigram_roll_in;
+                } else if m.is_roll_out {
+                    *val -= weights.bonus_bigram_roll_out;
+                }
+
+                // === BIOMECHANICAL PENALTIES ===
                 if m.is_repeat {
+                    // SFR (Same Finger Repeat)
                     if m.is_strong_finger {
                         if m.is_home_row {
-                            // Rank 1: Strong Home SFR (TT) -> 0.0
-                            full_cost_matrix[i][j] *= 1.0;
+                            // Rank 1: Strong Home SFR (TT) -> 0.0 (No Penalty)
+                            *val *= 1.0;
                         } else if m.is_stretch_col {
-                            // Rank 5: Strong Lat SFR (GG) -> 40.0
-                            full_cost_matrix[i][j] += weights.penalty_sfr_lat;
+                            // Rank 5: Strong Lat SFR (GG)
+                            *val += weights.penalty_sfr_lat;
                         } else {
-                            // Rank 3: Strong Bad Row SFR (PP) -> 25.0
-                            full_cost_matrix[i][j] += weights.penalty_sfr_bad_row;
+                            // Rank 3: Strong Bad Row SFR (PP)
+                            *val += weights.penalty_sfr_bad_row;
                         }
+                    } else if m.is_home_row {
+                        // FIX: Collapsed else { if } (collapsible_else_if)
+                        // Rank 2: Weak Home SFR (RR)
+                        *val += weights.penalty_sfr_weak_finger;
                     } else {
-                        if m.is_home_row {
-                            // Rank 2: Weak Home SFR (RR) -> 20.0
-                            full_cost_matrix[i][j] += weights.penalty_sfr_weak_finger;
-                        } else {
-                            // Rank 11: Weak Bad Row SFR (ZZ) -> 200.0
-                            full_cost_matrix[i][j] += weights.penalty_sfr_bad_row * 5.0;
-                        }
+                        // Rank 11: Weak Bad Row SFR (ZZ) -> Massive Penalty
+                        *val += weights.penalty_sfr_bad_row * 5.0;
                     }
                 } else if m.is_sfb {
-                    // Base calculation based on Geometry
-                    let mut penalty = if m.is_lat_step {
-                        // Rank 4: Lat Index SFB (TG) -> 35.0
-                        weights.penalty_sfb_lateral
-                    } else if m.is_bot_lat_seq {
-                        // Rank 9: Bot Lat (DV) -> 110.0
-                        weights.penalty_sfb_bottom
-                    } else if m.row_diff >= 2 {
-                        // Rank 8: Long Jump (PD) -> 90.0
-                        weights.penalty_sfb_long
-                    } else if m.row_diff > 0 && m.col_diff > 0 {
-                        // Rank 7: Diagonal -> 70.0
-                        weights.penalty_sfb_diagonal
-                    } else {
-                        // Rank 6: Standard -> 50.0
-                        let mut base = weights.penalty_sfb_base;
-                        if m.is_outward {
-                            base += weights.penalty_sfb_outward_adder;
-                        }
-                        base
-                    };
+                    // SFB (Same Finger Bigram)
+                    let mut penalty;
+                    let mut weak_applied = false;
 
-                    // Apply Weak Finger Multiplier
-                    if !m.is_strong_finger {
+                    if m.is_lat_step {
+                        if m.is_strong_finger {
+                            // Rank 4: Index Lateral SFB (TG)
+                            penalty = weights.penalty_sfb_lateral;
+                        } else {
+                            // Rank 10+: Weak Lateral SFB
+                            penalty = weights.penalty_sfb_lateral_weak;
+                            weak_applied = true;
+                        }
+                    } else if m.is_bot_lat_seq {
+                        // Rank 9: Bot Lat (The Claw)
+                        penalty = weights.penalty_sfb_bottom;
+                    } else if m.row_diff >= 2 {
+                        // Rank 8: Long Jump
+                        penalty = weights.penalty_sfb_long;
+                    } else if m.row_diff > 0 && m.col_diff > 0 {
+                        // Rank 7: Diagonal
+                        penalty = weights.penalty_sfb_diagonal;
+                    } else {
+                        // Rank 6: Standard 1-Row
+                        penalty = weights.penalty_sfb_base;
+                        if m.is_outward {
+                            penalty += weights.penalty_sfb_outward_adder;
+                        }
+                    }
+
+                    // Apply Weak Finger Multiplier if not already handled
+                    if !m.is_strong_finger && !weak_applied {
                         penalty *= weights.weight_weak_finger_sfb;
                     }
 
-                    full_cost_matrix[i][j] *= penalty;
-                }
-                // Non-SFB Mechanics
-                else if m.is_scissor {
-                    full_cost_matrix[i][j] *= weights.penalty_scissor;
+                    *val *= penalty;
+                } else if m.is_scissor {
+                    *val *= weights.penalty_scissor;
                 } else if m.is_lateral_stretch {
-                    full_cost_matrix[i][j] *= weights.penalty_lateral;
+                    *val *= weights.penalty_lateral;
                 }
             }
         }
     }
 
-    // ... (NGRAMS Loading remains same) ...
     let valid_set: HashSet<u8> = b"abcdefghijklmnopqrstuvwxyz.,/;".iter().cloned().collect();
     let raw_ngrams = load_ngrams(ngrams_path, &valid_set, weights.corpus_scale, debug);
     if raw_ngrams.bigrams.is_empty() {
@@ -187,6 +218,7 @@ pub fn build_scorer(
         b_buckets[b2 as usize].push((b1, freq, false));
         freq_matrix[b1 as usize][b2 as usize] = freq;
     }
+
     let mut offset = 0;
     for i in 0..256 {
         bigram_starts[i] = offset;
@@ -220,6 +252,7 @@ pub fn build_scorer(
             role: 2,
         });
     }
+
     let mut trigram_starts = vec![0; 257];
     let mut trigrams_flat = Vec::new();
     let mut t_offset = 0;
@@ -242,7 +275,6 @@ pub fn build_scorer(
                 let kk = &geometry.keys[k];
 
                 let flow = analyze_flow(ki, kj, kk);
-
                 if flow.is_3_hand_run {
                     trigram_cost_table[idx] += weights.penalty_hand_run;
                     if flow.is_skip {
@@ -286,15 +318,17 @@ pub fn build_scorer(
 
     let finger_scales = weights.get_finger_penalty_scale();
     let mut slot_monogram_costs = [0.0; 30];
-    for i in 0..30 {
+
+    // FIX: Use iterator for monogram costs (needless_range_loop)
+    for (i, cost) in slot_monogram_costs.iter_mut().enumerate() {
         let ki = &geometry.keys[i];
         let effort_cost = finger_scales[ki.finger as usize] * weights.weight_finger_effort;
         let reach_cost = get_reach_cost(&geometry, i, weights.weight_geo_dist);
-        slot_monogram_costs[i] = reach_cost + effort_cost;
+        *cost = reach_cost + effort_cost;
     }
 
     if debug {
-        println!("   ✅ Scorer Initialized.\n");
+        println!(" ✅ Scorer Initialized.\n");
     }
 
     Scorer {

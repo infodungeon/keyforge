@@ -1,35 +1,64 @@
-fn run_validation(args: ValidateArgs, scorer: Arc<Scorer>) {
-    println!("\n📊 === VALIDATION REPORT === 📊");
-    println!(
-        "{:<14} | {:<8} | {:<8} | {:<8} | {:<33} | {:<19} | {:<8}", 
-        "Layout", "THEORY", "Travel", "Effort", "--- SFB BREAKDOWN ---", "--- MECHANICS ---", "FLOW"
-    );
-    println!(
-        "{:<14} | {:<8} | {:<8} | {:<8} | {:<5} {:<5} {:<5} {:<5} {:<5} {:<5} | {:<5} {:<6} {:<6} | {:<8}", 
-        "", "Total", "Dist", "Fing", "Base", "Lat", "WeakL", "Diag", "Long", "Bot", "SFR", "Lat", "Scis", "Cost"
-    );
-    println!("{:-<135}", "");
+use clap::{Parser, Subcommand};
+use keyforge::scorer::Scorer;
+use std::sync::Arc;
 
-    // ... loop ...
+mod cmd;
+mod reports;
 
-    for (name, d) in results {
-        println!(
-            "{:<14} | {:<8.0} | {:<8.0} | {:<8.0} | {:<5.0} {:<5.0} {:<5.0} {:<5.0} {:<5.0} {:<5.0} | {:<5.0} {:<6.0} {:<6.0} | {:<8.0}", 
-            name, 
-            d.layout_score,
-            d.geo_dist,
-            d.finger_use,
-            d.mech_sfb,
-            d.mech_sfb_lat,
-            d.mech_sfb_lat_weak, // NEW COLUMN
-            d.mech_sfb_diag,
-            d.mech_sfb_long,
-            d.mech_sfb_bot,
-            d.mech_sfr,
-            d.mech_lat,
-            d.mech_scis,
-            d.flow_cost
-        );
+// Re-export for CLI usage
+use cmd::search::SearchArgs;
+use cmd::validate::ValidateArgs;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+
+    #[arg(global = true, short, long, default_value = "data/cost_matrix.csv")]
+    cost: String,
+
+    #[arg(global = true, short, long, default_value = "data/ngrams-all.tsv")]
+    ngrams: String,
+
+    #[arg(global = true, long)]
+    geometry: Option<String>,
+
+    #[arg(global = true, long, default_value_t = false)]
+    debug: bool,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    Search(SearchArgs),
+    Validate(ValidateArgs),
+}
+
+fn main() {
+    let cli = Cli::parse();
+    println!("\n🚀 Initializing KeyForge Core...");
+
+    // Pre-load configuration to initialize Scorer
+    let (config, command) = match cli.command {
+        Commands::Search(args) => (args.config.clone(), Commands::Search(args)),
+        Commands::Validate(args) => (args.config.clone(), Commands::Validate(args)),
+    };
+
+    if cli.debug {
+        println!("🔧 Configuration Loaded:");
+        println!("    Epochs: {}", config.search.search_epochs);
     }
-    println!("{:-<135}", "");
+
+    let scorer = Arc::new(Scorer::new(
+        &cli.cost,
+        &cli.ngrams,
+        &cli.geometry,
+        config,
+        cli.debug,
+    ));
+
+    match command {
+        Commands::Search(args) => cmd::search::run(args, scorer, cli.debug),
+        Commands::Validate(args) => cmd::validate::run(args, scorer),
+    }
 }

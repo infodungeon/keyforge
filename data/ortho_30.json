@@ -1,0 +1,39 @@
+{
+  "keys": [
+    {"hand": 0, "finger": 4, "row": 0, "col": 0, "x": 0.0, "y": 0.0, "is_stretch": false},
+    {"hand": 0, "finger": 3, "row": 0, "col": 1, "x": 1.0, "y": 0.0, "is_stretch": false},
+    {"hand": 0, "finger": 2, "row": 0, "col": 2, "x": 2.0, "y": 0.0, "is_stretch": false},
+    {"hand": 0, "finger": 1, "row": 0, "col": 3, "x": 3.0, "y": 0.0, "is_stretch": false},
+    {"hand": 0, "finger": 1, "row": 0, "col": 4, "x": 4.0, "y": 0.0, "is_stretch": true},
+    {"hand": 1, "finger": 1, "row": 0, "col": 5, "x": 5.0, "y": 0.0, "is_stretch": true},
+    {"hand": 1, "finger": 1, "row": 0, "col": 6, "x": 6.0, "y": 0.0, "is_stretch": false},
+    {"hand": 1, "finger": 2, "row": 0, "col": 7, "x": 7.0, "y": 0.0, "is_stretch": false},
+    {"hand": 1, "finger": 3, "row": 0, "col": 8, "x": 8.0, "y": 0.0, "is_stretch": false},
+    {"hand": 1, "finger": 4, "row": 0, "col": 9, "x": 9.0, "y": 0.0, "is_stretch": false},
+
+    {"hand": 0, "finger": 4, "row": 1, "col": 0, "x": 0.0, "y": 1.0, "is_stretch": false},
+    {"hand": 0, "finger": 3, "row": 1, "col": 1, "x": 1.0, "y": 1.0, "is_stretch": false},
+    {"hand": 0, "finger": 2, "row": 1, "col": 2, "x": 2.0, "y": 1.0, "is_stretch": false},
+    {"hand": 0, "finger": 1, "row": 1, "col": 3, "x": 3.0, "y": 1.0, "is_stretch": false},
+    {"hand": 0, "finger": 1, "row": 1, "col": 4, "x": 4.0, "y": 1.0, "is_stretch": true},
+    {"hand": 1, "finger": 1, "row": 1, "col": 5, "x": 5.0, "y": 1.0, "is_stretch": true},
+    {"hand": 1, "finger": 1, "row": 1, "col": 6, "x": 6.0, "y": 1.0, "is_stretch": false},
+    {"hand": 1, "finger": 2, "row": 1, "col": 7, "x": 7.0, "y": 1.0, "is_stretch": false},
+    {"hand": 1, "finger": 3, "row": 1, "col": 8, "x": 8.0, "y": 1.0, "is_stretch": false},
+    {"hand": 1, "finger": 4, "row": 1, "col": 9, "x": 9.0, "y": 1.0, "is_stretch": false},
+
+    {"hand": 0, "finger": 4, "row": 2, "col": 0, "x": 0.0, "y": 2.0, "is_stretch": false},
+    {"hand": 0, "finger": 3, "row": 2, "col": 1, "x": 1.0, "y": 2.0, "is_stretch": false},
+    {"hand": 0, "finger": 2, "row": 2, "col": 2, "x": 2.0, "y": 2.0, "is_stretch": false},
+    {"hand": 0, "finger": 1, "row": 2, "col": 3, "x": 3.0, "y": 2.0, "is_stretch": false},
+    {"hand": 0, "finger": 1, "row": 2, "col": 4, "x": 4.0, "y": 2.0, "is_stretch": true},
+    {"hand": 1, "finger": 1, "row": 2, "col": 5, "x": 5.0, "y": 2.0, "is_stretch": true},
+    {"hand": 1, "finger": 1, "row": 2, "col": 6, "x": 6.0, "y": 2.0, "is_stretch": false},
+    {"hand": 1, "finger": 2, "row": 2, "col": 7, "x": 7.0, "y": 2.0, "is_stretch": false},
+    {"hand": 1, "finger": 3, "row": 2, "col": 8, "x": 8.0, "y": 2.0, "is_stretch": false},
+    {"hand": 1, "finger": 4, "row": 2, "col": 9, "x": 9.0, "y": 2.0, "is_stretch": false}
+  ],
+  "prime_slots": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  "med_slots": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "low_slots": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+}
