@@ -1,10 +1,12 @@
+// ===== keyforge/src/scorer/setup.rs =====
+use super::costs::calculate_cost; // REMOVED: CostCategory
 use super::flow::analyze_flow;
 use super::loader::{load_cost_matrix, load_ngrams, TrigramRef};
 use super::physics::{analyze_interaction, get_geo_dist, get_reach_cost};
 use super::Scorer;
 use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::geometry::KeyboardGeometry;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub fn build_scorer(
     cost_path: &str,
@@ -13,19 +15,14 @@ pub fn build_scorer(
     defs: LayoutDefinitions,
     geometry: KeyboardGeometry,
     debug: bool,
-) -> Scorer {
+) -> Result<Scorer, String> {
     if debug {
-        println!(
-            "\n   [Debug] SFB Base: {:.1} | Long: {:.1} | Lat: {:.1} | Weak Lat: {:.1}",
-            weights.penalty_sfb_base,
-            weights.penalty_sfb_long,
-            weights.penalty_sfb_lateral,
-            weights.penalty_sfb_lateral_weak
-        );
-        println!(
-            "   [Debug] Bigram Rolls: In -{:.1} | Out -{:.1}",
-            weights.bonus_bigram_roll_in, weights.bonus_bigram_roll_out
-        );
+        println!("   [Debug] SFB Base: {:.1}", weights.penalty_sfb_base);
+    }
+
+    let key_count = geometry.keys.len();
+    if key_count == 0 {
+        return Err("Geometry has 0 keys".to_string());
     }
 
     let tier_penalty_matrix = [
@@ -46,164 +43,86 @@ pub fn build_scorer(
         ],
     ];
 
-    let costs = load_cost_matrix(cost_path, debug);
-    let mut raw_user_matrix = [[0.0; 30]; 30];
+    let costs = load_cost_matrix(cost_path, debug)?;
+    let mut raw_user_matrix = vec![0.0; key_count * key_count];
 
-    // FILLER LOGIC START (Ensures valid matrix even with sparse CSV)
-    let standard_keys = [
-        "keyq",
-        "keyw",
-        "keye",
-        "keyr",
-        "keyt",
-        "keyy",
-        "keyu",
-        "keyi",
-        "keyo",
-        "keyp",
-        "keya",
-        "keys",
-        "keyd",
-        "keyf",
-        "keyg",
-        "keyh",
-        "keyj",
-        "keyk",
-        "keyl",
-        "semicolon",
-        "keyz",
-        "keyx",
-        "keyc",
-        "keyv",
-        "keyb",
-        "keyn",
-        "keym",
-        "comma",
-        "period",
-        "slash",
-    ];
+    // DYNAMIC KEY MAPPING
+    // 1. Build a lookup map: "keyq" -> index 0
+    let mut key_id_map: HashMap<String, usize> = HashMap::new();
+    for (idx, k) in geometry.keys.iter().enumerate() {
+        if !k.id.is_empty() {
+            key_id_map.insert(k.id.to_lowercase(), idx);
+        }
+    }
+
+    // 2. Load costs using the dynamic map
     let mut loaded_count = 0;
     for (k1_raw, k2_raw, val) in costs.entries {
         let k1 = k1_raw.to_lowercase();
         let k2 = k2_raw.to_lowercase();
-        let find = |k: &str| {
-            standard_keys
-                .iter()
-                .position(|&sk| sk == k || sk.strip_prefix("key").unwrap_or("") == k)
-        };
-        if let (Some(i1), Some(i2)) = (find(&k1), find(&k2)) {
-            raw_user_matrix[i1][i2] = val;
+
+        let i1 = key_id_map.get(&k1);
+        let i2 = key_id_map.get(&k2);
+
+        if let (Some(&idx1), Some(&idx2)) = (i1, i2) {
+            raw_user_matrix[idx1 * key_count + idx2] = val;
             loaded_count += 1;
         }
     }
 
-    // FIX: Use iterator to fill missing values (needless_range_loop)
-    if loaded_count < 10 {
-        for (r, row) in raw_user_matrix.iter_mut().enumerate() {
-            for (col, val) in row.iter_mut().enumerate() {
-                if r != col {
-                    *val = weights.default_cost_ms;
-                }
+    // Fallback: If no IDs were found in geometry (old JSONs), warn
+    if key_id_map.is_empty() && debug {
+        println!("   ⚠️  Warning: Geometry keys have no 'id' fields. Cost matrix ignored.");
+    } else if loaded_count == 0 && debug {
+        println!("   ⚠️  Warning: No costs matched geometry key IDs.");
+    }
+
+    // Fill diagonals/defaults if needed
+    for r in 0..key_count {
+        for c in 0..key_count {
+            if r != c && raw_user_matrix[r * key_count + c] == 0.0 {
+                raw_user_matrix[r * key_count + c] = weights.default_cost_ms;
             }
         }
     }
-    // FILLER LOGIC END
 
-    let mut full_cost_matrix = raw_user_matrix;
+    let mut full_cost_matrix = raw_user_matrix.clone();
 
-    // FIX: Use iterator for matrix construction (needless_range_loop)
-    for (i, row) in full_cost_matrix.iter_mut().enumerate() {
-        for (j, val) in row.iter_mut().enumerate() {
+    // OPTIMIZER COST CALCULATION
+    for i in 0..key_count {
+        for j in 0..key_count {
             if i == j {
                 continue;
             }
 
-            let m = analyze_interaction(&geometry, i, j);
+            // CHANGED: Pass weights for dynamic scissors
+            let m = analyze_interaction(&geometry, i, j, &weights);
+
             if m.is_same_hand {
-                // Add Physical Distance to Base Cost
-                let dist = get_geo_dist(&geometry, i, j, weights.weight_geo_dist);
-                *val += dist;
+                let dist = get_geo_dist(
+                    &geometry,
+                    i,
+                    j,
+                    weights.weight_lateral_travel,
+                    weights.weight_vertical_travel,
+                );
 
-                // === BIGRAM FLOW BONUSES ===
-                // Rewards rolling motion between different fingers
-                if m.is_roll_in {
-                    *val -= weights.bonus_bigram_roll_in;
-                } else if m.is_roll_out {
-                    *val -= weights.bonus_bigram_roll_out;
-                }
+                let idx = i * key_count + j;
+                full_cost_matrix[idx] += dist;
 
-                // === BIOMECHANICAL PENALTIES ===
-                if m.is_repeat {
-                    // SFR (Same Finger Repeat)
-                    if m.is_strong_finger {
-                        if m.is_home_row {
-                            // Rank 1: Strong Home SFR (TT) -> 0.0 (No Penalty)
-                            *val *= 1.0;
-                        } else if m.is_stretch_col {
-                            // Rank 5: Strong Lat SFR (GG)
-                            *val += weights.penalty_sfr_lat;
-                        } else {
-                            // Rank 3: Strong Bad Row SFR (PP)
-                            *val += weights.penalty_sfr_bad_row;
-                        }
-                    } else if m.is_home_row {
-                        // FIX: Collapsed else { if } (collapsible_else_if)
-                        // Rank 2: Weak Home SFR (RR)
-                        *val += weights.penalty_sfr_weak_finger;
-                    } else {
-                        // Rank 11: Weak Bad Row SFR (ZZ) -> Massive Penalty
-                        *val += weights.penalty_sfr_bad_row * 5.0;
-                    }
-                } else if m.is_sfb {
-                    // SFB (Same Finger Bigram)
-                    let mut penalty;
-                    let mut weak_applied = false;
-
-                    if m.is_lat_step {
-                        if m.is_strong_finger {
-                            // Rank 4: Index Lateral SFB (TG)
-                            penalty = weights.penalty_sfb_lateral;
-                        } else {
-                            // Rank 10+: Weak Lateral SFB
-                            penalty = weights.penalty_sfb_lateral_weak;
-                            weak_applied = true;
-                        }
-                    } else if m.is_bot_lat_seq {
-                        // Rank 9: Bot Lat (The Claw)
-                        penalty = weights.penalty_sfb_bottom;
-                    } else if m.row_diff >= 2 {
-                        // Rank 8: Long Jump
-                        penalty = weights.penalty_sfb_long;
-                    } else if m.row_diff > 0 && m.col_diff > 0 {
-                        // Rank 7: Diagonal
-                        penalty = weights.penalty_sfb_diagonal;
-                    } else {
-                        // Rank 6: Standard 1-Row
-                        penalty = weights.penalty_sfb_base;
-                        if m.is_outward {
-                            penalty += weights.penalty_sfb_outward_adder;
-                        }
-                    }
-
-                    // Apply Weak Finger Multiplier if not already handled
-                    if !m.is_strong_finger && !weak_applied {
-                        penalty *= weights.weight_weak_finger_sfb;
-                    }
-
-                    *val *= penalty;
-                } else if m.is_scissor {
-                    *val *= weights.penalty_scissor;
-                } else if m.is_lateral_stretch {
-                    *val *= weights.penalty_lateral;
-                }
+                let res = calculate_cost(&m, &weights);
+                full_cost_matrix[idx] -= res.flow_bonus;
+                full_cost_matrix[idx] += res.additive_cost;
+                full_cost_matrix[idx] *= res.penalty_multiplier;
             }
         }
     }
 
     let valid_set: HashSet<u8> = b"abcdefghijklmnopqrstuvwxyz.,/;".iter().cloned().collect();
-    let raw_ngrams = load_ngrams(ngrams_path, &valid_set, weights.corpus_scale, debug);
+    let raw_ngrams = load_ngrams(ngrams_path, &valid_set, weights.corpus_scale, debug)?;
+
     if raw_ngrams.bigrams.is_empty() {
-        panic!("FATAL: Ngrams empty");
+        return Err("FATAL: Ngrams file resulted in 0 valid bigrams.".to_string());
     }
 
     let mut bigram_starts = vec![0; 257];
@@ -265,11 +184,13 @@ pub fn build_scorer(
     }
     trigram_starts[256] = t_offset;
 
-    let mut trigram_cost_table = vec![0.0; 27000];
-    for i in 0..30 {
-        for j in 0..30 {
-            for k in 0..30 {
-                let idx = i * 900 + j * 30 + k;
+    let table_size = key_count * key_count * key_count;
+    let mut trigram_cost_table = vec![0.0; table_size];
+
+    for i in 0..key_count {
+        for j in 0..key_count {
+            for k in 0..key_count {
+                let idx = i * (key_count * key_count) + j * key_count + k;
                 let ki = &geometry.keys[i];
                 let kj = &geometry.keys[j];
                 let kk = &geometry.keys[k];
@@ -299,15 +220,21 @@ pub fn build_scorer(
         char_tier_map[b as usize] = 1;
     }
 
-    let mut slot_tier_map = [0u8; 30];
+    let mut slot_tier_map = vec![0u8; key_count];
     for &i in &geometry.prime_slots {
-        slot_tier_map[i] = 0;
+        if i < key_count {
+            slot_tier_map[i] = 0;
+        }
     }
     for &i in &geometry.med_slots {
-        slot_tier_map[i] = 1;
+        if i < key_count {
+            slot_tier_map[i] = 1;
+        }
     }
     for &i in &geometry.low_slots {
-        slot_tier_map[i] = 2;
+        if i < key_count {
+            slot_tier_map[i] = 2;
+        }
     }
 
     let mut critical_mask = [false; 256];
@@ -317,21 +244,32 @@ pub fn build_scorer(
     }
 
     let finger_scales = weights.get_finger_penalty_scale();
-    let mut slot_monogram_costs = [0.0; 30];
 
-    // FIX: Use iterator for monogram costs (needless_range_loop)
+    let mut slot_monogram_costs = vec![0.0; key_count];
     for (i, cost) in slot_monogram_costs.iter_mut().enumerate() {
         let ki = &geometry.keys[i];
         let effort_cost = finger_scales[ki.finger as usize] * weights.weight_finger_effort;
-        let reach_cost = get_reach_cost(&geometry, i, weights.weight_geo_dist);
-        *cost = reach_cost + effort_cost;
+        let reach_cost = get_reach_cost(
+            &geometry,
+            i,
+            weights.weight_lateral_travel,
+            weights.weight_vertical_travel,
+        );
+        let stretch_cost = if ki.is_stretch {
+            weights.penalty_monogram_stretch
+        } else {
+            0.0
+        };
+
+        *cost = reach_cost + effort_cost + stretch_cost;
     }
 
     if debug {
         println!(" ✅ Scorer Initialized.\n");
     }
 
-    Scorer {
+    Ok(Scorer {
+        key_count,
         weights,
         defs,
         geometry,
@@ -352,5 +290,5 @@ pub fn build_scorer(
         freq_matrix,
         finger_scales,
         slot_monogram_costs,
-    }
+    })
 }

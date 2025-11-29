@@ -1,3 +1,5 @@
+// ===== keyforge/tests/cli_tests.rs =====
+use regex::Regex;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -8,6 +10,8 @@ struct TestContext {
     _dir: TempDir,
     cost_path: PathBuf,
     ngram_path: PathBuf,
+    keyboard_path: PathBuf,
+    weights_path: PathBuf, // NEW
 }
 
 impl TestContext {
@@ -15,40 +19,29 @@ impl TestContext {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let cost_path = dir.path().join("test_cost.csv");
         let ngram_path = dir.path().join("test_ngrams.tsv");
+        let keyboard_path = dir.path().join("test_keyboard.json");
+        let weights_path = dir.path().join("test_weights.json"); // NEW
 
-        // Cost Matrix
+        // 1. Cost Matrix
         let mut cost_file = File::create(&cost_path).unwrap();
         writeln!(cost_file, "From,To,Cost").unwrap();
-
-        // FIX: Explicitly set high cost for ALL keys involved in our test n-grams
-        // to ensure the total score remains positive despite large flow bonuses.
         let keys = ["KeyQ", "KeyW", "KeyE", "KeyA", "KeyS", "KeyD"];
-
         for k1 in keys {
             for k2 in keys {
-                // Set a massive base cost so (Cost - Bonus) is always positive
                 writeln!(cost_file, "{},{},1000.0", k1, k2).unwrap();
             }
         }
-
-        // Filler to ensure >10 keys are loaded (required by loader logic)
         let filler = ["KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO", "KeyP"];
         for k in filler {
             writeln!(cost_file, "KeyA,{},1000.0", k).unwrap();
         }
 
-        // N-Grams
+        // 2. N-Grams
         let mut ngram_file = File::create(&ngram_path).unwrap();
-
-        // SFB (q=Pinky, a=Pinky) -> SFB
         writeln!(ngram_file, "qa\t1000").unwrap();
         writeln!(ngram_file, "we\t1000").unwrap();
-
-        // Flow (Triggers Bonuses)
-        writeln!(ngram_file, "asd\t1000").unwrap(); // Inward Roll
-        writeln!(ngram_file, "sad\t1000").unwrap(); // Redirect
-
-        // Monograms (Required for valid loading)
+        writeln!(ngram_file, "asd\t1000").unwrap();
+        writeln!(ngram_file, "sad\t1000").unwrap();
         writeln!(ngram_file, "a\t1000").unwrap();
         writeln!(ngram_file, "s\t1000").unwrap();
         writeln!(ngram_file, "d\t1000").unwrap();
@@ -56,20 +49,72 @@ impl TestContext {
         writeln!(ngram_file, "w\t100").unwrap();
         writeln!(ngram_file, "e\t1000").unwrap();
 
+        // 3. Keyboard Definition
+        let mut kb_file = File::create(&keyboard_path).unwrap();
+        let mut keys_json = Vec::new();
+        for r in 0..3 {
+            for c in 0..10 {
+                keys_json.push(format!(
+                    r#"{{"hand": {}, "finger": 1, "row": {}, "col": {}, "x": {}, "y": {}}}"#,
+                    if c < 5 { 0 } else { 1 },
+                    r,
+                    c,
+                    c as f32,
+                    r as f32
+                ));
+            }
+        }
+        let json = format!(
+            r#"{{
+                "meta": {{ "name": "TestKB", "author": "Test", "version": "1.0" }},
+                "geometry": {{
+                    "keys": [{}],
+                    "prime_slots": [], "med_slots": [], "low_slots": [],
+                    "home_row": 1
+                }},
+                "layouts": {{
+                    "qwerty": "QWERTYUIOPASDFGHJKL;ZXCVBNM,./"
+                }}
+            }}"#,
+            keys_json.join(",")
+        );
+        writeln!(kb_file, "{}", json).unwrap();
+
+        // 4. Custom Weights File (Exaggerated values to prove it loads)
+        let mut w_file = File::create(&weights_path).unwrap();
+        writeln!(
+            w_file,
+            r#"{{
+            "penalty_sfb_base": 10000.0, 
+            "penalty_scissor": 5000.0,
+            "finger_penalty_scale": "1.0,1.0,1.0,1.0,1.0"
+        }}"#
+        )
+        .unwrap();
+
         Self {
             _dir: dir,
             cost_path,
             ngram_path,
+            keyboard_path,
+            weights_path,
         }
     }
 }
 
+// ... [TestResult and strip_ansi remain the same] ...
 struct TestResult {
     total: f32,
     flow_cost: f32,
     stdout: String,
 }
 
+fn strip_ansi(s: &str) -> String {
+    let re = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+    re.replace_all(s, "").to_string()
+}
+
+// ... [run_validate remains the same] ...
 fn run_validate(ctx: &TestContext, args: &[&str]) -> TestResult {
     let mut final_args = vec![
         "validate",
@@ -80,6 +125,8 @@ fn run_validate(ctx: &TestContext, args: &[&str]) -> TestResult {
         ctx.cost_path.to_str().unwrap(),
         "--ngrams",
         ctx.ngram_path.to_str().unwrap(),
+        "--keyboard",
+        ctx.keyboard_path.to_str().unwrap(),
     ];
 
     if !args.contains(&"--corpus-scale") {
@@ -95,43 +142,45 @@ fn run_validate(ctx: &TestContext, args: &[&str]) -> TestResult {
         .expect("Failed to execute binary");
 
     if !output.status.success() {
-        eprintln!(
-            "Binary STDERR:\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        panic!("Binary failed with status: {}", output.status);
+        eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+        panic!("Binary failed");
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
     let mut total = 0.0;
     let mut flow_cost = 0.0;
-
-    // PARSING LOGIC
     let mut in_scoring_table = false;
 
     for line in stdout.lines() {
-        if line.contains("SCORING REPORT") {
+        let clean_line = strip_ansi(line);
+
+        if clean_line.contains("Layout") && clean_line.contains("Total") {
             in_scoring_table = true;
             continue;
         }
-        if line.contains("STATISTICAL ANALYSIS") {
-            in_scoring_table = false;
-            continue;
-        }
 
-        if in_scoring_table && line.contains("qwerty") {
-            let parts: Vec<&str> = line.split('|').collect();
-
-            // 1: Total
-            if parts.len() > 1 {
-                total = parts[1].trim().parse().unwrap_or(0.0);
+        if in_scoring_table {
+            if clean_line.trim().is_empty()
+                || clean_line.contains("Layout Comparison")
+                || clean_line.contains("Bas")
+            {
+                in_scoring_table = false;
+                continue;
             }
 
-            // Last column: Flow Cost / NetCost
-            if let Some(last_section) = parts.last() {
-                // FIX: Removed .trim() before .split_whitespace() (clippy::trim_split_whitespace)
-                if let Some(cost_str) = last_section.split_whitespace().last() {
-                    flow_cost = cost_str.parse().unwrap_or(0.0);
+            if clean_line.to_lowercase().contains("qwerty") {
+                let parts: Vec<&str> = clean_line.split('|').collect();
+                if parts.len() > 3 {
+                    if let Ok(val) = parts[2].trim().replace(',', "").parse() {
+                        total = val;
+                    }
+                    if let Some(last_col) = parts.iter().rev().find(|s| !s.trim().is_empty()) {
+                        if let Ok(val) = last_col.trim().replace(',', "").parse() {
+                            flow_cost = val;
+                        }
+                    }
+                    break;
                 }
             }
         }
@@ -144,7 +193,6 @@ fn run_validate(ctx: &TestContext, args: &[&str]) -> TestResult {
     }
 }
 
-// Constant for disabling all bonuses to ensure positive, scalable scores
 const NO_BONUS_ARGS: &[&str] = &[
     "--bonus-inward-roll",
     "0.0",
@@ -154,6 +202,8 @@ const NO_BONUS_ARGS: &[&str] = &[
     "0.0",
 ];
 
+// ... [Existing tests test_cli_search_execution, test_cli_flow_metrics, etc. remain the same] ...
+
 #[test]
 fn test_cli_search_execution() {
     let _ = Command::new("cargo")
@@ -162,15 +212,15 @@ fn test_cli_search_execution() {
         .status()
         .unwrap();
     let ctx = TestContext::new();
-
     let output = Command::new("./target/release/keyforge")
         .args([
-            // FIX: Removed '&' borrow (clippy::needless_borrows_for_generic_args)
             "search",
             "--cost",
             ctx.cost_path.to_str().unwrap(),
             "--ngrams",
             ctx.ngram_path.to_str().unwrap(),
+            "--keyboard",
+            ctx.keyboard_path.to_str().unwrap(),
             "--corpus-scale",
             "1.0",
             "--search-epochs",
@@ -181,8 +231,7 @@ fn test_cli_search_execution() {
             "1",
         ])
         .output()
-        .expect("Failed to execute binary");
-
+        .expect("Failed");
     assert!(output.status.success());
 }
 
@@ -194,13 +243,15 @@ fn test_cli_flow_metrics() {
         .status()
         .unwrap();
     let ctx = TestContext::new();
-    // For this test, we WANT bonuses to verify they trigger
     let res = run_validate(&ctx, &[]);
-
-    // Flow cost should be non-zero (likely negative due to bonuses)
+    if res.total == 0.0 {
+        panic!("Parsing Failed. Total is 0.0\nSTDOUT:\n{}", res.stdout);
+    }
     if res.flow_cost == 0.0 {
-        println!("STDOUT:\n{}", res.stdout);
-        panic!("Flow Logic Failure: Flow Cost is 0.0");
+        panic!(
+            "Flow Logic Failure: Flow Cost is 0.0\nSTDOUT:\n{}",
+            res.stdout
+        );
     }
 }
 
@@ -212,24 +263,20 @@ fn test_cli_biomechanical_penalties() {
         .status()
         .unwrap();
     let ctx = TestContext::new();
-
-    // Base run with NO BONUSES
     let res_base = run_validate(&ctx, NO_BONUS_ARGS);
-
     if res_base.total <= 0.0 {
-        println!("STDOUT:\n{}", res_base.stdout);
-        panic!("Base total was {} (Expected > 0)", res_base.total);
+        panic!("Base total <= 0");
     }
 
-    // Increase SFB penalty massively
     let mut sfb_args = vec!["--penalty-sfb-base", "5000.0"];
     sfb_args.extend_from_slice(NO_BONUS_ARGS);
-
     let res_sfb = run_validate(&ctx, &sfb_args);
 
     if res_sfb.total <= res_base.total * 1.1 {
-        println!("Base: {}, SFB: {}", res_base.total, res_sfb.total);
-        panic!("SFB Penalty failed to apply significantly");
+        panic!(
+            "SFB Penalty failed. Base: {}, SFB: {}",
+            res_base.total, res_sfb.total
+        );
     }
 }
 
@@ -241,13 +288,9 @@ fn test_sanity_check_ranking() {
         .status()
         .unwrap();
     let ctx = TestContext::new();
-
-    // Disable bonuses
     let res = run_validate(&ctx, NO_BONUS_ARGS);
-
     if res.total <= 0.0 {
-        println!("STDOUT:\n{}", res.stdout);
-        panic!("Total score should be positive, got {}", res.total);
+        panic!("Total score <= 0");
     }
 }
 
@@ -259,20 +302,52 @@ fn test_cli_corpus_scaling() {
         .status()
         .unwrap();
     let ctx = TestContext::new();
-
-    // Scale 1000.0 -> Low Score
     let mut args_small = vec!["--corpus-scale", "1000.0"];
     args_small.extend_from_slice(NO_BONUS_ARGS);
     let res_small = run_validate(&ctx, &args_small);
-
-    // Scale 1.0 -> High Score
     let mut args_big = vec!["--corpus-scale", "1.0"];
     args_big.extend_from_slice(NO_BONUS_ARGS);
     let res_big = run_validate(&ctx, &args_big);
 
     if res_big.total <= res_small.total * 10.0 {
-        println!("Small: {}", res_small.total);
-        println!("Big: {}", res_big.total);
-        panic!("Corpus scaling failed");
+        panic!(
+            "Corpus scaling failed. Small: {}, Big: {}",
+            res_small.total, res_big.total
+        );
     }
+}
+
+// NEW TEST CASE
+#[test]
+fn test_cli_custom_weights_file() {
+    let _ = Command::new("cargo")
+        .arg("build")
+        .arg("--release")
+        .status()
+        .unwrap();
+    let ctx = TestContext::new();
+
+    // 1. Run with default weights
+    let res_default = run_validate(&ctx, NO_BONUS_ARGS);
+
+    // 2. Run with custom weights file (which has massive penalties)
+    let weights_arg = ctx.weights_path.to_str().unwrap();
+    let mut args = vec!["--weights", weights_arg];
+    args.extend_from_slice(NO_BONUS_ARGS);
+
+    let res_custom = run_validate(&ctx, &args);
+
+    println!(
+        "Default: {}, Custom: {}",
+        res_default.total, res_custom.total
+    );
+
+    // The custom weights file sets penalty_sfb_base to 10000.0 (default 400.0)
+    // So the custom score should be MUCH higher.
+    assert!(
+        res_custom.total > res_default.total * 2.0,
+        "Custom weights file did not significantly increase score. Default: {}, Custom: {}",
+        res_default.total,
+        res_custom.total
+    );
 }

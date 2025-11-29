@@ -1,147 +1,209 @@
-use keyforge::scorer::ScoreDetails;
+use comfy_table::presets::ASCII_FULL;
+use comfy_table::{Attribute, Cell, CellAlignment, Color, ContentArrangement, Table};
 use keyforge::config::ScoringWeights;
+use keyforge::scorer::ScoreDetails;
 
-// Helper to convert string to bytes for visualization
-pub fn string_to_bytes(s: &str) -> [u8; 30] {
-    let mut b = [32u8; 30]; // Default to space
-    for (i, c) in s.bytes().take(30).enumerate() {
-        b[i] = c;
-    }
-    b
-}
+// Helper to convert layout name/str into displayable format is removed here
+// as we rely on passing byte slices now.
 
-pub fn print_layout_grid(name: &str, bytes: &[u8; 30]) {
+pub fn print_layout_grid(name: &str, bytes: &[u8]) {
     println!("\nLayout: {}", name);
-    if bytes.len() < 30 {
-        println!("(Invalid layout length)");
-        return;
-    }
-    
-    let rows = [
-        &bytes[0..10],  // Top
-        &bytes[10..20], // Home
-        &bytes[20..30], // Bottom
-    ];
+    let mut table = Table::new();
+    table.load_preset(ASCII_FULL);
 
-    for row in rows {
-        print!("  ");
-        for &b in row {
-            print!("{} ", b as char);
-        }
-        println!();
+    // Simple visual grid logic: try to break into rows of 10
+    // If it's a 30 key layout, 10x3. If 42, 10-ish?
+    // Ideally this adapts to the geometry rows, but we only have raw bytes here.
+    // Defaulting to 10 columns for visualization.
+    let cols = 10;
+
+    for chunk in bytes.chunks(cols) {
+        let cells: Vec<Cell> = chunk
+            .iter()
+            .map(|&b| {
+                // If 0, print empty, else print char
+                let s = if b == 0 {
+                    " ".to_string()
+                } else {
+                    (b as char).to_string()
+                };
+                Cell::new(s).set_alignment(CellAlignment::Center)
+            })
+            .collect();
+        table.add_row(cells);
     }
+    println!("{}", table);
 }
 
 pub fn print_scoring_report(results: &[(String, ScoreDetails)]) {
-    println!("\n📊 === SCORING REPORT (Optimization Target) === 📊");
-    println!(
-        "{:<14} | {:>10} | {:>8} | {:>8} | {:^48} | {:^18} | {:^35}",
-        "Layout", "TOTAL", "Travel", "Effort", "--- SFB COST ---", "--- MECH COST ---", "--- FLOW COST ---"
-    );
-    println!(
-        "{:<14} | {:>10} | {:>8} | {:>8} | {:>7} {:>7} {:>7} {:>7} {:>7} {:>7} | {:>5} {:>5} {:>5} | {:>7} {:>7} {:>7} {:>9}",
-        "", "Score", "Dist", "Fing", "Base", "Lat", "WkL", "Diag", "Lng", "Bot", "SFR", "Lat", "Scis", "Redir", "Skip", "Roll", "Net"
-    );
-    println!("{:-<190}", "");
+    let mut table = Table::new();
+    table
+        .load_preset(ASCII_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic);
+
+    table.add_row(vec![
+        Cell::new("Layout").add_attribute(Attribute::Bold),
+        Cell::new("Total").fg(Color::Cyan),
+        Cell::new("Travel"),
+        Cell::new("Fing"),
+        Cell::new("Strch"),
+        Cell::new("Tier"),
+        Cell::new("Imbal"),
+        Cell::new("SFR").fg(Color::Red),
+        Cell::new("SFB").fg(Color::Red),
+        Cell::new("Lat"),
+        Cell::new("Scis"),
+        Cell::new("Run"),
+        Cell::new("Redir"),
+        Cell::new("Skip"),
+        Cell::new("Roll").fg(Color::Green),
+        Cell::new("Net").add_attribute(Attribute::Bold),
+    ]);
+
+    for i in 1..=15 {
+        if let Some(col) = table.column_mut(i) {
+            col.set_cell_alignment(CellAlignment::Right);
+        }
+    }
 
     for (name, d) in results {
-        let roll_cost = d.flow_roll_in + d.flow_roll_out + d.flow_roll_tri;
-        println!(
-            "{:<14} | {:>10.0} | {:>8.0} | {:>8.0} | {:>7.0} {:>7.0} {:>7.0} {:>7.0} {:>7.0} {:>7.0} | {:>5.0} {:>5.0} {:>5.0} | {:>7.0} {:>7.0} {:>7.0} {:>9.0}",
-            name, d.layout_score, d.geo_dist, d.finger_use,
-            d.mech_sfb, d.mech_sfb_lat, d.mech_sfb_lat_weak, d.mech_sfb_diag, d.mech_sfb_long, d.mech_sfb_bot,
-            d.mech_sfr, d.mech_lat, d.mech_scis,
-            d.flow_redirect, d.flow_skip, roll_cost, d.flow_cost
-        );
+        let roll_bonus_total = d.flow_roll_in + d.flow_roll_out + d.flow_roll_tri;
+        let implied_run_cost = d.flow_cost - d.flow_redirect - d.flow_skip + roll_bonus_total;
+        let total_sfb_cost = d.mech_sfb
+            + d.mech_sfb_lat
+            + d.mech_sfb_lat_weak
+            + d.mech_sfb_diag
+            + d.mech_sfb_long
+            + d.mech_sfb_bot;
+
+        table.add_row(vec![
+            Cell::new(name).add_attribute(Attribute::Bold),
+            Cell::new(format!("{:.0}", d.layout_score)).fg(Color::Cyan),
+            Cell::new(format!("{:.0}", d.geo_dist)),
+            Cell::new(format!("{:.0}", d.finger_use)),
+            Cell::new(format!("{:.0}", d.mech_mono_stretch)),
+            Cell::new(format!("{:.0}", d.tier_penalty)),
+            Cell::new(format!("{:.0}", d.imbalance_penalty)),
+            Cell::new(format!("{:.0}", d.mech_sfr)).fg(Color::Red),
+            Cell::new(format!("{:.0}", total_sfb_cost)).fg(Color::Red),
+            Cell::new(format!("{:.0}", d.mech_lat)),
+            Cell::new(format!("{:.0}", d.mech_scis)),
+            Cell::new(format!("{:.0}", implied_run_cost)),
+            Cell::new(format!("{:.0}", d.flow_redirect)),
+            Cell::new(format!("{:.0}", d.flow_skip)),
+            Cell::new(format!("{:.0}", roll_bonus_total)).fg(Color::Green),
+            Cell::new(format!("{:.0}", d.flow_cost)).add_attribute(Attribute::Bold),
+        ]);
     }
+    println!("\n{}", table);
 }
 
 pub fn print_statistical_report(results: &[(String, ScoreDetails)], w: &ScoringWeights) {
-    println!("\n📈 === STATISTICAL ANALYSIS (Frequency %) === 📈");
-    println!(
-        "{:<14} | {:^53} | {:^26} | {:^39}",
-        "Layout", "--- SFB BREAKDOWN (Weight) ---", "--- MECHANICS ---", "--- FLOW (IN / OUT) ---"
-    );
-    
-    // Header Row
-    println!(
-        "{:<14} | {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} | {:<8} {:<8} {:<8} | {:<8} {:<8} {:<6} {:<6} {:<6} {:<6} {:<6}",
-        "", 
-        format!("Bas({:.0})", w.penalty_sfb_base),
-        format!("Lat({:.0})", w.penalty_sfb_lateral),
-        format!("WkL({:.0})", w.penalty_sfb_lateral_weak),
-        format!("Dia({:.0})", w.penalty_sfb_diagonal),
-        format!("Lng({:.0})", w.penalty_sfb_long),
-        format!("Bot({:.0})", w.penalty_sfb_bottom),
-        "SFR", 
-        format!("Lat({:.0})", w.penalty_lateral),
-        format!("Sci({:.0})", w.penalty_scissor),
-        format!("Red({:.0})", w.penalty_redirect),
-        format!("Skp({:.0})", w.penalty_skip),
-        format!("R2I({:.0})", w.bonus_bigram_roll_in),
-        format!("R2O({:.0})", w.bonus_bigram_roll_out),
-        format!("R3I({:.0})", w.bonus_inward_roll),
-        "R3O",
-        "Pinky"
-    );
-    println!("{:-<190}", "");
+    let mut table = Table::new();
+    table
+        .load_preset(ASCII_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic);
+
+    table.add_row(vec![
+        Cell::new("Layout").add_attribute(Attribute::Bold),
+        // SFB
+        Cell::new(format!("Bas\n{:.0}", w.penalty_sfb_base)),
+        Cell::new(format!("Lat\n{:.0}", w.penalty_sfb_lateral)),
+        Cell::new(format!("WkL\n{:.0}", w.penalty_sfb_lateral_weak)),
+        Cell::new(format!("Dia\n{:.0}", w.penalty_sfb_diagonal)),
+        Cell::new(format!("Lng\n{:.0}", w.penalty_sfb_long)),
+        Cell::new(format!("Bot\n{:.0}", w.penalty_sfb_bottom)),
+        // Mechanics
+        Cell::new("SFR"),
+        Cell::new(format!("Str\n{:.0}", w.penalty_monogram_stretch)),
+        Cell::new("LSB"),
+        Cell::new("Lat"),
+        Cell::new("Sci"),
+        // Flow
+        Cell::new(format!("Red\n{:.0}", w.penalty_redirect)),
+        Cell::new(format!("Skp\n{:.0}", w.penalty_skip)),
+        Cell::new(format!("R2I\n{:.0}", w.bonus_bigram_roll_in)),
+        Cell::new(format!("R2O\n{:.0}", w.bonus_bigram_roll_out)),
+        Cell::new(format!("R3I\n{:.0}", w.bonus_inward_roll)),
+        Cell::new("R3O"),
+        Cell::new("Pnk"),
+    ]);
+
+    for i in 1..=18 {
+        if let Some(col) = table.column_mut(i) {
+            col.set_cell_alignment(CellAlignment::Right);
+        }
+    }
 
     for (name, d) in results {
-        let t_bi = if d.total_bigrams > 0.0 { d.total_bigrams } else { 1.0 };
-        let t_tri = if d.total_trigrams > 0.0 { d.total_trigrams } else { 1.0 };
-        let t_char = if d.total_chars > 0.0 { d.total_chars } else { 1.0 };
+        let t_bi = if d.total_bigrams > 0.0 {
+            d.total_bigrams
+        } else {
+            1.0
+        };
+        let t_tri = if d.total_trigrams > 0.0 {
+            d.total_trigrams
+        } else {
+            1.0
+        };
+        let t_char = if d.total_chars > 0.0 {
+            d.total_chars
+        } else {
+            1.0
+        };
 
-        println!(
-            "{:<14} | {:<8.2} {:<8.2} {:<8.2} {:<8.2} {:<8.2} {:<8.2} | {:<8.2} {:<8.2} {:<8.2} | {:<8.2} {:<8.2} {:<6.2} {:<6.2} {:<6.2} {:<6.2} {:<6.2}",
-            name, 
-            (d.stat_sfb_base / t_bi) * 100.0, (d.stat_sfb_lat / t_bi) * 100.0, (d.stat_sfb_lat_weak / t_bi) * 100.0,
-            (d.stat_sfb_diag / t_bi) * 100.0, (d.stat_sfb_long / t_bi) * 100.0, (d.stat_sfb_bot / t_bi) * 100.0,
-            (d.stat_sfr / t_bi) * 100.0, (d.stat_lat / t_bi) * 100.0, (d.stat_scis / t_bi) * 100.0,
-            (d.stat_redir / t_tri) * 100.0, (d.stat_skip / t_tri) * 100.0, 
-            (d.stat_roll_in / t_bi) * 100.0, (d.stat_roll_out / t_bi) * 100.0, 
-            (d.stat_roll3_in / t_tri) * 100.0, (d.stat_roll3_out / t_tri) * 100.0,
-            (d.stat_pinky_reach / t_char) * 100.0
-        );
+        table.add_row(vec![
+            Cell::new(name).add_attribute(Attribute::Bold),
+            Cell::new(format!("{:.2}", (d.stat_sfb_base / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_sfb_lat / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_sfb_lat_weak / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_sfb_diag / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_sfb_long / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_sfb_bot / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_sfr / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_mono_stretch / t_char) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_lsb / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_lat / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_scis / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_redir / t_tri) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_skip / t_tri) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_roll_in / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_roll_out / t_bi) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_roll3_in / t_tri) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_roll3_out / t_tri) * 100.0)),
+            Cell::new(format!("{:.2}", (d.stat_pinky_reach / t_char) * 100.0)),
+        ]);
     }
-    println!("{:-<190}", "");
+    println!("\n{}", table);
 }
 
 pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
-    use std::collections::HashMap;
-    
-    struct RefStats { sfb: f32, lsb: f32, scis: f32, roll: f32, redir: f32, pinky: f32 }
-    let mut ref_stats = HashMap::new();
-    ref_stats.insert("qwerty".to_string(), RefStats { sfb: 4.38, lsb: 4.55, scis: 1.46, roll: 40.76, redir: 6.22, pinky: 2.47 });
-    ref_stats.insert("dvorak".to_string(), RefStats { sfb: 1.87, lsb: 0.80, scis: 0.08, roll: 39.20, redir: 1.55, pinky: 4.13 });
-    ref_stats.insert("colemak".to_string(), RefStats { sfb: 1.70, lsb: 2.26, scis: 0.26, roll: 49.20, redir: 5.33, pinky: 0.78 });
-    ref_stats.insert("colemak_dh".to_string(), RefStats { sfb: 0.91, lsb: 1.27, scis: 0.15, roll: 49.20, redir: 5.33, pinky: 0.78 });
-    ref_stats.insert("workman".to_string(), RefStats { sfb: 1.97, lsb: 1.11, scis: 0.47, roll: 47.40, redir: 6.05, pinky: 0.78 });
-    ref_stats.insert("engram".to_string(), RefStats { sfb: 1.01, lsb: 0.41, scis: 0.36, roll: 44.32, redir: 2.27, pinky: 5.71 });
-    ref_stats.insert("canary".to_string(), RefStats { sfb: 0.66, lsb: 1.75, scis: 0.42, roll: 50.36, redir: 3.39, pinky: 2.96 });
-    ref_stats.insert("gallium".to_string(), RefStats { sfb: 0.64, lsb: 1.00, scis: 0.95, roll: 46.07, redir: 1.87, pinky: 3.16 });
-    ref_stats.insert("graphite".to_string(), RefStats { sfb: 0.68, lsb: 0.87, scis: 0.41, roll: 46.01, redir: 1.80, pinky: 2.34 });
+    // We remove the hardcoded Reference stats here as requested by the architectural critique.
+    // In a future step, this should dynamically load reference layouts and score them.
+    // For now, we print a simple summary table to avoid compile errors.
 
-    println!("\n🧐 === REALITY CHECK (Calculated vs Reference %) === 🧐");
-    println!("{:<16} | {:^13} | {:^13} | {:^13} | {:^13} | {:^13} | {:^13}", "Layout", "SFB", "LSB", "Scissor", "Rolls", "Redir", "Pinky");
-    println!("{:<16} | {:^6} {:^6} | {:^6} {:^6} | {:^6} {:^6} | {:^6} {:^6} | {:^6} {:^6} | {:^6} {:^6}", "", "Ref", "Calc", "Ref", "Calc", "Ref", "Calc", "Ref", "Calc", "Ref", "Calc", "Ref", "Calc");
-    println!("{:-<130}", "");
+    let mut table = Table::new();
+    table.load_preset(ASCII_FULL);
+
+    table.add_row(vec![
+        Cell::new("Layout Comparison").add_attribute(Attribute::Bold),
+        Cell::new("Score"),
+        Cell::new("Diff from Best"),
+    ]);
+
+    let best_score = if !results.is_empty() {
+        results[0].1.layout_score
+    } else {
+        0.0
+    };
 
     for (name, d) in results {
-        if !ref_stats.contains_key(name) { continue; }
-        let t_bi = if d.total_bigrams > 0.0 { d.total_bigrams } else { 1.0 };
-        let t_tri = if d.total_trigrams > 0.0 { d.total_trigrams } else { 1.0 };
-        let t_char = if d.total_chars > 0.0 { d.total_chars } else { 1.0 };
-
-        let sfb = (d.stat_sfb / t_bi) * 100.0;
-        let lsb = ((d.stat_lsb + d.stat_sfb_lat + d.stat_sfb_lat_weak) / t_bi) * 100.0;
-        let scis = (d.stat_scis / t_bi) * 100.0;
-        let roll = (d.stat_roll / t_bi) * 100.0; 
-        let redir = (d.stat_redir / t_tri) * 100.0;
-        let pinky = (d.stat_pinky_reach / t_char) * 100.0;
-
-        let r = ref_stats.get(name).unwrap();
-        println!("{:<16} | {:5.2} {:5.2} | {:5.2} {:5.2} | {:5.2} {:5.2} | {:5.2} {:5.2} | {:5.2} {:5.2} | {:5.2} {:5.2}",
-            name, r.sfb, sfb, r.lsb, lsb, r.scis, scis, r.roll, roll, r.redir, redir, r.pinky, pinky);
+        let diff = d.layout_score - best_score;
+        table.add_row(vec![
+            Cell::new(name),
+            Cell::new(format!("{:.2}", d.layout_score)),
+            Cell::new(format!("{:.2}", diff)),
+        ]);
     }
-    println!("{:-<130}", "");
+    println!("\n{}", table);
 }

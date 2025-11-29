@@ -1,102 +1,110 @@
-use keyforge::geometry::KeyboardGeometry;
+// ===== keyforge/tests/physics_tests.rs =====
+use keyforge::config::ScoringWeights;
+use keyforge::geometry::{KeyNode, KeyboardGeometry};
 use keyforge::scorer::physics::{analyze_interaction, get_reach_cost};
 use rstest::rstest;
 
 // --- KEY INDEX MAPPING (Standard 30-key Grid) ---
 // Row 0 (Top)
-const Q: usize = 0; // L Pinky
-const W: usize = 1; // L Ring
-const E: usize = 2; // L Middle
-const R: usize = 3; // L Index
-const T: usize = 4; // L Index (Stretch)
+const Q: usize = 0;
+const W: usize = 1;
+const E: usize = 2;
+const R: usize = 3;
+const T: usize = 4;
 
 // Row 1 (Home)
-const A: usize = 10; // L Pinky
-const S: usize = 11; // L Ring
-const D: usize = 12; // L Middle
-const F: usize = 13; // L Index
-const G: usize = 14; // L Index (Stretch)
-const H: usize = 15; // R Index (Stretch)
+const A: usize = 10;
+const S: usize = 11;
+const D: usize = 12;
+const F: usize = 13;
+const G: usize = 14;
+const H: usize = 15;
 
 // Row 2 (Bottom)
-const Z: usize = 20; // L Pinky
-const C: usize = 22; // L Middle
-const V: usize = 23; // L Index
+const Z: usize = 20;
+const C: usize = 22;
+const V: usize = 23;
 
-fn get_geom() -> KeyboardGeometry {
-    KeyboardGeometry::standard()
+// Helper to construct a PERFECT GRID geometry for testing math
+fn get_mock_geom() -> KeyboardGeometry {
+    let mut keys = Vec::new();
+    for r in 0..3 {
+        for c in 0..10 {
+            let hand = if c < 5 { 0 } else { 1 };
+            let finger = match c {
+                0 | 9 => 4, // Pinky
+                1 | 8 => 3, // Ring
+                2 | 7 => 2, // Mid
+                3 | 6 => 1, // Index
+                4 | 5 => 1, // Index Stretch
+                _ => 1,
+            };
+            let is_stretch = c == 4 || c == 5;
+
+            // Perfect Grid Coordinates
+            let x = c as f32;
+            let y = r as f32;
+
+            keys.push(KeyNode {
+                id: format!("k_{}_{}", r, c),
+                hand,
+                finger,
+                row: r as i8,
+                col: c as i8,
+                x,
+                y,
+                is_stretch,
+            });
+        }
+    }
+
+    let mut geom = KeyboardGeometry {
+        keys,
+        prime_slots: vec![],
+        med_slots: vec![],
+        low_slots: vec![],
+        home_row: 1, // Row 1 is home
+        finger_origins: [[(0.0, 0.0); 5]; 2],
+    };
+
+    // Manually set the origins for specific testing logic
+    // Left Hand (0) Pinky (4): A is at (0, 1)
+    geom.finger_origins[0][4] = (0.0, 1.0);
+    // Left Hand (0) Index (1): F is at (3, 1)
+    geom.finger_origins[0][1] = (3.0, 1.0);
+
+    geom
 }
 
 // --- SFB TESTS ---
 #[rstest]
-#[case(Q, A, true)] // Pinky Top -> Pinky Home
-#[case(F, R, true)] // Index Home -> Index Top
-#[case(F, T, true)] // Index Home -> Index Stretch
-#[case(F, V, true)] // Index Home -> Index Bottom
-#[case(F, G, true)] // Index Home -> Index Stretch (Same Finger = SFB)
-#[case(W, E, false)] // Ring -> Middle (Different fingers)
-#[case(A, S, false)] // Pinky -> Ring
+#[case(Q, A, true)]
+#[case(F, R, true)]
+#[case(F, T, true)]
+#[case(F, V, true)]
+#[case(F, G, true)]
+#[case(W, E, false)]
+#[case(A, S, false)]
 fn test_is_sfb(#[case] k1: usize, #[case] k2: usize, #[case] expected: bool) {
-    let geom = get_geom();
-    let result = analyze_interaction(&geom, k1, k2);
-    assert_eq!(
-        result.is_sfb, expected,
-        "SFB check failed for keys {} -> {}",
-        k1, k2
-    );
-}
-
-// --- LATERAL TESTS (Non-SFB) ---
-#[rstest]
-// 1. The "Good" Neighbors (No Penalty)
-#[case(W, E, false)] // Ring -> Middle
-#[case(S, D, false)] // Ring -> Middle
-#[case(D, F, false)] // Middle -> Index
-// 2. The "Stretch" Neighbors (Lateral Penalty)
-#[case(H, G, false)] // Right Index -> Left Index (Cross hand = False)
-#[case(A, S, false)] // Pinky -> Ring (Neighbors, no stretch)
-fn test_is_lateral_standard(#[case] k1: usize, #[case] k2: usize, #[case] expected: bool) {
-    let geom = get_geom();
-    let result = analyze_interaction(&geom, k1, k2);
-    assert_eq!(
-        result.is_lateral_stretch, expected,
-        "Lateral check failed for keys {} -> {}",
-        k1, k2
-    );
-}
-
-// --- SCISSOR TESTS ---
-#[rstest]
-// 1. True Scissors
-#[case(R, C, true)] // Top Index (3) -> Bot Middle (22). Row Diff 2. Finger Diff 1.
-#[case(W, Z, true)] // Top Ring (1) -> Bot Pinky (20). Row Diff 2. Finger Diff 1.
-#[case(E, V, true)] // Top Middle -> Bot Index.
-// 2. Not Scissors
-#[case(R, D, false)] // Top -> Home (Row Diff 1)
-#[case(F, C, false)] // Home -> Bottom (Row Diff 1)
-#[case(Q, Z, false)] // Pinky -> Pinky (SFB, not Scissor)
-#[case(R, Z, false)] // Index -> Pinky (Finger diff > 1)
-fn test_is_scissor(#[case] k1: usize, #[case] k2: usize, #[case] expected: bool) {
-    let geom = get_geom();
-    let result = analyze_interaction(&geom, k1, k2);
-    assert_eq!(
-        result.is_scissor, expected,
-        "Scissor check failed for keys {} -> {}",
-        k1, k2
-    );
+    let geom = get_mock_geom();
+    let weights = ScoringWeights::default();
+    let result = analyze_interaction(&geom, k1, k2, &weights);
+    assert_eq!(result.is_sfb, expected);
 }
 
 // --- REACH COST TESTS ---
 #[rstest]
-#[case(A, 0.0)] // Home Row -> 0
-#[case(Q, 10.0)] // Top Row -> 1.0 * 10
-#[case(Z, 10.0)] // Bot Row -> 1.0 * 10
-#[case(G, 10.0)] // Home Stretch -> 1.0 * 10
-#[case(T, 14.142)] // Top Stretch -> Sqrt(2) * 10
+#[case(A, 0.0)] // Home (0,1) -> (0,1) = 0
+#[case(Q, 10.0)] // Top (0,0) -> (0,1) = dy=1. cost = 1*10 = 10
+#[case(Z, 10.0)] // Bot (0,2) -> (0,1) = dy=1. cost = 1*10 = 10
+#[case(G, 10.0)] // Stretch (4,1) -> Home (3,1) = dx=1. cost = 1*10 = 10
+#[case(T, 14.142)] // Top Stretch (4,0) -> Home (3,1). dx=1, dy=1. sqrt(2)*10
 fn test_reach_costs(#[case] k: usize, #[case] expected: f32) {
-    let geom = get_geom();
+    let geom = get_mock_geom();
     let scale = 10.0;
-    let cost = get_reach_cost(&geom, k, scale);
+
+    let cost = get_reach_cost(&geom, k, scale, scale);
+
     assert!(
         (cost - expected).abs() < 0.01,
         "Reach cost for key {} was {}, expected {}",
@@ -106,48 +114,57 @@ fn test_reach_costs(#[case] k: usize, #[case] expected: f32) {
     );
 }
 
-// --- ROLL TESTS (NEW) ---
-// Definition: Same Hand, Different Finger.
-// Inward: High Finger ID -> Low Finger ID (e.g. Pinky 4 -> Index 1)
-// Outward: Low Finger ID -> High Finger ID (e.g. Index 1 -> Pinky 4)
+// --- OTHER TESTS (Lateral, Scissor, Roll) ---
 
 #[rstest]
-// Inward Rolls
-#[case(A, S, true, false)] // Pinky(4) -> Ring(3)
-#[case(S, D, true, false)] // Ring(3) -> Middle(2)
-#[case(D, F, true, false)] // Middle(2) -> Index(1)
-#[case(A, F, true, false)] // Pinky(4) -> Index(1) (Big Inward)
+#[case(W, E, false)]
+#[case(S, D, false)]
+#[case(D, F, false)]
+#[case(H, G, false)]
+#[case(A, S, false)]
+fn test_is_lateral_standard(#[case] k1: usize, #[case] k2: usize, #[case] expected: bool) {
+    let geom = get_mock_geom();
+    let weights = ScoringWeights::default();
+    let result = analyze_interaction(&geom, k1, k2, &weights);
+    assert_eq!(result.is_lateral_stretch, expected);
+}
 
-// Outward Rolls
-#[case(F, D, false, true)] // Index(1) -> Middle(2)
-#[case(D, S, false, true)] // Middle(2) -> Ring(3)
-#[case(S, A, false, true)] // Ring(3) -> Pinky(4)
-#[case(F, A, false, true)] // Index(1) -> Pinky(4) (Big Outward)
+#[rstest]
+#[case(R, C, true)] // Index Top / Middle Bot -> Scissor
+#[case(W, Z, false)] // Ring Top / Pinky Bot -> Comfortable in default weights (34)
+#[case(E, V, false)] // Middle Top / Index Bot -> Comfortable in default weights (21)
+#[case(R, D, false)] // Not row diff >= 2
+#[case(F, C, false)] // Same finger SFB
+#[case(Q, Z, false)] // Not adjacent fingers
+#[case(R, Z, false)] // Not adjacent fingers
+fn test_is_scissor(#[case] k1: usize, #[case] k2: usize, #[case] expected: bool) {
+    let geom = get_mock_geom();
+    let weights = ScoringWeights::default(); // Uses default comfortable_scissors: "21,23,34"
+    let result = analyze_interaction(&geom, k1, k2, &weights);
+    assert_eq!(result.is_scissor, expected);
+}
 
-// Not Rolls (SFBs)
-#[case(F, R, false, false)] // Index -> Index
-#[case(Q, A, false, false)] // Pinky -> Pinky
-
-// Not Rolls (Different Hands)
-#[case(F, H, false, false)] // Left Index -> Right Index
-
+#[rstest]
+#[case(A, S, true, false)]
+#[case(S, D, true, false)]
+#[case(D, F, true, false)]
+#[case(A, F, true, false)]
+#[case(F, D, false, true)]
+#[case(D, S, false, true)]
+#[case(S, A, false, true)]
+#[case(F, A, false, true)]
+#[case(F, R, false, false)]
+#[case(Q, A, false, false)]
+#[case(F, H, false, false)]
 fn test_bigram_rolls(
     #[case] k1: usize,
     #[case] k2: usize,
     #[case] expect_in: bool,
     #[case] expect_out: bool,
 ) {
-    let geom = get_geom();
-    let result = analyze_interaction(&geom, k1, k2);
-
-    assert_eq!(
-        result.is_roll_in, expect_in,
-        "Inward roll check failed for {}->{}",
-        k1, k2
-    );
-    assert_eq!(
-        result.is_roll_out, expect_out,
-        "Outward roll check failed for {}->{}",
-        k1, k2
-    );
+    let geom = get_mock_geom();
+    let weights = ScoringWeights::default();
+    let result = analyze_interaction(&geom, k1, k2, &weights);
+    assert_eq!(result.is_roll_in, expect_in);
+    assert_eq!(result.is_roll_out, expect_out);
 }

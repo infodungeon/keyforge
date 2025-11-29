@@ -1,3 +1,5 @@
+// ===== keyforge/src/scorer/physics.rs =====
+use crate::config::ScoringWeights;
 use crate::geometry::KeyboardGeometry;
 use std::cmp::Ordering;
 
@@ -26,11 +28,17 @@ pub struct KeyInteraction {
     pub is_lat_step: bool,
     pub is_stretch_col: bool,
     pub is_bot_lat_seq: bool,
-    pub is_outward: bool, // Geometric extension (for SFBs)
+    pub is_outward: bool,
 }
 
 /// Calculates pure Euclidean distance between two keys using physical coordinates.
-pub fn get_geo_dist(geom: &KeyboardGeometry, i: usize, j: usize, scale: f32) -> f32 {
+pub fn get_geo_dist(
+    geom: &KeyboardGeometry,
+    i: usize,
+    j: usize,
+    lat_weight: f32,
+    vert_weight: f32,
+) -> f32 {
     if i == j {
         return 0.0;
     }
@@ -39,27 +47,38 @@ pub fn get_geo_dist(geom: &KeyboardGeometry, i: usize, j: usize, scale: f32) -> 
     if k1.hand != k2.hand {
         return 0.0;
     }
-    let dx = k1.x - k2.x;
-    let dy = k1.y - k2.y;
-    (dx * dx + dy * dy).sqrt() * scale
+
+    let dx = (k1.x - k2.x).abs();
+    let dy = (k1.y - k2.y).abs();
+
+    let weighted_x = dx * lat_weight;
+    let weighted_y = dy * vert_weight;
+
+    (weighted_x * weighted_x + weighted_y * weighted_y).sqrt()
 }
 
 /// Calculates distance from Home Position (Reach).
-pub fn get_reach_cost(geom: &KeyboardGeometry, i: usize, scale: f32) -> f32 {
+pub fn get_reach_cost(geom: &KeyboardGeometry, i: usize, lat_weight: f32, vert_weight: f32) -> f32 {
     let ki = &geom.keys[i];
-    // Home Row is defined as 1 in standard/ortho layouts
-    let dy = (ki.row - 1).abs() as f32;
-    let mut dx = 0.0;
 
-    if ki.finger == 1 && ki.is_stretch {
-        dx = 1.0;
-    }
+    // Get the home position for this specific hand and finger
+    let (home_x, home_y) = geom.finger_origins[ki.hand as usize][ki.finger as usize];
 
-    let dist = (dx * dx + dy * dy).sqrt();
-    dist * scale
+    let dx = (ki.x - home_x).abs();
+    let dy = (ki.y - home_y).abs();
+
+    let weighted_x = dx * lat_weight;
+    let weighted_y = dy * vert_weight;
+
+    (weighted_x * weighted_x + weighted_y * weighted_y).sqrt()
 }
 
-pub fn analyze_interaction(geom: &KeyboardGeometry, i: usize, j: usize) -> KeyInteraction {
+pub fn analyze_interaction(
+    geom: &KeyboardGeometry,
+    i: usize,
+    j: usize,
+    weights: &ScoringWeights, // NEW: Pass weights for dynamic configuration
+) -> KeyInteraction {
     let k1 = &geom.keys[i];
     let k2 = &geom.keys[j];
     let mut res = KeyInteraction::default();
@@ -73,7 +92,7 @@ pub fn analyze_interaction(geom: &KeyboardGeometry, i: usize, j: usize) -> KeyIn
 
     if i == j {
         res.is_repeat = true;
-        res.is_home_row = k1.row == 1;
+        res.is_home_row = k1.row == geom.home_row;
         res.is_stretch_col = k1.is_stretch;
         return res;
     }
@@ -86,36 +105,51 @@ pub fn analyze_interaction(geom: &KeyboardGeometry, i: usize, j: usize) -> KeyIn
         if res.row_diff == 0 && res.col_diff == 1 {
             res.is_lat_step = true;
         }
-        // Bottom Lateral Sequence (Rank 9 DV)
-        if k1.row == 2 && k2.row == 2 && res.col_diff > 0 {
+
+        // Bottom Lateral Sequence (Usually Row 2 <-> Row 2/3 Lateral)
+        if k1.row > geom.home_row && k2.row > geom.home_row && res.col_diff > 0 {
             res.is_bot_lat_seq = true;
         }
     } else {
-        // Different Fingers = Potential Roll or Scissor or Lat Stretch
-
-        // 1. Bigram Roll Detection
+        // Different Fingers
         match k1.finger.cmp(&k2.finger) {
             Ordering::Greater => res.is_roll_in = true,
             Ordering::Less => res.is_roll_out = true,
             Ordering::Equal => {}
         }
 
-        // 2. Scissor
+        // Scissor Detection
         if (k1.finger as i8 - k2.finger as i8).abs() == 1 && (k1.row - k2.row).abs() >= 2 {
             res.is_scissor = true;
+
+            // --- DYNAMIC SCISSOR EXCEPTION ---
+            let (top_finger, bot_finger) = if k1.row < k2.row {
+                (k1.finger, k2.finger)
+            } else {
+                (k2.finger, k1.finger)
+            };
+
+            let comfy_list = weights.get_comfortable_scissors();
+            for (c_top, c_bot) in comfy_list {
+                if top_finger == c_top && bot_finger == c_bot {
+                    res.is_scissor = false;
+                    break;
+                }
+            }
         }
 
-        // 3. Lateral Stretch (Non-SFB)
+        // Lateral Stretch (Non-SFB)
         if k1.row == k2.row && (k1.col - k2.col).abs() == 1 && (k1.is_stretch || k2.is_stretch) {
             res.is_lateral_stretch = true;
         }
     }
 
-    // Geometric Direction (for SFB nuances)
+    // Geometric Direction
     if k2.row < k1.row {
         res.is_outward = true;
     }
 
+    // Lateral Index Logic
     if k1.is_stretch && !k2.is_stretch {
         res.is_outward = false;
     }

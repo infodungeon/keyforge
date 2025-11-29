@@ -1,7 +1,9 @@
-use crate::reports; // This stays 'crate'
+// ===== keyforge/src/cmd/validate.rs =====
+use crate::reports;
 use clap::Args;
 use keyforge::config::Config;
-use keyforge::layouts::get_all_layouts;
+use keyforge::geometry::KeyboardDefinition;
+use keyforge::layouts::layout_string_to_bytes;
 use keyforge::optimizer::mutation;
 use keyforge::scorer::Scorer;
 use std::sync::Arc;
@@ -15,31 +17,41 @@ pub struct ValidateArgs {
     pub layout: Option<String>,
 }
 
-pub fn run(args: ValidateArgs, scorer: Arc<Scorer>) {
-    let layouts = get_all_layouts();
+pub fn run(args: ValidateArgs, kb_def: &KeyboardDefinition, scorer: Arc<Scorer>) {
     let mut results = Vec::new();
     let eval_limit = args.config.search.opt_limit_slow;
+    let key_count = kb_def.geometry.keys.len();
 
-    println!("\n🔎 === LAYOUT AUDIT === 🔎");
-    for (layout_enum, layout_bytes) in &layouts {
-        let name = layout_enum.to_string();
+    let mut sorted_names: Vec<_> = kb_def.layouts.keys().collect();
+    sorted_names.sort();
+
+    println!("\n🔎 === LAYOUT AUDIT: {} === 🔎", kb_def.meta.name);
+
+    for name in sorted_names {
         if let Some(ref filter) = args.layout {
             if !name.to_lowercase().contains(&filter.to_lowercase()) {
                 continue;
             }
         }
 
-        reports::print_layout_grid(&name, layout_bytes);
+        let layout_str = kb_def.layouts.get(name).unwrap();
+        // Dynamic conversion
+        let layout_bytes = layout_string_to_bytes(layout_str, key_count);
 
-        let pos_map = mutation::build_pos_map(layout_bytes);
+        reports::print_layout_grid(name, &layout_bytes);
+
+        let pos_map = mutation::build_pos_map(&layout_bytes);
         let details = scorer.score_debug(&pos_map, eval_limit);
-        results.push((name, details));
+        results.push((name.clone(), details));
     }
 
-    // Sort by Layout Score
+    if results.is_empty() {
+        println!("No layouts found matching criteria.");
+        return;
+    }
+
     results.sort_by(|a, b| a.1.layout_score.partial_cmp(&b.1.layout_score).unwrap());
 
-    // Generate Reports
     reports::print_scoring_report(&results);
     reports::print_statistical_report(&results, &scorer.weights);
     reports::print_comparison_report(&results);

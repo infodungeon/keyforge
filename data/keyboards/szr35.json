@@ -1,0 +1,424 @@
+{
+  "meta": {
+    "name": "SZR35",
+    "author": "Robert Fontaine",
+    "version": "1.0",
+    "notes": "36-key columnar layout (30 alphas + 6 thumbs)",
+    "type": "column_staggered"
+  },
+  "geometry": {
+    "keys": [
+      {
+        "id": "keyq",
+        "hand": 0,
+        "finger": 4,
+        "row": 0,
+        "col": 0,
+        "x": 0.0,
+        "y": 0.50,
+        "is_stretch": false
+      },
+      {
+        "id": "keyw",
+        "hand": 0,
+        "finger": 3,
+        "row": 0,
+        "col": 1,
+        "x": 1.0,
+        "y": 0.25,
+        "is_stretch": false
+      },
+      {
+        "id": "keye",
+        "hand": 0,
+        "finger": 2,
+        "row": 0,
+        "col": 2,
+        "x": 2.0,
+        "y": 0.00,
+        "is_stretch": false
+      },
+      {
+        "id": "keyr",
+        "hand": 0,
+        "finger": 1,
+        "row": 0,
+        "col": 3,
+        "x": 3.0,
+        "y": 0.15,
+        "is_stretch": false
+      },
+      {
+        "id": "keyt",
+        "hand": 0,
+        "finger": 1,
+        "row": 0,
+        "col": 4,
+        "x": 4.0,
+        "y": 0.30,
+        "is_stretch": true
+      },
+      {
+        "id": "keyy",
+        "hand": 1,
+        "finger": 1,
+        "row": 0,
+        "col": 5,
+        "x": 8.0,
+        "y": 0.30,
+        "is_stretch": true
+      },
+      {
+        "id": "keyu",
+        "hand": 1,
+        "finger": 1,
+        "row": 0,
+        "col": 6,
+        "x": 9.0,
+        "y": 0.15,
+        "is_stretch": false
+      },
+      {
+        "id": "keyi",
+        "hand": 1,
+        "finger": 2,
+        "row": 0,
+        "col": 7,
+        "x": 10.0,
+        "y": 0.00,
+        "is_stretch": false
+      },
+      {
+        "id": "keyo",
+        "hand": 1,
+        "finger": 3,
+        "row": 0,
+        "col": 8,
+        "x": 11.0,
+        "y": 0.25,
+        "is_stretch": false
+      },
+      {
+        "id": "keyp",
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 9,
+        "x": 12.0,
+        "y": 0.50,
+        "is_stretch": false
+      },
+      {
+        "id": "keya",
+        "hand": 0,
+        "finger": 4,
+        "row": 1,
+        "col": 0,
+        "x": 0.0,
+        "y": 1.50,
+        "is_stretch": false
+      },
+      {
+        "id": "keys",
+        "hand": 0,
+        "finger": 3,
+        "row": 1,
+        "col": 1,
+        "x": 1.0,
+        "y": 1.25,
+        "is_stretch": false
+      },
+      {
+        "id": "keyd",
+        "hand": 0,
+        "finger": 2,
+        "row": 1,
+        "col": 2,
+        "x": 2.0,
+        "y": 1.00,
+        "is_stretch": false
+      },
+      {
+        "id": "keyf",
+        "hand": 0,
+        "finger": 1,
+        "row": 1,
+        "col": 3,
+        "x": 3.0,
+        "y": 1.15,
+        "is_stretch": false
+      },
+      {
+        "id": "keyg",
+        "hand": 0,
+        "finger": 1,
+        "row": 1,
+        "col": 4,
+        "x": 4.0,
+        "y": 1.30,
+        "is_stretch": true
+      },
+      {
+        "id": "keyh",
+        "hand": 1,
+        "finger": 1,
+        "row": 1,
+        "col": 5,
+        "x": 8.0,
+        "y": 1.30,
+        "is_stretch": true
+      },
+      {
+        "id": "keyj",
+        "hand": 1,
+        "finger": 1,
+        "row": 1,
+        "col": 6,
+        "x": 9.0,
+        "y": 1.15,
+        "is_stretch": false
+      },
+      {
+        "id": "keyk",
+        "hand": 1,
+        "finger": 2,
+        "row": 1,
+        "col": 7,
+        "x": 10.0,
+        "y": 1.00,
+        "is_stretch": false
+      },
+      {
+        "id": "keyl",
+        "hand": 1,
+        "finger": 3,
+        "row": 1,
+        "col": 8,
+        "x": 11.0,
+        "y": 1.25,
+        "is_stretch": false
+      },
+      {
+        "id": "semicolon",
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 9,
+        "x": 12.0,
+        "y": 1.50,
+        "is_stretch": false
+      },
+      {
+        "id": "keyz",
+        "hand": 0,
+        "finger": 4,
+        "row": 2,
+        "col": 0,
+        "x": 0.0,
+        "y": 2.50,
+        "is_stretch": false
+      },
+      {
+        "id": "keyx",
+        "hand": 0,
+        "finger": 3,
+        "row": 2,
+        "col": 1,
+        "x": 1.0,
+        "y": 2.25,
+        "is_stretch": false
+      },
+      {
+        "id": "keyc",
+        "hand": 0,
+        "finger": 2,
+        "row": 2,
+        "col": 2,
+        "x": 2.0,
+        "y": 2.00,
+        "is_stretch": false
+      },
+      {
+        "id": "keyv",
+        "hand": 0,
+        "finger": 1,
+        "row": 2,
+        "col": 3,
+        "x": 3.0,
+        "y": 2.15,
+        "is_stretch": false
+      },
+      {
+        "id": "keyb",
+        "hand": 0,
+        "finger": 1,
+        "row": 2,
+        "col": 4,
+        "x": 4.0,
+        "y": 2.30,
+        "is_stretch": true
+      },
+      {
+        "id": "keyn",
+        "hand": 1,
+        "finger": 1,
+        "row": 2,
+        "col": 5,
+        "x": 8.0,
+        "y": 2.30,
+        "is_stretch": true
+      },
+      {
+        "id": "keym",
+        "hand": 1,
+        "finger": 1,
+        "row": 2,
+        "col": 6,
+        "x": 9.0,
+        "y": 2.15,
+        "is_stretch": false
+      },
+      {
+        "id": "comma",
+        "hand": 1,
+        "finger": 2,
+        "row": 2,
+        "col": 7,
+        "x": 10.0,
+        "y": 2.00,
+        "is_stretch": false
+      },
+      {
+        "id": "period",
+        "hand": 1,
+        "finger": 3,
+        "row": 2,
+        "col": 8,
+        "x": 11.0,
+        "y": 2.25,
+        "is_stretch": false
+      },
+      {
+        "id": "slash",
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 9,
+        "x": 12.0,
+        "y": 2.50,
+        "is_stretch": false
+      },
+      {
+        "id": "",
+        "hand": 0,
+        "finger": 0,
+        "row": 3,
+        "col": 2,
+        "x": 2.5,
+        "y": 3.25,
+        "is_stretch": false
+      },
+      {
+        "id": "",
+        "hand": 0,
+        "finger": 0,
+        "row": 3,
+        "col": 3,
+        "x": 3.5,
+        "y": 3.50,
+        "is_stretch": false
+      },
+      {
+        "id": "",
+        "hand": 0,
+        "finger": 0,
+        "row": 3,
+        "col": 4,
+        "x": 4.5,
+        "y": 3.75,
+        "is_stretch": false
+      },
+      {
+        "id": "",
+        "hand": 1,
+        "finger": 0,
+        "row": 3,
+        "col": 5,
+        "x": 7.5,
+        "y": 3.75,
+        "is_stretch": false
+      },
+      {
+        "id": "",
+        "hand": 1,
+        "finger": 0,
+        "row": 3,
+        "col": 6,
+        "x": 8.5,
+        "y": 3.50,
+        "is_stretch": false
+      },
+      {
+        "id": "",
+        "hand": 1,
+        "finger": 0,
+        "row": 3,
+        "col": 7,
+        "x": 9.5,
+        "y": 3.25,
+        "is_stretch": false
+      }
+    ],
+    "prime_slots": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "med_slots": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      23,
+      26
+    ],
+    "low_slots": [
+      20,
+      21,
+      22,
+      24,
+      25,
+      27,
+      28,
+      29
+    ],
+    "home_row": 1
+  },
+  "layouts": {
+    "Qwerty": "QWERTYUIOPASDFGHJKL;ZXCVBNM,./      ",
+    "Dvorak": "',.PYFGCRLAOEUIDHTNS;QJKXBMWVZ      ",
+    "Colemak": "QWFPGJLUY;ARSTDHNEIOZXCVBKM,./      ",
+    "Colemak-DH": "QWFPBJLUY;ARSTGMNEIOZXCDVKH,./      ",
+    "Workman": "QDRWBJFUP;ASHTGYNEOIZXMCVKL,./      ",
+    "Canary": "WLYPBZFOU'CRSTGMNEIAQJVDKXH,./      ",
+    "Sturdy": "VMLCPXFOUJSTRYDNAEIHZKQGWB';.,      ",
+    "Hands Down Ref": "XRYBPJLCU;SNHTGMOEAIZWVDKQF,./      ",
+    "Focal": "WLYPKZOU;,RSTNGMHAIEQXCDVJFB'.      ",
+    "Graphite": "BLDWZ'FOUJNRTSGYHAEIQXMCVKP,./      ",
+    "Gallium": "BLDCVJYOU,NRTSGPHAEIXQMWZKF';.      ",
+    "Engram": "BYOU'LDWVZCIEA,HTSNQGXJKMFP;./      "
+  }
+}

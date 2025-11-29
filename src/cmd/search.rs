@@ -5,7 +5,7 @@ use keyforge::optimizer::{mutation, Replica};
 use keyforge::scorer::Scorer;
 use rayon::prelude::*;
 use std::sync::Arc;
-use std::time::{Duration, Instant}; // FIX: Added Rayon prelude
+use std::time::{Duration, Instant};
 
 #[derive(Args, Debug, Clone)]
 pub struct SearchArgs {
@@ -95,9 +95,14 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, debug: bool) {
 
             let mut layout;
             let mut pos_map;
+            let key_count = scorer.key_count;
             loop {
-                layout =
-                    mutation::generate_tiered_layout(&mut r.rng, &scorer.defs, &scorer.geometry);
+                layout = mutation::generate_tiered_layout(
+                    &mut r.rng,
+                    &scorer.defs,
+                    &scorer.geometry,
+                    key_count,
+                );
                 pos_map = mutation::build_pos_map(&layout);
                 let critical = scorer.defs.get_critical_bigrams();
                 if !mutation::fails_sanity(&pos_map, &critical, &scorer.geometry) {
@@ -112,7 +117,7 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, debug: bool) {
             if total > 0.0 {
                 let ratio = left / total;
                 let dist = (ratio - 0.5).abs();
-                if dist > (scorer.weights.max_hand_imbalance - 0.5) {
+                if dist > scorer.weights.allowed_hand_balance_deviation() {
                     score += dist * scorer.weights.penalty_imbalance;
                 }
             }
@@ -134,17 +139,6 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, debug: bool) {
             if let Some(limit) = max_duration {
                 if total_start_time.elapsed() >= limit {
                     break;
-                }
-            }
-
-            if debug && epoch % 10 == 0 {
-                for (i, r) in replicas.iter_mut().enumerate() {
-                    let (diff, real) = r.check_integrity();
-                    if diff > 0.1 {
-                        println!("⚠️  DRIFT DETECTED [Replica {}]: Delta {:.2} != Real {:.2} (Diff {:.2})", 
-                            i, r.score, real, diff);
-                        r.score = real;
-                    }
                 }
             }
 
@@ -177,12 +171,12 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, debug: bool) {
                 let delta_e = e2 - e1;
 
                 if rng.f32() < (-delta_beta * delta_e).exp() {
-                    let temp_layout = replicas[i].layout;
+                    let temp_layout = replicas[i].layout.clone();
                     let temp_score = replicas[i].score;
                     let temp_pos = replicas[i].pos_map;
                     let temp_load = replicas[i].left_load;
 
-                    replicas[i].layout = replicas[j].layout;
+                    replicas[i].layout = replicas[j].layout.clone();
                     replicas[i].score = replicas[j].score;
                     replicas[i].pos_map = replicas[j].pos_map;
                     replicas[i].left_load = replicas[j].left_load;
@@ -235,6 +229,6 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, debug: bool) {
     println!("\n=== 🏆 FINAL RESULT ===");
     println!("Score: {:.2}", global_best_score);
     println!("Layout: {}", global_best_layout);
-    // FIX: Use reports::string_to_bytes
-    reports::print_layout_grid("OPTIMIZED", &reports::string_to_bytes(&global_best_layout));
+    // Use crate::reports for the helper function
+    reports::print_layout_grid("OPTIMIZED", global_best_layout.as_bytes());
 }

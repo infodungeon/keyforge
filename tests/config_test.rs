@@ -1,74 +1,10 @@
-use keyforge::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
+use keyforge::config::Config;
 
-// Helper to create a default config for testing without relying on Clap parsing
+// Helper to create a default config for testing.
+// We use Config::default() to ensure all fields (including new ones like penalty_monogram_stretch)
+// are initialized with their correct default values automatically.
 fn get_default_test_config() -> Config {
-    Config {
-        search: SearchParams {
-            search_epochs: 1,
-            search_steps: 1,
-            search_patience: 1,
-            search_patience_threshold: 0.1,
-            temp_min: 0.1,
-            temp_max: 1.0,
-            opt_limit_fast: 100,
-            opt_limit_slow: 100,
-        },
-        weights: ScoringWeights {
-            // === SFR (Repeats) ===
-            penalty_sfr_weak_finger: 20.0,
-            penalty_sfr_bad_row: 25.0,
-            penalty_sfr_lat: 40.0,
-
-            // === SFB (Bigrams) ===
-            penalty_sfb_base: 50.0,
-            penalty_sfb_lateral: 35.0,
-            penalty_sfb_lateral_weak: 160.0,
-            penalty_sfb_outward_adder: 5.0,
-            penalty_sfb_diagonal: 70.0,
-            penalty_sfb_long: 90.0,
-            penalty_sfb_bottom: 110.0,
-            weight_weak_finger_sfb: 2.7,
-
-            // === OTHER ===
-            penalty_scissor: 25.0,
-            penalty_ring_pinky: 1.3,
-            penalty_lateral: 35.0,
-
-            // === FLOW (Trigrams) ===
-            penalty_skip: 20.0,
-            penalty_redirect: 15.0,
-            penalty_hand_run: 5.0,
-            bonus_inward_roll: 60.0,
-
-            // === FLOW (Bigrams) - NEW ===
-            bonus_bigram_roll_in: 30.0,
-            bonus_bigram_roll_out: 15.0,
-
-            // === TIER ===
-            penalty_high_in_med: 5.0,
-            penalty_high_in_low: 20.0,
-            penalty_med_in_prime: 2.0,
-            penalty_med_in_low: 10.0,
-            penalty_low_in_prime: 15.0,
-            penalty_low_in_med: 2.0,
-
-            // === BALANCE & SYSTEM ===
-            penalty_imbalance: 200.0,
-            max_hand_imbalance: 0.55,
-            weight_geo_dist: 10.0,
-            weight_finger_effort: 0.5,
-            corpus_scale: 1.0,
-            default_cost_ms: 120.0,
-            finger_penalty_scale: "0.0,1.0,1.1,1.3,1.6".to_string(),
-        },
-        defs: LayoutDefinitions {
-            tier_high_chars: "etaoinshr".to_string(),
-            tier_med_chars: "ldcumwfgypb.,".to_string(),
-            tier_low_chars: "vkjxqz/;".to_string(),
-            critical_bigrams: "th,he".to_string(),
-            finger_repeat_scale: "1.0,1.0,1.0,1.2,1.5".to_string(),
-        },
-    }
+    Config::default()
 }
 
 #[test]

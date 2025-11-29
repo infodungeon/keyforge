@@ -1,3 +1,4 @@
+// ===== keyforge/tests/poison_pill.rs =====
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -8,6 +9,7 @@ struct TestContext {
     _dir: TempDir,
     cost_path: PathBuf,
     ngram_path: PathBuf,
+    keyboard_path: PathBuf, // NEW
 }
 
 impl TestContext {
@@ -15,12 +17,9 @@ impl TestContext {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let cost_path = dir.path().join("poison_cost.csv");
         let ngram_path = dir.path().join("poison_ngrams.tsv");
+        let keyboard_path = dir.path().join("poison_keyboard.json"); // NEW
 
         // 1. Poisoned Cost Matrix
-        // We assign a cost of 100.0 to any bigram involving the Home Row (indices 10-19).
-        // Standard cost is 1.0.
-        // Freq will also be 100.0. Total Penalty = 10,000 per occurrence.
-        // Normal keys have score ~20. This is a 500x penalty.
         let mut cost_file = File::create(&cost_path).unwrap();
         writeln!(cost_file, "From_Key,To_Key,Cost").unwrap();
 
@@ -73,30 +72,54 @@ impl TestContext {
 
         // 2. N-Grams
         let mut ngram_file = File::create(&ngram_path).unwrap();
-
-        // Monogram for Tier sorting
-        // We give 'e' a massive frequency so the "Tier" logic wants to put it on Home Row.
-        // But the "Poison" cost logic should overpower it and force it off.
         writeln!(ngram_file, "e\t100").unwrap();
-
-        // Bigrams for Cost Matrix calculation
         let common = ["t", "a", "o", "i", "n", "s", "r"];
         for c in common {
             writeln!(ngram_file, "e{}\t100", c).unwrap();
             writeln!(ngram_file, "{}e\t100", c).unwrap();
         }
 
+        // 3. Dummy Keyboard (30 Keys, Row 1 = Indices 10-19)
+        let mut kb_file = File::create(&keyboard_path).unwrap();
+        let mut keys_json = Vec::new();
+        // 0-9 Row 0, 10-19 Row 1 (Home), 20-29 Row 2
+        for r in 0..3 {
+            for c in 0..10 {
+                keys_json.push(format!(
+                    r#"{{"hand": {}, "finger": 1, "row": {}, "col": {}, "x": {}, "y": {}}}"#,
+                    if c < 5 { 0 } else { 1 },
+                    r,
+                    c,
+                    c as f32,
+                    r as f32
+                ));
+            }
+        }
+        let json = format!(
+            r#"{{
+                "meta": {{ "name": "PoisonPill", "author": "Test", "version": "1.0" }},
+                "geometry": {{
+                    "keys": [{}],
+                    "prime_slots": [], "med_slots": [], "low_slots": [],
+                    "home_row": 1
+                }},
+                "layouts": {{ }}
+            }}"#,
+            keys_json.join(",")
+        );
+        writeln!(kb_file, "{}", json).unwrap();
+
         Self {
             _dir: dir,
             cost_path,
             ngram_path,
+            keyboard_path,
         }
     }
 }
 
 #[test]
 fn test_poison_pill_constraint() {
-    // 1. Build
     let status = Command::new("cargo")
         .arg("build")
         .arg("--release")
@@ -106,15 +129,15 @@ fn test_poison_pill_constraint() {
 
     let ctx = TestContext::new();
 
-    // 2. Run Search
     let output = Command::new("./target/release/keyforge")
         .args([
-            // FIX: Removed '&' borrow here
             "search",
             "--cost",
             ctx.cost_path.to_str().unwrap(),
             "--ngrams",
             ctx.ngram_path.to_str().unwrap(),
+            "--keyboard", // NEW
+            ctx.keyboard_path.to_str().unwrap(),
             "--corpus-scale",
             "1.0",
             "--search-epochs",
@@ -137,7 +160,6 @@ fn test_poison_pill_constraint() {
         panic!("Keyforge binary crashed");
     }
 
-    // 3. Parse Result to find the Layout string
     let mut layout = "";
     for line in stdout.lines() {
         if line.starts_with("Layout:") {
@@ -151,9 +173,7 @@ fn test_poison_pill_constraint() {
         panic!("Invalid layout output or layout not found in stdout");
     }
 
-    // 4. Assert 'e' is evicted from Home Row (indices 10-19)
-    // The test setup makes home row extremely expensive (Poison),
-    // so 'e' (high freq) must move to Top or Bottom row despite tier preferences.
+    // e should be evicted from home row (10..20)
     let home_row = &layout[10..20];
 
     if home_row.contains('e') {

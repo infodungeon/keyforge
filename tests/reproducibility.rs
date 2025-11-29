@@ -1,3 +1,4 @@
+// ===== keyforge/tests/reproducibility.rs =====
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -8,6 +9,7 @@ struct TestContext {
     _dir: TempDir,
     cost_path: PathBuf,
     ngram_path: PathBuf,
+    keyboard_path: PathBuf, // NEW
 }
 
 impl TestContext {
@@ -15,14 +17,12 @@ impl TestContext {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let cost_path = dir.path().join("repo_cost.csv");
         let ngram_path = dir.path().join("repo_ngrams.tsv");
+        let keyboard_path = dir.path().join("repo_keyboard.json");
 
-        // Minimal Cost Matrix
+        // Minimal Cost
         let mut cost_file = File::create(&cost_path).unwrap();
         writeln!(cost_file, "From,To,Cost").unwrap();
-        // Set high base cost to prevent negative scores during optimization
         writeln!(cost_file, "KeyQ,KeyW,1000.0").unwrap();
-
-        // Fillers to satisfy loader requirements (>10 keys)
         let filler = [
             "KeyE", "KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO", "KeyP",
         ];
@@ -32,29 +32,52 @@ impl TestContext {
 
         // Minimal N-Grams
         let mut ngram_file = File::create(&ngram_path).unwrap();
-
-        // Monograms (Required so char_freqs > 0.0)
         writeln!(ngram_file, "q\t1000").unwrap();
         writeln!(ngram_file, "w\t1000").unwrap();
-
-        // Bigrams (Required so bigrams list is not empty)
         writeln!(ngram_file, "qw\t1000").unwrap();
         writeln!(ngram_file, "wq\t1000").unwrap();
-
-        // Trigrams
         writeln!(ngram_file, "qwq\t1000").unwrap();
+
+        // Minimal 30-key Keyboard
+        let mut kb_file = File::create(&keyboard_path).unwrap();
+        let mut keys_json = Vec::new();
+        for r in 0..3 {
+            for c in 0..10 {
+                keys_json.push(format!(
+                    r#"{{"hand": {}, "finger": 1, "row": {}, "col": {}, "x": {}, "y": {}}}"#,
+                    if c < 5 { 0 } else { 1 },
+                    r,
+                    c,
+                    c as f32,
+                    r as f32
+                ));
+            }
+        }
+        let json = format!(
+            r#"{{
+                "meta": {{ "name": "RepoKB", "author": "Test", "version": "1.0" }},
+                "geometry": {{
+                    "keys": [{}],
+                    "prime_slots": [], "med_slots": [], "low_slots": [],
+                    "home_row": 1
+                }},
+                "layouts": {{}}
+            }}"#,
+            keys_json.join(",")
+        );
+        writeln!(kb_file, "{}", json).unwrap();
 
         Self {
             _dir: dir,
             cost_path,
             ngram_path,
+            keyboard_path,
         }
     }
 }
 
 fn extract_score(output: &str) -> String {
     for line in output.lines() {
-        // The output format is "Score: 12345.67"
         if line.starts_with("Score:") {
             return line.to_string();
         }
@@ -64,7 +87,6 @@ fn extract_score(output: &str) -> String {
 
 #[test]
 fn test_deterministic_output() {
-    // 1. Build the binary to ensure it's up to date
     let _ = Command::new("cargo")
         .arg("build")
         .arg("--release")
@@ -74,8 +96,6 @@ fn test_deterministic_output() {
     let ctx = TestContext::new();
     let bin = "./target/release/keyforge";
 
-    // Shared args for both runs
-    // We use a specific seed to ensure determinism
     let args = [
         "search",
         "--seed",
@@ -88,14 +108,13 @@ fn test_deterministic_output() {
         ctx.cost_path.to_str().unwrap(),
         "--ngrams",
         ctx.ngram_path.to_str().unwrap(),
+        "--keyboard", // NEW
+        ctx.keyboard_path.to_str().unwrap(),
         "--corpus-scale",
         "1.0",
     ];
 
-    // Run A
     let output_a = Command::new(bin).args(args).output().expect("Run A failed");
-
-    // Run B
     let output_b = Command::new(bin).args(args).output().expect("Run B failed");
 
     let stdout_a = String::from_utf8_lossy(&output_a.stdout);

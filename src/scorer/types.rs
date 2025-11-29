@@ -1,4 +1,7 @@
-#[derive(Debug, Default, Clone, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScoreDetails {
     // Top-line Scores
     pub layout_score: f32,
@@ -22,16 +25,19 @@ pub struct ScoreDetails {
     pub mech_lat: f32,
     pub mech_scis: f32,
 
+    // NEW: Stretch Cost
+    pub mech_mono_stretch: f32,
+
     // Flow (Weighted Costs & Bonuses)
     pub flow_cost: f32,
     pub flow_redirect: f32,
     pub flow_skip: f32,
-    pub flow_roll: f32, // Aggregate Roll Bonus (Legacy/Total)
+    pub flow_roll: f32,
 
-    // Granular Flow Bonuses (New)
-    pub flow_roll_in: f32,  // Bigram Inward Bonus
-    pub flow_roll_out: f32, // Bigram Outward Bonus
-    pub flow_roll_tri: f32, // Trigram Inward Bonus
+    // Granular Flow Bonuses
+    pub flow_roll_in: f32,
+    pub flow_roll_out: f32,
+    pub flow_roll_tri: f32,
 
     // Heuristics
     pub tier_penalty: f32,
@@ -44,11 +50,14 @@ pub struct ScoreDetails {
 
     pub stat_pinky_reach: f32,
 
+    // NEW: Stretch Frequency
+    pub stat_mono_stretch: f32,
+
     // SFR Stats
     pub stat_sfr: f32,
 
     // SFB Stats
-    pub stat_sfb: f32, // Total SFBs
+    pub stat_sfb: f32,
     pub stat_sfb_base: f32,
     pub stat_sfb_lat: f32,
     pub stat_sfb_lat_weak: f32,
@@ -57,18 +66,18 @@ pub struct ScoreDetails {
     pub stat_sfb_bot: f32,
 
     // Non-SFB Stats
-    pub stat_lsb: f32, // Total Lateral Stretches (SFB + Non-SFB)
-    pub stat_lat: f32, // Non-SFB Lateral
+    pub stat_lsb: f32,
+    pub stat_lat: f32,
     pub stat_scis: f32,
 
     // Flow Stats
-    pub stat_roll: f32,     // Total Bigram Rolls (In + Out)
-    pub stat_roll_in: f32,  // Bigram Inward
-    pub stat_roll_out: f32, // Bigram Outward
+    pub stat_roll: f32,
+    pub stat_roll_in: f32,
+    pub stat_roll_out: f32,
 
-    pub stat_roll_tri: f32,  // Total Trigram Rolls
-    pub stat_roll3_in: f32,  // Trigram Inward
-    pub stat_roll3_out: f32, // Trigram Outward
+    pub stat_roll_tri: f32,
+    pub stat_roll3_in: f32,
+    pub stat_roll3_out: f32,
 
     pub stat_redir: f32,
     pub stat_skip: f32,

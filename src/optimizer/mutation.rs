@@ -1,3 +1,4 @@
+// ===== keyforge/src/optimizer/mutation.rs =====
 use crate::config::LayoutDefinitions;
 use crate::geometry::KeyboardGeometry;
 use fastrand::Rng;
@@ -7,8 +8,9 @@ pub fn generate_tiered_layout(
     rng: &mut Rng,
     defs: &LayoutDefinitions,
     geom: &KeyboardGeometry,
-) -> [u8; 30] {
-    let mut layout = [0u8; 30];
+    size: usize, // NEW: Explicit Size
+) -> Vec<u8> {
+    let mut layout = vec![0u8; size];
 
     // Convert configuration strings to byte vectors for shuffling
     let mut high = defs.tier_high_chars.as_bytes().to_vec();
@@ -20,19 +22,19 @@ pub fn generate_tiered_layout(
     rng.shuffle(&mut low);
 
     // 1. Fill Prime Slots (Top Priority)
-    // DYNAMIC: Use geometry prime slots
     for &slot in &geom.prime_slots {
-        if !high.is_empty() {
-            layout[slot] = high.pop().unwrap();
-        } else if !med.is_empty() {
-            layout[slot] = med.pop().unwrap();
+        if slot < size {
+            if !high.is_empty() {
+                layout[slot] = high.pop().unwrap();
+            } else if !med.is_empty() {
+                layout[slot] = med.pop().unwrap();
+            }
         }
     }
 
     // 2. Fill Medium Slots
     for &slot in &geom.med_slots {
-        // Only fill if not already taken by a high char (if high overflowed)
-        if layout[slot] == 0 {
+        if slot < size && layout[slot] == 0 {
             if !med.is_empty() {
                 layout[slot] = med.pop().unwrap();
             } else if !low.is_empty() {
@@ -43,7 +45,7 @@ pub fn generate_tiered_layout(
 
     // 3. Fill Low Slots
     for &slot in &geom.low_slots {
-        if layout[slot] == 0 {
+        if slot < size && layout[slot] == 0 {
             if !low.is_empty() {
                 layout[slot] = low.pop().unwrap();
             } else if !med.is_empty() {
@@ -53,18 +55,25 @@ pub fn generate_tiered_layout(
             }
         }
     }
+
     layout
 }
 
-pub fn build_pos_map(layout: &[u8; 30]) -> [u8; 256] {
+pub fn build_pos_map(layout: &[u8]) -> [u8; 256] {
     let mut map = [255u8; 256];
     for (i, &byte) in layout.iter().enumerate() {
-        map[byte as usize] = i as u8;
+        if byte != 0 {
+            map[byte as usize] = i as u8;
+            if byte.is_ascii_uppercase() {
+                map[byte.to_ascii_lowercase() as usize] = i as u8;
+            } else if byte.is_ascii_lowercase() {
+                map[byte.to_ascii_uppercase() as usize] = i as u8;
+            }
+        }
     }
     map
 }
 
-/// Checks if the layout violates critical bigram constraints (SFBs on critical pairs)
 pub fn fails_sanity(
     pos_map: &[u8; 256],
     critical_bigrams: &[[u8; 2]],
@@ -74,16 +83,13 @@ pub fn fails_sanity(
         let p1 = pos_map[pair[0] as usize];
         let p2 = pos_map[pair[1] as usize];
 
-        // Skip if one char isn't in the layout (shouldn't happen in search, but safe)
         if p1 == 255 || p2 == 255 {
             continue;
         }
 
-        // DYNAMIC: Access key info via geometry
         let info1 = &geom.keys[p1 as usize];
         let info2 = &geom.keys[p2 as usize];
 
-        // Sanity Check: Same hand, same finger = SFB (Bad for critical pairs)
         if info1.hand == info2.hand && info1.finger == info2.finger {
             return true;
         }
