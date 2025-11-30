@@ -1,4 +1,3 @@
-// ===== keyforge/src/optimizer/mod.rs =====
 pub mod mutation;
 
 use self::mutation::*;
@@ -56,7 +55,6 @@ impl Replica {
         let mut pos_map;
 
         loop {
-            // Generate random layout matching the key count
             layout = mutation::generate_tiered_layout(
                 &mut rng,
                 &scorer.defs,
@@ -79,7 +77,6 @@ impl Replica {
 
         let (base, left, total) = scorer.score_full(&pos_map, start_limit);
 
-        // Clone flattened matrices
         let local_cost_matrix = scorer.full_cost_matrix.clone();
         let local_trigram_costs = scorer.trigram_cost_table.clone();
         let local_monogram_costs = scorer.slot_monogram_costs.clone();
@@ -102,7 +99,6 @@ impl Replica {
             rng,
         };
 
-        // Add imbalance penalty to start score
         let imb = r.imbalance_penalty(left);
         r.score += imb;
 
@@ -110,25 +106,16 @@ impl Replica {
     }
 
     #[inline(always)]
-    pub fn calc_delta(&self, idx_a: usize, idx_b: usize, trigram_limit: usize) -> (f32, f32) {
-        let char_a = self.layout[idx_a] as usize;
-        let char_b = self.layout[idx_b] as usize;
-        let mut delta_score = 0.0;
-
-        // Dimensions for flattened array access
-        let n = self.scorer.key_count;
-        let n_sq = n * n;
-
-        // 1. Monogram Delta
+    fn calc_monogram_delta(&self, idx_a: usize, idx_b: usize, char_a: usize, char_b: usize) -> f32 {
+        let mut d = 0.0;
         let freq_a = self.scorer.char_freqs[char_a];
         let freq_b = self.scorer.char_freqs[char_b];
 
-        delta_score +=
-            (self.local_monogram_costs[idx_b] - self.local_monogram_costs[idx_a]) * freq_a;
-        delta_score +=
-            (self.local_monogram_costs[idx_a] - self.local_monogram_costs[idx_b]) * freq_b;
+        // Base Monogram Cost
+        d += (self.local_monogram_costs[idx_b] - self.local_monogram_costs[idx_a]) * freq_a;
+        d += (self.local_monogram_costs[idx_a] - self.local_monogram_costs[idx_b]) * freq_b;
 
-        // Tier Delta
+        // Tier Penalty
         let tier_char_a = self.scorer.char_tier_map[char_a] as usize;
         let tier_char_b = self.scorer.char_tier_map[char_b] as usize;
 
@@ -137,21 +124,23 @@ impl Replica {
             let tier_slot_b = self.scorer.slot_tier_map[idx_b] as usize;
 
             if tier_char_a < 3 {
-                delta_score -= self.scorer.tier_penalty_matrix[tier_char_a][tier_slot_a] * freq_a;
-                delta_score += self.scorer.tier_penalty_matrix[tier_char_a][tier_slot_b] * freq_a;
+                d -= self.scorer.tier_penalty_matrix[tier_char_a][tier_slot_a] * freq_a;
+                d += self.scorer.tier_penalty_matrix[tier_char_a][tier_slot_b] * freq_a;
             }
             if tier_char_b < 3 {
-                delta_score -= self.scorer.tier_penalty_matrix[tier_char_b][tier_slot_b] * freq_b;
-                delta_score += self.scorer.tier_penalty_matrix[tier_char_b][tier_slot_a] * freq_b;
+                d -= self.scorer.tier_penalty_matrix[tier_char_b][tier_slot_b] * freq_b;
+                d += self.scorer.tier_penalty_matrix[tier_char_b][tier_slot_a] * freq_b;
             }
         }
+        d
+    }
 
-        // Optimization: Early exit if delta is massive
-        if delta_score > (self.temperature * 10.0) {
-            return (f32::INFINITY, 0.0);
-        }
+    #[inline(always)]
+    fn calc_bigram_delta(&self, idx_a: usize, idx_b: usize, char_a: usize, char_b: usize) -> f32 {
+        let n = self.scorer.key_count;
+        let mut d = 0.0;
 
-        // 2. Bigrams
+        // 1. Process neighbors for A
         let start_a = self.scorer.bigram_starts[char_a];
         let end_a = self.scorer.bigram_starts[char_a + 1];
         let others_a = &self.scorer.bigrams_others[start_a..end_a];
@@ -164,17 +153,18 @@ impl Replica {
             if p_other != 255 {
                 let freq = freqs_a[i];
                 if self_first_a[i] {
-                    // char_a is first: (idx_a, p_other) -> (idx_b, p_other)
-                    delta_score -= self.local_cost_matrix[idx_a * n + p_other] * freq;
-                    delta_score += self.local_cost_matrix[idx_b * n + p_other] * freq;
+                    // char_a is first: A->Other becomes B->Other
+                    d -= self.local_cost_matrix[idx_a * n + p_other] * freq;
+                    d += self.local_cost_matrix[idx_b * n + p_other] * freq;
                 } else {
-                    // char_a is second: (p_other, idx_a) -> (p_other, idx_b)
-                    delta_score -= self.local_cost_matrix[p_other * n + idx_a] * freq;
-                    delta_score += self.local_cost_matrix[p_other * n + idx_b] * freq;
+                    // char_a is second: Other->A becomes Other->B
+                    d -= self.local_cost_matrix[p_other * n + idx_a] * freq;
+                    d += self.local_cost_matrix[p_other * n + idx_b] * freq;
                 }
             }
         }
 
+        // 2. Process neighbors for B
         let start_b = self.scorer.bigram_starts[char_b];
         let end_b = self.scorer.bigram_starts[char_b + 1];
         let others_b = &self.scorer.bigrams_others[start_b..end_b];
@@ -187,149 +177,156 @@ impl Replica {
             if p_other != 255 {
                 let freq = freqs_b[i];
                 if self_first_b[i] {
-                    delta_score -= self.local_cost_matrix[idx_b * n + p_other] * freq;
-                    delta_score += self.local_cost_matrix[idx_a * n + p_other] * freq;
+                    d -= self.local_cost_matrix[idx_b * n + p_other] * freq;
+                    d += self.local_cost_matrix[idx_a * n + p_other] * freq;
                 } else {
-                    delta_score -= self.local_cost_matrix[p_other * n + idx_b] * freq;
-                    delta_score += self.local_cost_matrix[p_other * n + idx_a] * freq;
+                    d -= self.local_cost_matrix[p_other * n + idx_b] * freq;
+                    d += self.local_cost_matrix[p_other * n + idx_a] * freq;
                 }
             }
         }
 
-        // Direct Bigram A<->B
-        let freq_ab = self.scorer.freq_matrix[char_a][char_b];
+        // 3. Direct Bigrams (A<->B)
+        // Accessing flattened heap matrix: [row * 256 + col]
+        let freq_ab = self.scorer.freq_matrix[char_a * 256 + char_b];
         if freq_ab > 0.0 {
             let cab = self.local_cost_matrix[idx_a * n + idx_b];
             let cba = self.local_cost_matrix[idx_b * n + idx_a];
-            let caa = self.local_cost_matrix[idx_a * n + idx_a]; // Cost if A is at A
-            let cbb = self.local_cost_matrix[idx_b * n + idx_b]; // Cost if B is at B
-
-            // Old: cost(A, B)
-            // New: cost(B, A)
-            // Delta = New - Old
-            delta_score += (cba + cab - cbb - caa) * freq_ab;
+            let caa = self.local_cost_matrix[idx_a * n + idx_a];
+            let cbb = self.local_cost_matrix[idx_b * n + idx_b];
+            d += (cba + cab - cbb - caa) * freq_ab;
         }
 
-        let freq_ba = self.scorer.freq_matrix[char_b][char_a];
+        let freq_ba = self.scorer.freq_matrix[char_b * 256 + char_a];
         if freq_ba > 0.0 {
             let cba = self.local_cost_matrix[idx_b * n + idx_a];
             let cab = self.local_cost_matrix[idx_a * n + idx_b];
             let cbb = self.local_cost_matrix[idx_b * n + idx_b];
             let caa = self.local_cost_matrix[idx_a * n + idx_a];
-            delta_score += (cab + cba - caa - cbb) * freq_ba;
+            d += (cab + cba - caa - cbb) * freq_ba;
         }
 
-        // Self-bigrams (AA, BB)
-        let freq_aa = self.scorer.freq_matrix[char_a][char_a];
+        // 4. Self-Bigrams (AA, BB)
+        let freq_aa = self.scorer.freq_matrix[char_a * 256 + char_a];
         if freq_aa > 0.0 {
-            delta_score += (self.local_cost_matrix[idx_b * n + idx_b]
+            d += (self.local_cost_matrix[idx_b * n + idx_b]
                 - self.local_cost_matrix[idx_a * n + idx_a])
                 * freq_aa;
         }
-        let freq_bb = self.scorer.freq_matrix[char_b][char_b];
+        let freq_bb = self.scorer.freq_matrix[char_b * 256 + char_b];
         if freq_bb > 0.0 {
-            delta_score += (self.local_cost_matrix[idx_a * n + idx_a]
+            d += (self.local_cost_matrix[idx_a * n + idx_a]
                 - self.local_cost_matrix[idx_b * n + idx_b])
                 * freq_bb;
         }
+        d
+    }
+
+    #[inline(always)]
+    fn calc_trigram_delta(
+        &self,
+        idx_a: usize,
+        idx_b: usize,
+        char_a: usize,
+        char_b: usize,
+        limit: usize,
+    ) -> f32 {
+        let mut d = 0.0;
+        let n = self.scorer.key_count;
+        let n_sq = n * n;
+
+        // Helper closure to process trigrams for a specific character
+        let mut process = |c: usize, is_a: bool| {
+            let start = self.scorer.trigram_starts[c];
+            let end = self.scorer.trigram_starts[c + 1];
+            let len = end - start;
+            let eff_limit = if len < limit { len } else { limit };
+
+            for t in &self.scorer.trigrams_flat[start..(start + eff_limit)] {
+                let o1 = t.other1 as usize;
+                let o2 = t.other2 as usize;
+
+                // Avoid double counting interactions involving both A and B
+                if !is_a && (o1 == char_a || o2 == char_a) {
+                    continue;
+                }
+
+                let p1_old = self.pos_map[o1] as usize;
+                let p2_old = self.pos_map[o2] as usize;
+
+                if p1_old != 255 && p2_old != 255 {
+                    // Determine new positions
+                    let p1_new = if o1 == char_a {
+                        idx_b
+                    } else if o1 == char_b {
+                        idx_a
+                    } else {
+                        p1_old
+                    };
+                    let p2_new = if o2 == char_a {
+                        idx_b
+                    } else if o2 == char_b {
+                        idx_a
+                    } else {
+                        p2_old
+                    };
+
+                    let p_c_old = if is_a { idx_a } else { idx_b };
+                    let p_c_new = if is_a { idx_b } else { idx_a };
+
+                    let cost_old = match t.role {
+                        0 => self.local_trigram_costs[p_c_old * n_sq + p1_old * n + p2_old],
+                        1 => self.local_trigram_costs[p1_old * n_sq + p_c_old * n + p2_old],
+                        _ => self.local_trigram_costs[p1_old * n_sq + p2_old * n + p_c_old],
+                    };
+
+                    let cost_new = match t.role {
+                        0 => self.local_trigram_costs[p_c_new * n_sq + p1_new * n + p2_new],
+                        1 => self.local_trigram_costs[p1_new * n_sq + p_c_new * n + p2_new],
+                        _ => self.local_trigram_costs[p1_new * n_sq + p2_new * n + p_c_new],
+                    };
+
+                    d += (cost_new - cost_old) * t.freq;
+                }
+            }
+        };
+
+        process(char_a, true);
+        process(char_b, false);
+
+        d
+    }
+
+    #[inline(always)]
+    pub fn calc_delta(&self, idx_a: usize, idx_b: usize, trigram_limit: usize) -> (f32, f32) {
+        let char_a = self.layout[idx_a] as usize;
+        let char_b = self.layout[idx_b] as usize;
+
+        // 1. Monograms
+        let mut delta_score = self.calc_monogram_delta(idx_a, idx_b, char_a, char_b);
+
+        // Optimization: Early exit if delta is massive (High Temp only)
+        if delta_score > (self.temperature * 10.0) {
+            return (f32::INFINITY, 0.0);
+        }
+
+        // 2. Bigrams
+        delta_score += self.calc_bigram_delta(idx_a, idx_b, char_a, char_b);
 
         // 3. Trigrams
-        // A Trigrams
-        let start = self.scorer.trigram_starts[char_a];
-        let end = self.scorer.trigram_starts[char_a + 1];
-        let len = end - start;
-        let limit = if len < trigram_limit {
-            len
-        } else {
-            trigram_limit
-        };
+        delta_score += self.calc_trigram_delta(idx_a, idx_b, char_a, char_b, trigram_limit);
 
-        for t in &self.scorer.trigrams_flat[start..(start + limit)] {
-            let o1 = t.other1 as usize;
-            let o2 = t.other2 as usize;
-            let p1_old = self.pos_map[o1] as usize;
-            let p2_old = self.pos_map[o2] as usize;
-
-            if p1_old != 255 && p2_old != 255 {
-                let p1_new = if o1 == char_b {
-                    idx_a
-                } else if o1 == char_a {
-                    idx_b
-                } else {
-                    p1_old
-                };
-                let p2_new = if o2 == char_b {
-                    idx_a
-                } else if o2 == char_a {
-                    idx_b
-                } else {
-                    p2_old
-                };
-
-                // Index = p1 * N^2 + p2 * N + p3
-                let cost_old = match t.role {
-                    0 => self.local_trigram_costs[idx_a * n_sq + p1_old * n + p2_old],
-                    1 => self.local_trigram_costs[p1_old * n_sq + idx_a * n + p2_old],
-                    _ => self.local_trigram_costs[p1_old * n_sq + p2_old * n + idx_a],
-                };
-                let cost_new = match t.role {
-                    0 => self.local_trigram_costs[idx_b * n_sq + p1_new * n + p2_new],
-                    1 => self.local_trigram_costs[p1_new * n_sq + idx_b * n + p2_new],
-                    _ => self.local_trigram_costs[p1_new * n_sq + p2_new * n + idx_b],
-                };
-                delta_score += (cost_new - cost_old) * t.freq;
-            }
-        }
-
-        // B Trigrams
-        let start = self.scorer.trigram_starts[char_b];
-        let end = self.scorer.trigram_starts[char_b + 1];
-        let len = end - start;
-        let limit = if len < trigram_limit {
-            len
-        } else {
-            trigram_limit
-        };
-
-        for t in &self.scorer.trigrams_flat[start..(start + limit)] {
-            let o1 = t.other1 as usize;
-            let o2 = t.other2 as usize;
-            if o1 == char_a || o2 == char_a {
-                continue;
-            } // Already handled in A's loop
-
-            let p1_old = self.pos_map[o1] as usize;
-            let p2_old = self.pos_map[o2] as usize;
-
-            if p1_old != 255 && p2_old != 255 {
-                let p1_new = if o1 == char_b { idx_a } else { p1_old };
-                let p2_new = if o2 == char_b { idx_a } else { p2_old };
-
-                let cost_old = match t.role {
-                    0 => self.local_trigram_costs[idx_b * n_sq + p1_old * n + p2_old],
-                    1 => self.local_trigram_costs[p1_old * n_sq + idx_b * n + p2_old],
-                    _ => self.local_trigram_costs[p1_old * n_sq + p2_old * n + idx_b],
-                };
-                let cost_new = match t.role {
-                    0 => self.local_trigram_costs[idx_a * n_sq + p1_new * n + p2_new],
-                    1 => self.local_trigram_costs[p1_new * n_sq + idx_a * n + p2_new],
-                    _ => self.local_trigram_costs[p1_new * n_sq + p2_new * n + idx_a],
-                };
-                delta_score += (cost_new - cost_old) * t.freq;
-            }
-        }
-
-        // Load Balance Delta
+        // 4. Load Balance
         let mut delta_left_load = 0.0;
         let is_left_a = self.scorer.geometry.keys[idx_a].hand == 0;
         let is_left_b = self.scorer.geometry.keys[idx_b].hand == 0;
 
         if is_left_a && !is_left_b {
-            delta_left_load -= freq_a;
-            delta_left_load += freq_b;
+            delta_left_load -= self.scorer.char_freqs[char_a];
+            delta_left_load += self.scorer.char_freqs[char_b];
         } else if !is_left_a && is_left_b {
-            delta_left_load += freq_a;
-            delta_left_load -= freq_b;
+            delta_left_load += self.scorer.char_freqs[char_a];
+            delta_left_load -= self.scorer.char_freqs[char_b];
         }
 
         (delta_score, delta_left_load)
@@ -344,7 +341,6 @@ impl Replica {
             self.limit_slow
         };
 
-        // If limit changes, full re-score to ensure precision
         if target_limit != self.current_limit {
             self.current_limit = target_limit;
             let (new_base, new_left, _) = self.scorer.score_full(&self.pos_map, target_limit);
@@ -376,27 +372,22 @@ impl Replica {
 
             let total_delta = new_total - self.score;
 
-            // Metropolis Criterion
             if total_delta < 0.0 || self.rng.f32() < fast_exp(-total_delta / self.temperature) {
-                // Apply Move
                 self.layout.swap(idx_a, idx_b);
                 let char_a = self.layout[idx_a];
                 let char_b = self.layout[idx_b];
                 self.pos_map[char_a as usize] = idx_a as u8;
                 self.pos_map[char_b as usize] = idx_b as u8;
 
-                // Sanity Check for Critical Bigrams (SFBs)
                 let critical = self.scorer.defs.get_critical_bigrams();
                 let is_risky = self.scorer.critical_mask[char_a as usize]
                     || self.scorer.critical_mask[char_b as usize];
 
                 if is_risky && fails_sanity(&self.pos_map, &critical, &self.scorer.geometry) {
-                    // Revert if sanity check failed
                     self.layout.swap(idx_a, idx_b);
                     self.pos_map[char_a as usize] = idx_b as u8;
                     self.pos_map[char_b as usize] = idx_a as u8;
                 } else {
-                    // Commit
                     self.score = new_total;
                     self.left_load = new_left_load;
                     accepted += 1;
@@ -407,7 +398,7 @@ impl Replica {
     }
 
     #[inline(always)]
-    fn imbalance_penalty(&self, left: f32) -> f32 {
+    pub fn imbalance_penalty(&self, left: f32) -> f32 {
         if self.total_freq > 0.0 {
             let ratio = left / self.total_freq;
             let diff = (ratio - 0.5).abs();

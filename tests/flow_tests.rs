@@ -1,4 +1,3 @@
-// ===== keyforge/tests/flow_tests.rs =====
 use keyforge::config::ScoringWeights;
 use keyforge::geometry::{KeyNode, KeyboardGeometry};
 use keyforge::scorer::flow::analyze_flow;
@@ -9,40 +8,41 @@ use keyforge::scorer::physics::analyze_interaction;
 // 1: Middle Home (2)
 // 2: Ring Home (3)
 fn get_roll_geom() -> KeyboardGeometry {
-    let mut keys = Vec::new();
-    // Index (Finger 1)
-    keys.push(KeyNode {
-        id: "idx".to_string(),
-        hand: 0,
-        finger: 1,
-        row: 1,
-        col: 3,
-        x: 3.0,
-        y: 1.0,
-        is_stretch: false,
-    });
-    // Middle (Finger 2)
-    keys.push(KeyNode {
-        id: "mid".to_string(),
-        hand: 0,
-        finger: 2,
-        row: 1,
-        col: 2,
-        x: 2.0,
-        y: 1.0,
-        is_stretch: false,
-    });
-    // Ring (Finger 3)
-    keys.push(KeyNode {
-        id: "rng".to_string(),
-        hand: 0,
-        finger: 3,
-        row: 1,
-        col: 1,
-        x: 1.0,
-        y: 1.0,
-        is_stretch: false,
-    });
+    let keys = vec![
+        // Index (Finger 1)
+        KeyNode {
+            id: "idx".to_string(),
+            hand: 0,
+            finger: 1,
+            row: 1,
+            col: 3,
+            x: 3.0,
+            y: 1.0,
+            is_stretch: false,
+        },
+        // Middle (Finger 2)
+        KeyNode {
+            id: "mid".to_string(),
+            hand: 0,
+            finger: 2,
+            row: 1,
+            col: 2,
+            x: 2.0,
+            y: 1.0,
+            is_stretch: false,
+        },
+        // Ring (Finger 3)
+        KeyNode {
+            id: "rng".to_string(),
+            hand: 0,
+            finger: 3,
+            row: 1,
+            col: 1,
+            x: 1.0,
+            y: 1.0,
+            is_stretch: false,
+        },
+    ];
 
     let mut geom = KeyboardGeometry {
         keys,

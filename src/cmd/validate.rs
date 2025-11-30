@@ -35,7 +35,6 @@ pub fn run(args: ValidateArgs, kb_def: &KeyboardDefinition, scorer: Arc<Scorer>)
         }
 
         let layout_str = kb_def.layouts.get(name).unwrap();
-        // Dynamic conversion
         let layout_bytes = layout_string_to_bytes(layout_str, key_count);
 
         reports::print_layout_grid(name, &layout_bytes);
@@ -54,5 +53,5 @@ pub fn run(args: ValidateArgs, kb_def: &KeyboardDefinition, scorer: Arc<Scorer>)
 
     reports::print_scoring_report(&results);
     reports::print_statistical_report(&results, &scorer.weights);
-    reports::print_comparison_report(&results);
+    reports::print_comparison_report(&results); // Now includes the reality check
 }

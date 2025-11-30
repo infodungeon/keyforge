@@ -1,5 +1,6 @@
 use keyforge::scorer::loader::{load_cost_matrix, load_ngrams};
 use std::collections::HashSet;
+use std::fs::File;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -17,8 +18,8 @@ fn test_loader_parses_valid_ngrams() {
     writeln!(file, "the\t300").unwrap();
 
     let valid = get_valid_chars();
-    // Updated: Added .unwrap()
-    let raw = load_ngrams(file.path().to_str().unwrap(), &valid, 1.0, true).unwrap();
+    let reader = File::open(file.path()).unwrap();
+    let raw = load_ngrams(reader, &valid, 1.0, true).unwrap();
 
     assert_eq!(raw.char_freqs[b'a' as usize], 100.0);
     assert_eq!(raw.bigrams.len(), 1);
@@ -37,8 +38,8 @@ fn test_loader_handles_complex_tsv() {
     writeln!(file, "THE\t300\t...").unwrap(); // Trigram
 
     let valid = get_valid_chars();
-    // Updated: Added .unwrap()
-    let raw = load_ngrams(file.path().to_str().unwrap(), &valid, 1.0, true).unwrap();
+    let reader = File::open(file.path()).unwrap();
+    let raw = load_ngrams(reader, &valid, 1.0, true).unwrap();
 
     // Should skip headers (invalid chars '*' or '-')
     // Should match E, TH, THE
@@ -54,8 +55,8 @@ fn test_loader_handles_case_insensitivity() {
     let mut file = NamedTempFile::new().unwrap();
     writeln!(file, "TH\t100").unwrap();
     let valid = get_valid_chars();
-    // Updated: Added .unwrap()
-    let raw = load_ngrams(file.path().to_str().unwrap(), &valid, 1.0, true).unwrap();
+    let reader = File::open(file.path()).unwrap();
+    let raw = load_ngrams(reader, &valid, 1.0, true).unwrap();
     assert_eq!(raw.bigrams.len(), 1);
     assert_eq!(raw.bigrams[0].0, b't');
 }
@@ -65,8 +66,8 @@ fn test_loader_skips_invalid_chars() {
     let mut file = NamedTempFile::new().unwrap();
     writeln!(file, "q$\t100").unwrap();
     let valid = get_valid_chars();
-    // Updated: Added .unwrap()
-    let raw = load_ngrams(file.path().to_str().unwrap(), &valid, 1.0, true).unwrap();
+    let reader = File::open(file.path()).unwrap();
+    let raw = load_ngrams(reader, &valid, 1.0, true).unwrap();
     assert_eq!(raw.bigrams.len(), 0);
 }
 
@@ -77,8 +78,8 @@ fn test_loader_parses_cost_matrix() {
     let mut file = NamedTempFile::new().unwrap();
     writeln!(file, "From,To,Cost").unwrap();
     writeln!(file, "KeyQ,KeyW,1.5").unwrap();
-    // Updated: Added .unwrap()
-    let raw = load_cost_matrix(file.path().to_str().unwrap(), true).unwrap();
+    let reader = File::open(file.path()).unwrap();
+    let raw = load_cost_matrix(reader, true).unwrap();
     assert_eq!(raw.entries.len(), 1);
     assert_eq!(raw.entries[0].2, 1.5);
 }
@@ -88,8 +89,8 @@ fn test_loader_cost_matrix_handles_whitespace() {
     let mut file = NamedTempFile::new().unwrap();
     writeln!(file, "From,To,Cost").unwrap();
     writeln!(file, "KeyQ , KeyW , 1.5").unwrap(); // Spaces!
-                                                  // Updated: Added .unwrap()
-    let raw = load_cost_matrix(file.path().to_str().unwrap(), true).unwrap();
+    let reader = File::open(file.path()).unwrap();
+    let raw = load_cost_matrix(reader, true).unwrap();
     assert_eq!(raw.entries.len(), 1);
     assert_eq!(raw.entries[0].2, 1.5);
 }
@@ -100,7 +101,7 @@ fn test_loader_cost_matrix_skips_bad_lines() {
     writeln!(file, "From,To,Cost").unwrap();
     writeln!(file, "KeyQ,KeyW,1.5").unwrap(); // Good
     writeln!(file, "Garbage").unwrap(); // Bad
-                                        // Updated: Added .unwrap()
-    let raw = load_cost_matrix(file.path().to_str().unwrap(), true).unwrap();
+    let reader = File::open(file.path()).unwrap();
+    let raw = load_cost_matrix(reader, true).unwrap();
     assert_eq!(raw.entries.len(), 1);
 }

@@ -1,4 +1,3 @@
-// ===== keyforge/src/scorer/mod.rs =====
 pub mod costs;
 pub mod engine;
 pub mod flow;
@@ -10,6 +9,7 @@ pub mod types;
 use self::loader::TrigramRef;
 pub use self::types::ScoreDetails;
 use crate::config::{Config, LayoutDefinitions, ScoringWeights};
+use crate::error::KfResult;
 use crate::geometry::KeyboardGeometry;
 
 pub struct Scorer {
@@ -44,7 +44,10 @@ pub struct Scorer {
     pub char_freqs: [f32; 256],
     pub char_tier_map: [u8; 256],
     pub critical_mask: [bool; 256],
-    pub freq_matrix: [[f32; 256]; 256],
+
+    // HEAP ALLOCATED (Flattened 256*256)
+    // Access: freq_matrix[char_a * 256 + char_b]
+    pub freq_matrix: Vec<f32>,
 }
 
 impl Scorer {
@@ -54,7 +57,7 @@ impl Scorer {
         geometry: &KeyboardGeometry,
         config: Config,
         debug: bool,
-    ) -> Result<Self, String> {
+    ) -> KfResult<Self> {
         setup::build_scorer(
             cost_path,
             ngrams_path,

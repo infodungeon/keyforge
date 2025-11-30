@@ -1,6 +1,6 @@
-use csv;
+use crate::error::KfResult;
 use std::collections::HashSet;
-use std::fs::File;
+use std::io::Read;
 
 #[derive(Debug, Clone)]
 pub struct TrigramRef {
@@ -20,18 +20,11 @@ pub struct RawNgrams {
     pub char_freqs: [f32; 256],
 }
 
-pub fn load_cost_matrix(path: &str, debug: bool) -> Result<RawCostData, String> {
-    if debug {
-        println!("   Loading Costs from: {}", path);
-    }
-
-    let file = File::open(path)
-        .map_err(|e| format!("❌ Could not open Cost Matrix at '{}': {}", path, e))?;
-
+pub fn load_cost_matrix<R: Read>(reader: R, debug: bool) -> KfResult<RawCostData> {
     let mut rdr = csv::ReaderBuilder::new()
         .flexible(true)
         .has_headers(true)
-        .from_reader(file);
+        .from_reader(reader);
 
     let mut entries = Vec::new();
     let mut skipped_count = 0;
@@ -77,25 +70,18 @@ pub fn load_cost_matrix(path: &str, debug: bool) -> Result<RawCostData, String> 
     Ok(RawCostData { entries })
 }
 
-pub fn load_ngrams(
-    path: &str,
+pub fn load_ngrams<R: Read>(
+    reader: R,
     valid: &HashSet<u8>,
     corpus_scale: f32,
     debug: bool,
-) -> Result<RawNgrams, String> {
-    if debug {
-        println!("   Loading Ngrams from: {}", path);
-    }
-
-    let file = File::open(path)
-        .map_err(|e| format!("❌ Could not open N-grams file at '{}': {}", path, e))?;
-
+) -> KfResult<RawNgrams> {
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
         .quoting(false)
         .flexible(true)
-        .from_reader(file);
+        .from_reader(reader);
 
     let mut bigrams = Vec::new();
     let mut trigrams = Vec::new();
@@ -104,35 +90,38 @@ pub fn load_ngrams(
 
     for result in rdr.records() {
         lines_read += 1;
-        if let Ok(rec) = result {
-            if rec.len() < 2 {
-                continue;
+        match result {
+            Ok(rec) => {
+                if rec.len() < 2 {
+                    continue;
+                }
+
+                let s_raw = rec[0].trim();
+                if s_raw.is_empty() {
+                    continue;
+                }
+                let s = s_raw.to_ascii_lowercase();
+
+                let count_val: f32 = match rec[1].trim().parse() {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+
+                let normalized_freq = count_val / corpus_scale;
+                let bytes = s.as_bytes();
+
+                if !bytes.iter().all(|b| valid.contains(b)) {
+                    continue;
+                }
+
+                match s.len() {
+                    1 => char_freqs[bytes[0] as usize] += normalized_freq,
+                    2 => bigrams.push((bytes[0], bytes[1], normalized_freq)),
+                    3 => trigrams.push((bytes[0], bytes[1], bytes[2], normalized_freq)),
+                    _ => {}
+                }
             }
-
-            let s_raw = rec[0].trim();
-            if s_raw.is_empty() {
-                continue;
-            }
-            let s = s_raw.to_ascii_lowercase();
-
-            let count_val: f32 = match rec[1].trim().parse() {
-                Ok(v) => v,
-                Err(_) => continue,
-            };
-
-            let normalized_freq = count_val / corpus_scale;
-            let bytes = s.as_bytes();
-
-            if !bytes.iter().all(|b| valid.contains(b)) {
-                continue;
-            }
-
-            match s.len() {
-                1 => char_freqs[bytes[0] as usize] += normalized_freq,
-                2 => bigrams.push((bytes[0], bytes[1], normalized_freq)),
-                3 => trigrams.push((bytes[0], bytes[1], bytes[2], normalized_freq)),
-                _ => {}
-            }
+            Err(_) => continue,
         }
     }
 

@@ -1,4 +1,3 @@
-// ===== keyforge/src/api.rs =====
 use crate::config::{Config, ScoringWeights};
 use crate::geometry::KeyboardDefinition;
 use crate::optimizer::mutation;
@@ -83,7 +82,9 @@ pub fn load_dataset(
     }
 
     // Initialize Scorer
-    let scorer = Scorer::new(cost_path, ngrams_path, &kb_def.geometry, config, false)?;
+    // Map the KeyForgeError to String for the API return type
+    let scorer = Scorer::new(cost_path, ngrams_path, &kb_def.geometry, config, false)
+        .map_err(|e| e.to_string())?;
 
     // Store State
     let mut s_guard = state.scorer.lock().map_err(|e| e.to_string())?;
