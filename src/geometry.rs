@@ -1,4 +1,3 @@
-// ===== keyforge/src/geometry.rs =====
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -20,7 +19,6 @@ pub struct KeyboardMeta {
     pub kb_type: String,
 }
 
-// ... [The rest of the file remains exactly as before] ...
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyboardDefinition {
     #[serde(default)]
@@ -98,14 +96,12 @@ impl KeyboardGeometry {
                     k.hand == hand as u8 && k.finger == finger as u8 && k.row == self.home_row
                 }) {
                     self.finger_origins[hand][finger] = (k.x, k.y);
-                } else {
-                    if let Some(k) = self
-                        .keys
-                        .iter()
-                        .find(|k| k.hand == hand as u8 && k.finger == finger as u8)
-                    {
-                        self.finger_origins[hand][finger] = (k.x, k.y);
-                    }
+                } else if let Some(k) = self
+                    .keys
+                    .iter()
+                    .find(|k| k.hand == hand as u8 && k.finger == finger as u8)
+                {
+                    self.finger_origins[hand][finger] = (k.x, k.y);
                 }
             }
         }

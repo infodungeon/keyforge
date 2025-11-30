@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "name": "Corne",
+    "author": "foostan",
+    "version": "1.0",
+    "notes": "42-key split column-staggered (CRKBD)",
+    "type": "column_staggered"
+  },
+  "geometry": {
+    "keys": [
+      { "id": "L00", "hand": 0, "finger": 4, "row": 0, "col": 0, "x": 0.0, "y": 0.50, "is_stretch": false },
+      { "id": "L01", "hand": 0, "finger": 4, "row": 0, "col": 1, "x": 1.0, "y": 0.25, "is_stretch": false },
+      { "id": "L02", "hand": 0, "finger": 3, "row": 0, "col": 2, "x": 2.0, "y": 0.10, "is_stretch": false },
+      { "id": "L03", "hand": 0, "finger": 2, "row": 0, "col": 3, "x": 3.0, "y": 0.00, "is_stretch": false },
+      { "id": "L04", "hand": 0, "finger": 1, "row": 0, "col": 4, "x": 4.0, "y": 0.15, "is_stretch": false },
+      { "id": "L05", "hand": 0, "finger": 1, "row": 0, "col": 5, "x": 5.0, "y": 0.15, "is_stretch": true },
+      
+      { "id": "R00", "hand": 1, "finger": 1, "row": 0, "col": 6, "x": 8.0, "y": 0.15, "is_stretch": true },
+      { "id": "R01", "hand": 1, "finger": 1, "row": 0, "col": 7, "x": 9.0, "y": 0.15, "is_stretch": false },
+      { "id": "R02", "hand": 1, "finger": 2, "row": 0, "col": 8, "x": 10.0, "y": 0.00, "is_stretch": false },
+      { "id": "R03", "hand": 1, "finger": 3, "row": 0, "col": 9, "x": 11.0, "y": 0.10, "is_stretch": false },
+      { "id": "R04", "hand": 1, "finger": 4, "row": 0, "col": 10, "x": 12.0, "y": 0.25, "is_stretch": false },
+      { "id": "R05", "hand": 1, "finger": 4, "row": 0, "col": 11, "x": 13.0, "y": 0.50, "is_stretch": false },
+
+      { "id": "L10", "hand": 0, "finger": 4, "row": 1, "col": 0, "x": 0.0, "y": 1.50, "is_stretch": false },
+      { "id": "L11", "hand": 0, "finger": 4, "row": 1, "col": 1, "x": 1.0, "y": 1.25, "is_stretch": false },
+      { "id": "L12", "hand": 0, "finger": 3, "row": 1, "col": 2, "x": 2.0, "y": 1.10, "is_stretch": false },
+      { "id": "L13", "hand": 0, "finger": 2, "row": 1, "col": 3, "x": 3.0, "y": 1.00, "is_stretch": false },
+      { "id": "L14", "hand": 0, "finger": 1, "row": 1, "col": 4, "x": 4.0, "y": 1.15, "is_stretch": false },
+      { "id": "L15", "hand": 0, "finger": 1, "row": 1, "col": 5, "x": 5.0, "y": 1.15, "is_stretch": true },
+
+      { "id": "R10", "hand": 1, "finger": 1, "row": 1, "col": 6, "x": 8.0, "y": 1.15, "is_stretch": true },
+      { "id": "R11", "hand": 1, "finger": 1, "row": 1, "col": 7, "x": 9.0, "y": 1.15, "is_stretch": false },
+      { "id": "R12", "hand": 1, "finger": 2, "row": 1, "col": 8, "x": 10.0, "y": 1.00, "is_stretch": false },
+      { "id": "R13", "hand": 1, "finger": 3, "row": 1, "col": 9, "x": 11.0, "y": 1.10, "is_stretch": false },
+      { "id": "R14", "hand": 1, "finger": 4, "row": 1, "col": 10, "x": 12.0, "y": 1.25, "is_stretch": false },
+      { "id": "R15", "hand": 1, "finger": 4, "row": 1, "col": 11, "x": 13.0, "y": 1.50, "is_stretch": false },
+
+      { "id": "L20", "hand": 0, "finger": 4, "row": 2, "col": 0, "x": 0.0, "y": 2.50, "is_stretch": false },
+      { "id": "L21", "hand": 0, "finger": 4, "row": 2, "col": 1, "x": 1.0, "y": 2.25, "is_stretch": false },
+      { "id": "L22", "hand": 0, "finger": 3, "row": 2, "col": 2, "x": 2.0, "y": 2.10, "is_stretch": false },
+      { "id": "L23", "hand": 0, "finger": 2, "row": 2, "col": 3, "x": 3.0, "y": 2.00, "is_stretch": false },
+      { "id": "L24", "hand": 0, "finger": 1, "row": 2, "col": 4, "x": 4.0, "y": 2.15, "is_stretch": false },
+      { "id": "L25", "hand": 0, "finger": 1, "row": 2, "col": 5, "x": 5.0, "y": 2.15, "is_stretch": true },
+
+      { "id": "R20", "hand": 1, "finger": 1, "row": 2, "col": 6, "x": 8.0, "y": 2.15, "is_stretch": true },
+      { "id": "R21", "hand": 1, "finger": 1, "row": 2, "col": 7, "x": 9.0, "y": 2.15, "is_stretch": false },
+      { "id": "R22", "hand": 1, "finger": 2, "row": 2, "col": 8, "x": 10.0, "y": 2.00, "is_stretch": false },
+      { "id": "R23", "hand": 1, "finger": 3, "row": 2, "col": 9, "x": 11.0, "y": 2.10, "is_stretch": false },
+      { "id": "R24", "hand": 1, "finger": 4, "row": 2, "col": 10, "x": 12.0, "y": 2.25, "is_stretch": false },
+      { "id": "R25", "hand": 1, "finger": 4, "row": 2, "col": 11, "x": 13.0, "y": 2.50, "is_stretch": false },
+
+      { "id": "LT1", "hand": 0, "finger": 0, "row": 3, "col": 3, "x": 3.5, "y": 3.10, "is_stretch": false },
+      { "id": "LT2", "hand": 0, "finger": 0, "row": 3, "col": 4, "x": 4.5, "y": 3.25, "is_stretch": false },
+      { "id": "LT3", "hand": 0, "finger": 0, "row": 3, "col": 5, "x": 5.5, "y": 3.40, "is_stretch": false },
+
+      { "id": "RT1", "hand": 1, "finger": 0, "row": 3, "col": 6, "x": 7.5, "y": 3.40, "is_stretch": false },
+      { "id": "RT2", "hand": 1, "finger": 0, "row": 3, "col": 7, "x": 8.5, "y": 3.25, "is_stretch": false },
+      { "id": "RT3", "hand": 1, "finger": 0, "row": 3, "col": 8, "x": 9.5, "y": 3.10, "is_stretch": false }
+    ],
+    "prime_slots": [
+      13, 14, 15, 16, 
+      19, 20, 21, 22
+    ],
+    "med_slots": [
+       1,  2,  3,  4,  5,
+       7,  8,  9, 10,
+      25, 26, 27, 28, 
+      30, 31, 32, 33,
+      37, 40
+    ],
+    "low_slots": [
+       0,  6, 11,
+      12, 17, 18, 23,
+      24, 29, 34, 35,
+      36, 38, 39, 41
+    ],
+    "home_row": 1
+  },
+  "layouts": {
+    "Qwerty":     " TAB Q W E R T Y U I O P BSP  ESC A S D F G H J K L ; ' ENT  SFT Z X C V B N M , . / SFT    GUI ALT SPC SFT ENT OPT",
+    "Colemak":    " TAB Q W F P G J L U Y ; BSP  ESC A R S T D H N E I O ' ENT  SFT Z X C V B K M , . / SFT    GUI ALT SPC SFT ENT OPT",
+    "Colemak-DH": " TAB Q W F P B J L U Y ; BSP  ESC A R S T G M N E I O ' ENT  SFT Z X C D V K H , . / SFT    GUI ALT SPC SFT ENT OPT",
+    "Dvorak":     " TAB ' , . P Y F G C R L BSP  ESC A O E U I D H T N S / ENT  SFT ; Q J K X B M W V Z SFT    GUI ALT SPC SFT ENT OPT"
+  }
+}
