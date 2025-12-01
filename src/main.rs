@@ -1,10 +1,10 @@
-// ===== keyforge/src/main.rs =====
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use keyforge::geometry::KeyboardDefinition;
 use keyforge::scorer::Scorer;
 use std::path::Path;
 use std::process;
 use std::sync::Arc;
+use tracing::{error, info, warn};
 
 mod cmd;
 mod reports;
@@ -43,23 +43,24 @@ enum Commands {
 }
 
 fn main() {
-    // 1. Parse Raw Matches (to distinguish user input from defaults)
-    let matches = Cli::command().get_matches();
+    // 1. Initialize Logging
+    // By default, show INFO. If RUST_LOG env var is set, use that.
+    tracing_subscriber::fmt::init();
 
-    // 2. Construct CLI struct (populated with defaults)
+    // 2. Parse Raw Matches
+    let matches = Cli::command().get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
-    println!("\n🚀 Initializing KeyForge Core...");
+    info!("🚀 Initializing KeyForge Core...");
 
     // 3. Load Keyboard Definition
-    println!("📂 Loading Keyboard: {}", cli.keyboard);
+    info!("📂 Loading Keyboard: {}", cli.keyboard);
     let kb_def = KeyboardDefinition::load_from_file(&cli.keyboard).unwrap_or_else(|e| {
-        eprintln!("{}", e);
+        error!("{}", e);
         process::exit(1);
     });
 
-    // 4. Extract CLI-provided config AND the specific matches for the subcommand
-    // Arguments like --corpus-scale live inside the subcommand's matches, not the root.
+    // 4. Extract CLI-provided config
     let (mut config, cli_weights_ref, sub_matches) = match &cli.command {
         Commands::Search(args) => (
             args.config.clone(),
@@ -73,7 +74,7 @@ fn main() {
         ),
     };
 
-    // 5. Resolve Weights Strategy: JSON vs CLI
+    // 5. Resolve Weights Strategy
     let weights_path_str = if let Some(path) = &cli.weights {
         Some(path.clone())
     } else {
@@ -88,7 +89,7 @@ fn main() {
             if Path::new(&path).exists() {
                 Some(path)
             } else {
-                eprintln!(
+                warn!(
                     "⚠️  Keyboard type '{}' maps to '{}', but file not found.",
                     kb_def.meta.kb_type, path
                 );
@@ -100,18 +101,12 @@ fn main() {
     };
 
     if let Some(path) = weights_path_str {
-        println!("⚖️  Loading Weights from: {}", path);
-
-        // A. Load JSON weights (this becomes the base)
+        info!("⚖️  Loading Weights from: {}", path);
         let mut file_weights = keyforge::config::ScoringWeights::load_from_file(&path);
-
-        // B. Merge explicit CLI overrides onto the file weights using subcommand matches
         file_weights.merge_from_cli(cli_weights_ref, sub_matches);
-
-        // C. Assign back to config
         config.weights = file_weights;
     } else {
-        println!("⚠️  No external weights loaded. Using embedded defaults.");
+        warn!("⚠️  No external weights loaded. Using embedded defaults.");
     }
 
     // 6. Initialize Scorer
@@ -120,8 +115,8 @@ fn main() {
     let scorer = match scorer_result {
         Ok(s) => Arc::new(s),
         Err(e) => {
-            eprintln!("\n❌ FATAL ERROR INITIALIZING SCORER:");
-            eprintln!("   {}", e);
+            error!("\n❌ FATAL ERROR INITIALIZING SCORER:");
+            error!("   {}", e);
             process::exit(1);
         }
     };

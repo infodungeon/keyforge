@@ -1,4 +1,3 @@
-// ===== keyforge/src/scorer/engine.rs =====
 use super::costs::{calculate_cost, CostCategory};
 use super::flow::analyze_flow;
 use super::physics::{analyze_interaction, get_geo_dist, get_reach_cost};
@@ -9,26 +8,29 @@ pub fn score_full(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> (f32, f
     let mut left_load = 0.0;
     let mut total_freq = 0.0;
 
-    for (i, &p) in pos_map.iter().enumerate() {
-        let freq = scorer.char_freqs[i];
-        if freq > 0.0 && p != 255 {
+    // OPTIMIZATION: Iterate only active chars
+    for &c_idx in &scorer.active_chars {
+        let p = pos_map[c_idx];
+        if p != 255 {
             let p_idx = p as usize;
             if p_idx >= scorer.key_count {
                 continue;
             }
 
+            let freq = scorer.char_freqs[c_idx];
+
             total_freq += freq;
             if scorer.geometry.keys[p_idx].hand == 0 {
                 left_load += freq;
             }
-            score += scorer.tier_penalty_matrix[scorer.char_tier_map[i] as usize]
+            score += scorer.tier_penalty_matrix[scorer.char_tier_map[c_idx] as usize]
                 [scorer.slot_tier_map[p_idx] as usize]
                 * freq;
             score += scorer.slot_monogram_costs[p_idx] * freq;
         }
     }
 
-    for c1 in 0..256 {
+    for &c1 in &scorer.active_chars {
         let p1 = pos_map[c1];
         if p1 == 255 {
             continue;
@@ -52,7 +54,7 @@ pub fn score_full(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> (f32, f
 
     let k_sq = scorer.key_count * scorer.key_count;
 
-    for c1 in 0..256 {
+    for &c1 in &scorer.active_chars {
         let p1 = pos_map[c1];
         if p1 == 255 {
             continue;
@@ -95,7 +97,8 @@ pub fn score_debug(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> ScoreD
     let mut left_load = 0.0;
 
     // 1. CHARS
-    for (i, &p) in pos_map.iter().enumerate() {
+    for &i in &scorer.active_chars {
+        let p = pos_map[i];
         let freq = scorer.char_freqs[i];
         if freq > 0.0 {
             d.total_chars += freq;
@@ -139,7 +142,7 @@ pub fn score_debug(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> ScoreD
     }
 
     // 2. BIGRAMS
-    for c1 in 0..256 {
+    for &c1 in &scorer.active_chars {
         let p1 = pos_map[c1];
         if p1 == 255 {
             continue;
@@ -160,7 +163,6 @@ pub fn score_debug(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> ScoreD
                     let flat_idx = p1_idx * scorer.key_count + p2_idx;
                     d.user_dist += scorer.raw_user_matrix[flat_idx] * freq;
 
-                    // CHANGED: Pass weights for dynamic scissors
                     let m = analyze_interaction(&scorer.geometry, p1_idx, p2_idx, &scorer.weights);
 
                     if m.is_same_hand {
@@ -253,7 +255,7 @@ pub fn score_debug(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> ScoreD
     let k_sq = scorer.key_count * scorer.key_count;
 
     // 3. TRIGRAMS
-    for c1 in 0..256 {
+    for &c1 in &scorer.active_chars {
         let p1 = pos_map[c1];
         if p1 == 255 {
             continue;

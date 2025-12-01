@@ -88,7 +88,7 @@ pub fn calculate_cost(m: &KeyInteraction, w: &ScoringWeights) -> CostResult {
         } else if m.is_bot_lat_seq {
             penalty = w.penalty_sfb_bottom;
             res.category = CostCategory::SfbBot;
-        } else if m.row_diff >= 2 {
+        } else if m.row_diff >= w.threshold_sfb_long_row_diff {
             penalty = w.penalty_sfb_long;
             res.category = CostCategory::SfbLong;
         } else if m.row_diff > 0 && m.col_diff > 0 {

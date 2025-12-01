@@ -69,18 +69,19 @@ fn test_scorer_handles_small_geometry() {
     let mut config = Config::default();
     config.defs.tier_high_chars = "abc".to_string(); // Only 3 chars needed
 
-    let scorer_res = keyforge::scorer::setup::build_scorer(
+    // UPDATED: Call Scorer::new instead of setup::build_scorer
+    let scorer_res = keyforge::scorer::Scorer::new(
         cost_path.to_str().unwrap(),
         ngram_path.to_str().unwrap(),
-        config.weights,
-        config.defs,
-        geom.clone(),
+        &geom,
+        config,
         true,
     );
 
     assert!(
         scorer_res.is_ok(),
-        "Scorer failed to initialize with 3 keys"
+        "Scorer failed to initialize with 3 keys: {:?}",
+        scorer_res.err()
     );
     let scorer = scorer_res.unwrap();
 

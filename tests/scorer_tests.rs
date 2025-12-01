@@ -2,7 +2,6 @@ use keyforge::config::Config;
 use keyforge::geometry::{KeyNode, KeyboardGeometry};
 use keyforge::optimizer::{mutation, Replica};
 use keyforge::scorer::loader::{load_cost_matrix, load_ngrams};
-use keyforge::scorer::setup;
 use std::collections::HashSet;
 use std::io::Cursor;
 use std::sync::Arc;
@@ -57,7 +56,10 @@ fn test_in_memory_loading() {
     // 2. Test Ngram Loader
     let cursor_ngram = Cursor::new(ngram_data);
     let valid: HashSet<u8> = b"ab".iter().cloned().collect();
-    let ngrams = load_ngrams(cursor_ngram, &valid, 1.0, false).expect("Ngram load failed");
+
+    // Updated signature: load_ngrams(reader, valid_set, scale, limit, debug)
+    let ngrams = load_ngrams(cursor_ngram, &valid, 1.0, 100, false).expect("Ngram load failed");
+
     assert_eq!(ngrams.bigrams.len(), 1);
 }
 
@@ -69,22 +71,18 @@ fn test_delta_drift() {
     let mut config = Config::default();
     config.defs.tier_high_chars = "ab".to_string(); // Minimal chars
 
-    // Write temp files because setup::build_scorer still expects paths
-    // (We refactored loader.rs but setup.rs still wraps File::open for the main binary flow.
-    // To truly unit test the Replica, we'd need to mock Scorer construction without files,
-    // but for now we use tempfile for the Scorer init, then test Replica in memory).
+    // Write temp files because Scorer::new expects paths
     let dir = tempfile::tempdir().unwrap();
     let cost_path = dir.path().join("cost.csv");
     let ngram_path = dir.path().join("ngrams.tsv");
     std::fs::write(&cost_path, "From,To,Cost\nk0,k1,10.0").unwrap();
     std::fs::write(&ngram_path, "ab\t100").unwrap();
 
-    let scorer = setup::build_scorer(
+    let scorer = keyforge::scorer::Scorer::new(
         cost_path.to_str().unwrap(),
         ngram_path.to_str().unwrap(),
-        config.weights,
-        config.defs,
-        geom,
+        &geom,
+        config,
         false,
     )
     .unwrap();
@@ -97,8 +95,9 @@ fn test_delta_drift() {
         100.0, // Temp
         Some(123),
         false,
-        100, // Limit
-        100,
+        100, // Limit Fast
+        100, // Limit Slow
+        "",  // No Pins
     );
 
     // Force specific layout: k0='a', k1='b'
@@ -144,4 +143,55 @@ fn test_delta_drift() {
         real_total,
         diff
     );
+}
+
+// --- UNIT TEST: PINNING BEHAVIOR ---
+#[test]
+fn test_pinning_constraints() {
+    let geom = get_mock_geom();
+    let mut config = Config::default();
+    config.defs.tier_high_chars = "ab".to_string();
+
+    let dir = tempfile::tempdir().unwrap();
+    let cost_path = dir.path().join("cost.csv");
+    let ngram_path = dir.path().join("ngrams.tsv");
+    std::fs::write(&cost_path, "From,To,Cost\nk0,k1,10.0").unwrap();
+    std::fs::write(&ngram_path, "ab\t100").unwrap();
+
+    let scorer = keyforge::scorer::Scorer::new(
+        cost_path.to_str().unwrap(),
+        ngram_path.to_str().unwrap(),
+        &geom,
+        config,
+        false,
+    )
+    .unwrap();
+
+    // Lock index 0 to 'a'
+    let pinned_str = "0:a";
+
+    let mut replica = Replica::new(
+        Arc::new(scorer),
+        1000.0, // High temp to force movement
+        Some(123),
+        false,
+        100,
+        100,
+        pinned_str,
+    );
+
+    // 1. Verify initial layout respects pin
+    assert_eq!(replica.layout[0], b'a');
+    assert_eq!(replica.layout[1], b'b'); // Since only a/b available, 1 must be b
+
+    // 2. Try to evolve
+    // Since 0 is locked, and there are only 2 keys, no swaps are possible.
+    // Evolve should return 0 accepted.
+    let (accepted, _steps) = replica.evolve(100);
+
+    assert_eq!(
+        accepted, 0,
+        "Optimized performed a swap despite pinning constraints"
+    );
+    assert_eq!(replica.layout[0], b'a', "Pinned key moved!");
 }

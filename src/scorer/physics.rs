@@ -1,4 +1,3 @@
-// ===== keyforge/src/scorer/physics.rs =====
 use crate::config::ScoringWeights;
 use crate::geometry::KeyboardGeometry;
 use std::cmp::Ordering;
@@ -77,7 +76,7 @@ pub fn analyze_interaction(
     geom: &KeyboardGeometry,
     i: usize,
     j: usize,
-    weights: &ScoringWeights, // NEW: Pass weights for dynamic configuration
+    weights: &ScoringWeights,
 ) -> KeyInteraction {
     let k1 = &geom.keys[i];
     let k2 = &geom.keys[j];
@@ -119,7 +118,10 @@ pub fn analyze_interaction(
         }
 
         // Scissor Detection
-        if (k1.finger as i8 - k2.finger as i8).abs() == 1 && (k1.row - k2.row).abs() >= 2 {
+        // Use configurable threshold
+        if (k1.finger as i8 - k2.finger as i8).abs() == 1
+            && (k1.row - k2.row).abs() >= weights.threshold_scissor_row_diff
+        {
             res.is_scissor = true;
 
             // --- DYNAMIC SCISSOR EXCEPTION ---

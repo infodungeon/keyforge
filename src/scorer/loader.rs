@@ -1,6 +1,7 @@
 use crate::error::KfResult;
 use std::collections::HashSet;
 use std::io::Read;
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct TrigramRef {
@@ -20,7 +21,7 @@ pub struct RawNgrams {
     pub char_freqs: [f32; 256],
 }
 
-pub fn load_cost_matrix<R: Read>(reader: R, debug: bool) -> KfResult<RawCostData> {
+pub fn load_cost_matrix<R: Read>(reader: R, debug_mode: bool) -> KfResult<RawCostData> {
     let mut rdr = csv::ReaderBuilder::new()
         .flexible(true)
         .has_headers(true)
@@ -53,18 +54,15 @@ pub fn load_cost_matrix<R: Read>(reader: R, debug: bool) -> KfResult<RawCostData
                 entries.push((k1, k2, c));
             }
             Err(e) => {
-                if debug {
-                    eprintln!("   ⚠️  [Row {}] CSV Parse Error: {}", row_idx, e);
+                if debug_mode {
+                    debug!("[Row {}] CSV Parse Error: {}", row_idx, e);
                 }
             }
         }
     }
 
-    if debug && skipped_count > 0 {
-        println!(
-            "   ⚠️  Skipped {} invalid rows in Cost Matrix.",
-            skipped_count
-        );
+    if debug_mode && skipped_count > 0 {
+        debug!("Skipped {} invalid rows in Cost Matrix.", skipped_count);
     }
 
     Ok(RawCostData { entries })
@@ -74,7 +72,8 @@ pub fn load_ngrams<R: Read>(
     reader: R,
     valid: &HashSet<u8>,
     corpus_scale: f32,
-    debug: bool,
+    max_trigrams: usize,
+    debug_mode: bool,
 ) -> KfResult<RawNgrams> {
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b'\t')
@@ -89,6 +88,13 @@ pub fn load_ngrams<R: Read>(
     let mut lines_read = 0;
 
     for result in rdr.records() {
+        if max_trigrams > 0 && trigrams.len() >= max_trigrams {
+            if debug_mode {
+                debug!("Reached trigram limit ({}), stopping load.", max_trigrams);
+            }
+            break;
+        }
+
         lines_read += 1;
         match result {
             Ok(rec) => {
@@ -118,16 +124,25 @@ pub fn load_ngrams<R: Read>(
                     1 => char_freqs[bytes[0] as usize] += normalized_freq,
                     2 => bigrams.push((bytes[0], bytes[1], normalized_freq)),
                     3 => trigrams.push((bytes[0], bytes[1], bytes[2], normalized_freq)),
-                    _ => {}
+                    _ => {
+                        if debug_mode {
+                            debug!("Encountered {}-gram, stopping load.", s.len());
+                        }
+                        return Ok(RawNgrams {
+                            bigrams,
+                            trigrams,
+                            char_freqs,
+                        });
+                    }
                 }
             }
             Err(_) => continue,
         }
     }
 
-    if debug {
-        println!(
-            "   -> Scanned {} lines. Loaded: {} 2-grams, {} 3-grams.",
+    if debug_mode {
+        debug!(
+            "Scanned {} lines. Loaded: {} 2-grams, {} 3-grams.",
             lines_read,
             bigrams.len(),
             trigrams.len()

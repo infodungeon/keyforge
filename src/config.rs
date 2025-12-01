@@ -1,4 +1,3 @@
-// ===== keyforge/src/config.rs =====
 use clap::{parser::ValueSource, ArgMatches, Args};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -32,6 +31,10 @@ pub struct SearchParams {
     pub opt_limit_fast: usize,
     #[arg(long, default_value_t = 3000)]
     pub opt_limit_slow: usize,
+
+    // Key Pinning
+    #[arg(long, default_value = "")]
+    pub pinned_keys: String,
 }
 
 impl Default for SearchParams {
@@ -45,6 +48,7 @@ impl Default for SearchParams {
             temp_max: 1000.0,
             opt_limit_fast: 600,
             opt_limit_slow: 3000,
+            pinned_keys: String::new(),
         }
     }
 }
@@ -63,7 +67,7 @@ pub struct ScoringWeights {
     // === SFB (Bigrams) ===
     #[arg(long, default_value_t = 65.0)]
     pub penalty_sfb_lateral: f32,
-    #[arg(long, default_value_t = 250.0)]
+    #[arg(long, default_value_t = 160.0)]
     pub penalty_sfb_lateral_weak: f32,
     #[arg(long, default_value_t = 400.0)]
     pub penalty_sfb_base: f32,
@@ -77,6 +81,12 @@ pub struct ScoringWeights {
     pub penalty_sfb_bottom: f32,
     #[arg(long, default_value_t = 2.7)]
     pub weight_weak_finger_sfb: f32,
+
+    // === THRESHOLDS ===
+    #[arg(long, default_value_t = 2)]
+    pub threshold_sfb_long_row_diff: i8,
+    #[arg(long, default_value_t = 2)]
+    pub threshold_scissor_row_diff: i8,
 
     // === OTHER ===
     #[arg(long, default_value_t = 25.0)]
@@ -135,6 +145,11 @@ pub struct ScoringWeights {
     #[arg(long, default_value_t = 120.0)]
     pub default_cost_ms: f32,
 
+    // NEW: Loader Optimization
+    // Default 3000 covers 98% of corpus per analysis
+    #[arg(long, default_value_t = 3000)]
+    pub loader_trigram_limit: usize,
+
     #[arg(long, default_value = "0.0,1.0,1.1,1.3,1.6")]
     pub finger_penalty_scale: String,
 
@@ -156,6 +171,10 @@ impl Default for ScoringWeights {
             penalty_sfb_long: 280.0,
             penalty_sfb_bottom: 45.0,
             weight_weak_finger_sfb: 2.7,
+
+            threshold_sfb_long_row_diff: 2,
+            threshold_scissor_row_diff: 2,
+
             penalty_scissor: 25.0,
             penalty_ring_pinky: 1.3,
             penalty_lateral: 50.0,
@@ -179,12 +198,14 @@ impl Default for ScoringWeights {
             weight_finger_effort: 2.2,
             corpus_scale: 200_000_000.0,
             default_cost_ms: 120.0,
+            loader_trigram_limit: 3000,
             finger_penalty_scale: "0.0,1.0,1.1,1.3,1.6".to_string(),
             comfortable_scissors: "21,23,34".to_string(),
         }
     }
 }
 
+// ... [LayoutDefinitions and impl blocks remain the same] ...
 #[derive(Args, Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LayoutDefinitions {
@@ -248,8 +269,6 @@ impl ScoringWeights {
         pairs
     }
 
-    /// Merges values from CLI arguments into this struct, BUT ONLY if the user
-    /// explicitly provided them. Otherwise, keeps the existing values (which might be from JSON).
     pub fn merge_from_cli(&mut self, cli_weights: &ScoringWeights, matches: &ArgMatches) {
         macro_rules! update_if_present {
             ($field:ident, $arg_name:expr) => {
@@ -259,7 +278,6 @@ impl ScoringWeights {
             };
         }
 
-        // Apply overrides for all float fields
         update_if_present!(penalty_sfr_weak_finger, "penalty_sfr_weak_finger");
         update_if_present!(penalty_sfr_bad_row, "penalty_sfr_bad_row");
         update_if_present!(penalty_sfr_lat, "penalty_sfr_lat");
@@ -272,6 +290,9 @@ impl ScoringWeights {
         update_if_present!(penalty_sfb_long, "penalty_sfb_long");
         update_if_present!(penalty_sfb_bottom, "penalty_sfb_bottom");
         update_if_present!(weight_weak_finger_sfb, "weight_weak_finger_sfb");
+
+        update_if_present!(threshold_sfb_long_row_diff, "threshold_sfb_long_row_diff");
+        update_if_present!(threshold_scissor_row_diff, "threshold_scissor_row_diff");
 
         update_if_present!(penalty_scissor, "penalty_scissor");
         update_if_present!(penalty_ring_pinky, "penalty_ring_pinky");
@@ -303,7 +324,8 @@ impl ScoringWeights {
         update_if_present!(corpus_scale, "corpus_scale");
         update_if_present!(default_cost_ms, "default_cost_ms");
 
-        // String fields
+        update_if_present!(loader_trigram_limit, "loader_trigram_limit");
+
         update_if_present!(finger_penalty_scale, "finger_penalty_scale");
         update_if_present!(comfortable_scissors, "comfortable_scissors");
     }

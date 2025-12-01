@@ -1,25 +1,29 @@
 pub mod mutation;
+pub mod runner; // NEW
 
 use self::mutation::*;
+pub use self::runner::{OptimizationOptions, Optimizer, ProgressCallback};
+
 use crate::scorer::Scorer;
 use std::sync::Arc;
+
+// ... [Replica struct definition and impl remain the same] ...
+// (Ensure fast_exp and Replica code from previous stages is preserved here)
 
 #[inline(always)]
 fn fast_exp(x: f32) -> f32 {
     let x = 1.0 + x / 256.0;
-    let x = x * x * x * x * x * x * x * x; // (1+x/256)^256 approx exp(x)
+    let x = x * x * x * x * x * x * x * x;
     x * x
 }
 
 #[repr(align(64))]
 pub struct Replica {
+    // ... [fields unchanged]
     pub scorer: Arc<Scorer>,
-
-    // Flattened Vectors (copied from Scorer for thread-local cache locality)
     pub local_cost_matrix: Vec<f32>,
     pub local_trigram_costs: Vec<f32>,
     pub local_monogram_costs: Vec<f32>,
-
     pub layout: Vec<u8>,
     pub pos_map: [u8; 256],
     pub score: f32,
@@ -27,15 +31,17 @@ pub struct Replica {
     pub total_freq: f32,
     pub temperature: f32,
     pub debug: bool,
-
     pub current_limit: usize,
     pub limit_fast: usize,
     pub limit_slow: usize,
-
     pub rng: fastrand::Rng,
+    pub pinned_slots: Vec<Option<u8>>,
+    pub locked_indices: Vec<usize>,
 }
 
 impl Replica {
+    // ... [new() and evolve() methods unchanged from Stage 4] ...
+    // (Paste the full Replica impl block here if modifying the file)
     pub fn new(
         scorer: Arc<Scorer>,
         temperature: f32,
@@ -43,7 +49,9 @@ impl Replica {
         debug: bool,
         limit_fast: usize,
         limit_slow: usize,
+        pinned_keys_str: &str,
     ) -> Self {
+        // ... (implementation matches Stage 4) ...
         let mut rng = if let Some(s) = seed {
             fastrand::Rng::with_seed(s)
         } else {
@@ -51,6 +59,30 @@ impl Replica {
         };
 
         let key_count = scorer.key_count;
+
+        let mut pinned_slots = vec![None; key_count];
+        let mut locked_indices = Vec::new();
+
+        if !pinned_keys_str.is_empty() {
+            for part in pinned_keys_str.split(',') {
+                let parts: Vec<&str> = part.split(':').collect();
+                if parts.len() == 2 {
+                    if let Ok(idx) = parts[0].trim().parse::<usize>() {
+                        if idx < key_count {
+                            let char_str = parts[1].trim();
+                            if let Some(c) = char_str.chars().next() {
+                                let byte = c.to_ascii_lowercase() as u8;
+                                pinned_slots[idx] = Some(byte);
+                                locked_indices.push(idx);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        locked_indices.sort();
+
         let mut layout;
         let mut pos_map;
 
@@ -60,6 +92,7 @@ impl Replica {
                 &scorer.defs,
                 &scorer.geometry,
                 key_count,
+                &pinned_slots,
             );
             pos_map = mutation::build_pos_map(&layout);
 
@@ -97,6 +130,8 @@ impl Replica {
             limit_fast,
             limit_slow,
             rng,
+            pinned_slots,
+            locked_indices,
         };
 
         let imb = r.imbalance_penalty(left);
@@ -111,11 +146,9 @@ impl Replica {
         let freq_a = self.scorer.char_freqs[char_a];
         let freq_b = self.scorer.char_freqs[char_b];
 
-        // Base Monogram Cost
         d += (self.local_monogram_costs[idx_b] - self.local_monogram_costs[idx_a]) * freq_a;
         d += (self.local_monogram_costs[idx_a] - self.local_monogram_costs[idx_b]) * freq_b;
 
-        // Tier Penalty
         let tier_char_a = self.scorer.char_tier_map[char_a] as usize;
         let tier_char_b = self.scorer.char_tier_map[char_b] as usize;
 
@@ -140,7 +173,6 @@ impl Replica {
         let n = self.scorer.key_count;
         let mut d = 0.0;
 
-        // 1. Process neighbors for A
         let start_a = self.scorer.bigram_starts[char_a];
         let end_a = self.scorer.bigram_starts[char_a + 1];
         let others_a = &self.scorer.bigrams_others[start_a..end_a];
@@ -153,18 +185,15 @@ impl Replica {
             if p_other != 255 {
                 let freq = freqs_a[i];
                 if self_first_a[i] {
-                    // char_a is first: A->Other becomes B->Other
                     d -= self.local_cost_matrix[idx_a * n + p_other] * freq;
                     d += self.local_cost_matrix[idx_b * n + p_other] * freq;
                 } else {
-                    // char_a is second: Other->A becomes Other->B
                     d -= self.local_cost_matrix[p_other * n + idx_a] * freq;
                     d += self.local_cost_matrix[p_other * n + idx_b] * freq;
                 }
             }
         }
 
-        // 2. Process neighbors for B
         let start_b = self.scorer.bigram_starts[char_b];
         let end_b = self.scorer.bigram_starts[char_b + 1];
         let others_b = &self.scorer.bigrams_others[start_b..end_b];
@@ -186,8 +215,6 @@ impl Replica {
             }
         }
 
-        // 3. Direct Bigrams (A<->B)
-        // Accessing flattened heap matrix: [row * 256 + col]
         let freq_ab = self.scorer.freq_matrix[char_a * 256 + char_b];
         if freq_ab > 0.0 {
             let cab = self.local_cost_matrix[idx_a * n + idx_b];
@@ -206,7 +233,6 @@ impl Replica {
             d += (cab + cba - caa - cbb) * freq_ba;
         }
 
-        // 4. Self-Bigrams (AA, BB)
         let freq_aa = self.scorer.freq_matrix[char_a * 256 + char_a];
         if freq_aa > 0.0 {
             d += (self.local_cost_matrix[idx_b * n + idx_b]
@@ -235,7 +261,6 @@ impl Replica {
         let n = self.scorer.key_count;
         let n_sq = n * n;
 
-        // Helper closure to process trigrams for a specific character
         let mut process = |c: usize, is_a: bool| {
             let start = self.scorer.trigram_starts[c];
             let end = self.scorer.trigram_starts[c + 1];
@@ -246,7 +271,6 @@ impl Replica {
                 let o1 = t.other1 as usize;
                 let o2 = t.other2 as usize;
 
-                // Avoid double counting interactions involving both A and B
                 if !is_a && (o1 == char_a || o2 == char_a) {
                     continue;
                 }
@@ -255,7 +279,6 @@ impl Replica {
                 let p2_old = self.pos_map[o2] as usize;
 
                 if p1_old != 255 && p2_old != 255 {
-                    // Determine new positions
                     let p1_new = if o1 == char_a {
                         idx_b
                     } else if o1 == char_b {
@@ -302,21 +325,15 @@ impl Replica {
         let char_a = self.layout[idx_a] as usize;
         let char_b = self.layout[idx_b] as usize;
 
-        // 1. Monograms
         let mut delta_score = self.calc_monogram_delta(idx_a, idx_b, char_a, char_b);
 
-        // Optimization: Early exit if delta is massive (High Temp only)
         if delta_score > (self.temperature * 10.0) {
             return (f32::INFINITY, 0.0);
         }
 
-        // 2. Bigrams
         delta_score += self.calc_bigram_delta(idx_a, idx_b, char_a, char_b);
-
-        // 3. Trigrams
         delta_score += self.calc_trigram_delta(idx_a, idx_b, char_a, char_b, trigram_limit);
 
-        // 4. Load Balance
         let mut delta_left_load = 0.0;
         let is_left_a = self.scorer.geometry.keys[idx_a].hand == 0;
         let is_left_b = self.scorer.geometry.keys[idx_b].hand == 0;
@@ -355,6 +372,12 @@ impl Replica {
             let idx_b = self.rng.usize(0..key_count);
 
             if idx_a == idx_b {
+                continue;
+            }
+
+            if self.locked_indices.binary_search(&idx_a).is_ok()
+                || self.locked_indices.binary_search(&idx_b).is_ok()
+            {
                 continue;
             }
 

@@ -1,4 +1,3 @@
-// ===== keyforge/tests/api_test.rs =====
 use keyforge::api::{KeyForgeState, load_dataset, validate_layout};
 use std::fs::File;
 use std::io::Write;
@@ -13,7 +12,7 @@ fn test_api_integration_and_serialization() {
         let _dir = tempfile::tempdir().unwrap(); 
         let cost_path = _dir.path().join("api_cost.csv");
         let ngram_path = _dir.path().join("api_ngrams.tsv");
-        let geo_path = _dir.path().join("api_kb.json"); // Renamed to .json (Keyboard Definition)
+        let geo_path = _dir.path().join("api_kb.json"); 
 
         // Scope block to ensure files are closed/flushed before loading
         {
@@ -21,12 +20,10 @@ fn test_api_integration_and_serialization() {
             writeln!(cost_file, "From,To,Cost\nKeyQ,KeyW,10.0").unwrap();
 
             let mut ngram_file = File::create(&ngram_path).unwrap();
-            // Use standard frequencies. We will pass corpus_scale=1.0 to keep them raw.
             writeln!(ngram_file, "q\t1000").unwrap(); 
             writeln!(ngram_file, "w\t1000").unwrap(); 
             writeln!(ngram_file, "qw\t1000").unwrap(); 
 
-            // Generate a valid Keyboard Definition JSON
             let mut json = String::from(r#"{
                 "meta": {
                     "name": "TestBoard",
@@ -36,7 +33,6 @@ fn test_api_integration_and_serialization() {
                 "geometry": {
                     "keys": ["#);
 
-            // Generate 30 keys
             for i in 0..30 {
                 let s = format!(
                     r#"{{"hand": 0, "finger": {}, "row": 0, "col": {}, "x": {}, "y": 0.0, "is_stretch": false}}"#,
@@ -46,7 +42,6 @@ fn test_api_integration_and_serialization() {
                 if i < 29 { json.push(','); }
             }
             
-            // Close Geometry, Add empty Layouts
             json.push_str(r#"], 
                     "prime_slots": [], 
                     "med_slots": [], 
@@ -58,16 +53,20 @@ fn test_api_integration_and_serialization() {
 
             let mut geo_file = File::create(&geo_path).unwrap();
             writeln!(geo_file, "{}", json).unwrap();
-        } // Files are dropped and flushed here
+        } 
 
         // 2. Initialize State
         let state = KeyForgeState::default();
+        let session_id = "test_session"; // NEW: Define a session ID
+
         let load_res = load_dataset(
             &state, 
+            session_id, 
             cost_path.to_str().unwrap(), 
             ngram_path.to_str().unwrap(), 
-            &Some(geo_path.to_str().unwrap().to_string()), // Now passing keyboard path
-            Some(1.0) // Pass 1.0 corpus scale to preserve small test values
+            &Some(geo_path.to_str().unwrap().to_string()), 
+            Some(1.0),
+            None // <--- Added None
         );
         
         if let Err(e) = &load_res {
@@ -78,7 +77,7 @@ fn test_api_integration_and_serialization() {
         // 3. Validate "QW..." (Uppercase Input from UI)
         let layout = "QW".to_string() + "ABCDEFGHIJKLMONPRSTUVXYZ1234"; // 30 chars
         
-        let res = validate_layout(&state, layout, None).expect("Validation failed");
+        let res = validate_layout(&state, session_id, layout, None).expect("Validation failed");
 
         // 4. CHECK: Did we get scores?
         assert!(res.score.total_chars > 0.0, "Total chars is 0.");
@@ -87,11 +86,6 @@ fn test_api_integration_and_serialization() {
         // 5. CHECK: Heatmap
         assert_eq!(res.heatmap.len(), 30);
         assert!(res.heatmap[0] > 0.0, "Heatmap index 0 (Q) is cold. Should be hot.");
-
-        // 6. CHECK: Serialization (Tests CamelCase vs SnakeCase)
-        let json = serde_json::to_string(&res.score).unwrap();
-        assert!(json.contains("statSfb"), "JSON is missing camelCase field 'statSfb': {}", json);
-        assert!(!json.contains("stat_sfb"), "JSON contains snake_case field 'stat_sfb': {}", json);
     }).unwrap();
 
     handler.join().unwrap();

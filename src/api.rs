@@ -1,22 +1,27 @@
 use crate::config::{Config, ScoringWeights};
 use crate::geometry::KeyboardDefinition;
 use crate::optimizer::mutation;
-use crate::scorer::{ScoreDetails, Scorer};
+use crate::scorer::{ScoreDetails, Scorer, ScorerBuilder};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
+use tracing::{info, warn};
 
-/// The global state required to run KeyForge services.
+// ... [KeyForgeSession, KeyForgeState, ValidationResult structs remain the same] ...
+pub struct KeyForgeSession {
+    pub scorer: Scorer,
+    pub kb_def: KeyboardDefinition,
+}
+
 pub struct KeyForgeState {
-    pub scorer: Mutex<Option<Scorer>>,
-    pub kb_def: Mutex<Option<KeyboardDefinition>>,
+    pub sessions: Mutex<HashMap<String, KeyForgeSession>>,
 }
 
 impl Default for KeyForgeState {
     fn default() -> Self {
         Self {
-            scorer: Mutex::new(None),
-            kb_def: Mutex::new(None),
+            sessions: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -30,13 +35,15 @@ pub struct ValidationResult {
     pub heatmap: Vec<f32>,
 }
 
-/// Service: Initialize the Scorer with data files.
+/// Service: Initialize the Scorer with data files into a specific Session ID.
 pub fn load_dataset(
     state: &KeyForgeState,
+    session_id: &str,
     cost_path: &str,
     ngrams_path: &str,
     keyboard_path: &Option<String>,
     corpus_scale: Option<f32>,
+    data_root: Option<&str>, // NEW ARGUMENT
 ) -> Result<String, String> {
     // Start with defaults
     let mut config = Config::default();
@@ -53,7 +60,7 @@ pub fn load_dataset(
     // Load the Keyboard Bundle
     let kb_def = KeyboardDefinition::load_from_file(kb_path)?;
 
-    // 1. Resolve Weights Strategy (Matching main.rs logic)
+    // 1. Resolve Weights Strategy
     // Map keyboard types to weight filenames
     let weight_filename = match kb_def.meta.kb_type.as_str() {
         "ortho" | "column_staggered" => Some("ortho_split.json"),
@@ -62,56 +69,71 @@ pub fn load_dataset(
     };
 
     if let Some(name) = weight_filename {
-        // In the API context, we assume data/weights is relative to the binary or CWD
-        // For Tauri apps, paths might need strict handling, but for now we use relative.
-        let weight_path = format!("data/weights/{}", name);
+        // Construct path relative to data_root if provided, else use relative CWD
+        let weight_path = if let Some(root) = data_root {
+            format!("{}/data/weights/{}", root, name)
+        } else {
+            format!("data/weights/{}", name)
+        };
+
         if Path::new(&weight_path).exists() {
-            println!("API: Auto-loading weights from {}", weight_path);
+            info!("API: Auto-loading weights from {}", weight_path);
             config.weights = ScoringWeights::load_from_file(&weight_path);
         } else {
-            println!(
+            warn!(
                 "API Warning: Weights file '{}' not found. Using defaults.",
                 weight_path
             );
         }
     } else {
-        println!(
+        info!(
             "API Info: No specific weights profile for type '{}'. Using defaults.",
             kb_def.meta.kb_type
         );
     }
 
-    // Initialize Scorer
-    // Map the KeyForgeError to String for the API return type
-    let scorer = Scorer::new(cost_path, ngrams_path, &kb_def.geometry, config, false)
-        .map_err(|e| e.to_string())?;
+    // 2. Initialize Scorer using Builder Pattern
+    let scorer = ScorerBuilder::new()
+        .with_weights(config.weights)
+        .with_defs(config.defs)
+        .with_geometry(kb_def.geometry.clone())
+        .with_costs_from_file(cost_path)
+        .map_err(|e| format!("Failed to load Cost Matrix: {}", e))?
+        .with_ngrams_from_file(ngrams_path)
+        .map_err(|e| format!("Failed to load N-grams: {}", e))?
+        .build()
+        .map_err(|e| format!("Scorer Initialization Failed: {}", e))?;
 
-    // Store State
-    let mut s_guard = state.scorer.lock().map_err(|e| e.to_string())?;
-    *s_guard = Some(scorer);
+    // 3. Store in Session Map
+    let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
 
-    let mut k_guard = state.kb_def.lock().map_err(|e| e.to_string())?;
-    *k_guard = Some(kb_def);
+    let session = KeyForgeSession { scorer, kb_def };
+    sessions.insert(session_id.to_string(), session);
 
-    Ok("Dataset Loaded Successfully".to_string())
+    Ok(format!("Session '{}' Loaded Successfully", session_id))
 }
 
-/// Service: Validate a specific layout string with custom weights.
+// ... [validate_layout function remains the same] ...
 pub fn validate_layout(
     state: &KeyForgeState,
+    session_id: &str,
     layout_str: String,
     weights: Option<ScoringWeights>,
 ) -> Result<ValidationResult, String> {
-    let mut guard = state.scorer.lock().map_err(|e| e.to_string())?;
-    let scorer = guard
-        .as_mut()
-        .ok_or("Scorer not initialized. Load dataset first.")?;
+    let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+
+    let session = sessions.get_mut(session_id).ok_or_else(|| {
+        format!(
+            "Session '{}' not found. Please load dataset first.",
+            session_id
+        )
+    })?;
 
     if let Some(w) = weights {
-        scorer.weights = w;
+        session.scorer.weights = w;
     }
 
-    let key_count = scorer.key_count;
+    let key_count = session.scorer.key_count;
 
     // Convert input string to bytes
     let mut layout_bytes = vec![0u8; key_count];
@@ -126,10 +148,14 @@ pub fn validate_layout(
 
     // This uses crate::optimizer::mutation
     let pos_map = mutation::build_pos_map(&layout_bytes);
-    let details = scorer.score_debug(&pos_map, 10_000);
+    let details = session.scorer.score_debug(&pos_map, 10_000);
 
     // Heatmap Calculation
-    let max_freq_val = scorer.char_freqs.iter().fold(0.0f32, |a, &b| a.max(b));
+    let max_freq_val = session
+        .scorer
+        .char_freqs
+        .iter()
+        .fold(0.0f32, |a, &b| a.max(b));
 
     let mut heatmap = Vec::with_capacity(key_count);
     for &char_byte in &layout_bytes {
@@ -137,7 +163,7 @@ pub fn validate_layout(
             heatmap.push(0.0);
             continue;
         }
-        let freq = scorer.char_freqs[char_byte as usize];
+        let freq = session.scorer.char_freqs[char_byte as usize];
         let intensity = if max_freq_val > 0.0 {
             freq / max_freq_val
         } else {
@@ -149,7 +175,7 @@ pub fn validate_layout(
     Ok(ValidationResult {
         layout_name: "Custom".to_string(),
         score: details,
-        geometry: scorer.geometry.clone(),
+        geometry: session.scorer.geometry.clone(),
         heatmap,
     })
 }

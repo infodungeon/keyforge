@@ -1,4 +1,3 @@
-// ===== keyforge/tests/external_benchmarks.rs =====
 use keyforge::api::{load_dataset, validate_layout, KeyForgeState};
 use serde::Deserialize;
 use std::fs;
@@ -8,24 +7,14 @@ use std::thread;
 #[derive(Debug, Deserialize)]
 struct CyanophageEntry {
     layout: String,
-    effort: f32, // Lower is better
-    sfb: f32,    // Percentage
+    effort: f32,
+    sfb: f32,
 }
 
 fn load_cyanophage_data() -> Vec<CyanophageEntry> {
     let path = "data/benchmarks/cyanophage.json";
     let content = fs::read_to_string(path).expect("Failed to read cyanophage.json");
-
-    match serde_json::from_str(&content) {
-        Ok(data) => data,
-        Err(e) => {
-            panic!(
-                "Failed to parse cyanophage.json: {}\nFile Content Preview:\n{}",
-                e,
-                content.chars().take(200).collect::<String>()
-            );
-        }
-    }
+    serde_json::from_str(&content).expect("Failed to parse cyanophage.json")
 }
 
 fn has_real_data() -> bool {
@@ -48,12 +37,16 @@ fn test_cyanophage_ranking_correlation() {
     let handler = builder
         .spawn(move || {
             let state = KeyForgeState::default();
+            let session_id = "bench_session";
+
             let _ = load_dataset(
                 &state,
+                session_id,
                 "data/cost_matrix.csv",
                 "data/ngrams-all.tsv",
                 &Some("data/keyboards/szr35.json".to_string()),
                 None,
+                None, // <--- Added None
             );
 
             let benchmarks = load_cyanophage_data();
@@ -68,11 +61,11 @@ fn test_cyanophage_ranking_correlation() {
             // STEP 1: Collect Layout Strings
             let mut batch_jobs = Vec::new();
             {
-                let guard = state.kb_def.lock().unwrap();
-                let kb = guard.as_ref().unwrap();
+                let sessions = state.sessions.lock().unwrap();
+                let session = sessions.get(session_id).unwrap();
+                let kb = &session.kb_def;
 
                 for b in &benchmarks {
-                    // Handle "Qwerty" vs "qwerty" casing
                     let exact_key = b.layout.clone();
                     let title_key = {
                         let mut c = b.layout.chars();
@@ -98,7 +91,9 @@ fn test_cyanophage_ranking_correlation() {
 
             // STEP 2: Validate
             for (name, layout_str, cyan_effort, cyan_sfb) in batch_jobs {
-                let res = validate_layout(&state, layout_str, None).expect("Validation failed");
+                // Pass session_id
+                let res = validate_layout(&state, session_id, layout_str, None)
+                    .expect("Validation failed");
                 let kf_sfb_pct = (res.score.stat_sfb / res.score.total_bigrams) * 100.0;
 
                 kf_results.push((
@@ -111,26 +106,24 @@ fn test_cyanophage_ranking_correlation() {
             }
 
             if kf_results.is_empty() {
-                println!("⚠️  No matching layouts found between szr35.json and cyanophage.json");
                 return;
             }
 
-            // 3. Determine Ranks
             let mut cyan_sorted = kf_results.clone();
             cyan_sorted.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
 
             let mut kf_sorted = kf_results.clone();
             kf_sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-            // 4. Print Comparison Table
             for item in &kf_results {
                 let name = &item.0;
                 let cyan_rank = cyan_sorted.iter().position(|x| x.0 == *name).unwrap() + 1;
                 let kf_rank = kf_sorted.iter().position(|x| x.0 == *name).unwrap() + 1;
-
-                let rank_diff = (cyan_rank as i32 - kf_rank as i32).abs();
-                // Mark significant rank deviations (like Engram)
-                let flag = if rank_diff > 5 { "(!)" } else { "" };
+                let flag = if (cyan_rank as i32 - kf_rank as i32).abs() > 5 {
+                    "(!)"
+                } else {
+                    ""
+                };
 
                 println!(
                     "{:<20} | {:<10} | {:<10} | {:<10.2} | {:<10.2} {}",
@@ -138,41 +131,19 @@ fn test_cyanophage_ranking_correlation() {
                 );
             }
 
-            println!("{:-<70}", "-");
-
-            // 5. Assertions (Strict Mode)
-
-            // A. Sanity: QWERTY must be in the bottom tier
             if let Some(qwerty_kf_rank) = kf_sorted
                 .iter()
                 .position(|x| x.0.eq_ignore_ascii_case("Qwerty"))
             {
                 let bottom_threshold = kf_sorted.len().saturating_sub(3);
-                assert!(
-                    qwerty_kf_rank >= bottom_threshold,
-                    "QWERTY rank {} is too high (List size: {})",
-                    qwerty_kf_rank + 1,
-                    kf_sorted.len()
-                );
+                assert!(qwerty_kf_rank >= bottom_threshold);
             }
 
-            // B. SFB Correlation
-            // This will PANIC on Engram, Hands Down Ref, or Sturdy if their SFB stats diverge > 1.5%
             for item in &kf_results {
                 let name = &item.0;
-                let kf_sfb = item.2;
-                let cy_sfb = item.4;
-
-                // Allow small variance due to corpus differences, but fail on large physics disagreements
                 if !name.eq_ignore_ascii_case("Qwerty") {
-                    let diff = (kf_sfb - cy_sfb).abs();
-                    assert!(
-                        diff < 1.5,
-                        "SFB Divergence on {}: KF={:.2}%, Cyan={:.2}%",
-                        name,
-                        kf_sfb,
-                        cy_sfb
-                    );
+                    let diff = (item.2 - item.4).abs();
+                    assert!(diff < 1.5);
                 }
             }
         })

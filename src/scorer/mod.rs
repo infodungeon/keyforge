@@ -1,10 +1,12 @@
+pub mod builder;
 pub mod costs;
 pub mod engine;
 pub mod flow;
 pub mod loader;
 pub mod physics;
-pub mod setup;
 pub mod types;
+
+pub use self::builder::ScorerBuilder;
 
 use self::loader::TrigramRef;
 pub use self::types::ScoreDetails;
@@ -12,6 +14,7 @@ use crate::config::{Config, LayoutDefinitions, ScoringWeights};
 use crate::error::KfResult;
 use crate::geometry::KeyboardGeometry;
 
+#[derive(Clone)]
 pub struct Scorer {
     pub key_count: usize,
     pub weights: ScoringWeights,
@@ -48,6 +51,9 @@ pub struct Scorer {
     // HEAP ALLOCATED (Flattened 256*256)
     // Access: freq_matrix[char_a * 256 + char_b]
     pub freq_matrix: Vec<f32>,
+
+    // OPTIMIZATION: Only iterate these chars in hot loops
+    pub active_chars: Vec<usize>,
 }
 
 impl Scorer {
@@ -58,14 +64,14 @@ impl Scorer {
         config: Config,
         debug: bool,
     ) -> KfResult<Self> {
-        setup::build_scorer(
-            cost_path,
-            ngrams_path,
-            config.weights,
-            config.defs,
-            geometry.clone(),
-            debug,
-        )
+        ScorerBuilder::new()
+            .debug(debug)
+            .with_weights(config.weights)
+            .with_defs(config.defs)
+            .with_geometry(geometry.clone())
+            .with_costs_from_file(cost_path)?
+            .with_ngrams_from_file(ngrams_path)?
+            .build()
     }
 
     pub fn score_full(&self, pos_map: &[u8; 256], limit: usize) -> (f32, f32, f32) {

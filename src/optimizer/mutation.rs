@@ -7,20 +7,42 @@ pub fn generate_tiered_layout(
     defs: &LayoutDefinitions,
     geom: &KeyboardGeometry,
     size: usize,
+    pinned: &[Option<u8>], // NEW ARGUMENT
 ) -> Vec<u8> {
     let mut layout = vec![0u8; size];
 
-    let mut high = defs.tier_high_chars.as_bytes().to_vec();
-    let mut med = defs.tier_med_chars.as_bytes().to_vec();
-    let mut low = defs.tier_low_chars.as_bytes().to_vec();
+    // 1. Fill Pinned Keys first and remove them from pools
+    let mut pinned_chars = [false; 256];
+
+    for (i, &p) in pinned.iter().enumerate() {
+        if i < size {
+            if let Some(c) = p {
+                layout[i] = c;
+                pinned_chars[c as usize] = true;
+            }
+        }
+    }
+
+    // Helper to filter pools
+    let filter_pool = |src: &str| -> Vec<u8> {
+        src.as_bytes()
+            .iter()
+            .cloned()
+            .filter(|&c| !pinned_chars[c as usize])
+            .collect()
+    };
+
+    let mut high = filter_pool(&defs.tier_high_chars);
+    let mut med = filter_pool(&defs.tier_med_chars);
+    let mut low = filter_pool(&defs.tier_low_chars);
 
     rng.shuffle(&mut high);
     rng.shuffle(&mut med);
     rng.shuffle(&mut low);
 
-    // 1. Fill Prime Slots
+    // 2. Fill Prime Slots (skip if pinned)
     for &slot in &geom.prime_slots {
-        if slot < size {
+        if slot < size && layout[slot] == 0 {
             if let Some(c) = high.pop() {
                 layout[slot] = c;
             } else if let Some(c) = med.pop() {
@@ -31,7 +53,7 @@ pub fn generate_tiered_layout(
         }
     }
 
-    // 2. Fill Medium Slots
+    // 3. Fill Medium Slots
     for &slot in &geom.med_slots {
         if slot < size && layout[slot] == 0 {
             if let Some(c) = med.pop() {
@@ -44,7 +66,7 @@ pub fn generate_tiered_layout(
         }
     }
 
-    // 3. Fill Low Slots
+    // 4. Fill Low Slots
     for &slot in &geom.low_slots {
         if slot < size && layout[slot] == 0 {
             if let Some(c) = low.pop() {
