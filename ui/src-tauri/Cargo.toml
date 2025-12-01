@@ -18,9 +18,10 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# NEW: Logging dependencies for the GUI process
+# Logging dependencies for the GUI process
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
 # LINK YOUR CORE ENGINE:
-keyforge = { path = "../../" }
+# Changed from 'keyforge' to 'keyforge-core' pointing to the crates directory
+keyforge-core = { path = "../../crates/keyforge-core" }

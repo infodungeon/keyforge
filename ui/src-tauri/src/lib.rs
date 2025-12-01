@@ -1,6 +1,6 @@
-use keyforge::api::{load_dataset, validate_layout, KeyForgeState};
-use keyforge::config::{Config, ScoringWeights, SearchParams};
-use keyforge::optimizer::{OptimizationOptions, Optimizer, ProgressCallback};
+use keyforge_core::api::{load_dataset, validate_layout, KeyForgeState};
+use keyforge_core::config::{Config, ScoringWeights, SearchParams};
+use keyforge_core::optimizer::{OptimizationOptions, Optimizer, ProgressCallback};
 use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
@@ -22,7 +22,7 @@ struct SearchUpdate {
     ips: f32,
 }
 
-// Request object for starting search with full config
+// Request object for start search with full config
 #[derive(serde::Deserialize)]
 struct StartSearchRequest {
     pinned_keys: String,
@@ -68,13 +68,12 @@ fn cmd_list_keyboards(base_path: String) -> Result<Vec<String>, String> {
     let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
 
     let mut files = Vec::new();
-    for entry in entries {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    files.push(stem.to_string());
-                }
+    // Fixed: Use .flatten() instead of if let Ok(entry) = entry
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) == Some("json") {
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                files.push(stem.to_string());
             }
         }
     }
@@ -105,7 +104,6 @@ fn cmd_load_dataset(
 
     tracing::info!("Loading Keyboard: {}", keyboard_name);
 
-    // UPDATED: Pass Some(&base_path) as the last argument
     load_dataset(
         &state,
         "primary",
@@ -122,7 +120,7 @@ fn cmd_validate_layout(
     state: tauri::State<KeyForgeState>,
     layout_str: String,
     weights: Option<ScoringWeights>,
-) -> Result<keyforge::api::ValidationResult, String> {
+) -> Result<keyforge_core::api::ValidationResult, String> {
     validate_layout(&state, "primary", layout_str, weights)
 }
 
@@ -143,9 +141,14 @@ async fn cmd_start_search(
         Arc::new(scorer)
     };
 
-    let mut config = Config::default();
-    config.search = request.search_params;
-    config.search.pinned_keys = request.pinned_keys;
+    // Fixed: Initialize struct fields directly to avoid reassignment warning
+    let mut search_params = request.search_params;
+    search_params.pinned_keys = request.pinned_keys;
+
+    let config = Config {
+        search: search_params,
+        ..Default::default()
+    };
 
     let options = OptimizationOptions::from(&config);
     let optimizer = Optimizer::new(scorer_arc, options);

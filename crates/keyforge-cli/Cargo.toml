@@ -1,0 +1,28 @@
+[package]
+name = "keyforge-cli"
+version = "0.5.0"
+edition = "2021"
+
+[[bin]]
+name = "keyforge"
+path = "src/main.rs"
+
+[dependencies]
+# Internal
+keyforge-core = { path = "../keyforge-core" }
+
+# External (CLI specific)
+clap = { version = "4.4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+comfy-table = "7.1"
+serde_json = "1.0.145"
+serde = { version = "1.0.228", features = ["derive"] }
+rayon = "1.8"
+fastrand = "2.0"
+
+# NEW: Add dependencies required for the tests we just moved
+[dev-dependencies]
+tempfile = "3.8"
+regex = "1.10"
+assert_cmd = "2.0" # Optional: Makes testing binaries easier, but strictly optional
