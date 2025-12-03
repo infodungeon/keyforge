@@ -23,7 +23,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
 
         let mut current_x = 0.0;
         let mut current_w = 1.0;
-        // current_h removed as it was unused in logic
+        let mut current_h = 1.0; // Track current height
 
         for item in row {
             if item.is_object() {
@@ -43,7 +43,11 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
                 if let Some(w) = obj.get("w") {
                     current_w = w.as_f64().unwrap_or(1.0) as f32;
                 }
-                // Height 'h' parsing removed (unused)
+
+                // Height overrides
+                if let Some(h) = obj.get("h") {
+                    current_h = h.as_f64().unwrap_or(1.0) as f32;
+                }
             } else if item.is_string() {
                 let label_full = item.as_str().unwrap();
                 // KLE labels can be "Top\nBottom". We usually care about the main label.
@@ -59,6 +63,8 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
                     col: current_x as i8,
                     x: current_x,
                     y: current_y,
+                    w: current_w, // FIXED: Now included
+                    h: current_h, // FIXED: Now included
                     is_stretch: false,
                 };
 
@@ -66,8 +72,13 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
 
                 // Advance cursor
                 current_x += current_w;
-                // Reset width for next key (KLE standard behavior)
+
+                // Reset width/height for next key (KLE standard behavior resets width, keeps height usually?
+                // Actually KLE standard is w/h reset to 1 unless specified in the object for the NEXT key.
+                // However, the object applies to the *immediate next* key(s).
+                // Standard implementation resets to 1.0 after a key is placed unless a new modifier object sets it.)
                 current_w = 1.0;
+                current_h = 1.0;
             }
         }
         current_y += 1.0;

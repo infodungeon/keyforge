@@ -11,11 +11,18 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+fastrand = "2.0"
+num_cpus = "1.0"
+rayon = "1.8"                                      # <--- ADDED THIS
 
 # Async & Networking
 tokio = { version = "1.0", features = ["full"] }
-reqwest = { version = "0.12.24", features = ["json"] }
+reqwest = { version = "0.11", features = ["json"] }
 uuid = { version = "1.0", features = ["v4"] }
 
-# Missing dependency added here:
-fastrand = "2.0"
+# OS Specifics
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_System_Threading"] }

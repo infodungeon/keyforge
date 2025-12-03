@@ -1,51 +1,66 @@
 use fastrand::Rng;
 use std::collections::HashMap;
 
-/// Performs Uniform Order Crossover (UOX) on two layouts.
-///
-/// This ensures the child layout is a valid permutation of the parents
-/// (conserving the exact count of every character, including 0/nulls).
-pub fn crossover_uniform(p1: &[u8], p2: &[u8], rng: &mut Rng) -> Vec<u8> {
+// CHANGED: u8 -> u16
+pub fn crossover_uniform(
+    p1: &[u16],
+    p2: &[u16],
+    pinned: &[Option<u16>],
+    rng: &mut Rng,
+) -> Vec<u16> {
     let len = p1.len();
-    assert_eq!(len, p2.len(), "Parents must have same length");
-
-    let mut child = vec![0u8; len];
+    let mut child = vec![0u16; len];
     let mut filled = vec![false; len];
 
-    // Track the 'budget' of characters available to inherit.
-    // This handles duplicates (like multiple 0s for empty keys) correctly.
-    let mut available_counts: HashMap<u8, usize> = HashMap::new();
+    // Using HashMap for counts now as 65536 array stack allocation inside this function
+    // might be too heavy if called recursively or frequently in threads.
+    // However, fast UOX usually needs speed.
+    // Let's use a HashMap because layout size is small (30-60 keys).
+    // The previous array[256] was fine, array[65536] is 512KB (if usize).
+    // 512KB on stack is risky.
+    let mut available_counts = HashMap::with_capacity(len);
     for &b in p1 {
-        *available_counts.entry(b).or_default() += 1;
+        *available_counts.entry(b).or_insert(0) += 1;
     }
 
-    // 1. Inherit from Parent 1 based on random mask
-    // (Roughly 50% chance to keep position from P1)
-    for i in 0..len {
-        if rng.bool() {
-            let gene = p1[i];
-            child[i] = gene;
-            filled[i] = true;
-            
-            // Decrement available count
-            if let Some(count) = available_counts.get_mut(&gene) {
-                *count -= 1;
+    // Enforce Pins
+    for (i, &pin) in pinned.iter().enumerate() {
+        if i < len {
+            if let Some(val) = pin {
+                child[i] = val;
+                filled[i] = true;
+                if let Some(count) = available_counts.get_mut(&val) {
+                    if *count > 0 {
+                        *count -= 1;
+                    }
+                }
             }
         }
     }
 
-    // 2. Fill gaps from Parent 2 (Preserving relative order)
+    // Inherit P1
+    for i in 0..len {
+        if !filled[i] && rng.bool() {
+            let gene = p1[i];
+            if let Some(count) = available_counts.get_mut(&gene) {
+                if *count > 0 {
+                    child[i] = gene;
+                    filled[i] = true;
+                    *count -= 1;
+                }
+            }
+        }
+    }
+
+    // Fill P2
     let mut p2_idx = 0;
     for i in 0..len {
         if !filled[i] {
-            // Find the next gene in P2 that we still 'need'
             while p2_idx < len {
                 let gene = p2[p2_idx];
                 p2_idx += 1;
-
                 if let Some(count) = available_counts.get_mut(&gene) {
                     if *count > 0 {
-                        // Found a valid candidate
                         child[i] = gene;
                         *count -= 1;
                         break;

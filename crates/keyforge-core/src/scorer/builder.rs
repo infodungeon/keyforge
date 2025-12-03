@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use tracing::debug;
+use tracing::{debug, warn};
 
 pub struct ScorerBuilder {
     weights: Option<ScoringWeights>,
@@ -77,10 +77,20 @@ impl ScorerBuilder {
             (200_000_000.0, 3000)
         };
 
-        // Hardcoded valid set for standard analysis
-        let valid_set: HashSet<u8> = b"abcdefghijklmnopqrstuvwxyz.,/;".iter().cloned().collect();
+        // FIXED: Expanded valid set to include apostrophe, hyphen, and other common punctuation
+        // to prevent dropping valid English n-grams like "don't" or "it's".
+        let valid_set: HashSet<u8> = b"abcdefghijklmnopqrstuvwxyz.,/;'[]-!?:\"()"
+            .iter()
+            .cloned()
+            .collect();
 
         let data = load_ngrams(reader, &valid_set, scale, limit, self.debug)?;
+
+        // Debug check to ensure we actually loaded data.
+        if self.debug && data.bigrams.is_empty() {
+            warn!("⚠️ Warning: 0 bigrams loaded. Check your N-gram file format or encoding.");
+        }
+
         self.ngram_data = Some(data);
         Ok(self)
     }
@@ -339,6 +349,26 @@ impl ScorerBuilder {
                 0.0
             };
             *cost = reach_cost + effort_cost + stretch_cost;
+        }
+
+        // === NEW: Stability Check ===
+        // Ensure no NaNs or Infinities exist in the matrices
+        for (i, &val) in full_cost_matrix.iter().enumerate() {
+            if !val.is_finite() {
+                return Err(KeyForgeError::Validation(format!(
+                    "Cost Matrix contains non-finite value at index {}: {}",
+                    i, val
+                )));
+            }
+        }
+
+        for (i, &val) in trigram_cost_table.iter().enumerate() {
+            if !val.is_finite() {
+                return Err(KeyForgeError::Validation(format!(
+                    "Trigram Cost Table contains non-finite value at index {}: {}",
+                    i, val
+                )));
+            }
         }
 
         if self.debug {

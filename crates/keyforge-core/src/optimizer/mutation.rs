@@ -7,28 +7,33 @@ pub fn generate_tiered_layout(
     defs: &LayoutDefinitions,
     geom: &KeyboardGeometry,
     size: usize,
-    pinned: &[Option<u8>], // NEW ARGUMENT
-) -> Vec<u8> {
-    let mut layout = vec![0u8; size];
+    pinned: &[Option<u16>], // CHANGED: u8 -> u16
+) -> Vec<u16> {
+    // CHANGED
+    let mut layout = vec![0u16; size];
 
-    // 1. Fill Pinned Keys first and remove them from pools
+    // 1. Fill Pinned Keys
+    // We use a simple boolean array for standard ASCII tracking (0-255)
+    // For anything higher, we assume it's not part of the "scrambling pool"
     let mut pinned_chars = [false; 256];
 
     for (i, &p) in pinned.iter().enumerate() {
         if i < size {
             if let Some(c) = p {
                 layout[i] = c;
-                pinned_chars[c as usize] = true;
+                if c < 256 {
+                    pinned_chars[c as usize] = true;
+                }
             }
         }
     }
 
-    // Helper to filter pools
-    let filter_pool = |src: &str| -> Vec<u8> {
+    // Helper to filter pools (only applies to standard ASCII chars)
+    let filter_pool = |src: &str| -> Vec<u16> {
         src.as_bytes()
             .iter()
-            .cloned()
-            .filter(|&c| !pinned_chars[c as usize])
+            .map(|&b| b as u16)
+            .filter(|&c| c >= 256 || !pinned_chars[c as usize])
             .collect()
     };
 
@@ -40,59 +45,47 @@ pub fn generate_tiered_layout(
     rng.shuffle(&mut med);
     rng.shuffle(&mut low);
 
-    // 2. Fill Prime Slots (skip if pinned)
+    let mut fill_slot = |slot: usize, pools: &mut [&mut Vec<u16>]| {
+        if slot < size && layout[slot] == 0 {
+            for pool in pools {
+                if let Some(c) = pool.pop() {
+                    layout[slot] = c;
+                    return;
+                }
+            }
+            layout[slot] = 0;
+        }
+    };
+
     for &slot in &geom.prime_slots {
-        if slot < size && layout[slot] == 0 {
-            if let Some(c) = high.pop() {
-                layout[slot] = c;
-            } else if let Some(c) = med.pop() {
-                layout[slot] = c;
-            } else {
-                layout[slot] = 0;
-            }
-        }
+        fill_slot(slot, &mut [&mut high, &mut med]);
     }
-
-    // 3. Fill Medium Slots
     for &slot in &geom.med_slots {
-        if slot < size && layout[slot] == 0 {
-            if let Some(c) = med.pop() {
-                layout[slot] = c;
-            } else if let Some(c) = low.pop() {
-                layout[slot] = c;
-            } else {
-                layout[slot] = 0;
-            }
-        }
+        fill_slot(slot, &mut [&mut med, &mut low]);
     }
-
-    // 4. Fill Low Slots
     for &slot in &geom.low_slots {
-        if slot < size && layout[slot] == 0 {
-            if let Some(c) = low.pop() {
-                layout[slot] = c;
-            } else if let Some(c) = med.pop() {
-                layout[slot] = c;
-            } else if let Some(c) = high.pop() {
-                layout[slot] = c;
-            } else {
-                layout[slot] = 0;
-            }
-        }
+        fill_slot(slot, &mut [&mut low, &mut med, &mut high]);
     }
 
     layout
 }
 
-pub fn build_pos_map(layout: &[u8]) -> [u8; 256] {
-    let mut map = [255u8; 256];
-    for (i, &byte) in layout.iter().enumerate() {
-        if byte != 0 {
-            map[byte as usize] = i as u8;
-            if byte.is_ascii_uppercase() {
-                map[byte.to_ascii_lowercase() as usize] = i as u8;
-            } else if byte.is_ascii_lowercase() {
-                map[byte.to_ascii_uppercase() as usize] = i as u8;
+// CHANGED: Returns Box<[u8; 65536]>
+pub fn build_pos_map(layout: &[u16]) -> Box<[u8; 65536]> {
+    let mut map = Box::new([255u8; 65536]);
+    for (i, &code) in layout.iter().enumerate() {
+        if code != 0 {
+            // 0 is KC_NO
+            map[code as usize] = i as u8;
+
+            // Handle Case Insensitivity for standard ASCII
+            if code < 128 {
+                let b = code as u8;
+                if b.is_ascii_uppercase() {
+                    map[b.to_ascii_lowercase() as usize] = i as u8;
+                } else if b.is_ascii_lowercase() {
+                    map[b.to_ascii_uppercase() as usize] = i as u8;
+                }
             }
         }
     }
@@ -100,7 +93,7 @@ pub fn build_pos_map(layout: &[u8]) -> [u8; 256] {
 }
 
 pub fn fails_sanity(
-    pos_map: &[u8; 256],
+    pos_map: &[u8; 65536], // CHANGED signature
     critical_bigrams: &[[u8; 2]],
     geom: &KeyboardGeometry,
 ) -> bool {
@@ -112,15 +105,8 @@ pub fn fails_sanity(
             continue;
         }
 
-        let p1_idx = p1 as usize;
-        let p2_idx = p2 as usize;
-
-        if p1_idx >= geom.keys.len() || p2_idx >= geom.keys.len() {
-            continue;
-        }
-
-        let info1 = &geom.keys[p1_idx];
-        let info2 = &geom.keys[p2_idx];
+        let info1 = &geom.keys[p1 as usize];
+        let info2 = &geom.keys[p2 as usize];
 
         if info1.hand == info2.hand && info1.finger == info2.finger {
             return true;

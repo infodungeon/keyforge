@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-// UPDATED: use keyforge_core
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
@@ -7,9 +6,7 @@ use keyforge_core::scorer::ScorerBuilder;
 use std::hint::black_box;
 use std::io::Cursor;
 
-// --- Helper to build a realistic Scorer in memory ---
 fn setup_scorer() -> keyforge_core::scorer::Scorer {
-    // 1. Generate a 30-key Ortho Geometry
     let mut keys = Vec::new();
     for r in 0..3 {
         for c in 0..10 {
@@ -26,6 +23,8 @@ fn setup_scorer() -> keyforge_core::scorer::Scorer {
                 col: c as i8,
                 x: c as f32,
                 y: r as f32,
+                w: 1.0,
+                h: 1.0,
                 is_stretch: c == 4 || c == 5,
             });
         }
@@ -43,28 +42,23 @@ fn setup_scorer() -> keyforge_core::scorer::Scorer {
 
     let mut ngram_data = String::new();
     let chars = "abcdefghijklmnopqrstuvwxyz.,";
-    let char_bytes = chars.as_bytes();
-
-    for &c in char_bytes {
-        ngram_data.push_str(&format!("{}\t1000\n", c as char));
+    for c in chars.chars() {
+        ngram_data.push_str(&format!("{}\t1000\n", c));
     }
-
     for i in 0..chars.len() - 1 {
         let b = &chars[i..i + 2];
         ngram_data.push_str(&format!("{}\t500\n", b));
     }
 
     let mut count = 0;
-    for &c1 in char_bytes {
-        for &c2 in char_bytes {
-            for &c3 in char_bytes {
+    let char_vec: Vec<char> = chars.chars().collect();
+    for &c1 in &char_vec {
+        for &c2 in &char_vec {
+            for &c3 in &char_vec {
                 if count >= 3000 {
                     break;
                 }
-                ngram_data.push_str(&format!(
-                    "{}{}{}\t100\n",
-                    c1 as char, c2 as char, c3 as char
-                ));
+                ngram_data.push_str(&format!("{}{}{}\t100\n", c1, c2, c3));
                 count += 1;
             }
         }
@@ -88,12 +82,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     let scorer = setup_scorer();
 
     let layout_str = "qwertyuiopasdfghjkl;zxcvbnm,./";
-    let mut layout_bytes = vec![0u8; 30];
-    for (i, ch) in layout_str.chars().enumerate() {
-        layout_bytes[i] = ch as u8;
-    }
+    // FIXED: Convert to Vec<u16>
+    let layout_codes: Vec<u16> = layout_str.chars().map(|c| c as u16).collect();
 
-    let pos_map = mutation::build_pos_map(&layout_bytes);
+    // FIXED: pos_map is now Box<[u8; 65536]>
+    let pos_map = mutation::build_pos_map(&layout_codes);
 
     c.bench_function("score_full (3k trigrams)", |b| {
         b.iter(|| scorer.score_full(black_box(&pos_map), black_box(3000)))

@@ -106,17 +106,34 @@ impl TestContext {
                 ));
             }
         }
+
+        // Define Slots: 0-9 Top, 10-19 Home, 20-29 Bottom
+        let prime = (10..20)
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let med = (0..10).map(|i| i.to_string()).collect::<Vec<_>>().join(",");
+        let low = (20..30)
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+
         let json = format!(
             r#"{{
                 "meta": {{ "name": "PoisonPill", "author": "Test", "version": "1.0" }},
                 "geometry": {{
                     "keys": [{}],
-                    "prime_slots": [], "med_slots": [], "low_slots": [],
+                    "prime_slots": [{}],
+                    "med_slots": [{}],
+                    "low_slots": [{}],
                     "home_row": 1
                 }},
                 "layouts": {{ }}
             }}"#,
-            keys_json.join(",")
+            keys_json.join(","),
+            prime,
+            med,
+            low
         );
         writeln!(kb_file, "{}", json).unwrap();
 
@@ -131,7 +148,6 @@ impl TestContext {
 
 #[test]
 fn test_poison_pill_constraint() {
-    // Ensure release binary is built
     let status = Command::new("cargo")
         .arg("build")
         .arg("--release")
@@ -154,9 +170,9 @@ fn test_poison_pill_constraint() {
             "--corpus-scale",
             "1.0",
             "--search-epochs",
-            "50",
+            "100",
             "--search-steps",
-            "2000",
+            "5000",
             "--attempts",
             "1",
             "--seed",
@@ -174,19 +190,22 @@ fn test_poison_pill_constraint() {
     }
 
     let mut layout = "";
+    // FIX: Parse by searching for the substring, ignoring log prefixes/timestamps
     for line in stdout.lines() {
-        if line.starts_with("Layout:") {
-            layout = line.split_once(": ").unwrap().1.trim();
+        if let Some(idx) = line.find("Layout: ") {
+            layout = line[idx + 8..].trim();
             break;
         }
     }
 
     if layout.len() != 30 {
         println!("STDOUT:\n{}", stdout);
-        panic!("Invalid layout output or layout not found in stdout");
+        panic!(
+            "Invalid layout output or layout not found in stdout. Found: '{}'",
+            layout
+        );
     }
 
-    // e should be evicted from home row (10..20)
     let home_row = &layout[10..20];
 
     if home_row.contains('e') {

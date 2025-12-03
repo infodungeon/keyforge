@@ -1,5 +1,7 @@
 use crate::config::{Config, ScoringWeights};
 use crate::geometry::KeyboardDefinition;
+use crate::keycodes::KeycodeRegistry;
+use crate::layouts::layout_string_to_u16; // CHANGED
 use crate::optimizer::mutation;
 use crate::scorer::{ScoreDetails, Scorer, ScorerBuilder};
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,7 @@ use tracing::{info, warn};
 pub struct KeyForgeSession {
     pub scorer: Scorer,
     pub kb_def: KeyboardDefinition,
+    pub registry: KeycodeRegistry,
 }
 
 pub struct KeyForgeState {
@@ -44,10 +47,8 @@ pub fn load_dataset(
     corpus_scale: Option<f32>,
     data_root: Option<&str>,
 ) -> Result<String, String> {
-    // Start with defaults
     let mut config = Config::default();
 
-    // Override scale if provided
     if let Some(scale) = corpus_scale {
         config.weights.corpus_scale = scale;
     }
@@ -56,11 +57,13 @@ pub fn load_dataset(
         .as_ref()
         .ok_or("Keyboard path is required".to_string())?;
 
-    // Load the Keyboard Bundle
     let kb_def = KeyboardDefinition::load_from_file(kb_path)?;
 
+    // Resolve Root Path
+    let root_path_str = data_root.unwrap_or(".");
+    let root_path = Path::new(root_path_str);
+
     // 1. Resolve Weights Strategy
-    // Map keyboard types to weight filenames
     let weight_filename = match kb_def.meta.kb_type.as_str() {
         "ortho" | "column_staggered" => Some("ortho_split.json"),
         "row_staggered" => Some("row_stagger.json"),
@@ -68,20 +71,26 @@ pub fn load_dataset(
     };
 
     if let Some(name) = weight_filename {
-        // Construct path relative to data_root if provided, else use relative CWD
-        let weight_path = if let Some(root) = data_root {
-            format!("{}/data/weights/{}", root, name)
+        // Try direct path (Tauri style: root IS data dir)
+        let direct_path = root_path.join("weights").join(name);
+        // Try repo path (CLI style: root HAS data dir)
+        let repo_path = root_path.join("data").join("weights").join(name);
+
+        let final_path = if direct_path.exists() {
+            Some(direct_path.clone())
+        } else if repo_path.exists() {
+            Some(repo_path.clone())
         } else {
-            format!("data/weights/{}", name)
+            None
         };
 
-        if Path::new(&weight_path).exists() {
-            info!("API: Auto-loading weights from {}", weight_path);
-            config.weights = ScoringWeights::load_from_file(&weight_path);
+        if let Some(p) = final_path {
+            info!("API: Auto-loading weights from {:?}", p);
+            config.weights = ScoringWeights::load_from_file(&p);
         } else {
             warn!(
-                "API Warning: Weights file '{}' not found. Using defaults.",
-                weight_path
+                "API Warning: Weights file '{}' not found in '{:?}' or '{:?}'. Using defaults.",
+                name, direct_path, repo_path
             );
         }
     } else {
@@ -91,7 +100,26 @@ pub fn load_dataset(
         );
     }
 
-    // 2. Initialize Scorer using Builder Pattern
+    // 2. Load Keycode Registry
+    // Try direct path first, then repo path
+    let direct_kc = root_path.join("keycodes.json");
+    let repo_kc = root_path.join("data").join("keycodes.json");
+
+    let registry = if direct_kc.exists() {
+        info!("API: Loading keycodes from {:?}", direct_kc);
+        KeycodeRegistry::load_from_file(&direct_kc)?
+    } else if repo_kc.exists() {
+        info!("API: Loading keycodes from {:?}", repo_kc);
+        KeycodeRegistry::load_from_file(&repo_kc)?
+    } else {
+        warn!(
+            "API: keycodes.json not found at {:?} or {:?}, using built-in defaults.",
+            direct_kc, repo_kc
+        );
+        KeycodeRegistry::new_with_defaults()
+    };
+
+    // 3. Initialize Scorer using Builder Pattern
     let scorer = ScorerBuilder::new()
         .with_weights(config.weights)
         .with_defs(config.defs)
@@ -103,10 +131,14 @@ pub fn load_dataset(
         .build()
         .map_err(|e| format!("Scorer Initialization Failed: {}", e))?;
 
-    // 3. Store in Session Map
+    // 4. Store in Session Map
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
 
-    let session = KeyForgeSession { scorer, kb_def };
+    let session = KeyForgeSession {
+        scorer,
+        kb_def,
+        registry,
+    };
     sessions.insert(session_id.to_string(), session);
 
     Ok(format!("Session '{}' Loaded Successfully", session_id))
@@ -133,21 +165,12 @@ pub fn validate_layout(
 
     let key_count = session.scorer.key_count;
 
-    // Convert input string to bytes
-    let mut layout_bytes = vec![0u8; key_count];
-    for (i, c) in layout_str
-        .to_lowercase()
-        .chars()
-        .take(key_count)
-        .enumerate()
-    {
-        layout_bytes[i] = c as u8;
-    }
+    // CHANGED: Use u16 parser
+    let layout_codes = layout_string_to_u16(&layout_str, key_count, &session.registry);
 
     // This uses crate::optimizer::mutation
-    let pos_map = mutation::build_pos_map(&layout_bytes);
+    let pos_map = mutation::build_pos_map(&layout_codes);
 
-    // RENAMED from score_debug
     let details = session.scorer.score_details(&pos_map, 10_000);
 
     // Heatmap Calculation
@@ -158,12 +181,25 @@ pub fn validate_layout(
         .fold(0.0f32, |a, &b| a.max(b));
 
     let mut heatmap = Vec::with_capacity(key_count);
-    for &char_byte in &layout_bytes {
-        if char_byte == 0 {
+    for &code in &layout_codes {
+        // Skip KC_NO or custom high-byte codes (macros)
+        if code == 0 || code >= 256 {
             heatmap.push(0.0);
             continue;
         }
-        let freq = session.scorer.char_freqs[char_byte as usize];
+
+        let byte = code as u8;
+        let mut freq = session.scorer.char_freqs[byte as usize];
+
+        // Handle case folding for heatmap
+        if freq == 0.0 {
+            if byte.is_ascii_uppercase() {
+                freq = session.scorer.char_freqs[byte.to_ascii_lowercase() as usize];
+            } else if byte.is_ascii_lowercase() {
+                freq = session.scorer.char_freqs[byte.to_ascii_uppercase() as usize];
+            }
+        }
+
         let intensity = if max_freq_val > 0.0 {
             freq / max_freq_val
         } else {

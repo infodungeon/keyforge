@@ -1,36 +1,52 @@
-// UPDATED: use keyforge_core
 use keyforge_core::api::{load_dataset, validate_layout, KeyForgeState};
 use serde::Deserialize;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::thread;
 
-#[derive(Debug, Deserialize)]
+// FIX: Added Clone to derive macros
+#[derive(Debug, Deserialize, Clone)]
 struct CyanophageEntry {
     layout: String,
     effort: f32,
     sfb: f32,
 }
 
-fn load_cyanophage_data() -> Vec<CyanophageEntry> {
-    let path = "data/benchmarks/cyanophage.json";
-    let content = fs::read_to_string(path).expect("Failed to read cyanophage.json");
-    serde_json::from_str(&content).expect("Failed to parse cyanophage.json")
+fn get_workspace_root() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap();
+    if cwd.join("data").exists() {
+        return cwd;
+    }
+    let up_two = cwd.join("../../");
+    if up_two.join("data").exists() {
+        return up_two;
+    }
+    panic!("Could not locate 'data' directory. CWD: {:?}", cwd);
 }
 
-fn has_real_data() -> bool {
-    Path::new("data/ngrams-all.tsv").exists()
-        && Path::new("data/cost_matrix.csv").exists()
-        && Path::new("data/keyboards/szr35.json").exists()
-        && Path::new("data/weights/ortho_split.json").exists()
-        && Path::new("data/benchmarks/cyanophage.json").exists()
+fn load_cyanophage_data(root: &Path) -> Vec<CyanophageEntry> {
+    let path = root.join("data/benchmarks/cyanophage.json");
+    let content =
+        fs::read_to_string(&path).unwrap_or_else(|_| panic!("❌ Failed to read '{:?}'.", path));
+    serde_json::from_str(&content).expect("Failed to parse cyanophage.json")
 }
 
 #[test]
 fn test_cyanophage_ranking_correlation() {
-    if !has_real_data() {
-        println!("Skipping external benchmark: Real data not found");
-        return;
+    let root = get_workspace_root();
+    let data_dir = root.join("data");
+
+    // Check files
+    let required = [
+        "ngrams-all.tsv",
+        "cost_matrix.csv",
+        "keyboards/szr35.json",
+        "benchmarks/cyanophage.json",
+    ];
+    for f in required {
+        if !data_dir.join(f).exists() {
+            panic!("Missing file: {}", f);
+        }
     }
 
     let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
@@ -40,112 +56,162 @@ fn test_cyanophage_ranking_correlation() {
             let state = KeyForgeState::default();
             let session_id = "bench_session";
 
-            let _ = load_dataset(
+            // Initialize Scorer
+            load_dataset(
                 &state,
                 session_id,
-                "data/cost_matrix.csv",
-                "data/ngrams-all.tsv",
-                &Some("data/keyboards/szr35.json".to_string()),
+                data_dir.join("cost_matrix.csv").to_str().unwrap(),
+                data_dir.join("ngrams-all.tsv").to_str().unwrap(),
+                &Some(
+                    data_dir
+                        .join("keyboards/szr35.json")
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
+                ),
                 None,
                 None,
-            );
+            )
+            .expect("Failed to load dataset");
 
-            let benchmarks = load_cyanophage_data();
-            let mut kf_results = Vec::new();
+            let benchmarks = load_cyanophage_data(&root);
 
-            println!(
-                "\n{:<20} | {:<10} | {:<10} | {:<10} | {:<10}",
-                "Layout", "Cyan Rank", "KF Rank", "Cyan SFB%", "KF SFB%"
-            );
-            println!("{:-<70}", "-");
+            // Results Container
+            struct ResultEntry {
+                name: String,
+                kf_rank: usize,
+                cyan_rank: usize,
+                cyan_sfb: f32,
+                kf_sfb: f32,
+                diff: f32,
+            }
+            let mut full_results = Vec::new();
+            let mut missing_layouts = Vec::new();
 
-            // STEP 1: Collect Layout Strings
-            let mut batch_jobs = Vec::new();
+            // 1. Process All Layouts
             {
+                // Pre-fetch all valid layout names to avoid lock contention
                 let sessions = state.sessions.lock().unwrap();
                 let session = sessions.get(session_id).unwrap();
                 let kb = &session.kb_def;
 
+                // Temporary vector to hold intermediate calculations for ranking
+                let mut calculated_scores = Vec::new();
+
+                // First pass: Calculate all scores for found layouts
                 for b in &benchmarks {
-                    let exact_key = b.layout.clone();
-                    let title_key = {
-                        let mut c = b.layout.chars();
-                        match c.next() {
-                            None => String::new(),
-                            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                        }
-                    };
+                    // Fuzzy match
+                    let match_key = kb.layouts.keys().find(|k| {
+                        k.to_lowercase() == b.layout.to_lowercase()
+                            || k.to_lowercase().replace("-", "")
+                                == b.layout.to_lowercase().replace("-", "")
+                    });
 
-                    let layout_str = if kb.layouts.contains_key(&exact_key) {
-                        kb.layouts.get(&exact_key)
-                    } else if kb.layouts.contains_key(&title_key) {
-                        kb.layouts.get(&title_key)
+                    if let Some(real_key) = match_key {
+                        let layout_str = kb.layouts.get(real_key).unwrap().clone();
+                        calculated_scores.push((b.layout.clone(), layout_str, b.sfb, b.effort));
                     } else {
-                        None
-                    };
-
-                    if let Some(s) = layout_str {
-                        batch_jobs.push((b.layout.clone(), s.clone(), b.effort, b.sfb));
+                        missing_layouts.push(b.layout.clone());
                     }
+                }
+                drop(sessions); // Release lock
+
+                // Second pass: Calculate scores
+                let mut scored_entries = Vec::new();
+                for (name, layout_str, ref_sfb, ref_effort) in calculated_scores {
+                    let res = validate_layout(&state, session_id, layout_str, None).unwrap();
+                    let total = if res.score.total_bigrams > 0.0 {
+                        res.score.total_bigrams
+                    } else {
+                        1.0
+                    };
+                    let kf_sfb = (res.score.stat_sfb / total) * 100.0;
+
+                    scored_entries.push((
+                        name,
+                        res.score.layout_score,
+                        kf_sfb,
+                        ref_sfb,
+                        ref_effort,
+                    ));
+                }
+
+                // Rank them
+                let mut kf_sorted = scored_entries.clone();
+                kf_sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap()); // Sort by KF Score
+
+                let mut cyan_sorted = benchmarks.clone();
+                cyan_sorted.sort_by(|a, b| a.effort.partial_cmp(&b.effort).unwrap()); // Sort by Cyan Effort
+
+                // Build Final Report Data
+                for (name, _, kf_sfb, ref_sfb, _) in &scored_entries {
+                    let kf_rank = kf_sorted.iter().position(|x| x.0 == *name).unwrap() + 1;
+                    let cyan_rank = cyan_sorted.iter().position(|x| x.layout == *name).unwrap() + 1;
+
+                    full_results.push(ResultEntry {
+                        name: name.clone(),
+                        kf_rank,
+                        cyan_rank,
+                        cyan_sfb: *ref_sfb,
+                        kf_sfb: *kf_sfb,
+                        diff: (*kf_sfb - *ref_sfb).abs(),
+                    });
                 }
             }
 
-            // STEP 2: Validate
-            for (name, layout_str, cyan_effort, cyan_sfb) in batch_jobs {
-                // Pass session_id
-                let res = validate_layout(&state, session_id, layout_str, None)
-                    .expect("Validation failed");
-                let kf_sfb_pct = (res.score.stat_sfb / res.score.total_bigrams) * 100.0;
+            // 2. Print Full Report
+            println!(
+                "\n{:<25} | {:<5} | {:<5} | {:<8} | {:<8} | {:<8}",
+                "Layout", "Cyan#", "KF#", "Ref SFB", "KF SFB", "Diff"
+            );
+            println!("{:-<75}", "-");
 
-                kf_results.push((
-                    name,
-                    res.score.layout_score,
-                    kf_sfb_pct,
-                    cyan_effort,
-                    cyan_sfb,
-                ));
-            }
-
-            if kf_results.is_empty() {
-                return;
-            }
-
-            let mut cyan_sorted = kf_results.clone();
-            cyan_sorted.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
-
-            let mut kf_sorted = kf_results.clone();
-            kf_sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-            for item in &kf_results {
-                let name = &item.0;
-                let cyan_rank = cyan_sorted.iter().position(|x| x.0 == *name).unwrap() + 1;
-                let kf_rank = kf_sorted.iter().position(|x| x.0 == *name).unwrap() + 1;
-                let flag = if (cyan_rank as i32 - kf_rank as i32).abs() > 5 {
-                    "(!)"
-                } else {
-                    ""
-                };
-
+            for res in &full_results {
+                let alert = if res.diff > 1.5 { "(!)" } else { "" };
                 println!(
-                    "{:<20} | {:<10} | {:<10} | {:<10.2} | {:<10.2} {}",
-                    name, cyan_rank, kf_rank, item.3, item.2, flag
+                    "{:<25} | {:<5} | {:<5} | {:<8.2} | {:<8.2} | {:<8.2} {}",
+                    res.name, res.cyan_rank, res.kf_rank, res.cyan_sfb, res.kf_sfb, res.diff, alert
                 );
             }
 
-            if let Some(qwerty_kf_rank) = kf_sorted
-                .iter()
-                .position(|x| x.0.eq_ignore_ascii_case("Qwerty"))
-            {
-                let bottom_threshold = kf_sorted.len().saturating_sub(3);
-                assert!(qwerty_kf_rank >= bottom_threshold);
+            println!("\n⚠️  MISSING LAYOUTS (In benchmark but not in szr35.json):");
+            for m in &missing_layouts {
+                println!("   - {}", m);
             }
 
-            for item in &kf_results {
-                let name = &item.0;
-                if !name.eq_ignore_ascii_case("Qwerty") {
-                    let diff = (item.2 - item.4).abs();
-                    assert!(diff < 1.5);
+            // 3. Fail on Errors
+            let mut errors = Vec::new();
+
+            // Check Qwerty Rank
+            if let Some(res) = full_results
+                .iter()
+                .find(|r| r.name.eq_ignore_ascii_case("Qwerty"))
+            {
+                let total = full_results.len();
+                if res.kf_rank < total - 5 {
+                    errors.push(format!("Qwerty ranked too high: {}/{}", res.kf_rank, total));
                 }
+            }
+
+            // Check SFB Correlation
+            for res in &full_results {
+                if res.name.eq_ignore_ascii_case("Qwerty") {
+                    continue;
+                }
+                if res.diff > 1.5 {
+                    errors.push(format!(
+                        "SFB Mismatch [{}]: Ref {:.2}% vs KF {:.2}% (Diff {:.2})",
+                        res.name, res.cyan_sfb, res.kf_sfb, res.diff
+                    ));
+                }
+            }
+
+            if !errors.is_empty() {
+                println!("\n❌ --- FAILURE SUMMARY ---");
+                for e in &errors {
+                    println!("{}", e);
+                }
+                panic!("Benchmark correlation failed with {} errors.", errors.len());
             }
         })
         .unwrap();

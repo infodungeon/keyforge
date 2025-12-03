@@ -1,100 +1,213 @@
-// ===== keyforge/src/scorer/engine.rs =====
 use super::costs::{calculate_cost, CostCategory};
 use super::flow::analyze_flow;
 use super::physics::{analyze_interaction, get_geo_dist, get_reach_cost};
 use super::{ScoreDetails, Scorer};
 
-pub fn score_full(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> (f32, f32, f32) {
-    // ... (content remains same)
-    let mut score = 0.0;
-    let mut left_load = 0.0;
-    let mut total_freq = 0.0;
+// NOTE: We use unsafe get_unchecked here for performance.
+// SAFETY: The ScorerBuilder guarantees that:
+// 1. active_chars contains valid indices (typically < 256 for text, but valid usize for pos_map)
+// 2. pos_map is always [u8; 65536] (Phase 2 Upgrade)
+// 3. matrices (full_cost_matrix, trigram_cost_table) are sized exactly to key_count^2 / key_count^3
+// 4. tier_penalty_matrix is fixed 3x3.
+//
+// debug_assert! macros verify these invariants during development.
 
-    // OPTIMIZATION: Iterate only active chars
+#[inline(always)]
+fn score_monograms(
+    scorer: &Scorer,
+    pos_map: &[u8; 65536],
+    score: &mut f32,
+    left_load: &mut f32,
+    total_freq: &mut f32,
+) {
+    let keys = &scorer.geometry.keys;
+    let tiers = &scorer.tier_penalty_matrix;
+
     for &c_idx in &scorer.active_chars {
-        let p = pos_map[c_idx];
-        if p != 255 {
-            let p_idx = p as usize;
-            if p_idx >= scorer.key_count {
-                continue;
-            }
+        // SAFETY VERIFICATION
+        debug_assert!(c_idx < 65536, "Char index {} out of bounds", c_idx);
 
-            let freq = scorer.char_freqs[c_idx];
+        let p = unsafe { *pos_map.get_unchecked(c_idx) };
+        if p == 255 {
+            continue;
+        }
 
-            total_freq += freq;
-            if scorer.geometry.keys[p_idx].hand == 0 {
-                left_load += freq;
-            }
-            score += scorer.tier_penalty_matrix[scorer.char_tier_map[c_idx] as usize]
-                [scorer.slot_tier_map[p_idx] as usize]
-                * freq;
-            score += scorer.slot_monogram_costs[p_idx] * freq;
+        let p_idx = p as usize;
+
+        // Graceful fallback for Release mode if logic drifts, Panic in Debug
+        debug_assert!(
+            p_idx < scorer.key_count,
+            "Position index {} exceeds key count {}",
+            p_idx,
+            scorer.key_count
+        );
+        if p_idx >= scorer.key_count {
+            continue;
+        }
+
+        // SAFETY: active_chars source guarantees bounds checks
+        let freq = unsafe { *scorer.char_freqs.get_unchecked(c_idx) };
+        *total_freq += freq;
+
+        // SAFETY: p_idx checked against key_count above
+        if unsafe { keys.get_unchecked(p_idx).hand } == 0 {
+            *left_load += freq;
+        }
+
+        let char_tier = unsafe { *scorer.char_tier_map.get_unchecked(c_idx) } as usize;
+        let slot_tier = unsafe { *scorer.slot_tier_map.get_unchecked(p_idx) } as usize;
+
+        debug_assert!(char_tier < 3, "Char tier {} out of bounds", char_tier);
+        debug_assert!(slot_tier < 3, "Slot tier {} out of bounds", slot_tier);
+
+        // Flattened matrix access optimization
+        unsafe {
+            *score += *tiers.get_unchecked(char_tier).get_unchecked(slot_tier) * freq;
+            *score += *scorer.slot_monogram_costs.get_unchecked(p_idx) * freq;
         }
     }
+}
+
+#[inline(always)]
+fn score_bigrams(scorer: &Scorer, pos_map: &[u8; 65536], score: &mut f32) {
+    let kc = scorer.key_count;
 
     for &c1 in &scorer.active_chars {
-        let p1 = pos_map[c1];
+        debug_assert!(c1 < 65536);
+        let p1 = unsafe { *pos_map.get_unchecked(c1) };
         if p1 == 255 {
             continue;
         }
         let p1_idx = p1 as usize;
 
-        let start = scorer.bigram_starts[c1];
-        let end = scorer.bigram_starts[c1 + 1];
+        debug_assert!(p1_idx < kc, "p1 index {} out of bounds", p1_idx);
+        if p1_idx >= kc {
+            continue;
+        }
+
+        let start = unsafe { *scorer.bigram_starts.get_unchecked(c1) };
+        let end = unsafe { *scorer.bigram_starts.get_unchecked(c1 + 1) };
+
+        debug_assert!(start <= end);
+        debug_assert!(end <= scorer.bigrams_others.len());
+
         for k in start..end {
-            if scorer.bigrams_self_first[k] {
-                let c2 = scorer.bigrams_others[k] as usize;
-                let p2 = pos_map[c2];
+            // SAFETY: k is bounded by bigram_starts logic
+            if unsafe { *scorer.bigrams_self_first.get_unchecked(k) } {
+                let c2 = unsafe { *scorer.bigrams_others.get_unchecked(k) } as usize;
+
+                debug_assert!(c2 < 65536);
+                let p2 = unsafe { *pos_map.get_unchecked(c2) };
+
                 if p2 != 255 {
                     let p2_idx = p2 as usize;
-                    let idx = p1_idx * scorer.key_count + p2_idx;
-                    score += scorer.full_cost_matrix[idx] * scorer.bigrams_freqs[k];
-                }
-            }
-        }
-    }
+                    debug_assert!(p2_idx < kc, "p2 index {} out of bounds", p2_idx);
+                    if p2_idx >= kc {
+                        continue;
+                    }
 
-    let k_sq = scorer.key_count * scorer.key_count;
+                    let idx = p1_idx * kc + p2_idx;
 
-    for &c1 in &scorer.active_chars {
-        let p1 = pos_map[c1];
-        if p1 == 255 {
-            continue;
-        }
-        let p1_idx = p1 as usize;
+                    debug_assert!(
+                        idx < scorer.full_cost_matrix.len(),
+                        "Cost matrix index {} out of bounds",
+                        idx
+                    );
 
-        let start = scorer.trigram_starts[c1];
-        let end = scorer.trigram_starts[c1 + 1];
-        let effective_end = if limit > 0 && (end - start) > limit {
-            start + limit
-        } else {
-            end
-        };
-
-        for k in start..effective_end {
-            let t = &scorer.trigrams_flat[k];
-            if t.role == 0 {
-                let c2 = t.other1 as usize;
-                let c3 = t.other2 as usize;
-                let p2 = pos_map[c2];
-                let p3 = pos_map[c3];
-                if p2 != 255 && p3 != 255 {
-                    let p2_idx = p2 as usize;
-                    let p3_idx = p3 as usize;
-                    let idx = p1_idx * k_sq + p2_idx * scorer.key_count + p3_idx;
-                    let cost = scorer.trigram_cost_table[idx];
-                    if cost != 0.0 {
-                        score += cost * t.freq;
+                    unsafe {
+                        *score += *scorer.full_cost_matrix.get_unchecked(idx)
+                            * *scorer.bigrams_freqs.get_unchecked(k);
                     }
                 }
             }
         }
     }
+}
+
+#[inline(always)]
+fn score_trigrams(scorer: &Scorer, pos_map: &[u8; 65536], score: &mut f32, limit: usize) {
+    let k_sq = scorer.key_count * scorer.key_count;
+    let kc = scorer.key_count;
+
+    for &c1 in &scorer.active_chars {
+        debug_assert!(c1 < 65536);
+        let p1 = unsafe { *pos_map.get_unchecked(c1) };
+        if p1 == 255 {
+            continue;
+        }
+        let p1_idx = p1 as usize;
+        if p1_idx >= kc {
+            continue;
+        }
+
+        let start = unsafe { *scorer.trigram_starts.get_unchecked(c1) };
+        let end = unsafe { *scorer.trigram_starts.get_unchecked(c1 + 1) };
+
+        debug_assert!(start <= end);
+        debug_assert!(end <= scorer.trigrams_flat.len());
+
+        let len = end - start;
+        let effective_len = if len > limit { limit } else { len };
+        let effective_end = start + effective_len;
+
+        for k in start..effective_end {
+            let t = unsafe { scorer.trigrams_flat.get_unchecked(k) };
+
+            if t.role == 0 {
+                let c2 = t.other1 as usize;
+                let c3 = t.other2 as usize;
+
+                debug_assert!(c2 < 65536);
+                debug_assert!(c3 < 65536);
+
+                let p2 = unsafe { *pos_map.get_unchecked(c2) };
+                let p3 = unsafe { *pos_map.get_unchecked(c3) };
+
+                if p2 != 255 && p3 != 255 {
+                    let p2_idx = p2 as usize;
+                    let p3_idx = p3 as usize;
+
+                    // Bounds check fallback
+                    if p2_idx >= kc || p3_idx >= kc {
+                        continue;
+                    }
+
+                    let idx = p1_idx * k_sq + p2_idx * kc + p3_idx;
+
+                    debug_assert!(
+                        idx < scorer.trigram_cost_table.len(),
+                        "Trigram table index {} out of bounds",
+                        idx
+                    );
+
+                    unsafe {
+                        let cost = *scorer.trigram_cost_table.get_unchecked(idx);
+                        if cost != 0.0 {
+                            *score += cost * t.freq;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn score_full(scorer: &Scorer, pos_map: &[u8; 65536], limit: usize) -> (f32, f32, f32) {
+    let mut score = 0.0;
+    let mut left_load = 0.0;
+    let mut total_freq = 0.0;
+
+    score_monograms(scorer, pos_map, &mut score, &mut left_load, &mut total_freq);
+    score_bigrams(scorer, pos_map, &mut score);
+    score_trigrams(scorer, pos_map, &mut score, limit);
+
     (score, left_load, total_freq)
 }
 
-// RENAMED HERE
-pub fn score_details(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> ScoreDetails {
+pub fn score_details(scorer: &Scorer, pos_map: &[u8; 65536], limit: usize) -> ScoreDetails {
+    // This function is for analysis/reporting, not hot loops.
+    // We keep standard indexing here for safety and readability.
+
     let mut d = ScoreDetails::default();
     let mut total_freq = 0.0;
     let mut left_load = 0.0;
@@ -345,9 +458,7 @@ pub fn score_details(scorer: &Scorer, pos_map: &[u8; 256], limit: usize) -> Scor
     d
 }
 
-// ... (calculate_key_costs remains same) ...
-pub fn calculate_key_costs(scorer: &Scorer, pos_map: &[u8; 256]) -> Vec<f32> {
-    // ... same as before
+pub fn calculate_key_costs(scorer: &Scorer, pos_map: &[u8; 65536]) -> Vec<f32> {
     let mut costs = vec![0.0; scorer.key_count];
 
     // 1. Monogram Costs (Effort + Travel)

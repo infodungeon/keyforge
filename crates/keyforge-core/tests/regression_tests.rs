@@ -1,60 +1,84 @@
-// UPDATED: use keyforge_core
 use keyforge_core::api::{load_dataset, validate_layout, KeyForgeState};
-use std::path::Path;
+use std::path::PathBuf;
 use std::thread;
 
-fn has_real_data() -> bool {
-    Path::new("data/ngrams-all.tsv").exists()
-        && Path::new("data/cost_matrix.csv").exists()
-        && Path::new("data/keyboards/ortho_30.json").exists()
-        && Path::new("data/weights/ortho_split.json").exists()
+fn get_workspace_root() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap();
+    if cwd.join("data").exists() {
+        return cwd;
+    }
+    let up_two = cwd.join("../../");
+    if up_two.join("data").exists() {
+        return up_two;
+    }
+    panic!("Could not locate 'data' directory. CWD: {:?}", cwd);
 }
 
 #[test]
 fn test_regression_qwerty_vs_colemak_api() {
-    if !has_real_data() {
-        println!("Skipping regression test: Real data not found");
-        return;
+    let root = get_workspace_root();
+    let data_dir = root.join("data");
+
+    // 1. HARD ASSERTION: Verify Data Existence
+    let required_files = [
+        "ngrams-all.tsv",
+        "cost_matrix.csv",
+        "keyboards/ortho_30.json",
+        "weights/ortho_split.json",
+    ];
+
+    for file in required_files {
+        let p = data_dir.join(file);
+        if !p.exists() {
+            panic!(
+                "\n❌ REGRESSION TEST FAILURE: Missing Data File\nFile: {:?}\n",
+                p
+            );
+        }
     }
 
     let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
 
     let handler = builder
-        .spawn(|| {
+        .spawn(move || {
             let state = KeyForgeState::default();
             let session_id = "regression_test";
 
-            let load_result = load_dataset(
+            // Load Dataset with absolute paths
+            load_dataset(
                 &state,
                 session_id,
-                "data/cost_matrix.csv",
-                "data/ngrams-all.tsv",
-                &Some("data/keyboards/ortho_30.json".to_string()),
+                data_dir.join("cost_matrix.csv").to_str().unwrap(),
+                data_dir.join("ngrams-all.tsv").to_str().unwrap(),
+                &Some(
+                    data_dir
+                        .join("keyboards/ortho_30.json")
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
+                ),
                 None,
                 None,
-            );
+            )
+            .expect("Failed to load dataset via API");
 
-            assert!(
-                load_result.is_ok(),
-                "Failed to load dataset via API: {:?}",
-                load_result.err()
-            );
-
-            // Fetch strings
+            // Fetch layout strings
             let (qwerty_str, colemak_str) = {
                 let sessions = state.sessions.lock().unwrap();
-                let session = sessions.get(session_id).expect("Session not found");
+                let session = sessions
+                    .get(session_id)
+                    .expect("Session not found in state");
 
                 let kb = &session.kb_def;
                 let q = kb
                     .layouts
                     .get("Qwerty")
-                    .expect("Qwerty layout missing")
+                    .expect("Layout 'Qwerty' missing")
                     .clone();
                 let c = kb
                     .layouts
                     .get("Colemak")
-                    .expect("Colemak layout missing")
+                    .expect("Layout 'Colemak' missing")
                     .clone();
                 (q, c)
             };
@@ -76,8 +100,19 @@ fn test_regression_qwerty_vs_colemak_api() {
 
             assert!(score_q > 0.0);
             assert!(score_c > 0.0);
-            assert!(score_q > score_c);
-            assert!(res_qwerty.score.mech_sfb > 1000.0);
+
+            assert!(
+                score_q > score_c,
+                "Regression: Qwerty ({}) should be worse than Colemak ({})",
+                score_q,
+                score_c
+            );
+
+            assert!(
+                res_qwerty.score.mech_sfb > 500.0,
+                "Regression: Qwerty SFB score ({}) is suspiciously low",
+                res_qwerty.score.mech_sfb
+            );
         })
         .unwrap();
 

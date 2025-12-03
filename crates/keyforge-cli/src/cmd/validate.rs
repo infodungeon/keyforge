@@ -2,7 +2,8 @@ use crate::reports;
 use clap::Args;
 use keyforge_core::config::Config;
 use keyforge_core::geometry::KeyboardDefinition;
-use keyforge_core::layouts::layout_string_to_bytes;
+use keyforge_core::keycodes::KeycodeRegistry;
+use keyforge_core::layouts::layout_string_to_u16; // CHANGED
 use keyforge_core::optimizer::mutation;
 use keyforge_core::scorer::Scorer;
 use std::sync::Arc;
@@ -16,7 +17,12 @@ pub struct ValidateArgs {
     pub layout: Option<String>,
 }
 
-pub fn run(args: ValidateArgs, kb_def: &KeyboardDefinition, scorer: Arc<Scorer>) {
+pub fn run(
+    args: ValidateArgs,
+    kb_def: &KeyboardDefinition,
+    scorer: Arc<Scorer>,
+    registry: Arc<KeycodeRegistry>,
+) {
     let mut results = Vec::new();
     let eval_limit = args.config.search.opt_limit_slow;
     let key_count = kb_def.geometry.keys.len();
@@ -34,13 +40,15 @@ pub fn run(args: ValidateArgs, kb_def: &KeyboardDefinition, scorer: Arc<Scorer>)
         }
 
         let layout_str = kb_def.layouts.get(name).unwrap();
-        let layout_bytes = layout_string_to_bytes(layout_str, key_count);
 
-        reports::print_layout_grid(name, &layout_bytes);
+        // CHANGED: string_to_u16
+        let layout_codes = layout_string_to_u16(layout_str, key_count, &registry);
 
-        let pos_map = mutation::build_pos_map(&layout_bytes);
+        // CHANGED: print with registry
+        reports::print_layout_grid(name, &layout_codes, &registry);
 
-        // RENAMED from score_debug
+        let pos_map = mutation::build_pos_map(&layout_codes);
+
         let details = scorer.score_details(&pos_map, eval_limit);
 
         results.push((name.clone(), details));
@@ -54,6 +62,7 @@ pub fn run(args: ValidateArgs, kb_def: &KeyboardDefinition, scorer: Arc<Scorer>)
     results.sort_by(|a, b| a.1.layout_score.partial_cmp(&b.1.layout_score).unwrap());
 
     reports::print_scoring_report(&results);
+    // Passing weights as reference to avoid cloning cost
     reports::print_statistical_report(&results, &scorer.weights);
     reports::print_comparison_report(&results);
 }

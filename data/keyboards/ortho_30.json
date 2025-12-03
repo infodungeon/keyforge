@@ -2,8 +2,8 @@
   "meta": {
     "name": "Ortho 30",
     "author": "KeyForge",
-    "version": "1.0",
-    "notes": "Standard 30-key alpha grid for testing",
+    "version": "2.3",
+    "notes": "Standard 30-key alpha grid. Sturdy Corrected (Dot on Left Index Stretch).",
     "type": "ortho"
   },
   "geometry": {
@@ -199,7 +199,7 @@
         "is_stretch": false
       },
       {
-        "id": "semicolon",
+        "id": "scln",
         "hand": 1,
         "finger": 4,
         "row": 1,
@@ -279,7 +279,7 @@
         "is_stretch": false
       },
       {
-        "id": "comma",
+        "id": "comm",
         "hand": 1,
         "finger": 2,
         "row": 2,
@@ -289,7 +289,7 @@
         "is_stretch": false
       },
       {
-        "id": "period",
+        "id": "dot",
         "hand": 1,
         "finger": 3,
         "row": 2,
@@ -299,7 +299,7 @@
         "is_stretch": false
       },
       {
-        "id": "slash",
+        "id": "slsh",
         "hand": 1,
         "finger": 4,
         "row": 2,
@@ -348,17 +348,16 @@
     "home_row": 1
   },
   "layouts": {
-    "Qwerty": "QWERTYUIOPASDFGHJKL;ZXCVBNM,./",
-    "Dvorak": "',.PYFGCRLAOEUIDHTNS;QJKXBMWVZ",
-    "Colemak": "QWFPGJLUY;ARSTDHNEIOZXCVBKM,./",
-    "Colemak-DH": "QWFPBJLUY;ARSTGMNEIOZXCDVKH,./",
-    "Workman": "QDRWBJFUP;ASHTGYNEOIZXMCVKL,./",
-    "Canary": "WLYPBZFOU'CRSTGMNEIAQJVDKXH,./",
-    "Sturdy": "VMLCPXFOUJSTRYDNAEIHZKQGWB';.,",
-    "Hands Down Ref": "XRYBPJLCU;SNHTGMOEAIZWVDKQF,./",
-    "Focal": "WLYPKZOU;,RSTNGMHAIEQXCDVJFB'.",
-    "Graphite": "BLDWZ'FOUJNRTSGYHAEIQXMCVKP,./",
-    "Gallium": "BLDCVJYOU,NRTSGPHAEIXQMWZKF';.",
-    "Engram": "BYOU'LDWVZCIEA,HTSNQGXJKMFP;./"
+    "Qwerty": "KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH",
+    "Colemak": "KC_Q KC_W KC_F KC_P KC_G KC_J KC_L KC_U KC_Y KC_SCLN KC_A KC_R KC_S KC_T KC_D KC_H KC_N KC_E KC_I KC_O KC_Z KC_X KC_C KC_V KC_B KC_K KC_M KC_COMM KC_DOT KC_SLSH",
+    "Colemak-DH": "KC_Q KC_W KC_F KC_P KC_B KC_J KC_L KC_U KC_Y KC_SCLN KC_A KC_R KC_S KC_T KC_G KC_M KC_N KC_E KC_I KC_O KC_Z KC_X KC_C KC_D KC_V KC_K KC_H KC_COMM KC_DOT KC_SLSH",
+    "Dvorak": "KC_QUOT KC_COMM KC_DOT KC_P KC_Y KC_F KC_G KC_C KC_R KC_L KC_A KC_O KC_E KC_U KC_I KC_D KC_H KC_T KC_N KC_S KC_SCLN KC_Q KC_J KC_K KC_X KC_B KC_M KC_W KC_V KC_Z",
+    "Workman": "KC_Q KC_D KC_R KC_W KC_B KC_J KC_F KC_U KC_P KC_SCLN KC_A KC_S KC_H KC_T KC_G KC_Y KC_N KC_E KC_O KC_I KC_Z KC_X KC_M KC_C KC_V KC_K KC_L KC_COMM KC_DOT KC_SLSH",
+    "Canary": "KC_W KC_L KC_Y KC_P KC_B KC_Z KC_F KC_O KC_U KC_QUOT KC_C KC_R KC_S KC_T KC_G KC_M KC_N KC_E KC_I KC_A KC_Q KC_J KC_V KC_D KC_K KC_X KC_H KC_SLSH KC_DOT KC_COMM",
+    "Graphite": "KC_B KC_L KC_D KC_W KC_Z KC_QUOT KC_F KC_O KC_U KC_J KC_N KC_R KC_T KC_S KC_G KC_Y KC_H KC_A KC_E KC_I KC_Q KC_X KC_M KC_C KC_V KC_K KC_P KC_DOT KC_MINS KC_SLSH",
+    "Gallium": "KC_B KC_L KC_D KC_C KC_V KC_J KC_Y KC_O KC_U KC_COMM KC_N KC_R KC_T KC_S KC_G KC_P KC_H KC_A KC_E KC_I KC_X KC_Q KC_M KC_W KC_Z KC_K KC_F KC_QUOT KC_SCLN KC_DOT",
+    "Sturdy": "KC_V KC_M KC_L KC_C KC_P KC_X KC_F KC_O KC_U KC_J KC_S KC_T KC_R KC_D KC_DOT KC_Y KC_N KC_A KC_E KC_I KC_Z KC_K KC_Q KC_G KC_W KC_B KC_H KC_QUOT KC_SCLN KC_COMM",
+    "Engram": "KC_B KC_Y KC_O KC_U KC_QUOT KC_L KC_D KC_W KC_V KC_Z KC_C KC_I KC_E KC_A KC_COMM KC_H KC_T KC_S KC_N KC_Q KC_G KC_X KC_J KC_K KC_MINS KC_R KC_M KC_F KC_P KC_SCLN",
+    "Hands Down Ref": "KC_X KC_R KC_Y KC_B KC_P KC_J KC_L KC_C KC_U KC_SCLN KC_S KC_N KC_H KC_T KC_G KC_M KC_O KC_E KC_A KC_I KC_Z KC_W KC_V KC_D KC_K KC_Q KC_F KC_COMM KC_DOT KC_SLSH"
   }
 }

@@ -1,4 +1,3 @@
-// UPDATED: use keyforge_core
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
@@ -8,7 +7,6 @@ use std::io::Cursor;
 
 // --- STRATEGIES ---
 
-// 1. Generate random weights (reasonable but wide ranges)
 prop_compose! {
     fn arb_weights()(
         base in 100.0..1000.0f32,
@@ -26,8 +24,6 @@ prop_compose! {
     }
 }
 
-// ... [Rest of file remains exactly the same] ...
-// (arb_key_node, arb_geometry, proptest! block are unchanged)
 prop_compose! {
     fn arb_key_node()(
         hand in 0u8..2,
@@ -46,6 +42,8 @@ prop_compose! {
             col,
             x,
             y,
+            w: 1.0,
+            h: 1.0,
             is_stretch
         }
     }
@@ -92,13 +90,15 @@ proptest! {
 
         if let Ok(builder) = scorer_res {
              if let Ok(scorer) = builder.build() {
-                let mut layout_bytes = vec![0u8; scorer.key_count];
-                if scorer.key_count > 0 { layout_bytes[0] = b'a'; }
-                if scorer.key_count > 1 { layout_bytes[1] = b'b'; }
+                // FIXED: Use u16 layout
+                let mut layout_codes = vec![0u16; scorer.key_count];
+                if scorer.key_count > 0 { layout_codes[0] = b'a' as u16; }
+                if scorer.key_count > 1 { layout_codes[1] = b'b' as u16; }
 
-                let pos_map = mutation::build_pos_map(&layout_bytes);
+                let pos_map = mutation::build_pos_map(&layout_codes);
                 let (score, _left, _total) = scorer.score_full(&pos_map, 100);
 
+                // Ensure the math never explodes into NaN or Inf
                 prop_assert!(score.is_finite(), "Score was not finite: {}", score);
              }
         }

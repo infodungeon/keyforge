@@ -1,14 +1,13 @@
-// ===== keyforge/src/scorer/mod.rs =====
 pub mod builder;
 pub mod costs;
 pub mod engine;
 pub mod flow;
 pub mod loader;
+pub mod metrics;
 pub mod physics;
 pub mod types;
 
 pub use self::builder::ScorerBuilder;
-
 use self::loader::TrigramRef;
 pub use self::types::ScoreDetails;
 use crate::config::{Config, LayoutDefinitions, ScoringWeights};
@@ -35,10 +34,8 @@ pub struct Scorer {
     pub slot_monogram_costs: Vec<f32>,
     pub slot_tier_map: Vec<u8>,
 
-    // Fixed size (Biomechanics doesn't change)
     pub finger_scales: [f32; 5],
 
-    // N-gram data remains fixed to 256 ASCII chars
     pub bigram_starts: Vec<usize>,
     pub bigrams_others: Vec<u8>,
     pub bigrams_freqs: Vec<f32>,
@@ -49,11 +46,9 @@ pub struct Scorer {
     pub char_tier_map: [u8; 256],
     pub critical_mask: [bool; 256],
 
-    // HEAP ALLOCATED (Flattened 256*256)
     // Access: freq_matrix[char_a * 256 + char_b]
     pub freq_matrix: Vec<f32>,
 
-    // OPTIMIZATION: Only iterate these chars in hot loops
     pub active_chars: Vec<usize>,
 }
 
@@ -75,16 +70,21 @@ impl Scorer {
             .build()
     }
 
-    pub fn score_full(&self, pos_map: &[u8; 256], limit: usize) -> (f32, f32, f32) {
+    /// Calculates the score for a specific layout mapping.
+    ///
+    /// # Arguments
+    /// * `pos_map` - A map from character code (u16) to key index (u8).
+    ///   Size is 65536 to support full 16-bit keycode range.
+    /// * `limit` - Optimization limit for trigram evaluation.
+    pub fn score_full(&self, pos_map: &[u8; 65536], limit: usize) -> (f32, f32, f32) {
         engine::score_full(self, pos_map, limit)
     }
 
-    pub fn score_details(&self, pos_map: &[u8; 256], limit: usize) -> ScoreDetails {
+    pub fn score_details(&self, pos_map: &[u8; 65536], limit: usize) -> ScoreDetails {
         engine::score_details(self, pos_map, limit)
     }
 
-    // Expose granular cost analysis for cost-guided mutation
-    pub fn get_element_costs(&self, pos_map: &[u8; 256]) -> Vec<f32> {
+    pub fn get_element_costs(&self, pos_map: &[u8; 65536]) -> Vec<f32> {
         engine::calculate_key_costs(self, pos_map)
     }
 

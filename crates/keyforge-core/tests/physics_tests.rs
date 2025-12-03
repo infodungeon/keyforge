@@ -1,8 +1,9 @@
-// UPDATED: use keyforge_core
 use keyforge_core::config::ScoringWeights;
-use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::scorer::physics::{analyze_interaction, get_reach_cost};
 use rstest::rstest;
+
+mod common;
+use common::{create_geom, KeyBuilder};
 
 // --- KEY INDEX MAPPING (Standard 30-key Grid) ---
 // Row 0 (Top)
@@ -26,11 +27,14 @@ const C: usize = 22;
 const V: usize = 23;
 
 // Helper to construct a PERFECT GRID geometry for testing math
-fn get_mock_geom() -> KeyboardGeometry {
+// Uses KeyBuilder to replicate the exact finger/hand/stretch logic of the old test
+fn get_mock_geom() -> keyforge_core::geometry::KeyboardGeometry {
     let mut keys = Vec::new();
     for r in 0..3 {
         for c in 0..10 {
-            let hand = if c < 5 { 0 } else { 1 };
+            // Default builder creates keys at (c, r)
+            let mut builder = KeyBuilder::new(r as i8, c as i8);
+
             let finger = match c {
                 0 | 9 => 4, // Pinky
                 1 | 8 => 3, // Ring
@@ -39,35 +43,24 @@ fn get_mock_geom() -> KeyboardGeometry {
                 4 | 5 => 1, // Index Stretch
                 _ => 1,
             };
-            let is_stretch = c == 4 || c == 5;
 
-            // Perfect Grid Coordinates
-            let x = c as f32;
-            let y = r as f32;
+            // Override hand based on column (Builder defaults split at 5, but let's be explicit)
+            let hand = if c < 5 { 0 } else { 1 };
 
-            keys.push(KeyNode {
-                id: format!("k_{}_{}", r, c),
-                hand,
-                finger,
-                row: r as i8,
-                col: c as i8,
-                x,
-                y,
-                is_stretch,
-            });
+            // Stretch cols
+            if c == 4 || c == 5 {
+                builder = builder.stretch(true);
+            }
+
+            builder = builder.hand(hand).finger(finger);
+            keys.push(builder.build());
         }
     }
 
-    let mut geom = KeyboardGeometry {
-        keys,
-        prime_slots: vec![],
-        med_slots: vec![],
-        low_slots: vec![],
-        home_row: 1, // Row 1 is home
-        finger_origins: [[(0.0, 0.0); 5]; 2],
-    };
+    let mut geom = create_geom(keys);
+    geom.home_row = 1; // Explicitly set home row
 
-    // Manually set the origins for specific testing logic
+    // Manually set the origins for specific reach cost calculations
     // Left Hand (0) Pinky (4): A is at (0, 1)
     geom.finger_origins[0][4] = (0.0, 1.0);
     // Left Hand (0) Index (1): F is at (3, 1)
@@ -103,6 +96,7 @@ fn test_reach_costs(#[case] k: usize, #[case] expected: f32) {
     let geom = get_mock_geom();
     let scale = 10.0;
 
+    // Use uniform scaling for simple distance check
     let cost = get_reach_cost(&geom, k, scale, scale);
 
     assert!(

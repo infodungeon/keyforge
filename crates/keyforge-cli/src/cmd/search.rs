@@ -1,6 +1,7 @@
 use crate::reports;
 use clap::Args;
 use keyforge_core::config::Config;
+use keyforge_core::keycodes::KeycodeRegistry; // NEW
 use keyforge_core::optimizer::{OptimizationOptions, Optimizer, ProgressCallback};
 use keyforge_core::scorer::Scorer;
 use std::sync::Arc;
@@ -22,19 +23,19 @@ pub struct SearchArgs {
     pub seed: Option<u64>,
 }
 
-// Simple callback for CLI logging
 struct CliLogger;
 impl ProgressCallback for CliLogger {
-    fn on_progress(&self, epoch: usize, score: f32, _layout: &[u8], ips: f32) -> bool {
+    // CHANGED: &[u8] -> &[u16]
+    fn on_progress(&self, epoch: usize, score: f32, _layout: &[u16], ips: f32) -> bool {
         info!("Ep {:5} | Global Best: {:.0} | {:.2}M/s", epoch, score, ips);
-        true // Continue search
+        true
     }
 }
 
-pub fn run(args: SearchArgs, scorer: Arc<Scorer>, _debug: bool) {
+// CHANGED: Added registry argument
+pub fn run(args: SearchArgs, scorer: Arc<Scorer>, registry: Arc<KeycodeRegistry>, _debug: bool) {
     let mut options = OptimizationOptions::from(&args.config);
 
-    // Apply CLI-specific overrides
     if let Some(t) = args.time {
         options.max_time = Some(Duration::from_secs(t));
     }
@@ -53,15 +54,21 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, _debug: bool) {
 
         if result.score < overall_best_score {
             overall_best_score = result.score;
-            overall_best_layout = result.layout_bytes;
+            overall_best_layout = result.layout; // result.layout is Vec<u16>
         }
     }
 
-    let layout_str = String::from_utf8_lossy(&overall_best_layout).to_string();
+    // Convert u16 layout back to readable string for log
+    let layout_str = overall_best_layout
+        .iter()
+        .map(|&c| registry.get_label(c))
+        .collect::<Vec<String>>()
+        .join(" ");
 
     info!("\n=== 🏆 FINAL RESULT ===");
     info!("Score: {:.2}", overall_best_score);
     info!("Layout: {}", layout_str);
 
-    reports::print_layout_grid("OPTIMIZED", &overall_best_layout);
+    // Pass registry to report printer
+    reports::print_layout_grid("OPTIMIZED", &overall_best_layout, &registry);
 }

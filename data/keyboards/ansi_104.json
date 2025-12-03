@@ -1,0 +1,974 @@
+{
+  "meta": {
+    "name": "ANSI 104",
+    "author": "Standard",
+    "version": "1.5",
+    "notes": "Standard Full-size US ANSI Layout with correct key sizes.",
+    "type": "row_staggered"
+  },
+  "geometry": {
+    "keys": [
+      {
+        "id": "Escape",
+        "x": 0,
+        "y": 0,
+        "hand": 0,
+        "finger": 4,
+        "row": 0,
+        "col": 0
+      },
+      {
+        "id": "F1",
+        "x": 2,
+        "y": 0,
+        "hand": 0,
+        "finger": 3,
+        "row": 0,
+        "col": 1
+      },
+      {
+        "id": "F2",
+        "x": 3,
+        "y": 0,
+        "hand": 0,
+        "finger": 3,
+        "row": 0,
+        "col": 2
+      },
+      {
+        "id": "F3",
+        "x": 4,
+        "y": 0,
+        "hand": 0,
+        "finger": 2,
+        "row": 0,
+        "col": 3
+      },
+      {
+        "id": "F4",
+        "x": 5,
+        "y": 0,
+        "hand": 0,
+        "finger": 2,
+        "row": 0,
+        "col": 4
+      },
+      {
+        "id": "F5",
+        "x": 6.5,
+        "y": 0,
+        "hand": 1,
+        "finger": 2,
+        "row": 0,
+        "col": 5
+      },
+      {
+        "id": "F6",
+        "x": 7.5,
+        "y": 0,
+        "hand": 1,
+        "finger": 2,
+        "row": 0,
+        "col": 6
+      },
+      {
+        "id": "F7",
+        "x": 8.5,
+        "y": 0,
+        "hand": 1,
+        "finger": 3,
+        "row": 0,
+        "col": 7
+      },
+      {
+        "id": "F8",
+        "x": 9.5,
+        "y": 0,
+        "hand": 1,
+        "finger": 3,
+        "row": 0,
+        "col": 8
+      },
+      {
+        "id": "F9",
+        "x": 11,
+        "y": 0,
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 9
+      },
+      {
+        "id": "F10",
+        "x": 12,
+        "y": 0,
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 10
+      },
+      {
+        "id": "F11",
+        "x": 13,
+        "y": 0,
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 11
+      },
+      {
+        "id": "F12",
+        "x": 14,
+        "y": 0,
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 12
+      },
+      {
+        "id": "PrintScreen",
+        "x": 15.25,
+        "y": 0,
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 13
+      },
+      {
+        "id": "ScrollLock",
+        "x": 16.25,
+        "y": 0,
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 14
+      },
+      {
+        "id": "Pause",
+        "x": 17.25,
+        "y": 0,
+        "hand": 1,
+        "finger": 4,
+        "row": 0,
+        "col": 15
+      },
+      {
+        "id": "Backquote",
+        "x": 0,
+        "y": 1.5,
+        "hand": 0,
+        "finger": 4,
+        "row": 1,
+        "col": 0
+      },
+      {
+        "id": "Digit1",
+        "x": 1,
+        "y": 1.5,
+        "hand": 0,
+        "finger": 4,
+        "row": 1,
+        "col": 1
+      },
+      {
+        "id": "Digit2",
+        "x": 2,
+        "y": 1.5,
+        "hand": 0,
+        "finger": 3,
+        "row": 1,
+        "col": 2
+      },
+      {
+        "id": "Digit3",
+        "x": 3,
+        "y": 1.5,
+        "hand": 0,
+        "finger": 2,
+        "row": 1,
+        "col": 3
+      },
+      {
+        "id": "Digit4",
+        "x": 4,
+        "y": 1.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 1,
+        "col": 4
+      },
+      {
+        "id": "Digit5",
+        "x": 5,
+        "y": 1.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 1,
+        "col": 5
+      },
+      {
+        "id": "Digit6",
+        "x": 6,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 1,
+        "col": 6
+      },
+      {
+        "id": "Digit7",
+        "x": 7,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 1,
+        "col": 7
+      },
+      {
+        "id": "Digit8",
+        "x": 8,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 1,
+        "col": 8
+      },
+      {
+        "id": "Digit9",
+        "x": 9,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 1,
+        "col": 9
+      },
+      {
+        "id": "Digit0",
+        "x": 10,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 10
+      },
+      {
+        "id": "Minus",
+        "x": 11,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 11
+      },
+      {
+        "id": "Equal",
+        "x": 12,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 12
+      },
+      {
+        "id": "Backspace",
+        "x": 13,
+        "y": 1.5,
+        "w": 2,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 13
+      },
+      {
+        "id": "Insert",
+        "x": 15.25,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 14
+      },
+      {
+        "id": "Home",
+        "x": 16.25,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 15
+      },
+      {
+        "id": "PageUp",
+        "x": 17.25,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 16
+      },
+      {
+        "id": "NumLock",
+        "x": 18.5,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 1,
+        "col": 17
+      },
+      {
+        "id": "NumpadDivide",
+        "x": 19.5,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 1,
+        "col": 18
+      },
+      {
+        "id": "NumpadMultiply",
+        "x": 20.5,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 1,
+        "col": 19
+      },
+      {
+        "id": "NumpadSubtract",
+        "x": 21.5,
+        "y": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 1,
+        "col": 20
+      },
+      {
+        "id": "Tab",
+        "x": 0,
+        "y": 2.5,
+        "w": 1.5,
+        "hand": 0,
+        "finger": 4,
+        "row": 2,
+        "col": 0
+      },
+      {
+        "id": "KeyQ",
+        "x": 1.5,
+        "y": 2.5,
+        "hand": 0,
+        "finger": 4,
+        "row": 2,
+        "col": 1
+      },
+      {
+        "id": "KeyW",
+        "x": 2.5,
+        "y": 2.5,
+        "hand": 0,
+        "finger": 3,
+        "row": 2,
+        "col": 2
+      },
+      {
+        "id": "KeyE",
+        "x": 3.5,
+        "y": 2.5,
+        "hand": 0,
+        "finger": 2,
+        "row": 2,
+        "col": 3
+      },
+      {
+        "id": "KeyR",
+        "x": 4.5,
+        "y": 2.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 2,
+        "col": 4
+      },
+      {
+        "id": "KeyT",
+        "x": 5.5,
+        "y": 2.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 2,
+        "col": 5
+      },
+      {
+        "id": "KeyY",
+        "x": 6.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 2,
+        "col": 6
+      },
+      {
+        "id": "KeyU",
+        "x": 7.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 2,
+        "col": 7
+      },
+      {
+        "id": "KeyI",
+        "x": 8.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 2,
+        "col": 8
+      },
+      {
+        "id": "KeyO",
+        "x": 9.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 2,
+        "col": 9
+      },
+      {
+        "id": "KeyP",
+        "x": 10.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 10
+      },
+      {
+        "id": "BracketLeft",
+        "x": 11.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 11
+      },
+      {
+        "id": "BracketRight",
+        "x": 12.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 12
+      },
+      {
+        "id": "Backslash",
+        "x": 13.5,
+        "y": 2.5,
+        "w": 1.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 13
+      },
+      {
+        "id": "Delete",
+        "x": 15.25,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 14
+      },
+      {
+        "id": "End",
+        "x": 16.25,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 15
+      },
+      {
+        "id": "PageDown",
+        "x": 17.25,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 16
+      },
+      {
+        "id": "Numpad7",
+        "x": 18.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 2,
+        "col": 17
+      },
+      {
+        "id": "Numpad8",
+        "x": 19.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 2,
+        "col": 18
+      },
+      {
+        "id": "Numpad9",
+        "x": 20.5,
+        "y": 2.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 2,
+        "col": 19
+      },
+      {
+        "id": "NumpadAdd",
+        "x": 21.5,
+        "y": 2.5,
+        "h": 2,
+        "hand": 1,
+        "finger": 4,
+        "row": 2,
+        "col": 20
+      },
+      {
+        "id": "CapsLock",
+        "x": 0,
+        "y": 3.5,
+        "w": 1.75,
+        "hand": 0,
+        "finger": 4,
+        "row": 3,
+        "col": 0
+      },
+      {
+        "id": "KeyA",
+        "x": 1.75,
+        "y": 3.5,
+        "hand": 0,
+        "finger": 4,
+        "row": 3,
+        "col": 1
+      },
+      {
+        "id": "KeyS",
+        "x": 2.75,
+        "y": 3.5,
+        "hand": 0,
+        "finger": 3,
+        "row": 3,
+        "col": 2
+      },
+      {
+        "id": "KeyD",
+        "x": 3.75,
+        "y": 3.5,
+        "hand": 0,
+        "finger": 2,
+        "row": 3,
+        "col": 3
+      },
+      {
+        "id": "KeyF",
+        "x": 4.75,
+        "y": 3.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 3,
+        "col": 4
+      },
+      {
+        "id": "KeyG",
+        "x": 5.75,
+        "y": 3.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 3,
+        "col": 5
+      },
+      {
+        "id": "KeyH",
+        "x": 6.75,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 3,
+        "col": 6
+      },
+      {
+        "id": "KeyJ",
+        "x": 7.75,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 3,
+        "col": 7
+      },
+      {
+        "id": "KeyK",
+        "x": 8.75,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 3,
+        "col": 8
+      },
+      {
+        "id": "KeyL",
+        "x": 9.75,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 3,
+        "col": 9
+      },
+      {
+        "id": "Semicolon",
+        "x": 10.75,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 3,
+        "col": 10
+      },
+      {
+        "id": "Quote",
+        "x": 11.75,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 3,
+        "col": 11
+      },
+      {
+        "id": "Enter",
+        "x": 12.75,
+        "y": 3.5,
+        "w": 2.25,
+        "hand": 1,
+        "finger": 4,
+        "row": 3,
+        "col": 12
+      },
+      {
+        "id": "Numpad4",
+        "x": 18.5,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 3,
+        "col": 13
+      },
+      {
+        "id": "Numpad5",
+        "x": 19.5,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 3,
+        "col": 14
+      },
+      {
+        "id": "Numpad6",
+        "x": 20.5,
+        "y": 3.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 3,
+        "col": 15
+      },
+      {
+        "id": "ShiftLeft",
+        "x": 0,
+        "y": 4.5,
+        "w": 2.25,
+        "hand": 0,
+        "finger": 4,
+        "row": 4,
+        "col": 0
+      },
+      {
+        "id": "KeyZ",
+        "x": 2.25,
+        "y": 4.5,
+        "hand": 0,
+        "finger": 4,
+        "row": 4,
+        "col": 1
+      },
+      {
+        "id": "KeyX",
+        "x": 3.25,
+        "y": 4.5,
+        "hand": 0,
+        "finger": 3,
+        "row": 4,
+        "col": 2
+      },
+      {
+        "id": "KeyC",
+        "x": 4.25,
+        "y": 4.5,
+        "hand": 0,
+        "finger": 2,
+        "row": 4,
+        "col": 3
+      },
+      {
+        "id": "KeyV",
+        "x": 5.25,
+        "y": 4.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 4,
+        "col": 4
+      },
+      {
+        "id": "KeyB",
+        "x": 6.25,
+        "y": 4.5,
+        "hand": 0,
+        "finger": 1,
+        "row": 4,
+        "col": 5
+      },
+      {
+        "id": "KeyN",
+        "x": 7.25,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 4,
+        "col": 6
+      },
+      {
+        "id": "KeyM",
+        "x": 8.25,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 4,
+        "col": 7
+      },
+      {
+        "id": "Comma",
+        "x": 9.25,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 4,
+        "col": 8
+      },
+      {
+        "id": "Period",
+        "x": 10.25,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 4,
+        "col": 9
+      },
+      {
+        "id": "Slash",
+        "x": 11.25,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 4,
+        "row": 4,
+        "col": 10
+      },
+      {
+        "id": "ShiftRight",
+        "x": 12.25,
+        "y": 4.5,
+        "w": 2.75,
+        "hand": 1,
+        "finger": 4,
+        "row": 4,
+        "col": 11
+      },
+      {
+        "id": "ArrowUp",
+        "x": 16.25,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 4,
+        "col": 12
+      },
+      {
+        "id": "Numpad1",
+        "x": 18.5,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 4,
+        "col": 13
+      },
+      {
+        "id": "Numpad2",
+        "x": 19.5,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 4,
+        "col": 14
+      },
+      {
+        "id": "Numpad3",
+        "x": 20.5,
+        "y": 4.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 4,
+        "col": 15
+      },
+      {
+        "id": "NumpadEnter",
+        "x": 21.5,
+        "y": 4.5,
+        "h": 2,
+        "hand": 1,
+        "finger": 4,
+        "row": 4,
+        "col": 16
+      },
+      {
+        "id": "ControlLeft",
+        "x": 0,
+        "y": 5.5,
+        "w": 1.25,
+        "hand": 0,
+        "finger": 4,
+        "row": 5,
+        "col": 0
+      },
+      {
+        "id": "MetaLeft",
+        "x": 1.25,
+        "y": 5.5,
+        "w": 1.25,
+        "hand": 0,
+        "finger": 4,
+        "row": 5,
+        "col": 1
+      },
+      {
+        "id": "AltLeft",
+        "x": 2.5,
+        "y": 5.5,
+        "w": 1.25,
+        "hand": 0,
+        "finger": 4,
+        "row": 5,
+        "col": 2
+      },
+      {
+        "id": "Space",
+        "x": 3.75,
+        "y": 5.5,
+        "w": 6.25,
+        "hand": 0,
+        "finger": 0,
+        "row": 5,
+        "col": 3
+      },
+      {
+        "id": "AltRight",
+        "x": 10,
+        "y": 5.5,
+        "w": 1.25,
+        "hand": 1,
+        "finger": 4,
+        "row": 5,
+        "col": 4
+      },
+      {
+        "id": "MetaRight",
+        "x": 11.25,
+        "y": 5.5,
+        "w": 1.25,
+        "hand": 1,
+        "finger": 4,
+        "row": 5,
+        "col": 5
+      },
+      {
+        "id": "ContextMenu",
+        "x": 12.5,
+        "y": 5.5,
+        "w": 1.25,
+        "hand": 1,
+        "finger": 4,
+        "row": 5,
+        "col": 6
+      },
+      {
+        "id": "ControlRight",
+        "x": 13.75,
+        "y": 5.5,
+        "w": 1.25,
+        "hand": 1,
+        "finger": 4,
+        "row": 5,
+        "col": 7
+      },
+      {
+        "id": "ArrowLeft",
+        "x": 15.25,
+        "y": 5.5,
+        "hand": 1,
+        "finger": 1,
+        "row": 5,
+        "col": 8
+      },
+      {
+        "id": "ArrowDown",
+        "x": 16.25,
+        "y": 5.5,
+        "hand": 1,
+        "finger": 2,
+        "row": 5,
+        "col": 9
+      },
+      {
+        "id": "ArrowRight",
+        "x": 17.25,
+        "y": 5.5,
+        "hand": 1,
+        "finger": 3,
+        "row": 5,
+        "col": 10
+      },
+      {
+        "id": "Numpad0",
+        "x": 18.5,
+        "y": 5.5,
+        "w": 2,
+        "hand": 1,
+        "finger": 0,
+        "row": 5,
+        "col": 11
+      },
+      {
+        "id": "NumpadDecimal",
+        "x": 20.5,
+        "y": 5.5,
+        "hand": 1,
+        "finger": 0,
+        "row": 5,
+        "col": 12
+      }
+    ],
+    "prime_slots": [],
+    "med_slots": [],
+    "low_slots": [],
+    "home_row": 3
+  },
+  "layouts": {
+    "Qwerty": "KC_ESC KC_F1 KC_F2 KC_F3 KC_F4 KC_F5 KC_F6 KC_F7 KC_F8 KC_F9 KC_F10 KC_F11 KC_F12 KC_PSCR KC_SLCK KC_PAUS KC_GRV KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_MINS KC_EQL KC_BSPC KC_INS KC_HOME KC_PGUP KC_NLCK KC_PSLS KC_PAST KC_PMNS KC_TAB KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_LBRC KC_RBRC KC_BSLS KC_DEL KC_END KC_PGDN KC_P7 KC_P8 KC_P9 KC_PPLS KC_CAPS KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_QUOT KC_ENT KC_P4 KC_P5 KC_P6 KC_LSFT KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_RSFT KC_UP KC_P1 KC_P2 KC_P3 KC_PENT KC_LCTL KC_LGUI KC_LALT KC_SPC KC_RALT KC_RGUI KC_APP KC_RCTL KC_LEFT KC_DOWN KC_RGHT KC_P0 KC_PDOT"
+  }
+}

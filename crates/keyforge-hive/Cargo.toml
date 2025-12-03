@@ -8,13 +8,19 @@ edition = "2021"
 keyforge-core = { path = "../keyforge-core" }
 
 # Web Framework
-axum = "0.8.7"
+axum = "0.8.1"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
-tower-http = { version = "0.6.7", features = ["cors", "trace"] }
+tower-http = { version = "0.6.7", features = ["cors", "trace", "fs"] }
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "sqlite"] }
+
+# CLI & Utils
+clap = { version = "4.4", features = [
+    "derive",
+] } # <--- FIXED: Added missing crate
+walkdir = "2"

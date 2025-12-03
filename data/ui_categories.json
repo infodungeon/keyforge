@@ -1,0 +1,392 @@
+{
+  "tabs": [
+    {
+      "id": "basic",
+      "label": "Basic",
+      "icon": "Type"
+    },
+    {
+      "id": "intl",
+      "label": "Intl",
+      "icon": "Globe"
+    },
+    {
+      "id": "media",
+      "label": "Media",
+      "icon": "Command"
+    },
+    {
+      "id": "mouse",
+      "label": "Mouse",
+      "icon": "MousePointer2"
+    },
+    {
+      "id": "light",
+      "label": "RGB",
+      "icon": "Lightbulb"
+    },
+    {
+      "id": "quantum",
+      "label": "QMK",
+      "icon": "Zap"
+    },
+    {
+      "id": "layers",
+      "label": "Layers",
+      "icon": "Layers"
+    }
+  ],
+  "categories": {
+    "basic": [
+      {
+        "label": "Alpha",
+        "items": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "O",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "T",
+          "U",
+          "V",
+          "W",
+          "X",
+          "Y",
+          "Z"
+        ]
+      },
+      {
+        "label": "Number",
+        "items": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "0"
+        ]
+      },
+      {
+        "label": "Function",
+        "items": [
+          "F1",
+          "F2",
+          "F3",
+          "F4",
+          "F5",
+          "F6",
+          "F7",
+          "F8",
+          "F9",
+          "F10",
+          "F11",
+          "F12"
+        ]
+      },
+      {
+        "label": "Modifiers",
+        "items": [
+          "LSft",
+          "LCtl",
+          "LAlt",
+          "LGui",
+          "RSft",
+          "RCtl",
+          "RAlt",
+          "RGui"
+        ]
+      },
+      {
+        "label": "Nav",
+        "items": [
+          "Left",
+          "Down",
+          "Up",
+          "Right",
+          "Home",
+          "End",
+          "PgUp",
+          "PgDn",
+          "Ins",
+          "Del"
+        ]
+      },
+      {
+        "label": "Whitespace",
+        "items": [
+          "Ent",
+          "Tab",
+          "Esc",
+          "Bspc",
+          "Spc"
+        ]
+      }
+    ],
+    "intl": [
+      {
+        "label": "ISO",
+        "items": [
+          "NUBS",
+          "NUHS",
+          "Ro",
+          "Kana",
+          "Henk",
+          "Mhen"
+        ]
+      },
+      {
+        "label": "JIS",
+        "items": [
+          "JIS_Unds",
+          "JIS_Comm",
+          "JIS_Yen"
+        ]
+      },
+      {
+        "label": "Lang",
+        "items": [
+          "Lang1",
+          "Lang2",
+          "Lang3",
+          "Lang4",
+          "Lang5"
+        ]
+      }
+    ],
+    "media": [
+      {
+        "label": "Audio",
+        "items": [
+          "VolU",
+          "VolD",
+          "Mute"
+        ]
+      },
+      {
+        "label": "Playback",
+        "items": [
+          "Mply",
+          "Mstp",
+          "Mnxt",
+          "Mprv"
+        ]
+      },
+      {
+        "label": "Screen",
+        "items": [
+          "BriU",
+          "BriD"
+        ]
+      },
+      {
+        "label": "App",
+        "items": [
+          "Calc",
+          "Mail",
+          "MyCm",
+          "Www"
+        ]
+      }
+    ],
+    "mouse": [
+      {
+        "label": "Movement",
+        "items": [
+          "Ms_U",
+          "Ms_D",
+          "Ms_L",
+          "Ms_R"
+        ]
+      },
+      {
+        "label": "Clicks",
+        "items": [
+          "Btn1",
+          "Btn2",
+          "Btn3",
+          "Btn4",
+          "Btn5"
+        ]
+      },
+      {
+        "label": "Wheel",
+        "items": [
+          "Wh_U",
+          "Wh_D",
+          "Wh_L",
+          "Wh_R"
+        ]
+      },
+      {
+        "label": "Accel",
+        "items": [
+          "Acl0",
+          "Acl1",
+          "Acl2"
+        ]
+      }
+    ],
+    "light": [
+      {
+        "label": "Backlight",
+        "items": [
+          "BL_Togg",
+          "BL_Inc",
+          "BL_Dec",
+          "BL_Brth"
+        ]
+      },
+      {
+        "label": "RGB Toggle",
+        "items": [
+          "RGB_Tog",
+          "RGB_M_P",
+          "RGB_M_B"
+        ]
+      },
+      {
+        "label": "RGB Hue",
+        "items": [
+          "RGB_HUI",
+          "RGB_HUD"
+        ]
+      },
+      {
+        "label": "RGB Sat",
+        "items": [
+          "RGB_SAI",
+          "RGB_SAD"
+        ]
+      },
+      {
+        "label": "RGB Val",
+        "items": [
+          "RGB_VAI",
+          "RGB_VAD"
+        ]
+      },
+      {
+        "label": "RGB Effect",
+        "items": [
+          "RGB_SPI",
+          "RGB_SPD",
+          "RGB_Mod"
+        ]
+      }
+    ],
+    "quantum": [
+      {
+        "label": "System",
+        "items": [
+          "Rst",
+          "Debug",
+          "EepRst"
+        ]
+      },
+      {
+        "label": "Special",
+        "items": [
+          "Caps",
+          "Nlck",
+          "Slck",
+          "PSc",
+          "Paus",
+          "App"
+        ]
+      },
+      {
+        "label": "Magic",
+        "items": [
+          "NKRO",
+          "Swap_CG",
+          "Unswap"
+        ]
+      },
+      {
+        "label": "Alt Repeat",
+        "items": [
+          "Arep"
+        ]
+      },
+      {
+        "label": "Key Override",
+        "items": [
+          "KO_Togg"
+        ]
+      },
+      {
+        "label": "Empty",
+        "items": [
+          "No",
+          "Trns"
+        ]
+      }
+    ],
+    "layers": [
+      {
+        "label": "Momentary",
+        "items": [
+          "MO(1)",
+          "MO(2)",
+          "MO(3)"
+        ]
+      },
+      {
+        "label": "Toggle",
+        "items": [
+          "TG(1)",
+          "TG(2)",
+          "TG(3)"
+        ]
+      },
+      {
+        "label": "To Layer",
+        "items": [
+          "TO(0)",
+          "TO(1)",
+          "TO(2)"
+        ]
+      },
+      {
+        "label": "One Shot",
+        "items": [
+          "OSL(1)",
+          "OSL(2)"
+        ]
+      },
+      {
+        "label": "Tap Dance",
+        "items": [
+          "TD(0)",
+          "TD(1)",
+          "TD(2)"
+        ]
+      },
+      {
+        "label": "Layer Tap",
+        "items": [
+          "LT(1,Ent)",
+          "LT(2,Spc)"
+        ]
+      }
+    ]
+  }
+}

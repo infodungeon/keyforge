@@ -64,17 +64,34 @@ impl TestContext {
                 ));
             }
         }
+
+        // Define Slots to ensure generation works
+        let prime = (10..20)
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let med = (0..10).map(|i| i.to_string()).collect::<Vec<_>>().join(",");
+        let low = (20..30)
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+
         let json = format!(
             r#"{{
                 "meta": {{ "name": "RepoKB", "author": "Test", "version": "1.0" }},
                 "geometry": {{
                     "keys": [{}],
-                    "prime_slots": [], "med_slots": [], "low_slots": [],
+                    "prime_slots": [{}],
+                    "med_slots": [{}],
+                    "low_slots": [{}],
                     "home_row": 1
                 }},
                 "layouts": {{}}
             }}"#,
-            keys_json.join(",")
+            keys_json.join(","),
+            prime,
+            med,
+            low
         );
         writeln!(kb_file, "{}", json).unwrap();
 
@@ -87,10 +104,11 @@ impl TestContext {
     }
 }
 
+// FIX: Parse by searching for substring to ignore log prefixes
 fn extract_score(output: &str) -> String {
     for line in output.lines() {
-        if line.starts_with("Score:") {
-            return line.to_string();
+        if let Some(idx) = line.find("Score: ") {
+            return line[idx + 7..].trim().to_string();
         }
     }
     "NOT_FOUND".to_string()

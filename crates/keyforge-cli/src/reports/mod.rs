@@ -1,6 +1,7 @@
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, CellAlignment, Color, ContentArrangement, Table};
 use keyforge_core::config::ScoringWeights;
+use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::scorer::ScoreDetails;
 use serde::Deserialize;
 use std::fs;
@@ -42,8 +43,7 @@ fn load_benchmarks() -> Option<Vec<BenchmarkEntry>> {
     let path = "data/benchmarks/cyanophage.json";
 
     if !Path::new(path).exists() {
-        eprintln!("⚠️  Notice: Benchmark file '{}' not found.", path);
-        eprintln!("    (The 'Reality Check' table will be skipped.)");
+        // Warning is fine here, means we just skip the reality check table
         return None;
     }
 
@@ -62,23 +62,23 @@ fn load_benchmarks() -> Option<Vec<BenchmarkEntry>> {
     }
 }
 
-pub fn print_layout_grid(name: &str, bytes: &[u8]) {
+pub fn print_layout_grid(name: &str, codes: &[u16], registry: &KeycodeRegistry) {
     println!("\nLayout: {}", name);
     let mut table = Table::new();
     table.load_preset(ASCII_FULL);
 
     let cols = 10;
 
-    for chunk in bytes.chunks(cols) {
+    for chunk in codes.chunks(cols) {
         let cells: Vec<Cell> = chunk
             .iter()
-            .map(|&b| {
-                let s = if b == 0 {
+            .map(|&code| {
+                let label = if code == 0 {
                     " ".to_string()
                 } else {
-                    (b as char).to_string()
+                    registry.get_label(code)
                 };
-                Cell::new(s).set_alignment(CellAlignment::Center)
+                Cell::new(label).set_alignment(CellAlignment::Center)
             })
             .collect();
         table.add_row(cells);
@@ -226,7 +226,7 @@ pub fn print_statistical_report(results: &[(String, ScoreDetails)], w: &ScoringW
 }
 
 pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
-    // 1. Comparison vs Best in Set (Relative)
+    // 1. Comparison vs Best
     if !results.is_empty() {
         let best = results
             .iter()
@@ -246,12 +246,6 @@ pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
             Cell::new("% Diff"),
         ]);
 
-        for i in 1..=3 {
-            if let Some(col) = table.column_mut(i) {
-                col.set_cell_alignment(CellAlignment::Right);
-            }
-        }
-
         for (name, d) in results {
             let score = d.layout_score;
             let delta = score - best_score;
@@ -261,16 +255,8 @@ pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
                 0.0
             };
 
-            let name_cell = if name == &best.0 {
-                Cell::new(name)
-                    .fg(Color::Green)
-                    .add_attribute(Attribute::Bold)
-            } else {
-                Cell::new(name).add_attribute(Attribute::Bold)
-            };
-
             table.add_row(vec![
-                name_cell,
+                Cell::new(name).add_attribute(Attribute::Bold),
                 Cell::new(format!("{:.0}", score)),
                 Cell::new(format!("{:.0}", delta)),
                 Cell::new(format!("{:.1}%", pct)),
@@ -279,7 +265,7 @@ pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
         println!("\n{}", table);
     }
 
-    // 2. Reality Check vs External Benchmarks
+    // 2. Reality Check
     if let Some(benchmarks) = load_benchmarks() {
         let mut table = Table::new();
         table
@@ -288,39 +274,15 @@ pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
 
         table.add_row(vec![
             Cell::new("REALITY CHECK (External Data)").add_attribute(Attribute::Bold),
-            Cell::new("Score").set_alignment(CellAlignment::Center),
-            Cell::new("Dist").set_alignment(CellAlignment::Center),
-            Cell::new("SFB%").set_alignment(CellAlignment::Center),
-            Cell::new("Lat%").set_alignment(CellAlignment::Center),
-            Cell::new("Sci%").set_alignment(CellAlignment::Center),
-            Cell::new("Roll%").set_alignment(CellAlignment::Center),
-            Cell::new("Redir%").set_alignment(CellAlignment::Center),
-            Cell::new("Skip%").set_alignment(CellAlignment::Center),
+            Cell::new("Ref Effort").set_alignment(CellAlignment::Center),
+            Cell::new("SFB% (Ref|KF)").set_alignment(CellAlignment::Center),
+            Cell::new("Sci% (Ref|KF)").set_alignment(CellAlignment::Center),
+            Cell::new("Roll% (Ref|KF)").set_alignment(CellAlignment::Center),
         ]);
 
-        table.add_row(vec![
-            Cell::new("Layout"),
-            Cell::new("Ref Effort"),
-            Cell::new("Ref | KF"),
-            Cell::new("Ref | KF").add_attribute(Attribute::Bold),
-            Cell::new("Ref | KF"),
-            Cell::new("Ref (P) | KF (T)"), // Pinky vs Total
-            Cell::new("Ref | KF"),
-            Cell::new("Ref | KF"),
-            Cell::new("Ref | KF"),
-        ]);
-
-        for i in 1..=8 {
-            if let Some(col) = table.column_mut(i) {
-                col.set_cell_alignment(CellAlignment::Right);
-            }
-        }
-
-        // Helper closure for color-coded cells
         let fmt_stat = |ref_val: f32, kf_val: f32| -> Cell {
             let diff = (ref_val - kf_val).abs();
             let text = format!("{:.1} | {:.1}", ref_val, kf_val);
-
             if diff < 0.5 {
                 Cell::new(text).fg(Color::Green)
             } else if diff < 1.5 {
@@ -331,7 +293,6 @@ pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
         };
 
         for (name, d) in results {
-            // Fuzzy match name
             let bench = benchmarks.iter().find(|b| {
                 b.layout.eq_ignore_ascii_case(name)
                     || b.layout
@@ -345,33 +306,17 @@ pub fn print_comparison_report(results: &[(String, ScoreDetails)]) {
                 } else {
                     1.0
                 };
-                let t_tri = if d.total_trigrams > 0.0 {
-                    d.total_trigrams
-                } else {
-                    1.0
-                };
-
                 let kf_sfb = (d.stat_sfb / t_bi) * 100.0;
-                let kf_lat = (d.stat_lat / t_bi) * 100.0;
                 let kf_scis = (d.stat_scis / t_bi) * 100.0;
                 let kf_roll = (d.stat_roll / t_bi) * 100.0;
-                let kf_redir = (d.stat_redir / t_tri) * 100.0;
-                let kf_skip = (d.stat_skip / t_tri) * 100.0;
-
                 let ref_roll = b.roll_in + b.roll_out;
 
                 table.add_row(vec![
                     Cell::new(name).add_attribute(Attribute::Bold),
                     Cell::new(format!("{:.2}", b.effort)).fg(Color::Yellow),
-                    // Distance is not color coded (units differ)
-                    Cell::new(format!("{:.0} | {:.0}", b.distance, d.geo_dist)),
-                    // SFB (Priority metric)
                     fmt_stat(b.sfb, kf_sfb),
-                    fmt_stat(b.lateral_stretch, kf_lat),
                     fmt_stat(b.pinky_scissors, kf_scis),
                     fmt_stat(ref_roll, kf_roll),
-                    fmt_stat(b.tri_redirect, kf_redir),
-                    fmt_stat(b.skip_bigrams, kf_skip),
                 ]);
             }
         }

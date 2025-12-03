@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* Global Reset & Dark Mode Base */
+@layer base {
+
+  html,
+  body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #020617;
+    /* Matches bg-slate-950 */
+    color: #e2e8f0;
+    /* Matches text-slate-200 */
+    overflow: hidden;
+    /* Prevent body scroll, let App handle containers */
+  }
+}
+
+/* Custom Scrollbars */
+@layer utilities {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    /* slate-700 */
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+    /* slate-600 */
+  }
+}

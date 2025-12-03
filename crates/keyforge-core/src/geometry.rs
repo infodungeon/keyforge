@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-// NEW: Module Registration
 pub mod kle;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -19,6 +18,7 @@ pub struct KeyboardMeta {
     pub kb_type: String,
 }
 
+// FIXED: Ensure struct is public
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyboardDefinition {
     #[serde(default)]
@@ -28,6 +28,7 @@ pub struct KeyboardDefinition {
     pub layouts: HashMap<String, String>,
 }
 
+// FIXED: Ensure struct is public
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KeyNode {
     #[serde(default)]
@@ -38,10 +39,22 @@ pub struct KeyNode {
     pub col: i8,
     pub x: f32,
     pub y: f32,
+
+    // NEW: Width and Height support
+    #[serde(default = "default_size")]
+    pub w: f32,
+    #[serde(default = "default_size")]
+    pub h: f32,
+
     #[serde(default)]
     pub is_stretch: bool,
 }
 
+fn default_size() -> f32 {
+    1.0
+}
+
+// FIXED: Ensure struct is public
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyboardGeometry {
     pub keys: Vec<KeyNode>,
@@ -51,7 +64,6 @@ pub struct KeyboardGeometry {
     #[serde(default = "default_home_row")]
     pub home_row: i8,
 
-    // FIX: Correct type definition and skip serialization
     #[serde(skip)]
     pub finger_origins: [[(f32, f32); 5]; 2],
 }
@@ -72,7 +84,6 @@ impl KeyboardDefinition {
         }
 
         // 2. Try KLE Format
-        // If standard parsing failed, try parsing as KLE
         if let Ok(geom) = kle::parse_kle_json(&content) {
             let name = path
                 .as_ref()
@@ -97,7 +108,6 @@ impl KeyboardDefinition {
     }
 }
 
-// Default implementation needed for serde skip
 impl Default for KeyboardGeometry {
     fn default() -> Self {
         Self {

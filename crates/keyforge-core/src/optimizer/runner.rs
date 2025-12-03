@@ -1,5 +1,6 @@
 use crate::config::Config;
-use crate::optimizer::crossover::crossover_uniform; // NEW IMPORT
+use crate::core_types::{KeyCode, Layout};
+use crate::optimizer::crossover::crossover_uniform;
 use crate::optimizer::{mutation, Replica};
 use crate::scorer::Scorer;
 use rayon::prelude::*;
@@ -18,7 +19,7 @@ pub struct OptimizationOptions {
     pub limit_slow: usize,
     pub pinned_keys: String,
     pub max_time: Option<Duration>,
-    pub initial_population: Vec<Vec<u8>>, // NEW FIELD
+    pub initial_population: Vec<Layout>,
 }
 
 impl From<&Config> for OptimizationOptions {
@@ -37,18 +38,18 @@ impl From<&Config> for OptimizationOptions {
             limit_slow: cfg.search.opt_limit_slow,
             pinned_keys: cfg.search.pinned_keys.clone(),
             max_time: None,
-            initial_population: Vec::new(), // Default empty
+            initial_population: Vec::new(),
         }
     }
 }
 
 pub struct OptimizationResult {
     pub score: f32,
-    pub layout_bytes: Vec<u8>,
+    pub layout: Layout,
 }
 
 pub trait ProgressCallback: Send + Sync {
-    fn on_progress(&self, epoch: usize, score: f32, best_layout: &[u8], ips: f32) -> bool;
+    fn on_progress(&self, epoch: usize, score: f32, best_layout: &[KeyCode], ips: f32) -> bool;
 }
 
 pub struct Optimizer {
@@ -75,14 +76,13 @@ impl Optimizer {
                     self.scorer.clone(),
                     temp,
                     replica_seed,
-                    false,
+                    // FIXED: Removed the 'false' debug argument here
                     opts.limit_fast,
                     opts.limit_slow,
                     &opts.pinned_keys,
                 );
 
                 // Inject initial population if available
-                // We distribute population items across replicas round-robin style
                 if !opts.initial_population.is_empty() {
                     let layout_idx = i % opts.initial_population.len();
                     let layout = &opts.initial_population[layout_idx];
@@ -90,7 +90,6 @@ impl Optimizer {
                         r.inject_layout(layout);
                     }
                 }
-
                 r
             })
             .collect();
@@ -98,27 +97,7 @@ impl Optimizer {
         // 2. Global State
         let mut global_best_score = f32::MAX;
         let mut global_best_layout = Vec::new();
-
-        // Gene Pool for Crossover (Top 10 Layouts)
-        let mut gene_pool: Vec<(f32, Vec<u8>)> = Vec::new();
-
-        // Seed the gene pool with initial population
-        for layout in &opts.initial_population {
-            if layout.len() == self.scorer.key_count {
-                // We need to score these to sort them
-                let map = mutation::build_pos_map(layout);
-                let (s, l, _) = self.scorer.score_full(&map, opts.limit_slow);
-                // Simple imbalance calc
-                // (Note: This duplicates logic in Replica, simplified here for pool seeding)
-                // ideally we'd use a helper, but this is sufficient for seeding
-                let imb = if l > 0.0 {
-                    (l / self.scorer.geometry.keys.len() as f32 - 0.5).abs() * 200.0
-                } else {
-                    0.0
-                };
-                gene_pool.push((s + imb, layout.clone()));
-            }
-        }
+        let mut gene_pool: Vec<(f32, Layout)> = self.seed_gene_pool();
 
         let mut rng = if let Some(s) = seed {
             fastrand::Rng::with_seed(s + 9999)
@@ -126,16 +105,14 @@ impl Optimizer {
             fastrand::Rng::new()
         };
 
-        // 3. Initial Reset
         let mut patience_counter = 0;
         let mut local_best_score = f32::MAX;
         let mut last_print = Instant::now();
         let mut steps_since_last_report = 0;
         let start_time = Instant::now();
 
-        // 4. Main Loop
+        // 3. Main Loop
         for epoch in 0..opts.epochs {
-            // Check Time Limit
             if let Some(limit) = opts.max_time {
                 if start_time.elapsed() >= limit {
                     break;
@@ -161,66 +138,17 @@ impl Optimizer {
 
             steps_since_last_report += steps_this_epoch;
 
-            // B. Parallel Tempering (Swap Replicas)
-            for i in (0..opts.num_threads - 1).rev() {
-                let j = i + 1;
-                let e1 = replicas[i].score;
-                let e2 = replicas[j].score;
-                let t1 = replicas[i].temperature;
-                let t2 = replicas[j].temperature;
+            // B. Parallel Tempering
+            self.try_tempering(&mut replicas, &mut rng);
 
-                let delta_beta = (1.0f32 / t1) - (1.0f32 / t2);
-                let delta_e = e2 - e1;
-
-                if rng.f32() < (-delta_beta * delta_e).exp() {
-                    // Swap logic manually to satisfy borrow checker if needed,
-                    // or just use std::mem::swap on fields.
-                    // Since Replicas are in a vec, we can just swap the data inside.
-                    // However, we must retain the TEMPERATURE of the slot.
-                    // So we swap everything EXCEPT temperature/config.
-
-                    let tmp_layout = replicas[i].layout.clone();
-                    let tmp_score = replicas[i].score;
-                    let tmp_pos = replicas[i].pos_map;
-                    let tmp_load = replicas[i].left_load;
-
-                    replicas[i].layout = replicas[j].layout.clone();
-                    replicas[i].score = replicas[j].score;
-                    replicas[i].pos_map = replicas[j].pos_map;
-                    replicas[i].left_load = replicas[j].left_load;
-
-                    replicas[j].layout = tmp_layout;
-                    replicas[j].score = tmp_score;
-                    replicas[j].pos_map = tmp_pos;
-                    replicas[j].left_load = tmp_load;
-                }
-            }
-
-            // C. GENETIC CROSSOVER STEP (New)
-            // Every 50 epochs, breed the best layouts
-            if epoch > 0 && epoch % 50 == 0 && gene_pool.len() >= 2 {
-                // 1. Pick 2 random parents from the top of the gene pool
-                let p1_idx = rng.usize(0..gene_pool.len().min(5)); // Bias towards top 5
-                let p2_idx = rng.usize(0..gene_pool.len());
-
-                let p1 = &gene_pool[p1_idx].1;
-                let p2 = &gene_pool[p2_idx].1;
-
-                // 2. Create Child
-                let child_layout = crossover_uniform(p1, p2, &mut rng);
-
-                // 3. Inject into a random HIGH TEMP replica (index > 0)
-                // We want to refine the child, not destroy our best low-temp state
-                if opts.num_threads > 1 {
-                    let target_idx = rng.usize(1..opts.num_threads);
-                    replicas[target_idx].inject_layout(&child_layout);
-                }
+            // C. Genetic Crossover (Every 50 epochs)
+            if epoch > 0 && epoch % 50 == 0 {
+                self.perform_crossover(&mut replicas, &gene_pool, &mut rng);
             }
 
             // D. Harvest & Update Gene Pool
             let mut improved = false;
             for r in &replicas {
-                // Update Local/Global Bests
                 if r.score < local_best_score - opts.patience_threshold {
                     local_best_score = r.score;
                     improved = true;
@@ -230,13 +158,11 @@ impl Optimizer {
                     global_best_layout = r.layout.clone();
                 }
 
-                // Add to Gene Pool (Simple maintain top 10)
-                // Only add if fairly good (e.g. better than 1.2x global best)
-                if r.score < global_best_score * 1.5 {
-                    // Check strict uniqueness
-                    if !gene_pool.iter().any(|(_, l)| l == &r.layout) {
-                        gene_pool.push((r.score, r.layout.clone()));
-                    }
+                // Add to Gene Pool if unique and reasonably good
+                if r.score < global_best_score * 1.5
+                    && !gene_pool.iter().any(|(_, l)| l == &r.layout)
+                {
+                    gene_pool.push((r.score, r.layout.clone()));
                 }
             }
 
@@ -276,7 +202,97 @@ impl Optimizer {
 
         OptimizationResult {
             score: global_best_score,
-            layout_bytes: global_best_layout,
+            layout: global_best_layout,
         }
+    }
+
+    // --- Helpers ---
+
+    fn seed_gene_pool(&self) -> Vec<(f32, Layout)> {
+        let mut pool = Vec::new();
+        for layout in &self.options.initial_population {
+            if layout.len() == self.scorer.key_count {
+                let map = mutation::build_pos_map(layout);
+                let (s, l, _) = self.scorer.score_full(&map, self.options.limit_slow);
+                let imb = if l > 0.0 {
+                    (l / self.scorer.geometry.keys.len() as f32 - 0.5).abs() * 200.0
+                } else {
+                    0.0
+                };
+                pool.push((s + imb, layout.clone()));
+            }
+        }
+        pool
+    }
+
+    fn try_tempering(&self, replicas: &mut [Replica], rng: &mut fastrand::Rng) {
+        if replicas.len() < 2 {
+            return;
+        }
+
+        for i in (0..replicas.len() - 1).rev() {
+            let (head, tail) = replicas.split_at_mut(i + 1);
+            let r1 = &mut head[i];
+            let r2 = &mut tail[0];
+
+            let e1 = r1.score;
+            let e2 = r2.score;
+            let t1 = r1.temperature;
+            let t2 = r2.temperature;
+
+            let delta_beta = (1.0f32 / t1) - (1.0f32 / t2);
+            let delta_e = e2 - e1;
+
+            if rng.f32() < (-delta_beta * delta_e).exp() {
+                // Swap STATE, but keep TEMPERATURE configuration.
+                std::mem::swap(&mut r1.layout, &mut r2.layout);
+                std::mem::swap(&mut r1.pos_map, &mut r2.pos_map);
+                std::mem::swap(&mut r1.score, &mut r2.score);
+                std::mem::swap(&mut r1.left_load, &mut r2.left_load);
+                std::mem::swap(&mut r1.total_freq, &mut r2.total_freq);
+                std::mem::swap(&mut r1.mutation_weights, &mut r2.mutation_weights);
+                std::mem::swap(&mut r1.total_weight, &mut r2.total_weight);
+            }
+        }
+    }
+
+    fn perform_crossover(
+        &self,
+        replicas: &mut [Replica],
+        gene_pool: &[(f32, Layout)],
+        rng: &mut fastrand::Rng,
+    ) {
+        if gene_pool.len() < 2 || replicas.len() <= 1 {
+            return;
+        }
+
+        let p1_idx = rng.usize(0..gene_pool.len().min(5));
+        let p2_idx = rng.usize(0..gene_pool.len());
+
+        let p1 = &gene_pool[p1_idx].1;
+        let p2 = &gene_pool[p2_idx].1;
+
+        let key_count = self.scorer.key_count;
+        let mut pinned_slots = vec![None; key_count];
+        if !self.options.pinned_keys.is_empty() {
+            for part in self.options.pinned_keys.split(',') {
+                let parts: Vec<&str> = part.split(':').collect();
+                if parts.len() == 2 {
+                    if let Ok(idx) = parts[0].trim().parse::<usize>() {
+                        if idx < key_count {
+                            let char_str = parts[1].trim();
+                            if let Some(c) = char_str.chars().next() {
+                                pinned_slots[idx] = Some(c.to_ascii_lowercase() as KeyCode);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let child_layout = crossover_uniform(p1, p2, &pinned_slots, rng);
+
+        let target_idx = rng.usize(1..replicas.len());
+        replicas[target_idx].inject_layout(&child_layout);
     }
 }

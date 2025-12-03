@@ -2,54 +2,50 @@
   "meta": {
     "name": "SZR35",
     "author": "Robert Fontaine",
-    "version": "1.0",
-    "notes": "36-key columnar layout (30 alphas + 6 thumbs)",
+    "version": "2.6",
+    "notes": "36-key columnar split. Legacy Sturdy variant (Y/D swapped, H on home).",
     "type": "column_staggered"
   },
   "geometry": {
     "keys": [
       {
-        "id": "keyq",
+        "id": "L00",
         "hand": 0,
         "finger": 4,
         "row": 0,
         "col": 0,
         "x": 0.0,
-        "y": 0.50,
-        "is_stretch": false
+        "y": 0.50
       },
       {
-        "id": "keyw",
+        "id": "L01",
         "hand": 0,
         "finger": 3,
         "row": 0,
         "col": 1,
         "x": 1.0,
-        "y": 0.25,
-        "is_stretch": false
+        "y": 0.25
       },
       {
-        "id": "keye",
+        "id": "L02",
         "hand": 0,
         "finger": 2,
         "row": 0,
         "col": 2,
         "x": 2.0,
-        "y": 0.00,
-        "is_stretch": false
+        "y": 0.00
       },
       {
-        "id": "keyr",
+        "id": "L03",
         "hand": 0,
         "finger": 1,
         "row": 0,
         "col": 3,
         "x": 3.0,
-        "y": 0.15,
-        "is_stretch": false
+        "y": 0.15
       },
       {
-        "id": "keyt",
+        "id": "L04",
         "hand": 0,
         "finger": 1,
         "row": 0,
@@ -59,7 +55,7 @@
         "is_stretch": true
       },
       {
-        "id": "keyy",
+        "id": "R00",
         "hand": 1,
         "finger": 1,
         "row": 0,
@@ -69,87 +65,79 @@
         "is_stretch": true
       },
       {
-        "id": "keyu",
+        "id": "R01",
         "hand": 1,
         "finger": 1,
         "row": 0,
         "col": 6,
         "x": 9.0,
-        "y": 0.15,
-        "is_stretch": false
+        "y": 0.15
       },
       {
-        "id": "keyi",
+        "id": "R02",
         "hand": 1,
         "finger": 2,
         "row": 0,
         "col": 7,
         "x": 10.0,
-        "y": 0.00,
-        "is_stretch": false
+        "y": 0.00
       },
       {
-        "id": "keyo",
+        "id": "R03",
         "hand": 1,
         "finger": 3,
         "row": 0,
         "col": 8,
         "x": 11.0,
-        "y": 0.25,
-        "is_stretch": false
+        "y": 0.25
       },
       {
-        "id": "keyp",
+        "id": "R04",
         "hand": 1,
         "finger": 4,
         "row": 0,
         "col": 9,
         "x": 12.0,
-        "y": 0.50,
-        "is_stretch": false
+        "y": 0.50
       },
       {
-        "id": "keya",
+        "id": "L10",
         "hand": 0,
         "finger": 4,
         "row": 1,
         "col": 0,
         "x": 0.0,
-        "y": 1.50,
-        "is_stretch": false
+        "y": 1.50
       },
       {
-        "id": "keys",
+        "id": "L11",
         "hand": 0,
         "finger": 3,
         "row": 1,
         "col": 1,
         "x": 1.0,
-        "y": 1.25,
-        "is_stretch": false
+        "y": 1.25
       },
       {
-        "id": "keyd",
+        "id": "L12",
         "hand": 0,
         "finger": 2,
         "row": 1,
         "col": 2,
         "x": 2.0,
-        "y": 1.00,
-        "is_stretch": false
+        "y": 1.00
       },
       {
-        "id": "keyf",
+        "id": "L13",
         "hand": 0,
         "finger": 1,
         "row": 1,
         "col": 3,
         "x": 3.0,
-        "y": 1.15,
-        "is_stretch": false
+        "y": 1.15
       },
       {
-        "id": "keyg",
+        "id": "L14",
         "hand": 0,
         "finger": 1,
         "row": 1,
@@ -159,7 +147,7 @@
         "is_stretch": true
       },
       {
-        "id": "keyh",
+        "id": "R10",
         "hand": 1,
         "finger": 1,
         "row": 1,
@@ -169,87 +157,79 @@
         "is_stretch": true
       },
       {
-        "id": "keyj",
+        "id": "R11",
         "hand": 1,
         "finger": 1,
         "row": 1,
         "col": 6,
         "x": 9.0,
-        "y": 1.15,
-        "is_stretch": false
+        "y": 1.15
       },
       {
-        "id": "keyk",
+        "id": "R12",
         "hand": 1,
         "finger": 2,
         "row": 1,
         "col": 7,
         "x": 10.0,
-        "y": 1.00,
-        "is_stretch": false
+        "y": 1.00
       },
       {
-        "id": "keyl",
+        "id": "R13",
         "hand": 1,
         "finger": 3,
         "row": 1,
         "col": 8,
         "x": 11.0,
-        "y": 1.25,
-        "is_stretch": false
+        "y": 1.25
       },
       {
-        "id": "semicolon",
+        "id": "R14",
         "hand": 1,
         "finger": 4,
         "row": 1,
         "col": 9,
         "x": 12.0,
-        "y": 1.50,
-        "is_stretch": false
+        "y": 1.50
       },
       {
-        "id": "keyz",
+        "id": "L20",
         "hand": 0,
         "finger": 4,
         "row": 2,
         "col": 0,
         "x": 0.0,
-        "y": 2.50,
-        "is_stretch": false
+        "y": 2.50
       },
       {
-        "id": "keyx",
+        "id": "L21",
         "hand": 0,
         "finger": 3,
         "row": 2,
         "col": 1,
         "x": 1.0,
-        "y": 2.25,
-        "is_stretch": false
+        "y": 2.25
       },
       {
-        "id": "keyc",
+        "id": "L22",
         "hand": 0,
         "finger": 2,
         "row": 2,
         "col": 2,
         "x": 2.0,
-        "y": 2.00,
-        "is_stretch": false
+        "y": 2.00
       },
       {
-        "id": "keyv",
+        "id": "L23",
         "hand": 0,
         "finger": 1,
         "row": 2,
         "col": 3,
         "x": 3.0,
-        "y": 2.15,
-        "is_stretch": false
+        "y": 2.15
       },
       {
-        "id": "keyb",
+        "id": "L24",
         "hand": 0,
         "finger": 1,
         "row": 2,
@@ -259,7 +239,7 @@
         "is_stretch": true
       },
       {
-        "id": "keyn",
+        "id": "R20",
         "hand": 1,
         "finger": 1,
         "row": 2,
@@ -269,104 +249,94 @@
         "is_stretch": true
       },
       {
-        "id": "keym",
+        "id": "R21",
         "hand": 1,
         "finger": 1,
         "row": 2,
         "col": 6,
         "x": 9.0,
-        "y": 2.15,
-        "is_stretch": false
+        "y": 2.15
       },
       {
-        "id": "comma",
+        "id": "R22",
         "hand": 1,
         "finger": 2,
         "row": 2,
         "col": 7,
         "x": 10.0,
-        "y": 2.00,
-        "is_stretch": false
+        "y": 2.00
       },
       {
-        "id": "period",
+        "id": "R23",
         "hand": 1,
         "finger": 3,
         "row": 2,
         "col": 8,
         "x": 11.0,
-        "y": 2.25,
-        "is_stretch": false
+        "y": 2.25
       },
       {
-        "id": "slash",
+        "id": "R24",
         "hand": 1,
         "finger": 4,
         "row": 2,
         "col": 9,
         "x": 12.0,
-        "y": 2.50,
-        "is_stretch": false
+        "y": 2.50
       },
       {
-        "id": "",
+        "id": "LT1",
         "hand": 0,
         "finger": 0,
         "row": 3,
         "col": 2,
         "x": 2.5,
-        "y": 3.25,
-        "is_stretch": false
+        "y": 3.25
       },
       {
-        "id": "",
+        "id": "LT2",
         "hand": 0,
         "finger": 0,
         "row": 3,
         "col": 3,
         "x": 3.5,
-        "y": 3.50,
-        "is_stretch": false
+        "y": 3.50
       },
       {
-        "id": "",
+        "id": "LT3",
         "hand": 0,
         "finger": 0,
         "row": 3,
         "col": 4,
         "x": 4.5,
-        "y": 3.75,
-        "is_stretch": false
+        "y": 3.75
       },
       {
-        "id": "",
+        "id": "RT1",
         "hand": 1,
         "finger": 0,
         "row": 3,
         "col": 5,
         "x": 7.5,
-        "y": 3.75,
-        "is_stretch": false
+        "y": 3.75
       },
       {
-        "id": "",
+        "id": "RT2",
         "hand": 1,
         "finger": 0,
         "row": 3,
         "col": 6,
         "x": 8.5,
-        "y": 3.50,
-        "is_stretch": false
+        "y": 3.50
       },
       {
-        "id": "",
+        "id": "RT3",
         "hand": 1,
         "finger": 0,
         "row": 3,
         "col": 7,
         "x": 9.5,
-        "y": 3.25,
-        "is_stretch": false
+        "y": 3.25
       }
     ],
     "prime_slots": [
@@ -408,17 +378,16 @@
     "home_row": 1
   },
   "layouts": {
-    "Qwerty": "QWERTYUIOPASDFGHJKL;ZXCVBNM,./      ",
-    "Dvorak": "',.PYFGCRLAOEUIDHTNS;QJKXBMWVZ      ",
-    "Colemak": "QWFPGJLUY;ARSTDHNEIOZXCVBKM,./      ",
-    "Colemak-DH": "QWFPBJLUY;ARSTGMNEIOZXCDVKH,./      ",
-    "Workman": "QDRWBJFUP;ASHTGYNEOIZXMCVKL,./      ",
-    "Canary": "WLYPBZFOU'CRSTGMNEIAQJVDKXH,./      ",
-    "Sturdy": "VMLCPXFOUJSTRYDNAEIHZKQGWB';.,      ",
-    "Hands Down Ref": "XRYBPJLCU;SNHTGMOEAIZWVDKQF,./      ",
-    "Focal": "WLYPKZOU;,RSTNGMHAIEQXCDVJFB'.      ",
-    "Graphite": "BLDWZ'FOUJNRTSGYHAEIQXMCVKP,./      ",
-    "Gallium": "BLDCVJYOU,NRTSGPHAEIXQMWZKF';.      ",
-    "Engram": "BYOU'LDWVZCIEA,HTSNQGXJKMFP;./      "
+    "Qwerty": "KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Colemak": "KC_Q KC_W KC_F KC_P KC_G KC_J KC_L KC_U KC_Y KC_SCLN KC_A KC_R KC_S KC_T KC_D KC_H KC_N KC_E KC_I KC_O KC_Z KC_X KC_C KC_V KC_B KC_K KC_M KC_COMM KC_DOT KC_SLSH KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Colemak-DH": "KC_Q KC_W KC_F KC_P KC_B KC_J KC_L KC_U KC_Y KC_SCLN KC_A KC_R KC_S KC_T KC_G KC_M KC_N KC_E KC_I KC_O KC_Z KC_X KC_C KC_D KC_V KC_K KC_H KC_COMM KC_DOT KC_SLSH KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Dvorak": "KC_QUOT KC_COMM KC_DOT KC_P KC_Y KC_F KC_G KC_C KC_R KC_L KC_A KC_O KC_E KC_U KC_I KC_D KC_H KC_T KC_N KC_S KC_SCLN KC_Q KC_J KC_K KC_X KC_B KC_M KC_W KC_V KC_Z KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Workman": "KC_Q KC_D KC_R KC_W KC_B KC_J KC_F KC_U KC_P KC_SCLN KC_A KC_S KC_H KC_T KC_G KC_Y KC_N KC_E KC_O KC_I KC_Z KC_X KC_M KC_C KC_V KC_K KC_L KC_COMM KC_DOT KC_SLSH KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Canary": "KC_W KC_L KC_Y KC_P KC_B KC_Z KC_F KC_O KC_U KC_QUOT KC_C KC_R KC_S KC_T KC_G KC_M KC_N KC_E KC_I KC_A KC_Q KC_J KC_V KC_D KC_K KC_X KC_H KC_SLSH KC_DOT KC_COMM KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Graphite": "KC_B KC_L KC_D KC_W KC_Z KC_QUOT KC_F KC_O KC_U KC_J KC_N KC_R KC_T KC_S KC_G KC_Y KC_H KC_A KC_E KC_I KC_Q KC_X KC_M KC_C KC_V KC_K KC_P KC_DOT KC_MINS KC_SLSH KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Gallium": "KC_B KC_L KC_D KC_C KC_V KC_J KC_Y KC_O KC_U KC_COMM KC_N KC_R KC_T KC_S KC_G KC_P KC_H KC_A KC_E KC_I KC_X KC_Q KC_M KC_W KC_Z KC_K KC_F KC_QUOT KC_SCLN KC_DOT KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Sturdy": "KC_V KC_M KC_L KC_C KC_P KC_X KC_F KC_O KC_U KC_J KC_S KC_T KC_R KC_Y KC_D KC_N KC_A KC_E KC_I KC_H KC_Z KC_K KC_Q KC_G KC_W KC_B KC_QUOT KC_SCLN KC_DOT KC_COMM KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Engram": "KC_B KC_Y KC_O KC_U KC_QUOT KC_L KC_D KC_W KC_V KC_Z KC_C KC_I KC_E KC_A KC_COMM KC_H KC_T KC_S KC_N KC_Q KC_G KC_X KC_J KC_K KC_MINS KC_R KC_M KC_F KC_P KC_SCLN KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO",
+    "Hands Down Ref": "KC_X KC_R KC_Y KC_B KC_P KC_J KC_L KC_C KC_U KC_SCLN KC_S KC_N KC_H KC_T KC_G KC_M KC_O KC_E KC_A KC_I KC_Z KC_W KC_V KC_D KC_K KC_Q KC_F KC_COMM KC_DOT KC_SLSH KC_ESC KC_SPC KC_BSPC KC_ENT KC_SPC KC_NO"
   }
 }
