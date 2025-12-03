@@ -1,15 +1,22 @@
 use crate::routes::jobs::RegisterJobRequest;
 use keyforge_core::{config::ScoringWeights, geometry::KeyboardGeometry};
-use sqlx::{Pool, Row, Sqlite};
+use sqlx::{Pool, Row, Sqlite, Transaction};
 
 #[derive(Clone)]
 pub struct Store {
-    db: Pool<Sqlite>,
+    // Public so the WriteQueue can start transactions for batching
+    pub db: Pool<Sqlite>,
 }
 
 impl Store {
     pub fn new(db: Pool<Sqlite>) -> Self {
         Self { db }
+    }
+
+    /// Starts a new database transaction.
+    /// Critical for the WriteQueue to flush batches atomically.
+    pub async fn begin(&self) -> Result<Transaction<'_, Sqlite>, String> {
+        self.db.begin().await.map_err(|e| e.to_string())
     }
 
     pub async fn job_exists(&self, job_id: &str) -> bool {
@@ -119,6 +126,9 @@ impl Store {
         Ok(row.and_then(|r| r.get("min_score")))
     }
 
+    /// Saves a result directly to the database.
+    /// Note: For high-volume result ingestion, use the WriteQueue instead.
+    #[allow(dead_code)] // Suppress warning as this is replaced by WriteQueue for main flow
     pub async fn save_result(
         &self,
         job_id: &str,

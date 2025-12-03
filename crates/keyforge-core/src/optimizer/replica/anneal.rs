@@ -1,11 +1,13 @@
 use super::Replica;
-use crate::optimizer::mutation;
+use crate::consts::ANNEAL_TEMP_SCALE;
 use crate::core_types::KeyCode;
+use crate::optimizer::mutation;
 use itertools::Itertools;
 
 #[inline(always)]
 fn fast_exp(x: f32) -> f32 {
-    let x = 1.0 + x / 256.0;
+    // Optimized approximation: (1 + x/256)^256
+    let x = 1.0 + x / ANNEAL_TEMP_SCALE;
     let x = x * x * x * x * x * x * x * x;
     x * x
 }
@@ -19,14 +21,18 @@ impl Replica {
         let mut current = 0.0;
         for (i, &w) in self.mutation_weights.iter().enumerate() {
             current += w;
-            if current >= target { return i; }
+            if current >= target {
+                return i;
+            }
         }
         self.rng.usize(0..self.scorer.key_count)
     }
 
     pub fn try_lns_move(&mut self, n_keys: usize) -> bool {
         let key_count = self.scorer.key_count;
-        if !(3..=5).contains(&n_keys) || n_keys > key_count { return false; }
+        if !(3..=5).contains(&n_keys) || n_keys > key_count {
+            return false;
+        }
 
         let mut indices = Vec::with_capacity(n_keys);
         let mut attempts = 0;
@@ -38,7 +44,9 @@ impl Replica {
             attempts += 1;
         }
 
-        if indices.len() != n_keys { return false; }
+        if indices.len() != n_keys {
+            return false;
+        }
 
         let chars: Vec<KeyCode> = indices.iter().map(|&i| self.layout[i]).collect();
         let mut best_score = self.score;
@@ -83,7 +91,11 @@ impl Replica {
     pub fn evolve(&mut self, steps: usize) -> (usize, usize) {
         let mut accepted = 0;
 
-        let target_limit = if self.temperature > 10.0 { self.limit_fast } else { self.limit_slow };
+        let target_limit = if self.temperature > 10.0 {
+            self.limit_fast
+        } else {
+            self.limit_slow
+        };
         if target_limit != self.current_limit {
             self.current_limit = target_limit;
             let (new_base, new_left, _) = self.scorer.score_full(&self.pos_map, target_limit);
@@ -108,12 +120,17 @@ impl Replica {
             }
             let idx_b = self.rng.usize(0..self.scorer.key_count);
 
-            if idx_a == idx_b || self.locked_indices.contains(&idx_a) || self.locked_indices.contains(&idx_b) {
+            if idx_a == idx_b
+                || self.locked_indices.contains(&idx_a)
+                || self.locked_indices.contains(&idx_b)
+            {
                 continue;
             }
 
             let (delta_base, delta_load) = self.calc_delta(idx_a, idx_b, self.current_limit);
-            if delta_base == f32::INFINITY { continue; }
+            if delta_base == f32::INFINITY {
+                continue;
+            }
 
             let old_imbalance_pen = self.imbalance_penalty(self.left_load);
             let old_base = self.score - old_imbalance_pen;
@@ -132,10 +149,16 @@ impl Replica {
 
                 let critical = self.scorer.defs.get_critical_bigrams();
                 let mut is_risky = false;
-                if char_a < 256 { is_risky |= self.scorer.critical_mask[char_a as usize]; }
-                if char_b < 256 { is_risky |= self.scorer.critical_mask[char_b as usize]; }
+                if char_a < 256 {
+                    is_risky |= self.scorer.critical_mask[char_a as usize];
+                }
+                if char_b < 256 {
+                    is_risky |= self.scorer.critical_mask[char_b as usize];
+                }
 
-                if is_risky && mutation::fails_sanity(&self.pos_map, &critical, &self.scorer.geometry) {
+                if is_risky
+                    && mutation::fails_sanity(&self.pos_map, &critical, &self.scorer.geometry)
+                {
                     self.layout.swap(idx_a, idx_b);
                     self.pos_map[char_a as usize] = idx_b as u8;
                     self.pos_map[char_b as usize] = idx_a as u8;

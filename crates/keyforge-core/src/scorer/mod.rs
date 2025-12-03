@@ -11,6 +11,7 @@ pub use self::builder::ScorerBuilder;
 use self::loader::TrigramRef;
 pub use self::types::ScoreDetails;
 use crate::config::{Config, LayoutDefinitions, ScoringWeights};
+use crate::consts::KEY_CODE_RANGE;
 use crate::error::KfResult;
 use crate::geometry::KeyboardGeometry;
 
@@ -74,17 +75,17 @@ impl Scorer {
     ///
     /// # Arguments
     /// * `pos_map` - A map from character code (u16) to key index (u8).
-    ///   Size is 65536 to support full 16-bit keycode range.
+    ///   Size is KEY_CODE_RANGE (65536).
     /// * `limit` - Optimization limit for trigram evaluation.
-    pub fn score_full(&self, pos_map: &[u8; 65536], limit: usize) -> (f32, f32, f32) {
+    pub fn score_full(&self, pos_map: &[u8; KEY_CODE_RANGE], limit: usize) -> (f32, f32, f32) {
         engine::score_full(self, pos_map, limit)
     }
 
-    pub fn score_details(&self, pos_map: &[u8; 65536], limit: usize) -> ScoreDetails {
+    pub fn score_details(&self, pos_map: &[u8; KEY_CODE_RANGE], limit: usize) -> ScoreDetails {
         engine::score_details(self, pos_map, limit)
     }
 
-    pub fn get_element_costs(&self, pos_map: &[u8; 65536]) -> Vec<f32> {
+    pub fn get_element_costs(&self, pos_map: &[u8; KEY_CODE_RANGE]) -> Vec<f32> {
         engine::calculate_key_costs(self, pos_map)
     }
 

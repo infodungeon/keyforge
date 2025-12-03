@@ -1,3 +1,5 @@
+use crate::queue::DbEvent;
+use crate::state::AppState;
 use axum::{extract::State, http::StatusCode, Json};
 use keyforge_core::{
     config::Config, layouts::layout_string_to_u16, optimizer::mutation, scorer::Scorer,
@@ -5,8 +7,6 @@ use keyforge_core::{
 use serde::Deserialize;
 use std::sync::Arc;
 use tracing::{info, warn};
-
-use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct SubmitResultRequest {
@@ -21,6 +21,7 @@ pub async fn submit(
     Json(payload): Json<SubmitResultRequest>,
 ) -> Result<String, (StatusCode, String)> {
     // 1. Fetch Job Configuration from Store
+    // We need the geometry and weights to reconstruct the scorer for verification.
     let (geometry, weights, corpus_name) = state
         .store
         .get_job_config(&payload.job_id)
@@ -69,27 +70,26 @@ pub async fn submit(
         return Err((StatusCode::BAD_REQUEST, "Score verification failed".into()));
     }
 
-    // 5. Check for Record (for logging purposes)
+    // 5. Check for Record (for logging purposes only)
     let current_best = state
         .store
         .get_job_best_score(&payload.job_id)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
-    // 6. Persist Result
+    // 6. Persist Result via Async Queue
+    // This pushes to the memory channel to be batched by the background worker.
     state
-        .store
-        .save_result(
-            &payload.job_id,
-            &payload.layout,
-            payload.score,
-            &payload.node_id,
-        )
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        .queue
+        .push(DbEvent::Result {
+            job_id: payload.job_id.clone(),
+            layout: payload.layout.clone(),
+            score: payload.score,
+            node_id: payload.node_id.clone(),
+        })
+        .await;
 
     // 7. Log Interaction
-    // FIXED: Use is_none_or per clippy suggestion
     let is_record = current_best.is_none_or(|best| payload.score < best);
 
     if is_record {

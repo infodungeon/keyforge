@@ -10,26 +10,24 @@ use std::sync::Arc;
 #[repr(align(64))]
 pub struct Replica {
     pub scorer: Arc<Scorer>,
-    
-    // Cached Scorer Data (Local copies for cache locality if needed, 
-    // or direct ref to Arc depending on access pattern. 
-    // Keeping clones for now as per original design for thread safety/speed)
+
+    // Cached Scorer Data
     pub local_cost_matrix: Vec<f32>,
     pub local_trigram_costs: Vec<f32>,
     pub local_monogram_costs: Vec<f32>,
 
     pub layout: Layout,
     pub pos_map: PosMap,
-    
+
     pub score: f32,
     pub left_load: f32,
     pub total_freq: f32,
-    
+
     pub temperature: f32,
     pub current_limit: usize,
     pub limit_fast: usize,
     pub limit_slow: usize,
-    
+
     pub rng: Rng,
     pub pinned_slots: Vec<Option<KeyCode>>,
     pub locked_indices: Vec<usize>,
@@ -55,9 +53,8 @@ impl Replica {
         };
 
         let key_count = scorer.key_count;
-        let (pinned_slots, mut locked_indices) = 
-            parse_pins(pinned_keys_str, key_count);
-        
+        let (pinned_slots, mut locked_indices) = parse_pins(pinned_keys_str, key_count);
+
         locked_indices.sort();
 
         let mut layout;
@@ -79,7 +76,11 @@ impl Replica {
             }
         }
 
-        let start_limit = if temperature > 10.0 { limit_fast } else { limit_slow };
+        let start_limit = if temperature > 10.0 {
+            limit_fast
+        } else {
+            limit_slow
+        };
         let (base, left, total) = scorer.score_full(&pos_map, start_limit);
 
         // Clone hefty data for thread independence
@@ -161,8 +162,10 @@ impl Replica {
 fn parse_pins(input: &str, count: usize) -> (Vec<Option<KeyCode>>, Vec<usize>) {
     let mut slots = vec![None; count];
     let mut indices = Vec::new();
-    
-    if input.is_empty() { return (slots, indices); }
+
+    if input.is_empty() {
+        return (slots, indices);
+    }
 
     for part in input.split(',') {
         let parts: Vec<&str> = part.split(':').collect();

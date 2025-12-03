@@ -1,4 +1,6 @@
 use crate::config::LayoutDefinitions;
+use crate::consts::{KEY_CODE_RANGE, KEY_NOT_FOUND_U8};
+use crate::core_types::PosMap;
 use crate::geometry::KeyboardGeometry;
 use fastrand::Rng;
 
@@ -7,9 +9,8 @@ pub fn generate_tiered_layout(
     defs: &LayoutDefinitions,
     geom: &KeyboardGeometry,
     size: usize,
-    pinned: &[Option<u16>], // CHANGED: u8 -> u16
+    pinned: &[Option<u16>],
 ) -> Vec<u16> {
-    // CHANGED
     let mut layout = vec![0u16; size];
 
     // 1. Fill Pinned Keys
@@ -70,9 +71,8 @@ pub fn generate_tiered_layout(
     layout
 }
 
-// CHANGED: Returns Box<[u8; 65536]>
-pub fn build_pos_map(layout: &[u16]) -> Box<[u8; 65536]> {
-    let mut map = Box::new([255u8; 65536]);
+pub fn build_pos_map(layout: &[u16]) -> PosMap {
+    let mut map = Box::new([KEY_NOT_FOUND_U8; KEY_CODE_RANGE]);
     for (i, &code) in layout.iter().enumerate() {
         if code != 0 {
             // 0 is KC_NO
@@ -93,7 +93,7 @@ pub fn build_pos_map(layout: &[u16]) -> Box<[u8; 65536]> {
 }
 
 pub fn fails_sanity(
-    pos_map: &[u8; 65536], // CHANGED signature
+    pos_map: &[u8; KEY_CODE_RANGE],
     critical_bigrams: &[[u8; 2]],
     geom: &KeyboardGeometry,
 ) -> bool {
@@ -101,7 +101,7 @@ pub fn fails_sanity(
         let p1 = pos_map[pair[0] as usize];
         let p2 = pos_map[pair[1] as usize];
 
-        if p1 == 255 || p2 == 255 {
+        if p1 == KEY_NOT_FOUND_U8 || p2 == KEY_NOT_FOUND_U8 {
             continue;
         }
 

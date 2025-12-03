@@ -82,7 +82,7 @@ impl TestContext {
             }
         }
 
-        // 2. N-Grams
+        // 2. N-Grams (Trap 'e')
         let mut ngram_file = File::create(&ngram_path).unwrap();
         writeln!(ngram_file, "e\t100").unwrap();
         let common = ["t", "a", "o", "i", "n", "s", "r"];
@@ -107,7 +107,6 @@ impl TestContext {
             }
         }
 
-        // Define Slots: 0-9 Top, 10-19 Home, 20-29 Bottom
         let prime = (10..20)
             .map(|i| i.to_string())
             .collect::<Vec<_>>()
@@ -189,25 +188,30 @@ fn test_poison_pill_constraint() {
         panic!("Keyforge binary crashed");
     }
 
-    let mut layout = "";
-    // FIX: Parse by searching for the substring, ignoring log prefixes/timestamps
+    let mut layout_raw = "";
     for line in stdout.lines() {
         if let Some(idx) = line.find("Layout: ") {
-            layout = line[idx + 8..].trim();
+            layout_raw = line[idx + 8..].trim();
             break;
         }
     }
 
+    // FIXED: Remove spaces to check the 30-char layout
+    let layout = layout_raw.replace(" ", "");
+
     if layout.len() != 30 {
         println!("STDOUT:\n{}", stdout);
         panic!(
-            "Invalid layout output or layout not found in stdout. Found: '{}'",
-            layout
+            "Invalid layout length or layout not found. Found: '{}' (Len: {})",
+            layout,
+            layout.len()
         );
     }
 
+    // Home row is indices 10-19
     let home_row = &layout[10..20];
 
+    // 'e' should be evicted from home row due to high cost
     if home_row.contains('e') {
         println!("STDOUT:\n{}", stdout);
         panic!(

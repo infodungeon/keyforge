@@ -8,10 +8,12 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 
+// Module Declarations
 mod db;
+mod queue; // NEW: Must be declared to be used in state
 mod routes;
-mod state;
-mod store;
+mod state; // NEW: Must be declared
+mod store; // NEW: Must be declared
 
 use crate::state::AppState;
 
@@ -36,7 +38,7 @@ async fn main() {
 
     let pool = db::init_db(&args.db).await;
 
-    // FIXED: Collapsed if-else logic per Clippy suggestion
+    // Collapsed Path Resolution (Clippy Clean)
     let data_path = if args.data.exists() {
         args.data
     } else if Path::new("../data").exists() {
@@ -61,7 +63,7 @@ async fn main() {
         KeycodeRegistry::new_with_defaults()
     };
 
-    // Use AppState::new constructor that handles Store creation
+    // Initialize State (which initializes Store and Queue)
     let state = Arc::new(AppState::new(pool, registry));
 
     let app = routes::system_routes()

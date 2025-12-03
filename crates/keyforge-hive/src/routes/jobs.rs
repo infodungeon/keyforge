@@ -6,6 +6,7 @@ use axum::{
 use keyforge_core::{config::ScoringWeights, geometry::KeyboardGeometry, job::JobIdentifier};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio::time::{sleep, Duration, Instant};
 use tracing::info;
 
 use crate::state::AppState;
@@ -70,21 +71,36 @@ pub async fn register(
 pub async fn get_queue(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<JobQueueResponse>, (StatusCode, String)> {
-    let result = state
-        .store
-        .get_latest_job()
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    // LONG POLLING:
+    // Attempt to find a job for up to 20 seconds.
+    // This allows the worker node to hold the connection open rather than spamming requests.
+    let start = Instant::now();
+    let timeout = Duration::from_secs(20);
 
-    match result {
-        Some((id, config)) => Ok(Json(JobQueueResponse {
-            job_id: Some(id),
-            config: Some(config),
-        })),
-        None => Ok(Json(JobQueueResponse {
-            job_id: None,
-            config: None,
-        })),
+    loop {
+        let result = state
+            .store
+            .get_latest_job()
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+        if let Some((id, config)) = result {
+            return Ok(Json(JobQueueResponse {
+                job_id: Some(id),
+                config: Some(config),
+            }));
+        }
+
+        if start.elapsed() > timeout {
+            // Timeout reached, tell client to retry later
+            return Ok(Json(JobQueueResponse {
+                job_id: None,
+                config: None,
+            }));
+        }
+
+        // Wait 1s before checking DB again to prevent tight loops
+        sleep(Duration::from_secs(1)).await;
     }
 }
 
