@@ -1,32 +1,37 @@
+// ===== keyforge/ui/src/components/KeyboardMap.tsx =====
 import { KeyboardGeometry } from "../types";
 import { keycodeService } from "../utils";
 
 const UNIT = 54;
 const GAP = 4;
 
-// Professional Heatmap Gradient (Turbo-like)
-// 0.0 -> Blue (Cold)
-// 0.5 -> Green
-// 0.8 -> Yellow
-// 1.0 -> Red (Hot)
-function getHeatmapColor(intensity: number): string {
-  if (intensity <= 0) return "rgba(30, 41, 59, 1)"; // Slate-800 base
+export type MapMode = 'frequency' | 'penalty';
 
-  // HSL Interpolation for better gradients
-  // Blue (240) -> Red (0)
-  const h = (1.0 - intensity) * 240;
-  return `hsla(${h}, 70%, 50%, 0.8)`;
+function getHeatmapColor(intensity: number, mode: MapMode): string {
+  if (intensity <= 0) return "rgba(30, 41, 59, 1)"; // Slate-800
+
+  if (mode === 'penalty') {
+    // Penalty Scale: Yellow -> Red -> Dark Red
+    // 0.0 -> Yellow (60)
+    // 1.0 -> Red (0)
+    const h = (1.0 - intensity) * 60;
+    return `hsla(${h}, 90%, 50%, 0.8)`;
+  } else {
+    // Frequency Scale: Blue -> Green -> Yellow -> Red (Standard Heatmap)
+    const h = (1.0 - intensity) * 240;
+    return `hsla(${h}, 70%, 50%, 0.8)`;
+  }
 }
 
 function getKeyStyle(
   index: number,
-  heatmap: number[] | undefined,
-  maxHeat: number,
+  dataMap: number[] | undefined,
+  maxVal: number,
   isSelected: boolean,
   isEditing: boolean,
-  isActive: boolean
+  isActive: boolean,
+  mode: MapMode
 ) {
-  // Priority 0: Physical Activation (Tester)
   if (isActive) {
     return { fill: "#22c55e", stroke: "#15803d", strokeWidth: 2, text: "#ffffff" };
   }
@@ -34,29 +39,25 @@ function getKeyStyle(
   let fill = "rgba(30, 41, 59, 1)";
   let stroke = "rgb(2, 6, 23)";
   let strokeWidth = 2;
-  let text = "#94a3b8"; // Slate-400
+  let text = "#94a3b8";
 
-  // 1. Heatmap coloring
-  if (heatmap && heatmap[index] && heatmap[index] > 0) {
-    const val = heatmap[index];
-    // Non-linear scaling to make low-freq keys visible
-    const intensity = Math.pow(val / maxHeat, 0.7);
-    fill = getHeatmapColor(intensity);
+  if (dataMap && dataMap[index] && dataMap[index] > 0) {
+    const val = dataMap[index];
+    // Non-linear scaling for better contrast
+    const intensity = Math.pow(val / maxVal, 0.7);
+    fill = getHeatmapColor(intensity, mode);
     text = "#ffffff";
   }
 
-  // 2. Selection Highlight
   if (isSelected) {
-    stroke = "#3b82f6"; // Blue-500
+    stroke = "#3b82f6";
     strokeWidth = 3;
-    // If selected but no heatmap data, lighten the background
-    if (!heatmap || !heatmap[index]) fill = "rgba(51, 65, 85, 1)";
+    if (!dataMap || !dataMap[index]) fill = "rgba(51, 65, 85, 1)";
   }
 
-  // 3. Editing State
   if (isSelected && isEditing) {
-    fill = "#2563eb"; // Blue-600
-    stroke = "#60a5fa"; // Blue-400
+    fill = "#2563eb";
+    stroke = "#60a5fa";
     strokeWidth = 4;
     text = "#ffffff";
   }
@@ -75,13 +76,15 @@ interface KeyboardMapProps {
   onKeyPointerDown?: (index: number) => void;
   onKeyPointerUp?: (index: number) => void;
   activeKeyIds?: Set<string>;
+  mode?: MapMode; // ADDED
 }
 
 export function KeyboardMap({
   geometry, layoutString, heatmap, className = "",
   selectedKeyIndex, isEditing = false,
   onKeyClick, onKeyPointerDown, onKeyPointerUp,
-  activeKeyIds
+  activeKeyIds,
+  mode = 'frequency' // Default
 }: KeyboardMapProps) {
 
   if (!geometry || !geometry.keys) return (
@@ -93,7 +96,10 @@ export function KeyboardMap({
 
   const maxX = Math.max(...geometry.keys.map((k) => k.x + (k.w || 1)));
   const maxY = Math.max(...geometry.keys.map((k) => k.y + (k.h || 1)));
-  const maxHeat = heatmap ? Math.max(...heatmap) : 1.0;
+
+  // Map data is already normalized 0-1 by backend, but we take max just in case
+  const maxVal = heatmap ? Math.max(...heatmap, 1.0) : 1.0;
+
   const tokens = layoutString.trim().split(/\s+/);
 
   return (
@@ -110,10 +116,11 @@ export function KeyboardMap({
           const isActive = activeKeyIds ? activeKeyIds.has(keyId) : false;
 
           const style = getKeyStyle(
-            index, heatmap, maxHeat,
+            index, heatmap, maxVal,
             selectedKeyIndex === index,
             selectedKeyIndex === index && isEditing,
-            isActive
+            isActive,
+            mode
           );
 
           let label = "";
@@ -133,21 +140,10 @@ export function KeyboardMap({
             <g
               key={index}
               style={{ transform, transition: 'transform 50ms ease-out' }}
-              onPointerDown={(e) => {
-                e.preventDefault();
-                onKeyPointerDown && onKeyPointerDown(index);
-              }}
-              onPointerUp={(e) => {
-                e.preventDefault();
-                onKeyPointerUp && onKeyPointerUp(index);
-              }}
-              onPointerLeave={() => {
-                onKeyPointerUp && onKeyPointerUp(index);
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onKeyClick && onKeyClick(index);
-              }}
+              onPointerDown={(e) => { e.preventDefault(); onKeyPointerDown && onKeyPointerDown(index); }}
+              onPointerUp={(e) => { e.preventDefault(); onKeyPointerUp && onKeyPointerUp(index); }}
+              onPointerLeave={() => { onKeyPointerUp && onKeyPointerUp(index); }}
+              onClick={(e) => { e.stopPropagation(); onKeyClick && onKeyClick(index); }}
               className="cursor-pointer select-none"
             >
               <rect

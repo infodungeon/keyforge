@@ -1,7 +1,8 @@
+// ===== keyforge/crates/keyforge-cli/src/main.rs =====
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use keyforge_core::geometry::KeyboardDefinition;
 use keyforge_core::keycodes::KeycodeRegistry;
-use keyforge_core::scorer::Scorer; // FIXED: Import Scorer directly, removed ScorerBuilder
+use keyforge_core::scorer::Scorer;
 use std::path::Path;
 use std::process;
 use std::sync::Arc;
@@ -53,8 +54,9 @@ fn main() {
     info!("🚀 Initializing KeyForge Core...");
 
     info!("📂 Loading Keyboard: {}", cli.keyboard);
+    // FIXED: Handle KfResult (implements Display via thiserror)
     let kb_def = KeyboardDefinition::load_from_file(&cli.keyboard).unwrap_or_else(|e| {
-        error!("{}", e);
+        error!("Failed to load keyboard definition: {}", e);
         process::exit(1);
     });
 
@@ -101,12 +103,11 @@ fn main() {
         }
     }
 
-    // FIXED: Use Scorer::new instead of ScorerBuilder chain
     let scorer_res = Scorer::new(
         &cli.cost,
         &cli.ngrams,
         &kb_def.geometry,
-        config.clone(), // Pass config (which contains weights/defs)
+        config.clone(),
         cli.debug,
     );
 

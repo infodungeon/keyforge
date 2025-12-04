@@ -1,10 +1,12 @@
+// ===== keyforge/ui/src/components/Arena.tsx =====
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RotateCcw, Keyboard as KeyboardIcon, Save } from "lucide-react";
+import { RotateCcw, Keyboard as KeyboardIcon, Save, UserCheck } from "lucide-react";
 import { Button } from "./ui/Button";
 import { useToast } from "../context/ToastContext";
+import { useLibrary } from "../context/LibraryContext"; // ADDED
 
-// Types for Biometric Data
+// ... (KeyStroke/BiometricSample definitions same)
 interface KeyStroke {
     char: string;
     timestamp: number;
@@ -18,6 +20,7 @@ interface BiometricSample {
 
 export function Arena() {
     const { addToast } = useToast();
+    const { refreshLibrary } = useLibrary(); // ADDED
     const [words, setWords] = useState<string[]>([]);
     const [input, setInput] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -29,8 +32,8 @@ export function Arena() {
     const [isFinished, setIsFinished] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState<string>("");
+    const [isGenerating, setIsGenerating] = useState(false); // ADDED
 
-    // Refs for internals
     const inputRef = useRef<HTMLInputElement>(null);
     const lastStrokeRef = useRef<KeyStroke | null>(null);
     const biometricsRef = useRef<BiometricSample[]>([]);
@@ -42,8 +45,7 @@ export function Arena() {
         try {
             const newWords = await invoke<string[]>("cmd_get_typing_words", { count: 50 });
             setWords(newWords);
-
-            // Reset
+            // Reset logic...
             setInput("");
             setCurrentIndex(0);
             setStartTime(null);
@@ -53,11 +55,10 @@ export function Arena() {
             lastStrokeRef.current = null;
             biometricsRef.current = [];
             errorsRef.current = 0;
-
             setTimeout(() => inputRef.current?.focus(), 100);
         } catch (e) {
             console.error("Failed to load corpus:", e);
-            addToast('error', "Could not load word list. Please ensure 'data/google-books-common-words.txt' exists.");
+            addToast('error', "Could not load word list.");
         } finally {
             setIsLoading(false);
         }
@@ -67,45 +68,31 @@ export function Arena() {
         generateWords();
     }, [generateWords]);
 
+    // ... (handleKeyDown, handleChange same)
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (isFinished || isLoading) return;
-
         const now = performance.now();
-
-        if (!startTime) {
-            setStartTime(now);
-        }
-
+        if (!startTime) setStartTime(now);
         const targetWord = words[currentIndex];
         const val = e.currentTarget.value;
 
-        // 2. Biometric Capture
         if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
             if (lastStrokeRef.current) {
                 const delta = now - lastStrokeRef.current.timestamp;
-                // Filter crazy outliers (e.g. user paused for > 2 seconds)
                 if (delta < 2000) {
                     const bigram = (lastStrokeRef.current.char + e.key).toLowerCase();
-                    biometricsRef.current.push({
-                        bigram,
-                        ms: delta,
-                        timestamp: Date.now()
-                    });
+                    biometricsRef.current.push({ bigram, ms: delta, timestamp: Date.now() });
                 }
             }
             lastStrokeRef.current = { char: e.key, timestamp: now };
         }
 
-        // 3. Logic
         if (e.key === ' ') {
             e.preventDefault();
             if (val.trim() === targetWord) {
                 setInput("");
                 setCurrentIndex(prev => prev + 1);
-
-                if (currentIndex >= words.length - 1) {
-                    finishTest();
-                }
+                if (currentIndex >= words.length - 1) finishTest();
             }
         }
     };
@@ -115,9 +102,7 @@ export function Arena() {
         const val = e.target.value;
         setInput(val);
         const targetWord = words[currentIndex];
-        if (!targetWord.startsWith(val)) {
-            errorsRef.current += 1;
-        }
+        if (!targetWord.startsWith(val)) errorsRef.current += 1;
     };
 
     const finishTest = async () => {
@@ -131,7 +116,6 @@ export function Arena() {
         setAcc(Math.round(accuracy));
         setIsFinished(true);
 
-        // AUTO-SAVE BIOMETRICS
         if (biometricsRef.current.length > 0) {
             setSaveStatus("Saving Stats...");
             try {
@@ -146,7 +130,20 @@ export function Arena() {
         }
     };
 
-    // --- RENDER ---
+    // ADDED: Generate Profile Action
+    const handleGenerateProfile = async () => {
+        setIsGenerating(true);
+        try {
+            const msg = await invoke<string>("cmd_generate_personal_profile");
+            addToast('success', msg);
+            await refreshLibrary(); // Reload list so personal_cost.csv appears
+        } catch (e) {
+            addToast('error', `Profile Generation Failed: ${e}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const renderWord = (word: string, idx: number) => {
         let className = "text-2xl font-mono tracking-wide px-1.5 rounded my-1 transition-colors ";
         if (idx < currentIndex) className += "text-slate-600";
@@ -181,7 +178,6 @@ export function Arena() {
             className="flex-1 flex flex-col items-center justify-center bg-[#0B0F19] relative overflow-hidden"
             onClick={() => inputRef.current?.focus()}
         >
-
             {/* Header / Stats */}
             <div className="absolute top-0 left-0 w-full p-6 flex justify-center gap-12 text-slate-500 font-mono text-sm uppercase tracking-widest select-none">
                 {isFinished ? (
@@ -203,7 +199,6 @@ export function Arena() {
                 )}
             </div>
 
-            {/* Hidden Input */}
             <input
                 ref={inputRef}
                 className="absolute opacity-0 pointer-events-none"
@@ -211,16 +206,9 @@ export function Arena() {
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                onBlur={() => {
-                    // Keep focus unless finished
-                    if (!isFinished) {
-                        // Small timeout to prevent fighting browser focus logic
-                        setTimeout(() => inputRef.current?.focus(), 10);
-                    }
-                }}
+                onBlur={() => { if (!isFinished) setTimeout(() => inputRef.current?.focus(), 10); }}
             />
 
-            {/* Word Display */}
             <div className="max-w-4xl w-full p-8 flex flex-wrap justify-center content-start gap-y-2 relative z-10 select-none cursor-text">
                 {isLoading ? (
                     <div className="text-slate-500 animate-pulse">Loading Corpus...</div>
@@ -234,6 +222,15 @@ export function Arena() {
 
                         <div className="flex gap-4 mt-4">
                             <Button onClick={generateWords} icon={<RotateCcw size={16} />}>Restart</Button>
+                            {/* NEW BUTTON */}
+                            <Button
+                                variant="secondary"
+                                onClick={handleGenerateProfile}
+                                isLoading={isGenerating}
+                                icon={<UserCheck size={16} />}
+                            >
+                                Generate Personal Profile
+                            </Button>
                         </div>
                         <p className="text-xs text-slate-600">Biometrics captured: {biometricsRef.current.length} samples</p>
                     </div>
@@ -242,7 +239,6 @@ export function Arena() {
                 )}
             </div>
 
-            {/* Controls */}
             {!isFinished && !isLoading && (
                 <div className="absolute bottom-8 flex gap-4 opacity-50 hover:opacity-100 transition-opacity">
                     <button onClick={generateWords} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 transition-colors" title="Restart Test">

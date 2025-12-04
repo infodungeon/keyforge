@@ -1,6 +1,14 @@
+// ===== keyforge/crates/keyforge-core/src/scorer/types.rs =====
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetricViolation {
+    pub keys: String, // e.g., "Q-A" or "T-H-E"
+    pub score: f32,   // The weighted penalty contribution
+    pub freq: f32,    // The raw frequency
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScoreDetails {
     // Top-line Scores
@@ -24,8 +32,6 @@ pub struct ScoreDetails {
     pub mech_sfb_bot: f32,
     pub mech_lat: f32,
     pub mech_scis: f32,
-
-    // NEW: Stretch Cost
     pub mech_mono_stretch: f32,
 
     // Flow (Weighted Costs & Bonuses)
@@ -49,11 +55,7 @@ pub struct ScoreDetails {
     pub total_trigrams: f32,
 
     pub stat_pinky_reach: f32,
-
-    // NEW: Stretch Frequency
     pub stat_mono_stretch: f32,
-
-    // SFR Stats
     pub stat_sfr: f32,
 
     // SFB Stats
@@ -81,4 +83,12 @@ pub struct ScoreDetails {
 
     pub stat_redir: f32,
     pub stat_skip: f32,
+
+    // === NEW: Detailed Lists ===
+    #[serde(default)]
+    pub top_sfbs: Vec<MetricViolation>,
+    #[serde(default)]
+    pub top_scissors: Vec<MetricViolation>,
+    #[serde(default)]
+    pub top_redirs: Vec<MetricViolation>,
 }

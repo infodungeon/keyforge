@@ -1,3 +1,4 @@
+// ===== keyforge/ui/src/views/SettingsView.tsx =====
 import { useKeyboard } from "../context/KeyboardContext";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
@@ -17,8 +18,12 @@ interface Props {
 }
 
 export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWorker }: Props) {
-    // FIXED: Added 'keyboards' back to destructuring
-    const { keyboards, corpora, selectedCorpus, selectCorpus, refreshData } = useKeyboard();
+    const {
+        keyboards, corpora, selectedCorpus, selectCorpus, refreshData,
+        // Now available via useKeyboard:
+        costMatrices, selectedCostMatrix, selectCostMatrix
+    } = useKeyboard();
+
     const { addToast } = useToast();
 
     const handleImportCorpus = async () => {
@@ -33,7 +38,6 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
             const name = prompt("Name this corpus (e.g. 'rust-code', 'novel'):");
             if (!name) return;
 
-            // Simple sanitization for filename
             const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
 
             await invoke("cmd_import_corpus", {
@@ -57,16 +61,17 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
 
                 {/* DATA SETTINGS */}
                 <Card>
-                    <h3 className="text-lg font-bold text-white mb-4">Data Source</h3>
-                    <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-white mb-4">Analysis Context</h3>
+                    <div className="space-y-6">
+                        {/* Corpus Selection */}
                         <div>
-                            <Label>Active Corpus</Label>
+                            <Label>N-Gram Corpus</Label>
                             <div className="flex gap-2">
                                 <div className="flex-1">
                                     <Select
                                         value={selectedCorpus}
                                         onChange={e => selectCorpus(e.target.value)}
-                                        options={corpora.map(c => ({ label: c, value: c }))}
+                                        options={corpora.map((c: string) => ({ label: c, value: c }))}
                                     />
                                 </div>
                                 <Button variant="secondary" onClick={handleImportCorpus} icon={<FileText size={14} />}>
@@ -74,7 +79,21 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                                 </Button>
                             </div>
                             <p className="text-[10px] text-slate-500 mt-1">
-                                Import text files (.txt, code) to train the optimizer on your specific vocabulary.
+                                Text source used to calculate character and bigram frequencies.
+                            </p>
+                        </div>
+
+                        {/* Cost Matrix Selection */}
+                        <div>
+                            <Label>Cost Matrix (Physics)</Label>
+                            <Select
+                                value={selectedCostMatrix}
+                                onChange={e => selectCostMatrix(e.target.value)}
+                                // FIXED: Explicit type annotation for 'c'
+                                options={costMatrices.map((c: string) => ({ label: c, value: c }))}
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">
+                                Determines how difficult specific key combinations are. Use 'personal_cost.csv' if you have run the Typing Arena.
                             </p>
                         </div>
                     </div>
@@ -126,8 +145,12 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                             <span className="font-mono text-white">{corpora.length}</span>
                         </div>
                         <div className="flex justify-between">
+                            <span>Matrices Loaded</span>
+                            <span className="font-mono text-white">{costMatrices.length}</span>
+                        </div>
+                        <div className="flex justify-between">
                             <span>Client Version</span>
-                            <span className="font-mono text-white">0.7.0 (Beta)</span>
+                            <span className="font-mono text-white">0.7.1</span>
                         </div>
                     </div>
                 </Card>

@@ -1,3 +1,4 @@
+// ===== keyforge/ui/src/context/SessionContext.tsx =====
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ValidationResult, ScoringWeights } from "../types";
@@ -28,8 +29,8 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
     const {
-        selectedKeyboard, selectedCorpus, libraryVersion,
-        availableLayouts, standardLayouts, weights
+        selectedKeyboard, selectedCorpus, selectedCostMatrix, // ADDED
+        libraryVersion, availableLayouts, standardLayouts, weights
     } = useLibrary();
 
     const { addToast } = useToast();
@@ -43,10 +44,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const [isValidating, setIsValidating] = useState(false);
     const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
-    // Track if dataset is ready to prevent validation calls on empty state
     const [isDatasetLoaded, setIsDatasetLoaded] = useState(false);
 
-    // --- Validation Logic ---
     const runValidation = useCallback(async (name: string, qmkStr: string, w: ScoringWeights | null) => {
         if (!qmkStr) return;
         setIsValidating(true);
@@ -60,24 +59,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    // --- Synchronization with Library ---
     useEffect(() => {
-        if (!selectedKeyboard || !selectedCorpus) return;
+        if (!selectedKeyboard || !selectedCorpus || !selectedCostMatrix) return;
 
         let mounted = true;
 
         const syncSession = async () => {
             setIsDatasetLoaded(false);
             try {
-                // 1. Tell backend to load the dataset
-                // This acquires a WRITE LOCK on the backend.
-                await invoke("cmd_load_dataset", { keyboardName: selectedKeyboard, corpusFilename: selectedCorpus });
+                // FIXED: Pass cost matrix filename
+                await invoke("cmd_load_dataset", {
+                    keyboardName: selectedKeyboard,
+                    corpusFilename: selectedCorpus,
+                    costFilename: selectedCostMatrix
+                });
 
                 if (!mounted) return;
                 setIsDatasetLoaded(true);
 
-                // 2. Determine initial layout state
-                // Prefer Qwerty as reference, otherwise first available
                 const preferred = "Qwerty";
                 const defName = availableLayouts[preferred] ? preferred : Object.keys(availableLayouts)[0] || "Custom";
                 const qmkStr = availableLayouts[defName] || "";
@@ -86,13 +85,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 setLayoutString(formatForDisplay(qmkStr));
                 setSelectedKeyIndex(null);
 
-                // 3. Validate Initial & Reference
                 if (qmkStr) {
                     if (availableLayouts["Qwerty"]) {
                         const ref = await invoke<ValidationResult>("cmd_validate_layout", { layoutStr: availableLayouts["Qwerty"], weights: null });
                         if (mounted) setReferenceResult(ref);
                     }
-                    // Validate Active
                     if (mounted) runValidation(defName, qmkStr, weights);
                 }
             } catch (e) {
@@ -104,24 +101,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         syncSession();
 
         return () => { mounted = false; };
-    }, [selectedKeyboard, selectedCorpus, libraryVersion, availableLayouts, weights]);
-
-    // --- Actions ---
+    }, [selectedKeyboard, selectedCorpus, selectedCostMatrix, libraryVersion, availableLayouts, weights]); // ADDED selectedCostMatrix dep
 
     const updateLayoutString = (val: string) => {
         if (!isDatasetLoaded) return;
-
-        if (standardLayouts.includes(layoutName)) {
-            setLayoutName("Custom");
-        }
+        if (standardLayouts.includes(layoutName)) setLayoutName("Custom");
         setLayoutString(val);
-
         runValidation(standardLayouts.includes(layoutName) ? "Custom" : layoutName, fromDisplayString(val), weights);
     };
 
     const loadLayoutPreset = (name: string) => {
         if (!isDatasetLoaded) return;
-
         setLayoutName(name);
         setSelectedKeyIndex(null);
         if (availableLayouts[name]) {

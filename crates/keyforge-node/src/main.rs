@@ -1,4 +1,6 @@
+// ===== keyforge/crates/keyforge-node/src/main.rs =====
 mod calibration;
+mod hw_detect; // FIXED: Added module declaration
 mod models;
 mod nice;
 mod worker;
@@ -39,21 +41,15 @@ fn main() {
 
     match cli.command {
         Commands::Calibrate => {
-            // Calibration runs in foreground, maximize threads
             nice::configure_global_thread_pool(false);
             calibration::run_calibration();
         }
         Commands::Work(args) => {
-            // 1. Configure System Priority
             if args.background {
                 nice::set_background_priority();
             }
 
-            // 2. Configure Rayon (CPU Compute) - Explicitly control pool size
-            // This MUST happen before any Rayon usage to take effect globally
             let physical_cores = num_cpus::get_physical();
-
-            // If background, leave 2 cores free. If foreground, leave 1 for OS/Network.
             let reserve = if args.background { 2 } else { 1 };
             let compute_threads = if physical_cores > reserve {
                 physical_cores - reserve
@@ -71,22 +67,18 @@ fn main() {
                 .build_global()
                 .expect("Failed to initialize global thread pool");
 
-            // 3. Configure Tokio (Network IO) - Explicitly limit to 2 threads
-            // We do not use #[tokio::main] to avoid it grabbing all cores by default
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
                 .enable_all()
                 .build()
                 .unwrap();
 
-            // 4. Generate Node ID
             let node_id = format!(
                 "node-{}-{}",
                 if args.background { "bg" } else { "fg" },
                 Uuid::new_v4().to_string().split('-').next().unwrap()
             );
 
-            // 5. Run Async Main
             rt.block_on(async {
                 worker::run_worker(args.hive, node_id).await;
             });

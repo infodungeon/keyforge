@@ -1,4 +1,6 @@
+// ===== keyforge/crates/keyforge-hive/src/routes/mod.rs =====
 pub mod jobs;
+pub mod nodes; // NEW: Declare the module
 pub mod results;
 pub mod submission;
 pub mod sync;
@@ -29,6 +31,8 @@ pub fn result_routes() -> Router<Arc<AppState>> {
         .route("/results", axum::routing::post(results::submit))
         .route(
             "/submissions",
-            axum::routing::post(submission::submit_layout).get(submission::list_submissions), // ADDED GET
+            axum::routing::post(submission::submit_layout).get(submission::list_submissions),
         )
+        // NEW: Wire up the node registration endpoint
+        .route("/nodes/register", axum::routing::post(nodes::register_node))
 }

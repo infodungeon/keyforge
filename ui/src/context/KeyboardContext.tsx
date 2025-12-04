@@ -1,7 +1,8 @@
+// ===== keyforge/ui/src/context/KeyboardContext.tsx =====
 import { ReactNode } from "react";
 import { fromDisplayString } from "../utils";
 import { LibraryProvider, useLibrary } from "./LibraryContext";
-import { SessionProvider, useSession } from "./SessionContext.tsx";
+import { SessionProvider, useSession } from "./SessionContext";
 
 // Export the Combined Provider
 export function KeyboardProvider({ children }: { children: ReactNode }) {
@@ -15,7 +16,6 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
 }
 
 // Export the Hook that merges both contexts
-// This keeps all existing components working without modification
 export const useKeyboard = () => {
     const lib = useLibrary();
     const sess = useSession();
@@ -38,12 +38,14 @@ export const useKeyboard = () => {
 
     const selectKeyboard = async (name: string) => {
         lib.selectKeyboard(name);
-        // Session automatically reacts via useEffect
     };
 
     const selectCorpus = async (name: string) => {
         lib.selectCorpus(name);
-        // Session automatically reacts via useEffect
+    };
+
+    const selectCostMatrix = async (name: string) => {
+        lib.selectCostMatrix(name);
     };
 
     return {
@@ -58,6 +60,12 @@ export const useKeyboard = () => {
         corpora: lib.corpora,
         selectedCorpus: lib.selectedCorpus,
         selectCorpus,
+
+        // ADDED: Cost Matrix State
+        costMatrices: lib.costMatrices,
+        selectedCostMatrix: lib.selectedCostMatrix,
+        selectCostMatrix,
+
         availableLayouts: lib.availableLayouts,
         standardLayouts: lib.standardLayouts,
 

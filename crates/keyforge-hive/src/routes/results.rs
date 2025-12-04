@@ -1,12 +1,13 @@
+// ===== keyforge/crates/keyforge-hive/src/routes/results.rs =====
+use crate::error::{AppError, AppResult};
 use crate::queue::DbEvent;
 use crate::state::AppState;
-use axum::{extract::State, http::StatusCode, Json};
-use keyforge_core::{
-    config::Config, layouts::layout_string_to_u16, optimizer::mutation, scorer::Scorer,
-};
+use axum::{extract::State, Json};
+use keyforge_core::config::Config;
+use keyforge_core::verifier::Verifier;
 use serde::Deserialize;
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Deserialize)]
 pub struct SubmitResultRequest {
@@ -19,66 +20,56 @@ pub struct SubmitResultRequest {
 pub async fn submit(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<SubmitResultRequest>,
-) -> Result<String, (StatusCode, String)> {
-    // 1. Fetch Job Configuration from Store
-    // We need the geometry and weights to reconstruct the scorer for verification.
-    let (geometry, weights, corpus_name) = state
+) -> AppResult<String> {
+    // 1. Fetch Job Config
+    // FIXED: Destructure 4 elements now
+    let (geometry, weights, corpus_name, cost_matrix) = state
         .store
         .get_job_config(&payload.job_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?
-        .ok_or((StatusCode::NOT_FOUND, "Job not found".to_string()))?;
+        .map_err(|e| AppError::Any(anyhow::anyhow!("DB Error: {}", e)))?
+        .ok_or(AppError::NotFound)?;
 
-    // 2. Resolve Data Files (Cost Matrix / Ngrams)
-    let (cost_path, ngram_path) = resolve_paths(&corpus_name).ok_or((
-        StatusCode::BAD_REQUEST,
-        format!("Unknown corpus: {}", corpus_name),
-    ))?;
+    // 2. Resolve Paths
+    // Note: We pass the cost_matrix filename explicitly now
+    let (cost_path, ngram_path) = resolve_paths(&corpus_name, &cost_matrix).ok_or(
+        AppError::Validation(format!("Unknown corpus: {}", corpus_name)),
+    )?;
 
-    // 3. Initialize Scorer (Verification)
+    // 3. Initialize Verifier
     let config = Config {
         weights,
         ..Default::default()
     };
-    let scorer = Scorer::new(&cost_path, &ngram_path, &geometry, config, false).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Scorer Init Failed: {}", e),
-        )
-    })?;
 
-    // 4. Validate Score
-    let key_count = geometry.keys.len();
+    let verifier = Verifier::new(
+        &cost_path,
+        &ngram_path,
+        &geometry,
+        config,
+        "data/keycodes.json",
+    )
+    .map_err(|e| AppError::Validation(format!("Verifier Init Failed: {}", e)))?;
 
-    // Convert the submitted string back to u16 codes using the server's registry
-    let layout_codes = layout_string_to_u16(&payload.layout, key_count, &state.registry);
+    // 4. Verify Score
+    let is_valid = verifier
+        .verify(payload.layout.clone(), payload.score, 5.0)
+        .map_err(|e| AppError::Validation(format!("Verification logic error: {}", e)))?;
 
-    // Build the position map (O(1) lookup)
-    let pos_map = mutation::build_pos_map(&layout_codes);
-
-    // Calculate the score locally
-    let details = scorer.score_details(&pos_map, 3000);
-
-    // Check for drift/cheating (Tolerance: 5.0 points)
-    if (details.layout_score - payload.score).abs() > 5.0 {
-        warn!(
-            "⚠️ Score mismatch for Job {}. Claimed: {:.2}, Calculated: {:.2}",
-            &payload.job_id[0..8],
-            payload.score,
-            details.layout_score
-        );
-        return Err((StatusCode::BAD_REQUEST, "Score verification failed".into()));
+    if !is_valid {
+        return Err(AppError::Validation(
+            "Score verification failed (drift detected)".to_string(),
+        ));
     }
 
-    // 5. Check for Record (for logging purposes only)
+    // 5. Check for Record
     let current_best = state
         .store
         .get_job_best_score(&payload.job_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        .map_err(|e| AppError::Any(anyhow::anyhow!("DB Error: {}", e)))?;
 
-    // 6. Persist Result via Async Queue
-    // This pushes to the memory channel to be batched by the background worker.
+    // 6. Persist
     state
         .queue
         .push(DbEvent::Result {
@@ -89,35 +80,36 @@ pub async fn submit(
         })
         .await;
 
-    // 7. Log Interaction
+    // 7. Log
     let is_record = current_best.is_none_or(|best| payload.score < best);
 
     if is_record {
         info!(
-            "🏆 NEW RECORD! Job: {} | Score: {:.0} | Node: {}",
+            "🏆 NEW RECORD! Job: {} | {:.0} | {}",
             &payload.job_id[0..8],
             payload.score,
             payload.node_id
         );
     } else {
         info!(
-            "📥 Contribution: Job: {} | Score: {:.0} | Node: {}",
+            "📥 Contribution: Job: {} | {:.0}",
             &payload.job_id[0..8],
-            payload.score,
-            payload.node_id
+            payload.score
         );
     }
 
     Ok("Accepted".to_string())
 }
 
-/// Resolves abstract corpus names to concrete file paths.
-fn resolve_paths(name: &str) -> Option<(String, String)> {
+// UPDATED: Accepts cost_matrix_name to construct path
+fn resolve_paths(name: &str, cost_matrix_name: &str) -> Option<(String, String)> {
+    // In a real system, we might sanitize/check existence here
+    // For now, we assume files exist in data/
+    let cost_path = format!("data/{}", cost_matrix_name);
+
     match name {
-        "default" | "test_corpus" => Some((
-            "data/cost_matrix.csv".to_string(),
-            "data/ngrams-all.tsv".to_string(),
-        )),
-        _ => None,
+        "default" | "test_corpus" => Some((cost_path, "data/ngrams-all.tsv".to_string())),
+        // If user uploads a custom corpus name, we assume it maps to data/{name}.tsv
+        other => Some((cost_path, format!("data/{}.tsv", other))),
     }
 }

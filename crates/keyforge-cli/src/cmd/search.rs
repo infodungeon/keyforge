@@ -1,3 +1,4 @@
+// ===== keyforge/crates/keyforge-cli/src/cmd/search.rs =====
 use crate::reports;
 use clap::Args;
 use keyforge_core::config::Config;
@@ -13,14 +14,18 @@ pub struct SearchArgs {
     #[command(flatten)]
     pub config: Config,
 
-    #[arg(short = 'T', long)]
+    #[arg(short = 'T', long, help = "Max duration to run (seconds)")]
     pub time: Option<u64>,
 
-    #[arg(short = 'a', long)]
+    #[arg(short = 'a', long, help = "Number of retry attempts")]
     pub attempts: Option<usize>,
 
-    #[arg(short = 'S', long)]
+    #[arg(short = 'S', long, help = "Random seed")]
     pub seed: Option<u64>,
+
+    // RE-ADDED: Pinned keys moved out of shared SearchParams, so we add it here for CLI
+    #[arg(long, default_value = "", help = "Pinned keys (e.g. '0:q,1:w')")]
+    pub pinned_keys: String,
 }
 
 struct CliLogger {
@@ -30,7 +35,6 @@ struct CliLogger {
 impl ProgressCallback for CliLogger {
     fn on_progress(&self, epoch: usize, score: f32, layout: &[u16], ips: f32) -> bool {
         // Create a short preview of the layout (first 10 keys)
-        // This uses both 'self.registry' and 'layout', resolving the warnings.
         let preview_len = layout.len().min(10);
         let preview: String = layout
             .iter()
@@ -50,11 +54,16 @@ impl ProgressCallback for CliLogger {
 }
 
 pub fn run(args: SearchArgs, scorer: Arc<Scorer>, registry: Arc<KeycodeRegistry>, _debug: bool) {
+    // 1. Construct Options from shared Config
     let mut options = OptimizationOptions::from(&args.config);
 
+    // 2. Apply CLI-specific overrides
     if let Some(t) = args.time {
         options.max_time = Some(Duration::from_secs(t));
     }
+
+    // Apply manually added pinned_keys
+    options.pinned_keys = args.pinned_keys;
 
     let optimizer = Optimizer::new(scorer, options);
     let attempts = args.attempts.unwrap_or(1);

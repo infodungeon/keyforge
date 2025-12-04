@@ -1,3 +1,5 @@
+// ===== keyforge/ui/src/types.ts =====
+
 export interface KeyNode {
   hand: number;
   finger: number;
@@ -6,7 +8,6 @@ export interface KeyNode {
   x: number;
   y: number;
   is_stretch?: boolean;
-  // NEW: Added for custom/full-size geometries
   w?: number;
   h?: number;
   id?: string;
@@ -29,6 +30,13 @@ export interface KeyboardDefinition {
   meta: KeyboardMeta;
   geometry: KeyboardGeometry;
   layouts: Record<string, string>;
+}
+
+// Detailed Violation Tracking
+export interface MetricViolation {
+  keys: string;
+  score: number;
+  freq: number;
 }
 
 export interface ScoreDetails {
@@ -90,6 +98,11 @@ export interface ScoreDetails {
   statRoll3Out: number;
   statRedir: number;
   statSkip: number;
+
+  // Detailed Lists for Deep Analysis
+  topSfbs: MetricViolation[];
+  topScissors: MetricViolation[];
+  topRedirs: MetricViolation[];
 }
 
 export interface ValidationResult {
@@ -97,6 +110,7 @@ export interface ValidationResult {
   score: ScoreDetails;
   geometry: KeyboardGeometry;
   heatmap: number[];
+  penaltyMap: number[]; // ADDED: Physics cost heatmap
 }
 
 export interface SearchParams {
@@ -146,4 +160,32 @@ export interface KeycodeDefinition {
   id: string;
   label: string;
   aliases: string[];
+}
+
+// Request Payload types to match Rust backend
+export interface RegisterJobRequest {
+  geometry: KeyboardGeometry;
+  weights: ScoringWeights;
+  params: SearchParams;
+  pinned_keys: string;
+  corpus_name: string;
+}
+
+export interface StartSearchRequest {
+  pinned_keys: string;
+  search_params: SearchParams;
+  weights: ScoringWeights;
+}
+
+// Biometrics
+export interface BiometricSample {
+  bigram: string;
+  ms: number;
+  timestamp: number;
+}
+
+export interface UserStatsStore {
+  sessions: number;
+  total_keystrokes: number;
+  biometrics: BiometricSample[];
 }

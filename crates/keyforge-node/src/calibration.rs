@@ -1,7 +1,7 @@
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::{Scorer, ScorerBuildParams}; // FIXED
+use keyforge_core::scorer::{Scorer, ScorerBuildParams};
 use std::io::Cursor;
 use std::time::{Duration, Instant};
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
@@ -10,11 +10,14 @@ use tracing::info;
 pub fn run_calibration() {
     info!("🔌 Initializing KeyForge Node Calibration...");
 
+    // FIXED: Use RefreshKind::new() instead of nothing()
     let mut sys =
-        System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
+        System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
 
     std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-    sys.refresh_cpu_all();
+
+    // FIXED: Use refresh_cpu() instead of refresh_cpu_all()
+    sys.refresh_cpu();
 
     let cpu_count = sys.cpus().len();
     let memory = sys.total_memory() / 1024 / 1024;
@@ -110,8 +113,6 @@ fn setup_benchmark_scorer() -> Scorer {
     let cursor = Cursor::new(ngram_data);
     let weights = ScoringWeights::default();
 
-    // FIXED: Use ScorerBuildParams for in-memory synthesis
-    // Cost matrix is empty for bench unless specifically testing user costs
     let cost_cursor = Cursor::new("From,To,Cost\n");
 
     ScorerBuildParams::from_readers(

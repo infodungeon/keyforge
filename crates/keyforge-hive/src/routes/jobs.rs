@@ -1,8 +1,10 @@
+// ===== keyforge/crates/keyforge-hive/src/routes/jobs.rs =====
 use axum::{
     extract::{Path, State},
     Json,
 };
 use keyforge_core::job::JobIdentifier;
+use keyforge_core::protocol::RegisterJobRequest;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration, Instant};
@@ -28,26 +30,22 @@ pub struct PopulationResponse {
     pub layouts: Vec<String>,
 }
 
-#[derive(serde::Deserialize, Serialize, Clone)]
-pub struct RegisterJobRequest {
-    pub geometry: keyforge_core::geometry::KeyboardGeometry,
-    pub weights: keyforge_core::config::ScoringWeights,
-    pub pinned_keys: String,
-    pub corpus_name: String,
-}
-
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterJobRequest>,
 ) -> AppResult<Json<RegisterJobResponse>> {
+    // Generate Deterministic ID based on ALL inputs
     let job_id = JobIdentifier::from_parts(
-        &payload.geometry,
+        &payload.definition.geometry, // Access geometry via definition
         &payload.weights,
+        &payload.params,
         &payload.pinned_keys,
         &payload.corpus_name,
+        &payload.cost_matrix,
     )
     .hash;
 
+    // Check Existence
     if state.store.job_exists(&job_id).await {
         return Ok(Json(RegisterJobResponse {
             job_id,
@@ -55,7 +53,7 @@ pub async fn register(
         }));
     }
 
-    // Convert string error to AppError via database error path
+    // Register via Stored Procedure
     state
         .store
         .register_job(&job_id, &payload)
@@ -73,6 +71,7 @@ pub async fn get_queue(State(state): State<Arc<AppState>>) -> AppResult<Json<Job
     let start = Instant::now();
     let timeout = Duration::from_secs(20);
 
+    // Long polling loop
     loop {
         let result = state
             .store
@@ -94,7 +93,6 @@ pub async fn get_queue(State(state): State<Arc<AppState>>) -> AppResult<Json<Job
             }));
         }
 
-        // Wait 1s before checking DB again
         sleep(Duration::from_secs(1)).await;
     }
 }

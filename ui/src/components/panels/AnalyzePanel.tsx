@@ -1,8 +1,9 @@
+// ===== keyforge/ui/src/components/panels/AnalyzePanel.tsx =====
 import { useState } from "react";
-import { ValidationResult } from "../../types";
+import { ValidationResult, MetricViolation } from "../../types";
 import { DerivedStats } from "../../utils";
 import { StatBox, FingerBar } from "../Charts";
-import { ChevronDown, ChevronRight, ArrowRightLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowRightLeft, AlertTriangle } from "lucide-react";
 
 interface Props {
     activeResult: ValidationResult | null;
@@ -12,6 +13,28 @@ interface Props {
     setShowDiff: (b: boolean) => void;
 }
 
+const ViolationTable = ({ title, items, color }: { title: string, items: MetricViolation[], color: string }) => {
+    if (!items || items.length === 0) return null;
+    return (
+        <div className="mb-4">
+            <h5 className={`text-[10px] font-bold uppercase mb-2 ${color} flex items-center gap-1`}>
+                <AlertTriangle size={10} /> {title}
+            </h5>
+            <div className="bg-slate-900/50 rounded border border-slate-800 text-[10px]">
+                {items.slice(0, 5).map((v, i) => (
+                    <div key={i} className="flex justify-between p-1.5 border-b border-slate-800/50 last:border-0">
+                        <span className="font-mono text-slate-300">{v.keys}</span>
+                        <div className="flex gap-3">
+                            <span className="text-slate-500">{v.freq.toFixed(0)}</span>
+                            <span className={`${color.replace("text-", "text-")}`}>{v.score.toFixed(0)}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export function AnalyzePanel({ activeResult, referenceResult, derivedStats, showDiff, setShowDiff }: Props) {
     const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -19,6 +42,7 @@ export function AnalyzePanel({ activeResult, referenceResult, derivedStats, show
 
     return (
         <div className="space-y-6">
+            {/* ... (Previous Score/Balance/Finger components unchanged) ... */}
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700 relative overflow-hidden group">
                 <div className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Total Score</div>
                 <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 font-mono">
@@ -62,6 +86,7 @@ export function AnalyzePanel({ activeResult, referenceResult, derivedStats, show
                 </div>
             </div>
 
+            {/* Metrics Grid */}
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase">Metrics</h4>
@@ -82,10 +107,17 @@ export function AnalyzePanel({ activeResult, referenceResult, derivedStats, show
                 </div>
 
                 {showAdvanced && (
-                    <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-800">
-                        <StatBox label="Rolls" val={activeResult.score.statRoll} total={activeResult.score.totalBigrams} showDiff={showDiff} color="text-green-400" invertGood={true} />
-                        <StatBox label="Redir" val={activeResult.score.statRedir} total={activeResult.score.totalTrigrams} showDiff={showDiff} color="text-blue-400" />
-                        <StatBox label="Skips" val={activeResult.score.statSkip} total={activeResult.score.totalTrigrams} showDiff={showDiff} color="text-indigo-400" />
+                    <div className="mt-4 pt-4 border-t border-slate-800 animate-in fade-in slide-in-from-top-2">
+                        {/* New Violation Tables */}
+                        <ViolationTable title="Top SFBs" items={activeResult.score.topSfbs} color="text-red-400" />
+                        <ViolationTable title="Top Scissors" items={activeResult.score.topScissors} color="text-yellow-400" />
+                        <ViolationTable title="Top Redirects" items={activeResult.score.topRedirs} color="text-blue-400" />
+
+                        <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-800">
+                            <StatBox label="Rolls" val={activeResult.score.statRoll} total={activeResult.score.totalBigrams} showDiff={showDiff} color="text-green-400" invertGood={true} />
+                            <StatBox label="Redir" val={activeResult.score.statRedir} total={activeResult.score.totalTrigrams} showDiff={showDiff} color="text-blue-400" />
+                            <StatBox label="Skips" val={activeResult.score.statSkip} total={activeResult.score.totalTrigrams} showDiff={showDiff} color="text-indigo-400" />
+                        </div>
                     </div>
                 )}
             </div>

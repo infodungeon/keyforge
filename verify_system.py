@@ -1,3 +1,4 @@
+# ===== keyforge/verify_system.py =====
 import subprocess
 import time
 import requests
@@ -83,10 +84,18 @@ def main():
             "finger_penalty_scale": "1,1,1,1,1", "comfortable_scissors": "",
             "loader_trigram_limit": 100
         }
+
+        # ADDED: Params object required by new schema
+        params = {
+            "search_epochs": 100, "search_steps": 100, "search_patience": 10,
+            "search_patience_threshold": 0.1, "temp_min": 0.1, "temp_max": 100.0,
+            "opt_limit_fast": 100, "opt_limit_slow": 100
+        }
         
         payload = {
             "geometry": geo,
             "weights": weights,
+            "params": params, # Include new field
             "pinned_keys": "",
             "corpus_name": "default"
         }
@@ -101,14 +110,12 @@ def main():
 
         # 4. Start Worker Node
         log("🤖 Starting Worker Node...")
-        # Capture STDOUT to debug logic flow
         node_proc = subprocess.Popen(
             [node_bin, "work", "--hive", HIVE_URL],
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )
         
-        # Increased timeout to 45s to account for data loading
         log("⏳ Waiting for optimization results (Max 45s)...")
         
         found = False
@@ -123,7 +130,6 @@ def main():
                 pass
             time.sleep(1)
         
-        # Kill and capture output
         node_proc.kill()
         out, err = node_proc.communicate()
         
@@ -131,11 +137,10 @@ def main():
             log(f"✅ Optimization Loop Working! Found layouts.")
         else:
             log("❌ No layouts produced by worker.")
-            print("\n--- WORKER STDOUT (Logic Logs) ---")
+            print("\n--- WORKER STDOUT ---")
             print(out.decode(errors='replace'))
-            print("\n--- WORKER STDERR (Crash Logs) ---")
+            print("\n--- WORKER STDERR ---")
             print(err.decode(errors='replace'))
-            print("----------------------------------")
             sys.exit(1)
 
     finally:

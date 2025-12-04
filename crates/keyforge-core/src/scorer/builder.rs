@@ -1,3 +1,4 @@
+// ===== keyforge/crates/keyforge-core/src/scorer/builder.rs =====
 use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::error::{KeyForgeError, KfResult};
 use crate::geometry::KeyboardGeometry;
@@ -22,8 +23,6 @@ pub struct ScorerBuildParams {
 }
 
 impl ScorerBuildParams {
-    /// Helper to load data from readers before building params.
-    /// This abstracts the IO logic from the construction logic.
     pub fn from_readers<R1: Read, R2: Read>(
         cost_reader: R1,
         ngram_reader: R2,
@@ -33,10 +32,8 @@ impl ScorerBuildParams {
         debug: bool,
     ) -> KfResult<Scorer> {
         let cost_data = load_cost_matrix(cost_reader, debug)?;
-
         let final_weights = weights.unwrap_or_default();
 
-        // Expanded valid set to include punctuation common in code/prose
         let valid_set: HashSet<u8> = b"abcdefghijklmnopqrstuvwxyz.,/;'[]-!?:\"()"
             .iter()
             .cloned()
@@ -54,16 +51,15 @@ impl ScorerBuildParams {
             warn!("⚠️ Warning: 0 bigrams loaded. Check corpus format.");
         }
 
-        let params = ScorerBuildParams::builder()
+        ScorerBuildParams::builder()
             .weights(final_weights)
             .defs(defs.unwrap_or_default())
             .geometry(geometry)
             .cost_data(cost_data)
             .ngram_data(ngram_data)
             .debug(debug)
-            .build();
-
-        params.build_scorer()
+            .build()
+            .build_scorer()
     }
 
     pub fn build_scorer(self) -> KfResult<Scorer> {
@@ -83,7 +79,6 @@ impl ScorerBuildParams {
             return Err(KeyForgeError::Validation("Geometry has 0 keys".to_string()));
         }
 
-        // --- Build Tier Matrix ---
         let tier_penalty_matrix = [
             [
                 0.0,
@@ -102,7 +97,6 @@ impl ScorerBuildParams {
             ],
         ];
 
-        // --- Build User Cost Matrix ---
         let mut raw_user_matrix = vec![0.0; key_count * key_count];
         let mut key_id_map: HashMap<String, usize> = HashMap::new();
         for (idx, k) in geometry.keys.iter().enumerate() {
@@ -119,7 +113,6 @@ impl ScorerBuildParams {
             }
         }
 
-        // Fill defaults for missing user costs
         for r in 0..key_count {
             for c in 0..key_count {
                 if r != c && raw_user_matrix[r * key_count + c] == 0.0 {
@@ -130,7 +123,6 @@ impl ScorerBuildParams {
 
         let mut full_cost_matrix = raw_user_matrix.clone();
 
-        // --- Physics Calculation ---
         for i in 0..key_count {
             for j in 0..key_count {
                 if i == j {
@@ -156,26 +148,22 @@ impl ScorerBuildParams {
             }
         }
 
-        // --- N-Gram Processing & Optimization ---
         let mut bigram_starts = vec![0; 257];
         let mut bigrams_others = Vec::new();
         let mut bigrams_freqs = Vec::new();
         let mut bigrams_self_first = Vec::new();
         let mut b_buckets: Vec<Vec<(u8, f32, bool)>> = vec![Vec::new(); 256];
         let mut freq_matrix = vec![0.0; 256 * 256];
-
         let mut active_chars_set: HashSet<usize> = HashSet::new();
 
         for (b1, b2, freq) in raw_ngrams.bigrams {
             b_buckets[b1 as usize].push((b2, freq, true));
             b_buckets[b2 as usize].push((b1, freq, false));
             freq_matrix[(b1 as usize) * 256 + (b2 as usize)] = freq;
-
             active_chars_set.insert(b1 as usize);
             active_chars_set.insert(b2 as usize);
         }
 
-        // Also check monograms
         for (i, &f) in raw_ngrams.char_freqs.iter().enumerate() {
             if f > 0.0 {
                 active_chars_set.insert(i);
@@ -197,7 +185,6 @@ impl ScorerBuildParams {
         }
         bigram_starts[256] = offset;
 
-        // --- Trigram Processing ---
         use crate::scorer::loader::TrigramRef;
         let mut t_buckets: Vec<Vec<TrigramRef>> = vec![Vec::new(); 256];
         for (b1, b2, b3, freq) in raw_ngrams.trigrams {
@@ -233,7 +220,6 @@ impl ScorerBuildParams {
         }
         trigram_starts[256] = t_offset;
 
-        // --- Trigram Cost Table ---
         let table_size = key_count * key_count * key_count;
         let mut trigram_cost_table = vec![0.0; table_size];
 
@@ -244,7 +230,6 @@ impl ScorerBuildParams {
                     let ki = &geometry.keys[i];
                     let kj = &geometry.keys[j];
                     let kk = &geometry.keys[k];
-
                     let flow = crate::scorer::flow::analyze_flow(ki, kj, kk);
                     if flow.is_3_hand_run {
                         trigram_cost_table[idx] += weights.penalty_hand_run;
@@ -262,7 +247,6 @@ impl ScorerBuildParams {
             }
         }
 
-        // --- Static Maps ---
         let mut char_tier_map = [2u8; 256];
         for b in defs.tier_high_chars.bytes() {
             char_tier_map[b as usize] = 0;
@@ -313,7 +297,7 @@ impl ScorerBuildParams {
             *cost = reach_cost + effort_cost + stretch_cost;
         }
 
-        // --- Stability Checks ---
+        // --- SAFETY & STABILITY CHECKS ---
         for (i, &val) in full_cost_matrix.iter().enumerate() {
             if !val.is_finite() {
                 return Err(KeyForgeError::Validation(format!(
@@ -329,6 +313,25 @@ impl ScorerBuildParams {
                     i
                 )));
             }
+        }
+
+        if full_cost_matrix.len() != key_count * key_count {
+            return Err(KeyForgeError::Validation(
+                "Cost matrix size mismatch".into(),
+            ));
+        }
+        if trigram_cost_table.len() != key_count * key_count * key_count {
+            return Err(KeyForgeError::Validation(
+                "Trigram table size mismatch".into(),
+            ));
+        }
+        if slot_monogram_costs.len() != key_count {
+            return Err(KeyForgeError::Validation(
+                "Monogram costs size mismatch".into(),
+            ));
+        }
+        if slot_tier_map.len() != key_count {
+            return Err(KeyForgeError::Validation("Tier map size mismatch".into()));
         }
 
         if debug {
@@ -365,7 +368,7 @@ impl ScorerBuildParams {
     }
 }
 
-// Convenience wrapper for legacy/simple usage
+// RESTORED: This implementation block was missing in the previous step
 impl Scorer {
     pub fn new(
         cost_path: &str,
@@ -374,8 +377,8 @@ impl Scorer {
         config: crate::config::Config,
         debug: bool,
     ) -> KfResult<Self> {
-        let cost_file = std::fs::File::open(cost_path)?;
-        let ngrams_file = std::fs::File::open(ngrams_path)?;
+        let cost_file = std::fs::File::open(cost_path).map_err(KeyForgeError::Io)?;
+        let ngrams_file = std::fs::File::open(ngrams_path).map_err(KeyForgeError::Io)?;
 
         ScorerBuildParams::from_readers(
             cost_file,

@@ -1,6 +1,6 @@
-use crate::models::{BiometricSample, UserStatsStore};
-use crate::utils::get_data_dir;
-use fastrand;
+// ===== keyforge/ui/src-tauri/src/commands/arena.rs =====
+use crate::utils::{atomic_write, get_data_dir};
+use keyforge_core::biometrics::{generate_cost_matrix_from_stats, BiometricSample, UserStatsStore};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
@@ -48,7 +48,6 @@ pub fn cmd_save_biometrics(
     let data_dir = get_data_dir(&app)?;
     let stats_path = data_dir.join("user_stats.json");
 
-    // 1. Load existing stats or create new
     let mut store = if stats_path.exists() {
         let content = fs::read_to_string(&stats_path).map_err(|e| e.to_string())?;
         serde_json::from_str::<UserStatsStore>(&content).unwrap_or_default()
@@ -56,7 +55,6 @@ pub fn cmd_save_biometrics(
         UserStatsStore::default()
     };
 
-    // 2. Append new data
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -65,8 +63,6 @@ pub fn cmd_save_biometrics(
     store.sessions += 1;
     store.total_keystrokes += samples.len() as u64;
 
-    // Add timestamp to samples if missing (though UI sends it, we enforce current time for batch)
-    // Actually, we trust the incoming samples but ensure they are valid.
     for mut s in samples {
         if s.timestamp == 0 {
             s.timestamp = now;
@@ -74,17 +70,44 @@ pub fn cmd_save_biometrics(
         store.biometrics.push(s);
     }
 
-    // 3. Prune if too large?
-    // For now, we keep all data. JSON handles ~100k entries fine (approx 5MB).
-    // Future optimization: Rotate files or compress.
-
-    // 4. Save
     let json = serde_json::to_string_pretty(&store).map_err(|e| e.to_string())?;
-    fs::write(stats_path, json).map_err(|e| e.to_string())?;
+
+    // Use atomic write from utils
+    atomic_write(&stats_path, json).map_err(|e| e.to_string())?;
 
     Ok(format!(
         "Saved {} samples. Total: {}",
         store.total_keystrokes,
+        store.biometrics.len()
+    ))
+}
+
+#[tauri::command]
+pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
+    let data_dir = get_data_dir(&app)?;
+    let stats_path = data_dir.join("user_stats.json");
+    let output_path = data_dir.join("personal_cost.csv");
+
+    if !stats_path.exists() {
+        return Err("No user statistics found. Run the Typing Arena first.".into());
+    }
+
+    // 1. Load Stats
+    let content = fs::read_to_string(&stats_path).map_err(|e| e.to_string())?;
+    let store: UserStatsStore = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    if store.biometrics.len() < 50 {
+        return Err("Not enough data to generate a profile (need > 50 samples)".into());
+    }
+
+    // 2. Generate CSV
+    let csv_content = generate_cost_matrix_from_stats(&store);
+
+    // 3. Save
+    atomic_write(&output_path, csv_content).map_err(|e| e.to_string())?;
+
+    Ok(format!(
+        "Profile generated! 'personal_cost.csv' created from {} samples.",
         store.biometrics.len()
     ))
 }

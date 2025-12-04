@@ -10,7 +10,6 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 
-// Module Declarations
 mod db;
 mod error;
 mod queue;
@@ -25,7 +24,11 @@ struct Args {
     #[arg(long, short, default_value = "data")]
     data: PathBuf,
 
-    #[arg(long, default_value = "sqlite://hive.db")]
+    // FIXED: Updated default to match docker-compose
+    #[arg(
+        long,
+        default_value = "postgres://keyforge:forge_password@localhost:5432/keyforge_hive"
+    )]
     db: String,
 
     #[arg(long, default_value_t = 3000)]
@@ -39,9 +42,10 @@ async fn main() {
 
     info!("🐝 KeyForge Hive is initializing...");
 
+    // This now returns PgPool
     let pool = db::init_db(&args.db).await;
 
-    // Collapsed Path Resolution strategy
+    // ... (rest of path resolution logic remains the same) ...
     let data_path = if args.data.exists() {
         args.data
     } else if Path::new("../data").exists() {
@@ -66,10 +70,9 @@ async fn main() {
         KeycodeRegistry::new_with_defaults()
     };
 
+    // AppState now accepts PgPool
     let state = Arc::new(AppState::new(pool, registry));
 
-    // --- SECURITY HARDENING ---
-    // 1. CORS: Allow Any Origin (Distributed Nodes), but restrict Methods
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST])

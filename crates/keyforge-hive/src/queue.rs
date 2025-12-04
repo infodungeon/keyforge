@@ -1,5 +1,6 @@
+// ===== keyforge/crates/keyforge-hive/src/queue.rs =====
 use crate::store::Store;
-use sqlx::{QueryBuilder, Sqlite};
+use sqlx::{Postgres, QueryBuilder}; // FIXED: Postgres
 use tokio::sync::{mpsc, oneshot};
 use tracing::{error, info};
 
@@ -53,7 +54,7 @@ impl WriteQueue {
 
                 if !batch.is_empty() {
                     if let Err(e) = flush_batch(&store, &batch).await {
-                        error!("❌ Failed to flush batch of {} records: {}", batch.len(), e);
+                        error!("❌ Failed to flush batch: {}", e);
                     } else if batch.len() > 10 {
                         info!("💾 Flushed {} records to DB", batch.len());
                     }
@@ -64,7 +65,6 @@ impl WriteQueue {
                 }
             }
 
-            // Final flush
             if !batch.is_empty() {
                 info!("🛑 Shutdown: Flushing final {} records...", batch.len());
                 let _ = flush_batch(&store, &batch).await;
@@ -93,7 +93,6 @@ impl WriteQueue {
 }
 
 async fn flush_batch(store: &Store, batch: &[DbEvent]) -> Result<(), String> {
-    // Filter out only Result events to construct query
     let results: Vec<_> = batch
         .iter()
         .filter_map(|e| {
@@ -115,20 +114,22 @@ async fn flush_batch(store: &Store, batch: &[DbEvent]) -> Result<(), String> {
         return Ok(());
     }
 
-    // Use QueryBuilder for high-performance batch insert
-    // SQLite syntax: INSERT INTO table (c1, c2) VALUES (v1, v2), (v3, v4)...
-    let mut query_builder: QueryBuilder<Sqlite> =
+    // FIXED: Use QueryBuilder<Postgres>
+    let mut query_builder: QueryBuilder<Postgres> =
         QueryBuilder::new("INSERT INTO results (job_id, layout, score, node_id) ");
 
     query_builder.push_values(results, |mut b, (job_id, layout, score, node_id)| {
         b.push_bind(job_id)
             .push_bind(layout)
-            .push_bind(score)
+            .push_bind(*score as f64) // Postgres uses f64 for floats usually
             .push_bind(node_id);
     });
 
     let query = query_builder.build();
-    query.execute(&store.db).await.map_err(|e| e.to_string())?;
+    query
+        .execute(&store.db)
+        .await
+        .map_err(|e| format!("Batch Insert Error: {}", e))?;
 
     Ok(())
 }

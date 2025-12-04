@@ -1,3 +1,4 @@
+// ===== keyforge/ui/src/context/LibraryContext.tsx =====
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoringWeights, SearchParams, KeycodeDefinition } from "../types";
@@ -17,6 +18,11 @@ interface LibraryContextType {
     corpora: string[];
     selectedCorpus: string;
     selectCorpus: (filename: string) => void;
+
+    // ADDED: Cost Matrices
+    costMatrices: string[];
+    selectedCostMatrix: string;
+    selectCostMatrix: (filename: string) => void;
 
     availableLayouts: Record<string, string>;
     standardLayouts: string[];
@@ -43,6 +49,10 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const [corpora, setCorpora] = useState<string[]>([]);
     const [selectedCorpus, setSelectedCorpus] = useState(() => localStorage.getItem("last_corpus") || "ngrams-all.tsv");
 
+    // ADDED: Cost Matrices State
+    const [costMatrices, setCostMatrices] = useState<string[]>([]);
+    const [selectedCostMatrix, setSelectedCostMatrix] = useState(() => localStorage.getItem("last_cost") || "cost_matrix.csv");
+
     const [availableLayouts, setAvailableLayouts] = useState<Record<string, string>>({});
     const [standardLayouts, setStandardLayouts] = useState<string[]>([]);
 
@@ -50,30 +60,27 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
     const refreshLibrary = useCallback(async () => {
         try {
-            const [kbs, corps] = await Promise.all([
+            const [kbs, corps, costs] = await Promise.all([
                 invoke<string[]>("cmd_list_keyboards"),
-                invoke<string[]>("cmd_list_corpora")
+                invoke<string[]>("cmd_list_corpora"),
+                invoke<string[]>("cmd_list_cost_matrices") // Fetch cost matrices
             ]);
 
             setKeyboards(kbs);
             setCorpora(corps);
+            setCostMatrices(costs);
 
-            // Auto-select valid defaults if current selection is invalid
-            if (kbs.length > 0 && !kbs.includes(selectedKeyboard)) {
-                console.warn(`Selected keyboard '${selectedKeyboard}' not found. Defaulting to '${kbs[0]}'`);
-                setSelectedKeyboard(kbs[0]);
-            }
-            if (corps.length > 0 && !corps.includes(selectedCorpus)) {
-                console.warn(`Selected corpus '${selectedCorpus}' not found. Defaulting to '${corps[0]}'`);
-                setSelectedCorpus(corps[0]);
-            }
+            // Auto-select valid defaults
+            if (kbs.length > 0 && !kbs.includes(selectedKeyboard)) setSelectedKeyboard(kbs[0]);
+            if (corps.length > 0 && !corps.includes(selectedCorpus)) setSelectedCorpus(corps[0]);
+            if (costs.length > 0 && !costs.includes(selectedCostMatrix)) setSelectedCostMatrix(costs[0]);
 
             setLibraryVersion(v => v + 1);
         } catch (e) {
             console.error("Library Refresh Error:", e);
-            addToast('error', "Failed to load library data. Check logs.");
+            addToast('error', "Failed to load library data.");
         }
-    }, [selectedKeyboard, selectedCorpus, addToast]);
+    }, [selectedKeyboard, selectedCorpus, selectedCostMatrix, addToast]);
 
     // Initial Load
     useEffect(() => {
@@ -89,24 +96,18 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
                 await refreshLibrary();
             } catch (e) {
                 console.error("Library Init Error:", e);
-                addToast('error', "Failed to initialize backend configuration.");
             }
         };
         init();
-    }, [refreshLibrary, addToast]);
+    }, [refreshLibrary]);
 
-    // Load Keyboard Data when selection changes
     useEffect(() => {
         if (!selectedKeyboard) return;
         const loadKb = async () => {
             try {
                 const all = await invoke<Record<string, string>>("cmd_get_all_layouts_scoped", { keyboardId: selectedKeyboard });
-
                 setAvailableLayouts(all);
-
-                // Identify standard layouts
                 setStandardLayouts(Object.keys(all).filter(k => k !== "Custom"));
-
             } catch (e) {
                 console.error("Keyboard Load Error:", e);
             }
@@ -117,7 +118,6 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const selectKeyboard = (name: string) => {
         setSelectedKeyboard(name);
         localStorage.setItem("last_keyboard", name);
-        // Force refresh to ensure layouts update
         setLibraryVersion(v => v + 1);
     };
 
@@ -127,11 +127,16 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setLibraryVersion(v => v + 1);
     };
 
+    const selectCostMatrix = (filename: string) => {
+        setSelectedCostMatrix(filename);
+        localStorage.setItem("last_cost", filename);
+        setLibraryVersion(v => v + 1);
+    };
+
     const saveUserLayout = async (name: string, layout: string) => {
         try {
             await invoke("cmd_save_user_layout", { keyboardId: selectedKeyboard, name, layout });
             addToast('success', `Layout '${name}' saved.`);
-            // Refresh local cache
             const all = await invoke<Record<string, string>>("cmd_get_all_layouts_scoped", { keyboardId: selectedKeyboard });
             setAvailableLayouts(all);
         } catch (e) {
@@ -155,6 +160,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
             weights, searchParams, setWeights, setSearchParams,
             keyboards, selectedKeyboard, selectKeyboard,
             corpora, selectedCorpus, selectCorpus,
+            costMatrices, selectedCostMatrix, selectCostMatrix, // ADDED
             availableLayouts, standardLayouts,
             refreshLibrary, saveUserLayout, deleteUserLayout,
             libraryVersion

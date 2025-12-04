@@ -1,3 +1,4 @@
+// ===== keyforge/crates/keyforge-core/src/optimizer/replica/anneal.rs =====
 use super::Replica;
 use crate::consts::ANNEAL_TEMP_SCALE;
 use crate::core_types::KeyCode;
@@ -48,7 +49,6 @@ impl Replica {
         }
 
         let chars_original: Vec<KeyCode> = indices.iter().map(|&i| self.layout[i]).collect();
-
         let mut best_score = self.score;
         let mut best_perm_indices = (0..n_keys).collect::<Vec<_>>();
         let mut found_better = false;
@@ -61,11 +61,8 @@ impl Replica {
                     self.pos_map[char_val as usize] = target_slot as u8;
                 }
             }
-
             let (raw_score, left, _) = self.scorer.score_full(&self.pos_map, self.current_limit);
             let total = raw_score + self.imbalance_penalty(left);
-
-            // STABILITY CHECK: Ignore NaNs
             if total.is_finite() && total < best_score {
                 best_score = total;
                 best_perm_indices = perm_indices.clone();
@@ -91,12 +88,17 @@ impl Replica {
         }
 
         if found_better {
+            // Full recalc on LNS success (implicitly corrects drift)
             let (_, left, _) = self.scorer.score_full(&self.pos_map, self.current_limit);
             self.left_load = left;
             self.score = best_score;
+
+            // Rebuild compact map
+            for (i, &p) in self.pos_map.iter().take(256).enumerate() {
+                self.compact_map[i] = p;
+            }
             return true;
         }
-
         false
     }
 
@@ -122,6 +124,21 @@ impl Replica {
                 self.update_mutation_weights();
             }
 
+            // === DRIFT CHECK (NEW) ===
+            // Every 5000 steps, force a full recalculation to correct floating point drift
+            if step > 0 && step % 5000 == 0 {
+                let (real_base, real_left, _) =
+                    self.scorer.score_full(&self.pos_map, self.current_limit);
+                let real_total = real_base + self.imbalance_penalty(real_left);
+
+                // If drift is significant (> 0.01), snap to reality
+                // This is not a bug in logic, but a reality of f32 accumulation over millions of adds/subs
+                if (self.score - real_total).abs() > 0.01 {
+                    self.score = real_total;
+                    self.left_load = real_left;
+                }
+            }
+
             if self.temperature < 5.0 && self.rng.f32() < 0.002 {
                 if self.try_lns_move(4) {
                     accepted += 1;
@@ -144,12 +161,7 @@ impl Replica {
 
             let (delta_base, delta_load) = self.calc_delta(idx_a, idx_b, self.current_limit);
 
-            // STABILITY CHECK: Immediate abort on bad math
-            if !delta_base.is_finite() || !delta_load.is_finite() {
-                continue;
-            }
-
-            if delta_base == f32::INFINITY {
+            if !delta_base.is_finite() || !delta_load.is_finite() || delta_base == f32::INFINITY {
                 continue;
             }
 
@@ -161,7 +173,6 @@ impl Replica {
 
             let total_delta = new_total - self.score;
 
-            // STABILITY CHECK: Protect against total_delta becoming NaN
             if !total_delta.is_finite() {
                 continue;
             }
@@ -171,7 +182,6 @@ impl Replica {
                 let char_a = self.layout[idx_a];
                 let char_b = self.layout[idx_b];
 
-                // Update BOTH maps
                 if char_a != 0 {
                     self.pos_map[char_a as usize] = idx_a as u8;
                     if char_a < 256 {

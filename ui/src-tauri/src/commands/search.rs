@@ -1,3 +1,4 @@
+// ===== keyforge/ui/src-tauri/src/commands/search.rs =====
 use crate::models::{
     JobStatusUpdate, PopulationResponse, RegisterJobRequest, RegisterJobResponse,
     StartSearchRequest,
@@ -20,7 +21,7 @@ pub async fn cmd_dispatch_job(
 ) -> Result<String, String> {
     let client = Client::new();
     {
-        // FIXED: .lock() -> .read()
+        // Acquire read lock on sessions to ensure we have a valid session
         let sessions = state.sessions.read().map_err(|e| e.to_string())?;
         if sessions.get("primary").is_none() {
             return Err("No local geometry loaded to validate against".into());
@@ -59,8 +60,8 @@ pub async fn cmd_poll_hive_status(
 
     if let Some(best) = pop.layouts.first() {
         Ok(JobStatusUpdate {
-            active_nodes: 0,
-            best_score: 0.0,
+            active_nodes: 0, // In a real implementation, we'd poll a different endpoint for active node count
+            best_score: 0.0, // Score is usually embedded in the layout list or separate metadata, simplified here
             best_layout: best.clone(),
         })
     } else {
@@ -115,11 +116,11 @@ pub async fn cmd_start_search(
 ) -> Result<String, String> {
     // 1. Prepare Environment (Scorer & Registry)
     let (scorer_arc, registry_arc) = {
-        // FIXED: .lock() -> .read()
         let sessions = state.sessions.read().map_err(|e| e.to_string())?;
 
         let session = sessions.get("primary").ok_or("Session not loaded")?;
 
+        // Clone scorer to apply new weights for this run
         let mut scorer = session.scorer.clone();
         scorer.weights = request.weights;
 
@@ -127,14 +128,19 @@ pub async fn cmd_start_search(
     };
 
     // 2. Configure Optimizer
-    let mut search_params = request.search_params;
-    search_params.pinned_keys = request.pinned_keys;
+    let search_params = request.search_params;
 
+    // Create a temporary config to utilize From implementation
     let config = Config {
         search: search_params,
         ..Default::default()
     };
-    let options = OptimizationOptions::from(&config);
+
+    let mut options = OptimizationOptions::from(&config);
+
+    // FIX: Set pinned keys explicitly on options, not via SearchParams
+    options.pinned_keys = request.pinned_keys;
+
     let optimizer = Optimizer::new(scorer_arc, options);
 
     // 3. Reset Stop Flag
@@ -147,7 +153,7 @@ pub async fn cmd_start_search(
 
     tracing::info!("Starting Deep Optimization...");
 
-    // 4. Run Optimization (Blocking)
+    // 4. Run Optimization (Blocking inside async runtime)
     let result = tauri::async_runtime::spawn_blocking(move || optimizer.run(None, bridge))
         .await
         .map_err(|e| e.to_string())?;

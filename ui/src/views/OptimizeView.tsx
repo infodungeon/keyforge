@@ -1,3 +1,4 @@
+// ===== keyforge/ui/src/views/OptimizeView.tsx =====
 import { useKeyboard } from "../context/KeyboardContext";
 import { Inspector } from "../components/Inspector";
 import { KeyboardMap } from "../components/KeyboardMap";
@@ -13,8 +14,8 @@ interface Props {
     toggleWorker: (b: boolean) => void;
     pinnedKeys: string;
     setPinnedKeys: (s: string) => void;
-    onDispatch: () => void;
-    onStopJob: () => void;
+    onDispatch: () => void; // Hive Dispatch
+    onStopJob: () => void;  // Hive Stop
 }
 
 export function OptimizeView({

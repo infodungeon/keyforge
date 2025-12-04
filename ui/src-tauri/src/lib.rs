@@ -1,3 +1,4 @@
+// ===== keyforge/ui/src-tauri/src/lib.rs =====
 use keyforge_core::api::KeyForgeState;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
@@ -46,6 +47,7 @@ pub fn run() {
             commands::library::cmd_save_keyboard,
             // Analysis (Scoring & Datasets)
             commands::analysis::cmd_list_corpora,
+            commands::analysis::cmd_list_cost_matrices, // ADDED
             commands::analysis::cmd_import_corpus,
             commands::analysis::cmd_load_dataset,
             commands::analysis::cmd_validate_layout,
@@ -57,12 +59,13 @@ pub fn run() {
             commands::search::cmd_stop_search,
             // Sync
             commands::sync::cmd_sync_data,
-            // Arena (Typing Test)
+            // Arena (Typing Test & Biometrics)
             commands::arena::cmd_get_typing_words,
-            commands::arena::cmd_save_biometrics
+            commands::arena::cmd_save_biometrics,
+            commands::arena::cmd_generate_personal_profile // ADDED
         ])
         .on_window_event(|window, event| {
-            // Cleanup child processes on exit
+            // Cleanup child processes (Local Worker) on window exit
             if let tauri::WindowEvent::Destroyed = event {
                 let maybe_child = {
                     let state = window.state::<LocalWorkerState>();

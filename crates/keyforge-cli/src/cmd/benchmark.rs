@@ -1,3 +1,4 @@
+// ===== keyforge/crates/keyforge-cli/src/cmd/benchmark.rs =====
 use clap::Args;
 use keyforge_core::config::Config;
 use keyforge_core::optimizer::Replica;
@@ -16,20 +17,22 @@ pub struct BenchmarkArgs {
     pub iterations: usize,
 }
 
-pub fn run(_args: BenchmarkArgs, scorer: Arc<Scorer>) {
+pub fn run(args: BenchmarkArgs, scorer: Arc<Scorer>) {
     info!("🏎️  Starting 2-Minute Bench Race...");
     info!("    Target: 60s Warmup + 60s Measurement");
     info!("    Engine: Quantized Replica (L2 Cache Optimized)");
 
     // 1. Initialize a Replica
-    // This triggers the quantization (f32 -> i16) and allocates the compact vectors
+    // Use params from the shared config object
+    let params = args.config.search;
+
     let mut replica = Replica::new(
         scorer.clone(),
         100.0,    // Temperature
         Some(42), // Seed
-        100,      // Fast limit
-        100,      // Slow limit
-        "",       // No pins
+        params.opt_limit_fast,
+        params.opt_limit_slow,
+        "", // No pins for benchmark
     );
 
     // Batch size for the loop (amortize time checking overhead)

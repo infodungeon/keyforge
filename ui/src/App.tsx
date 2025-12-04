@@ -1,10 +1,11 @@
+// ===== keyforge/ui/src/App.tsx =====
 import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { AppMode, JobStatusUpdate } from "./types";
+import { AppMode, JobStatusUpdate, RegisterJobRequest } from "./types";
 import { NavRail } from "./components/NavRail";
 import { StatusBar } from "./components/StatusBar";
 import { KeyboardProvider, useKeyboard } from "./context/KeyboardContext";
-import { ToastProvider, useToast } from "./context/ToastContext"; // CHANGED
+import { ToastProvider, useToast } from "./context/ToastContext";
 import { formatForDisplay } from "./utils";
 
 // Views
@@ -26,10 +27,10 @@ function AppContent() {
 
   const {
     activeResult, layoutString, updateLayoutString,
-    refreshData, activeJobId, startJob, stopJob, weights
+    refreshData, activeJobId, startJob, stopJob, weights, searchParams, selectedCorpus
   } = useKeyboard();
 
-  const { addToast } = useToast(); // CHANGED: Hook usage
+  const { addToast } = useToast();
 
   const pollIntervalRef = useRef<number | null>(null);
 
@@ -37,20 +38,24 @@ function AppContent() {
 
   // --- Global Job Manager ---
   const handleDispatch = async () => {
-    if (!activeResult?.geometry || !weights) {
-      addToast('error', "No geometry or weights loaded.");
+    if (!activeResult?.geometry || !weights || !searchParams) {
+      addToast('error', "Configuration incomplete (missing geometry, weights, or params).");
       return;
     }
 
     try {
+      // FIXED: Payload structure now matches Rust RegisterJobRequest
+      const request: RegisterJobRequest = {
+        geometry: activeResult.geometry,
+        weights: weights,
+        params: searchParams,
+        pinned_keys: pinnedKeys,
+        corpus_name: selectedCorpus || "default"
+      };
+
       const jobId = await invoke<string>("cmd_dispatch_job", {
         hiveUrl,
-        request: {
-          geometry: activeResult.geometry,
-          weights,
-          pinned_keys: pinnedKeys,
-          corpus_name: "default"
-        }
+        request
       });
 
       startJob(jobId);
@@ -63,13 +68,13 @@ function AppContent() {
           const update = await invoke<JobStatusUpdate>("cmd_poll_hive_status", { hiveUrl, jobId });
           if (update.best_layout) {
             const displayStr = formatForDisplay(update.best_layout);
+            // Only update if different to avoid cursor jumping if user is typing (though they shouldn't be during job)
             if (displayStr !== layoutString) {
               updateLayoutString(displayStr);
             }
           }
         } catch (e) {
-          // Silent fail on polling is okay, usually just network jitter
-          console.warn(e);
+          // Silent fail on polling is okay
         }
       }, 1500);
     } catch (e) {

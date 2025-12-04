@@ -1,11 +1,12 @@
+// ===== keyforge/crates/keyforge-cli/src/cmd/validate.rs =====
 use crate::reports;
 use clap::Args;
 use keyforge_core::config::Config;
 use keyforge_core::geometry::KeyboardDefinition;
 use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::layouts::layout_string_to_u16;
-use keyforge_core::optimizer::mutation;
 use keyforge_core::scorer::Scorer;
+use keyforge_core::verifier::Verifier; // ADDED
 use std::sync::Arc;
 
 #[derive(Args, Debug, Clone)]
@@ -24,8 +25,10 @@ pub fn run(
     registry: Arc<KeycodeRegistry>,
 ) {
     let mut results = Vec::new();
-    let eval_limit = args.config.search.opt_limit_slow;
     let key_count = kb_def.geometry.keys.len();
+
+    // 1. Create Verifier wrapper
+    let verifier = Verifier::from_components(scorer.clone(), registry.clone());
 
     let mut sorted_names: Vec<_> = kb_def.layouts.keys().collect();
     sorted_names.sort();
@@ -41,17 +44,12 @@ pub fn run(
 
         let layout_str = kb_def.layouts.get(name).unwrap();
 
-        // FIXED: Use the core parser which handles tokens and u16 conversion
+        // 2. Score via Verifier (Standardized Logic)
+        let details = verifier.score_details(layout_str.clone());
+
+        // 3. Print Visual Grid (Requires manual code gen for display)
         let layout_codes = layout_string_to_u16(layout_str, key_count, &registry);
-
-        // Print visual grid
         reports::print_layout_grid(name, &layout_codes, &registry);
-
-        // Build position map for scoring
-        let pos_map = mutation::build_pos_map(&layout_codes);
-
-        // Calculate detailed metrics
-        let details = scorer.score_details(&pos_map, eval_limit);
 
         results.push((name.clone(), details));
     }

@@ -1,12 +1,31 @@
+// ===== keyforge/crates/keyforge-core/src/scorer/engine/bigrams.rs =====
 use crate::consts::{KEY_CODE_RANGE, KEY_NOT_FOUND_U8};
 use crate::scorer::costs::{calculate_cost, CostCategory};
 use crate::scorer::physics::{analyze_interaction, get_geo_dist};
+use crate::scorer::types::MetricViolation;
 use crate::scorer::{ScoreDetails, Scorer};
+
+// Helper to format key labels roughly
+fn fmt_keys(c1: usize, c2: usize) -> String {
+    // FIXED: Use range syntax
+    let k1 = if (32..=126).contains(&c1) {
+        (c1 as u8 as char).to_string()
+    } else {
+        format!("#{}", c1)
+    };
+
+    let k2 = if (32..=126).contains(&c2) {
+        (c2 as u8 as char).to_string()
+    } else {
+        format!("#{}", c2)
+    };
+
+    format!("{} {}", k1, k2)
+}
 
 #[inline(always)]
 pub fn score_bigrams(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], score: &mut f32) {
     let kc = scorer.key_count;
-
     for &c1 in &scorer.active_chars {
         debug_assert!(c1 < KEY_CODE_RANGE);
         let p1 = unsafe { *pos_map.get_unchecked(c1) };
@@ -33,8 +52,6 @@ pub fn score_bigrams(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], score: &mu
                         continue;
                     }
                     let idx = p1_idx * kc + p2_idx;
-                    debug_assert!(idx < scorer.full_cost_matrix.len());
-
                     unsafe {
                         *score += *scorer.full_cost_matrix.get_unchecked(idx)
                             * *scorer.bigrams_freqs.get_unchecked(k);
@@ -46,6 +63,9 @@ pub fn score_bigrams(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], score: &mu
 }
 
 pub fn accumulate_details(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], d: &mut ScoreDetails) {
+    let mut sfbs = Vec::new();
+    let mut scissors = Vec::new();
+
     for &c1 in &scorer.active_chars {
         let p1 = pos_map[c1];
         if p1 == KEY_NOT_FOUND_U8 {
@@ -82,10 +102,26 @@ pub fn accumulate_details(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], d: &m
 
                         if m.is_sfb {
                             d.stat_sfb += freq;
+                            let res = calculate_cost(&m, &scorer.weights);
+                            let cost = (dist * res.penalty_multiplier) * freq;
+                            sfbs.push(MetricViolation {
+                                keys: fmt_keys(c1, c2),
+                                score: cost,
+                                freq,
+                            });
                         }
+
                         if m.is_scissor {
                             d.stat_scis += freq;
+                            let res = calculate_cost(&m, &scorer.weights);
+                            let cost = (dist * res.penalty_multiplier) * freq;
+                            scissors.push(MetricViolation {
+                                keys: fmt_keys(c1, c2),
+                                score: cost,
+                                freq,
+                            });
                         }
+
                         if m.is_lat_step || m.is_lateral_stretch {
                             d.stat_lsb += freq;
                         }
@@ -135,6 +171,7 @@ pub fn accumulate_details(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], d: &m
                                 * (res.penalty_multiplier - 1.0))
                                 * freq;
                             let cost_val = (dist * res.penalty_multiplier) * freq;
+
                             match res.category {
                                 CostCategory::SfbBase => d.mech_sfb += cost_val,
                                 CostCategory::SfbLat | CostCategory::SfbLatWeak => {
@@ -157,6 +194,14 @@ pub fn accumulate_details(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], d: &m
             }
         }
     }
+
+    sfbs.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    sfbs.truncate(10);
+    d.top_sfbs = sfbs;
+
+    scissors.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    scissors.truncate(10);
+    d.top_scissors = scissors;
 }
 
 pub fn accumulate_key_costs(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], costs: &mut [f32]) {
@@ -166,10 +211,8 @@ pub fn accumulate_key_costs(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], cos
             continue;
         }
         let p1_idx = p1 as usize;
-
         let start = scorer.bigram_starts[c1];
         let end = scorer.bigram_starts[c1 + 1];
-
         for k in start..end {
             if scorer.bigrams_self_first[k] {
                 let c2 = scorer.bigrams_others[k] as usize;
@@ -178,10 +221,7 @@ pub fn accumulate_key_costs(scorer: &Scorer, pos_map: &[u8; KEY_CODE_RANGE], cos
                     let p2_idx = p2 as usize;
                     let freq = scorer.bigrams_freqs[k];
                     let idx = p1_idx * scorer.key_count + p2_idx;
-
                     let cost = scorer.full_cost_matrix[idx] * freq;
-
-                    // Distribute cost to both keys involved
                     costs[p1_idx] += cost * 0.5;
                     costs[p2_idx] += cost * 0.5;
                 }

@@ -1,12 +1,15 @@
+// ===== keyforge/crates/keyforge-core/src/geometry/kle.rs =====
 use super::{KeyNode, KeyboardGeometry};
 use std::error::Error;
 
 /// Parses raw KLE JSON content into KeyForge Geometry using the kle-serial crate.
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
+    // 1. Use the crate to parse the messy KLE format
     let keyboard: kle_serial::Keyboard = serde_json::from_str(content)?;
 
     let mut keys = Vec::new();
 
+    // 2. Map crate types to KeyForge types
     // FIXED: Use enumerate() instead of manual counter
     for (current_id, key) in keyboard.keys.into_iter().enumerate() {
         // Simple heuristic for hand splitting (left vs right of center)
