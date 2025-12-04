@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { KeyboardDefinition } from "../types";
 import { KeyboardMap } from "./KeyboardMap";
-import { Save, PenTool } from "lucide-react";
+import { Save, PenTool } from "lucide-react"; // FIXED: Removed LayoutTemplate
 import { Button } from "./ui/Button";
 import { Select } from "./ui/Select";
 import { Label } from "./ui/Label";
@@ -11,6 +11,12 @@ import { Input } from "./ui/Input";
 interface Props {
     onSaveSuccess: () => void;
 }
+
+const TEMPLATES = [
+    { label: "Empty Canvas", value: "" },
+    { label: "Ortho 30 (Planck-ish)", value: `[["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L",";"],["Z","X","C","V","B","N","M",",",".","/"]]` },
+    { label: "Split 36 (Corne-ish)", value: `[["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L",";"],["Z","X","C","V","B","N","M",",",".","/"],[{y:0.5},"L1","L2","L3",{x:2},"R1","R2","R3"]]` }
+];
 
 export function KeyboardDesigner({ onSaveSuccess }: Props) {
     const [kleInput, setKleInput] = useState("");
@@ -37,7 +43,7 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
                 setPreviewDef(def);
                 setError(null);
             } catch (e) {
-                setError(String(e));
+                setError(`Parse Error: ${e}`);
                 setPreviewDef(null);
             }
         }, 500);
@@ -65,7 +71,6 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
 
     const handleOpenEditor = async () => {
         try {
-            // FIXED: Updated URL
             await invoke('plugin:opener|open', { path: 'https://www.keyboard-layout-editor.com/' });
         } catch (e) {
             console.error("Failed to open link", e);
@@ -82,7 +87,7 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
                         Preview
                     </span>
                     {previewDef && (
-                        <span className="text-[10px] px-2 py-1 bg-slate-800 rounded text-slate-300">
+                        <span className="text-[10px] px-2 py-1 bg-slate-800 rounded text-slate-300 border border-slate-700">
                             {previewDef.geometry.keys.length} Keys Detected
                         </span>
                     )}
@@ -90,7 +95,8 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
 
                 <div className="flex-1 p-8 flex items-center justify-center overflow-hidden">
                     {error ? (
-                        <div className="text-red-400 font-mono text-sm max-w-md text-center p-4 border border-red-900/50 bg-red-900/20 rounded">
+                        <div className="text-red-400 font-mono text-xs max-w-md text-center p-6 border border-red-900/50 bg-red-950/20 rounded-xl">
+                            <span className="font-bold block mb-2">JSON Parsing Failed</span>
                             {error}
                         </div>
                     ) : previewDef ? (
@@ -100,8 +106,8 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
                             className="w-full h-full max-w-4xl"
                         />
                     ) : (
-                        <div className="text-slate-600 font-mono text-xs text-center">
-                            Paste raw KLE JSON data into the right panel to generate preview...
+                        <div className="text-slate-600 font-mono text-xs text-center p-8 border-2 border-dashed border-slate-800 rounded-xl">
+                            Paste raw KLE JSON data to generate preview...
                         </div>
                     )}
                 </div>
@@ -145,7 +151,7 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
                         </div>
                     </div>
 
-                    <div className="flex flex-col h-64">
+                    <div className="flex flex-col h-80">
                         <div className="flex justify-between items-center mb-2">
                             <Label>Raw KLE JSON</Label>
                             <button
@@ -155,9 +161,18 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
                                 Open Editor ↗
                             </button>
                         </div>
+
+                        <div className="mb-2">
+                            <Select
+                                options={TEMPLATES}
+                                onChange={(e) => setKleInput(e.target.value)}
+                                className="text-[10px]"
+                            />
+                        </div>
+
                         <textarea
                             className="flex-1 bg-slate-950/50 border border-slate-800 rounded-lg p-3 text-[10px] font-mono text-slate-400 outline-none focus:border-blue-500 resize-none transition-colors"
-                            placeholder='Paste ["Raw Data"] here...'
+                            placeholder='["Q", "W", "E", ...]'
                             value={kleInput}
                             onChange={e => setKleInput(e.target.value)}
                         />

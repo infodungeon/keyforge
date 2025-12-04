@@ -3,7 +3,7 @@ use clap::Args;
 use keyforge_core::config::Config;
 use keyforge_core::geometry::KeyboardDefinition;
 use keyforge_core::keycodes::KeycodeRegistry;
-use keyforge_core::layouts::layout_string_to_u16; // CHANGED
+use keyforge_core::layouts::layout_string_to_u16;
 use keyforge_core::optimizer::mutation;
 use keyforge_core::scorer::Scorer;
 use std::sync::Arc;
@@ -41,14 +41,16 @@ pub fn run(
 
         let layout_str = kb_def.layouts.get(name).unwrap();
 
-        // CHANGED: string_to_u16
+        // FIXED: Use the core parser which handles tokens and u16 conversion
         let layout_codes = layout_string_to_u16(layout_str, key_count, &registry);
 
-        // CHANGED: print with registry
+        // Print visual grid
         reports::print_layout_grid(name, &layout_codes, &registry);
 
+        // Build position map for scoring
         let pos_map = mutation::build_pos_map(&layout_codes);
 
+        // Calculate detailed metrics
         let details = scorer.score_details(&pos_map, eval_limit);
 
         results.push((name.clone(), details));
@@ -61,8 +63,8 @@ pub fn run(
 
     results.sort_by(|a, b| a.1.layout_score.partial_cmp(&b.1.layout_score).unwrap());
 
+    // Generate Reports
     reports::print_scoring_report(&results);
-    // Passing weights as reference to avoid cloning cost
     reports::print_statistical_report(&results, &scorer.weights);
     reports::print_comparison_report(&results);
 }

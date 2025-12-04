@@ -1,7 +1,7 @@
-use crate::error::KfResult;
+use crate::error::{KeyForgeError, KfResult};
 use std::collections::HashSet;
 use std::io::Read;
-use tracing::debug;
+use tracing::{debug, error, warn};
 
 #[derive(Debug, Clone)]
 pub struct TrigramRef {
@@ -35,7 +35,11 @@ pub fn load_cost_matrix<R: Read>(reader: R, debug_mode: bool) -> KfResult<RawCos
         row_idx += 1;
         match result {
             Ok(rec) => {
+                // RULE 1: Strict Column Count (Expect 3 columns: From, To, Cost)
                 if rec.len() < 3 {
+                    if debug_mode {
+                        warn!("[Row {}] Skipped: Insufficient columns", row_idx);
+                    }
                     skipped_count += 1;
                     continue;
                 }
@@ -43,20 +47,42 @@ pub fn load_cost_matrix<R: Read>(reader: R, debug_mode: bool) -> KfResult<RawCos
                 let k1 = rec[0].trim().to_string();
                 let k2 = rec[1].trim().to_string();
 
+                // RULE 2: Sanitize Keys
+                if k1.is_empty() || k2.is_empty() {
+                    if debug_mode {
+                        warn!("[Row {}] Skipped: Empty key identifier", row_idx);
+                    }
+                    skipped_count += 1;
+                    continue;
+                }
+
+                // RULE 3: Validate Float Math (No NaN, No Inf, No Negative)
                 let c: f32 = match rec[2].trim().parse() {
                     Ok(val) => val,
                     Err(_) => {
+                        if debug_mode {
+                            warn!("[Row {}] Skipped: Invalid number format", row_idx);
+                        }
                         skipped_count += 1;
                         continue;
                     }
                 };
 
+                if !c.is_finite() || c < 0.0 {
+                    error!(
+                        "[Row {}] REJECTED: Invalid cost value ({}). Must be finite and >= 0.",
+                        row_idx, c
+                    );
+                    return Err(KeyForgeError::Validation(
+                        "Cost Matrix contains invalid math values (NaN/Inf/Negative)".into(),
+                    ));
+                }
+
                 entries.push((k1, k2, c));
             }
             Err(e) => {
-                if debug_mode {
-                    debug!("[Row {}] CSV Parse Error: {}", row_idx, e);
-                }
+                // RULE 4: Fail hard on malformed CSV structure
+                return Err(KeyForgeError::Csv(e));
             }
         }
     }
@@ -108,10 +134,22 @@ pub fn load_ngrams<R: Read>(
                 }
                 let s = s_raw.to_ascii_lowercase();
 
+                // Validate Frequency
                 let count_val: f32 = match rec[1].trim().parse() {
                     Ok(v) => v,
                     Err(_) => continue,
                 };
+
+                if !count_val.is_finite() || count_val < 0.0 {
+                    // Skip bad math lines, don't crash, but don't include
+                    if debug_mode {
+                        warn!(
+                            "Skipping invalid frequency on line {}: {}",
+                            lines_read, count_val
+                        );
+                    }
+                    continue;
+                }
 
                 let normalized_freq = count_val / corpus_scale;
                 let bytes = s.as_bytes();
@@ -128,6 +166,7 @@ pub fn load_ngrams<R: Read>(
                         if debug_mode {
                             debug!("Encountered {}-gram, stopping load.", s.len());
                         }
+                        // Stop loading if we hit something that looks like metadata or headers
                         return Ok(RawNgrams {
                             bigrams,
                             trigrams,

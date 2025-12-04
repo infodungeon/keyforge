@@ -1,6 +1,7 @@
 use crate::models::SearchUpdate;
 use keyforge_core::optimizer::ProgressCallback;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, Window};
 
@@ -37,22 +38,42 @@ pub fn get_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
     for p in dev_paths {
         let path = PathBuf::from(p);
-        if path.exists() && path.is_dir() {
-            // Simple heuristic to ensure it's the right folder
-            if path.join("keyboards").exists() {
-                return Ok(path);
-            }
+        // FIXED: Collapsed nested if statement
+        if path.exists() && path.is_dir() && path.join("keyboards").exists() {
+            return Ok(path);
         }
     }
 
     // 4. Last Resort: Return AppData path even if it doesn't exist yet.
-    // This allows the caller (like the sync command) to create it.
     if let Ok(app_data) = app.path().app_data_dir() {
         let data = app_data.join("data");
         return Ok(data);
     }
 
     Err("Could not resolve data directory. Please ensure the 'data' folder is bundled or available.".into())
+}
+
+/// safely writes content to a file using atomic rename strategy.
+/// 1. Write to {filename}.tmp
+/// 2. Sync to disk
+/// 3. Rename {filename}.tmp -> {filename}
+pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> std::io::Result<()> {
+    let path = path.as_ref();
+    // FIXED: Removed unused `dir` variable
+
+    // Create a temp file in the same directory (ensures same filesystem for rename)
+    let temp_path = path.with_extension("tmp");
+
+    {
+        let mut file = fs::File::create(&temp_path)?;
+        std::io::Write::write_all(&mut file, contents.as_ref())?;
+        // CRITICAL: Ensure data hits the physical disk
+        file.sync_all()?;
+    }
+
+    // Atomic replacement
+    fs::rename(&temp_path, path)?;
+    Ok(())
 }
 
 /// Bridge for Core Optimizer -> UI Event
@@ -93,5 +114,45 @@ impl ProgressCallback for TauriBridge {
         );
 
         true // Continue optimization
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[test]
+    fn test_atomic_write_creates_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("test_file.txt");
+        let content = b"Hello, World!";
+
+        atomic_write(&file_path, content).expect("Atomic write failed");
+
+        let mut file = fs::File::open(&file_path).expect("Failed to open file");
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).expect("Failed to read file");
+
+        assert_eq!(buffer, content);
+    }
+
+    #[test]
+    fn test_atomic_write_overwrites_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("config.json");
+
+        // 1. Write Initial
+        atomic_write(&file_path, b"initial").unwrap();
+
+        // 2. Overwrite
+        atomic_write(&file_path, b"updated").unwrap();
+
+        let read_back = fs::read_to_string(&file_path).unwrap();
+        assert_eq!(read_back, "updated");
+
+        // 3. Ensure temp file is gone
+        let temp_path = file_path.with_extension("tmp");
+        assert!(!temp_path.exists(), "Temp file was not cleaned up");
     }
 }

@@ -6,7 +6,6 @@ use itertools::Itertools;
 
 #[inline(always)]
 fn fast_exp(x: f32) -> f32 {
-    // Optimized approximation: (1 + x/256)^256
     let x = 1.0 + x / ANNEAL_TEMP_SCALE;
     let x = x * x * x * x * x * x * x * x;
     x * x
@@ -48,42 +47,56 @@ impl Replica {
             return false;
         }
 
-        let chars: Vec<KeyCode> = indices.iter().map(|&i| self.layout[i]).collect();
+        let chars_original: Vec<KeyCode> = indices.iter().map(|&i| self.layout[i]).collect();
+
         let mut best_score = self.score;
-        let mut best_perm = chars.clone();
+        let mut best_perm_indices = (0..n_keys).collect::<Vec<_>>();
         let mut found_better = false;
 
-        for perm in chars.iter().permutations(n_keys) {
-            let mut temp_pos = self.pos_map.clone();
-            for (k, &char_ref) in perm.iter().enumerate() {
-                let char_val = *char_ref;
-                let target_idx = indices[k];
-                temp_pos[char_val as usize] = target_idx as u8;
+        for perm_indices in (0..n_keys).permutations(n_keys) {
+            for (slot_k, &char_k_idx) in perm_indices.iter().enumerate() {
+                let char_val = chars_original[char_k_idx];
+                let target_slot = indices[slot_k];
+                if char_val != 0 {
+                    self.pos_map[char_val as usize] = target_slot as u8;
+                }
             }
 
-            let (raw_score, left, _) = self.scorer.score_full(&temp_pos, self.current_limit);
+            let (raw_score, left, _) = self.scorer.score_full(&self.pos_map, self.current_limit);
             let total = raw_score + self.imbalance_penalty(left);
 
-            if total < best_score {
+            // STABILITY CHECK: Ignore NaNs
+            if total.is_finite() && total < best_score {
                 best_score = total;
-                for (k, &char_ref) in perm.iter().enumerate() {
-                    best_perm[k] = *char_ref;
-                }
+                best_perm_indices = perm_indices.clone();
                 found_better = true;
             }
         }
 
-        if found_better {
-            for (k, &char_val) in best_perm.iter().enumerate() {
-                let idx = indices[k];
-                self.layout[idx] = char_val;
-                self.pos_map[char_val as usize] = idx as u8;
+        for (slot_k, &char_k_idx) in best_perm_indices.iter().enumerate() {
+            let char_val = chars_original[char_k_idx];
+            let target_slot = indices[slot_k];
+            self.layout[target_slot] = char_val;
+        }
+
+        for &char_val in &chars_original {
+            if char_val != 0 {
+                for &idx in &indices {
+                    if self.layout[idx] == char_val {
+                        self.pos_map[char_val as usize] = idx as u8;
+                        break;
+                    }
+                }
             }
+        }
+
+        if found_better {
             let (_, left, _) = self.scorer.score_full(&self.pos_map, self.current_limit);
             self.left_load = left;
             self.score = best_score;
             return true;
         }
+
         false
     }
 
@@ -109,8 +122,10 @@ impl Replica {
                 self.update_mutation_weights();
             }
 
-            if self.temperature < 5.0 && self.rng.f32() < 0.002 && self.try_lns_move(4) {
-                accepted += 1;
+            if self.temperature < 5.0 && self.rng.f32() < 0.002 {
+                if self.try_lns_move(4) {
+                    accepted += 1;
+                }
                 continue;
             }
 
@@ -128,6 +143,12 @@ impl Replica {
             }
 
             let (delta_base, delta_load) = self.calc_delta(idx_a, idx_b, self.current_limit);
+
+            // STABILITY CHECK: Immediate abort on bad math
+            if !delta_base.is_finite() || !delta_load.is_finite() {
+                continue;
+            }
+
             if delta_base == f32::INFINITY {
                 continue;
             }
@@ -140,12 +161,22 @@ impl Replica {
 
             let total_delta = new_total - self.score;
 
+            // STABILITY CHECK: Protect against total_delta becoming NaN
+            if !total_delta.is_finite() {
+                continue;
+            }
+
             if total_delta < 0.0 || self.rng.f32() < fast_exp(-total_delta / self.temperature) {
                 self.layout.swap(idx_a, idx_b);
                 let char_a = self.layout[idx_a];
                 let char_b = self.layout[idx_b];
-                self.pos_map[char_a as usize] = idx_a as u8;
-                self.pos_map[char_b as usize] = idx_b as u8;
+
+                if char_a != 0 {
+                    self.pos_map[char_a as usize] = idx_a as u8;
+                }
+                if char_b != 0 {
+                    self.pos_map[char_b as usize] = idx_b as u8;
+                }
 
                 let critical = self.scorer.defs.get_critical_bigrams();
                 let mut is_risky = false;
@@ -159,9 +190,14 @@ impl Replica {
                 if is_risky
                     && mutation::fails_sanity(&self.pos_map, &critical, &self.scorer.geometry)
                 {
+                    // Revert
                     self.layout.swap(idx_a, idx_b);
-                    self.pos_map[char_a as usize] = idx_b as u8;
-                    self.pos_map[char_b as usize] = idx_a as u8;
+                    if char_a != 0 {
+                        self.pos_map[char_a as usize] = idx_b as u8;
+                    }
+                    if char_b != 0 {
+                        self.pos_map[char_b as usize] = idx_a as u8;
+                    }
                 } else {
                     self.score = new_total;
                     self.left_load = new_left_load;

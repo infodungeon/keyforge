@@ -1,20 +1,20 @@
 use crate::routes::jobs::RegisterJobRequest;
+use crate::routes::submission::SubmissionEntry; // We will define this next
 use keyforge_core::{config::ScoringWeights, geometry::KeyboardGeometry};
 use sqlx::{Pool, Row, Sqlite, Transaction};
 
 #[derive(Clone)]
 pub struct Store {
-    // Public so the WriteQueue can start transactions for batching
     pub db: Pool<Sqlite>,
 }
+
+const MAX_TEXT_LEN: usize = 10_000;
 
 impl Store {
     pub fn new(db: Pool<Sqlite>) -> Self {
         Self { db }
     }
 
-    /// Starts a new database transaction.
-    /// Critical for the WriteQueue to flush batches atomically.
     pub async fn begin(&self) -> Result<Transaction<'_, Sqlite>, String> {
         self.db.begin().await.map_err(|e| e.to_string())
     }
@@ -29,7 +29,15 @@ impl Store {
     }
 
     pub async fn register_job(&self, job_id: &str, req: &RegisterJobRequest) -> Result<(), String> {
+        if req.pinned_keys.len() > MAX_TEXT_LEN {
+            return Err("Pinned keys configuration too large".into());
+        }
+
         let geo_json = serde_json::to_string(&req.geometry).map_err(|e| e.to_string())?;
+        if geo_json.len() > MAX_TEXT_LEN * 10 {
+            return Err("Geometry configuration too large".into());
+        }
+
         let weights_json = serde_json::to_string(&req.weights).map_err(|e| e.to_string())?;
 
         sqlx::query(
@@ -62,7 +70,6 @@ impl Store {
             let weights = serde_json::from_str::<ScoringWeights>(&r.weights_json)
                 .map_err(|e| format!("Corrupt Weights: {}", e))?;
 
-            // Normalize ID from SQLx inference
             let id = r.id.ok_or("Missing ID in DB")?;
 
             Ok(Some((
@@ -126,33 +133,22 @@ impl Store {
         Ok(row.and_then(|r| r.get("min_score")))
     }
 
-    /// Saves a result directly to the database.
-    /// Note: For high-volume result ingestion, use the WriteQueue instead.
-    #[allow(dead_code)] // Suppress warning as this is replaced by WriteQueue for main flow
-    pub async fn save_result(
-        &self,
-        job_id: &str,
-        layout: &str,
-        score: f32,
-        node: &str,
-    ) -> Result<(), String> {
-        sqlx::query("INSERT INTO results (job_id, layout, score, node_id) VALUES (?, ?, ?, ?)")
-            .bind(job_id)
-            .bind(layout)
-            .bind(score)
-            .bind(node)
-            .execute(&self.db)
-            .await
-            .map_err(|e| e.to_string())?;
-        Ok(())
-    }
-
     pub async fn save_submission(
         &self,
         name: &str,
         layout: &str,
         author: &str,
     ) -> Result<i64, String> {
+        if name.len() > 100 {
+            return Err("Name too long".into());
+        }
+        if author.len() > 100 {
+            return Err("Author name too long".into());
+        }
+        if layout.len() > MAX_TEXT_LEN {
+            return Err("Layout data too long".into());
+        }
+
         let res =
             sqlx::query("INSERT INTO submissions (name, layout_str, author) VALUES (?, ?, ?)")
                 .bind(name)
@@ -163,5 +159,29 @@ impl Store {
                 .map_err(|e| e.to_string())?;
 
         Ok(res.last_insert_rowid())
+    }
+
+    // NEW: Retrieve recent submissions
+    pub async fn get_recent_submissions(&self, limit: i64) -> Result<Vec<SubmissionEntry>, String> {
+        let rows = sqlx::query(
+            "SELECT id, name, layout_str, author, submitted_at FROM submissions ORDER BY submitted_at DESC LIMIT ?"
+        )
+        .bind(limit)
+        .fetch_all(&self.db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        let entries = rows
+            .into_iter()
+            .map(|r| SubmissionEntry {
+                id: r.get("id"),
+                name: r.get("name"),
+                layout: r.get("layout_str"),
+                author: r.get("author"),
+                date: r.get("submitted_at"), // SQLite datetime string
+            })
+            .collect();
+
+        Ok(entries)
     }
 }

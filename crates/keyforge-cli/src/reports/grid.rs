@@ -7,7 +7,7 @@ pub fn print_layout(name: &str, codes: &[u16], registry: &KeycodeRegistry) {
     let mut table = Table::new();
     table.load_preset(ASCII_FULL);
 
-    let cols = 10; // Standard row width for most split/ortho boards
+    let cols = 10; // Standard visual row width for most split/ortho boards
 
     for chunk in codes.chunks(cols) {
         let cells: Vec<Cell> = chunk

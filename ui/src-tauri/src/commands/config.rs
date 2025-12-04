@@ -11,7 +11,9 @@ pub fn cmd_get_default_config() -> Config {
 
 #[tauri::command]
 pub fn cmd_get_keycodes(state: tauri::State<KeyForgeState>) -> Result<KeycodeRegistry, String> {
-    let sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+    // FIXED: .lock() -> .read()
+    let sessions = state.sessions.read().map_err(|e| e.to_string())?;
+
     if let Some(session) = sessions.get("primary") {
         Ok(session.registry.clone())
     } else {

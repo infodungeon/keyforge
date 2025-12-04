@@ -4,8 +4,10 @@ import { Keyboard, RotateCcw } from "lucide-react";
 import { Button } from "./ui/Button";
 import { KeyboardMap } from "./KeyboardMap";
 import { KeyboardGeometry } from "../types";
+import { useToast } from "../context/ToastContext";
 
 export function KeyTester() {
+    const { addToast } = useToast();
     const [history, setHistory] = useState<{ key: string, code: string }[]>([]);
     const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
     const [geometry, setGeometry] = useState<KeyboardGeometry | null>(null);
@@ -19,16 +21,17 @@ export function KeyTester() {
             .then(setGeometry)
             .catch(e => {
                 console.error(e);
-                setError("Failed to load ANSI Layout. Please Sync Data.");
+                setError("Failed to load ANSI Layout. Please ensure standard keyboards are loaded.");
+                addToast('error', "Failed to load ANSI layout for tester.");
             });
 
         // Focus immediately so user can type
         if (containerRef.current) containerRef.current.focus();
-    }, []);
+    }, [addToast]);
 
     const handleKeyDown = (e: KeyboardEvent) => {
         e.preventDefault();
-        // e.code is the physical key code (e.g. "KeyA", "Space")
+        // e.code is the physical key code (e.g. "KeyA", "Space") which matches our ANSI IDs
         setActiveKeys(prev => {
             const next = new Set(prev);
             next.add(e.code);
@@ -78,11 +81,16 @@ export function KeyTester() {
             <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-4 shrink-0">
                 <div className="flex items-center gap-3">
                     <Keyboard size={24} className="text-green-500" />
-                    <h2 className="text-xl font-black text-white">Test</h2>
+                    <h2 className="text-xl font-black text-white">Input Tester</h2>
                 </div>
-                <Button variant="secondary" size="sm" onClick={() => setHistory([])} icon={<RotateCcw size={14} />}>
-                    Clear Log
-                </Button>
+                <div className="flex items-center gap-4">
+                    <span className="text-[10px] text-slate-500 font-mono">
+                        Press keys to verify codes
+                    </span>
+                    <Button variant="secondary" size="sm" onClick={() => setHistory([])} icon={<RotateCcw size={14} />}>
+                        Clear Log
+                    </Button>
+                </div>
             </div>
 
             {/* Visualizer */}
@@ -94,7 +102,7 @@ export function KeyTester() {
                 ) : geometry ? (
                     <KeyboardMap
                         geometry={geometry}
-                        layoutString=""
+                        layoutString="" // No labels needed for physical tester usually, or could use IDs
                         activeKeyIds={activeKeys}
                         // Wire up mouse events for momentary press
                         onKeyPointerDown={handleMouseDown}
@@ -116,8 +124,9 @@ export function KeyTester() {
                                 px-3 py-1.5 rounded-lg border text-xs font-mono font-bold mb-1 transition-all whitespace-nowrap
                                 ${i === 0 ? "bg-slate-700 border-slate-500 text-white" : "bg-slate-900/50 border-slate-800 text-slate-500"}
                             `}>
-                                {h.code.replace("Key", "").replace("Digit", "").replace("Arrow", "")}
+                                {h.code}
                             </div>
+                            <span className="text-[9px] text-slate-600">{h.key}</span>
                         </div>
                     ))}
                 </div>

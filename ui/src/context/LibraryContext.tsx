@@ -2,66 +2,78 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { invoke } from "@tauri-apps/api/core";
 import { ScoringWeights, SearchParams, KeycodeDefinition } from "../types";
 import { keycodeService } from "../utils";
+import { useToast } from "./ToastContext";
 
 interface LibraryContextType {
     weights: ScoringWeights | null;
     searchParams: SearchParams | null;
     setWeights: (w: ScoringWeights) => void;
     setSearchParams: (p: SearchParams) => void;
-    
+
     keyboards: string[];
     selectedKeyboard: string;
-    selectKeyboard: (name: string) => void; // Updated to not promise void for simpler consumption
-    
+    selectKeyboard: (name: string) => void;
+
     corpora: string[];
     selectedCorpus: string;
     selectCorpus: (filename: string) => void;
-    
+
     availableLayouts: Record<string, string>;
     standardLayouts: string[];
-    
+
     refreshLibrary: () => Promise<void>;
-    
-    // Actions that mutate library state
+
     saveUserLayout: (name: string, layout: string) => Promise<void>;
     deleteUserLayout: (name: string) => Promise<void>;
-    
-    // Internal trigger for Session to reload
+
     libraryVersion: number;
 }
 
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
+    const { addToast } = useToast();
+
     const [weights, setWeights] = useState<ScoringWeights | null>(null);
     const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
+
     const [keyboards, setKeyboards] = useState<string[]>([]);
-    const [selectedKeyboard, setSelectedKeyboard] = useState(() => localStorage.getItem("last_keyboard") || "corne");
+    const [selectedKeyboard, setSelectedKeyboard] = useState(() => localStorage.getItem("last_keyboard") || "ortho_30");
+
     const [corpora, setCorpora] = useState<string[]>([]);
     const [selectedCorpus, setSelectedCorpus] = useState(() => localStorage.getItem("last_corpus") || "ngrams-all.tsv");
-    
+
     const [availableLayouts, setAvailableLayouts] = useState<Record<string, string>>({});
     const [standardLayouts, setStandardLayouts] = useState<string[]>([]);
-    
-    // Simple counter to notify dependents that data has changed (like a reload signal)
+
     const [libraryVersion, setLibraryVersion] = useState(0);
 
     const refreshLibrary = useCallback(async () => {
         try {
-            const kbs = await invoke<string[]>("cmd_list_keyboards");
+            const [kbs, corps] = await Promise.all([
+                invoke<string[]>("cmd_list_keyboards"),
+                invoke<string[]>("cmd_list_corpora")
+            ]);
+
             setKeyboards(kbs);
-            const corps = await invoke<string[]>("cmd_list_corpora");
             setCorpora(corps);
-            
-            // Ensure valid selections
-            if (!kbs.includes(selectedKeyboard) && kbs.length > 0) setSelectedKeyboard(kbs[0]);
-            if (!corps.includes(selectedCorpus) && corps.length > 0) setSelectedCorpus(corps[0]);
-            
+
+            // Auto-select valid defaults if current selection is invalid
+            if (kbs.length > 0 && !kbs.includes(selectedKeyboard)) {
+                console.warn(`Selected keyboard '${selectedKeyboard}' not found. Defaulting to '${kbs[0]}'`);
+                setSelectedKeyboard(kbs[0]);
+            }
+            if (corps.length > 0 && !corps.includes(selectedCorpus)) {
+                console.warn(`Selected corpus '${selectedCorpus}' not found. Defaulting to '${corps[0]}'`);
+                setSelectedCorpus(corps[0]);
+            }
+
             setLibraryVersion(v => v + 1);
         } catch (e) {
             console.error("Library Refresh Error:", e);
+            addToast('error', "Failed to load library data. Check logs.");
         }
-    }, [selectedKeyboard, selectedCorpus]);
+    }, [selectedKeyboard, selectedCorpus, addToast]);
 
     // Initial Load
     useEffect(() => {
@@ -77,24 +89,24 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
                 await refreshLibrary();
             } catch (e) {
                 console.error("Library Init Error:", e);
+                addToast('error', "Failed to initialize backend configuration.");
             }
         };
         init();
-    }, [refreshLibrary]);
+    }, [refreshLibrary, addToast]);
 
     // Load Keyboard Data when selection changes
     useEffect(() => {
         if (!selectedKeyboard) return;
         const loadKb = async () => {
             try {
-                // Pre-load logic (backend state update)
-                // Note: The session actually does the heavy lifting of validation, 
-                // but Library fetches the definitions.
-                const standards = await invoke<Record<string, string>>("cmd_get_loaded_layouts");
-                setStandardLayouts(Object.keys(standards));
-                
                 const all = await invoke<Record<string, string>>("cmd_get_all_layouts_scoped", { keyboardId: selectedKeyboard });
+
                 setAvailableLayouts(all);
+
+                // Identify standard layouts
+                setStandardLayouts(Object.keys(all).filter(k => k !== "Custom"));
+
             } catch (e) {
                 console.error("Keyboard Load Error:", e);
             }
@@ -105,26 +117,37 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const selectKeyboard = (name: string) => {
         setSelectedKeyboard(name);
         localStorage.setItem("last_keyboard", name);
-        setLibraryVersion(v => v + 1); // Trigger reload
+        // Force refresh to ensure layouts update
+        setLibraryVersion(v => v + 1);
     };
 
     const selectCorpus = (filename: string) => {
         setSelectedCorpus(filename);
         localStorage.setItem("last_corpus", filename);
-        setLibraryVersion(v => v + 1); // Trigger reload
+        setLibraryVersion(v => v + 1);
     };
 
     const saveUserLayout = async (name: string, layout: string) => {
-        await invoke("cmd_save_user_layout", { keyboardId: selectedKeyboard, name, layout });
-        // Refresh local cache
-        const all = await invoke<Record<string, string>>("cmd_get_all_layouts_scoped", { keyboardId: selectedKeyboard });
-        setAvailableLayouts(all);
+        try {
+            await invoke("cmd_save_user_layout", { keyboardId: selectedKeyboard, name, layout });
+            addToast('success', `Layout '${name}' saved.`);
+            // Refresh local cache
+            const all = await invoke<Record<string, string>>("cmd_get_all_layouts_scoped", { keyboardId: selectedKeyboard });
+            setAvailableLayouts(all);
+        } catch (e) {
+            addToast('error', `Save failed: ${e}`);
+        }
     };
 
     const deleteUserLayout = async (name: string) => {
-        await invoke("cmd_delete_user_layout", { keyboardId: selectedKeyboard, name });
-        const all = await invoke<Record<string, string>>("cmd_get_all_layouts_scoped", { keyboardId: selectedKeyboard });
-        setAvailableLayouts(all);
+        try {
+            await invoke("cmd_delete_user_layout", { keyboardId: selectedKeyboard, name });
+            addToast('info', `Layout '${name}' deleted.`);
+            const all = await invoke<Record<string, string>>("cmd_get_all_layouts_scoped", { keyboardId: selectedKeyboard });
+            setAvailableLayouts(all);
+        } catch (e) {
+            addToast('error', `Delete failed: ${e}`);
+        }
     };
 
     return (

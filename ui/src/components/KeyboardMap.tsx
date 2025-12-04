@@ -4,6 +4,20 @@ import { keycodeService } from "../utils";
 const UNIT = 54;
 const GAP = 4;
 
+// Professional Heatmap Gradient (Turbo-like)
+// 0.0 -> Blue (Cold)
+// 0.5 -> Green
+// 0.8 -> Yellow
+// 1.0 -> Red (Hot)
+function getHeatmapColor(intensity: number): string {
+  if (intensity <= 0) return "rgba(30, 41, 59, 1)"; // Slate-800 base
+
+  // HSL Interpolation for better gradients
+  // Blue (240) -> Red (0)
+  const h = (1.0 - intensity) * 240;
+  return `hsla(${h}, 70%, 50%, 0.8)`;
+}
+
 function getKeyStyle(
   index: number,
   heatmap: number[] | undefined,
@@ -12,39 +26,37 @@ function getKeyStyle(
   isEditing: boolean,
   isActive: boolean
 ) {
-  // Priority 0: Physical Activation (Tester) - Bright Green
+  // Priority 0: Physical Activation (Tester)
   if (isActive) {
     return { fill: "#22c55e", stroke: "#15803d", strokeWidth: 2, text: "#ffffff" };
   }
 
-  // Base Fill
   let fill = "rgba(30, 41, 59, 1)";
   let stroke = "rgb(2, 6, 23)";
   let strokeWidth = 2;
-  let text = "#94a3b8";
+  let text = "#94a3b8"; // Slate-400
 
   // 1. Heatmap coloring
   if (heatmap && heatmap[index] && heatmap[index] > 0) {
     const val = heatmap[index];
-    const intensity = Math.min(val / maxHeat, 1.0);
-    const opacity = 0.1 + (intensity * 0.8);
-    fill = `rgba(239, 68, 68, ${opacity})`;
-    text = "#ffffff";
-  } else {
+    // Non-linear scaling to make low-freq keys visible
+    const intensity = Math.pow(val / maxHeat, 0.7);
+    fill = getHeatmapColor(intensity);
     text = "#ffffff";
   }
 
   // 2. Selection Highlight
   if (isSelected) {
-    stroke = "#3b82f6";
+    stroke = "#3b82f6"; // Blue-500
     strokeWidth = 3;
+    // If selected but no heatmap data, lighten the background
     if (!heatmap || !heatmap[index]) fill = "rgba(51, 65, 85, 1)";
   }
 
   // 3. Editing State
   if (isSelected && isEditing) {
-    fill = "#2563eb";
-    stroke = "#60a5fa";
+    fill = "#2563eb"; // Blue-600
+    stroke = "#60a5fa"; // Blue-400
     strokeWidth = 4;
     text = "#ffffff";
   }
@@ -59,11 +71,9 @@ interface KeyboardMapProps {
   className?: string;
   selectedKeyIndex?: number | null;
   isEditing?: boolean;
-  // Mouse Events
-  onKeyClick?: (index: number) => void; // Click (for selection)
-  onKeyPointerDown?: (index: number) => void; // Press (for tester)
-  onKeyPointerUp?: (index: number) => void;   // Release (for tester)
-
+  onKeyClick?: (index: number) => void;
+  onKeyPointerDown?: (index: number) => void;
+  onKeyPointerUp?: (index: number) => void;
   activeKeyIds?: Set<string>;
 }
 
@@ -83,7 +93,7 @@ export function KeyboardMap({
 
   const maxX = Math.max(...geometry.keys.map((k) => k.x + (k.w || 1)));
   const maxY = Math.max(...geometry.keys.map((k) => k.y + (k.h || 1)));
-  const maxHeat = heatmap ? Math.max(...heatmap) : 0.12;
+  const maxHeat = heatmap ? Math.max(...heatmap) : 1.0;
   const tokens = layoutString.trim().split(/\s+/);
 
   return (
@@ -116,11 +126,6 @@ export function KeyboardMap({
 
           const w = key.w || 1;
           const h = key.h || 1;
-
-          // 3D Depressed Effect Logic
-          // Normal: Translate(0,0)
-          // Pressed (Active): Translate(0, 2px) -> Looks like it went down
-          // Hover: Translate(0, -1px) -> Looks slightly raised/interactive
           const yOffset = isActive ? 2 : 0;
           const transform = `translate(${key.x * UNIT}px, ${key.y * UNIT + yOffset}px)`;
 
@@ -129,7 +134,7 @@ export function KeyboardMap({
               key={index}
               style={{ transform, transition: 'transform 50ms ease-out' }}
               onPointerDown={(e) => {
-                e.preventDefault(); // Prevent focus theft
+                e.preventDefault();
                 onKeyPointerDown && onKeyPointerDown(index);
               }}
               onPointerUp={(e) => {
@@ -137,7 +142,6 @@ export function KeyboardMap({
                 onKeyPointerUp && onKeyPointerUp(index);
               }}
               onPointerLeave={() => {
-                // If mouse leaves key while pressed, cancel the press
                 onKeyPointerUp && onKeyPointerUp(index);
               }}
               onClick={(e) => {
@@ -153,8 +157,7 @@ export function KeyboardMap({
                 fill={style.fill}
                 stroke={style.stroke}
                 strokeWidth={style.strokeWidth}
-                className="transition-colors duration-75"
-              // Shadow effect via filter can be added here if desired
+                className="transition-colors duration-200"
               />
               <text
                 x={(w * UNIT - GAP) / 2}
@@ -163,7 +166,9 @@ export function KeyboardMap({
                 alignmentBaseline="middle"
                 fill={style.text}
                 fontSize={label.length > 2 ? 12 : 18}
-                className="font-bold pointer-events-none font-mono"
+                fontWeight="bold"
+                className="pointer-events-none font-mono tracking-tight"
+                style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.5)" }}
               >
                 {label}
               </text>

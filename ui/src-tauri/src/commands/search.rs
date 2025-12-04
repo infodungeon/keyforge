@@ -20,7 +20,8 @@ pub async fn cmd_dispatch_job(
 ) -> Result<String, String> {
     let client = Client::new();
     {
-        let sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+        // FIXED: .lock() -> .read()
+        let sessions = state.sessions.read().map_err(|e| e.to_string())?;
         if sessions.get("primary").is_none() {
             return Err("No local geometry loaded to validate against".into());
         }
@@ -114,7 +115,9 @@ pub async fn cmd_start_search(
 ) -> Result<String, String> {
     // 1. Prepare Environment (Scorer & Registry)
     let (scorer_arc, registry_arc) = {
-        let sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+        // FIXED: .lock() -> .read()
+        let sessions = state.sessions.read().map_err(|e| e.to_string())?;
+
         let session = sessions.get("primary").ok_or("Session not loaded")?;
 
         let mut scorer = session.scorer.clone();
@@ -150,8 +153,6 @@ pub async fn cmd_start_search(
         .map_err(|e| e.to_string())?;
 
     // 5. Format Result
-    // Convert result.layout (Vec<u16>) -> String using Registry labels
-    // This supports full macros/layers beyond simple ASCII
     let layout_str = result
         .layout
         .iter()

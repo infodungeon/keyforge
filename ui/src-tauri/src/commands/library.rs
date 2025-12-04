@@ -1,5 +1,5 @@
 use crate::models::UserLayoutStore;
-use crate::utils::get_data_dir;
+use crate::utils::{atomic_write, get_data_dir};
 use keyforge_core::api::KeyForgeState;
 use keyforge_core::geometry::kle::parse_kle_json;
 use keyforge_core::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
@@ -35,12 +35,12 @@ pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, String> {
 pub fn cmd_get_loaded_layouts(
     state: tauri::State<KeyForgeState>,
 ) -> Result<HashMap<String, String>, String> {
-    let sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+    // FIXED: Uses read() for RwLock
+    let sessions = state.sessions.read().map_err(|e| e.to_string())?;
     let session = sessions.get("primary").ok_or("No keyboard loaded")?;
     Ok(session.kb_def.layouts.clone())
 }
 
-// NEW: Specific geometry fetcher for UI tools (like KeyTester)
 #[tauri::command]
 pub fn cmd_get_keyboard_geometry(app: AppHandle, name: String) -> Result<KeyboardGeometry, String> {
     let root = get_data_dir(&app)?;
@@ -62,7 +62,8 @@ pub fn cmd_get_all_layouts_scoped(
     state: tauri::State<KeyForgeState>,
     keyboard_id: String,
 ) -> Result<HashMap<String, String>, String> {
-    let sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+    // FIXED: Uses read() for RwLock
+    let sessions = state.sessions.read().map_err(|e| e.to_string())?;
 
     let mut all_layouts = if let Some(session) = sessions.get("primary") {
         session.kb_def.layouts.clone()
@@ -112,7 +113,9 @@ pub fn cmd_save_user_layout(
     kb_entry.insert(name, layout);
 
     let json = serde_json::to_string_pretty(&store).map_err(|e| e.to_string())?;
-    fs::write(file_path, json).map_err(|e| e.to_string())?;
+
+    // FIXED: Uses atomic_write
+    atomic_write(file_path, json).map_err(|e| format!("Save failed: {}", e))?;
 
     Ok(())
 }
@@ -138,7 +141,9 @@ pub fn cmd_delete_user_layout(
     }
 
     let json = serde_json::to_string_pretty(&store).map_err(|e| e.to_string())?;
-    fs::write(file_path, json).map_err(|e| e.to_string())?;
+
+    // FIXED: Uses atomic_write
+    atomic_write(file_path, json).map_err(|e| format!("Delete failed: {}", e))?;
 
     Ok(())
 }
@@ -199,6 +204,9 @@ pub fn cmd_save_keyboard(
     let safe_name = filename.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "");
     let path = kb_dir.join(format!("{}.json", safe_name));
     let json = serde_json::to_string_pretty(&def).map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| e.to_string())?;
+
+    // FIXED: Uses atomic_write
+    atomic_write(path, json).map_err(|e| format!("Save failed: {}", e))?;
+
     Ok(())
 }

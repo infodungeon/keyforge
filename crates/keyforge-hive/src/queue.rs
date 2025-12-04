@@ -1,5 +1,5 @@
 use crate::store::Store;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{error, info};
 
 pub enum DbEvent {
@@ -9,6 +9,8 @@ pub enum DbEvent {
         score: f32,
         node_id: String,
     },
+    // Internal signal to flush and quit
+    Shutdown(oneshot::Sender<()>),
 }
 
 pub struct WriteQueue {
@@ -21,6 +23,7 @@ impl WriteQueue {
 
         tokio::spawn(async move {
             let mut batch = Vec::with_capacity(100);
+            let mut shutdown_signal: Option<oneshot::Sender<()>> = None;
 
             loop {
                 // 1. Fetch first message (wait if empty)
@@ -28,19 +31,35 @@ impl WriteQueue {
                 if first.is_none() {
                     break;
                 } // Channel closed
-                batch.push(first.unwrap());
+
+                let msg = first.unwrap();
+
+                // If the very first message is Shutdown, set flag and skip to flush
+                if let DbEvent::Shutdown(signal) = msg {
+                    shutdown_signal = Some(signal);
+                    break;
+                }
+
+                batch.push(msg);
+
+                // Flag to break outer loop after flushing
+                let mut goto_flush_and_exit = false;
 
                 // 2. Drain remaining available (up to limit)
                 while batch.len() < 100 {
                     match rx.try_recv() {
-                        Ok(msg) => batch.push(msg),
+                        Ok(DbEvent::Shutdown(signal)) => {
+                            shutdown_signal = Some(signal);
+                            goto_flush_and_exit = true;
+                            break;
+                        }
+                        Ok(item) => batch.push(item),
                         Err(_) => break, // Empty
                     }
                 }
 
                 // 3. Flush Batch
                 if !batch.is_empty() {
-                    // This requires Store::begin() to be available
                     if let Err(e) = flush_batch(&store, &batch).await {
                         error!("❌ Failed to flush batch of {} records: {}", batch.len(), e);
                     } else if batch.len() > 10 {
@@ -48,6 +67,22 @@ impl WriteQueue {
                     }
                     batch.clear();
                 }
+
+                if goto_flush_and_exit {
+                    break;
+                }
+            }
+
+            // Final Flush logic
+            if !batch.is_empty() {
+                info!("🛑 Shutdown: Flushing final {} records...", batch.len());
+                if let Err(e) = flush_batch(&store, &batch).await {
+                    error!("❌ Failed final flush: {}", e);
+                }
+            }
+
+            if let Some(signal) = shutdown_signal {
+                let _ = signal.send(());
             }
         });
 
@@ -59,6 +94,18 @@ impl WriteQueue {
             error!("Failed to enqueue DB event: {}", e);
         }
     }
+
+    pub async fn shutdown(&self) {
+        let (tx, rx) = oneshot::channel();
+        // FIXED: Replaced `if let Err(_) = ...` with `.is_err()`
+        if self.sender.send(DbEvent::Shutdown(tx)).await.is_err() {
+            error!("Queue already closed");
+            return;
+        }
+        // Wait for the worker to finish flushing
+        let _ = rx.await;
+        info!("💾 WriteQueue shut down gracefully.");
+    }
 }
 
 async fn flush_batch(store: &Store, batch: &[DbEvent]) -> Result<(), String> {
@@ -66,16 +113,14 @@ async fn flush_batch(store: &Store, batch: &[DbEvent]) -> Result<(), String> {
     let mut tx = store.begin().await?;
 
     for event in batch {
-        match event {
-            DbEvent::Result {
-                job_id,
-                layout,
-                score,
-                node_id,
-            } => {
-                sqlx::query(
-                    "INSERT INTO results (job_id, layout, score, node_id) VALUES (?, ?, ?, ?)",
-                )
+        if let DbEvent::Result {
+            job_id,
+            layout,
+            score,
+            node_id,
+        } = event
+        {
+            sqlx::query("INSERT INTO results (job_id, layout, score, node_id) VALUES (?, ?, ?, ?)")
                 .bind(job_id)
                 .bind(layout)
                 .bind(score)
@@ -83,7 +128,6 @@ async fn flush_batch(store: &Store, batch: &[DbEvent]) -> Result<(), String> {
                 .execute(&mut *tx)
                 .await
                 .map_err(|e| e.to_string())?;
-            }
         }
     }
 

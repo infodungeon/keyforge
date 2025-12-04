@@ -1,7 +1,7 @@
 use crate::reports;
 use clap::Args;
 use keyforge_core::config::Config;
-use keyforge_core::keycodes::KeycodeRegistry; // NEW
+use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::optimizer::{OptimizationOptions, Optimizer, ProgressCallback};
 use keyforge_core::scorer::Scorer;
 use std::sync::Arc;
@@ -23,16 +23,32 @@ pub struct SearchArgs {
     pub seed: Option<u64>,
 }
 
-struct CliLogger;
+struct CliLogger {
+    registry: Arc<KeycodeRegistry>,
+}
+
 impl ProgressCallback for CliLogger {
-    // CHANGED: &[u8] -> &[u16]
-    fn on_progress(&self, epoch: usize, score: f32, _layout: &[u16], ips: f32) -> bool {
-        info!("Ep {:5} | Global Best: {:.0} | {:.2}M/s", epoch, score, ips);
+    fn on_progress(&self, epoch: usize, score: f32, layout: &[u16], ips: f32) -> bool {
+        // Create a short preview of the layout (first 10 keys)
+        // This uses both 'self.registry' and 'layout', resolving the warnings.
+        let preview_len = layout.len().min(10);
+        let preview: String = layout
+            .iter()
+            .take(preview_len)
+            .map(|&c| self.registry.get_label(c))
+            .collect::<Vec<String>>()
+            .join("");
+
+        let ellipsis = if layout.len() > 10 { "..." } else { "" };
+
+        info!(
+            "Ep {:5} | Best: {:.0} | {:.2}M/s | [ {}{} ]",
+            epoch, score, ips, preview, ellipsis
+        );
         true
     }
 }
 
-// CHANGED: Added registry argument
 pub fn run(args: SearchArgs, scorer: Arc<Scorer>, registry: Arc<KeycodeRegistry>, _debug: bool) {
     let mut options = OptimizationOptions::from(&args.config);
 
@@ -50,15 +66,20 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, registry: Arc<KeycodeRegistry>
         info!("➡️  Attempt #{} of {}", i, attempts);
 
         let seed = args.seed.map(|s| s + (i as u64 * 100));
-        let result = optimizer.run(seed, CliLogger);
+        let result = optimizer.run(
+            seed,
+            CliLogger {
+                registry: registry.clone(),
+            },
+        );
 
         if result.score < overall_best_score {
             overall_best_score = result.score;
-            overall_best_layout = result.layout; // result.layout is Vec<u16>
+            overall_best_layout = result.layout;
         }
     }
 
-    // Convert u16 layout back to readable string for log
+    // Convert u16 layout back to readable string for log using Registry
     let layout_str = overall_best_layout
         .iter()
         .map(|&c| registry.get_label(c))
@@ -69,6 +90,6 @@ pub fn run(args: SearchArgs, scorer: Arc<Scorer>, registry: Arc<KeycodeRegistry>
     info!("Score: {:.2}", overall_best_score);
     info!("Layout: {}", layout_str);
 
-    // Pass registry to report printer
+    // Pass registry to report printer for nice grid output
     reports::print_layout_grid("OPTIMIZED", &overall_best_layout, &registry);
 }

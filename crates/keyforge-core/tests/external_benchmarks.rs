@@ -4,7 +4,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;
 
-// FIX: Added Clone to derive macros
 #[derive(Debug, Deserialize, Clone)]
 struct CyanophageEntry {
     layout: String,
@@ -91,7 +90,8 @@ fn test_cyanophage_ranking_correlation() {
             // 1. Process All Layouts
             {
                 // Pre-fetch all valid layout names to avoid lock contention
-                let sessions = state.sessions.lock().unwrap();
+                // FIXED: .lock() -> .read()
+                let sessions = state.sessions.read().unwrap();
                 let session = sessions.get(session_id).unwrap();
                 let kb = &session.kb_def;
 
@@ -117,7 +117,10 @@ fn test_cyanophage_ranking_correlation() {
                 drop(sessions); // Release lock
 
                 // Second pass: Calculate scores
-                let mut scored_entries = Vec::new();
+                // FIXED: Explicit type annotation to solve inference error
+                // (Name, LayoutScore, KF_SFB, Ref_SFB, Ref_Effort)
+                let mut scored_entries: Vec<(String, f32, f32, f32, f32)> = Vec::new();
+
                 for (name, layout_str, ref_sfb, ref_effort) in calculated_scores {
                     let res = validate_layout(&state, session_id, layout_str, None).unwrap();
                     let total = if res.score.total_bigrams > 0.0 {

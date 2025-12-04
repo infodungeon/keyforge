@@ -33,3 +33,7 @@ fastrand = "2.0"
 
 # Internal
 keyforge-core = { path = "../../crates/keyforge-core" }
+
+# --- ADDED: Dev dependencies for testing ---
+[dev-dependencies]
+tempfile = "3.8"

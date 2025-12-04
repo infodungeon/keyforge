@@ -29,6 +29,6 @@ pub fn result_routes() -> Router<Arc<AppState>> {
         .route("/results", axum::routing::post(results::submit))
         .route(
             "/submissions",
-            axum::routing::post(submission::submit_layout),
+            axum::routing::post(submission::submit_layout).get(submission::list_submissions), // ADDED GET
         )
 }

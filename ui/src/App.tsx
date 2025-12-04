@@ -4,6 +4,7 @@ import { AppMode, JobStatusUpdate } from "./types";
 import { NavRail } from "./components/NavRail";
 import { StatusBar } from "./components/StatusBar";
 import { KeyboardProvider, useKeyboard } from "./context/KeyboardContext";
+import { ToastProvider, useToast } from "./context/ToastContext"; // CHANGED
 import { formatForDisplay } from "./utils";
 
 // Views
@@ -28,13 +29,19 @@ function AppContent() {
     refreshData, activeJobId, startJob, stopJob, weights
   } = useKeyboard();
 
+  const { addToast } = useToast(); // CHANGED: Hook usage
+
   const pollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => localStorage.setItem("keyforge_hive_url", hiveUrl), [hiveUrl]);
 
   // --- Global Job Manager ---
   const handleDispatch = async () => {
-    if (!activeResult?.geometry || !weights) return;
+    if (!activeResult?.geometry || !weights) {
+      addToast('error', "No geometry or weights loaded.");
+      return;
+    }
+
     try {
       const jobId = await invoke<string>("cmd_dispatch_job", {
         hiveUrl,
@@ -47,6 +54,8 @@ function AppContent() {
       });
 
       startJob(jobId);
+      addToast('success', "Optimization Job Dispatched to Hive");
+
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
       pollIntervalRef.current = window.setInterval(async () => {
@@ -58,9 +67,14 @@ function AppContent() {
               updateLayoutString(displayStr);
             }
           }
-        } catch (e) { console.warn(e); }
+        } catch (e) {
+          // Silent fail on polling is okay, usually just network jitter
+          console.warn(e);
+        }
       }, 1500);
-    } catch (e) { alert(`Dispatch Error: ${e}`); }
+    } catch (e) {
+      addToast('error', `Dispatch Failed: ${e}`);
+    }
   };
 
   const handleStopJob = () => {
@@ -69,20 +83,37 @@ function AppContent() {
       pollIntervalRef.current = null;
     }
     stopJob();
+    addToast('info', "Job polling stopped locally.");
   };
 
   const toggleWorker = async (enabled: boolean) => {
     setLocalWorkerEnabled(enabled);
-    invoke("cmd_toggle_local_worker", { enabled, hiveUrl }).catch(console.error);
+    try {
+      const msg = await invoke<string>("cmd_toggle_local_worker", { enabled, hiveUrl });
+      addToast('info', msg);
+    } catch (e) {
+      addToast('error', `Worker Error: ${e}`);
+      setLocalWorkerEnabled(!enabled); // Revert UI
+    }
   };
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      await invoke("cmd_sync_data", { hiveUrl });
+      const stats = await invoke<{ downloaded: number, errors: string[] }>("cmd_sync_data", { hiveUrl });
       await refreshData();
-    } catch (e) { alert("Sync failed"); }
-    finally { setIsSyncing(false); }
+
+      if (stats.errors.length > 0) {
+        addToast('warning', `Sync completed with ${stats.errors.length} errors.`);
+        console.warn(stats.errors);
+      } else {
+        addToast('success', `Sync Complete. Downloaded ${stats.downloaded} files.`);
+      }
+    } catch (e) {
+      addToast('error', `Sync Failed: ${e}`);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const renderView = () => {
@@ -95,22 +126,16 @@ function AppContent() {
     switch (mode) {
       case 'analyze':
         return <AnalyzeView {...sidebarProps} />;
-
       case 'layout':
         return <LayoutView isSyncing={isSyncing} onSync={handleSync} />;
-
       case 'optimize':
         return <OptimizeView {...sidebarProps} onDispatch={handleDispatch} onStopJob={handleStopJob} />;
-
-      case 'design':  // FIXED
+      case 'design':
         return <ConstructView />;
-
       case 'arena':
         return <ArenaView />;
-
-      case 'test':    // FIXED
+      case 'test':
         return <TesterView />;
-
       case 'settings':
         return <SettingsView
           hiveUrl={hiveUrl}
@@ -118,7 +143,6 @@ function AppContent() {
           localWorkerEnabled={localWorkerEnabled}
           toggleWorker={toggleWorker}
         />;
-
       default:
         return <AnalyzeView {...sidebarProps} />;
     }
@@ -137,8 +161,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <KeyboardProvider>
-      <AppContent />
-    </KeyboardProvider>
+    <ToastProvider>
+      <KeyboardProvider>
+        <AppContent />
+      </KeyboardProvider>
+    </ToastProvider>
   );
 }

@@ -1,13 +1,13 @@
 use crate::config::{Config, ScoringWeights};
 use crate::geometry::KeyboardDefinition;
 use crate::keycodes::KeycodeRegistry;
-use crate::layouts::layout_string_to_u16; // CHANGED
+use crate::layouts::layout_string_to_u16;
 use crate::optimizer::mutation;
 use crate::scorer::{ScoreDetails, Scorer, ScorerBuilder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::RwLock; // CHANGED: Mutex -> RwLock
 use tracing::{info, warn};
 
 pub struct KeyForgeSession {
@@ -17,13 +17,14 @@ pub struct KeyForgeSession {
 }
 
 pub struct KeyForgeState {
-    pub sessions: Mutex<HashMap<String, KeyForgeSession>>,
+    // RwLock allows multiple readers (validations) simultaneously
+    pub sessions: RwLock<HashMap<String, KeyForgeSession>>,
 }
 
 impl Default for KeyForgeState {
     fn default() -> Self {
         Self {
-            sessions: Mutex::new(HashMap::new()),
+            sessions: RwLock::new(HashMap::new()),
         }
     }
 }
@@ -37,7 +38,6 @@ pub struct ValidationResult {
     pub heatmap: Vec<f32>,
 }
 
-/// Service: Initialize the Scorer with data files into a specific Session ID.
 pub fn load_dataset(
     state: &KeyForgeState,
     session_id: &str,
@@ -59,7 +59,6 @@ pub fn load_dataset(
 
     let kb_def = KeyboardDefinition::load_from_file(kb_path)?;
 
-    // Resolve Root Path
     let root_path_str = data_root.unwrap_or(".");
     let root_path = Path::new(root_path_str);
 
@@ -71,15 +70,13 @@ pub fn load_dataset(
     };
 
     if let Some(name) = weight_filename {
-        // Try direct path (Tauri style: root IS data dir)
         let direct_path = root_path.join("weights").join(name);
-        // Try repo path (CLI style: root HAS data dir)
         let repo_path = root_path.join("data").join("weights").join(name);
 
         let final_path = if direct_path.exists() {
-            Some(direct_path.clone())
+            Some(direct_path)
         } else if repo_path.exists() {
-            Some(repo_path.clone())
+            Some(repo_path)
         } else {
             None
         };
@@ -89,37 +86,26 @@ pub fn load_dataset(
             config.weights = ScoringWeights::load_from_file(&p);
         } else {
             warn!(
-                "API Warning: Weights file '{}' not found in '{:?}' or '{:?}'. Using defaults.",
-                name, direct_path, repo_path
+                "API Warning: Weights file '{}' not found. Using defaults.",
+                name
             );
         }
-    } else {
-        info!(
-            "API Info: No specific weights profile for type '{}'. Using defaults.",
-            kb_def.meta.kb_type
-        );
     }
 
     // 2. Load Keycode Registry
-    // Try direct path first, then repo path
     let direct_kc = root_path.join("keycodes.json");
     let repo_kc = root_path.join("data").join("keycodes.json");
 
     let registry = if direct_kc.exists() {
-        info!("API: Loading keycodes from {:?}", direct_kc);
         KeycodeRegistry::load_from_file(&direct_kc)?
     } else if repo_kc.exists() {
-        info!("API: Loading keycodes from {:?}", repo_kc);
         KeycodeRegistry::load_from_file(&repo_kc)?
     } else {
-        warn!(
-            "API: keycodes.json not found at {:?} or {:?}, using built-in defaults.",
-            direct_kc, repo_kc
-        );
+        warn!("API: keycodes.json not found, using built-in defaults.");
         KeycodeRegistry::new_with_defaults()
     };
 
-    // 3. Initialize Scorer using Builder Pattern
+    // 3. Initialize Scorer
     let scorer = ScorerBuilder::new()
         .with_weights(config.weights)
         .with_defs(config.defs)
@@ -131,15 +117,18 @@ pub fn load_dataset(
         .build()
         .map_err(|e| format!("Scorer Initialization Failed: {}", e))?;
 
-    // 4. Store in Session Map
-    let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
-
-    let session = KeyForgeSession {
-        scorer,
-        kb_def,
-        registry,
-    };
-    sessions.insert(session_id.to_string(), session);
+    // 4. Store in Session Map (Write Lock)
+    {
+        let mut sessions = state.sessions.write().map_err(|e| e.to_string())?;
+        sessions.insert(
+            session_id.to_string(),
+            KeyForgeSession {
+                scorer,
+                kb_def,
+                registry,
+            },
+        );
+    }
 
     Ok(format!("Session '{}' Loaded Successfully", session_id))
 }
@@ -150,53 +139,49 @@ pub fn validate_layout(
     layout_str: String,
     weights: Option<ScoringWeights>,
 ) -> Result<ValidationResult, String> {
-    let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+    // 1. Acquire Read Lock (Non-blocking for other readers)
+    let sessions = state.sessions.read().map_err(|e| e.to_string())?;
 
-    let session = sessions.get_mut(session_id).ok_or_else(|| {
+    let session = sessions.get(session_id).ok_or_else(|| {
         format!(
             "Session '{}' not found. Please load dataset first.",
             session_id
         )
     })?;
 
+    // Note: We cannot modify session.scorer in a read lock.
+    // If weights are provided, we clone the scorer cheap-ishly (Arc geometry) or just copy the weights logic.
+    // Since Scorer struct owns its data vectors, cloning it is expensive.
+    // OPTIMIZATION: Create a temporary lightweight scoring context if weights differ.
+    // For now, we assume the user accepts the overhead if they override weights dynamically.
+
+    let mut scorer_ref = session.scorer.clone();
     if let Some(w) = weights {
-        session.scorer.weights = w;
+        scorer_ref.weights = w;
     }
 
-    let key_count = session.scorer.key_count;
-
-    // CHANGED: Use u16 parser
+    let key_count = scorer_ref.key_count;
     let layout_codes = layout_string_to_u16(&layout_str, key_count, &session.registry);
-
-    // This uses crate::optimizer::mutation
     let pos_map = mutation::build_pos_map(&layout_codes);
+    let details = scorer_ref.score_details(&pos_map, 10_000);
 
-    let details = session.scorer.score_details(&pos_map, 10_000);
-
-    // Heatmap Calculation
-    let max_freq_val = session
-        .scorer
-        .char_freqs
-        .iter()
-        .fold(0.0f32, |a, &b| a.max(b));
+    let max_freq_val = scorer_ref.char_freqs.iter().fold(0.0f32, |a, &b| a.max(b));
 
     let mut heatmap = Vec::with_capacity(key_count);
     for &code in &layout_codes {
-        // Skip KC_NO or custom high-byte codes (macros)
         if code == 0 || code >= 256 {
             heatmap.push(0.0);
             continue;
         }
-
         let byte = code as u8;
-        let mut freq = session.scorer.char_freqs[byte as usize];
+        let mut freq = scorer_ref.char_freqs[byte as usize];
 
-        // Handle case folding for heatmap
+        // Heatmap case folding logic
         if freq == 0.0 {
             if byte.is_ascii_uppercase() {
-                freq = session.scorer.char_freqs[byte.to_ascii_lowercase() as usize];
+                freq = scorer_ref.char_freqs[byte.to_ascii_lowercase() as usize];
             } else if byte.is_ascii_lowercase() {
-                freq = session.scorer.char_freqs[byte.to_ascii_uppercase() as usize];
+                freq = scorer_ref.char_freqs[byte.to_ascii_uppercase() as usize];
             }
         }
 
@@ -211,7 +196,7 @@ pub fn validate_layout(
     Ok(ValidationResult {
         layout_name: "Custom".to_string(),
         score: details,
-        geometry: session.scorer.geometry.clone(),
+        geometry: scorer_ref.geometry.clone(),
         heatmap,
     })
 }

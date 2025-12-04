@@ -5,17 +5,10 @@ import {
     Lightbulb, Layers, Zap,
     Search, ChevronRight, X, LucideIcon, Keyboard
 } from "lucide-react";
-import { ContextControls } from "./ContextControls";
+import { ContextControls } from "./ContextControls"; // Self-contained now
 
 interface Props {
     onInsert: (token: string) => void;
-    // Context Props passed down
-    keyboards: string[];
-    selectedKeyboard: string;
-    onSelectKeyboard: (k: string) => void;
-    availableLayouts: Record<string, string>;
-    layoutName: string;
-    onSelectLayout: (n: string) => void;
 }
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -32,16 +25,16 @@ interface TabDef { id: string; label: string; icon: string; }
 interface CategoryGroup { label: string; items: string[]; }
 interface CategoryData { tabs: TabDef[]; categories: Record<string, CategoryGroup[]>; }
 
-export function KeyPicker(props: Props) {
-    const { onInsert, keyboards, selectedKeyboard, onSelectKeyboard, availableLayouts, layoutName, onSelectLayout } = props;
-
+export function KeyPicker({ onInsert }: Props) {
     const [data, setData] = useState<CategoryData | null>(null);
     const [activeTab, setActiveTab] = useState('basic');
     const [search, setSearch] = useState('');
     const [error, setError] = useState('');
 
     useEffect(() => {
-        invoke<CategoryData>("cmd_get_ui_categories").then(setData).catch(() => setError("Failed to load key data."));
+        invoke<CategoryData>("cmd_get_ui_categories")
+            .then(setData)
+            .catch(() => setError("Failed to load key data."));
     }, []);
 
     if (error) return <div className="w-80 p-8 text-red-400 text-xs">{error}</div>;
@@ -59,15 +52,8 @@ export function KeyPicker(props: Props) {
                 </h3>
             </div>
 
-            {/* 2. CONTEXT CONTROLS */}
-            <ContextControls
-                keyboards={keyboards}
-                selectedKeyboard={selectedKeyboard}
-                onSelectKeyboard={onSelectKeyboard}
-                availableLayouts={availableLayouts}
-                layoutName={layoutName}
-                onSelectLayout={onSelectLayout}
-            />
+            {/* 2. CONTEXT CONTROLS (Self-managed) */}
+            <ContextControls />
 
             {/* 3. SEARCH */}
             <div className="p-4 border-b border-slate-800 bg-slate-900/50">
@@ -85,7 +71,7 @@ export function KeyPicker(props: Props) {
 
             {/* 4. CONTENT */}
             {search ? (
-                <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                     <div className="grid grid-cols-3 gap-2">
                         {filtered.map((k, i) => (
                             <button key={i} onClick={() => onInsert(k.label)} className="p-2 bg-slate-800 hover:bg-purple-600 hover:text-white rounded text-[10px] font-mono border border-slate-700 transition-colors relative hover:z-10">
@@ -115,7 +101,6 @@ export function KeyPicker(props: Props) {
                                 </h4>
                                 <div className="grid grid-cols-4 gap-2">
                                     {group.items.map((key) => (
-                                        // ADDED: relative hover:z-10
                                         <button
                                             key={key}
                                             onClick={() => onInsert(key)}

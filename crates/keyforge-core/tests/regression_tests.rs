@@ -64,7 +64,8 @@ fn test_regression_qwerty_vs_colemak_api() {
 
             // Fetch layout strings
             let (qwerty_str, colemak_str) = {
-                let sessions = state.sessions.lock().unwrap();
+                // FIXED: .lock() -> .read()
+                let sessions = state.sessions.read().unwrap();
                 let session = sessions
                     .get(session_id)
                     .expect("Session not found in state");

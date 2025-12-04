@@ -1,4 +1,5 @@
 import { useKeyboard } from "../context/KeyboardContext";
+import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Label } from "../components/ui/Label";
 import { Input } from "../components/ui/Input";
@@ -16,8 +17,9 @@ interface Props {
 }
 
 export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWorker }: Props) {
-    // FIXED: Removed unused refreshData
-    const { keyboards, corpora, selectedCorpus, selectCorpus } = useKeyboard();
+    // FIXED: Added 'keyboards' back to destructuring
+    const { keyboards, corpora, selectedCorpus, selectCorpus, refreshData } = useKeyboard();
+    const { addToast } = useToast();
 
     const handleImportCorpus = async () => {
         try {
@@ -39,12 +41,11 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                 name: safeName
             });
 
-            alert("Corpus imported successfully! Reloading data...");
+            addToast('success', "Corpus imported successfully.");
+            await refreshData();
 
-            // Force a full reload to pick up the new list
-            window.location.reload();
         } catch (e) {
-            alert(`Import failed: ${e}`);
+            addToast('error', `Import failed: ${e}`);
         }
     };
 
@@ -79,6 +80,7 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                     </div>
                 </Card>
 
+                {/* NETWORK SETTINGS */}
                 <Card>
                     <h3 className="text-lg font-bold text-white mb-4">Network</h3>
                     <div className="space-y-4">
@@ -92,6 +94,7 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                     </div>
                 </Card>
 
+                {/* WORKER SETTINGS */}
                 <Card>
                     <h3 className="text-lg font-bold text-white mb-4">Local Worker</h3>
                     <div className="flex items-center justify-between">
@@ -110,6 +113,7 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                     </div>
                 </Card>
 
+                {/* INFO CARD */}
                 <Card>
                     <h3 className="text-lg font-bold text-white mb-4">System Info</h3>
                     <div className="space-y-2 text-xs text-slate-400">

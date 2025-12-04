@@ -5,7 +5,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { toDisplayString, fromDisplayString, formatForDisplay } from "../utils";
 import { RefreshCw, ArrowRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface Props {
     isSyncing: boolean;
@@ -16,26 +16,43 @@ export function LayoutView({ isSyncing, onSync }: Props) {
     const {
         activeResult, layoutName, layoutString,
         updateLayoutString, selectedKeyboard,
-        keyboards, selectKeyboard, availableLayouts, loadLayoutPreset,
         selectedKeyIndex, setSelectedKeyIndex
     } = useKeyboard();
 
     const [isEditingKey, setIsEditingKey] = useState(false);
 
-    const handleCommitInput = () => {
-        const standardized = fromDisplayString(layoutString);
+    const stateRef = useRef({
+        selectedKeyIndex,
+        isEditingKey,
+        layoutString,
+        maxKeys: activeResult?.geometry.keys.length || 0
+    });
+
+    useEffect(() => {
+        stateRef.current = {
+            selectedKeyIndex,
+            isEditingKey,
+            layoutString,
+            maxKeys: activeResult?.geometry.keys.length || 0
+        };
+    }, [selectedKeyIndex, isEditingKey, layoutString, activeResult]);
+
+    const handleCommitInput = (val: string) => {
+        const standardized = fromDisplayString(val);
         updateLayoutString(formatForDisplay(standardized));
     };
 
-    const handleInsertToken = (token: string) => {
+    const insertToken = (token: string) => {
+        const { selectedKeyIndex, isEditingKey, layoutString, maxKeys } = stateRef.current;
+
         if (selectedKeyIndex !== null && isEditingKey) {
             const tokens = layoutString.trim().split(/\s+/);
-            const maxKeys = activeResult?.geometry.keys.length || 0;
             while (tokens.length < maxKeys) tokens.push("KC_TRNS");
 
             if (selectedKeyIndex < tokens.length) {
                 tokens[selectedKeyIndex] = token;
-                updateLayoutString(tokens.join(" "));
+                const newStr = tokens.join(" ");
+                updateLayoutString(newStr);
 
                 if (selectedKeyIndex < maxKeys - 1) {
                     setSelectedKeyIndex(selectedKeyIndex + 1);
@@ -48,17 +65,17 @@ export function LayoutView({ isSyncing, onSync }: Props) {
         }
     };
 
-    useEffect(() => {
-        if (selectedKeyIndex === null) setIsEditingKey(false);
-    }, [selectedKeyIndex]);
-
+    // One-time Setup
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            const { selectedKeyIndex, isEditingKey, maxKeys } = stateRef.current;
+
             if (selectedKeyIndex !== null) {
                 if (e.key === 'Tab') {
                     e.preventDefault(); e.stopPropagation();
                     setIsEditingKey(false);
-                    const max = (activeResult?.geometry.keys.length || 1) - 1;
+
+                    const max = maxKeys > 0 ? maxKeys - 1 : 0;
                     const dir = e.shiftKey ? -1 : 1;
                     let next = selectedKeyIndex + dir;
                     if (next < 0) next = max;
@@ -79,13 +96,14 @@ export function LayoutView({ isSyncing, onSync }: Props) {
             }
             if (isEditingKey && selectedKeyIndex !== null) {
                 if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                    handleInsertToken(e.key);
+                    insertToken(e.key);
                 }
             }
         };
-        window.addEventListener('keydown', handleKeyDown as any);
-        return () => window.removeEventListener('keydown', handleKeyDown as any);
-    }, [selectedKeyIndex, isEditingKey, layoutString, activeResult]);
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const handleBackgroundClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
@@ -114,7 +132,6 @@ export function LayoutView({ isSyncing, onSync }: Props) {
                         )}
                     </div>
                     <div className="flex gap-2">
-                        {/* REMOVED TEST KEYS BUTTON */}
                         <Button size="icon" variant="ghost" onClick={onSync} isLoading={isSyncing} icon={<RefreshCw size={18} />} />
                     </div>
                 </div>
@@ -138,12 +155,12 @@ export function LayoutView({ isSyncing, onSync }: Props) {
                             className="text-center font-mono text-lg tracking-widest h-14"
                             value={layoutString}
                             onChange={e => updateLayoutString(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleCommitInput()}
-                            onBlur={handleCommitInput}
+                            onKeyDown={e => e.key === 'Enter' && handleCommitInput(layoutString)}
+                            onBlur={() => handleCommitInput(layoutString)}
                             onFocus={() => { setSelectedKeyIndex(null); setIsEditingKey(false); }}
                             placeholder="Select a key or type code..."
                         />
-                        <Button variant="secondary" className="h-14 w-14" icon={<ArrowRight size={24} />} onClick={handleCommitInput} />
+                        <Button variant="secondary" className="h-14 w-14" icon={<ArrowRight size={24} />} onClick={() => handleCommitInput(layoutString)} />
                     </div>
                     <div className="text-[9px] text-slate-500 text-center mt-3 font-mono">
                         {isEditingKey
@@ -157,13 +174,23 @@ export function LayoutView({ isSyncing, onSync }: Props) {
 
             {/* RIGHT: Key Picker */}
             <KeyPicker
-                onInsert={handleInsertToken}
-                keyboards={keyboards}
-                selectedKeyboard={selectedKeyboard}
-                onSelectKeyboard={selectKeyboard}
-                availableLayouts={availableLayouts}
-                layoutName={layoutName}
-                onSelectLayout={loadLayoutPreset}
+                onInsert={(token) => {
+                    // Manual bridging because onInsert is triggered by button click
+                    // which isn't caught by global KeyDown listener
+                    if (selectedKeyIndex === null) {
+                        updateLayoutString(layoutString + " " + token);
+                    } else if (isEditingKey) {
+                        const tokens = layoutString.trim().split(/\s+/);
+                        const maxKeys = activeResult?.geometry.keys.length || 0;
+                        while (tokens.length < maxKeys) tokens.push("KC_TRNS");
+                        if (selectedKeyIndex < tokens.length) {
+                            tokens[selectedKeyIndex] = token;
+                            updateLayoutString(tokens.join(" "));
+                            if (selectedKeyIndex < maxKeys - 1) setSelectedKeyIndex(selectedKeyIndex + 1);
+                            else setIsEditingKey(false);
+                        }
+                    }
+                }}
             />
         </>
     );

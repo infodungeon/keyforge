@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RotateCcw, Keyboard as KeyboardIcon, Save } from "lucide-react"; // Added Save icon
+import { RotateCcw, Keyboard as KeyboardIcon, Save } from "lucide-react";
 import { Button } from "./ui/Button";
+import { useToast } from "../context/ToastContext";
 
 // Types for Biometric Data
 interface KeyStroke {
@@ -16,6 +17,7 @@ interface BiometricSample {
 }
 
 export function Arena() {
+    const { addToast } = useToast();
     const [words, setWords] = useState<string[]>([]);
     const [input, setInput] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -26,7 +28,7 @@ export function Arena() {
     const [acc, setAcc] = useState(100);
     const [isFinished, setIsFinished] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [saveStatus, setSaveStatus] = useState<string>(""); // Feedback state
+    const [saveStatus, setSaveStatus] = useState<string>("");
 
     // Refs for internals
     const inputRef = useRef<HTMLInputElement>(null);
@@ -55,11 +57,11 @@ export function Arena() {
             setTimeout(() => inputRef.current?.focus(), 100);
         } catch (e) {
             console.error("Failed to load corpus:", e);
-            alert("Could not load word list. Please ensure 'data/google-books-common-words.txt' exists.");
+            addToast('error', "Could not load word list. Please ensure 'data/google-books-common-words.txt' exists.");
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [addToast]);
 
     useEffect(() => {
         generateWords();
@@ -134,11 +136,12 @@ export function Arena() {
             setSaveStatus("Saving Stats...");
             try {
                 const msg = await invoke<string>("cmd_save_biometrics", { samples: biometricsRef.current });
-                console.log(msg);
-                setSaveStatus("Stats Saved Successfully");
+                setSaveStatus("Stats Saved");
+                addToast('success', msg, 3000);
             } catch (e) {
                 console.error(e);
-                setSaveStatus("Failed to save stats");
+                setSaveStatus("Save Failed");
+                addToast('error', `Failed to save stats: ${e}`);
             }
         }
     };
@@ -174,7 +177,10 @@ export function Arena() {
     };
 
     return (
-        <div className="flex-1 flex flex-col items-center justify-center bg-[#0B0F19] relative overflow-hidden">
+        <div
+            className="flex-1 flex flex-col items-center justify-center bg-[#0B0F19] relative overflow-hidden"
+            onClick={() => inputRef.current?.focus()}
+        >
 
             {/* Header / Stats */}
             <div className="absolute top-0 left-0 w-full p-6 flex justify-center gap-12 text-slate-500 font-mono text-sm uppercase tracking-widest select-none">
@@ -205,11 +211,17 @@ export function Arena() {
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                onBlur={() => !isFinished && inputRef.current?.focus()}
+                onBlur={() => {
+                    // Keep focus unless finished
+                    if (!isFinished) {
+                        // Small timeout to prevent fighting browser focus logic
+                        setTimeout(() => inputRef.current?.focus(), 10);
+                    }
+                }}
             />
 
             {/* Word Display */}
-            <div className="max-w-4xl w-full p-8 flex flex-wrap justify-center content-start gap-y-2 relative z-10 select-none cursor-text" onClick={() => inputRef.current?.focus()}>
+            <div className="max-w-4xl w-full p-8 flex flex-wrap justify-center content-start gap-y-2 relative z-10 select-none cursor-text">
                 {isLoading ? (
                     <div className="text-slate-500 animate-pulse">Loading Corpus...</div>
                 ) : isFinished ? (

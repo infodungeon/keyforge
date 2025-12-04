@@ -1,44 +1,42 @@
+import { useKeyboard } from "../context/KeyboardContext";
 import { Select } from "./ui/Select";
 import { Label } from "./ui/Label";
 
 interface Props {
-    keyboards: string[];
-    selectedKeyboard: string;
-    onSelectKeyboard: (k: string) => void;
-    
-    availableLayouts: Record<string, string>;
-    layoutName: string;
-    onSelectLayout: (n: string) => void;
-    
     disabled?: boolean;
 }
 
-export function ContextControls({
-    keyboards, selectedKeyboard, onSelectKeyboard,
-    availableLayouts, layoutName, onSelectLayout,
-    disabled
-}: Props) {
+export function ContextControls({ disabled }: Props) {
+    const {
+        keyboards, selectedKeyboard, selectKeyboard,
+        availableLayouts, layoutName, loadLayoutPreset,
+        activeJobId
+    } = useKeyboard();
+
+    // Disable if passed prop is true OR if a job is running
+    const isLocked = disabled || !!activeJobId;
+
     return (
         <div className="p-4 border-b border-slate-800 space-y-4 bg-slate-900/50">
             <div>
                 <Label>Keyboard</Label>
-                <Select 
-                    value={selectedKeyboard} 
-                    onChange={e => onSelectKeyboard(e.target.value)}
+                <Select
+                    value={selectedKeyboard}
+                    onChange={e => selectKeyboard(e.target.value)}
                     options={keyboards.map(k => ({ label: k, value: k }))}
-                    disabled={disabled}
+                    disabled={isLocked}
                 />
             </div>
             <div>
                 <Label>Layout</Label>
                 <Select
                     value={availableLayouts[layoutName] ? layoutName : "Custom"}
-                    onChange={e => onSelectLayout(e.target.value)}
+                    onChange={e => loadLayoutPreset(e.target.value)}
                     options={[
                         { label: "Custom / Edited", value: "Custom" },
                         ...Object.keys(availableLayouts).sort().map(k => ({ label: k, value: k }))
                     ]}
-                    disabled={disabled}
+                    disabled={isLocked}
                 />
             </div>
         </div>

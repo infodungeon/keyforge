@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 pub fn layout_string_to_u16(s: &str, size: usize, registry: &KeycodeRegistry) -> Vec<u16> {
     let mut codes = Vec::with_capacity(size);
 
+    // Fast path: Check if space delimited
     if s.trim().contains(' ') {
         for token in s.split_whitespace() {
             if codes.len() >= size {
@@ -22,7 +23,7 @@ pub fn layout_string_to_u16(s: &str, size: usize, registry: &KeycodeRegistry) ->
                     let mut hasher = FnvHasher::default();
                     content.to_uppercase().hash(&mut hasher);
                     let hash = hasher.finish();
-                    // Map to 0xE000 - 0xEFFF (4096 slots) - Low collision risk
+                    // Map to 0xE000 - 0xEFFF (4096 slots)
                     let dynamic_code = 0xE000 + (hash % 4096) as u16;
                     codes.push(dynamic_code);
                 } else {
@@ -31,13 +32,15 @@ pub fn layout_string_to_u16(s: &str, size: usize, registry: &KeycodeRegistry) ->
             }
         }
     } else {
-        // Fallback char parsing
+        // Character stream parsing
         let mut chars = s.chars().peekable();
         while codes.len() < size {
             if let Some(c) = chars.next() {
                 if c == '[' {
+                    // Token Mode
                     let mut token = String::new();
                     let mut closed = false;
+                    // Gather token
                     while let Some(&next_c) = chars.peek() {
                         chars.next();
                         if next_c == ']' {
@@ -46,6 +49,7 @@ pub fn layout_string_to_u16(s: &str, size: usize, registry: &KeycodeRegistry) ->
                         }
                         token.push(next_c);
                     }
+
                     if closed {
                         if let Some(code) = registry.get_code(&token) {
                             codes.push(code);
@@ -60,20 +64,35 @@ pub fn layout_string_to_u16(s: &str, size: usize, registry: &KeycodeRegistry) ->
                         codes.push(0);
                     }
                 } else {
-                    let mut buf = [0; 4];
-                    let s_char = c.encode_utf8(&mut buf);
-                    if let Some(code) = registry.get_code(s_char) {
-                        codes.push(code);
+                    // Single Char Mode - Optimization: Check simple ASCII first
+                    if c.is_ascii_alphanumeric() || c.is_ascii_punctuation() {
+                        let mut buf = [0; 1];
+                        let s_char = c.encode_utf8(&mut buf);
+                        // Direct lookup
+                        if let Some(code) = registry.get_code(s_char) {
+                            codes.push(code);
+                        } else {
+                            codes.push(0);
+                        }
                     } else {
-                        codes.push(0);
+                        // Complex char (unicode/emoji)
+                        let mut buf = [0; 4];
+                        let s_char = c.encode_utf8(&mut buf);
+                        if let Some(code) = registry.get_code(s_char) {
+                            codes.push(code);
+                        } else {
+                            codes.push(0);
+                        }
                     }
                 }
             } else {
+                // End of string, fill padding
                 codes.push(0);
             }
         }
     }
 
+    // Ensure strict size
     while codes.len() < size {
         codes.push(0);
     }

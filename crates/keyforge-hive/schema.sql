@@ -14,13 +14,15 @@ CREATE TABLE IF NOT EXISTS results (
     layout TEXT NOT NULL,
     score REAL NOT NULL,
     node_id TEXT NOT NULL,
-    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(job_id) REFERENCES jobs(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_results_score ON results(job_id, score ASC);
+-- Indices for results
+CREATE INDEX IF NOT EXISTS idx_results_job_score ON results(job_id, score ASC);
+CREATE INDEX IF NOT EXISTS idx_results_created ON results(created_at);
 
--- NEW: Community Submissions Table
+-- Community Submissions Table
 CREATE TABLE IF NOT EXISTS submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -30,3 +32,7 @@ CREATE TABLE IF NOT EXISTS submissions (
     status TEXT DEFAULT 'pending', -- pending, approved, rejected
     submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Indices for submissions (Sort by recent, filter by status)
+CREATE INDEX IF NOT EXISTS idx_submissions_recent ON submissions(submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);

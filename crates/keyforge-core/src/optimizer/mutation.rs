@@ -114,3 +114,58 @@ pub fn fails_sanity(
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::KeyNode;
+
+    #[test]
+    fn test_mutation_respects_pinned_keys_strictly() {
+        let mut rng = fastrand::Rng::with_seed(1337);
+        let size = 10;
+
+        // Setup minimal geometry
+        let keys: Vec<KeyNode> = (0..size)
+            .map(|i| KeyNode {
+                id: format!("k{}", i),
+                hand: 0,
+                finger: 0,
+                row: 0,
+                col: i as i8,
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+                is_stretch: false,
+            })
+            .collect();
+
+        let geom = KeyboardGeometry {
+            keys,
+            prime_slots: vec![0, 1],
+            med_slots: vec![2, 3],
+            low_slots: (4..10).collect(),
+            home_row: 0,
+            finger_origins: [[(0.0, 0.0); 5]; 2],
+        };
+
+        let defs = LayoutDefinitions::default();
+
+        // CONSTRAINT: Index 5 MUST be 'X' (88)
+        let mut pinned = vec![None; size];
+        pinned[5] = Some(88);
+
+        // Run 10,000 generations
+        for _ in 0..10_000 {
+            let layout = generate_tiered_layout(&mut rng, &defs, &geom, size, &pinned);
+
+            // AGGRESSIVE ASSERTION
+            assert_eq!(layout[5], 88, "Mutation violated pinning constraint!");
+
+            // Check for duplicates of the pinned key elsewhere
+            let count_x = layout.iter().filter(|&&k| k == 88).count();
+            assert_eq!(count_x, 1, "Pinned key duplicated elsewhere in layout!");
+        }
+    }
+}

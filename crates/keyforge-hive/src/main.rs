@@ -1,19 +1,21 @@
+use axum::http::Method;
 use clap::Parser;
 use keyforge_core::keycodes::KeycodeRegistry;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 
 // Module Declarations
 mod db;
-mod queue; // NEW: Must be declared to be used in state
+mod queue;
 mod routes;
-mod state; // NEW: Must be declared
-mod store; // NEW: Must be declared
+mod state;
+mod store;
 
 use crate::state::AppState;
 
@@ -38,7 +40,7 @@ async fn main() {
 
     let pool = db::init_db(&args.db).await;
 
-    // Collapsed Path Resolution (Clippy Clean)
+    // Collapsed Path Resolution strategy
     let data_path = if args.data.exists() {
         args.data
     } else if Path::new("../data").exists() {
@@ -63,21 +65,67 @@ async fn main() {
         KeycodeRegistry::new_with_defaults()
     };
 
-    // Initialize State (which initializes Store and Queue)
     let state = Arc::new(AppState::new(pool, registry));
+
+    // --- SECURITY HARDENING ---
+    // 1. CORS: Allow Any Origin (Distributed Nodes), but restrict Methods
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers(Any);
 
     let app = routes::system_routes()
         .merge(routes::job_routes())
         .merge(routes::result_routes())
         .route("/manifest", axum::routing::get(routes::sync::get_manifest))
+        // ServeDir handles Range requests automatically, good for large files
         .nest_service("/data", ServeDir::new(&data_path))
-        .layer(CorsLayer::permissive())
+        // 2. LAYERS (Order matters: Bottom executes first)
+        .layer(cors)
         .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        // 3. DoS Protection: Limit bodies to 64MB (Accommodates large corpora)
+        .layer(RequestBodyLimitLayer::new(64 * 1024 * 1024))
+        .with_state(state.clone());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
     info!("🚀 Hive listening on {}", addr);
+    info!("⚠️  WARNING: Server is bound to all interfaces (0.0.0.0). Ensure firewall rules are active.");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+
+    // 4. Graceful Shutdown
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal(state))
+        .await
+        .unwrap();
+}
+
+/// Listens for SIGTERM/Ctrl+C and flushes the DB queue before exiting
+async fn shutdown_signal(state: Arc<AppState>) {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    info!("🛑 Signal received, shutting down...");
+
+    // Flush the WriteQueue to ensure no results are lost
+    state.queue.shutdown().await;
 }

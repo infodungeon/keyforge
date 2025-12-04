@@ -2,13 +2,29 @@ use super::Replica;
 
 impl Replica {
     #[inline(always)]
-    pub(crate) fn calc_monogram_delta(&self, idx_a: usize, idx_b: usize, char_a: usize, char_b: usize) -> f32 {
+    pub(crate) fn calc_monogram_delta(
+        &self,
+        idx_a: usize,
+        idx_b: usize,
+        char_a: usize,
+        char_b: usize,
+    ) -> f32 {
         let mut d = 0.0;
-        
-        if char_a >= 256 && char_b >= 256 { return 0.0; }
 
-        let freq_a = if char_a < 256 { self.scorer.char_freqs[char_a] } else { 0.0 };
-        let freq_b = if char_b < 256 { self.scorer.char_freqs[char_b] } else { 0.0 };
+        if char_a >= 256 && char_b >= 256 {
+            return 0.0;
+        }
+
+        let freq_a = if char_a < 256 {
+            self.scorer.char_freqs[char_a]
+        } else {
+            0.0
+        };
+        let freq_b = if char_b < 256 {
+            self.scorer.char_freqs[char_b]
+        } else {
+            0.0
+        };
 
         d += (self.local_monogram_costs[idx_b] - self.local_monogram_costs[idx_a]) * freq_a;
         d += (self.local_monogram_costs[idx_a] - self.local_monogram_costs[idx_b]) * freq_b;
@@ -36,21 +52,31 @@ impl Replica {
     }
 
     #[inline(always)]
-    pub(crate) fn calc_bigram_delta(&self, idx_a: usize, idx_b: usize, char_a: usize, char_b: usize) -> f32 {
-        if char_a >= 256 && char_b >= 256 { return 0.0; }
-        
+    pub(crate) fn calc_bigram_delta(
+        &self,
+        idx_a: usize,
+        idx_b: usize,
+        char_a: usize,
+        char_b: usize,
+    ) -> f32 {
+        if char_a >= 256 && char_b >= 256 {
+            return 0.0;
+        }
+
         let n = self.scorer.key_count;
         let mut d = 0.0;
 
         let mut process_neighbors = |c_main: usize, idx_old: usize, idx_new: usize| {
-            if c_main >= 256 { return; }
+            if c_main >= 256 {
+                return;
+            }
             let start = self.scorer.bigram_starts[c_main];
             let end = self.scorer.bigram_starts[c_main + 1];
-            
+
             for i in start..end {
                 let other = self.scorer.bigrams_others[i] as usize;
                 let p_other = self.pos_map[other] as usize;
-                
+
                 if p_other != 255 {
                     let freq = self.scorer.bigrams_freqs[i];
                     if self.scorer.bigrams_self_first[i] {
@@ -88,24 +114,37 @@ impl Replica {
 
             let freq_aa = self.scorer.freq_matrix[char_a * 256 + char_a];
             if freq_aa > 0.0 {
-                d += (self.local_cost_matrix[idx_b * n + idx_b] - self.local_cost_matrix[idx_a * n + idx_a]) * freq_aa;
+                d += (self.local_cost_matrix[idx_b * n + idx_b]
+                    - self.local_cost_matrix[idx_a * n + idx_a])
+                    * freq_aa;
             }
             let freq_bb = self.scorer.freq_matrix[char_b * 256 + char_b];
             if freq_bb > 0.0 {
-                d += (self.local_cost_matrix[idx_a * n + idx_a] - self.local_cost_matrix[idx_b * n + idx_b]) * freq_bb;
+                d += (self.local_cost_matrix[idx_a * n + idx_a]
+                    - self.local_cost_matrix[idx_b * n + idx_b])
+                    * freq_bb;
             }
         }
         d
     }
 
     #[inline(always)]
-    pub(crate) fn calc_trigram_delta(&self, idx_a: usize, idx_b: usize, char_a: usize, char_b: usize, limit: usize) -> f32 {
+    pub(crate) fn calc_trigram_delta(
+        &self,
+        idx_a: usize,
+        idx_b: usize,
+        char_a: usize,
+        char_b: usize,
+        limit: usize,
+    ) -> f32 {
         let mut d = 0.0;
         let n = self.scorer.key_count;
         let n_sq = n * n;
 
         let mut process = |c: usize, is_a: bool| {
-            if c >= 256 { return; }
+            if c >= 256 {
+                return;
+            }
             let start = self.scorer.trigram_starts[c];
             let end = self.scorer.trigram_starts[c + 1];
             let len = end - start;
@@ -115,14 +154,28 @@ impl Replica {
                 let o1 = t.other1 as usize;
                 let o2 = t.other2 as usize;
 
-                if !is_a && (o1 == char_a || o2 == char_a) { continue; }
+                if !is_a && (o1 == char_a || o2 == char_a) {
+                    continue;
+                }
 
                 let p1_old = self.pos_map[o1] as usize;
                 let p2_old = self.pos_map[o2] as usize;
 
                 if p1_old != 255 && p2_old != 255 {
-                    let p1_new = if o1 == char_a { idx_b } else if o1 == char_b { idx_a } else { p1_old };
-                    let p2_new = if o2 == char_a { idx_b } else if o2 == char_b { idx_a } else { p2_old };
+                    let p1_new = if o1 == char_a {
+                        idx_b
+                    } else if o1 == char_b {
+                        idx_a
+                    } else {
+                        p1_old
+                    };
+                    let p2_new = if o2 == char_a {
+                        idx_b
+                    } else if o2 == char_b {
+                        idx_a
+                    } else {
+                        p2_old
+                    };
 
                     let p_c_old = if is_a { idx_a } else { idx_b };
                     let p_c_new = if is_a { idx_b } else { idx_a };
@@ -168,11 +221,19 @@ impl Replica {
         let is_left_b = self.scorer.geometry.keys[idx_b].hand == 0;
 
         if is_left_a && !is_left_b {
-            if char_a < 256 { delta_left_load -= self.scorer.char_freqs[char_a]; }
-            if char_b < 256 { delta_left_load += self.scorer.char_freqs[char_b]; }
+            if char_a < 256 {
+                delta_left_load -= self.scorer.char_freqs[char_a];
+            }
+            if char_b < 256 {
+                delta_left_load += self.scorer.char_freqs[char_b];
+            }
         } else if !is_left_a && is_left_b {
-            if char_a < 256 { delta_left_load += self.scorer.char_freqs[char_a]; }
-            if char_b < 256 { delta_left_load -= self.scorer.char_freqs[char_b]; }
+            if char_a < 256 {
+                delta_left_load += self.scorer.char_freqs[char_a];
+            }
+            if char_b < 256 {
+                delta_left_load -= self.scorer.char_freqs[char_b];
+            }
         }
 
         (delta_score, delta_left_load)

@@ -1,8 +1,15 @@
-import { AppMode, ValidationResult, ScoringWeights, SearchParams } from "../types";
-import { DerivedStats } from "../utils";
+import { useState } from "react";
+import { useKeyboard } from "../context/KeyboardContext";
+import { useToast } from "../context/ToastContext"; // ADDED
+import { invoke } from "@tauri-apps/api/core"; // ADDED
+import { AppMode } from "../types";
+import { calculateStats } from "../utils";
 import { ContextControls } from "./ContextControls";
 import { Button } from "./ui/Button";
-import { BarChart2, Sliders, Settings as SettingsIcon, Download, Upload, Play, Square, Save, Trash2, Send } from "lucide-react";
+import {
+    BarChart2, Sliders, Settings as SettingsIcon,
+    Download, Upload, Play, Square, Save, Trash2, Send
+} from "lucide-react";
 
 // Sub-panels
 import { AnalyzePanel } from "./panels/AnalyzePanel";
@@ -10,47 +17,89 @@ import { OptimizePanel } from "./panels/OptimizePanel";
 
 interface Props {
     mode: AppMode;
-    // Context Data
-    keyboards: string[];
-    selectedKeyboard: string;
-    setSelectedKeyboard: (s: string) => void;
-    availableLayouts: Record<string, string>;
-    layoutName: string;
-    setLayoutName: (s: string) => void;
-    loadLayoutPreset: (n: string) => void;
-    activeResult: ValidationResult | null;
-    referenceResult: ValidationResult | null;
-    derivedStats: DerivedStats | null;
-    weights: ScoringWeights | null;
-    searchParams: SearchParams | null;
-    activeJobId: string | null;
-    pinnedKeys: string;
-    isInitializing: boolean;
-    // Actions
-    setWeights: (w: ScoringWeights) => void;
-    setSearchParams: (s: SearchParams) => void;
-    setPinnedKeys: (s: string) => void;
-    handleDispatch: () => void;
-    handleStop: () => void;
-    handleImport: () => void;
-    handleExport: () => void;
-    showDiff: boolean;
-    setShowDiff: (b: boolean) => void;
-    localWorkerEnabled: boolean;
-    toggleWorker: (b: boolean) => void;
-    isStandard: boolean;
-    onSave: () => void;
-    onDelete: () => void;
-    onSubmit: () => void;
+    onDispatch?: () => void;
+    onStop?: () => void;
+    localWorkerEnabled?: boolean;
+    toggleWorker?: (b: boolean) => void;
+    pinnedKeys?: string;
+    setPinnedKeys?: (s: string) => void;
 }
 
-export function Inspector(props: Props) {
-    const { mode, activeJobId } = props;
+export function Inspector({
+    mode,
+    onDispatch, onStop,
+    localWorkerEnabled, toggleWorker,
+    pinnedKeys, setPinnedKeys
+}: Props) {
+
+    const {
+        keyboards, selectedKeyboard, selectKeyboard,
+        availableLayouts, layoutName, loadLayoutPreset,
+        activeResult, referenceResult, activeJobId, layoutString, // Added layoutString
+        weights, searchParams, setWeights, setSearchParams,
+        standardLayouts, saveUserLayout, deleteUserLayout
+    } = useKeyboard();
+
+    const { addToast } = useToast(); // ADDED
+    const [isPosting, setIsPosting] = useState(false); // ADDED
+
+    // Local UI State
+    const [showDiff, setShowDiff] = useState(false);
+
+    // Derived State
+    const derivedStats = (activeResult?.geometry && activeResult?.heatmap)
+        ? calculateStats(activeResult.geometry, activeResult.heatmap) : null;
+
+    const isStandard = standardLayouts.includes(layoutName);
 
     const { title: PanelTitle, icon: PanelIcon } =
         mode === 'analyze' ? { title: 'Analyze', icon: BarChart2 } :
             mode === 'optimize' ? { title: 'Optimize', icon: Sliders } :
                 { title: 'Configuration', icon: SettingsIcon };
+
+    // Handlers
+    const handleSave = () => {
+        const name = prompt("Name your layout:", layoutName === "Custom" ? "My Layout" : layoutName);
+        if (name) saveUserLayout(name);
+    };
+
+    const handleDelete = () => {
+        if (confirm(`Delete ${layoutName}?`)) deleteUserLayout(layoutName);
+    };
+
+    // ADDED: Submission Logic
+    const handlePost = async () => {
+        if (!layoutString) return;
+
+        const hiveUrl = localStorage.getItem("keyforge_hive_url") || "http://localhost:3000";
+        const savedAuthor = localStorage.getItem("keyforge_author") || "";
+
+        const author = prompt("Enter your name/handle:", savedAuthor);
+        if (!author) return;
+
+        localStorage.setItem("keyforge_author", author);
+
+        const name = layoutName === "Custom"
+            ? prompt("Name this layout:", "Untitled")
+            : layoutName;
+
+        if (!name) return;
+
+        setIsPosting(true);
+        try {
+            await invoke("cmd_submit_user_layout", {
+                hiveUrl,
+                name,
+                layout: layoutString,
+                author
+            });
+            addToast('success', "Layout submitted to Hive!");
+        } catch (e) {
+            addToast('error', `Submission failed: ${e}`);
+        } finally {
+            setIsPosting(false);
+        }
+    };
 
     return (
         <div className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden shrink-0">
@@ -61,45 +110,37 @@ export function Inspector(props: Props) {
                 </h3>
                 {mode === 'analyze' && (
                     <div className="flex gap-1">
-                        <button onClick={props.handleImport} title="Import" className="p-1.5 hover:bg-slate-800 rounded text-slate-500 hover:text-white transition-colors"> <Download size={14} /> </button>
-                        <button onClick={props.handleExport} title="Export" className="p-1.5 hover:bg-slate-800 rounded text-slate-500 hover:text-white transition-colors"> <Upload size={14} /> </button>
+                        <button title="Import" className="p-1.5 hover:bg-slate-800 rounded text-slate-500 hover:text-white transition-colors"> <Download size={14} /> </button>
+                        <button title="Export" className="p-1.5 hover:bg-slate-800 rounded text-slate-500 hover:text-white transition-colors"> <Upload size={14} /> </button>
                     </div>
                 )}
             </div>
 
-            {/* Common Context Controls */}
-            <ContextControls
-                keyboards={props.keyboards}
-                selectedKeyboard={props.selectedKeyboard}
-                onSelectKeyboard={props.setSelectedKeyboard}
-                availableLayouts={props.availableLayouts}
-                layoutName={props.layoutName}
-                onSelectLayout={props.loadLayoutPreset}
-                disabled={!!activeJobId || props.isInitializing}
-            />
+            {/* Context Controls */}
+            <ContextControls disabled={!!activeJobId} />
 
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {mode === 'analyze' && (
                     <AnalyzePanel
-                        activeResult={props.activeResult}
-                        referenceResult={props.referenceResult}
-                        derivedStats={props.derivedStats}
-                        showDiff={props.showDiff}
-                        setShowDiff={props.setShowDiff}
+                        activeResult={activeResult}
+                        referenceResult={referenceResult}
+                        derivedStats={derivedStats}
+                        showDiff={showDiff}
+                        setShowDiff={setShowDiff}
                     />
                 )}
 
-                {mode === 'optimize' && (
+                {mode === 'optimize' && weights && searchParams && setPinnedKeys && toggleWorker && (
                     <OptimizePanel
-                        weights={props.weights}
-                        searchParams={props.searchParams}
-                        pinnedKeys={props.pinnedKeys}
-                        localWorkerEnabled={props.localWorkerEnabled}
-                        setWeights={props.setWeights}
-                        setSearchParams={props.setSearchParams}
-                        setPinnedKeys={props.setPinnedKeys}
-                        toggleWorker={props.toggleWorker}
+                        weights={weights}
+                        searchParams={searchParams}
+                        pinnedKeys={pinnedKeys || ""}
+                        localWorkerEnabled={localWorkerEnabled || false}
+                        setWeights={setWeights}
+                        setSearchParams={setSearchParams}
+                        setPinnedKeys={setPinnedKeys}
+                        toggleWorker={toggleWorker}
                     />
                 )}
             </div>
@@ -108,19 +149,19 @@ export function Inspector(props: Props) {
             <div className="p-4 border-t border-slate-800 bg-slate-900/80">
                 {mode === 'optimize' ? (
                     !activeJobId ? (
-                        <Button variant="secondary" className="w-full" onClick={props.handleDispatch} icon={<Play size={16} />}>
-                            START JOB
+                        <Button variant="optimize" className="w-full" onClick={onDispatch} icon={<Play size={16} />}>
+                            START OPTIMIZATION
                         </Button>
                     ) : (
-                        <Button variant="danger" className="w-full" onClick={props.handleStop} icon={<Square size={16} />}>
+                        <Button variant="danger" className="w-full" onClick={onStop} icon={<Square size={16} />}>
                             STOP JOB
                         </Button>
                     )
                 ) : (
                     <div className="grid grid-cols-3 gap-2">
-                        <Button variant="secondary" size="sm" onClick={props.onSave} icon={<Save size={14} />}>Save</Button>
-                        <Button variant="secondary" size="sm" onClick={props.onDelete} disabled={props.isStandard} icon={<Trash2 size={14} />}>Del</Button>
-                        <Button variant="secondary" size="sm" onClick={props.onSubmit} icon={<Send size={14} />}>Post</Button>
+                        <Button variant="secondary" size="sm" onClick={handleSave} icon={<Save size={14} />}>Save</Button>
+                        <Button variant="secondary" size="sm" onClick={handleDelete} disabled={isStandard} icon={<Trash2 size={14} />}>Del</Button>
+                        <Button variant="secondary" size="sm" onClick={handlePost} isLoading={isPosting} icon={<Send size={14} />}>Post</Button>
                     </div>
                 )}
             </div>

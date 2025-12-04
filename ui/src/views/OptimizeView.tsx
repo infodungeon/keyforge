@@ -1,13 +1,12 @@
 import { useKeyboard } from "../context/KeyboardContext";
 import { Inspector } from "../components/Inspector";
 import { KeyboardMap } from "../components/KeyboardMap";
-import { calculateStats, toDisplayString, fromDisplayString, formatForDisplay } from "../utils";
+import { toDisplayString, fromDisplayString, formatForDisplay } from "../utils";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { RefreshCw, ArrowRight } from "lucide-react";
 
 interface Props {
-    hiveUrl: string;
     isSyncing: boolean;
     onSync: () => void;
     localWorkerEnabled: boolean;
@@ -25,12 +24,8 @@ export function OptimizeView({
 }: Props) {
     const {
         activeResult, layoutName, layoutString, updateLayoutString,
-        selectedKeyboard, activeJobId, weights, searchParams, setWeights, setSearchParams,
-        referenceResult, keyboards, selectKeyboard, availableLayouts, loadLayoutPreset, setLayoutName
+        selectedKeyboard, activeJobId
     } = useKeyboard();
-
-    const derivedStats = (activeResult?.geometry && activeResult?.heatmap)
-        ? calculateStats(activeResult.geometry, activeResult.heatmap) : null;
 
     const handleCommitInput = () => {
         const standardized = fromDisplayString(layoutString);
@@ -76,17 +71,12 @@ export function OptimizeView({
 
             <Inspector
                 mode="optimize"
-                keyboards={keyboards} selectedKeyboard={selectedKeyboard} setSelectedKeyboard={selectKeyboard}
-                availableLayouts={availableLayouts} layoutName={layoutName} loadLayoutPreset={loadLayoutPreset} setLayoutName={setLayoutName}
-                activeResult={activeResult} referenceResult={referenceResult} derivedStats={derivedStats}
-                weights={weights} searchParams={searchParams} activeJobId={activeJobId} pinnedKeys={pinnedKeys} isInitializing={false}
-                setWeights={setWeights} setSearchParams={setSearchParams} setPinnedKeys={setPinnedKeys}
-                handleDispatch={onDispatch} handleStop={onStopJob} handleImport={() => { }} handleExport={() => { }} runLocalValidation={() => { }}
-
-                // Fixed: Removed layoutString, showComparison
-                showDiff={false} setShowDiff={() => { }}
-                localWorkerEnabled={localWorkerEnabled} toggleWorker={toggleWorker}
-                isStandard={false} isCustom={false} onSave={() => { }} onDelete={() => { }} onSubmit={() => { }}
+                onDispatch={onDispatch}
+                onStop={onStopJob}
+                localWorkerEnabled={localWorkerEnabled}
+                toggleWorker={toggleWorker}
+                pinnedKeys={pinnedKeys}
+                setPinnedKeys={setPinnedKeys}
             />
         </>
     );

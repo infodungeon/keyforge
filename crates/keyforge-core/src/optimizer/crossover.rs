@@ -1,7 +1,7 @@
 use fastrand::Rng;
-use std::collections::HashMap;
 
-// CHANGED: u8 -> u16
+// Optimized Uniform Crossover (UOX)
+// Preserves the exact multiset of characters from parents without using HashMaps.
 pub fn crossover_uniform(
     p1: &[u16],
     p2: &[u16],
@@ -12,61 +12,84 @@ pub fn crossover_uniform(
     let mut child = vec![0u16; len];
     let mut filled = vec![false; len];
 
-    // Using HashMap for counts now as 65536 array stack allocation inside this function
-    // might be too heavy if called recursively or frequently in threads.
-    // However, fast UOX usually needs speed.
-    // Let's use a HashMap because layout size is small (30-60 keys).
-    // The previous array[256] was fine, array[65536] is 512KB (if usize).
-    // 512KB on stack is risky.
-    let mut available_counts = HashMap::with_capacity(len);
-    for &b in p1 {
-        *available_counts.entry(b).or_insert(0) += 1;
-    }
-
-    // Enforce Pins
+    // 1. Apply Pins (Dominant)
     for (i, &pin) in pinned.iter().enumerate() {
         if i < len {
             if let Some(val) = pin {
                 child[i] = val;
                 filled[i] = true;
-                if let Some(count) = available_counts.get_mut(&val) {
-                    if *count > 0 {
-                        *count -= 1;
-                    }
+            }
+        }
+    }
+
+    // 2. Build Frequency Table of what is *needed*
+    // We calculate what is in P1. The child must end up with exactly these keys.
+    // Since u16 range is large, we can't use a simple array.
+    // However, N is small (~40). A simple vector is faster than a HashMap here.
+    // format: (code, count)
+    let mut needed: Vec<(u16, u8)> = Vec::with_capacity(len);
+
+    for &code in p1 {
+        if let Some(entry) = needed.iter_mut().find(|(c, _)| *c == code) {
+            entry.1 += 1;
+        } else {
+            needed.push((code, 1));
+        }
+    }
+
+    // Subtract pins from needs
+    for (i, &is_f) in filled.iter().enumerate() {
+        if is_f {
+            let code = child[i];
+            if let Some(entry) = needed.iter_mut().find(|(c, _)| *c == code) {
+                if entry.1 > 0 {
+                    entry.1 -= 1;
                 }
             }
         }
     }
 
-    // Inherit P1
+    // 3. Inherit from P1 (Probabilistic)
     for i in 0..len {
         if !filled[i] && rng.bool() {
             let gene = p1[i];
-            if let Some(count) = available_counts.get_mut(&gene) {
-                if *count > 0 {
+            if let Some(entry) = needed.iter_mut().find(|(c, _)| *c == gene) {
+                if entry.1 > 0 {
                     child[i] = gene;
                     filled[i] = true;
-                    *count -= 1;
+                    entry.1 -= 1;
                 }
             }
         }
     }
 
-    // Fill P2
+    // 4. Fill gaps from P2 (Order preserving for remaining needs)
     let mut p2_idx = 0;
     for i in 0..len {
         if !filled[i] {
+            // Find next available candidate in P2
             while p2_idx < len {
                 let gene = p2[p2_idx];
                 p2_idx += 1;
-                if let Some(count) = available_counts.get_mut(&gene) {
-                    if *count > 0 {
+
+                if let Some(entry) = needed.iter_mut().find(|(c, _)| *c == gene) {
+                    if entry.1 > 0 {
                         child[i] = gene;
-                        *count -= 1;
+                        filled[i] = true;
+                        entry.1 -= 1;
                         break;
                     }
                 }
             }
+        }
+    }
+
+    // 5. Emergency Fallback (should logically never be hit if P1 and P2 are permutations)
+    // If P2 runs out but we still have gaps (e.g. parents were different lengths or mismatched sets),
+    // fill with KC_NO (0).
+    for i in 0..len {
+        if !filled[i] {
+            child[i] = 0;
         }
     }
 
