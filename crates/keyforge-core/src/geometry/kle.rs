@@ -1,103 +1,49 @@
 use super::{KeyNode, KeyboardGeometry};
-use serde_json::Value;
 use std::error::Error;
 
-/// Parses raw KLE JSON content into KeyForge Geometry.
+/// Parses raw KLE JSON content into KeyForge Geometry using the kle-serial crate.
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
-    let json: Value = serde_json::from_str(content)?;
-
-    let rows = json.as_array().ok_or("KLE JSON must be an array of rows")?;
+    let keyboard: kle_serial::Keyboard = serde_json::from_str(content)?;
 
     let mut keys = Vec::new();
 
-    // State cursors
-    let mut current_y = 0.0;
+    // FIXED: Use enumerate() instead of manual counter
+    for (current_id, key) in keyboard.keys.into_iter().enumerate() {
+        // Simple heuristic for hand splitting (left vs right of center)
+        let hand = if key.x > 10.0 { 1 } else { 0 };
 
-    for row_val in rows {
-        // Skip metadata block (usually the first item is an object defining meta)
-        if row_val.is_object() {
-            continue;
-        }
+        let finger = 1;
 
-        let row = row_val.as_array().ok_or("Row must be an array")?;
+        // Flatten unwraps Option<Legend>, find looks for non-empty text
+        let label = key
+            .legends
+            .iter()
+            .flatten()
+            .find(|l| !l.text.is_empty())
+            .map(|l| l.text.as_str())
+            .unwrap_or("")
+            .to_string();
 
-        let mut current_x = 0.0;
-        let mut current_w = 1.0;
-        let mut current_h = 1.0; // Track current height
+        let node = KeyNode {
+            id: if label.is_empty() {
+                format!("k{}", current_id)
+            } else {
+                label
+            },
+            hand,
+            finger,
+            row: key.y.round() as i8,
+            col: key.x.round() as i8,
+            x: key.x as f32,
+            y: key.y as f32,
+            w: key.width as f32,
+            h: key.height as f32,
+            is_stretch: false,
+        };
 
-        for item in row {
-            if item.is_object() {
-                let obj = item.as_object().unwrap();
-
-                // Relative X shift
-                if let Some(x) = obj.get("x") {
-                    current_x += x.as_f64().unwrap_or(0.0) as f32;
-                }
-
-                // Relative Y shift
-                if let Some(y) = obj.get("y") {
-                    current_y += y.as_f64().unwrap_or(0.0) as f32;
-                }
-
-                // Width overrides
-                if let Some(w) = obj.get("w") {
-                    current_w = w.as_f64().unwrap_or(1.0) as f32;
-                }
-
-                // Height overrides
-                if let Some(h) = obj.get("h") {
-                    current_h = h.as_f64().unwrap_or(1.0) as f32;
-                }
-            } else if item.is_string() {
-                let label_full = item.as_str().unwrap();
-                // KLE labels can be "Top\nBottom". We usually care about the main label.
-                let label = label_full.split('\n').next().unwrap_or("").trim();
-
-                // Default Assignment (User must tweak this later in the UI or JSON)
-                // We default to Left Hand (0), Index Finger (1)
-                let key = KeyNode {
-                    id: label.to_string(),
-                    hand: 0,
-                    finger: 1,
-                    row: current_y as i8,
-                    col: current_x as i8,
-                    x: current_x,
-                    y: current_y,
-                    w: current_w, // FIXED: Now included
-                    h: current_h, // FIXED: Now included
-                    is_stretch: false,
-                };
-
-                keys.push(key);
-
-                // Advance cursor
-                current_x += current_w;
-
-                // Reset width/height for next key (KLE standard behavior resets width, keeps height usually?
-                // Actually KLE standard is w/h reset to 1 unless specified in the object for the NEXT key.
-                // However, the object applies to the *immediate next* key(s).
-                // Standard implementation resets to 1.0 after a key is placed unless a new modifier object sets it.)
-                current_w = 1.0;
-                current_h = 1.0;
-            }
-        }
-        current_y += 1.0;
+        keys.push(node);
     }
 
-    // Post-Processing: Simple Hand Detection Split
-    // If max_x > 10, assume split layout and assign right hand > 50% width
-    if !keys.is_empty() {
-        let max_x = keys.iter().fold(0.0f32, |max, k| max.max(k.x));
-        let mid_point = max_x / 2.0;
-
-        for k in &mut keys {
-            if k.x > mid_point {
-                k.hand = 1;
-            }
-        }
-    }
-
-    // Auto-detect slots (Naive)
     let total = keys.len();
     let prime_slots = (0..std::cmp::min(8, total)).collect();
     let med_slots = (8..std::cmp::min(20, total)).collect();
@@ -108,7 +54,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
         prime_slots,
         med_slots,
         low_slots,
-        home_row: 1, // Assumption
+        home_row: 1,
         finger_origins: [[(0.0, 0.0); 5]; 2],
     };
 

@@ -1,4 +1,5 @@
 use crate::store::Store;
+use sqlx::{QueryBuilder, Sqlite};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{error, info};
 
@@ -9,7 +10,6 @@ pub enum DbEvent {
         score: f32,
         node_id: String,
     },
-    // Internal signal to flush and quit
     Shutdown(oneshot::Sender<()>),
 }
 
@@ -26,39 +26,31 @@ impl WriteQueue {
             let mut shutdown_signal: Option<oneshot::Sender<()>> = None;
 
             loop {
-                // 1. Fetch first message (wait if empty)
                 let first = rx.recv().await;
                 if first.is_none() {
                     break;
-                } // Channel closed
-
+                }
                 let msg = first.unwrap();
 
-                // If the very first message is Shutdown, set flag and skip to flush
                 if let DbEvent::Shutdown(signal) = msg {
                     shutdown_signal = Some(signal);
                     break;
                 }
-
                 batch.push(msg);
 
-                // Flag to break outer loop after flushing
-                let mut goto_flush_and_exit = false;
-
-                // 2. Drain remaining available (up to limit)
+                let mut stop = false;
                 while batch.len() < 100 {
                     match rx.try_recv() {
                         Ok(DbEvent::Shutdown(signal)) => {
                             shutdown_signal = Some(signal);
-                            goto_flush_and_exit = true;
+                            stop = true;
                             break;
                         }
                         Ok(item) => batch.push(item),
-                        Err(_) => break, // Empty
+                        Err(_) => break,
                     }
                 }
 
-                // 3. Flush Batch
                 if !batch.is_empty() {
                     if let Err(e) = flush_batch(&store, &batch).await {
                         error!("❌ Failed to flush batch of {} records: {}", batch.len(), e);
@@ -67,22 +59,18 @@ impl WriteQueue {
                     }
                     batch.clear();
                 }
-
-                if goto_flush_and_exit {
+                if stop {
                     break;
                 }
             }
 
-            // Final Flush logic
+            // Final flush
             if !batch.is_empty() {
                 info!("🛑 Shutdown: Flushing final {} records...", batch.len());
-                if let Err(e) = flush_batch(&store, &batch).await {
-                    error!("❌ Failed final flush: {}", e);
-                }
+                let _ = flush_batch(&store, &batch).await;
             }
-
-            if let Some(signal) = shutdown_signal {
-                let _ = signal.send(());
+            if let Some(s) = shutdown_signal {
+                let _ = s.send(());
             }
         });
 
@@ -97,40 +85,50 @@ impl WriteQueue {
 
     pub async fn shutdown(&self) {
         let (tx, rx) = oneshot::channel();
-        // FIXED: Replaced `if let Err(_) = ...` with `.is_err()`
-        if self.sender.send(DbEvent::Shutdown(tx)).await.is_err() {
-            error!("Queue already closed");
-            return;
+        if self.sender.send(DbEvent::Shutdown(tx)).await.is_ok() {
+            let _ = rx.await;
+            info!("💾 WriteQueue shut down gracefully.");
         }
-        // Wait for the worker to finish flushing
-        let _ = rx.await;
-        info!("💾 WriteQueue shut down gracefully.");
     }
 }
 
 async fn flush_batch(store: &Store, batch: &[DbEvent]) -> Result<(), String> {
-    // Start transaction
-    let mut tx = store.begin().await?;
+    // Filter out only Result events to construct query
+    let results: Vec<_> = batch
+        .iter()
+        .filter_map(|e| {
+            if let DbEvent::Result {
+                job_id,
+                layout,
+                score,
+                node_id,
+            } = e
+            {
+                Some((job_id, layout, score, node_id))
+            } else {
+                None
+            }
+        })
+        .collect();
 
-    for event in batch {
-        if let DbEvent::Result {
-            job_id,
-            layout,
-            score,
-            node_id,
-        } = event
-        {
-            sqlx::query("INSERT INTO results (job_id, layout, score, node_id) VALUES (?, ?, ?, ?)")
-                .bind(job_id)
-                .bind(layout)
-                .bind(score)
-                .bind(node_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-        }
+    if results.is_empty() {
+        return Ok(());
     }
 
-    tx.commit().await.map_err(|e| e.to_string())?;
+    // Use QueryBuilder for high-performance batch insert
+    // SQLite syntax: INSERT INTO table (c1, c2) VALUES (v1, v2), (v3, v4)...
+    let mut query_builder: QueryBuilder<Sqlite> =
+        QueryBuilder::new("INSERT INTO results (job_id, layout, score, node_id) ");
+
+    query_builder.push_values(results, |mut b, (job_id, layout, score, node_id)| {
+        b.push_bind(job_id)
+            .push_bind(layout)
+            .push_bind(score)
+            .push_bind(node_id);
+    });
+
+    let query = query_builder.build();
+    query.execute(&store.db).await.map_err(|e| e.to_string())?;
+
     Ok(())
 }

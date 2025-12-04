@@ -12,6 +12,7 @@ use tracing::{info, warn};
 
 // Module Declarations
 mod db;
+mod error;
 mod queue;
 mod routes;
 mod state;
@@ -78,29 +79,23 @@ async fn main() {
         .merge(routes::job_routes())
         .merge(routes::result_routes())
         .route("/manifest", axum::routing::get(routes::sync::get_manifest))
-        // ServeDir handles Range requests automatically, good for large files
         .nest_service("/data", ServeDir::new(&data_path))
-        // 2. LAYERS (Order matters: Bottom executes first)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
-        // 3. DoS Protection: Limit bodies to 64MB (Accommodates large corpora)
         .layer(RequestBodyLimitLayer::new(64 * 1024 * 1024))
         .with_state(state.clone());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
     info!("🚀 Hive listening on {}", addr);
-    info!("⚠️  WARNING: Server is bound to all interfaces (0.0.0.0). Ensure firewall rules are active.");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
-    // 4. Graceful Shutdown
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal(state))
         .await
         .unwrap();
 }
 
-/// Listens for SIGTERM/Ctrl+C and flushes the DB queue before exiting
 async fn shutdown_signal(state: Arc<AppState>) {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
@@ -125,7 +120,5 @@ async fn shutdown_signal(state: Arc<AppState>) {
     }
 
     info!("🛑 Signal received, shutting down...");
-
-    // Flush the WriteQueue to ensure no results are lost
     state.queue.shutdown().await;
 }

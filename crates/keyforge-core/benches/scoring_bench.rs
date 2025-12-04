@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::ScorerBuilder;
+use keyforge_core::scorer::ScorerBuildParams; // FIXED
 use std::hint::black_box;
 use std::io::Cursor;
 
@@ -13,19 +13,14 @@ fn setup_scorer() -> keyforge_core::scorer::Scorer {
             keys.push(KeyNode {
                 id: format!("k_{}_{}", r, c),
                 hand: if c < 5 { 0 } else { 1 },
-                finger: match c {
-                    0 | 9 => 4,
-                    1 | 8 => 3,
-                    2 | 7 => 2,
-                    _ => 1,
-                },
+                finger: (c % 5) as u8,
                 row: r as i8,
                 col: c as i8,
                 x: c as f32,
                 y: r as f32,
                 w: 1.0,
                 h: 1.0,
-                is_stretch: c == 4 || c == 5,
+                is_stretch: false,
             });
         }
     }
@@ -64,28 +59,25 @@ fn setup_scorer() -> keyforge_core::scorer::Scorer {
         }
     }
 
-    let cursor = Cursor::new(ngram_data);
-    let weights = ScoringWeights::default();
-    let defs = LayoutDefinitions::default();
+    // FIXED: Use ScorerBuildParams
+    let cost_cursor = Cursor::new("From,To,Cost\n");
+    let ngram_cursor = Cursor::new(ngram_data);
 
-    ScorerBuilder::new()
-        .with_weights(weights)
-        .with_defs(defs)
-        .with_geometry(geom)
-        .with_ngrams_from_reader(cursor)
-        .expect("Failed to load ngrams")
-        .build()
-        .expect("Failed to build scorer")
+    ScorerBuildParams::from_readers(
+        cost_cursor,
+        ngram_cursor,
+        geom,
+        Some(ScoringWeights::default()),
+        Some(LayoutDefinitions::default()),
+        false,
+    )
+    .expect("Failed to build scorer")
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
     let scorer = setup_scorer();
-
     let layout_str = "qwertyuiopasdfghjkl;zxcvbnm,./";
-    // FIXED: Convert to Vec<u16>
     let layout_codes: Vec<u16> = layout_str.chars().map(|c| c as u16).collect();
-
-    // FIXED: pos_map is now Box<[u8; 65536]>
     let pos_map = mutation::build_pos_map(&layout_codes);
 
     c.bench_function("score_full (3k trigrams)", |b| {

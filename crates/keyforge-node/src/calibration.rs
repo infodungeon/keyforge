@@ -1,7 +1,7 @@
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::{Scorer, ScorerBuilder};
+use keyforge_core::scorer::{Scorer, ScorerBuildParams}; // FIXED
 use std::io::Cursor;
 use std::time::{Duration, Instant};
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
@@ -10,11 +10,9 @@ use tracing::info;
 pub fn run_calibration() {
     info!("🔌 Initializing KeyForge Node Calibration...");
 
-    // Initialize System Info to get CPU details
     let mut sys =
         System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
 
-    // Wait a bit to get accurate CPU usage readings
     std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
     sys.refresh_cpu_all();
 
@@ -29,20 +27,15 @@ pub fn run_calibration() {
     info!("🚀 Preparing Physics Engine for Stress Test...");
     let scorer = setup_benchmark_scorer();
 
-    // Safety check: ensure geometry has enough keys
     let limit = scorer.key_count.min(30);
-
-    // CHANGED (Phase 2): Convert layout bytes to u16
     let layout_codes: Vec<u16> = b"abcdefghijklmnopqrstuvwxyz.,;/"
         .iter()
         .take(limit)
         .map(|&b| b as u16)
         .collect();
 
-    // CHANGED (Phase 2): pos_map is now Box<[u8; 65536]>
     let pos_map = mutation::build_pos_map(&layout_codes);
 
-    // Warmup phase to let CPU boost clocks settle
     info!("🔥 Warming up...");
     let warmup_iters = 50_000;
     for _ in 0..warmup_iters {
@@ -54,9 +47,7 @@ pub fn run_calibration() {
     let duration = Duration::from_secs(5);
     let mut iterations: u64 = 0;
 
-    // Hot loop
     while start.elapsed() < duration {
-        // Batching to reduce time-check overhead
         for _ in 0..100 {
             std::hint::black_box(scorer.score_full(&pos_map, 3000));
         }
@@ -77,9 +68,7 @@ pub fn run_calibration() {
     }
 }
 
-// Helper to build a scorer without reading from disk
 fn setup_benchmark_scorer() -> Scorer {
-    // 1. Generate a mock 30-key Ortho Geometry
     let mut keys = Vec::new();
     for r in 0..3 {
         for c in 0..10 {
@@ -100,7 +89,7 @@ fn setup_benchmark_scorer() -> Scorer {
 
     let mut geom = KeyboardGeometry {
         keys,
-        prime_slots: vec![13, 14, 15, 16], // Standard home row indices
+        prime_slots: vec![13, 14, 15, 16],
         med_slots: vec![1, 2, 3, 4],
         low_slots: vec![20, 21, 22],
         home_row: 1,
@@ -108,14 +97,11 @@ fn setup_benchmark_scorer() -> Scorer {
     };
     geom.calculate_origins();
 
-    // 2. Synthesize N-Gram Data
     let mut ngram_data = String::new();
     let chars = "abcdefghijklmnopqrstuvwxyz.,;/";
-    // Monograms
     for c in chars.chars() {
         ngram_data.push_str(&format!("{}\t1000\n", c));
     }
-    // Bigrams
     ngram_data.push_str("th\t5000\n");
     ngram_data.push_str("he\t4000\n");
     ngram_data.push_str("in\t3000\n");
@@ -123,15 +109,18 @@ fn setup_benchmark_scorer() -> Scorer {
 
     let cursor = Cursor::new(ngram_data);
     let weights = ScoringWeights::default();
-    let defs = LayoutDefinitions::default();
 
-    // 3. Build Scorer
-    ScorerBuilder::new()
-        .with_weights(weights)
-        .with_defs(defs)
-        .with_geometry(geom)
-        .with_ngrams_from_reader(cursor)
-        .expect("Failed to build bench scorer")
-        .build()
-        .expect("Failed to build scorer")
+    // FIXED: Use ScorerBuildParams for in-memory synthesis
+    // Cost matrix is empty for bench unless specifically testing user costs
+    let cost_cursor = Cursor::new("From,To,Cost\n");
+
+    ScorerBuildParams::from_readers(
+        cost_cursor,
+        cursor,
+        geom,
+        Some(weights),
+        Some(LayoutDefinitions::default()),
+        false,
+    )
+    .expect("Failed to build scorer")
 }

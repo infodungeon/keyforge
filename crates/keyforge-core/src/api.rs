@@ -3,11 +3,11 @@ use crate::geometry::KeyboardDefinition;
 use crate::keycodes::KeycodeRegistry;
 use crate::layouts::layout_string_to_u16;
 use crate::optimizer::mutation;
-use crate::scorer::{ScoreDetails, Scorer, ScorerBuilder};
+use crate::scorer::{ScoreDetails, Scorer}; // FIXED: Removed ScorerBuilder
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::RwLock; // CHANGED: Mutex -> RwLock
+use std::sync::RwLock;
 use tracing::{info, warn};
 
 pub struct KeyForgeSession {
@@ -17,7 +17,6 @@ pub struct KeyForgeSession {
 }
 
 pub struct KeyForgeState {
-    // RwLock allows multiple readers (validations) simultaneously
     pub sessions: RwLock<HashMap<String, KeyForgeSession>>,
 }
 
@@ -106,18 +105,17 @@ pub fn load_dataset(
     };
 
     // 3. Initialize Scorer
-    let scorer = ScorerBuilder::new()
-        .with_weights(config.weights)
-        .with_defs(config.defs)
-        .with_geometry(kb_def.geometry.clone())
-        .with_costs_from_file(cost_path)
-        .map_err(|e| format!("Failed to load Cost Matrix: {}", e))?
-        .with_ngrams_from_file(ngrams_path)
-        .map_err(|e| format!("Failed to load N-grams: {}", e))?
-        .build()
-        .map_err(|e| format!("Scorer Initialization Failed: {}", e))?;
+    // FIXED: Use the new Scorer::new which handles file loading internally via ScorerBuildParams
+    let scorer = Scorer::new(
+        cost_path,
+        ngrams_path,
+        &kb_def.geometry,
+        config,
+        false, // debug
+    )
+    .map_err(|e| format!("Scorer Initialization Failed: {}", e))?;
 
-    // 4. Store in Session Map (Write Lock)
+    // 4. Store in Session Map
     {
         let mut sessions = state.sessions.write().map_err(|e| e.to_string())?;
         sessions.insert(
@@ -139,7 +137,6 @@ pub fn validate_layout(
     layout_str: String,
     weights: Option<ScoringWeights>,
 ) -> Result<ValidationResult, String> {
-    // 1. Acquire Read Lock (Non-blocking for other readers)
     let sessions = state.sessions.read().map_err(|e| e.to_string())?;
 
     let session = sessions.get(session_id).ok_or_else(|| {
@@ -148,12 +145,6 @@ pub fn validate_layout(
             session_id
         )
     })?;
-
-    // Note: We cannot modify session.scorer in a read lock.
-    // If weights are provided, we clone the scorer cheap-ishly (Arc geometry) or just copy the weights logic.
-    // Since Scorer struct owns its data vectors, cloning it is expensive.
-    // OPTIMIZATION: Create a temporary lightweight scoring context if weights differ.
-    // For now, we assume the user accepts the overhead if they override weights dynamically.
 
     let mut scorer_ref = session.scorer.clone();
     if let Some(w) = weights {
@@ -176,7 +167,6 @@ pub fn validate_layout(
         let byte = code as u8;
         let mut freq = scorer_ref.char_freqs[byte as usize];
 
-        // Heatmap case folding logic
         if freq == 0.0 {
             if byte.is_ascii_uppercase() {
                 freq = scorer_ref.char_freqs[byte.to_ascii_lowercase() as usize];

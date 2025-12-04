@@ -1,7 +1,7 @@
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use keyforge_core::geometry::KeyboardDefinition;
 use keyforge_core::keycodes::KeycodeRegistry;
-use keyforge_core::scorer::ScorerBuilder;
+use keyforge_core::scorer::Scorer; // FIXED: Import Scorer directly, removed ScorerBuilder
 use std::path::Path;
 use std::process;
 use std::sync::Arc;
@@ -41,7 +41,7 @@ struct Cli {
 enum Commands {
     Search(cmd::search::SearchArgs),
     Validate(cmd::validate::ValidateArgs),
-    Benchmark(cmd::benchmark::BenchmarkArgs), // ADDED
+    Benchmark(cmd::benchmark::BenchmarkArgs),
 }
 
 fn main() {
@@ -58,7 +58,6 @@ fn main() {
         process::exit(1);
     });
 
-    // Load Weights Logic...
     let (mut config, cli_weights_ref, sub_matches) = match &cli.command {
         Commands::Search(args) => (
             args.config.clone(),
@@ -70,7 +69,6 @@ fn main() {
             &args.config.weights,
             matches.subcommand_matches("validate").unwrap(),
         ),
-        // Benchmark borrows config from default or args
         Commands::Benchmark(args) => (
             args.config.clone(),
             &args.config.weights,
@@ -78,7 +76,6 @@ fn main() {
         ),
     };
 
-    // ... (Weights loading logic remains same) ...
     let weights_path_str = if let Some(path) = &cli.weights {
         Some(path.clone())
     } else {
@@ -104,14 +101,14 @@ fn main() {
         }
     }
 
-    let scorer_res = ScorerBuilder::new()
-        .debug(cli.debug)
-        .with_weights(config.weights.clone())
-        .with_defs(config.defs.clone())
-        .with_geometry(kb_def.geometry.clone())
-        .with_costs_from_file(&cli.cost)
-        .and_then(|b| b.with_ngrams_from_file(&cli.ngrams))
-        .and_then(|b| b.build());
+    // FIXED: Use Scorer::new instead of ScorerBuilder chain
+    let scorer_res = Scorer::new(
+        &cli.cost,
+        &cli.ngrams,
+        &kb_def.geometry,
+        config.clone(), // Pass config (which contains weights/defs)
+        cli.debug,
+    );
 
     let scorer = match scorer_res {
         Ok(s) => Arc::new(s),
@@ -122,7 +119,6 @@ fn main() {
         }
     };
 
-    // Registry logic (Required for Search/Validate, but not Benchmark strictly, but we load it anyway)
     let registry_path = "data/keycodes.json";
     let registry = if Path::new(registry_path).exists() {
         info!("🔑 Loading Keycodes: {}", registry_path);
@@ -139,6 +135,6 @@ fn main() {
     match cli.command {
         Commands::Search(args) => cmd::search::run(args.clone(), scorer, registry_arc, cli.debug),
         Commands::Validate(args) => cmd::validate::run(args.clone(), &kb_def, scorer, registry_arc),
-        Commands::Benchmark(args) => cmd::benchmark::run(args, scorer), // ADDED
+        Commands::Benchmark(args) => cmd::benchmark::run(args, scorer),
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "keyforge-core"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 
 [dependencies]
@@ -16,10 +16,14 @@ thiserror = "2.0.17"
 tracing = "0.1"
 itertools = "0.14.0"
 
-# NEW: Hashing support
+# Hashing support
 sha2 = "0.10"
 hex = "0.4"
-fnv = "1.0"   # <--- ADDED THIS FOR DETERMINISTIC LAYOUT PARSING
+fnv = "1.0"
+
+# NEW: Refactoring Dependencies
+kle-serial = "0.3.3"
+typed-builder = "0.23.2"
 
 [dev-dependencies]
 tempfile = "3.8"
@@ -27,8 +31,6 @@ rstest = "0.26.1"
 regex = "1.10"
 criterion = { version = "0.8.0", features = ["html_reports"] }
 proptest = "1.4"
-sha2 = "0.10"
-hex = "0.4"
 walkdir = "2"
 
 [[bench]]

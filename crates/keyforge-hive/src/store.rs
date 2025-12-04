@@ -1,5 +1,5 @@
 use crate::routes::jobs::RegisterJobRequest;
-use crate::routes::submission::SubmissionEntry; // We will define this next
+use crate::routes::submission::SubmissionEntry;
 use keyforge_core::{config::ScoringWeights, geometry::KeyboardGeometry};
 use sqlx::{Pool, Row, Sqlite, Transaction};
 
@@ -15,6 +15,8 @@ impl Store {
         Self { db }
     }
 
+    // FIXED: Suppress warning as Queue uses batching now instead of explicit transactions
+    #[allow(dead_code)]
     pub async fn begin(&self) -> Result<Transaction<'_, Sqlite>, String> {
         self.db.begin().await.map_err(|e| e.to_string())
     }
@@ -161,7 +163,6 @@ impl Store {
         Ok(res.last_insert_rowid())
     }
 
-    // NEW: Retrieve recent submissions
     pub async fn get_recent_submissions(&self, limit: i64) -> Result<Vec<SubmissionEntry>, String> {
         let rows = sqlx::query(
             "SELECT id, name, layout_str, author, submitted_at FROM submissions ORDER BY submitted_at DESC LIMIT ?"
@@ -178,7 +179,7 @@ impl Store {
                 name: r.get("name"),
                 layout: r.get("layout_str"),
                 author: r.get("author"),
-                date: r.get("submitted_at"), // SQLite datetime string
+                date: r.get("submitted_at"),
             })
             .collect();
 

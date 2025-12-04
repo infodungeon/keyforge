@@ -1,11 +1,9 @@
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::ScorerBuilder;
+use keyforge_core::scorer::ScorerBuildParams; // FIXED
 use proptest::prelude::*;
 use std::io::Cursor;
-
-// --- STRATEGIES ---
 
 prop_compose! {
     fn arb_weights()(
@@ -80,27 +78,28 @@ proptest! {
         ngram_data.push_str("ab\t50\n");
 
         let cursor = Cursor::new(ngram_data);
+        let cost_cursor = Cursor::new("From,To,Cost\n"); // Empty cost matrix
         let defs = LayoutDefinitions::default();
 
-        let scorer_res = ScorerBuilder::new()
-            .with_weights(weights)
-            .with_defs(defs)
-            .with_geometry(geom.clone())
-            .with_ngrams_from_reader(cursor);
+        // FIXED: Use ScorerBuildParams
+        let scorer_res = ScorerBuildParams::from_readers(
+            cost_cursor,
+            cursor,
+            geom.clone(),
+            Some(weights),
+            Some(defs),
+            false
+        );
 
-        if let Ok(builder) = scorer_res {
-             if let Ok(scorer) = builder.build() {
-                // FIXED: Use u16 layout
-                let mut layout_codes = vec![0u16; scorer.key_count];
-                if scorer.key_count > 0 { layout_codes[0] = b'a' as u16; }
-                if scorer.key_count > 1 { layout_codes[1] = b'b' as u16; }
+        if let Ok(scorer) = scorer_res {
+            let mut layout_codes = vec![0u16; scorer.key_count];
+            if scorer.key_count > 0 { layout_codes[0] = b'a' as u16; }
+            if scorer.key_count > 1 { layout_codes[1] = b'b' as u16; }
 
-                let pos_map = mutation::build_pos_map(&layout_codes);
-                let (score, _left, _total) = scorer.score_full(&pos_map, 100);
+            let pos_map = mutation::build_pos_map(&layout_codes);
+            let (score, _left, _total) = scorer.score_full(&pos_map, 100);
 
-                // Ensure the math never explodes into NaN or Inf
-                prop_assert!(score.is_finite(), "Score was not finite: {}", score);
-             }
+            prop_assert!(score.is_finite(), "Score was not finite: {}", score);
         }
     }
 }

@@ -1,117 +1,80 @@
 use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::error::{KeyForgeError, KfResult};
 use crate::geometry::KeyboardGeometry;
-use crate::scorer::flow::analyze_flow;
-use crate::scorer::loader::{load_cost_matrix, load_ngrams, RawCostData, RawNgrams, TrigramRef};
-use crate::scorer::physics::{analyze_interaction, get_geo_dist, get_reach_cost};
+use crate::scorer::loader::{load_cost_matrix, load_ngrams, RawCostData, RawNgrams};
 use crate::scorer::Scorer;
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
 use std::io::Read;
-use std::path::Path;
 use tracing::{debug, warn};
+use typed_builder::TypedBuilder;
 
-pub struct ScorerBuilder {
-    weights: Option<ScoringWeights>,
-    defs: Option<LayoutDefinitions>,
-    geometry: Option<KeyboardGeometry>,
-    cost_data: Option<RawCostData>,
-    ngram_data: Option<RawNgrams>,
-    debug: bool,
+#[derive(TypedBuilder)]
+pub struct ScorerBuildParams {
+    #[builder(default)]
+    pub weights: ScoringWeights,
+    #[builder(default)]
+    pub defs: LayoutDefinitions,
+    pub geometry: KeyboardGeometry,
+    pub cost_data: RawCostData,
+    pub ngram_data: RawNgrams,
+    #[builder(default = false)]
+    pub debug: bool,
 }
 
-impl Default for ScorerBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+impl ScorerBuildParams {
+    /// Helper to load data from readers before building params.
+    /// This abstracts the IO logic from the construction logic.
+    pub fn from_readers<R1: Read, R2: Read>(
+        cost_reader: R1,
+        ngram_reader: R2,
+        geometry: KeyboardGeometry,
+        weights: Option<ScoringWeights>,
+        defs: Option<LayoutDefinitions>,
+        debug: bool,
+    ) -> KfResult<Scorer> {
+        let cost_data = load_cost_matrix(cost_reader, debug)?;
 
-impl ScorerBuilder {
-    pub fn new() -> Self {
-        Self {
-            weights: None,
-            defs: None,
-            geometry: None,
-            cost_data: None,
-            ngram_data: None,
-            debug: false,
-        }
-    }
+        let final_weights = weights.unwrap_or_default();
 
-    pub fn debug(mut self, debug: bool) -> Self {
-        self.debug = debug;
-        self
-    }
-
-    pub fn with_weights(mut self, weights: ScoringWeights) -> Self {
-        self.weights = Some(weights);
-        self
-    }
-
-    pub fn with_defs(mut self, defs: LayoutDefinitions) -> Self {
-        self.defs = Some(defs);
-        self
-    }
-
-    pub fn with_geometry(mut self, geometry: KeyboardGeometry) -> Self {
-        self.geometry = Some(geometry);
-        self
-    }
-
-    pub fn with_costs_from_reader<R: Read>(mut self, reader: R) -> KfResult<Self> {
-        let data = load_cost_matrix(reader, self.debug)?;
-        self.cost_data = Some(data);
-        Ok(self)
-    }
-
-    pub fn with_costs_from_file<P: AsRef<Path>>(self, path: P) -> KfResult<Self> {
-        let file = File::open(path).map_err(KeyForgeError::Io)?;
-        self.with_costs_from_reader(file)
-    }
-
-    pub fn with_ngrams_from_reader<R: Read>(mut self, reader: R) -> KfResult<Self> {
-        // Resolve scale and limit from weights if present, otherwise defaults
-        let (scale, limit) = if let Some(w) = &self.weights {
-            (w.corpus_scale, w.loader_trigram_limit)
-        } else {
-            (200_000_000.0, 3000)
-        };
-
-        // FIXED: Expanded valid set to include apostrophe, hyphen, and other common punctuation
-        // to prevent dropping valid English n-grams like "don't" or "it's".
+        // Expanded valid set to include punctuation common in code/prose
         let valid_set: HashSet<u8> = b"abcdefghijklmnopqrstuvwxyz.,/;'[]-!?:\"()"
             .iter()
             .cloned()
             .collect();
 
-        let data = load_ngrams(reader, &valid_set, scale, limit, self.debug)?;
+        let ngram_data = load_ngrams(
+            ngram_reader,
+            &valid_set,
+            final_weights.corpus_scale,
+            final_weights.loader_trigram_limit,
+            debug,
+        )?;
 
-        // Debug check to ensure we actually loaded data.
-        if self.debug && data.bigrams.is_empty() {
-            warn!("⚠️ Warning: 0 bigrams loaded. Check your N-gram file format or encoding.");
+        if debug && ngram_data.bigrams.is_empty() {
+            warn!("⚠️ Warning: 0 bigrams loaded. Check corpus format.");
         }
 
-        self.ngram_data = Some(data);
-        Ok(self)
+        let params = ScorerBuildParams::builder()
+            .weights(final_weights)
+            .defs(defs.unwrap_or_default())
+            .geometry(geometry)
+            .cost_data(cost_data)
+            .ngram_data(ngram_data)
+            .debug(debug)
+            .build();
+
+        params.build_scorer()
     }
 
-    pub fn with_ngrams_from_file<P: AsRef<Path>>(self, path: P) -> KfResult<Self> {
-        let file = File::open(path).map_err(KeyForgeError::Io)?;
-        self.with_ngrams_from_reader(file)
-    }
+    pub fn build_scorer(self) -> KfResult<Scorer> {
+        let weights = self.weights;
+        let defs = self.defs;
+        let geometry = self.geometry;
+        let cost_data = self.cost_data;
+        let raw_ngrams = self.ngram_data;
+        let debug = self.debug;
 
-    pub fn build(self) -> KfResult<Scorer> {
-        let weights = self.weights.unwrap_or_default();
-        let defs = self.defs.unwrap_or_default();
-        let geometry = self
-            .geometry
-            .ok_or_else(|| KeyForgeError::Validation("Geometry is required".into()))?;
-        let cost_data = self.cost_data.unwrap_or(RawCostData { entries: vec![] });
-        let raw_ngrams = self
-            .ngram_data
-            .ok_or_else(|| KeyForgeError::Validation("N-gram data is required".into()))?;
-
-        if self.debug {
+        if debug {
             debug!("SFB Base Penalty: {:.1}", weights.penalty_sfb_base);
         }
 
@@ -173,10 +136,9 @@ impl ScorerBuilder {
                 if i == j {
                     continue;
                 }
-
-                let m = analyze_interaction(&geometry, i, j, &weights);
+                let m = crate::scorer::physics::analyze_interaction(&geometry, i, j, &weights);
                 if m.is_same_hand {
-                    let dist = get_geo_dist(
+                    let dist = crate::scorer::physics::get_geo_dist(
                         &geometry,
                         i,
                         j,
@@ -202,7 +164,6 @@ impl ScorerBuilder {
         let mut b_buckets: Vec<Vec<(u8, f32, bool)>> = vec![Vec::new(); 256];
         let mut freq_matrix = vec![0.0; 256 * 256];
 
-        // Track which characters actually appear in the corpus to optimize hot loops
         let mut active_chars_set: HashSet<usize> = HashSet::new();
 
         for (b1, b2, freq) in raw_ngrams.bigrams {
@@ -237,6 +198,7 @@ impl ScorerBuilder {
         bigram_starts[256] = offset;
 
         // --- Trigram Processing ---
+        use crate::scorer::loader::TrigramRef;
         let mut t_buckets: Vec<Vec<TrigramRef>> = vec![Vec::new(); 256];
         for (b1, b2, b3, freq) in raw_ngrams.trigrams {
             t_buckets[b1 as usize].push(TrigramRef {
@@ -283,7 +245,7 @@ impl ScorerBuilder {
                     let kj = &geometry.keys[j];
                     let kk = &geometry.keys[k];
 
-                    let flow = analyze_flow(ki, kj, kk);
+                    let flow = crate::scorer::flow::analyze_flow(ki, kj, kk);
                     if flow.is_3_hand_run {
                         trigram_cost_table[idx] += weights.penalty_hand_run;
                         if flow.is_skip {
@@ -337,7 +299,7 @@ impl ScorerBuilder {
         for (i, cost) in slot_monogram_costs.iter_mut().enumerate() {
             let ki = &geometry.keys[i];
             let effort_cost = finger_scales[ki.finger as usize] * weights.weight_finger_effort;
-            let reach_cost = get_reach_cost(
+            let reach_cost = crate::scorer::physics::get_reach_cost(
                 &geometry,
                 i,
                 weights.weight_lateral_travel,
@@ -351,27 +313,25 @@ impl ScorerBuilder {
             *cost = reach_cost + effort_cost + stretch_cost;
         }
 
-        // === NEW: Stability Check ===
-        // Ensure no NaNs or Infinities exist in the matrices
+        // --- Stability Checks ---
         for (i, &val) in full_cost_matrix.iter().enumerate() {
             if !val.is_finite() {
                 return Err(KeyForgeError::Validation(format!(
-                    "Cost Matrix contains non-finite value at index {}: {}",
-                    i, val
+                    "Cost Matrix NaN at {}",
+                    i
                 )));
             }
         }
-
         for (i, &val) in trigram_cost_table.iter().enumerate() {
             if !val.is_finite() {
                 return Err(KeyForgeError::Validation(format!(
-                    "Trigram Cost Table contains non-finite value at index {}: {}",
-                    i, val
+                    "Trigram Table NaN at {}",
+                    i
                 )));
             }
         }
 
-        if self.debug {
+        if debug {
             debug!(
                 "✅ Scorer Initialized. Active Chars: {}",
                 active_chars.len()
@@ -402,5 +362,28 @@ impl ScorerBuilder {
             slot_monogram_costs,
             active_chars,
         })
+    }
+}
+
+// Convenience wrapper for legacy/simple usage
+impl Scorer {
+    pub fn new(
+        cost_path: &str,
+        ngrams_path: &str,
+        geometry: &KeyboardGeometry,
+        config: crate::config::Config,
+        debug: bool,
+    ) -> KfResult<Self> {
+        let cost_file = std::fs::File::open(cost_path)?;
+        let ngrams_file = std::fs::File::open(ngrams_path)?;
+
+        ScorerBuildParams::from_readers(
+            cost_file,
+            ngrams_file,
+            geometry.clone(),
+            Some(config.weights),
+            Some(config.defs),
+            debug,
+        )
     }
 }

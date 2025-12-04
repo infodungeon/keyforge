@@ -7,12 +7,12 @@ pub mod metrics;
 pub mod physics;
 pub mod types;
 
-pub use self::builder::ScorerBuilder;
+pub use self::builder::ScorerBuildParams;
 use self::loader::TrigramRef;
 pub use self::types::ScoreDetails;
-use crate::config::{Config, LayoutDefinitions, ScoringWeights};
+use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::consts::KEY_CODE_RANGE;
-use crate::error::KfResult;
+// FIXED: Removed unused Config and KfResult imports
 use crate::geometry::KeyboardGeometry;
 
 #[derive(Clone)]
@@ -47,36 +47,15 @@ pub struct Scorer {
     pub char_tier_map: [u8; 256],
     pub critical_mask: [bool; 256],
 
-    // Access: freq_matrix[char_a * 256 + char_b]
     pub freq_matrix: Vec<f32>,
 
     pub active_chars: Vec<usize>,
 }
 
 impl Scorer {
-    pub fn new(
-        cost_path: &str,
-        ngrams_path: &str,
-        geometry: &KeyboardGeometry,
-        config: Config,
-        debug: bool,
-    ) -> KfResult<Self> {
-        ScorerBuilder::new()
-            .debug(debug)
-            .with_weights(config.weights)
-            .with_defs(config.defs)
-            .with_geometry(geometry.clone())
-            .with_costs_from_file(cost_path)?
-            .with_ngrams_from_file(ngrams_path)?
-            .build()
-    }
+    // Note: 'fn new' is implemented in scorer/builder.rs
 
     /// Calculates the score for a specific layout mapping.
-    ///
-    /// # Arguments
-    /// * `pos_map` - A map from character code (u16) to key index (u8).
-    ///   Size is KEY_CODE_RANGE (65536).
-    /// * `limit` - Optimization limit for trigram evaluation.
     pub fn score_full(&self, pos_map: &[u8; KEY_CODE_RANGE], limit: usize) -> (f32, f32, f32) {
         engine::score_full(self, pos_map, limit)
     }
