@@ -171,11 +171,18 @@ impl Replica {
                 let char_a = self.layout[idx_a];
                 let char_b = self.layout[idx_b];
 
+                // Update BOTH maps
                 if char_a != 0 {
                     self.pos_map[char_a as usize] = idx_a as u8;
+                    if char_a < 256 {
+                        self.compact_map[char_a as usize] = idx_a as u8;
+                    }
                 }
                 if char_b != 0 {
                     self.pos_map[char_b as usize] = idx_b as u8;
+                    if char_b < 256 {
+                        self.compact_map[char_b as usize] = idx_b as u8;
+                    }
                 }
 
                 let critical = self.scorer.defs.get_critical_bigrams();
@@ -194,9 +201,15 @@ impl Replica {
                     self.layout.swap(idx_a, idx_b);
                     if char_a != 0 {
                         self.pos_map[char_a as usize] = idx_b as u8;
+                        if char_a < 256 {
+                            self.compact_map[char_a as usize] = idx_b as u8;
+                        }
                     }
                     if char_b != 0 {
                         self.pos_map[char_b as usize] = idx_a as u8;
+                        if char_b < 256 {
+                            self.compact_map[char_b as usize] = idx_a as u8;
+                        }
                     }
                 } else {
                     self.score = new_total;

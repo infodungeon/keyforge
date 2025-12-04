@@ -1,23 +1,26 @@
 pub mod anneal;
 pub mod delta;
 
+use crate::consts::KEY_NOT_FOUND_U8;
 use crate::core_types::{KeyCode, Layout, PosMap};
 use crate::optimizer::mutation;
 use crate::scorer::Scorer;
 use fastrand::Rng;
 use std::sync::Arc;
 
+// Fits entirely in L1 Cache (256 bytes) vs 64KB
+// We assume optimization happens primarily on the base layer (codes < 256)
+type CompactPosMap = [u8; 256];
+
 #[repr(align(64))]
 pub struct Replica {
     pub scorer: Arc<Scorer>,
 
-    // Cached Scorer Data
-    pub local_cost_matrix: Vec<f32>,
-    pub local_trigram_costs: Vec<f32>,
-    pub local_monogram_costs: Vec<f32>,
-
     pub layout: Layout,
+
+    // We keep the full map for full scoring, but use compact for delta
     pub pos_map: PosMap,
+    pub compact_map: CompactPosMap,
 
     pub score: f32,
     pub left_load: f32,
@@ -83,18 +86,17 @@ impl Replica {
         };
         let (base, left, total) = scorer.score_full(&pos_map, start_limit);
 
-        // Clone hefty data for thread independence
-        let local_cost_matrix = scorer.full_cost_matrix.clone();
-        let local_trigram_costs = scorer.trigram_cost_table.clone();
-        let local_monogram_costs = scorer.slot_monogram_costs.clone();
+        // Build L1-friendly map
+        let mut compact_map = [KEY_NOT_FOUND_U8; 256];
+        for (i, &p) in pos_map.iter().take(256).enumerate() {
+            compact_map[i] = p;
+        }
 
         let mut r = Replica {
             scorer,
-            local_cost_matrix,
-            local_trigram_costs,
-            local_monogram_costs,
             layout,
             pos_map,
+            compact_map, // Initialized
             score: base,
             left_load: left,
             total_freq: total,
@@ -119,6 +121,12 @@ impl Replica {
     pub fn inject_layout(&mut self, new_layout: &[KeyCode]) {
         self.layout = new_layout.to_vec();
         self.pos_map = mutation::build_pos_map(&self.layout);
+
+        // Update compact map
+        self.compact_map.fill(KEY_NOT_FOUND_U8);
+        for (i, &p) in self.pos_map.iter().take(256).enumerate() {
+            self.compact_map[i] = p;
+        }
 
         let (base, left, total) = self.scorer.score_full(&self.pos_map, self.current_limit);
         let imb = self.imbalance_penalty(left);
