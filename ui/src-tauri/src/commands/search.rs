@@ -1,4 +1,3 @@
-// ===== keyforge/ui/src-tauri/src/commands/search.rs =====
 use crate::models::{
     JobStatusUpdate, PopulationResponse, RegisterJobRequest, RegisterJobResponse,
     StartSearchRequest,
@@ -149,15 +148,15 @@ pub async fn cmd_start_search(
         let session = sessions.get("primary").ok_or("Session not loaded")?;
 
         let mut scorer = session.scorer.clone();
-        scorer.weights = request.weights;
+        scorer.weights = request.weights.clone(); // Clone weights from request
 
         (Arc::new(scorer), Arc::new(session.registry.clone()))
     };
 
     // 2. Configure Optimizer
-    let search_params = request.search_params;
     let config = Config {
-        search: search_params,
+        search: request.search_params, // Move params
+        weights: request.weights,      // Move weights
         ..Default::default()
     };
 

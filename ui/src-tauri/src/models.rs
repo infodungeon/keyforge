@@ -1,28 +1,13 @@
-use keyforge_core::config::{ScoringWeights, SearchParams};
-use keyforge_core::geometry::KeyboardGeometry;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// ... (Keep all previous structs: RegisterJobRequest, etc.)
+// RE-EXPORTS from Protocol
+pub use keyforge_protocol::{
+    JobConfig, PopulationResponse, RegisterJobRequest, RegisterJobResponse, RegisterNodeRequest,
+    RegisterNodeResponse, SubmitResultRequest, TuningProfile,
+};
 
-#[derive(Serialize, Deserialize)]
-pub struct RegisterJobRequest {
-    pub geometry: KeyboardGeometry,
-    pub weights: ScoringWeights,
-    pub pinned_keys: String,
-    pub corpus_name: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct RegisterJobResponse {
-    pub job_id: String,
-    pub is_new: bool,
-}
-
-#[derive(Deserialize)]
-pub struct PopulationResponse {
-    pub layouts: Vec<String>,
-}
+// UI-Specific Models (Not shared with Hive/Node)
 
 #[derive(Clone, Serialize)]
 pub struct JobStatusUpdate {
@@ -42,14 +27,14 @@ pub struct SearchUpdate {
 #[derive(Deserialize)]
 pub struct StartSearchRequest {
     pub pinned_keys: String,
-    pub search_params: SearchParams,
-    pub weights: ScoringWeights,
+    // We use Protocol types for params/weights now
+    pub search_params: keyforge_protocol::config::SearchParams,
+    pub weights: keyforge_protocol::config::ScoringWeights,
 }
 
-// FIXED: Scoped layouts by keyboard name
-// HashMap<KeyboardName, HashMap<LayoutName, LayoutString>>
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct UserLayoutStore {
+    // HashMap<KeyboardID, HashMap<LayoutName, LayoutString>>
     pub layouts: HashMap<String, HashMap<String, String>>,
 }
 

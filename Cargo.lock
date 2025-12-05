@@ -6155,6 +6155,7 @@ version = "0.1.0"
 dependencies = [
  "fastrand",
  "keyforge-core",
+ "keyforge-protocol",
  "reqwest",
  "serde",
  "serde_json",
