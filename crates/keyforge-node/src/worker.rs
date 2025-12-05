@@ -4,66 +4,79 @@ use crate::models::{JobQueueResponse, PopulationResponse, SubmitResultRequest};
 use keyforge_core::config::Config;
 use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::layouts::layout_string_to_u16;
-use keyforge_core::optimizer::{mutation, OptimizationOptions, Optimizer, ProgressCallback};
+use keyforge_core::optimizer::{OptimizationOptions, Optimizer, ProgressCallback};
 use keyforge_core::protocol::{RegisterNodeRequest, RegisterNodeResponse, TuningProfile};
 use keyforge_core::scorer::Scorer;
-use rayon::ThreadPoolBuilder;
 use reqwest::Client;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 struct WorkerLogger;
 
 impl ProgressCallback for WorkerLogger {
     fn on_progress(&self, _ep: usize, score: f32, _layout: &[u16], ips: f32) -> bool {
-        if fastrand::f32() < 0.05 {
-            info!("   .. working .. best: {:.0} ({:.1} M/s)", score, ips);
+        if fastrand::f32() < 0.01 {
+            info!("   .. optimizing .. best: {:.0} ({:.1} M/s)", score, ips);
         }
         true
     }
 }
 
-async fn ensure_asset(client: &Client, hive_url: &str, filename: &str) -> Result<String, String> {
-    let local_path = format!("data/{}", filename);
-    if Path::new(&local_path).exists() {
-        debug!("Asset cached: {}", filename);
-        return Ok(local_path);
+async fn ensure_file(client: &Client, url: &str, local_path: &str) -> Result<(), String> {
+    if Path::new(local_path).exists() {
+        return Ok(());
     }
 
-    info!("⬇️ Downloading asset: {}", filename);
-    let url = format!("{}/data/{}", hive_url, filename);
-
-    let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    info!("⬇️ Downloading asset: {}", local_path);
+    let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
 
     if !resp.status().is_success() {
-        return Err(format!(
-            "Hive missing asset '{}': {}",
-            filename,
-            resp.status()
-        ));
+        return Err(format!("Server missing asset '{}': {}", url, resp.status()));
     }
 
     let content = resp.bytes().await.map_err(|e| e.to_string())?;
 
-    if let Some(parent) = Path::new(&local_path).parent() {
+    if let Some(parent) = Path::new(local_path).parent() {
         tokio::fs::create_dir_all(parent)
             .await
             .map_err(|e| e.to_string())?;
     }
 
-    let mut file = tokio::fs::File::create(&local_path)
+    let mut file = tokio::fs::File::create(local_path)
         .await
         .map_err(|e| e.to_string())?;
     file.write_all(&content).await.map_err(|e| e.to_string())?;
 
-    info!("✅ Asset downloaded: {}", filename);
-    Ok(local_path)
+    Ok(())
 }
 
-pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) {
+async fn ensure_corpus_bundle(
+    client: &Client,
+    hive_url: &str,
+    corpus_name: &str,
+) -> Result<String, String> {
+    let bundle_dir = if corpus_name == "default" {
+        "data/corpora/default".to_string()
+    } else {
+        format!("data/corpora/{}", corpus_name)
+    };
+
+    let files = ["1grams.csv", "2grams.csv", "3grams.csv", "words.csv"];
+
+    for f in files {
+        let local = format!("{}/{}", bundle_dir, f);
+        let remote = format!("{}/{}/{}", hive_url, bundle_dir, f);
+
+        ensure_file(client, &remote, &local).await?;
+    }
+
+    Ok(bundle_dir)
+}
+
+pub async fn run_worker(hive_url: String, node_id: String) {
     let client = Client::builder()
         .timeout(Duration::from_secs(120))
         .connect_timeout(Duration::from_secs(10))
@@ -83,6 +96,14 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
         ops_per_sec,
     };
 
+    // Fallback profile
+    let default_threads = (req.cores - 1).max(1) as usize;
+    let default_tuning = TuningProfile {
+        strategy: "fly".into(),
+        batch_size: 10000,
+        thread_count: default_threads,
+    };
+
     let tuning = match client
         .post(format!("{}/nodes/register", hive_url))
         .json(&req)
@@ -92,46 +113,15 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
         Ok(res) => match res.json::<RegisterNodeResponse>().await {
             Ok(r) => {
                 info!(
-                    "✅ Registered with Hive. Strategy: {} | Batch: {} | Threads: {}",
-                    r.tuning.strategy, r.tuning.batch_size, r.tuning.thread_count
+                    "✅ Registered. Strategy: {} | Batch: {}",
+                    r.tuning.strategy, r.tuning.batch_size
                 );
                 r.tuning
             }
-            Err(e) => {
-                warn!("Failed to parse tuning profile: {}. Using defaults.", e);
-                TuningProfile {
-                    strategy: "fly".into(),
-                    batch_size: 10000,
-                    thread_count: 1,
-                }
-            }
+            Err(_) => default_tuning,
         },
-        Err(e) => {
-            warn!("Failed to register node: {}. Proceeding anonymously.", e);
-            TuningProfile {
-                strategy: "fly".into(),
-                batch_size: 10000,
-                thread_count: 1,
-            }
-        }
+        Err(_) => default_tuning,
     };
-
-    // Configure Thread Pool
-    // FIXED: Use .clamp(1, 2) instead of min/max chaining for background logic
-    let final_threads = if is_background {
-        tuning.thread_count.clamp(1, 2)
-    } else {
-        tuning.thread_count
-    };
-
-    if let Err(e) = ThreadPoolBuilder::new()
-        .num_threads(final_threads)
-        .build_global()
-    {
-        debug!("Thread pool already configured: {}", e);
-    } else {
-        info!("🧵 Thread Pool Configured: {} threads", final_threads);
-    }
 
     let _ = tokio::fs::create_dir_all("data").await;
     let registry = KeycodeRegistry::new_with_defaults();
@@ -147,8 +137,7 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
                     job_id: None,
                     config: None,
                 }),
-                Err(e) => {
-                    warn!("Hive unreachable: {}. Retrying...", e);
+                Err(_) => {
                     tokio::time::sleep(Duration::from_secs(5)).await;
                     continue;
                 }
@@ -157,37 +146,25 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
         let (job_id, config) = match (job_resp.job_id, job_resp.config) {
             (Some(id), Some(cfg)) => (id, cfg),
             _ => {
-                tokio::time::sleep(Duration::from_secs(2)).await;
+                tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
             }
         };
 
         info!("📋 Processing Job: {}", &job_id[0..8]);
 
-        let cost_file = match ensure_asset(&client, &hive_url, &config.cost_matrix).await {
-            Ok(p) => p,
-            Err(e) => {
-                error!("❌ Asset Error (Cost): {}", e);
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-        };
+        let cost_local = format!("data/{}", config.cost_matrix);
+        let cost_remote = format!("{}/data/{}", hive_url, config.cost_matrix);
+        if let Err(e) = ensure_file(&client, &cost_remote, &cost_local).await {
+            warn!("Failed to download cost matrix: {}", e);
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            continue;
+        }
 
-        let corpus_filename = if config.corpus_name == "default" {
-            "ngrams-all.tsv"
-        } else {
-            &config.corpus_name
-        };
-        let actual_corpus_name = if corpus_filename.contains('.') {
-            corpus_filename.to_string()
-        } else {
-            format!("{}.tsv", corpus_filename)
-        };
-
-        let ngram_file = match ensure_asset(&client, &hive_url, &actual_corpus_name).await {
-            Ok(p) => p,
+        let corpus_dir = match ensure_corpus_bundle(&client, &hive_url, &config.corpus_name).await {
+            Ok(d) => d,
             Err(e) => {
-                error!("❌ Asset Error (Ngram): {}", e);
+                warn!("Failed to download corpus bundle: {}", e);
                 tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
             }
@@ -196,12 +173,11 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
         let current_sig = format!(
             "{}-{}-{}",
             config.definition.geometry.keys.len(),
-            cost_file,
-            ngram_file
+            cost_local,
+            corpus_dir
         );
 
         if cached_scorer.is_none() || cached_config_sig != current_sig {
-            info!("   Building Scorer...");
             let scorer_config = Config {
                 weights: config.weights.clone(),
                 search: config.params,
@@ -209,19 +185,18 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
             };
 
             match Scorer::new(
-                &cost_file,
-                &ngram_file,
+                &cost_local,
+                &corpus_dir,
                 &config.definition.geometry,
                 scorer_config,
                 false,
             ) {
                 Ok(s) => {
-                    info!("   ✅ Scorer Built. Keys: {}", s.key_count);
                     cached_scorer = Some(Arc::new(s));
                     cached_config_sig = current_sig;
                 }
                 Err(e) => {
-                    error!("❌ Scorer Init Failed: {}. Skipping Job.", e);
+                    error!("Scorer Init Failed: {}. Skipping.", e);
                     continue;
                 }
             }
@@ -243,15 +218,19 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
             Err(_) => PopulationResponse { layouts: vec![] },
         };
 
-        info!("   Configuring Optimizer...");
         let sys_config = Config {
-            weights: config.weights.clone(),
+            weights: config.weights,
             search: config.params,
             ..Default::default()
         };
         let mut options = OptimizationOptions::from(&sys_config);
         options.pinned_keys = config.pinned_keys;
         options.params.search_steps = tuning.batch_size;
+
+        // Use the thread count from tuning profile if we want to override default behavior,
+        // or just rely on OptimizationOptions default which is system based.
+        // For now, we update options if we want to enforce it.
+        options.num_threads = tuning.thread_count;
 
         let key_count = config.definition.geometry.keys.len();
         options.initial_population = pop_resp
@@ -260,62 +239,31 @@ pub async fn run_worker(hive_url: String, node_id: String, is_background: bool) 
             .map(|s| layout_string_to_u16(s, key_count, &registry_arc))
             .collect();
 
-        info!("   🚀 Starting Optimization Loop...");
-
-        let scorer_for_opt = scorer_arc.clone();
-
         let result = tokio::task::spawn_blocking(move || {
-            let optimizer = Optimizer::new(scorer_for_opt, options);
+            let optimizer = Optimizer::new(scorer_arc, options);
             optimizer.run(None, WorkerLogger)
         })
-        .await;
+        .await
+        .unwrap();
 
-        match result {
-            Ok(res) => {
-                // --- SCORE RATIONALIZATION START ---
-                let layout_codes = res.layout.clone();
-                let pos_map = mutation::build_pos_map(&layout_codes);
+        let layout_str = result
+            .layout
+            .iter()
+            .map(|&c| registry_arc.get_label(c))
+            .collect::<Vec<String>>()
+            .join(" ");
 
-                let details = scorer_arc.score_details(&pos_map, usize::MAX);
-                let clean_score = details.layout_score;
+        let submit_req = SubmitResultRequest {
+            job_id: job_id.clone(),
+            layout: layout_str,
+            score: result.score,
+            node_id: node_id.clone(),
+        };
 
-                if (clean_score - res.score).abs() > 100.0 {
-                    info!(
-                        "   ⚖️  Rationalizing Score: Opt {:.0} -> Real {:.0}",
-                        res.score, clean_score
-                    );
-                }
-                // --- SCORE RATIONALIZATION END ---
-
-                let layout_str = res
-                    .layout
-                    .iter()
-                    .map(|&c| registry_arc.get_label(c))
-                    .collect::<Vec<String>>()
-                    .join(" ");
-
-                let submit_req = SubmitResultRequest {
-                    job_id: job_id.clone(),
-                    layout: layout_str,
-                    score: clean_score,
-                    node_id: node_id.clone(),
-                };
-
-                info!("   📤 Submitting Result ({:.0})...", clean_score);
-                if let Err(e) = client
-                    .post(format!("{}/results", hive_url))
-                    .json(&submit_req)
-                    .send()
-                    .await
-                {
-                    error!("❌ Failed to submit result: {}", e);
-                } else {
-                    info!("   ✅ Result Submitted.");
-                }
-            }
-            Err(e) => {
-                error!("❌ Optimization Task Panicked: {}", e);
-            }
-        }
+        let _ = client
+            .post(format!("{}/results", hive_url))
+            .json(&submit_req)
+            .send()
+            .await;
     }
 }

@@ -2,6 +2,7 @@
 use crate::utils::{atomic_write, get_data_dir};
 use keyforge_core::biometrics::{generate_cost_matrix_from_stats, BiometricSample, UserStatsStore};
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 
@@ -82,6 +83,22 @@ pub fn cmd_save_biometrics(
     ))
 }
 
+// NEW: Load existing stats
+#[tauri::command]
+pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, String> {
+    let data_dir = get_data_dir(&app)?;
+    let stats_path = data_dir.join("user_stats.json");
+
+    if !stats_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(&stats_path).map_err(|e| e.to_string())?;
+    let store: UserStatsStore = serde_json::from_str(&content).unwrap_or_default();
+
+    Ok(store.biometrics)
+}
+
 #[tauri::command]
 pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
     let data_dir = get_data_dir(&app)?;
@@ -110,4 +127,54 @@ pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
         "Profile generated! 'personal_cost.csv' created from {} samples.",
         store.biometrics.len()
     ))
+}
+
+#[tauri::command]
+pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, String> {
+    let data_dir = get_data_dir(&app)?;
+    let stats_path = data_dir.join("user_stats.json");
+
+    if stats_path.exists() {
+        fs::remove_file(stats_path).map_err(|e| e.to_string())?;
+    }
+
+    Ok("Biometric data cleared successfully.".to_string())
+}
+
+#[tauri::command]
+pub fn cmd_get_corpus_bigrams(
+    app: AppHandle,
+    corpus_filename: String,
+    limit: usize,
+) -> Result<Vec<String>, String> {
+    let data_dir = get_data_dir(&app)?;
+    let path = data_dir.join(&corpus_filename);
+
+    if !path.exists() {
+        return Err(format!("Corpus not found: {:?}", path));
+    }
+
+    let file = fs::File::open(path).map_err(|e| e.to_string())?;
+    let reader = BufReader::new(file);
+
+    let mut bigrams = Vec::new();
+
+    for line in reader.lines() {
+        let line = line.map_err(|e| e.to_string())?;
+        let parts: Vec<&str> = line.split('\t').collect();
+
+        if parts.len() >= 2 {
+            let text = parts[0].to_lowercase();
+            // Filter for exact length 2 (Bigrams) and ensure they are alphabetic
+            if text.chars().count() == 2 && text.chars().all(|c| c.is_alphabetic()) {
+                bigrams.push(text);
+            }
+        }
+
+        if bigrams.len() >= limit {
+            break;
+        }
+    }
+
+    Ok(bigrams)
 }

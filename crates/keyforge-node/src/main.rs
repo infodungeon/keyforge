@@ -6,6 +6,7 @@ mod nice;
 mod worker;
 
 use clap::{Args, Parser, Subcommand};
+use tracing::info;
 use uuid::Uuid;
 
 #[derive(Parser)]
@@ -17,19 +18,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Measures hardware performance to determine batch sizes
     Calibrate,
-    /// Connects to the Hive and starts processing jobs
     Work(WorkArgs),
 }
 
 #[derive(Args)]
 struct WorkArgs {
-    /// Hive Server URL
     #[arg(long, default_value = "http://localhost:3000")]
     hive: String,
 
-    /// Run in background mode (Low Priority)
     #[arg(long, default_value_t = false)]
     background: bool,
 }
@@ -48,7 +45,23 @@ fn main() {
                 nice::set_background_priority();
             }
 
-            // Removed global rayon init here (moved to worker.rs)
+            let physical_cores = num_cpus::get_physical();
+            let reserve = if args.background { 2 } else { 1 };
+            let compute_threads = if physical_cores > reserve {
+                physical_cores - reserve
+            } else {
+                1
+            };
+
+            info!(
+                "🧠 Configuring Compute Pool: {} physical threads (System: {})",
+                compute_threads, physical_cores
+            );
+
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(compute_threads)
+                .build_global()
+                .expect("Failed to initialize global thread pool");
 
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
@@ -62,9 +75,9 @@ fn main() {
                 Uuid::new_v4().to_string().split('-').next().unwrap()
             );
 
+            // FIXED: Removed the 3rd argument (boolean) which was causing the error
             rt.block_on(async {
-                // FIXED: Pass args.background
-                worker::run_worker(args.hive, node_id, args.background).await;
+                worker::run_worker(args.hive, node_id).await;
             });
         }
     }

@@ -2,26 +2,32 @@
 import { generateNgrams } from "./ngrams";
 
 export interface CoverageStats {
-    totalBigramsSeen: number;
-    uniqueBigrams: number;
+    totalSamples: number;
     coveragePct: number;
     mostNeeded: string[];
 }
 
-export class CoverageManager {
+const SATURATION_THRESHOLD = 5;
+
+export class CoverageService {
     private seenBigrams: Map<string, number>;
-    private seenTrigrams: Map<string, number>;
-    
-    // Common English bigrams we WANT to cover (simplified list for heuristic)
-    private targetBigrams = new Set([
-        "th", "he", "in", "er", "an", "re", "nd", "at", "on", "nt", "ha", "es", "st", 
-        "en", "ed", "to", "it", "ou", "ea", "hi", "is", "or", "ti", "as", "te", "et", 
-        "ng", "of", "al", "de", "se", "le", "sa", "si", "ar", "ve", "ra", "ld", "ur"
-    ]);
+    private targetBigrams: string[];
 
     constructor() {
         this.seenBigrams = new Map();
-        this.seenTrigrams = new Map();
+        this.targetBigrams = [];
+    }
+
+    public setTargets(targets: string[]) {
+        this.targetBigrams = targets;
+    }
+
+    // NEW: Load existing data into model
+    public hydrateHistory(samples: { bigram: string }[]) {
+        samples.forEach(s => {
+            const bg = s.bigram.toLowerCase();
+            this.seenBigrams.set(bg, (this.seenBigrams.get(bg) || 0) + 1);
+        });
     }
 
     public registerInput(text: string) {
@@ -29,64 +35,82 @@ export class CoverageManager {
         bigrams.forEach(bg => {
             this.seenBigrams.set(bg, (this.seenBigrams.get(bg) || 0) + 1);
         });
-
-        const trigrams = generateNgrams(text, 3);
-        trigrams.forEach(tg => {
-            this.seenTrigrams.set(tg, (this.seenTrigrams.get(tg) || 0) + 1);
-        });
     }
 
     public getStats(): CoverageStats {
-        let targetsHit = 0;
+        if (this.targetBigrams.length === 0) {
+            return { totalSamples: 0, coveragePct: 0, mostNeeded: [] };
+        }
+
+        let totalSaturation = 0;
+        const totalTargets = this.targetBigrams.length;
+
         this.targetBigrams.forEach(t => {
-            if ((this.seenBigrams.get(t) || 0) >= 3) targetsHit++; // Threshold: 3 samples
+            const count = this.seenBigrams.get(t) || 0;
+            const saturation = Math.min(count, SATURATION_THRESHOLD) / SATURATION_THRESHOLD;
+            totalSaturation += saturation;
         });
 
+        const coveragePct = (totalSaturation / totalTargets) * 100;
+
         return {
-            totalBigramsSeen: Array.from(this.seenBigrams.values()).reduce((a, b) => a + b, 0),
-            uniqueBigrams: this.seenBigrams.size,
-            coveragePct: (targetsHit / this.targetBigrams.size) * 100,
-            mostNeeded: Array.from(this.targetBigrams).filter(t => (this.seenBigrams.get(t) || 0) < 3)
+            totalSamples: Array.from(this.seenBigrams.values()).reduce((a, b) => a + b, 0),
+            coveragePct,
+            mostNeeded: this.targetBigrams
+                .filter(t => (this.seenBigrams.get(t) || 0) < SATURATION_THRESHOLD)
+                .sort((a, b) => (this.seenBigrams.get(a) || 0) - (this.seenBigrams.get(b) || 0))
         };
     }
 
-    /**
-     * Selects the best words from the pool to maximize coverage gain.
-     */
     public selectTargetedWords(pool: string[], count: number): string[] {
-        const missingBigrams = this.getStats().mostNeeded;
-        const missingSet = new Set(missingBigrams);
+        if (this.targetBigrams.length === 0) return pool.slice(0, count);
 
-        // Score words: +10 for a missing bigram, +1 for generic length
+        const stats = this.getStats();
+        // Fallback to general targets if we have full saturation coverage
+        const neededList = stats.mostNeeded.length > 0 ? stats.mostNeeded : this.targetBigrams;
+        const neededSet = new Set(neededList.slice(0, 20));
+
         const scored = pool.map(word => {
             const bgs = generateNgrams(word, 2);
             let score = 0;
-            let hasTarget = false;
-            
             bgs.forEach(bg => {
-                if (missingSet.has(bg)) {
-                    score += 10;
-                    hasTarget = true;
-                }
+                if (neededSet.has(bg)) score += 10;
+                if (this.targetBigrams.includes(bg)) score += 1;
             });
-
-            // Penalize very long words slightly to keep flow speed up, unless they have targets
-            if (!hasTarget && word.length > 7) score -= 2;
-
-            return { word, score: score + Math.random() }; // Add noise to shuffle ties
+            return { word, score: score + (Math.random() * 5) };
         });
 
-        // Sort Descending
         scored.sort((a, b) => b.score - a.score);
 
-        // Take top N
-        return scored.slice(0, count).map(s => s.word);
+        const topN = Math.floor(count * 0.8);
+        const randomN = count - topN;
+        const selection: string[] = [];
+
+        for (let i = 0; i < topN; i++) {
+            // Safety check
+            const idx = i;
+            if (idx < scored.length) selection.push(scored[idx].word);
+        }
+
+        for (let i = 0; i < randomN; i++) {
+            const rIdx = Math.floor(Math.random() * (pool.length - topN)) + topN;
+            if (scored[rIdx]) selection.push(scored[rIdx].word);
+        }
+
+        return this.shuffle(selection);
+    }
+
+    private shuffle(array: string[]) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
     }
 
     public reset() {
         this.seenBigrams.clear();
-        this.seenTrigrams.clear();
     }
 }
 
-export const coverageService = new CoverageManager();
+export const coverageService = new CoverageService();

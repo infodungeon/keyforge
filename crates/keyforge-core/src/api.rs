@@ -35,15 +35,15 @@ pub struct ValidationResult {
     pub layout_name: String,
     pub score: ScoreDetails,
     pub geometry: crate::geometry::KeyboardGeometry,
-    pub heatmap: Vec<f32>,     // Frequency Heatmap (0.0 - 1.0)
-    pub penalty_map: Vec<f32>, // NEW: Penalty Heatmap (0.0 - 1.0)
+    pub heatmap: Vec<f32>,
+    pub penalty_map: Vec<f32>,
 }
 
 pub fn load_dataset(
     state: &KeyForgeState,
     session_id: &str,
     cost_path: &str,
-    ngrams_path: &str,
+    corpus_dir: &str, // RENAMED from ngrams_path
     keyboard_path: &Option<String>,
     corpus_scale: Option<f32>,
     data_root: Option<&str>,
@@ -104,7 +104,8 @@ pub fn load_dataset(
         KeycodeRegistry::new_with_defaults()
     };
 
-    let scorer = Scorer::new(cost_path, ngrams_path, &kb_def.geometry, config, false)
+    // Scorer now accepts directory
+    let scorer = Scorer::new(cost_path, corpus_dir, &kb_def.geometry, config, false)
         .map_err(|e| format!("Scorer Initialization Failed: {}", e))?;
 
     {
@@ -147,7 +148,6 @@ pub fn validate_layout(
     let pos_map = mutation::build_pos_map(&layout_codes);
     let details = scorer_ref.score_details(&pos_map, 10_000);
 
-    // 1. Calculate Frequency Heatmap
     let max_freq_val = scorer_ref.char_freqs.iter().fold(0.0f32, |a, &b| a.max(b));
     let mut heatmap = Vec::with_capacity(key_count);
 
@@ -175,7 +175,6 @@ pub fn validate_layout(
         heatmap.push(intensity);
     }
 
-    // 2. Calculate Penalty Heatmap (NEW)
     let raw_costs = scorer_ref.get_element_costs(&pos_map);
     let max_cost = raw_costs.iter().fold(0.0f32, |a, &b| a.max(b));
 
@@ -190,6 +189,6 @@ pub fn validate_layout(
         score: details,
         geometry: scorer_ref.geometry.clone(),
         heatmap,
-        penalty_map, // Include in response
+        penalty_map,
     })
 }

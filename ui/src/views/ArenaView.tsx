@@ -1,5 +1,15 @@
-import { Arena } from "../components/Arena";
+// ===== keyforge/ui/src/views/ArenaView.tsx =====
+import { ArenaCanvas } from "../components/ArenaCanvas";
+import { Inspector } from "../components/Inspector";
 
 export function ArenaView() {
-    return <Arena />;
+    return (
+        <>
+            {/* Left/Center: The main interaction area */}
+            <ArenaCanvas />
+
+            {/* Right: The control and settings panel */}
+            <Inspector mode="arena" />
+        </>
+    );
 }

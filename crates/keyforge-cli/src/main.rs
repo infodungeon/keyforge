@@ -20,8 +20,9 @@ struct Cli {
     #[arg(global = true, short, long, default_value = "data/cost_matrix.csv")]
     cost: String,
 
-    #[arg(global = true, short, long, default_value = "data/ngrams-all.tsv")]
-    ngrams: String,
+    // CHANGED: "ngrams" file -> "corpus" directory
+    #[arg(global = true, long, default_value = "data/corpora/default")]
+    corpus: String,
 
     #[arg(
         global = true,
@@ -54,7 +55,6 @@ fn main() {
     info!("🚀 Initializing KeyForge Core...");
 
     info!("📂 Loading Keyboard: {}", cli.keyboard);
-    // FIXED: Handle KfResult (implements Display via thiserror)
     let kb_def = KeyboardDefinition::load_from_file(&cli.keyboard).unwrap_or_else(|e| {
         error!("Failed to load keyboard definition: {}", e);
         process::exit(1);
@@ -103,9 +103,10 @@ fn main() {
         }
     }
 
+    // Scorer Init now takes directory
     let scorer_res = Scorer::new(
         &cli.cost,
-        &cli.ngrams,
+        &cli.corpus, // Directory
         &kb_def.geometry,
         config.clone(),
         cli.debug,

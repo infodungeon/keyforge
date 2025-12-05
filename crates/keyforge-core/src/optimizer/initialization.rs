@@ -1,20 +1,15 @@
+// ===== keyforge/crates/keyforge-core/src/optimizer/initialization.rs =====
 use crate::core_types::Layout;
 use crate::scorer::Scorer;
 use fastrand::Rng;
 use std::collections::HashSet;
 
-/// Generates a layout using a greedy heuristic:
-/// 1. Sort slots by physical quality (reach + finger penalty).
-/// 2. Sort characters by frequency.
-/// 3. Assign Top Chars -> Best Slots.
-/// 4. Respects pins.
 pub fn generate_greedy_layout(scorer: &Scorer, rng: &mut Rng, pinned: &[Option<u16>]) -> Layout {
     let key_count = scorer.key_count;
     let mut layout = vec![0u16; key_count];
     let mut filled = vec![false; key_count];
     let mut used_chars = HashSet::new();
 
-    // 1. Apply Pins
     for (i, &p) in pinned.iter().enumerate() {
         if i < key_count {
             if let Some(c) = p {
@@ -25,7 +20,6 @@ pub fn generate_greedy_layout(scorer: &Scorer, rng: &mut Rng, pinned: &[Option<u
         }
     }
 
-    // 2. Rank Slots (Lower cost is better)
     let mut ranked_slots: Vec<(usize, f32)> = (0..key_count)
         .filter(|&i| !filled[i])
         .map(|i| {
@@ -36,7 +30,6 @@ pub fn generate_greedy_layout(scorer: &Scorer, rng: &mut Rng, pinned: &[Option<u
 
     ranked_slots.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-    // 3. Rank Characters (Higher freq is better)
     let mut ranked_chars: Vec<(u16, f32)> = scorer
         .active_chars
         .iter()
@@ -49,7 +42,6 @@ pub fn generate_greedy_layout(scorer: &Scorer, rng: &mut Rng, pinned: &[Option<u
 
     ranked_chars.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    // 4. Assign
     let mut char_iter = ranked_chars.into_iter();
 
     for (slot_idx, _) in ranked_slots {
@@ -66,10 +58,10 @@ pub fn generate_greedy_layout(scorer: &Scorer, rng: &mut Rng, pinned: &[Option<u
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::ScoringWeights;
+    use crate::config::{LayoutDefinitions, ScoringWeights};
     use crate::geometry::{KeyNode, KeyboardGeometry};
-    use crate::scorer::ScorerBuildParams; // FIXED Import
-    use std::io::Cursor;
+    use crate::scorer::loader::{CorpusBundle, RawCostData};
+    use crate::scorer::{Scorer, ScorerBuildParams};
 
     fn get_test_scorer() -> Scorer {
         let keys = vec![
@@ -108,19 +100,20 @@ mod tests {
         };
         geom.calculate_origins();
 
-        let ngram_data = "a\t10\ne\t1000";
-        let cost_data = "From,To,Cost";
+        let mut bundle = CorpusBundle::default();
+        bundle.char_freqs[b'e' as usize] = 1000.0;
+        bundle.char_freqs[b'a' as usize] = 10.0;
 
-        // FIXED: Use new builder params logic for in-memory readers
-        ScorerBuildParams::from_readers(
-            Cursor::new(cost_data),
-            Cursor::new(ngram_data),
-            geom,
-            Some(ScoringWeights::default()),
-            None,
-            false,
-        )
-        .expect("Failed to build scorer")
+        ScorerBuildParams::builder()
+            .geometry(geom)
+            .weights(ScoringWeights::default())
+            .defs(LayoutDefinitions::default())
+            .cost_data(RawCostData { entries: vec![] })
+            .corpus(bundle)
+            .debug(false)
+            .build()
+            .build_scorer()
+            .expect("Failed to build scorer")
     }
 
     #[test]

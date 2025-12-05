@@ -3,8 +3,6 @@ use crate::config::{ScoringWeights, SearchParams};
 use crate::geometry::KeyboardDefinition;
 use serde::{Deserialize, Serialize};
 
-// ... (Job Registration structs remain same) ...
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RegisterJobRequest {
     pub definition: KeyboardDefinition,
@@ -84,14 +82,7 @@ pub struct RegisterNodeRequest {
 pub struct TuningProfile {
     pub strategy: String,
     pub batch_size: usize,
-
-    // ADDED: Thread Count Recommendation
-    #[serde(default = "default_threads")]
-    pub thread_count: usize,
-}
-
-fn default_threads() -> usize {
-    1
+    pub thread_count: usize, // ADDED: Defines how many threads the node should use
 }
 
 #[derive(Serialize, Deserialize, Debug)]

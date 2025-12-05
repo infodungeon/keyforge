@@ -1,19 +1,22 @@
+// ===== keyforge/ui/src/components/Inspector.tsx =====
 import { useState } from "react";
 import { useKeyboard } from "../context/KeyboardContext";
-import { useToast } from "../context/ToastContext"; // ADDED
-import { invoke } from "@tauri-apps/api/core"; // ADDED
+import { useArena } from "../context/ArenaContext";
+import { useToast } from "../context/ToastContext";
+import { invoke } from "@tauri-apps/api/core";
 import { AppMode } from "../types";
 import { calculateStats } from "../utils";
 import { ContextControls } from "./ContextControls";
 import { Button } from "./ui/Button";
 import {
     BarChart2, Sliders, Settings as SettingsIcon,
-    Download, Upload, Play, Square, Save, Trash2, Send
+    Download, Upload, Play, Square, Save, Trash2, Send, Activity
 } from "lucide-react";
 
 // Sub-panels
 import { AnalyzePanel } from "./panels/AnalyzePanel";
 import { OptimizePanel } from "./panels/OptimizePanel";
+import { ArenaPanel } from "./panels/ArenaPanel";
 
 interface Props {
     mode: AppMode;
@@ -29,19 +32,23 @@ export function Inspector({
     mode,
     onDispatch, onStop,
     localWorkerEnabled, toggleWorker,
-    pinnedKeys, setPinnedKeys
+    pinnedKeys, setPinnedKeys,
 }: Props) {
 
     const {
-        keyboards, selectedKeyboard, selectKeyboard,
-        availableLayouts, layoutName, loadLayoutPreset,
-        activeResult, referenceResult, activeJobId, layoutString, // Added layoutString
+        // keyboards, selectedKeyboard, selectKeyboard, // Removed unused
+        // availableLayouts, loadLayoutPreset, // Removed unused
+        layoutName,
+        activeResult, referenceResult, activeJobId, layoutString,
         weights, searchParams, setWeights, setSearchParams,
         standardLayouts, saveUserLayout, deleteUserLayout
     } = useKeyboard();
 
-    const { addToast } = useToast(); // ADDED
-    const [isPosting, setIsPosting] = useState(false); // ADDED
+    // Consume Arena context to check status for locking controls
+    const arena = mode === 'arena' ? useArena() : null;
+
+    const { addToast } = useToast();
+    const [isPosting, setIsPosting] = useState(false);
 
     // Local UI State
     const [showDiff, setShowDiff] = useState(false);
@@ -55,7 +62,8 @@ export function Inspector({
     const { title: PanelTitle, icon: PanelIcon } =
         mode === 'analyze' ? { title: 'Analyze', icon: BarChart2 } :
             mode === 'optimize' ? { title: 'Optimize', icon: Sliders } :
-                { title: 'Configuration', icon: SettingsIcon };
+                mode === 'arena' ? { title: 'Arena Stats', icon: Activity } :
+                    { title: 'Configuration', icon: SettingsIcon };
 
     // Handlers
     const handleSave = () => {
@@ -67,7 +75,6 @@ export function Inspector({
         if (confirm(`Delete ${layoutName}?`)) deleteUserLayout(layoutName);
     };
 
-    // ADDED: Submission Logic
     const handlePost = async () => {
         if (!layoutString) return;
 
@@ -116,8 +123,8 @@ export function Inspector({
                 )}
             </div>
 
-            {/* Context Controls */}
-            <ContextControls disabled={!!activeJobId} />
+            {/* Context Controls - Disabled during Arena runs if unfinished */}
+            <ContextControls disabled={!!activeJobId || (mode === 'arena' && !arena?.isFinished)} />
 
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -143,6 +150,10 @@ export function Inspector({
                         toggleWorker={toggleWorker}
                     />
                 )}
+
+                {mode === 'arena' && (
+                    <ArenaPanel />
+                )}
             </div>
 
             {/* Footer / Actions */}
@@ -157,13 +168,13 @@ export function Inspector({
                             STOP JOB
                         </Button>
                     )
-                ) : (
+                ) : mode !== 'arena' ? (
                     <div className="grid grid-cols-3 gap-2">
                         <Button variant="secondary" size="sm" onClick={handleSave} icon={<Save size={14} />}>Save</Button>
                         <Button variant="secondary" size="sm" onClick={handleDelete} disabled={isStandard} icon={<Trash2 size={14} />}>Del</Button>
                         <Button variant="secondary" size="sm" onClick={handlePost} isLoading={isPosting} icon={<Send size={14} />}>Post</Button>
                     </div>
-                )}
+                ) : null}
             </div>
         </div>
     );

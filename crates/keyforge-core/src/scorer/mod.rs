@@ -11,8 +11,9 @@ pub mod types;
 pub use self::builder::ScorerBuildParams;
 use self::loader::TrigramRef;
 pub use self::types::ScoreDetails;
-use crate::config::{LayoutDefinitions, ScoringWeights};
+use crate::config::{Config, LayoutDefinitions, ScoringWeights};
 use crate::consts::KEY_CODE_RANGE;
+use crate::error::KfResult;
 use crate::geometry::KeyboardGeometry;
 
 #[derive(Clone)]
@@ -44,6 +45,10 @@ pub struct Scorer {
     pub trigram_starts: Vec<usize>,
     pub trigrams_flat: Vec<TrigramRef>,
     pub char_freqs: [f32; 256],
+
+    // NEW: Retained word list for analysis
+    pub words: Vec<(String, u64)>,
+
     pub char_tier_map: [u8; 256],
     pub critical_mask: [bool; 256],
 
@@ -53,9 +58,24 @@ pub struct Scorer {
 }
 
 impl Scorer {
-    // Note: 'fn new' is implemented in scorer/builder.rs
+    // New Factory Method
+    pub fn new(
+        cost_path: &str,
+        corpus_dir: &str, // CHANGED from ngrams_path
+        geometry: &KeyboardGeometry,
+        config: Config,
+        debug: bool,
+    ) -> KfResult<Self> {
+        ScorerBuildParams::load_from_disk(
+            cost_path,
+            corpus_dir,
+            geometry.clone(),
+            Some(config.weights),
+            Some(config.defs),
+            debug,
+        )
+    }
 
-    /// Calculates the score for a specific layout mapping.
     pub fn score_full(&self, pos_map: &[u8; KEY_CODE_RANGE], limit: usize) -> (f32, f32, f32) {
         engine::score_full(self, pos_map, limit)
     }
@@ -73,28 +93,17 @@ impl Scorer {
         row * self.key_count + col
     }
 
-    // --- NEW: Telemetry Methods ---
-
-    /// Returns the estimated memory usage of the lookup tables in bytes.
     pub fn estimate_memory_footprint(&self) -> usize {
-        let tri_size = self.trigram_cost_table.len() * 4; // f32 = 4 bytes
+        let tri_size = self.trigram_cost_table.len() * 4;
         let bi_size = self.full_cost_matrix.len() * 4;
-        let vec_overhead = self.bigrams_others.len() * (1 + 4 + 1); // u8 + f32 + bool
-
+        let vec_overhead = self.bigrams_others.len() * (1 + 4 + 1);
         tri_size + bi_size + vec_overhead
     }
 
-    /// Checks if the critical tables fit within a specific cache size (KB).
-    /// Returns (fits_in_cache, needed_kb)
     pub fn check_cache_fit(&self, available_l2_kb: usize) -> (bool, usize) {
-        // The Trigram Table is the "hot" path for O(N^3) access.
-        // It is accessed randomly during scoring.
         let hot_data_size = self.trigram_cost_table.len() * 4;
         let needed_kb = hot_data_size / 1024;
-
-        // We assume we need 20% headroom for other stack/instruction data
         let effective_limit = (available_l2_kb as f32 * 0.8) as usize;
-
         (needed_kb <= effective_limit, needed_kb)
     }
 }

@@ -31,9 +31,7 @@ pub async fn register_node(
         payload.ops_per_sec / 1_000_000.0
     );
 
-    // 2. Intelligent Tuning Logic
-
-    // Strategy: If L2 cache is small (< 512KB per core approx) or unknown, be conservative.
+    // 2. Determine Tuning Strategy
     let strategy = if let Some(l2) = payload.l2_cache_kb {
         if l2 >= 1024 {
             "table"
@@ -41,31 +39,24 @@ pub async fn register_node(
             "fly"
         }
     } else {
-        "fly" // Safe default
+        "fly"
     };
 
-    // Batch Size: If CPU is fast, run longer batches to amortize sync overhead
     let batch_size = if payload.ops_per_sec > 10_000_000.0 {
         50_000
-    } else if payload.ops_per_sec > 4_000_000.0 {
-        20_000
     } else {
-        5_000
+        10_000
     };
 
-    // Thread Count: Reserve 1 core for OS/Network if possible
-    let thread_count = if payload.cores > 2 {
-        (payload.cores - 1) as usize
-    } else {
-        1
-    };
+    // Conservative default: Use all physical cores minus 1 for system
+    let thread_count = (payload.cores - 1).max(1) as usize;
 
     Ok(Json(RegisterNodeResponse {
         status: "registered".to_string(),
         tuning: TuningProfile {
             strategy: strategy.to_string(),
             batch_size,
-            thread_count, // FIXED: Added missing field
+            thread_count,
         },
     }))
 }

@@ -22,7 +22,6 @@ pub async fn submit(
     Json(payload): Json<SubmitResultRequest>,
 ) -> AppResult<String> {
     // 1. Fetch Job Config
-    // FIXED: Destructure 4 elements now
     let (geometry, weights, corpus_name, cost_matrix) = state
         .store
         .get_job_config(&payload.job_id)
@@ -31,8 +30,7 @@ pub async fn submit(
         .ok_or(AppError::NotFound)?;
 
     // 2. Resolve Paths
-    // Note: We pass the cost_matrix filename explicitly now
-    let (cost_path, ngram_path) = resolve_paths(&corpus_name, &cost_matrix).ok_or(
+    let (cost_path, corpus_dir) = resolve_paths(&corpus_name, &cost_matrix).ok_or(
         AppError::Validation(format!("Unknown corpus: {}", corpus_name)),
     )?;
 
@@ -44,7 +42,7 @@ pub async fn submit(
 
     let verifier = Verifier::new(
         &cost_path,
-        &ngram_path,
+        &corpus_dir, // Now a directory path
         &geometry,
         config,
         "data/keycodes.json",
@@ -101,15 +99,12 @@ pub async fn submit(
     Ok("Accepted".to_string())
 }
 
-// UPDATED: Accepts cost_matrix_name to construct path
 fn resolve_paths(name: &str, cost_matrix_name: &str) -> Option<(String, String)> {
-    // In a real system, we might sanitize/check existence here
-    // For now, we assume files exist in data/
     let cost_path = format!("data/{}", cost_matrix_name);
 
     match name {
-        "default" | "test_corpus" => Some((cost_path, "data/ngrams-all.tsv".to_string())),
-        // If user uploads a custom corpus name, we assume it maps to data/{name}.tsv
-        other => Some((cost_path, format!("data/{}.tsv", other))),
+        "default" | "test_corpus" => Some((cost_path, "data/corpora/default".to_string())),
+        // Map other names to directories
+        other => Some((cost_path, format!("data/corpora/{}", other))),
     }
 }

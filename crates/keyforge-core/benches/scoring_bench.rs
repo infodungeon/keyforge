@@ -1,10 +1,11 @@
+// ===== keyforge/crates/keyforge-core/benches/scoring_bench.rs =====
 use criterion::{criterion_group, criterion_main, Criterion};
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::ScorerBuildParams; // FIXED
+use keyforge_core::scorer::loader::{CorpusBundle, RawCostData}; // Updated
+use keyforge_core::scorer::ScorerBuildParams;
 use std::hint::black_box;
-use std::io::Cursor;
 
 fn setup_scorer() -> keyforge_core::scorer::Scorer {
     let mut keys = Vec::new();
@@ -35,43 +36,37 @@ fn setup_scorer() -> keyforge_core::scorer::Scorer {
     };
     geom.calculate_origins();
 
-    let mut ngram_data = String::new();
+    // Manually build corpus bundle for benchmark
+    let mut bundle = CorpusBundle::default();
     let chars = "abcdefghijklmnopqrstuvwxyz.,";
     for c in chars.chars() {
-        ngram_data.push_str(&format!("{}\t1000\n", c));
+        bundle.char_freqs[c as usize] = 1000.0;
     }
-    for i in 0..chars.len() - 1 {
-        let b = &chars[i..i + 2];
-        ngram_data.push_str(&format!("{}\t500\n", b));
-    }
-
-    let mut count = 0;
+    // Mock some trigrams
     let char_vec: Vec<char> = chars.chars().collect();
+    let mut count = 0;
     for &c1 in &char_vec {
         for &c2 in &char_vec {
             for &c3 in &char_vec {
                 if count >= 3000 {
                     break;
                 }
-                ngram_data.push_str(&format!("{}{}{}\t100\n", c1, c2, c3));
+                bundle.trigrams.push((c1 as u8, c2 as u8, c3 as u8, 100.0));
                 count += 1;
             }
         }
     }
 
-    // FIXED: Use ScorerBuildParams
-    let cost_cursor = Cursor::new("From,To,Cost\n");
-    let ngram_cursor = Cursor::new(ngram_data);
-
-    ScorerBuildParams::from_readers(
-        cost_cursor,
-        ngram_cursor,
-        geom,
-        Some(ScoringWeights::default()),
-        Some(LayoutDefinitions::default()),
-        false,
-    )
-    .expect("Failed to build scorer")
+    ScorerBuildParams::builder()
+        .geometry(geom)
+        .weights(ScoringWeights::default())
+        .defs(LayoutDefinitions::default())
+        .cost_data(RawCostData { entries: vec![] })
+        .corpus(bundle)
+        .debug(false)
+        .build()
+        .build_scorer()
+        .expect("Failed to build scorer")
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

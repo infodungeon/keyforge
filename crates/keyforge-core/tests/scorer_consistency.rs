@@ -1,8 +1,9 @@
+// ===== keyforge/crates/keyforge-core/tests/scorer_consistency.rs =====
 use keyforge_core::config::ScoringWeights;
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::ScorerBuildParams; // FIXED
-use std::io::Cursor;
+use keyforge_core::scorer::ScorerBuildParams;
+use tempfile::tempdir;
 
 fn setup_consistency_env() -> (keyforge_core::scorer::Scorer, Vec<u16>) {
     let keys = vec![
@@ -41,13 +42,19 @@ fn setup_consistency_env() -> (keyforge_core::scorer::Scorer, Vec<u16>) {
     };
     geom.calculate_origins();
 
-    let ngram_data = "a\t100\nb\t100\nab\t50";
-    let cost_data = "From,To,Cost\nk1,k2,10.0";
+    let dir = tempdir().unwrap();
+    let cost_path = dir.path().join("cost.csv");
+    let corpus_dir = dir.path().join("corpus");
+    std::fs::create_dir(&corpus_dir).unwrap();
 
-    // FIXED: Use ScorerBuildParams
-    let scorer = ScorerBuildParams::from_readers(
-        Cursor::new(cost_data),
-        Cursor::new(ngram_data),
+    std::fs::write(&cost_path, "From,To,Cost\nk1,k2,10.0").unwrap();
+    std::fs::write(corpus_dir.join("1grams.csv"), "c,f\na,100\nb,100").unwrap();
+    std::fs::write(corpus_dir.join("2grams.csv"), "c1,c2,f\na,b,50").unwrap();
+    std::fs::write(corpus_dir.join("3grams.csv"), "c1,c2,c3,f\n").unwrap();
+
+    let scorer = ScorerBuildParams::load_from_disk(
+        cost_path,
+        corpus_dir,
         geom,
         Some(ScoringWeights::default()),
         None,

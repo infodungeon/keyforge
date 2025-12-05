@@ -6,6 +6,7 @@ import { NavRail } from "./components/NavRail";
 import { StatusBar } from "./components/StatusBar";
 import { KeyboardProvider, useKeyboard } from "./context/KeyboardContext";
 import { ToastProvider, useToast } from "./context/ToastContext";
+import { ArenaProvider } from "./context/ArenaContext"; // ADDED
 import { formatForDisplay } from "./utils";
 
 // Views
@@ -44,7 +45,6 @@ function AppContent() {
     }
 
     try {
-      // FIXED: Payload structure now matches Rust RegisterJobRequest
       const request: RegisterJobRequest = {
         geometry: activeResult.geometry,
         weights: weights,
@@ -68,13 +68,12 @@ function AppContent() {
           const update = await invoke<JobStatusUpdate>("cmd_poll_hive_status", { hiveUrl, jobId });
           if (update.best_layout) {
             const displayStr = formatForDisplay(update.best_layout);
-            // Only update if different to avoid cursor jumping if user is typing (though they shouldn't be during job)
             if (displayStr !== layoutString) {
               updateLayoutString(displayStr);
             }
           }
         } catch (e) {
-          // Silent fail on polling is okay
+          // Silent fail on polling
         }
       }, 1500);
     } catch (e) {
@@ -168,7 +167,9 @@ export default function App() {
   return (
     <ToastProvider>
       <KeyboardProvider>
-        <AppContent />
+        <ArenaProvider>
+          <AppContent />
+        </ArenaProvider>
       </KeyboardProvider>
     </ToastProvider>
   );

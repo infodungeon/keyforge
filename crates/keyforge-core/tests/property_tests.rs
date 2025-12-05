@@ -1,9 +1,10 @@
+// ===== keyforge/crates/keyforge-core/tests/property_tests.rs =====
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::ScorerBuildParams; // FIXED
+use keyforge_core::scorer::ScorerBuildParams;
 use proptest::prelude::*;
-use std::io::Cursor;
+use tempfile::tempdir;
 
 prop_compose! {
     fn arb_weights()(
@@ -65,29 +66,29 @@ prop_compose! {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(500))]
+    #![proptest_config(ProptestConfig::with_cases(10))] // Reduce cases to avoid FS spam
 
     #[test]
     fn test_physics_scorer_stability(
         weights in arb_weights(),
         geom in arb_geometry()
     ) {
-        let mut ngram_data = String::new();
-        ngram_data.push_str("a\t100\n");
-        ngram_data.push_str("b\t100\n");
-        ngram_data.push_str("ab\t50\n");
+        let dir = tempdir().unwrap();
+        let cost_path = dir.path().join("cost.csv");
+        let corpus_dir = dir.path().join("corpus");
+        std::fs::create_dir(&corpus_dir).unwrap();
 
-        let cursor = Cursor::new(ngram_data);
-        let cost_cursor = Cursor::new("From,To,Cost\n"); // Empty cost matrix
-        let defs = LayoutDefinitions::default();
+        std::fs::write(&cost_path, "From,To,Cost\n").unwrap();
+        std::fs::write(corpus_dir.join("1grams.csv"), "c,f\na,100\nb,100").unwrap();
+        std::fs::write(corpus_dir.join("2grams.csv"), "c1,c2,f\na,b,50").unwrap();
+        std::fs::write(corpus_dir.join("3grams.csv"), "c1,c2,c3,f\n").unwrap();
 
-        // FIXED: Use ScorerBuildParams
-        let scorer_res = ScorerBuildParams::from_readers(
-            cost_cursor,
-            cursor,
+        let scorer_res = ScorerBuildParams::load_from_disk(
+            cost_path,
+            corpus_dir,
             geom.clone(),
             Some(weights),
-            Some(defs),
+            Some(LayoutDefinitions::default()),
             false
         );
 

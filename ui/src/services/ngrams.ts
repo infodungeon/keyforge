@@ -2,7 +2,7 @@
 
 export function generateNgrams(text: string, n: number): string[] {
     if (!text || text.length < n) return [];
-    
+
     const grams: string[] = [];
     // Normalize: lowercase, remove non-alpha (except specific punctuation if needed)
     // For cost matrix generation, we care mostly about alpha transitions + common punctuation

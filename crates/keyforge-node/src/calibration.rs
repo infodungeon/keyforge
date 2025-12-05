@@ -1,8 +1,9 @@
+// ===== keyforge/crates/keyforge-node/src/calibration.rs =====
 use keyforge_core::config::{LayoutDefinitions, ScoringWeights};
 use keyforge_core::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_core::optimizer::mutation;
+use keyforge_core::scorer::loader::{CorpusBundle, RawCostData}; // Updated import
 use keyforge_core::scorer::{Scorer, ScorerBuildParams};
-use std::io::Cursor;
 use std::time::{Duration, Instant};
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
 use tracing::info;
@@ -10,13 +11,10 @@ use tracing::info;
 pub fn run_calibration() {
     info!("🔌 Initializing KeyForge Node Calibration...");
 
-    // FIXED: Use RefreshKind::new() instead of nothing()
     let mut sys =
         System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
 
     std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-
-    // FIXED: Use refresh_cpu() instead of refresh_cpu_all()
     sys.refresh_cpu();
 
     let cpu_count = sys.cpus().len();
@@ -100,28 +98,36 @@ fn setup_benchmark_scorer() -> Scorer {
     };
     geom.calculate_origins();
 
-    let mut ngram_data = String::new();
+    // 1. Manually construct CorpusBundle for benchmark
+    let mut bundle = CorpusBundle::default();
     let chars = "abcdefghijklmnopqrstuvwxyz.,;/";
+
+    // Fill chars
     for c in chars.chars() {
-        ngram_data.push_str(&format!("{}\t1000\n", c));
+        if c.is_ascii() {
+            bundle.char_freqs[c as usize] = 1000.0;
+        }
     }
-    ngram_data.push_str("th\t5000\n");
-    ngram_data.push_str("he\t4000\n");
-    ngram_data.push_str("in\t3000\n");
-    ngram_data.push_str("er\t3000\n");
 
-    let cursor = Cursor::new(ngram_data);
-    let weights = ScoringWeights::default();
+    // Fill Bigrams
+    bundle.bigrams.push((b't', b'h', 5000.0));
+    bundle.bigrams.push((b'h', b'e', 4000.0));
+    bundle.bigrams.push((b'i', b'n', 3000.0));
+    bundle.bigrams.push((b'e', b'r', 3000.0));
 
-    let cost_cursor = Cursor::new("From,To,Cost\n");
+    // 2. Cost Matrix
+    let cost_data = RawCostData {
+        entries: Vec::new(),
+    };
 
-    ScorerBuildParams::from_readers(
-        cost_cursor,
-        cursor,
-        geom,
-        Some(weights),
-        Some(LayoutDefinitions::default()),
-        false,
-    )
-    .expect("Failed to build scorer")
+    ScorerBuildParams::builder()
+        .geometry(geom)
+        .weights(ScoringWeights::default())
+        .defs(LayoutDefinitions::default())
+        .cost_data(cost_data)
+        .corpus(bundle)
+        .debug(false)
+        .build()
+        .build_scorer()
+        .expect("Failed to build scorer")
 }
