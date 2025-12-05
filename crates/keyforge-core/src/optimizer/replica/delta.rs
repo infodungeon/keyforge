@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-core/src/optimizer/replica/delta.rs =====
 use super::Replica;
 use crate::consts::KEY_NOT_FOUND_U8;
 
@@ -16,6 +15,10 @@ impl Replica {
         if char_a >= 256 && char_b >= 256 {
             return 0.0;
         }
+
+        // SAFETY: Bounds checked by caller or debug_assert below
+        debug_assert!(idx_a < self.scorer.slot_monogram_costs.len());
+        debug_assert!(idx_b < self.scorer.slot_monogram_costs.len());
 
         let freq_a = if char_a < 256 {
             unsafe { *self.scorer.char_freqs.get_unchecked(char_a) }
@@ -109,12 +112,12 @@ impl Replica {
                     let p_other = *self.compact_map.get_unchecked(other) as usize;
 
                     if p_other != KEY_NOT_FOUND_U8 as usize {
-                        // SAFETY CHECK in Debug mode
                         debug_assert!(
                             p_other < n,
                             "Compact Map contained invalid index: {}",
                             p_other
                         );
+                        debug_assert!(idx_old * n + p_other < self.scorer.full_cost_matrix.len());
 
                         let freq = *self.scorer.bigrams_freqs.get_unchecked(i);
                         if *self.scorer.bigrams_self_first.get_unchecked(i) {
@@ -138,6 +141,8 @@ impl Replica {
             unsafe {
                 let freq_ab = *self.scorer.freq_matrix.get_unchecked(char_a * 256 + char_b);
                 if freq_ab > 0.0 {
+                    debug_assert!(idx_a * n + idx_b < self.scorer.full_cost_matrix.len());
+
                     let cab = *cost_ptr.add(idx_a * n + idx_b);
                     let cba = *cost_ptr.add(idx_b * n + idx_a);
                     let caa = *cost_ptr.add(idx_a * n + idx_a);
@@ -179,9 +184,17 @@ impl Replica {
         limit: usize,
     ) -> f32 {
         let mut d = 0.0;
-        let n = self.scorer.key_count;
-        let n_sq = n * n;
-        let tri_ptr = self.scorer.trigram_cost_table.as_ptr();
+
+        // Pointers for fast access
+        let left_ptr = self.scorer.trigram_left.as_ptr();
+        let right_ptr = self.scorer.trigram_right.as_ptr();
+        let hand_ptr = self.scorer.slot_hand.as_ptr();
+        let idx_ptr = self.scorer.slot_hand_idx.as_ptr();
+
+        let c_left = self.scorer.count_left;
+        let c_left_sq = c_left * c_left;
+        let c_right = self.scorer.count_right;
+        let c_right_sq = c_right * c_right;
 
         let mut process = |c: usize, is_a: bool| {
             if c >= 256 {
@@ -210,10 +223,6 @@ impl Replica {
                     let p2_old = *self.compact_map.get_unchecked(o2) as usize;
 
                     if p1_old != KEY_NOT_FOUND_U8 as usize && p2_old != KEY_NOT_FOUND_U8 as usize {
-                        // SAFETY CHECKS in Debug
-                        debug_assert!(p1_old < n, "Trigram P1 Out of bounds: {}", p1_old);
-                        debug_assert!(p2_old < n, "Trigram P2 Out of bounds: {}", p2_old);
-
                         let p1_new = if o1 == char_a {
                             idx_b
                         } else if o1 == char_b {
@@ -232,18 +241,42 @@ impl Replica {
                         let p_c_old = if is_a { idx_a } else { idx_b };
                         let p_c_new = if is_a { idx_b } else { idx_a };
 
+                        // Helper closure to look up cost with hand check
+                        let get_cost = |p1: usize, p2: usize, p3: usize| -> f32 {
+                            let h1 = *hand_ptr.add(p1);
+                            let h2 = *hand_ptr.add(p2);
+                            if h1 != h2 {
+                                return 0.0;
+                            }
+
+                            let h3 = *hand_ptr.add(p3);
+                            if h2 != h3 {
+                                return 0.0;
+                            }
+
+                            let i1 = *idx_ptr.add(p1);
+                            let i2 = *idx_ptr.add(p2);
+                            let i3 = *idx_ptr.add(p3);
+
+                            if h1 == 0 {
+                                *left_ptr.add(i1 * c_left_sq + i2 * c_left + i3)
+                            } else {
+                                *right_ptr.add(i1 * c_right_sq + i2 * c_right + i3)
+                            }
+                        };
+
                         let (cost_old, cost_new) = match t.role {
                             0 => (
-                                *tri_ptr.add(p_c_old * n_sq + p1_old * n + p2_old),
-                                *tri_ptr.add(p_c_new * n_sq + p1_new * n + p2_new),
+                                get_cost(p_c_old, p1_old, p2_old),
+                                get_cost(p_c_new, p1_new, p2_new),
                             ),
                             1 => (
-                                *tri_ptr.add(p1_old * n_sq + p_c_old * n + p2_old),
-                                *tri_ptr.add(p1_new * n_sq + p_c_new * n + p2_new),
+                                get_cost(p1_old, p_c_old, p2_old),
+                                get_cost(p1_new, p_c_new, p2_new),
                             ),
                             _ => (
-                                *tri_ptr.add(p1_old * n_sq + p2_old * n + p_c_old),
-                                *tri_ptr.add(p1_new * n_sq + p2_new * n + p_c_new),
+                                get_cost(p1_old, p2_old, p_c_old),
+                                get_cost(p1_new, p2_new, p_c_new),
                             ),
                         };
 
@@ -260,6 +293,10 @@ impl Replica {
 
     #[inline(always)]
     pub fn calc_delta(&self, idx_a: usize, idx_b: usize, trigram_limit: usize) -> (f32, f32) {
+        // PRE-CONDITION: Indices must be within the key count
+        debug_assert!(idx_a < self.scorer.key_count);
+        debug_assert!(idx_b < self.scorer.key_count);
+
         unsafe {
             let char_a = *self.layout.get_unchecked(idx_a) as usize;
             let char_b = *self.layout.get_unchecked(idx_b) as usize;

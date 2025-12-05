@@ -1,195 +1,140 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { KeyboardDefinition } from "../types";
-import { KeyboardMap } from "./KeyboardMap";
-import { Save, PenTool } from "lucide-react"; // FIXED: Removed LayoutTemplate
+import { VisualBuilder } from "./VisualBuilder";
+import { Save, Code, PenTool, LayoutTemplate } from "lucide-react";
 import { Button } from "./ui/Button";
-import { Select } from "./ui/Select";
-import { Label } from "./ui/Label";
 import { Input } from "./ui/Input";
 
 interface Props {
     onSaveSuccess: () => void;
 }
 
-const TEMPLATES = [
-    { label: "Empty Canvas", value: "" },
-    { label: "Ortho 30 (Planck-ish)", value: `[["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L",";"],["Z","X","C","V","B","N","M",",",".","/"]]` },
-    { label: "Split 36 (Corne-ish)", value: `[["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L",";"],["Z","X","C","V","B","N","M",",",".","/"],[{y:0.5},"L1","L2","L3",{x:2},"R1","R2","R3"]]` }
-];
+const DEFAULT_DEF: KeyboardDefinition = {
+    meta: { name: "New Board", author: "Me", version: "1.0", notes: "", type: "ortho" },
+    geometry: { keys: [], home_row: 1 },
+    layouts: {}
+};
 
 export function KeyboardDesigner({ onSaveSuccess }: Props) {
+    // Mode: 'visual' | 'code'
+    const [mode, setMode] = useState<'visual' | 'code'>('visual');
+    const [def, setDef] = useState<KeyboardDefinition>(DEFAULT_DEF);
     const [kleInput, setKleInput] = useState("");
-    const [previewDef, setPreviewDef] = useState<KeyboardDefinition | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [jsonError, setJsonError] = useState<string | null>(null);
 
-    const [meta, setMeta] = useState({
-        name: "My Custom Board",
-        author: "Me",
-        type: "column_staggered"
-    });
-
-    useEffect(() => {
-        if (!kleInput.trim()) {
-            setPreviewDef(null);
-            setError(null);
-            return;
+    const handleParseKLE = async () => {
+        if (!kleInput.trim()) return;
+        try {
+            const parsed = await invoke<KeyboardDefinition>("cmd_parse_kle", { json: kleInput });
+            setDef({
+                ...def,
+                geometry: parsed.geometry,
+                // Keep existing meta if set, else use parsed
+                meta: { ...def.meta, notes: "Imported via KLE" }
+            });
+            setJsonError(null);
+            setMode('visual'); // Switch back to visual after import
+        } catch (e) {
+            setJsonError(`Parse Failed: ${e}`);
         }
-
-        const timer = setTimeout(async () => {
-            try {
-                const def = await invoke<KeyboardDefinition>("cmd_parse_kle", { json: kleInput });
-                def.meta = { ...def.meta, ...meta };
-                setPreviewDef(def);
-                setError(null);
-            } catch (e) {
-                setError(`Parse Error: ${e}`);
-                setPreviewDef(null);
-            }
-        }, 500);
-
-        return () => clearTimeout(timer);
-    }, [kleInput, meta.name, meta.author, meta.type]);
+    };
 
     const handleSave = async () => {
-        if (!previewDef) return;
-
+        if (def.geometry.keys.length === 0) {
+            alert("Cannot save empty keyboard.");
+            return;
+        }
         try {
-            const finalDef = { ...previewDef, meta: { ...previewDef.meta, ...meta } };
-
             await invoke("cmd_save_keyboard", {
-                filename: meta.name.toLowerCase().replace(/\s+/g, '_'),
-                def: finalDef
+                filename: def.meta.name.toLowerCase().replace(/\s+/g, '_'),
+                def
             });
-
-            alert("Keyboard Saved! It is now available in the selector.");
+            alert("Keyboard Saved!");
             onSaveSuccess();
         } catch (e) {
             alert(`Save failed: ${e}`);
         }
     };
 
-    const handleOpenEditor = async () => {
-        try {
-            await invoke('plugin:opener|open', { path: 'https://www.keyboard-layout-editor.com/' });
-        } catch (e) {
-            console.error("Failed to open link", e);
-        }
-    };
-
     return (
-        <div className="flex h-full w-full">
+        <div className="flex h-full w-full flex-col">
 
-            {/* CENTER: Preview Area */}
-            <div className="flex-1 flex flex-col bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900/50 to-[#0B0F19] relative min-w-0">
-                <div className="h-14 border-b border-slate-800/50 flex items-center px-6 bg-[#0B0F19]/95 backdrop-blur z-10 justify-between">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        Preview
-                    </span>
-                    {previewDef && (
-                        <span className="text-[10px] px-2 py-1 bg-slate-800 rounded text-slate-300 border border-slate-700">
-                            {previewDef.geometry.keys.length} Keys Detected
-                        </span>
-                    )}
+            {/* TOP BAR */}
+            <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-6 justify-between shrink-0">
+                <div className="flex items-center gap-4">
+                    <h2 className="text-lg font-black text-white">Keyboard Designer</h2>
+
+                    <div className="flex bg-slate-800 rounded p-0.5 border border-slate-700">
+                        <button
+                            onClick={() => setMode('visual')}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition-all ${mode === 'visual' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <LayoutTemplate size={14} /> Visual Editor
+                        </button>
+                        <button
+                            onClick={() => setMode('code')}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition-all ${mode === 'code' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <Code size={14} /> KLE Import
+                        </button>
+                    </div>
                 </div>
 
-                <div className="flex-1 p-8 flex items-center justify-center overflow-hidden">
-                    {error ? (
-                        <div className="text-red-400 font-mono text-xs max-w-md text-center p-6 border border-red-900/50 bg-red-950/20 rounded-xl">
-                            <span className="font-bold block mb-2">JSON Parsing Failed</span>
-                            {error}
-                        </div>
-                    ) : previewDef ? (
-                        <KeyboardMap
-                            geometry={previewDef.geometry}
-                            layoutString=""
-                            className="w-full h-full max-w-4xl"
-                        />
-                    ) : (
-                        <div className="text-slate-600 font-mono text-xs text-center p-8 border-2 border-dashed border-slate-800 rounded-xl">
-                            Paste raw KLE JSON data to generate preview...
-                        </div>
-                    )}
+                <div className="flex items-center gap-4">
+                    <Input
+                        className="w-48 h-8"
+                        placeholder="Keyboard Name"
+                        value={def.meta.name}
+                        onChange={e => setDef({ ...def, meta: { ...def.meta, name: e.target.value } })}
+                    />
+                    <Button variant="primary" size="sm" onClick={handleSave} icon={<Save size={14} />}>
+                        Save
+                    </Button>
                 </div>
             </div>
 
-            {/* RIGHT: Controls & Input */}
-            <div className="w-96 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
-                <div className="p-4 border-b border-slate-800 flex items-center bg-slate-950/30">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
-                        <PenTool size={14} /> Construct
-                    </h3>
-                </div>
+            {/* MAIN CONTENT */}
+            <div className="flex-1 flex overflow-hidden">
 
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                    <div className="space-y-4 mb-8">
-                        <div>
-                            <Label>Name</Label>
-                            <Input
-                                value={meta.name}
-                                onChange={e => setMeta({ ...meta, name: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <Label>Author</Label>
-                            <Input
-                                value={meta.author}
-                                onChange={e => setMeta({ ...meta, author: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <Label>Type</Label>
-                            <Select
-                                value={meta.type}
-                                onChange={e => setMeta({ ...meta, type: e.target.value })}
-                                options={[
-                                    { label: "Ortholinear", value: "ortho" },
-                                    { label: "Column Stagger", value: "column_staggered" },
-                                    { label: "Row Stagger", value: "row_staggered" }
-                                ]}
-                            />
+                {mode === 'visual' ? (
+                    <VisualBuilder
+                        geometry={def.geometry}
+                        onChange={(geo) => setDef({ ...def, geometry: geo })}
+                    />
+                ) : (
+                    <div className="flex-1 bg-[#0B0F19] p-12 flex flex-col items-center">
+                        <div className="w-full max-w-2xl space-y-6">
+                            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                                <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                                    <PenTool size={16} /> Import from Keyboard Layout Editor
+                                </h3>
+                                <p className="text-xs text-slate-500 mb-4">
+                                    Paste raw JSON from <a href="http://keyboard-layout-editor.com" target="_blank" className="text-blue-400 hover:underline">keyboard-layout-editor.com</a> to auto-generate geometry.
+                                </p>
+
+                                <textarea
+                                    className="w-full h-64 bg-slate-950 border border-slate-800 rounded-lg p-4 text-xs font-mono text-slate-300 outline-none focus:border-purple-500 resize-none"
+                                    placeholder='["Q", "W", "E", ...]'
+                                    value={kleInput}
+                                    onChange={e => setKleInput(e.target.value)}
+                                />
+
+                                {jsonError && (
+                                    <div className="mt-4 p-3 bg-red-900/20 border border-red-900/50 rounded text-red-400 text-xs font-mono">
+                                        {jsonError}
+                                    </div>
+                                )}
+
+                                <div className="mt-4 flex justify-end">
+                                    <Button variant="secondary" onClick={handleParseKLE}>
+                                        Parse & Load
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div className="flex flex-col h-80">
-                        <div className="flex justify-between items-center mb-2">
-                            <Label>Raw KLE JSON</Label>
-                            <button
-                                onClick={handleOpenEditor}
-                                className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline"
-                            >
-                                Open Editor ↗
-                            </button>
-                        </div>
-
-                        <div className="mb-2">
-                            <Select
-                                options={TEMPLATES}
-                                onChange={(e) => setKleInput(e.target.value)}
-                                className="text-[10px]"
-                            />
-                        </div>
-
-                        <textarea
-                            className="flex-1 bg-slate-950/50 border border-slate-800 rounded-lg p-3 text-[10px] font-mono text-slate-400 outline-none focus:border-blue-500 resize-none transition-colors"
-                            placeholder='["Q", "W", "E", ...]'
-                            value={kleInput}
-                            onChange={e => setKleInput(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="mt-6 border-t border-slate-800 pt-4">
-                        <Button
-                            variant="secondary"
-                            className="w-full"
-                            onClick={handleSave}
-                            disabled={!previewDef}
-                            icon={<Save size={16} />}
-                        >
-                            SAVE DEFINITION
-                        </Button>
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );

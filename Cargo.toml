@@ -5,13 +5,13 @@ members = [
     "ui/src-tauri",
     "crates/keyforge-node",
     "crates/keyforge-hive",
+    "crates/keyforge-protocol", # Added
 ]
 resolver = "2"
 
-# OPTIMIZATION PROFILE (The "Ferrari" Mode)
 [profile.release]
-opt-level = 3     # Max optimizations
-lto = "fat"       # Whole-program analysis (slow build, fast code)
-codegen-units = 1 # Maximize optimization quality over build parallelism
-panic = "abort"   # Remove unwinding symbols (smaller binary, crash on panic)
-strip = true      # Remove debug symbols to prevent IP leakage
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

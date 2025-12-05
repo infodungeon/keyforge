@@ -1,9 +1,9 @@
 use keyforge_core::config::Config;
-use keyforge_core::geometry::KeyboardDefinition;
+use keyforge_core::geometry::{KeyboardDefinition, KeyboardLoader};
 use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::layouts::layout_string_to_u16;
 use keyforge_core::optimizer::mutation;
-use keyforge_core::scorer::Scorer; // FIXED: Import Scorer
+use keyforge_core::scorer::Scorer;
 use std::path::PathBuf;
 
 fn get_data_path(file: &str) -> String {
@@ -23,19 +23,20 @@ fn trace_sturdy_scoring() {
     let weights_path = get_data_path("weights/ortho_split.json");
     let keycodes_path = get_data_path("keycodes.json");
 
-    // Ensure test environment has data, otherwise skip
     if !std::path::Path::new(&cost_path).exists() {
         println!("Skipping trace test: Data not found");
         return;
     }
 
     let mut config = Config::default();
+
+    // Import Trait locally just for this block where it's used
+    use keyforge_core::config::ConfigLoader;
     config.weights = keyforge_core::config::ScoringWeights::load_from_file(&weights_path);
 
     let registry = KeycodeRegistry::load_from_file(&keycodes_path).unwrap();
     let kb_def = KeyboardDefinition::load_from_file(&kb_path).unwrap();
 
-    // FIXED: Use Scorer::new
     let scorer = Scorer::new(&cost_path, &ngrams_path, &kb_def.geometry, config, false).unwrap();
 
     let layout_str = kb_def

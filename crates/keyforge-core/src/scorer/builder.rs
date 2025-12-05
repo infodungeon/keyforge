@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-core/src/scorer/builder.rs =====
 use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::error::KfResult;
 use crate::geometry::KeyboardGeometry;
@@ -18,11 +17,8 @@ pub struct ScorerBuildParams {
     #[builder(default)]
     pub defs: LayoutDefinitions,
     pub geometry: KeyboardGeometry,
-
-    // Changed: Holds loaded data structs
     pub cost_data: RawCostData,
     pub corpus: CorpusBundle,
-
     #[builder(default = false)]
     pub debug: bool,
 }
@@ -191,28 +187,73 @@ impl ScorerBuildParams {
         }
         trigram_starts[256] = t_offset;
 
-        // 3. Trigram Physics Cost Table
-        let table_size = key_count * key_count * key_count;
-        let mut trigram_cost_table = vec![0.0; table_size];
+        // 3. OPTIMIZED Trigram Physics Cost Table
+        // Split keys into Left and Right sets
+        let mut slot_hand = vec![0u8; key_count];
+        let mut slot_hand_idx = vec![0usize; key_count];
+        let mut count_left = 0;
+        let mut count_right = 0;
+
+        for (i, k) in geometry.keys.iter().enumerate() {
+            if k.hand == 0 {
+                slot_hand[i] = 0;
+                slot_hand_idx[i] = count_left;
+                count_left += 1;
+            } else {
+                slot_hand[i] = 1;
+                slot_hand_idx[i] = count_right;
+                count_right += 1;
+            }
+        }
+
+        let size_left = count_left * count_left * count_left;
+        let size_right = count_right * count_right * count_right;
+
+        let mut trigram_left = vec![0.0; size_left];
+        let mut trigram_right = vec![0.0; size_right];
 
         for i in 0..key_count {
             for j in 0..key_count {
                 for k in 0..key_count {
-                    let idx = i * (key_count * key_count) + j * key_count + k;
-                    let ki = &geometry.keys[i];
-                    let kj = &geometry.keys[j];
-                    let kk = &geometry.keys[k];
-                    let flow = crate::scorer::flow::analyze_flow(ki, kj, kk);
-                    if flow.is_3_hand_run {
-                        trigram_cost_table[idx] += weights.penalty_hand_run;
-                        if flow.is_skip {
-                            trigram_cost_table[idx] += weights.penalty_skip;
+                    let h1 = slot_hand[i];
+                    let h2 = slot_hand[j];
+                    let h3 = slot_hand[k];
+
+                    // Only calculate if all on same hand
+                    if h1 == h2 && h2 == h3 {
+                        let ki = &geometry.keys[i];
+                        let kj = &geometry.keys[j];
+                        let kk = &geometry.keys[k];
+                        let flow = crate::scorer::flow::analyze_flow(ki, kj, kk);
+
+                        let mut cost = 0.0;
+                        if flow.is_3_hand_run {
+                            cost += weights.penalty_hand_run;
+                            if flow.is_skip {
+                                cost += weights.penalty_skip;
+                            }
+                            if flow.is_redirect {
+                                cost += weights.penalty_redirect;
+                            }
+                            if flow.is_inward_roll {
+                                cost -= weights.bonus_inward_roll;
+                            }
                         }
-                        if flow.is_redirect {
-                            trigram_cost_table[idx] += weights.penalty_redirect;
-                        }
-                        if flow.is_inward_roll {
-                            trigram_cost_table[idx] -= weights.bonus_inward_roll;
+
+                        if cost != 0.0 {
+                            let idx1 = slot_hand_idx[i];
+                            let idx2 = slot_hand_idx[j];
+                            let idx3 = slot_hand_idx[k];
+
+                            if h1 == 0 {
+                                let flat_idx =
+                                    idx1 * (count_left * count_left) + idx2 * count_left + idx3;
+                                trigram_left[flat_idx] = cost;
+                            } else {
+                                let flat_idx =
+                                    idx1 * (count_right * count_right) + idx2 * count_right + idx3;
+                                trigram_right[flat_idx] = cost;
+                            }
                         }
                     }
                 }
@@ -293,6 +334,10 @@ impl ScorerBuildParams {
                 "✅ Scorer Initialized. Active Chars: {}",
                 active_chars.len()
             );
+            debug!(
+                "   L-Table: {} entries, R-Table: {} entries",
+                size_left, size_right
+            );
         }
 
         Ok(Scorer {
@@ -303,7 +348,15 @@ impl ScorerBuildParams {
             tier_penalty_matrix,
             full_cost_matrix,
             raw_user_matrix,
-            trigram_cost_table,
+
+            // New Fields
+            trigram_left,
+            trigram_right,
+            count_left,
+            count_right,
+            slot_hand,
+            slot_hand_idx,
+
             bigram_starts,
             bigrams_others,
             bigrams_freqs,

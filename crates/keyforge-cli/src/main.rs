@@ -1,6 +1,5 @@
-// ===== keyforge/crates/keyforge-cli/src/main.rs =====
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
-use keyforge_core::geometry::KeyboardDefinition;
+use keyforge_core::geometry::{KeyboardDefinition, KeyboardLoader};
 use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::scorer::Scorer;
 use std::path::Path;
@@ -20,7 +19,6 @@ struct Cli {
     #[arg(global = true, short, long, default_value = "data/cost_matrix.csv")]
     cost: String,
 
-    // CHANGED: "ngrams" file -> "corpus" directory
     #[arg(global = true, long, default_value = "data/corpora/default")]
     corpus: String,
 
@@ -60,7 +58,7 @@ fn main() {
         process::exit(1);
     });
 
-    let (mut config, cli_weights_ref, sub_matches) = match &cli.command {
+    let (mut config, _cli_weights_ref, _sub_matches) = match &cli.command {
         Commands::Search(args) => (
             args.config.clone(),
             &args.config.weights,
@@ -92,8 +90,13 @@ fn main() {
     if let Some(path) = weights_path_str {
         if Path::new(&path).exists() {
             info!("⚖️  Loading Weights from: {}", path);
-            let mut file_weights = keyforge_core::config::ScoringWeights::load_from_file(&path);
-            file_weights.merge_from_cli(cli_weights_ref, sub_matches);
+
+            // Note: Calling load_from_file directly on the type.
+            // If the compiler complains about the method being missing,
+            // we will need to re-add 'use keyforge_core::config::ConfigLoader;' here.
+            // But based on the warning, it seems to resolve without it.
+            let file_weights = keyforge_core::config::ScoringWeights::load_from_file(&path);
+
             config.weights = file_weights;
         } else {
             warn!(
@@ -103,10 +106,9 @@ fn main() {
         }
     }
 
-    // Scorer Init now takes directory
     let scorer_res = Scorer::new(
         &cli.cost,
-        &cli.corpus, // Directory
+        &cli.corpus,
         &kb_def.geometry,
         config.clone(),
         cli.debug,

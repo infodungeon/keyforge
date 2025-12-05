@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-core/src/scorer/mod.rs =====
 pub mod builder;
 pub mod costs;
 pub mod engine;
@@ -29,8 +28,16 @@ pub struct Scorer {
     pub full_cost_matrix: Vec<f32>,
     pub raw_user_matrix: Vec<f32>,
 
-    // FLATTENED TRIGRAMS (size = key_count^3)
-    pub trigram_cost_table: Vec<f32>,
+    // --- OPTIMIZED TRIGRAM STORAGE ---
+    // Instead of one N^3 table, we split by hand to save 75% memory
+    pub trigram_left: Vec<f32>,
+    pub trigram_right: Vec<f32>,
+    pub count_left: usize,
+    pub count_right: usize,
+
+    // Lookup Maps for O(1) access
+    pub slot_hand: Vec<u8>,        // [key_idx] -> 0 or 1
+    pub slot_hand_idx: Vec<usize>, // [key_idx] -> 0..L or 0..R
 
     // DYNAMIC ARRAYS (size = key_count)
     pub slot_monogram_costs: Vec<f32>,
@@ -46,7 +53,6 @@ pub struct Scorer {
     pub trigrams_flat: Vec<TrigramRef>,
     pub char_freqs: [f32; 256],
 
-    // NEW: Retained word list for analysis
     pub words: Vec<(String, u64)>,
 
     pub char_tier_map: [u8; 256],
@@ -58,10 +64,9 @@ pub struct Scorer {
 }
 
 impl Scorer {
-    // New Factory Method
     pub fn new(
         cost_path: &str,
-        corpus_dir: &str, // CHANGED from ngrams_path
+        corpus_dir: &str,
         geometry: &KeyboardGeometry,
         config: Config,
         debug: bool,
@@ -88,21 +93,17 @@ impl Scorer {
         engine::calculate_key_costs(self, pos_map)
     }
 
-    #[inline(always)]
-    pub fn idx(&self, row: usize, col: usize) -> usize {
-        row * self.key_count + col
-    }
-
     pub fn estimate_memory_footprint(&self) -> usize {
-        let tri_size = self.trigram_cost_table.len() * 4;
+        let tri_size = (self.trigram_left.len() + self.trigram_right.len()) * 4;
         let bi_size = self.full_cost_matrix.len() * 4;
         let vec_overhead = self.bigrams_others.len() * (1 + 4 + 1);
         tri_size + bi_size + vec_overhead
     }
 
     pub fn check_cache_fit(&self, available_l2_kb: usize) -> (bool, usize) {
-        let hot_data_size = self.trigram_cost_table.len() * 4;
-        let needed_kb = hot_data_size / 1024;
+        // Check if the larger of the two tables fits in cache
+        let max_tri_size = self.trigram_left.len().max(self.trigram_right.len()) * 4;
+        let needed_kb = max_tri_size / 1024;
         let effective_limit = (available_l2_kb as f32 * 0.8) as usize;
         (needed_kb <= effective_limit, needed_kb)
     }

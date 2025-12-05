@@ -2538,7 +2538,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "clap",
  "criterion",
@@ -2547,6 +2547,7 @@ dependencies = [
  "fnv",
  "hex",
  "itertools 0.14.0",
+ "keyforge-protocol",
  "kle-serial",
  "proptest",
  "rayon",
@@ -2566,13 +2567,14 @@ dependencies = [
 
 [[package]]
 name = "keyforge-hive"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "axum",
  "chrono",
  "clap",
  "keyforge-core",
+ "keyforge-protocol",
  "serde",
  "serde_json",
  "sqlx",
@@ -2587,12 +2589,13 @@ dependencies = [
 
 [[package]]
 name = "keyforge-node"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "axum",
  "clap",
  "fastrand",
  "keyforge-core",
+ "keyforge-protocol",
  "libc",
  "num_cpus",
  "raw-cpuid",
@@ -2606,6 +2609,18 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "keyforge-protocol"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
