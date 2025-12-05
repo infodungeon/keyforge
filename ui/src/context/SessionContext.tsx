@@ -1,5 +1,4 @@
-// ===== keyforge/ui/src/context/SessionContext.tsx =====
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ValidationResult, ScoringWeights } from "../types";
 import { formatForDisplay, fromDisplayString } from "../utils";
@@ -29,7 +28,7 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
     const {
-        selectedKeyboard, selectedCorpus, selectedCostMatrix, // ADDED
+        selectedKeyboard, selectedCorpus, selectedCostMatrix,
         libraryVersion, availableLayouts, standardLayouts, weights
     } = useLibrary();
 
@@ -46,16 +45,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const [isDatasetLoaded, setIsDatasetLoaded] = useState(false);
 
+    // RACE CONDITION FIX: Track request IDs
+    const validationReqId = useRef(0);
+
     const runValidation = useCallback(async (name: string, qmkStr: string, w: ScoringWeights | null) => {
         if (!qmkStr) return;
+
+        // Increment ID for this new request
+        const currentId = ++validationReqId.current;
         setIsValidating(true);
+
         try {
             const res = await invoke<ValidationResult>("cmd_validate_layout", { layoutStr: qmkStr, weights: w });
-            setActiveResult({ ...res, layoutName: name });
+
+            // Only update state if this is still the latest request
+            if (currentId === validationReqId.current) {
+                setActiveResult({ ...res, layoutName: name });
+            }
         } catch (e) {
             console.error("Validation error:", e);
         } finally {
-            setIsValidating(false);
+            if (currentId === validationReqId.current) {
+                setIsValidating(false);
+            }
         }
     }, []);
 
@@ -67,7 +79,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const syncSession = async () => {
             setIsDatasetLoaded(false);
             try {
-                // FIXED: Pass cost matrix filename
                 await invoke("cmd_load_dataset", {
                     keyboardName: selectedKeyboard,
                     corpusFilename: selectedCorpus,
@@ -87,6 +98,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
                 if (qmkStr) {
                     if (availableLayouts["Qwerty"]) {
+                        // Reference validation doesn't need race protection as it happens once on load
                         const ref = await invoke<ValidationResult>("cmd_validate_layout", { layoutStr: availableLayouts["Qwerty"], weights: null });
                         if (mounted) setReferenceResult(ref);
                     }
@@ -101,7 +113,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         syncSession();
 
         return () => { mounted = false; };
-    }, [selectedKeyboard, selectedCorpus, selectedCostMatrix, libraryVersion, availableLayouts, weights]); // ADDED selectedCostMatrix dep
+    }, [selectedKeyboard, selectedCorpus, selectedCostMatrix, libraryVersion, availableLayouts, weights]);
 
     const updateLayoutString = (val: string) => {
         if (!isDatasetLoaded) return;

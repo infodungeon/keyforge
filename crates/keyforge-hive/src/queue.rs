@@ -1,6 +1,4 @@
-// ===== keyforge/crates/keyforge-hive/src/queue.rs =====
 use crate::store::Store;
-use sqlx::{Postgres, QueryBuilder}; // FIXED: Postgres
 use tokio::sync::{mpsc, oneshot};
 use tracing::{error, info};
 
@@ -22,55 +20,46 @@ impl WriteQueue {
     pub fn new(store: Store, buffer_size: usize) -> Self {
         let (tx, mut rx) = mpsc::channel(buffer_size);
 
+        // Spawn a background task to handle writes sequentially
+        // This ensures DB connection pool isn't exhausted by thousands of concurrent inserts
         tokio::spawn(async move {
-            let mut batch = Vec::with_capacity(100);
-            let mut shutdown_signal: Option<oneshot::Sender<()>> = None;
+            info!("💾 WriteQueue started (Sequential Writer Mode)");
 
-            loop {
-                let first = rx.recv().await;
-                if first.is_none() {
-                    break;
-                }
-                let msg = first.unwrap();
-
-                if let DbEvent::Shutdown(signal) = msg {
-                    shutdown_signal = Some(signal);
-                    break;
-                }
-                batch.push(msg);
-
-                let mut stop = false;
-                while batch.len() < 100 {
-                    match rx.try_recv() {
-                        Ok(DbEvent::Shutdown(signal)) => {
-                            shutdown_signal = Some(signal);
-                            stop = true;
-                            break;
+            while let Some(msg) = rx.recv().await {
+                match msg {
+                    DbEvent::Result {
+                        job_id,
+                        layout,
+                        score,
+                        node_id,
+                    } => {
+                        // Direct insert, no batching.
+                        // Reliability > Micro-optimization at this stage.
+                        if let Err(e) =
+                            insert_result(&store, &job_id, &layout, score, &node_id).await
+                        {
+                            error!("❌ DB Insert Failed: {}", e);
                         }
-                        Ok(item) => batch.push(item),
-                        Err(_) => break,
+                    }
+                    DbEvent::Shutdown(signal) => {
+                        info!("🛑 WriteQueue shutting down...");
+                        // Process remaining items in channel (best effort)
+                        while let Ok(msg) = rx.try_recv() {
+                            if let DbEvent::Result {
+                                job_id,
+                                layout,
+                                score,
+                                node_id,
+                            } = msg
+                            {
+                                let _ =
+                                    insert_result(&store, &job_id, &layout, score, &node_id).await;
+                            }
+                        }
+                        let _ = signal.send(());
+                        break;
                     }
                 }
-
-                if !batch.is_empty() {
-                    if let Err(e) = flush_batch(&store, &batch).await {
-                        error!("❌ Failed to flush batch: {}", e);
-                    } else if batch.len() > 10 {
-                        info!("💾 Flushed {} records to DB", batch.len());
-                    }
-                    batch.clear();
-                }
-                if stop {
-                    break;
-                }
-            }
-
-            if !batch.is_empty() {
-                info!("🛑 Shutdown: Flushing final {} records...", batch.len());
-                let _ = flush_batch(&store, &batch).await;
-            }
-            if let Some(s) = shutdown_signal {
-                let _ = s.send(());
             }
         });
 
@@ -92,44 +81,20 @@ impl WriteQueue {
     }
 }
 
-async fn flush_batch(store: &Store, batch: &[DbEvent]) -> Result<(), String> {
-    let results: Vec<_> = batch
-        .iter()
-        .filter_map(|e| {
-            if let DbEvent::Result {
-                job_id,
-                layout,
-                score,
-                node_id,
-            } = e
-            {
-                Some((job_id, layout, score, node_id))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    if results.is_empty() {
-        return Ok(());
-    }
-
-    // FIXED: Use QueryBuilder<Postgres>
-    let mut query_builder: QueryBuilder<Postgres> =
-        QueryBuilder::new("INSERT INTO results (job_id, layout, score, node_id) ");
-
-    query_builder.push_values(results, |mut b, (job_id, layout, score, node_id)| {
-        b.push_bind(job_id)
-            .push_bind(layout)
-            .push_bind(*score as f64) // Postgres uses f64 for floats usually
-            .push_bind(node_id);
-    });
-
-    let query = query_builder.build();
-    query
+async fn insert_result(
+    store: &Store,
+    job_id: &str,
+    layout: &str,
+    score: f32,
+    node_id: &str,
+) -> Result<(), String> {
+    sqlx::query("INSERT INTO results (job_id, layout, score, node_id) VALUES ($1, $2, $3, $4)")
+        .bind(job_id)
+        .bind(layout)
+        .bind(score as f64)
+        .bind(node_id)
         .execute(&store.db)
         .await
-        .map_err(|e| format!("Batch Insert Error: {}", e))?;
-
+        .map_err(|e| e.to_string())?;
     Ok(())
 }

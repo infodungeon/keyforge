@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-node/src/worker.rs =====
 use crate::hw_detect;
 use crate::models::{JobQueueResponse, PopulationResponse, SubmitResultRequest};
 use keyforge_core::config::Config;
@@ -18,6 +17,7 @@ struct WorkerLogger;
 
 impl ProgressCallback for WorkerLogger {
     fn on_progress(&self, _ep: usize, score: f32, _layout: &[u16], ips: f32) -> bool {
+        // Reduced log frequency to prevent spamming stdout on fast machines
         if fastrand::f32() < 0.01 {
             info!("   .. optimizing .. best: {:.0} ({:.1} M/s)", score, ips);
         }
@@ -97,6 +97,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
     info!("🤖 Worker {} initializing...", node_id);
 
     let topo = hw_detect::detect_topology();
+    // Default cap, can be overridden by Hive response
     let ops_per_sec = 5_000_000.0;
 
     let req = RegisterNodeRequest {
@@ -198,6 +199,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
             corpus_dir
         );
 
+        // Rebuild Scorer if configuration changed (Cache Check)
         if cached_scorer.is_none() || cached_config_sig != current_sig {
             let scorer_config = Config {
                 weights: config.weights.clone(),
@@ -240,7 +242,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
             Err(_) => PopulationResponse { layouts: vec![] },
         };
 
-        // Optimize
+        // Configure Optimizer
         let sys_config = Config {
             weights: config.weights,
             search: config.params,
@@ -258,35 +260,64 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
             .map(|s| layout_string_to_u16(s, key_count, &registry_arc))
             .collect();
 
-        let result = tokio::task::spawn_blocking(move || {
-            let optimizer = Optimizer::new(scorer_arc, options);
-            optimizer.run(None, WorkerLogger)
-        })
-        .await
-        .unwrap();
+        // --- SAFETY: ISOLATE THE OPTIMIZER ---
+        // If the optimizer crashes (e.g., bad geometry vs pinned keys), we catch the panic
+        // and prevent the Node from dying.
+        let optimization_task = tokio::task::spawn_blocking(move || {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let optimizer = Optimizer::new(scorer_arc, options);
+                optimizer.run(None, WorkerLogger)
+            }))
+        });
 
-        // Submit
-        let layout_str = result
-            .layout
-            .iter()
-            .map(|&c| registry_arc.get_label(c))
-            .collect::<Vec<String>>()
-            .join(" ");
+        match optimization_task.await {
+            Ok(run_result) => {
+                match run_result {
+                    Ok(result) => {
+                        // Success: Submit
+                        let layout_str = result
+                            .layout
+                            .iter()
+                            .map(|&c| registry_arc.get_label(c))
+                            .collect::<Vec<String>>()
+                            .join(" ");
 
-        let submit_req = SubmitResultRequest {
-            job_id: job_id.clone(),
-            layout: layout_str,
-            score: result.score,
-            node_id: node_id.clone(),
-        };
+                        let submit_req = SubmitResultRequest {
+                            job_id: job_id.clone(),
+                            layout: layout_str,
+                            score: result.score,
+                            node_id: node_id.clone(),
+                        };
 
-        if let Err(e) = client
-            .post(format!("{}/results", hive_url))
-            .json(&submit_req)
-            .send()
-            .await
-        {
-            error!("Failed to submit result: {}", e);
+                        if let Err(e) = client
+                            .post(format!("{}/results", hive_url))
+                            .json(&submit_req)
+                            .send()
+                            .await
+                        {
+                            error!("Failed to submit result: {}", e);
+                        }
+                    }
+                    Err(panic_err) => {
+                        // Panic caught inside the closure
+                        let msg = if let Some(s) = panic_err.downcast_ref::<&str>() {
+                            *s
+                        } else if let Some(s) = panic_err.downcast_ref::<String>() {
+                            s
+                        } else {
+                            "Unknown Panic"
+                        };
+                        error!("🔥 CRITICAL: Optimizer Panicked on Job {}: {}", job_id, msg);
+                        // We skip this job loop iteration, effectively dropping the poison job
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                    }
+                }
+            }
+            Err(join_err) => {
+                // Task failed to join (e.g. cancelled or panic propagated weirdly)
+                error!("🔥 CRITICAL: Worker thread crashed: {}", join_err);
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
         }
     }
 }

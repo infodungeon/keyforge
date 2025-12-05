@@ -63,7 +63,6 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
         let target_path = local_data_root.join(path_obj);
 
         // C. Double-check: If parent exists, verify it resolves inside the jail.
-        // This prevents attacks where a subdirectory in data/ is actually a symlink to /etc/ or C:\Windows
         if let Some(parent) = target_path.parent() {
             if parent.exists() {
                 match fs::canonicalize(parent) {
@@ -77,6 +76,7 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
                         }
                     }
                     Err(e) => {
+                        // Parent exists but canonicalization failed? Suspicious.
                         stats.errors.push(format!(
                             "Filesystem error validating path {}: {}",
                             rel_path, e
@@ -108,8 +108,7 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
             match client.get(&file_url).send().await {
                 Ok(resp) => {
                     if let Ok(content) = resp.bytes().await {
-                        // Special handling: Merge Keyboards to preserve local user edits if possible
-                        // (Requires reading the file, which we know is safe now due to checks above)
+                        // Special handling: Merge Keyboards to preserve local user edits
                         if rel_path.ends_with(".json")
                             && rel_path.contains("keyboards")
                             && target_path.exists()
@@ -119,6 +118,7 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
                                     serde_json::from_str::<KeyboardDefinition>(&local_content),
                                     serde_json::from_slice::<KeyboardDefinition>(&content),
                                 ) {
+                                    // Merge: Keep server geometry/meta, but augment layouts
                                     local_kb.geometry = server_kb.geometry;
                                     local_kb.meta = server_kb.meta;
                                     for (name, layout) in server_kb.layouts {

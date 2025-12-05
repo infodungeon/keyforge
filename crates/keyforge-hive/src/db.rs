@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-hive/src/db.rs =====
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::time::Duration;
 use tokio::time::sleep;
@@ -10,7 +9,13 @@ pub async fn init_db(db_url: &str) -> PgPool {
     let pool = connect_with_retry(db_url).await;
 
     let schema = include_str!("../schema.sql");
-    apply_schema(&pool, schema).await;
+    if let Err(e) = apply_schema(&pool, schema).await {
+        // We log error here but panic because a DB without schema is useless.
+        // However, we panic with a structured error message.
+        eprintln!("❌ FATAL: Database Schema Migration Failed.");
+        eprintln!("   Error: {}", e);
+        panic!("Database migration failed");
+    }
 
     info!("✅ Database connected and schema applied.");
     pool
@@ -39,35 +44,39 @@ async fn connect_with_retry(db_url: &str) -> PgPool {
     panic!("❌ FATAL: Could not connect to Postgres after 30 seconds.");
 }
 
-async fn apply_schema(pool: &PgPool, schema: &str) {
+async fn apply_schema(pool: &PgPool, schema: &str) -> Result<(), sqlx::Error> {
     let statements = split_sql(schema);
+
+    // Start a transaction for atomic migration
+    let mut tx = pool.begin().await?;
 
     for (i, sql) in statements.iter().enumerate() {
         if sql.trim().is_empty() {
             continue;
         }
 
-        if let Err(e) = sqlx::query(sql).execute(pool).await {
+        if let Err(e) = sqlx::query(sql).execute(&mut *tx).await {
             if let Some(db_err) = e.as_database_error() {
                 if let Some(code) = db_err.code() {
-                    // Safe errors: Already exists
+                    // Postgres codes for "duplicate/already exists"
+                    // 42P07: duplicate_table
+                    // 42710: duplicate_object
+                    // 42723: duplicate_function
+                    // 42704: duplicate_type (sometimes)
                     if ["42P07", "42710", "42723", "42704"].contains(&code.as_ref()) {
                         continue;
                     }
                 }
             }
 
-            // Log to stderr explicitly so it isn't swallowed by panic
-            eprintln!("\n🚨 === SCHEMA MIGRATION FAILED === 🚨");
-            eprintln!("Statement #{}:", i + 1);
-            eprintln!("---------------------------------------------------");
-            eprintln!("{}", sql.trim());
-            eprintln!("---------------------------------------------------");
-            eprintln!("ERROR: {}\n", e);
-
-            panic!("FATAL: Schema migration failed.");
+            // If it's a real error, rollback is automatic when tx is dropped/returns Err
+            tracing::error!("🚨 Schema Error in statement #{}:\n{}", i + 1, sql);
+            return Err(e);
         }
     }
+
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Robust SQL splitter.
@@ -81,6 +90,7 @@ fn split_sql(raw: &str) -> Vec<String> {
 
     for line in raw.lines() {
         // 1. Identify the "Code" part of the line (strip trailing comments)
+        // Note: Simple check. Doesn't handle '--' inside strings, but schema is trusted source.
         let effective_line = if let Some(idx) = line.find("--") {
             &line[..idx]
         } else {
@@ -90,13 +100,11 @@ fn split_sql(raw: &str) -> Vec<String> {
         let trimmed_check = effective_line.trim();
 
         // 2. Check for Stored Procedure delimiter ($$)
-        // We use the full line here because $$ could be inside a comment (rare) or code
         if line.contains("$$") {
             inside_dollar = !inside_dollar;
         }
 
         // 3. Append the FULL line (comments and all) to the buffer
-        // Postgres handles comments fine, we just need to know where to split.
         current.push_str(line);
         current.push('\n');
 
