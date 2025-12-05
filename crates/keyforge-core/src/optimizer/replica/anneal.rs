@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-core/src/optimizer/replica/anneal.rs =====
 use super::Replica;
 use crate::core_types::KeyCode;
 use crate::optimizer::mutation;
@@ -109,6 +108,7 @@ impl Replica {
         } else {
             self.limit_slow
         };
+
         if target_limit != self.current_limit {
             self.current_limit = target_limit;
             let (new_base, new_left, _) = self.scorer.score_full(&self.pos_map, target_limit);
@@ -127,12 +127,14 @@ impl Replica {
                     self.scorer.score_full(&self.pos_map, self.current_limit);
                 let real_total = real_base + self.imbalance_penalty(real_left);
 
+                // Self-Correct drift
                 if (self.score - real_total).abs() > 0.01 {
                     self.score = real_total;
                     self.left_load = real_left;
                 }
             }
 
+            // LNS Heuristic (Very Low Temp)
             if self.temperature < 5.0 && self.rng.f32() < 0.002 {
                 if self.try_lns_move(4) {
                     accepted += 1;
@@ -140,6 +142,7 @@ impl Replica {
                 continue;
             }
 
+            // Standard Swap Mutation
             let mut idx_a = self.pick_weighted_index();
             if self.locked_indices.contains(&idx_a) {
                 idx_a = self.rng.usize(0..self.scorer.key_count);
@@ -171,7 +174,7 @@ impl Replica {
                 continue;
             }
 
-            // Updated: Pass temp_scale to fast_exp
+            // Metropolis Criterion
             if total_delta < 0.0
                 || self.rng.f32() < fast_exp(-total_delta / self.temperature, self.temp_scale)
             {
@@ -192,6 +195,7 @@ impl Replica {
                     }
                 }
 
+                // Sanity Check for Critical Bigrams (Pinning/Constraints)
                 let critical = self.scorer.defs.get_critical_bigrams();
                 let mut is_risky = false;
                 if char_a < 256 {
@@ -204,6 +208,7 @@ impl Replica {
                 if is_risky
                     && mutation::fails_sanity(&self.pos_map, &critical, &self.scorer.geometry)
                 {
+                    // Revert
                     self.layout.swap(idx_a, idx_b);
                     if char_a != 0 {
                         self.pos_map[char_a as usize] = idx_b as u8;
@@ -224,6 +229,25 @@ impl Replica {
                 }
             }
         }
+
+        // --- ADAPTIVE REHEATING (Dr. Solon's Logic) ---
+        // If we improved the score, reset stagnation.
+        if self.score < self.last_best_score {
+            self.last_best_score = self.score;
+            self.stagnation_counter = 0;
+        } else {
+            // No improvement this batch
+            self.stagnation_counter += 1;
+        }
+
+        // If stagnant for too long (e.g. 200 batches = ~1M ops) and temp is low
+        if self.stagnation_counter > 200 && self.temperature < 50.0 {
+            // Reheat: Spike temperature to allow escape from local optima
+            self.temperature = (self.temperature * 3.0).min(500.0);
+            self.stagnation_counter = 0;
+            // Note: We do NOT reset last_best_score, we want to beat the historical best
+        }
+
         (accepted, steps)
     }
 }

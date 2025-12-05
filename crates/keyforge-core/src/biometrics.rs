@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-core/src/biometrics.rs =====
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -17,37 +16,76 @@ pub struct UserStatsStore {
 }
 
 /// Analyzes biometric samples and generates a Cost Matrix CSV content.
+/// Implements Interquartile Range (IQR) filtering to remove outliers (pauses/interruptions).
 pub fn generate_cost_matrix_from_stats(store: &UserStatsStore) -> String {
-    let mut sums: HashMap<String, f64> = HashMap::new();
-    let mut counts: HashMap<String, usize> = HashMap::new();
+    let mut buckets: HashMap<String, Vec<f64>> = HashMap::new();
 
-    // 1. Aggregate Data
+    // 1. Group Data
     for sample in &store.biometrics {
-        if sample.bigram.len() != 2 { continue; }
-        
-        // Simple outlier filtering (e.g., pause > 2000ms is not a physical cost)
-        if sample.ms > 2000.0 { continue; }
-
-        let k = sample.bigram.to_lowercase();
-        *sums.entry(k.clone()).or_default() += sample.ms;
-        *counts.entry(k).or_default() += 1;
+        if sample.bigram.len() != 2 {
+            continue;
+        }
+        // Sanity Check: < 10ms is likely a sensor error, > 5000ms is definitely a break
+        if sample.ms < 10.0 || sample.ms > 5000.0 {
+            continue;
+        }
+        buckets
+            .entry(sample.bigram.to_lowercase())
+            .or_default()
+            .push(sample.ms);
     }
 
-    // 2. Build Output
     let mut output = String::from("From_Key,To_Key,Cost_MS,Confidence_Samples\n");
 
-    for (bigram, sum) in sums {
-        let count = counts[&bigram];
-        if count < 3 { continue; } // Noise filter
+    for (bigram, mut times) in buckets {
+        let raw_count = times.len();
+        if raw_count < 5 {
+            continue; // Not enough statistical significance
+        }
 
-        let avg_ms = sum / count as f64;
-        
+        // 2. Sort for Quartile Analysis
+        times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+        // 3. IQR Filtering
+        // If we have enough data (>= 20), apply IQR. Otherwise just use median.
+        let avg_ms = if raw_count >= 20 {
+            let q1_idx = raw_count / 4;
+            let q3_idx = raw_count * 3 / 4;
+
+            let q1 = times[q1_idx];
+            let q3 = times[q3_idx];
+            let iqr = q3 - q1;
+
+            // Standard outlier definition: Q1 - 1.5*IQR  to  Q3 + 1.5*IQR
+            // We only care about upper bound (slowdowns) mostly, but lower bound catches glitches
+            let low_fence = q1 - (1.5 * iqr);
+            let high_fence = q3 + (1.5 * iqr);
+
+            let clean_values: Vec<f64> = times
+                .iter()
+                .filter(|&&v| v >= low_fence && v <= high_fence)
+                .cloned()
+                .collect();
+
+            if clean_values.is_empty() {
+                // Should rare happen, fallback to median
+                times[raw_count / 2]
+            } else {
+                let sum: f64 = clean_values.iter().sum();
+                sum / clean_values.len() as f64
+            }
+        } else {
+            // Small sample size: Trim min/max and average
+            let sum: f64 = times[1..raw_count - 1].iter().sum();
+            sum / (raw_count - 2) as f64
+        };
+
         let chars: Vec<char> = bigram.chars().collect();
         let k1 = char_to_key_id(chars[0]);
         let k2 = char_to_key_id(chars[1]);
 
         if let (Some(id1), Some(id2)) = (k1, k2) {
-            output.push_str(&format!("{},{},{:.2},{}\n", id1, id2, avg_ms, count));
+            output.push_str(&format!("{},{},{:.2},{}\n", id1, id2, avg_ms, raw_count));
         }
     }
 
@@ -63,6 +101,11 @@ fn char_to_key_id(c: char) -> Option<String> {
         ',' => Some("Comma".to_string()),
         ';' => Some("Semicolon".to_string()),
         '/' => Some("Slash".to_string()),
+        '[' => Some("BracketLeft".to_string()),
+        ']' => Some("BracketRight".to_string()),
+        '-' => Some("Minus".to_string()),
+        '=' => Some("Equal".to_string()),
+        '\'' => Some("Quote".to_string()),
         _ => None,
     }
 }

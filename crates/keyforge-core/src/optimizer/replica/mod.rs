@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-core/src/optimizer/replica/mod.rs =====
 pub mod anneal;
 pub mod delta;
 
@@ -17,14 +16,25 @@ pub struct Replica {
     pub layout: Layout,
     pub pos_map: PosMap,
     pub compact_map: CompactPosMap,
+
+    // Scoring State
     pub score: f32,
     pub left_load: f32,
     pub total_freq: f32,
+
+    // Annealing State
     pub temperature: f32,
     pub temp_scale: f32,
+
+    // Adaptive Logic (Dr. Solon's Upgrade)
+    pub stagnation_counter: usize,
+    pub last_best_score: f32,
+
+    // Performance Control
     pub current_limit: usize,
     pub limit_fast: usize,
     pub limit_slow: usize,
+
     pub rng: Rng,
     pub pinned_slots: Vec<Option<KeyCode>>,
     pub locked_indices: Vec<usize>,
@@ -92,6 +102,8 @@ impl Replica {
             total_freq: total,
             temperature,
             temp_scale,
+            stagnation_counter: 0,
+            last_best_score: f32::MAX,
             current_limit: start_limit,
             limit_fast,
             limit_slow,
@@ -134,6 +146,10 @@ impl Replica {
         self.left_load = left;
         self.total_freq = total;
         self.update_mutation_weights();
+
+        // Reset adaptive stats on injection
+        self.stagnation_counter = 0;
+        self.last_best_score = self.score;
     }
 
     pub fn update_mutation_weights(&mut self) {
