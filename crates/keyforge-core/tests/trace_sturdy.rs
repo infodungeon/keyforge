@@ -30,8 +30,7 @@ fn trace_sturdy_scoring() {
 
     let mut config = Config::default();
 
-    // Import Trait locally just for this block where it's used
-    use keyforge_core::config::ConfigLoader;
+    // FIXED: Removed unused import. Calling inherent method directly.
     config.weights = keyforge_core::config::ScoringWeights::load_from_file(&weights_path);
 
     let registry = KeycodeRegistry::load_from_file(&keycodes_path).unwrap();

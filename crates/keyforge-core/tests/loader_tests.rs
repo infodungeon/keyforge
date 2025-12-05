@@ -1,5 +1,5 @@
-// ===== keyforge/crates/keyforge-core/tests/loader_tests.rs =====
-use keyforge_core::scorer::loader::{load_corpus_bundle, load_cost_matrix};
+// UPDATED: Import the new function name
+use keyforge_core::scorer::loader::{load_cost_matrix, load_merged_bundle};
 use std::fs::File;
 use std::io::Write;
 use tempfile::tempdir;
@@ -23,8 +23,10 @@ fn test_loader_corpus_bundle() {
     let mut f3 = File::create(p3).unwrap();
     writeln!(f3, "c1,c2,c3,freq\nt,h,e,300").unwrap();
 
-    // Load Bundle
-    let bundle = load_corpus_bundle(dir.path(), 1.0, 100).unwrap();
+    // Load Bundle using the new Merged Loader
+    // We pass "." as the config string to say "load from the root dir"
+    // with default weight 1.0
+    let bundle = load_merged_bundle(dir.path(), ".", 1.0, 100).unwrap();
 
     assert_eq!(bundle.char_freqs[b'a' as usize], 100.0);
     assert_eq!(bundle.bigrams.len(), 1);

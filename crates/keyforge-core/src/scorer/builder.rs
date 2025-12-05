@@ -1,8 +1,9 @@
 use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::error::KfResult;
 use crate::geometry::KeyboardGeometry;
+// UPDATED: Import merged loader
 use crate::scorer::loader::{
-    load_corpus_bundle, load_cost_matrix, CorpusBundle, RawCostData, TrigramRef,
+    load_cost_matrix, load_merged_bundle, CorpusBundle, RawCostData, TrigramRef,
 };
 use crate::scorer::Scorer;
 use std::collections::{HashMap, HashSet};
@@ -26,17 +27,51 @@ pub struct ScorerBuildParams {
 impl ScorerBuildParams {
     pub fn load_from_disk<P1: AsRef<Path>, P2: AsRef<Path>>(
         cost_path: P1,
-        corpus_dir: P2,
+        // CHANGED: This is now interpreted as "Corpus Config String" OR "Path to Corpus"
+        corpus_source: P2,
         geometry: KeyboardGeometry,
         weights: Option<ScoringWeights>,
         defs: Option<LayoutDefinitions>,
         debug: bool,
     ) -> KfResult<Scorer> {
         let final_weights = weights.unwrap_or_default();
-
         let cost_data = load_cost_matrix(cost_path)?;
-        let corpus = load_corpus_bundle(
-            corpus_dir,
+
+        let source_str = corpus_source.as_ref().to_string_lossy();
+
+        // HEURISTIC: Where is the "Corpora Root"?
+        // If the user passed a direct path like "data/corpora/default",
+        // we treat the parent "data/corpora" as the root and "default" as the name.
+        let (root_dir, config_str) = if corpus_source.as_ref().exists() {
+            let p = corpus_source.as_ref();
+            let parent = p.parent().unwrap_or(Path::new("."));
+            let name = p.file_name().unwrap().to_string_lossy();
+            (parent.to_path_buf(), name.to_string())
+        } else {
+            // Assume it's a config string like "default:1.0,code:0.5"
+            // and the root is "data/corpora" (Default convention)
+            // Or we check if we can find a standard data dir.
+            let default_root = Path::new("data/corpora");
+            if default_root.exists() {
+                (default_root.to_path_buf(), source_str.to_string())
+            } else {
+                // Fallback for dev environment or CLI specific paths
+                // Try to find where "default" lives
+                if Path::new("../data/corpora").exists() {
+                    (
+                        Path::new("../data/corpora").to_path_buf(),
+                        source_str.to_string(),
+                    )
+                } else {
+                    // Last resort: Assume current dir is root
+                    (Path::new(".").to_path_buf(), source_str.to_string())
+                }
+            }
+        };
+
+        let corpus = load_merged_bundle(
+            &root_dir,
+            &config_str,
             final_weights.corpus_scale,
             final_weights.loader_trigram_limit,
         )?;
