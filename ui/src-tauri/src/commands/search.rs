@@ -8,20 +8,36 @@ use crate::utils::TauriBridge;
 use keyforge_core::api::KeyForgeState;
 use keyforge_core::config::Config;
 use keyforge_core::optimizer::{OptimizationOptions, Optimizer};
+use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Client;
 use std::sync::Arc;
 use tauri::{AppHandle, Window};
 use tauri_plugin_shell::ShellExt;
 
+fn build_client(secret: &str) -> Result<Client, String> {
+    let mut headers = HeaderMap::new();
+    if !secret.is_empty() {
+        let mut val = HeaderValue::from_str(secret).map_err(|e| e.to_string())?;
+        val.set_sensitive(true);
+        headers.insert("X-Keyforge-Secret", val);
+    }
+
+    Client::builder()
+        .default_headers(headers)
+        .build()
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn cmd_dispatch_job(
     state: tauri::State<'_, KeyForgeState>,
     hive_url: String,
+    hive_secret: String,
     request: RegisterJobRequest,
 ) -> Result<String, String> {
-    let client = Client::new();
+    let client = build_client(&hive_secret)?;
+
     {
-        // Acquire read lock on sessions to ensure we have a valid session
         let sessions = state.sessions.read().map_err(|e| e.to_string())?;
         if sessions.get("primary").is_none() {
             return Err("No local geometry loaded to validate against".into());
@@ -36,6 +52,9 @@ pub async fn cmd_dispatch_job(
         .map_err(|e| format!("Network Error: {}", e))?;
 
     if !res.status().is_success() {
+        if res.status() == 401 {
+            return Err("Unauthorized: Check Hive Secret".into());
+        }
         return Err(format!("Hive rejected job: {}", res.status()));
     }
 
@@ -46,9 +65,10 @@ pub async fn cmd_dispatch_job(
 #[tauri::command]
 pub async fn cmd_poll_hive_status(
     hive_url: String,
+    hive_secret: String,
     job_id: String,
 ) -> Result<JobStatusUpdate, String> {
-    let client = Client::new();
+    let client = build_client(&hive_secret)?;
     let url = format!("{}/jobs/{}/population", hive_url, job_id);
     let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
 
@@ -60,8 +80,8 @@ pub async fn cmd_poll_hive_status(
 
     if let Some(best) = pop.layouts.first() {
         Ok(JobStatusUpdate {
-            active_nodes: 0, // In a real implementation, we'd poll a different endpoint for active node count
-            best_score: 0.0, // Score is usually embedded in the layout list or separate metadata, simplified here
+            active_nodes: 0,
+            best_score: 0.0,
             best_layout: best.clone(),
         })
     } else {
@@ -75,6 +95,7 @@ pub async fn cmd_toggle_local_worker(
     state: tauri::State<'_, LocalWorkerState>,
     enabled: bool,
     hive_url: String,
+    hive_secret: String,
 ) -> Result<String, String> {
     let mut child_guard = state.child.lock().unwrap();
 
@@ -85,11 +106,18 @@ pub async fn cmd_toggle_local_worker(
 
     if enabled {
         tracing::info!("🟢 Spawning local worker (Background Mode)...");
+
+        let mut args = vec!["work", "--hive", &hive_url, "--background"];
+        if !hive_secret.is_empty() {
+            args.push("--secret");
+            args.push(&hive_secret);
+        }
+
         let command = app
             .shell()
             .sidecar("keyforge-node")
             .map_err(|e| e.to_string())?
-            .args(["work", "--hive", &hive_url, "--background"]);
+            .args(&args);
 
         let (mut rx, child) = command.spawn().map_err(|e| e.to_string())?;
 
@@ -104,6 +132,7 @@ pub async fn cmd_toggle_local_worker(
         *child_guard = Some(child);
         return Ok("Worker Started".to_string());
     }
+
     Ok("Worker Stopped".to_string())
 }
 
@@ -117,10 +146,8 @@ pub async fn cmd_start_search(
     // 1. Prepare Environment (Scorer & Registry)
     let (scorer_arc, registry_arc) = {
         let sessions = state.sessions.read().map_err(|e| e.to_string())?;
-
         let session = sessions.get("primary").ok_or("Session not loaded")?;
 
-        // Clone scorer to apply new weights for this run
         let mut scorer = session.scorer.clone();
         scorer.weights = request.weights;
 
@@ -129,16 +156,12 @@ pub async fn cmd_start_search(
 
     // 2. Configure Optimizer
     let search_params = request.search_params;
-
-    // Create a temporary config to utilize From implementation
     let config = Config {
         search: search_params,
         ..Default::default()
     };
 
     let mut options = OptimizationOptions::from(&config);
-
-    // FIX: Set pinned keys explicitly on options, not via SearchParams
     options.pinned_keys = request.pinned_keys;
 
     let optimizer = Optimizer::new(scorer_arc, options);
@@ -153,7 +176,7 @@ pub async fn cmd_start_search(
 
     tracing::info!("Starting Deep Optimization...");
 
-    // 4. Run Optimization (Blocking inside async runtime)
+    // 4. Run Optimization
     let result = tauri::async_runtime::spawn_blocking(move || optimizer.run(None, bridge))
         .await
         .map_err(|e| e.to_string())?;

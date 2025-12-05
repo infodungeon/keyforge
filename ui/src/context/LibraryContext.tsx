@@ -19,7 +19,6 @@ interface LibraryContextType {
     selectedCorpus: string;
     selectCorpus: (filename: string) => void;
 
-    // ADDED: Cost Matrices
     costMatrices: string[];
     selectedCostMatrix: string;
     selectCostMatrix: (filename: string) => void;
@@ -33,6 +32,10 @@ interface LibraryContextType {
     deleteUserLayout: (name: string) => Promise<void>;
 
     libraryVersion: number;
+
+    // NEW: Secret Management
+    hiveSecret: string;
+    setHiveSecret: (s: string) => void;
 }
 
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
@@ -49,7 +52,6 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const [corpora, setCorpora] = useState<string[]>([]);
     const [selectedCorpus, setSelectedCorpus] = useState(() => localStorage.getItem("last_corpus") || "ngrams-all.tsv");
 
-    // ADDED: Cost Matrices State
     const [costMatrices, setCostMatrices] = useState<string[]>([]);
     const [selectedCostMatrix, setSelectedCostMatrix] = useState(() => localStorage.getItem("last_cost") || "cost_matrix.csv");
 
@@ -58,19 +60,25 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
     const [libraryVersion, setLibraryVersion] = useState(0);
 
+    // NEW: Secret
+    const [hiveSecret, setHiveSecret] = useState(() => localStorage.getItem("keyforge_hive_secret") || "");
+
+    useEffect(() => {
+        localStorage.setItem("keyforge_hive_secret", hiveSecret);
+    }, [hiveSecret]);
+
     const refreshLibrary = useCallback(async () => {
         try {
             const [kbs, corps, costs] = await Promise.all([
                 invoke<string[]>("cmd_list_keyboards"),
                 invoke<string[]>("cmd_list_corpora"),
-                invoke<string[]>("cmd_list_cost_matrices") // Fetch cost matrices
+                invoke<string[]>("cmd_list_cost_matrices")
             ]);
 
             setKeyboards(kbs);
             setCorpora(corps);
             setCostMatrices(costs);
 
-            // Auto-select valid defaults
             if (kbs.length > 0 && !kbs.includes(selectedKeyboard)) setSelectedKeyboard(kbs[0]);
             if (corps.length > 0 && !corps.includes(selectedCorpus)) setSelectedCorpus(corps[0]);
             if (costs.length > 0 && !costs.includes(selectedCostMatrix)) setSelectedCostMatrix(costs[0]);
@@ -160,10 +168,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
             weights, searchParams, setWeights, setSearchParams,
             keyboards, selectedKeyboard, selectKeyboard,
             corpora, selectedCorpus, selectCorpus,
-            costMatrices, selectedCostMatrix, selectCostMatrix, // ADDED
+            costMatrices, selectedCostMatrix, selectCostMatrix,
             availableLayouts, standardLayouts,
             refreshLibrary, saveUserLayout, deleteUserLayout,
-            libraryVersion
+            libraryVersion,
+            hiveSecret, setHiveSecret // Exported
         }}>
             {children}
         </LibraryContext.Provider>

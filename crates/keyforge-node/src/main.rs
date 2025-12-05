@@ -29,6 +29,10 @@ struct WorkArgs {
 
     #[arg(long, default_value_t = false)]
     background: bool,
+
+    /// Shared Secret for Hive Authentication
+    #[arg(long, env = "HIVE_SECRET")]
+    secret: Option<String>,
 }
 
 fn main() {
@@ -75,9 +79,9 @@ fn main() {
                 Uuid::new_v4().to_string().split('-').next().unwrap()
             );
 
-            // FIXED: Removed the 3rd argument (boolean) which was causing the error
+            // Pass secret to worker
             rt.block_on(async {
-                worker::run_worker(args.hive, node_id).await;
+                worker::run_worker(args.hive, node_id, args.secret).await;
             });
         }
     }

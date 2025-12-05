@@ -6,8 +6,9 @@ import { NavRail } from "./components/NavRail";
 import { StatusBar } from "./components/StatusBar";
 import { KeyboardProvider, useKeyboard } from "./context/KeyboardContext";
 import { ToastProvider, useToast } from "./context/ToastContext";
-import { ArenaProvider } from "./context/ArenaContext"; // ADDED
+import { ArenaProvider } from "./context/ArenaContext";
 import { formatForDisplay } from "./utils";
+import { useLibrary } from "./context/LibraryContext"; // Need for secret
 
 // Views
 import { AnalyzeView } from "./views/AnalyzeView";
@@ -31,6 +32,7 @@ function AppContent() {
     refreshData, activeJobId, startJob, stopJob, weights, searchParams, selectedCorpus
   } = useKeyboard();
 
+  const { hiveSecret } = useLibrary(); // Get Secret
   const { addToast } = useToast();
 
   const pollIntervalRef = useRef<number | null>(null);
@@ -55,6 +57,7 @@ function AppContent() {
 
       const jobId = await invoke<string>("cmd_dispatch_job", {
         hiveUrl,
+        hiveSecret, // Pass Secret
         request
       });
 
@@ -65,7 +68,11 @@ function AppContent() {
 
       pollIntervalRef.current = window.setInterval(async () => {
         try {
-          const update = await invoke<JobStatusUpdate>("cmd_poll_hive_status", { hiveUrl, jobId });
+          const update = await invoke<JobStatusUpdate>("cmd_poll_hive_status", {
+            hiveUrl,
+            hiveSecret, // Pass Secret
+            jobId
+          });
           if (update.best_layout) {
             const displayStr = formatForDisplay(update.best_layout);
             if (displayStr !== layoutString) {
@@ -93,7 +100,11 @@ function AppContent() {
   const toggleWorker = async (enabled: boolean) => {
     setLocalWorkerEnabled(enabled);
     try {
-      const msg = await invoke<string>("cmd_toggle_local_worker", { enabled, hiveUrl });
+      const msg = await invoke<string>("cmd_toggle_local_worker", {
+        enabled,
+        hiveUrl,
+        hiveSecret // Pass Secret
+      });
       addToast('info', msg);
     } catch (e) {
       addToast('error', `Worker Error: ${e}`);

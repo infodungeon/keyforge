@@ -7,7 +7,7 @@ use keyforge_core::layouts::layout_string_to_u16;
 use keyforge_core::optimizer::{OptimizationOptions, Optimizer, ProgressCallback};
 use keyforge_core::protocol::{RegisterNodeRequest, RegisterNodeResponse, TuningProfile};
 use keyforge_core::scorer::Scorer;
-use reqwest::Client;
+use reqwest::{header, Client};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -76,8 +76,19 @@ async fn ensure_corpus_bundle(
     Ok(bundle_dir)
 }
 
-pub async fn run_worker(hive_url: String, node_id: String) {
+pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String>) {
+    // 1. Configure Auth Headers
+    let mut headers = header::HeaderMap::new();
+    if let Some(s) = secret {
+        let mut auth_val = header::HeaderValue::from_str(&s).unwrap();
+        auth_val.set_sensitive(true);
+        headers.insert("X-Keyforge-Secret", auth_val);
+    } else {
+        warn!("⚠️  Starting Worker without HIVE_SECRET. Connection may be rejected.");
+    }
+
     let client = Client::builder()
+        .default_headers(headers)
         .timeout(Duration::from_secs(120))
         .connect_timeout(Duration::from_secs(10))
         .build()
@@ -96,7 +107,7 @@ pub async fn run_worker(hive_url: String, node_id: String) {
         ops_per_sec,
     };
 
-    // Fallback profile
+    // 2. Register
     let default_threads = (req.cores - 1).max(1) as usize;
     let default_tuning = TuningProfile {
         strategy: "fly".into(),
@@ -110,17 +121,26 @@ pub async fn run_worker(hive_url: String, node_id: String) {
         .send()
         .await
     {
-        Ok(res) => match res.json::<RegisterNodeResponse>().await {
-            Ok(r) => {
-                info!(
-                    "✅ Registered. Strategy: {} | Batch: {}",
-                    r.tuning.strategy, r.tuning.batch_size
-                );
-                r.tuning
+        Ok(res) => {
+            if res.status() == 401 {
+                error!("❌ AUTH FAILURE: Hive rejected connection. Check HIVE_SECRET.");
+                std::process::exit(1);
             }
-            Err(_) => default_tuning,
-        },
-        Err(_) => default_tuning,
+            match res.json::<RegisterNodeResponse>().await {
+                Ok(r) => {
+                    info!(
+                        "✅ Registered. Strategy: {} | Batch: {}",
+                        r.tuning.strategy, r.tuning.batch_size
+                    );
+                    r.tuning
+                }
+                Err(_) => default_tuning,
+            }
+        }
+        Err(e) => {
+            warn!("Failed to register node: {}. Retrying...", e);
+            default_tuning
+        }
     };
 
     let _ = tokio::fs::create_dir_all("data").await;
@@ -153,6 +173,7 @@ pub async fn run_worker(hive_url: String, node_id: String) {
 
         info!("📋 Processing Job: {}", &job_id[0..8]);
 
+        // Download Assets
         let cost_local = format!("data/{}", config.cost_matrix);
         let cost_remote = format!("{}/data/{}", hive_url, config.cost_matrix);
         if let Err(e) = ensure_file(&client, &cost_remote, &cost_local).await {
@@ -206,6 +227,7 @@ pub async fn run_worker(hive_url: String, node_id: String) {
         active_scorer.weights = config.weights.clone();
         let scorer_arc = Arc::new(active_scorer);
 
+        // Fetch Population
         let pop_resp: PopulationResponse = match client
             .get(format!("{}/jobs/{}/population", hive_url, job_id))
             .send()
@@ -218,6 +240,7 @@ pub async fn run_worker(hive_url: String, node_id: String) {
             Err(_) => PopulationResponse { layouts: vec![] },
         };
 
+        // Optimize
         let sys_config = Config {
             weights: config.weights,
             search: config.params,
@@ -226,10 +249,6 @@ pub async fn run_worker(hive_url: String, node_id: String) {
         let mut options = OptimizationOptions::from(&sys_config);
         options.pinned_keys = config.pinned_keys;
         options.params.search_steps = tuning.batch_size;
-
-        // Use the thread count from tuning profile if we want to override default behavior,
-        // or just rely on OptimizationOptions default which is system based.
-        // For now, we update options if we want to enforce it.
         options.num_threads = tuning.thread_count;
 
         let key_count = config.definition.geometry.keys.len();
@@ -246,6 +265,7 @@ pub async fn run_worker(hive_url: String, node_id: String) {
         .await
         .unwrap();
 
+        // Submit
         let layout_str = result
             .layout
             .iter()
@@ -260,10 +280,13 @@ pub async fn run_worker(hive_url: String, node_id: String) {
             node_id: node_id.clone(),
         };
 
-        let _ = client
+        if let Err(e) = client
             .post(format!("{}/results", hive_url))
             .json(&submit_req)
             .send()
-            .await;
+            .await
+        {
+            error!("Failed to submit result: {}", e);
+        }
     }
 }

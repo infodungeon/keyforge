@@ -3,10 +3,13 @@ use crate::config::Config;
 use crate::geometry::KeyboardGeometry;
 use crate::keycodes::KeycodeRegistry;
 use crate::layouts::layout_string_to_u16;
-use crate::optimizer::mutation; // Works now
+use crate::optimizer::mutation;
 use crate::scorer::{ScoreDetails, Scorer};
 use std::path::Path;
 use std::sync::Arc;
+
+// ADDED: Clone derivation
+#[derive(Clone)]
 pub struct Verifier {
     scorer: Arc<Scorer>,
     registry: Arc<KeycodeRegistry>,
@@ -15,7 +18,7 @@ pub struct Verifier {
 impl Verifier {
     pub fn new(
         cost_path: &str,
-        corpus_dir: &str, // Changed to match Scorer API
+        corpus_dir: &str,
         geometry: &KeyboardGeometry,
         config: Config,
         registry_path: &str,

@@ -1,4 +1,5 @@
-use axum::http::Method;
+// ===== keyforge/crates/keyforge-hive/src/main.rs =====
+use axum::{http::Method, middleware};
 use clap::Parser;
 use keyforge_core::keycodes::KeycodeRegistry;
 use std::net::SocketAddr;
@@ -10,6 +11,7 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 
+mod auth; // NEW
 mod db;
 mod error;
 mod queue;
@@ -24,7 +26,6 @@ struct Args {
     #[arg(long, short, default_value = "data")]
     data: PathBuf,
 
-    // FIXED: Updated default to match docker-compose
     #[arg(
         long,
         default_value = "postgres://keyforge:forge_password@localhost:5432/keyforge_hive"
@@ -42,10 +43,8 @@ async fn main() {
 
     info!("🐝 KeyForge Hive is initializing...");
 
-    // This now returns PgPool
     let pool = db::init_db(&args.db).await;
 
-    // ... (rest of path resolution logic remains the same) ...
     let data_path = if args.data.exists() {
         args.data
     } else if Path::new("../data").exists() {
@@ -70,7 +69,6 @@ async fn main() {
         KeycodeRegistry::new_with_defaults()
     };
 
-    // AppState now accepts PgPool
     let state = Arc::new(AppState::new(pool, registry));
 
     let cors = CorsLayer::new()
@@ -78,11 +76,25 @@ async fn main() {
         .allow_methods([Method::GET, Method::POST])
         .allow_headers(Any);
 
-    let app = routes::system_routes()
-        .merge(routes::job_routes())
-        .merge(routes::result_routes())
+    // Protected Routes (Jobs, Results, Nodes)
+    let secure_routes =
+        routes::job_routes()
+            .merge(routes::result_routes())
+            .layer(middleware::from_fn_with_state(
+                state.clone(),
+                auth::require_secret,
+            ));
+
+    // Public Routes (System Health, Static Data, Manifest)
+    // We allow Manifest/Data publicly so new nodes can bootstrap without auth initially?
+    // No, strictly, nodes should have auth to even download data.
+    // But for simplicity of debugging, we keep static assets public for now.
+    let public_routes = routes::system_routes()
         .route("/manifest", axum::routing::get(routes::sync::get_manifest))
-        .nest_service("/data", ServeDir::new(&data_path))
+        .nest_service("/data", ServeDir::new(&data_path));
+
+    let app = public_routes
+        .merge(secure_routes)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .layer(RequestBodyLimitLayer::new(64 * 1024 * 1024))

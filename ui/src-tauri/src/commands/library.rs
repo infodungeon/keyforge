@@ -1,3 +1,4 @@
+// ===== keyforge/ui/src-tauri/src/commands/library.rs =====
 use crate::models::UserLayoutStore;
 use crate::utils::{atomic_write, get_data_dir};
 use keyforge_core::api::KeyForgeState;
@@ -35,7 +36,6 @@ pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, String> {
 pub fn cmd_get_loaded_layouts(
     state: tauri::State<KeyForgeState>,
 ) -> Result<HashMap<String, String>, String> {
-    // FIXED: Uses read() for RwLock
     let sessions = state.sessions.read().map_err(|e| e.to_string())?;
     let session = sessions.get("primary").ok_or("No keyboard loaded")?;
     Ok(session.kb_def.layouts.clone())
@@ -62,7 +62,6 @@ pub fn cmd_get_all_layouts_scoped(
     state: tauri::State<KeyForgeState>,
     keyboard_id: String,
 ) -> Result<HashMap<String, String>, String> {
-    // FIXED: Uses read() for RwLock
     let sessions = state.sessions.read().map_err(|e| e.to_string())?;
 
     let mut all_layouts = if let Some(session) = sessions.get("primary") {
@@ -113,8 +112,6 @@ pub fn cmd_save_user_layout(
     kb_entry.insert(name, layout);
 
     let json = serde_json::to_string_pretty(&store).map_err(|e| e.to_string())?;
-
-    // FIXED: Uses atomic_write
     atomic_write(file_path, json).map_err(|e| format!("Save failed: {}", e))?;
 
     Ok(())
@@ -141,8 +138,6 @@ pub fn cmd_delete_user_layout(
     }
 
     let json = serde_json::to_string_pretty(&store).map_err(|e| e.to_string())?;
-
-    // FIXED: Uses atomic_write
     atomic_write(file_path, json).map_err(|e| format!("Delete failed: {}", e))?;
 
     Ok(())
@@ -151,13 +146,20 @@ pub fn cmd_delete_user_layout(
 #[tauri::command]
 pub async fn cmd_submit_user_layout(
     hive_url: String,
+    hive_secret: String,
     name: String,
     layout: String,
     author: String,
 ) -> Result<String, String> {
     let client = Client::new();
-    let res = client
-        .post(format!("{}/submissions", hive_url))
+
+    let mut req = client.post(format!("{}/submissions", hive_url));
+
+    if !hive_secret.is_empty() {
+        req = req.header("X-Keyforge-Secret", hive_secret);
+    }
+
+    let res = req
         .json(&serde_json::json!({
             "name": name,
             "layout": layout,
@@ -205,7 +207,6 @@ pub fn cmd_save_keyboard(
     let path = kb_dir.join(format!("{}.json", safe_name));
     let json = serde_json::to_string_pretty(&def).map_err(|e| e.to_string())?;
 
-    // FIXED: Uses atomic_write
     atomic_write(path, json).map_err(|e| format!("Save failed: {}", e))?;
 
     Ok(())

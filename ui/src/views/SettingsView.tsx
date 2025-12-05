@@ -1,14 +1,16 @@
 // ===== keyforge/ui/src/views/SettingsView.tsx =====
 import { useKeyboard } from "../context/KeyboardContext";
+import { useLibrary } from "../context/LibraryContext"; // Need direct access to setHiveSecret
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Label } from "../components/ui/Label";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Button } from "../components/ui/Button";
-import { FileText } from "lucide-react";
+import { FileText, Eye, EyeOff } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useState } from "react";
 
 interface Props {
     hiveUrl: string;
@@ -20,9 +22,11 @@ interface Props {
 export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWorker }: Props) {
     const {
         keyboards, corpora, selectedCorpus, selectCorpus, refreshData,
-        // Now available via useKeyboard:
         costMatrices, selectedCostMatrix, selectCostMatrix
     } = useKeyboard();
+
+    const { hiveSecret, setHiveSecret } = useLibrary(); // Consume Secret
+    const [showSecret, setShowSecret] = useState(false);
 
     const { addToast } = useToast();
 
@@ -59,6 +63,41 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
 
             <div className="grid grid-cols-2 gap-8 max-w-4xl">
 
+                {/* NETWORK SETTINGS */}
+                <Card>
+                    <h3 className="text-lg font-bold text-white mb-4">Network & Security</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <Label>Hive Server URL</Label>
+                            <Input value={hiveUrl} onChange={e => setHiveUrl(e.target.value)} />
+                            <p className="text-[10px] text-slate-500 mt-1">
+                                The central server for distributed optimization and layout storage.
+                            </p>
+                        </div>
+
+                        <div>
+                            <Label>API Secret Key</Label>
+                            <div className="relative">
+                                <Input
+                                    value={hiveSecret}
+                                    onChange={e => setHiveSecret(e.target.value)}
+                                    type={showSecret ? "text" : "password"}
+                                    placeholder="Optional (if server requires auth)"
+                                />
+                                <button
+                                    onClick={() => setShowSecret(!showSecret)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                                >
+                                    {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">
+                                Must match the <code>HIVE_SECRET</code> env variable on the server.
+                            </p>
+                        </div>
+                    </div>
+                </Card>
+
                 {/* DATA SETTINGS */}
                 <Card>
                     <h3 className="text-lg font-bold text-white mb-4">Analysis Context</h3>
@@ -89,25 +128,10 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                             <Select
                                 value={selectedCostMatrix}
                                 onChange={e => selectCostMatrix(e.target.value)}
-                                // FIXED: Explicit type annotation for 'c'
                                 options={costMatrices.map((c: string) => ({ label: c, value: c }))}
                             />
                             <p className="text-[10px] text-slate-500 mt-1">
-                                Determines how difficult specific key combinations are. Use 'personal_cost.csv' if you have run the Typing Arena.
-                            </p>
-                        </div>
-                    </div>
-                </Card>
-
-                {/* NETWORK SETTINGS */}
-                <Card>
-                    <h3 className="text-lg font-bold text-white mb-4">Network</h3>
-                    <div className="space-y-4">
-                        <div>
-                            <Label>Hive Server URL</Label>
-                            <Input value={hiveUrl} onChange={e => setHiveUrl(e.target.value)} />
-                            <p className="text-[10px] text-slate-500 mt-1">
-                                The central server for distributed optimization and layout storage.
+                                Determines difficulty of key transitions.
                             </p>
                         </div>
                     </div>
