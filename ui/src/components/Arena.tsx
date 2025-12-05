@@ -1,12 +1,12 @@
 // ===== keyforge/ui/src/components/Arena.tsx =====
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RotateCcw, Keyboard as KeyboardIcon, Save, UserCheck } from "lucide-react";
+import { RotateCcw, Keyboard as KeyboardIcon, Save, UserCheck, Activity } from "lucide-react";
 import { Button } from "./ui/Button";
 import { useToast } from "../context/ToastContext";
-import { useLibrary } from "../context/LibraryContext"; // ADDED
+import { useLibrary } from "../context/LibraryContext";
+import { coverageService } from "../services/coverage";
 
-// ... (KeyStroke/BiometricSample definitions same)
 interface KeyStroke {
     char: string;
     timestamp: number;
@@ -20,10 +20,13 @@ interface BiometricSample {
 
 export function Arena() {
     const { addToast } = useToast();
-    const { refreshLibrary } = useLibrary(); // ADDED
+    const { refreshLibrary } = useLibrary();
     const [words, setWords] = useState<string[]>([]);
     const [input, setInput] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
+
+    // Dictionary Pool (Cached from Rust)
+    const [wordPool, setWordPool] = useState<string[]>([]);
 
     // Stats
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -32,43 +35,59 @@ export function Arena() {
     const [isFinished, setIsFinished] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState<string>("");
-    const [isGenerating, setIsGenerating] = useState(false); // ADDED
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    // New: Coverage Stats
+    const [coverage, setCoverage] = useState(0);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const lastStrokeRef = useRef<KeyStroke | null>(null);
     const biometricsRef = useRef<BiometricSample[]>([]);
     const errorsRef = useRef<number>(0);
 
-    const generateWords = useCallback(async () => {
-        setIsLoading(true);
-        setSaveStatus("");
-        try {
-            const newWords = await invoke<string[]>("cmd_get_typing_words", { count: 50 });
-            setWords(newWords);
-            // Reset logic...
-            setInput("");
-            setCurrentIndex(0);
-            setStartTime(null);
-            setWpm(0);
-            setAcc(100);
-            setIsFinished(false);
-            lastStrokeRef.current = null;
-            biometricsRef.current = [];
-            errorsRef.current = 0;
-            setTimeout(() => inputRef.current?.focus(), 100);
-        } catch (e) {
-            console.error("Failed to load corpus:", e);
-            addToast('error', "Could not load word list.");
-        } finally {
-            setIsLoading(false);
-        }
+    // 1. Initial Load of Large Dictionary
+    useEffect(() => {
+        const loadPool = async () => {
+            try {
+                // Fetch 1000 words to use as our seed pool
+                const largePool = await invoke<string[]>("cmd_get_typing_words", { count: 1000 });
+                setWordPool(largePool);
+                // Initial generation
+                const initialSet = coverageService.selectTargetedWords(largePool, 40);
+                setWords(initialSet);
+                setCoverage(coverageService.getStats().coveragePct);
+            } catch (e) {
+                addToast('error', "Failed to load word corpus");
+            }
+        };
+        loadPool();
     }, [addToast]);
 
-    useEffect(() => {
-        generateWords();
-    }, [generateWords]);
+    const generateNextSession = useCallback(() => {
+        if (wordPool.length === 0) return;
 
-    // ... (handleKeyDown, handleChange same)
+        setIsLoading(true);
+        setSaveStatus("");
+
+        // Smart Selection
+        const newWords = coverageService.selectTargetedWords(wordPool, 40);
+        setWords(newWords);
+
+        // Reset
+        setInput("");
+        setCurrentIndex(0);
+        setStartTime(null);
+        setWpm(0);
+        setAcc(100);
+        setIsFinished(false);
+        lastStrokeRef.current = null;
+        biometricsRef.current = [];
+        errorsRef.current = 0;
+
+        setTimeout(() => inputRef.current?.focus(), 100);
+        setIsLoading(false);
+    }, [wordPool]);
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (isFinished || isLoading) return;
         const now = performance.now();
@@ -90,6 +109,10 @@ export function Arena() {
         if (e.key === ' ') {
             e.preventDefault();
             if (val.trim() === targetWord) {
+                // Register completed word for coverage tracking
+                coverageService.registerInput(targetWord);
+                setCoverage(coverageService.getStats().coveragePct);
+
                 setInput("");
                 setCurrentIndex(prev => prev + 1);
                 if (currentIndex >= words.length - 1) finishTest();
@@ -130,13 +153,12 @@ export function Arena() {
         }
     };
 
-    // ADDED: Generate Profile Action
     const handleGenerateProfile = async () => {
         setIsGenerating(true);
         try {
             const msg = await invoke<string>("cmd_generate_personal_profile");
             addToast('success', msg);
-            await refreshLibrary(); // Reload list so personal_cost.csv appears
+            await refreshLibrary();
         } catch (e) {
             addToast('error', `Profile Generation Failed: ${e}`);
         } finally {
@@ -179,24 +201,40 @@ export function Arena() {
             onClick={() => inputRef.current?.focus()}
         >
             {/* Header / Stats */}
-            <div className="absolute top-0 left-0 w-full p-6 flex justify-center gap-12 text-slate-500 font-mono text-sm uppercase tracking-widest select-none">
-                {isFinished ? (
-                    <>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-bold mb-1 text-slate-600">WPM</span>
-                            <span className="text-4xl text-purple-400 font-black">{wpm}</span>
+            <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start px-12 text-slate-500 font-mono text-sm uppercase tracking-widest select-none">
+                <div className="flex gap-12">
+                    {isFinished ? (
+                        <>
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] font-bold mb-1 text-slate-600">WPM</span>
+                                <span className="text-4xl text-purple-400 font-black">{wpm}</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] font-bold mb-1 text-slate-600">ACC</span>
+                                <span className="text-4xl text-blue-400 font-black">{acc}%</span>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex items-center gap-2 opacity-50">
+                            <KeyboardIcon size={16} />
+                            <span>Typing Test</span>
                         </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-bold mb-1 text-slate-600">ACC</span>
-                            <span className="text-4xl text-blue-400 font-black">{acc}%</span>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex items-center gap-2 opacity-50">
-                        <KeyboardIcon size={16} />
-                        <span>Typing Test</span>
+                    )}
+                </div>
+
+                {/* Coverage Meter */}
+                <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
+                        <Activity size={14} /> Biometric Coverage
                     </div>
-                )}
+                    <div className="w-32 h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-green-400 transition-all duration-500"
+                            style={{ width: `${coverage}%` }}
+                        />
+                    </div>
+                    <span className="text-xs font-mono text-slate-400">{coverage.toFixed(1)}%</span>
+                </div>
             </div>
 
             <input
@@ -221,15 +259,16 @@ export function Arena() {
                         </div>
 
                         <div className="flex gap-4 mt-4">
-                            <Button onClick={generateWords} icon={<RotateCcw size={16} />}>Restart</Button>
-                            {/* NEW BUTTON */}
+                            <Button onClick={generateNextSession} icon={<RotateCcw size={16} />}>Next Session</Button>
                             <Button
                                 variant="secondary"
                                 onClick={handleGenerateProfile}
                                 isLoading={isGenerating}
                                 icon={<UserCheck size={16} />}
+                                disabled={coverage < 15} // Enforce some data before gen
+                                title={coverage < 15 ? "Need more coverage (~15%)" : "Generate CSV"}
                             >
-                                Generate Personal Profile
+                                Generate Profile
                             </Button>
                         </div>
                         <p className="text-xs text-slate-600">Biometrics captured: {biometricsRef.current.length} samples</p>
@@ -241,7 +280,7 @@ export function Arena() {
 
             {!isFinished && !isLoading && (
                 <div className="absolute bottom-8 flex gap-4 opacity-50 hover:opacity-100 transition-opacity">
-                    <button onClick={generateWords} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 transition-colors" title="Restart Test">
+                    <button onClick={generateNextSession} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 transition-colors" title="Restart Test">
                         <RotateCcw size={16} />
                     </button>
                     <div className="p-2 text-xs font-mono text-slate-500">

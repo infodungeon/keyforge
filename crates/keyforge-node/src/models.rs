@@ -25,6 +25,9 @@ fn default_cost_matrix() -> String {
 }
 
 #[derive(Deserialize)]
+// FIXED: Allow dead code because this struct is used implicitly by Serde deserialization
+// even if we don't access fields directly in some code paths.
+#[allow(dead_code)]
 pub struct PopulationResponse {
     pub layouts: Vec<String>,
 }

@@ -11,7 +11,7 @@ pub async fn register_node(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterNodeRequest>,
 ) -> AppResult<Json<RegisterNodeResponse>> {
-    // 1. Register in DB (Updates hardware_profiles and nodes tables)
+    // 1. Register in DB
     state
         .store
         .register_node_hardware(
@@ -22,7 +22,6 @@ pub async fn register_node(
             payload.ops_per_sec,
         )
         .await
-        // FIXED: Removed redundant .into()
         .map_err(|e| AppError::Database(sqlx::Error::Protocol(e)))?;
 
     info!(
@@ -32,10 +31,9 @@ pub async fn register_node(
         payload.ops_per_sec / 1_000_000.0
     );
 
-    // 2. Determine Tuning Strategy
-    // Heuristic: If L2 cache is small (< 512KB per core approx) or unknown, be conservative.
-    // Or if the CPU is very fast, we can use larger batches.
+    // 2. Intelligent Tuning Logic
 
+    // Strategy: If L2 cache is small (< 512KB per core approx) or unknown, be conservative.
     let strategy = if let Some(l2) = payload.l2_cache_kb {
         if l2 >= 1024 {
             "table"
@@ -46,10 +44,20 @@ pub async fn register_node(
         "fly" // Safe default
     };
 
+    // Batch Size: If CPU is fast, run longer batches to amortize sync overhead
     let batch_size = if payload.ops_per_sec > 10_000_000.0 {
         50_000
+    } else if payload.ops_per_sec > 4_000_000.0 {
+        20_000
     } else {
-        10_000
+        5_000
+    };
+
+    // Thread Count: Reserve 1 core for OS/Network if possible
+    let thread_count = if payload.cores > 2 {
+        (payload.cores - 1) as usize
+    } else {
+        1
     };
 
     Ok(Json(RegisterNodeResponse {
@@ -57,6 +65,7 @@ pub async fn register_node(
         tuning: TuningProfile {
             strategy: strategy.to_string(),
             batch_size,
+            thread_count, // FIXED: Added missing field
         },
     }))
 }

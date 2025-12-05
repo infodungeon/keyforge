@@ -1,3 +1,4 @@
+// ===== keyforge/crates/keyforge-core/src/scorer/mod.rs =====
 pub mod builder;
 pub mod costs;
 pub mod engine;
@@ -12,7 +13,6 @@ use self::loader::TrigramRef;
 pub use self::types::ScoreDetails;
 use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::consts::KEY_CODE_RANGE;
-// FIXED: Removed unused Config and KfResult imports
 use crate::geometry::KeyboardGeometry;
 
 #[derive(Clone)]
@@ -71,5 +71,30 @@ impl Scorer {
     #[inline(always)]
     pub fn idx(&self, row: usize, col: usize) -> usize {
         row * self.key_count + col
+    }
+
+    // --- NEW: Telemetry Methods ---
+
+    /// Returns the estimated memory usage of the lookup tables in bytes.
+    pub fn estimate_memory_footprint(&self) -> usize {
+        let tri_size = self.trigram_cost_table.len() * 4; // f32 = 4 bytes
+        let bi_size = self.full_cost_matrix.len() * 4;
+        let vec_overhead = self.bigrams_others.len() * (1 + 4 + 1); // u8 + f32 + bool
+
+        tri_size + bi_size + vec_overhead
+    }
+
+    /// Checks if the critical tables fit within a specific cache size (KB).
+    /// Returns (fits_in_cache, needed_kb)
+    pub fn check_cache_fit(&self, available_l2_kb: usize) -> (bool, usize) {
+        // The Trigram Table is the "hot" path for O(N^3) access.
+        // It is accessed randomly during scoring.
+        let hot_data_size = self.trigram_cost_table.len() * 4;
+        let needed_kb = hot_data_size / 1024;
+
+        // We assume we need 20% headroom for other stack/instruction data
+        let effective_limit = (available_l2_kb as f32 * 0.8) as usize;
+
+        (needed_kb <= effective_limit, needed_kb)
     }
 }

@@ -1,12 +1,11 @@
 // ===== keyforge/crates/keyforge-node/src/main.rs =====
 mod calibration;
-mod hw_detect; // FIXED: Added module declaration
+mod hw_detect;
 mod models;
 mod nice;
 mod worker;
 
 use clap::{Args, Parser, Subcommand};
-use tracing::info;
 use uuid::Uuid;
 
 #[derive(Parser)]
@@ -30,7 +29,7 @@ struct WorkArgs {
     #[arg(long, default_value = "http://localhost:3000")]
     hive: String,
 
-    /// Run in background mode (Low Priority, Reduced Threads)
+    /// Run in background mode (Low Priority)
     #[arg(long, default_value_t = false)]
     background: bool,
 }
@@ -49,23 +48,7 @@ fn main() {
                 nice::set_background_priority();
             }
 
-            let physical_cores = num_cpus::get_physical();
-            let reserve = if args.background { 2 } else { 1 };
-            let compute_threads = if physical_cores > reserve {
-                physical_cores - reserve
-            } else {
-                1
-            };
-
-            info!(
-                "🧠 Configuring Compute Pool: {} physical threads (System: {})",
-                compute_threads, physical_cores
-            );
-
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(compute_threads)
-                .build_global()
-                .expect("Failed to initialize global thread pool");
+            // Removed global rayon init here (moved to worker.rs)
 
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
@@ -80,7 +63,8 @@ fn main() {
             );
 
             rt.block_on(async {
-                worker::run_worker(args.hive, node_id).await;
+                // FIXED: Pass args.background
+                worker::run_worker(args.hive, node_id, args.background).await;
             });
         }
     }

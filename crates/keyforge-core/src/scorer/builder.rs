@@ -282,6 +282,17 @@ impl ScorerBuildParams {
         let mut slot_monogram_costs = vec![0.0; key_count];
         for (i, cost) in slot_monogram_costs.iter_mut().enumerate() {
             let ki = &geometry.keys[i];
+
+            // --- SAFETY CHECK ---
+            // Prevent panic if a user/test defines a finger index >= 5 (0-4 expected)
+            if ki.finger as usize >= finger_scales.len() {
+                return Err(KeyForgeError::Validation(format!(
+                    "Key '{}' (idx {}) has invalid finger index {}. Must be 0-4.",
+                    ki.id, i, ki.finger
+                )));
+            }
+            // --------------------
+
             let effort_cost = finger_scales[ki.finger as usize] * weights.weight_finger_effort;
             let reach_cost = crate::scorer::physics::get_reach_cost(
                 &geometry,
@@ -368,7 +379,7 @@ impl ScorerBuildParams {
     }
 }
 
-// RESTORED: This implementation block was missing in the previous step
+// RESTORED: This is the missing block that provides the convenient constructor
 impl Scorer {
     pub fn new(
         cost_path: &str,

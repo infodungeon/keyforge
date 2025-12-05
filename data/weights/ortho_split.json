@@ -34,5 +34,8 @@
   "corpus_scale": 200000000.0,
   "default_cost_ms": 120.0,
   "finger_penalty_scale": "0.0,1.0,1.1,1.3,1.6",
-  "comfortable_scissors": "21,23,34"
+  "comfortable_scissors": "21,23,34",
+  "loader_trigram_limit": 20000,
+  "threshold_sfb_long_row_diff": 2,
+  "threshold_scissor_row_diff": 2
 }

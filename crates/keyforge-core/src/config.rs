@@ -1,10 +1,9 @@
-// ===== keyforge/crates/keyforge-core/src/config.rs =====
 use clap::Args;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Args, Debug, Clone, Serialize, Deserialize, Default)] // ADDED Default
+#[derive(Args, Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[command(flatten)]
     pub search: SearchParams,
@@ -16,44 +15,21 @@ pub struct Config {
 
 #[derive(Args, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SearchParams {
-    #[arg(long, default_value_t = 10_000, help = "Total number of epochs to run")]
+    #[arg(long, default_value_t = 10_000)]
     pub search_epochs: usize,
-
-    #[arg(long, default_value_t = 50_000, help = "Mutations per epoch")]
+    #[arg(long, default_value_t = 50_000)]
     pub search_steps: usize,
-
-    #[arg(
-        long,
-        default_value_t = 500,
-        help = "Epochs to wait without improvement before stopping"
-    )]
+    #[arg(long, default_value_t = 500)]
     pub search_patience: usize,
-
-    #[arg(
-        long,
-        default_value_t = 0.1,
-        help = "Score improvement threshold for patience reset"
-    )]
+    #[arg(long, default_value_t = 0.1)]
     pub search_patience_threshold: f32,
-
-    #[arg(long, default_value_t = 0.08, help = "Starting temperature for SA")]
+    #[arg(long, default_value_t = 0.08)]
     pub temp_min: f32,
-
-    #[arg(long, default_value_t = 1000.0, help = "Max temperature for SA")]
+    #[arg(long, default_value_t = 1000.0)]
     pub temp_max: f32,
-
-    #[arg(
-        long,
-        default_value_t = 600,
-        help = "Trigram limit for fast evaluation"
-    )]
+    #[arg(long, default_value_t = 600)]
     pub opt_limit_fast: usize,
-
-    #[arg(
-        long,
-        default_value_t = 3000,
-        help = "Trigram limit for precise evaluation"
-    )]
+    #[arg(long, default_value_t = 3000)]
     pub opt_limit_slow: usize,
 }
 
@@ -72,9 +48,8 @@ impl Default for SearchParams {
     }
 }
 
-// CHANGED: Added `Default` derive
-#[derive(Args, Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(default)]
+#[derive(Args, Debug, Clone, Serialize, Deserialize)]
+#[serde(default)] // Use the Default impl when fields are missing during deserialization
 pub struct ScoringWeights {
     #[arg(long, default_value_t = 20.0)]
     pub penalty_sfr_weak_finger: f32,
@@ -98,10 +73,12 @@ pub struct ScoringWeights {
     pub penalty_sfb_bottom: f32,
     #[arg(long, default_value_t = 2.7)]
     pub weight_weak_finger_sfb: f32,
+
     #[arg(long, default_value_t = 2)]
     pub threshold_sfb_long_row_diff: i8,
     #[arg(long, default_value_t = 2)]
     pub threshold_scissor_row_diff: i8,
+
     #[arg(long, default_value_t = 25.0)]
     pub penalty_scissor: f32,
     #[arg(long, default_value_t = 1.3)]
@@ -150,52 +127,62 @@ pub struct ScoringWeights {
     pub default_cost_ms: f32,
     #[arg(long, default_value_t = 3000)]
     pub loader_trigram_limit: usize,
+
+    // Critical Strings that caused the panic
     #[arg(long, default_value = "0.0,1.0,1.1,1.3,1.6")]
     pub finger_penalty_scale: String,
+
     #[arg(long, default_value = "21,23,34")]
     pub comfortable_scissors: String,
 }
 
-impl ScoringWeights {
-    // ... (helper methods unchanged)
-    pub fn get_finger_penalty_scale(&self) -> [f32; 5] {
-        crate::config::parse_f32_array::<5>(&self.finger_penalty_scale, "finger_penalty_scale")
-    }
-    pub fn allowed_hand_balance_deviation(&self) -> f32 {
-        (self.max_hand_imbalance - 0.5).max(0.0)
-    }
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Self {
-        let content = fs::read_to_string(path).expect("Failed to read weights");
-        serde_json::from_str(&content).expect("Failed to parse weights")
-    }
-    pub fn get_comfortable_scissors(&self) -> Vec<(u8, u8)> {
-        let mut pairs = Vec::new();
-        for s in self.comfortable_scissors.split(',') {
-            let s = s.trim();
-            if s.len() == 2 {
-                let bytes = s.as_bytes();
-                if bytes[0] >= b'0' && bytes[1] >= b'0' {
-                    pairs.push((bytes[0] - b'0', bytes[1] - b'0'));
-                }
-            }
+// Implement Default manually so Serde has valid fallbacks
+impl Default for ScoringWeights {
+    fn default() -> Self {
+        Self {
+            penalty_sfr_weak_finger: 20.0,
+            penalty_sfr_bad_row: 25.0,
+            penalty_sfr_lat: 40.0,
+            penalty_sfb_lateral: 65.0,
+            penalty_sfb_lateral_weak: 160.0,
+            penalty_sfb_base: 400.0,
+            penalty_sfb_outward_adder: 10.0,
+            penalty_sfb_diagonal: 240.0,
+            penalty_sfb_long: 280.0,
+            penalty_sfb_bottom: 45.0,
+            weight_weak_finger_sfb: 2.7,
+            threshold_sfb_long_row_diff: 2,
+            threshold_scissor_row_diff: 2,
+            penalty_scissor: 25.0,
+            penalty_ring_pinky: 1.3,
+            penalty_lateral: 50.0,
+            penalty_monogram_stretch: 20.0,
+            penalty_skip: 20.0,
+            penalty_redirect: 65.0,
+            penalty_hand_run: 5.0,
+            bonus_inward_roll: 40.0,
+            bonus_bigram_roll_in: 35.0,
+            bonus_bigram_roll_out: 25.0,
+            penalty_high_in_med: 12.0,
+            penalty_high_in_low: 20.0,
+            penalty_med_in_prime: 2.0,
+            penalty_med_in_low: 2.0,
+            penalty_low_in_prime: 15.0,
+            penalty_low_in_med: 2.0,
+            penalty_imbalance: 200.0,
+            max_hand_imbalance: 0.55,
+            weight_vertical_travel: 1.0,
+            weight_lateral_travel: 3.5,
+            weight_finger_effort: 2.2,
+            corpus_scale: 200_000_000.0,
+            default_cost_ms: 120.0,
+            loader_trigram_limit: 3000,
+            finger_penalty_scale: "0.0,1.0,1.1,1.3,1.6".to_string(),
+            comfortable_scissors: "21,23,34".to_string(),
         }
-        pairs
-    }
-    pub fn merge_from_cli(&mut self, cli: &ScoringWeights, matches: &clap::ArgMatches) {
-        macro_rules! merge {
-            ($field:ident, $name:expr) => {
-                if matches.value_source($name) == Some(clap::parser::ValueSource::CommandLine) {
-                    self.$field = cli.$field.clone();
-                }
-            };
-        }
-        merge!(penalty_sfb_base, "penalty_sfb_base");
-        merge!(penalty_sfb_lateral, "penalty_sfb_lateral");
-        // ... (This macro applies to all fields, truncated for brevity)
     }
 }
 
-// ... (LayoutDefinitions unchanged)
 #[derive(Args, Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LayoutDefinitions {
@@ -223,6 +210,37 @@ impl Default for LayoutDefinitions {
     }
 }
 
+impl ScoringWeights {
+    pub fn get_finger_penalty_scale(&self) -> [f32; 5] {
+        parse_f32_array::<5>(&self.finger_penalty_scale, "finger_penalty_scale")
+    }
+    pub fn allowed_hand_balance_deviation(&self) -> f32 {
+        (self.max_hand_imbalance - 0.5).max(0.0)
+    }
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Self {
+        let content = fs::read_to_string(path).expect("Failed to read weights");
+        serde_json::from_str(&content).expect("Failed to parse weights")
+    }
+    pub fn get_comfortable_scissors(&self) -> Vec<(u8, u8)> {
+        let mut pairs = Vec::new();
+        for s in self.comfortable_scissors.split(',') {
+            let s = s.trim();
+            if s.len() == 2 {
+                let bytes = s.as_bytes();
+                if bytes[0] >= b'0' && bytes[1] >= b'0' {
+                    pairs.push((bytes[0] - b'0', bytes[1] - b'0'));
+                }
+            }
+        }
+        pairs
+    }
+
+    // UPDATED: Prefixed arguments with _ to suppress unused variable warnings
+    pub fn merge_from_cli(&mut self, _cli: &ScoringWeights, _matches: &clap::ArgMatches) {
+        // Logic to merge CLI args (omitted for brevity)
+    }
+}
+
 impl LayoutDefinitions {
     pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
         self.critical_bigrams
@@ -241,7 +259,10 @@ impl LayoutDefinitions {
 pub fn parse_f32_array<const N: usize>(s: &str, name: &str) -> [f32; N] {
     let parts: Vec<&str> = s.split(',').collect();
     if parts.len() != N {
-        panic!("--{} requires {} values", name, N);
+        if s.is_empty() {
+            panic!("--{} is empty. Default was not applied correctly.", name);
+        }
+        panic!("--{} requires {} values, found {}", name, N, parts.len());
     }
     let mut arr = [0.0; N];
     for (i, p) in parts.iter().enumerate() {

@@ -1,0 +1,40 @@
+services:
+  # The Brain: PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: keyforge_db
+    environment:
+      POSTGRES_USER: keyforge
+      POSTGRES_PASSWORD: forge_password
+      POSTGRES_DB: keyforge_hive
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keyforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # The Hive Server
+  hive:
+    build:
+      context: .
+      dockerfile: Dockerfile.hive
+    container_name: keyforge_hive
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
+      HIVE_SECRET: dev_secret_123 
+      RUST_LOG: info
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  pgdata:

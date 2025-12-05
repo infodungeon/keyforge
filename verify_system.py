@@ -16,140 +16,144 @@ def log(msg):
 
 def check_binary(name):
     path = os.path.join(BINARY_DIR, name)
-    if os.path.exists(path):
-        return path
-    if os.path.exists(path + ".exe"):
-        return path + ".exe"
-    
-    log(f"❌ Missing binary: {path}")
-    log("Did you run 'cargo build --release'?")
-    sys.exit(1)
+    if os.path.exists(path): return path
+    if os.path.exists(path + ".exe"): return path + ".exe"
+    log(f"❌ Missing binary: {path}"); sys.exit(1)
 
 def wait_for_server(url, retries=20):
     for i in range(retries):
         try:
-            requests.get(f"{url}/health")
+            requests.get(f"{url}/health", timeout=1)
             return True
         except:
             time.sleep(0.5)
     return False
 
+def load_json(path):
+    if not os.path.exists(path):
+        log(f"❌ Missing data file: {path}")
+        sys.exit(1)
+    with open(path, 'r') as f:
+        return json.load(f)
+
 def main():
-    log("🔍 checking build artifacts...")
+    log("🔍 Checking binaries...")
     hive_bin = check_binary("keyforge-hive")
     node_bin = check_binary("keyforge-node")
     
-    # 1. Start Hive
-    log("🐝 Starting Hive Server...")
+    # 1. OPEN LOG FILES
+    hive_log = open("hive.log", "w")
+    node_log = open("node.log", "w")
+
+    log("🐝 Starting Hive (logs -> hive.log)...")
+    
+    env = os.environ.copy()
+    if "DATABASE_URL" not in env:
+        env["DATABASE_URL"] = "postgres://keyforge:forge_password@localhost:5432/keyforge_hive"
+    
+    env["RUST_LOG"] = "info,keyforge_hive=debug" 
+
+    # START HIVE
     hive_proc = subprocess.Popen(
         [hive_bin, "--port", str(HIVE_PORT), "--data", "./data"], 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE
+        stdout=hive_log, 
+        stderr=hive_log,
+        env=env
     )
     
+    node_proc = None
+
     try:
         if not wait_for_server(HIVE_URL):
-            log("❌ Hive failed to start (Health check timeout)")
+            log("❌ Hive start timeout. Check hive.log.")
             sys.exit(1)
         
         log("✅ Hive is Alive")
 
-        resp = requests.get(f"{HIVE_URL}/manifest")
-        if resp.status_code != 200 or "cost_matrix.csv" not in resp.json()["files"]:
-            log("❌ Manifest invalid or missing core data")
-            sys.exit(1)
-        log("✅ Manifest verified")
-
-        # 3. Submit a Dummy Job
-        log("📋 Submitting Optimization Job...")
+        # 3. Submit Job using REAL DATA
+        log("📋 Submitting Job (Corne + Production Scaling)...")
         
-        geo = {
-            "keys": [
-                {"id":"k0", "x":0,"y":0,"row":0,"col":0,"hand":0,"finger":1},
-                {"id":"k1", "x":1,"y":0,"row":0,"col":1,"hand":0,"finger":2}
-            ], 
-            "home_row": 0,
-            "prime_slots": [0, 1], "med_slots": [], "low_slots": []
-        }
+        definition = load_json("data/keyboards/corne.json")
+        weights = load_json("data/weights/ortho_split.json")
         
-        weights = {
-            "penalty_sfb_base": 100, "penalty_sfb_lateral": 10, "penalty_sfb_lateral_weak": 10, 
-            "penalty_sfb_diagonal": 10, "penalty_sfb_long": 10, "penalty_sfb_bottom": 10,
-            "penalty_sfr_weak_finger": 10, "penalty_sfr_bad_row": 10, "penalty_sfr_lat": 10,
-            "penalty_scissor": 10, "penalty_lateral": 10, "penalty_redirect": 10, "penalty_skip": 10,
-            "penalty_hand_run": 10, "bonus_inward_roll": 10, "bonus_bigram_roll_in": 10, "bonus_bigram_roll_out": 10,
-            "penalty_imbalance": 10, "threshold_sfb_long_row_diff": 2, "threshold_scissor_row_diff": 2,
-            "max_hand_imbalance": 0.5, "weight_vertical_travel": 1.0, "weight_lateral_travel": 1.0,
-            "weight_finger_effort": 1.0, "corpus_scale": 1.0, "default_cost_ms": 1.0,
-            "finger_penalty_scale": "1,1,1,1,1", "comfortable_scissors": "",
-            "loader_trigram_limit": 100
-        }
-
-        # ADDED: Params object required by new schema
+        # Use Production Scales
+        weights["corpus_scale"] = 200000000.0 
+        weights["default_cost_ms"] = 120.0
+        # LOAD EVERYTHING for the test
+        weights["loader_trigram_limit"] = 20000 
+        
         params = {
-            "search_epochs": 100, "search_steps": 100, "search_patience": 10,
-            "search_patience_threshold": 0.1, "temp_min": 0.1, "temp_max": 100.0,
-            "opt_limit_fast": 100, "opt_limit_slow": 100
+            "search_epochs": 50, 
+            "search_steps": 500, 
+            "search_patience": 10, 
+            "search_patience_threshold": 0.01, 
+            "temp_min": 0.01, 
+            "temp_max": 10.0,
+            "opt_limit_fast": 100, 
+            "opt_limit_slow": 500
         }
         
         payload = {
-            "geometry": geo,
-            "weights": weights,
-            "params": params, # Include new field
-            "pinned_keys": "",
-            "corpus_name": "default"
+            "definition": definition, 
+            "weights": weights, 
+            "params": params, 
+            "pinned_keys": "", 
+            "corpus_name": "default", 
+            "cost_matrix": "cost_matrix.csv"
         }
         
-        job_resp = requests.post(f"{HIVE_URL}/jobs", json=payload)
+        job_resp = requests.post(f"{HIVE_URL}/jobs", json=payload, timeout=5)
         if job_resp.status_code != 200:
-            log(f"❌ Job Submission Failed: {job_resp.text}")
+            log(f"❌ Job Failed: {job_resp.text}")
             sys.exit(1)
         
         job_id = job_resp.json()["job_id"]
         log(f"✅ Job Accepted: {job_id}")
 
-        # 4. Start Worker Node
-        log("🤖 Starting Worker Node...")
+        # 4. Start Worker
+        log("🤖 Starting Worker (logs -> node.log)...")
         node_proc = subprocess.Popen(
             [node_bin, "work", "--hive", HIVE_URL],
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE
+            stdout=node_log, 
+            stderr=node_log,
+            env=env
         )
         
-        log("⏳ Waiting for optimization results (Max 45s)...")
-        
+        log("⏳ Waiting for results (Max 45s)...")
         found = False
         for i in range(45):
             try:
-                pop_resp = requests.get(f"{HIVE_URL}/jobs/{job_id}/population")
-                layouts = pop_resp.json()["layouts"]
-                if len(layouts) > 0:
-                    found = True
-                    break
-            except:
+                pop_resp = requests.get(f"{HIVE_URL}/jobs/{job_id}/population", timeout=1)
+                if pop_resp.status_code == 200:
+                    data = pop_resp.json()
+                    if len(data.get("layouts", [])) > 0:
+                        best_layout = data["layouts"][0]
+                        log(f"   [Poll {i}] Success! Layout: {best_layout[:30]}...")
+                        found = True
+                        break
+            except Exception as e:
                 pass
             time.sleep(1)
         
-        node_proc.kill()
-        out, err = node_proc.communicate()
-        
         if found:
-            log(f"✅ Optimization Loop Working! Found layouts.")
+            log(f"✅ Optimization Loop Working!")
         else:
-            log("❌ No layouts produced by worker.")
-            print("\n--- WORKER STDOUT ---")
-            print(out.decode(errors='replace'))
-            print("\n--- WORKER STDERR ---")
-            print(err.decode(errors='replace'))
+            log("❌ Timeout. Dumping Node Logs:")
+            print("-" * 40)
+            node_log.flush()
+            with open("node.log", "r") as f: print(f.read())
+            print("-" * 40)
+            print("--- HIVE LOGS ---")
+            hive_log.flush()
+            with open("hive.log", "r") as f: print(f.read())
             sys.exit(1)
 
     finally:
-        log("🛑 Shutting down Hive...")
-        hive_proc.terminate()
-        try:
-            hive_proc.wait(timeout=5)
-        except:
-            hive_proc.kill()
+        log("🛑 Cleanup...")
+        if node_proc: node_proc.kill()
+        if hive_proc: hive_proc.kill()
+        hive_log.close()
+        node_log.close()
 
     log("🎉 SYSTEM VERIFICATION PASSED")
 

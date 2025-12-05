@@ -8,6 +8,7 @@ use crate::optimizer::mutation;
 use crate::scorer::Scorer;
 use fastrand::Rng;
 use std::sync::Arc;
+use tracing::{debug, warn}; // FIXED: Removed unused `info`
 
 type CompactPosMap = [u8; 256];
 
@@ -40,6 +41,9 @@ impl Replica {
         limit_slow: usize,
         pinned_keys_str: &str,
     ) -> Self {
+        // INSTRUMENTATION: Log start
+        debug!("Replica::new() started. Temp: {:.2}", temperature);
+
         let mut rng = if let Some(s) = seed {
             Rng::with_seed(s)
         } else {
@@ -51,6 +55,8 @@ impl Replica {
 
         let mut layout;
         let mut pos_map;
+        let mut attempts = 0;
+        let max_attempts = 1000;
 
         loop {
             layout = mutation::generate_tiered_layout(
@@ -62,9 +68,24 @@ impl Replica {
             );
             pos_map = mutation::build_pos_map(&layout);
             let critical = scorer.defs.get_critical_bigrams();
+
             if !mutation::fails_sanity(&pos_map, &critical, &scorer.geometry) {
                 break;
             }
+
+            attempts += 1;
+            if attempts >= max_attempts {
+                warn!("⚠️ Optimizer Warning: Could not generate sanity-compliant start layout after {} attempts. Starting with potential collisions.", max_attempts);
+                break;
+            }
+        }
+
+        // INSTRUMENTATION: Log attempts if high
+        if attempts > 10 {
+            debug!(
+                "Replica generation took {} attempts to satisfy sanity check.",
+                attempts
+            );
         }
 
         let start_limit = if temperature > 10.0 {
@@ -101,6 +122,8 @@ impl Replica {
         let imb = r.imbalance_penalty(left);
         r.score += imb;
         r.update_mutation_weights();
+
+        debug!("Replica ready. Initial Score: {:.2}", r.score);
         r
     }
 

@@ -26,23 +26,15 @@ impl Store {
         result.is_some()
     }
 
-    /// Registers a job using the `register_full_job` Stored Procedure.
-    /// This normalizes the keyboard, weights, and params into their respective tables.
     pub async fn register_job(&self, job_id: &str, req: &RegisterJobRequest) -> Result<(), String> {
-        // 1. Validation
         if req.pinned_keys.len() > MAX_TEXT_LEN {
             return Err("Pinned keys configuration too large".into());
         }
 
-        // 2. Serialize Components to JSONB Values
-        // req.definition contains .meta and .geometry
         let meta_json = serde_json::to_value(&req.definition.meta).map_err(|e| e.to_string())?;
-
-        // We strip the geometry down to keys for the SP array input
         let keys_json =
             serde_json::to_value(&req.definition.geometry.keys).map_err(|e| e.to_string())?;
 
-        // Construct the slots object explicitly
         let slots_json = serde_json::json!({
             "prime_slots": req.definition.geometry.prime_slots,
             "med_slots": req.definition.geometry.med_slots,
@@ -50,12 +42,8 @@ impl Store {
         });
 
         let weights_json = serde_json::to_value(&req.weights).map_err(|e| e.to_string())?;
-
-        // FIXED: Removed '&' before req.params (Clippy fix)
         let params_json = serde_json::to_value(req.params).map_err(|e| e.to_string())?;
 
-        // 3. Call Stored Procedure
-        // register_full_job(job_id, meta, keys, slots, weights, params, pinned, corpus, cost)
         sqlx::query("SELECT register_full_job($1, $2, $3, $4, $5, $6, $7, $8, $9)")
             .bind(job_id)
             .bind(meta_json)
@@ -73,9 +61,7 @@ impl Store {
         Ok(())
     }
 
-    /// Fetches the most recent active job from the `v_active_jobs` view.
     pub async fn get_latest_job(&self) -> Result<Option<(String, RegisterJobRequest)>, String> {
-        // The view v_active_jobs reconstructs the JSONB objects we need
         let row = sqlx::query(
             r#"
             SELECT 
@@ -92,15 +78,10 @@ impl Store {
 
         if let Some(r) = row {
             let id: String = r.get("id");
-
-            // Deserialize normalized data back into Rust structs
-            // Note: The view constructs a partial KeyboardDefinition structure in geometry_json
             let definition: KeyboardDefinition = serde_json::from_value(r.get("geometry_json"))
                 .map_err(|e| format!("Corrupt Geometry JSON: {}", e))?;
-
             let weights: ScoringWeights = serde_json::from_value(r.get("weights_json"))
                 .map_err(|e| format!("Corrupt Weights JSON: {}", e))?;
-
             let params: SearchParams = serde_json::from_value(r.get("params_json"))
                 .map_err(|e| format!("Corrupt Params JSON: {}", e))?;
 
@@ -120,7 +101,6 @@ impl Store {
         }
     }
 
-    /// Registers a Worker Node and its Hardware capabilities.
     pub async fn register_node_hardware(
         &self,
         node_id: &str,
@@ -129,14 +109,14 @@ impl Store {
         l2_cache_kb: Option<i32>,
         ops_per_sec: f32,
     ) -> Result<(), String> {
-        // 1. Upsert Hardware Profile using Stored Procedure
+        // F32 -> REAL binding (Matched to schema.sql)
         sqlx::query("SELECT register_node_heartbeat($1, $2, $3, $4, $5, $6)")
             .bind(node_id)
             .bind(cpu_model)
             .bind(std::env::consts::ARCH)
             .bind(cores)
             .bind(l2_cache_kb)
-            .bind(ops_per_sec as f64)
+            .bind(ops_per_sec)
             .execute(&self.db)
             .await
             .map_err(|e| format!("Node Heartbeat Error: {}", e))?;
@@ -144,12 +124,10 @@ impl Store {
         Ok(())
     }
 
-    /// Retrieves configuration for a specific job ID.
     pub async fn get_job_config(
         &self,
         job_id: &str,
     ) -> Result<Option<(KeyboardGeometry, ScoringWeights, String, String)>, String> {
-        // We reconstruct the JSONB manually here to avoid relying on v_active_jobs filter
         let row = sqlx::query(
             r#"
             SELECT 
@@ -163,9 +141,9 @@ impl Store {
                         ) ORDER BY kk.idx)
                         FROM keyboard_keys kk WHERE kk.keyboard_id = k.id
                     ),
-                    'prime_slots', (SELECT jsonb_agg(idx) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
-                    'med_slots', (SELECT jsonb_agg(idx) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
-                    'low_slots', (SELECT jsonb_agg(idx) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
+                    'prime_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
+                    'med_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
+                    'low_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
                     'home_row', 1
                 ) as geometry_json,
                 to_jsonb(sp) - 'id' - 'config_hash' - 'created_at' as weights_json,
@@ -183,7 +161,6 @@ impl Store {
         .map_err(|e| e.to_string())?;
 
         if let Some(r) = row {
-            // Note: We only need Geometry for the worker to process results, not full definition
             let geo: KeyboardGeometry = serde_json::from_value(r.get("geometry_json"))
                 .map_err(|e| format!("Corrupt Geometry: {}", e))?;
 
@@ -196,9 +173,28 @@ impl Store {
         }
     }
 
+    /// Returns a population of layouts for a worker to seed from.
+    /// IMPLEMENTS CROSS-POLLINATION:
+    /// 1. Top 45 layouts from the current job (Evolution).
+    /// 2. Top 5 layouts from ANY job that uses the same Keyboard Geometry (Migration).
     pub async fn get_job_population(&self, job_id: &str) -> Result<Vec<String>, String> {
+        // We use UNION ALL to combine the local gene pool with the alien gene pool
         let rows = sqlx::query(
-            "SELECT layout FROM results WHERE job_id = $1 GROUP BY layout ORDER BY score ASC LIMIT 50"
+            r#"
+            (SELECT layout, MIN(score) as s FROM results 
+             WHERE job_id = $1 
+             GROUP BY layout 
+             ORDER BY s ASC 
+             LIMIT 45)
+            UNION ALL
+            (SELECT r.layout, MIN(r.score) as s FROM results r
+             JOIN jobs j ON r.job_id = j.id
+             WHERE j.keyboard_id = (SELECT keyboard_id FROM jobs WHERE id = $1)
+             AND r.job_id != $1
+             GROUP BY r.layout
+             ORDER BY s ASC 
+             LIMIT 5)
+            "#,
         )
         .bind(job_id)
         .fetch_all(&self.db)
