@@ -7,6 +7,7 @@ use keyforge_core::optimizer::{OptimizationOptions, Optimizer, ProgressCallback}
 use keyforge_core::protocol::{RegisterNodeRequest, RegisterNodeResponse, TuningProfile};
 use keyforge_core::scorer::Scorer;
 use reqwest::{header, Client};
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,7 +18,6 @@ struct WorkerLogger;
 
 impl ProgressCallback for WorkerLogger {
     fn on_progress(&self, _ep: usize, score: f32, _layout: &[u16], ips: f32) -> bool {
-        // Reduced log frequency to prevent spamming stdout on fast machines
         if fastrand::f32() < 0.01 {
             info!("   .. optimizing .. best: {:.0} ({:.1} M/s)", score, ips);
         }
@@ -53,31 +53,40 @@ async fn ensure_file(client: &Client, url: &str, local_path: &str) -> Result<(),
     Ok(())
 }
 
-async fn ensure_corpus_bundle(
+async fn ensure_corpora_for_job(
     client: &Client,
     hive_url: &str,
-    corpus_name: &str,
-) -> Result<String, String> {
-    let bundle_dir = if corpus_name == "default" {
-        "data/corpora/default".to_string()
-    } else {
-        format!("data/corpora/{}", corpus_name)
-    };
+    corpus_config: &str,
+) -> Result<(), String> {
+    // Parse the config string: "default:1.0,rust:0.5" -> ["default", "rust"]
+    let parts: Vec<&str> = corpus_config.split(',').collect();
+    let mut unique_names = HashSet::new();
 
-    let files = ["1grams.csv", "2grams.csv", "3grams.csv", "words.csv"];
-
-    for f in files {
-        let local = format!("{}/{}", bundle_dir, f);
-        let remote = format!("{}/{}/{}", hive_url, bundle_dir, f);
-
-        ensure_file(client, &remote, &local).await?;
+    for part in parts {
+        let segs: Vec<&str> = part.split(':').collect();
+        let name = segs[0].trim();
+        if !name.is_empty() {
+            unique_names.insert(name);
+        }
     }
 
-    Ok(bundle_dir)
+    // Download each unique corpus
+    for name in unique_names {
+        // Map "default" or "rust" to "data/corpora/{name}"
+        let bundle_dir = format!("data/corpora/{}", name);
+        let files = ["1grams.csv", "2grams.csv", "3grams.csv", "words.csv"];
+
+        for f in files {
+            let local = format!("{}/{}", bundle_dir, f);
+            let remote = format!("{}/{}/{}", hive_url, bundle_dir, f);
+            ensure_file(client, &remote, &local).await?;
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String>) {
-    // 1. Configure Auth Headers
     let mut headers = header::HeaderMap::new();
     if let Some(s) = secret {
         let mut auth_val = header::HeaderValue::from_str(&s).unwrap();
@@ -97,8 +106,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
     info!("🤖 Worker {} initializing...", node_id);
 
     let topo = hw_detect::detect_topology();
-    // Default cap, can be overridden by Hive response
-    let ops_per_sec = 5_000_000.0;
+    let ops_per_sec = 5_000_000.0; // Baseline guess, self-corrects later
 
     let req = RegisterNodeRequest {
         node_id: node_id.clone(),
@@ -108,7 +116,6 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
         ops_per_sec,
     };
 
-    // 2. Register
     let default_threads = (req.cores - 1).max(1) as usize;
     let default_tuning = TuningProfile {
         strategy: "fly".into(),
@@ -174,7 +181,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
 
         info!("📋 Processing Job: {}", &job_id[0..8]);
 
-        // Download Assets
+        // 1. Download Cost Matrix
         let cost_local = format!("data/{}", config.cost_matrix);
         let cost_remote = format!("{}/data/{}", hive_url, config.cost_matrix);
         if let Err(e) = ensure_file(&client, &cost_remote, &cost_local).await {
@@ -183,23 +190,21 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
             continue;
         }
 
-        let corpus_dir = match ensure_corpus_bundle(&client, &hive_url, &config.corpus_name).await {
-            Ok(d) => d,
-            Err(e) => {
-                warn!("Failed to download corpus bundle: {}", e);
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-        };
+        // 2. Download Corpora (Parsed from config string)
+        if let Err(e) = ensure_corpora_for_job(&client, &hive_url, &config.corpus_name).await {
+            warn!("Failed to download corpora: {}", e);
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            continue;
+        }
 
+        // 3. Init Scorer
         let current_sig = format!(
             "{}-{}-{}",
             config.definition.geometry.keys.len(),
             cost_local,
-            corpus_dir
+            config.corpus_name // Use config string as signature
         );
 
-        // Rebuild Scorer if configuration changed (Cache Check)
         if cached_scorer.is_none() || cached_config_sig != current_sig {
             let scorer_config = Config {
                 weights: config.weights.clone(),
@@ -207,9 +212,12 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
                 ..Default::default()
             };
 
+            // We pass the raw config string (e.g. "default:1.0,rust:0.5") as the 'corpus_dir'.
+            // The Scorer loader logic we updated in Core will see this doesn't exist as a file,
+            // fall back to looking in "data/corpora", and parse the blending string.
             match Scorer::new(
                 &cost_local,
-                &corpus_dir,
+                &config.corpus_name, // <-- Pass the config string here
                 &config.definition.geometry,
                 scorer_config,
                 false,
@@ -229,7 +237,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
         active_scorer.weights = config.weights.clone();
         let scorer_arc = Arc::new(active_scorer);
 
-        // Fetch Population
+        // 4. Fetch Population
         let pop_resp: PopulationResponse = match client
             .get(format!("{}/jobs/{}/population", hive_url, job_id))
             .send()
@@ -242,7 +250,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
             Err(_) => PopulationResponse { layouts: vec![] },
         };
 
-        // Configure Optimizer
+        // 5. Optimize
         let sys_config = Config {
             weights: config.weights,
             search: config.params,
@@ -260,9 +268,7 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
             .map(|s| layout_string_to_u16(s, key_count, &registry_arc))
             .collect();
 
-        // --- SAFETY: ISOLATE THE OPTIMIZER ---
-        // If the optimizer crashes (e.g., bad geometry vs pinned keys), we catch the panic
-        // and prevent the Node from dying.
+        // 6. Safe Execution
         let optimization_task = tokio::task::spawn_blocking(move || {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let optimizer = Optimizer::new(scorer_arc, options);
@@ -271,50 +277,44 @@ pub async fn run_worker(hive_url: String, node_id: String, secret: Option<String
         });
 
         match optimization_task.await {
-            Ok(run_result) => {
-                match run_result {
-                    Ok(result) => {
-                        // Success: Submit
-                        let layout_str = result
-                            .layout
-                            .iter()
-                            .map(|&c| registry_arc.get_label(c))
-                            .collect::<Vec<String>>()
-                            .join(" ");
+            Ok(run_result) => match run_result {
+                Ok(result) => {
+                    let layout_str = result
+                        .layout
+                        .iter()
+                        .map(|&c| registry_arc.get_label(c))
+                        .collect::<Vec<String>>()
+                        .join(" ");
 
-                        let submit_req = SubmitResultRequest {
-                            job_id: job_id.clone(),
-                            layout: layout_str,
-                            score: result.score,
-                            node_id: node_id.clone(),
-                        };
+                    let submit_req = SubmitResultRequest {
+                        job_id: job_id.clone(),
+                        layout: layout_str,
+                        score: result.score,
+                        node_id: node_id.clone(),
+                    };
 
-                        if let Err(e) = client
-                            .post(format!("{}/results", hive_url))
-                            .json(&submit_req)
-                            .send()
-                            .await
-                        {
-                            error!("Failed to submit result: {}", e);
-                        }
-                    }
-                    Err(panic_err) => {
-                        // Panic caught inside the closure
-                        let msg = if let Some(s) = panic_err.downcast_ref::<&str>() {
-                            *s
-                        } else if let Some(s) = panic_err.downcast_ref::<String>() {
-                            s
-                        } else {
-                            "Unknown Panic"
-                        };
-                        error!("🔥 CRITICAL: Optimizer Panicked on Job {}: {}", job_id, msg);
-                        // We skip this job loop iteration, effectively dropping the poison job
-                        tokio::time::sleep(Duration::from_secs(2)).await;
+                    if let Err(e) = client
+                        .post(format!("{}/results", hive_url))
+                        .json(&submit_req)
+                        .send()
+                        .await
+                    {
+                        error!("Failed to submit result: {}", e);
                     }
                 }
-            }
+                Err(panic_err) => {
+                    let msg = if let Some(s) = panic_err.downcast_ref::<&str>() {
+                        *s
+                    } else if let Some(s) = panic_err.downcast_ref::<String>() {
+                        s
+                    } else {
+                        "Unknown Panic"
+                    };
+                    error!("🔥 CRITICAL: Optimizer Panicked on Job {}: {}", job_id, msg);
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
+            },
             Err(join_err) => {
-                // Task failed to join (e.g. cancelled or panic propagated weirdly)
                 error!("🔥 CRITICAL: Worker thread crashed: {}", join_err);
                 tokio::time::sleep(Duration::from_secs(2)).await;
             }
