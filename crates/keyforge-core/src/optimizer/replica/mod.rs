@@ -8,7 +8,6 @@ use crate::optimizer::mutation;
 use crate::scorer::Scorer;
 use fastrand::Rng;
 use std::sync::Arc;
-use tracing::{debug, warn}; // FIXED: Removed unused `info`
 
 type CompactPosMap = [u8; 256];
 
@@ -22,6 +21,7 @@ pub struct Replica {
     pub left_load: f32,
     pub total_freq: f32,
     pub temperature: f32,
+    pub temp_scale: f32,
     pub current_limit: usize,
     pub limit_fast: usize,
     pub limit_slow: usize,
@@ -41,9 +41,6 @@ impl Replica {
         limit_slow: usize,
         pinned_keys_str: &str,
     ) -> Self {
-        // INSTRUMENTATION: Log start
-        debug!("Replica::new() started. Temp: {:.2}", temperature);
-
         let mut rng = if let Some(s) = seed {
             Rng::with_seed(s)
         } else {
@@ -55,8 +52,6 @@ impl Replica {
 
         let mut layout;
         let mut pos_map;
-        let mut attempts = 0;
-        let max_attempts = 1000;
 
         loop {
             layout = mutation::generate_tiered_layout(
@@ -68,24 +63,9 @@ impl Replica {
             );
             pos_map = mutation::build_pos_map(&layout);
             let critical = scorer.defs.get_critical_bigrams();
-
             if !mutation::fails_sanity(&pos_map, &critical, &scorer.geometry) {
                 break;
             }
-
-            attempts += 1;
-            if attempts >= max_attempts {
-                warn!("⚠️ Optimizer Warning: Could not generate sanity-compliant start layout after {} attempts. Starting with potential collisions.", max_attempts);
-                break;
-            }
-        }
-
-        // INSTRUMENTATION: Log attempts if high
-        if attempts > 10 {
-            debug!(
-                "Replica generation took {} attempts to satisfy sanity check.",
-                attempts
-            );
         }
 
         let start_limit = if temperature > 10.0 {
@@ -100,6 +80,8 @@ impl Replica {
             compact_map[i] = p;
         }
 
+        let temp_scale = key_count as f32 * 8.0;
+
         let mut r = Replica {
             scorer,
             layout,
@@ -109,6 +91,7 @@ impl Replica {
             left_load: left,
             total_freq: total,
             temperature,
+            temp_scale,
             current_limit: start_limit,
             limit_fast,
             limit_slow,
@@ -122,18 +105,29 @@ impl Replica {
         let imb = r.imbalance_penalty(left);
         r.score += imb;
         r.update_mutation_weights();
-
-        debug!("Replica ready. Initial Score: {:.2}", r.score);
         r
     }
 
     pub fn inject_layout(&mut self, new_layout: &[KeyCode]) {
-        self.layout = new_layout.to_vec();
+        let kc = self.scorer.key_count;
+
+        let mut safe_layout = new_layout.to_vec();
+        if safe_layout.len() > kc {
+            safe_layout.truncate(kc);
+        } else {
+            while safe_layout.len() < kc {
+                safe_layout.push(0);
+            }
+        }
+
+        self.layout = safe_layout;
         self.pos_map = mutation::build_pos_map(&self.layout);
+
         self.compact_map.fill(KEY_NOT_FOUND_U8);
         for (i, &p) in self.pos_map.iter().take(256).enumerate() {
             self.compact_map[i] = p;
         }
+
         let (base, left, total) = self.scorer.score_full(&self.pos_map, self.current_limit);
         let imb = self.imbalance_penalty(left);
         self.score = base + imb;

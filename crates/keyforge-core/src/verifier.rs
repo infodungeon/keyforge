@@ -3,12 +3,10 @@ use crate::config::Config;
 use crate::geometry::KeyboardGeometry;
 use crate::keycodes::KeycodeRegistry;
 use crate::layouts::layout_string_to_u16;
-use crate::optimizer::mutation;
+use crate::optimizer::mutation; // Works now
 use crate::scorer::{ScoreDetails, Scorer};
 use std::path::Path;
 use std::sync::Arc;
-use tracing::{info, warn};
-
 pub struct Verifier {
     scorer: Arc<Scorer>,
     registry: Arc<KeycodeRegistry>,
@@ -17,17 +15,12 @@ pub struct Verifier {
 impl Verifier {
     pub fn new(
         cost_path: &str,
-        ngrams_path: &str,
+        corpus_dir: &str, // Changed to match Scorer API
         geometry: &KeyboardGeometry,
         config: Config,
         registry_path: &str,
     ) -> Result<Self, String> {
-        info!(
-            "Verifier Init: Trigram Limit={}, Corpus Scale={}",
-            config.weights.loader_trigram_limit, config.weights.corpus_scale
-        );
-
-        let scorer = Scorer::new(cost_path, ngrams_path, geometry, config, false)
+        let scorer = Scorer::new(cost_path, corpus_dir, geometry, config, false)
             .map_err(|e| e.to_string())?;
 
         let registry = if Path::new(registry_path).exists() {
@@ -53,29 +46,26 @@ impl Verifier {
         claimed_score: f32,
         tolerance: f32,
     ) -> Result<bool, String> {
-        let details = self.score_details(layout_str.clone());
+        let details = self.score_details(layout_str);
         let diff = (details.layout_score - claimed_score).abs();
 
-        if diff > tolerance {
-            warn!(
-                "Score verification mismatch. Claimed: {:.2}, Calculated: {:.2}, Diff: {:.2}",
-                claimed_score, details.layout_score, diff
-            );
+        if diff <= tolerance {
+            Ok(true)
         } else {
-            info!("Verification Passed. Diff: {:.2}", diff);
+            tracing::warn!(
+                "Score verification mismatch. Claimed: {:.2}, Calculated: {:.2}, Diff: {:.2}",
+                claimed_score,
+                details.layout_score,
+                diff
+            );
+            Ok(false)
         }
-
-        // In a strict production system, return false here if diff > tolerance.
-        // For now, we return true to allow operation while tuning floats.
-        Ok(true)
     }
 
     pub fn score_details(&self, layout_str: String) -> ScoreDetails {
         let key_count = self.scorer.key_count;
         let layout_codes = layout_string_to_u16(&layout_str, key_count, &self.registry);
         let pos_map = mutation::build_pos_map(&layout_codes);
-
-        // Use MAX to verify against full loaded corpus
-        self.scorer.score_details(&pos_map, usize::MAX)
+        self.scorer.score_details(&pos_map, 3000)
     }
 }

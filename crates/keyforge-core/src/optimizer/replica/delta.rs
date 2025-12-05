@@ -1,3 +1,4 @@
+// ===== keyforge/crates/keyforge-core/src/optimizer/replica/delta.rs =====
 use super::Replica;
 use crate::consts::KEY_NOT_FOUND_U8;
 
@@ -16,7 +17,6 @@ impl Replica {
             return 0.0;
         }
 
-        // Optimization: Use get_unchecked for freq access as char < 256 is checked
         let freq_a = if char_a < 256 {
             unsafe { *self.scorer.char_freqs.get_unchecked(char_a) }
         } else {
@@ -28,7 +28,6 @@ impl Replica {
             0.0
         };
 
-        // Access shared read-only memory from Scorer
         unsafe {
             d += (*self.scorer.slot_monogram_costs.get_unchecked(idx_b)
                 - *self.scorer.slot_monogram_costs.get_unchecked(idx_a))
@@ -38,7 +37,6 @@ impl Replica {
                 * freq_b;
         }
 
-        // Tier Penalty
         if char_a < 256 && char_b < 256 {
             unsafe {
                 let tier_char_a = *self.scorer.char_tier_map.get_unchecked(char_a) as usize;
@@ -96,7 +94,6 @@ impl Replica {
 
         let n = self.scorer.key_count;
         let mut d = 0.0;
-        // Direct pointer to shared matrix to avoid bounds check overhead
         let cost_ptr = self.scorer.full_cost_matrix.as_ptr();
 
         let mut process_neighbors = |c_main: usize, idx_old: usize, idx_new: usize| {
@@ -109,18 +106,22 @@ impl Replica {
 
                 for i in start..end {
                     let other = *self.scorer.bigrams_others.get_unchecked(i) as usize;
-                    // USE COMPACT MAP (L1 Cache)
                     let p_other = *self.compact_map.get_unchecked(other) as usize;
 
                     if p_other != KEY_NOT_FOUND_U8 as usize {
+                        // SAFETY CHECK in Debug mode
+                        debug_assert!(
+                            p_other < n,
+                            "Compact Map contained invalid index: {}",
+                            p_other
+                        );
+
                         let freq = *self.scorer.bigrams_freqs.get_unchecked(i);
                         if *self.scorer.bigrams_self_first.get_unchecked(i) {
-                            // self -> other
                             let c_old = *cost_ptr.add(idx_old * n + p_other);
                             let c_new = *cost_ptr.add(idx_new * n + p_other);
                             d += (c_new - c_old) * freq;
                         } else {
-                            // other -> self
                             let c_old = *cost_ptr.add(p_other * n + idx_old);
                             let c_new = *cost_ptr.add(p_other * n + idx_new);
                             d += (c_new - c_old) * freq;
@@ -133,7 +134,6 @@ impl Replica {
         process_neighbors(char_a, idx_a, idx_b);
         process_neighbors(char_b, idx_b, idx_a);
 
-        // Handle internal swap (A <-> B interaction)
         if char_a < 256 && char_b < 256 {
             unsafe {
                 let freq_ab = *self.scorer.freq_matrix.get_unchecked(char_a * 256 + char_b);
@@ -154,7 +154,6 @@ impl Replica {
                     d += (cab + cba - caa - cbb) * freq_ba;
                 }
 
-                // Self-bigrams (AA, BB)
                 let freq_aa = *self.scorer.freq_matrix.get_unchecked(char_a * 256 + char_a);
                 if freq_aa > 0.0 {
                     d += (*cost_ptr.add(idx_b * n + idx_b) - *cost_ptr.add(idx_a * n + idx_a))
@@ -182,8 +181,6 @@ impl Replica {
         let mut d = 0.0;
         let n = self.scorer.key_count;
         let n_sq = n * n;
-
-        // Direct pointer access for trigram table
         let tri_ptr = self.scorer.trigram_cost_table.as_ptr();
 
         let mut process = |c: usize, is_a: bool| {
@@ -196,7 +193,6 @@ impl Replica {
                 let len = end - start;
                 let eff_limit = if len < limit { len } else { limit };
 
-                // Get slice pointer for faster iteration
                 let trigrams = self
                     .scorer
                     .trigrams_flat
@@ -210,11 +206,14 @@ impl Replica {
                         continue;
                     }
 
-                    // USE COMPACT MAP (L1 Cache)
                     let p1_old = *self.compact_map.get_unchecked(o1) as usize;
                     let p2_old = *self.compact_map.get_unchecked(o2) as usize;
 
                     if p1_old != KEY_NOT_FOUND_U8 as usize && p2_old != KEY_NOT_FOUND_U8 as usize {
+                        // SAFETY CHECKS in Debug
+                        debug_assert!(p1_old < n, "Trigram P1 Out of bounds: {}", p1_old);
+                        debug_assert!(p2_old < n, "Trigram P2 Out of bounds: {}", p2_old);
+
                         let p1_new = if o1 == char_a {
                             idx_b
                         } else if o1 == char_b {
@@ -233,8 +232,6 @@ impl Replica {
                         let p_c_old = if is_a { idx_a } else { idx_b };
                         let p_c_new = if is_a { idx_b } else { idx_a };
 
-                        // Direct pointer arithmetic for 3D array access
-                        // idx = i*N^2 + j*N + k
                         let (cost_old, cost_new) = match t.role {
                             0 => (
                                 *tri_ptr.add(p_c_old * n_sq + p1_old * n + p2_old),
@@ -264,20 +261,17 @@ impl Replica {
     #[inline(always)]
     pub fn calc_delta(&self, idx_a: usize, idx_b: usize, trigram_limit: usize) -> (f32, f32) {
         unsafe {
-            // Unchecked here is safe because indices are from 0..key_count
             let char_a = *self.layout.get_unchecked(idx_a) as usize;
             let char_b = *self.layout.get_unchecked(idx_b) as usize;
 
             let mut delta_score = self.calc_monogram_delta(idx_a, idx_b, char_a, char_b);
 
-            // Optimization: Fail fast if monogram swap makes it wildly worse
             if delta_score > (self.temperature * 50.0) {
                 return (f32::INFINITY, 0.0);
             }
 
             delta_score += self.calc_bigram_delta(idx_a, idx_b, char_a, char_b);
 
-            // Optimization: Fail fast before expensive trigrams
             if delta_score > (self.temperature * 50.0) {
                 return (f32::INFINITY, 0.0);
             }
@@ -285,7 +279,6 @@ impl Replica {
             delta_score += self.calc_trigram_delta(idx_a, idx_b, char_a, char_b, trigram_limit);
 
             let mut delta_left_load = 0.0;
-            // Access geometry via scorer pointer
             let is_left_a = self.scorer.geometry.keys.get_unchecked(idx_a).hand == 0;
             let is_left_b = self.scorer.geometry.keys.get_unchecked(idx_b).hand == 0;
 

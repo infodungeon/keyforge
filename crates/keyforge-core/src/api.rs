@@ -3,7 +3,7 @@ use crate::config::{Config, ScoringWeights};
 use crate::geometry::KeyboardDefinition;
 use crate::keycodes::KeycodeRegistry;
 use crate::layouts::layout_string_to_u16;
-use crate::optimizer::mutation;
+use crate::optimizer::mutation; // This works now because optimizer/mod.rs has `pub mod mutation`
 use crate::scorer::{ScoreDetails, Scorer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

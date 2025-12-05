@@ -1,13 +1,13 @@
 // ===== keyforge/crates/keyforge-core/src/optimizer/replica/anneal.rs =====
 use super::Replica;
-use crate::consts::ANNEAL_TEMP_SCALE;
 use crate::core_types::KeyCode;
 use crate::optimizer::mutation;
 use itertools::Itertools;
 
 #[inline(always)]
-fn fast_exp(x: f32) -> f32 {
-    let x = 1.0 + x / ANNEAL_TEMP_SCALE;
+fn fast_exp(x: f32, scale: f32) -> f32 {
+    // Dynamic scaling based on geometry size
+    let x = 1.0 + x / scale;
     let x = x * x * x * x * x * x * x * x;
     x * x
 }
@@ -88,12 +88,10 @@ impl Replica {
         }
 
         if found_better {
-            // Full recalc on LNS success (implicitly corrects drift)
             let (_, left, _) = self.scorer.score_full(&self.pos_map, self.current_limit);
             self.left_load = left;
             self.score = best_score;
 
-            // Rebuild compact map
             for (i, &p) in self.pos_map.iter().take(256).enumerate() {
                 self.compact_map[i] = p;
             }
@@ -124,15 +122,11 @@ impl Replica {
                 self.update_mutation_weights();
             }
 
-            // === DRIFT CHECK (NEW) ===
-            // Every 5000 steps, force a full recalculation to correct floating point drift
             if step > 0 && step % 5000 == 0 {
                 let (real_base, real_left, _) =
                     self.scorer.score_full(&self.pos_map, self.current_limit);
                 let real_total = real_base + self.imbalance_penalty(real_left);
 
-                // If drift is significant (> 0.01), snap to reality
-                // This is not a bug in logic, but a reality of f32 accumulation over millions of adds/subs
                 if (self.score - real_total).abs() > 0.01 {
                     self.score = real_total;
                     self.left_load = real_left;
@@ -177,7 +171,10 @@ impl Replica {
                 continue;
             }
 
-            if total_delta < 0.0 || self.rng.f32() < fast_exp(-total_delta / self.temperature) {
+            // Updated: Pass temp_scale to fast_exp
+            if total_delta < 0.0
+                || self.rng.f32() < fast_exp(-total_delta / self.temperature, self.temp_scale)
+            {
                 self.layout.swap(idx_a, idx_b);
                 let char_a = self.layout[idx_a];
                 let char_b = self.layout[idx_b];
@@ -207,7 +204,6 @@ impl Replica {
                 if is_risky
                     && mutation::fails_sanity(&self.pos_map, &critical, &self.scorer.geometry)
                 {
-                    // Revert
                     self.layout.swap(idx_a, idx_b);
                     if char_a != 0 {
                         self.pos_map[char_a as usize] = idx_b as u8;
