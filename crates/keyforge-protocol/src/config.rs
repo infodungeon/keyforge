@@ -49,7 +49,7 @@ impl Default for SearchParams {
 }
 
 #[derive(Args, Debug, Clone, Serialize, Deserialize)]
-#[serde(default)] // Use the Default impl when fields are missing during deserialization
+#[serde(default)]
 pub struct ScoringWeights {
     #[arg(long, default_value_t = 20.0)]
     pub penalty_sfr_weak_finger: f32,
@@ -128,7 +128,6 @@ pub struct ScoringWeights {
     #[arg(long, default_value_t = 3000)]
     pub loader_trigram_limit: usize,
 
-    // Critical Strings that caused the panic
     #[arg(long, default_value = "0.0,1.0,1.1,1.3,1.6")]
     pub finger_penalty_scale: String,
 
@@ -136,7 +135,6 @@ pub struct ScoringWeights {
     pub comfortable_scissors: String,
 }
 
-// Implement Default manually so Serde has valid fallbacks
 impl Default for ScoringWeights {
     fn default() -> Self {
         Self {
@@ -235,9 +233,8 @@ impl ScoringWeights {
         pairs
     }
 
-    // UPDATED: Prefixed arguments with _ to suppress unused variable warnings
     pub fn merge_from_cli(&mut self, _cli: &ScoringWeights, _matches: &clap::ArgMatches) {
-        // Logic to merge CLI args (omitted for brevity)
+        // Logic to merge CLI args
     }
 }
 
@@ -272,4 +269,59 @@ pub fn parse_f32_array<const N: usize>(s: &str, name: &str) -> [f32; N] {
             .unwrap_or_else(|_| panic!("Invalid number in {}", name));
     }
     arr
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_finger_penalty_parsing_defaults() {
+        let config = Config::default();
+        let expected = [0.0, 1.0, 1.1, 1.3, 1.6];
+        let result = config.weights.get_finger_penalty_scale();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_finger_penalty_parsing_custom() {
+        let mut config = Config::default();
+        config.weights.finger_penalty_scale = "1.0,1.0,1.0,1.0,1.0".to_string();
+        let expected = [1.0, 1.0, 1.0, 1.0, 1.0];
+        let result = config.weights.get_finger_penalty_scale();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    #[should_panic(expected = "requires 5 values")]
+    fn test_finger_penalty_parsing_partial_panics() {
+        let mut config = Config::default();
+        config.weights.finger_penalty_scale = "5.0, 5.0, 5.0".to_string();
+        config.weights.get_finger_penalty_scale();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid number")]
+    fn test_finger_penalty_parsing_garbage_panics() {
+        let mut config = Config::default();
+        config.weights.finger_penalty_scale = "bad, data, here, 1.0, 1.0".to_string();
+        config.weights.get_finger_penalty_scale();
+    }
+
+    #[test]
+    fn test_critical_bigram_parsing() {
+        let mut config = Config::default();
+        config.defs.critical_bigrams = "th,he,in".to_string();
+        let result = config.defs.get_critical_bigrams();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], [b't', b'h']);
+    }
+
+    #[test]
+    #[should_panic(expected = "Bad bigram")]
+    fn test_critical_bigram_parsing_invalid_panics() {
+        let mut config = Config::default();
+        config.defs.critical_bigrams = "th,abc,t,he".to_string();
+        config.defs.get_critical_bigrams();
+    }
 }

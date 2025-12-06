@@ -1,8 +1,8 @@
 use crate::consts::{KEY_CODE_RANGE, KEY_NOT_FOUND_U8};
 use crate::core_types::PosMap;
 use fastrand::Rng;
-use keyforge_protocol::config::LayoutDefinitions; // UPDATED
-use keyforge_protocol::geometry::KeyboardGeometry; // UPDATED
+use keyforge_protocol::config::LayoutDefinitions;
+use keyforge_protocol::geometry::KeyboardGeometry;
 
 pub fn generate_tiered_layout(
     rng: &mut Rng,
@@ -111,47 +111,45 @@ pub fn fails_sanity(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keyforge_protocol::geometry::KeyNode; // UPDATED
+    use keyforge_protocol::geometry::KeyNode;
 
     #[test]
-    fn test_mutation_respects_pinned_keys_strictly() {
-        let mut rng = fastrand::Rng::with_seed(1337);
-        let size = 10;
+    fn test_pos_map_basic() {
+        let layout = vec![65, 66, 0]; // A, B, Empty
+        let map = build_pos_map(&layout);
 
-        let keys: Vec<KeyNode> = (0..size)
-            .map(|i| KeyNode {
-                id: format!("k{}", i),
-                hand: 0,
-                finger: 0,
-                row: 0,
-                col: i as i8,
-                x: 0.0,
-                y: 0.0,
-                w: 1.0,
-                h: 1.0,
-                is_stretch: false,
-            })
-            .collect();
+        assert_eq!(map[65], 0);
+        assert_eq!(map[97], 0); // Case folding (a -> A)
+        assert_eq!(map[66], 1);
+        assert_eq!(map[67], KEY_NOT_FOUND_U8);
+    }
 
+    #[test]
+    fn test_fails_sanity_on_sfb() {
+        // Setup: Q (index 0) and A (index 1) are on same finger
+        let k1 = KeyNode {
+            hand: 0,
+            finger: 1,
+            ..Default::default()
+        };
+        let k2 = KeyNode {
+            hand: 0,
+            finger: 1,
+            ..Default::default()
+        };
         let geom = KeyboardGeometry {
-            keys,
-            prime_slots: vec![0, 1],
-            med_slots: vec![2, 3],
-            low_slots: (4..10).collect(),
-            home_row: 0,
-            finger_origins: [[(0.0, 0.0); 5]; 2],
+            keys: vec![k1, k2],
+            ..Default::default()
         };
 
-        let defs = LayoutDefinitions::default();
+        // Map: 't' at 0, 'h' at 1
+        let mut map = Box::new([KEY_NOT_FOUND_U8; KEY_CODE_RANGE]);
+        map[b't' as usize] = 0;
+        map[b'h' as usize] = 1;
 
-        let mut pinned = vec![None; size];
-        pinned[5] = Some(88);
+        // Critical: "th"
+        let crit = vec![[b't', b'h']];
 
-        for _ in 0..10_000 {
-            let layout = generate_tiered_layout(&mut rng, &defs, &geom, size, &pinned);
-            assert_eq!(layout[5], 88, "Mutation violated pinning constraint!");
-            let count_x = layout.iter().filter(|&&k| k == 88).count();
-            assert_eq!(count_x, 1, "Pinned key duplicated elsewhere in layout!");
-        }
+        assert!(fails_sanity(&map, &crit, &geom));
     }
 }

@@ -1,5 +1,5 @@
 use super::physics::KeyInteraction;
-use keyforge_protocol::config::ScoringWeights; // UPDATED
+use keyforge_protocol::config::ScoringWeights;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CostCategory {
@@ -113,4 +113,44 @@ pub fn calculate_cost(m: &KeyInteraction, w: &ScoringWeights) -> CostResult {
     }
 
     res
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sfb_weak_finger_scaling() {
+        let w = ScoringWeights::default();
+        // Setup: Basic SFB on Pinky (Weak)
+        // is_lat_step = false (standard SFB)
+        // strong_finger = false
+        // Base penalty should be multiplied by weight_weak_finger_sfb
+        let inter = KeyInteraction {
+            is_same_hand: true,
+            is_sfb: true,
+            finger: 4, // Pinky
+            is_strong_finger: false,
+            ..Default::default()
+        };
+
+        let res = calculate_cost(&inter, &w);
+
+        let expected = w.penalty_sfb_base * w.weight_weak_finger_sfb;
+        assert!((res.penalty_multiplier - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_roll_bonus_accumulates() {
+        let w = ScoringWeights::default();
+        // Setup: Roll In
+        let inter = KeyInteraction {
+            is_roll_in: true,
+            is_same_hand: false, // Different hands still get roll bonuses
+            ..Default::default()
+        };
+
+        let res = calculate_cost(&inter, &w);
+        assert_eq!(res.flow_bonus, w.bonus_bigram_roll_in);
+    }
 }

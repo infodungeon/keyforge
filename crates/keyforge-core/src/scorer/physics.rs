@@ -1,5 +1,5 @@
-use keyforge_protocol::config::ScoringWeights; // UPDATED
-use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry}; // UPDATED
+use keyforge_protocol::config::ScoringWeights;
+use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry};
 use std::cmp::Ordering;
 
 // --- API RE-EXPORTS ---
@@ -126,4 +126,88 @@ pub fn analyze_interaction(
     }
 
     res
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Mock Helper
+    fn make_key(id: usize, hand: u8, finger: u8, row: i8, col: i8) -> KeyNode {
+        KeyNode {
+            id: id.to_string(),
+            hand,
+            finger,
+            row,
+            col,
+            x: col as f32,
+            y: row as f32,
+            w: 1.0,
+            h: 1.0,
+            is_stretch: false,
+        }
+    }
+
+    #[test]
+    fn test_sfb_detection() {
+        // Same finger (1), different rows (0 vs 2) -> SFB
+        let k1 = make_key(0, 0, 1, 0, 0);
+        let k2 = make_key(1, 0, 1, 2, 0);
+        let geom = KeyboardGeometry {
+            keys: vec![k1, k2],
+            ..Default::default()
+        };
+        let w = ScoringWeights::default();
+
+        let res = analyze_interaction(&geom, 0, 1, &w);
+        assert!(res.is_sfb);
+        assert_eq!(res.row_diff, 2);
+    }
+
+    #[test]
+    fn test_scissor_detection() {
+        // Adjacent fingers (2 vs 3), steep row diff (0 vs 2) -> Scissor
+        let k1 = make_key(0, 0, 2, 0, 2); // Middle Top
+        let k2 = make_key(1, 0, 3, 2, 3); // Ring Bottom
+        let geom = KeyboardGeometry {
+            keys: vec![k1, k2],
+            ..Default::default()
+        };
+        let w = ScoringWeights::default();
+
+        let res = analyze_interaction(&geom, 0, 1, &w);
+        assert!(!res.is_sfb);
+        assert!(res.is_scissor);
+    }
+
+    #[test]
+    fn test_roll_logic() {
+        // Index (1) -> Ring (3). 1 < 3. Should be Roll Out.
+        let k1 = make_key(0, 0, 1, 1, 1);
+        let k2 = make_key(1, 0, 3, 1, 3);
+        let geom = KeyboardGeometry {
+            keys: vec![k1, k2],
+            ..Default::default()
+        };
+        let w = ScoringWeights::default();
+
+        let res = analyze_interaction(&geom, 0, 1, &w);
+        assert!(res.is_roll_out);
+        assert!(!res.is_roll_in);
+    }
+
+    #[test]
+    fn test_different_hands_ignored() {
+        let k1 = make_key(0, 0, 1, 1, 1); // Left
+        let k2 = make_key(1, 1, 1, 1, 8); // Right
+        let geom = KeyboardGeometry {
+            keys: vec![k1, k2],
+            ..Default::default()
+        };
+        let w = ScoringWeights::default();
+
+        let res = analyze_interaction(&geom, 0, 1, &w);
+        assert!(!res.is_same_hand);
+        assert!(!res.is_sfb); // Cannot be SFB if diff hands
+    }
 }

@@ -16,30 +16,23 @@ pub struct Replica {
     pub layout: Layout,
     pub pos_map: PosMap,
     pub compact_map: CompactPosMap,
-
-    // Scoring State
     pub score: f32,
     pub left_load: f32,
     pub total_freq: f32,
-
-    // Annealing State
     pub temperature: f32,
     pub temp_scale: f32,
-
-    // Adaptive Logic (Dr. Solon's Upgrade)
-    pub stagnation_counter: usize,
-    pub last_best_score: f32,
-
-    // Performance Control
     pub current_limit: usize,
     pub limit_fast: usize,
     pub limit_slow: usize,
-
     pub rng: Rng,
     pub pinned_slots: Vec<Option<KeyCode>>,
     pub locked_indices: Vec<usize>,
     pub mutation_weights: Vec<f32>,
     pub total_weight: f32,
+
+    // ADDED for anti-stagnation
+    pub last_best_score: f32,
+    pub stagnation_counter: usize,
 }
 
 impl Replica {
@@ -102,8 +95,6 @@ impl Replica {
             total_freq: total,
             temperature,
             temp_scale,
-            stagnation_counter: 0,
-            last_best_score: f32::MAX,
             current_limit: start_limit,
             limit_fast,
             limit_slow,
@@ -112,10 +103,15 @@ impl Replica {
             locked_indices,
             mutation_weights: vec![1.0; key_count],
             total_weight: key_count as f32,
+
+            // Initialize fields
+            last_best_score: base,
+            stagnation_counter: 0,
         };
 
         let imb = r.imbalance_penalty(left);
         r.score += imb;
+        r.last_best_score = r.score;
         r.update_mutation_weights();
         r
     }
@@ -145,11 +141,9 @@ impl Replica {
         self.score = base + imb;
         self.left_load = left;
         self.total_freq = total;
-        self.update_mutation_weights();
-
-        // Reset adaptive stats on injection
+        self.last_best_score = self.score; // Reset stagnation tracking on inject
         self.stagnation_counter = 0;
-        self.last_best_score = self.score;
+        self.update_mutation_weights();
     }
 
     pub fn update_mutation_weights(&mut self) {
@@ -201,4 +195,107 @@ fn parse_pins(input: &str, count: usize) -> (Vec<Option<KeyCode>>, Vec<usize>) {
         }
     }
     (slots, indices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scorer::loader::{CorpusBundle, RawCostData};
+    use crate::scorer::ScorerBuildParams;
+    use keyforge_protocol::config::{LayoutDefinitions, ScoringWeights}; // UPDATED: Remove Config
+    use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry};
+
+    fn get_mock_scorer() -> Arc<Scorer> {
+        let keys = vec![
+            KeyNode {
+                id: "k0".into(),
+                hand: 0,
+                finger: 1,
+                row: 0,
+                col: 0,
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+                is_stretch: false,
+            },
+            KeyNode {
+                id: "k1".into(),
+                hand: 0,
+                finger: 2,
+                row: 0,
+                col: 1,
+                x: 1.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+                is_stretch: false,
+            },
+        ];
+        let mut geom = KeyboardGeometry {
+            keys,
+            prime_slots: vec![],
+            med_slots: vec![],
+            low_slots: vec![],
+            home_row: 0,
+            finger_origins: [[(0.0, 0.0); 5]; 2],
+        };
+        geom.calculate_origins();
+
+        let mut bundle = CorpusBundle::default();
+        bundle.char_freqs[b'a' as usize] = 100.0;
+        bundle.char_freqs[b'b' as usize] = 100.0;
+        bundle.bigrams.push((b'a', b'b', 50.0));
+
+        let scorer = ScorerBuildParams::builder()
+            .geometry(geom)
+            .weights(ScoringWeights::default())
+            .defs(LayoutDefinitions::default())
+            .cost_data(RawCostData::default())
+            .corpus(bundle)
+            .build()
+            .build_scorer()
+            .expect("Scorer failed");
+
+        Arc::new(scorer)
+    }
+
+    #[test]
+    fn test_delta_consistency() {
+        let scorer = get_mock_scorer();
+        let mut r = Replica::new(scorer.clone(), 100.0, Some(123), 100, 100, "");
+
+        let layout = vec![b'a' as u16, b'b' as u16];
+        r.inject_layout(&layout);
+
+        let start_score = r.score;
+        let start_load = r.left_load;
+
+        let idx_a = 0;
+        let idx_b = 1;
+        let (d_score, d_load) = r.calc_delta(idx_a, idx_b, 100);
+
+        let old_imb = r.imbalance_penalty(start_load);
+        let new_load = start_load + d_load;
+        let new_imb = r.imbalance_penalty(new_load);
+        let predicted = (start_score - old_imb) + d_score + new_imb;
+
+        r.layout.swap(idx_a, idx_b);
+        r.pos_map = mutation::build_pos_map(&r.layout);
+
+        let (real_base, real_left, _) = scorer.score_full(&r.pos_map, 100);
+        let real_total = real_base + r.imbalance_penalty(real_left);
+
+        println!(
+            "Predicted: {}, Real: {}, Diff: {}",
+            predicted,
+            real_total,
+            (predicted - real_total).abs()
+        );
+
+        assert!(
+            (predicted - real_total).abs() < 0.001,
+            "Delta drift detected!"
+        );
+    }
 }

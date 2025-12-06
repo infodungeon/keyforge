@@ -45,6 +45,23 @@ pub struct KeyNode {
     pub is_stretch: bool,
 }
 
+impl Default for KeyNode {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            hand: 0,
+            finger: 0,
+            row: 0,
+            col: 0,
+            x: 0.0,
+            y: 0.0,
+            w: 1.0,
+            h: 1.0,
+            is_stretch: false,
+        }
+    }
+}
+
 fn default_size() -> f32 {
     1.0
 }
@@ -70,13 +87,11 @@ impl KeyboardDefinition {
         let content = fs::read_to_string(&path)
             .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
 
-        // 1. Try standard KeyForge JSON format first
         if let Ok(mut def) = serde_json::from_str::<KeyboardDefinition>(&content) {
             def.geometry.calculate_origins();
             return Ok(def);
         }
 
-        // 2. Try KLE Format
         if let Ok(geom) = kle::parse_kle_json(&content) {
             let name = path
                 .as_ref()
@@ -123,7 +138,6 @@ impl KeyboardGeometry {
         self.finger_origins = [[(0.0, 0.0); 5]; 2];
         for hand in 0..2 {
             for finger in 0..5 {
-                // Heuristic: Find first key for this finger on home row
                 if let Some(k) = self.keys.iter().find(|k| {
                     k.hand == hand as u8 && k.finger == finger as u8 && k.row == self.home_row
                 }) {

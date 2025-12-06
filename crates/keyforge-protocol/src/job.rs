@@ -8,6 +8,7 @@ pub struct JobIdentifier {
 }
 
 impl JobIdentifier {
+    /// Generates a deterministic hash based on the inputs that define the search landscape.
     pub fn from_parts(
         geometry: &KeyboardGeometry,
         weights: &ScoringWeights,
@@ -18,16 +19,23 @@ impl JobIdentifier {
     ) -> Self {
         let mut hasher = Sha256::new();
 
+        // 1. Geometry (Keys define the physics)
+        // We serialize to JSON to ensure structural consistency
         let geo_json = serde_json::to_string(&geometry.keys).unwrap();
         hasher.update(geo_json.as_bytes());
 
+        // 2. Weights (Define the objective function)
         let weights_json = serde_json::to_string(weights).unwrap();
         hasher.update(weights_json.as_bytes());
 
+        // 3. Search Params (Define the algorithm behavior)
         let params_json = serde_json::to_string(params).unwrap();
         hasher.update(params_json.as_bytes());
 
+        // 4. Constraints
         hasher.update(pinned_keys.as_bytes());
+
+        // 5. Data Source
         hasher.update(corpus_name.as_bytes());
         hasher.update(cost_matrix.as_bytes());
 
@@ -35,5 +43,35 @@ impl JobIdentifier {
         Self {
             hash: hex::encode(result),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_determinism() {
+        let geom = KeyboardGeometry::default();
+        let weights = ScoringWeights::default();
+        let params = SearchParams::default();
+
+        let id1 = JobIdentifier::from_parts(&geom, &weights, &params, "", "default", "cost.csv");
+        let id2 = JobIdentifier::from_parts(&geom, &weights, &params, "", "default", "cost.csv");
+
+        assert_eq!(id1.hash, id2.hash, "Hash must be deterministic");
+    }
+
+    #[test]
+    fn test_hash_sensitivity() {
+        let geom = KeyboardGeometry::default();
+        let weights = ScoringWeights::default();
+        let params = SearchParams::default();
+
+        // Change one small input (corpus name)
+        let id1 = JobIdentifier::from_parts(&geom, &weights, &params, "", "default", "cost.csv");
+        let id2 = JobIdentifier::from_parts(&geom, &weights, &params, "", "other", "cost.csv");
+
+        assert_ne!(id1.hash, id2.hash, "Hash must change when inputs change");
     }
 }
