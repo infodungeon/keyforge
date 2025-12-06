@@ -1,13 +1,12 @@
-// ===== keyforge/ui/src/views/SettingsView.tsx =====
 import { useKeyboard } from "../context/KeyboardContext";
-import { useLibrary } from "../context/LibraryContext"; // Need direct access to setHiveSecret
+import { useLibrary } from "../context/LibraryContext";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Label } from "../components/ui/Label";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Button } from "../components/ui/Button";
-import { FileText, Eye, EyeOff } from "lucide-react";
+import { FileText, Eye, EyeOff, Edit3, List } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
@@ -25,8 +24,11 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
         costMatrices, selectedCostMatrix, selectCostMatrix
     } = useKeyboard();
 
-    const { hiveSecret, setHiveSecret } = useLibrary(); // Consume Secret
+    const { hiveSecret, setHiveSecret } = useLibrary();
     const [showSecret, setShowSecret] = useState(false);
+
+    // UI State for Advanced Corpus Editing
+    const [corpusMode, setCorpusMode] = useState<'simple' | 'advanced'>('simple');
 
     const { addToast } = useToast();
 
@@ -104,21 +106,42 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                     <div className="space-y-6">
                         {/* Corpus Selection */}
                         <div>
-                            <Label>N-Gram Corpus</Label>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <Label className="mb-0">N-Gram Corpus</Label>
+                                <button
+                                    onClick={() => setCorpusMode(corpusMode === 'simple' ? 'advanced' : 'simple')}
+                                    className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                                >
+                                    {corpusMode === 'simple' ? <Edit3 size={10} /> : <List size={10} />}
+                                    {corpusMode === 'simple' ? "Advanced Blend" : "Simple Selection"}
+                                </button>
+                            </div>
+
                             <div className="flex gap-2">
                                 <div className="flex-1">
-                                    <Select
-                                        value={selectedCorpus}
-                                        onChange={e => selectCorpus(e.target.value)}
-                                        options={corpora.map((c: string) => ({ label: c, value: c }))}
-                                    />
+                                    {corpusMode === 'simple' ? (
+                                        <Select
+                                            value={selectedCorpus}
+                                            onChange={e => selectCorpus(e.target.value)}
+                                            options={corpora.map((c: string) => ({ label: c, value: c }))}
+                                        />
+                                    ) : (
+                                        <Input
+                                            value={selectedCorpus}
+                                            onChange={e => selectCorpus(e.target.value)}
+                                            placeholder="default:1.0,rust:0.5,chat:0.2"
+                                            mono
+                                        />
+                                    )}
                                 </div>
                                 <Button variant="secondary" onClick={handleImportCorpus} icon={<FileText size={14} />}>
                                     Import
                                 </Button>
                             </div>
                             <p className="text-[10px] text-slate-500 mt-1">
-                                Text source used to calculate character and bigram frequencies.
+                                {corpusMode === 'simple'
+                                    ? "Select the primary text source for optimization."
+                                    : "Weighted mixing: 'name:weight,name:weight'. Weights default to 1.0."}
                             </p>
                         </div>
 
@@ -174,7 +197,7 @@ export function SettingsView({ hiveUrl, setHiveUrl, localWorkerEnabled, toggleWo
                         </div>
                         <div className="flex justify-between">
                             <span>Client Version</span>
-                            <span className="font-mono text-white">0.7.1</span>
+                            <span className="font-mono text-white">0.7.2</span>
                         </div>
                     </div>
                 </Card>

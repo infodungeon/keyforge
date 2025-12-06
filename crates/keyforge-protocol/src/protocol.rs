@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-core/src/protocol.rs =====
 use crate::config::{ScoringWeights, SearchParams};
 use crate::geometry::KeyboardDefinition;
 use serde::{Deserialize, Serialize};
@@ -67,8 +66,6 @@ pub struct SubmitResultRequest {
     pub node_id: String,
 }
 
-// --- NODE REGISTRATION ---
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterNodeRequest {
     pub node_id: String,
@@ -82,7 +79,7 @@ pub struct RegisterNodeRequest {
 pub struct TuningProfile {
     pub strategy: String,
     pub batch_size: usize,
-    pub thread_count: usize, // ADDED: Defines how many threads the node should use
+    pub thread_count: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

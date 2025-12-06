@@ -1,5 +1,5 @@
-use crate::config::ScoringWeights;
-use crate::geometry::{KeyNode, KeyboardGeometry};
+use keyforge_protocol::config::ScoringWeights; // UPDATED
+use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry}; // UPDATED
 use std::cmp::Ordering;
 
 // --- API RE-EXPORTS ---
@@ -12,22 +12,18 @@ pub struct KeyInteraction {
     pub finger: usize,
     pub is_strong_finger: bool,
 
-    // Interaction Types
     pub is_repeat: bool,
     pub is_sfb: bool,
     pub is_scissor: bool,
     pub is_lateral_stretch: bool,
 
-    // Roll Analysis (Bigram)
     pub is_roll_in: bool,
     pub is_roll_out: bool,
 
-    // Geometric Details
     pub row_diff: i8,
     pub col_diff: i8,
     pub is_home_row: bool,
 
-    // Nuances
     pub is_lat_step: bool,
     pub is_stretch_col: bool,
     pub is_bot_lat_seq: bool,
@@ -43,7 +39,6 @@ fn check_sfb(res: &mut KeyInteraction, k1: &KeyNode, k2: &KeyNode) {
     if res.row_diff == 0 && res.col_diff == 1 {
         res.is_lat_step = true;
     }
-    // Bottom Lateral Sequence (Usually Row 2 <-> Row 2/3 Lateral)
     if k1.row > 1 && k2.row > 1 && res.col_diff > 0 {
         res.is_bot_lat_seq = true;
     }
@@ -56,7 +51,6 @@ fn check_scissors(res: &mut KeyInteraction, k1: &KeyNode, k2: &KeyNode, weights:
     {
         res.is_scissor = true;
 
-        // --- DYNAMIC SCISSOR EXCEPTION ---
         let (top_finger, bot_finger) = if k1.row < k2.row {
             (k1.finger, k2.finger)
         } else {
@@ -90,7 +84,6 @@ pub fn analyze_interaction(
 ) -> KeyInteraction {
     let mut res = KeyInteraction::default();
 
-    // Safety check for bounds
     if i >= geom.keys.len() || j >= geom.keys.len() {
         return res;
     }
@@ -112,10 +105,8 @@ pub fn analyze_interaction(
         return res;
     }
 
-    // Geometric Direction
     res.is_outward = k2.row < k1.row;
 
-    // Lateral Index Logic
     if k1.is_stretch && !k2.is_stretch {
         res.is_outward = false;
     }
@@ -129,11 +120,6 @@ pub fn analyze_interaction(
         check_rolls(&mut res, k1, k2);
         check_scissors(&mut res, k1, k2, weights);
 
-        // Lateral Stretch (Non-SFB)
-        // REVERTED: Ensure keys are adjacent (col_diff == 1).
-        // This prevents Pinky -> Center Key jumps (like N->G in Graphite) from
-        // being penalized as "Lateral Stretch", which should only apply to
-        // Index -> Center Key or awkward adjacent spreads.
         if k1.row == k2.row && (k1.col - k2.col).abs() == 1 && (k1.is_stretch || k2.is_stretch) {
             res.is_lateral_stretch = true;
         }

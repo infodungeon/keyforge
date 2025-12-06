@@ -1,4 +1,3 @@
-// UPDATED: use keyforge_core
 use keyforge_core::config::Config;
 
 fn get_default_test_config() -> Config {
@@ -48,7 +47,7 @@ fn test_critical_bigram_parsing() {
 }
 
 #[test]
-#[should_panic(expected = "is not 2 chars")]
+#[should_panic(expected = "Bad bigram")]
 fn test_critical_bigram_parsing_invalid_panics() {
     let mut config = get_default_test_config();
     config.defs.critical_bigrams = "th, abc, t, he".to_string();

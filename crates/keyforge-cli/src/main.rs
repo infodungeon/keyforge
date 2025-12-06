@@ -1,5 +1,5 @@
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
-use keyforge_core::geometry::{KeyboardDefinition, KeyboardLoader};
+use keyforge_core::geometry::KeyboardDefinition; // REMOVED: KeyboardLoader
 use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::scorer::Scorer;
 use std::path::Path;
@@ -33,6 +33,9 @@ struct Cli {
     #[arg(global = true, long)]
     weights: Option<String>,
 
+    #[arg(global = true, long, default_value = "data/keycodes.json")]
+    keycodes: String,
+
     #[arg(global = true, long, default_value_t = false)]
     debug: bool,
 }
@@ -53,12 +56,13 @@ fn main() {
     info!("🚀 Initializing KeyForge Core...");
 
     info!("📂 Loading Keyboard: {}", cli.keyboard);
+    // load_from_file is inherent now
     let kb_def = KeyboardDefinition::load_from_file(&cli.keyboard).unwrap_or_else(|e| {
         error!("Failed to load keyboard definition: {}", e);
         process::exit(1);
     });
 
-    let (mut config, _cli_weights_ref, _sub_matches) = match &cli.command {
+    let (mut config, cli_weights_ref, sub_matches) = match &cli.command {
         Commands::Search(args) => (
             args.config.clone(),
             &args.config.weights,
@@ -90,19 +94,14 @@ fn main() {
     if let Some(path) = weights_path_str {
         if Path::new(&path).exists() {
             info!("⚖️  Loading Weights from: {}", path);
-
-            // Note: Calling load_from_file directly on the type.
-            // If the compiler complains about the method being missing,
-            // we will need to re-add 'use keyforge_core::config::ConfigLoader;' here.
-            // But based on the warning, it seems to resolve without it.
-            let file_weights = keyforge_core::config::ScoringWeights::load_from_file(&path);
-
+            let mut file_weights = keyforge_core::config::ScoringWeights::load_from_file(&path);
+            file_weights.merge_from_cli(cli_weights_ref, sub_matches);
             config.weights = file_weights;
         } else {
-            warn!(
-                "⚠️  Weights file '{}' not found. Using embedded defaults.",
-                path
-            );
+            error!("❌ FATAL: Required weights file not found.");
+            error!("   Path: {}", path);
+            error!("   The system will NOT fall back to hardcoded defaults to prevent corruption.");
+            process::exit(1);
         }
     }
 
@@ -123,7 +122,7 @@ fn main() {
         }
     };
 
-    let registry_path = "data/keycodes.json";
+    let registry_path = &cli.keycodes;
     let registry = if Path::new(registry_path).exists() {
         info!("🔑 Loading Keycodes: {}", registry_path);
         KeycodeRegistry::load_from_file(registry_path).unwrap_or_else(|e| {
@@ -131,8 +130,9 @@ fn main() {
             KeycodeRegistry::new_with_defaults()
         })
     } else {
-        warn!("⚠️  keycodes.json not found. Using built-in defaults.");
-        KeycodeRegistry::new_with_defaults()
+        error!("❌ FATAL: keycodes.json not found.");
+        error!("   Path: {}", registry_path);
+        process::exit(1);
     };
     let registry_arc = Arc::new(registry);
 

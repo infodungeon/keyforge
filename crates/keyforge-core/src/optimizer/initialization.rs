@@ -1,8 +1,8 @@
-// ===== keyforge/crates/keyforge-core/src/optimizer/initialization.rs =====
 use crate::core_types::Layout;
 use crate::scorer::Scorer;
 use fastrand::Rng;
 use std::collections::HashSet;
+// REMOVED imports from crate::config and crate::geometry
 
 pub fn generate_greedy_layout(scorer: &Scorer, rng: &mut Rng, pinned: &[Option<u16>]) -> Layout {
     let key_count = scorer.key_count;
@@ -58,10 +58,10 @@ pub fn generate_greedy_layout(scorer: &Scorer, rng: &mut Rng, pinned: &[Option<u
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{LayoutDefinitions, ScoringWeights};
-    use crate::geometry::{KeyNode, KeyboardGeometry};
     use crate::scorer::loader::{CorpusBundle, RawCostData};
     use crate::scorer::{Scorer, ScorerBuildParams};
+    use keyforge_protocol::config::{LayoutDefinitions, ScoringWeights}; // UPDATED
+    use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry}; // UPDATED
 
     fn get_test_scorer() -> Scorer {
         let keys = vec![

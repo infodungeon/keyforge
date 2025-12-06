@@ -15,6 +15,9 @@ export interface KeyNode {
 
 export interface KeyboardGeometry {
   keys: KeyNode[];
+  prime_slots: number[];
+  med_slots: number[];
+  low_slots: number[];
   home_row: number;
 }
 
@@ -110,7 +113,7 @@ export interface ValidationResult {
   score: ScoreDetails;
   geometry: KeyboardGeometry;
   heatmap: number[];
-  penaltyMap: number[]; // ADDED: Physics cost heatmap
+  penaltyMap: number[];
 }
 
 export interface SearchParams {
@@ -125,26 +128,56 @@ export interface SearchParams {
 }
 
 export interface ScoringWeights {
-  penalty_sfb_base: number;
+  penalty_sfr_weak_finger: number;
+  penalty_sfr_bad_row: number;
+  penalty_sfr_lat: number;
   penalty_sfb_lateral: number;
   penalty_sfb_lateral_weak: number;
+  penalty_sfb_base: number;
+  penalty_sfb_outward_adder: number;
   penalty_sfb_diagonal: number;
   penalty_sfb_long: number;
   penalty_sfb_bottom: number;
-  penalty_sfr_bad_row: number;
-  penalty_sfr_weak_finger: number;
+  weight_weak_finger_sfb: number;
+
+  threshold_sfb_long_row_diff: number;
+  threshold_scissor_row_diff: number;
+
   penalty_scissor: number;
+  penalty_ring_pinky: number;
   penalty_lateral: number;
-  penalty_redirect: number;
+  penalty_monogram_stretch: number;
   penalty_skip: number;
+  penalty_redirect: number;
   penalty_hand_run: number;
+
   bonus_inward_roll: number;
   bonus_bigram_roll_in: number;
   bonus_bigram_roll_out: number;
+
+  penalty_high_in_med: number;
+  penalty_high_in_low: number;
+  penalty_med_in_prime: number;
+  penalty_med_in_low: number;
+  penalty_low_in_prime: number;
+  penalty_low_in_med: number;
+
   penalty_imbalance: number;
-  threshold_sfb_long_row_diff: number;
-  threshold_scissor_row_diff: number;
-  [key: string]: number;
+  max_hand_imbalance: number;
+
+  weight_vertical_travel: number;
+  weight_lateral_travel: number;
+  weight_finger_effort: number;
+
+  corpus_scale: number;
+  default_cost_ms: number;
+  loader_trigram_limit: number;
+
+  finger_penalty_scale: string;
+  comfortable_scissors: string;
+
+  // Index signature for dynamic iteration
+  [key: string]: number | string;
 }
 
 export interface JobStatusUpdate {
@@ -162,13 +195,13 @@ export interface KeycodeDefinition {
   aliases: string[];
 }
 
-// Request Payload types to match Rust backend
 export interface RegisterJobRequest {
   geometry: KeyboardGeometry;
   weights: ScoringWeights;
   params: SearchParams;
   pinned_keys: string;
   corpus_name: string;
+  cost_matrix: string;
 }
 
 export interface StartSearchRequest {
@@ -177,7 +210,6 @@ export interface StartSearchRequest {
   weights: ScoringWeights;
 }
 
-// Biometrics
 export interface BiometricSample {
   bigram: string;
   ms: number;

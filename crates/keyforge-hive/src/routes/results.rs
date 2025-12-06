@@ -1,10 +1,9 @@
-// ===== keyforge/crates/keyforge-hive/src/routes/results.rs =====
 use crate::error::{AppError, AppResult};
 use crate::queue::DbEvent;
 use crate::state::AppState;
 use axum::{extract::State, Json};
 use keyforge_core::config::Config;
-use keyforge_core::scorer::Scorer; // Added Import
+use keyforge_core::scorer::Scorer;
 use keyforge_core::verifier::Verifier;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -22,7 +21,6 @@ pub async fn submit(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<SubmitResultRequest>,
 ) -> AppResult<String> {
-    // 1. FAST PATH: Check Cache
     let cached_verifier = {
         let guard = state
             .verifiers
@@ -34,8 +32,6 @@ pub async fn submit(
     let verifier = if let Some(v) = cached_verifier {
         v
     } else {
-        // 2. SLOW PATH: Cache Miss
-
         let (geometry, weights, corpus_name, cost_matrix) = state
             .store
             .get_job_config(&payload.job_id)
@@ -52,14 +48,10 @@ pub async fn submit(
             ..Default::default()
         };
 
-        // OPTIMIZATION: Use pre-loaded registry from AppState instead of reloading from disk
         let scorer = Scorer::new(&cost_path, &corpus_dir, &geometry, config, false)
             .map_err(|e| AppError::Validation(format!("Scorer Init Failed: {}", e)))?;
 
-        let new_verifier = Verifier::from_components(
-            Arc::new(scorer),
-            state.registry.clone(), // Use memory-resident registry
-        );
+        let new_verifier = Verifier::from_components(Arc::new(scorer), state.registry.clone());
 
         {
             let mut guard = state.verifiers.write().map_err(|_| {
@@ -72,7 +64,11 @@ pub async fn submit(
         new_verifier
     };
 
-    // 3. Verify Score
+    // FIXED: Removed extra args, verify handles tolerance logic internally if updated,
+    // but core verifier.verify signature is (layout, score, tolerance).
+    // Check verifier.rs signature again. It is (layout, score, tolerance).
+    // The compiler error said "3 arguments but 4 supplied".
+    // If I remove one here, it should match.
     let is_valid = verifier
         .verify(payload.layout.clone(), payload.score, 5.0)
         .map_err(|e| AppError::Validation(format!("Verification logic error: {}", e)))?;
@@ -83,14 +79,12 @@ pub async fn submit(
         ));
     }
 
-    // 4. Check for Record
     let current_best = state
         .store
         .get_job_best_score(&payload.job_id)
         .await
         .map_err(|e| AppError::Any(anyhow::anyhow!("DB Error: {}", e)))?;
 
-    // 5. Persist
     state
         .queue
         .push(DbEvent::Result {
@@ -101,7 +95,6 @@ pub async fn submit(
         })
         .await;
 
-    // 6. Log
     let is_record = current_best.is_none_or(|best| payload.score < best);
 
     if is_record {
@@ -118,7 +111,6 @@ pub async fn submit(
 
 fn resolve_paths(name: &str, cost_matrix_name: &str) -> Option<(String, String)> {
     let cost_path = format!("data/{}", cost_matrix_name);
-
     match name {
         "default" | "test_corpus" => Some((cost_path, "data/corpora/default".to_string())),
         other => Some((cost_path, format!("data/corpora/{}", other))),

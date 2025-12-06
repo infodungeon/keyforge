@@ -1,36 +1,67 @@
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-// Helper to find the binary relative to the workspace root
+// 1. ROBUST BINARY FINDER
 fn get_binary_path() -> PathBuf {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let mut path = PathBuf::from(manifest_dir);
-    path.pop(); // crates
-    path.pop(); // root
+    if path.ends_with("keyforge-cli") {
+        path.pop();
+        path.pop();
+    }
     path.push("target");
-    path.push("release");
-    path.push("keyforge");
+
+    let release = path.join("release").join("keyforge");
+    if release.exists() {
+        return release;
+    }
+
+    let debug = path.join("debug").join("keyforge");
+    if debug.exists() {
+        return debug;
+    }
+
+    panic!("❌ Binary not found. Run 'cargo build --release' first.");
+}
+
+fn get_real_keycodes_path() -> PathBuf {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let mut path = PathBuf::from(manifest_dir);
+    if path.ends_with("keyforge-cli") {
+        path.pop();
+        path.pop();
+    }
+    path.push("data");
+    path.push("keycodes.json");
+    if !path.exists() {
+        panic!("keycodes.json not found");
+    }
     path
 }
 
 struct TestContext {
     _dir: TempDir,
     cost_path: PathBuf,
-    ngram_path: PathBuf,
+    corpus_dir: PathBuf,
     keyboard_path: PathBuf,
+    weights_path: PathBuf,
+    keycodes_path: PathBuf,
 }
 
 impl TestContext {
     fn new() -> Self {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let cost_path = dir.path().join("repo_cost.csv");
-        let ngram_path = dir.path().join("repo_ngrams.tsv");
+        let corpus_dir = dir.path().join("repo_corpus");
         let keyboard_path = dir.path().join("repo_keyboard.json");
+        let weights_path = dir.path().join("repo_weights.json");
+        let keycodes_path = get_real_keycodes_path();
 
-        // Minimal Cost
+        // 1. Minimal Cost
         let mut cost_file = File::create(&cost_path).unwrap();
         writeln!(cost_file, "From,To,Cost").unwrap();
         writeln!(cost_file, "KeyQ,KeyW,1000.0").unwrap();
@@ -41,31 +72,33 @@ impl TestContext {
             writeln!(cost_file, "KeyQ,{},1000.0", k).unwrap();
         }
 
-        // Minimal N-Grams
-        let mut ngram_file = File::create(&ngram_path).unwrap();
-        writeln!(ngram_file, "q\t1000").unwrap();
-        writeln!(ngram_file, "w\t1000").unwrap();
-        writeln!(ngram_file, "qw\t1000").unwrap();
-        writeln!(ngram_file, "wq\t1000").unwrap();
-        writeln!(ngram_file, "qwq\t1000").unwrap();
+        // 2. Minimal Corpus
+        fs::create_dir(&corpus_dir).unwrap();
+        let mut f1 = File::create(corpus_dir.join("1grams.csv")).unwrap();
+        writeln!(f1, "char,freq").unwrap();
+        writeln!(f1, "q,1000").unwrap();
+        writeln!(f1, "w,1000").unwrap();
 
-        // Minimal 30-key Keyboard
+        let mut f2 = File::create(corpus_dir.join("2grams.csv")).unwrap();
+        writeln!(f2, "char1,char2,freq").unwrap();
+        writeln!(f2, "q,w,1000").unwrap();
+        writeln!(f2, "w,q,1000").unwrap();
+
+        let mut f3 = File::create(corpus_dir.join("3grams.csv")).unwrap();
+        writeln!(f3, "char1,char2,char3,freq").unwrap();
+        writeln!(f3, "q,w,q,1000").unwrap();
+
+        // 3. Minimal 30-key Keyboard
         let mut kb_file = File::create(&keyboard_path).unwrap();
         let mut keys_json = Vec::new();
         for r in 0..3 {
             for c in 0..10 {
                 keys_json.push(format!(
-                    r#"{{"hand": {}, "finger": 1, "row": {}, "col": {}, "x": {}, "y": {}}}"#,
-                    if c < 5 { 0 } else { 1 },
-                    r,
-                    c,
-                    c as f32,
-                    r as f32
+                    r#"{{"hand": {}, "finger": 1, "row": {}, "col": {}, "x": {}, "y": {}, "w": 1.0, "h": 1.0}}"#,
+                    if c < 5 { 0 } else { 1 }, r, c, c as f32, r as f32
                 ));
             }
         }
-
-        // Define Slots to ensure generation works
         let prime = (10..20)
             .map(|i| i.to_string())
             .collect::<Vec<_>>()
@@ -77,17 +110,7 @@ impl TestContext {
             .join(",");
 
         let json = format!(
-            r#"{{
-                "meta": {{ "name": "RepoKB", "author": "Test", "version": "1.0" }},
-                "geometry": {{
-                    "keys": [{}],
-                    "prime_slots": [{}],
-                    "med_slots": [{}],
-                    "low_slots": [{}],
-                    "home_row": 1
-                }},
-                "layouts": {{}}
-            }}"#,
+            r#"{{ "meta": {{ "name": "Repo", "type": "ortho" }}, "geometry": {{ "keys": [{}], "prime_slots": [{}], "med_slots": [{}], "low_slots": [{}], "home_row": 1 }}, "layouts": {{}} }}"#,
             keys_json.join(","),
             prime,
             med,
@@ -95,16 +118,25 @@ impl TestContext {
         );
         writeln!(kb_file, "{}", json).unwrap();
 
+        // 4. Default Weights
+        let mut w_file = File::create(&weights_path).unwrap();
+        writeln!(
+            w_file,
+            r#"{{ "corpus_scale": 1.0, "finger_penalty_scale": "1.0,1.0,1.0,1.0,1.0" }}"#
+        )
+        .unwrap();
+
         Self {
             _dir: dir,
             cost_path,
-            ngram_path,
+            corpus_dir,
             keyboard_path,
+            weights_path,
+            keycodes_path,
         }
     }
 }
 
-// FIX: Parse by searching for substring to ignore log prefixes
 fn extract_score(output: &str) -> String {
     for line in output.lines() {
         if let Some(idx) = line.find("Score: ") {
@@ -116,12 +148,6 @@ fn extract_score(output: &str) -> String {
 
 #[test]
 fn test_deterministic_output() {
-    let _ = Command::new("cargo")
-        .arg("build")
-        .arg("--release")
-        .status()
-        .unwrap();
-
     let ctx = TestContext::new();
     let bin_path = get_binary_path();
 
@@ -135,12 +161,18 @@ fn test_deterministic_output() {
         "1",
         "--cost",
         ctx.cost_path.to_str().unwrap(),
-        "--ngrams",
-        ctx.ngram_path.to_str().unwrap(),
+        "--corpus",
+        ctx.corpus_dir.to_str().unwrap(),
         "--keyboard",
         ctx.keyboard_path.to_str().unwrap(),
+        "--weights",
+        ctx.weights_path.to_str().unwrap(),
+        "--keycodes",
+        ctx.keycodes_path.to_str().unwrap(),
         "--corpus-scale",
         "1.0",
+        "--pinned-keys",
+        "",
     ];
 
     let output_a = Command::new(&bin_path)
@@ -156,8 +188,10 @@ fn test_deterministic_output() {
     let stdout_b = String::from_utf8_lossy(&output_b.stdout);
 
     if !output_a.status.success() {
-        println!("STDERR A:\n{}", String::from_utf8_lossy(&output_a.stderr));
-        panic!("Run A failed execution");
+        panic!("A Failed:\n{}", String::from_utf8_lossy(&output_a.stderr));
+    }
+    if !output_b.status.success() {
+        panic!("B Failed:\n{}", String::from_utf8_lossy(&output_b.stderr));
     }
 
     let score_a = extract_score(&stdout_a);
@@ -168,6 +202,6 @@ fn test_deterministic_output() {
         println!("--- RUN B ---\n{}", stdout_b);
     }
 
-    assert_eq!(score_a, score_b, "Determinism check failed: Scores differ");
-    assert_ne!(score_a, "NOT_FOUND", "Failed to parse score from output");
+    assert_eq!(score_a, score_b, "Determinism check failed");
+    assert_ne!(score_a, "NOT_FOUND");
 }

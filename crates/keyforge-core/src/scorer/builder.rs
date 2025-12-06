@@ -1,11 +1,14 @@
-use crate::config::{LayoutDefinitions, ScoringWeights};
 use crate::error::KfResult;
-use crate::geometry::KeyboardGeometry;
-// UPDATED: Import merged loader
 use crate::scorer::loader::{
-    load_cost_matrix, load_merged_bundle, CorpusBundle, RawCostData, TrigramRef,
+    load_corpus_bundle,
+    load_cost_matrix,
+    CorpusBundle,
+    RawCostData,
+    TrigramRef, // Verified Import
 };
 use crate::scorer::Scorer;
+use keyforge_protocol::config::{LayoutDefinitions, ScoringWeights};
+use keyforge_protocol::geometry::KeyboardGeometry;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tracing::debug;
@@ -18,8 +21,10 @@ pub struct ScorerBuildParams {
     #[builder(default)]
     pub defs: LayoutDefinitions,
     pub geometry: KeyboardGeometry,
+
     pub cost_data: RawCostData,
     pub corpus: CorpusBundle,
+
     #[builder(default = false)]
     pub debug: bool,
 }
@@ -27,51 +32,17 @@ pub struct ScorerBuildParams {
 impl ScorerBuildParams {
     pub fn load_from_disk<P1: AsRef<Path>, P2: AsRef<Path>>(
         cost_path: P1,
-        // CHANGED: This is now interpreted as "Corpus Config String" OR "Path to Corpus"
-        corpus_source: P2,
+        corpus_dir: P2,
         geometry: KeyboardGeometry,
         weights: Option<ScoringWeights>,
         defs: Option<LayoutDefinitions>,
         debug: bool,
     ) -> KfResult<Scorer> {
         let final_weights = weights.unwrap_or_default();
+
         let cost_data = load_cost_matrix(cost_path)?;
-
-        let source_str = corpus_source.as_ref().to_string_lossy();
-
-        // HEURISTIC: Where is the "Corpora Root"?
-        // If the user passed a direct path like "data/corpora/default",
-        // we treat the parent "data/corpora" as the root and "default" as the name.
-        let (root_dir, config_str) = if corpus_source.as_ref().exists() {
-            let p = corpus_source.as_ref();
-            let parent = p.parent().unwrap_or(Path::new("."));
-            let name = p.file_name().unwrap().to_string_lossy();
-            (parent.to_path_buf(), name.to_string())
-        } else {
-            // Assume it's a config string like "default:1.0,code:0.5"
-            // and the root is "data/corpora" (Default convention)
-            // Or we check if we can find a standard data dir.
-            let default_root = Path::new("data/corpora");
-            if default_root.exists() {
-                (default_root.to_path_buf(), source_str.to_string())
-            } else {
-                // Fallback for dev environment or CLI specific paths
-                // Try to find where "default" lives
-                if Path::new("../data/corpora").exists() {
-                    (
-                        Path::new("../data/corpora").to_path_buf(),
-                        source_str.to_string(),
-                    )
-                } else {
-                    // Last resort: Assume current dir is root
-                    (Path::new(".").to_path_buf(), source_str.to_string())
-                }
-            }
-        };
-
-        let corpus = load_merged_bundle(
-            &root_dir,
-            &config_str,
+        let corpus = load_corpus_bundle(
+            corpus_dir,
             final_weights.corpus_scale,
             final_weights.loader_trigram_limit,
         )?;
@@ -222,73 +193,28 @@ impl ScorerBuildParams {
         }
         trigram_starts[256] = t_offset;
 
-        // 3. OPTIMIZED Trigram Physics Cost Table
-        // Split keys into Left and Right sets
-        let mut slot_hand = vec![0u8; key_count];
-        let mut slot_hand_idx = vec![0usize; key_count];
-        let mut count_left = 0;
-        let mut count_right = 0;
-
-        for (i, k) in geometry.keys.iter().enumerate() {
-            if k.hand == 0 {
-                slot_hand[i] = 0;
-                slot_hand_idx[i] = count_left;
-                count_left += 1;
-            } else {
-                slot_hand[i] = 1;
-                slot_hand_idx[i] = count_right;
-                count_right += 1;
-            }
-        }
-
-        let size_left = count_left * count_left * count_left;
-        let size_right = count_right * count_right * count_right;
-
-        let mut trigram_left = vec![0.0; size_left];
-        let mut trigram_right = vec![0.0; size_right];
+        // 3. Trigram Physics Cost Table
+        let table_size = key_count * key_count * key_count;
+        let mut trigram_cost_table = vec![0.0; table_size];
 
         for i in 0..key_count {
             for j in 0..key_count {
                 for k in 0..key_count {
-                    let h1 = slot_hand[i];
-                    let h2 = slot_hand[j];
-                    let h3 = slot_hand[k];
-
-                    // Only calculate if all on same hand
-                    if h1 == h2 && h2 == h3 {
-                        let ki = &geometry.keys[i];
-                        let kj = &geometry.keys[j];
-                        let kk = &geometry.keys[k];
-                        let flow = crate::scorer::flow::analyze_flow(ki, kj, kk);
-
-                        let mut cost = 0.0;
-                        if flow.is_3_hand_run {
-                            cost += weights.penalty_hand_run;
-                            if flow.is_skip {
-                                cost += weights.penalty_skip;
-                            }
-                            if flow.is_redirect {
-                                cost += weights.penalty_redirect;
-                            }
-                            if flow.is_inward_roll {
-                                cost -= weights.bonus_inward_roll;
-                            }
+                    let idx = i * (key_count * key_count) + j * key_count + k;
+                    let ki = &geometry.keys[i];
+                    let kj = &geometry.keys[j];
+                    let kk = &geometry.keys[k];
+                    let flow = crate::scorer::flow::analyze_flow(ki, kj, kk);
+                    if flow.is_3_hand_run {
+                        trigram_cost_table[idx] += weights.penalty_hand_run;
+                        if flow.is_skip {
+                            trigram_cost_table[idx] += weights.penalty_skip;
                         }
-
-                        if cost != 0.0 {
-                            let idx1 = slot_hand_idx[i];
-                            let idx2 = slot_hand_idx[j];
-                            let idx3 = slot_hand_idx[k];
-
-                            if h1 == 0 {
-                                let flat_idx =
-                                    idx1 * (count_left * count_left) + idx2 * count_left + idx3;
-                                trigram_left[flat_idx] = cost;
-                            } else {
-                                let flat_idx =
-                                    idx1 * (count_right * count_right) + idx2 * count_right + idx3;
-                                trigram_right[flat_idx] = cost;
-                            }
+                        if flow.is_redirect {
+                            trigram_cost_table[idx] += weights.penalty_redirect;
+                        }
+                        if flow.is_inward_roll {
+                            trigram_cost_table[idx] -= weights.bonus_inward_roll;
                         }
                     }
                 }
@@ -369,10 +295,6 @@ impl ScorerBuildParams {
                 "✅ Scorer Initialized. Active Chars: {}",
                 active_chars.len()
             );
-            debug!(
-                "   L-Table: {} entries, R-Table: {} entries",
-                size_left, size_right
-            );
         }
 
         Ok(Scorer {
@@ -383,15 +305,7 @@ impl ScorerBuildParams {
             tier_penalty_matrix,
             full_cost_matrix,
             raw_user_matrix,
-
-            // New Fields
-            trigram_left,
-            trigram_right,
-            count_left,
-            count_right,
-            slot_hand,
-            slot_hand_idx,
-
+            trigram_cost_table,
             bigram_starts,
             bigrams_others,
             bigrams_freqs,

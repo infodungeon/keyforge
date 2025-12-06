@@ -1,32 +1,29 @@
 use super::physics::KeyInteraction;
-use crate::config::ScoringWeights;
+use keyforge_protocol::config::ScoringWeights; // UPDATED
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CostCategory {
     None,
-    // SFR
     SfrBase,
     SfrBadRow,
     SfrLat,
     SfrWeak,
-    // SFB
     SfbBase,
     SfbLat,
     SfbLatWeak,
     SfbDiag,
     SfbLong,
     SfbBot,
-    // Other
     Scissor,
     Lateral,
 }
 
 #[derive(Debug)]
 pub struct CostResult {
-    pub penalty_multiplier: f32, // Multiplies distance (SFBs, Scissors)
-    pub flow_bonus: f32,         // Subtracts from total (Rolls)
-    pub additive_cost: f32,      // Adds to total (SFRs)
-    pub category: CostCategory,  // For Reporting
+    pub penalty_multiplier: f32,
+    pub flow_bonus: f32,
+    pub additive_cost: f32,
+    pub category: CostCategory,
 }
 
 pub fn calculate_cost(m: &KeyInteraction, w: &ScoringWeights) -> CostResult {
@@ -37,7 +34,6 @@ pub fn calculate_cost(m: &KeyInteraction, w: &ScoringWeights) -> CostResult {
         category: CostCategory::None,
     };
 
-    // === FLOW BONUS (Bigrams) ===
     if m.is_roll_in {
         res.flow_bonus += w.bonus_bigram_roll_in;
     } else if m.is_roll_out {
@@ -48,11 +44,10 @@ pub fn calculate_cost(m: &KeyInteraction, w: &ScoringWeights) -> CostResult {
         return res;
     }
 
-    // === SFR (Repeats) ===
     if m.is_repeat {
         if m.is_strong_finger {
             if m.is_home_row {
-                res.category = CostCategory::SfrBase; // No Penalty
+                res.category = CostCategory::SfrBase;
             } else if m.is_stretch_col {
                 res.additive_cost += w.penalty_sfr_lat;
                 res.category = CostCategory::SfrLat;
@@ -68,10 +63,9 @@ pub fn calculate_cost(m: &KeyInteraction, w: &ScoringWeights) -> CostResult {
                 res.additive_cost += w.penalty_sfr_bad_row * 5.0;
             }
         }
-        return res; // SFRs do not get SFB penalties
+        return res;
     }
 
-    // === SFB ===
     if m.is_sfb {
         let mut penalty;
         let mut weak_applied = false;
@@ -110,7 +104,6 @@ pub fn calculate_cost(m: &KeyInteraction, w: &ScoringWeights) -> CostResult {
         return res;
     }
 
-    // === OTHER ===
     if m.is_scissor {
         res.penalty_multiplier = w.penalty_scissor;
         res.category = CostCategory::Scissor;

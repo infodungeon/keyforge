@@ -1,8 +1,8 @@
-use crate::config::LayoutDefinitions;
 use crate::consts::{KEY_CODE_RANGE, KEY_NOT_FOUND_U8};
 use crate::core_types::PosMap;
-use crate::geometry::KeyboardGeometry;
 use fastrand::Rng;
+use keyforge_protocol::config::LayoutDefinitions; // UPDATED
+use keyforge_protocol::geometry::KeyboardGeometry; // UPDATED
 
 pub fn generate_tiered_layout(
     rng: &mut Rng,
@@ -13,9 +13,6 @@ pub fn generate_tiered_layout(
 ) -> Vec<u16> {
     let mut layout = vec![0u16; size];
 
-    // 1. Fill Pinned Keys
-    // We use a simple boolean array for standard ASCII tracking (0-255)
-    // For anything higher, we assume it's not part of the "scrambling pool"
     let mut pinned_chars = [false; 256];
 
     for (i, &p) in pinned.iter().enumerate() {
@@ -29,7 +26,6 @@ pub fn generate_tiered_layout(
         }
     }
 
-    // Helper to filter pools (only applies to standard ASCII chars)
     let filter_pool = |src: &str| -> Vec<u16> {
         src.as_bytes()
             .iter()
@@ -75,10 +71,7 @@ pub fn build_pos_map(layout: &[u16]) -> PosMap {
     let mut map = Box::new([KEY_NOT_FOUND_U8; KEY_CODE_RANGE]);
     for (i, &code) in layout.iter().enumerate() {
         if code != 0 {
-            // 0 is KC_NO
             map[code as usize] = i as u8;
-
-            // Handle Case Insensitivity for standard ASCII
             if code < 128 {
                 let b = code as u8;
                 if b.is_ascii_uppercase() {
@@ -118,14 +111,13 @@ pub fn fails_sanity(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::KeyNode;
+    use keyforge_protocol::geometry::KeyNode; // UPDATED
 
     #[test]
     fn test_mutation_respects_pinned_keys_strictly() {
         let mut rng = fastrand::Rng::with_seed(1337);
         let size = 10;
 
-        // Setup minimal geometry
         let keys: Vec<KeyNode> = (0..size)
             .map(|i| KeyNode {
                 id: format!("k{}", i),
@@ -152,18 +144,12 @@ mod tests {
 
         let defs = LayoutDefinitions::default();
 
-        // CONSTRAINT: Index 5 MUST be 'X' (88)
         let mut pinned = vec![None; size];
         pinned[5] = Some(88);
 
-        // Run 10,000 generations
         for _ in 0..10_000 {
             let layout = generate_tiered_layout(&mut rng, &defs, &geom, size, &pinned);
-
-            // AGGRESSIVE ASSERTION
             assert_eq!(layout[5], 88, "Mutation violated pinning constraint!");
-
-            // Check for duplicates of the pinned key elsewhere
             let count_x = layout.iter().filter(|&&k| k == 88).count();
             assert_eq!(count_x, 1, "Pinned key duplicated elsewhere in layout!");
         }

@@ -1,24 +1,46 @@
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-// Helper to find the binary relative to the workspace root
+// Helper to find the binary, prioritizing release builds
 fn get_binary_path() -> PathBuf {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let mut path = PathBuf::from(manifest_dir);
-    // crates/keyforge-cli -> crates -> workspace root
-    path.pop();
-    path.pop();
+
+    if path.ends_with("keyforge-cli") {
+        path.pop(); // crates
+        path.pop(); // root
+    }
+
     path.push("target");
-    path.push("release");
-    path.push("keyforge");
-    
-    if !path.exists() {
+
+    let release = path.join("release").join("keyforge");
+    if release.exists() {
+        return release;
+    }
+
+    let debug = path.join("debug").join("keyforge");
+    if debug.exists() {
+        return debug;
+    }
+
+    panic!("❌ Binary not found. Run 'cargo build --release' first.");
+}
+
+fn get_real_keycodes_path() -> PathBuf {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let mut path = PathBuf::from(manifest_dir);
+    if path.ends_with("keyforge-cli") {
         path.pop();
-        path.push("debug");
-        path.push("keyforge");
+        path.pop();
+    }
+    path.push("data");
+    path.push("keycodes.json");
+    if !path.exists() {
+        panic!("keycodes.json not found");
     }
     path
 }
@@ -26,26 +48,52 @@ fn get_binary_path() -> PathBuf {
 struct TestContext {
     _dir: TempDir,
     cost_path: PathBuf,
-    ngram_path: PathBuf,
+    corpus_dir: PathBuf,
     keyboard_path: PathBuf,
+    weights_path: PathBuf,
+    keycodes_path: PathBuf,
 }
 
 impl TestContext {
     fn new() -> Self {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let cost_path = dir.path().join("poison_cost.csv");
-        let ngram_path = dir.path().join("poison_ngrams.tsv");
+        let corpus_dir = dir.path().join("poison_corpus");
         let keyboard_path = dir.path().join("poison_keyboard.json");
+        let weights_path = dir.path().join("poison_weights.json");
+        let keycodes_path = get_real_keycodes_path();
 
-        // Key Identifiers matching the loop below
-        // 30 keys total.
         let key_ids = [
-            // Row 0 (0-9)
-            "KeyQ", "KeyW", "KeyE", "KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO", "KeyP",
-            // Row 1 (10-19) - The Poison Row
-            "KeyA", "KeyS", "KeyD", "KeyF", "KeyG", "KeyH", "KeyJ", "KeyK", "KeyL", "Semicolon",
-            // Row 2 (20-29)
-            "KeyZ", "KeyX", "KeyC", "KeyV", "KeyB", "KeyN", "KeyM", "Comma", "Period", "Slash"
+            "KeyQ",
+            "KeyW",
+            "KeyE",
+            "KeyR",
+            "KeyT",
+            "KeyY",
+            "KeyU",
+            "KeyI",
+            "KeyO",
+            "KeyP",
+            "KeyA",
+            "KeyS",
+            "KeyD",
+            "KeyF",
+            "KeyG",
+            "KeyH",
+            "KeyJ",
+            "KeyK",
+            "KeyL",
+            "Semicolon",
+            "KeyZ",
+            "KeyX",
+            "KeyC",
+            "KeyV",
+            "KeyB",
+            "KeyN",
+            "KeyM",
+            "Comma",
+            "Period",
+            "Slash",
         ];
 
         // 1. Poisoned Cost Matrix
@@ -54,45 +102,46 @@ impl TestContext {
 
         for (i, k1) in key_ids.iter().enumerate() {
             for (j, k2) in key_ids.iter().enumerate() {
-                if i == j {
-                    continue;
-                }
                 let mut cost = 1.0;
-                // Poison Home Row indices (10 through 19)
+                // Poison Home Row indices (10-19)
+                // If BOTH keys are in home row (or same key), penalty is nuclear.
                 if (10..=19).contains(&i) || (10..=19).contains(&j) {
-                    cost = 1000.0; // Increased poison magnitude to ensure eviction
+                    cost = 1_000_000_000.0;
                 }
                 writeln!(cost_file, "{},{},{}", k1, k2, cost).unwrap();
             }
         }
 
-        // 2. N-Grams (Trap 'e')
-        let mut ngram_file = File::create(&ngram_path).unwrap();
-        writeln!(ngram_file, "e\t1000").unwrap(); // Increase freq to make it matter
-        let common = ["t", "a", "o", "i", "n", "s", "r"];
-        for c in common {
-            writeln!(ngram_file, "e{}\t100", c).unwrap();
-            writeln!(ngram_file, "{}e\t100", c).unwrap();
+        // 2. Corpus
+        fs::create_dir(&corpus_dir).unwrap();
+
+        // 1grams: Remove Monogram incentive for 'e'
+        let mut f1 = File::create(corpus_dir.join("1grams.csv")).unwrap();
+        writeln!(f1, "char,freq").unwrap();
+        writeln!(f1, "e,1").unwrap();
+        for c in "taoinshrdlu".chars() {
+            writeln!(f1, "{},10", c).unwrap();
         }
 
-        // 3. Dummy Keyboard with IDs
+        // 2grams: Trigger Cost Matrix Lookup
+        let mut f2 = File::create(corpus_dir.join("2grams.csv")).unwrap();
+        writeln!(f2, "char1,char2,freq").unwrap();
+        // Bigram e-e triggers massive poison cost if e is on home row
+        writeln!(f2, "e,e,10000").unwrap();
+
+        let mut f3 = File::create(corpus_dir.join("3grams.csv")).unwrap();
+        writeln!(f3, "char1,char2,char3,freq").unwrap();
+
+        // 3. Keyboard
         let mut kb_file = File::create(&keyboard_path).unwrap();
         let mut keys_json = Vec::new();
         for r in 0..3 {
             for c in 0..10 {
                 let idx = r * 10 + c;
                 let id = key_ids.get(idx).unwrap_or(&"Unknown");
-                
                 keys_json.push(format!(
                     r#"{{"id": "{}", "hand": {}, "finger": {}, "row": {}, "col": {}, "x": {}, "y": {}}}"#,
-                    id,
-                    if c < 5 { 0 } else { 1 },
-                    // Fix finger assignment to 0-4 to avoid builder panic
-                    c % 5, 
-                    r,
-                    c,
-                    c as f32,
-                    r as f32
+                    id, if c < 5 { 0 } else { 1 }, c % 5, r, c, c as f32, r as f32
                 ));
             }
         }
@@ -107,18 +156,9 @@ impl TestContext {
             .collect::<Vec<_>>()
             .join(",");
 
+        // FIXED: Inject the calculated slots into the JSON string
         let json = format!(
-            r#"{{
-                "meta": {{ "name": "PoisonPill", "author": "Test", "version": "1.0" }},
-                "geometry": {{
-                    "keys": [{}],
-                    "prime_slots": [{}],
-                    "med_slots": [{}],
-                    "low_slots": [{}],
-                    "home_row": 1
-                }},
-                "layouts": {{ }}
-            }}"#,
+            r#"{{ "meta": {{ "name": "Poison", "type": "ortho" }}, "geometry": {{ "keys": [{}], "prime_slots": [{}], "med_slots": [{}], "low_slots": [{}], "home_row": 1 }}, "layouts": {{ }} }}"#,
             keys_json.join(","),
             prime,
             med,
@@ -126,11 +166,21 @@ impl TestContext {
         );
         writeln!(kb_file, "{}", json).unwrap();
 
+        // 4. Weights
+        let mut w_file = File::create(&weights_path).unwrap();
+        writeln!(
+            w_file,
+            r#"{{ "corpus_scale": 1.0, "weight_finger_effort": 0.0 }}"#
+        )
+        .unwrap();
+
         Self {
             _dir: dir,
             cost_path,
-            ngram_path,
+            corpus_dir,
             keyboard_path,
+            weights_path,
+            keycodes_path,
         }
     }
 }
@@ -145,60 +195,75 @@ fn test_poison_pill_constraint() {
             "search",
             "--cost",
             ctx.cost_path.to_str().unwrap(),
-            "--ngrams",
-            ctx.ngram_path.to_str().unwrap(),
+            "--corpus",
+            ctx.corpus_dir.to_str().unwrap(),
             "--keyboard",
             ctx.keyboard_path.to_str().unwrap(),
+            "--weights",
+            ctx.weights_path.to_str().unwrap(),
+            "--keycodes",
+            ctx.keycodes_path.to_str().unwrap(),
             "--corpus-scale",
             "1.0",
             "--search-epochs",
-            "50", // Reduced epochs for speed
+            "20",
             "--search-steps",
-            "1000",
+            "5000",
             "--attempts",
             "1",
             "--seed",
             "999",
             "--debug",
+            "--tier-high-chars",
+            "etaoinshr",
+            "--tier-med-chars",
+            "ldcumwfgypb",
+            "--tier-low-chars",
+            "vkjxqz",
         ])
         .output()
         .expect("Failed to run search");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Print logs for debugging visibility
+    println!("=== EXECUTION LOGS ===");
+    println!("{}", stderr);
+    println!("{}", stdout);
 
     if !output.status.success() {
-        println!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
-        panic!("Keyforge binary crashed");
+        panic!("Crash detected.");
     }
 
     let mut layout_raw = "";
-    for line in stdout.lines() {
+
+    // Improved Parser: Ignored table headers
+    for line in stdout.lines().chain(stderr.lines()) {
         if let Some(idx) = line.find("Layout: ") {
-            layout_raw = line[idx + 8..].trim();
-            break;
+            let content = line[idx + 8..].trim();
+            // Filter out table headers like "Layout: OPTIMIZED"
+            if !content.contains("OPTIMIZED") && !content.contains("Layout") && content.len() > 10 {
+                layout_raw = content;
+            }
         }
     }
 
-    let layout = layout_raw.replace(" ", "");
-
-    if layout.len() < 30 {
-        println!("STDOUT:\n{}", stdout);
-        panic!(
-            "Invalid layout length or layout not found. Found: '{}' (Len: {})",
-            layout,
-            layout.len()
-        );
+    if layout_raw.is_empty() {
+        panic!("Failed to parse layout from output.");
     }
 
-    // Home row is indices 10-19
+    let layout = layout_raw.replace(" ", "");
+    // Home row is indices 10-19 in a 30-key grid
     let home_row = &layout[10..20];
 
-    // 'e' should be evicted from home row due to high cost
+    println!("\n=== ANALYSIS ===");
+    println!("Final Layout: {}", layout_raw);
+    println!("Home Row:     {}", home_row);
+
     if home_row.contains('e') {
-        println!("STDOUT:\n{}", stdout);
-        panic!(
-            "Poison pill failed! 'e' found in poisoned home row: '{}'. Layout: {}",
-            home_row, layout
-        );
+        panic!("❌ Poison pill failed! 'e' is still on the home row.");
+    } else {
+        println!("✅ Poison pill SUCCESS! 'e' was evicted.");
     }
 }

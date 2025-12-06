@@ -1,14 +1,12 @@
-// ===== keyforge/crates/keyforge-core/src/verifier.rs =====
-use crate::config::Config;
-use crate::geometry::KeyboardGeometry;
 use crate::keycodes::KeycodeRegistry;
 use crate::layouts::layout_string_to_u16;
 use crate::optimizer::mutation;
 use crate::scorer::{ScoreDetails, Scorer};
+use keyforge_protocol::config::Config; // UPDATED
+use keyforge_protocol::geometry::KeyboardGeometry; // UPDATED
 use std::path::Path;
 use std::sync::Arc;
 
-// ADDED: Clone derivation
 #[derive(Clone)]
 pub struct Verifier {
     scorer: Arc<Scorer>,

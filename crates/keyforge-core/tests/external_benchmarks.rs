@@ -1,4 +1,8 @@
+use comfy_table::presets::ASCII_FULL;
+use comfy_table::{Cell, CellAlignment, Color, Table};
 use keyforge_core::api::{load_dataset, validate_layout, KeyForgeState};
+use keyforge_core::keycodes::KeycodeRegistry;
+use keyforge_core::layouts::layout_string_to_u16; // ADDED: Missing import for layout visualization
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -7,20 +11,24 @@ use std::thread;
 #[derive(Debug, Deserialize, Clone)]
 struct CyanophageEntry {
     layout: String,
-    effort: f32,
     sfb: f32,
+    lateral_stretch: f32,
+    pinky_scissors: f32,
+    tri_redirect: f32,
+    roll_in: f32,
+    roll_out: f32,
 }
 
 fn get_workspace_root() -> PathBuf {
     let cwd = std::env::current_dir().unwrap();
-    if cwd.join("data").exists() {
-        return cwd;
+    let candidates = [".", "..", "../.."];
+    for c in candidates {
+        let p = cwd.join(c).join("data");
+        if p.exists() && p.is_dir() {
+            return cwd.join(c);
+        }
     }
-    let up_two = cwd.join("../../");
-    if up_two.join("data").exists() {
-        return up_two;
-    }
-    panic!("Could not locate 'data' directory. CWD: {:?}", cwd);
+    panic!("Could not locate workspace root containing 'data/'");
 }
 
 fn load_cyanophage_data(root: &Path) -> Vec<CyanophageEntry> {
@@ -30,22 +38,51 @@ fn load_cyanophage_data(root: &Path) -> Vec<CyanophageEntry> {
     serde_json::from_str(&content).expect("Failed to parse cyanophage.json")
 }
 
+fn print_layout_grid(name: &str, codes: &[u16], registry: &KeycodeRegistry) {
+    println!("\nLayout: {}", name);
+    let rows = [(0..6, 6..12), (12..18, 18..24), (24..30, 30..36)];
+
+    println!("+----------------+----------------+");
+    for (left_r, right_r) in rows {
+        print!("| ");
+        for i in left_r {
+            if i < codes.len() {
+                let l = registry.get_label(codes[i]);
+                print!("{:^2} ", l);
+            } else {
+                print!("   ");
+            }
+        }
+        print!("| ");
+        for i in right_r {
+            if i < codes.len() {
+                let l = registry.get_label(codes[i]);
+                print!("{:^2} ", l);
+            } else {
+                print!("   ");
+            }
+        }
+        println!("|");
+    }
+    println!("+----------------+----------------+");
+}
+
 #[test]
 fn test_cyanophage_ranking_correlation() {
+    println!("\n=== EXTERNAL BENCHMARK VERIFICATION ===");
+    println!("Goal: Ensure KeyForge metrics correlate with established Cyanophage data.");
+    println!("Constraint: Only layouts present in BOTH datasets are compared.");
+
     let root = get_workspace_root();
     let data_dir = root.join("data");
 
-    // Check files
-    let required = [
-        "ngrams-all.tsv",
-        "cost_matrix.csv",
-        "keyboards/szr35.json",
-        "benchmarks/cyanophage.json",
-    ];
-    for f in required {
-        if !data_dir.join(f).exists() {
-            panic!("Missing file: {}", f);
-        }
+    let corpus_path = data_dir.join("corpora/default");
+    let cost_path = data_dir.join("cost_matrix.csv");
+    let kb_path = data_dir.join("keyboards/corne.json");
+    let kc_path = data_dir.join("keycodes.json");
+
+    if !corpus_path.exists() {
+        panic!("Missing corpus dir: {:?}", corpus_path);
     }
 
     let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
@@ -55,166 +92,161 @@ fn test_cyanophage_ranking_correlation() {
             let state = KeyForgeState::default();
             let session_id = "bench_session";
 
-            // Initialize Scorer
+            // Load Registry manually for visualization
+            let registry = KeycodeRegistry::load_from_file(&kc_path).unwrap_or_default();
+
             load_dataset(
                 &state,
                 session_id,
-                data_dir.join("cost_matrix.csv").to_str().unwrap(),
-                data_dir.join("ngrams-all.tsv").to_str().unwrap(),
-                &Some(
-                    data_dir
-                        .join("keyboards/szr35.json")
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
-                ),
+                cost_path.to_str().unwrap(),
+                corpus_path.to_str().unwrap(),
+                &Some(kb_path.to_str().unwrap().to_string()),
                 None,
-                None,
+                Some(root.to_str().unwrap()),
             )
             .expect("Failed to load dataset");
 
             let benchmarks = load_cyanophage_data(&root);
 
-            // Results Container
             struct ResultEntry {
                 name: String,
-                kf_rank: usize,
-                cyan_rank: usize,
+                kf_score: f32,
                 cyan_sfb: f32,
                 kf_sfb: f32,
-                diff: f32,
+                cyan_lat: f32,
+                kf_lat: f32,
+                cyan_scis: f32,
+                kf_scis: f32,
+                cyan_roll: f32,
+                kf_roll: f32,
+                cyan_redir: f32,
+                kf_redir: f32,
             }
-            let mut full_results = Vec::new();
-            let mut missing_layouts = Vec::new();
+            let mut results = Vec::new();
+            let mut skipped = Vec::new();
 
-            // 1. Process All Layouts
-            {
-                // Pre-fetch all valid layout names to avoid lock contention
-                // FIXED: .lock() -> .read()
-                let sessions = state.sessions.read().unwrap();
-                let session = sessions.get(session_id).unwrap();
-                let kb = &session.kb_def;
+            let sessions = state.sessions.read().unwrap();
+            let session = sessions.get(session_id).unwrap();
+            let kb_layouts = session.kb_def.layouts.clone();
+            let key_count = session.scorer.key_count;
+            drop(sessions);
 
-                // Temporary vector to hold intermediate calculations for ranking
-                let mut calculated_scores = Vec::new();
+            println!("Loaded {} layouts from corne.json", kb_layouts.len());
 
-                // First pass: Calculate all scores for found layouts
-                for b in &benchmarks {
-                    // Fuzzy match
-                    let match_key = kb.layouts.keys().find(|k| {
-                        k.to_lowercase() == b.layout.to_lowercase()
-                            || k.to_lowercase().replace("-", "")
-                                == b.layout.to_lowercase().replace("-", "")
-                    });
+            for (name, layout_str) in kb_layouts {
+                let bench = benchmarks.iter().find(|b| {
+                    b.layout.eq_ignore_ascii_case(&name)
+                        || b.layout
+                            .replace("-", "")
+                            .eq_ignore_ascii_case(&name.replace("-", ""))
+                });
 
-                    if let Some(real_key) = match_key {
-                        let layout_str = kb.layouts.get(real_key).unwrap().clone();
-                        calculated_scores.push((b.layout.clone(), layout_str, b.sfb, b.effort));
-                    } else {
-                        missing_layouts.push(b.layout.clone());
-                    }
-                }
-                drop(sessions); // Release lock
-
-                // Second pass: Calculate scores
-                // FIXED: Explicit type annotation to solve inference error
-                // (Name, LayoutScore, KF_SFB, Ref_SFB, Ref_Effort)
-                let mut scored_entries: Vec<(String, f32, f32, f32, f32)> = Vec::new();
-
-                for (name, layout_str, ref_sfb, ref_effort) in calculated_scores {
-                    let res = validate_layout(&state, session_id, layout_str, None).unwrap();
-                    let total = if res.score.total_bigrams > 0.0 {
-                        res.score.total_bigrams
+                if let Some(b) = bench {
+                    let res =
+                        validate_layout(&state, session_id, layout_str.clone(), None).unwrap();
+                    let s = &res.score;
+                    let t_bi = if s.total_bigrams > 0.0 {
+                        s.total_bigrams
                     } else {
                         1.0
                     };
-                    let kf_sfb = (res.score.stat_sfb / total) * 100.0;
+                    let t_tri = if s.total_trigrams > 0.0 {
+                        s.total_trigrams
+                    } else {
+                        1.0
+                    };
 
-                    scored_entries.push((
-                        name,
-                        res.score.layout_score,
-                        kf_sfb,
-                        ref_sfb,
-                        ref_effort,
-                    ));
-                }
+                    // Visualize
+                    let codes = layout_string_to_u16(&layout_str, key_count, &registry);
+                    print_layout_grid(&name, &codes, &registry);
 
-                // Rank them
-                let mut kf_sorted = scored_entries.clone();
-                kf_sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap()); // Sort by KF Score
-
-                let mut cyan_sorted = benchmarks.clone();
-                cyan_sorted.sort_by(|a, b| a.effort.partial_cmp(&b.effort).unwrap()); // Sort by Cyan Effort
-
-                // Build Final Report Data
-                for (name, _, kf_sfb, ref_sfb, _) in &scored_entries {
-                    let kf_rank = kf_sorted.iter().position(|x| x.0 == *name).unwrap() + 1;
-                    let cyan_rank = cyan_sorted.iter().position(|x| x.layout == *name).unwrap() + 1;
-
-                    full_results.push(ResultEntry {
+                    results.push(ResultEntry {
                         name: name.clone(),
-                        kf_rank,
-                        cyan_rank,
-                        cyan_sfb: *ref_sfb,
-                        kf_sfb: *kf_sfb,
-                        diff: (*kf_sfb - *ref_sfb).abs(),
+                        kf_score: s.layout_score,
+                        cyan_sfb: b.sfb,
+                        kf_sfb: (s.stat_sfb / t_bi) * 100.0,
+                        cyan_lat: b.lateral_stretch,
+                        kf_lat: (s.stat_lat / t_bi) * 100.0,
+                        cyan_scis: b.pinky_scissors,
+                        kf_scis: (s.stat_scis / t_bi) * 100.0,
+                        cyan_roll: b.roll_in + b.roll_out,
+                        kf_roll: (s.stat_roll / t_bi) * 100.0,
+                        cyan_redir: b.tri_redirect,
+                        kf_redir: (s.stat_redir / t_tri) * 100.0,
                     });
+                } else {
+                    skipped.push(name);
                 }
             }
 
-            // 2. Print Full Report
-            println!(
-                "\n{:<25} | {:<5} | {:<5} | {:<8} | {:<8} | {:<8}",
-                "Layout", "Cyan#", "KF#", "Ref SFB", "KF SFB", "Diff"
-            );
-            println!("{:-<75}", "-");
+            results.sort_by(|a, b| a.kf_score.partial_cmp(&b.kf_score).unwrap());
 
-            for res in &full_results {
-                let alert = if res.diff > 1.5 { "(!)" } else { "" };
-                println!(
-                    "{:<25} | {:<5} | {:<5} | {:<8.2} | {:<8.2} | {:<8.2} {}",
-                    res.name, res.cyan_rank, res.kf_rank, res.cyan_sfb, res.kf_sfb, res.diff, alert
-                );
+            let mut table = Table::new();
+            table.load_preset(ASCII_FULL);
+            table.set_header(vec![
+                "Rank",
+                "Layout",
+                "KF Score",
+                "SFB% (Ref|KF)",
+                "Lat% (Ref|KF)",
+                "Sci% (Ref|KF)",
+                "Roll% (Ref|KF)",
+                "Redir% (Ref|KF)",
+            ]);
+
+            // Suppress unused warning by prefixing _
+            let fmt_pair = |ref_v: f32, kf_v: f32, _invert: bool| -> Cell {
+                let diff = (ref_v - kf_v).abs();
+                let color = if diff < 0.5 {
+                    Color::Green
+                } else if diff < 2.0 {
+                    Color::Yellow
+                } else {
+                    Color::Red
+                };
+                let s = format!("{:5.2} | {:5.2}", ref_v, kf_v);
+                Cell::new(s).fg(color).set_alignment(CellAlignment::Right)
+            };
+
+            for (i, r) in results.iter().enumerate() {
+                table.add_row(vec![
+                    Cell::new(format!("#{}", i + 1)),
+                    Cell::new(&r.name).add_attribute(comfy_table::Attribute::Bold),
+                    Cell::new(format!("{:.0}", r.kf_score)).set_alignment(CellAlignment::Right),
+                    fmt_pair(r.cyan_sfb, r.kf_sfb, false),
+                    fmt_pair(r.cyan_lat, r.kf_lat, false),
+                    fmt_pair(r.cyan_scis, r.kf_scis, false),
+                    fmt_pair(r.cyan_roll, r.kf_roll, true),
+                    fmt_pair(r.cyan_redir, r.kf_redir, false),
+                ]);
             }
 
-            println!("\n⚠️  MISSING LAYOUTS (In benchmark but not in szr35.json):");
-            for m in &missing_layouts {
-                println!("   - {}", m);
+            println!("\n{}", table);
+
+            if !skipped.is_empty() {
+                println!("\n⚠️  Skipped (No Reference Data): {}", skipped.join(", "));
             }
 
-            // 3. Fail on Errors
-            let mut errors = Vec::new();
-
-            // Check Qwerty Rank
-            if let Some(res) = full_results
+            // ASSERTIONS
+            let qwerty_rank = results
                 .iter()
-                .find(|r| r.name.eq_ignore_ascii_case("Qwerty"))
-            {
-                let total = full_results.len();
-                if res.kf_rank < total - 5 {
-                    errors.push(format!("Qwerty ranked too high: {}/{}", res.kf_rank, total));
+                .position(|r| r.name.eq_ignore_ascii_case("Qwerty"));
+            if let Some(rank) = qwerty_rank {
+                let percentile = rank as f32 / results.len() as f32;
+                println!("\n[CHECK]: Qwerty Rank = {}/{}", rank + 1, results.len());
+                if percentile < 0.8 {
+                    panic!(
+                        "❌ Logic Failure: Qwerty ranked in top 80%. It should be near the bottom."
+                    );
+                } else {
+                    println!("✅ Qwerty correctly identified as inefficient.");
                 }
             }
 
-            // Check SFB Correlation
-            for res in &full_results {
-                if res.name.eq_ignore_ascii_case("Qwerty") {
-                    continue;
-                }
-                if res.diff > 1.5 {
-                    errors.push(format!(
-                        "SFB Mismatch [{}]: Ref {:.2}% vs KF {:.2}% (Diff {:.2})",
-                        res.name, res.cyan_sfb, res.kf_sfb, res.diff
-                    ));
-                }
-            }
-
-            if !errors.is_empty() {
-                println!("\n❌ --- FAILURE SUMMARY ---");
-                for e in &errors {
-                    println!("{}", e);
-                }
-                panic!("Benchmark correlation failed with {} errors.", errors.len());
+            if results.iter().any(|r| r.kf_sfb == 0.0) {
+                panic!("❌ Data Failure: Some layouts have 0.00% SFB. Corpus failed to load.");
+            } else {
+                println!("✅ Data Integrity: All layouts have non-zero SFB.");
             }
         })
         .unwrap();

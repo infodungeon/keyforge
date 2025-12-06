@@ -1,6 +1,7 @@
 pub mod config;
 pub mod geometry;
 pub mod job;
+pub mod protocol;
 
 use crate::config::{ScoringWeights, SearchParams};
 use crate::geometry::KeyboardDefinition;

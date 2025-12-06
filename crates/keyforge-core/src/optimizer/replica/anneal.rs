@@ -122,16 +122,17 @@ impl Replica {
                 self.update_mutation_weights();
             }
 
-            if step > 0 && step % 5000 == 0 {
+            // VIKTOR'S FIX: Aggressive Synchronization
+            // We sync every 100 steps to correct drift caused by the Pruned Trigram Mismatch.
+            // This ensures the score never diverges significantly from reality.
+            if step > 0 && step % 100 == 0 {
                 let (real_base, real_left, _) =
                     self.scorer.score_full(&self.pos_map, self.current_limit);
                 let real_total = real_base + self.imbalance_penalty(real_left);
 
-                // Self-Correct drift
-                if (self.score - real_total).abs() > 0.01 {
-                    self.score = real_total;
-                    self.left_load = real_left;
-                }
+                // Force update
+                self.score = real_total;
+                self.left_load = real_left;
             }
 
             // LNS Heuristic (Very Low Temp)
@@ -231,21 +232,16 @@ impl Replica {
         }
 
         // --- ADAPTIVE REHEATING (Dr. Solon's Logic) ---
-        // If we improved the score, reset stagnation.
         if self.score < self.last_best_score {
             self.last_best_score = self.score;
             self.stagnation_counter = 0;
         } else {
-            // No improvement this batch
             self.stagnation_counter += 1;
         }
 
-        // If stagnant for too long (e.g. 200 batches = ~1M ops) and temp is low
         if self.stagnation_counter > 200 && self.temperature < 50.0 {
-            // Reheat: Spike temperature to allow escape from local optima
             self.temperature = (self.temperature * 3.0).min(500.0);
             self.stagnation_counter = 0;
-            // Note: We do NOT reset last_best_score, we want to beat the historical best
         }
 
         (accepted, steps)

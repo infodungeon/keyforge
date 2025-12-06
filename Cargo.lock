@@ -2541,6 +2541,7 @@ name = "keyforge-core"
 version = "0.5.2"
 dependencies = [
  "clap",
+ "comfy-table",
  "criterion",
  "csv",
  "fastrand",
@@ -2548,7 +2549,6 @@ dependencies = [
  "hex",
  "itertools 0.14.0",
  "keyforge-protocol",
- "kle-serial",
  "proptest",
  "rayon",
  "regex",
@@ -2617,10 +2617,10 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "hex",
+ "kle-serial",
  "serde",
  "serde_json",
  "sha2",
- "thiserror 1.0.69",
 ]
 
 [[package]]

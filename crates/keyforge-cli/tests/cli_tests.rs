@@ -1,95 +1,131 @@
 use regex::Regex;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-// Helper to find the binary relative to the crate
+// Helper to find the binary, prioritizing release builds
 fn get_binary_path() -> PathBuf {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let mut path = PathBuf::from(manifest_dir);
-    // Determine if we are in workspace root or crate dir
+
     if path.ends_with("keyforge-cli") {
         path.pop(); // crates
         path.pop(); // root
     }
 
     path.push("target");
-    path.push("release");
-    path.push("keyforge");
 
-    if !path.exists() {
-        // Fallback for debug builds if release not found
-        path.pop();
-        path.push("debug");
-        path.push("keyforge");
+    // Check Release first
+    let release_path = path.join("release").join("keyforge");
+    let debug_path = path.join("debug").join("keyforge");
+
+    if release_path.exists() {
+        return release_path;
+    }
+    if debug_path.exists() {
+        return debug_path;
     }
 
+    panic!(
+        "❌ Test Binary Not Found.\n   Checked:\n   - {:?}\n   - {:?}\n   👉 Run 'cargo build --release' first.",
+        release_path, debug_path
+    );
+}
+
+fn get_real_keycodes_path() -> PathBuf {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let mut path = PathBuf::from(manifest_dir);
+    if path.ends_with("keyforge-cli") {
+        path.pop();
+        path.pop();
+    }
+    path.push("data");
+    path.push("keycodes.json");
+
+    if !path.exists() {
+        panic!(
+            "❌ Test Setup Failed: Could not locate real keycodes.json at {:?}",
+            path
+        );
+    }
     path
 }
 
 struct TestContext {
     _dir: TempDir,
     cost_path: PathBuf,
-    ngram_path: PathBuf,
+    corpus_dir: PathBuf,
     keyboard_path: PathBuf,
-    _weights_path: PathBuf, // FIXED: Prefixed with underscore
+    weights_path: PathBuf,
+    keycodes_path: PathBuf,
 }
 
 impl TestContext {
     fn new() -> Self {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let cost_path = dir.path().join("test_cost.csv");
-        let ngram_path = dir.path().join("test_ngrams.tsv");
+        let corpus_dir = dir.path().join("test_corpus");
         let keyboard_path = dir.path().join("test_keyboard.json");
         let weights_path = dir.path().join("test_weights.json");
+        let keycodes_path = get_real_keycodes_path();
 
-        // 1. Cost Matrix (Strict CSV: From,To,Cost)
+        // 1. Cost Matrix (Strict CSV)
         let mut cost_file = File::create(&cost_path).unwrap();
         writeln!(cost_file, "From,To,Cost").unwrap();
-        let keys = ["KeyQ", "KeyW", "KeyE", "KeyA", "KeyS", "KeyD"];
+        let keys = [
+            "KeyQ", "KeyW", "KeyE", "KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO", "KeyP",
+        ];
         for k1 in keys {
             for k2 in keys {
-                writeln!(cost_file, "{},{},1000.0", k1, k2).unwrap();
+                writeln!(cost_file, "{},{},100.0", k1, k2).unwrap();
             }
         }
-        // Fillers
-        let filler = ["KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO", "KeyP"];
-        for k in filler {
-            writeln!(cost_file, "KeyA,{},1000.0", k).unwrap();
-        }
 
-        // 2. N-Grams (Strict TSV)
-        let mut ngram_file = File::create(&ngram_path).unwrap();
-        writeln!(ngram_file, "qa\t1000").unwrap();
-        writeln!(ngram_file, "we\t1000").unwrap();
-        writeln!(ngram_file, "asd\t1000").unwrap();
-        writeln!(ngram_file, "sad\t1000").unwrap();
-        writeln!(ngram_file, "a\t1000").unwrap();
-        writeln!(ngram_file, "s\t1000").unwrap();
-        writeln!(ngram_file, "d\t1000").unwrap();
-        writeln!(ngram_file, "q\t100").unwrap();
-        writeln!(ngram_file, "w\t100").unwrap();
-        writeln!(ngram_file, "e\t1000").unwrap();
+        // 2. Corpus Bundle
+        fs::create_dir(&corpus_dir).unwrap();
+        let mut f1 = File::create(corpus_dir.join("1grams.csv")).unwrap();
+        writeln!(f1, "char,freq").unwrap();
+        writeln!(f1, "q,1000").unwrap();
+        writeln!(f1, "w,1000").unwrap();
+        writeln!(f1, "e,1000").unwrap();
 
-        // 3. Keyboard Definition (Valid JSON)
+        let mut f2 = File::create(corpus_dir.join("2grams.csv")).unwrap();
+        writeln!(f2, "char1,char2,freq").unwrap();
+        writeln!(f2, "q,w,5000").unwrap();
+        writeln!(f2, "w,e,5000").unwrap();
+
+        let mut f3 = File::create(corpus_dir.join("3grams.csv")).unwrap();
+        writeln!(f3, "char1,char2,char3,freq").unwrap();
+
+        // 3. Keyboard
         let mut kb_file = File::create(&keyboard_path).unwrap();
         let mut keys_json = Vec::new();
-        // Generate enough keys (30) to pass the "Zero Key" stability check
-        for r in 0..3 {
-            for c in 0..10 {
+        let row_chars = [
+            ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+            ["A", "S", "D", "F", "G", "H", "J", "K", "L", "SCLN"],
+            ["Z", "X", "C", "V", "B", "N", "M", "COMM", "DOT", "SLSH"],
+        ];
+
+        for (r, row) in row_chars.iter().enumerate() {
+            for (c, char_code) in row.iter().enumerate() {
+                let id = format!("Key{}", char_code);
+                let finger = match c {
+                    0..=4 => 4 - c,
+                    5..=9 => c - 5,
+                    _ => 1,
+                };
+                let hand = if c < 5 { 0 } else { 1 };
+
                 keys_json.push(format!(
-                    r#"{{"hand": {}, "finger": 1, "row": {}, "col": {}, "x": {}, "y": {}, "w": 1.0, "h": 1.0, "id": "k{}{}"}}"#,
-                    if c < 5 { 0 } else { 1 },
-                    r,
-                    c,
-                    c as f32,
-                    r as f32,
-                    r, c
+                    r#"{{"id": "{}", "hand": {}, "finger": {}, "row": {}, "col": {}, "x": {}, "y": {}, "w": 1.0, "h": 1.0}}"#,
+                    id, hand, finger, r, c, c as f32, r as f32
                 ));
             }
         }
+
         let json = format!(
             r#"{{
                 "meta": {{ "name": "TestKB", "author": "Test", "version": "1.0", "type": "ortho" }},
@@ -99,7 +135,7 @@ impl TestContext {
                     "home_row": 1
                 }},
                 "layouts": {{
-                    "qwerty": "QWERTYUIOPASDFGHJKL;ZXCVBNM,./"
+                    "qwerty": "KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH"
                 }}
             }}"#,
             keys_json.join(",")
@@ -111,9 +147,12 @@ impl TestContext {
         writeln!(
             w_file,
             r#"{{
-            "penalty_sfb_base": 10000.0, 
-            "penalty_scissor": 5000.0,
-            "finger_penalty_scale": "1.0,1.0,1.0,1.0,1.0"
+            "penalty_sfb_base": 1000.0,
+            "penalty_lateral": 100.0,
+            "finger_penalty_scale": "1.0,1.0,1.0,1.0,1.0",
+            "corpus_scale": 1.0,
+            "bonus_bigram_roll_in": 35.0,
+            "bonus_bigram_roll_out": 25.0
         }}"#
         )
         .unwrap();
@@ -121,9 +160,10 @@ impl TestContext {
         Self {
             _dir: dir,
             cost_path,
-            ngram_path,
+            corpus_dir,
             keyboard_path,
-            _weights_path: weights_path, // FIXED: Prefixed with underscore
+            weights_path,
+            keycodes_path,
         }
     }
 }
@@ -140,16 +180,15 @@ fn run_validate(ctx: &TestContext, args: &[&str]) -> (f32, f32, String) {
         "qwerty",
         "--cost",
         ctx.cost_path.to_str().unwrap(),
-        "--ngrams",
-        ctx.ngram_path.to_str().unwrap(),
+        "--corpus",
+        ctx.corpus_dir.to_str().unwrap(),
         "--keyboard",
         ctx.keyboard_path.to_str().unwrap(),
+        "--weights",
+        ctx.weights_path.to_str().unwrap(),
+        "--keycodes",
+        ctx.keycodes_path.to_str().unwrap(),
     ];
-
-    if !args.contains(&"--corpus-scale") {
-        final_args.push("--corpus-scale");
-        final_args.push("1.0");
-    }
 
     final_args.extend_from_slice(args);
 
@@ -214,10 +253,14 @@ fn test_cli_search_execution() {
             "search",
             "--cost",
             ctx.cost_path.to_str().unwrap(),
-            "--ngrams",
-            ctx.ngram_path.to_str().unwrap(),
+            "--corpus",
+            ctx.corpus_dir.to_str().unwrap(),
             "--keyboard",
             ctx.keyboard_path.to_str().unwrap(),
+            "--weights",
+            ctx.weights_path.to_str().unwrap(),
+            "--keycodes",
+            ctx.keycodes_path.to_str().unwrap(),
             "--corpus-scale",
             "1.0",
             "--search-epochs",
@@ -240,7 +283,6 @@ fn test_cli_search_execution() {
 #[test]
 fn test_cli_flow_metrics() {
     let ctx = TestContext::new();
-    // FIXED: Renamed flow to _flow to suppress warning
     let (total, _flow, stdout) = run_validate(&ctx, &[]);
     if total == 0.0 {
         panic!("Parsing Failed. Total is 0.0\nSTDOUT:\n{}", stdout);

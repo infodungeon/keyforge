@@ -1,5 +1,5 @@
 use keyforge_core::config::Config;
-use keyforge_core::geometry::{KeyboardDefinition, KeyboardLoader};
+use keyforge_core::geometry::KeyboardDefinition; // FIXED
 use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::layouts::layout_string_to_u16;
 use keyforge_core::optimizer::mutation;
@@ -18,7 +18,7 @@ fn get_data_path(file: &str) -> String {
 #[test]
 fn trace_sturdy_scoring() {
     let cost_path = get_data_path("cost_matrix.csv");
-    let ngrams_path = get_data_path("ngrams-all.tsv");
+    let ngrams_path = get_data_path("corpora/default"); // Updated to directory
     let kb_path = get_data_path("keyboards/szr35.json");
     let weights_path = get_data_path("weights/ortho_split.json");
     let keycodes_path = get_data_path("keycodes.json");
@@ -29,8 +29,6 @@ fn trace_sturdy_scoring() {
     }
 
     let mut config = Config::default();
-
-    // FIXED: Removed unused import. Calling inherent method directly.
     config.weights = keyforge_core::config::ScoringWeights::load_from_file(&weights_path);
 
     let registry = KeycodeRegistry::load_from_file(&keycodes_path).unwrap();
@@ -88,7 +86,6 @@ fn trace_sturdy_scoring() {
                     );
 
                     let total_penalty = (dist * cost_res.penalty_multiplier) * freq;
-
                     let s1 = registry.get_label(c1 as u16);
                     let s2 = registry.get_label(c2 as u16);
                     sfb_hits.push((format!("{}->{}", s1, s2), total_penalty, freq));

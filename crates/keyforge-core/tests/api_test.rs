@@ -1,5 +1,5 @@
-// UPDATED: use keyforge_core
 use keyforge_core::api::{KeyForgeState, load_dataset, validate_layout};
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 
@@ -12,19 +12,40 @@ fn test_api_integration_and_serialization() {
         // 1. Setup Fake Data
         let _dir = tempfile::tempdir().unwrap(); 
         let cost_path = _dir.path().join("api_cost.csv");
-        let ngram_path = _dir.path().join("api_ngrams.tsv");
+        let corpus_dir = _dir.path().join("api_corpus"); // Directory
         let geo_path = _dir.path().join("api_kb.json"); 
 
         // Scope block to ensure files are closed/flushed before loading
         {
+            // Cost Matrix
             let mut cost_file = File::create(&cost_path).unwrap();
             writeln!(cost_file, "From,To,Cost\nKeyQ,KeyW,10.0").unwrap();
 
-            let mut ngram_file = File::create(&ngram_path).unwrap();
-            writeln!(ngram_file, "q\t1000").unwrap(); 
-            writeln!(ngram_file, "w\t1000").unwrap(); 
-            writeln!(ngram_file, "qw\t1000").unwrap(); 
+            // Corpus Bundle (Directory Structure)
+            fs::create_dir(&corpus_dir).unwrap();
 
+            // 1grams.csv
+            let mut f1 = File::create(corpus_dir.join("1grams.csv")).unwrap();
+            writeln!(f1, "char,freq").unwrap();
+            writeln!(f1, "q,1000").unwrap();
+            writeln!(f1, "w,1000").unwrap();
+            // Fill others to avoid "char not found" issues if layout has other keys
+            for c in "abcdefghijklmnopqrstuvwxyz".chars() {
+                if c != 'q' && c != 'w' {
+                    writeln!(f1, "{},10", c).unwrap();
+                }
+            }
+
+            // 2grams.csv
+            let mut f2 = File::create(corpus_dir.join("2grams.csv")).unwrap();
+            writeln!(f2, "char1,char2,freq").unwrap();
+            writeln!(f2, "q,w,1000").unwrap();
+
+            // 3grams.csv
+            let mut f3 = File::create(corpus_dir.join("3grams.csv")).unwrap();
+            writeln!(f3, "char1,char2,char3,freq").unwrap();
+
+            // Keyboard Geometry
             let mut json = String::from(r#"{
                 "meta": {
                     "name": "TestBoard",
@@ -64,7 +85,7 @@ fn test_api_integration_and_serialization() {
             &state, 
             session_id, 
             cost_path.to_str().unwrap(), 
-            ngram_path.to_str().unwrap(), 
+            corpus_dir.to_str().unwrap(), // Pass DIRECTORY path
             &Some(geo_path.to_str().unwrap().to_string()), 
             Some(1.0),
             None 
@@ -81,11 +102,12 @@ fn test_api_integration_and_serialization() {
         let res = validate_layout(&state, session_id, layout, None).expect("Validation failed");
 
         // 4. CHECK: Did we get scores?
-        assert!(res.score.total_chars > 0.0, "Total chars is 0.");
+        assert!(res.score.total_chars > 0.0, "Total chars is 0. Scorer loaded empty frequencies.");
         assert!(res.score.total_bigrams > 0.0, "Total bigrams is 0.");
 
         // 5. CHECK: Heatmap
         assert_eq!(res.heatmap.len(), 30);
+        // Index 0 corresponds to 'Q', which has high freq (1000)
         assert!(res.heatmap[0] > 0.0, "Heatmap index 0 (Q) is cold. Should be hot.");
     }).unwrap();
 

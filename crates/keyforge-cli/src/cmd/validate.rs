@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-cli/src/cmd/validate.rs =====
 use crate::reports;
 use clap::Args;
 use keyforge_core::config::Config;
@@ -6,7 +5,7 @@ use keyforge_core::geometry::KeyboardDefinition;
 use keyforge_core::keycodes::KeycodeRegistry;
 use keyforge_core::layouts::layout_string_to_u16;
 use keyforge_core::scorer::Scorer;
-use keyforge_core::verifier::Verifier; // ADDED
+use keyforge_core::verifier::Verifier;
 use std::sync::Arc;
 
 #[derive(Args, Debug, Clone)]
@@ -45,9 +44,10 @@ pub fn run(
         let layout_str = kb_def.layouts.get(name).unwrap();
 
         // 2. Score via Verifier (Standardized Logic)
+        // FIXED: Removed extra argument, Verifier handles limits internally
         let details = verifier.score_details(layout_str.clone());
 
-        // 3. Print Visual Grid (Requires manual code gen for display)
+        // 3. Print Visual Grid
         let layout_codes = layout_string_to_u16(layout_str, key_count, &registry);
         reports::print_layout_grid(name, &layout_codes, &registry);
 
@@ -61,7 +61,6 @@ pub fn run(
 
     results.sort_by(|a, b| a.1.layout_score.partial_cmp(&b.1.layout_score).unwrap());
 
-    // Generate Reports
     reports::print_scoring_report(&results);
     reports::print_statistical_report(&results, &scorer.weights);
     reports::print_comparison_report(&results);

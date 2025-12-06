@@ -1,17 +1,16 @@
-// ===== keyforge/crates/keyforge-core/src/optimizer/runner.rs =====
-use crate::config::{Config, SearchParams};
 use crate::core_types::{KeyCode, Layout};
 use crate::optimizer::crossover::crossover_uniform;
 use crate::optimizer::{mutation, Replica};
 use crate::scorer::Scorer;
+use keyforge_protocol::config::{Config, SearchParams}; // UPDATED
 use rayon::prelude::*;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub struct OptimizationOptions {
     pub num_threads: usize,
-    pub params: SearchParams, // REUSE: Use shared config struct
-    pub pinned_keys: String, // Pinned keys are separate from search params usually (constraints vs algorithm)
+    pub params: SearchParams,
+    pub pinned_keys: String,
     pub max_time: Option<Duration>,
     pub initial_population: Vec<Layout>,
 }
@@ -22,8 +21,8 @@ impl From<&Config> for OptimizationOptions {
             num_threads: std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(4),
-            params: cfg.search,         // Copy the struct (it's Copy)
-            pinned_keys: String::new(), // Default none, CLI sets this manually usually
+            params: cfg.search,
+            pinned_keys: String::new(),
             max_time: None,
             initial_population: Vec::new(),
         }
@@ -53,7 +52,6 @@ impl Optimizer {
         let opts = &self.options;
         let params = &opts.params;
 
-        // 1. Initialize Replicas using params
         let mut replicas: Vec<Replica> = (0..opts.num_threads)
             .map(|i| {
                 let progress = i as f32 / (opts.num_threads.max(2) - 1) as f32;
@@ -80,7 +78,6 @@ impl Optimizer {
             })
             .collect();
 
-        // 2. Global State
         let mut global_best_score = f32::MAX;
         let mut global_best_layout = Vec::new();
         let mut gene_pool: Vec<(f32, Layout)> = self.seed_gene_pool();
@@ -97,7 +94,6 @@ impl Optimizer {
         let mut steps_since_last_report = 0;
         let start_time = Instant::now();
 
-        // 3. Main Loop
         for epoch in 0..params.search_epochs {
             if let Some(limit) = opts.max_time {
                 if start_time.elapsed() >= limit {
@@ -105,7 +101,6 @@ impl Optimizer {
                 }
             }
 
-            // A. Evolve
             let steps_this_epoch: usize = replicas
                 .par_iter_mut()
                 .map(|r| {
@@ -124,15 +119,12 @@ impl Optimizer {
 
             steps_since_last_report += steps_this_epoch;
 
-            // B. Tempering
             self.try_tempering(&mut replicas, &mut rng);
 
-            // C. Crossover
             if epoch > 0 && epoch % 50 == 0 {
                 self.perform_crossover(&mut replicas, &gene_pool, &mut rng);
             }
 
-            // D. Harvest
             let mut improved = false;
             for r in &replicas {
                 if r.score < local_best_score - params.search_patience_threshold {
@@ -164,7 +156,6 @@ impl Optimizer {
                 break;
             }
 
-            // E. Report
             let now = Instant::now();
             let duration = now.duration_since(last_print).as_secs_f32();
             if duration >= 1.0 {
@@ -183,7 +174,6 @@ impl Optimizer {
         }
     }
 
-    // --- Helpers (Unchanged, just ensuring they use self methods) ---
     fn seed_gene_pool(&self) -> Vec<(f32, Layout)> {
         let mut pool = Vec::new();
         for layout in &self.options.initial_population {
@@ -241,7 +231,6 @@ impl Optimizer {
 
         let key_count = self.scorer.key_count;
         let mut pinned_slots = vec![None; key_count];
-        // Parse pins from options
         if !self.options.pinned_keys.is_empty() {
             for part in self.options.pinned_keys.split(',') {
                 let parts: Vec<&str> = part.split(':').collect();

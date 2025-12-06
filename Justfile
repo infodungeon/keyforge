@@ -9,6 +9,12 @@ build:
     cargo build --release
 
 # Build specific components
+build-proto:
+    cargo build --release -p keyforge-protocol
+
+build-core:
+    cargo build --release -p keyforge-core
+
 build-cli:
     cargo build --release -p keyforge-cli
 
@@ -30,7 +36,7 @@ worker:
 
 # Run the GUI (Dev Mode)
 ui:
-    cd keyforge/ui && npm run tauri dev
+    cd ui && npm run tauri dev
 
 # --- TEST ---
 
@@ -44,18 +50,25 @@ test-cli:
 
 # Run Frontend Logic tests
 test-ui:
-    cd keyforge/ui && npx vitest run
+    cd ui && npx vitest run
 
 # Run EVERYTHING
 test-all: test-core test-cli test-ui
 
-# --- UTILS ---
+# --- OPS ---
 
 # Format code
 fmt:
     cargo fmt
-    cd keyforge/ui && npm run format
+    cd ui && npm run format
 
 # Lint code
 lint:
     cargo clippy --workspace -- -D warnings
+
+# Database Setup (Requires Docker)
+db-up:
+    docker-compose up -d db
+
+db-down:
+    docker-compose down

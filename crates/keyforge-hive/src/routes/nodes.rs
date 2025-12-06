@@ -1,6 +1,5 @@
-// ===== keyforge/crates/keyforge-hive/src/routes/nodes.rs =====
 use axum::{extract::State, Json};
-use keyforge_core::protocol::{RegisterNodeRequest, RegisterNodeResponse, TuningProfile};
+use keyforge_protocol::protocol::{RegisterNodeRequest, RegisterNodeResponse, TuningProfile};
 use std::sync::Arc;
 use tracing::info;
 
@@ -11,7 +10,6 @@ pub async fn register_node(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterNodeRequest>,
 ) -> AppResult<Json<RegisterNodeResponse>> {
-    // 1. Register in DB
     state
         .store
         .register_node_hardware(
@@ -31,7 +29,6 @@ pub async fn register_node(
         payload.ops_per_sec / 1_000_000.0
     );
 
-    // 2. Determine Tuning Strategy
     let strategy = if let Some(l2) = payload.l2_cache_kb {
         if l2 >= 1024 {
             "table"
@@ -47,8 +44,6 @@ pub async fn register_node(
     } else {
         10_000
     };
-
-    // Conservative default: Use all physical cores minus 1 for system
     let thread_count = (payload.cores - 1).max(1) as usize;
 
     Ok(Json(RegisterNodeResponse {

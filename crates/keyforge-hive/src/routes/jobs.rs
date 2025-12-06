@@ -1,10 +1,9 @@
-// ===== keyforge/crates/keyforge-hive/src/routes/jobs.rs =====
 use axum::{
     extract::{Path, State},
     Json,
 };
 use keyforge_core::job::JobIdentifier;
-use keyforge_core::protocol::RegisterJobRequest;
+use keyforge_protocol::protocol::RegisterJobRequest; // Correct import path
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration, Instant};
@@ -34,9 +33,8 @@ pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterJobRequest>,
 ) -> AppResult<Json<RegisterJobResponse>> {
-    // Generate Deterministic ID based on ALL inputs
     let job_id = JobIdentifier::from_parts(
-        &payload.definition.geometry, // Access geometry via definition
+        &payload.definition.geometry,
         &payload.weights,
         &payload.params,
         &payload.pinned_keys,
@@ -45,7 +43,6 @@ pub async fn register(
     )
     .hash;
 
-    // Check Existence
     if state.store.job_exists(&job_id).await {
         return Ok(Json(RegisterJobResponse {
             job_id,
@@ -53,7 +50,6 @@ pub async fn register(
         }));
     }
 
-    // Register via Stored Procedure
     state
         .store
         .register_job(&job_id, &payload)
@@ -71,9 +67,9 @@ pub async fn get_queue(State(state): State<Arc<AppState>>) -> AppResult<Json<Job
     let start = Instant::now();
     let timeout = Duration::from_secs(20);
 
-    // Long polling loop
     loop {
-        let result = state
+        // Fixed: Explicit type hint for the tuple returned by the store
+        let result: Option<(String, RegisterJobRequest)> = state
             .store
             .get_latest_job()
             .await

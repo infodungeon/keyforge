@@ -1,4 +1,4 @@
-use crate::geometry::KeyboardGeometry;
+use keyforge_protocol::geometry::KeyboardGeometry; // UPDATED
 
 #[inline(always)]
 pub fn euclidean_dist(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
@@ -21,7 +21,6 @@ pub fn weighted_geo_dist(
     let k1 = &geom.keys[i];
     let k2 = &geom.keys[j];
 
-    // Quick exit for different hands
     if k1.hand != k2.hand {
         return 0.0;
     }

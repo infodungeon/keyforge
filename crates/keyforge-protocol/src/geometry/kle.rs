@@ -1,14 +1,15 @@
-use crate::protocol::geometry::{KeyNode, KeyboardGeometry};
+use super::{KeyNode, KeyboardGeometry};
 use std::error::Error;
 
 /// Parses raw KLE JSON content into KeyForge Geometry using the kle-serial crate.
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
     let keyboard: kle_serial::Keyboard = serde_json::from_str(content)?;
+
     let mut keys = Vec::new();
 
     for (current_id, key) in keyboard.keys.into_iter().enumerate() {
         let hand = if key.x > 10.0 { 1 } else { 0 };
-        let finger = 1;
+        let finger = 1; // Default to index
 
         let label = key
             .legends

@@ -1,8 +1,7 @@
-// ===== keyforge/crates/keyforge-hive/src/store.rs =====
 use crate::routes::submission::SubmissionEntry;
-use keyforge_core::config::{ScoringWeights, SearchParams};
-use keyforge_core::geometry::{KeyboardDefinition, KeyboardGeometry};
-use keyforge_core::protocol::RegisterJobRequest;
+use keyforge_protocol::config::{ScoringWeights, SearchParams};
+use keyforge_protocol::geometry::{KeyboardDefinition, KeyboardGeometry};
+use keyforge_protocol::protocol::RegisterJobRequest;
 use sqlx::{Pool, Postgres, Row};
 
 #[derive(Clone)]
@@ -109,7 +108,6 @@ impl Store {
         l2_cache_kb: Option<i32>,
         ops_per_sec: f32,
     ) -> Result<(), String> {
-        // F32 -> REAL binding (Matched to schema.sql)
         sqlx::query("SELECT register_node_heartbeat($1, $2, $3, $4, $5, $6)")
             .bind(node_id)
             .bind(cpu_model)
@@ -173,12 +171,7 @@ impl Store {
         }
     }
 
-    /// Returns a population of layouts for a worker to seed from.
-    /// IMPLEMENTS CROSS-POLLINATION:
-    /// 1. Top 45 layouts from the current job (Evolution).
-    /// 2. Top 5 layouts from ANY job that uses the same Keyboard Geometry (Migration).
     pub async fn get_job_population(&self, job_id: &str) -> Result<Vec<String>, String> {
-        // We use UNION ALL to combine the local gene pool with the alien gene pool
         let rows = sqlx::query(
             r#"
             (SELECT layout, MIN(score) as s FROM results 

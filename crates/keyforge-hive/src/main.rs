@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-hive/src/main.rs =====
 use axum::{http::Method, middleware};
 use clap::Parser;
 use keyforge_core::keycodes::KeycodeRegistry;
@@ -9,9 +8,9 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
-mod auth; // NEW
+mod auth;
 mod db;
 mod error;
 mod queue;
@@ -76,7 +75,6 @@ async fn main() {
         .allow_methods([Method::GET, Method::POST])
         .allow_headers(Any);
 
-    // Protected Routes (Jobs, Results, Nodes)
     let secure_routes =
         routes::job_routes()
             .merge(routes::result_routes())
@@ -85,10 +83,6 @@ async fn main() {
                 auth::require_secret,
             ));
 
-    // Public Routes (System Health, Static Data, Manifest)
-    // We allow Manifest/Data publicly so new nodes can bootstrap without auth initially?
-    // No, strictly, nodes should have auth to even download data.
-    // But for simplicity of debugging, we keep static assets public for now.
     let public_routes = routes::system_routes()
         .route("/manifest", axum::routing::get(routes::sync::get_manifest))
         .nest_service("/data", ServeDir::new(&data_path));
@@ -103,12 +97,27 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
     info!("🚀 Hive listening on {}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    // FIXED: Handle bind errors gracefully instead of panicking
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            error!("❌ FATAL: Failed to bind to address {}: {}", addr, e);
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                error!(
+                    "   Port {} is already in use. Check for running instances.",
+                    args.port
+                );
+            }
+            std::process::exit(1);
+        }
+    };
 
-    axum::serve(listener, app)
+    if let Err(e) = axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal(state))
         .await
-        .unwrap();
+    {
+        error!("❌ Server error: {}", e);
+    }
 }
 
 async fn shutdown_signal(state: Arc<AppState>) {
