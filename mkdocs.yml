@@ -1,0 +1,30 @@
+site_name: Keyforge
+site_dir: keyforge.infodungeon.com
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+
+nav:
+  - Planning: planning/index.md
+  - Programming Guide: programmingguide/index.md
+  - User Guide:
+      - Keyforge CLI: userguide/keyforgecli/index.md
+      - Keyforge Client: userguide/keyforgeclient/index.md

@@ -1,0 +1,9 @@
+[package]
+name = "keyforge-adapter"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+keyforge-model = { path = "../keyforge-model" }
+keyforge-protocol = { path = "../keyforge-protocol" }
+

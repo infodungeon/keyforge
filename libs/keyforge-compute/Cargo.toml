@@ -1,0 +1,16 @@
+[package]
+name = "keyforge-compute"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+keyforge-model = { path = "../keyforge-model" }
+keyforge-protocol = { path = "../keyforge-protocol" }
+keyforge-core = { path = "../keyforge-core" }
+tracing = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+
+[features]
+default = ["rayon"]
+rayon = ["keyforge-core/rayon"]
+single_threaded = ["keyforge-core/single_threaded"]

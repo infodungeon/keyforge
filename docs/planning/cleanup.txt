@@ -1,0 +1,84 @@
+Forensic Architecture Review: KeyForge v0.8.0
+Status: Alpha / Pre-Release
+Architecture Pattern: Hexagonal (Ports & Adapters) with Distributed Compute
+Time: 2025-12-23
+This analysis evaluates the architectural integrity, security posture, and operational readiness of the KeyForge ecosystem based on the provided source code.
+
+1. High-Level Architectural Alignment
+The system adheres well to the Hexagonal Architecture principles. The core domains (model, physics, evolution) are strictly isolated from I/O, enabling the WASM target for the UI and the native target for the Agent to share identical logic.
+Strengths
+Strict Separation of Concerns: keyforge-core (implied by model/physics) does not know about filesystems or networks. This is the correct approach for a system that must run in a browser and on a server.
+Abstracted Infrastructure: The AssetLoader trait in keyforge-workspace allows the Agent to load from disk (FsProvider) while the WASM client loads from memory (InMemoryLoader).
+Resilient Agent Design: The implementation of a Write-Ahead-Log (WAL) and Circuit Breaker in keyforge-agent demonstrates a maturity often missing in Alpha-stage distributed systems.
+Critical Misalignments (The "God Object" Risk)
+Workspace Coupling: keyforge-workspace is becoming a "God Crate." It depends on almost every other crate (protocol, model, physics, evolution, infra). While it serves as a facade, Session is doing too much: managing state, bridging to the physics engine, and handling orchestration logic.
+Risk: Any change in physics requires a recompile of the workspace and everything that depends on it (CLI, Hive, UI, Agent).
+Recommendation: Split Session into ComputeSession (pure calculation state) and ProjectSession (file/asset management).
+
+
+B. The Hive (keyforge-hive)
+Critical Gap (Data Integrity): The AssetCache relies on notify (file watchers) to invalidate cache.
+Scenario: A job is dispatched using text/en_std. While the job runs, the admin modifies text/en_std on disk. The Agent computes using the old version (cached locally). Hive validates using the new version.
+Result: False positive validation failures.
+Fix: Jobs must snapshot the hash of the assets they use, or Assets must be immutable/versioned (e.g., text/en_std:v1).
+Performance: claim_job uses FOR UPDATE SKIP LOCKED. This is excellent for preventing thundering herds.
+Missing: There is no logic to handle "Dead" jobs. If an Agent crashes after claiming a job, it stays processing forever.
+Requirement: A reaper process to reset stale jobs (e.g., > 30 mins) to active.
+
+
+
+
+
+2. Crate-Level Forensic Analysis
+
+A. The Core (physics, model, evolution)
+Gap (Physics): The Keyboard model relies on home_row index to calculate finger origins. This assumes standard rows.
+Deficiency: Keyboards with non-standard staggers (e.g., Alice layouts, concave keywells projected to 2D) may not map cleanly to "rows."
+Fix: Implement Point based origin calculation or allow explicit finger origin definitions in KeyboardGeometry.
+Gap (Evolution): The CoolingAnnealing schedule uses a linear step count (current_step / total_steps).
+Deficiency: The Agent implements time-boxing (run for 60 seconds), but the Annealer expects a fixed number of steps. If the Agent kills the job at 60s, but the Annealer thinks it has 1M steps left, the temperature will still be high, resulting in a suboptimal "uncooled" result.
+Fix: The Optimizer needs a TimeBasedAnnealing strategy or dynamic step recalculation based on IPS (Iterations Per Second).
+
+
+
+D. The UI (keyforge-ui)
+Architecture: The BackendClient interface with TauriClient and WebClient implementations is a robust pattern for hybrid apps.
+State Management: LibraryContext loads all keyboards and corpora metadata into React state on boot.
+Deficiency: As the library grows (e.g., 500+ community layouts), startup time will degrade.
+Fix: Switch to pagination or lazy loading for the Library view.
+
+3. The Gap Register (Known Unknowns)
+ID	Category	Description	Severity
+G-01	Ops	Database Backup Strategy. No automated pg_dump sidecar. Data loss risk is 100% on container failure if volumes aren't backed up externally.	Critical
+G-02	Legal	GDPR Compliance. BiometricSample stores keystroke timing data. This is PII. There is no consent flow, data export, or "Right to be Forgotten" API.	High
+G-03	Logic	Immutability Violation. Corpus data is referenced by name (text/en_std). If the file changes, historical scores in results table become meaningless/uncomparable.	High
+G-04	Security	DDoS Vulnerability. register_job allows CostMatrixSource::Custom string input. A malicious user could send 100MB strings to exhaust server memory/disk.	Medium
+G-05	UX	Keyboard Versioning. If I modify ansi_104.json locally, it creates a split-brain situation with the Server's definition. No checksum exchange in Job Request.	Medium
+
+4. Operational & Distribution Review
+CI/CD
+Deficiency: The GitHub workflow ci.yml builds binaries but does not sign them.
+Requirement: macOS binaries must be signed and notarized to run on user machines without security warnings.
+Database
+Deficiency: Dockerfile.db uses POSTGRES_PASSWORD: forge_password.
+Fix: This must be injected via Docker Secrets or an .env file that is not committed to git. (Currently, .env is in the repo).
+Updates
+Status: tauri.conf.json has an updater endpoint configured, but the infrastructure to generate and host the update.json manifest (and signatures) is missing from the scripts.
+
+5. Security Deep Dive
+1. Authentication
+Hive: Uses X-Keyforge-Secret (Shared Secret) or API Keys (DB).
+Gap: The shared secret is passed via environment variable HIVE_SECRET. If this leaks, the entire cluster is compromised.
+Recommendation: Move to mTLS (Mutual TLS) for Agent-Hive communication for enterprise deployments, or strictly enforce the Ed25519 signature checks (which appear to be implemented in verify_submission).
+2. Input Sanitization
+Agent: sanitize_filename is used.
+Gap: cmd_safe_write_file in Tauri allows writing files based on a path. While it checks for .., logical symlink attacks or writing to sensitive Windows paths (e.g., COM1) might still be possible if not rigorously tested. The current regex allows alphanumeric, dot, dash, underscore. This is reasonably safe.
+3. Biometric Privacy
+Risk: The UserRepo stores raw timing data in user_stats.jsonl.
+Mitigation: Ensure this file is strictly local (client-side) and never uploaded to Hive in raw form. The code suggests it generates a cost_matrix (aggregated stats) before upload, which is good, but the raw logs persist locally.
+6. Recommendations for v1.0
+Implement Job Heartbeats: Hive needs to know if an Agent died mid-job to requeue it.
+Version Assets: Change corpus_name in DB to corpus_hash or corpus_id:version to ensure score reproducibility.
+Secure the Env: Remove .env from git tracking immediately. Rotate the forge_password.
+License File: Add a LICENSE file. The project root is missing one.
+Analysis Complete.

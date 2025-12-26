@@ -1,0 +1,14 @@
+# Ignore target directory
+target
+
+# Ignore UI build artifacts
+ui/dist
+ui/node_modules
+
+# Ignore MkDocs site
+keyforge.infodungeon.com
+
+# Ignore logs, temp, cache
+*.log
+*.tmp
+*.cache

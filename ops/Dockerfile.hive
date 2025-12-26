@@ -1,0 +1,34 @@
+# Stage 1: Chef (Compute Recipe)
+FROM rust:slim-bookworm AS chef
+WORKDIR /app
+RUN cargo install cargo-chef
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Stage 2: Builder (Cache Dependencies)
+FROM rust:slim-bookworm AS builder
+WORKDIR /app
+# CHANGED: Added pkg-config
+RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make unzip && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-chef
+COPY --from=chef /app/recipe.json recipe.json
+# Build dependencies - this layer is cached until Cargo.lock changes
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Stage 3: Compiler (Build Source)
+COPY . .
+# SQLx Offline support
+ENV SQLX_OFFLINE=true
+COPY .sqlx .sqlx
+RUN cargo build --release --bin keyforge-hive
+
+# Stage 4: Runtime
+FROM debian:bookworm-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/target/release/keyforge-hive /usr/local/bin/
+RUN mkdir -p /app/data
+ENV RUST_LOG=info
+ENV KEYFORGE_DATA_DIR=/app/data
+EXPOSE 3000
+CMD ["keyforge-hive"]

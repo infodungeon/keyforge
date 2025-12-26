@@ -1,0 +1,27 @@
+[workspace]
+members = [
+    "libs/keyforge-testing",
+    "apps/keyforge-agent",
+    "libs/keyforge-compute",
+    "libs/keyforge-export",
+    "libs/keyforge-model",
+    "libs/keyforge-physics",
+    "libs/keyforge-evolution",
+    "apps/keyforge-hive",
+    "libs/keyforge-protocol",
+    "libs/keyforge-persistence",
+    "libs/keyforge-infra",
+    "libs/keyforge-security",
+    "libs/keyforge-adapter",
+    "libs/keyforge-core",
+    "apps/keyforge-cli",
+    "libs/keyforge-wasm",
+    "apps/keyforge-ui/src-tauri"
+]
+resolver = "2"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

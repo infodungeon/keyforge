@@ -1,0 +1,98 @@
+[package]
+name = "keyforge-hive"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+crc32fast = "1.3"
+tikv-jemallocator = "0.5"
+bincode = "1.3"
+bytes = "1.5"
+mime_guess = "2.0"
+
+# Internal
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+keyforge-model = { path = "../../libs/keyforge-model" }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-security = { path = "../../libs/keyforge-security" }
+keyforge-adapter = { path = "../../libs/keyforge-adapter" }
+keyforge-core = { path = "../../libs/keyforge-core" }
+keyforge-persistence = { path = "../../libs/keyforge-persistence" }
+
+# Web Framework
+axum = { version = "0.7.9", features = ["ws"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+tokio = { version = "1.48", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+tower-http = { version = "0.5.2", features = ["cors", "trace", "fs", "limit", "request-id", "util"] }
+futures = "0.3"
+
+# Rate Limiting
+tower_governor = "0.4.2"
+governor = "0.6.3"
+
+# Database (PostgreSQL)
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "json",
+] }
+
+# Caching
+moka = { version = "0.12", features = ["sync"] }
+
+# Security
+subtle = "2.6"
+sha2 = "0.10"
+base64 = "0.21"
+rand = "0.8"
+hex = "0.4"
+
+# Utilities
+clap = { version = "4.5.53", features = ["derive", "env"] }
+walkdir = "2"
+notify = "6.1"
+uuid = { version = "1.19", features = ["v4", "serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
+fastrand = "2.3.0"
+sysinfo = "0.30"
+
+# TUI (Admin Console)
+ratatui = "0.26"
+crossterm = "0.27"
+
+# HTTP Client
+reqwest = { version = "0.12.24", features = ["json"] }
+
+# Error Handling
+thiserror = "2.0.17"
+anyhow = "1.0.100"
+
+# API Documentation
+utoipa = { version = "4.2", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7.1", features = ["axum"] }
+
+# Observability
+opentelemetry = { version = "0.28.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.28.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.28.0", features = ["grpc-tonic"] }
+tracing-opentelemetry = "0.29.0"
+metrics = "0.22"
+once_cell = "1.19"
+metrics-exporter-prometheus = "0.13"
+
+[dev-dependencies]
+uuid = { version = "1.19.0", features = ["v4"] }
+futures = "0.3.31"
+tempfile = "3.23.0"
+tokio = { version = "1.48.0", features = ["macros", "test-util"] }
+proptest = "1.4.0"
+tower = { version = "0.5.2", features = ["util"] }

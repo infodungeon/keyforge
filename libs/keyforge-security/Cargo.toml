@@ -1,0 +1,13 @@
+[package]
+name = "keyforge-security"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+zeroize = { version = "1.7", features = ["derive"] }
+subtle = "2.4"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+rand = "0.8"
+hex = "0.4"
+sha2 = "0.10"
+thiserror = "2.0"

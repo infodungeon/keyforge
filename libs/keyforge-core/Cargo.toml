@@ -1,0 +1,16 @@
+[package]
+name = "keyforge-core"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+keyforge-model = { path = "../keyforge-model" }
+keyforge-physics = { path = "../keyforge-physics" }
+keyforge-evolution = { path = "../keyforge-evolution", default-features = false }
+
+tracing = "0.1"
+
+[features]
+default = ["rayon"]
+rayon = ["keyforge-evolution/rayon"]
+single_threaded = ["keyforge-evolution/single_threaded"]

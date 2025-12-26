@@ -1,0 +1,60 @@
+# === Rust & Build Artifacts ===
+/target/
+**/target/
+**/*.rs.bk
+*.swp
+*.rlib
+
+# === Node.js & Frontend ===
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log
+.env
+.env.local
+
+# === Python ===
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+
+# === Infrastructure & Ops ===
+# Private SSL Certificates & Keys (CRITICAL)
+hosts/certs/
+data/letsencrypt/
+# Redundant documentation builds
+hosts/site/
+# Docker build contexts
+target/docker-context/
+
+# === KeyForge Specific ===
+# User data overlay (Runtime data)
+data/user/
+# Sandbox environment
+sandbox/
+# SQLx offline query data (Optional: Keep if you want CI to check queries without DB)
+#.sqlx/
+
+# === Tauri Specifics ===
+apps/keyforge-ui/src-tauri/binaries/
+apps/keyforge-ui/src-tauri/gen/
+apps/keyforge-ui/src-tauri/pgo-data/
+apps/keyforge-ui/src-tauri/target/
+
+# === Local Databases ===
+*.db
+*.db-shm
+*.db-wal
+
+# === IDE & OS ===
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db

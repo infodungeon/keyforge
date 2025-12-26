@@ -1,0 +1,44 @@
+[package]
+name = "keyforge-cli"
+version = "0.8.0"
+edition = "2021"
+
+[[bin]]
+name = "keyforge"
+path = "src/main.rs"
+
+[dependencies]
+dirs = "6.0"
+indicatif = "0.17"
+keyforge-core = { path = "../../libs/keyforge-core" }
+tokio = { version = "1.0", features = ["full"] }
+sysinfo = "0.30"
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+keyforge-persistence = { path = "../../libs/keyforge-persistence" }
+keyforge-compute = { path = "../../libs/keyforge-compute" }
+keyforge-export = { path = "../../libs/keyforge-export" }
+keyforge-adapter = { path = "../../libs/keyforge-adapter" }
+keyforge-model = { path = "../../libs/keyforge-model" }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+clap = { version = "4.5.53", features = ["derive", "env"] }
+tracing = "0.1.43"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.29.0"
+opentelemetry = { version = "0.28.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.28.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.28.0", features = ["grpc-tonic"] }
+comfy-table = "7.2.1"
+serde_json = { version = "1.0.145", features = ["unbounded_depth"] }
+serde = { version = "1.0.228", features = ["derive"] }
+rayon = "1.11.0"
+fastrand = "2.3"
+reqwest = { version = "0.12.24", features = ["blocking", "json"] }
+hex = "0.4"
+num_cpus = "1.16"
+thiserror = "2.0"
+ctrlc = "3.4"
+self_update = "0.41"
+
+[dev-dependencies]
+keyforge-testing = { path = "../../libs/keyforge-testing" }
+tempfile = "3.10"

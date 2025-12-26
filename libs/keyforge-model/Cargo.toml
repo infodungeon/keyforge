@@ -1,0 +1,12 @@
+[package]
+name = "keyforge-model"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "2.0"
+keyforge-protocol = { path = "../keyforge-protocol" }
+serde-big-array = "0.5"
+smallvec = { version = "1.11", features = ["serde", "union", "const_generics"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

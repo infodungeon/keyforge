@@ -1,0 +1,195 @@
+name: KeyForge CI/CD
+
+on:
+  push:
+    branches: [ "master", "main" ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ "master", "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: true
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install System Dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y             libwebkit2gtk-4.1-dev             build-essential             curl             wget             file             libssl-dev             libgtk-3-dev             libayatana-appindicator3-dev             librsvg2-dev
+
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Architecture guardrails (hex boundaries)
+        run: |
+          set -euo pipefail
+
+          echo "Checking for disallowed direct deps on keyforge-physics/keyforge-evolution..."
+          # Only keyforge-core may depend on keyforge-physics/keyforge-evolution directly.
+          # keyforge-physics and keyforge-evolution obviously depend on themselves.
+          bad_deps=$(rg -n "keyforge-(physics|evolution)\s*=\s*\{[^}]*path\s*=\s*\".*keyforge-(physics|evolution)\"" \
+            crates ui/src-tauri/Cargo.toml \
+            --glob "Cargo.toml" \
+            --glob "!crates/keyforge-core/Cargo.toml" \
+            --glob "!crates/keyforge-physics/Cargo.toml" \
+            --glob "!crates/keyforge-evolution/Cargo.toml" \
+            || true)
+
+          if [ -n "${bad_deps}" ]; then
+            echo "ERROR: Disallowed direct dependency found (should go through keyforge-core):"
+            echo "${bad_deps}"
+            exit 1
+          fi
+
+          echo "Checking for disallowed direct imports of keyforge_physics/keyforge_evolution..."
+          bad_imports=$(rg -n "\bkeyforge_(physics|evolution)::" \
+            --glob "crates/**/*.rs" \
+            --glob "!crates/keyforge-core/**" \
+            --glob "!crates/keyforge-physics/**" \
+            --glob "!crates/keyforge-evolution/**" \
+            crates \
+            || true)
+
+          if [ -n "${bad_imports}" ]; then
+            echo "ERROR: Disallowed direct imports found (should go through keyforge-core):"
+            echo "${bad_imports}"
+            exit 1
+          fi
+
+          echo "Checking protocol boundary: parsing only allowed in keyforge-protocol and keyforge-adapter..."
+          bad_protocol_parsing=$(rg -n "\bkeyforge_protocol::(parsing::|parse_key\b)" \
+            --glob "crates/**/*.rs" \
+            --glob "!crates/keyforge-protocol/**" \
+            --glob "!crates/keyforge-adapter/**" \
+            crates \
+            || true)
+
+          if [ -n "${bad_protocol_parsing}" ]; then
+            echo "ERROR: Protocol parsing used outside adapter/protocol (should be wrapped by keyforge-adapter):"
+            echo "${bad_protocol_parsing}"
+            exit 1
+          fi
+
+          echo "Architecture guardrails passed."
+
+      - name: Build Core/Hive/CLI
+        run: cargo build --release --workspace --exclude keyforge-ui
+
+      - name: Run Tests
+        env:
+          DATABASE_MAX_CONNECTIONS: 20
+          DATABASE_TIMEOUT_SECONDS: 15
+          RATE_LIMIT_PER_SEC: 100
+        run: cargo test --release --workspace --exclude keyforge-ui
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run Coverage
+        env:
+          DATABASE_MAX_CONNECTIONS: 20
+          DATABASE_TIMEOUT_SECONDS: 15
+          RATE_LIMIT_PER_SEC: 100
+          SQLX_OFFLINE: true
+        run: cargo tarpaulin --workspace --exclude keyforge-ui --out Xml
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: tarpaulin-report.xml
+          fail_ci_if_error: false
+
+  build-app:
+    name: Build App
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'ubuntu-22.04'
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
+
+      - name: Install Dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd ui
+          npm install
+
+      # OPS-030: Code Signing (Placeholder for Secrets)
+      # In production, inject certificates here via secrets
+      
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'KeyForge ${{ github.ref_name }}'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+          projectPath: ./ui

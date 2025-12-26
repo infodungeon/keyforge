@@ -1,0 +1,116 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM jobs WHERE status = 'active'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "keyboard_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "scoring_profile_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "search_config_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "pinned_keys",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "corpus_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "cost_matrix",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "parent_job_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "priority",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "owner_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 12,
+        "name": "is_public",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
+        "name": "started_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "retry_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "node_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 16,
+        "name": "is_pinned",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b103c6ea3adda203f6dfe5294d243056cbecfcf53474ff7bb26e34bed0a0fa0d"
+}
