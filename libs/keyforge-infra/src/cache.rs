@@ -1,12 +1,12 @@
 use crate::config::HiveConfig;
 use bytes::Bytes;
 use keyforge_infra::{listing, AssetLoader, FsProvider, RawCostData, ServerManifest};
+use keyforge_model::loader::LoaderResult;
 use keyforge_model::Corpus;
 use keyforge_protocol::config::{Config as AppConfig, CorpusSource};
 use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_protocol::geometry::KeyboardDefinition;
 use keyforge_protocol::keycodes::KeycodeRegistry;
-use keyforge_model::loader::LoaderResult;
 use moka::sync::Cache;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
@@ -118,8 +118,7 @@ impl GlobalAssetCache {
     }
 
     pub fn warm_all(&self) -> Result<(), String> {
-        info!("🔥 Warming Asset Cache (Eager Loading)...");
-
+        info!("🔥 Warming Asset Cache (Full Binary Verification)...");
         let system_root = self.state.provider.root.join("system");
         if !system_root.exists() {
             return Err("System directory missing".into());
@@ -132,60 +131,72 @@ impl GlobalAssetCache {
             .manifest
             .insert("default".to_string(), Arc::new(manifest.clone()));
 
-        for (rel_path, _hash) in manifest.files {
+        // Explicit counters for accurate reporting
+        let mut count_files = 0;
+        let mut count_keyboards = 0;
+        let mut count_corpora = 0;
+
+        for (rel_path, _) in manifest.files {
             let full_path = system_root.join(&rel_path);
-            match std::fs::read(&full_path) {
-                Ok(content) => {
-                    self.state.file_cache.insert(rel_path, Bytes::from(content));
+            let bytes = match std::fs::read(&full_path) {
+                Ok(b) => b,
+                Err(e) => return Err(format!("Read error {}: {}", rel_path, e)),
+            };
+
+            self.state
+                .file_cache
+                .insert(rel_path.clone(), Bytes::from(bytes));
+            count_files += 1;
+
+            if rel_path.starts_with("keyboards/") {
+                let stem = std::path::Path::new(&rel_path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .strip_suffix(".mpk")
+                    .unwrap_or("")
+                    .to_string();
+                if !stem.is_empty() {
+                    if let Err(e) = self.load_keyboard(&stem) {
+                        tracing::warn!("Eager load failed for keyboard {}: {}", stem, e);
+                    } else {
+                        count_keyboards += 1;
+                    }
                 }
-                Err(e) => {
-                    return Err(format!("Failed to read system file {}: {}", rel_path, e));
+            } else if rel_path.starts_with("corpora/") && rel_path.ends_with("1grams.mpk.zst") {
+                let path = std::path::Path::new(&rel_path);
+                if let Some(parent) = path.parent() {
+                    if let Ok(id_path) = parent.strip_prefix("corpora") {
+                        let id = id_path.to_string_lossy().replace('\\', "/");
+                        if !id.is_empty() {
+                            if let Err(e) = self.load_corpus(&[CorpusSource {
+                                id: id.clone(),
+                                weight: 1.0,
+                                hash: None,
+                            }]) {
+                                tracing::warn!("Eager load failed for corpus {}: {}", id, e);
+                            } else {
+                                count_corpora += 1;
+                            }
+                        }
+                    }
+                }
+            } else if rel_path == "config/keycodes.mpk.zst" {
+                if let Err(e) = self.load_keycodes("keycodes") {
+                    tracing::warn!("Eager load failed for keycodes: {}", e);
                 }
             }
         }
+
+        if count_files == 0 {
+            error!("❌ Asset cache warming failed: 0 assets found in system library.");
+            return Err("System library is empty".into());
+        }
+
         info!(
-            "   Loaded {} system files into RAM.",
-            self.state.file_cache.entry_count()
+            "✅ Cache Warmed: {} assets (including {} keyboards, {} corpora).",
+            count_files, count_keyboards, count_corpora
         );
-
-        let keyboards = listing::list_keyboards(&self.state.provider.root)
-            .map_err(|e| format!("Failed to list keyboards: {}", e))?;
-
-        for name in keyboards {
-            self.load_keyboard(&name)
-                .map_err(|e| format!("Corrupt Keyboard '{}.json': {}", name, e))?;
-        }
-
-        let corpora = listing::list_corpora(&self.state.provider.root)
-            .map_err(|e| format!("Failed to list corpora: {}", e))?;
-
-        for id in corpora {
-            self.load_corpus(&[CorpusSource {
-                id: id.clone(),
-                weight: 1.0,
-            }])
-            .map_err(|e| format!("Corrupt Corpus '{}': {}", id, e))?;
-        }
-
-        let costs = listing::list_cost_matrices(&self.state.provider.root)
-            .map_err(|e| format!("Failed to list cost matrices: {}", e))?;
-
-        for filename in costs {
-            if let Err(e) = self.load_cost_matrix(&filename) {
-                warn!(
-                    "Skipping '{}' in weights (not a cost matrix?): {}",
-                    filename, e
-                );
-            }
-        }
-
-        self.load_keycodes("keycodes.json")
-            .map_err(|e| format!("Corrupt keycodes.json: {}", e))?;
-
-        self.load_app_config();
-        self.load_hive_config();
-
-        info!("✅ Cache Warmed. Disk I/O is now disabled for system assets.");
         Ok(())
     }
 
@@ -314,7 +325,8 @@ impl AssetLoader for GlobalAssetCache {
     fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         let mut sorted_sources = sources.to_vec();
         sorted_sources.sort_by(|a, b| a.id.cmp(&b.id));
-        let key = serde_json::to_string(&sorted_sources).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+        let key = serde_json::to_string(&sorted_sources)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
         if let Some(cached) = self.state.corpora.get(&key) {
             return Ok(cached.as_ref().clone());

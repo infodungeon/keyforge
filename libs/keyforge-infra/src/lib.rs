@@ -7,7 +7,7 @@ pub mod util;
 pub use error::{InfraError, InfraResult};
 
 // Re-exports
-pub use fs::init;
+pub use fs::init::{self, InitMode};
 pub use fs::io::{atomic_write, read_to_string_limited};
 pub use fs::listing;
 pub use fs::lock::WorkspaceLock;

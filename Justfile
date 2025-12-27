@@ -1,5 +1,3 @@
-# Justfile
-
 # Default: List recipes
 default:
     @just --list
@@ -29,22 +27,22 @@ build-wasm:
 
 # --- RUN (SANDBOXED) ---
 
-# Run the Hive server in Sandbox
-serve data=".":
-    ./ops/scripts/run_sandbox.sh cargo run -p keyforge-hive -- --port 3000 --data {{data}}
+# Run the Hive server in Sandbox (Server Context)
+serve:
+    SANDBOX_CONTEXT=server ./ops/scripts/run_sandbox.sh cargo run -p keyforge-hive -- --port 3000
 
-# Run a Worker Node in Sandbox
+# Run a Worker Node in Sandbox (Worker Context)
 worker:
-    ./ops/scripts/run_sandbox.sh cargo run -p keyforge-agent -- work --hive http://localhost:3000
+    SANDBOX_CONTEXT=worker ./ops/scripts/run_sandbox.sh cargo run -p keyforge-agent -- work --hive http://localhost:3000
 
-# Run the CLI in Sandbox
+# Run the CLI in Sandbox (Client Context)
 cli +args:
-    ./ops/scripts/run_sandbox.sh cargo run --manifest-path apps/keyforge-cli/Cargo.toml -- {{args}}
+    SANDBOX_CONTEXT=client ./ops/scripts/run_sandbox.sh cargo run --manifest-path apps/keyforge-cli/Cargo.toml -- {{args}}
 
-# Run the GUI in Sandbox
-ui:
-    ./ops/scripts/run_sandbox.sh true
-    export KEYFORGE_DATA_DIR=$(pwd)/sandbox && cd apps/keyforge-ui && npm run tauri dev
+# Run the GUI in Sandbox (Client Context)
+ui: build-wasm
+    SANDBOX_CONTEXT=client ./ops/scripts/run_sandbox.sh true
+    export KEYFORGE_DATA_DIR=$(pwd)/sandbox/client && cd apps/keyforge-ui && npm run tauri dev
 
 # --- RUN (PRODUCTION / REAL DATA) ---
 

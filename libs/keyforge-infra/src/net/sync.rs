@@ -138,6 +138,7 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
         }
         let walker = WalkDir::new(&dir_path).follow_links(false);
         for entry in walker.into_iter().filter_map(|e| e.ok()) {
+            println!("🔍 Scanning: {:?}", entry.path());
             if entry.file_type().is_file() {
                 let path = entry.path();
                 if path.components().any(
@@ -147,6 +148,7 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
                 }
                 if let Ok(hash) = calculate_file_hash(path) {
                     if let Ok(relative) = path.strip_prefix(data_root) {
+                        println!("✅ Added to Manifest: {}", relative.to_string_lossy());
                         files.insert(relative.to_string_lossy().replace('\\', "/"), hash);
                     }
                 }

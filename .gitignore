@@ -58,3 +58,8 @@ apps/keyforge-ui/src-tauri/target/
 *.code-workspace
 .DS_Store
 Thumbs.db
+
+# === Patch Artifacts ===
+*.rej
+*.orig
+*.patch

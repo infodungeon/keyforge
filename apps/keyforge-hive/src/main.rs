@@ -117,7 +117,7 @@ async fn main() {
             };
 
             info!("�� Data root: {:?}", data_path);
-            if let Err(e) = initialize_workspace(&data_path) {
+            if let Err(e) = initialize_workspace(&data_path, keyforge_infra::InitMode::Validate) {
                 error!("FATAL: Workspace initialization failed: {}", e);
                 std::process::exit(1);
             }

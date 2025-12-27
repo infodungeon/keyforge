@@ -8,6 +8,17 @@ use tempfile::NamedTempFile;
 
 /// Resolves the absolute path to the 'data' directory.
 pub fn get_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    // 0. Environment Variable (Sandbox/Override)
+    // This allows 'just ui' to inject the sandbox path dynamically.
+    if let Ok(env_path) = std::env::var("KEYFORGE_DATA_DIR") {
+        let p = PathBuf::from(env_path);
+        println!("🔍 [Tauri] Checking Env Var KEYFORGE_DATA_DIR: {:?}", p);
+        if p.exists() {
+            println!("✅ [Tauri] Resolved Data Dir: {:?}", p);
+            return Ok(p);
+        }
+    }
+
     // 1. Production: Check Resource Directory (Bundled with App)
     if let Ok(resource_path) = app.path().resource_dir() {
         let bundled = resource_path.join("data");

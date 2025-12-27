@@ -17,7 +17,7 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
     eprintln!("🚀 Initializing KeyForge Workspace at {:?}", root);
 
     // 1. Create Structure (Offline)
-    initialize_workspace(&root)
+    initialize_workspace(&root, keyforge_infra::InitMode::Provision)
         .map_err(|e| CliError::Workspace(format!("Initialization failed: {}", e)))?;
 
     // 2. Download Essentials (Online)

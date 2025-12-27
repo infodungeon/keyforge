@@ -70,7 +70,7 @@ pub async fn run_worker(
 
     let _ = network::register_node(&client, &req, 4).await;
 
-    if let Err(e) = initialize_workspace(&data_root) {
+    if let Err(e) = initialize_workspace(&data_root, keyforge_infra::InitMode::Validate) {
         error!(error = %e, "workspace initialization failed");
     }
 

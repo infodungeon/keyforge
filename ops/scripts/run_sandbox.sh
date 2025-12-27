@@ -4,33 +4,53 @@ set -e
 # 1. Define Paths
 REPO_ROOT=$(pwd)
 REAL_DATA="$REPO_ROOT/data"
-SANDBOX="$REPO_ROOT/sandbox"
+
+# Determine Context (server, client, or shared default)
+CONTEXT="${SANDBOX_CONTEXT:-shared}"
+SANDBOX="$REPO_ROOT/sandbox/$CONTEXT"
 
 # 2. Clean/Create Sandbox
-# We wipe the 'user' data to ensure a clean state, but you could comment this out to persist dev sessions.
-# rm -rf "$SANDBOX" 
-mkdir -p "$SANDBOX/user"
-
-# 3. Link System Data (Read-Only Overlay)
-# We use a symlink so that changes you make to source JSON files are seen by the running app.
+# Wipe previous system to ensure fresh copy and no stale files
 if [ -d "$SANDBOX/system" ]; then
-    rm "$SANDBOX/system"
+    rm -rf "$SANDBOX/system"
 fi
-ln -s "$REAL_DATA/system" "$SANDBOX/system"
 
-# 4. Copy Configs (Optional)
-# If you want specific dev configs, copy them here. 
-# Otherwise, the app falls back to system defaults.
+mkdir -p "$SANDBOX/user"
+mkdir -p "$SANDBOX/system"
 
-# 5. Set Environment
+# 3. Copy System Data (Full Isolation)
+DIRS=(
+    "keyboards"
+    "corpora"
+    "weights"
+    "config"
+    "benchmarks"
+    "keymap_extras"
+)
+
+# echo "📦 Copying system assets to sandbox..."
+
+for d in "${DIRS[@]}"; do
+    if [ -d "$REAL_DATA/system/$d" ]; then
+        cp -r "$REAL_DATA/system/$d" "$SANDBOX/system/"
+    else
+        echo "   ⚠️  Missing source: $REAL_DATA/system/$d"
+    fi
+done
+
+# 4. Set Environment
 export KEYFORGE_DATA_DIR="$SANDBOX"
 export RUST_LOG="info,keyforge_hive=debug"
 
-echo "🧪 Sandbox Active at: $SANDBOX"
-echo "   System (RO): Linked to $REAL_DATA/system"
+# 5. Execute Command
+if [ "$1" == "true" ]; then
+    echo "✅ Sandbox ($CONTEXT) Setup Complete at $SANDBOX"
+    exit 0
+fi
+
+echo "🧪 Sandbox ($CONTEXT) Active at: $SANDBOX"
+echo "   System (RW Copy): Copied from $REAL_DATA/system"
 echo "   User   (RW): $SANDBOX/user"
 echo "---------------------------------------------------"
 
-# 6. Execute Command
-# Passes through whatever arguments you give the script
 exec "$@"
