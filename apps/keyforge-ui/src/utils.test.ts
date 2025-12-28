@@ -23,7 +23,12 @@ const mockGeometry: KeyboardGeometry = {
 // Mock Definitions for Keycodes
 const mockDefs: KeycodeDefinition[] = [
   { code: 65, id: "KC_A", label: "A", aliases: ["A"] },
-  { code: 130, id: "KC_LSFT", label: "Shift", aliases: ["KC_LSHIFT", "LShift"] },
+  {
+    code: 130,
+    id: "KC_LSFT",
+    label: "Shift",
+    aliases: ["KC_LSHIFT", "LShift"],
+  },
   { code: 10, id: "KC_ENTER", label: "Enter", aliases: ["KC_ENT"] },
   { code: 1, id: "KC_TRNS", label: "▽", aliases: ["_______"] },
 ];

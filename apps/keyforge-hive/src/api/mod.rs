@@ -39,7 +39,10 @@ pub fn system_routes() -> Router<Arc<AppState>> {
         )
         .route("/ws", axum::routing::get(ws::handler))
         .route("/sys/metrics", axum::routing::get(metrics::get_metrics))
-        .route("/sys/status", axum::routing::get(metrics::get_system_status))
+        .route(
+            "/sys/status",
+            axum::routing::get(metrics::get_system_status),
+        )
         // Optimized Listing Endpoints
         .route("/api/keyboards", axum::routing::get(system::list_keyboards))
         .route("/api/corpora", axum::routing::get(system::list_corpora))

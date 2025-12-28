@@ -70,14 +70,14 @@ impl HermeticWorkspace {
         writeln!(f, "{}", kb_json).unwrap();
 
         // 4. Keycodes (In user/config)
-        // CHANGED: Use 65 (A) and 66 (B) to match FsProvider's uppercase normalization
+        // CHANGED: Use 97 (a) and 98 (b) to match Corpus lowercase standard
         let keycodes_path = data_root.join("user/config/keycodes.json");
         let mut f = File::create(&keycodes_path).unwrap();
         writeln!(
             f,
             r#"[
-            {{ "code": 65, "id": "KC_A", "label": "a", "aliases": [] }},
-            {{ "code": 66, "id": "KC_B", "label": "b", "aliases": [] }}
+            {{ "code": 97, "id": "KC_A", "label": "a", "aliases": [] }},
+            {{ "code": 98, "id": "KC_B", "label": "b", "aliases": [] }}
         ]"#
         )
         .unwrap();

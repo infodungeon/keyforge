@@ -3268,17 +3268,20 @@ dependencies = [
 name = "keyforge-cli"
 version = "0.8.0"
 dependencies = [
+ "axum",
  "clap",
  "comfy-table",
  "ctrlc",
  "dirs",
  "fastrand",
+ "futures",
  "hex",
  "indicatif",
  "keyforge-adapter",
  "keyforge-compute",
  "keyforge-core",
  "keyforge-export",
+ "keyforge-hive",
  "keyforge-infra",
  "keyforge-model",
  "keyforge-persistence",
@@ -3293,6 +3296,7 @@ dependencies = [
  "self_update",
  "serde",
  "serde_json",
+ "sqlx",
  "sysinfo 0.30.13",
  "tempfile",
  "thiserror 2.0.17",
@@ -3476,6 +3480,7 @@ dependencies = [
  "fastrand",
  "keyforge-model",
  "keyforge-protocol",
+ "proptest",
  "serde",
  "tracing",
 ]

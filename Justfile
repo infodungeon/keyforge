@@ -33,7 +33,7 @@ serve:
 
 # Run a Worker Node in Sandbox (Worker Context)
 worker:
-    SANDBOX_CONTEXT=worker ./ops/scripts/run_sandbox.sh cargo run -p keyforge-agent -- work --hive http://localhost:3000
+    SANDBOX_CONTEXT=worker ./ops/scripts/run_sandbox.sh cargo run -p keyforge-agent -- --hive http://localhost:3000
 
 # Run the CLI in Sandbox (Client Context)
 cli +args:

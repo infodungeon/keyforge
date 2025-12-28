@@ -5,11 +5,7 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use governor::{
-    clock::DefaultClock,
-    state::keyed::DefaultKeyedStateStore,
-    Quota, RateLimiter,
-};
+use governor::{clock::DefaultClock, state::keyed::DefaultKeyedStateStore, Quota, RateLimiter};
 use std::env;
 use std::net::{IpAddr, SocketAddr};
 use std::num::NonZeroU32;
@@ -127,11 +123,10 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
     let secure_routes = Router::new()
         .route(
             "/jobs",
-            axum::routing::post(api::jobs::register_job)
-                .layer(middleware::from_fn_with_state(
-                    rate_limit_state.clone(),
-                    strict_rate_limit_middleware,
-                )),
+            axum::routing::post(api::jobs::register_job).layer(middleware::from_fn_with_state(
+                rate_limit_state.clone(),
+                strict_rate_limit_middleware,
+            )),
         )
         .route("/jobs/queue", axum::routing::get(api::jobs::get_queue))
         .route(

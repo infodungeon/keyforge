@@ -13,8 +13,8 @@ use serde::Deserialize;
 use std::io;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 #[derive(Deserialize, Default, Clone)]
 pub struct LogEntry {
@@ -47,14 +47,12 @@ impl DockerMonitor {
         let state = Arc::new(Mutex::new(Vec::new()));
         let state_clone = state.clone();
 
-        thread::spawn(move || {
-            loop {
-                let metrics = Self::fetch();
-                if let Ok(mut guard) = state_clone.lock() {
-                    *guard = metrics;
-                }
-                thread::sleep(Duration::from_secs(2));
+        thread::spawn(move || loop {
+            let metrics = Self::fetch();
+            if let Ok(mut guard) = state_clone.lock() {
+                *guard = metrics;
             }
+            thread::sleep(Duration::from_secs(2));
         });
 
         Self { state }
@@ -87,7 +85,12 @@ impl DockerMonitor {
         // 2. Get Stats (RAM/CPU) via `docker stats`
         // Format: Name \t MemUsage \t CPUPerc
         let stats_output = Command::new("docker")
-            .args(["stats", "--no-stream", "--format", "{{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}"])
+            .args([
+                "stats",
+                "--no-stream",
+                "--format",
+                "{{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}",
+            ])
             .output()
             .ok();
 
@@ -98,8 +101,16 @@ impl DockerMonitor {
                 if parts.len() >= 3 {
                     let name = parts[0].to_string();
                     // Filter for relevant containers
-                    if name.contains("hive") || name.contains("db") || name.contains("postgres") || name.contains("web") || name.contains("apache") {
-                        let status = status_map.get(&name).cloned().unwrap_or_else(|| "Unknown".to_string());
+                    if name.contains("hive")
+                        || name.contains("db")
+                        || name.contains("postgres")
+                        || name.contains("web")
+                        || name.contains("apache")
+                    {
+                        let status = status_map
+                            .get(&name)
+                            .cloned()
+                            .unwrap_or_else(|| "Unknown".to_string());
                         containers.push(ContainerMetrics {
                             name,
                             status,
@@ -181,11 +192,11 @@ fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetri
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // Header
-            Constraint::Length(3), // Status Bar
+            Constraint::Length(3),      // Header
+            Constraint::Length(3),      // Status Bar
             Constraint::Percentage(40), // Main Stats
             Constraint::Percentage(50), // Logs
-            Constraint::Length(3), // Footer
+            Constraint::Length(3),      // Footer
         ])
         .split(f.size());
 
@@ -255,19 +266,23 @@ fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetri
     f.render_widget(cluster_table, main_chunks[0]);
 
     // Right: Container Stats (Replaces Server RAM Gauge)
-    let container_rows: Vec<Row> = containers.iter().map(|c| {
-        let style = if c.is_online {
-            Style::default().fg(Color::Green)
-        } else {
-            Style::default().fg(Color::Red)
-        };
-        Row::new(vec![
-            Cell::from(c.name.clone()),
-            Cell::from(c.status.clone()),
-            Cell::from(c.ram.clone()),
-            Cell::from(c.cpu.clone()),
-        ]).style(style)
-    }).collect();
+    let container_rows: Vec<Row> = containers
+        .iter()
+        .map(|c| {
+            let style = if c.is_online {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default().fg(Color::Red)
+            };
+            Row::new(vec![
+                Cell::from(c.name.clone()),
+                Cell::from(c.status.clone()),
+                Cell::from(c.ram.clone()),
+                Cell::from(c.cpu.clone()),
+            ])
+            .style(style)
+        })
+        .collect();
 
     let container_table = Table::new(
         container_rows,
@@ -283,31 +298,47 @@ fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetri
             .title("Docker Containers")
             .borders(Borders::ALL),
     )
-    .header(Row::new(vec!["Name", "Status", "RAM", "CPU"]).style(Style::default().fg(Color::Magenta)));
+    .header(
+        Row::new(vec!["Name", "Status", "RAM", "CPU"]).style(Style::default().fg(Color::Magenta)),
+    );
 
     f.render_widget(container_table, main_chunks[1]);
 
     // Logs Panel
-    let log_rows: Vec<Row> = status.logs.iter().rev().map(|l| {
-        let color = match l.level.as_str() {
-            "ERROR" => Color::Red,
-            "WARN" => Color::Yellow,
-            _ => Color::White,
-        };
-        Row::new(vec![
-            Cell::from(l.timestamp.clone()),
-            Cell::from(l.level.clone()),
-            Cell::from(l.message.clone()),
-        ]).style(Style::default().fg(color))
-    }).collect();
+    let log_rows: Vec<Row> = status
+        .logs
+        .iter()
+        .rev()
+        .map(|l| {
+            let color = match l.level.as_str() {
+                "ERROR" => Color::Red,
+                "WARN" => Color::Yellow,
+                _ => Color::White,
+            };
+            Row::new(vec![
+                Cell::from(l.timestamp.clone()),
+                Cell::from(l.level.clone()),
+                Cell::from(l.message.clone()),
+            ])
+            .style(Style::default().fg(color))
+        })
+        .collect();
 
     let log_table = Table::new(
         log_rows,
-        [Constraint::Length(25), Constraint::Length(8), Constraint::Min(10)],
+        [
+            Constraint::Length(25),
+            Constraint::Length(8),
+            Constraint::Min(10),
+        ],
     )
-    .block(Block::default().title("System Events (WARN/ERROR)").borders(Borders::ALL))
+    .block(
+        Block::default()
+            .title("System Events (WARN/ERROR)")
+            .borders(Borders::ALL),
+    )
     .header(Row::new(vec!["Time", "Level", "Message"]).style(Style::default().fg(Color::Blue)));
-    
+
     f.render_widget(log_table, chunks[3]);
 
     // Footer

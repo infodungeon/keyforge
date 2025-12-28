@@ -42,8 +42,8 @@ fn scan_dir(
 
 pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
-    // System: Binary Only
-    scan_dir(root, "system/keyboards", "mpk.zst", &mut names)?;
+    // System: Binary Only - Updated to new structure
+    scan_dir(root, "system/keyboards/models", "mpk.zst", &mut names)?;
     // User: Support JSON for development/customization
     scan_dir(root, "user/keyboards", "json", &mut names)?;
 
@@ -64,7 +64,7 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
         let walker = walkdir::WalkDir::new(&base)
             .min_depth(1)
             .max_depth(3) // Extra depth for category/id
-            .follow_links(false);
+            .follow_links(true); // Follow symlinks
 
         for entry in walker.into_iter().filter_map(|e| e.ok()) {
             if entry.path_is_symlink() {
@@ -93,12 +93,9 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
 
 pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
+    // System: Weights are now in system/weights
     scan_dir(root, "system/weights", "mpk.zst", &mut names)?;
     scan_dir(root, "user/weights", "json", &mut names)?;
-
-    for excluded in ["ortho_split", "row_stagger", "testing"] {
-        names.remove(excluded);
-    }
 
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();

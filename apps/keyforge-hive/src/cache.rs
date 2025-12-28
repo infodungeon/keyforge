@@ -133,6 +133,11 @@ impl GlobalAssetCache {
             .manifest
             .insert("default".into(), Arc::new(manifest.clone()));
 
+        let mut count_files = 0;
+        let mut count_keyboards = 0;
+        let mut count_corpora = 0;
+        let mut count_weights = 0;
+
         for (rel_path, _) in manifest.files {
             let full_path = system_root.join(&rel_path);
             let bytes =
@@ -141,17 +146,23 @@ impl GlobalAssetCache {
                 .file_cache
                 .insert(rel_path.clone(), Bytes::from(bytes));
 
-            if rel_path.starts_with("keyboards/") {
-                let stem = Path::new(&rel_path)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .strip_suffix(".mpk")
-                    .unwrap_or("")
-                    .to_string();
-                if !stem.is_empty() {
-                    if let Err(e) = self.load_keyboard(&stem) {
-                        tracing::warn!("Eager load failed for keyboard {}: {}", stem, e);
+            count_files += 1;
+
+            if rel_path.starts_with("keyboards/models/") {
+                let path = Path::new(&rel_path);
+                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+
+                let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
+                    s
+                } else {
+                    stem
+                };
+
+                if !clean_stem.is_empty() {
+                    if let Err(e) = self.load_keyboard(clean_stem) {
+                        tracing::warn!("Eager load failed for keyboard {}: {}", clean_stem, e);
+                    } else {
+                        count_keyboards += 1;
                     }
                 }
             } else if rel_path.starts_with("corpora/") && rel_path.ends_with("1grams.mpk.zst") {
@@ -166,8 +177,27 @@ impl GlobalAssetCache {
                                 hash: None,
                             }]) {
                                 tracing::warn!("Eager load failed for corpus {}: {}", id, e);
+                            } else {
+                                count_corpora += 1;
                             }
                         }
+                    }
+                }
+            } else if rel_path.starts_with("weights/") {
+                let path = Path::new(&rel_path);
+                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+
+                let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
+                    s
+                } else {
+                    stem
+                };
+
+                if !clean_stem.is_empty() {
+                    if let Err(e) = self.load_cost_matrix(clean_stem) {
+                        tracing::warn!("Eager load failed for weights {}: {}", clean_stem, e);
+                    } else {
+                        count_weights += 1;
                     }
                 }
             } else if rel_path == "config/keycodes.mpk.zst" {
@@ -177,17 +207,14 @@ impl GlobalAssetCache {
             }
         }
 
-        let count = self.state.file_cache.entry_count();
-        if count == 0 {
+        if count_files == 0 {
             error!("❌ Asset cache warming failed: 0 assets found in system library.");
             return Err("System library is empty".into());
         }
 
         info!(
-            "✅ Cache Warmed: {} assets (including {} keyboards, {} corpora).",
-            count,
-            self.state.keyboards.entry_count(),
-            self.state.corpora.entry_count()
+            "✅ Cache Warmed: {} assets ({} kb, {} corp, {} wgt).",
+            count_files, count_keyboards, count_corpora, count_weights
         );
         Ok(())
     }

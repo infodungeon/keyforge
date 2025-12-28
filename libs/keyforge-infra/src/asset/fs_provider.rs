@@ -47,12 +47,36 @@ impl FsProvider {
     }
 
     fn resolve_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
+        // Map categories to new structure
+        let sub = match category {
+            "keyboards" => "keyboards/models",
+            "weights" => "weights",
+            "config" => "config",
+            "keymap_extras" => "keymap_extras",
+            _ => category,
+        };
+
         let p = self
+            .root
+            .join("system")
+            .join(sub)
+            .join(format!("{}.mpk.zst", stem));
+
+        if p.exists() {
+            return Some(p);
+        }
+
+        // Fallback for direct mapping if needed (e.g. if we passed "keyboards/models" as category)
+        let p_direct = self
             .root
             .join("system")
             .join(category)
             .join(format!("{}.mpk.zst", stem));
-        p.exists().then_some(p)
+        if p_direct.exists() {
+            return Some(p_direct);
+        }
+
+        None
     }
 
     fn resolve_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {

@@ -9,3 +9,6 @@ keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 fastrand = "2.3.0"
 tracing = { version = "0.1", features = ["attributes"] }
+
+[dev-dependencies]
+proptest = "1.4"

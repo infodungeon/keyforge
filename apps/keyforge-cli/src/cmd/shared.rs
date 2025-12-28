@@ -9,7 +9,7 @@ pub struct SharedArgs {
     pub keyboard: String,
 
     /// Cost-matrix JSON file used for biometric scoring.
-    #[arg(short, long, value_parser = crate::cli_args::parse_cost, default_value = "cost_matrix.json", help = "Path to the cost matrix JSON file. Supports absolute paths and relative paths (checked in CWD and 'keyboards/').")]
+    #[arg(short, long, value_parser = crate::cli_args::parse_cost, default_value = "default_costmatrix.json", help = "Path to the cost matrix JSON file. Supports absolute paths and relative paths (checked in CWD and 'keyboards/').")]
     pub cost: String,
 
     /// Corpus identifiers to load for frequency analysis.

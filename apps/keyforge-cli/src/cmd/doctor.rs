@@ -45,11 +45,11 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
     eprintln!("   Root:     {:?}", root);
 
     let required = [
-        ("keyboards", true),
-        ("corpora", true),
-        ("weights", true),
-        ("cost_matrix.json", false),
-        ("keycodes.json", false),
+        ("system/keyboards", true),
+        ("system/corpora", true),
+        ("system/weights", true),
+        ("system/weights/default_costmatrix.mpk.zst", false),
+        ("system/config/keycodes.mpk.zst", false),
     ];
 
     let mut all_good = true;

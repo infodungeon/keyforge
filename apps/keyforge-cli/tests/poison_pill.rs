@@ -59,8 +59,16 @@ impl TestContext {
             } else {
                 format!("KC_{}", b)
             };
+
+            // Force code to be lowercase for letters to match corpus standard
+            let code = if c.is_ascii_alphabetic() {
+                c.to_ascii_lowercase() as u8
+            } else {
+                b
+            };
+
             key_defs.push(KeyDef {
-                code: b,
+                code,
                 id,
                 label: c.to_string(),
                 aliases: vec![],

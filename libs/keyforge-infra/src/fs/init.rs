@@ -14,7 +14,7 @@ pub enum InitMode {
 
 const REQUIRED_ASSETS: &[&str] = &[
     "config/keycodes",
-    "weights/cost_matrix",
+    "weights/default_costmatrix",
     "corpora/text/en_std/1grams",
 ];
 

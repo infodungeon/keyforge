@@ -1,3 +1,143 @@
+// ===== libs/keyforge-physics/tests/oracle_parity.proptest-regressions =====
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 5057c418cbc0af5b6f075fe7b362381df1b66fc05e73940f8391fd7857e84e68 # shrinks to kb = Keyboard { keys: [KeyNode { id: 0, label: "k0", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 1, label: "k1", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 2, label: "k2", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 3, label: "k3", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 4, label: "k4", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 5, label: "k5", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 6, label: "k6", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 7, label: "k7", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 8, label: "k8", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 9, label: "k9", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 10, label: "k10", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 11, label: "k11", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 12, label: "k12", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 13, label: "k13", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 14, label: "k14", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 15, label: "k15", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 16, label: "k16", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 17, label: "k17", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 18, label: "k18", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 19, label: "k19", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 20, label: "k20", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 21, label: "k21", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 22, label: "k22", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 23, label: "k23", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 24, label: "k24", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 25, label: "k25", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 26, label: "k26", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 27, label: "k27", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 28, label: "k28", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 29, label: "k29", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 30, label: "k30", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 31, label: "k31", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 32, label: "k32", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 33, label: "k33", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 34, label: "k34", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 35, label: "k35", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 36, label: "k36", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 37, label: "k37", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 2.0661416, is_home: false }, KeyNode { id: 38, label: "k38", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }, KeyNode { id: 39, label: "k39", hand: 0, finger: 0, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false }], home_row: 1, finger_origins: [[(0.0, 0.0)]] }, corpus = Corpus { char_freqs: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bigrams: [(252, 107, 774), (146, 55, 483), (213, 139, 335), (21, 226, 760), (187, 92, 993), (19, 195, 223), (217, 253, 378), (191, 191, 310), (179, 142, 16), (56, 228, 250), (68, 132, 443), (227, 237, 711), (98, 56, 818), (193, 198, 244), (182, 14, 685), (60, 75, 228), (43, 95, 540), (66, 222, 830), (46, 19, 685), (77, 204, 934), (179, 110, 159), (78, 31, 955), (62, 100, 696), (73, 107, 647), (242, 228, 470), (107, 147, 958), (106, 203, 680), (19, 221, 459), (9, 108, 423), (132, 184, 787), (127, 144, 751), (101, 81, 431), (88, 80, 222), (93, 233, 954), (129, 215, 561), (181, 4, 800), (132, 176, 34), (86, 217, 726), (126, 2, 989), (38, 146, 776), (214, 89, 440), (126, 13, 563), (24, 152, 151), (178, 31, 870), (1, 28, 470), (169, 243, 469)], trigrams: [(94, 140, 35, 547), (90, 66, 65, 309), (65, 70, 122, 413), (0, 103, 1, 763), (203, 245, 218, 537), (50, 48, 220, 53), (231, 52, 236, 18), (31, 99, 175, 303), (233, 81, 16, 125), (201, 183, 86, 315), (66, 197, 32, 62), (252, 147, 38, 641), (3, 160, 21, 698), (242, 122, 38, 309)], words: [] }, rubric = Rubric { sfb_base: 139.07465, sfb_lateral: 483.46848, travel_lat: 3.6460066, travel_vert: 4.204429, finger_effort: [1.227063, 4.48712, 2.2854848, 2.8865736, 0.3919618], redirect: 198.349, roll_bonus: 53.610397, trigram_coverage: 1.0, trigram_limit: 1000 }, seed = 16923609078655904142
+
+// ===== libs/keyforge-physics/tests/oracle_parity.rs =====
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
+use keyforge_physics::{verify::DeterministicScorer, ScoringEngine};
+use proptest::prelude::*;
+
+// --- STRATEGIES ---
+
+fn rubric_strategy() -> impl Strategy<Value = Rubric> {
+    (
+        0.0..1000.0f32,                     // sfb_base
+        0.0..500.0f32,                      // sfb_lateral
+        0.0..10.0f32,                       // travel_lat
+        0.0..5.0f32,                        // travel_vert
+        prop::array::uniform5(0.0..5.0f32), // finger_effort
+        0.0..200.0f32,                      // redirect
+        0.0..100.0f32,                      // roll_bonus
+    )
+        .prop_map(
+            |(sfb, sfb_lat, t_lat, t_vert, fingers, redir, roll)| Rubric {
+                sfb_base: sfb,
+                sfb_lateral: sfb_lat,
+                travel_lat: t_lat,
+                travel_vert: t_vert,
+                finger_effort: fingers,
+                redirect: redir,
+                roll_bonus: roll,
+                trigram_coverage: 1.0, // Full coverage for deterministic check
+                trigram_limit: 1000,
+            },
+        )
+}
+
+fn keyboard_strategy() -> impl Strategy<Value = Keyboard> {
+    // Generate 10 to 50 keys
+    (10..50usize).prop_flat_map(|count| {
+        prop::collection::vec(
+            (
+                0.0..20.0f32, // x
+                0.0..10.0f32, // y
+                0u8..2,       // hand
+                0u8..5,       // finger
+                0i8..4,       // row
+                0i8..12,      // col
+            ),
+            count,
+        )
+        .prop_map(move |keys_data| {
+            let keys = keys_data
+                .into_iter()
+                .enumerate()
+                .map(|(i, (x, y, hand, finger, row, col))| KeyNode {
+                    id: i,
+                    label: format!("k{}", i),
+                    hand,
+                    finger,
+                    row,
+                    col,
+                    x,
+                    y,
+                    is_home: row == 1, // Dummy logic
+                })
+                .collect();
+            Keyboard::new(keys, 1)
+        })
+    })
+}
+
+fn corpus_strategy() -> impl Strategy<Value = Corpus> {
+    // Generate random bigrams and trigrams
+    (
+        prop::collection::vec((0u16..255, 0u16..255, 1u32..1000), 0..50),
+        prop::collection::vec((0u16..255, 0u16..255, 0u16..255, 1u32..1000), 0..50),
+    )
+        .prop_map(|(bigrams, trigrams)| {
+            let mut c = Corpus::default();
+            c.bigrams = bigrams;
+            c.trigrams = trigrams;
+            c
+        })
+}
+
+// --- THE ORACLE TEST ---
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_engine_matches_oracle(
+        kb in keyboard_strategy(),
+        corpus in corpus_strategy(),
+        rubric in rubric_strategy(),
+        seed in any::<u64>()
+    ) {
+        // 1. Setup Engines
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+
+        // 2. Generate Random Layout
+        let key_count = kb.count();
+        let mut keys: Vec<u16> = (0..key_count as u16).collect();
+
+        // Shuffle deterministically based on seed
+        let mut rng = fastrand::Rng::with_seed(seed);
+        rng.shuffle(&mut keys);
+
+        let layout = Layout::new(keys);
+
+        // 3. Run Shadow Execution
+        let fast_score = engine.score(&layout);
+        let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout);
+
+        // 4. Assert Parity
+        // We allow a small epsilon because DeterministicScorer uses fixed-point math
+        // while ScoringEngine uses integer math but might have slight scaling differences
+        // in the pre-calculation phase.
+        // Actually, both use the same SCORE_SCALE (1_000_000.0).
+        // The difference should be negligible (rounding errors in float->int conversion).
+
+        let diff = (fast_score - slow_score).abs();
+
+        // Tolerance: 1.0 / SCORE_SCALE (one unit of precision)
+        // But let's be slightly generous for float accumulation noise.
+        let tolerance = 0.0001;
+
+        prop_assert!(
+            diff < tolerance,
+            "Divergence! Fast: {}, Oracle: {}, Diff: {}",
+            fast_score, slow_score, diff
+        );
+    }
+}
+
 // ===== libs/keyforge-adapter/Cargo.toml =====
 [package]
 name = "keyforge-adapter"
@@ -1325,12 +1465,36 @@ impl FsProvider {
     }
 
     fn resolve_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
+        // Map categories to new structure
+        let sub = match category {
+            "keyboards" => "keyboards/models",
+            "weights" => "weights",
+            "config" => "config",
+            "keymap_extras" => "keymap_extras",
+            _ => category,
+        };
+
         let p = self
+            .root
+            .join("system")
+            .join(sub)
+            .join(format!("{}.mpk.zst", stem));
+
+        if p.exists() {
+            return Some(p);
+        }
+
+        // Fallback for direct mapping if needed (e.g. if we passed "keyboards/models" as category)
+        let p_direct = self
             .root
             .join("system")
             .join(category)
             .join(format!("{}.mpk.zst", stem));
-        p.exists().then_some(p)
+        if p_direct.exists() {
+            return Some(p_direct);
+        }
+
+        None
     }
 
     fn resolve_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
@@ -2093,7 +2257,7 @@ pub enum InitMode {
 
 const REQUIRED_ASSETS: &[&str] = &[
     "config/keycodes",
-    "weights/cost_matrix",
+    "weights/default_costmatrix",
     "corpora/text/en_std/1grams",
 ];
 
@@ -2251,8 +2415,8 @@ fn scan_dir(
 
 pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
-    // System: Binary Only
-    scan_dir(root, "system/keyboards", "mpk.zst", &mut names)?;
+    // System: Binary Only - Updated to new structure
+    scan_dir(root, "system/keyboards/models", "mpk.zst", &mut names)?;
     // User: Support JSON for development/customization
     scan_dir(root, "user/keyboards", "json", &mut names)?;
 
@@ -2273,7 +2437,7 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
         let walker = walkdir::WalkDir::new(&base)
             .min_depth(1)
             .max_depth(3) // Extra depth for category/id
-            .follow_links(false);
+            .follow_links(true); // Follow symlinks
 
         for entry in walker.into_iter().filter_map(|e| e.ok()) {
             if entry.path_is_symlink() {
@@ -2302,12 +2466,9 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
 
 pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
+    // System: Weights are now in system/weights
     scan_dir(root, "system/weights", "mpk.zst", &mut names)?;
     scan_dir(root, "user/weights", "json", &mut names)?;
-
-    for excluded in ["ortho_split", "row_stagger", "testing"] {
-        names.remove(excluded);
-    }
 
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();
@@ -2814,8 +2975,9 @@ pub async fn bootstrap_essentials(
     let keyboards = ["ortho_30", "ansi_104", "corne", "szr35"];
     for kb in keyboards {
         let filename = format!("{}.mpk.zst", kb);
-        let remote = client.url(&format!("data/system/keyboards/{}", filename));
-        let local = local_root.join("system/keyboards").join(&filename);
+        // Updated to reflect new directory structure
+        let remote = client.url(&format!("data/system/keyboards/models/{}", filename));
+        let local = local_root.join("system/keyboards/models").join(&filename);
         if ensure_file(client, &remote, &local, None).await.is_ok() {
             downloaded.push(kb.to_string());
         }
@@ -2834,34 +2996,44 @@ pub async fn bootstrap_essentials(
 
 pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerManifest> {
     let mut files = HashMap::new();
-    let allowed_dirs = [
-        "keyboards",
-        "corpora",
-        "weights",
-        "benchmarks",
-        "config",
-        "keymap_extras",
-    ];
-    for dir in allowed_dirs {
-        let dir_path = data_root.join(dir);
-        if !dir_path.exists() {
-            continue;
-        }
-        let walker = WalkDir::new(&dir_path).follow_links(false);
-        for entry in walker.into_iter().filter_map(|e| e.ok()) {
-            println!("🔍 Scanning: {:?}", entry.path());
-            if entry.file_type().is_file() {
-                let path = entry.path();
-                if path.components().any(
-                    |c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.')),
-                ) {
-                    continue;
-                }
-                if let Ok(hash) = calculate_file_hash(path) {
-                    if let Ok(relative) = path.strip_prefix(data_root) {
-                        println!("✅ Added to Manifest: {}", relative.to_string_lossy());
-                        files.insert(relative.to_string_lossy().replace('\\', "/"), hash);
-                    }
+
+    // Scan entire data_root recursively, following symlinks
+    let walker = WalkDir::new(data_root).follow_links(true);
+
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            let path = entry.path();
+
+            // Skip hidden files/directories
+            if path
+                .components()
+                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.')))
+            {
+                continue;
+            }
+
+            // Skip benchmarks directory
+            if path
+                .components()
+                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy() == "benchmarks"))
+            {
+                continue;
+            }
+
+            // Skip testing artifacts
+            if path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .map(|s| s.starts_with("testing."))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            if let Ok(hash) = calculate_file_hash(path) {
+                if let Ok(relative) = path.strip_prefix(data_root) {
+                    // println!("✅ Added to Manifest: {}", relative.to_string_lossy());
+                    files.insert(relative.to_string_lossy().replace('\\', "/"), hash);
                 }
             }
         }
@@ -3198,16 +3370,17 @@ fn list_cost_matrices_includes_mpk_zst_and_excludes_non_cost_weights() {
 
     // Create expected directory structure
     std::fs::create_dir_all(root.join("system/weights")).unwrap();
+    std::fs::create_dir_all(root.join("system/keyboards")).unwrap();
     std::fs::create_dir_all(root.join("user/weights")).unwrap();
 
     // A real cost matrix can be either json or mpk.zst
     std::fs::write(root.join("system/weights/cost_matrix.mpk.zst"), b"dummy").unwrap();
     std::fs::write(root.join("user/weights/custom.json"), b"{\"entries\":[]}").unwrap();
 
-    // These are *not* cost matrices and must be excluded
-    std::fs::write(root.join("system/weights/ortho_split.mpk.zst"), b"dummy").unwrap();
-    std::fs::write(root.join("system/weights/row_stagger.mpk.zst"), b"dummy").unwrap();
-    std::fs::write(root.join("system/weights/testing.mpk.zst"), b"dummy").unwrap();
+    // These are *not* cost matrices and must be excluded (by being in a different dir)
+    std::fs::write(root.join("system/keyboards/ortho_split.mpk.zst"), b"dummy").unwrap();
+    std::fs::write(root.join("system/keyboards/row_stagger.mpk.zst"), b"dummy").unwrap();
+    std::fs::write(root.join("system/keyboards/testing.mpk.zst"), b"dummy").unwrap();
 
     let list = listing::list_cost_matrices(root).unwrap();
 
@@ -3958,6 +4131,9 @@ keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 fastrand = "2.3.0"
 tracing = { version = "0.1", features = ["attributes"] }
+
+[dev-dependencies]
+proptest = "1.4"
 
 // ===== libs/keyforge-physics/src/analysis/fingerprint.rs =====
 #![allow(clippy::unnecessary_map_or)]
@@ -6705,7 +6881,7 @@ pub enum CostMatrixSource {
 
 impl Default for CostMatrixSource {
     fn default() -> Self {
-        CostMatrixSource::Predefined("cost_matrix.json".to_string())
+        CostMatrixSource::Predefined("default_costmatrix.json".to_string())
     }
 }
 
@@ -7022,8 +7198,6 @@ pub struct JobStatus {
     pub best_layout: Option<String>,
     pub total_samples: usize,
 }
-
-// ===== libs/keyforge-protocol/src/protocol.rs.orig =====
 
 // ===== libs/keyforge-security/Cargo.toml =====
 [package]

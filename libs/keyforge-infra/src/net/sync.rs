@@ -103,8 +103,9 @@ pub async fn bootstrap_essentials(
     let keyboards = ["ortho_30", "ansi_104", "corne", "szr35"];
     for kb in keyboards {
         let filename = format!("{}.mpk.zst", kb);
-        let remote = client.url(&format!("data/system/keyboards/{}", filename));
-        let local = local_root.join("system/keyboards").join(&filename);
+        // Updated to reflect new directory structure
+        let remote = client.url(&format!("data/system/keyboards/models/{}", filename));
+        let local = local_root.join("system/keyboards/models").join(&filename);
         if ensure_file(client, &remote, &local, None).await.is_ok() {
             downloaded.push(kb.to_string());
         }
@@ -123,34 +124,44 @@ pub async fn bootstrap_essentials(
 
 pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerManifest> {
     let mut files = HashMap::new();
-    let allowed_dirs = [
-        "keyboards",
-        "corpora",
-        "weights",
-        "benchmarks",
-        "config",
-        "keymap_extras",
-    ];
-    for dir in allowed_dirs {
-        let dir_path = data_root.join(dir);
-        if !dir_path.exists() {
-            continue;
-        }
-        let walker = WalkDir::new(&dir_path).follow_links(false);
-        for entry in walker.into_iter().filter_map(|e| e.ok()) {
-            println!("🔍 Scanning: {:?}", entry.path());
-            if entry.file_type().is_file() {
-                let path = entry.path();
-                if path.components().any(
-                    |c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.')),
-                ) {
-                    continue;
-                }
-                if let Ok(hash) = calculate_file_hash(path) {
-                    if let Ok(relative) = path.strip_prefix(data_root) {
-                        println!("✅ Added to Manifest: {}", relative.to_string_lossy());
-                        files.insert(relative.to_string_lossy().replace('\\', "/"), hash);
-                    }
+
+    // Scan entire data_root recursively, following symlinks
+    let walker = WalkDir::new(data_root).follow_links(true);
+
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            let path = entry.path();
+
+            // Skip hidden files/directories
+            if path
+                .components()
+                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.')))
+            {
+                continue;
+            }
+
+            // Skip benchmarks directory
+            if path
+                .components()
+                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy() == "benchmarks"))
+            {
+                continue;
+            }
+
+            // Skip testing artifacts
+            if path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .map(|s| s.starts_with("testing."))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            if let Ok(hash) = calculate_file_hash(path) {
+                if let Ok(relative) = path.strip_prefix(data_root) {
+                    // println!("✅ Added to Manifest: {}", relative.to_string_lossy());
+                    files.insert(relative.to_string_lossy().replace('\\', "/"), hash);
                 }
             }
         }

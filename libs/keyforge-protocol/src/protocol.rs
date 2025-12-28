@@ -23,7 +23,7 @@ pub enum CostMatrixSource {
 
 impl Default for CostMatrixSource {
     fn default() -> Self {
-        CostMatrixSource::Predefined("cost_matrix.json".to_string())
+        CostMatrixSource::Predefined("default_costmatrix.json".to_string())
     }
 }
 

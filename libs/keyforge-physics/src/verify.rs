@@ -91,7 +91,25 @@ impl DeterministicScorer {
 // --- Internal Fixed Point Logic ---
 
 fn to_fixed(val: f32) -> i64 {
-    (val * SCORE_SCALE) as i64
+    if val.is_nan() {
+        return 0;
+    }
+    if val.is_infinite() {
+        return if val.is_sign_positive() {
+            i64::MAX
+        } else {
+            i64::MIN
+        };
+    }
+    // Saturate cast
+    let scaled = val * SCORE_SCALE;
+    if scaled >= i64::MAX as f32 {
+        i64::MAX
+    } else if scaled <= i64::MIN as f32 {
+        i64::MIN
+    } else {
+        scaled as i64
+    }
 }
 
 struct FixedPointKey {
@@ -127,11 +145,14 @@ fn calculate_pair_cost_int(
 
     // Scale down intermediate multiplication to prevent overflow before squaring
     // (dx * weight) / SCALE
-    let weighted_dx = (dx * rubric.travel_lat) / (SCORE_SCALE as i64);
-    let weighted_dy = (dy * rubric.travel_vert) / (SCORE_SCALE as i64);
+    let weighted_dx = dx.saturating_mul(rubric.travel_lat) / (SCORE_SCALE as i64);
+    let weighted_dy = dy.saturating_mul(rubric.travel_vert) / (SCORE_SCALE as i64);
 
     // Result is scaled by 1e6
-    let dist_sq = (weighted_dx * weighted_dx + weighted_dy * weighted_dy) / (SCORE_SCALE as i64);
+    let dist_sq = weighted_dx
+        .saturating_mul(weighted_dx)
+        .saturating_add(weighted_dy.saturating_mul(weighted_dy))
+        / (SCORE_SCALE as i64);
 
     let mut cost = dist_sq;
 
@@ -142,9 +163,9 @@ fn calculate_pair_cost_int(
     if k1.finger == k2.finger {
         let col_diff = (k1.col - k2.col).abs();
         if col_diff == 1 {
-            cost += rubric.sfb_lateral;
+            cost = cost.saturating_add(rubric.sfb_lateral);
         } else {
-            cost += rubric.sfb_base;
+            cost = cost.saturating_add(rubric.sfb_base);
         }
         return cost;
     }
@@ -153,13 +174,13 @@ fn calculate_pair_cost_int(
     let row_diff = (k1.row - k2.row).abs();
 
     if finger_diff == 1 && row_diff >= 2 {
-        cost += rubric.finger_effort[k1.finger as usize];
+        cost = cost.saturating_add(rubric.finger_effort[k1.finger as usize]);
     }
 
     if row_diff == 0 && finger_diff == 1 {
         let col_dist = (k1.col - k2.col).abs();
         if col_dist > 1 {
-            cost += rubric.sfb_lateral;
+            cost = cost.saturating_add(rubric.sfb_lateral);
         }
     }
 
@@ -196,7 +217,7 @@ fn calculate_flow_cost_int(
     }
 
     if dir1 < 0 {
-        return -rubric.roll_bonus;
+        return rubric.roll_bonus.saturating_neg();
     }
 
     0

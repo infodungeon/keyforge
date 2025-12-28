@@ -42,3 +42,7 @@ self_update = "0.41"
 [dev-dependencies]
 keyforge-testing = { path = "../../libs/keyforge-testing" }
 tempfile = "3.10"
+keyforge-hive = { path = "../keyforge-hive" }
+futures = "0.3"
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "postgres"] }
+axum = "0.7"

@@ -43,7 +43,7 @@ fn test_agent_session_bootstrap() {
     let mut f = File::create(data_root.join("user/config/keycodes.json")).unwrap();
     writeln!(
         f,
-        r#"[{{ "code": 65, "id": "KC_A", "label": "a", "aliases": [] }}]"#
+        r#"[{{ "code": 97, "id": "KC_A", "label": "a", "aliases": [] }}]"#
     )
     .unwrap();
 

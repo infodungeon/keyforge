@@ -47,7 +47,7 @@ fn test_real_data_pipeline() {
         .load_corpus(&sources)
         .expect("Failed to load corpus");
     let cost_data = provider
-        .load_cost_matrix("cost_matrix.json")
+        .load_cost_matrix("default_costmatrix.json")
         .expect("Failed to load cost matrix");
 
     let rubric = conversion::to_domain_rubric(&weights);
