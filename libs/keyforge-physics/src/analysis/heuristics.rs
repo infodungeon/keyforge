@@ -4,7 +4,7 @@ use keyforge_model::{Layout, SwapSuggestion};
 use keyforge_protocol::constants::SCORE_SCALE;
 
 pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion> {
-    let mut pos_map = vec![255u8; 65536];
+    let mut pos_map = vec![65535u16; 65536];
     let current_score = score_layout(ctx, &layout.keys, &mut pos_map);
 
     if current_score <= 0 {

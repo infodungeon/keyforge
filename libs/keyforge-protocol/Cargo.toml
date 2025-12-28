@@ -18,3 +18,6 @@ utoipa = { version = "4.2", features = [
     "preserve_order",
     "preserve_path_order",
 ] }
+
+[dev-dependencies]
+proptest = "1.4"

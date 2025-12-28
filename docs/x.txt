@@ -1,0 +1,46 @@
+SITREP]: Doctrine Enforcement: Tier 1 (The Nucleus).
+
+Target: libs/keyforge-physics.
+Status: Unverified.
+Goal: Mathematical Certainty & Deterministic State.
+Here is the detailed Engineering Objectives list derived strictly from doctrine_llm_reliability.md.
+PHASE 1: DIAGNOSIS & BASELINE
+Map Logic Dark Matter:
+Execute cargo tarpaulin specifically for keyforge-physics.
+Identify branches in compute.rs and mechanics.rs that are mathematically reachable but untested.
+Audit Primitive Obsession:
+Scan src/kernel/ for raw f32, usize, and i64 usage in domain logic.
+Identify candidates for Semantic Newtypes (e.g., KeyIndex, Score, Distance).
+PHASE 2: ARCHITECTURAL GUARDRAILS
+Type-Driven Refactoring (Compiler Guardrail):
+Define struct KeyIndex(usize) to prevent row/col swapping errors.
+Define struct Score(i64) to enforce fixed-point semantics and prevent overflow/NaN propagation.
+Refactor calculate_pair_cost to accept/return these types.
+Construction Safety (Runtime Guardrail):
+Implement TryFrom<EngineRequest> for ScoringEngine.
+
+Enforce invariants at the boundary:
+weights must be finite.
+keys count must match corpus dimensions.
+cost_matrix must be symmetric (if applicable).
+PHASE 3: LOGIC VERIFICATION (The Oracle)
+Shadow Execution Hardening:
+Review src/verify.rs (DeterministicScorer).
+Ensure it implements the exact same rubric logic as the optimized ScoringEngine but using simple, readable math.
+CoVe Step: Generate 3 specific edge cases (e.g., max distance, zero frequency, negative weights) to manually verify the Oracle's truth.
+PHASE 4: INVARIANT TESTING (The Logic Guardrail)
+Property-Based Fuzzing:
+Expand tests/property_tests.rs.
+Invariant A (Symmetry): cost(a, b) == cost(b, a) (unless directional).
+Invariant B (Positivity): score >= 0 (unless bonuses exceed penalties).
+Invariant C (Delta Consistency): score(swap(layout)) == score(layout) + delta.
+Invariant Documentation:
+Annotate src/kernel/compute.rs with // INVARIANT: kani::assume(...) comments to explicitly state mathematical assumptions for future LLM contexts.
+PHASE 5: REFLEXION & CLOSURE
+The Reflexion Loop:
+If any property test fails during Phase 4, pause.
+Output a "Logic Error Explanation" before generating the fix.
+Final Verification:
+Re-run coverage. Target: >95% Branch Coverage.
+Verify no unwrap() calls exist in the hot path (compute.rs).
+Blueprint ready. Execute Phase 1 (Diagnosis)?

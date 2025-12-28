@@ -1,8 +1,9 @@
 pub mod compiler;
 pub mod compute;
 pub mod mechanics;
+pub mod types;
 
-// Changed from [u8; 256] to Vec<u8> to support full u16 keycode range
+use self::types::{FingerIndex, HandIndex};
 
 /// The read-only, optimized mathematical context.
 #[derive(Debug)]
@@ -11,8 +12,8 @@ pub struct EngineContext {
     pub(crate) key_count: usize,
 
     // --- GEOMETRY LOOKUPS (Indexed by Key Index) ---
-    pub(crate) hands: Vec<u8>,
-    pub(crate) fingers: Vec<u8>,
+    pub(crate) hands: Vec<HandIndex>,
+    pub(crate) fingers: Vec<FingerIndex>,
     pub(crate) rows: Vec<i8>,
     pub(crate) cols: Vec<i8>,
 
@@ -20,8 +21,8 @@ pub struct EngineContext {
     pub(crate) cost_matrix: Vec<i64>,
 
     // --- N-GRAM LOOKUPS (CSR + SoA Format) ---
-    pub(crate) char_freqs: [u32; 256],
-
+    pub(crate) char_freqs: Vec<u32>,
+    
     // Bigrams (Forward: c1 -> c2)
     pub(crate) bigram_starts: Vec<usize>,
     pub(crate) bigram_others: Vec<u16>,

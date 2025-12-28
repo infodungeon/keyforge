@@ -9,6 +9,22 @@ pub struct Layout {
     pub keys: SmallVec<[u16; 64]>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_layout_helpers() {
+        let l = Layout::new(vec![1, 2, 3]);
+        assert_eq!(l.len(), 3);
+        assert!(!l.is_empty());
+
+        let empty = Layout::new(vec![]);
+        assert!(empty.is_empty());
+        assert_eq!(empty.len(), 0);
+    }
+}
+
 impl Layout {
     pub fn new(keys: Vec<u16>) -> Self {
         Self {

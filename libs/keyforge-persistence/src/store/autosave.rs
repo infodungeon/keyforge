@@ -137,3 +137,59 @@ impl AutoSaveService {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+    use tokio;
+
+    #[tokio::test]
+    async fn test_load_non_existent() {
+        let dir = tempdir().unwrap();
+        let service = AutoSaveService::new(dir.path().to_path_buf());
+        assert!(service.load().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_load_too_large() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("session.json");
+        tokio::fs::write(&path, vec![0u8; MAX_SESSION_FILE_SIZE as usize + 1]).await.unwrap();
+        let service = AutoSaveService::new(dir.path().to_path_buf());
+        assert!(service.load().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_load_invalid_json() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("session.json");
+        tokio::fs::write(&path, "invalid json").await.unwrap();
+        let service = AutoSaveService::new(dir.path().to_path_buf());
+        assert!(service.load().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_autosave_debounce_flush() {
+        let dir = tempdir().unwrap();
+        let service = AutoSaveService::new(dir.path().to_path_buf());
+        // Set last_save to the past to trigger immediate flush
+        {
+            let mut state = service.state.lock().unwrap();
+            state.last_save = Instant::now() - Duration::from_secs(3);
+        }
+        service.schedule_save(SessionSnapshot::default()).await;
+        // This should have triggered flush(false) on line 81
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(service.load().await.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_load_read_error() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("session.json");
+        // Create a directory named session.json to force a read error (it's a directory, not a file)
+        std::fs::create_dir(&path).unwrap();
+        let service = AutoSaveService::new(dir.path().to_path_buf());
+        assert!(service.load().await.is_none());
+    }
+}

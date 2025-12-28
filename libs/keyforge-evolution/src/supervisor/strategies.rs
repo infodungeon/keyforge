@@ -13,7 +13,7 @@ impl MutationOperator for SwapMutation {
         &self,
         engine: &ScoringEngine,
         layout: &Layout,
-        pos_map: &[u8],
+        pos_map: &[u16],
         rng: &mut impl Rng,
     ) -> Option<MutationProposal> {
         let len = self.unlocked_indices.len();
@@ -49,7 +49,7 @@ impl MutationOperator for GroupMutation {
         &self,
         engine: &ScoringEngine,
         layout: &Layout,
-        pos_map: &[u8],
+        pos_map: &[u16],
         rng: &mut impl Rng,
     ) -> Option<MutationProposal> {
         let len = self.unlocked_indices.len();

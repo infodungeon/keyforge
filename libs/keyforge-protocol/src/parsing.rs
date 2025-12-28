@@ -113,6 +113,10 @@ pub fn parse_key(token: &str) -> KeyAction {
     }
 
     // 6. Fallback
+    if t.contains('(') || t.contains(')') {
+        return KeyAction::Raw(t.to_string());
+    }
+
     if t.len() == 1 && t.chars().next().is_some_and(|c| c.is_alphanumeric()) {
         return KeyAction::Simple(format!("KC_{}", upper));
     }

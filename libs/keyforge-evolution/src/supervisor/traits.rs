@@ -10,7 +10,7 @@ pub enum MutationAction {
 
 impl MutationAction {
     #[inline(always)]
-    pub fn apply(self, layout: &mut Layout, pos_map: &mut [u8]) {
+    pub fn apply(self, layout: &mut Layout, pos_map: &mut [u16]) {
         match self {
             MutationAction::Swap(a, b) => {
                 layout.keys.swap(a, b);
@@ -18,10 +18,10 @@ impl MutationAction {
                 let code_b = layout.keys[b] as usize;
                 // Update pos_map if within range
                 if code_a < pos_map.len() {
-                    pos_map[code_a] = a as u8;
+                    pos_map[code_a] = a as u16;
                 }
                 if code_b < pos_map.len() {
-                    pos_map[code_b] = b as u8;
+                    pos_map[code_b] = b as u16;
                 }
             }
             MutationAction::GroupSwap(a, b, c) => {
@@ -36,13 +36,13 @@ impl MutationAction {
                 let code_c = layout.keys[c] as usize;
 
                 if code_a < pos_map.len() {
-                    pos_map[code_a] = a as u8;
+                    pos_map[code_a] = a as u16;
                 }
                 if code_b < pos_map.len() {
-                    pos_map[code_b] = b as u8;
+                    pos_map[code_b] = b as u16;
                 }
                 if code_c < pos_map.len() {
-                    pos_map[code_c] = c as u8;
+                    pos_map[code_c] = c as u16;
                 }
             }
         }
@@ -63,7 +63,7 @@ pub trait MutationOperator {
         &self,
         engine: &ScoringEngine,
         layout: &Layout,
-        pos_map: &[u8],
+        pos_map: &[u16],
         rng: &mut impl Rng,
     ) -> Option<MutationProposal>;
 }

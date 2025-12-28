@@ -115,9 +115,11 @@ impl Default for SearchParams {
 
 impl Validator for SearchParams {
     fn validate(&self) -> Result<(), String> {
+        // INVARIANT: Search must have at least one epoch to run.
         if self.search_epochs == 0 {
             return Err("search_epochs must be > 0".into());
         }
+        // INVARIANT: Cap epochs to prevent infinite loops/resource exhaustion.
         if self.search_epochs > MAX_SEARCH_EPOCHS {
             return Err(format!(
                 "search_epochs exceeds limit ({})",
@@ -146,16 +148,19 @@ impl Validator for SearchParams {
             return Err("opt_limit_slow must be >= opt_limit_fast".into());
         }
 
+        // INVARIANT: Temperature must be non-negative to satisfy annealing physics.
         if self.temp_min < 0.0 || self.temp_max < 0.0 {
             return Err("Temperature cannot be negative".into());
         }
+        // INVARIANT: Cap max temp to prevent float overflow in exp() calculations.
         if self.temp_max > MAX_TEMP {
             return Err(format!("temp_max exceeds limit ({})", MAX_TEMP));
         }
+        // INVARIANT: Min temp must be positive to avoid division by zero or underflow.
+        if self.temp_min < 0.0001 {
+            return Err("temp_min too low (underflow risk)".into());
+        }
         if self.temp_min >= self.temp_max {
-            if self.temp_min < 0.0001 {
-                return Err("temp_min too low (underflow risk)".into());
-            }
             return Err("temp_min must be < temp_max".into());
         }
 
@@ -268,15 +273,18 @@ impl Default for ScoringWeights {
 
 impl Validator for ScoringWeights {
     fn validate(&self) -> Result<(), String> {
+        // INVARIANT: Trigram limit caps memory usage during corpus loading.
         if self.loader_trigram_limit > MAX_LOADER_TRIGRAM_LIMIT {
             return Err(format!(
                 "loader_trigram_limit exceeds safety maximum ({})",
                 MAX_LOADER_TRIGRAM_LIMIT
             ));
         }
+        // INVARIANT: Penalties must be non-negative.
         if self.penalty_sfb_base < 0.0 || self.penalty_scissor < 0.0 {
             return Err("Penalties cannot be negative".to_string());
         }
+        // INVARIANT: Weights capped to prevent i64 overflow in fixed-point engine.
         if self.penalty_sfb_base > MAX_SAFE_WEIGHT
             || self.penalty_scissor > MAX_SAFE_WEIGHT
             || self.penalty_redirect > MAX_SAFE_WEIGHT
@@ -370,10 +378,14 @@ fn parse_f32_array<const N: usize>(s: &str) -> Result<[f32; N], String> {
     }
     let mut arr = [0.0; N];
     for (i, p) in parts.iter().enumerate() {
-        arr[i] = p
+        let val: f32 = p
             .trim()
             .parse()
             .map_err(|_| format!("Invalid number: {}", p))?;
+        if !val.is_finite() {
+            return Err(format!("Value must be finite: {}", p));
+        }
+        arr[i] = val;
     }
     Ok(arr)
 }

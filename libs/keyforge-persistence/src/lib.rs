@@ -6,4 +6,4 @@ pub mod store;
 pub use compiler::Compiler;
 pub use error::{PersistenceError, PersistenceResult};
 pub use project::{Project, ProjectMeta};
-pub use store::autosave::AutoSaveService;
+pub use store::autosave::{AutoSaveService, SessionSnapshot};

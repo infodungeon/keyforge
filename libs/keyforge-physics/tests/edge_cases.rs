@@ -152,9 +152,8 @@ fn test_high_keycodes_safety() {
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
     
     let score = engine.score(&layout);
-    // Current engine implementation limits optimization lookups to 256 chars.
-    // High keycodes should be ignored safely, not panic.
-    assert_eq!(score, 0.0);
+    // REMOVED LIMIT: High keycodes are now correctly scored.
+    assert!(score > 0.0);
 }
 
 #[test]
@@ -168,10 +167,10 @@ fn test_swap_delta_bounds() {
     let rubric = Rubric::default();
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
 
-    let mut pos_map = vec![255u8; 65536];
+    let mut pos_map = vec![65535u16; 65536];
     // Populate pos_map manually to test calculate_swap_delta
     for (i, &code) in layout.keys.iter().enumerate() {
-        pos_map[code as usize] = i as u8;
+        pos_map[code as usize] = i as u16;
     }
 
     // Test out of bounds indices

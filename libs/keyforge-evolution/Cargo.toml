@@ -16,3 +16,6 @@ rayon = { version = "1.10", optional = true }
 [features]
 default = ["rayon"]
 single_threaded = []
+
+[dev-dependencies]
+proptest = "1.4"

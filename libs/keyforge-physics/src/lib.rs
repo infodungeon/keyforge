@@ -1,5 +1,5 @@
 mod analysis;
-mod kernel;
+pub mod kernel;
 pub mod verify; // NEW: The Sidecar
 
 pub use analysis::fingerprint::LayoutIdentity;
@@ -34,7 +34,7 @@ impl ScoringEngine {
 
     #[instrument(skip(self, layout))]
     pub fn score(&self, layout: &Layout) -> f32 {
-        let mut pos_map = vec![255u8; 65536];
+        let mut pos_map = vec![65535u16; 65536];
         score_layout(&self.ctx, &layout.keys, &mut pos_map) as f32 / SCORE_SCALE
     }
 
@@ -51,7 +51,7 @@ impl ScoringEngine {
     pub fn calculate_swap_delta(
         &self,
         layout: &[u16],
-        pos_map: &[u8],
+        pos_map: &[u16],
         idx_a: usize,
         idx_b: usize,
     ) -> i64 {
@@ -59,7 +59,7 @@ impl ScoringEngine {
     }
 
     pub fn score_raw(&self, layout: &[u16]) -> i64 {
-        let mut pos_map = vec![255u8; 65536];
+        let mut pos_map = vec![65535u16; 65536];
         score_layout(&self.ctx, layout, &mut pos_map)
     }
 

@@ -12,6 +12,15 @@ def parse_coverage(json_path):
         sys.exit(1)
 
     report = {}
+    
+    # Try to guess which crate we are interested in from the path
+    # e.g. coverage/evolution/tarpaulin-report.json -> evolution
+    target_hint = None
+    path_parts = json_path.split(os.sep)
+    for part in reversed(path_parts):
+        if part not in ["tarpaulin-report.json", "coverage"]:
+            target_hint = part
+            break
 
     # Tarpaulin JSON structure: { "files": [ ... ] }
     for file_entry in data.get("files", []):
@@ -21,20 +30,36 @@ def parse_coverage(json_path):
         if isinstance(path_raw, list):
             if not path_raw:
                 continue
-            # Reconstruct path from components
             path = os.path.join(*path_raw)
         else:
             path = path_raw
 
-        # Filter for keyforge-physics only to keep it focused
-        if "keyforge-physics" not in path:
-            continue
-            
+        # Heuristic: If we have a target hint, prefer files from that crate
+        # But if we don't have a hint, or it's not matching, we still might want to see files
+        # with actual coverage that were hit during the test run.
+        
         # Clean up path for display
-        if "libs/keyforge-physics/src/" in path:
-            display_path = path.split("libs/keyforge-physics/src/")[1]
+        # We look for the "src" directory and show from the crate root
+        display_path = path
+        if "/src/" in path:
+            # e.g. .../libs/keyforge-evolution/src/supervisor/annealing.rs
+            # -> keyforge-evolution/src/supervisor/annealing.rs
+            parts = path.split("/")
+            try:
+                src_idx = parts.index("src")
+                if src_idx > 0:
+                    display_path = os.path.join(*parts[src_idx-1:])
+            except ValueError:
+                pass
         else:
             display_path = os.path.basename(path)
+
+        # Filtering: If we have a target hint, skip files clearly not related
+        # to that hint (unless they are within the same workspace)
+        if target_hint and target_hint not in path:
+            # If the file has 0 coverage and isn't our target, definitely skip
+            if file_entry.get("covered", 0) == 0:
+                continue
 
         covered = 0
         uncovered = []
@@ -81,8 +106,12 @@ def parse_coverage(json_path):
     return report
 
 def print_report(report):
-    print(f"{'File':<35} | {'Cov %':<7} | {'Uncovered Lines'}")
-    print("-" * 85)
+    if not report:
+        print("No files matched the filtering criteria.")
+        return
+
+    print(f"{'File':<45} | {'Cov %':<7} | {'Uncovered Lines'}")
+    print("-" * 100)
     
     # Sort by lowest coverage first
     sorted_files = sorted(report.items(), key=lambda x: x[1]['coverage'])
@@ -94,7 +123,7 @@ def print_report(report):
         if len(ranges_str) > 40:
             ranges_str = ranges_str[:37] + "..."
             
-        print(f"{filename:<35} | {stats['coverage']:>6.1f}% | {ranges_str}")
+        print(f"{filename:<45} | {stats['coverage']:>6.1f}% | {ranges_str}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

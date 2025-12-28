@@ -12,10 +12,11 @@ impl DeterministicScorer {
 
         // 1. Map Layout to Positions
         // pos_map[keycode] = physical_index
-        let mut pos_map = vec![255u8; 65536];
-        for (i, &code) in layout.keys.iter().enumerate() {
+        let mut pos_map = vec![65535u16; 65536];
+        let limit = layout.keys.len().min(keyboard.keys.len());
+        for (i, &code) in layout.keys.iter().enumerate().take(limit) {
             if (code as usize) < pos_map.len() {
-                pos_map[code as usize] = i as u8;
+                pos_map[code as usize] = i as u16;
             }
         }
 
@@ -55,7 +56,7 @@ impl DeterministicScorer {
             let p1 = pos_map[c1 as usize];
             let p2 = pos_map[c2 as usize];
 
-            if p1 != 255 && p2 != 255 {
+            if p1 != 65535 && p2 != 65535 {
                 let k1 = &fp_keys[p1 as usize];
                 let k2 = &fp_keys[p2 as usize];
 
@@ -72,7 +73,7 @@ impl DeterministicScorer {
             let p2 = pos_map[c2 as usize];
             let p3 = pos_map[c3 as usize];
 
-            if p1 != 255 && p2 != 255 && p3 != 255 {
+            if p1 != 65535 && p2 != 65535 && p3 != 65535 {
                 let k1 = &fp_keys[p1 as usize];
                 let k2 = &fp_keys[p2 as usize];
                 let k3 = &fp_keys[p3 as usize];
@@ -143,18 +144,30 @@ fn calculate_pair_cost_int(
     let dx = (k1.x - k2.x).abs();
     let dy = (k1.y - k2.y).abs();
 
-    // Scale down intermediate multiplication to prevent overflow before squaring
-    // (dx * weight) / SCALE
-    let weighted_dx = dx.saturating_mul(rubric.travel_lat) / (SCORE_SCALE as i64);
-    let weighted_dy = dy.saturating_mul(rubric.travel_vert) / (SCORE_SCALE as i64);
+    // Fix: Use linear weight application on squared distance: Weight * Dist^2
+    // allowing negative weights to act as bonuses.
+    // Use i128 to prevent overflow during intermediate (Scale^3) multiplication.
+    let scale_val = SCORE_SCALE as i128;
+    let scale_sq = scale_val * scale_val;
 
-    // Result is scaled by 1e6
-    let dist_sq = weighted_dx
-        .saturating_mul(weighted_dx)
-        .saturating_add(weighted_dy.saturating_mul(weighted_dy))
-        / (SCORE_SCALE as i64);
+    let term_x = (dx as i128)
+        .saturating_mul(dx as i128)
+        .saturating_mul(rubric.travel_lat as i128)
+        / scale_sq;
+    let term_y = (dy as i128)
+        .saturating_mul(dy as i128)
+        .saturating_mul(rubric.travel_vert as i128)
+        / scale_sq;
 
-    let mut cost = dist_sq;
+    let dist_cost = term_x.saturating_add(term_y);
+
+    let mut cost = if dist_cost > i64::MAX as i128 {
+        i64::MAX
+    } else if dist_cost < i64::MIN as i128 {
+        i64::MIN
+    } else {
+        dist_cost as i64
+    };
 
     if k1.hand != k2.hand {
         return cost;

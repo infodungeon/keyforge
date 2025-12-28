@@ -1,0 +1,15 @@
+
+running 2 tests
+test test_search_params_invariants ... ok
+test test_scoring_weights_finite_check ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 3 tests
+test test_parse_key_layer_fuzz ... ok
+test test_parse_key_length_truncation ... ok
+test test_parse_key_no_panic ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+

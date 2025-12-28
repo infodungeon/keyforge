@@ -127,7 +127,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
                 state.pos_map.fill(255);
                 for (i, &code) in state.current_layout.keys.iter().enumerate() {
                     if (code as usize) < state.pos_map.len() {
-                        state.pos_map[code as usize] = i as u8;
+                        state.pos_map[code as usize] = i as u16;
                     }
                 }
 
@@ -162,5 +162,54 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
         }
 
         state.best_layout
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::supervisor::traits::{MutationOperator, MutationProposal, MutationAction};
+    use keyforge_model::{Keyboard, KeyNode, Corpus, Rubric};
+
+    fn setup_test_engine() -> ScoringEngine {
+        let keys: Vec<_> = (0..2).map(|i| KeyNode {
+            id: i, label: format!("k{}", i), hand: (i % 2) as u8, finger: (i % 5) as u8,
+            row: (i / 10) as i8, col: (i % 10) as i8, x: (i % 10) as f32, y: (i / 10) as f32, is_home: false,
+        }).collect();
+        let kb = Keyboard::new(keys, 1);
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 1, 100)); // Non-zero score
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[])
+    }
+
+    struct SaturatingMutation;
+    impl MutationOperator for SaturatingMutation {
+        fn propose(&self, _engine: &ScoringEngine, _layout: &Layout, _pos_map: &[u16], _rng: &mut impl rand::Rng) -> Option<MutationProposal> {
+            Some(MutationProposal {
+                delta: i64::MAX, // Force overflow
+                action: MutationAction::Swap(0, 1),
+            })
+        }
+    }
+
+    #[test]
+    fn test_saturation_coverage() {
+        let engine = setup_test_engine();
+        let mut opt = Optimizer::new(&engine, 2, 1.0, 0.1, 42, SaturatingMutation, crate::supervisor::strategies::CoolingAnnealing, 10, 0, 1.0);
+        opt.run(None, crate::NoOpCallback);
+    }
+
+    struct BreakCallback;
+    impl ProgressCallback for BreakCallback {
+        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+            false
+        }
+    }
+
+    #[test]
+    fn test_callback_break_coverage() {
+        let engine = setup_test_engine();
+        // Set steps > 1000 to hit report_interval
+        let mut opt = Optimizer::new(&engine, 1001, 1.0, 0.1, 42, SaturatingMutation, crate::supervisor::strategies::CoolingAnnealing, 10, 0, 1.0);
+        opt.run(None, BreakCallback);
     }
 }
