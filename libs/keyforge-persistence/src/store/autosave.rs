@@ -154,7 +154,9 @@ mod tests {
     async fn test_load_too_large() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("session.json");
-        tokio::fs::write(&path, vec![0u8; MAX_SESSION_FILE_SIZE as usize + 1]).await.unwrap();
+        tokio::fs::write(&path, vec![0u8; MAX_SESSION_FILE_SIZE as usize + 1])
+            .await
+            .unwrap();
         let service = AutoSaveService::new(dir.path().to_path_buf());
         assert!(service.load().await.is_none());
     }

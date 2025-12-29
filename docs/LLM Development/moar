@@ -1,0 +1,53 @@
+KeyForge Engineering Doctrine v7.0: Data-Driven Reliability
+Context: Preventing "Plausible but Wrong" algorithms without doubling the codebase size.
+Core Principle: Do not test the implementation; test the properties of the physics.
+
+1. The "Golden Data" Anchor (The Reality Check)
+Instead of writing a second "Oracle" implementation, we use Hardcoded Truths.
+The Problem: The LLM writes a scoring engine that compiles and runs, but calculates distance backwards.
+The Fix: The Golden Corpus.
+Action: Create tests/fixtures/golden_scores.json.
+Content: 3 known layouts (e.g., Qwerty, Colemak, and a "Worst Case" layout) with their expected scores calculated manually or from a trusted external source (e.g., an existing calculator or a previous stable build).
+The Test:
+code
+Rust
+# [test]
+fn test_golden_parity() {
+    let engine = ScoringEngine::new(...);
+    let score = engine.score(&qwerty_layout);
+    assert_approx_eq!(score, 12345.0, epsilon = 0.1);
+}
+Why: If the LLM breaks the algorithm, the score will drift from the Golden Data. It cannot "lie" its way out of a hardcoded number.
+2. Metamorphic Testing (Verifying Logic without Oracles)
+You don't need to know the exact score of a random layout to know if the logic is broken. You check Relationships (Metamorphic Relations).[1][2][3]
+The Problem: How do we know calculate_swap_delta is correct without re-implementing it?
+The Fix: Check the Physics Invariants.
+A. The Symmetry Check
+Invariant: The distance from A to B is the same as B to A.
+Test: assert_eq!(cost(a, b), cost(b, a))
+Prompt: "Write a test that asserts the cost matrix is symmetric."
+B. The Sensitivity Check (Monotonicity)
+Invariant: If we increase a penalty weight, the total score must increase (or stay same).
+Test:
+Calculate score_1 with sfb_penalty = 10.
+Calculate score_2 with sfb_penalty = 100.
+assert!(score_2 >= score_1)
+Why: If the LLM implements the algorithm incorrectly (e.g., subtracting the penalty), this test fails immediately.
+C. The Invariance Check
+Invariant: Swapping two identical keys (e.g., two empty keys) must result in delta == 0.
+Test: assert_eq!(calculate_swap_delta(empty_key_1, empty_key_2), 0)
+3. The "Frozen Interface" (Stopping Cascades)
+The "Break/Fix Cycle" is often caused by the LLM changing a function signature in physics to fix a local error, which then breaks hive.
+The Rule: Interface Stability.
+Protocol: Define the pub interfaces in keyforge-core (the facade).
+Constraint: The LLM is forbidden from changing pub signatures in keyforge-physics. It can only change the body.
+Prompt: "Fix the logic inside score(). CONSTRAINT: Do not change the function signature. If you need more data, derive it locally or ask for a config change."
+4. The Interaction Protocol (Pragmatic)
+Stop asking for "Tests." Ask for "Property Verifiers."
+Bad Prompt: "Write tests for ScoringEngine."
+Result: LLM writes assert_eq!(score(layout), 100) (Hallucinated number).
+Good Prompt:
+"We are implementing ScoringEngine.
+Golden Test: Create a test that asserts Qwerty scores exactly X (use the value from golden_scores.json).
+Sensitivity Test: Create a test that proves doubling travel_penalty doubles the distance cost.
+Implementation: Now write the code to pass these checks."

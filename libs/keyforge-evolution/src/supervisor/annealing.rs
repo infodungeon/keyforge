@@ -1,57 +1,95 @@
 use super::state::SearchState;
-use super::traits::{AcceptanceCriteria, MutationOperator};
+use super::traits::{AcceptanceCriteria, MutationOperator, TimeKeeper};
+use crate::errors::EvolutionError;
 use crate::ProgressCallback;
 use keyforge_model::Layout;
 use keyforge_physics::ScoringEngine;
 use keyforge_protocol::constants::SCORE_SCALE;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
-use std::time::Instant;
 
-pub struct Optimizer<'a, M: MutationOperator, A: AcceptanceCriteria> {
-    engine: &'a ScoringEngine,
-    total_steps: usize,
-    start_temp: f32,
-    end_temp: f32,
-    rng: Xoshiro256PlusPlus,
-    mutation: M,
-    acceptance: A,
-    patience: usize,
-    reheats: usize,
-    reheat_factor: f32,
+#[derive(Debug, Clone, Copy)]
+pub struct AnnealingConfig {
+    pub steps: usize,
+    pub start_temp: f32,
+    pub end_temp: f32,
+    pub seed: u64,
+    pub patience: usize,
+    pub reheats: usize,
+    pub reheat_factor: f32,
 }
 
-impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
-    #[allow(clippy::too_many_arguments)]
+impl AnnealingConfig {
     pub fn new(
-        engine: &'a ScoringEngine,
         steps: usize,
         start_temp: f32,
         end_temp: f32,
         seed: u64,
-        mutation: M,
-        acceptance: A,
         patience: usize,
         reheats: usize,
         reheat_factor: f32,
+    ) -> Result<Self, EvolutionError> {
+        if steps == 0 {
+            return Err(EvolutionError::Config("Steps must be > 0".into()));
+        }
+        if reheats > 0 && start_temp <= f32::EPSILON {
+            return Err(EvolutionError::Config(
+                "Start temp must be > 0 to enable reheating".into(),
+            ));
+        }
+        if start_temp < 0.0 || end_temp < 0.0 {
+            return Err(EvolutionError::Config(
+                "Temperatures must be non-negative".into(),
+            ));
+        }
+        if reheat_factor <= 0.0 {
+            return Err(EvolutionError::Config(
+                "Reheat factor must be > 0.0".into(),
+            ));
+        }
+        Ok(Self {
+            steps,
+            start_temp,
+            end_temp,
+            seed,
+            patience,
+            reheats,
+            reheat_factor,
+        })
+    }
+}
+
+pub struct Optimizer<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> {
+    engine: &'a ScoringEngine,
+    config: AnnealingConfig,
+    rng: Xoshiro256PlusPlus,
+    mutation: M,
+    acceptance: A,
+    time_keeper: T,
+}
+
+impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a, M, A, T> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        engine: &'a ScoringEngine,
+        config: AnnealingConfig,
+        mutation: M,
+        acceptance: A,
+        time_keeper: T,
     ) -> Self {
-        let rng = if seed == 0 {
+        let rng = if config.seed == 0 {
             Xoshiro256PlusPlus::from_entropy()
         } else {
-            Xoshiro256PlusPlus::seed_from_u64(seed)
+            Xoshiro256PlusPlus::seed_from_u64(config.seed)
         };
 
         Self {
             engine,
-            total_steps: steps,
-            start_temp,
-            end_temp,
+            config,
             rng,
             mutation,
             acceptance,
-            patience,
-            reheats,
-            reheat_factor,
+            time_keeper,
         }
     }
 
@@ -62,53 +100,52 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
     ) -> Layout {
         let layout = initial_layout.unwrap_or_else(|| {
             let keys: Vec<u16> = (0..self.engine.key_count()).map(|i| i as u16).collect();
-            Layout::new(keys)
+            Layout::new_unchecked(keys)
         });
 
         let initial_score = self.engine.score_raw(&layout.keys);
-        let mut state = SearchState::new(layout, initial_score, self.start_temp);
 
-        let cooling_rate = if self.total_steps > 0 {
-            (self.end_temp / self.start_temp).powf(1.0 / self.total_steps as f32)
+        // INVARIANT: kani::assume(initial_score >= 0);
+        let mut state = SearchState::new(layout, initial_score, self.config.start_temp);
+
+        let cooling_rate = if self.config.steps > 0 && self.config.start_temp > f32::EPSILON {
+            (self.config.end_temp / self.config.start_temp).powf(1.0 / self.config.steps as f32)
         } else {
             0.0
         };
 
-        let report_interval = (self.total_steps / 100).max(1000);
-        let start_time = Instant::now();
+        let report_interval = (self.config.steps / 100).max(1000);
+        let start_time = self.time_keeper.now();
         let mut last_report_time = start_time;
         let mut last_report_step = 0;
 
         let mut steps_since_improvement = 0;
-        let mut reheats_left = self.reheats;
+        let mut reheats_left = self.config.reheats;
 
-        for step in 0..self.total_steps {
+        for step in 0..self.config.steps {
             if let Some(proposal) = self.mutation.propose(
                 self.engine,
-                &state.current_layout,
-                &state.pos_map,
+                state.layout(),
+                state.pos_map(),
                 &mut self.rng,
             ) {
-                if self
-                    .acceptance
-                    .should_accept(proposal.delta, state.temperature, &mut self.rng)
-                {
-                    proposal
-                        .action
-                        .apply(&mut state.current_layout, &mut state.pos_map);
+                if self.acceptance.should_accept(
+                    proposal.delta,
+                    state.temperature,
+                    &mut self.rng,
+                ) {
+                    state.apply_mutation(proposal.action);
 
-                    state.current_score = state
-                        .current_score
-                        .checked_add(proposal.delta)
-                        .unwrap_or(if proposal.delta > 0 {
+                    state.current_score = state.current_score.checked_add(proposal.delta).unwrap_or(
+                        if proposal.delta > 0 {
                             i64::MAX
                         } else {
                             i64::MIN
-                        });
+                        },
+                    );
 
                     if state.current_score < state.best_score {
-                        state.best_score = state.current_score;
-                        state.best_layout = state.current_layout.clone();
+                        state.update_best();
                         steps_since_improvement = 0;
                     } else {
                         steps_since_improvement += 1;
@@ -119,17 +156,8 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
             }
 
             // Reheating Logic
-            if steps_since_improvement > self.patience && reheats_left > 0 {
-                state.temperature = self.start_temp * self.reheat_factor; // Boost temp
-                state.current_layout = state.best_layout.clone(); // Reset to best
-                state.current_score = state.best_score;
-                // Rebuild pos_map for best layout
-                state.pos_map.fill(255);
-                for (i, &code) in state.current_layout.keys.iter().enumerate() {
-                    if (code as usize) < state.pos_map.len() {
-                        state.pos_map[code as usize] = i as u16;
-                    }
-                }
+            if steps_since_improvement > self.config.patience && reheats_left > 0 {
+                state.reheat_from_best(self.config.start_temp, self.config.reheat_factor);
 
                 reheats_left -= 1;
                 steps_since_improvement = 0;
@@ -141,8 +169,8 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
             }
 
             if step > 0 && step % report_interval == 0 {
-                let now = Instant::now();
-                let elapsed = now.duration_since(last_report_time).as_secs_f32();
+                let now = self.time_keeper.now();
+                let elapsed = self.time_keeper.elapsed(last_report_time).as_secs_f32();
                 let steps_done = step - last_report_step;
 
                 let ips = if elapsed > 0.0 {
@@ -152,7 +180,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
                 };
 
                 let score_f32 = state.best_score as f32 / SCORE_SCALE;
-                if !callback.on_progress(step, score_f32, &state.best_layout.keys, ips) {
+                if !callback.on_progress(step, score_f32, &state.best_layout().keys, ips) {
                     break;
                 }
 
@@ -161,55 +189,263 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria> Optimizer<'a, M, A> {
             }
         }
 
-        state.best_layout
+        state.best_layout().clone()
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::supervisor::traits::{MutationOperator, MutationProposal, MutationAction};
-    use keyforge_model::{Keyboard, KeyNode, Corpus, Rubric};
+    use crate::supervisor::strategies::{CoolingAnnealing, GroupMutation};
+    use crate::supervisor::traits::{MutationAction, MutationProposal};
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Arc;
 
-    fn setup_test_engine() -> ScoringEngine {
-        let keys: Vec<_> = (0..2).map(|i| KeyNode {
-            id: i, label: format!("k{}", i), hand: (i % 2) as u8, finger: (i % 5) as u8,
-            row: (i / 10) as i8, col: (i % 10) as i8, x: (i % 10) as f32, y: (i / 10) as f32, is_home: false,
-        }).collect();
-        let kb = Keyboard::new(keys, 1);
-        let mut corpus = Corpus::default();
-        corpus.bigrams.push((0, 1, 100)); // Non-zero score
-        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[])
-    }
-
-    struct SaturatingMutation;
-    impl MutationOperator for SaturatingMutation {
-        fn propose(&self, _engine: &ScoringEngine, _layout: &Layout, _pos_map: &[u16], _rng: &mut impl rand::Rng) -> Option<MutationProposal> {
+    // --- Mocks ---
+    struct StagnantMutation;
+    impl MutationOperator for StagnantMutation {
+        fn propose(
+            &self,
+            _engine: &ScoringEngine,
+            _layout: &Layout,
+            _pos_map: &[u16],
+            _rng: &mut impl rand::Rng,
+        ) -> Option<MutationProposal> {
             Some(MutationProposal {
-                delta: i64::MAX, // Force overflow
-                action: MutationAction::Swap(0, 1),
+                delta: 1000,
+                action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
             })
         }
     }
 
-    #[test]
-    fn test_saturation_coverage() {
-        let engine = setup_test_engine();
-        let mut opt = Optimizer::new(&engine, 2, 1.0, 0.1, 42, SaturatingMutation, crate::supervisor::strategies::CoolingAnnealing, 10, 0, 1.0);
-        opt.run(None, crate::NoOpCallback);
+    struct ScoreCheckCallback {
+        last_score: std::sync::Mutex<f32>,
+        failed: AtomicBool,
     }
 
-    struct BreakCallback;
-    impl ProgressCallback for BreakCallback {
-        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
-            false
+    impl ProgressCallback for ScoreCheckCallback {
+        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[u16], _ips: f32) -> bool {
+            let mut last = self.last_score.lock().unwrap();
+            if score > *last && *last != 0.0 && *last != f32::MAX {
+                self.failed.store(true, Ordering::SeqCst);
+            }
+            *last = score;
+            true
         }
     }
 
+    impl ProgressCallback for &ScoreCheckCallback {
+        fn on_progress(&self, epoch: usize, score: f32, layout: &[u16], ips: f32) -> bool {
+            (**self).on_progress(epoch, score, layout, ips)
+        }
+    }
+
+    fn setup_test_engine(size: usize) -> ScoringEngine {
+        let keys: Vec<_> = (0..size)
+            .map(|i| KeyNode {
+                id: i,
+                label: format!("k{}", i),
+                hand: (i % 2) as u8,
+                finger: (i % 5) as u8,
+                row: (i / 10) as i8,
+                col: (i % 10) as i8,
+                x: (i % 10) as f32,
+                y: (i / 10) as f32,
+                is_home: false,
+            })
+            .collect();
+        let kb = Keyboard::new(keys, 1);
+        let mut corpus = Corpus::default();
+        for i in 0..size {
+            corpus.char_freqs[i] = (i * 10) as u32;
+            if i + 1 < size {
+                corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
+            }
+        }
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+    }
+
     #[test]
-    fn test_callback_break_coverage() {
-        let engine = setup_test_engine();
-        // Set steps > 1000 to hit report_interval
-        let mut opt = Optimizer::new(&engine, 1001, 1.0, 0.1, 42, SaturatingMutation, crate::supervisor::strategies::CoolingAnnealing, 10, 0, 1.0);
-        opt.run(None, BreakCallback);
+    fn test_force_reheat_logic() {
+        let engine = setup_test_engine(2);
+        let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 5, 2, 2.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            StagnantMutation,
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        optimizer.run(None, crate::NoOpCallback);
+    }
+
+    #[test]
+    fn test_singularity_zero_temp_execution() {
+        let engine = setup_test_engine(2);
+        let config = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 0, 1.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            GroupMutation { unlocked_indices: vec![0, 1] },
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        let result = optimizer.run(None, crate::NoOpCallback);
+        assert_eq!(result.keys.len(), 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "Start temp must be > 0 to enable reheating")]
+    fn test_singularity_reheat_validation() {
+        AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 1, 1.0).unwrap();
+    }
+
+    #[test]
+    fn test_monotonicity_zero_temp() {
+        let engine = setup_test_engine(30);
+        let mutation = GroupMutation { unlocked_indices: (0..30).collect() };
+        let acceptance = CoolingAnnealing;
+        let callback = ScoreCheckCallback {
+            last_score: std::sync::Mutex::new(f32::MAX),
+            failed: AtomicBool::new(false),
+        };
+        let config = AnnealingConfig::new(1000, 0.0, 0.0, 42, 1000, 0, 1.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        optimizer.run(None, &callback);
+        assert!(!callback.failed.load(Ordering::SeqCst), "Score increased during zero-temperature annealing!");
+    }
+
+    #[test]
+    fn test_state_integrity_after_reheat() {
+        let engine = setup_test_engine(30);
+        let mutation = GroupMutation { unlocked_indices: (0..30).collect() };
+        let acceptance = CoolingAnnealing;
+        let config = AnnealingConfig::new(100, 1.0, 0.1, 42, 5, 1, 10.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        let final_layout = optimizer.run(None, crate::NoOpCallback);
+        let mut seen = std::collections::HashSet::new();
+        for &k in &final_layout.keys {
+            assert!(seen.insert(k), "Duplicate key {} in final layout!", k);
+        }
+        assert_eq!(final_layout.keys.len(), 30);
+    }
+
+    #[test]
+    fn test_annealing_edge_cases() {
+        let engine = setup_test_engine(2);
+        // 1. Seed = 0 (Entropy)
+        let config_entropy = AnnealingConfig::new(10, 1.0, 0.1, 0, 10, 0, 1.0).unwrap();
+        let mut opt_entropy = Optimizer::new(
+            &engine,
+            config_entropy,
+            GroupMutation { unlocked_indices: vec![0, 1] },
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt_entropy.run(None, crate::NoOpCallback);
+
+        // 2. Steps = 0
+        assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
+
+        // 3. Fast cooling
+        let config_fast = AnnealingConfig::new(100, 1e-9, 1e-20, 42, 10, 0, 1.0).unwrap();
+        let mut opt_fast = Optimizer::new(
+            &engine,
+            config_fast,
+            GroupMutation { unlocked_indices: vec![0, 1] },
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt_fast.run(None, crate::NoOpCallback);
+    }
+
+    #[test]
+    fn test_progress_reporting_loop() {
+        let engine = setup_test_engine(2);
+        let mutation = GroupMutation { unlocked_indices: vec![0, 1] };
+        let acceptance = CoolingAnnealing;
+        let calls = Arc::new(AtomicUsize::new(0));
+        struct ReportingCallback(Arc<AtomicUsize>);
+        impl ProgressCallback for ReportingCallback {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                true
+            }
+        }
+        let config = AnnealingConfig::new(2100, 1.0, 0.1, 42, 2100, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt.run(None, ReportingCallback(calls.clone()));
+        assert!(calls.load(Ordering::SeqCst) >= 2, "Progress callback not hit enough times!");
+    }
+
+    #[test]
+    fn test_optimizer_callback_break() {
+        let engine = setup_test_engine(2);
+        let mutation = GroupMutation { unlocked_indices: vec![0, 1] };
+        let acceptance = CoolingAnnealing;
+        struct BreakCallback;
+        impl ProgressCallback for BreakCallback {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+                false
+            }
+        }
+        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 2000, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        let best = opt.run(None, BreakCallback);
+        assert_eq!(best.keys.len(), 2);
+    }
+
+    #[test]
+    fn test_saturation_and_ips_branches() {
+        let engine = setup_test_engine(30);
+        struct SaturatingMutation;
+        impl MutationOperator for SaturatingMutation {
+            fn propose(
+                &self,
+                _engine: &ScoringEngine,
+                _layout: &Layout,
+                _pos_map: &[u16],
+                _rng: &mut impl rand::Rng,
+            ) -> Option<MutationProposal> {
+                Some(MutationProposal {
+                    delta: i64::MAX - 10,
+                    action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
+                })
+            }
+        }
+        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 1000, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            &engine,
+            config,
+            SaturatingMutation,
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt.run(None, crate::NoOpCallback);
     }
 }

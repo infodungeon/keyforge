@@ -2,14 +2,12 @@ use keyforge_protocol::keycodes::{KeycodeDefinition, KeycodeRegistry};
 
 #[test]
 fn test_registry_lookup() {
-    let defs = vec![
-        KeycodeDefinition {
-            code: 65,
-            id: "KC_A".into(),
-            label: "A".into(),
-            aliases: vec!["A".into()],
-        }
-    ];
+    let defs = vec![KeycodeDefinition {
+        code: 65,
+        id: "KC_A".into(),
+        label: "A".into(),
+        aliases: vec!["A".into()],
+    }];
     let reg = KeycodeRegistry::new(defs);
 
     assert_eq!(reg.get_code("KC_A"), Some(65));

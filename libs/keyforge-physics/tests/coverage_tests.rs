@@ -39,7 +39,7 @@ fn test_fingerprint_identification() {
     // Qwerty standard in fingerprint.rs: "qwertyuiopasdfghjkl;zxcvbnm,./"
     let qwerty_str = "qwertyuiopasdfghjkl;zxcvbnm,./";
     let keys: Vec<u16> = qwerty_str.chars().map(|c| c as u16).collect();
-    let layout = Layout::new(keys);
+    let layout = Layout::new_unchecked(keys);
 
     let id = identify(&layout);
     assert!(id.is_some());
@@ -56,7 +56,7 @@ fn test_heuristics_suggestions() {
     let mut keys: Vec<u16> = (0..30).map(|i| i as u16).collect();
     keys[0] = 97;
     keys[1] = 98;
-    let layout = Layout::new(keys);
+    let layout = Layout::new_unchecked(keys);
 
     let req = EngineRequest {
         keyboard: kb,
@@ -82,9 +82,9 @@ fn test_verify_deterministic_scorer() {
     let mut keys: Vec<u16> = (0..30).map(|i| i as u16).collect();
     keys[0] = 97;
     keys[1] = 98;
-    let layout = Layout::new(keys);
+    let layout = Layout::new_unchecked(keys);
 
-    let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout);
+    let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
     assert!(score >= 0.0);
 
     // Sanity check: Score should be > 0 given our corpus has frequencies
@@ -99,7 +99,7 @@ fn test_public_api_wrappers() {
     let mut keys: Vec<u16> = (0..30).map(|i| i as u16).collect();
     keys[0] = 97;
     keys[1] = 98;
-    let layout = Layout::new(keys);
+    let layout = Layout::new_unchecked(keys);
 
     let req = EngineRequest {
         keyboard: kb,

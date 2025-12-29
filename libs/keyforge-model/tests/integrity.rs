@@ -5,7 +5,11 @@ use serde_json;
 fn test_corpus_lifecycle() {
     // 1. Default Construction
     let mut c = Corpus::default();
-    assert_eq!(c.char_freqs.len(), 65536, "Corpus should initialize full unicode frequency map");
+    assert_eq!(
+        c.char_freqs.len(),
+        65536,
+        "Corpus should initialize full unicode frequency map"
+    );
     assert!(c.bigrams.is_empty());
     assert!(c.trigrams.is_empty());
     assert!(c.words.is_empty());
@@ -33,7 +37,7 @@ fn test_corpus_lifecycle() {
 fn test_rubric_lifecycle() {
     // 1. Default Construction
     let r = Rubric::default();
-    
+
     // Check key defaults to ensure physics engine gets sensible start values
     assert!(r.sfb_base > 0.0);
     assert!(r.travel_lat > 0.0);

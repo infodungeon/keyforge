@@ -69,7 +69,7 @@ pub fn parse_layout_string_permissive_cached(
         keys.push(0);
     }
 
-    let layout = Layout::new(keys);
+    let layout = Layout::new_unchecked(keys);
     LAYOUT_CACHE.insert(key, layout.clone());
     Ok(layout)
 }

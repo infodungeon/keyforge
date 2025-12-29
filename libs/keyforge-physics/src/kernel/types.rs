@@ -1,8 +1,8 @@
 use keyforge_protocol::constants::SCORE_SCALE;
 use std::convert::TryFrom;
+use crate::errors::PhysicsError;
 
 /// Represents a physical index into the keyboard arrays.
-/// Prevents confusion with character codes (u16) or other indices.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct KeyIndex(pub usize);
 
@@ -23,10 +23,10 @@ impl HandIndex {
 }
 
 impl TryFrom<u8> for HandIndex {
-    type Error = &'static str;
+    type Error = PhysicsError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if value > 1 {
-            Err("Hand index must be 0 or 1")
+            Err(PhysicsError::InvalidHandIndex(value))
         } else {
             Ok(Self(value))
         }
@@ -47,10 +47,10 @@ impl FingerIndex {
 }
 
 impl TryFrom<u8> for FingerIndex {
-    type Error = &'static str;
+    type Error = PhysicsError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if value > 4 {
-            Err("Finger index must be 0-4")
+            Err(PhysicsError::InvalidFingerIndex(value))
         } else {
             Ok(Self(value))
         }
@@ -71,7 +71,6 @@ impl DistanceSquared {
 }
 
 /// Represents a fixed-point score value.
-/// Wraps i64 to prevent accidental arithmetic with raw integers or floats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Score(pub i64);
 
@@ -80,8 +79,6 @@ impl Score {
     pub const MIN: Score = Score(i64::MIN);
     pub const ZERO: Score = Score(0);
 
-    /// Safely converts a float to a fixed-point Score.
-    /// Handles NaN (0), Infinity (MAX/MIN), and saturation.
     pub fn from_f32(val: f32) -> Self {
         if val.is_nan() {
             return Self::ZERO;
@@ -137,65 +134,106 @@ impl std::ops::Sub for Score {
     }
 }
 
+/// A layout slice that has been validated against a specific key count.
+/// This guarantees that the layout has enough keys to cover the keyboard geometry.
+#[derive(Debug, Clone, Copy)]
+pub struct ValidatedLayout<'a> {
+    slice: &'a [u16],
+}
+
+impl<'a> ValidatedLayout<'a> {
+    pub fn new(slice: &'a [u16], required_count: usize) -> Result<Self, PhysicsError> {
+        if slice.len() < required_count {
+            Err(PhysicsError::LayoutUnderflow(slice.len(), required_count))
+        } else {
+            Ok(Self { slice })
+        }
+    }
+
+    pub fn as_slice(&self) -> &'a [u16] {
+        self.slice
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    #[test]
+    fn test_validated_layout() {
+        let data = vec![0, 1, 2];
+        assert!(ValidatedLayout::new(&data, 3).is_ok());
+        assert!(ValidatedLayout::new(&data, 2).is_ok());
+        assert!(ValidatedLayout::new(&data, 4).is_err());
+    }
 
     #[test]
     fn test_hand_index_bounds() {
         assert!(HandIndex::try_from(0).is_ok());
         assert!(HandIndex::try_from(1).is_ok());
-        assert!(HandIndex::try_from(2).is_err()); // Branch coverage
+        assert!(HandIndex::try_from(2).is_err());
     }
 
     #[test]
     fn test_finger_index_bounds() {
         assert!(FingerIndex::try_from(0).is_ok());
         assert!(FingerIndex::try_from(4).is_ok());
-        assert!(FingerIndex::try_from(5).is_err()); // Branch coverage
+        assert!(FingerIndex::try_from(5).is_err());
     }
 
     #[test]
     fn test_distance_squared_clamping() {
         assert_eq!(DistanceSquared::new(10.0).as_f32(), 10.0);
-        assert_eq!(DistanceSquared::new(-5.0).as_f32(), 0.0); // Branch coverage
+        assert_eq!(DistanceSquared::new(-5.0).as_f32(), 0.0);
     }
 
     #[test]
     fn test_score_saturation() {
         let max = Score::MAX;
         let min = Score::MIN;
-
-        // Add
         assert_eq!(max + Score(1), max);
         assert_eq!(min + Score(-1), min);
-
-        // Sub
         assert_eq!(min - Score(1), min);
         assert_eq!(max - Score(-1), max);
-
-        // Mul
         assert_eq!(max.saturating_mul(2), max);
         assert_eq!(min.saturating_mul(2), min);
     }
 
     #[test]
     fn test_score_float_conversion() {
-        // NaN
         assert_eq!(Score::from_f32(f32::NAN), Score::ZERO);
-
-        // Infinity
         assert_eq!(Score::from_f32(f32::INFINITY), Score::MAX);
         assert_eq!(Score::from_f32(f32::NEG_INFINITY), Score::MIN);
-
-        // Overflow
         assert_eq!(Score::from_f32(f32::MAX), Score::MAX);
         assert_eq!(Score::from_f32(f32::MIN), Score::MIN);
-
-        // Normal
         let val = 123.456;
         let score = Score::from_f32(val);
-        // Expect close round-trip within epsilon due to fixed-point
         assert!((score.to_f32() - val).abs() < 0.0001);
+    }
+
+    proptest! {
+        #[test]
+        fn test_score_commutativity(a in any::<i64>(), b in any::<i64>()) {
+            let s1 = Score(a);
+            let s2 = Score(b);
+            prop_assert_eq!(s1 + s2, s2 + s1);
+        }
+
+        #[test]
+        fn test_score_associativity_positive(a in 0..i64::MAX, b in 0..i64::MAX, c in 0..i64::MAX) {
+             let s1 = Score(a);
+             let s2 = Score(b);
+             let s3 = Score(c);
+             prop_assert_eq!((s1 + s2) + s3, s1 + (s2 + s3));
+        }
+
+        #[test]
+        fn test_score_identity(a in any::<i64>()) {
+            let s = Score(a);
+            prop_assert_eq!(s + Score::ZERO, s);
+            prop_assert_eq!(Score::ZERO + s, s);
+            prop_assert_eq!(s - Score::ZERO, s);
+        }
     }
 }

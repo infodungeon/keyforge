@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::error::KeyForgeError;
 
 /// Configuration for the Physics Engine.
 /// Defines "What is expensive?"
@@ -35,5 +36,28 @@ impl Default for Rubric {
             trigram_coverage: 0.99,
             trigram_limit: 50_000,
         }
+    }
+}
+
+impl Rubric {
+    pub fn validate(&self) -> Result<(), KeyForgeError> {
+        if self.trigram_coverage < 0.0 || self.trigram_coverage > 1.0 {
+            return Err(KeyForgeError::InvalidData(format!(
+                "Trigram coverage must be between 0.0 and 1.0, found {}",
+                self.trigram_coverage
+            )));
+        }
+        if self.trigram_limit == 0 {
+            return Err(KeyForgeError::InvalidData(
+                "Trigram limit must be greater than 0".into(),
+            ));
+        }
+        // Basic sanity checks for weights (optional, but good practice)
+        if self.sfb_base < 0.0 || self.sfb_lateral < 0.0 {
+             return Err(KeyForgeError::InvalidData(
+                "SFB penalties cannot be negative".into(),
+            ));
+        }
+        Ok(())
     }
 }

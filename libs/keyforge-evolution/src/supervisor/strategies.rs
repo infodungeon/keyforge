@@ -1,7 +1,9 @@
 use super::traits::{AcceptanceCriteria, MutationAction, MutationOperator, MutationProposal};
 use keyforge_model::Layout;
 use keyforge_physics::ScoringEngine;
+use keyforge_protocol::constants::SCORE_SCALE;
 use rand::Rng;
+use rand::seq::index::sample;
 
 #[allow(dead_code)]
 pub struct SwapMutation {
@@ -35,7 +37,7 @@ impl MutationOperator for SwapMutation {
 
         Some(MutationProposal {
             delta,
-            action: MutationAction::Swap(idx_a, idx_b),
+            action: MutationAction::Swap(idx_a.into(), idx_b.into()),
         })
     }
 }
@@ -61,55 +63,48 @@ impl MutationOperator for GroupMutation {
         // If < 3 keys, must use 2-way swap.
         // If >= 3 keys, 50% chance of 2-way, 50% chance of 3-way.
         let use_swap = len < 3 || rng.gen_bool(0.5);
+        let sample_size = if use_swap { 2 } else { 3 };
+
+        let indices = sample(rng, len, sample_size);
+        let idx_a = self.unlocked_indices[indices.index(0)];
+        let idx_b = self.unlocked_indices[indices.index(1)];
 
         if use_swap {
-            let i = rng.gen_range(0..len);
-            let mut j = rng.gen_range(0..len);
-            while i == j {
-                j = rng.gen_range(0..len);
-            }
-
-            let idx_a = self.unlocked_indices[i];
-            let idx_b = self.unlocked_indices[j];
-
             let delta = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b);
 
             return Some(MutationProposal {
                 delta,
-                action: MutationAction::Swap(idx_a, idx_b),
+                action: MutationAction::Swap(idx_a.into(), idx_b.into()),
             });
         }
 
         // 3-Way Swap
-        let i = rng.gen_range(0..len);
-        let mut j = rng.gen_range(0..len);
-        while j == i {
-            j = rng.gen_range(0..len);
-        }
-        let mut k = rng.gen_range(0..len);
-        while k == i || k == j {
-            k = rng.gen_range(0..len);
-        }
+        let idx_c = self.unlocked_indices[indices.index(2)];
 
-        let idx_a = self.unlocked_indices[i];
-        let idx_b = self.unlocked_indices[j];
-        let idx_c = self.unlocked_indices[k];
+        // Decomposed Delta Calculation (O(N))
+        // 1. Swap A <-> B
+        let d1 = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b);
 
-        // Calculate delta via full score difference (simpler for 3-way)
-        let old_score = engine.score_raw(&layout.keys);
+        // 2. Simulate state after first swap
+        let mut temp_pos_map = pos_map.to_vec();
+        let code_a = layout.keys[idx_a] as usize;
+        let code_b = layout.keys[idx_b] as usize;
+        if code_a < temp_pos_map.len() { temp_pos_map[code_a] = idx_b as u16; }
+        if code_b < temp_pos_map.len() { temp_pos_map[code_b] = idx_a as u16; }
 
-        let mut temp_layout = layout.clone();
-        let temp = temp_layout.keys[idx_c];
-        temp_layout.keys[idx_c] = temp_layout.keys[idx_b];
-        temp_layout.keys[idx_b] = temp_layout.keys[idx_a];
-        temp_layout.keys[idx_a] = temp;
+        let mut temp_keys = layout.keys.clone();
+        temp_keys.swap(idx_a, idx_b);
 
-        let new_score = engine.score_raw(&temp_layout.keys);
-        let delta = new_score - old_score;
+        // 3. Swap A (now at idx_b) <-> C (at idx_c) ?
+        // Indices: a, b, c.
+        // Start: [A, B, C]
+        // Swap(a, b): [B, A, C]
+        // Swap(a, c): [C, A, B] -> Correct rotation.
+        let d2 = engine.calculate_swap_delta(&temp_keys, &temp_pos_map, idx_a, idx_c);
 
         Some(MutationProposal {
-            delta,
-            action: MutationAction::GroupSwap(idx_a, idx_b, idx_c),
+            delta: d1 + d2,
+            action: MutationAction::GroupSwap(idx_a.into(), idx_b.into(), idx_c.into()),
         })
     }
 }
@@ -126,9 +121,74 @@ impl AcceptanceCriteria for CoolingAnnealing {
             return false;
         }
 
-        // P2 FIX: Updated scaling factor to 1,000,000
-        let delta_f = delta as f32 / 1_000_000.0;
+        // FIX: Use SCORE_SCALE instead of hardcoded 1,000,000.0
+        let delta_f = delta as f32 / SCORE_SCALE;
+        // INVARIANT: kani::assume(temperature > 0.0);
         let probability = (-delta_f / temperature).exp();
         rng.gen::<f32>() < probability
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::supervisor::state::SearchState;
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
+    use keyforge_physics::ScoringEngine;
+    use proptest::prelude::*;
+    use rand::SeedableRng;
+    use rand_xoshiro::Xoshiro256PlusPlus;
+
+    fn setup_engine(size: usize) -> ScoringEngine {
+        let keys: Vec<_> = (0..size)
+            .map(|i| KeyNode {
+                id: i,
+                label: format!("k{}", i),
+                hand: (i % 2) as u8,
+                finger: (i % 5) as u8,
+                row: (i / 10) as i8,
+                col: (i % 10) as i8,
+                x: (i % 10) as f32,
+                y: (i / 10) as f32,
+                is_home: false,
+            })
+            .collect();
+        let kb = Keyboard::new(keys, 1);
+        let mut corpus = Corpus::default();
+        for i in 0..size {
+            corpus.char_freqs[i] = 100;
+            for j in 0..size {
+                if i != j {
+                    corpus.bigrams.push((i as u16, j as u16, 10));
+                }
+            }
+        }
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+    }
+
+    proptest! {
+        #[test]
+        fn test_group_mutation_delta_oracle(
+            seed in any::<u64>(),
+            layout_seed in any::<u64>()
+        ) {
+            let size = 10;
+            let engine = setup_engine(size);
+            let mut keys: Vec<u16> = (0..size as u16).collect();
+            let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
+            use rand::seq::SliceRandom;
+            keys.shuffle(&mut rng_layout);
+            let layout = Layout::new_unchecked(keys);
+            let mut state = SearchState::new(layout, 0, 1.0);
+            let score_before = engine.score_raw(&state.layout().keys);
+            let mutation = GroupMutation { unlocked_indices: (0..size).collect() };
+            let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
+            if let Some(proposal) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation) {
+                state.apply_mutation(proposal.action);
+                let score_after = engine.score_raw(&state.layout().keys);
+                let actual_delta = score_after - score_before;
+                prop_assert_eq!(proposal.delta, actual_delta);
+            }
+        }
     }
 }

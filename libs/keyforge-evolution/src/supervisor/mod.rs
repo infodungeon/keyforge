@@ -3,4 +3,4 @@ mod state;
 pub mod strategies;
 pub mod traits;
 
-pub use annealing::Optimizer;
+pub use annealing::{AnnealingConfig, Optimizer};

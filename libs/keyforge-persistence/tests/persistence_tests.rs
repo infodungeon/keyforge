@@ -1,4 +1,4 @@
-use keyforge_persistence::{Project, ProjectMeta, AutoSaveService, SessionSnapshot};
+use keyforge_persistence::{AutoSaveService, Project, ProjectMeta, SessionSnapshot};
 use keyforge_protocol::config::CorpusSource;
 use serde_json;
 use tempfile::tempdir;
@@ -25,10 +25,10 @@ fn test_project_serialization_roundtrip() {
     let mut project = Project::default();
     project.meta.name = "Test Project".to_string();
     project.keyboard = "test_kb".to_string();
-    
+
     let json = serde_json::to_string(&project).expect("Failed to serialize");
     let deserialized: Project = serde_json::from_str(&json).expect("Failed to deserialize");
-    
+
     assert_eq!(deserialized.meta.name, "Test Project");
     assert_eq!(deserialized.keyboard, "test_kb");
 }
@@ -37,7 +37,7 @@ fn test_project_serialization_roundtrip() {
 async fn test_autosave_service_basic() {
     let dir = tempdir().expect("Failed to create temp dir");
     let service = AutoSaveService::new(dir.path().to_path_buf());
-    
+
     let snapshot = SessionSnapshot {
         keyboard: "test_kb".to_string(),
         layout_name: "test_layout".to_string(),
@@ -46,14 +46,14 @@ async fn test_autosave_service_basic() {
         cost_matrix: "test_costs".to_string(),
         timestamp: 123456789,
     };
-    
+
     // Test initial load (empty)
     assert!(service.load().await.is_none());
-    
+
     // Schedule and flush
     service.schedule_save(snapshot.clone()).await;
     service.flush(true).await; // Force flush to skip debounce
-    
+
     let loaded = service.load().await.expect("Failed to load snapshot");
     assert_eq!(loaded.keyboard, "test_kb");
     assert_eq!(loaded.layout_string, "QWERTY...");
@@ -63,18 +63,24 @@ async fn test_autosave_service_basic() {
 async fn test_autosave_debounce() {
     let dir = tempdir().expect("Failed to create temp dir");
     let service = AutoSaveService::new(dir.path().to_path_buf());
-    
-    let snap1 = SessionSnapshot { keyboard: "kb1".to_string(), ..SessionSnapshot::default() };
-    let _snap2 = SessionSnapshot { keyboard: "kb2".to_string(), ..SessionSnapshot::default() };
-    
+
+    let snap1 = SessionSnapshot {
+        keyboard: "kb1".to_string(),
+        ..SessionSnapshot::default()
+    };
+    let _snap2 = SessionSnapshot {
+        keyboard: "kb2".to_string(),
+        ..SessionSnapshot::default()
+    };
+
     service.schedule_save(snap1).await;
     // Should NOT save yet because of debounce (unless 2s passed, but we just started)
     // flush(false) should respect debounce
     service.flush(false).await;
-    
+
     // In a real test we might want to mock time, but here we can at least verify
     // that if we haven't waited, load() might still be empty if flush(false) was called.
-    // However, flush(false) checks elapsed time since last save. 
+    // However, flush(false) checks elapsed time since last save.
     // Initial last_save is Instant::now().
 }
 
@@ -83,12 +89,14 @@ async fn test_autosave_size_limit() {
     let dir = tempdir().expect("Failed to create temp dir");
     let root = dir.path().to_path_buf();
     let service = AutoSaveService::new(root.clone());
-    
+
     let path = root.join("session.json");
     // Create a file larger than 1MB
     let large_content = "a".repeat(1024 * 1024 + 10);
-    tokio::fs::write(&path, large_content).await.expect("Failed to write large file");
-    
+    tokio::fs::write(&path, large_content)
+        .await
+        .expect("Failed to write large file");
+
     // load() should return None and warn
     assert!(service.load().await.is_none());
 }
@@ -97,21 +105,37 @@ async fn test_autosave_size_limit() {
 
 use keyforge_model::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
+use keyforge_persistence::{Compiler, PersistenceError};
 use keyforge_protocol::geometry::KeyboardDefinition;
 use keyforge_protocol::keycodes::KeycodeRegistry;
-use keyforge_persistence::{Compiler, PersistenceError};
 use keyforge_protocol::CostMatrixSource;
 
 struct MockLoader;
 impl AssetLoader for MockLoader {
     fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
-        Ok(KeyboardDefinition::default())
+        // FIX: Return a valid keyboard with 1 key to satisfy Keyboard::new invariant
+        Ok(KeyboardDefinition {
+            meta: Default::default(),
+            geometry: keyforge_protocol::geometry::KeyboardGeometry {
+                keys: vec![keyforge_protocol::geometry::KeyNode {
+                    id: "k0".to_string(),
+                    ..Default::default()
+                }],
+                prime_slots: vec![0],
+                med_slots: vec![],
+                low_slots: vec![],
+                home_row: 0,
+            },
+            layouts: Default::default(),
+        })
     }
     fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         Ok(Corpus::default())
     }
     fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
-        Ok(RawCostData { entries: vec![("A".into(), "B".into(), 1.0)] })
+        Ok(RawCostData {
+            entries: vec![("A".into(), "B".into(), 1.0)],
+        })
     }
     fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
         Ok(KeycodeRegistry::new_with_defaults())
@@ -123,10 +147,10 @@ fn test_compiler_success() {
     let loader = MockLoader;
     let compiler = Compiler::new(&loader);
     let project = Project::default();
-    
+
     let runtime = compiler.compile(&project).expect("Compilation failed");
     // key_count is usize, so >= 0 is always true. Just checking it exists.
-    let _ = runtime.engine.key_count(); 
+    let _ = runtime.engine.key_count();
 }
 
 #[test]
@@ -135,7 +159,7 @@ fn test_compiler_custom_cost_fails() {
     let compiler = Compiler::new(&loader);
     let mut project = Project::default();
     project.cost_matrix = CostMatrixSource::Custom("test.csv".into());
-    
+
     let result = compiler.compile(&project);
     assert!(matches!(result, Err(PersistenceError::Config(_))));
 }
@@ -145,11 +169,11 @@ async fn test_autosave_load_errors() {
     let dir = tempdir().expect("Failed to create temp dir");
     let path = dir.path().join("session.json");
     let service = AutoSaveService::new(dir.path().to_path_buf());
-    
+
     // 1. Unreadable file
     tokio::fs::write(&path, "not json").await.unwrap();
     assert!(service.load().await.is_none());
-    
+
     // 2. Missing parent dir for save
     let bad_dir = dir.path().join("non_existent");
     let bad_service = AutoSaveService::new(bad_dir);
@@ -159,7 +183,10 @@ async fn test_autosave_load_errors() {
 
 #[test]
 fn test_compiler_keyboard_fail() {
-    let loader = FailingLoader { fail_corpus: false, fail_costs: false };
+    let loader = FailingLoader {
+        fail_corpus: false,
+        fail_costs: false,
+    };
     let compiler = Compiler::new(&loader);
     let project = Project::default();
     let result = compiler.compile(&project);
@@ -168,7 +195,10 @@ fn test_compiler_keyboard_fail() {
 
 #[test]
 fn test_compiler_corpus_fail() {
-    let loader = FailingLoader { fail_corpus: true, fail_costs: false };
+    let loader = FailingLoader {
+        fail_corpus: true,
+        fail_costs: false,
+    };
     let compiler = Compiler::new(&loader);
     let project = Project::default();
     let result = compiler.compile(&project);
@@ -177,7 +207,10 @@ fn test_compiler_corpus_fail() {
 
 #[test]
 fn test_compiler_costs_fail() {
-    let loader = FailingLoader { fail_corpus: false, fail_costs: true };
+    let loader = FailingLoader {
+        fail_corpus: false,
+        fail_costs: true,
+    };
     let compiler = Compiler::new(&loader);
     let project = Project::default();
     let result = compiler.compile(&project);
@@ -194,28 +227,51 @@ impl AssetLoader for FailingLoader {
         if !self.fail_corpus && !self.fail_costs {
             return Err(keyforge_model::error::KeyForgeError::NotFound("kb".into()));
         }
-        Ok(KeyboardDefinition::default())
+        // Return valid dummy to pass keyboard check if we are testing other failures
+        Ok(KeyboardDefinition {
+            meta: Default::default(),
+            geometry: keyforge_protocol::geometry::KeyboardGeometry {
+                keys: vec![keyforge_protocol::geometry::KeyNode {
+                    id: "k0".to_string(),
+                    ..Default::default()
+                }],
+                prime_slots: vec![0],
+                med_slots: vec![],
+                low_slots: vec![],
+                home_row: 0,
+            },
+            layouts: Default::default(),
+        })
     }
-    fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> { 
+    fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         if self.fail_corpus {
-            return Err(keyforge_model::error::KeyForgeError::NotFound("corpus".into()));
+            return Err(keyforge_model::error::KeyForgeError::NotFound(
+                "corpus".into(),
+            ));
         }
-        Ok(Corpus::default()) 
+        Ok(Corpus::default())
     }
-    fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> { 
+    fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
         if self.fail_costs {
-            return Err(keyforge_model::error::KeyForgeError::NotFound("costs".into()));
+            return Err(keyforge_model::error::KeyForgeError::NotFound(
+                "costs".into(),
+            ));
         }
-        Ok(RawCostData { entries: vec![] }) 
+        Ok(RawCostData { entries: vec![] })
     }
     fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
-        Err(keyforge_model::error::KeyForgeError::NotFound("keys".into()))
+        Err(keyforge_model::error::KeyForgeError::NotFound(
+            "keys".into(),
+        ))
     }
 }
 
 #[test]
 fn test_compiler_keycodes_fallback() {
-    let loader = FailingLoader { fail_corpus: true, fail_costs: true };
+    let loader = FailingLoader {
+        fail_corpus: true,
+        fail_costs: true,
+    };
     let _compiler = Compiler::new(&loader);
     // This will still fail at load_keyboard above, but we want to see if unwrap_or_else works.
     // We already have 78% coverage, so we are hitting most things.

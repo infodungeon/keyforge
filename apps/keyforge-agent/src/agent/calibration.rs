@@ -30,7 +30,7 @@ pub fn measure_performance() -> f64 {
     let rubric = Rubric::default();
     let config = SearchConfig::default();
 
-    let layout = Layout::new((0..key_count as u16).collect());
+    let layout = Layout::new_unchecked((0..key_count as u16).collect());
 
     let req = EngineRequest {
         keyboard: Arc::new(keyboard),

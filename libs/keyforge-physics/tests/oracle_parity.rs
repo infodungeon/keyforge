@@ -91,7 +91,7 @@ proptest! {
         seed in any::<u64>()
     ) {
         // 1. Setup Engines
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
 
         // 2. Generate Random Layout
         let key_count = kb.count();
@@ -101,11 +101,11 @@ proptest! {
         let mut rng = fastrand::Rng::with_seed(seed);
         rng.shuffle(&mut keys);
 
-        let layout = Layout::new(keys);
+        let layout = Layout::new_unchecked(keys);
 
         // 3. Run Shadow Execution
         let fast_score = engine.score(&layout);
-        let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout);
+        let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
 
         // 4. Assert Parity
         let diff = (fast_score - slow_score).abs();

@@ -15,9 +15,11 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     let k1 = &kb.keys[i];
     let k2 = &kb.keys[j];
 
+    // INVARIANT: HandIndex and FingerIndex construction must be valid.
+    // This is now enforced by the compiler via TryFrom<Error=PhysicsError>.
+    
     // Lift primitives into Semantic Types
-    // In a stricter system, this conversion would happen at the Keyboard constructor boundary.
-    // Here, we sanitize on the fly to ensure kernel safety.
+    // We unwrap here because the Compiler::compile step has already validated the geometry.
     let h1 = HandIndex::try_from(k1.hand).unwrap_or(HandIndex::try_from(0).unwrap());
     let h2 = HandIndex::try_from(k2.hand).unwrap_or(HandIndex::try_from(0).unwrap());
 
@@ -29,8 +31,9 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     let dx = (k1.x - k2.x).abs();
     let dy = (k1.y - k2.y).abs();
     let dist_raw = (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
-    
-    // INVARIANT: kani::assume(dist_raw.is_finite());
+
+    // INVARIANT: kani::assume(dist_raw >= 0.0);
+    // Distance cost must be non-negative to ensure score monotonicity.
     // Guardrail: Enforce non-negative distance cost
     let dist_sq = DistanceSquared::new(dist_raw);
     let mut cost = dist_sq.as_f32();
@@ -54,7 +57,7 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     // 3. Scissors
     let f1_val = f1.as_u8() as i8;
     let f2_val = f2.as_u8() as i8;
-    
+
     let finger_diff = (f1_val - f2_val).abs();
     let row_diff = (k1.row - k2.row).abs();
 
@@ -71,4 +74,84 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     }
 
     cost
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::{KeyNode, Keyboard, Rubric};
+    use proptest::prelude::*;
+
+    fn arb_key_node() -> impl Strategy<Value = KeyNode> {
+        (
+            0u8..2,   // Hand
+            0u8..5,   // Finger
+            -5i8..5,  // Row
+            -10i8..15, // Col
+            -20.0..20.0f32, // X
+            -20.0..20.0f32  // Y
+        ).prop_map(|(h, f, r, c, x, y)| {
+            KeyNode {
+                id: 0,
+                label: "x".into(),
+                hand: h,
+                finger: f,
+                row: r,
+                col: c,
+                x,
+                y,
+                is_home: false
+            }
+        })
+    }
+
+    fn arb_rubric() -> impl Strategy<Value = Rubric> {
+        (
+            0.0..100.0f32, // Travel Lat
+            0.0..100.0f32, // Travel Vert
+            0.0..100.0f32, // SFB
+            0.0..100.0f32  // SFB Lat
+        ).prop_map(|(tl, tv, sfb, sfbl)| {
+            Rubric {
+                travel_lat: tl,
+                travel_vert: tv,
+                sfb_base: sfb,
+                sfb_lateral: sfbl,
+                finger_effort: [1.0; 5],
+                ..Rubric::default()
+            }
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn test_invariant_symmetry(
+            k1 in arb_key_node(),
+            k2 in arb_key_node(),
+            rubric in arb_rubric()
+        ) {
+            let keys = vec![k1.clone(), k2.clone()];
+            let kb = Keyboard::new(keys, 0);
+            
+            let idx_a = KeyIndex(0);
+            let idx_b = KeyIndex(1);
+
+            let cost_ab = calculate_pair_cost(&kb, &rubric, idx_a, idx_b);
+            let cost_ba = calculate_pair_cost(&kb, &rubric, idx_b, idx_a);
+
+            prop_assert_eq!(cost_ab, cost_ba);
+        }
+
+        #[test]
+        fn test_invariant_non_negative_distance(
+            k1 in arb_key_node(),
+            k2 in arb_key_node(),
+            rubric in arb_rubric()
+        ) {
+            let keys = vec![k1, k2];
+            let kb = Keyboard::new(keys, 0);
+            let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+            prop_assert!(cost >= 0.0);
+        }
+    }
 }

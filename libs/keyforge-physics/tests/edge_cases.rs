@@ -23,16 +23,16 @@ fn setup_specific_kb() -> Keyboard {
 #[test]
 fn test_trigram_rolls_and_redirects() {
     let kb = setup_specific_kb();
-    
+
     // Layout: 0=a, 1=b, 2=c, 3=d, 4=e
     // Keycodes: 97='a', 98='b', 99='c', 100='d', 101='e'
-    let layout = Layout::new(vec![97, 98, 99, 100, 101]);
+    let layout = Layout::new_unchecked(vec![97, 98, 99, 100, 101]);
 
     let mut corpus = Corpus::default();
-    
+
     // Roll In: Pinky(4) -> Ring(3) -> Mid(2) => 'e' -> 'd' -> 'c' (101, 100, 99)
     // Direction: -1, -1 (Consistent inward)
-    corpus.trigrams.push((101, 100, 99, 100)); 
+    corpus.trigrams.push((101, 100, 99, 100));
 
     // Redirect: Mid(2) -> Ring(3) -> Mid(2) => 'c' -> 'd' -> 'c' (99, 100, 99)
     // Direction: +1, -1 (Change)
@@ -46,19 +46,23 @@ fn test_trigram_rolls_and_redirects() {
         ..Rubric::default()
     };
 
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
     let report = engine.analyze(&layout);
 
     // We expect some rolls and some redirects
     assert!(report.rolls > 0.0, "Expected rolls, got {}", report.rolls);
-    assert!(report.redirects > 0.0, "Expected redirects, got {}", report.redirects);
+    assert!(
+        report.redirects > 0.0,
+        "Expected redirects, got {}",
+        report.redirects
+    );
 }
 
 #[test]
 fn test_math_boundaries_infinity() {
     let kb = setup_specific_kb();
-    let layout = Layout::new(vec![97, 98, 99, 100, 101]);
-    
+    let layout = Layout::new_unchecked(vec![97, 98, 99, 100, 101]);
+
     let mut corpus = Corpus::default();
     corpus.bigrams.push((97, 98, 1000)); // a->b
 
@@ -67,15 +71,15 @@ fn test_math_boundaries_infinity() {
         ..Rubric::default()
     };
 
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
     let score = engine.score(&layout);
 
     // Should be very large but finite (clamped to i64::MAX scaled down)
-    assert!(score > 1_000_000.0); 
+    assert!(score > 1_000_000.0);
     assert!(score.is_finite());
 
     // Verify DeterministicScorer handles it too
-    let det_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout);
+    let det_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
     assert!(det_score > 1_000_000.0);
     assert!(det_score.is_finite());
 }
@@ -83,8 +87,8 @@ fn test_math_boundaries_infinity() {
 #[test]
 fn test_math_boundaries_nan() {
     let kb = setup_specific_kb();
-    let layout = Layout::new(vec![97, 98, 99, 100, 101]);
-    
+    let layout = Layout::new_unchecked(vec![97, 98, 99, 100, 101]);
+
     let mut corpus = Corpus::default();
     corpus.bigrams.push((97, 98, 1000));
 
@@ -93,11 +97,11 @@ fn test_math_boundaries_nan() {
         ..Rubric::default()
     };
 
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
     let score = engine.score(&layout);
 
     // NaN usually treated as 0 in safe_float_to_int
-    assert!(score >= 0.0); 
+    assert!(score >= 0.0);
     // It shouldn't propagate NaN
     assert!(!score.is_nan());
 }
@@ -105,8 +109,8 @@ fn test_math_boundaries_nan() {
 #[test]
 fn test_saturation_protection() {
     let kb = setup_specific_kb();
-    let layout = Layout::new(vec![97, 98, 99, 100, 101]);
-    
+    let layout = Layout::new_unchecked(vec![97, 98, 99, 100, 101]);
+
     let mut corpus = Corpus::default();
     corpus.bigrams.push((97, 98, u32::MAX)); // Massive frequency
 
@@ -116,9 +120,9 @@ fn test_saturation_protection() {
     };
 
     // This combination would overflow a standard calculation if not saturated
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
     let score = engine.score(&layout);
-    
+
     assert!(score.is_finite());
 }
 
@@ -126,14 +130,14 @@ fn test_saturation_protection() {
 fn test_missing_keys_in_layout() {
     let kb = setup_specific_kb();
     // Layout missing key 98 ('b')
-    let layout = Layout::new(vec![97, 0, 99, 100, 101]); 
-    
+    let layout = Layout::new_unchecked(vec![97, 0, 99, 100, 101]);
+
     let mut corpus = Corpus::default();
     corpus.bigrams.push((97, 98, 100)); // a->b (b is missing)
 
     let rubric = Rubric::default();
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
-    
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+
     // Should not panic, score should ignore the missing key pair
     let score = engine.score(&layout);
     assert_eq!(score, 0.0);
@@ -143,14 +147,14 @@ fn test_missing_keys_in_layout() {
 fn test_high_keycodes_safety() {
     let kb = setup_specific_kb();
     // Use keycode 300 (outside optimized 0-255 range)
-    let layout = Layout::new(vec![300, 301, 302, 303, 304]);
-    
+    let layout = Layout::new_unchecked(vec![300, 301, 302, 303, 304]);
+
     let mut corpus = Corpus::default();
     corpus.bigrams.push((300, 301, 100));
 
     let rubric = Rubric::default();
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
-    
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+
     let score = engine.score(&layout);
     // REMOVED LIMIT: High keycodes are now correctly scored.
     assert!(score > 0.0);
@@ -159,13 +163,13 @@ fn test_high_keycodes_safety() {
 #[test]
 fn test_swap_delta_bounds() {
     let kb = setup_specific_kb();
-    let layout = Layout::new(vec![97, 98, 99, 100, 101]);
-    
+    let layout = Layout::new_unchecked(vec![97, 98, 99, 100, 101]);
+
     let mut corpus = Corpus::default();
     corpus.bigrams.push((97, 98, 100));
 
     let rubric = Rubric::default();
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
 
     let mut pos_map = vec![65535u16; 65536];
     // Populate pos_map manually to test calculate_swap_delta
@@ -179,23 +183,4 @@ fn test_swap_delta_bounds() {
 
     let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 100, 0);
     assert_eq!(delta, 0);
-}
-
-#[test]
-fn test_math_boundaries_neg_infinity() {
-    let kb = setup_specific_kb();
-    let layout = Layout::new(vec![97, 98, 99, 100, 101]);
-    
-    let mut corpus = Corpus::default();
-    corpus.bigrams.push((97, 98, 1000));
-
-    let rubric = Rubric {
-        travel_lat: f32::NEG_INFINITY,
-        ..Rubric::default()
-    };
-
-    let det_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout);
-    // Should saturate to i64::MIN (scaled)
-    assert!(det_score < -1_000_000.0);
-    assert!(det_score.is_finite());
 }

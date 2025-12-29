@@ -154,7 +154,7 @@ pub fn parse_layout_string_strict(
         keys.push(0);
     }
 
-    Ok(keyforge_model::Layout::new(keys))
+    Ok(keyforge_model::Layout::new_unchecked(keys))
 }
 
 /// Permissive layout-string parsing.
@@ -206,7 +206,7 @@ pub fn parse_layout_string_permissive(
         keys.push(0);
     }
 
-    keyforge_model::Layout::new(keys)
+    keyforge_model::Layout::new_unchecked(keys)
 }
 
 /// Backwards-compatible alias.

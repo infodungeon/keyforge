@@ -16,7 +16,7 @@ proptest! {
         // Layers > 31 should degrade to Raw, <= 31 to specific actions
         let input = format!("MO({})", layer);
         let action = parse_key(&input);
-        
+
         if layer > 31 {
             prop_assert!(matches!(action, KeyAction::Raw(_)));
         } else {
@@ -31,9 +31,9 @@ proptest! {
         if let KeyAction::Raw(raw) = action {
             prop_assert!(raw.len() <= 32);
         } else {
-            // It might match a specific pattern if the random string looks like one, 
+            // It might match a specific pattern if the random string looks like one,
             // but generally long random strings become Raw.
-            // If it matched a specific pattern (like CAPS_WORD), that's fine too, 
+            // If it matched a specific pattern (like CAPS_WORD), that's fine too,
             // but we are testing the truncation logic for unknown tokens.
         }
     }

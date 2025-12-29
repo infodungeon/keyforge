@@ -36,9 +36,9 @@ fn keyboard_strategy() -> impl Strategy<Value = Keyboard> {
             (
                 -20.0..20.0f32, // x
                 -20.0..20.0f32, // y
-                0u8..2,       // hand
-                0u8..5,       // finger
-                -5i8..5,       // row
+                0u8..2,         // hand
+                0u8..5,         // finger
+                -5i8..5,        // row
                 -10i8..15,      // col
             ),
             count,
@@ -91,23 +91,23 @@ proptest! {
         corpus in corpus_strategy(),
         rubric in rubric_strategy(),
         // Generate a random layout of valid key indices
-        mut layout_keys in prop::collection::vec(0u16..255, 50) 
+        mut layout_keys in prop::collection::vec(0u16..255, 50)
     ) {
         // Clamp layout keys to actual keyboard size
         let key_count = kb.count();
         if key_count == 0 { return Ok(()); }
-        
+
         for k in layout_keys.iter_mut() {
             *k = *k % (key_count as u16);
         }
-        let layout = Layout::new(layout_keys);
+        let layout = Layout::new_unchecked(layout_keys);
 
         // 1. Setup Engines
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
 
         // 2. Run Shadow Execution
         let fast_score = engine.score(&layout);
-        let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout);
+        let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
 
         // 3. Assert Parity
         let diff = (fast_score - slow_score).abs();
@@ -116,9 +116,9 @@ proptest! {
         // Use a relative epsilon for large scores, absolute for small ones.
         // fast_score is f32 result of i64 fixed-point math scaled down.
         // slow_score is f32 result of i64 fixed-point math scaled down.
-        // They should be bitwise identical if the logic matches exactly, 
+        // They should be bitwise identical if the logic matches exactly,
         // but floating point conversion at the end might introduce epsilon noise.
-        
+
         let tolerance = (fast_score.abs() * 1e-5).max(0.1);
 
         prop_assert!(

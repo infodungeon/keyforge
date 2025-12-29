@@ -1,5 +1,5 @@
 use keyforge_core::*;
-use keyforge_model::{Keyboard, KeyNode, Layout, Rubric, SearchConfig, Corpus};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
 use keyforge_physics::EngineRequest;
 use std::sync::Arc;
 
@@ -69,7 +69,7 @@ fn minimal_request() -> EngineRequest {
             reheats: 0,
             reheat_factor: 0.5,
         },
-        initial_layout: Some(Layout::new(vec![0, 1])),
+        initial_layout: Some(Layout::new_unchecked(vec![0, 1])),
         pinned_keys: vec![],
     }
 }
@@ -92,8 +92,8 @@ fn test_build_engine() {
 fn test_analyze_with_engine() {
     let req = minimal_request();
     let engine = build_engine(&req);
-    let layout = Layout::new(vec![0, 1]);
-    
+    let layout = Layout::new_unchecked(vec![0, 1]);
+
     let report = analyze_with_engine(&engine, &layout);
     assert!(report.score.is_finite());
 }
@@ -102,8 +102,8 @@ fn test_analyze_with_engine() {
 fn test_score_with_engine() {
     let req = minimal_request();
     let engine = build_engine(&req);
-    let layout = Layout::new(vec![0, 1]);
-    
+    let layout = Layout::new_unchecked(vec![0, 1]);
+
     let score = score_with_engine(&engine, &layout);
     assert!(score.is_finite());
 }
@@ -112,8 +112,8 @@ fn test_score_with_engine() {
 fn test_suggest_with_engine() {
     let req = minimal_request();
     let engine = build_engine(&req);
-    let layout = Layout::new(vec![0, 1]);
-    
+    let layout = Layout::new_unchecked(vec![0, 1]);
+
     let suggestions = suggest_with_engine(&engine, &layout);
     let _ = suggestions.len();
 }
@@ -141,7 +141,7 @@ fn test_suggest_legacy() {
 
 #[test]
 fn test_identify() {
-    let layout = Layout::new(vec![0, 1, 2, 3, 4]);
+    let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
     let identity = identify(&layout);
     let _id = identity;
 }
@@ -158,7 +158,7 @@ fn test_optimize_legacy() {
         reheats: 0,
         reheat_factor: 0.5,
     };
-    
+
     let result = optimize(&req);
     assert!(result.score.is_finite());
     assert!(result.layout.keys.len() >= 2);
@@ -176,7 +176,7 @@ fn test_optimize_with_callback() {
         reheats: 0,
         reheat_factor: 0.5,
     };
-    
+
     let result = optimize_with_callback(&req, TestCallback);
     assert!(result.score.is_finite());
 }
@@ -186,7 +186,7 @@ fn test_optimize_with_engine() {
     let req = minimal_request();
     let engine = build_engine(&req);
     let engine_arc = Arc::new(engine);
-    
+
     let config = SearchConfig::Annealing {
         steps: 10,
         start_temp: 1.0,
@@ -196,7 +196,7 @@ fn test_optimize_with_engine() {
         reheats: 0,
         reheat_factor: 0.5,
     };
-    
+
     let result = optimize_with_engine(engine_arc, &config, TestCallback);
     assert!(result.score.is_finite());
 }

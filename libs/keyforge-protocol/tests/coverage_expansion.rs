@@ -131,7 +131,7 @@ fn valid_job_request() -> JobRequest {
         low_slots: vec![],
         home_row: 1,
     };
-    
+
     JobRequest {
         version: 1,
         definition: KeyboardDefinition {
@@ -175,14 +175,24 @@ fn test_job_cost_matrix_custom_invalid_csv() {
 fn test_job_pinned_keys_out_of_bounds() {
     let mut req = valid_job_request();
     // Geometry has 1 key (index 0)
-    req.pinned_keys = vec![KeyConstraint { index: 1, key: "A".into() }];
+    req.pinned_keys = vec![KeyConstraint {
+        index: 1,
+        key: "A".into(),
+    }];
     assert!(req.validate().is_err());
 }
 
 #[test]
 fn test_job_too_many_biometrics() {
     let mut req = valid_job_request();
-    req.biometrics = vec![keyforge_protocol::BiometricSample { bigram: "ab".into(), ms: 10.0, timestamp: 0 }; 10001];
+    req.biometrics = vec![
+        keyforge_protocol::BiometricSample {
+            bigram: "ab".into(),
+            ms: 10.0,
+            timestamp: 0
+        };
+        10001
+    ];
     assert!(req.validate().is_err());
 }
 
@@ -194,7 +204,7 @@ fn test_key_constraint_parsing() {
     assert!(KeyConstraint::from_str("no_colon").is_err());
     assert!(KeyConstraint::from_str("abc:A").is_err());
     assert!(KeyConstraint::from_str("1:").is_err()); // Empty key
-    
+
     let c = KeyConstraint::from_str("1:A").unwrap();
     assert_eq!(c.index, 1);
     assert_eq!(c.key, "A");
@@ -205,7 +215,7 @@ fn test_corpus_source_parsing() {
     assert!(CorpusSource::from_str("id:invalid").is_err());
     assert!(CorpusSource::from_str("id:0.0").is_err());
     assert!(CorpusSource::from_str("id:NaN").is_err());
-    
+
     let c = CorpusSource::from_str("id:1.5").unwrap();
     assert_eq!(c.id, "id");
     assert_eq!(c.weight, 1.5);
@@ -242,7 +252,13 @@ fn test_keyboard_definition_parse_invalid() {
 #[test]
 fn test_kle_export() {
     let geom = KeyboardGeometry {
-        keys: vec![KeyNode { x: 1.0, y: 2.0, w: 1.0, h: 1.0, ..Default::default() }],
+        keys: vec![KeyNode {
+            x: 1.0,
+            y: 2.0,
+            w: 1.0,
+            h: 1.0,
+            ..Default::default()
+        }],
         prime_slots: vec![],
         med_slots: vec![],
         low_slots: vec![],

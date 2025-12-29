@@ -1,8 +1,8 @@
 use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
 use keyforge_physics::ScoringEngine;
 use proptest::prelude::*;
-use std::sync::Arc;
 use rand::SeedableRng;
+use std::sync::Arc;
 
 fn arb_keyboard(size: usize) -> impl Strategy<Value = Keyboard> {
     prop::collection::vec(
@@ -18,7 +18,8 @@ fn arb_keyboard(size: usize) -> impl Strategy<Value = Keyboard> {
             is_home: false,
         }),
         size,
-    ).prop_map(|mut nodes| {
+    )
+    .prop_map(|mut nodes| {
         for (i, node) in nodes.iter_mut().enumerate() {
             node.id = i;
         }
@@ -27,8 +28,17 @@ fn arb_keyboard(size: usize) -> impl Strategy<Value = Keyboard> {
 }
 
 fn arb_corpus(char_range: std::ops::Range<u16>) -> impl Strategy<Value = Corpus> {
-    let bigrams = prop::collection::vec((char_range.clone(), char_range.clone(), 0..1000u32), 0..20);
-    let trigrams = prop::collection::vec((char_range.clone(), char_range.clone(), char_range.clone(), 0..500u32), 0..20);
+    let bigrams =
+        prop::collection::vec((char_range.clone(), char_range.clone(), 0..1000u32), 0..20);
+    let trigrams = prop::collection::vec(
+        (
+            char_range.clone(),
+            char_range.clone(),
+            char_range.clone(),
+            0..500u32,
+        ),
+        0..20,
+    );
     let char_freqs = prop::collection::vec(0..100u32, (char_range.end - char_range.start) as usize);
 
     (char_freqs, bigrams, trigrams).prop_map(move |(freqs, bigs, tris)| {
@@ -65,7 +75,7 @@ proptest! {
         layout_keys.shuffle(&mut rng);
 
         let rubric = Rubric::default();
-        let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &[]);
+        let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &[]).unwrap();
 
         let score_before = engine.score_raw(&layout_keys);
 
@@ -79,7 +89,7 @@ proptest! {
 
         // Apply swap
         layout_keys.swap(i, j);
-        
+
         let score_after = engine.score_raw(&layout_keys);
         let actual_delta = score_after - score_before;
 

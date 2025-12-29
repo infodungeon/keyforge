@@ -3339,6 +3339,7 @@ dependencies = [
  "rand_xoshiro",
  "rayon",
  "serde",
+ "thiserror 1.0.69",
  "tracing",
 ]
 
@@ -3449,6 +3450,7 @@ name = "keyforge-model"
 version = "0.8.0"
 dependencies = [
  "keyforge-protocol",
+ "proptest",
  "serde",
  "serde-big-array",
  "serde_json",
@@ -3485,6 +3487,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
+ "thiserror 1.0.69",
  "tracing",
 ]
 

@@ -7,7 +7,13 @@ use keyforge_protocol::constants::SCORE_SCALE;
 pub struct DeterministicScorer;
 
 impl DeterministicScorer {
-    pub fn score(keyboard: &Keyboard, corpus: &Corpus, rubric: &Rubric, layout: &Layout) -> f32 {
+    pub fn score(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        layout: &Layout,
+        overrides: &[(usize, usize, f32)],
+    ) -> f32 {
         let mut total_score: i64 = 0;
 
         // 1. Map Layout to Positions
@@ -60,14 +66,21 @@ impl DeterministicScorer {
                 let k1 = &fp_keys[p1 as usize];
                 let k2 = &fp_keys[p2 as usize];
 
-                let cost = calculate_pair_cost_int(k1, k2, &fp_rubric);
+                let mut cost = calculate_pair_cost_int(k1, k2, &fp_rubric);
+                
+                // Apply overrides
+                for &(o_i, o_j, o_cost) in overrides {
+                    if o_i == p1 as usize && o_j == p2 as usize {
+                        cost = to_fixed(o_cost);
+                        break;
+                    }
+                }
+
                 total_score = total_score.saturating_add(cost.saturating_mul(freq as i64));
             }
         }
 
         // 5. Score Trigrams
-        // Note: We apply the same pruning logic as the main engine implicitly
-        // by iterating the corpus provided. The corpus itself should be the pruned version if needed.
         for &(c1, c2, c3, freq) in &corpus.trigrams {
             let p1 = pos_map[c1 as usize];
             let p2 = pos_map[c2 as usize];
@@ -102,7 +115,6 @@ fn to_fixed(val: f32) -> i64 {
             i64::MIN
         };
     }
-    // Saturate cast
     let scaled = val * SCORE_SCALE;
     if scaled >= i64::MAX as f32 {
         i64::MAX
@@ -144,9 +156,6 @@ fn calculate_pair_cost_int(
     let dx = (k1.x - k2.x).abs();
     let dy = (k1.y - k2.y).abs();
 
-    // Fix: Use linear weight application on squared distance: Weight * Dist^2
-    // allowing negative weights to act as bonuses.
-    // Use i128 to prevent overflow during intermediate (Scale^3) multiplication.
     let scale_val = SCORE_SCALE as i128;
     let scale_sq = scale_val * scale_val;
 
@@ -234,4 +243,207 @@ fn calculate_flow_cost_int(
     }
 
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::{KeyNode, Keyboard, Layout, Rubric, Corpus};
+
+    fn setup_kb() -> Keyboard {
+        let keys: Vec<KeyNode> = (0..5)
+            .map(|i| KeyNode {
+                id: i,
+                label: format!("k{}", i),
+                hand: 0,
+                finger: i as u8,
+                row: 0,
+                col: i as i8,
+                x: i as f32,
+                y: 0.0,
+                is_home: true,
+            })
+            .collect();
+        Keyboard::new(keys, 0)
+    }
+
+    #[test]
+    fn test_verify_nan_handling() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 1, 100));
+
+        let rubric = Rubric {
+            travel_lat: f32::NAN,
+            ..Rubric::default()
+        };
+
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(score >= 0.0);
+        assert!(!score.is_nan());
+    }
+
+    #[test]
+    fn test_verify_saturation_max() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 1, 1));
+
+        let rubric = Rubric {
+            travel_lat: 1e30,
+            ..Rubric::default()
+        };
+
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(score > 1_000_000.0);
+        assert!(score.is_finite());
+    }
+
+    #[test]
+    fn test_verify_saturation_min() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 1, 1));
+
+        let rubric = Rubric {
+            travel_lat: -1e30,
+            ..Rubric::default()
+        };
+
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(score < -1_000_000.0);
+        assert!(score.is_finite());
+    }
+
+    #[test]
+    fn test_verify_trigram_redirects() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let mut corpus = Corpus::default();
+        corpus.trigrams.push((0, 1, 0, 100));
+
+        let rubric = Rubric {
+            redirect: 10.0,
+            ..Rubric::default()
+        };
+
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_verify_trigram_rolls_negative_dir() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let mut corpus = Corpus::default();
+        corpus.trigrams.push((2, 1, 0, 100));
+
+        let rubric = Rubric {
+            roll_bonus: 5.0,
+            ..Rubric::default()
+        };
+
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(score < 0.0);
+    }
+
+    #[test]
+    fn test_verify_trigram_zero_dir() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let mut corpus = Corpus::default();
+        corpus.trigrams.push((0, 0, 1, 100));
+
+        let rubric = Rubric {
+            travel_lat: 0.0,
+            travel_vert: 0.0,
+            sfb_base: 0.0,
+            sfb_lateral: 0.0,
+            redirect: 10.0,
+            roll_bonus: 10.0,
+            ..Rubric::default()
+        };
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_verify_trigram_redirect_signs() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let mut corpus = Corpus::default();
+        corpus.trigrams.push((0, 2, 1, 100));
+
+        let rubric = Rubric {
+            redirect: 10.0,
+            travel_lat: 0.0,
+            travel_vert: 0.0,
+            sfb_base: 0.0,
+            sfb_lateral: 0.0,
+            ..Rubric::default()
+        };
+
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_verify_extreme_coordinates() {
+        let mut keys = Vec::new();
+        keys.push(KeyNode {
+            id: 0,
+            label: "k1".to_string(),
+            hand: 0,
+            finger: 1,
+            row: 0,
+            col: 0,
+            x: 0.0,
+            y: 0.0,
+            is_home: false,
+        });
+        keys.push(KeyNode {
+            id: 1,
+            label: "k2".to_string(),
+            hand: 0,
+            finger: 2,
+            row: 0,
+            col: 1,
+            x: 30000.0,
+            y: 0.0,
+            is_home: false,
+        });
+        let kb = Keyboard::new(keys, 0);
+
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 1, 100));
+
+        let mut rubric = Rubric::default();
+        rubric.travel_lat = 1_000_000_000_000.0;
+
+        let layout = Layout::new_unchecked(vec![0, 1]);
+
+        let score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_math_boundaries_neg_infinity() {
+        let kb = setup_kb();
+        let layout = Layout::new_unchecked(vec![97, 98, 99, 100, 101]);
+
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((97, 98, 1000));
+
+        let rubric = Rubric {
+            travel_lat: f32::NEG_INFINITY,
+            ..Rubric::default()
+        };
+
+        let det_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+        assert!(det_score < -1_000_000.0);
+        assert!(det_score.is_finite());
+    }
 }

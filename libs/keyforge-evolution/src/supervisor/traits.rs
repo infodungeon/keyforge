@@ -1,52 +1,32 @@
-use keyforge_model::Layout;
+use keyforge_model::{KeyIndex, Layout};
 use keyforge_physics::ScoringEngine;
 use rand::Rng;
+use std::time::{Duration, Instant};
+
+/// Abstracts time for deterministic testing (Functional Purity).
+pub trait TimeKeeper {
+    fn now(&self) -> Instant;
+    fn elapsed(&self, start: Instant) -> Duration;
+}
+
+/// Default implementation using system time.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RealTimeKeeper;
+
+impl TimeKeeper for RealTimeKeeper {
+    fn now(&self) -> Instant {
+        Instant::now()
+    }
+    
+    fn elapsed(&self, start: Instant) -> Duration {
+        start.elapsed()
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum MutationAction {
-    Swap(usize, usize),
-    GroupSwap(usize, usize, usize),
-}
-
-impl MutationAction {
-    #[inline(always)]
-    pub fn apply(self, layout: &mut Layout, pos_map: &mut [u16]) {
-        match self {
-            MutationAction::Swap(a, b) => {
-                layout.keys.swap(a, b);
-                let code_a = layout.keys[a] as usize;
-                let code_b = layout.keys[b] as usize;
-                // Update pos_map if within range
-                if code_a < pos_map.len() {
-                    pos_map[code_a] = a as u16;
-                }
-                if code_b < pos_map.len() {
-                    pos_map[code_b] = b as u16;
-                }
-            }
-            MutationAction::GroupSwap(a, b, c) => {
-                // A -> B, B -> C, C -> A
-                let temp = layout.keys[c];
-                layout.keys[c] = layout.keys[b];
-                layout.keys[b] = layout.keys[a];
-                layout.keys[a] = temp;
-
-                let code_a = layout.keys[a] as usize;
-                let code_b = layout.keys[b] as usize;
-                let code_c = layout.keys[c] as usize;
-
-                if code_a < pos_map.len() {
-                    pos_map[code_a] = a as u16;
-                }
-                if code_b < pos_map.len() {
-                    pos_map[code_b] = b as u16;
-                }
-                if code_c < pos_map.len() {
-                    pos_map[code_c] = c as u16;
-                }
-            }
-        }
-    }
+    Swap(KeyIndex, KeyIndex),
+    GroupSwap(KeyIndex, KeyIndex, KeyIndex),
 }
 
 /// A proposed change to a layout.

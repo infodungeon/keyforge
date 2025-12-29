@@ -46,7 +46,7 @@ fn test_to_domain_rubric() {
     weights.penalty_sfb_base = 100.0;
     weights.penalty_sfb_lateral = 50.0;
     weights.weight_lateral_travel = 2.0;
-    weights.weight_vertical_travel =3.0;
+    weights.weight_vertical_travel = 3.0;
     weights.penalty_redirect = 200.0;
     weights.bonus_bigram_roll_in = 10.0;
     weights.trigram_coverage = 0.5;
@@ -74,7 +74,7 @@ fn test_to_domain_config() {
     params.reheat_factor = 1.5;
 
     let cfg = conversion::to_domain_config(&params, 42);
-    
+
     match cfg {
         SearchConfig::Annealing {
             steps,

@@ -1,9 +1,9 @@
 use super::mechanics::calculate_pair_cost;
-use super::types::{FingerIndex, HandIndex, KeyIndex};
+use super::types::{FingerIndex, HandIndex, KeyIndex, Score};
 use super::EngineContext;
 use keyforge_model::{Corpus, Keyboard, Rubric};
-use keyforge_protocol::constants::SCORE_SCALE;
 use std::convert::TryFrom;
+use crate::errors::PhysicsError;
 use tracing::instrument;
 
 pub struct Compiler;
@@ -15,7 +15,7 @@ impl Compiler {
         corpus: &Corpus,
         rubric: &Rubric,
         overrides: &[(usize, usize, f32)],
-    ) -> EngineContext {
+    ) -> Result<EngineContext, PhysicsError> {
         let key_count = kb.count();
 
         let mut hands = Vec::with_capacity(key_count);
@@ -25,27 +25,28 @@ impl Compiler {
 
         for k in &kb.keys {
             // Guardrail: Ensure geometry fits into Semantic Types
-            let hand = HandIndex::try_from(k.hand).unwrap_or_else(|_| HandIndex::try_from(0).unwrap());
-            let finger = FingerIndex::try_from(k.finger).unwrap_or_else(|_| FingerIndex::try_from(1).unwrap());
-            
+            let hand = HandIndex::try_from(k.hand)?;
+            let finger = FingerIndex::try_from(k.finger)?;
+
             hands.push(hand);
             fingers.push(finger);
             rows.push(k.row);
             cols.push(k.col);
         }
 
-        let mut cost_matrix = vec![0i64; key_count * key_count];
+        // Initialize with Score::ZERO
+        let mut cost_matrix = vec![Score::ZERO; key_count * key_count];
 
         for i in 0..key_count {
             for j in 0..key_count {
                 let cost = calculate_pair_cost(kb, rubric, KeyIndex(i), KeyIndex(j));
-                cost_matrix[i * key_count + j] = safe_float_to_int(cost);
+                cost_matrix[i * key_count + j] = Score::from_f32(cost);
             }
         }
 
         for &(i, j, cost) in overrides {
             if i < key_count && j < key_count {
-                cost_matrix[i * key_count + j] = safe_float_to_int(cost);
+                cost_matrix[i * key_count + j] = Score::from_f32(cost);
             }
         }
 
@@ -73,7 +74,7 @@ impl Compiler {
         // Character frequencies from corpus
         let char_freqs = corpus.char_freqs.clone();
 
-        EngineContext {
+        Ok(EngineContext {
             key_count,
             hands,
             fingers,
@@ -102,35 +103,11 @@ impl Compiler {
             trigram_end_others2,
             trigram_end_freqs,
 
-            penalty_redirect: safe_float_to_int(rubric.redirect),
-            penalty_skip: 0,
-            bonus_roll: safe_float_to_int(rubric.roll_bonus),
-        }
+            penalty_redirect: Score::from_f32(rubric.redirect),
+            penalty_skip: Score::ZERO,
+            bonus_roll: Score::from_f32(rubric.roll_bonus),
+        })
     }
-}
-
-fn safe_float_to_int(val: f32) -> i64 {
-    if val.is_nan() {
-        return 0;
-    }
-    if val.is_infinite() {
-        return if val.is_sign_positive() {
-            i64::MAX
-        } else {
-            i64::MIN
-        };
-    }
-
-    let scaled = val * SCORE_SCALE;
-
-    if scaled >= i64::MAX as f32 {
-        return i64::MAX;
-    }
-    if scaled <= i64::MIN as f32 {
-        return i64::MIN;
-    }
-
-    scaled as i64
 }
 
 fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<u16>, Vec<u32>) {

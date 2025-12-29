@@ -17,12 +17,21 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn compile(&self, project: &Project) -> PersistenceResult<Runtime> {
-        let kb_def = self.loader.load_keyboard(&project.keyboard).map_err(PersistenceError::Loader)?;
+        let kb_def = self
+            .loader
+            .load_keyboard(&project.keyboard)
+            .map_err(PersistenceError::Loader)?;
 
-        let corpus = self.loader.load_corpus(&project.corpora).map_err(PersistenceError::Loader)?;
+        let corpus = self
+            .loader
+            .load_corpus(&project.corpora)
+            .map_err(PersistenceError::Loader)?;
 
         let raw_cost = match &project.cost_matrix {
-            CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).map_err(PersistenceError::Loader)?,
+            CostMatrixSource::Predefined(name) => self
+                .loader
+                .load_cost_matrix(name)
+                .map_err(PersistenceError::Loader)?,
             CostMatrixSource::Custom(_) => {
                 return Err(PersistenceError::Config(
                     "Custom CSV compilation not yet implemented".into(),
@@ -30,13 +39,16 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        let registry = self.loader.load_keycodes("keycodes.json")
+        let registry = self
+            .loader
+            .load_keycodes("keycodes.json")
             .map_err(PersistenceError::Loader)
             .unwrap_or_else(|_| KeycodeRegistry::new_with_defaults());
 
         let domain_kb = conversion::to_domain_keyboard(&kb_def.geometry);
         let domain_rubric = conversion::to_domain_rubric(&project.weights);
-        let domain_config = conversion::to_domain_config(&project.params, project.seed.unwrap_or(42));
+        let domain_config =
+            conversion::to_domain_config(&project.params, project.seed.unwrap_or(42));
 
         let overrides = conversion::resolve_cost_matrix(&raw_cost.entries, &kb_def.geometry);
 
@@ -52,12 +64,12 @@ impl<'a> Compiler<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use keyforge_model::error::KeyForgeError;
+    use keyforge_model::loader::{LoaderResult, RawCostData};
+    use keyforge_model::Corpus;
     use keyforge_protocol::config::CorpusSource;
     use keyforge_protocol::geometry::KeyboardDefinition;
     use keyforge_protocol::keycodes::KeycodeRegistry;
-    use keyforge_model::loader::{RawCostData, LoaderResult};
-    use keyforge_model::Corpus;
-    use keyforge_model::error::KeyForgeError;
 
     struct FailingLoader;
     impl AssetLoader for FailingLoader {

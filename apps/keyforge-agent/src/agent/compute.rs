@@ -121,8 +121,31 @@ pub fn create_engine_request(
             conversion::parse_layout_string(&layout_str, keyboard.keys.len(), &registry)
                 .map_err(|e| anyhow::anyhow!(e))?,
         ),
-        None => None,
+        None => {
+            // Try to load default layout from definition
+            if let Some(default_str) = definition.layouts.get("default") {
+                Some(conversion::parse_layout_string(default_str, keyboard.keys.len(), &registry)
+                    .map_err(|e| anyhow::anyhow!(e))?)
+            } else {
+                None
+            }
+        }
     };
+
+    // Validate Pinned Keys against Layout
+    if let Some(layout) = &initial_layout {
+        for (_i, pin) in pinned_keys.iter().enumerate() {
+            if let Some(code) = pin {
+                if !layout.keys.contains(code) {
+                     let label = registry.get_label(*code);
+                     return Err(anyhow::anyhow!("Pinned key '{}' (code {}) not found in initial layout", label, code));
+                }
+            }
+        }
+    } else if pinned_keys.iter().any(|p| p.is_some()) {
+         // No layout, but pins exist.
+         return Err(anyhow::anyhow!("Pinned keys provided but no initial layout found. Please provide a parent layout or a 'default' layout in the keyboard definition."));
+    }
 
     let keyboard = std::sync::Arc::new(keyboard);
     let corpus = std::sync::Arc::new(corpus);

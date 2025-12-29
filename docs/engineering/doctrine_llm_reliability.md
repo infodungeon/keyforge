@@ -118,3 +118,108 @@ Maintain a "Simple, Slow, Correct" reference implementation (`DeterministicScore
 1. **Baseline:** Generate Tarpaulin coverage report to map "Ignorance."
 2. **Target:** `keyforge-physics` (Highest Risk).
 3. **Action:** Apply Type Guardrails, Property Tests, and Reflexion Loops to uncovered regions.
+
+. The Typestate Pattern (The "Compiler State Machine")
+The Problem: LLMs struggle with temporal coupling (e.g., "You must call init() before process()"). They frequently write code that accesses data before it is ready.
+The Fix: Encode the state in the Type System, not in boolean flags.
+The Work Product:
+Instead of a single Job struct with an Option<StartedAt>, define distinct types for each state.
+code
+Rust
+// Bad (LLM Trap):
+struct Job {
+    id: String,
+    status: String, // "pending", "running"
+    result: Option<f32>, // LLM forgets to check if this is None
+}
+
+// Good (LLM Railing):
+struct PendingJob { id: String, config: Config }
+struct RunningJob { id: String, start_time: Instant }
+struct CompletedJob { id: String, score: f32 }
+
+// The Transition (The only way to move forward)
+impl PendingJob {
+    fn start(self) -> RunningJob { ... }
+}
+impl RunningJob {
+    fn finish(self, score: f32) -> CompletedJob { ... }
+}
+Why it works: The LLM cannot write code that accesses the score of a pending job. The compiler prevents the hallucination. It forces the LLM to follow the linear flow of the system.
+2. The "Parameter Object" Pattern (Context Structs)
+The Problem: "Argument Swapping." In physics, you have functions taking multiple u16 or f32 arguments. Even with Newtypes, LLMs struggle with functions that take 5+ arguments.
+The Fix: Group cohesive arguments into a Context Struct.
+The Work Product:
+code
+Rust
+// libs/keyforge-physics/src/kernel/types.rs
+
+// Instead of passing (layout, corpus, rubric, weights) everywhere:
+pub struct ScoringContext<'a> {
+    pub layout: &'a Layout,
+    pub corpus: &'a Corpus,
+    pub rubric: &'a Rubric,
+}
+
+// Function signature becomes simple:
+fn calculate_score(ctx: ScoringContext) -> Score { ... }
+Why it works:
+Token Efficiency: Reduces repetition in function signatures.
+Safety: You construct the Context once (validated). The LLM just passes it around. It cannot accidentally pass corpus where rubric is expected because they are fields, not positional arguments.
+3. The Command Pattern (Reified Actions)
+The Problem: In keyforge-hive, business logic often gets mixed into HTTP handlers (axum). This makes it hard to test and hard for the LLM to reason about "what happens" vs "how it is served."
+The Fix: Decouple the Intent from the Execution.
+The Work Product:
+Define actions as data structures (Commands), not functions.
+code
+Rust
+// libs/keyforge-core/src/commands.rs
+
+pub enum HiveCommand {
+    RegisterJob(JobRequest),
+    CancelJob(String),
+    SubmitResult(ResultSubmission),
+}
+
+// The Handler (Pure Logic)
+pub fn handle_command(cmd: HiveCommand, state: &mut AppState) -> Result<Event, Error> {
+    match cmd {
+        HiveCommand::RegisterJob(req) => {
+            // Pure logic: Update state, return event
+        }
+        // ...
+    }
+}
+Why it works:
+Isolation: You can ask the LLM to "Implement the handler for RegisterJob" without pasting any Axum/HTTP code.
+Testability: You can test the logic by constructing a HiveCommand struct, without spinning up a server.
+4. The Centralized Error Registry (The "Failure Catalog")
+The Problem: LLMs are lazy with errors. They default to anyhow::anyhow!("error") or unwrap(). This makes production debugging a nightmare.
+The Fix: A strict, enumerated catalog of every possible failure state.
+The Work Product:
+A dedicated errors.rs in keyforge-model or keyforge-protocol.
+code
+Rust
+// libs/keyforge-protocol/src/errors.rs
+use thiserror::Error;
+
+# [derive(Error, Debug)]
+pub enum ForgeError {
+    #[error("Physics Violation: Score {0} is negative")]
+    PhysicsViolation(f32),
+
+    #[error("Invalid Layout: Key count {0} != Geometry {1}")]
+    LayoutMismatch(usize, usize),
+    
+    #[error("Stale Job: Job {0} was cancelled")]
+    StaleJob(String),
+}
+The Protocol:
+Constraint: "You are forbidden from using anyhow! or unwrap(). You must return a Result<T, ForgeError>. If a specific error variant does not exist, ask me to add it to the Registry."
+Why it works: It forces the LLM to categorize the error. It cannot just "bail out"; it has to think about what went wrong, which often helps it realize the logic is flawed.
+Summary of the "Robust" Architecture
+Typestate: Make invalid sequences impossible (Pending -> Running).
+Parameter Objects: Make argument swapping impossible (ScoringContext).
+Command Pattern: Make logic independent of the web server (HiveCommand).
+Error Registry: Make lazy error handling impossible (ForgeError).
+These elements reduce the Cognitive Load on the LLM. It doesn't have to remember "is this job running?" or "which argument is the corpus?" because the Types tell it.

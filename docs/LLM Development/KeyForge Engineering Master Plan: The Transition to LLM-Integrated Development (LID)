@@ -1,0 +1,285 @@
+# KeyForge Engineering Master Plan: The Transition to LLM-Integrated Development (LID)
+
+**Version:** 4.0 (Comprehensive)
+**Date:** 2025-12-29
+**Context:** A complete operational doctrine for engineering high-reliability distributed systems using Large Language Models, moving from "Prompting" to "Architectural Determinism."
+
+---
+
+## Part 1: Theoretical Framework & Research Basis
+
+The core realization is that LLMs are **Stochastic Parrots** with limited attention spans, not rational agents. They suffer from **Context Saturation** (performance degrades as token count rises) and **Semantic Blindness** (confusing syntax with logic).
+
+To succeed, we must move from **Asking** (hoping the LLM is smart) to **Constraining** (making it impossible for the LLM to be wrong).
+
+### 1. The "Cleanroom" & Isolation Principle
+
+* **Concept:** Complex logic cannot be debugged inside a complex application context due to noise.
+* **Research:** *On the Impacts of Contexts on Repository-Level Code Generation* (ACL 2025) — Proves that feeding full files degrades reasoning; "Dependency Pruning" is required.
+* **Application:** Context Compression (Header Files) and Reproduction Harnesses (`repro.rs`).
+
+### 2. The "Verifiable Nucleus" (Formal Methods Lite)
+
+* **Concept:** Tests are insufficient because LLMs write "Happy Path" tests that mirror their own bugs. We need mathematical proofs or adversarial mutation.
+* **Research:**
+  * *RustBrain* (2025) — Using formal verification tools to check LLM output.
+  * *SpecVerify* (2025) — Separating specification from implementation.
+  * *AutoVerus* — Using "Ghost Code" (simplified models) to prove logic before optimization.
+* **Application:** `kani` proofs, `cargo-mutants`, and `ghost.rs`.
+
+### 3. Cognitive Ergonomics (Architecture)
+
+* **Concept:** Code structure must maximize **Locality**. If an LLM has to jump between files (Context Switching), it hallucinates.
+* **Research:** *CodePlan* (Microsoft 2024) — LLMs degrade when control flow is implicit or state is scattered.
+* **Application:** Vertical Slice Architecture, Humble Objects, and Data-Oriented Design.
+
+### 4. The "SAGA" Protocol (Inverted Workflow)
+
+* **Concept:** Code is a liability; tests are the asset.
+* **Research:** *Rethinking Verification for LLM Code Generation* (NeurIPS 2025).
+* **Application:** Generate the "Test Gauntlet" (Adversarial Tests) *before* generating implementation code.
+
+---
+
+## Part 2: Architectural Doctrine (The Substrate)
+
+We are refactoring `keyforge` to enforce **Cognitive Ergonomics**.
+
+### 1. Vertical Slice Architecture (The Shell)
+
+* **Target:** `keyforge-hive` (and future apps).
+* **Pattern:** Group code by **Feature** (Domain), not **Layer** (Technical).
+* **Rule:** A feature folder (`src/features/register_job/`) must contain *everything* needed to understand that feature: API handler, Logic, DB queries, and DTOs.
+* **Nuance:** **WET over DRY.** Repeat helper logic inside the slice to preserve context locality for the LLM.
+
+### 2. Railway Oriented Programming (ROP)
+
+* **Target:** Business Logic Flow.
+* **Pattern:** Structure logic as linear `Result` chains (`validate().and_then(process).and_then(save)`).
+* **Goal:** Prevents nested `if/else` confusion. Forces the LLM to handle errors at every step of the pipeline.
+
+### 3. The Humble Object Pattern (The Firewall)
+
+* **Target:** All IO boundaries (`axum` handlers, `clap` commands).
+* **Pattern:** Extract all logic into a pure struct (`LogicObject`) with zero dependencies. The Handler only unwraps data and calls the Logic.
+* **Goal:** Enable unit testing without mocking frameworks.
+
+### 4. Data-Oriented Design (DOD)
+
+* **Target:** Domain Models.
+* **Pattern:** Separate Data (Structs) from Behavior (Functions). Structs must be "Transparent Bags of Data" (public fields). Logic resides in separate `ops` modules.
+* **Goal:** Prevents "Hidden State" hallucinations common in Rich Domain Models (OOP).
+
+### 5. The Semantic Firewall (The Nucleus)
+
+* **Target:** `keyforge-physics`.
+* **Pattern:** Aggressive Newtyping.
+* **Rule:** Never use `usize`, `u16`, or `f32` in function signatures. Use `KeyIndex`, `CharCode`, `Score`.
+* **Goal:** Make "Argument Swapping" hallucinations compile-time errors.
+
+### 6. Typestate & Parameter Objects
+
+* **Target:** Complex State Machines (Jobs).
+* **Pattern:** Encode state in types (`PendingJob` -> `RunningJob`). Group arguments into Context structs (`ScoringContext`).
+* **Goal:** Make invalid state transitions unrepresentable.
+
+### 7. State Segregation (The "God Object" Fix)
+
+* **Target:** `keyforge-hive` State.
+* **Pattern:** Break up `AppState`. Use `axum::extract::FromRef` to inject *only* the specific repository needed for a handler (e.g., `State<ResultRepo>`).
+* **Goal:** Prevents context pollution and accidental coupling of unrelated features.
+
+### 8. The Centralized Error Registry
+
+* **Target:** `keyforge-protocol`.
+* **Pattern:** A strict, enumerated catalog of every possible failure state (`ForgeError`).
+* **Constraint:** Forbid `anyhow!` or `unwrap()`. Force the LLM to categorize errors.
+
+---
+
+## Part 3: Verification Strategy (The Guardrails)
+
+We do not trust the LLM to verify itself.
+
+### 1. Mutation Testing (The Lie Detector)
+
+* **Tool:** `cargo-mutants`.
+* **Protocol:** If a test suite passes but `cargo-mutants` finds a surviving mutant, the code is rejected.
+
+### 2. Shadow Execution (The Reality Check)
+
+* **Tool:** `DeterministicScorer` (The Oracle).
+* **Protocol:** In `debug` builds, run the Optimized Engine and the Oracle side-by-side. Panic if they diverge.
+
+### 3. Golden Data (The Anchor)
+
+* **Artifact:** `tests/fixtures/golden_scores.json`.
+* **Protocol:** Hardcoded input/output pairs that define "Physics Truth." The LLM cannot argue with these numbers.
+
+### 4. Metamorphic Testing
+
+* **Concept:** Verify properties, not values.
+* **Protocol:** Generate tests for Symmetry (`dist(a,b) == dist(b,a)`) and Sensitivity (`weight * 2 => cost * 2`).
+
+### 5. Formal Verification Lite
+
+* **Tool:** `kani`.
+* **Protocol:** For core math (Tier 1), write proof harnesses that check invariants (e.g., "Score is monotonic") across *all* inputs.
+
+### 6. Snapshot Testing
+
+* **Tool:** `insta`.
+* **Target:** Parsers, Adapters, and complex DTOs.
+* **Protocol:** Generate 50 edge-case inputs. Snapshot the outputs. Review the snapshot file manually *once*. This creates a regression lock without writing 500 assertions.
+
+---
+
+## Part 4: Operational Protocols (The Workflow)
+
+### 1. The "Cleanroom" Isolation
+
+* **Rule:** Never debug complex logic inside the full application context.
+* **Artifact:** `ops/templates/repro_template.rs`.
+* **Trigger:** Any bug taking > 2 turns to fix.
+* **Action:** Generate a standalone script containing *only* the structs/functions involved. Fix in isolation.
+
+### 2. Context Compression (Header Strategy)
+
+* **Rule:** Do not paste full dependency files.
+* **Artifact:** `ops/scripts/minify_context.py`.
+* **Action:** Generate "Header Files" (Structs + Signatures only) for dependencies (`model`, `protocol`) when working on Core logic.
+
+### 3. The "Soft Reset"
+
+* **Trigger:** Context Saturation (LLM starts looping or hallucinating).
+* **Prompt:** "🛑 **STOP. IGNORE PREVIOUS.** We are resetting. Here is the clean code. Here is the error. Fix it."
+
+### 4. The "3-Turn Hard Stop"
+
+* **Rule:** If Gemini fails to fix a bug after two attempts:
+    1. **STOP.**
+    2. **REVERT.**
+    3. **ISOLATE** (Move to `repro.rs`).
+
+### 5. The "Two-Man" Audit
+
+* **Rule:** The "Coder" cannot be the "Auditor."
+* **Protocol:** When a feature is complete, open a **New Chat**. Paste the code. Prompt: *"You are a Security Auditor. Find one input that causes a panic or overflow."*
+
+### 6. The Signature Freeze
+
+* **Trigger:** Debugging/Refactoring.
+* **Constraint:** "You are FORBIDDEN from changing public function signatures. If the logic requires more data, derive it internally or request a configuration change."
+
+---
+
+## Part 5: The Operational Reality (Lifecycle & State)
+
+### 1. The Human Review Protocol (The "Readability" Check)
+
+**The Risk:** Automated verification proves *correctness*, not *maintainability*.
+
+* **Rule:** **"Explain it to me."**
+* **Protocol:** Before merging a PR generated by Gemini:
+    1. **The Comprehension Test:** The human must be able to explain the logic *without* reading the LLM's summary.
+    2. **The "No-Magic" Clause:** Reject any code using macros or advanced traits (`unsafe`, complex generics) unless explicitly requested.
+
+### 2. The Database Safety Doctrine (`keyforge-hive`)
+
+**The Risk:** LLMs treat SQL as text and write destructive migrations.
+
+* **Constraint:** **Zero-Touch Migrations.**
+* **Protocol:**
+    1. **Never** ask the LLM to write a migration file directly.
+    2. **Prompt:** "Write the *desired* SQL schema for the `jobs` table."
+    3. **Action:** Use a diff tool (like `sqlx-cli` or manual review) to generate the migration.
+    4. **Invariant:** All migrations must be **Additive Only**.
+
+### 3. Tiered Verification (CI Economics)
+
+* **Tier 1: The Fast Loop (Local / Pre-Commit)**
+  * `cargo check`, `cargo test` (Unit), `cargo clippy`.
+  * *Time Budget:* < 30 seconds.
+* **Tier 2: The Logic Loop (PR Check)**
+  * `cargo test --doc`, `cargo mutants` (Modified files only).
+  * *Time Budget:* < 10 minutes.
+* **Tier 3: The Deep Freeze (Nightly / Release)**
+  * `kani` (Formal Proofs), Full `cargo mutants`, End-to-End Integration Tests.
+  * *Time Budget:* Hours.
+
+### 4. The "Doctrine Drift" Feedback Loop
+
+* **Rule:** **The Doctrine is Code.**
+* **Protocol:** When an LLM makes a mistake requiring a "Soft Reset," update `KEYFORGE_CONTEXT.md` with a new **Constraint** to prevent recurrence.
+
+---
+
+## Part 6: Migration Strategy
+
+### The "Lift and Shift" Protocol
+
+**Context:** Moving `keyforge-hive` from Layered to Vertical Slices.
+
+1. **Scaffold:** Create the new feature directory (e.g., `src/features/register_job/`).
+2. **Copy Logic:** Move validation/hashing logic from `api/` to `features/.../logic.rs`.
+3. **Copy DB:** Move SQL queries from `infra/repositories/` to `features/.../db.rs`.
+4. **Unify:** Create the Humble Handler in `features/.../handler.rs`.
+5. **Facade:** Keep the old `infra/repositories` code as a wrapper calling the new feature code to prevent breaking other consumers.
+6. **Cleanup:** Delete old code only after all consumers are migrated.
+
+---
+
+## Part 7: Master Task List
+
+### Phase 1: Tooling & Context Management (Immediate)
+
+* [ ] **Create Script:** `ops/scripts/minify_context.py`.
+  * [ ] Logic: Read Rust file, strip comments, replace function bodies with `todo!()` or `{}`.
+
+* [ ] **Create Template:** `ops/templates/repro_template.rs`.
+  * [ ] Content: Standalone, single-file harness for reproducing bugs in isolation.
+* [ ] **Create Document:** `docs/KEYFORGE_CONTEXT.md`.
+  * [ ] Content: The System Context prompt (Architecture rules, Dependency rules).
+* [ ] **Create Document:** `docs/API_SURFACE.md`.
+  * [ ] Content: Public signatures of major dependencies.
+* [ ] **Create Document:** `docs/REVIEW_CHECKLIST.md`.
+
+### Phase 2: Hardening the Nucleus (`keyforge-physics`)
+
+* [ ] **Refactor Types:** Create `libs/keyforge-physics/src/kernel/types.rs`.
+  * [ ] Define `pub struct KeyIndex(usize)`, `CharCode(u16)`, `Score(i64)`.
+  * [ ] **Constraint:** Ensure `impl Add<Score> for KeyIndex` is NOT implemented.
+
+* [ ] **Refactor Signatures:** Update `compute.rs` to use Newtypes.
+* [ ] **Create Ghost Model:** `libs/keyforge-physics/src/ghost.rs`.
+  * [ ] Implement simplified scoring logic using `HashMap`.
+* [ ] **Create Golden Data:** `tests/fixtures/golden_scores.json`.
+* [ ] **Implement Oracle:** Ensure `DeterministicScorer` matches `ghost.rs` logic.
+* [ ] **Setup Kani:** Add `kani` dependencies and write one proof harness.
+* [ ] **Setup Mutants:** Configure `.cargo/mutants.toml`.
+
+### Phase 3: Restructuring the Shell (`keyforge-hive`)
+
+* [ ] **Scaffold Directory:** Create `apps/keyforge-hive/src/features/`.
+* [ ] **Refactor Feature:** `register_job` (Lift & Shift).
+* [ ] **Refactor Feature:** `submit_result` (Lift & Shift).
+* [ ] **Refactor State:** Split `AppState` using `FromRef`.
+* [ ] **Implement Error Registry:** Create `libs/keyforge-protocol/src/errors.rs`.
+
+### Phase 4: Operational Workflow
+
+* [ ] **Update CI:** Add `cargo mutants` (diff-only) to PR pipeline.
+* [ ] **Update CI:** Add `cargo test --features kani` step.
+* [ ] **Adoption:** Begin using "Soft Reset" and "Context Compression".
+
+---
+
+## Part 8: Bibliography & References
+
+1. **Yang, J. et al. (2024).** *SWE-agent: Agent-Computer Interfaces Enable Software Engineering Language Models.* Princeton University.
+2. **Liu, N. F. et al. (2023).** *Lost in the Middle: How Language Models Use Long Contexts.* Stanford/Berkeley.
+3. **Olausson, T. X. et al. (2024).** *Is Self-Repair a Silver Bullet for Code Generation?*
+4. **Microsoft Research (2024).** *CodePlan: Repository-level Coding using LLMs and Planning.*
+5. **Sun, W. et al. (2024).** *Clover: Closed-Loop Verifiable Code Generation.*
+6. **Zhong, L. et al. (2024).** *LDB: A Large Language Model Debugger via Verifying Runtime Execution.*
+7. **Google DeepMind (2024).** *AlphaCode 2 Technical Report.*

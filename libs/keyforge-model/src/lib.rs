@@ -1,18 +1,21 @@
 pub mod corpus;
+pub mod error;
 pub mod keyboard;
 pub mod layout;
+pub mod loader;
 pub mod rubric;
 pub mod serde_utils;
 
 pub use corpus::Corpus;
+pub use error::KeyForgeError;
 pub use keyboard::{KeyNode, Keyboard};
 pub use keyforge_protocol::keycodes::KeycodeRegistry;
-pub use layout::Layout;
+pub use layout::{KeyIndex, Layout};
 pub use rubric::Rubric;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SearchConfig {
     Annealing {
         steps: usize,
@@ -36,6 +39,34 @@ impl Default for SearchConfig {
             reheats: 3,
             reheat_factor: 0.5,
         }
+    }
+}
+
+impl SearchConfig {
+    pub fn validate(&self) -> Result<(), KeyForgeError> {
+        match self {
+            SearchConfig::Annealing {
+                steps,
+                start_temp,
+                end_temp,
+                reheat_factor,
+                ..
+            } => {
+                if *steps == 0 {
+                    return Err(KeyForgeError::InvalidData("Steps must be > 0".into()));
+                }
+                if *start_temp < 0.0 {
+                    return Err(KeyForgeError::InvalidData("Start temp must be >= 0".into()));
+                }
+                if *end_temp < 0.0 {
+                    return Err(KeyForgeError::InvalidData("End temp must be >= 0".into()));
+                }
+                if *reheat_factor <= 0.0 {
+                    return Err(KeyForgeError::InvalidData("Reheat factor must be > 0".into()));
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -85,5 +116,3 @@ pub struct SwapSuggestion {
     pub score_delta: f32,
     pub improvement_pct: f32,
 }
-pub mod error;
-pub mod loader;

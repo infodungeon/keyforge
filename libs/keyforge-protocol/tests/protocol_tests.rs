@@ -2,7 +2,9 @@ use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
 use keyforge_protocol::job::{JobIdError, JobIdentifier};
 use keyforge_protocol::parsing::{parse_key, KeyAction};
-use keyforge_protocol::protocol::{BiometricSample, CostMatrixSource, JobConfig, JobRequest, KeyConstraint};
+use keyforge_protocol::protocol::{
+    BiometricSample, CostMatrixSource, JobConfig, JobRequest, KeyConstraint,
+};
 use keyforge_protocol::Validator;
 use std::str::FromStr;
 
@@ -64,7 +66,10 @@ fn test_job_config_conversion() {
         definition: KeyboardDefinition::default(),
         weights: ScoringWeights::default(),
         params: SearchParams::default(),
-        pinned_keys: vec![KeyConstraint { index: 0, key: "A".into() }],
+        pinned_keys: vec![KeyConstraint {
+            index: 0,
+            key: "A".into(),
+        }],
         corpora: vec![CorpusSource::default()],
         cost_matrix: CostMatrixSource::default(),
         biometrics: vec![],
@@ -235,7 +240,7 @@ fn test_job_request_validation() {
         baseline_score: None,
         parents: vec![],
     };
-    
+
     // Setup valid geometry
     req.definition.geometry.keys = vec![KeyNode::default()];
     req.definition.geometry.prime_slots = vec![0];
@@ -246,27 +251,43 @@ fn test_job_request_validation() {
     req.definition.geometry.keys = vec![KeyNode::default()];
 
     // Too many pins
-    req.pinned_keys = vec![KeyConstraint { index: 0, key: "A".into() }; 201];
+    req.pinned_keys = vec![
+        KeyConstraint {
+            index: 0,
+            key: "A".into()
+        };
+        201
+    ];
     assert!(req.validate().is_err());
     req.pinned_keys.clear();
 
     // Pin out of bounds
-    req.pinned_keys = vec![KeyConstraint { index: 5, key: "A".into() }];
+    req.pinned_keys = vec![KeyConstraint {
+        index: 5,
+        key: "A".into(),
+    }];
     assert!(req.validate().is_err());
     req.pinned_keys.clear();
 
     // Too many biometrics
-    req.biometrics = vec![BiometricSample { bigram: "ab".into(), ms: 10.0, timestamp: 0 }; 10_001];
+    req.biometrics = vec![
+        BiometricSample {
+            bigram: "ab".into(),
+            ms: 10.0,
+            timestamp: 0
+        };
+        10_001
+    ];
     assert!(req.validate().is_err());
     req.biometrics.clear();
 
     // Empty cost matrix
     req.cost_matrix = CostMatrixSource::Predefined("".into());
     assert!(req.validate().is_err());
-    
+
     req.cost_matrix = CostMatrixSource::Custom("".into());
     assert!(req.validate().is_err());
-    
+
     req.cost_matrix = CostMatrixSource::Custom("invalid_csv".into());
     assert!(req.validate().is_err());
 }

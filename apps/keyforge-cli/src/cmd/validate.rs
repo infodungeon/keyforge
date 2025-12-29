@@ -25,7 +25,7 @@ pub fn run(args: ValidateArgs, runtime: Runtime) -> Result<(), Box<dyn Error>> {
     // Use the keys from the registry to form a dummy layout for testing
     // In a real scenario, we would parse a layout string here.
     let key_count = runtime.engine.key_count();
-    let dummy_layout = keyforge_model::Layout::new((0..key_count).map(|i| i as u16).collect());
+    let dummy_layout = keyforge_model::Layout::new_unchecked((0..key_count).map(|i| i as u16).collect());
 
     let report = runtime.analyze(&dummy_layout);
 

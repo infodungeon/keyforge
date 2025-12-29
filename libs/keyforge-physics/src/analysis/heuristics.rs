@@ -1,11 +1,18 @@
 use crate::kernel::compute::{calculate_swap_delta, score_layout};
+use crate::kernel::types::ValidatedLayout;
 use crate::kernel::EngineContext;
 use keyforge_model::{Layout, SwapSuggestion};
 use keyforge_protocol::constants::SCORE_SCALE;
 
 pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion> {
+    // Guardrail: Validate layout before processing
+    let validated = match ValidatedLayout::new(&layout.keys, ctx.key_count) {
+        Ok(v) => v,
+        Err(_) => return vec![], // Invalid layout yields no suggestions
+    };
+
     let mut pos_map = vec![65535u16; 65536];
-    let current_score = score_layout(ctx, &layout.keys, &mut pos_map);
+    let current_score = score_layout(ctx, &validated, &mut pos_map);
 
     if current_score <= 0 {
         return vec![];
@@ -20,10 +27,9 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion
                 continue;
             }
 
-            let delta = calculate_swap_delta(ctx, &layout.keys, &pos_map, i, j);
+            let delta = calculate_swap_delta(ctx, &validated, &pos_map, i, j);
 
             if delta < 0 {
-                // P2 FIX: Updated scaling factor
                 let improvement = delta.abs() as f32 / SCORE_SCALE;
                 let current_f32 = current_score as f32 / SCORE_SCALE;
 

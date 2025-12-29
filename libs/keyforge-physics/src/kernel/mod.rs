@@ -3,7 +3,7 @@ pub mod compute;
 pub mod mechanics;
 pub mod types;
 
-use self::types::{FingerIndex, HandIndex};
+use self::types::{FingerIndex, HandIndex, Score};
 
 /// The read-only, optimized mathematical context.
 #[derive(Debug)]
@@ -18,11 +18,12 @@ pub struct EngineContext {
     pub(crate) cols: Vec<i8>,
 
     // --- COST MATRIX (Flattened) ---
-    pub(crate) cost_matrix: Vec<i64>,
+    // Storing Score directly to prevent primitive obsession
+    pub(crate) cost_matrix: Vec<Score>,
 
     // --- N-GRAM LOOKUPS (CSR + SoA Format) ---
     pub(crate) char_freqs: Vec<u32>,
-    
+
     // Bigrams (Forward: c1 -> c2)
     pub(crate) bigram_starts: Vec<usize>,
     pub(crate) bigram_others: Vec<u16>,
@@ -52,7 +53,7 @@ pub struct EngineContext {
     pub(crate) trigram_end_freqs: Vec<u32>,
 
     // --- RUBRIC CACHE ---
-    pub(crate) penalty_redirect: i64,
-    pub(crate) penalty_skip: i64,
-    pub(crate) bonus_roll: i64,
+    pub(crate) penalty_redirect: Score,
+    pub(crate) penalty_skip: Score,
+    pub(crate) bonus_roll: Score,
 }

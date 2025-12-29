@@ -22,7 +22,7 @@ fn test_parse_layers() {
     assert_eq!(parse_key("MO(1)"), KeyAction::LayerMomentary(1));
     assert_eq!(parse_key("TG(2)"), KeyAction::LayerToggle(2));
     assert_eq!(parse_key("TO(3)"), KeyAction::LayerOn(3));
-    
+
     // Invalid layer index (too high) falls back to Raw
     assert!(matches!(parse_key("MO(255)"), KeyAction::Raw(_)));
 }
@@ -51,8 +51,14 @@ fn test_parse_layer_tap() {
 
 #[test]
 fn test_parse_sticky_mod() {
-    assert_eq!(parse_key("SK(KC_LSFT)"), KeyAction::StickyMod("KC_LSFT".into()));
-    assert_eq!(parse_key("OSM(MOD_LCTL)"), KeyAction::StickyMod("MOD_LCTL".into()));
+    assert_eq!(
+        parse_key("SK(KC_LSFT)"),
+        KeyAction::StickyMod("KC_LSFT".into())
+    );
+    assert_eq!(
+        parse_key("OSM(MOD_LCTL)"),
+        KeyAction::StickyMod("MOD_LCTL".into())
+    );
 }
 
 #[test]

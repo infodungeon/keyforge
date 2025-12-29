@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::error::KeyForgeError;
 
 /// Represents a single physical key.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,18 +25,23 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
-    pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Self {
-        // INVARIANT: Geometry must be valid for Physics Engine
+    pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Result<Self, KeyForgeError> {
         if keys.is_empty() {
-            panic!("Keyboard must have at least one key");
+            return Err(KeyForgeError::InvalidData("Keyboard must have at least one key".into()));
         }
 
         for (i, key) in keys.iter().enumerate() {
             if key.hand > 1 {
-                panic!("Key #{} has invalid hand index {} (must be 0 or 1)", i, key.hand);
+                return Err(KeyForgeError::InvalidData(format!(
+                    "Key #{} has invalid hand index {} (must be 0 or 1)",
+                    i, key.hand
+                )));
             }
             if key.finger > 4 {
-                panic!("Key #{} has invalid finger index {} (must be 0-4)", i, key.finger);
+                return Err(KeyForgeError::InvalidData(format!(
+                    "Key #{} has invalid finger index {} (must be 0-4)",
+                    i, key.finger
+                )));
             }
         }
 
@@ -45,7 +51,7 @@ impl Keyboard {
             finger_origins: Vec::new(),
         };
         kb.calculate_origins();
-        kb
+        Ok(kb)
     }
 
     fn calculate_origins(&mut self) {
@@ -92,32 +98,37 @@ mod tests {
     #[test]
     fn test_valid_keyboard() {
         let keys = vec![KeyNode {
-            id: 0, label: "A".into(), hand: 0, finger: 1, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false
+            id: 0,
+            label: "A".into(),
+            hand: 0,
+            finger: 1,
+            row: 0,
+            col: 0,
+            x: 0.0,
+            y: 0.0,
+            is_home: false,
         }];
-        let _ = Keyboard::new(keys, 0);
+        assert!(Keyboard::new(keys, 0).is_ok());
     }
 
     #[test]
-    #[should_panic(expected = "at least one key")]
-    fn test_empty_keys_panic() {
-        Keyboard::new(vec![], 0);
+    fn test_empty_keys_error() {
+        assert!(Keyboard::new(vec![], 0).is_err());
     }
 
     #[test]
-    #[should_panic(expected = "invalid hand index")]
-    fn test_invalid_hand_panic() {
-            let keys = vec![KeyNode {
-            id: 0, label: "A".into(), hand: 2, finger: 1, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false
+    fn test_invalid_hand_error() {
+        let keys = vec![KeyNode {
+            id: 0,
+            label: "A".into(),
+            hand: 2,
+            finger: 1,
+            row: 0,
+            col: 0,
+            x: 0.0,
+            y: 0.0,
+            is_home: false,
         }];
-        Keyboard::new(keys, 0);
-    }
-
-    #[test]
-    #[should_panic(expected = "invalid finger index")]
-    fn test_invalid_finger_panic() {
-            let keys = vec![KeyNode {
-            id: 0, label: "A".into(), hand: 0, finger: 5, row: 0, col: 0, x: 0.0, y: 0.0, is_home: false
-        }];
-        Keyboard::new(keys, 0);
+        assert!(Keyboard::new(keys, 0).is_err());
     }
 }

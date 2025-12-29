@@ -1,4 +1,6 @@
-use keyforge_protocol::config::{Config, CorpusSource, LayoutDefinitions, ScoringWeights, SearchParams};
+use keyforge_protocol::config::{
+    Config, CorpusSource, LayoutDefinitions, ScoringWeights, SearchParams,
+};
 use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
 use keyforge_protocol::job::{JobIdError, JobIdentifier};
 use keyforge_protocol::parsing::{parse_key, KeyAction};
@@ -68,7 +70,7 @@ fn test_search_params_validation_exhaustive() {
     assert!(p.validate().is_err());
     p.opt_limit_fast = 20_000;
     assert!(p.validate().is_err());
-    
+
     let mut p = valid;
     p.opt_limit_slow = 50; // < fast (100)
     assert!(p.validate().is_err());
@@ -77,7 +79,7 @@ fn test_search_params_validation_exhaustive() {
     let mut p = valid;
     p.temp_min = -1.0;
     assert!(p.validate().is_err());
-    
+
     let mut p = valid;
     p.temp_max = -1.0;
     assert!(p.validate().is_err());
@@ -115,7 +117,7 @@ fn test_scoring_weights_validation_exhaustive() {
     let mut w = valid.clone();
     w.penalty_sfb_base = -1.0;
     assert!(w.validate().is_err());
-    
+
     let mut w = valid.clone();
     w.penalty_scissor = -1.0;
     assert!(w.validate().is_err());
@@ -149,13 +151,13 @@ fn test_scoring_weights_validation_exhaustive() {
     // Getters
     let w = valid.clone();
     assert_eq!(w.get_finger_penalty_scale(), [0.0; 5]); // Default empty string -> 0.0s
-    
+
     let mut w = valid.clone();
     w.finger_penalty_scale = "1.0,1.0,1.0,1.0,1.0".into();
     assert_eq!(w.get_finger_penalty_scale(), [1.0; 5]);
 
     assert!(w.allowed_hand_balance_deviation() >= 0.0);
-    
+
     let mut w = valid.clone();
     w.comfortable_scissors = "01, 12".into();
     let scissors = w.get_comfortable_scissors();
@@ -201,7 +203,7 @@ fn test_geometry_validation_exhaustive() {
 
     // Incomplete Slots
     geom.keys.push(KeyNode::default()); // 2 keys
-    // Index 1 not assigned
+                                        // Index 1 not assigned
     assert!(geom.validate().is_err());
     geom.keys.pop(); // Reset
 
@@ -248,11 +250,14 @@ fn test_keyboard_definition_parsing() {
 fn test_cost_matrix_source() {
     let p = CostMatrixSource::Predefined("file.json".into());
     assert_eq!(format!("{}", p), "file.json");
-    
+
     let c = CostMatrixSource::Custom("data".into());
     assert_eq!(format!("{}", c), "<custom_content>");
-    
-    assert_eq!(CostMatrixSource::default(), CostMatrixSource::Predefined("default_costmatrix.json".into()));
+
+    assert_eq!(
+        CostMatrixSource::default(),
+        CostMatrixSource::Predefined("default_costmatrix.json".into())
+    );
 }
 
 #[test]
@@ -284,7 +289,10 @@ fn test_result_submission_timestamp() {
     assert!(sub.validate_timestamp().is_err());
 
     // Future
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     sub.timestamp = now + 1000;
     assert!(sub.validate_timestamp().is_err());
 
@@ -308,7 +316,7 @@ fn test_job_request_validation_exhaustive() {
         baseline_score: None,
         parents: vec![],
     };
-    
+
     // Setup valid geometry
     req.definition.geometry.keys = vec![KeyNode::default()];
     req.definition.geometry.prime_slots = vec![0];
@@ -319,12 +327,25 @@ fn test_job_request_validation_exhaustive() {
     req.definition.geometry.keys = vec![KeyNode::default()];
 
     // Pins Limit
-    req.pinned_keys = vec![KeyConstraint { index: 0, key: "A".into() }; 201];
+    req.pinned_keys = vec![
+        KeyConstraint {
+            index: 0,
+            key: "A".into()
+        };
+        201
+    ];
     assert!(req.validate().is_err());
     req.pinned_keys.clear();
 
     // Biometrics Limit
-    req.biometrics = vec![BiometricSample { bigram: "ab".into(), ms: 10.0, timestamp: 0 }; 10_001];
+    req.biometrics = vec![
+        BiometricSample {
+            bigram: "ab".into(),
+            ms: 10.0,
+            timestamp: 0
+        };
+        10_001
+    ];
     assert!(req.validate().is_err());
     req.biometrics.clear();
 
@@ -338,7 +359,10 @@ fn test_job_request_validation_exhaustive() {
 
     // Pin Out of Bounds
     req.cost_matrix = CostMatrixSource::default();
-    req.pinned_keys = vec![KeyConstraint { index: 5, key: "A".into() }];
+    req.pinned_keys = vec![KeyConstraint {
+        index: 5,
+        key: "A".into(),
+    }];
     assert!(req.validate().is_err());
 }
 
@@ -386,7 +410,7 @@ fn test_job_identifier() {
 fn test_parsing_exhaustive() {
     // Simple
     assert_eq!(parse_key("A"), KeyAction::Simple("KC_A".into()));
-    
+
     // Constants
     assert_eq!(parse_key("TRNS"), KeyAction::Transparent);
     assert_eq!(parse_key("NO"), KeyAction::NoOp);
@@ -396,7 +420,7 @@ fn test_parsing_exhaustive() {
     assert_eq!(parse_key("MO(1)"), KeyAction::LayerMomentary(1));
     assert_eq!(parse_key("TG(1)"), KeyAction::LayerToggle(1));
     assert_eq!(parse_key("TO(1)"), KeyAction::LayerOn(1));
-    
+
     // Layer Limit
     assert!(matches!(parse_key("MO(32)"), KeyAction::Raw(_)));
 
@@ -422,7 +446,7 @@ fn test_parsing_exhaustive() {
 
     // Fallback / Raw
     assert!(matches!(parse_key("UNKNOWN(1)"), KeyAction::Raw(_)));
-    
+
     // Length Limit
     let long = "A".repeat(40);
     assert!(matches!(parse_key(&long), KeyAction::Raw(s) if s.len() == 32));
@@ -434,13 +458,41 @@ fn test_parsing_exhaustive() {
 
 #[test]
 fn test_struct_defaults() {
-    let _ = JobResponse { job_id: "".into(), is_new: false };
-    let _ = JobQueueResponse { job_id: None, config: None };
+    let _ = JobResponse {
+        job_id: "".into(),
+        is_new: false,
+    };
+    let _ = JobQueueResponse {
+        job_id: None,
+        config: None,
+    };
     let _ = PopulationResponse { layouts: vec![] };
-    let _ = NodeRequest { version: 1, node_id: "".into(), cpu_model: "".into(), cores: 1, l2_cache_kb: None, ops_per_sec: 1.0, public_key: None };
-    let _ = NodeResponse { status: "".into(), tuning: TuningProfile { strategy: "".into(), batch_size: 1, thread_count: 1 } };
+    let _ = NodeRequest {
+        version: 1,
+        node_id: "".into(),
+        cpu_model: "".into(),
+        cores: 1,
+        l2_cache_kb: None,
+        ops_per_sec: 1.0,
+        public_key: None,
+    };
+    let _ = NodeResponse {
+        status: "".into(),
+        tuning: TuningProfile {
+            strategy: "".into(),
+            batch_size: 1,
+            thread_count: 1,
+        },
+    };
     let _ = SystemMetrics::default();
-    let _ = JobStatus { job_id: "".into(), status: "".into(), active_nodes: 0, best_score: None, best_layout: None, total_samples: 0 };
+    let _ = JobStatus {
+        job_id: "".into(),
+        status: "".into(),
+        active_nodes: 0,
+        best_score: None,
+        best_layout: None,
+        total_samples: 0,
+    };
     let _ = UserStatsStore::default();
     let _ = KeyboardMeta::default();
 }
