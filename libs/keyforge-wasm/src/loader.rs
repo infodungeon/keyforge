@@ -1,4 +1,4 @@
-use keyforge_model::error::KeyForgeError;
+use keyforge_model::error::ForgeError;
 use keyforge_model::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_protocol::config::CorpusSource;
@@ -41,7 +41,7 @@ impl AssetLoader for InMemoryLoader {
             .get(name)
             .cloned()
             .ok_or_else(|| {
-                KeyForgeError::NotFound(format!("Keyboard '{}' not found in memory", name))
+                ForgeError::NotFound(format!("Keyboard '{}' not found in memory", name))
             })
     }
 
@@ -53,7 +53,7 @@ impl AssetLoader for InMemoryLoader {
                 .get(&first.id)
                 .cloned()
                 .ok_or_else(|| {
-                    KeyForgeError::NotFound(format!("Corpus '{}' not found in memory", first.id))
+                    ForgeError::NotFound(format!("Corpus '{}' not found in memory", first.id))
                 })
         } else {
             Ok(Corpus::default())
@@ -67,7 +67,7 @@ impl AssetLoader for InMemoryLoader {
             .get(filename)
             .cloned()
             .ok_or_else(|| {
-                KeyForgeError::NotFound(format!("Cost matrix '{}' not found in memory", filename))
+                ForgeError::NotFound(format!("Cost matrix '{}' not found in memory", filename))
             })
     }
 

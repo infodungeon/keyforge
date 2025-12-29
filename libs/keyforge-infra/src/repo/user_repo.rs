@@ -1,6 +1,6 @@
 use crate::error::{InfraError, InfraResult};
 use crate::fs::io::atomic_write;
-use crate::util::common::{generate_cost_matrix_from_stats, sanitize_filename};
+use crate::util::common::{generate_cost_profile, sanitize_filename};
 use keyforge_protocol::geometry::KeyboardDefinition;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 use serde::{Deserialize, Serialize};
@@ -140,9 +140,9 @@ impl UserRepo {
             )));
         }
 
-        let csv_content = generate_cost_matrix_from_stats(&store);
+        let profile_content = generate_cost_profile(&store);
         let output_path = self.root.join("user/personal_cost.json");
-        atomic_write(output_path, csv_content)?;
+        atomic_write(output_path, profile_content)?;
 
         Ok(format!(
             "Profile generated from {} samples.",

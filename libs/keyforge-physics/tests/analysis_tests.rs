@@ -1,22 +1,23 @@
-use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode}};
 use keyforge_physics::ScoringEngine;
 
 #[test]
 fn test_analyze_layout_comprehensive() {
     let keys: Vec<_> = (0..30)
         .map(|i| KeyNode {
-            id: i,
+            index: i,
             label: format!("k{}", i),
-            hand: (i % 2) as u8,
-            finger: (i % 5) as u8,
-            row: (i / 10) as i8,
-            col: (i % 10) as i8,
+            hand: HandIndex((i % 2) as u8),
+            finger: FingerIndex((i % 5) as u8),
+            row: RowIndex((i / 10) as i8),
+            col: ColIndex((i % 10) as i8),
             x: (i % 10) as f32,
             y: (i / 10) as f32,
             is_home: false,
+            ..Default::default()
         })
         .collect();
-    let kb = Keyboard::new(keys, 1);
+    let kb = Keyboard::new(keys, 1).unwrap();
 
     let mut corpus = Corpus::default();
     // SFB: 0 and 2 are same hand (0) and finger (0)
@@ -25,7 +26,7 @@ fn test_analyze_layout_comprehensive() {
     corpus.bigrams.push((0, 20, 100));
 
     let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
-    let layout = keyforge_model::Layout::new_unchecked((0..30).collect());
+    let layout = keyforge_model::Layout::new_unchecked((0..30u16).map(KeyCode).collect());
     let report = engine.analyze(&layout);
 
     assert!(report.score >= 0.0);

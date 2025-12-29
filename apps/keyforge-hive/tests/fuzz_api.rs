@@ -39,8 +39,8 @@ fn geometry_strategy() -> impl Strategy<Value = KeyboardGeometry> {
             .map(|(w, h, hand, finger)| KeyNode {
                 w,
                 h,
-                hand,
-                finger,
+                hand: keyforge_model::types::HandIndex(hand),
+                finger: keyforge_model::types::FingerIndex(finger),
                 ..Default::default()
             })
             .collect();

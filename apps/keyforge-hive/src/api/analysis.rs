@@ -64,11 +64,12 @@ pub async fn validate_layout(
         initial_layout: None,
         pinned_keys: vec![],
         cost_overrides,
-    });
+    })
+    .map_err(|e| AppError::Validation(format!("Failed to build physics engine: {}", e)))?;
 
     let key_count = engine.key_count();
     let layout = conversion::parse_layout_string(&payload.layout_str, key_count, &registry)
-        .map_err(AppError::Validation)?;
+        .map_err(|e| AppError::Validation(e.to_string()))?;
 
     let report = engine.analyze(&layout);
 

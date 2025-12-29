@@ -1,9 +1,10 @@
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Cell, CellAlignment, Table};
 use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_model::KeyCode;
 
 #[allow(dead_code)]
-pub fn print_layout(name: &str, codes: &[u16], registry: &KeycodeRegistry) {
+pub fn print_layout(name: &str, codes: &[KeyCode], registry: &KeycodeRegistry) {
     println!("\nLayout: {}", name);
     let mut table = Table::new();
     table.load_preset(ASCII_FULL);
@@ -14,7 +15,7 @@ pub fn print_layout(name: &str, codes: &[u16], registry: &KeycodeRegistry) {
         let cells: Vec<Cell> = chunk
             .iter()
             .map(|&code| {
-                let label = if code == 0 {
+                let label = if code == KeyCode(0) {
                     " ".to_string()
                 } else {
                     registry.get_label(code)

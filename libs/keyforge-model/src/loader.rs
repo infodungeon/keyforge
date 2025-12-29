@@ -1,8 +1,8 @@
-use crate::error::KeyForgeError;
+use crate::error::ForgeError;
 use crate::Corpus;
-use keyforge_protocol::config::CorpusSource;
-use keyforge_protocol::geometry::KeyboardDefinition;
-use keyforge_protocol::keycodes::KeycodeRegistry;
+use crate::config::CorpusSource;
+use crate::geometry::KeyboardDefinition;
+use crate::keycodes::KeycodeRegistry;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,7 +10,7 @@ pub struct RawCostData {
     pub entries: Vec<(String, String, f32)>,
 }
 
-pub type LoaderResult<T> = Result<T, KeyForgeError>;
+pub type LoaderResult<T> = Result<T, ForgeError>;
 
 pub trait AssetLoader: Send + Sync {
     fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition>;

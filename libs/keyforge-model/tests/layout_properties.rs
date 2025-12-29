@@ -1,4 +1,4 @@
-use keyforge_model::Layout;
+use keyforge_model::{Layout, types::KeyCode};
 use proptest::prelude::*;
 use std::collections::HashSet;
 
@@ -9,7 +9,8 @@ proptest! {
         let mut set = HashSet::new();
         let has_dupes = keys.iter().any(|&k| !set.insert(k));
 
-        let result = Layout::try_from(keys);
+        let key_codes: Vec<KeyCode> = keys.into_iter().map(KeyCode).collect();
+        let result = Layout::try_from(key_codes);
 
         if has_dupes {
             prop_assert!(result.is_err(), "Layout should reject duplicates");

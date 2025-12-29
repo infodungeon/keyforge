@@ -1,5 +1,5 @@
-use keyforge_adapter::conversion;
-use keyforge_model::SearchConfig;
+use keyforge_adapter::{conversion, error::AdapterError};
+use keyforge_model::{SearchConfig, types::KeyCode};
 use keyforge_protocol::keycodes::{KeycodeDefinition, KeycodeRegistry};
 use keyforge_protocol::{config, geometry, KeyConstraint};
 
@@ -11,21 +11,23 @@ fn test_to_domain_keyboard() {
     geo.home_row = 1;
     geo.keys = vec![
         geometry::KeyNode {
-            id: "Q".to_string(),
-            hand: 0,
-            finger: 0,
-            row: 0,
-            col: 0,
+            index: 0,
+            label: "Q".to_string(),
+            hand: keyforge_model::types::HandIndex(0),
+            finger: keyforge_model::types::FingerIndex(0),
+            row: keyforge_model::types::RowIndex(0),
+            col: keyforge_model::types::ColIndex(0),
             x: 0.0,
             y: 0.0,
             ..Default::default()
         },
         geometry::KeyNode {
-            id: "A".to_string(),
-            hand: 0,
-            finger: 0,
-            row: 1,
-            col: 0,
+            index: 1,
+            label: "A".to_string(),
+            hand: keyforge_model::types::HandIndex(0),
+            finger: keyforge_model::types::FingerIndex(0),
+            row: keyforge_model::types::RowIndex(1),
+            col: keyforge_model::types::ColIndex(0),
             x: 0.0,
             y: 1.0,
             ..Default::default()
@@ -101,19 +103,19 @@ fn test_to_domain_config() {
 fn test_registry() -> KeycodeRegistry {
     let defs = vec![
         KeycodeDefinition {
-            code: 65,
+            code: KeyCode(65),
             id: "KC_A".to_string(),
             label: "A".to_string(),
             aliases: vec!["A".to_string()],
         },
         KeycodeDefinition {
-            code: 66,
+            code: KeyCode(66),
             id: "KC_B".to_string(),
             label: "B".to_string(),
             aliases: vec!["B".to_string()],
         },
         KeycodeDefinition {
-            code: 100,
+            code: KeyCode(100),
             id: "MO".to_string(),
             label: "MO".to_string(),
             aliases: vec![],
@@ -128,58 +130,58 @@ fn test_resolve_constraints_known_keys() {
 
     let constraints = vec![
         KeyConstraint {
-            index: 0,
+            index: keyforge_model::types::KeyIndex(0),
             key: "A".to_string(),
         },
         KeyConstraint {
-            index: 2,
+            index: keyforge_model::types::KeyIndex(2),
             key: "B".to_string(),
         },
     ];
 
     let result = conversion::resolve_constraints(&constraints, 5, &registry).unwrap();
     assert_eq!(result.len(), 5);
-    assert_eq!(result[0], Some(65));
+    assert_eq!(result[0], Some(KeyCode(65)));
     assert_eq!(result[1], None);
-    assert_eq!(result[2], Some(66));
+    assert_eq!(result[2], Some(KeyCode(66)));
 }
 
 #[test]
 fn test_resolve_constraints_numeric_fallback() {
     let registry = KeycodeRegistry::new_with_defaults();
     let constraints = vec![KeyConstraint {
-        index: 0,
+        index: keyforge_model::types::KeyIndex(0),
         key: "123".to_string(),
     }];
 
     let result = conversion::resolve_constraints(&constraints, 5, &registry).unwrap();
-    assert_eq!(result[0], Some(123));
+    assert_eq!(result[0], Some(KeyCode(123)));
 }
 
 #[test]
 fn test_resolve_constraints_unknown_key() {
     let registry = KeycodeRegistry::new_with_defaults();
     let constraints = vec![KeyConstraint {
-        index: 0,
+        index: keyforge_model::types::KeyIndex(0),
         key: "UNKNOWN_KEY".to_string(),
     }];
 
     let result = conversion::resolve_constraints(&constraints, 5, &registry);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Unknown key"));
+    assert!(matches!(result.unwrap_err(), AdapterError::UnknownToken(_)));
 }
 
 #[test]
 fn test_resolve_constraints_out_of_bounds() {
     let registry = KeycodeRegistry::new_with_defaults();
     let constraints = vec![KeyConstraint {
-        index: 10,
+        index: keyforge_model::types::KeyIndex(10),
         key: "A".to_string(),
     }];
 
     let result = conversion::resolve_constraints(&constraints, 5, &registry);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("out of bounds"));
+    assert!(matches!(result.unwrap_err(), AdapterError::Validation(_)));
 }
 
 // ===== Cost Matrix Resolution Tests =====
@@ -189,15 +191,15 @@ fn test_resolve_cost_matrix() {
     let mut geo = geometry::KeyboardGeometry::default();
     geo.keys = vec![
         geometry::KeyNode {
-            id: "Q".to_string(),
+            label: "Q".to_string(),
             ..Default::default()
         },
         geometry::KeyNode {
-            id: "A".to_string(),
+            label: "A".to_string(),
             ..Default::default()
         },
         geometry::KeyNode {
-            id: "Z".to_string(),
+            label: "Z".to_string(),
             ..Default::default()
         },
     ];
@@ -230,10 +232,10 @@ fn test_parse_layout_string_strict_basic() {
     let result = conversion::parse_layout_string_strict("A B A", 4, &registry);
     assert!(result.is_ok());
     let layout = result.unwrap();
-    assert_eq!(layout.keys[0], 65);
-    assert_eq!(layout.keys[1], 66);
-    assert_eq!(layout.keys[2], 65);
-    assert_eq!(layout.keys[3], 0);
+    assert_eq!(layout.keys[0], KeyCode(65));
+    assert_eq!(layout.keys[1], KeyCode(66));
+    assert_eq!(layout.keys[2], KeyCode(65));
+    assert_eq!(layout.keys[3], KeyCode(0));
 }
 
 #[test]
@@ -242,8 +244,8 @@ fn test_parse_layout_string_strict_argument_stripping() {
     let result = conversion::parse_layout_string_strict("MO(1) A", 3, &registry);
     assert!(result.is_ok());
     let layout = result.unwrap();
-    assert_eq!(layout.keys[0], 100);
-    assert_eq!(layout.keys[1], 65);
+    assert_eq!(layout.keys[0], KeyCode(100));
+    assert_eq!(layout.keys[1], KeyCode(65));
 }
 
 #[test]
@@ -252,9 +254,9 @@ fn test_parse_layout_string_strict_ascii_fallback() {
     let result = conversion::parse_layout_string_strict("A x B", 3, &registry);
     assert!(result.is_ok());
     let layout = result.unwrap();
-    assert_eq!(layout.keys[0], 65);
-    assert_eq!(layout.keys[1], 120);
-    assert_eq!(layout.keys[2], 66);
+    assert_eq!(layout.keys[0], KeyCode(65));
+    assert_eq!(layout.keys[1], KeyCode(120));
+    assert_eq!(layout.keys[2], KeyCode(66));
 }
 
 #[test]
@@ -262,7 +264,7 @@ fn test_parse_layout_string_strict_unknown_token_error() {
     let registry = test_registry();
     let result = conversion::parse_layout_string_strict("A UNKNOWN B", 3, &registry);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Unknown key token"));
+    assert!(matches!(result.unwrap_err(), AdapterError::UnknownToken(_)));
 }
 
 #[test]
@@ -271,26 +273,26 @@ fn test_parse_layout_string_strict_max_length() {
     let long_string = "A ".repeat(100000);
     let result = conversion::parse_layout_string_strict(&long_string, 10, &registry);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("exceeds maximum length"));
+    assert!(matches!(result.unwrap_err(), AdapterError::LayoutTooLong(_)));
 }
 
 #[test]
 fn test_parse_layout_string_permissive_unknown_tokens() {
     let registry = test_registry();
     let layout = conversion::parse_layout_string_permissive("A UNKNOWN B", 4, &registry);
-    assert_eq!(layout.keys[0], 65);
-    assert_eq!(layout.keys[1], 0);
-    assert_eq!(layout.keys[2], 66);
-    assert_eq!(layout.keys[3], 0);
+    assert_eq!(layout.keys[0], KeyCode(65));
+    assert_eq!(layout.keys[1], KeyCode(0));
+    assert_eq!(layout.keys[2], KeyCode(66));
+    assert_eq!(layout.keys[3], KeyCode(0));
 }
 
 #[test]
 fn test_parse_layout_string_permissive_non_ascii() {
     let registry = test_registry();
     let layout = conversion::parse_layout_string_permissive("A ñ B", 3, &registry);
-    assert_eq!(layout.keys[0], 65);
-    assert_eq!(layout.keys[1], 0);
-    assert_eq!(layout.keys[2], 66);
+    assert_eq!(layout.keys[0], KeyCode(65));
+    assert_eq!(layout.keys[1], KeyCode(0));
+    assert_eq!(layout.keys[2], KeyCode(66));
 }
 
 #[test]

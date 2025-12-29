@@ -1,0 +1,729 @@
+// ===== libs/keyforge-model/Cargo.toml =====
+[package]
+name = "keyforge-model"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "2.0"
+keyforge-protocol = { path = "../keyforge-protocol" }
+serde-big-array = "0.5"
+smallvec = { version = "1.11", features = ["serde", "union", "const_generics"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+proptest = "1.4"
+
+use crate::error::KeyForgeError;
+use crate::serde_utils::deserialize_limited_vec;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Corpus {
+    #[serde(deserialize_with = "deserialize_limited_vec")]
+    pub char_freqs: Vec<u32>,
+    #[serde(deserialize_with = "deserialize_limited_vec")]
+    pub bigrams: Vec<(u16, u16, u32)>,
+    #[serde(deserialize_with = "deserialize_limited_vec")]
+    pub trigrams: Vec<(u16, u16, u16, u32)>,
+    #[serde(deserialize_with = "deserialize_limited_vec")]
+    pub words: Vec<(String, u32)>,
+}
+
+impl Default for Corpus {
+    fn default() -> Self {
+        Self {
+            char_freqs: vec![0; 65536],
+            bigrams: Vec::new(),
+            trigrams: Vec::new(),
+            words: Vec::new(),
+        }
+    }
+}
+
+impl Corpus {
+    /// Validates the integrity of the Corpus.
+    /// Ensures that frequency maps are sized correctly to prevent panics in the Physics engine.
+    pub fn validate(&self) -> Result<(), KeyForgeError> {
+        // 1. Char Freqs must cover full u16 range (0..65535)
+        // The physics engine uses direct indexing: ctx.char_freqs[code as usize]
+        if self.char_freqs.len() != 65536 {
+            return Err(KeyForgeError::InvalidData(format!(
+                "Corpus char_freqs length must be 65536, found {}",
+                self.char_freqs.len()
+            )));
+        }
+
+        // 2. Bigrams/Trigrams
+        // Since u16 indices are always < 65536, they are safe indices into char_freqs.
+        // We could check for duplicates here if strictness is required, but O(N) validation is preferred.
+        
+        Ok(())
+    }
+}
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum KeyForgeError {
+    #[error("IO Error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Serialization Error: {0}")]
+    Serde(#[from] serde_json::Error),
+
+    #[error("Compression Error: {0}")]
+    Compression(String),
+
+    #[error("MessagePack Error: {0}")]
+    MsgPack(String),
+
+    #[error("Asset Not Found: {0}")]
+    NotFound(String),
+
+    #[error("Invalid Data: {0}")]
+    InvalidData(String),
+
+    #[error("Internal Error: {0}")]
+    Internal(String),
+}
+
+use serde::{Deserialize, Serialize};
+use crate::error::KeyForgeError;
+
+/// Represents a single physical key.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KeyNode {
+    pub id: usize,     // Internal numeric ID (0..N)
+    pub label: String, // For debugging/display
+    pub hand: u8,      // 0 = Left, 1 = Right
+    pub finger: u8,    // 0=Thumb, 1=Index, 2=Middle, 3=Ring, 4=Pinky
+    pub row: i8,
+    pub col: i8,
+    pub x: f32,
+    pub y: f32,
+    pub is_home: bool,
+}
+
+/// The physical reality of the device.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Keyboard {
+    pub keys: Vec<KeyNode>,
+    pub home_row: i8,
+    // Pre-calculated centers for fingers [hand][finger] -> (x, y)
+    pub finger_origins: Vec<Vec<(f32, f32)>>,
+}
+
+impl Keyboard {
+    pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Result<Self, KeyForgeError> {
+        if keys.is_empty() {
+            return Err(KeyForgeError::InvalidData("Keyboard must have at least one key".into()));
+        }
+
+        for (i, key) in keys.iter().enumerate() {
+            if key.hand > 1 {
+                return Err(KeyForgeError::InvalidData(format!(
+                    "Key #{} has invalid hand index {} (must be 0 or 1)",
+                    i, key.hand
+                )));
+            }
+            if key.finger > 4 {
+                return Err(KeyForgeError::InvalidData(format!(
+                    "Key #{} has invalid finger index {} (must be 0-4)",
+                    i, key.finger
+                )));
+            }
+        }
+
+        let mut kb = Self {
+            keys,
+            home_row,
+            finger_origins: Vec::new(),
+        };
+        kb.calculate_origins();
+        Ok(kb)
+    }
+
+    fn calculate_origins(&mut self) {
+        // 1. Determine dimensions
+        let max_hand = self.keys.iter().map(|k| k.hand).max().unwrap_or(0) as usize;
+        let max_finger = self.keys.iter().map(|k| k.finger).max().unwrap_or(0) as usize;
+
+        // 2. Initialize with (0,0)
+        self.finger_origins = vec![vec![(0.0, 0.0); max_finger + 1]; max_hand + 1];
+
+        // 3. Populate
+        for hand in 0..=max_hand {
+            for finger in 0..=max_finger {
+                // Find Home Row key for this finger
+                let origin = self
+                    .keys
+                    .iter()
+                    .find(|k| {
+                        k.hand == hand as u8 && k.finger == finger as u8 && k.row == self.home_row
+                    })
+                    .or_else(|| {
+                        // Fallback: Find *any* key for this finger if home row missing
+                        self.keys
+                            .iter()
+                            .find(|k| k.hand == hand as u8 && k.finger == finger as u8)
+                    });
+
+                if let Some(k) = origin {
+                    self.finger_origins[hand][finger] = (k.x, k.y);
+                }
+            }
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        self.keys.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_keyboard() {
+        let keys = vec![KeyNode {
+            id: 0,
+            label: "A".into(),
+            hand: 0,
+            finger: 1,
+            row: 0,
+            col: 0,
+            x: 0.0,
+            y: 0.0,
+            is_home: false,
+        }];
+        assert!(Keyboard::new(keys, 0).is_ok());
+    }
+
+    #[test]
+    fn test_empty_keys_error() {
+        assert!(Keyboard::new(vec![], 0).is_err());
+    }
+
+    #[test]
+    fn test_invalid_hand_error() {
+        let keys = vec![KeyNode {
+            id: 0,
+            label: "A".into(),
+            hand: 2,
+            finger: 1,
+            row: 0,
+            col: 0,
+            x: 0.0,
+            y: 0.0,
+            is_home: false,
+        }];
+        assert!(Keyboard::new(keys, 0).is_err());
+    }
+}
+
+use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum LayoutError {
+    #[error("Layout contains duplicate keys")]
+    DuplicateKeys,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Layout {
+    // Optimization: Store up to 64 keys inline on the stack.
+    pub keys: SmallVec<[u16; 64]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct KeyIndex(pub usize);
+
+impl From<usize> for KeyIndex {
+    fn from(i: usize) -> Self {
+        Self(i)
+    }
+}
+
+impl From<KeyIndex> for usize {
+    fn from(k: KeyIndex) -> Self {
+        k.0
+    }
+}
+
+impl Layout {
+    /// Creates a layout without validation.
+    /// Use `try_from` for safe construction.
+    pub fn new_unchecked(keys: Vec<u16>) -> Self {
+        Self {
+            keys: SmallVec::from_vec(keys),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+}
+
+impl TryFrom<Vec<u16>> for Layout {
+    type Error = LayoutError;
+
+    fn try_from(keys: Vec<u16>) -> Result<Self, Self::Error> {
+        // Validation Logic: Check for duplicates
+        for i in 0..keys.len() {
+            for j in (i + 1)..keys.len() {
+                if keys[i] == keys[j] {
+                    return Err(LayoutError::DuplicateKeys);
+                }
+            }
+        }
+
+        Ok(Self {
+            keys: SmallVec::from_vec(keys),
+        })
+    }
+}
+
+pub mod corpus;
+pub mod error;
+pub mod keyboard;
+pub mod layout;
+pub mod loader;
+pub mod rubric;
+pub mod serde_utils;
+
+pub use corpus::Corpus;
+pub use error::KeyForgeError;
+pub use keyboard::{KeyNode, Keyboard};
+pub use keyforge_protocol::keycodes::KeycodeRegistry;
+pub use layout::{KeyIndex, Layout};
+pub use rubric::Rubric;
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SearchConfig {
+    Annealing {
+        steps: usize,
+        start_temp: f32,
+        end_temp: f32,
+        seed: u64,
+        patience: usize,
+        reheats: usize,
+        reheat_factor: f32,
+    },
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self::Annealing {
+            steps: 100_000,
+            start_temp: 100.0,
+            end_temp: 0.01,
+            seed: 42,
+            patience: 500,
+            reheats: 3,
+            reheat_factor: 0.5,
+        }
+    }
+}
+
+impl SearchConfig {
+    pub fn validate(&self) -> Result<(), KeyForgeError> {
+        match self {
+            SearchConfig::Annealing {
+                steps,
+                start_temp,
+                end_temp,
+                reheat_factor,
+                ..
+            } => {
+                if *steps == 0 {
+                    return Err(KeyForgeError::InvalidData("Steps must be > 0".into()));
+                }
+                if *start_temp < 0.0 {
+                    return Err(KeyForgeError::InvalidData("Start temp must be >= 0".into()));
+                }
+                if *end_temp < 0.0 {
+                    return Err(KeyForgeError::InvalidData("End temp must be >= 0".into()));
+                }
+                if *reheat_factor <= 0.0 {
+                    return Err(KeyForgeError::InvalidData("Reheat factor must be > 0".into()));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MetricViolation {
+    pub keys: String,
+    pub score: f32,
+    pub freq: f32,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AnalysisReport {
+    pub score: f32,
+    pub distance: f32,
+    pub sfb_total: f32,
+    pub sfb_ratio: f32,
+    pub hand_balance: f32,
+    pub scissors: f32,
+    pub redirects: f32,
+    pub rolls: f32,
+
+    // Visual Data
+    #[serde(default)]
+    pub heatmap: Vec<f32>,
+
+    // Detailed Metrics
+    #[serde(default)]
+    pub top_sfbs: Vec<MetricViolation>,
+    #[serde(default)]
+    pub top_scissors: Vec<MetricViolation>,
+    #[serde(default)]
+    pub top_redirs: Vec<MetricViolation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimizationResult {
+    pub score: f32,
+    pub layout: Layout,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SwapSuggestion {
+    pub index_a: usize,
+    pub index_b: usize,
+    pub key_a: String,
+    pub key_b: String,
+    pub score_delta: f32,
+    pub improvement_pct: f32,
+}
+
+use crate::error::KeyForgeError;
+use crate::Corpus;
+use keyforge_protocol::config::CorpusSource;
+use keyforge_protocol::geometry::KeyboardDefinition;
+use keyforge_protocol::keycodes::KeycodeRegistry;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RawCostData {
+    pub entries: Vec<(String, String, f32)>,
+}
+
+pub type LoaderResult<T> = Result<T, KeyForgeError>;
+
+pub trait AssetLoader: Send + Sync {
+    fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition>;
+    fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus>;
+    fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData>;
+    fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry>;
+}
+
+use serde::{Deserialize, Serialize};
+pub mod keyboard;
+pub mod layout;
+pub mod corpus;
+pub mod rubric;
+pub mod keycodes;
+
+pub use keyboard::{Keyboard, KeyNode};
+pub use layout::Layout;
+pub use corpus::Corpus;
+pub use rubric::Rubric;
+pub use keycodes::KeycodeRegistry;
+
+// Re-add SearchConfig here if not present
+#[derive(Debug, Clone)]
+pub struct SearchConfig {
+    pub steps: usize,
+    pub start_temp: f32,
+    pub end_temp: f32,
+    pub seed: u64,
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self {
+            steps: 100_000,
+            start_temp: 100.0,
+            end_temp: 0.01,
+            seed: 42,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+#[derive(Serialize, Deserialize)]
+pub struct AnalysisReport {
+    pub score: f32,
+    pub distance: f32,
+    pub sfb_total: f32,     // Total frequency of Same Finger Bigrams
+    pub sfb_ratio: f32,     // SFB / Total Bigrams
+    pub hand_balance: f32,  // -1.0 (Left) to 1.0 (Right). 0.0 is perfect.
+    pub scissors: f32,      // Frequency of scissor actions
+    pub redirects: f32,     // Frequency of redirects
+    pub rolls: f32,         // Frequency of rolls
+}
+
+use serde::{Deserialize, Serialize};
+use crate::error::KeyForgeError;
+
+/// Configuration for the Physics Engine.
+/// Defines "What is expensive?"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Rubric {
+    // SFB Penalties
+    pub sfb_base: f32,
+    pub sfb_lateral: f32,
+
+    // Geometry Weights
+    pub travel_lat: f32,
+    pub travel_vert: f32,
+
+    // Finger Weights (Thumb..Pinky)
+    pub finger_effort: [f32; 5],
+
+    // Flow
+    pub redirect: f32,
+    pub roll_bonus: f32,
+    pub trigram_coverage: f32,
+    pub trigram_limit: usize,
+}
+
+impl Default for Rubric {
+    fn default() -> Self {
+        Self {
+            sfb_base: 400.0,
+            sfb_lateral: 65.0,
+            travel_lat: 3.5,
+            travel_vert: 1.0,
+            finger_effort: [0.0, 1.0, 1.1, 1.3, 1.6],
+            redirect: 65.0,
+            roll_bonus: 35.0,
+            trigram_coverage: 0.99,
+            trigram_limit: 50_000,
+        }
+    }
+}
+
+impl Rubric {
+    pub fn validate(&self) -> Result<(), KeyForgeError> {
+        if self.trigram_coverage < 0.0 || self.trigram_coverage > 1.0 {
+            return Err(KeyForgeError::InvalidData(format!(
+                "Trigram coverage must be between 0.0 and 1.0, found {}",
+                self.trigram_coverage
+            )));
+        }
+        if self.trigram_limit == 0 {
+            return Err(KeyForgeError::InvalidData(
+                "Trigram limit must be greater than 0".into(),
+            ));
+        }
+        // Basic sanity checks for weights (optional, but good practice)
+        if self.sfb_base < 0.0 || self.sfb_lateral < 0.0 {
+             return Err(KeyForgeError::InvalidData(
+                "SFB penalties cannot be negative".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+use serde::{Deserialize, Deserializer};
+
+pub fn deserialize_limited_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let v: Vec<T> = Vec::deserialize(deserializer)?;
+    // Hard limit of 100k items to prevent memory exhaustion
+    if v.len() > 100_000 {
+        return Err(serde::de::Error::custom(
+            "Vector exceeds limit of 100,000 items",
+        ));
+    }
+    Ok(v)
+}
+
+use keyforge_model::{Rubric, SearchConfig};
+
+#[test]
+fn test_rubric_validation() {
+    let mut r = Rubric::default();
+    assert!(r.validate().is_ok());
+
+    r.trigram_coverage = 1.5;
+    assert!(r.validate().is_err());
+
+    r.trigram_coverage = -0.1;
+    assert!(r.validate().is_err());
+
+    r.trigram_coverage = 0.5;
+    r.trigram_limit = 0;
+    assert!(r.validate().is_err());
+    
+    r.trigram_limit = 100;
+    r.sfb_base = -10.0;
+    assert!(r.validate().is_err());
+}
+
+#[test]
+fn test_search_config_validation() {
+    let mut c = SearchConfig::default();
+    assert!(c.validate().is_ok());
+
+    // Test Steps
+    c = SearchConfig::Annealing {
+        steps: 0,
+        start_temp: 100.0,
+        end_temp: 0.01,
+        seed: 42,
+        patience: 500,
+        reheats: 3,
+        reheat_factor: 0.5,
+    };
+    assert!(c.validate().is_err());
+
+    // Test Temp
+    c = SearchConfig::Annealing {
+        steps: 100,
+        start_temp: -1.0,
+        end_temp: 0.01,
+        seed: 42,
+        patience: 500,
+        reheats: 3,
+        reheat_factor: 0.5,
+    };
+    assert!(c.validate().is_err());
+}
+
+use keyforge_model::Corpus;
+
+#[test]
+fn test_corpus_validation_default() {
+    let c = Corpus::default();
+    assert!(c.validate().is_ok());
+}
+
+#[test]
+fn test_corpus_validation_bad_freqs_short() {
+    let mut c = Corpus::default();
+    c.char_freqs = vec![0; 10]; // Too short
+    assert!(c.validate().is_err());
+}
+
+#[test]
+fn test_corpus_validation_bad_freqs_long() {
+    let mut c = Corpus::default();
+    c.char_freqs = vec![0; 70000]; // Too long
+    assert!(c.validate().is_err());
+}
+
+#[test]
+fn test_corpus_validation_valid_mutation() {
+    let mut c = Corpus::default();
+    c.char_freqs['a' as usize] = 100;
+    c.bigrams.push(('a' as u16, 'b' as u16, 50));
+    assert!(c.validate().is_ok());
+}
+
+use keyforge_model::{Corpus, Rubric};
+use serde_json;
+
+#[test]
+fn test_corpus_lifecycle() {
+    // 1. Default Construction
+    let mut c = Corpus::default();
+    assert_eq!(
+        c.char_freqs.len(),
+        65536,
+        "Corpus should initialize full unicode frequency map"
+    );
+    assert!(c.bigrams.is_empty());
+    assert!(c.trigrams.is_empty());
+    assert!(c.words.is_empty());
+
+    // 2. Mutation
+    c.char_freqs['a' as usize] = 100;
+    c.bigrams.push(('a' as u16, 'b' as u16, 50));
+    c.trigrams.push(('a' as u16, 'b' as u16, 'c' as u16, 10));
+    c.words.push(("test".to_string(), 5));
+
+    // 3. Serialization Round-trip
+    let json = serde_json::to_string(&c).expect("Failed to serialize Corpus");
+    let recovered: Corpus = serde_json::from_str(&json).expect("Failed to deserialize Corpus");
+
+    // 4. Verification
+    assert_eq!(recovered.char_freqs['a' as usize], 100);
+    assert_eq!(recovered.bigrams.len(), 1);
+    assert_eq!(recovered.bigrams[0], ('a' as u16, 'b' as u16, 50));
+    assert_eq!(recovered.trigrams.len(), 1);
+    assert_eq!(recovered.words.len(), 1);
+    assert_eq!(recovered.words[0].0, "test");
+}
+
+#[test]
+fn test_rubric_lifecycle() {
+    // 1. Default Construction
+    let r = Rubric::default();
+
+    // Check key defaults to ensure physics engine gets sensible start values
+    assert!(r.sfb_base > 0.0);
+    assert!(r.travel_lat > 0.0);
+    assert!(r.travel_vert > 0.0);
+    assert_eq!(r.finger_effort.len(), 5);
+
+    // 2. Serialization Round-trip
+    let json = serde_json::to_string(&r).expect("Failed to serialize Rubric");
+    let recovered: Rubric = serde_json::from_str(&json).expect("Failed to deserialize Rubric");
+
+    // 3. Verification
+    assert_eq!(r.sfb_base, recovered.sfb_base);
+    assert_eq!(r.finger_effort, recovered.finger_effort);
+}
+
+#[test]
+fn test_rubric_modification() {
+    let mut r = Rubric::default();
+    r.sfb_base = 1000.0;
+    r.finger_effort[4] = 5.0; // Pinky penalty
+
+    assert_eq!(r.sfb_base, 1000.0);
+    assert_eq!(r.finger_effort[4], 5.0);
+}
+
+use keyforge_model::Layout;
+use proptest::prelude::*;
+use std::collections::HashSet;
+
+proptest! {
+    #[test]
+    fn test_layout_uniqueness_invariant(keys in prop::collection::vec(0u16..100, 0..50)) {
+        // Check if the input has duplicates
+        let mut set = HashSet::new();
+        let has_dupes = keys.iter().any(|&k| !set.insert(k));
+
+        let result = Layout::try_from(keys);
+
+        if has_dupes {
+            prop_assert!(result.is_err(), "Layout should reject duplicates");
+        } else {
+            prop_assert!(result.is_ok(), "Layout should accept unique keys");
+        }
+    }
+}
+

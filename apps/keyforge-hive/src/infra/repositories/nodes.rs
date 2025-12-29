@@ -85,4 +85,12 @@ impl NodeRepository {
                 .await?;
         Ok(result.rows_affected())
     }
+
+    pub async fn touch_node(&self, node_id: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE nodes SET last_seen = NOW() WHERE id = $1")
+            .bind(node_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }

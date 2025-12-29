@@ -178,7 +178,7 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) {
         len as usize,
         std::mem::align_of::<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(),
     )
-    .unwrap();
+    .expect("Failed to create memory layout for GetLogicalProcessorInformationEx");
     let ptr = unsafe { alloc(layout) };
     if ptr.is_null() {
         return;

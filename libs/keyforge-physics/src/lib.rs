@@ -12,7 +12,7 @@ use kernel::compiler::Compiler;
 pub use errors::PhysicsError;
 use kernel::compute::{analyze_layout, score_layout};
 pub use kernel::EngineContext;
-use kernel::types::ValidatedLayout;
+use kernel::types::{KeyCode, ValidatedLayout};
 use keyforge_model::{
     AnalysisReport, Corpus, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig,
 };
@@ -58,7 +58,7 @@ impl ScoringEngine {
 
     pub fn calculate_swap_delta(
         &self,
-        layout: &[u16],
+        layout: &[KeyCode],
         pos_map: &[u16],
         idx_a: usize,
         idx_b: usize,
@@ -68,7 +68,7 @@ impl ScoringEngine {
         kernel::compute::calculate_swap_delta(&self.ctx, &validated, pos_map, idx_a, idx_b)
     }
 
-    pub fn score_raw(&self, layout: &[u16]) -> i64 {
+    pub fn score_raw(&self, layout: &[KeyCode]) -> i64 {
         let validated = ValidatedLayout::new(layout, self.ctx.key_count)
             .expect("Physics Violation: Layout size mismatch");
         let mut pos_map = vec![65535u16; 65536];
@@ -91,7 +91,7 @@ pub struct EngineRequest {
     pub rubric: Arc<Rubric>,
     pub config: SearchConfig,
     pub initial_layout: Option<Layout>,
-    pub pinned_keys: Vec<Option<u16>>,
+    pub pinned_keys: Vec<Option<KeyCode>>,
     pub cost_overrides: Vec<(usize, usize, f32)>,
 }
 
@@ -103,7 +103,7 @@ pub fn score(req: &EngineRequest) -> OptimizationResult {
     let layout = req
         .initial_layout
         .clone()
-        .unwrap_or_else(|| Layout::new_unchecked(vec![0; engine.context().key_count]));
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
 
     OptimizationResult {
         score: engine.score(&layout),
@@ -118,7 +118,7 @@ pub fn analyze(req: &EngineRequest) -> AnalysisReport {
     let layout = req
         .initial_layout
         .clone()
-        .unwrap_or_else(|| Layout::new_unchecked(vec![0; engine.context().key_count]));
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
     engine.analyze(&layout)
 }
 
@@ -135,7 +135,7 @@ pub fn suggest_improvements(req: &EngineRequest) -> Vec<SwapSuggestion> {
     let layout = req
         .initial_layout
         .clone()
-        .unwrap_or_else(|| Layout::new_unchecked(vec![0; engine.context().key_count]));
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
     engine.suggest_improvements(&layout)
 }
 
@@ -143,17 +143,18 @@ pub fn suggest_improvements(req: &EngineRequest) -> Vec<SwapSuggestion> {
 mod tests {
     use super::*;
     use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
+    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
     use std::sync::Arc;
 
     fn setup_physics_engine() -> ScoringEngine {
         let keys = vec![
-            KeyNode { id: 0, label: "A".to_string(), hand: 0, finger: 1, row: 1, col: 0, x: 0.0, y: 1.0, is_home: true },
-            KeyNode { id: 1, label: "B".to_string(), hand: 0, finger: 2, row: 1, col: 1, x: 1.0, y: 1.0, is_home: true },
-            KeyNode { id: 2, label: "C".to_string(), hand: 0, finger: 3, row: 1, col: 2, x: 2.0, y: 1.0, is_home: true },
-            KeyNode { id: 3, label: "D".to_string(), hand: 1, finger: 1, row: 1, col: 6, x: 6.0, y: 1.0, is_home: true },
-            KeyNode { id: 4, label: "E".to_string(), hand: 0, finger: 1, row: 3, col: 0, x: 0.0, y: 3.0, is_home: false },
+            KeyNode { index: 0, label: "A".to_string(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(1), col: ColIndex(0), x: 0.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 1, label: "B".to_string(), hand: HandIndex(0), finger: FingerIndex(2), row: RowIndex(1), col: ColIndex(1), x: 1.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 2, label: "C".to_string(), hand: HandIndex(0), finger: FingerIndex(3), row: RowIndex(1), col: ColIndex(2), x: 2.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 3, label: "D".to_string(), hand: HandIndex(1), finger: FingerIndex(1), row: RowIndex(1), col: ColIndex(6), x: 6.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 4, label: "E".to_string(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(3), col: ColIndex(0), x: 0.0, y: 3.0, is_home: false, ..Default::default() },
         ];
-        let keyboard = Arc::new(Keyboard::new(keys, 1));
+        let keyboard = Arc::new(Keyboard::new(keys, 1).unwrap());
 
         let mut corpus = Corpus::default();
         corpus.char_freqs[0] = 100;
@@ -170,24 +171,25 @@ mod tests {
     fn setup_kb(size: usize) -> Keyboard {
         let keys: Vec<KeyNode> = (0..size)
             .map(|i| KeyNode {
-                id: i,
+                index: i,
                 label: format!("k{}", i),
-                hand: 0,
-                finger: i as u8,
-                row: 0,
-                col: i as i8,
+                hand: HandIndex(0),
+                finger: FingerIndex(i as u8),
+                row: RowIndex(0),
+                col: ColIndex(i as i8),
                 x: i as f32,
                 y: 0.0,
                 is_home: true,
+                ..Default::default()
             })
             .collect();
-        Keyboard::new(keys, 0)
+        Keyboard::new(keys, 0).unwrap()
     }
 
     #[test]
     fn test_analyze_layout_comprehensive() {
         let engine = setup_physics_engine();
-        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
         let report = engine.analyze(&layout);
 
         assert_eq!(report.heatmap[0], 100.0);
@@ -213,7 +215,7 @@ mod tests {
     #[test]
     fn test_swap_delta_bounds_strict() {
         let kb = setup_kb(5);
-        let layout_vec: Vec<u16> = (0..10).collect();
+        let layout_vec: Vec<KeyCode> = (0..10u16).map(KeyCode).collect();
         let layout = Layout::new_unchecked(layout_vec);
         let corpus = Corpus::default();
         let rubric = Rubric::default();
@@ -233,7 +235,7 @@ mod tests {
     #[test]
     fn test_swap_delta_reflexive_skips() {
         let kb = setup_kb(5);
-        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
         let mut corpus = Corpus::default();
         corpus.bigrams.push((0, 0, 100));
         corpus.trigrams.push((0, 0, 0, 100));
@@ -251,7 +253,7 @@ mod tests {
     #[test]
     fn test_swap_delta_math_coverage() {
         let kb = setup_kb(5);
-        let layout = Layout::new_unchecked(vec![0, 1, 2, 3, 4]);
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
         let mut corpus = Corpus::default();
         corpus.bigrams.push((0, 1, 100));
         corpus.bigrams.push((1, 0, 100));

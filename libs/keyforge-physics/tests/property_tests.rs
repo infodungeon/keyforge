@@ -1,4 +1,4 @@
-use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode}};
 use keyforge_physics::{verify::DeterministicScorer, ScoringEngine};
 use proptest::prelude::*;
 
@@ -48,18 +48,19 @@ fn keyboard_strategy() -> impl Strategy<Value = Keyboard> {
                 .into_iter()
                 .enumerate()
                 .map(|(i, (x, y, hand, finger, row, col))| KeyNode {
-                    id: i,
+                    index: i,
                     label: format!("k{}", i),
-                    hand,
-                    finger,
-                    row,
-                    col,
+                    hand: HandIndex(hand),
+                    finger: FingerIndex(finger),
+                    row: RowIndex(row),
+                    col: ColIndex(col),
                     x,
                     y,
                     is_home: row == 1,
+                    ..Default::default()
                 })
                 .collect();
-            Keyboard::new(keys, 1)
+            Keyboard::new(keys, 1).unwrap()
         })
     })
 }
@@ -100,7 +101,7 @@ proptest! {
         for k in layout_keys.iter_mut() {
             *k = *k % (key_count as u16);
         }
-        let layout = Layout::new_unchecked(layout_keys);
+        let layout = Layout::new_unchecked(layout_keys.into_iter().map(KeyCode).collect());
 
         // 1. Setup Engines
         let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();

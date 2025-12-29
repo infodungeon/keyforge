@@ -2,6 +2,7 @@ use clap::Args;
 use indicatif::{ProgressBar, ProgressStyle};
 use keyforge_compute::Runtime;
 use keyforge_core::ProgressCallback;
+use keyforge_model::KeyCode;
 
 #[derive(Args, Debug, Clone)]
 pub struct SearchArgs {
@@ -29,7 +30,7 @@ struct CliProgress {
 }
 
 impl ProgressCallback for CliProgress {
-    fn on_progress(&self, step: usize, score: f32, _layout: &[u16], ips: f32) -> bool {
+    fn on_progress(&self, step: usize, score: f32, _layout: &[KeyCode], ips: f32) -> bool {
         self.bar.set_position(step as u64);
         self.bar
             .set_message(format!("Score: {:.0} | {:.2} M/s", score, ips));

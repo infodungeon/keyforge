@@ -1,5 +1,6 @@
 use keyforge_core::EngineRequest;
-use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::info;
@@ -13,24 +14,25 @@ pub fn measure_performance() -> f64 {
     let key_count = 30;
     let keys: Vec<KeyNode> = (0..key_count)
         .map(|i| KeyNode {
-            id: i,
+            index: i,
             label: format!("k{}", i),
-            hand: if i < 15 { 0 } else { 1 },
-            finger: (i % 5) as u8,
-            row: (i / 10) as i8,
-            col: (i % 10) as i8,
+            hand: HandIndex(if i < 15 { 0 } else { 1 }),
+            finger: FingerIndex((i % 5) as u8),
+            row: RowIndex((i / 10) as i8),
+            col: ColIndex((i % 10) as i8),
             x: (i % 10) as f32,
             y: (i / 10) as f32,
             is_home: (10..20).contains(&i),
+            ..Default::default()
         })
         .collect();
 
-    let keyboard = Keyboard::new(keys, 1);
+    let keyboard = Keyboard::new(keys, 1).expect("Failed to create calibration keyboard");
     let corpus = Corpus::default();
     let rubric = Rubric::default();
     let config = SearchConfig::default();
 
-    let layout = Layout::new_unchecked((0..key_count as u16).collect());
+    let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
     let req = EngineRequest {
         keyboard: Arc::new(keyboard),

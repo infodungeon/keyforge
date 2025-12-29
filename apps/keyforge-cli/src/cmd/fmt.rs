@@ -1,6 +1,7 @@
 use clap::Args;
 use keyforge_infra::load_keycode_registry;
 use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_model::KeyCode;
 use std::fmt::Write;
 use std::path::Path;
 
@@ -22,7 +23,7 @@ pub fn run(args: FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>>
     let layout = keyforge_adapter::conversion::parse_layout_string(&args.layout, 200, &registry)
         .map_err(|e| format!("Failed to parse layout: {}", e))?;
 
-    let valid_codes: Vec<u16> = layout.keys.into_iter().filter(|&c| c != 0).collect();
+    let valid_codes: Vec<KeyCode> = layout.keys.into_iter().filter(|&c| c != KeyCode(0)).collect();
 
     if valid_codes.is_empty() {
         println!();

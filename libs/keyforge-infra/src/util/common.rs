@@ -22,10 +22,12 @@ pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
+use keyforge_model::loader::RawCostData;
 use keyforge_protocol::UserStatsStore;
 
-pub fn generate_cost_matrix_from_stats(_store: &UserStatsStore) -> String {
-    "From,To,Cost\n".to_string() // Stub
+pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
+    let data = RawCostData { entries: vec![] };
+    serde_json::to_string(&data).unwrap_or_else(|_| "{\"entries\":[]}".to_string())
 }
 
 use crate::error::InfraError;

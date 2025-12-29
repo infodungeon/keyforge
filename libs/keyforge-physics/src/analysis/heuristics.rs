@@ -43,8 +43,8 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion
                     suggestions.push(SwapSuggestion {
                         index_a: i,
                         index_b: j,
-                        key_a: format!("{}", i),
-                        key_b: format!("{}", j),
+                        key_a: format!("{}", layout.keys[i]),
+                        key_b: format!("{}", layout.keys[j]),
                         score_delta: improvement,
                         improvement_pct: pct,
                     });

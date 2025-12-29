@@ -119,7 +119,8 @@ impl VerificationService {
         let domain_rubric = keyforge_adapter::conversion::to_domain_rubric(&weights);
 
         let engine =
-            keyforge_core::ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides);
+            keyforge_core::ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)
+            .map_err(|e| AppError::Validation(format!("Physics error: {}", e)))?;
         let engine_arc = Arc::new(engine);
 
         self.engine_cache.insert(&sub.job_id, engine_arc.clone());

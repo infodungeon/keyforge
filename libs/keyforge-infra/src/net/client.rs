@@ -1,4 +1,4 @@
-// ===== keyforge/crates/keyforge-workspace/src/client.rs =====
+use crate::error::{InfraError, InfraResult};
 use reqwest::{header, Client, RequestBuilder};
 use std::time::Duration;
 
@@ -9,11 +9,12 @@ pub struct HiveClient {
 }
 
 impl HiveClient {
-    pub fn new(base_url: String, secret: Option<String>) -> Result<Self, String> {
+    pub fn new(base_url: String, secret: Option<String>) -> InfraResult<Self> {
         let mut headers = header::HeaderMap::new();
         if let Some(s) = secret {
             if !s.is_empty() {
-                let mut val = header::HeaderValue::from_str(&s).map_err(|e| e.to_string())?;
+                let mut val = header::HeaderValue::from_str(&s)
+                    .map_err(|_| InfraError::Config("Invalid secret key characters".into()))?;
                 val.set_sensitive(true);
                 headers.insert("X-Keyforge-Secret", val);
             }
@@ -29,8 +30,7 @@ impl HiveClient {
             .default_headers(headers)
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
-            .build()
-            .map_err(|e| e.to_string())?;
+            .build()?;
 
         // Normalize URL (strip trailing slash)
         let normalized_url = if base_url.ends_with('/') {

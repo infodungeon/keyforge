@@ -1,4 +1,5 @@
-use keyforge_model::{self, KeyNode};
+use crate::error::{AdapterError, AdapterResult};
+use keyforge_model::{KeyCode, KeyNode};
 use keyforge_protocol::constants::MAX_LAYOUT_DATA_LEN;
 use keyforge_protocol::keycodes::KeycodeRegistry;
 use keyforge_protocol::{config, geometry, KeyConstraint};
@@ -9,19 +10,20 @@ pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> keyforge_model::K
         .iter()
         .enumerate()
         .map(|(i, k)| KeyNode {
-            id: i,
-            label: k.id.clone(),
+            index: i,
+            label: k.label.clone(),
             hand: k.hand,
             finger: k.finger,
             row: k.row,
             col: k.col,
             x: k.x,
             y: k.y,
-            is_home: k.row == geo.home_row,
+            is_home: k.row == keyforge_model::types::RowIndex(geo.home_row),
+            ..Default::default()
         })
         .collect();
 
-    keyforge_model::Keyboard::new(keys, geo.home_row)
+    keyforge_model::Keyboard::new(keys, geo.home_row).expect("Failed to create keyboard from adapter geometry")
 }
 
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
@@ -55,10 +57,10 @@ pub fn resolve_constraints(
     proto_constraints: &[KeyConstraint],
     key_count: usize,
     registry: &KeycodeRegistry,
-) -> Result<Vec<Option<u16>>, String> {
+) -> AdapterResult<Vec<Option<KeyCode>>> {
     let mut pins = vec![None; key_count];
     for c in proto_constraints {
-        let idx = c.index as usize;
+        let idx = usize::from(c.index);
         if idx < key_count {
             // Resolve string key to u16 code
             if let Some(code) = registry.get_code(&c.key) {
@@ -66,16 +68,16 @@ pub fn resolve_constraints(
             } else {
                 // Try parsing as number if lookup fails (backward compatibility/direct ID)
                 if let Ok(code) = c.key.parse::<u16>() {
-                    pins[idx] = Some(code);
+                    pins[idx] = Some(KeyCode(code));
                 } else {
-                    return Err(format!("Unknown key in constraint: {}", c.key));
+                    return Err(AdapterError::UnknownToken(c.key.clone()));
                 }
             }
         } else {
-            return Err(format!(
+            return Err(AdapterError::Validation(format!(
                 "Constraint index {} out of bounds (max {})",
                 idx, key_count
-            ));
+            )));
         }
     }
     Ok(pins)
@@ -88,7 +90,7 @@ pub fn resolve_cost_matrix(
     let mut overrides = Vec::new();
     let mut id_map = std::collections::HashMap::new();
     for (i, k) in geo.keys.iter().enumerate() {
-        id_map.insert(k.id.clone(), i);
+        id_map.insert(k.label.clone(), i);
     }
     for (id1, id2, cost) in raw_data {
         if let (Some(&idx1), Some(&idx2)) = (id_map.get(id1), id_map.get(id2)) {
@@ -106,12 +108,9 @@ pub fn parse_layout_string_strict(
     s: &str,
     size: usize,
     registry: &KeycodeRegistry,
-) -> Result<keyforge_model::Layout, String> {
+) -> AdapterResult<keyforge_model::Layout> {
     if s.len() > MAX_LAYOUT_DATA_LEN {
-        return Err(format!(
-            "Layout string exceeds maximum length of {}",
-            MAX_LAYOUT_DATA_LEN
-        ));
+        return Err(AdapterError::LayoutTooLong(MAX_LAYOUT_DATA_LEN));
     }
 
     let mut keys = Vec::with_capacity(size);
@@ -139,19 +138,19 @@ pub fn parse_layout_string_strict(
             keys.push(code);
         } else {
             if token.len() == 1 {
-                let c = token.chars().next().unwrap();
+                let c = token.chars().next().expect("token of length 1 should have a character");
                 if c.is_ascii() {
-                    keys.push(c as u16);
+                    keys.push(KeyCode(c as u16));
                     continue;
                 }
             }
             // Strict parsing: Don't silently insert 0 for unknown tokens
-            return Err(format!("Unknown key token: {}", token));
+            return Err(AdapterError::UnknownToken(token.to_string()));
         }
     }
 
     while keys.len() < size {
-        keys.push(0);
+        keys.push(KeyCode(0));
     }
 
     Ok(keyforge_model::Layout::new_unchecked(keys))
@@ -190,20 +189,20 @@ pub fn parse_layout_string_permissive(
         } else if token.len() == 1 {
             if let Some(c) = token.chars().next() {
                 if c.is_ascii() {
-                    keys.push(c as u16);
+                    keys.push(KeyCode(c as u16));
                 } else {
-                    keys.push(0);
+                    keys.push(KeyCode(0));
                 }
             } else {
-                keys.push(0);
+                keys.push(KeyCode(0));
             }
         } else {
-            keys.push(0);
+            keys.push(KeyCode(0));
         }
     }
 
     while keys.len() < size {
-        keys.push(0);
+        keys.push(KeyCode(0));
     }
 
     keyforge_model::Layout::new_unchecked(keys)
@@ -216,6 +215,6 @@ pub fn parse_layout_string(
     s: &str,
     size: usize,
     registry: &KeycodeRegistry,
-) -> Result<keyforge_model::Layout, String> {
+) -> AdapterResult<keyforge_model::Layout> {
     parse_layout_string_strict(s, size, registry)
 }

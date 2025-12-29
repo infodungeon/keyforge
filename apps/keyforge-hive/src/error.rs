@@ -3,7 +3,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use keyforge_model::error::KeyForgeError;
+use keyforge_model::error::ForgeError;
 use keyforge_protocol::error::{ErrorCode, ErrorResponse};
 use thiserror::Error;
 
@@ -16,7 +16,7 @@ pub enum AppError {
     Serde(#[from] serde_json::Error),
 
     #[error("Loader Error: {0}")]
-    Loader(#[from] KeyForgeError),
+    Loader(#[from] ForgeError),
 
     #[error("Validation error: {0}")]
     Validation(String),
@@ -49,7 +49,7 @@ impl IntoResponse for AppError {
             ),
             AppError::Loader(e) => {
                 let status = match &e {
-                    KeyForgeError::NotFound(_) => StatusCode::NOT_FOUND,
+                    ForgeError::NotFound(_) => StatusCode::NOT_FOUND,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 };
                 (status, ErrorCode::InternalError, e.to_string())

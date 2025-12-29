@@ -1,10 +1,10 @@
-use keyforge_model::error::KeyForgeError;
+use keyforge_model::error::ForgeError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum PersistenceError {
     #[error("Loader Error: {0}")]
-    Loader(#[from] KeyForgeError),
+    Loader(#[from] ForgeError),
 
     #[error("IO Error: {0}")]
     Io(#[from] std::io::Error),

@@ -128,3 +128,30 @@ db-reset-prepare:
 # --- MAINTENANCE ---
 prune:
     docker system prune -af --filter "until=24h"
+# --- LLM DEVELOPMENT (LID) ---
+
+# Generate minified headers for context injection
+context FILE:
+    python3 ops/scripts/minify_context.py {{FILE}}
+
+# Scaffold a standalone reproduction harness
+repro NAME:
+    mkdir -p ops/repros
+    mkdir -p ops/templates
+    if [ ! -f "ops/templates/repro_template.rs" ]; then \
+        echo "use keyforge_model::*;\n\nfn main() { println!(\"Reproduction Harness\"); }" > ops/templates/repro_template.rs; \
+    fi
+    cp ops/templates/repro_template.rs ops/repros/{{NAME}}.rs
+    echo "// Reproduction: {{NAME}}" >> ops/repros/{{NAME}}.rs
+
+# Clean all temporary reproduction harnesses
+clean-repros:
+    rm -rf ops/repros/*.rs
+
+# Run mutation tests for the core physics crate
+mutate-physics:
+    cargo mutants --package keyforge-physics --timeout 300
+
+# Generate and open workspace documentation
+doc:
+    cargo doc --workspace --no-deps --open

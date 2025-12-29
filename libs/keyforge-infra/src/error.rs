@@ -19,6 +19,9 @@ pub enum InfraError {
 
     #[error("Config Error: {0}")]
     Config(String),
+
+    #[error("Validation Error: {0}")]
+    Validation(String),
 }
 
 pub type InfraResult<T> = Result<T, InfraError>;

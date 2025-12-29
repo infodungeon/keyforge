@@ -1,4 +1,4 @@
-use keyforge_model::error::KeyForgeError;
+use keyforge_model::error::ForgeError;
 use keyforge_model::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_protocol::config::CorpusSource;
@@ -23,7 +23,7 @@ impl FsProvider {
     fn check_size(&self, path: &Path) -> LoaderResult<()> {
         let meta = std::fs::metadata(path)?;
         if meta.len() > MAX_INPUT_FILE_SIZE {
-            return Err(KeyForgeError::InvalidData(format!(
+            return Err(ForgeError::InvalidData(format!(
                 "File {:?} exceeds size limit of {} bytes",
                 path, MAX_INPUT_FILE_SIZE
             )));
@@ -35,15 +35,15 @@ impl FsProvider {
         self.check_size(path)?;
         let file = File::open(path)?;
         let decoder =
-            zstd::Decoder::new(file).map_err(|e| KeyForgeError::Compression(e.to_string()))?;
-        rmp_serde::from_read(decoder).map_err(|e| KeyForgeError::MsgPack(e.to_string()))
+            zstd::Decoder::new(file).map_err(|e| ForgeError::Internal(e.to_string()))?;
+        rmp_serde::from_read(decoder).map_err(|e| ForgeError::Internal(e.to_string()))
     }
 
     fn load_json<T: serde::de::DeserializeOwned>(&self, path: &Path) -> LoaderResult<T> {
         self.check_size(path)?;
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        serde_json::from_reader(reader).map_err(KeyForgeError::Serde)
+        serde_json::from_reader(reader).map_err(ForgeError::Serde)
     }
 
     fn resolve_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
@@ -117,7 +117,7 @@ impl AssetLoader for FsProvider {
         if let Some(p) = self.resolve_user_path("keyboards", stem) {
             return self.load_json(&p);
         }
-        Err(KeyForgeError::NotFound(name.to_string()))
+        Err(ForgeError::NotFound(name.to_string()))
     }
 
     fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
@@ -228,7 +228,7 @@ impl AssetLoader for FsProvider {
                     .collect(),
             });
         }
-        Err(KeyForgeError::NotFound(filename.to_string()))
+        Err(ForgeError::NotFound(filename.to_string()))
     }
 
     fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
@@ -239,7 +239,7 @@ impl AssetLoader for FsProvider {
         }
         let p = self
             .resolve_user_path("config", stem)
-            .ok_or(KeyForgeError::NotFound(filename.to_string()))?;
+            .ok_or(ForgeError::NotFound(filename.to_string()))?;
         let defs = self.load_json(&p)?;
         Ok(KeycodeRegistry::new(defs))
     }

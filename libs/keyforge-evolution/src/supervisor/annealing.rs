@@ -2,7 +2,7 @@ use super::state::SearchState;
 use super::traits::{AcceptanceCriteria, MutationOperator, TimeKeeper};
 use crate::errors::EvolutionError;
 use crate::ProgressCallback;
-use keyforge_model::Layout;
+use keyforge_model::{Layout, KeyCode};
 use keyforge_physics::ScoringEngine;
 use keyforge_protocol::constants::SCORE_SCALE;
 use rand::SeedableRng;
@@ -99,7 +99,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         callback: CB,
     ) -> Layout {
         let layout = initial_layout.unwrap_or_else(|| {
-            let keys: Vec<u16> = (0..self.engine.key_count()).map(|i| i as u16).collect();
+            let keys: Vec<KeyCode> = (0..self.engine.key_count()).map(|i| KeyCode(i as u16)).collect();
             Layout::new_unchecked(keys)
         });
 
@@ -225,7 +225,7 @@ mod tests {
     }
 
     impl ProgressCallback for ScoreCheckCallback {
-        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[u16], _ips: f32) -> bool {
+        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
             let mut last = self.last_score.lock().unwrap();
             if score > *last && *last != 0.0 && *last != f32::MAX {
                 self.failed.store(true, Ordering::SeqCst);
@@ -236,26 +236,29 @@ mod tests {
     }
 
     impl ProgressCallback for &ScoreCheckCallback {
-        fn on_progress(&self, epoch: usize, score: f32, layout: &[u16], ips: f32) -> bool {
+        fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool {
             (**self).on_progress(epoch, score, layout, ips)
         }
     }
 
+    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+
     fn setup_test_engine(size: usize) -> ScoringEngine {
         let keys: Vec<_> = (0..size)
             .map(|i| KeyNode {
-                id: i,
+                index: i,
                 label: format!("k{}", i),
-                hand: (i % 2) as u8,
-                finger: (i % 5) as u8,
-                row: (i / 10) as i8,
-                col: (i % 10) as i8,
+                hand: HandIndex((i % 2) as u8),
+                finger: FingerIndex((i % 5) as u8),
+                row: RowIndex((i / 10) as i8),
+                col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
                 y: (i / 10) as f32,
                 is_home: false,
+                ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 1);
+        let kb = Keyboard::new(keys, 1).unwrap();
         let mut corpus = Corpus::default();
         for i in 0..size {
             corpus.char_freqs[i] = (i * 10) as u32;
@@ -380,7 +383,7 @@ mod tests {
         let calls = Arc::new(AtomicUsize::new(0));
         struct ReportingCallback(Arc<AtomicUsize>);
         impl ProgressCallback for ReportingCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
                 self.0.fetch_add(1, Ordering::SeqCst);
                 true
             }
@@ -404,7 +407,7 @@ mod tests {
         let acceptance = CoolingAnnealing;
         struct BreakCallback;
         impl ProgressCallback for BreakCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
                 false
             }
         }

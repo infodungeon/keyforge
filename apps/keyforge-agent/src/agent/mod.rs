@@ -89,6 +89,7 @@ pub async fn run_worker(
             if let Ok(mut segments) = u.path_segments_mut() {
                 segments.push("ws");
             }
+            u.query_pairs_mut().append_pair("node_id", &node_id);
             u.to_string()
         }
         Err(_) => {
@@ -243,6 +244,7 @@ async fn process_connection(
                             &prepared.corpus,
                             &prepared.rubric,
                             &result.layout,
+                            &prepared.cost_overrides,
                         );
 
                         // Silence Protocol: Discard if no improvement over baseline

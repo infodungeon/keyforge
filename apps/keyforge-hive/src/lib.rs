@@ -21,6 +21,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 pub mod api;
 pub mod api_docs;
+pub mod features;
 pub mod auth;
 pub mod bootstrap;
 pub mod cache;
@@ -110,12 +111,12 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
 
     let rate_limit_state = RateLimitState {
         global: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(limit_per_sec).unwrap())
-                .allow_burst(NonZeroU32::new(limit_burst).unwrap()),
+            Quota::per_second(NonZeroU32::new(limit_per_sec.max(1)).unwrap())
+                .allow_burst(NonZeroU32::new(limit_burst.max(1)).unwrap()),
         )),
         strict: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(strict_limit_per_sec).unwrap())
-                .allow_burst(NonZeroU32::new(strict_limit_burst).unwrap()),
+            Quota::per_second(NonZeroU32::new(strict_limit_per_sec.max(1)).unwrap())
+                .allow_burst(NonZeroU32::new(strict_limit_burst.max(1)).unwrap()),
         )),
     };
 
@@ -123,30 +124,30 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
     let secure_routes = Router::new()
         .route(
             "/jobs",
-            axum::routing::post(api::jobs::register_job).layer(middleware::from_fn_with_state(
+            axum::routing::post(features::register_job::handle).layer(middleware::from_fn_with_state(
                 rate_limit_state.clone(),
                 strict_rate_limit_middleware,
             )),
         )
-        .route("/jobs/queue", axum::routing::get(api::jobs::get_queue))
+        .route("/jobs/queue", axum::routing::get(features::get_queue::handle))
         .route(
             "/jobs/{job_id}/population",
-            axum::routing::get(api::jobs::get_population),
+            axum::routing::get(features::get_population::handle),
         )
         .route(
             "/jobs/{job_id}",
-            axum::routing::delete(api::jobs::cancel_job),
+            axum::routing::delete(features::cancel_job::handle),
         )
-        .route("/results", axum::routing::post(api::results::submit_result))
+        .route("/results", axum::routing::post(features::submit_result::handle))
         .route(
             "/nodes/register",
-            axum::routing::post(api::nodes::register_node),
+            axum::routing::post(features::register_node::handle),
         )
         .route(
             "/submissions",
-            axum::routing::post(api::submission::submit_layout),
+            axum::routing::post(features::submit_layout::handle),
         )
-        .route("/user/nuke", axum::routing::post(api::user::nuke_user_data))
+        .route("/user/nuke", axum::routing::post(features::nuke_user::handle))
         .merge(api::protected_auth_routes())
         .nest("/admin", api::admin_routes())
         .layer(middleware::from_fn_with_state(
@@ -154,21 +155,21 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
             auth::require_secret,
         ));
 
-    let public_routes = api::system_routes()
+    let public_routes = features::system::system_routes()
         .merge(api::analysis_routes())
         .merge(api::auth_routes())
-        .route("/manifest", axum::routing::get(api::sync::get_manifest))
+        .route("/manifest", axum::routing::get(features::assets::get_manifest))
         .route(
             "/submissions",
-            axum::routing::get(api::submission::list_submissions),
+            axum::routing::get(features::list_submissions::handle),
         )
         .route(
             "/data/system/*path",
-            axum::routing::get(api::sync::get_asset),
+            axum::routing::get(features::assets::get_asset),
         )
         .route(
             "/data/config.json",
-            axum::routing::get(api::system::get_app_config),
+            axum::routing::get(features::system::get_app_config),
         );
 
     let body_limit = env::var("MAX_JSON_BODY_SIZE")
@@ -199,6 +200,10 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
             rate_limit_state,
             global_rate_limit_middleware,
         ))
+        .route(
+            "/jobs/{job_id}/status",
+            axum::routing::get(features::get_job_status::handle),
+        )
         .with_state(state);
 
     Router::new()

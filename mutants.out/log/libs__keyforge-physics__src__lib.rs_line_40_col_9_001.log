@@ -1,0 +1,338 @@
+
+*** libs/keyforge-physics/src/lib.rs:40:9: replace ScoringEngine::score -> f32 with 1.0
+
+*** mutation diff:
+--- libs/keyforge-physics/src/lib.rs
++++ replace ScoringEngine::score -> f32 with 1.0
+@@ -32,21 +32,17 @@
+         cost_overrides: &[(usize, usize, f32)],
+     ) -> Result<Self, PhysicsError> {
+         let ctx = Compiler::compile(keyboard, corpus, rubric, cost_overrides)?;
+         Ok(Self { ctx })
+     }
+ 
+     #[instrument(skip(self, layout))]
+     pub fn score(&self, layout: &Layout) -> f32 {
+-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)
+-            .expect("Physics Violation: Layout size mismatch");
+-        
+-        let mut pos_map = vec![65535u16; 65536];
+-        score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE
++        1.0 /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[instrument(skip(self, layout))]
+     pub fn analyze(&self, layout: &Layout) -> AnalysisReport {
+         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)
+             .expect("Physics Violation: Layout size mismatch");
+         analyze_layout(&self.ctx, &validated)
+     }
+
+
+*** /home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --package=keyforge-physics@0.8.0
+       Fresh unicode-ident v1.0.22
+       Fresh version_check v0.9.5
+       Fresh cfg-if v1.0.4
+       Fresh siphasher v1.0.1
+       Fresh proc-macro2 v1.0.103
+       Fresh memchr v2.7.6
+       Fresh quote v1.0.42
+       Fresh libc v0.2.178
+       Fresh serde_core v1.0.228
+       Fresh typenum v1.19.0
+       Fresh autocfg v1.5.0
+       Fresh syn v2.0.111
+       Fresh generic-array v0.14.7
+       Fresh phf_generator v0.11.3
+       Fresh getrandom v0.3.4
+       Fresh syn v1.0.109
+       Fresh proc-macro-error-attr v1.0.4
+       Fresh phf_shared v0.11.3
+       Fresh once_cell v1.21.3
+       Fresh serde_derive v1.0.228
+       Fresh phf_macros v0.11.3
+       Fresh regex-syntax v0.8.8
+       Fresh block-buffer v0.10.4
+       Fresh zerocopy v0.8.31
+       Fresh rustversion v1.0.22
+       Fresh crypto-common v0.1.7
+       Fresh proc-macro-error v1.0.4
+       Fresh aho-corasick v1.1.4
+       Fresh hashbrown v0.16.1
+       Fresh serde v1.0.228
+       Fresh phf v0.11.3
+       Fresh num-traits v0.2.19
+       Fresh itoa v1.0.16
+       Fresh equivalent v1.0.2
+       Fresh heck v0.5.0
+       Fresh zmij v0.1.9
+       Fresh utoipa-gen v4.3.1
+       Fresh ppv-lite86 v0.2.21
+       Fresh digest v0.10.7
+       Fresh regex-automata v0.4.13
+       Fresh serde_json v1.0.147
+       Fresh indexmap v2.12.1
+       Fresh strum_macros v0.26.4
+       Fresh csscolorparser v0.7.2
+       Fresh rand_core v0.9.3
+       Fresh thiserror-impl v2.0.17
+       Fresh cpufeatures v0.2.17
+       Fresh fastrand v2.3.0
+       Fresh rgb v0.8.52
+       Fresh bitflags v2.10.0
+       Fresh linux-raw-sys v0.11.0
+       Fresh serde-big-array v0.5.1
+       Fresh thiserror v2.0.17
+       Fresh sha2 v0.10.9
+       Fresh strum v0.26.3
+       Fresh utoipa v4.2.3
+       Fresh rustix v1.1.3
+       Fresh kle-serial v0.3.3
+       Fresh regex v1.12.2
+       Fresh smallvec v1.15.1
+       Fresh bincode v1.3.3
+       Fresh getrandom v0.2.16
+       Fresh hex v0.4.3
+       Fresh tracing-core v0.1.36
+       Fresh tempfile v3.24.0
+       Fresh rand_core v0.6.4
+       Fresh keyforge-model v0.8.0 (/tmp/cargo-mutants-keyforge-E1gFMB.tmp/libs/keyforge-model)
+       Fresh thiserror-impl v1.0.69
+       Fresh tracing-attributes v0.1.31
+       Fresh wait-timeout v0.2.1
+       Fresh fnv v1.0.7
+       Fresh bit-vec v0.8.0
+       Fresh pin-project-lite v0.2.16
+       Fresh quick-error v1.2.3
+       Fresh rand_xorshift v0.4.0
+       Fresh rand_chacha v0.9.0
+       Fresh rand_chacha v0.3.1
+       Fresh rusty-fork v0.3.1
+       Fresh thiserror v1.0.69
+       Fresh bit-set v0.8.0
+       Fresh keyforge-protocol v0.8.0 (/tmp/cargo-mutants-keyforge-E1gFMB.tmp/libs/keyforge-protocol)
+       Fresh tracing v0.1.44
+       Fresh rand v0.9.2
+       Fresh unarray v0.1.4
+       Fresh proptest v1.9.0
+       Fresh rand v0.8.5
+       Dirty keyforge-physics v0.8.0 (/tmp/cargo-mutants-keyforge-E1gFMB.tmp/libs/keyforge-physics): the file `libs/keyforge-physics/src/lib.rs` has changed (1767044289.006012386s, 4s after last build at 1767044285.485967964s)
+   Compiling keyforge-physics v0.8.0 (/tmp/cargo-mutants-keyforge-E1gFMB.tmp/libs/keyforge-physics)
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name keyforge_physics --edition=2021 libs/keyforge-physics/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=24f39dea22057f3c -C extra-filename=-98250245914985ac --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rlib --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rlib --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rlib --extern proptest=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libproptest-e6846fe577a4bb56.rlib --extern rand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand-5540fb2c8df2c40a.rlib --extern rand_chacha=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand_chacha-5c488713e3c795ca.rlib --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rlib --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rlib --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rlib -C target-cpu=native`
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name keyforge_physics --edition=2021 libs/keyforge-physics/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=a3b5fa1c70a68a66 -C extra-filename=-b98ed418f8c1fe1f --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rmeta --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rmeta --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rmeta --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rmeta --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rmeta --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rmeta -C target-cpu=native`
+warning: unused import: `keyforge_protocol::constants::SCORE_SCALE`
+  --> libs/keyforge-physics/src/lib.rs:19:5
+   |
+19 | use keyforge_protocol::constants::SCORE_SCALE;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `layout`
+  --> libs/keyforge-physics/src/lib.rs:39:25
+   |
+39 |     pub fn score(&self, layout: &Layout) -> f32 {
+   |                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_layout`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `keyforge-physics` (lib) generated 2 warnings (1 duplicate)
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name property_tests --edition=2021 libs/keyforge-physics/tests/property_tests.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2049d768e4486614 -C extra-filename=-9f5971cde249a981 --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rlib --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rlib --extern keyforge_physics=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_physics-b98ed418f8c1fe1f.rlib --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rlib --extern proptest=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libproptest-e6846fe577a4bb56.rlib --extern rand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand-5540fb2c8df2c40a.rlib --extern rand_chacha=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand_chacha-5c488713e3c795ca.rlib --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rlib --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rlib --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rlib -C target-cpu=native`
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name delta_validity --edition=2021 libs/keyforge-physics/tests/delta_validity.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=63be058c2ef64c72 -C extra-filename=-828a9a3edd1f7ce4 --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rlib --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rlib --extern keyforge_physics=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_physics-b98ed418f8c1fe1f.rlib --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rlib --extern proptest=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libproptest-e6846fe577a4bb56.rlib --extern rand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand-5540fb2c8df2c40a.rlib --extern rand_chacha=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand_chacha-5c488713e3c795ca.rlib --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rlib --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rlib --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rlib -C target-cpu=native`
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name coverage_tests --edition=2021 libs/keyforge-physics/tests/coverage_tests.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e9659c334bd16c87 -C extra-filename=-5a3afc52e56165e4 --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rlib --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rlib --extern keyforge_physics=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_physics-b98ed418f8c1fe1f.rlib --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rlib --extern proptest=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libproptest-e6846fe577a4bb56.rlib --extern rand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand-5540fb2c8df2c40a.rlib --extern rand_chacha=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand_chacha-5c488713e3c795ca.rlib --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rlib --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rlib --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rlib -C target-cpu=native`
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name oracle_parity --edition=2021 libs/keyforge-physics/tests/oracle_parity.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=261811fc80a9d692 -C extra-filename=-01aedd41b2d6715e --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rlib --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rlib --extern keyforge_physics=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_physics-b98ed418f8c1fe1f.rlib --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rlib --extern proptest=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libproptest-e6846fe577a4bb56.rlib --extern rand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand-5540fb2c8df2c40a.rlib --extern rand_chacha=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand_chacha-5c488713e3c795ca.rlib --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rlib --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rlib --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rlib -C target-cpu=native`
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name analysis_tests --edition=2021 libs/keyforge-physics/tests/analysis_tests.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=7d737bec3af681e5 -C extra-filename=-2af609d77db33369 --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rlib --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rlib --extern keyforge_physics=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_physics-b98ed418f8c1fe1f.rlib --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rlib --extern proptest=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libproptest-e6846fe577a4bb56.rlib --extern rand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand-5540fb2c8df2c40a.rlib --extern rand_chacha=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand_chacha-5c488713e3c795ca.rlib --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rlib --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rlib --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rlib -C target-cpu=native`
+     Running `/home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name edge_cases --edition=2021 libs/keyforge-physics/tests/edge_cases.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=310504dbac967a43 -C extra-filename=-f67f58e88b610296 --out-dir /tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps --extern fastrand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libfastrand-762fd3b680963bd6.rlib --extern keyforge_model=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_model-08a39416655ed114.rlib --extern keyforge_physics=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_physics-b98ed418f8c1fe1f.rlib --extern keyforge_protocol=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libkeyforge_protocol-9e10327954983c27.rlib --extern proptest=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libproptest-e6846fe577a4bb56.rlib --extern rand=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand-5540fb2c8df2c40a.rlib --extern rand_chacha=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/librand_chacha-5c488713e3c795ca.rlib --extern serde=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libserde-290cac5fca597898.rlib --extern thiserror=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libthiserror-a079e59fe2d7f46d.rlib --extern tracing=/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/libtracing-16d1f78e72b53bbc.rlib -C target-cpu=native`
+warning: `keyforge-physics` (lib test) generated 2 warnings (1 duplicate) (run `cargo fix --lib -p keyforge-physics --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.89s
+  Executable `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/keyforge_physics-98250245914985ac`
+  Executable `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/analysis_tests-2af609d77db33369`
+  Executable `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/coverage_tests-5a3afc52e56165e4`
+  Executable `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/delta_validity-828a9a3edd1f7ce4`
+  Executable `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/edge_cases-f67f58e88b610296`
+  Executable `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/oracle_parity-01aedd41b2d6715e`
+  Executable `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/property_tests-9f5971cde249a981`
+
+*** result: Success
+
+*** /home/robert/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --verbose --package=keyforge-physics@0.8.0
+       Fresh unicode-ident v1.0.22
+       Fresh version_check v0.9.5
+       Fresh cfg-if v1.0.4
+       Fresh siphasher v1.0.1
+       Fresh autocfg v1.5.0
+       Fresh proc-macro2 v1.0.103
+       Fresh memchr v2.7.6
+       Fresh quote v1.0.42
+       Fresh libc v0.2.178
+       Fresh serde_core v1.0.228
+       Fresh typenum v1.19.0
+       Fresh phf_generator v0.11.3
+       Fresh phf_shared v0.11.3
+       Fresh syn v2.0.111
+       Fresh getrandom v0.3.4
+       Fresh generic-array v0.14.7
+       Fresh syn v1.0.109
+       Fresh proc-macro-error-attr v1.0.4
+       Fresh regex-syntax v0.8.8
+       Fresh once_cell v1.21.3
+       Fresh aho-corasick v1.1.4
+       Fresh serde_derive v1.0.228
+       Fresh phf_macros v0.11.3
+       Fresh proc-macro-error v1.0.4
+       Fresh rustversion v1.0.22
+       Fresh crypto-common v0.1.7
+       Fresh num-traits v0.2.19
+       Fresh zerocopy v0.8.31
+       Fresh block-buffer v0.10.4
+       Fresh heck v0.5.0
+       Fresh equivalent v1.0.2
+       Fresh serde v1.0.228
+       Fresh phf v0.11.3
+       Fresh itoa v1.0.16
+       Fresh zmij v0.1.9
+       Fresh hashbrown v0.16.1
+       Fresh digest v0.10.7
+       Fresh ppv-lite86 v0.2.21
+       Fresh strum_macros v0.26.4
+       Fresh utoipa-gen v4.3.1
+       Fresh regex-automata v0.4.13
+       Fresh rand_core v0.9.3
+       Fresh csscolorparser v0.7.2
+       Fresh serde_json v1.0.147
+       Fresh indexmap v2.12.1
+       Fresh thiserror-impl v2.0.17
+       Fresh linux-raw-sys v0.11.0
+       Fresh rgb v0.8.52
+       Fresh bitflags v2.10.0
+       Fresh cpufeatures v0.2.17
+       Fresh fastrand v2.3.0
+       Fresh regex v1.12.2
+       Fresh bincode v1.3.3
+       Fresh serde-big-array v0.5.1
+       Fresh smallvec v1.15.1
+       Fresh rustix v1.1.3
+       Fresh utoipa v4.2.3
+       Fresh thiserror v2.0.17
+       Fresh sha2 v0.10.9
+       Fresh kle-serial v0.3.3
+       Fresh strum v0.26.3
+       Fresh getrandom v0.2.16
+       Fresh hex v0.4.3
+       Fresh tracing-attributes v0.1.31
+       Fresh thiserror-impl v1.0.69
+       Fresh tracing-core v0.1.36
+       Fresh wait-timeout v0.2.1
+       Fresh tempfile v3.24.0
+       Fresh keyforge-model v0.8.0 (/tmp/cargo-mutants-keyforge-E1gFMB.tmp/libs/keyforge-model)
+       Fresh rand_core v0.6.4
+       Fresh quick-error v1.2.3
+       Fresh fnv v1.0.7
+       Fresh bit-vec v0.8.0
+       Fresh pin-project-lite v0.2.16
+       Fresh rand_xorshift v0.4.0
+       Fresh rand v0.9.2
+       Fresh rand_chacha v0.9.0
+       Fresh unarray v0.1.4
+       Fresh thiserror v1.0.69
+       Fresh rusty-fork v0.3.1
+       Fresh bit-set v0.8.0
+       Fresh rand_chacha v0.3.1
+       Fresh keyforge-protocol v0.8.0 (/tmp/cargo-mutants-keyforge-E1gFMB.tmp/libs/keyforge-protocol)
+       Fresh tracing v0.1.44
+       Fresh proptest v1.9.0
+       Fresh rand v0.8.5
+warning: unused import: `keyforge_protocol::constants::SCORE_SCALE`
+  --> libs/keyforge-physics/src/lib.rs:19:5
+   |
+19 | use keyforge_protocol::constants::SCORE_SCALE;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `layout`
+  --> libs/keyforge-physics/src/lib.rs:39:25
+   |
+39 |     pub fn score(&self, layout: &Layout) -> f32 {
+   |                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_layout`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `keyforge-physics` (lib) generated 2 warnings (run `cargo fix --lib -p keyforge-physics` to apply 1 suggestion)
+       Fresh keyforge-physics v0.8.0 (/tmp/cargo-mutants-keyforge-E1gFMB.tmp/libs/keyforge-physics)
+warning: `keyforge-physics` (lib test) generated 2 warnings (2 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/keyforge_physics-98250245914985ac`
+
+running 5 tests
+test tests::test_swap_delta_math_coverage ... ok
+test tests::test_swap_delta_bounds_strict ... ok
+test tests::test_analyze_layout_comprehensive ... ok
+test tests::test_analyze_layout_empty ... ok
+test tests::test_swap_delta_reflexive_skips ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/analysis_tests-2af609d77db33369`
+
+running 1 test
+test test_analyze_layout_comprehensive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/coverage_tests-5a3afc52e56165e4`
+
+running 7 tests
+test test_fingerprint_identification ... ok
+test test_verify_deterministic_scorer ... ok
+test test_lib_accessors ... ok
+test test_heuristics_zero_score_early_return ... ok
+test test_heuristics_swap_suggestion_success ... ok
+test test_heuristics_suggestions ... ok
+test test_public_api_wrappers ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/delta_validity-828a9a3edd1f7ce4`
+
+running 1 test
+test test_delta_parity_unique_keys ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.47s
+
+     Running `/tmp/cargo-mutants-keyforge-E1gFMB.tmp/target/debug/deps/edge_cases-f67f58e88b610296`
+
+running 7 tests
+test test_missing_keys_in_layout ... FAILED
+test test_high_keycodes_safety ... ok
+test test_saturation_protection ... ok
+test test_math_boundaries_infinity ... FAILED
+test test_trigram_rolls_and_redirects ... ok
+test test_math_boundaries_nan ... ok
+test test_swap_delta_bounds ... ok
+
+failures:
+
+---- test_missing_keys_in_layout stdout ----
+
+thread 'test_missing_keys_in_layout' (2284194) panicked at libs/keyforge-physics/tests/edge_cases.rs:144:5:
+assertion `left == right` failed
+  left: 1.0
+ right: 0.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_math_boundaries_infinity stdout ----
+
+thread 'test_math_boundaries_infinity' (2284192) panicked at libs/keyforge-physics/tests/edge_cases.rs:79:5:
+assertion failed: score > 1_000_000.0
+
+
+failures:
+    test_math_boundaries_infinity
+    test_missing_keys_in_layout
+
+test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p keyforge-physics --test edge_cases`
+
+*** result: Failure(101)

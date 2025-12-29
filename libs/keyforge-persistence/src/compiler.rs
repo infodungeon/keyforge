@@ -32,10 +32,10 @@ impl<'a> Compiler<'a> {
                 .loader
                 .load_cost_matrix(name)
                 .map_err(PersistenceError::Loader)?,
-            CostMatrixSource::Custom(_) => {
-                return Err(PersistenceError::Config(
-                    "Custom CSV compilation not yet implemented".into(),
-                ));
+            CostMatrixSource::Custom(json_str) => {
+                serde_json::from_str(json_str).map_err(|e| {
+                    PersistenceError::Config(format!("Failed to parse custom cost JSON: {}", e))
+                })?
             }
         };
 
@@ -52,7 +52,8 @@ impl<'a> Compiler<'a> {
 
         let overrides = conversion::resolve_cost_matrix(&raw_cost.entries, &kb_def.geometry);
 
-        let engine = ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides);
+        let engine = ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)
+            .map_err(|e| PersistenceError::Loader(keyforge_model::error::ForgeError::from(e)))?;
 
         Ok(Runtime {
             engine: Arc::new(engine),
@@ -64,7 +65,7 @@ impl<'a> Compiler<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keyforge_model::error::KeyForgeError;
+    use keyforge_model::error::ForgeError;
     use keyforge_model::loader::{LoaderResult, RawCostData};
     use keyforge_model::Corpus;
     use keyforge_protocol::config::CorpusSource;
@@ -74,13 +75,13 @@ mod tests {
     struct FailingLoader;
     impl AssetLoader for FailingLoader {
         fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
-            Err(KeyForgeError::NotFound("kb".into()))
+            Err(ForgeError::NotFound("kb".into()))
         }
         fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
-            Err(KeyForgeError::NotFound("corpus".into()))
+            Err(ForgeError::NotFound("corpus".into()))
         }
         fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
-            Err(KeyForgeError::NotFound("cost".into()))
+            Err(ForgeError::NotFound("cost".into()))
         }
         fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
             Ok(KeycodeRegistry::new_with_defaults())

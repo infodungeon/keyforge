@@ -168,7 +168,7 @@ pub fn cmd_export_firmware(
 #[tauri::command]
 pub fn cmd_safe_write_file(path: String, content: String) -> Result<(), CommandError> {
     let p = Path::new(&path);
-    let allowed_exts = ["json", "txt", "c", "h", "keymap", "conf", "tsv", "csv"];
+    let allowed_exts = ["json", "txt", "c", "h", "keymap", "conf"];
     let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("");
     if !allowed_exts.contains(&ext) {
         return Err(CommandError::Validation(format!(

@@ -1,7 +1,7 @@
 use keyforge_evolution::supervisor::AnnealingConfig;
 use keyforge_evolution::supervisor::traits::{MutationAction, MutationOperator, MutationProposal};
 use keyforge_evolution::{evolve, optimize, optimize_with_callback, ProgressCallback};
-use keyforge_model::{Corpus, KeyIndex, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
+use keyforge_model::{Corpus, KeyIndex, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
 use keyforge_physics::{EngineRequest, ScoringEngine};
 use std::sync::Arc;
 
@@ -31,50 +31,55 @@ struct CountingCallback {
 }
 
 impl ProgressCallback for CountingCallback {
-    fn on_progress(&self, _step: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+    fn on_progress(&self, _step: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
         let val = self.counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         val < self.limit
     }
 }
 
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+
 fn setup_env() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>) {
     let keys = vec![
         KeyNode {
-            id: 0,
+            index: 0,
             label: "k0".to_string(),
-            hand: 0,
-            finger: 1,
-            row: 0,
-            col: 0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            row: RowIndex(0),
+            col: ColIndex(0),
             x: 0.0,
             y: 0.0,
             is_home: true,
+            ..Default::default()
         },
         KeyNode {
-            id: 1,
+            index: 1,
             label: "k1".to_string(),
-            hand: 0,
-            finger: 2,
-            row: 0,
-            col: 1,
+            hand: HandIndex(0),
+            finger: FingerIndex(2),
+            row: RowIndex(0),
+            col: ColIndex(1),
             x: 1.0,
             y: 0.0,
             is_home: true,
+            ..Default::default()
         },
         KeyNode {
-            id: 2,
+            index: 2,
             label: "k2".to_string(),
-            hand: 0,
-            finger: 3,
-            row: 0,
-            col: 2,
+            hand: HandIndex(0),
+            finger: FingerIndex(3),
+            row: RowIndex(0),
+            col: ColIndex(2),
             x: 2.0,
             y: 0.0,
             is_home: true,
+            ..Default::default()
         },
     ];
     (
-        Arc::new(Keyboard::new(keys, 0)),
+        Arc::new(Keyboard::new(keys, 0).unwrap()),
         Arc::new(Corpus::default()),
         Arc::new(Rubric::default()),
     )
@@ -147,13 +152,13 @@ fn test_legacy_optimize_full_options() {
             reheats: 0,
             reheat_factor: 1.0,
         },
-        initial_layout: Some(Layout::new_unchecked(vec![1, 0, 2])),
-        pinned_keys: vec![Some(1), None], // Pin index 0 to keycode 1
+        initial_layout: Some(Layout::new_unchecked(vec![KeyCode(1), KeyCode(0), KeyCode(2)])),
+        pinned_keys: vec![Some(KeyCode(1)), None], // Pin index 0 to keycode 1
         cost_overrides: vec![],
     };
 
     let result = optimize(&req);
-    assert_eq!(result.layout.keys[0], 1); // Should respect pin
+    assert_eq!(result.layout.keys[0], KeyCode(1)); // Should respect pin
 }
 
 #[test]
@@ -276,7 +281,7 @@ fn test_reheat_exhaustion() {
 fn test_initial_layout_application() {
     let (kb, cp, rb) = setup_env();
     
-    let initial = Layout::new_unchecked(vec![2, 1, 0]);
+    let initial = Layout::new_unchecked(vec![KeyCode(2), KeyCode(1), KeyCode(0)]);
     
     let req = EngineRequest {
         keyboard: kb,
@@ -304,7 +309,7 @@ fn test_initial_layout_application() {
 fn test_pinned_key_injection() {
     let (kb, cp, rb) = setup_env();
     
-    let pinned = vec![Some(99), None, None];
+    let pinned = vec![Some(KeyCode(99)), None, None];
     
     let req = EngineRequest {
         keyboard: kb,
@@ -335,14 +340,14 @@ fn test_pinned_key_injection() {
     // and I am rewriting the whole file, I will fix it here.
     
     // New logic: Provide initial layout with 99.
-    let initial = Layout::new_unchecked(vec![99, 1, 2]);
+    let initial = Layout::new_unchecked(vec![KeyCode(99), KeyCode(1), KeyCode(2)]);
     let req_valid = EngineRequest {
         initial_layout: Some(initial),
         ..req
     };
 
     let result = optimize(&req_valid);
-    assert_eq!(result.layout.keys[0], 99);
+    assert_eq!(result.layout.keys[0], KeyCode(99));
 }
 
 #[test]
@@ -381,7 +386,7 @@ fn test_ips_calculation() {
 
     struct SleepyCallback;
     impl ProgressCallback for SleepyCallback {
-        fn on_progress(&self, _step: usize, _score: f32, _layout: &[u16], ips: f32) -> bool {
+        fn on_progress(&self, _step: usize, _score: f32, _layout: &[KeyCode], ips: f32) -> bool {
             std::thread::sleep(std::time::Duration::from_millis(1));
             assert!(ips >= 0.0);
             true
@@ -399,7 +404,7 @@ fn test_pinned_key_swap() {
     // Pin key '2' to position '0'.
     // Logic should find '2' at pos 2 and swap it with pos 0.
     // Result: [2, 1, 0]
-    let pinned = vec![Some(2), None, None];
+    let pinned = vec![Some(KeyCode(2)), None, None];
     
     let req = EngineRequest {
         keyboard: kb,
@@ -421,9 +426,9 @@ fn test_pinned_key_swap() {
 
     let result = optimize(&req);
     // Key 2 should be at index 0
-    assert_eq!(result.layout.keys[0], 2);
+    assert_eq!(result.layout.keys[0], KeyCode(2));
     // Key 0 should be swapped to index 2
-    assert_eq!(result.layout.keys[2], 0);
+    assert_eq!(result.layout.keys[2], KeyCode(0));
 }
 
 #[test]
@@ -432,7 +437,7 @@ fn test_insufficient_unlocked_keys() {
     
     // Pin 2 out of 3 keys. Only 1 unlocked.
     // GroupMutation should return None (lines 56-57 in strategies.rs)
-    let pinned = vec![Some(0), Some(1), None];
+    let pinned = vec![Some(KeyCode(0)), Some(KeyCode(1)), None];
     
     let req = EngineRequest {
         keyboard: kb,
@@ -455,6 +460,6 @@ fn test_insufficient_unlocked_keys() {
     let result = optimize(&req);
     // Should verify that the result is valid (no panic) 
     // and keys are respected.
-    assert_eq!(result.layout.keys[0], 0);
-    assert_eq!(result.layout.keys[1], 1);
+    assert_eq!(result.layout.keys[0], KeyCode(0));
+    assert_eq!(result.layout.keys[1], KeyCode(1));
 }

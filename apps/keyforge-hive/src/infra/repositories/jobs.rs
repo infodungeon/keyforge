@@ -146,9 +146,10 @@ impl JobRepository {
 
         if keys_exist.is_none() {
             for (idx, key) in req.definition.geometry.keys.iter().enumerate() {
-                let is_prime = req.definition.geometry.prime_slots.contains(&idx);
-                let is_med = req.definition.geometry.med_slots.contains(&idx);
-                let is_low = req.definition.geometry.low_slots.contains(&idx);
+                let kidx = keyforge_model::types::KeyIndex(idx as u16);
+                let is_prime = req.definition.geometry.prime_slots.contains(&kidx);
+                let is_med = req.definition.geometry.med_slots.contains(&kidx);
+                let is_low = req.definition.geometry.low_slots.contains(&kidx);
 
                 sqlx::query(
                     r#"
@@ -163,10 +164,10 @@ impl JobRepository {
                 .bind(key.y)
                 .bind(key.w)
                 .bind(key.h)
-                .bind(key.hand as i32)
-                .bind(key.finger as i32)
-                .bind(key.row as i32)
-                .bind(key.col as i32)
+                .bind(key.hand.0 as i32)
+                .bind(key.finger.0 as i32)
+                .bind(key.row.0 as i32)
+                .bind(key.col.0 as i32)
                 .bind(key.is_stretch)
                 .bind(is_prime)
                 .bind(is_med)
@@ -398,7 +399,10 @@ impl JobRepository {
                 retry_count = retry_count + 1
             WHERE 
                 status = 'processing' 
-                AND started_at < NOW() - make_interval(mins => $1)
+                AND (
+                    (node_id IS NULL AND started_at < NOW() - make_interval(mins => $1))
+                    OR node_id IN (SELECT id FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1))
+                )
         "#;
 
         match sqlx::query(query_with_node)
@@ -420,7 +424,7 @@ impl JobRepository {
                         retry_count = retry_count + 1
                     WHERE 
                         status = 'processing' 
-                        AND started_at < NOW() - make_interval(mins => $1)
+                        AND started_at < NOW() - make_interval(mins => $1 * 6) -- 6x longer fallback
                 "#;
 
                 let result = sqlx::query(query_without_node)

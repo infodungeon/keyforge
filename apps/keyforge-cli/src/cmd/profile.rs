@@ -10,7 +10,7 @@ pub struct ProfileArgs {
     #[arg(short, long, default_value = "data/user_stats.jsonl")]
     pub input: PathBuf,
 
-    /// Path to write the generated cost matrix CSV
+    /// Path to write the generated cost profile JSON
     #[arg(short, long, default_value = "data/personal_cost.json")]
     pub output: PathBuf,
 }
@@ -70,9 +70,9 @@ pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
         biometrics: samples,
     };
 
-    let csv_content = keyforge_infra::util::common::generate_cost_matrix_from_stats(&store);
+    let profile_content = keyforge_infra::util::common::generate_cost_profile(&store);
 
-    std::fs::write(&args.output, csv_content)
+    std::fs::write(&args.output, profile_content)
         .map_err(|e| format!("Failed to write output file: {}", e))?;
 
     eprintln!("✅ Profile generated successfully.");

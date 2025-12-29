@@ -54,7 +54,8 @@ fn test_real_data_pipeline() {
     let keyboard = conversion::to_domain_keyboard(&def.geometry);
     let cost_overrides = conversion::resolve_cost_matrix(&cost_data.entries, &def.geometry);
 
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_overrides);
+    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_overrides)
+        .expect("Failed to create scoring engine");
 
     let registry = provider
         .load_keycodes("keycodes.json")

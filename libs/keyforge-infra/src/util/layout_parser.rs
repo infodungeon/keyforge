@@ -1,5 +1,5 @@
 use keyforge_adapter::parsing::{parse_key, KeyAction};
-use keyforge_model::Layout;
+use keyforge_model::{KeyCode, Layout};
 use keyforge_protocol::keycodes::KeycodeRegistry;
 use moka::sync::Cache;
 use once_cell::sync::Lazy;
@@ -60,13 +60,13 @@ pub fn parse_layout_string_permissive_cached(
         } else {
             // Graceful Fallback: Log error, insert KC_NO (0).
             warn!("Unknown key token: '{}'. Swapping in KC_NO (0).", token);
-            keys.push(0);
+            keys.push(KeyCode(0));
         }
     }
 
     // Pad with KC_NO if under-sized
     while keys.len() < size {
-        keys.push(0);
+        keys.push(KeyCode(0));
     }
 
     let layout = Layout::new_unchecked(keys);

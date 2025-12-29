@@ -1,4 +1,4 @@
-use crate::error::KeyForgeError;
+use crate::error::ForgeError;
 use crate::serde_utils::deserialize_limited_vec;
 use serde::{Deserialize, Serialize};
 
@@ -28,11 +28,11 @@ impl Default for Corpus {
 impl Corpus {
     /// Validates the integrity of the Corpus.
     /// Ensures that frequency maps are sized correctly to prevent panics in the Physics engine.
-    pub fn validate(&self) -> Result<(), KeyForgeError> {
+    pub fn validate(&self) -> Result<(), ForgeError> {
         // 1. Char Freqs must cover full u16 range (0..65535)
         // The physics engine uses direct indexing: ctx.char_freqs[code as usize]
         if self.char_freqs.len() != 65536 {
-            return Err(KeyForgeError::InvalidData(format!(
+            return Err(ForgeError::InvalidData(format!(
                 "Corpus char_freqs length must be 65536, found {}",
                 self.char_freqs.len()
             )));

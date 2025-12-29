@@ -87,10 +87,10 @@ impl MutationOperator for GroupMutation {
 
         // 2. Simulate state after first swap
         let mut temp_pos_map = pos_map.to_vec();
-        let code_a = layout.keys[idx_a] as usize;
-        let code_b = layout.keys[idx_b] as usize;
-        if code_a < temp_pos_map.len() { temp_pos_map[code_a] = idx_b as u16; }
-        if code_b < temp_pos_map.len() { temp_pos_map[code_b] = idx_a as u16; }
+        let code_a = layout.keys[idx_a];
+        let code_b = layout.keys[idx_b];
+        if (code_a.0 as usize) < temp_pos_map.len() { temp_pos_map[code_a.0 as usize] = idx_b as u16; }
+        if (code_b.0 as usize) < temp_pos_map.len() { temp_pos_map[code_b.0 as usize] = idx_a as u16; }
 
         let mut temp_keys = layout.keys.clone();
         temp_keys.swap(idx_a, idx_b);
@@ -139,21 +139,24 @@ mod tests {
     use rand::SeedableRng;
     use rand_xoshiro::Xoshiro256PlusPlus;
 
+    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode};
+
     fn setup_engine(size: usize) -> ScoringEngine {
         let keys: Vec<_> = (0..size)
             .map(|i| KeyNode {
-                id: i,
+                index: i,
                 label: format!("k{}", i),
-                hand: (i % 2) as u8,
-                finger: (i % 5) as u8,
-                row: (i / 10) as i8,
-                col: (i % 10) as i8,
+                hand: HandIndex((i % 2) as u8),
+                finger: FingerIndex((i % 5) as u8),
+                row: RowIndex((i / 10) as i8),
+                col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
                 y: (i / 10) as f32,
                 is_home: false,
+                ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 1);
+        let kb = Keyboard::new(keys, 1).unwrap();
         let mut corpus = Corpus::default();
         for i in 0..size {
             corpus.char_freqs[i] = 100;
@@ -174,7 +177,7 @@ mod tests {
         ) {
             let size = 10;
             let engine = setup_engine(size);
-            let mut keys: Vec<u16> = (0..size as u16).collect();
+            let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode).collect();
             let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
             use rand::seq::SliceRandom;
             keys.shuffle(&mut rng_layout);

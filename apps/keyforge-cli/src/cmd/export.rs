@@ -74,7 +74,7 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
                 let mut geom = def.geometry.clone();
                 for (i, key) in geom.keys.iter_mut().enumerate() {
                     if let Some(legend) = keys.get(i) {
-                        key.id = legend.clone();
+                        key.label = legend.clone();
                     }
                 }
                 to_kle_json(&geom)?

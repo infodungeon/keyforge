@@ -16,14 +16,19 @@ use uuid::Uuid;
 /// Constructs a HiveClient with optional authentication secret.
 #[must_use]
 pub fn build_client(base_url: &str, secret: Option<String>) -> HiveClient {
-    match HiveClient::new(base_url.to_string(), secret) {
+    match HiveClient::new(base_url.to_string(), secret.clone()) {
         Ok(c) => c,
         Err(e) => {
-            warn!(
-                error = %e,
-                "failed to build HiveClient, retrying with defaults"
-            );
-            HiveClient::new(base_url.to_string(), None).unwrap()
+            if secret.is_some() {
+                warn!(error = %e, "failed to build HiveClient with secret, retrying without");
+                HiveClient::new(base_url.to_string(), None).unwrap_or_else(|e2| {
+                    error!("FATAL: Failed to build HiveClient: {}. Base URL: {}", e2, base_url);
+                    std::process::exit(1);
+                })
+            } else {
+                error!("FATAL: Failed to build HiveClient: {}. Base URL: {}", e, base_url);
+                std::process::exit(1);
+            }
         }
     }
 }

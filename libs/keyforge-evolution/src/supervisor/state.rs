@@ -21,7 +21,7 @@ impl SearchState {
         // Initialize for full u16 range
         let mut pos_map = vec![65535u16; 65536];
         for (i, &code) in layout.keys.iter().enumerate() {
-            pos_map[code as usize] = i as u16;
+            pos_map[code.0 as usize] = i as u16;
         }
 
         Self {
@@ -54,26 +54,32 @@ impl SearchState {
     pub fn apply_mutation(&mut self, action: MutationAction) {
         match action {
             MutationAction::Swap(a, b) => {
-                self.current_layout.keys.swap(a.0, b.0);
-                let code_a = self.current_layout.keys[a.0] as usize;
-                let code_b = self.current_layout.keys[b.0] as usize;
-                if code_a < self.pos_map.len() { self.pos_map[code_a] = a.0 as u16; }
-                if code_b < self.pos_map.len() { self.pos_map[code_b] = b.0 as u16; }
+                let idx_a = usize::from(a);
+                let idx_b = usize::from(b);
+                self.current_layout.keys.swap(idx_a, idx_b);
+                let code_a = self.current_layout.keys[idx_a];
+                let code_b = self.current_layout.keys[idx_b];
+                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0 as u16; }
+                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0 as u16; }
             }
             MutationAction::GroupSwap(a, b, c) => {
+                let idx_a = usize::from(a);
+                let idx_b = usize::from(b);
+                let idx_c = usize::from(c);
+                
                 // A -> B, B -> C, C -> A
-                let temp = self.current_layout.keys[c.0];
-                self.current_layout.keys[c.0] = self.current_layout.keys[b.0];
-                self.current_layout.keys[b.0] = self.current_layout.keys[a.0];
-                self.current_layout.keys[a.0] = temp;
+                let temp = self.current_layout.keys[idx_c];
+                self.current_layout.keys[idx_c] = self.current_layout.keys[idx_b];
+                self.current_layout.keys[idx_b] = self.current_layout.keys[idx_a];
+                self.current_layout.keys[idx_a] = temp;
 
-                let code_a = self.current_layout.keys[a.0] as usize;
-                let code_b = self.current_layout.keys[b.0] as usize;
-                let code_c = self.current_layout.keys[c.0] as usize;
+                let code_a = self.current_layout.keys[idx_a];
+                let code_b = self.current_layout.keys[idx_b];
+                let code_c = self.current_layout.keys[idx_c];
 
-                if code_a < self.pos_map.len() { self.pos_map[code_a] = a.0 as u16; }
-                if code_b < self.pos_map.len() { self.pos_map[code_b] = b.0 as u16; }
-                if code_c < self.pos_map.len() { self.pos_map[code_c] = c.0 as u16; }
+                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0 as u16; }
+                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0 as u16; }
+                if (code_c.0 as usize) < self.pos_map.len() { self.pos_map[code_c.0 as usize] = c.0 as u16; }
             }
         }
     }
@@ -86,8 +92,8 @@ impl SearchState {
         // Rebuild pos_map for best layout
         self.pos_map.fill(65535);
         for (i, &code) in self.current_layout.keys.iter().enumerate() {
-            if (code as usize) < self.pos_map.len() {
-                self.pos_map[code as usize] = i as u16;
+            if (code.0 as usize) < self.pos_map.len() {
+                self.pos_map[code.0 as usize] = i as u16;
             }
         }
     }

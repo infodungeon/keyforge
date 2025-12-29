@@ -1,17 +1,30 @@
+pub mod config;
+pub mod constants;
 pub mod corpus;
 pub mod error;
+pub mod geometry;
+pub mod job;
 pub mod keyboard;
+pub mod keycodes;
 pub mod layout;
 pub mod loader;
+pub mod parsing;
 pub mod rubric;
 pub mod serde_utils;
+pub mod types;
+pub mod validator;
 
+pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
 pub use corpus::Corpus;
-pub use error::KeyForgeError;
-pub use keyboard::{KeyNode, Keyboard};
-pub use keyforge_protocol::keycodes::KeycodeRegistry;
-pub use layout::{KeyIndex, Layout};
+pub use error::ForgeError;
+pub use geometry::{KeyboardDefinition, KeyboardGeometry, KeyNode};
+pub use job::{JobIdentifier, JobIdError};
+pub use keyboard::Keyboard;
+pub use keycodes::KeycodeRegistry;
+pub use layout::Layout;
 pub use rubric::Rubric;
+pub use types::{KeyIndex, HandIndex, FingerIndex, RowIndex, ColIndex, Score, KeyCode};
+pub use validator::Validator;
 
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +56,7 @@ impl Default for SearchConfig {
 }
 
 impl SearchConfig {
-    pub fn validate(&self) -> Result<(), KeyForgeError> {
+    pub fn validate(&self) -> Result<(), ForgeError> {
         match self {
             SearchConfig::Annealing {
                 steps,
@@ -53,16 +66,16 @@ impl SearchConfig {
                 ..
             } => {
                 if *steps == 0 {
-                    return Err(KeyForgeError::InvalidData("Steps must be > 0".into()));
+                    return Err(ForgeError::InvalidData("Steps must be > 0".into()));
                 }
                 if *start_temp < 0.0 {
-                    return Err(KeyForgeError::InvalidData("Start temp must be >= 0".into()));
+                    return Err(ForgeError::InvalidData("Start temp must be >= 0".into()));
                 }
                 if *end_temp < 0.0 {
-                    return Err(KeyForgeError::InvalidData("End temp must be >= 0".into()));
+                    return Err(ForgeError::InvalidData("End temp must be >= 0".into()));
                 }
                 if *reheat_factor <= 0.0 {
-                    return Err(KeyForgeError::InvalidData("Reheat factor must be > 0".into()));
+                    return Err(ForgeError::InvalidData("Reheat factor must be > 0".into()));
                 }
             }
         }
@@ -87,12 +100,8 @@ pub struct AnalysisReport {
     pub scissors: f32,
     pub redirects: f32,
     pub rolls: f32,
-
-    // Visual Data
     #[serde(default)]
     pub heatmap: Vec<f32>,
-
-    // Detailed Metrics
     #[serde(default)]
     pub top_sfbs: Vec<MetricViolation>,
     #[serde(default)]

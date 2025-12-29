@@ -1,4 +1,5 @@
 use crate::models::SearchUpdate;
+use keyforge_model::KeyCode;
 use keyforge_core::ProgressCallback;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -75,7 +76,7 @@ pub struct TauriBridge {
 }
 
 impl ProgressCallback for TauriBridge {
-    fn on_progress(&self, epoch: usize, score: f32, best_layout: &[u16], ips: f32) -> bool {
+    fn on_progress(&self, epoch: usize, score: f32, best_layout: &[KeyCode], ips: f32) -> bool {
         if let Ok(guard) = self.stop_signal.lock() {
             if *guard {
                 return false;
@@ -84,7 +85,7 @@ impl ProgressCallback for TauriBridge {
 
         let bytes: Vec<u8> = best_layout
             .iter()
-            .map(|&c| if c < 255 { c as u8 } else { b'?' })
+            .map(|&c| if c.0 < 255 { c.0 as u8 } else { b'?' })
             .collect();
         let layout_str = String::from_utf8_lossy(&bytes).to_string();
 

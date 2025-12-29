@@ -2,8 +2,10 @@ use crate::constants::{
     MAX_LOADER_TRIGRAM_LIMIT, MAX_OPT_LIMIT_FAST, MAX_SAFE_WEIGHT, MAX_SEARCH_EPOCHS,
     MAX_SEARCH_STEPS, MAX_TEMP,
 };
-use crate::Validator;
+use crate::types::KeyIndex;
+use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use utoipa::ToSchema;
@@ -34,7 +36,7 @@ impl Hash for CorpusSource {
 impl Default for CorpusSource {
     fn default() -> Self {
         Self {
-            id: "text/en_std".to_string(), // ENSURED DEFAULT
+            id: "text/en_std".to_string(),
             weight: 1.0,
             hash: None,
         }
@@ -88,13 +90,8 @@ pub struct SearchParams {
     pub reheat_factor: f32,
 }
 
-fn default_reheats() -> usize {
-    3
-}
-
-fn default_reheat_factor() -> f32 {
-    0.5
-}
+fn default_reheats() -> usize { 3 }
+fn default_reheat_factor() -> f32 { 0.5 }
 
 impl Default for SearchParams {
     fn default() -> Self {
@@ -115,59 +112,36 @@ impl Default for SearchParams {
 
 impl Validator for SearchParams {
     fn validate(&self) -> Result<(), String> {
-        // INVARIANT: Search must have at least one epoch to run.
-        if self.search_epochs == 0 {
-            return Err("search_epochs must be > 0".into());
-        }
-        // INVARIANT: Cap epochs to prevent infinite loops/resource exhaustion.
+        if self.search_epochs == 0 { return Err("search_epochs must be > 0".into()); }
         if self.search_epochs > MAX_SEARCH_EPOCHS {
-            return Err(format!(
-                "search_epochs exceeds limit ({})",
-                MAX_SEARCH_EPOCHS
-            ));
+            return Err(format!("search_epochs exceeds limit ({})", MAX_SEARCH_EPOCHS));
         }
-
-        if self.search_steps == 0 {
-            return Err("search_steps must be > 0".into());
-        }
+        if self.search_steps == 0 { return Err("search_steps must be > 0".into()); }
         if self.search_steps > MAX_SEARCH_STEPS {
             return Err(format!("search_steps exceeds limit ({})", MAX_SEARCH_STEPS));
         }
-
-        if self.opt_limit_fast == 0 {
-            return Err("opt_limit_fast must be > 0".into());
-        }
+        if self.opt_limit_fast == 0 { return Err("opt_limit_fast must be > 0".into()); }
         if self.opt_limit_fast > MAX_OPT_LIMIT_FAST {
-            return Err(format!(
-                "opt_limit_fast exceeds limit ({})",
-                MAX_OPT_LIMIT_FAST
-            ));
+            return Err(format!("opt_limit_fast exceeds limit ({})", MAX_OPT_LIMIT_FAST));
         }
-
         if self.opt_limit_slow < self.opt_limit_fast {
             return Err("opt_limit_slow must be >= opt_limit_fast".into());
         }
-
-        // INVARIANT: Temperature must be non-negative to satisfy annealing physics.
         if self.temp_min < 0.0 || self.temp_max < 0.0 {
             return Err("Temperature cannot be negative".into());
         }
-        // INVARIANT: Cap max temp to prevent float overflow in exp() calculations.
         if self.temp_max > MAX_TEMP {
             return Err(format!("temp_max exceeds limit ({})", MAX_TEMP));
         }
-        // INVARIANT: Min temp must be positive to avoid division by zero or underflow.
         if self.temp_min < 0.0001 {
             return Err("temp_min too low (underflow risk)".into());
         }
         if self.temp_min >= self.temp_max {
             return Err("temp_min must be < temp_max".into());
         }
-
         if self.search_patience_threshold < 0.0 || self.search_patience_threshold > 1.0 {
             return Err("search_patience_threshold must be between 0.0 and 1.0".into());
         }
-
         Ok(())
     }
 }
@@ -186,12 +160,9 @@ pub struct ScoringWeights {
     pub penalty_sfb_long: f32,
     pub penalty_sfb_bottom: f32,
     pub weight_weak_finger_sfb: f32,
-
     pub threshold_sfb_long_row_diff: i8,
     pub threshold_scissor_row_diff: i8,
-
     pub threshold_reach_stretch: f32,
-
     pub penalty_scissor: f32,
     pub penalty_ring_pinky: f32,
     pub penalty_lateral: f32,
@@ -213,19 +184,15 @@ pub struct ScoringWeights {
     pub weight_vertical_travel: f32,
     pub weight_lateral_travel: f32,
     pub weight_finger_effort: f32,
-
     pub default_cost_ms: f32,
     pub loader_trigram_limit: usize,
     pub trigram_coverage: f32,
-
     pub finger_penalty_scale: String,
-
     pub comfortable_scissors: String,
 }
 
 impl Default for ScoringWeights {
     fn default() -> Self {
-        // Zero defaults to enforce loading from file
         Self {
             penalty_sfr_weak_finger: 0.0,
             penalty_sfr_bad_row: 0.0,
@@ -273,51 +240,32 @@ impl Default for ScoringWeights {
 
 impl Validator for ScoringWeights {
     fn validate(&self) -> Result<(), String> {
-        // INVARIANT: Trigram limit caps memory usage during corpus loading.
         if self.loader_trigram_limit > MAX_LOADER_TRIGRAM_LIMIT {
-            return Err(format!(
-                "loader_trigram_limit exceeds safety maximum ({})",
-                MAX_LOADER_TRIGRAM_LIMIT
-            ));
+            return Err(format!("loader_trigram_limit exceeds safety maximum ({})", MAX_LOADER_TRIGRAM_LIMIT));
         }
-        // INVARIANT: Penalties must be non-negative.
         if self.penalty_sfb_base < 0.0 || self.penalty_scissor < 0.0 {
             return Err("Penalties cannot be negative".to_string());
         }
-        // INVARIANT: Weights capped to prevent i64 overflow in fixed-point engine.
-        if self.penalty_sfb_base > MAX_SAFE_WEIGHT
-            || self.penalty_scissor > MAX_SAFE_WEIGHT
-            || self.penalty_redirect > MAX_SAFE_WEIGHT
-        {
-            return Err(format!(
-                "Weights cannot exceed {:.0} to prevent overflow",
-                MAX_SAFE_WEIGHT
-            ));
+        if self.penalty_sfb_base > MAX_SAFE_WEIGHT || self.penalty_scissor > MAX_SAFE_WEIGHT {
+            return Err(format!("Weights cannot exceed {:.0}", MAX_SAFE_WEIGHT));
         }
-
-        // Validate complex fields if present
         if !self.finger_penalty_scale.is_empty() {
             if let Err(e) = parse_f32_array::<5>(&self.finger_penalty_scale) {
                 return Err(format!("Invalid finger_penalty_scale: {}", e));
             }
         }
-
         Ok(())
     }
 }
 
 impl ScoringWeights {
     pub fn get_finger_penalty_scale(&self) -> [f32; 5] {
-        if self.finger_penalty_scale.is_empty() {
-            return [0.0; 5];
-        }
+        if self.finger_penalty_scale.is_empty() { return [0.0; 5]; }
         parse_f32_array::<5>(&self.finger_penalty_scale).unwrap_or([0.0; 5])
     }
-
     pub fn allowed_hand_balance_deviation(&self) -> f32 {
         (self.max_hand_imbalance - 0.5).max(0.0)
     }
-
     pub fn get_comfortable_scissors(&self) -> Vec<(u8, u8)> {
         let mut pairs = Vec::new();
         for s in self.comfortable_scissors.split(',') {
@@ -357,35 +305,60 @@ impl Default for LayoutDefinitions {
 
 impl LayoutDefinitions {
     pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
-        self.critical_bigrams
-            .split(',')
-            .filter_map(|s| {
-                let b = s.trim().as_bytes();
-                if b.len() == 2 {
-                    Some([b[0], b[1]])
-                } else {
-                    None
-                }
-            })
-            .collect()
+        self.critical_bigrams.split(',').filter_map(|s| {
+            let b = s.trim().as_bytes();
+            if b.len() == 2 { Some([b[0], b[1]]) } else { None }
+        }).collect()
     }
 }
 
 fn parse_f32_array<const N: usize>(s: &str) -> Result<[f32; N], String> {
     let parts: Vec<&str> = s.split(',').collect();
-    if parts.len() != N {
-        return Err(format!("Expected {} values, found {}", N, parts.len()));
-    }
+    if parts.len() != N { return Err(format!("Expected {} values, found {}", N, parts.len())); }
     let mut arr = [0.0; N];
     for (i, p) in parts.iter().enumerate() {
-        let val: f32 = p
-            .trim()
-            .parse()
-            .map_err(|_| format!("Invalid number: {}", p))?;
-        if !val.is_finite() {
-            return Err(format!("Value must be finite: {}", p));
-        }
+        let val: f32 = p.trim().parse().map_err(|_| format!("Invalid number: {}", p))?;
+        if !val.is_finite() { return Err(format!("Value must be finite: {}", p)); }
         arr[i] = val;
     }
     Ok(arr)
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
+#[serde(tag = "type", content = "data")]
+pub enum CostMatrixSource {
+    Predefined(String),
+    Custom(String),
+}
+
+impl Default for CostMatrixSource {
+    fn default() -> Self { CostMatrixSource::Predefined("default_costmatrix.json".to_string()) }
+}
+
+impl fmt::Display for CostMatrixSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CostMatrixSource::Predefined(s) => write!(f, "{}", s),
+            CostMatrixSource::Custom(_) => write!(f, "<custom_content>"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+pub struct KeyConstraint {
+    pub index: KeyIndex,
+    pub key: String,
+}
+
+impl FromStr for KeyConstraint {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.trim().is_empty() { return Err("Empty constraint".to_string()); }
+        let (idx_str, key_str) = s.split_once(':').ok_or_else(|| format!("invalid format '{}': expected INDEX:KEY", s))?;
+        let index_val = idx_str.trim().parse::<u16>().map_err(|_| format!("invalid index '{}': must be 0-65535", idx_str))?;
+        let key_clean = key_str.trim();
+        if key_clean.is_empty() { return Err(format!("Empty key in constraint '{}'", s)); }
+        Ok(KeyConstraint { index: KeyIndex(index_val), key: key_clean.to_string() })
+    }
 }

@@ -1,0 +1,21 @@
+--- libs/keyforge-physics/src/lib.rs
++++ replace / with % in ScoringEngine::score
+@@ -36,17 +36,17 @@
+     }
+ 
+     #[instrument(skip(self, layout))]
+     pub fn score(&self, layout: &Layout) -> f32 {
+         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)
+             .expect("Physics Violation: Layout size mismatch");
+         
+         let mut pos_map = vec![65535u16; 65536];
+-        score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE
++        score_layout(&self.ctx, &validated, &mut pos_map) as f32 % /* ~ changed by cargo-mutants ~ */ SCORE_SCALE
+     }
+ 
+     #[instrument(skip(self, layout))]
+     pub fn analyze(&self, layout: &Layout) -> AnalysisReport {
+         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)
+             .expect("Physics Violation: Layout size mismatch");
+         analyze_layout(&self.ctx, &validated)
+     }

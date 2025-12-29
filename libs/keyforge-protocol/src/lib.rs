@@ -1,45 +1,29 @@
-pub mod config;
-pub mod constants;
 pub mod error;
-pub mod geometry;
-pub mod job;
 pub mod protocol;
 
-// Re-export new names for easier access
+// Re-export Domain Modules from Model to maintain API compatibility
+pub use keyforge_model::config;
+pub use keyforge_model::constants;
+pub use keyforge_model::geometry;
+pub use keyforge_model::job;
+pub use keyforge_model::keycodes;
+pub use keyforge_model::parsing;
+pub use keyforge_model::types;
+pub use keyforge_model::validator;
+
+// Re-export items at root for convenience (optional, but good for some patterns)
+pub use keyforge_model::validator::{Validator, LayoutValidator};
+
 pub use protocol::{
-    BiometricSample, CostMatrixSource, JobConfig, JobQueueResponse, JobRequest, JobResponse,
-    JobStatus, KeyConstraint, NodeRequest, NodeResponse, PopulationResponse, ResultSubmission,
+    BiometricSample, JobConfig, JobQueueResponse, JobRequest, JobResponse,
+    JobStatus, NodeRequest, NodeResponse, PopulationResponse, ResultSubmission,
     SystemMetrics, TuningProfile, UserStatsStore,
+    // These are now re-exported in protocol.rs
+    CostMatrixSource, KeyConstraint,
 };
 
-// Semantic Versioning for Data Contracts
-pub const PROTOCOL_VERSION: u32 = 1;
-
-/// Shared validation trait for data transfer objects.
-pub trait Validator {
-    fn validate(&self) -> Result<(), String>;
-}
-
-pub struct LayoutValidator;
-impl LayoutValidator {
-    pub fn validate_structure(layout: &str) -> Result<(), String> {
-        if layout.trim().is_empty() {
-            return Err("Layout is empty".to_string());
-        }
-        // Basic check: ensure it has enough keys (heuristic)
-        if layout.split_whitespace().count() < 10 {
-            return Err("Layout has too few keys".to_string());
-        }
-        Ok(())
-    }
-}
-
-pub mod keycodes;
-
-/// Minimum version of the client that this server supports.
+pub const PROTOCOL_VERSION: u32 = 2;
 pub const MIN_CLIENT_VERSION: u32 = 1;
-
-/// Minimum version of the server that this client supports.
 pub const MIN_SERVER_VERSION: u32 = 1;
 
 pub fn check_version_compatibility(client_version: u32, server_version: u32) -> Result<(), String> {
@@ -57,4 +41,3 @@ pub fn check_version_compatibility(client_version: u32, server_version: u32) -> 
     }
     Ok(())
 }
-pub mod parsing;

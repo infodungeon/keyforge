@@ -2,6 +2,7 @@ use keyforge_protocol::config::{ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::KeyboardGeometry;
 use keyforge_protocol::job::JobIdentifier;
 use keyforge_protocol::protocol::{CostMatrixSource, KeyConstraint};
+use keyforge_protocol::types::KeyIndex;
 
 #[test]
 fn test_job_identifier_determinism() {
@@ -9,7 +10,7 @@ fn test_job_identifier_determinism() {
     let weights = ScoringWeights::default();
     let params = SearchParams::default();
     let pins = vec![KeyConstraint {
-        index: 0,
+        index: KeyIndex(0),
         key: "A".into(),
     }];
     let corpus = "default";
@@ -29,11 +30,11 @@ fn test_job_identifier_sensitivity() {
     let weights = ScoringWeights::default();
     let params = SearchParams::default();
     let pins1 = vec![KeyConstraint {
-        index: 0,
+        index: KeyIndex(0),
         key: "A".into(),
     }];
     let pins2 = vec![KeyConstraint {
-        index: 0,
+        index: KeyIndex(0),
         key: "B".into(),
     }];
     let corpus = "default";

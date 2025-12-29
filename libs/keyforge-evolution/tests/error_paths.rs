@@ -1,5 +1,6 @@
 
-use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, SearchConfig};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, SearchConfig, KeyCode};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
 use keyforge_physics::EngineRequest;
 use std::sync::Arc;
 
@@ -9,29 +10,31 @@ fn test_panic_on_missing_pin() {
     // Setup minimal engine
     let keys = vec![
         KeyNode {
-            id: 0,
+            index: 0,
             label: "k0".into(),
-            hand: 0,
-            finger: 0,
-            row: 0,
-            col: 0,
+            hand: HandIndex(0),
+            finger: FingerIndex(0),
+            row: RowIndex(0),
+            col: ColIndex(0),
             x: 0.0,
             y: 0.0,
             is_home: false,
+            ..Default::default()
         },
         KeyNode {
-            id: 1,
+            index: 1,
             label: "k1".into(),
-            hand: 0,
-            finger: 1,
-            row: 0,
-            col: 1,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            row: RowIndex(0),
+            col: ColIndex(1),
             x: 1.0,
             y: 0.0,
             is_home: false,
+            ..Default::default()
         },
     ];
-    let kb = Arc::new(Keyboard::new(keys, 0));
+    let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
     let corpus = Arc::new(Corpus::default());
     let rubric = Arc::new(Rubric::default());
     
@@ -44,7 +47,7 @@ fn test_panic_on_missing_pin() {
     };
 
     // Pin key 99 (which is not in default 0..N layout)
-    let pinned = vec![Some(99), None];
+    let pinned = vec![Some(KeyCode(99)), None];
 
     let req = EngineRequest {
         keyboard: kb,

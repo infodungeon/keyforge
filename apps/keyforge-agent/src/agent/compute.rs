@@ -49,6 +49,7 @@ pub struct PreparedJob {
     pub keyboard: std::sync::Arc<keyforge_model::Keyboard>,
     pub corpus: std::sync::Arc<keyforge_model::Corpus>,
     pub rubric: std::sync::Arc<keyforge_model::Rubric>,
+    pub cost_overrides: Vec<(usize, usize, f32)>,
 }
 
 pub fn create_engine_request(
@@ -138,7 +139,7 @@ pub fn create_engine_request(
             if let Some(code) = pin {
                 if !layout.keys.contains(code) {
                      let label = registry.get_label(*code);
-                     return Err(anyhow::anyhow!("Pinned key '{}' (code {}) not found in initial layout", label, code));
+                     return Err(anyhow::anyhow!("Pinned key '{}' (code {}) not found in initial layout", label, code.0));
                 }
             }
         }
@@ -158,7 +159,7 @@ pub fn create_engine_request(
         config: search_config,
         initial_layout,
         pinned_keys,
-        cost_overrides,
+        cost_overrides: cost_overrides.clone(),
     };
 
     Ok(PreparedJob {
@@ -167,6 +168,7 @@ pub fn create_engine_request(
         keyboard,
         corpus,
         rubric,
+        cost_overrides,
     })
 }
 

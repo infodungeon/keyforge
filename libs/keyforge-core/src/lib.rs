@@ -8,7 +8,7 @@
 pub use keyforge_evolution::ProgressCallback;
 
 pub use keyforge_physics::{
-    verify::DeterministicScorer, EngineRequest, LayoutIdentity, ScoringEngine,
+    verify::DeterministicScorer, EngineRequest, LayoutIdentity, ScoringEngine, PhysicsError,
 };
 
 use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SwapSuggestion};
@@ -17,7 +17,7 @@ use std::sync::Arc;
 /// Build a compiled `ScoringEngine` from an `EngineRequest`.
 ///
 /// This is a convenience wrapper around `ScoringEngine::new`.
-pub fn build_engine(req: &EngineRequest) -> ScoringEngine {
+pub fn build_engine(req: &EngineRequest) -> Result<ScoringEngine, PhysicsError> {
     ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)
 }
 

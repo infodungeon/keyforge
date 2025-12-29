@@ -1,5 +1,6 @@
 use clap::Args;
 use keyforge_compute::Runtime;
+use keyforge_model::KeyCode;
 use std::time::Instant;
 
 #[derive(Args, Debug, Clone)]
@@ -18,7 +19,7 @@ pub fn run(args: BenchmarkArgs, runtime: Runtime) -> Result<(), Box<dyn std::err
     // Create a dummy layout for benchmarking
     // We need a layout that matches the key count of the engine
     let key_count = runtime.engine.key_count();
-    let layout = keyforge_model::Layout::new_unchecked((0..key_count).map(|i| i as u16).collect());
+    let layout = keyforge_model::Layout::new_unchecked((0..key_count).map(|i| KeyCode(i as u16)).collect());
 
     let start = Instant::now();
     let mut score = 0.0;

@@ -1,5 +1,4 @@
-#![allow(clippy::unnecessary_map_or)]
-use keyforge_model::Layout;
+use keyforge_model::{Layout, KeyCode};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -11,7 +10,7 @@ pub struct LayoutIdentity {
 
 pub struct Fingerprinter;
 
-static STANDARDS: OnceLock<HashMap<String, Vec<u16>>> = OnceLock::new();
+static STANDARDS: OnceLock<HashMap<String, Vec<KeyCode>>> = OnceLock::new();
 
 impl Default for Fingerprinter {
     fn default() -> Self {
@@ -20,7 +19,7 @@ impl Default for Fingerprinter {
 }
 
 impl Fingerprinter {
-    fn get_standards() -> &'static HashMap<String, Vec<u16>> {
+    fn get_standards() -> &'static HashMap<String, Vec<KeyCode>> {
         STANDARDS.get_or_init(|| {
             let mut standards = HashMap::new();
             standards.insert("Qwerty".into(), to_codes("qwertyuiopasdfghjkl;zxcvbnm,./"));
@@ -68,6 +67,6 @@ impl Fingerprinter {
     }
 }
 
-fn to_codes(s: &str) -> Vec<u16> {
-    s.chars().map(|c| c as u16).collect()
+fn to_codes(s: &str) -> Vec<KeyCode> {
+    s.chars().map(|c| KeyCode(c as u16)).collect()
 }

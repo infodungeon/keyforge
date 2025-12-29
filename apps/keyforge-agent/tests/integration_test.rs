@@ -49,10 +49,11 @@ fn test_agent_session_bootstrap() {
 
     let geometry = KeyboardGeometry {
         keys: vec![KeyNode {
-            id: "KC_A".into(),
+            index: 0,
+            label: "a".into(),
             ..KeyNode::default()
         }],
-        prime_slots: vec![0],
+        prime_slots: vec![keyforge_protocol::types::KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![],
         home_row: 0,

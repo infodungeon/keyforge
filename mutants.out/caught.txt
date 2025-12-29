@@ -1,0 +1,10 @@
+libs/keyforge-physics/src/lib.rs:40:9: replace ScoringEngine::score -> f32 with 0.0
+libs/keyforge-physics/src/lib.rs:40:9: replace ScoringEngine::score -> f32 with 1.0
+libs/keyforge-physics/src/lib.rs:40:9: replace ScoringEngine::score -> f32 with -1.0
+libs/keyforge-physics/src/lib.rs:44:66: replace / with % in ScoringEngine::score
+libs/keyforge-physics/src/lib.rs:44:66: replace / with * in ScoringEngine::score
+libs/keyforge-physics/src/lib.rs:49:9: replace ScoringEngine::analyze -> AnalysisReport with Default::default()
+libs/keyforge-physics/src/lib.rs:56:9: replace ScoringEngine::suggest_improvements -> Vec<SwapSuggestion> with vec![]
+libs/keyforge-physics/src/lib.rs:66:9: replace ScoringEngine::calculate_swap_delta -> i64 with 0
+libs/keyforge-physics/src/lib.rs:66:9: replace ScoringEngine::calculate_swap_delta -> i64 with 1
+libs/keyforge-physics/src/lib.rs:66:9: replace ScoringEngine::calculate_swap_delta -> i64 with -1

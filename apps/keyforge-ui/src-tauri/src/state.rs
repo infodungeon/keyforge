@@ -55,7 +55,7 @@ impl AssetLoader for AssetCache {
     fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         // We need a deterministic key for caching
         let key =
-            serde_json::to_string(sources).map_err(keyforge_model::error::KeyForgeError::Serde)?;
+            serde_json::to_string(sources).map_err(keyforge_model::error::ForgeError::Serde)?;
 
         if let Some(cached) = self.corpora.get(&key) {
             return Ok(cached.as_ref().clone());

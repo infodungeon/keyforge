@@ -1,4 +1,5 @@
-use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, types::KeyCode};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
 use keyforge_physics::ScoringEngine;
 use proptest::prelude::*;
 use rand::SeedableRng;
@@ -7,23 +8,24 @@ use std::sync::Arc;
 fn arb_keyboard(size: usize) -> impl Strategy<Value = Keyboard> {
     prop::collection::vec(
         (0..5u8, 0..3i8, 0..10i8).prop_map(|(f, r, c)| KeyNode {
-            id: 0, // Placeholder
+            index: 0, // Placeholder
             label: "k".to_string(),
-            hand: if c < 5 { 0 } else { 1 },
-            finger: f,
-            row: r,
-            col: c,
+            hand: if c < 5 { HandIndex(0) } else { HandIndex(1) },
+            finger: FingerIndex(f),
+            row: RowIndex(r),
+            col: ColIndex(c),
             x: c as f32,
             y: r as f32,
             is_home: false,
+            ..Default::default()
         }),
         size,
     )
     .prop_map(|mut nodes| {
         for (i, node) in nodes.iter_mut().enumerate() {
-            node.id = i;
+            node.index = i;
         }
-        Keyboard::new(nodes, 1)
+        Keyboard::new(nodes, 1).unwrap()
     })
 }
 
@@ -61,7 +63,7 @@ proptest! {
         cp in arb_corpus(0..30),
         mut layout_keys in prop::collection::vec(0..30u16, 30).prop_map(|_| {
             // Use 0..30 to ensure we hit the chars in the corpus char_range
-            (0..30).collect::<Vec<u16>>()
+            (0..30u16).map(KeyCode).collect::<Vec<KeyCode>>()
         }),
         seed in any::<u64>(),
         swap_idxs in (0..30usize, 0..30usize)
@@ -82,7 +84,7 @@ proptest! {
         // Precompute pos_map for delta
         let mut pos_map = vec![65535u16; 65536];
         for (idx, &code) in layout_keys.iter().enumerate() {
-            pos_map[code as usize] = idx as u16;
+            pos_map[code.0 as usize] = idx as u16;
         }
 
         let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, i, j);

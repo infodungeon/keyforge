@@ -1,5 +1,5 @@
 // crates/keyforge-hive/src/repositories/submissions.rs
-use crate::api::submission::SubmissionEntry;
+use crate::features::list_submissions::SubmissionEntry;
 use sqlx::{Pool, Postgres, Row};
 
 #[derive(Clone)]

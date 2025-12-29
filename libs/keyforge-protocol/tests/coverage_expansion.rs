@@ -1,16 +1,15 @@
 use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
 use keyforge_protocol::protocol::{CostMatrixSource, JobRequest, KeyConstraint};
+use keyforge_protocol::types::{KeyIndex, HandIndex, FingerIndex};
 use keyforge_protocol::Validator;
 use std::str::FromStr;
-
-// --- Geometry Validation Tests ---
 
 #[test]
 fn test_geometry_valid() {
     let geom = KeyboardGeometry {
         keys: vec![KeyNode::default()],
-        prime_slots: vec![0],
+        prime_slots: vec![KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![],
         home_row: 1,
@@ -47,8 +46,8 @@ fn test_geometry_too_many_keys() {
 fn test_geometry_overlapping_slots() {
     let geom = KeyboardGeometry {
         keys: vec![KeyNode::default()],
-        prime_slots: vec![0],
-        med_slots: vec![0], // Overlap
+        prime_slots: vec![KeyIndex(0)],
+        med_slots: vec![KeyIndex(0)], // Overlap
         low_slots: vec![],
         home_row: 1,
     };
@@ -59,7 +58,7 @@ fn test_geometry_overlapping_slots() {
 fn test_geometry_incomplete_slots() {
     let geom = KeyboardGeometry {
         keys: vec![KeyNode::default(), KeyNode::default()],
-        prime_slots: vec![0],
+        prime_slots: vec![KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![], // Index 1 missing
         home_row: 1,
@@ -71,7 +70,7 @@ fn test_geometry_incomplete_slots() {
 fn test_geometry_slot_out_of_bounds() {
     let geom = KeyboardGeometry {
         keys: vec![KeyNode::default()],
-        prime_slots: vec![1], // Out of bounds (len is 1)
+        prime_slots: vec![KeyIndex(1)], // Out of bounds (len is 1)
         med_slots: vec![],
         low_slots: vec![],
         home_row: 1,
@@ -85,7 +84,7 @@ fn test_geometry_invalid_dimensions() {
     key.w = 0.0;
     let geom = KeyboardGeometry {
         keys: vec![key],
-        prime_slots: vec![0],
+        prime_slots: vec![KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![],
         home_row: 1,
@@ -96,10 +95,10 @@ fn test_geometry_invalid_dimensions() {
 #[test]
 fn test_geometry_invalid_hand() {
     let mut key = KeyNode::default();
-    key.hand = 2; // Max is 1
+    key.hand = HandIndex(2); // Max is 1
     let geom = KeyboardGeometry {
         keys: vec![key],
-        prime_slots: vec![0],
+        prime_slots: vec![KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![],
         home_row: 1,
@@ -110,10 +109,10 @@ fn test_geometry_invalid_hand() {
 #[test]
 fn test_geometry_invalid_finger() {
     let mut key = KeyNode::default();
-    key.finger = 5; // Max is 4
+    key.finger = FingerIndex(5); // Max is 4
     let geom = KeyboardGeometry {
         keys: vec![key],
-        prime_slots: vec![0],
+        prime_slots: vec![KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![],
         home_row: 1,
@@ -121,12 +120,10 @@ fn test_geometry_invalid_finger() {
     assert!(geom.validate().is_err());
 }
 
-// --- JobRequest / CostMatrix Validation Tests ---
-
 fn valid_job_request() -> JobRequest {
     let geom = KeyboardGeometry {
         keys: vec![KeyNode::default()],
-        prime_slots: vec![0],
+        prime_slots: vec![KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![],
         home_row: 1,
@@ -165,18 +162,17 @@ fn test_job_cost_matrix_custom_empty() {
 }
 
 #[test]
-fn test_job_cost_matrix_custom_invalid_csv() {
+fn test_job_cost_matrix_custom_invalid_json() {
     let mut req = valid_job_request();
-    req.cost_matrix = CostMatrixSource::Custom("not_csv".into());
+    req.cost_matrix = CostMatrixSource::Custom("invalid_json".into());
     assert!(req.validate().is_err());
 }
 
 #[test]
 fn test_job_pinned_keys_out_of_bounds() {
     let mut req = valid_job_request();
-    // Geometry has 1 key (index 0)
     req.pinned_keys = vec![KeyConstraint {
-        index: 1,
+        index: KeyIndex(1),
         key: "A".into(),
     }];
     assert!(req.validate().is_err());
@@ -196,17 +192,15 @@ fn test_job_too_many_biometrics() {
     assert!(req.validate().is_err());
 }
 
-// --- Parsing Tests ---
-
 #[test]
 fn test_key_constraint_parsing() {
     assert!(KeyConstraint::from_str("").is_err());
     assert!(KeyConstraint::from_str("no_colon").is_err());
     assert!(KeyConstraint::from_str("abc:A").is_err());
-    assert!(KeyConstraint::from_str("1:").is_err()); // Empty key
+    assert!(KeyConstraint::from_str("1:").is_err());
 
     let c = KeyConstraint::from_str("1:A").unwrap();
-    assert_eq!(c.index, 1);
+    assert_eq!(c.index, KeyIndex(1));
     assert_eq!(c.key, "A");
 }
 
@@ -220,8 +214,6 @@ fn test_corpus_source_parsing() {
     assert_eq!(c.id, "id");
     assert_eq!(c.weight, 1.5);
 }
-
-// --- KLE & Definition Tests ---
 
 #[test]
 fn test_keyboard_definition_parse_json() {

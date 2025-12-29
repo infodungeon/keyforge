@@ -1,5 +1,5 @@
 use keyforge_evolution::{optimize_with_callback, ProgressCallback};
-use keyforge_model::{Corpus, Keyboard, Layout, Rubric, SearchConfig};
+use keyforge_model::{Corpus, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
 use keyforge_physics::{verify::DeterministicScorer, EngineRequest};
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ struct OracleCallback {
 }
 
 impl ProgressCallback for OracleCallback {
-    fn on_progress(&self, step: usize, score: f32, layout_keys: &[u16], _ips: f32) -> bool {
+    fn on_progress(&self, step: usize, score: f32, layout_keys: &[KeyCode], _ips: f32) -> bool {
         // Run the "Slow, Simple, Correct" reference implementation
         // Note: Reconstructing Layout from Keys for the verifier
         let layout = Layout::new_unchecked(layout_keys.to_vec());
@@ -109,14 +109,16 @@ fn create_mock_corpus() -> Corpus {
     }
 }
 
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+
 fn create_mock_keyboard() -> Keyboard {
     // Construct a simple 4-key keyboard for the corpus
     use keyforge_model::KeyNode;
     let keys = vec![
-        KeyNode { id: 0, x: 0.0, y: 0.0, row: 0, col: 0, hand: 0, finger: 1, label: "0".to_string(), is_home: false },
-        KeyNode { id: 1, x: 1.0, y: 0.0, row: 0, col: 1, hand: 0, finger: 2, label: "1".to_string(), is_home: false },
-        KeyNode { id: 2, x: 2.0, y: 0.0, row: 0, col: 2, hand: 0, finger: 3, label: "2".to_string(), is_home: false },
-        KeyNode { id: 3, x: 3.0, y: 0.0, row: 0, col: 3, hand: 0, finger: 4, label: "3".to_string(), is_home: false },
+        KeyNode { index: 0, x: 0.0, y: 0.0, row: RowIndex(0), col: ColIndex(0), hand: HandIndex(0), finger: FingerIndex(1), label: "0".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 1, x: 1.0, y: 0.0, row: RowIndex(0), col: ColIndex(1), hand: HandIndex(0), finger: FingerIndex(2), label: "1".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 2, x: 2.0, y: 0.0, row: RowIndex(0), col: ColIndex(2), hand: HandIndex(0), finger: FingerIndex(3), label: "2".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 3, x: 3.0, y: 0.0, row: RowIndex(0), col: ColIndex(3), hand: HandIndex(0), finger: FingerIndex(4), label: "3".to_string(), is_home: false, ..Default::default() },
     ];
-    Keyboard::new(keys, 0)
+    Keyboard::new(keys, 0).unwrap()
 }

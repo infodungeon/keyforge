@@ -1,22 +1,23 @@
 use keyforge_protocol::keycodes::{KeycodeDefinition, KeycodeRegistry};
+use keyforge_model::types::KeyCode;
 
 #[test]
 fn test_registry_lookup() {
     let defs = vec![KeycodeDefinition {
-        code: 65,
+        code: KeyCode(65),
         id: "KC_A".into(),
         label: "A".into(),
         aliases: vec!["A".into()],
     }];
     let reg = KeycodeRegistry::new(defs);
 
-    assert_eq!(reg.get_code("KC_A"), Some(65));
-    assert_eq!(reg.get_code("A"), Some(65));
-    assert_eq!(reg.get_code("a"), Some(65)); // Case insensitive
+    assert_eq!(reg.get_code("KC_A"), Some(KeyCode(65)));
+    assert_eq!(reg.get_code("A"), Some(KeyCode(65)));
+    assert_eq!(reg.get_code("a"), Some(KeyCode(65))); // Case insensitive
     assert_eq!(reg.get_code("B"), None);
 
-    assert_eq!(reg.get_label(65), "A");
-    assert_eq!(reg.get_label(66), "[66]"); // Fallback
+    assert_eq!(reg.get_label(KeyCode(65)), "A");
+    assert_eq!(reg.get_label(KeyCode(66)), "[66]"); // Fallback
 }
 
 #[test]

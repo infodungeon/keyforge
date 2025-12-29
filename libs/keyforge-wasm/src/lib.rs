@@ -103,7 +103,8 @@ impl KeyforgeEngine {
         let rubric = conversion::to_domain_rubric(&w);
         let overrides = conversion::resolve_cost_matrix(&cost.entries, &def.geometry);
 
-        let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &overrides);
+        let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &overrides)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         self.engine = Some(engine);
         self.registry = Some(reg);
@@ -123,7 +124,7 @@ impl KeyforgeEngine {
 
         let key_count = engine.key_count();
         let layout = conversion::parse_layout_string(&layout_str, key_count, registry)
-            .map_err(|e| JsValue::from_str(&e))?;
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let report = engine.analyze(&layout);
         Ok(serde_wasm_bindgen::to_value(&report)?)

@@ -1,5 +1,6 @@
 use keyforge_protocol::config::{ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry};
+use keyforge_protocol::types::{KeyIndex, HandIndex, FingerIndex};
 use keyforge_protocol::Validator;
 use proptest::prelude::*;
 use std::collections::HashSet;
@@ -46,17 +47,17 @@ fn arb_geometry() -> impl Strategy<Value = KeyboardGeometry> {
         prop::collection::vec(any::<usize>(), 0..5), // low
     ).prop_map(|(keys_hand, prime, med, low)| {
         let keys = keys_hand.into_iter().map(|h| KeyNode {
-            hand: h % 2, // Force valid hand 0/1 usually, or let it fail if >1
-            finger: 1,
+            hand: HandIndex(h % 2),
+            finger: FingerIndex(1),
             w: 1.0, h: 1.0,
             ..Default::default()
         }).collect();
         
         KeyboardGeometry {
             keys,
-            prime_slots: prime,
-            med_slots: med,
-            low_slots: low,
+            prime_slots: prime.into_iter().map(KeyIndex::from).collect(),
+            med_slots: med.into_iter().map(KeyIndex::from).collect(),
+            low_slots: low.into_iter().map(KeyIndex::from).collect(),
             home_row: 1,
         }
     })
@@ -69,7 +70,6 @@ proptest! {
     fn test_weights_validation_properties(w in arb_weights()) {
         let res = w.validate();
         
-        // If validation passes, invariants must hold
         if res.is_ok() {
             prop_assert!(w.penalty_sfb_base >= 0.0);
             prop_assert!(w.penalty_scissor >= 0.0);
@@ -99,7 +99,6 @@ proptest! {
         if res.is_ok() {
             prop_assert!(!g.keys.is_empty());
             
-            // Check disjointness
             let prime: HashSet<_> = g.prime_slots.iter().collect();
             let med: HashSet<_> = g.med_slots.iter().collect();
             let low: HashSet<_> = g.low_slots.iter().collect();
@@ -108,10 +107,9 @@ proptest! {
             prop_assert!(prime.is_disjoint(&low));
             prop_assert!(med.is_disjoint(&low));
             
-            // Check bounds
             let len = g.keys.len();
             for idx in g.prime_slots.iter().chain(&g.med_slots).chain(&g.low_slots) {
-                prop_assert!(*idx < len);
+                prop_assert!(usize::from(*idx) < len);
             }
         }
     }

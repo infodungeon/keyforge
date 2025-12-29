@@ -2,6 +2,7 @@ use keyforge_protocol::config::{ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_protocol::job::JobIdentifier;
 use keyforge_protocol::protocol::{CostMatrixSource, KeyConstraint};
+use keyforge_protocol::types::{KeyIndex, HandIndex, FingerIndex};
 use proptest::prelude::*;
 
 // --- Strategies ---
@@ -16,11 +17,12 @@ fn arb_geometry() -> impl Strategy<Value = KeyboardGeometry> {
             .into_iter()
             .enumerate()
             .map(|(i, (x, y, h, f))| KeyNode {
-                id: format!("k{}", i),
+                index: i,
+                label: format!("k{}", i),
                 x,
                 y,
-                hand: h,
-                finger: f,
+                hand: HandIndex(h),
+                finger: FingerIndex(f),
                 ..Default::default()
             })
             .collect();
@@ -53,7 +55,7 @@ fn arb_params() -> impl Strategy<Value = SearchParams> {
 fn arb_constraints() -> impl Strategy<Value = Vec<KeyConstraint>> {
     prop::collection::vec((any::<u16>(), "[a-zA-Z0-9]+"), 0..10).prop_map(|vec| {
         vec.into_iter()
-            .map(|(idx, key)| KeyConstraint { index: idx, key })
+            .map(|(idx, key)| KeyConstraint { index: KeyIndex(idx), key })
             .collect()
     })
 }
@@ -93,9 +95,6 @@ proptest! {
         if let Some(k) = geo2.keys.first_mut() {
             // Ensure mutation changes the value regardless of float precision
             k.x = if k.x == 0.0 { 1.0 } else { 0.0 };
-            // If the original was 0.0, it becomes 1.0.
-            // If it was anything else (including huge numbers), it becomes 0.0.
-            // This guarantees a bitwise change in the struct.
         }
 
         let new_hash = JobIdentifier::try_from_parts(&geo2, &weights, &params, &pins, &corpus_name, &cost).unwrap().hash;

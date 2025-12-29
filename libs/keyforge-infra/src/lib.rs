@@ -23,7 +23,7 @@ pub use asset::manager::AssetManager;
 pub use keyforge_model::loader::{AssetLoader, RawCostData};
 
 pub use util::common::{
-    calculate_file_hash, generate_cost_matrix_from_stats, load_keycode_registry, sanitize_filename,
+    calculate_file_hash, generate_cost_profile, load_keycode_registry, sanitize_filename,
 };
 pub use util::layout_parser::parse_layout_string_permissive_cached;
 pub mod repo;

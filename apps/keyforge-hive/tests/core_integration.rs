@@ -62,8 +62,10 @@ fn test_scorer_determinism_production_data() {
     let overrides_a = conversion::resolve_cost_matrix(&cost_data_a.entries, &def.geometry);
     let overrides_b = conversion::resolve_cost_matrix(&cost_data_b.entries, &def.geometry);
 
-    let engine_a = ScoringEngine::new(&keyboard_a, &corpus_a, &rubric_a, &overrides_a);
-    let engine_b = ScoringEngine::new(&keyboard_b, &corpus_b, &rubric_b, &overrides_b);
+    let engine_a = ScoringEngine::new(&keyboard_a, &corpus_a, &rubric_a, &overrides_a)
+        .expect("Failed to create engine A");
+    let engine_b = ScoringEngine::new(&keyboard_b, &corpus_b, &rubric_b, &overrides_b)
+        .expect("Failed to create engine B");
 
     // Create Layout String (Space separated tokens)
     let qwerty = "Q W E R T Y U I O P A S D F G H J K L Z X C V B N M";

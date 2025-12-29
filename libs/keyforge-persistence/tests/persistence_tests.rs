@@ -118,10 +118,11 @@ impl AssetLoader for MockLoader {
             meta: Default::default(),
             geometry: keyforge_protocol::geometry::KeyboardGeometry {
                 keys: vec![keyforge_protocol::geometry::KeyNode {
-                    id: "k0".to_string(),
+                    index: 0,
+                    label: "k0".to_string(),
                     ..Default::default()
                 }],
-                prime_slots: vec![0],
+                prime_slots: vec![keyforge_model::types::KeyIndex(0)],
                 med_slots: vec![],
                 low_slots: vec![],
                 home_row: 0,
@@ -154,14 +155,14 @@ fn test_compiler_success() {
 }
 
 #[test]
-fn test_compiler_custom_cost_fails() {
+fn test_compiler_custom_cost_success() {
     let loader = MockLoader;
     let compiler = Compiler::new(&loader);
     let mut project = Project::default();
-    project.cost_matrix = CostMatrixSource::Custom("test.csv".into());
+    project.cost_matrix = CostMatrixSource::Custom("{\"entries\":[]}".into());
 
     let result = compiler.compile(&project);
-    assert!(matches!(result, Err(PersistenceError::Config(_))));
+    assert!(result.is_ok());
 }
 
 #[tokio::test]
@@ -225,17 +226,18 @@ struct FailingLoader {
 impl AssetLoader for FailingLoader {
     fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
         if !self.fail_corpus && !self.fail_costs {
-            return Err(keyforge_model::error::KeyForgeError::NotFound("kb".into()));
+            return Err(keyforge_model::error::ForgeError::NotFound("kb".into()));
         }
         // Return valid dummy to pass keyboard check if we are testing other failures
         Ok(KeyboardDefinition {
             meta: Default::default(),
             geometry: keyforge_protocol::geometry::KeyboardGeometry {
                 keys: vec![keyforge_protocol::geometry::KeyNode {
-                    id: "k0".to_string(),
+                    index: 0,
+                    label: "k0".to_string(),
                     ..Default::default()
                 }],
-                prime_slots: vec![0],
+                prime_slots: vec![keyforge_model::types::KeyIndex(0)],
                 med_slots: vec![],
                 low_slots: vec![],
                 home_row: 0,
@@ -245,7 +247,7 @@ impl AssetLoader for FailingLoader {
     }
     fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         if self.fail_corpus {
-            return Err(keyforge_model::error::KeyForgeError::NotFound(
+            return Err(keyforge_model::error::ForgeError::NotFound(
                 "corpus".into(),
             ));
         }
@@ -253,14 +255,14 @@ impl AssetLoader for FailingLoader {
     }
     fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
         if self.fail_costs {
-            return Err(keyforge_model::error::KeyForgeError::NotFound(
+            return Err(keyforge_model::error::ForgeError::NotFound(
                 "costs".into(),
             ));
         }
         Ok(RawCostData { entries: vec![] })
     }
     fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
-        Err(keyforge_model::error::KeyForgeError::NotFound(
+        Err(keyforge_model::error::ForgeError::NotFound(
             "keys".into(),
         ))
     }

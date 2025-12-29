@@ -111,7 +111,7 @@ pub async fn cmd_validate_layout(
     let result = tauri::async_runtime::spawn_blocking(move || {
         let key_count = runtime.engine.key_count();
         let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
-            .map_err(CommandError::Validation)?;
+            .map_err(|e| CommandError::Validation(e.to_string()))?;
 
         let report = runtime.analyze(&layout);
         let heatmap = report.heatmap.clone();
@@ -154,7 +154,7 @@ pub async fn cmd_get_smart_swaps(
     let result = tauri::async_runtime::spawn_blocking(move || {
         let key_count = runtime.engine.key_count();
         let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
-            .map_err(CommandError::Validation)?;
+            .map_err(|e| CommandError::Validation(e.to_string()))?;
 
         Ok::<Vec<SwapSuggestion>, CommandError>(runtime.suggest_improvements(&layout))
     })

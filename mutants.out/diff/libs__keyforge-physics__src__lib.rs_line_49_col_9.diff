@@ -1,0 +1,23 @@
+--- libs/keyforge-physics/src/lib.rs
++++ replace ScoringEngine::analyze -> AnalysisReport with Default::default()
+@@ -41,19 +41,17 @@
+             .expect("Physics Violation: Layout size mismatch");
+         
+         let mut pos_map = vec![65535u16; 65536];
+         score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE
+     }
+ 
+     #[instrument(skip(self, layout))]
+     pub fn analyze(&self, layout: &Layout) -> AnalysisReport {
+-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)
+-            .expect("Physics Violation: Layout size mismatch");
+-        analyze_layout(&self.ctx, &validated)
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[instrument(skip(self, layout))]
+     pub fn suggest_improvements(&self, layout: &Layout) -> Vec<SwapSuggestion> {
+         suggest_swaps(&self.ctx, layout)
+     }
+ 
+     pub fn calculate_swap_delta(

@@ -18,6 +18,7 @@ use keyforge_infra::init::initialize_workspace;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{error, info};
 
 #[derive(Parser)]
@@ -150,7 +151,11 @@ async fn main() {
                     .await
                     .expect("Failed to load TLS certificates");
 
+                let handle = axum_server::Handle::new();
+                tokio::spawn(shutdown_signal_axum(handle.clone(), state));
+
                 axum_server::bind_rustls(addr, config)
+                    .handle(handle)
                     .serve(app.into_make_service_with_connect_info::<SocketAddr>())
                     .await
                     .expect("TLS server error");
@@ -174,6 +179,14 @@ async fn main() {
 async fn shutdown_signal(state: Arc<AppState>) {
     tokio::signal::ctrl_c().await.ok();
     info!("🛑 Signal received, initiating graceful shutdown...");
+    state.queue.shutdown().await;
+    info!("👋 Shutdown complete.");
+}
+
+async fn shutdown_signal_axum(handle: axum_server::Handle, state: Arc<AppState>) {
+    tokio::signal::ctrl_c().await.ok();
+    info!("🛑 Signal received (TLS), initiating graceful shutdown...");
+    handle.graceful_shutdown(Some(Duration::from_secs(30)));
     state.queue.shutdown().await;
     info!("👋 Shutdown complete.");
 }

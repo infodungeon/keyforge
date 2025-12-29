@@ -1,8 +1,7 @@
 use super::mechanics::calculate_pair_cost;
-use super::types::{FingerIndex, HandIndex, KeyIndex, Score};
+use super::types::{KeyCode, KeyIndex, Score};
 use super::EngineContext;
 use keyforge_model::{Corpus, Keyboard, Rubric};
-use std::convert::TryFrom;
 use crate::errors::PhysicsError;
 use tracing::instrument;
 
@@ -24,22 +23,17 @@ impl Compiler {
         let mut cols = Vec::with_capacity(key_count);
 
         for k in &kb.keys {
-            // Guardrail: Ensure geometry fits into Semantic Types
-            let hand = HandIndex::try_from(k.hand)?;
-            let finger = FingerIndex::try_from(k.finger)?;
-
-            hands.push(hand);
-            fingers.push(finger);
+            hands.push(k.hand);
+            fingers.push(k.finger);
             rows.push(k.row);
             cols.push(k.col);
         }
 
-        // Initialize with Score::ZERO
         let mut cost_matrix = vec![Score::ZERO; key_count * key_count];
 
         for i in 0..key_count {
             for j in 0..key_count {
-                let cost = calculate_pair_cost(kb, rubric, KeyIndex(i), KeyIndex(j));
+                let cost = calculate_pair_cost(kb, rubric, KeyIndex::from(i), KeyIndex::from(j));
                 cost_matrix[i * key_count + j] = Score::from_f32(cost);
             }
         }
@@ -50,59 +44,21 @@ impl Compiler {
             }
         }
 
-        // --- Bigrams ---
         let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&corpus.bigrams);
-        let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) =
-            flatten_bigrams_rev(&corpus.bigrams);
-
-        // --- Trigrams (Adaptive Pruning) ---
-        let pruned_trigrams = prune_trigrams(
-            corpus.trigrams.clone(),
-            rubric.trigram_coverage,
-            rubric.trigram_limit,
-        );
-
-        let (trigram_starts, trigram_others1, trigram_others2, trigram_freqs) =
-            flatten_trigrams_start(&pruned_trigrams);
-
-        let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) =
-            flatten_trigrams_mid(&pruned_trigrams);
-
-        let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) =
-            flatten_trigrams_end(&pruned_trigrams);
-
-        // Character frequencies from corpus
+        let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) = flatten_bigrams_rev(&corpus.bigrams);
+        let pruned_trigrams = prune_trigrams(corpus.trigrams.clone(), rubric.trigram_coverage, rubric.trigram_limit);
+        let (trigram_starts, trigram_others1, trigram_others2, trigram_freqs) = flatten_trigrams_start(&pruned_trigrams);
+        let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) = flatten_trigrams_mid(&pruned_trigrams);
+        let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) = flatten_trigrams_end(&pruned_trigrams);
         let char_freqs = corpus.char_freqs.clone();
 
         Ok(EngineContext {
-            key_count,
-            hands,
-            fingers,
-            rows,
-            cols,
-            cost_matrix,
-            char_freqs,
-
-            bigram_starts,
-            bigram_others,
-            bigram_freqs,
-            bigram_rev_starts,
-            bigram_rev_others,
-            bigram_rev_freqs,
-
-            trigram_starts,
-            trigram_others1,
-            trigram_others2,
-            trigram_freqs,
-            trigram_mid_starts,
-            trigram_mid_others1,
-            trigram_mid_others2,
-            trigram_mid_freqs,
-            trigram_end_starts,
-            trigram_end_others1,
-            trigram_end_others2,
-            trigram_end_freqs,
-
+            key_count, hands, fingers, rows, cols, cost_matrix, char_freqs,
+            bigram_starts, bigram_others, bigram_freqs,
+            bigram_rev_starts, bigram_rev_others, bigram_rev_freqs,
+            trigram_starts, trigram_others1, trigram_others2, trigram_freqs,
+            trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs,
+            trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs,
             penalty_redirect: Score::from_f32(rubric.redirect),
             penalty_skip: Score::ZERO,
             bonus_roll: Score::from_f32(rubric.roll_bonus),
@@ -110,119 +66,74 @@ impl Compiler {
     }
 }
 
-fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<u16>, Vec<u32>) {
+fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
     let mut buckets = vec![Vec::new(); 65536];
-    for &(c1, c2, freq) in source {
-        buckets[c1 as usize].push((c2, freq));
-    }
+    for &(c1, c2, freq) in source { buckets[c1 as usize].push((KeyCode(c2), freq)); }
     flatten_buckets(buckets)
 }
 
-fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<u16>, Vec<u32>) {
+fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
     let mut buckets = vec![Vec::new(); 65536];
-    for &(c1, c2, freq) in source {
-        buckets[c2 as usize].push((c1, freq));
-    }
+    for &(c1, c2, freq) in source { buckets[c2 as usize].push((KeyCode(c1), freq)); }
     flatten_buckets(buckets)
 }
 
-fn prune_trigrams(
-    mut source: Vec<(u16, u16, u16, u32)>,
-    coverage: f32,
-    limit: usize,
-) -> Vec<(u16, u16, u16, u32)> {
-    source.sort_unstable_by(|a, b| {
-        b.3.cmp(&a.3)
-            .then_with(|| a.0.cmp(&b.0))
-            .then_with(|| a.1.cmp(&b.1))
-            .then_with(|| a.2.cmp(&b.2))
-    });
-
+fn prune_trigrams(mut source: Vec<(u16, u16, u16, u32)>, coverage: f32, limit: usize) -> Vec<(u16, u16, u16, u32)> {
+    source.sort_unstable_by(|a, b| b.3.cmp(&a.3).then_with(|| a.0.cmp(&b.0)).then_with(|| a.1.cmp(&b.1)).then_with(|| a.2.cmp(&b.2)));
     let total_freq: u64 = source.iter().map(|x| x.3 as u64).sum();
     let target = (total_freq as f64 * coverage as f64) as u64;
     let mut acc = 0;
     let mut cutoff = source.len();
-
     for (i, item) in source.iter().enumerate() {
         acc += item.3 as u64;
-        if acc >= target {
-            cutoff = i + 1;
-            break;
-        }
+        if acc >= target { cutoff = i + 1; break; }
     }
-
-    if cutoff > limit {
-        cutoff = limit;
-    }
-
+    if cutoff > limit { cutoff = limit; }
     source.truncate(cutoff);
     source
 }
 
-fn flatten_trigrams_start(
-    source: &[(u16, u16, u16, u32)],
-) -> (Vec<usize>, Vec<u16>, Vec<u16>, Vec<u32>) {
+fn flatten_trigrams_start(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut buckets = vec![Vec::new(); 65536];
-    for &(c1, c2, c3, freq) in source {
-        buckets[c1 as usize].push((c2, c3, freq));
-    }
+    for &(c1, c2, c3, freq) in source { buckets[c1 as usize].push((KeyCode(c2), KeyCode(c3), freq)); }
     flatten_buckets_tri(buckets)
 }
 
-fn flatten_trigrams_mid(
-    source: &[(u16, u16, u16, u32)],
-) -> (Vec<usize>, Vec<u16>, Vec<u16>, Vec<u32>) {
+fn flatten_trigrams_mid(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut buckets = vec![Vec::new(); 65536];
-    for &(c1, c2, c3, freq) in source {
-        buckets[c2 as usize].push((c1, c3, freq));
-    }
+    for &(c1, c2, c3, freq) in source { buckets[c2 as usize].push((KeyCode(c1), KeyCode(c3), freq)); }
     flatten_buckets_tri(buckets)
 }
 
-fn flatten_trigrams_end(
-    source: &[(u16, u16, u16, u32)],
-) -> (Vec<usize>, Vec<u16>, Vec<u16>, Vec<u32>) {
+fn flatten_trigrams_end(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut buckets = vec![Vec::new(); 65536];
-    for &(c1, c2, c3, freq) in source {
-        buckets[c3 as usize].push((c1, c2, freq));
-    }
+    for &(c1, c2, c3, freq) in source { buckets[c3 as usize].push((KeyCode(c1), KeyCode(c2), freq)); }
     flatten_buckets_tri(buckets)
 }
 
-fn flatten_buckets(buckets: Vec<Vec<(u16, u32)>>) -> (Vec<usize>, Vec<u16>, Vec<u32>) {
+fn flatten_buckets(buckets: Vec<Vec<(KeyCode, u32)>>) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
     let mut starts = vec![0; 65537];
     let mut others = Vec::new();
     let mut freqs = Vec::new();
     let mut offset = 0;
-
     for i in 0..65536 {
         starts[i] = offset;
-        for (o, f) in &buckets[i] {
-            others.push(*o);
-            freqs.push(*f);
-        }
+        for (o, f) in &buckets[i] { others.push(*o); freqs.push(*f); }
         offset += buckets[i].len();
     }
     starts[65536] = offset;
     (starts, others, freqs)
 }
 
-fn flatten_buckets_tri(
-    buckets: Vec<Vec<(u16, u16, u32)>>,
-) -> (Vec<usize>, Vec<u16>, Vec<u16>, Vec<u32>) {
+fn flatten_buckets_tri(buckets: Vec<Vec<(KeyCode, KeyCode, u32)>>) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut starts = vec![0; 65537];
     let mut o1 = Vec::new();
     let mut o2 = Vec::new();
     let mut freqs = Vec::new();
     let mut offset = 0;
-
     for i in 0..65536 {
         starts[i] = offset;
-        for (a, b, f) in &buckets[i] {
-            o1.push(*a);
-            o2.push(*b);
-            freqs.push(*f);
-        }
+        for (a, b, f) in &buckets[i] { o1.push(*a); o2.push(*b); freqs.push(*f); }
         offset += buckets[i].len();
     }
     starts[65536] = offset;

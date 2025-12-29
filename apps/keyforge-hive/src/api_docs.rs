@@ -9,12 +9,17 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        crate::api::jobs::register_job,
-        crate::api::jobs::get_queue,
-        crate::api::jobs::get_population,
-        crate::api::jobs::cancel_job,
-        crate::api::nodes::register_node,
-        crate::api::results::submit_result,
+        crate::features::register_job::handle,
+        crate::features::get_queue::handle,
+        crate::features::get_population::handle,
+        crate::features::cancel_job::handle,
+        crate::features::get_job_status::handle,
+        crate::features::register_node::handle,
+        crate::features::submit_result::handle,
+        crate::features::submit_layout::handle,
+        crate::features::list_submissions::handle,
+        crate::features::nuke_user::handle,
+        crate::features::system::health,
     ),
     components(
         schemas(
@@ -22,7 +27,11 @@ use utoipa::OpenApi;
             PopulationResponse, ResultSubmission,
             NodeRequest, NodeResponse, TuningProfile,
             KeyboardDefinition, KeyboardMeta, KeyboardGeometry, KeyNode,
-            ScoringWeights, SearchParams, LayoutDefinitions, CorpusSource
+            ScoringWeights, SearchParams, LayoutDefinitions, CorpusSource,
+            crate::features::submit_layout::LayoutSubmission,
+            crate::features::submit_layout::SubmissionResponse,
+            crate::features::list_submissions::SubmissionEntry,
+            crate::features::system::StatusResponse
         )
     ),
     tags(

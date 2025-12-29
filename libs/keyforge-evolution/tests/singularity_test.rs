@@ -4,21 +4,24 @@ use keyforge_evolution::supervisor::Optimizer;
 use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
 use keyforge_physics::ScoringEngine;
 
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+
 fn setup_engine() -> ScoringEngine {
     let keys: Vec<_> = (0..2)
         .map(|i| KeyNode {
-            id: i,
+            index: i,
             label: format!("k{}", i),
-            hand: 0,
-            finger: 0,
-            row: 0,
-            col: i as i8,
+            hand: HandIndex(0),
+            finger: FingerIndex(0),
+            row: RowIndex(0),
+            col: ColIndex(i as i8),
             x: i as f32,
             y: 0.0,
             is_home: false,
+            ..Default::default()
         })
         .collect();
-    let kb = Keyboard::new(keys, 0);
+    let kb = Keyboard::new(keys, 0).unwrap();
     let corpus = Corpus::default();
     ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
 }

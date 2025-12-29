@@ -3,7 +3,7 @@ use keyforge_evolution::supervisor::strategies::{CoolingAnnealing, GroupMutation
 use keyforge_evolution::supervisor::traits::{MutationAction, MutationOperator, MutationProposal};
 use keyforge_evolution::supervisor::Optimizer;
 use keyforge_evolution::ProgressCallback;
-use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode}};
 use keyforge_physics::ScoringEngine;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -18,7 +18,7 @@ mod tests {
     }
 
     impl ProgressCallback for ScoreCheckCallback {
-        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[u16], _ips: f32) -> bool {
+        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
             let mut last = self.last_score.lock().unwrap();
             if score > *last && *last != 0.0 && *last != f32::MAX {
                 self.failed.store(true, Ordering::SeqCst);
@@ -29,7 +29,7 @@ mod tests {
     }
 
     impl ProgressCallback for &ScoreCheckCallback {
-        fn on_progress(&self, epoch: usize, score: f32, layout: &[u16], ips: f32) -> bool {
+        fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool {
             (**self).on_progress(epoch, score, layout, ips)
         }
     }
@@ -37,18 +37,19 @@ mod tests {
     fn setup_test_engine(size: usize) -> ScoringEngine {
         let keys: Vec<_> = (0..size)
             .map(|i| KeyNode {
-                id: i,
+                index: i,
                 label: format!("k{}", i),
-                hand: (i % 2) as u8,
-                finger: (i % 5) as u8,
-                row: (i / 10) as i8,
-                col: (i % 10) as i8,
+                hand: HandIndex((i % 2) as u8),
+                finger: FingerIndex((i % 5) as u8),
+                row: RowIndex((i / 10) as i8),
+                col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
                 y: (i / 10) as f32,
                 is_home: false,
+                ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 1);
+        let kb = Keyboard::new(keys, 1).unwrap();
         let mut corpus = Corpus::default();
         for i in 0..size {
             corpus.char_freqs[i] = (i * 10) as u32;
@@ -161,7 +162,7 @@ mod tests {
         let calls = Arc::new(AtomicUsize::new(0));
         struct ReportingCallback(Arc<AtomicUsize>);
         impl ProgressCallback for ReportingCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
                 self.0.fetch_add(1, Ordering::SeqCst);
                 true
             }
@@ -193,7 +194,7 @@ mod tests {
 
         struct BreakCallback;
         impl ProgressCallback for BreakCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[u16], _ips: f32) -> bool {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
                 false // Terminate immediately
             }
         }
@@ -251,18 +252,19 @@ mod tests {
     fn test_trigram_path_forcer() {
         let keys: Vec<_> = (0..30)
             .map(|i| KeyNode {
-                id: i,
+                index: i,
                 label: format!("k{}", i),
-                hand: (i % 2) as u8,
-                finger: (i % 5) as u8,
-                row: (i / 10) as i8,
-                col: (i % 10) as i8,
+                hand: HandIndex((i % 2) as u8),
+                finger: FingerIndex((i % 5) as u8),
+                row: RowIndex((i / 10) as i8),
+                col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
                 y: (i / 10) as f32,
                 is_home: false,
+                ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 1);
+        let kb = Keyboard::new(keys, 1).unwrap();
         let mut corpus = Corpus::default();
         for i in 0..28 {
             corpus
@@ -287,18 +289,19 @@ mod tests {
     fn test_legacy_api_coverage() {
         let keys: Vec<_> = (0..30)
             .map(|i| KeyNode {
-                id: i,
+                index: i,
                 label: format!("k{}", i),
-                hand: (i % 2) as u8,
-                finger: (i % 5) as u8,
-                row: (i / 10) as i8,
-                col: (i % 10) as i8,
+                hand: HandIndex((i % 2) as u8),
+                finger: FingerIndex((i % 5) as u8),
+                row: RowIndex((i / 10) as i8),
+                col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
                 y: (i / 10) as f32,
                 is_home: false,
+                ..Default::default()
             })
             .collect();
-        let kb = Arc::new(Keyboard::new(keys, 1));
+        let kb = Arc::new(Keyboard::new(keys, 1).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
         let engine = Arc::new(ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap());
