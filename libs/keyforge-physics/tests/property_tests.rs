@@ -1,7 +1,6 @@
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
 use keyforge_physics::{verify::DeterministicScorer, ScoringEngine};
 use proptest::prelude::*;
-use std::sync::Arc;
 
 // --- STRATEGIES ---
 

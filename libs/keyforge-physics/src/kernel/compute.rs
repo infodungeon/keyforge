@@ -11,6 +11,7 @@ pub fn score_layout(ctx: &EngineContext, layout: &[u16], pos_map: &mut [u16]) ->
     pos_map.fill(65535);
 
     let limit = layout.len().min(ctx.key_count);
+    // INVARIANT: kani::assume(limit <= ctx.key_count);
 
     for (i, &code) in layout.iter().enumerate().take(limit) {
         if (code as usize) < pos_map.len() {
@@ -30,6 +31,7 @@ pub fn score_layout(ctx: &EngineContext, layout: &[u16], pos_map: &mut [u16]) ->
             let p2 = pos_map[c2];
             if p2 != 65535 {
                 let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
+                // INVARIANT: kani::assume(idx < ctx.cost_matrix.len());
                 if let Some(&cost_raw) = ctx.cost_matrix.get(idx) {
                     let cost = Score(cost_raw);
                     let freq = ctx.bigram_freqs[k] as i64;

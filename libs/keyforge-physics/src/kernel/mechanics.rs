@@ -30,6 +30,7 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     let dy = (k1.y - k2.y).abs();
     let dist_raw = (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
     
+    // INVARIANT: kani::assume(dist_raw.is_finite());
     // Guardrail: Enforce non-negative distance cost
     let dist_sq = DistanceSquared::new(dist_raw);
     let mut cost = dist_sq.as_f32();

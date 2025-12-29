@@ -136,3 +136,66 @@ impl std::ops::Sub for Score {
         self.saturating_sub(rhs)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hand_index_bounds() {
+        assert!(HandIndex::try_from(0).is_ok());
+        assert!(HandIndex::try_from(1).is_ok());
+        assert!(HandIndex::try_from(2).is_err()); // Branch coverage
+    }
+
+    #[test]
+    fn test_finger_index_bounds() {
+        assert!(FingerIndex::try_from(0).is_ok());
+        assert!(FingerIndex::try_from(4).is_ok());
+        assert!(FingerIndex::try_from(5).is_err()); // Branch coverage
+    }
+
+    #[test]
+    fn test_distance_squared_clamping() {
+        assert_eq!(DistanceSquared::new(10.0).as_f32(), 10.0);
+        assert_eq!(DistanceSquared::new(-5.0).as_f32(), 0.0); // Branch coverage
+    }
+
+    #[test]
+    fn test_score_saturation() {
+        let max = Score::MAX;
+        let min = Score::MIN;
+
+        // Add
+        assert_eq!(max + Score(1), max);
+        assert_eq!(min + Score(-1), min);
+
+        // Sub
+        assert_eq!(min - Score(1), min);
+        assert_eq!(max - Score(-1), max);
+
+        // Mul
+        assert_eq!(max.saturating_mul(2), max);
+        assert_eq!(min.saturating_mul(2), min);
+    }
+
+    #[test]
+    fn test_score_float_conversion() {
+        // NaN
+        assert_eq!(Score::from_f32(f32::NAN), Score::ZERO);
+
+        // Infinity
+        assert_eq!(Score::from_f32(f32::INFINITY), Score::MAX);
+        assert_eq!(Score::from_f32(f32::NEG_INFINITY), Score::MIN);
+
+        // Overflow
+        assert_eq!(Score::from_f32(f32::MAX), Score::MAX);
+        assert_eq!(Score::from_f32(f32::MIN), Score::MIN);
+
+        // Normal
+        let val = 123.456;
+        let score = Score::from_f32(val);
+        // Expect close round-trip within epsilon due to fixed-point
+        assert!((score.to_f32() - val).abs() < 0.0001);
+    }
+}
