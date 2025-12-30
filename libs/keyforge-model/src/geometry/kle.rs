@@ -1,9 +1,24 @@
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::{KeyNode, KeyboardGeometry};
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use kle_serial::Keyboard as KleKeyboard;
 use serde_json::json;
 use std::error::Error;
 
+/// Parses a Keyboard Layout Editor (KLE) JSON string into a `KeyboardGeometry`.
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
     let keyboard: KleKeyboard = serde_json::from_str(content)?;
     let mut keys = Vec::new();
@@ -51,6 +66,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
     Ok(geom)
 }
 
+/// Converts a `KeyboardGeometry` back into a KLE JSON string.
 pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
     let mut json_rows = Vec::new();
     json_rows.push(json!({ "meta": { "name": "KeyForge Export", "author": "KeyForge" } }));

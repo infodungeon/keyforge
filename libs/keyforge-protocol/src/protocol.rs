@@ -1,9 +1,21 @@
-// Re-export types from model so they are available via keyforge_protocol::protocol::...
-pub use crate::dtos::config::{CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
-pub use crate::dtos::constants;
-pub use crate::dtos::geometry::KeyboardDefinition;
-pub use crate::dtos::validator::Validator;
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 use crate::PROTOCOL_VERSION;
+use keyforge_model::{
+    CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, ScoringWeights, SearchParams,
+    Validator, LayoutValidator, constants,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use ts_rs::TS;
@@ -219,7 +231,7 @@ impl Validator for ResultSubmission {
         if self.score.is_nan() || self.score < 0.0 { return Err("Invalid score".into()); }
         
         // Layout structure check
-        crate::dtos::validator::LayoutValidator::validate_structure(&self.layout)?;
+        LayoutValidator::validate_structure(&self.layout)?;
 
         // Timestamp check
         let now = std::time::SystemTime::now()
@@ -242,46 +254,4 @@ pub struct JobStatus {
     pub best_score: Option<f32>,
     pub best_layout: Option<String>,
     pub total_samples: usize,
-}
-#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, TS)]
-#[ts(export)]
-#[allow(dead_code)]
-pub struct MetricViolation {
-    pub keys: String,
-    pub score: f32,
-    pub freq: f32,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, TS)]
-#[ts(export)]
-#[allow(dead_code)]
-pub struct AnalysisReport {
-    pub score: f32,
-    pub distance: f32,
-    pub sfb_total: f32,
-    pub sfb_ratio: f32,
-    pub hand_balance: f32,
-    pub scissors: f32,
-    pub redirects: f32,
-    pub rolls: f32,
-    #[serde(default)]
-    pub heatmap: Vec<f32>,
-    #[serde(default)]
-    pub top_sfbs: Vec<MetricViolation>,
-    #[serde(default)]
-    pub top_scissors: Vec<MetricViolation>,
-    #[serde(default)]
-    pub top_redirs: Vec<MetricViolation>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
-#[ts(export)]
-#[allow(dead_code)]
-pub struct SwapSuggestion {
-    pub index_a: usize,
-    pub index_b: usize,
-    pub key_a: String,
-    pub key_b: String,
-    pub score_delta: f32,
-    pub improvement_pct: f32,
 }

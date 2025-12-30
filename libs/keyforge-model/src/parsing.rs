@@ -1,18 +1,57 @@
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use regex::Regex;
 use std::sync::OnceLock;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq)]
+/// Represents a parsed action from a keymap file (e.g., QMK/ZMK format).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub enum KeyAction {
+    /// A simple keycode (e.g., "KC_A").
     Simple(String),
+    /// Transparent (pass-through to lower layer).
     Transparent,
+    /// No Operation (does nothing).
     NoOp,
+    /// Momentary layer switch (MO).
     LayerMomentary(u8),
+    /// Toggle layer (TG).
     LayerToggle(u8),
+    /// Turn on layer (TO).
     LayerOn(u8),
-    ModTap { mod_name: String, key: String },
-    LayerTap { layer: u8, key: String },
+    /// Modifier Tap (Hold for Mod, Tap for Key).
+    ModTap { 
+        /// The modifier (e.g., "LSHIFT").
+        mod_name: String, 
+        /// The tap key (e.g., "KC_A").
+        key: String 
+    },
+    /// Layer Tap (Hold for Layer, Tap for Key).
+    LayerTap { 
+        /// The layer index.
+        layer: u8, 
+        /// The tap key.
+        key: String 
+    },
+    /// Sticky Modifier (One-Shot Mod).
     StickyMod(String),
+    /// Caps Word behavior.
     CapsWord,
+    /// Unparsed raw string.
     Raw(String),
 }
 
@@ -24,6 +63,7 @@ static STICKY_MOD_RE: OnceLock<Regex> = OnceLock::new();
 const MAX_LAYER: u8 = 31;
 const MAX_TOKEN_LEN: usize = 32;
 
+/// Parses a string token into a `KeyAction`.
 pub fn parse_key(token: &str) -> KeyAction {
     let t = token.trim();
     if t.len() > MAX_TOKEN_LEN {

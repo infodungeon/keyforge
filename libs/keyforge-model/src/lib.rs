@@ -1,18 +1,67 @@
-pub mod config;
-pub mod constants;
-pub mod corpus;
-pub mod error;
-pub mod geometry;
-pub mod job;
-pub mod keyboard;
-pub mod keycodes;
-pub mod layout;
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
+//! # KeyForge Model
+//!
+//! The Domain Nucleus of the KeyForge system. This crate defines the "Ubiquitous Language"
+//! (Entities, Value Objects, Aggregates) used throughout the application.
+//!
+//! ## Core Concepts
+//!
+//! * **Physical Domain:** [`Keyboard`], [`KeyNode`], [`KeyIndex`].
+//! * **Logical Domain:** [`Layout`], [`KeyCode`].
+//! * **Analysis Domain:** [`Corpus`], [`Rubric`], [`Score`].
+//! * **Optimization Domain:** [`SearchConfig`], [`OptimizationResult`].
+//!
+//! ## Invariants
+//!
+//! This crate enforces validity through the Type System (Newtypes) and `TryFrom` implementations.
+//! It adheres to the "Parse, Don't Validate" philosophy.
+
+#![warn(missing_docs)]
+
+/// Configuration aggregates and parameter definitions.
+pub mod config;
+/// Global constants and safety limits.
+pub mod constants;
+/// Text corpus data structures (N-grams, frequencies).
+pub mod corpus;
+/// Centralized error types for the domain.
+pub mod error;
+/// Physical keyboard geometry and spatial definitions.
+pub mod geometry;
+/// Job identification and hashing logic.
+pub mod job;
+/// The `Keyboard` aggregate root.
+pub mod keyboard;
+/// Key code definitions and registry.
+pub mod keycodes;
+/// The `Layout` entity (logical mapping).
+pub mod layout;
+/// Parsing logic for keymap formats (QMK/ZMK).
 pub mod parsing;
+/// Scoring configuration and weights.
 pub mod rubric;
+/// Serialization helpers (e.g., limited vec).
 pub mod serde_utils;
+/// Core newtypes (`KeyIndex`, `Score`, etc.).
 pub mod types;
+/// Validation traits and helpers.
 pub mod validator;
+
+#[cfg(test)]
+mod tests;
 
 pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
 pub use corpus::Corpus;
@@ -27,16 +76,27 @@ pub use types::{KeyIndex, HandIndex, FingerIndex, RowIndex, ColIndex, Score, Key
 pub use validator::Validator;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Configuration for the optimization search strategy.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub enum SearchConfig {
+    /// Simulated Annealing strategy.
     Annealing {
+        /// Total number of mutation steps.
         steps: usize,
+        /// Initial temperature (higher = more chaotic).
         start_temp: f32,
+        /// Final temperature (lower = more greedy).
         end_temp: f32,
+        /// PRNG seed for deterministic replay.
         seed: u64,
+        /// Steps without improvement before reheating.
         patience: usize,
+        /// Number of times to reheat.
         reheats: usize,
+        /// Multiplier for start_temp when reheating.
         reheat_factor: f32,
     },
 }
@@ -56,6 +116,7 @@ impl Default for SearchConfig {
 }
 
 impl SearchConfig {
+    /// Validates that configuration parameters are within safe bounds.
     pub fn validate(&self) -> Result<(), ForgeError> {
         match self {
             SearchConfig::Annealing {
@@ -83,45 +144,76 @@ impl SearchConfig {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Represents a specific N-gram that violates a metric threshold.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct MetricViolation {
+    /// The keys involved (e.g., "TH").
     pub keys: String,
+    /// The cost contribution of this violation.
     pub score: f32,
+    /// The frequency of this N-gram.
     pub freq: f32,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Detailed breakdown of a layout's performance.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct AnalysisReport {
+    /// Total weighted score (lower is better).
     pub score: f32,
+    /// Total finger travel distance.
     pub distance: f32,
+    /// Total Same Finger Bigram cost.
     pub sfb_total: f32,
+    /// Ratio of SFBs to total bigrams.
     pub sfb_ratio: f32,
+    /// Hand balance (-1.0 Left, +1.0 Right, 0.0 Balanced).
     pub hand_balance: f32,
+    /// Scissor (adjacent finger stretch) score.
     pub scissors: f32,
+    /// Redirect (direction change) score.
     pub redirects: f32,
+    /// Inward roll score.
     pub rolls: f32,
+    /// Per-key usage heatmap.
     #[serde(default)]
     pub heatmap: Vec<f32>,
+    /// Top SFB offenders.
     #[serde(default)]
     pub top_sfbs: Vec<MetricViolation>,
+    /// Top Scissor offenders.
     #[serde(default)]
     pub top_scissors: Vec<MetricViolation>,
+    /// Top Redirect offenders.
     #[serde(default)]
     pub top_redirs: Vec<MetricViolation>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// The final output of an optimization run.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct OptimizationResult {
+    /// The final score achieved.
     pub score: f32,
+    /// The optimized layout.
     pub layout: Layout,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A proposed change to the layout during optimization.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct SwapSuggestion {
+    /// Index of the first key.
     pub index_a: usize,
+    /// Index of the second key.
     pub index_b: usize,
+    /// Label of the first key.
     pub key_a: String,
+    /// Label of the second key.
     pub key_b: String,
+    /// Change in score (negative is improvement).
     pub score_delta: f32,
+    /// Percentage improvement.
     pub improvement_pct: f32,
 }

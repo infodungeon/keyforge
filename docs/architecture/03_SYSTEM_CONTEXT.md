@@ -1,60 +1,77 @@
-# System Context (C4 Level 1)
+# System Context (Ports & Adapters)
 
-**Version:** 1.0
-**Context:** Crate Dependencies and Boundaries.
+**Version:** 4.0
+**Context:** Crate Boundaries and Interface Definitions.
 
-## Architectural Rules
-1.  **Gravity:** Dependencies flow DOWN. `physics` knows nothing of `hive`.
-2.  **Purity:** `physics` and `evolution` are Pure Rust (No IO).
-3.  **Isolation:** `protocol` defines the contract between the System and the World.
+## The Ports (Application Contracts)
+
+These traits define how the Core communicates with the World.
+
+### 1. Evolution Port (`libs/keyforge-evolution`)
+
+The interface for reporting optimization progress without coupling to IO.
+
+```rust
+pub trait ProgressCallback: Send + Sync {
+    /// Called periodically with the current optimization state.
+    /// Returns `true` to continue, `false` to abort (e.g. user cancellation).
+    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool;
+}
+```
+
+### 2. Infrastructure Port (`libs/keyforge-infra`)
+
+The interface for accessing the outside world (Filesystem, Network, DB).
+
+```rust
+// Inferred from usages in `libs/keyforge-infra/src/asset/manager.rs`
+pub trait AssetManager {
+    fn get_keyboard(&self, name: &str) -> InfraResult<Keyboard>;
+    fn get_corpus(&self, name: &str) -> InfraResult<Corpus>;
+}
+
+// Inferred from `libs/keyforge-infra/src/repo/user_repo.rs`
+pub trait JobRepository {
+    fn save_job(&self, job: JobRequest) -> InfraResult<JobId>;
+    fn get_status(&self, id: JobId) -> InfraResult<JobStatus>;
+}
+```
+
+## The Dependency Graph
 
 ```mermaid
 graph TD
-    subgraph "Drivers (The World)"
-        CLI[keyforge-cli]
-        HIVE[keyforge-hive]
-        WASM[keyforge-wasm]
+    subgraph "Tier 3: Drivers"
+        Hive("keyforge-hive")
+        CLI("keyforge-cli")
     end
 
-    subgraph "Adapters (The Glue)"
-        INFRA[keyforge-infra]
-        PERSIST[keyforge-persistence]
+    subgraph "Tier 3: Adapters"
+        Infra("keyforge-infra")
+        Repo("keyforge-persistence")
     end
 
-    subgraph "Ports (The Contract)"
-        PROTO[keyforge-protocol]
+    subgraph "Tier 2: Protocol (DTOs)"
+        Proto("keyforge-protocol")
     end
 
-    subgraph "Core (The Nucleus)"
-        EVO[keyforge-evolution]
-        PHYS[keyforge-physics]
-        MODEL[keyforge-model]
+    subgraph "Tier 1: Core (Pure Logic)"
+        Evo("keyforge-evolution")
+        Phys("keyforge-physics")
+        Model("keyforge-model")
     end
 
-    %% Dependencies
-    CLI --> HIVE
-    HIVE --> INFRA
-    HIVE --> PROTO
+    %% Wiring
+    Hive --> Infra
+    Hive --> Proto
+    Hive --> Evo
     
-    INFRA --> PERSIST
-    INFRA --> EVO
+    CLI --> Infra
+    CLI --> Evo
+
+    Infra --> Model
+    Proto --> Model
     
-    EVO --> PHYS
-    PHYS --> MODEL
-    
-    PROTO --> MODEL
-    
-    %% Cross-Cutting
-    HIVE -.-> EVO : Orchestrates
+    Evo --> Phys
+    Phys --> Model
 ```
-
-## Crate Responsibilities
-
-| Crate | Tier | Responsibility | Constraints |
-|-------|------|----------------|-------------|
-| `keyforge-model` | **Tier 1** | Domain Entities, Types, Constants. | No Logic. No IO. |
-| `keyforge-physics` | **Tier 1** | Scoring Logic, Cost Calculation. | Pure Math. No `std::fs`. |
-| `keyforge-evolution` | **Tier 1** | Annealing Loop, Optimization Strategy. | CPU Bound. |
-| `keyforge-protocol` | **Tier 2** | DTOs, Serialization, Error Registry. | Lightweight. |
-| `keyforge-infra` | **Tier 3** | Database, File System, External APIs. | Async/Tokio allowed. |
-| `keyforge-hive` | **Tier 3** | HTTP Server, Job Queue, State Management. | The Application Entry Point. |

@@ -2,6 +2,11 @@
 name = "keyforge-model"
 version = "0.8.0"
 edition = "2021"
+authors = ["KeyForge Contributors"]
+description = "Domain entities and core logic for the KeyForge keyboard layout optimizer."
+license = "Apache-2.0"
+repository = "https://github.com/keyforge/keyforge"
+readme = "../../docs/design/keyforge-model/README.md"
 
 [dependencies]
 thiserror = "2.0"
@@ -9,8 +14,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-big-array = "0.5"
 smallvec = { version = "1.11", features = ["serde", "union", "const_generics"] }
-
-# Moved from Protocol
 regex = "1.10"
 strum = { version = "0.26", features = ["derive"] }
 kle-serial = "0.3.3"
@@ -18,6 +21,7 @@ sha2 = "0.10"
 hex = "0.4"
 bincode = "1.3"
 utoipa = { version = "4.2", features = ["preserve_order", "preserve_path_order"] }
+ts-rs = { version = "10.0", features = ["serde-compat"] }
 
 [dev-dependencies]
 proptest = "1.4"

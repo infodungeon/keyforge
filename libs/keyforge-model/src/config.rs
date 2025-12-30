@@ -1,3 +1,17 @@
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::constants::{
     MAX_LOADER_TRIGRAM_LIMIT, MAX_OPT_LIMIT_FAST, MAX_SAFE_WEIGHT, MAX_SEARCH_EPOCHS,
     MAX_SEARCH_STEPS, MAX_TEMP,
@@ -9,19 +23,30 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use utoipa::ToSchema;
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+/// The root configuration aggregate for a KeyForge session.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema, TS)]
+#[ts(export)]
 pub struct Config {
+    /// Parameters controlling the annealing search process.
     pub search: SearchParams,
+    /// Weights and penalties for the scoring engine.
     pub weights: ScoringWeights,
+    /// Definitions for layout generation (character tiers, etc.).
     pub defs: LayoutDefinitions,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
+/// Defines a source for text corpus data.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema, TS)]
+#[ts(export)]
 pub struct CorpusSource {
+    /// The identifier or filename of the corpus (e.g., "text/en_std").
     pub id: String,
+    /// The weight multiplier for this corpus (default: 1.0).
     pub weight: f32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Optional hash for integrity verification.
+    #[serde(default, skip_serializing_if = "crate::serde_utils::is_none")]
     pub hash: Option<String>,
 }
 
@@ -74,18 +99,30 @@ impl FromStr for CorpusSource {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+/// Parameters controlling the Simulated Annealing algorithm.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema, TS)]
+#[ts(export)]
 pub struct SearchParams {
+    /// Number of epochs (independent runs) to perform.
     pub search_epochs: usize,
+    /// Maximum number of mutation steps per epoch.
     pub search_steps: usize,
+    /// Number of steps without improvement before triggering a reheat.
     pub search_patience: usize,
+    /// Threshold for patience reset (improvement must be > this).
     pub search_patience_threshold: f32,
+    /// Minimum temperature (stop condition).
     pub temp_min: f32,
+    /// Maximum temperature (start condition).
     pub temp_max: f32,
+    /// Optimization limit for fast path.
     pub opt_limit_fast: usize,
+    /// Optimization limit for slow path.
     pub opt_limit_slow: usize,
+    /// Number of times to reheat the system if stuck in a local minimum.
     #[serde(default = "default_reheats")]
     pub reheats: usize,
+    /// Factor to multiply temperature by when reheating.
     #[serde(default = "default_reheat_factor")]
     pub reheat_factor: f32,
 }
@@ -146,48 +183,90 @@ impl Validator for SearchParams {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+/// Weights and penalties defining the "personality" of the scoring engine.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
 #[serde(default)]
+#[ts(export)]
 pub struct ScoringWeights {
+    /// Penalty for Same Finger Repeat on a weak finger.
     pub penalty_sfr_weak_finger: f32,
+    /// Penalty for Same Finger Repeat involving a bad row jump.
     pub penalty_sfr_bad_row: f32,
+    /// Penalty for lateral Same Finger Repeat.
     pub penalty_sfr_lat: f32,
+    /// Penalty for lateral Same Finger Bigram.
     pub penalty_sfb_lateral: f32,
+    /// Penalty for lateral SFB on a weak finger.
     pub penalty_sfb_lateral_weak: f32,
+    /// Base penalty for any Same Finger Bigram.
     pub penalty_sfb_base: f32,
+    /// Additional penalty for outward rolling SFBs.
     pub penalty_sfb_outward_adder: f32,
+    /// Penalty for diagonal SFBs.
     pub penalty_sfb_diagonal: f32,
+    /// Penalty for long-distance SFBs.
     pub penalty_sfb_long: f32,
+    /// Penalty for bottom-row SFBs.
     pub penalty_sfb_bottom: f32,
+    /// Multiplier for SFBs on weak fingers.
     pub weight_weak_finger_sfb: f32,
+    /// Row difference threshold for "long" SFBs.
     pub threshold_sfb_long_row_diff: i8,
+    /// Row difference threshold for scissors.
     pub threshold_scissor_row_diff: i8,
+    /// Distance threshold for reach stretches.
     pub threshold_reach_stretch: f32,
+    /// Penalty for scissor (adjacent finger stretch) movements.
     pub penalty_scissor: f32,
+    /// Penalty for ring-pinky interactions.
     pub penalty_ring_pinky: f32,
+    /// Penalty for lateral movement.
     pub penalty_lateral: f32,
+    /// Penalty for single-key stretches.
     pub penalty_monogram_stretch: f32,
+    /// Penalty for skipping a key (hurdle).
     pub penalty_skip: f32,
+    /// Penalty for redirecting flow (e.g., Left -> Right -> Left).
     pub penalty_redirect: f32,
+    /// Penalty for excessive hand alternation runs.
     pub penalty_hand_run: f32,
+    /// Bonus (negative cost) for inward rolls.
     pub bonus_inward_roll: f32,
+    /// Bonus for specific bigram inward rolls.
     pub bonus_bigram_roll_in: f32,
+    /// Bonus for specific bigram outward rolls.
     pub bonus_bigram_roll_out: f32,
+    /// Penalty for high-frequency keys in medium slots.
     pub penalty_high_in_med: f32,
+    /// Penalty for high-frequency keys in low slots.
     pub penalty_high_in_low: f32,
+    /// Penalty for medium-frequency keys in prime slots.
     pub penalty_med_in_prime: f32,
+    /// Penalty for medium-frequency keys in low slots.
     pub penalty_med_in_low: f32,
+    /// Penalty for low-frequency keys in prime slots.
     pub penalty_low_in_prime: f32,
+    /// Penalty for low-frequency keys in medium slots.
     pub penalty_low_in_med: f32,
+    /// Penalty for hand imbalance.
     pub penalty_imbalance: f32,
+    /// Maximum allowed hand imbalance ratio.
     pub max_hand_imbalance: f32,
+    /// Weight multiplier for vertical travel distance.
     pub weight_vertical_travel: f32,
+    /// Weight multiplier for lateral travel distance.
     pub weight_lateral_travel: f32,
+    /// Weight multiplier for finger effort.
     pub weight_finger_effort: f32,
+    /// Default cost in milliseconds (if using time-based scoring).
     pub default_cost_ms: f32,
+    /// Limit on the number of trigrams to load.
     pub loader_trigram_limit: usize,
+    /// Required trigram coverage (0.0 - 1.0).
     pub trigram_coverage: f32,
+    /// Comma-separated string of finger penalty multipliers.
     pub finger_penalty_scale: String,
+    /// Comma-separated string of comfortable scissor pairs.
     pub comfortable_scissors: String,
 }
 
@@ -259,13 +338,16 @@ impl Validator for ScoringWeights {
 }
 
 impl ScoringWeights {
+    /// Parses the finger penalty scale string into an array.
     pub fn get_finger_penalty_scale(&self) -> [f32; 5] {
         if self.finger_penalty_scale.is_empty() { return [0.0; 5]; }
         parse_f32_array::<5>(&self.finger_penalty_scale).unwrap_or([0.0; 5])
     }
+    /// Calculates the allowed deviation from perfect hand balance (0.5).
     pub fn allowed_hand_balance_deviation(&self) -> f32 {
         (self.max_hand_imbalance - 0.5).max(0.0)
     }
+    /// Parses the comfortable scissors string into a vector of finger pairs.
     pub fn get_comfortable_scissors(&self) -> Vec<(u8, u8)> {
         let mut pairs = Vec::new();
         for s in self.comfortable_scissors.split(',') {
@@ -281,13 +363,20 @@ impl ScoringWeights {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+/// Definitions for character tiers and critical bigrams.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
 #[serde(default)]
+#[ts(export)]
 pub struct LayoutDefinitions {
+    /// Characters considered high priority.
     pub tier_high_chars: String,
+    /// Characters considered medium priority.
     pub tier_med_chars: String,
+    /// Characters considered low priority.
     pub tier_low_chars: String,
+    /// Bigrams that must be optimized for.
     pub critical_bigrams: String,
+    /// Scale factors for finger repeat penalties.
     pub finger_repeat_scale: String,
 }
 
@@ -304,6 +393,7 @@ impl Default for LayoutDefinitions {
 }
 
 impl LayoutDefinitions {
+    /// Parses the critical bigrams string into a vector of byte arrays.
     pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
         self.critical_bigrams.split(',').filter_map(|s| {
             let b = s.trim().as_bytes();
@@ -324,10 +414,14 @@ fn parse_f32_array<const N: usize>(s: &str) -> Result<[f32; N], String> {
     Ok(arr)
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
+/// Defines the source of the cost matrix used for scoring.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema, TS)]
 #[serde(tag = "type", content = "data")]
+#[ts(export)]
 pub enum CostMatrixSource {
+    /// Use a built-in cost matrix file.
     Predefined(String),
+    /// Use a custom CSV string.
     Custom(String),
 }
 
@@ -344,9 +438,13 @@ impl fmt::Display for CostMatrixSource {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+/// A constraint pinning a specific key to a specific physical index.
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct KeyConstraint {
+    /// The physical index to pin.
     pub index: KeyIndex,
+    /// The key label to pin (e.g., "A", "Shift").
     pub key: String,
 }
 

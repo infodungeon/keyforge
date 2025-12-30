@@ -1,69 +1,106 @@
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::constants::MAX_KEYBOARD_KEYS;
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use utoipa::ToSchema;
+use ts_rs::TS;
 
+/// Keyboard Layout Editor (KLE) integration.
 pub mod kle;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+/// Metadata describing a keyboard definition.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema, TS)]
+#[ts(export)]
 pub struct KeyboardMeta {
+    /// Display name of the keyboard.
     pub name: String,
+    /// Author of the definition.
     #[serde(default)]
     pub author: String,
+    /// Version string.
     #[serde(default)]
     pub version: String,
+    /// Additional notes or description.
     #[serde(default)]
     pub notes: String,
+    /// Type of keyboard (e.g., "split", "ortho").
     #[serde(default, rename = "type")]
     pub kb_type: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
+/// Complete definition of a keyboard, including metadata and geometry.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct KeyboardDefinition {
+    /// Metadata about the keyboard.
     #[serde(default)]
     pub meta: KeyboardMeta,
+    /// Physical geometry of the keys.
     pub geometry: KeyboardGeometry,
+    /// Pre-defined layouts available for this keyboard.
     #[serde(default)]
     pub layouts: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+/// Represents a single physical key on the keyboard.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema, TS)]
+#[ts(export)]
 pub struct KeyNode {
-    /// Internal numeric ID (0..N) - Runtime optimization
+    /// Internal numeric ID (0..N) - Runtime optimization.
     #[serde(default)]
     pub index: usize,
-    /// Display label / String ID
+    /// Display label / String ID.
     #[serde(default)]
     pub label: String,
-    
-    // Position & Dimensions
+    /// X coordinate (physical units).
     pub x: f32,
+    /// Y coordinate (physical units).
     pub y: f32,
+    /// Width (physical units).
     #[serde(default = "default_size")]
     pub w: f32,
+    /// Height (physical units).
     #[serde(default = "default_size")]
     pub h: f32,
+    /// Rotation angle (degrees).
     #[serde(default)]
     pub r: f32,
+    /// Rotation origin X.
     #[serde(default)]
     pub rx: f32,
+    /// Rotation origin Y.
     #[serde(default)]
     pub ry: f32,
-    
-    // Assignment
+    /// Hand assignment (Left/Right).
     pub hand: HandIndex,
+    /// Finger assignment (Thumb..Pinky).
     pub finger: FingerIndex,
+    /// Logical row index.
     #[serde(default)]
     pub row: RowIndex,
+    /// Logical column index.
     #[serde(default)]
     pub col: ColIndex,
-    
-    // Flags
+    /// Whether this is a home row key.
     #[serde(default)]
     pub is_home: bool,
+    /// Whether this key requires a stretch to reach.
     #[serde(default)]
     pub is_stretch: bool,
 }
@@ -93,12 +130,19 @@ impl Default for KeyNode {
 fn default_size() -> f32 { 1.0 }
 fn default_home_row() -> i8 { 1 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+/// Collection of keys and slot definitions defining the keyboard geometry.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
+#[ts(export)]
 pub struct KeyboardGeometry {
+    /// List of all physical keys.
     pub keys: Vec<KeyNode>,
+    /// Indices of keys considered "Prime" (best positions).
     pub prime_slots: Vec<KeyIndex>,
+    /// Indices of keys considered "Medium" quality.
     pub med_slots: Vec<KeyIndex>,
+    /// Indices of keys considered "Low" quality.
     pub low_slots: Vec<KeyIndex>,
+    /// The logical row index considered the "Home Row".
     #[serde(default = "default_home_row")]
     pub home_row: i8,
 }
@@ -142,6 +186,7 @@ impl Validator for KeyboardGeometry {
 }
 
 impl KeyboardDefinition {
+    /// Parses a keyboard definition from JSON, supporting both KeyForge format and KLE format.
     pub fn parse(content: &str, name_hint: Option<&str>) -> Result<Self, String> {
         if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(content) {
             return Ok(def);
@@ -176,5 +221,6 @@ impl Default for KeyboardGeometry {
 }
 
 impl KeyboardGeometry {
+    /// Returns the total number of keys.
     pub fn key_count(&self) -> usize { self.keys.len() }
 }

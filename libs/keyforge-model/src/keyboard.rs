@@ -1,26 +1,40 @@
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use serde::{Deserialize, Serialize};
 use crate::error::ForgeError;
-// use crate::types::{HandIndex, FingerIndex, RowIndex, ColIndex}; // Removed unused imports
-
 use crate::geometry::KeyNode;
 
 /// The physical reality of the device.
+/// Contains the set of keys and pre-calculated spatial data for scoring.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keyboard {
+    /// The list of physical keys.
     pub keys: Vec<KeyNode>,
+    /// The logical row index considered the "Home Row".
     pub home_row: i8,
-    // Pre-calculated centers for fingers [hand][finger] -> (x, y)
+    /// Pre-calculated centers for fingers [hand][finger] -> (x, y).
+    /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<(f32, f32)>>,
 }
 
 impl Keyboard {
+    /// Creates a new Keyboard and pre-calculates finger origins.
     pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Result<Self, ForgeError> {
         if keys.is_empty() {
             return Err(ForgeError::InvalidData("Keyboard must have at least one key".into()));
         }
-
-        // Validation is now implicit via Types, but we can check bounds if needed.
-        // HandIndex/FingerIndex guarantee valid ranges at construction.
 
         let mut kb = Self {
             keys,
@@ -63,6 +77,7 @@ impl Keyboard {
         }
     }
 
+    /// Returns the number of keys on the keyboard.
     pub fn count(&self) -> usize {
         self.keys.len()
     }

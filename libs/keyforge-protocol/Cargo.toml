@@ -2,6 +2,11 @@
 name = "keyforge-protocol"
 version = "0.8.0"
 edition = "2021"
+authors = ["KeyForge Contributors"]
+description = "Data Transfer Objects and API Contract for KeyForge."
+license = "Apache-2.0"
+repository = "https://github.com/keyforge/keyforge"
+readme = "../../docs/design/keyforge-protocol/README.md"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -12,13 +17,9 @@ utoipa = { version = "4.2", features = [
     "preserve_path_order",
 ] }
 strum = { version = "0.26", features = ["derive"] }
-sha2 = "0.10"
-hex = "0.4"
-regex = "1.10"
-kle-serial = "0.3.3"
 ts-rs = { version = "10.0", features = ["serde-compat"] }
 anyhow = "1.0"
-
+keyforge-model = { path = "../keyforge-model" }
 
 [dev-dependencies]
 proptest = "1.4"

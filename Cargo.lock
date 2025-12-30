@@ -3447,6 +3447,7 @@ dependencies = [
  "smallvec",
  "strum",
  "thiserror 2.0.17",
+ "ts-rs",
  "utoipa",
 ]
 
@@ -3490,13 +3491,10 @@ name = "keyforge-protocol"
 version = "0.8.0"
 dependencies = [
  "anyhow",
- "hex",
- "kle-serial",
+ "keyforge-model",
  "proptest",
- "regex",
  "serde",
  "serde_json",
- "sha2",
  "strum",
  "thiserror 2.0.17",
  "ts-rs",
