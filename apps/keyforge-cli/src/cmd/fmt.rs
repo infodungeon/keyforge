@@ -1,6 +1,6 @@
 use clap::Args;
 use keyforge_infra::load_keycode_registry;
-use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::KeyCode;
 use std::fmt::Write;
 use std::path::Path;

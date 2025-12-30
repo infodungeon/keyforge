@@ -35,6 +35,8 @@ impl HandIndex {
     pub const RIGHT: Self = Self(1);
     pub fn as_u8(&self) -> u8 { self.0 }
     pub fn as_usize(&self) -> usize { self.0 as usize }
+    pub fn is_left(&self) -> bool { self.0 == Self::LEFT.0 }
+    pub fn is_right(&self) -> bool { self.0 == Self::RIGHT.0 }
 }
 impl Default for HandIndex { fn default() -> Self { Self::LEFT } }
 impl TryFrom<u8> for HandIndex {
@@ -57,6 +59,8 @@ impl FingerIndex {
     pub const PINKY: Self = Self(4);
     pub fn as_u8(&self) -> u8 { self.0 }
     pub fn as_usize(&self) -> usize { self.0 as usize }
+    pub fn distance(&self, other: Self) -> u8 { (self.0 as i8 - other.0 as i8).unsigned_abs() }
+    pub fn diff(&self, other: Self) -> i8 { self.0 as i8 - other.0 as i8 }
 }
 impl Default for FingerIndex { fn default() -> Self { Self::INDEX } }
 impl TryFrom<u8> for FingerIndex {

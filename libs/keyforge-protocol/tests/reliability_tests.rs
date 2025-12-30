@@ -2,7 +2,7 @@ use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
 use keyforge_protocol::job::{JobIdError, JobIdentifier};
 use keyforge_protocol::parsing::{parse_key, KeyAction};
-use keyforge_protocol::protocol::{
+use keyforge_protocol::{
     BiometricSample, CostMatrixSource, JobConfig, JobRequest, KeyConstraint,
 };
 use keyforge_protocol::types::{KeyIndex, HandIndex, FingerIndex};
@@ -222,7 +222,7 @@ fn test_job_identifier_legacy() {
     let pins = vec![];
     let corpus = "default";
     let cost = CostMatrixSource::default();
-    let _ = JobIdentifier::from_parts(&geom, &weights, &params, &pins, corpus, &cost);
+    let _ = JobIdentifier::try_from_parts(&geom, &weights, &params, &pins, corpus, &cost);
 }
 
 #[test]

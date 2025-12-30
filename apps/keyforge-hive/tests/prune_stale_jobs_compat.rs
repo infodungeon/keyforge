@@ -29,7 +29,7 @@ async fn seed_min_job(pool: &sqlx::PgPool, job_id: &str) {
     .await
     .expect("Failed to seed SearchConfig");
 
-    sqlx::query("INSERT INTO jobs (id, keyboard_id, scoring_profile_id, search_config_id, pinned_keys, corpus_name, cost_matrix, status, started_at, retry_count) VALUES ($1, $2, $3, $4, '[]', 'default', 'cost.json', 'processing', NOW() - INTERVAL '20 minutes', 0)")
+    sqlx::query("INSERT INTO jobs (id, keyboard_id, scoring_profile_id, search_config_id, pinned_keys, corpus_name, cost_matrix, status, started_at, retry_count) VALUES ($1, $2, $3, $4, '[]', 'default', 'cost.json', 'processing', NOW() - INTERVAL '70 minutes', 0)")
         .bind(job_id)
         .bind(kb_id)
         .bind(sp_id)

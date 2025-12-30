@@ -1,6 +1,6 @@
 use keyforge_adapter::parsing::{parse_key, KeyAction};
 use keyforge_model::{KeyCode, Layout};
-use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_model::keycodes::KeycodeRegistry;
 use moka::sync::Cache;
 use once_cell::sync::Lazy;
 use std::time::Duration;

@@ -3,6 +3,7 @@ use sysinfo::{CpuRefreshKind, RefreshKind, System};
 use tokio;
 use tracing::{info, warn};
 
+/// CPU cache and core topology information.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CpuCacheTopology {
     pub model: String,
@@ -26,11 +27,15 @@ impl Default for CpuCacheTopology {
     }
 }
 
+use crate::agent::errors::AgentError;
+
 /// Detects the CPU topology and cache sizes of the host machine.
 ///
 /// This information is used to tune the optimization process (e.g., fitting data structures in L2).
-#[must_use]
-pub async fn detect_topology() -> CpuCacheTopology {
+///
+/// # Errors
+/// Returns `AgentError::Hardware` if cache information cannot be retrieved on supported platforms.
+pub async fn detect_topology() -> Result<CpuCacheTopology, AgentError> {
     let mut topo = CpuCacheTopology::default();
 
     let mut sys =
@@ -45,17 +50,17 @@ pub async fn detect_topology() -> CpuCacheTopology {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        detect_x86_caches(&mut topo);
+        detect_x86_caches(&mut topo)?;
     }
 
     #[cfg(target_os = "macos")]
     {
-        detect_macos_caches(&mut topo);
+        detect_macos_caches(&mut topo)?;
     }
 
     #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
     {
-        detect_windows_arm_caches(&mut topo);
+        detect_windows_arm_caches(&mut topo)?;
     }
 
     // Task 27: Structured logging
@@ -70,7 +75,7 @@ pub async fn detect_topology() -> CpuCacheTopology {
         warn!("L2 cache size unknown, using safe defaults for sizing");
     }
 
-    topo
+    Ok(topo)
 }
 
 /// Returns a list of SIMD features the binary was compiled for.
@@ -94,7 +99,7 @@ pub fn get_compile_features() -> &'static [&'static str] {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-fn detect_x86_caches(topo: &mut CpuCacheTopology) {
+fn detect_x86_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
     use raw_cpuid::{CacheType, CpuId};
     let cpuid = CpuId::new();
     if let Some(caches) = cpuid.get_cache_parameters() {
@@ -117,10 +122,11 @@ fn detect_x86_caches(topo: &mut CpuCacheTopology) {
             }
         }
     }
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
-fn detect_macos_caches(topo: &mut CpuCacheTopology) {
+fn detect_macos_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
     // Task 52: Avoid sysctl binary spawn, use libc
     use libc::{size_t, sysctlbyname};
     use std::ptr;
@@ -155,10 +161,11 @@ fn detect_macos_caches(topo: &mut CpuCacheTopology) {
     if let Some(bytes) = get_sysctl_u64("hw.l3cachesize") {
         topo.l3_kb = Some(u64_to_usize_saturating(bytes / 1024));
     }
+    Ok(())
 }
 
 #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) {
+fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
     // Task 51: ARM-Windows cache detection
     use std::alloc::{alloc, Layout};
     use windows_sys::Win32::System::SystemInformation::{
@@ -171,17 +178,17 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) {
         GetLogicalProcessorInformationEx(RelationCache, ptr::null_mut(), &mut len);
     }
     if len == 0 {
-        return;
+        return Ok(());
     }
 
     let layout = Layout::from_size_align(
         len as usize,
         std::mem::align_of::<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(),
     )
-    .expect("Failed to create memory layout for GetLogicalProcessorInformationEx");
+    .map_err(|e| AgentError::Hardware(format!("Memory layout allocation failed: {}", e)))?;
     let ptr = unsafe { alloc(layout) };
     if ptr.is_null() {
-        return;
+        return Ok(());
     }
 
     // SAFETY: Buffer allocated with correct size and alignment
@@ -207,6 +214,7 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) {
         }
         std::alloc::dealloc(ptr, layout);
     }
+    Ok(())
 }
 
 /// Safely casts a u64 to usize, saturating at usize::MAX and warning if truncation occurs.

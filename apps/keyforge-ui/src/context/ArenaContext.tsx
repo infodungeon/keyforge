@@ -7,6 +7,7 @@ import {
   useCallback,
   ReactNode,
 } from "react";
+import { useAutoFocus } from "../hooks/useAutoFocus";
 import { useToast } from "./ToastContext";
 import { useLibrary } from "./LibraryContext";
 import { useBackend } from "./BackendContext";
@@ -45,7 +46,7 @@ interface ArenaContextType {
   sampleCount: number;
   stopOnError: boolean;
   zoomIndex: number;
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLInputElement>;
   setInput: (s: string) => void;
   setStopOnError: (b: boolean) => void;
   changeZoom: (delta: number) => void;
@@ -65,6 +66,7 @@ const parseCorporaStr = (str: string): CorpusSource[] => {
     return {
       id: id.trim(),
       weight: w ? parseFloat(w) : 1.0,
+      hash: null,
     };
   });
 };
@@ -95,7 +97,7 @@ export function ArenaProvider({ children }: { children: ReactNode }) {
   const [coverage, setCoverage] = useState(0);
   const [sampleCount, setSampleCount] = useState(0);
 
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { ref: inputRef, triggerFocus } = useAutoFocus<HTMLInputElement>();
   const lastStrokeRef = useRef<{ char: string; timestamp: number } | null>(
     null,
   );
@@ -177,9 +179,9 @@ export function ArenaProvider({ children }: { children: ReactNode }) {
       errorsRef.current = 0;
       currentWordErrorRef.current = false;
       setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      triggerFocus();
     }, 10);
-  }, [wordPool]);
+  }, [wordPool, triggerFocus]);
 
   const finishTest = async () => {
     if (!startTime) return;

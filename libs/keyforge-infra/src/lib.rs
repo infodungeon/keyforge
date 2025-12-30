@@ -1,4 +1,5 @@
 pub mod asset;
+pub mod config;
 pub mod error;
 pub mod fs;
 pub mod net;
@@ -19,8 +20,9 @@ pub use net::sync::{bootstrap_essentials, generate_manifest, run_sync, ServerMan
 
 pub use asset::fs_provider::FsProvider;
 pub use asset::manager::AssetManager;
+pub use asset::caching_provider::CachingProvider;
 // Re-export from model now
-pub use keyforge_model::loader::{AssetLoader, RawCostData};
+pub use keyforge_core::loader::{AssetLoader, RawCostData};
 
 pub use util::common::{
     calculate_file_hash, generate_cost_profile, load_keycode_registry, sanitize_filename,
@@ -28,3 +30,9 @@ pub use util::common::{
 pub use util::layout_parser::parse_layout_string_permissive_cached;
 pub mod repo;
 pub use repo::user_repo::UserRepo;
+
+include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
+
+pub fn get_build_info() -> (&'static str, &'static str) {
+    (GIT_HASH, BUILD_DATE)
+}

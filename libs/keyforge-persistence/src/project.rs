@@ -4,10 +4,14 @@ use keyforge_protocol::{
 };
 use serde::{Deserialize, Serialize};
 
+/// Metadata about a user project.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectMeta {
+    /// The display name of the project.
     pub name: String,
+    /// The version string for the project.
     pub version: String,
+    /// The author of the project.
     #[serde(default)]
     pub author: String,
 }
@@ -26,6 +30,7 @@ impl Default for ProjectMeta {
 /// Contains all "ingredients" needed to compile a Runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
+    /// Metadata about the project.
     #[serde(default)]
     pub meta: ProjectMeta,
 
@@ -35,10 +40,10 @@ pub struct Project {
     /// List of corpora to blend
     pub corpora: Vec<CorpusSource>,
 
-    /// Scoring parameters
+    /// Scoring parameters (weights for uncomfortable keys, etc.)
     pub weights: ScoringWeights,
 
-    /// Search configuration (annealing steps, etc.)
+    /// Search configuration (annealing steps, temperature, etc.)
     pub params: SearchParams,
 
     /// User-defined constraints (pinned keys)

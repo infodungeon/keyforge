@@ -60,14 +60,14 @@ export function KeyTester() {
   // Mouse Interaction Handlers
   const handleMouseDown = (index: number) => {
     if (!geometry) return;
-    const keyId = geometry.keys[index].id || "";
+    const keyId = geometry.keys[index].label || "";
     setActiveKeys((prev) => new Set(prev).add(keyId));
     setHistory((prev) => [{ key: "Click", code: keyId }, ...prev].slice(0, 50));
   };
 
   const handleMouseUp = (index: number) => {
     if (!geometry) return;
-    const keyId = geometry.keys[index].id || "";
+    const keyId = geometry.keys[index].label || "";
     setActiveKeys((prev) => {
       const next = new Set(prev);
       next.delete(keyId);

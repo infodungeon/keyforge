@@ -48,13 +48,13 @@ async fn test_autosave_service_basic() {
     };
 
     // Test initial load (empty)
-    assert!(service.load().await.is_none());
+    assert!(service.load().await.unwrap().is_none());
 
     // Schedule and flush
     service.schedule_save(snapshot.clone()).await;
     service.flush(true).await; // Force flush to skip debounce
 
-    let loaded = service.load().await.expect("Failed to load snapshot");
+    let loaded = service.load().await.expect("Failed to load snapshot").expect("Snapshot is empty");
     assert_eq!(loaded.keyboard, "test_kb");
     assert_eq!(loaded.layout_string, "QWERTY...");
 }
@@ -98,12 +98,12 @@ async fn test_autosave_size_limit() {
         .expect("Failed to write large file");
 
     // load() should return None and warn
-    assert!(service.load().await.is_none());
+    assert!(service.load().await.unwrap().is_none());
 }
 
 // --- Compiler Tests ---
 
-use keyforge_model::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_core::loader::{AssetLoader, CostEntry, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_persistence::{Compiler, PersistenceError};
 use keyforge_protocol::geometry::KeyboardDefinition;
@@ -111,8 +111,9 @@ use keyforge_protocol::keycodes::KeycodeRegistry;
 use keyforge_protocol::CostMatrixSource;
 
 struct MockLoader;
+#[async_trait::async_trait]
 impl AssetLoader for MockLoader {
-    fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
         // FIX: Return a valid keyboard with 1 key to satisfy Keyboard::new invariant
         Ok(KeyboardDefinition {
             meta: Default::default(),
@@ -130,38 +131,38 @@ impl AssetLoader for MockLoader {
             layouts: Default::default(),
         })
     }
-    fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         Ok(Corpus::default())
     }
-    fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
         Ok(RawCostData {
-            entries: vec![("A".into(), "B".into(), 1.0)],
+            entries: vec![CostEntry { from: "A".into(), to: "B".into(), cost: 1.0 }],
         })
     }
-    fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
         Ok(KeycodeRegistry::new_with_defaults())
     }
 }
 
-#[test]
-fn test_compiler_success() {
+#[tokio::test]
+async fn test_compiler_success() {
     let loader = MockLoader;
     let compiler = Compiler::new(&loader);
     let project = Project::default();
 
-    let runtime = compiler.compile(&project).expect("Compilation failed");
+    let runtime = compiler.compile(&project).await.expect("Compilation failed");
     // key_count is usize, so >= 0 is always true. Just checking it exists.
     let _ = runtime.engine.key_count();
 }
 
-#[test]
-fn test_compiler_custom_cost_success() {
+#[tokio::test]
+async fn test_compiler_custom_cost_success() {
     let loader = MockLoader;
     let compiler = Compiler::new(&loader);
     let mut project = Project::default();
     project.cost_matrix = CostMatrixSource::Custom("{\"entries\":[]}".into());
 
-    let result = compiler.compile(&project);
+    let result = compiler.compile(&project).await;
     assert!(result.is_ok());
 }
 
@@ -173,7 +174,7 @@ async fn test_autosave_load_errors() {
 
     // 1. Unreadable file
     tokio::fs::write(&path, "not json").await.unwrap();
-    assert!(service.load().await.is_none());
+    assert!(service.load().await.unwrap().is_none());
 
     // 2. Missing parent dir for save
     let bad_dir = dir.path().join("non_existent");
@@ -182,39 +183,39 @@ async fn test_autosave_load_errors() {
     bad_service.flush(true).await; // Should log error but not crash
 }
 
-#[test]
-fn test_compiler_keyboard_fail() {
+#[tokio::test]
+async fn test_compiler_keyboard_fail() {
     let loader = FailingLoader {
         fail_corpus: false,
         fail_costs: false,
     };
     let compiler = Compiler::new(&loader);
     let project = Project::default();
-    let result = compiler.compile(&project);
+    let result = compiler.compile(&project).await;
     assert!(matches!(result, Err(PersistenceError::Loader(_))));
 }
 
-#[test]
-fn test_compiler_corpus_fail() {
+#[tokio::test]
+async fn test_compiler_corpus_fail() {
     let loader = FailingLoader {
         fail_corpus: true,
         fail_costs: false,
     };
     let compiler = Compiler::new(&loader);
     let project = Project::default();
-    let result = compiler.compile(&project);
+    let result = compiler.compile(&project).await;
     assert!(matches!(result, Err(PersistenceError::Loader(_))));
 }
 
-#[test]
-fn test_compiler_costs_fail() {
+#[tokio::test]
+async fn test_compiler_costs_fail() {
     let loader = FailingLoader {
         fail_corpus: false,
         fail_costs: true,
     };
     let compiler = Compiler::new(&loader);
     let project = Project::default();
-    let result = compiler.compile(&project);
+    let result = compiler.compile(&project).await;
     assert!(matches!(result, Err(PersistenceError::Loader(_))));
 }
 
@@ -223,8 +224,10 @@ struct FailingLoader {
     fail_costs: bool,
 }
 
+
+#[async_trait::async_trait]
 impl AssetLoader for FailingLoader {
-    fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
         if !self.fail_corpus && !self.fail_costs {
             return Err(keyforge_model::error::ForgeError::NotFound("kb".into()));
         }
@@ -245,7 +248,7 @@ impl AssetLoader for FailingLoader {
             layouts: Default::default(),
         })
     }
-    fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         if self.fail_corpus {
             return Err(keyforge_model::error::ForgeError::NotFound(
                 "corpus".into(),
@@ -253,7 +256,7 @@ impl AssetLoader for FailingLoader {
         }
         Ok(Corpus::default())
     }
-    fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
         if self.fail_costs {
             return Err(keyforge_model::error::ForgeError::NotFound(
                 "costs".into(),
@@ -261,7 +264,7 @@ impl AssetLoader for FailingLoader {
         }
         Ok(RawCostData { entries: vec![] })
     }
-    fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
         Err(keyforge_model::error::ForgeError::NotFound(
             "keys".into(),
         ))

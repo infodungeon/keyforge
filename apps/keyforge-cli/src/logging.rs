@@ -11,27 +11,33 @@ pub fn init_tracing() {
     let fmt_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stderr);
 
     if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok() {
-        let exporter = opentelemetry_otlp::SpanExporter::builder()
+        if let Ok(exporter) = opentelemetry_otlp::SpanExporter::builder()
             .with_tonic()
             .build()
-            .expect("Failed to create OTLP exporter");
+        {
+            let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+                .with_batch_exporter(exporter)
+                .build();
 
-        let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-            .with_batch_exporter(exporter)
-            .build();
+            use opentelemetry::trace::TracerProvider;
+            let tracer = provider.tracer("keyforge-cli");
 
-        use opentelemetry::trace::TracerProvider;
-        let tracer = provider.tracer("keyforge-cli");
+            let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
-        let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(fmt_layer)
+                .with(telemetry_layer)
+                .init();
 
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(fmt_layer)
-            .with(telemetry_layer)
-            .init();
-
-        tracing::info!("🔭 Distributed Tracing Enabled (OTLP)");
+            tracing::info!("🔭 Distributed Tracing Enabled (OTLP)");
+        } else {
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(fmt_layer)
+                .init();
+            tracing::warn!("⚠️ Failed to initialize OTLP exporter, falling back to local logging");
+        }
     } else {
         tracing_subscriber::registry()
             .with(filter)

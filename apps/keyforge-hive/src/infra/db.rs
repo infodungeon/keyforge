@@ -6,18 +6,26 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{info, warn};
 
+/// Errors that can occur during database initialization and migration.
 #[derive(Debug, thiserror::Error)]
 pub enum DbInitError {
+    /// The provided database URL is malformed.
     #[error("Invalid database URL: {0}")]
     InvalidDatabaseUrl(String),
 
+    /// Failed to establish a connection after several retries.
     #[error("Could not connect to Postgres after {attempts} attempts: {db_url}")]
     ConnectTimeout { attempts: u32, db_url: String },
 
+    /// Database migrations failed, possibly due to lock contention or syntax errors.
     #[error("Database migration failed after {attempts} attempts: {error}")]
     MigrationFailed { attempts: u32, error: String },
 }
 
+/// Attempts to initialize the database pool and run migrations with a retry policy.
+///
+/// # Errors
+/// Returns [DbInitError] if the URL is invalid, connection times out, or migrations fail.
 pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
     info!("🔌 Connecting to PostgreSQL...");
 
@@ -75,9 +83,11 @@ pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
     Ok(pool)
 }
 
-/// Convenience wrapper used by tests and simple entrypoints.
+/// Convenience wrapper used by tests and simple CLI entrypoints.
 ///
-/// Prefer [`try_init_db`] in production code.
+/// # Panics
+/// Panics if database initialization or migration fails.
+/// Prefer [`try_init_db`] in production application code.
 pub async fn init_db(db_url: &str) -> PgPool {
     match try_init_db(db_url).await {
         Ok(p) => p,

@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use ts_rs::TS;
 
-pub type KeyCode = u16;
+use crate::types::KeyCode;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct KeycodeDefinition {
     pub code: KeyCode,
     pub id: String,
@@ -11,7 +13,8 @@ pub struct KeycodeDefinition {
     pub aliases: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct KeycodeRegistry {
     pub definitions: Vec<KeycodeDefinition>,
     name_to_code: HashMap<String, KeyCode>,
@@ -34,13 +37,13 @@ impl KeycodeRegistry {
         // The application MUST load keycodes.json for actual data.
         let defs = vec![
             KeycodeDefinition {
-                code: 0,
+                code: KeyCode(0),
                 id: "KC_NO".into(),
                 label: "".into(),
                 aliases: vec!["XXXXXXX".into()],
             },
             KeycodeDefinition {
-                code: 1,
+                code: KeyCode(1),
                 id: "KC_TRANSPARENT".into(),
                 label: "▽".into(),
                 aliases: vec!["KC_TRNS".into(), "_______".into()],

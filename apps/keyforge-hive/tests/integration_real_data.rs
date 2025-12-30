@@ -1,7 +1,7 @@
 use keyforge_adapter::conversion;
 use keyforge_core::ScoringEngine;
 use keyforge_infra::FsProvider;
-use keyforge_model::loader::AssetLoader;
+use keyforge_infra::AssetLoader;
 use keyforge_protocol::config::{CorpusSource, ScoringWeights};
 use std::path::PathBuf;
 
@@ -52,7 +52,7 @@ fn test_real_data_pipeline() {
 
     let rubric = conversion::to_domain_rubric(&weights);
     let keyboard = conversion::to_domain_keyboard(&def.geometry);
-    let cost_overrides = conversion::resolve_cost_matrix(&cost_data.entries, &def.geometry);
+    let cost_overrides = cost_data.resolve(&def.geometry);
 
     let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_overrides)
         .expect("Failed to create scoring engine");

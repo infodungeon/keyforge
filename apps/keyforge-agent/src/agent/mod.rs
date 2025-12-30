@@ -1,11 +1,12 @@
+pub mod errors;
 pub mod calibration;
 pub mod compute;
 pub mod maintenance;
 pub mod network;
 pub mod telemetry;
 use crate::hw_detect;
-use futures_util::SinkExt;
-use futures_util::StreamExt;
+use futures::SinkExt;
+use futures::StreamExt;
 use keyforge_core::DeterministicScorer;
 use keyforge_infra::init::initialize_workspace;
 use keyforge_infra::HiveClient;
@@ -35,6 +36,10 @@ enum ServerMessage {
     },
 }
 
+/// Main entry point for the agent worker.
+///
+/// Orchestrates identity registration, hardware detection, calibration,
+/// and the persistent connection to the Hive.
 pub async fn run_worker(
     hive_url: String,
     node_id: String,
@@ -42,19 +47,27 @@ pub async fn run_worker(
     signing_key: ed25519_dalek::SigningKey,
     data_root: PathBuf,
     mut shutdown: broadcast::Receiver<()>,
+    cores: usize,
 ) {
-    crate::nice::configure_global_thread_pool(false);
-    crate::nice::set_background_priority();
+
 
     let client = network::build_client(&hive_url, secret.clone());
     info!(node_id = %node_id, "agent initializing");
     let _ = crate::agent::maintenance::prune_stale_data(data_root.clone()).await;
 
-    let topo = hw_detect::detect_topology().await;
+    let topo = hw_detect::detect_topology().await.unwrap_or_else(|e| {
+        error!(error = %e, "hardware detection failed, using defaults");
+        hw_detect::CpuCacheTopology::default()
+    });
+
     let ops_per_sec: f64 =
         tokio::task::spawn_blocking(crate::agent::calibration::measure_performance)
             .await
-            .unwrap_or(5_000_000.0);
+            .unwrap_or(Ok(5_000_000.0))
+            .unwrap_or_else(|e| {
+                warn!(error = %e, "calibration failed, using default throughput");
+                5_000_000.0
+            });
 
     let public_key = ed25519_dalek::VerifyingKey::from(&signing_key);
 
@@ -80,7 +93,7 @@ pub async fn run_worker(
         100,
     ));
 
-    let compute_limiter = Arc::new(Semaphore::new(topo.cores.max(1)));
+    let compute_limiter = Arc::new(Semaphore::new(cores.max(1)));
 
     let ws_url = match Url::parse(&hive_url) {
         Ok(mut u) => {
@@ -162,6 +175,9 @@ pub async fn run_worker(
     health_handle.abort();
 }
 
+/// Manages a single WebSocket connection to the Hive.
+///
+/// Handles job signals, heartbeats, and cancellations.
 #[allow(clippy::too_many_arguments)]
 async fn process_connection(
     mut ws_stream: tokio_tungstenite::WebSocketStream<
@@ -218,7 +234,7 @@ async fn process_connection(
                             &config,
                             &cost_path,
                             &corpus_root,
-                        )?;
+                        ).await?;
 
                         let registry = prepared.registry.clone();
 

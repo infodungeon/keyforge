@@ -31,7 +31,7 @@ export interface BackendClient {
   getAllLayoutsScoped(
     keyboardId: string,
     hiveUrl?: string,
-  ): Promise<Record<string, string>>;
+  ): Promise<Record<string, string | undefined>>;
   saveUserLayout(
     keyboardId: string,
     name: string,

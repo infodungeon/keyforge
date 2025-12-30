@@ -4,4 +4,4 @@
 //! boundary concern. Downstream crates should depend on this adapter module rather
 //! than importing `keyforge_protocol::parsing` directly.
 
-pub use keyforge_protocol::parsing::{parse_key, KeyAction};
+pub use keyforge_model::parsing::{parse_key, KeyAction};

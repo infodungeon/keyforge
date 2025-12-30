@@ -59,8 +59,8 @@ fn test_scorer_determinism_production_data() {
     let rubric_a = conversion::to_domain_rubric(&weights);
     let rubric_b = conversion::to_domain_rubric(&weights);
 
-    let overrides_a = conversion::resolve_cost_matrix(&cost_data_a.entries, &def.geometry);
-    let overrides_b = conversion::resolve_cost_matrix(&cost_data_b.entries, &def.geometry);
+    let overrides_a = cost_data_a.resolve(&def.geometry);
+    let overrides_b = cost_data_b.resolve(&def.geometry);
 
     let engine_a = ScoringEngine::new(&keyboard_a, &corpus_a, &rubric_a, &overrides_a)
         .expect("Failed to create engine A");

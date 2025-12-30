@@ -24,7 +24,7 @@ pub async fn handle(
 ) -> AppResult<Json<JobStatus>> {
     // 1. Fetch Status from Database
     let status_row = sqlx::query!("SELECT status FROM jobs WHERE id = $1", job_id)
-        .fetch_optional(&state.jobs.pool)
+        .fetch_optional(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?;
 

@@ -14,7 +14,6 @@ use crate::state::AppState;
 
 /// VSA Feature: Asset Management
 /// Serves the manifest and static files from the asset cache.
-
 pub async fn get_manifest(State(state): State<Arc<AppState>>) -> AppResult<Json<ServerManifest>> {
     if let Some(manifest) = state.assets.get_manifest() {
         Ok(Json(manifest.as_ref().clone()))

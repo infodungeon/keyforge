@@ -1,13 +1,13 @@
 use keyforge_model::error::ForgeError;
-use keyforge_model::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
-use keyforge_protocol::config::CorpusSource;
-use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_protocol::geometry::KeyboardDefinition;
-use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_model::config::CorpusSource;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
 use sha2::Digest;
 use std::fs::File;
-use std::io::BufReader;
+
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
@@ -20,8 +20,8 @@ impl FsProvider {
         Self { root }
     }
 
-    fn check_size(&self, path: &Path) -> LoaderResult<()> {
-        let meta = std::fs::metadata(path)?;
+    async fn check_size(&self, path: &Path) -> LoaderResult<()> {
+        let meta = tokio::fs::metadata(path).await?;
         if meta.len() > MAX_INPUT_FILE_SIZE {
             return Err(ForgeError::InvalidData(format!(
                 "File {:?} exceeds size limit of {} bytes",
@@ -31,19 +31,27 @@ impl FsProvider {
         Ok(())
     }
 
-    fn load_binary<T: serde::de::DeserializeOwned>(&self, path: &Path) -> LoaderResult<T> {
-        self.check_size(path)?;
-        let file = File::open(path)?;
-        let decoder =
-            zstd::Decoder::new(file).map_err(|e| ForgeError::Internal(e.to_string()))?;
-        rmp_serde::from_read(decoder).map_err(|e| ForgeError::Internal(e.to_string()))
+    async fn load_binary<T: serde::de::DeserializeOwned + Send + 'static>(&self, path: &Path) -> LoaderResult<T> {
+        self.check_size(path).await?;
+        let path = path.to_path_buf();
+        tokio::task::spawn_blocking(move || {
+            let file = File::open(&path)?;
+            let decoder =
+                zstd::Decoder::new(file).map_err(|e| ForgeError::Internal(e.to_string()))?;
+            rmp_serde::from_read(decoder).map_err(|e| ForgeError::Internal(e.to_string()))
+        })
+        .await
+        .map_err(|e| ForgeError::Internal(e.to_string()))?
     }
 
-    fn load_json<T: serde::de::DeserializeOwned>(&self, path: &Path) -> LoaderResult<T> {
-        self.check_size(path)?;
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader).map_err(ForgeError::Serde)
+    async fn load_json<T: serde::de::DeserializeOwned + Send + 'static>(&self, path: &Path) -> LoaderResult<T> {
+        self.check_size(path).await?;
+        let content = tokio::fs::read_to_string(path).await?;
+        tokio::task::spawn_blocking(move || {
+            serde_json::from_str(&content).map_err(ForgeError::Serde)
+        })
+        .await
+        .map_err(|e| ForgeError::Internal(e.to_string()))?
     }
 
     fn resolve_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
@@ -88,8 +96,7 @@ impl FsProvider {
         p.exists().then_some(p)
     }
 
-    pub fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
-        let mut hasher = sha2::Sha256::new();
+    pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         let files = ["1grams", "2grams", "3grams", "words"];
         let is_system = self.root.join("system/corpora").join(id).exists();
         let base = if is_system {
@@ -98,29 +105,55 @@ impl FsProvider {
             self.root.join("user/corpora").join(id)
         };
         let ext = if is_system { "mpk.zst" } else { "json" };
+        
+        let mut hasher = sha2::Sha256::new();
         for f in files {
             let path = base.join(format!("{}.{}", f, ext));
             if path.exists() {
-                hasher.update(&std::fs::read(&path)?);
+                let content = tokio::fs::read(&path).await?;
+                hasher.update(&content);
             }
         }
         Ok(hex::encode(hasher.finalize()))
     }
 }
 
+#[derive(serde::Deserialize)]
+struct CostEntry {
+    #[serde(alias = "from")]
+    from_key: String,
+    #[serde(alias = "to")]
+    to_key: String,
+    #[serde(alias = "cost")]
+    cost_ms: f32,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum CostFormat {
+    Wrapped { entries: Vec<CostEntry> },
+    Direct(Vec<CostEntry>),
+}
+
+// Pin boxing needed to match async_trait with explicit types
+// #[async_trait::async_trait] 
+// ^ We simply implement the method with correct signature for the trait
+// But actually, keyforge-core defines the trait. 
+// Standard async_trait usage should work IF the types match perfectly.
+#[async_trait::async_trait]
 impl AssetLoader for FsProvider {
-    fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
         let stem = name.strip_suffix(".json").unwrap_or(name);
         if let Some(p) = self.resolve_system_path("keyboards", stem) {
-            return self.load_binary(&p);
+            return self.load_binary(&p).await;
         }
         if let Some(p) = self.resolve_user_path("keyboards", stem) {
-            return self.load_json(&p);
+            return self.load_json(&p).await;
         }
         Err(ForgeError::NotFound(name.to_string()))
     }
 
-    fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
         let mut corpus = Corpus::default();
         for src in sources {
             let is_system = self.root.join("system/corpora").join(&src.id).exists();
@@ -131,116 +164,95 @@ impl AssetLoader for FsProvider {
             };
             let ext = if is_system { "mpk.zst" } else { "json" };
 
-            let load_part = |stem: &str| -> LoaderResult<Vec<serde_json::Value>> {
+            let mut segments = Vec::new();
+            for stem in ["1grams", "2grams", "3grams", "words"] {
                 let p = base.join(format!("{}.{}", stem, ext));
-                if !p.exists() {
-                    return Ok(vec![]);
+                if p.exists() {
+                    let part: Vec<serde_json::Value> = if is_system {
+                        self.load_binary(&p).await?
+                    } else {
+                        self.load_json(&p).await?
+                    };
+                    segments.push((stem, part));
                 }
-                if is_system {
-                    self.load_binary(&p)
-                } else {
-                    self.load_json(&p)
-                }
-            };
+            }
 
-            for e in load_part("1grams")? {
-                if let Some(c) = e["char"].as_str().and_then(|s| s.chars().next()) {
-                    if (c as usize) < 256 {
-                        corpus.char_freqs[c as usize] +=
-                            (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32;
+            for (stem, part) in segments {
+                match stem {
+                    "1grams" => {
+                        for e in part {
+                            if let Some(c) = e["char"].as_str().and_then(|s| s.chars().next()) {
+                                if (c as usize) < 256 {
+                                    corpus.char_freqs[c as usize] +=
+                                        (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32;
+                                }
+                            }
+                        }
                     }
-                }
-            }
-            for e in load_part("2grams")? {
-                let c1 = e["char1"]
-                    .as_str()
-                    .and_then(|s| s.chars().next())
-                    .unwrap_or('\0') as u16;
-                let c2 = e["char2"]
-                    .as_str()
-                    .and_then(|s| s.chars().next())
-                    .unwrap_or('\0') as u16;
-                corpus.bigrams.push((
-                    c1,
-                    c2,
-                    (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32,
-                ));
-            }
-            for e in load_part("3grams")? {
-                let c1 = e["char1"]
-                    .as_str()
-                    .and_then(|s| s.chars().next())
-                    .unwrap_or('\0') as u16;
-                let c2 = e["char2"]
-                    .as_str()
-                    .and_then(|s| s.chars().next())
-                    .unwrap_or('\0') as u16;
-                let c3 = e["char3"]
-                    .as_str()
-                    .and_then(|s| s.chars().next())
-                    .unwrap_or('\0') as u16;
-                corpus.trigrams.push((
-                    c1,
-                    c2,
-                    c3,
-                    (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32,
-                ));
-            }
-            for e in load_part("words")? {
-                if let Some(w) = e["word"].as_str() {
-                    corpus.words.push((
-                        w.to_string(),
-                        (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32,
-                    ));
+                    "2grams" => {
+                        for e in part {
+                            let c1 = e["char1"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
+                            let c2 = e["char2"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
+                            corpus.bigrams.push((c1, c2, (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
+                        }
+                    }
+                    "3grams" => {
+                        for e in part {
+                            let c1 = e["char1"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
+                            let c2 = e["char2"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
+                            let c3 = e["char3"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
+                            corpus.trigrams.push((c1, c2, c3, (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
+                        }
+                    }
+                    "words" => {
+                        for e in part {
+                            if let Some(w) = e["word"].as_str() {
+                                corpus.words.push((w.to_string(), (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
         Ok(corpus)
     }
 
-    fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         if let Some(p) = self.resolve_system_path("weights", stem) {
-            return self.load_binary(&p);
+            return self.load_binary(&p).await;
         }
         if let Some(p) = self.resolve_user_path("weights", stem) {
-            #[derive(serde::Deserialize)]
-            struct CostEntry {
-                from_key: String,
-                to_key: String,
-                cost_ms: f32,
-            }
-            #[derive(serde::Deserialize)]
-            #[serde(untagged)]
-            enum Format {
-                Wrapped { entries: Vec<CostEntry> },
-                Direct(Vec<CostEntry>),
-            }
-            let format: Format = self.load_json(&p)?;
+            let format: CostFormat = self.load_json(&p).await?;
             let entries = match format {
-                Format::Wrapped { entries } => entries,
-                Format::Direct(v) => v,
+                CostFormat::Wrapped { entries } => entries,
+                CostFormat::Direct(v) => v,
             };
             return Ok(RawCostData {
                 entries: entries
                     .into_iter()
-                    .map(|e| (e.from_key, e.to_key, e.cost_ms))
+                    .map(|e| keyforge_core::loader::CostEntry {
+                        from: e.from_key,
+                        to: e.to_key,
+                        cost: e.cost_ms,
+                    })
                     .collect(),
             });
         }
         Err(ForgeError::NotFound(filename.to_string()))
     }
 
-    fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         if let Some(p) = self.resolve_system_path("config", stem) {
-            let defs = self.load_binary(&p)?;
+            let defs = self.load_binary(&p).await?;
             return Ok(KeycodeRegistry::new(defs));
         }
         let p = self
             .resolve_user_path("config", stem)
             .ok_or(ForgeError::NotFound(filename.to_string()))?;
-        let defs = self.load_json(&p)?;
+        let defs = self.load_json(&p).await?;
         Ok(KeycodeRegistry::new(defs))
     }
 }

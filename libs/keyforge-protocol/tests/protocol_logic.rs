@@ -1,6 +1,6 @@
 use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::KeyboardDefinition;
-use keyforge_protocol::protocol::{CostMatrixSource, JobConfig, JobRequest};
+use keyforge_protocol::{CostMatrixSource, JobConfig, JobRequest};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 

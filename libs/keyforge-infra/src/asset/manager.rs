@@ -56,15 +56,11 @@ impl AssetManager {
             let bundle_name_owned = bundle_name.to_string();
             let hash_owned = hash.to_string();
 
-            let match_found = tokio::task::spawn_blocking(move || {
-                let provider = crate::FsProvider::new(root);
-                match provider.get_corpus_hash(&bundle_name_owned) {
-                    Ok(h) => h == hash_owned,
-                    Err(_) => false,
-                }
-            })
-            .await
-            .unwrap_or(false);
+            let provider = crate::FsProvider::new(root);
+            let match_found = match provider.get_corpus_hash(&bundle_name_owned).await {
+                Ok(h) => h == hash_owned,
+                Err(_) => false,
+            };
 
             if match_found {
                 return Ok(bundle_dir);
@@ -97,15 +93,11 @@ impl AssetManager {
             let bundle_name_owned = bundle_name.to_string();
             let hash_owned = hash.to_string();
 
-            let match_found = tokio::task::spawn_blocking(move || {
-                let provider = crate::FsProvider::new(root);
-                match provider.get_corpus_hash(&bundle_name_owned) {
-                    Ok(h) => h == hash_owned,
-                    Err(_) => false,
-                }
-            })
-            .await
-            .unwrap_or(false);
+            let provider = crate::FsProvider::new(root);
+            let match_found = match provider.get_corpus_hash(&bundle_name_owned).await {
+                Ok(h) => h == hash_owned,
+                Err(_) => false,
+            };
 
             if !match_found {
                 return Err(crate::error::InfraError::HashMismatch {

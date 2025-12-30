@@ -80,9 +80,9 @@ export const KeyboardMap = memo(function KeyboardMap({
     const tokens = layoutString.trim().split(/\s+/);
     const ghostTokens = ghostLayoutString
       ? ghostLayoutString
-          .trim()
-          .split(/\s+/)
-          .map((t) => keycodeService.getVisualLabel(t))
+        .trim()
+        .split(/\s+/)
+        .map((t) => keycodeService.getVisualLabel(t))
       : [];
 
     return { maxX, maxY, maxVal, tokens, ghostTokens };
@@ -100,7 +100,7 @@ export const KeyboardMap = memo(function KeyboardMap({
         style={{ display: "block" }}
       >
         {geometry.keys.map((key, index) => {
-          const keyId = key.id || "";
+          const keyId = key.label || "";
           const isActive = activeKeyIds ? activeKeyIds.has(keyId) : false;
           const isSelected = selectedKeyIndex === index;
 

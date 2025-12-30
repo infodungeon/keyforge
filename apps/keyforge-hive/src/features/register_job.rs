@@ -45,6 +45,7 @@ async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> 
     // Stage 4: Persistence
     let is_new = state
         .jobs
+        .repo
         .register(&job_id, &payload, None, payload.parent_job_id.clone(), 0)
         .await
         .map_err(AppError::Database)?;
@@ -79,6 +80,7 @@ async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult
             let hash = state
                 .assets
                 .get_corpus_hash(&corpus.id)
+                .await
                 .map_err(|e| AppError::Validation(format!("Corpus error: {}", e)))?;
             corpus.hash = Some(hash);
         }
@@ -105,7 +107,7 @@ fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
 
 fn emit_registration_events(state: &AppState, job_id: &str) {
     let _ = state.tx.send(format!("JOB:{}", job_id));
-    state.job_signal.notify_waiters();
+    state.jobs.signal.notify_waiters();
     info!("🆕 (VSA/Humble/ROP) Registered Job: {}", &job_id[0..8]);
 }
 

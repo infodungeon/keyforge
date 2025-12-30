@@ -91,11 +91,11 @@ export function KeyboardDesigner({ onSaveSuccess }: Props) {
     // Check for duplicate key IDs
     const ids = new Set();
     for (const k of def.geometry.keys) {
-      if (ids.has(k.id)) {
-        alert(`Duplicate Key ID found: ${k.id}`);
+      if (ids.has(k.label)) {
+        alert(`Duplicate Key ID found: ${k.label}`);
         return;
       }
-      ids.add(k.id);
+      ids.add(k.label);
     }
     if (def.geometry.keys.length === 0) {
       alert("Cannot save empty keyboard.");

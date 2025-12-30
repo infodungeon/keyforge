@@ -1,6 +1,6 @@
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Cell, CellAlignment, Table};
-use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::KeyCode;
 
 #[allow(dead_code)]

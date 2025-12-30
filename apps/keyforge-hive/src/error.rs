@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 use keyforge_model::error::ForgeError;
-use keyforge_protocol::error::{ErrorCode, ErrorResponse};
+use keyforge_protocol::{ErrorCode, ErrorResponse};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

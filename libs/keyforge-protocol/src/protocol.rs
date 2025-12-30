@@ -1,31 +1,35 @@
 // Re-export types from model so they are available via keyforge_protocol::protocol::...
-pub use keyforge_model::config::{CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
-use keyforge_model::constants;
-use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::validator::Validator;
+pub use crate::dtos::config::{CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
+pub use crate::dtos::constants;
+pub use crate::dtos::geometry::KeyboardDefinition;
+pub use crate::dtos::validator::Validator;
 use crate::PROTOCOL_VERSION;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use ts_rs::TS;
 
 fn default_version() -> u32 { PROTOCOL_VERSION }
 fn default_cost_matrix() -> CostMatrixSource { CostMatrixSource::default() }
 fn default_corpora() -> Vec<CorpusSource> { vec![CorpusSource::default()] }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct BiometricSample {
     pub bigram: String,
     pub ms: f64,
     pub timestamp: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct UserStatsStore {
     pub sessions: u64,
     pub total_keystrokes: u64,
     pub biometrics: Vec<BiometricSample>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct JobRequest {
     #[serde(default = "default_version")]
     pub version: u32,
@@ -84,7 +88,8 @@ impl Validator for JobRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct JobConfig {
     pub definition: KeyboardDefinition,
     pub weights: ScoringWeights,
@@ -122,24 +127,28 @@ impl From<JobRequest> for JobConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct JobResponse {
     pub job_id: String,
     pub is_new: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct JobQueueResponse {
     pub job_id: Option<String>,
     pub config: Option<JobConfig>,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct PopulationResponse {
     pub layouts: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct ResultSubmission {
     #[serde(default = "default_version")]
     pub version: u32,
@@ -153,7 +162,8 @@ pub struct ResultSubmission {
     pub signature: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct NodeRequest {
     #[serde(default = "default_version")]
     pub version: u32,
@@ -166,20 +176,32 @@ pub struct NodeRequest {
     pub public_key: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+impl Validator for NodeRequest {
+    fn validate(&self) -> Result<(), String> {
+        if self.node_id.trim().is_empty() { return Err("node_id cannot be empty".into()); }
+        if self.cores <= 0 { return Err("cores must be > 0".into()); }
+        if self.ops_per_sec < 0.0 { return Err("ops_per_sec cannot be negative".into()); }
+        Ok(())
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct TuningProfile {
     pub strategy: String,
     pub batch_size: usize,
     pub thread_count: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
+#[ts(export)]
 pub struct NodeResponse {
     pub status: String,
     pub tuning: TuningProfile,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, ToSchema, TS)]
+#[ts(export)]
 pub struct SystemMetrics {
     pub uptime_secs: u64,
     pub active_jobs: i64,
@@ -190,16 +212,29 @@ pub struct SystemMetrics {
     pub server_cpu_usage: f32,
 }
 
-impl ResultSubmission {
-    pub fn validate_timestamp(&self) -> Result<(), String> {
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_secs();
+impl Validator for ResultSubmission {
+    fn validate(&self) -> Result<(), String> {
+        if self.job_id.trim().is_empty() { return Err("job_id cannot be empty".into()); }
+        if self.node_id.trim().is_empty() { return Err("node_id cannot be empty".into()); }
+        if self.score.is_nan() || self.score < 0.0 { return Err("Invalid score".into()); }
+        
+        // Layout structure check
+        crate::dtos::validator::LayoutValidator::validate_structure(&self.layout)?;
+
+        // Timestamp check
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_secs();
         if self.timestamp > now + 300 { return Err("Timestamp is in the future".into()); }
-        if self.timestamp < now.saturating_sub(300) { return Err("Timestamp is too old".into()); }
+        if self.timestamp < now.saturating_sub(1800) { return Err("Timestamp is too old".into()); }
+        
         Ok(())
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, TS)]
+#[ts(export)]
 pub struct JobStatus {
     pub job_id: String,
     pub status: String,
@@ -207,4 +242,46 @@ pub struct JobStatus {
     pub best_score: Option<f32>,
     pub best_layout: Option<String>,
     pub total_samples: usize,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, TS)]
+#[ts(export)]
+#[allow(dead_code)]
+pub struct MetricViolation {
+    pub keys: String,
+    pub score: f32,
+    pub freq: f32,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, TS)]
+#[ts(export)]
+#[allow(dead_code)]
+pub struct AnalysisReport {
+    pub score: f32,
+    pub distance: f32,
+    pub sfb_total: f32,
+    pub sfb_ratio: f32,
+    pub hand_balance: f32,
+    pub scissors: f32,
+    pub redirects: f32,
+    pub rolls: f32,
+    #[serde(default)]
+    pub heatmap: Vec<f32>,
+    #[serde(default)]
+    pub top_sfbs: Vec<MetricViolation>,
+    #[serde(default)]
+    pub top_scissors: Vec<MetricViolation>,
+    #[serde(default)]
+    pub top_redirs: Vec<MetricViolation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
+#[ts(export)]
+#[allow(dead_code)]
+pub struct SwapSuggestion {
+    pub index_a: usize,
+    pub index_b: usize,
+    pub key_a: String,
+    pub key_b: String,
+    pub score_delta: f32,
+    pub improvement_pct: f32,
 }

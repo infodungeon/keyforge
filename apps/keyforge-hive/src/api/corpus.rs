@@ -2,7 +2,7 @@ use crate::state::AppState;
 use axum::{extract::Path, extract::State, http::StatusCode, Json};
 use keyforge_infra::AssetLoader;
 use keyforge_model::Corpus;
-use keyforge_protocol::config::CorpusSource;
+
 use std::sync::Arc;
 
 /// GET /api/corpus/:name
@@ -14,11 +14,12 @@ pub async fn get_corpus(
     // Load the corpus using the existing FsProvider logic via GlobalAssetCache
     let corpus = state
         .assets
-        .load_corpus(&[CorpusSource {
+        .load_corpus(&[keyforge_model::config::CorpusSource {
             id: name.clone(),
             weight: 1.0,
             hash: None,
         }])
+        .await
         .map_err(|e| {
             tracing::error!("Failed to load corpus '{}': {}", name, e);
             StatusCode::INTERNAL_SERVER_ERROR

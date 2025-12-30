@@ -16,7 +16,7 @@ use kernel::types::{KeyCode, ValidatedLayout};
 use keyforge_model::{
     AnalysisReport, Corpus, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig,
 };
-use keyforge_protocol::constants::SCORE_SCALE;
+use keyforge_model::constants::SCORE_SCALE;
 use std::sync::Arc;
 use tracing::instrument;
 
@@ -36,19 +36,17 @@ impl ScoringEngine {
     }
 
     #[instrument(skip(self, layout))]
-    pub fn score(&self, layout: &Layout) -> f32 {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)
-            .expect("Physics Violation: Layout size mismatch");
+    pub fn score(&self, layout: &Layout) -> Result<f32, PhysicsError> {
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         
         let mut pos_map = vec![65535u16; 65536];
-        score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE
+        Ok(score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE)
     }
 
     #[instrument(skip(self, layout))]
-    pub fn analyze(&self, layout: &Layout) -> AnalysisReport {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)
-            .expect("Physics Violation: Layout size mismatch");
-        analyze_layout(&self.ctx, &validated)
+    pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        Ok(analyze_layout(&self.ctx, &validated))
     }
 
     #[instrument(skip(self, layout))]
@@ -62,17 +60,15 @@ impl ScoringEngine {
         pos_map: &[u16],
         idx_a: usize,
         idx_b: usize,
-    ) -> i64 {
-        let validated = ValidatedLayout::new(layout, self.ctx.key_count)
-            .expect("Physics Violation: Layout size mismatch");
-        kernel::compute::calculate_swap_delta(&self.ctx, &validated, pos_map, idx_a, idx_b)
+    ) -> Result<i64, PhysicsError> {
+        let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
+        Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, pos_map, idx_a, idx_b))
     }
 
-    pub fn score_raw(&self, layout: &[KeyCode]) -> i64 {
-        let validated = ValidatedLayout::new(layout, self.ctx.key_count)
-            .expect("Physics Violation: Layout size mismatch");
+    pub fn score_raw(&self, layout: &[KeyCode]) -> Result<i64, PhysicsError> {
+        let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
         let mut pos_map = vec![65535u16; 65536];
-        score_layout(&self.ctx, &validated, &mut pos_map)
+        Ok(score_layout(&self.ctx, &validated, &mut pos_map))
     }
 
     pub fn key_count(&self) -> usize {
@@ -96,25 +92,23 @@ pub struct EngineRequest {
 }
 
 #[instrument(skip(req))]
-pub fn score(req: &EngineRequest) -> OptimizationResult {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)
-        .expect("Physics Violation: Invalid Keyboard Geometry in Request");
+pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
 
     let layout = req
         .initial_layout
         .clone()
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
 
-    OptimizationResult {
-        score: engine.score(&layout),
+    Ok(OptimizationResult {
+        score: engine.score(&layout)?,
         layout,
-    }
+    })
 }
 
 #[instrument(skip(req))]
-pub fn analyze(req: &EngineRequest) -> AnalysisReport {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)
-        .expect("Physics Violation: Invalid Keyboard Geometry in Request");
+pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
     let layout = req
         .initial_layout
         .clone()
@@ -129,14 +123,13 @@ pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
 }
 
 #[instrument(skip(req))]
-pub fn suggest_improvements(req: &EngineRequest) -> Vec<SwapSuggestion> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)
-        .expect("Physics Violation: Invalid Keyboard Geometry in Request");
+pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
     let layout = req
         .initial_layout
         .clone()
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
-    engine.suggest_improvements(&layout)
+    Ok(engine.suggest_improvements(&layout))
 }
 
 #[cfg(test)]
@@ -190,7 +183,7 @@ mod tests {
     fn test_analyze_layout_comprehensive() {
         let engine = setup_physics_engine();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
-        let report = engine.analyze(&layout);
+        let report = engine.analyze(&layout).unwrap();
 
         assert_eq!(report.heatmap[0], 100.0);
         assert_eq!(report.heatmap[1], 50.0);
@@ -207,7 +200,7 @@ mod tests {
         // Layout size 0 vs key count 5 -> Should panic due to ValidatedLayout
         let layout = Layout::new_unchecked(vec![]);
         let result = std::panic::catch_unwind(|| {
-            engine.analyze(&layout);
+            engine.analyze(&layout).unwrap();
         });
         assert!(result.is_err());
     }
@@ -226,9 +219,9 @@ mod tests {
             pos_map[i] = i as u16;
         }
 
-        let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 8);
+        let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 8).unwrap();
         assert_eq!(delta, 0);
-        let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 8, 0);
+        let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 8, 0).unwrap();
         assert_eq!(delta, 0);
     }
 
@@ -247,7 +240,7 @@ mod tests {
         for i in 0..5 {
             pos_map[i as usize] = i as u16;
         }
-        let _ = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 1);
+        let _ = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 1).unwrap();
     }
 
     #[test]
@@ -267,6 +260,6 @@ mod tests {
         for i in 0..5 {
             pos_map[i as usize] = i as u16;
         }
-        let _ = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 3);
+        let _ = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 3).unwrap();
     }
 }

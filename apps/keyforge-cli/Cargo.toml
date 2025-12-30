@@ -21,6 +21,7 @@ keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 clap = { version = "4.5.53", features = ["derive", "env"] }
+clap_complete = "4.5"
 tracing = "0.1.43"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
 tracing-opentelemetry = "0.29.0"
@@ -37,6 +38,11 @@ hex = "0.4"
 num_cpus = "1.16"
 thiserror = "2.0"
 ctrlc = "3.4"
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+] }
 self_update = "0.41"
 
 [dev-dependencies]
@@ -44,5 +50,4 @@ keyforge-testing = { path = "../../libs/keyforge-testing" }
 tempfile = "3.10"
 keyforge-hive = { path = "../keyforge-hive" }
 futures = "0.3"
-sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "postgres"] }
 axum = "0.7"

@@ -28,6 +28,7 @@ pub async fn get_admin_stats(
 ) -> AppResult<Json<AdminStatsResponse>> {
     let active_jobs = state
         .jobs
+        .repo
         .count_active()
         .await
         .map_err(AppError::Database)?;
@@ -87,7 +88,7 @@ pub struct FullBackup {
 pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<FullBackup>> {
     // 1. Keyboards
     let keyboards = sqlx::query!("SELECT * FROM keyboards")
-        .fetch_all(&state.jobs.pool)
+        .fetch_all(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?
         .iter()
@@ -103,7 +104,7 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
 
     // 2. Active Jobs
     let jobs = sqlx::query!("SELECT * FROM jobs WHERE status = 'active'")
-        .fetch_all(&state.jobs.pool)
+        .fetch_all(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?
         .iter()
@@ -118,7 +119,7 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
 
     // 3. Recent Results (Sample)
     let results = sqlx::query!("SELECT * FROM results ORDER BY created_at DESC LIMIT 100")
-        .fetch_all(&state.jobs.pool)
+        .fetch_all(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?
         .iter()

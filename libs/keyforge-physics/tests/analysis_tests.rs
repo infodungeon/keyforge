@@ -27,7 +27,7 @@ fn test_analyze_layout_comprehensive() {
 
     let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
     let layout = keyforge_model::Layout::new_unchecked((0..30u16).map(KeyCode).collect());
-    let report = engine.analyze(&layout);
+    let report = engine.analyze(&layout).unwrap();
 
     assert!(report.score >= 0.0);
     assert!(report.sfb_total > 0.0);

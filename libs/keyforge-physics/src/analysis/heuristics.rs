@@ -2,7 +2,7 @@ use crate::kernel::compute::{calculate_swap_delta, score_layout};
 use crate::kernel::types::ValidatedLayout;
 use crate::kernel::EngineContext;
 use keyforge_model::{Layout, SwapSuggestion};
-use keyforge_protocol::constants::SCORE_SCALE;
+use keyforge_model::constants::SCORE_SCALE;
 
 pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion> {
     // Guardrail: Validate layout before processing

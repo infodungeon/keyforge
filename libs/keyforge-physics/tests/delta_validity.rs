@@ -79,20 +79,20 @@ proptest! {
         let rubric = Rubric::default();
         let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &[]).unwrap();
 
-        let score_before = engine.score_raw(&layout_keys);
-
+        let score_before = engine.score_raw(&layout_keys).unwrap();
+        
         // Precompute pos_map for delta
         let mut pos_map = vec![65535u16; 65536];
         for (idx, &code) in layout_keys.iter().enumerate() {
             pos_map[code.0 as usize] = idx as u16;
         }
 
-        let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, i, j);
+        let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, i, j).unwrap();
 
         // Apply swap
         layout_keys.swap(i, j);
 
-        let score_after = engine.score_raw(&layout_keys);
+        let score_after = engine.score_raw(&layout_keys).unwrap();
         let actual_delta = score_after - score_before;
 
         prop_assert_eq!(actual_delta, delta, "Delta mismatch! score_after({}) - score_before({}) = {}, but calculate_swap_delta returned {}", score_after, score_before, actual_delta, delta);

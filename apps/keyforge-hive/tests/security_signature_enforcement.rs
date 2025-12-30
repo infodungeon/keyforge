@@ -1,7 +1,7 @@
 use keyforge_hive::cache::{CompiledEngineCache, GlobalAssetCache};
 use keyforge_hive::infra::repositories::JobRepository;
 use keyforge_hive::infra::repositories::NodeRepository;
-use keyforge_hive::services::verification::VerificationService;
+use keyforge_hive::VerificationService;
 use keyforge_protocol::ResultSubmission;
 
 use keyforge_security as crypto;

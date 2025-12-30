@@ -29,8 +29,8 @@ struct Args {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    #[arg(long, short, default_value = ".", env = "KEYFORGE_DATA_DIR")]
-    data: PathBuf,
+    #[arg(long, short, env = "KEYFORGE_DATA_DIR")]
+    data: Option<PathBuf>,
 
     #[arg(
         long,
@@ -86,11 +86,11 @@ async fn main() {
                 p.exists().then_some(p)
             });
 
-            let resolved_path = if let Some(p) = bootstrap_path {
+            let file_config = if let Some(p) = bootstrap_path {
                 match HiveBootstrapConfig::load(&p) {
                     Ok(cfg) => {
                         info!("Using bootstrap config: {:?}", p);
-                        cfg.data_root
+                        Some(cfg)
                     }
                     Err(e) => {
                         error!("FATAL: Failed to load bootstrap config: {}", e);
@@ -98,8 +98,14 @@ async fn main() {
                     }
                 }
             } else {
-                args.data.clone()
+                None
             };
+
+            let resolved_path = args
+                .data
+                .clone()
+                .or_else(|| file_config.map(|c| c.data_root))
+                .unwrap_or_else(|| PathBuf::from("."));
 
             if !resolved_path.exists() {
                 error!("FATAL: Data directory does not exist: {:?}", resolved_path);
@@ -127,12 +133,12 @@ async fn main() {
                 .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
             let state = Arc::new(AppState::new(pool, data_path.clone(), server_key));
 
-            if let Err(e) = state.assets.warm_all() {
+            if let Err(e) = state.assets.warm_all().await {
                 error!("FATAL: Asset warmup failed: {}", e);
                 std::process::exit(1);
             }
 
-            let job_repo_arc = Arc::new(state.jobs.clone());
+            let job_repo_arc = Arc::new(state.jobs.repo.clone());
             let node_repo_arc = Arc::new(state.nodes.clone());
             let result_repo_arc = Arc::new(state.results.clone());
 
@@ -147,30 +153,44 @@ async fn main() {
 
             if let (Some(cert), Some(key)) = (args.tls_cert, args.tls_key) {
                 info!("🚀 Hive listening on {} (TLS Enabled)", addr);
-                let config = RustlsConfig::from_pem_file(cert, key)
-                    .await
-                    .expect("Failed to load TLS certificates");
+                let config = match RustlsConfig::from_pem_file(cert, key).await {
+                    Ok(c) => c,
+                    Err(e) => {
+                        error!("FATAL: Failed to load TLS certificates: {}", e);
+                        std::process::exit(1);
+                    }
+                };
 
                 let handle = axum_server::Handle::new();
                 tokio::spawn(shutdown_signal_axum(handle.clone(), state));
 
-                axum_server::bind_rustls(addr, config)
+                if let Err(e) = axum_server::bind_rustls(addr, config)
                     .handle(handle)
                     .serve(app.into_make_service_with_connect_info::<SocketAddr>())
                     .await
-                    .expect("TLS server error");
+                {
+                    error!("FATAL: TLS server error: {}", e);
+                    std::process::exit(1);
+                }
             } else {
                 info!("🚀 Hive listening on {} (HTTP Mode)", addr);
-                let listener = tokio::net::TcpListener::bind(addr)
-                    .await
-                    .expect("Failed to bind port");
-                axum::serve(
+                let listener = match tokio::net::TcpListener::bind(addr).await {
+                    Ok(l) => l,
+                    Err(e) => {
+                        error!("FATAL: Failed to bind port {}: {}", addr, e);
+                        std::process::exit(1);
+                    }
+                };
+                if let Err(e) = axum::serve(
                     listener,
                     app.into_make_service_with_connect_info::<SocketAddr>(),
                 )
                 .with_graceful_shutdown(shutdown_signal(state))
                 .await
-                .expect("Server error");
+                {
+                    error!("FATAL: Server error: {}", e);
+                    std::process::exit(1);
+                }
             }
         }
     }

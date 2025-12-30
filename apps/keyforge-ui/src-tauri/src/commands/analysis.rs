@@ -1,4 +1,5 @@
 use crate::error::CommandError;
+use keyforge_infra::AssetLoader;
 use crate::models::{DerivedStats, ValidationResult};
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
@@ -7,7 +8,7 @@ use keyforge_infra::listing;
 use keyforge_model::SwapSuggestion;
 use keyforge_persistence::{Compiler, Project, ProjectMeta};
 use keyforge_protocol::config::{CorpusSource, ScoringWeights};
-use keyforge_protocol::geometry::KeyboardGeometry;
+use keyforge_model::geometry::KeyboardGeometry;
 use serde::Serialize;
 use tauri::AppHandle;
 
@@ -61,16 +62,11 @@ pub async fn cmd_load_dataset(
 
     let assets = state.assets.clone();
 
-    let runtime = tauri::async_runtime::spawn_blocking(move || {
-        let loader = assets.as_ref();
-        let compiler = Compiler::new(loader);
-
-        compiler
-            .compile(&project)
-            .map_err(|e| CommandError::Config(format!("Failed to compile session: {}", e)))
-    })
-    .await
-    .map_err(|e| CommandError::Internal(e.to_string()))??;
+    let compiler = Compiler::new(assets.as_ref());
+    let runtime = compiler
+        .compile(&project)
+        .await
+        .map_err(|e| CommandError::Config(format!("Failed to compile session: {}", e)))?;
 
     *state.active.write().await = Some(runtime);
 
@@ -94,16 +90,11 @@ pub async fn cmd_validate_layout(
     };
 
     let geometry = if let Some(name) = keyboard_name {
-        let assets = state.assets.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            use keyforge_infra::AssetLoader;
-            assets
-                .load_keyboard(&name)
-                .map(|def| def.geometry)
-                .unwrap_or_default()
-        })
-        .await
-        .unwrap_or_default()
+        state.assets
+            .load_keyboard(&name)
+            .await
+            .map(|def| def.geometry)
+            .unwrap_or_default()
     } else {
         KeyboardGeometry::default()
     };
@@ -113,13 +104,18 @@ pub async fn cmd_validate_layout(
         let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
             .map_err(|e| CommandError::Validation(e.to_string()))?;
 
-        let report = runtime.analyze(&layout);
+        let report = runtime.analyze(&layout)?;
         let heatmap = report.heatmap.clone();
+
+        // Convert Model geometry to Protocol geometry for the UI
+        let proto_geometry: keyforge_protocol::geometry::KeyboardGeometry = 
+            serde_json::from_value(serde_json::to_value(&geometry).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
 
         Ok::<ValidationResult, CommandError>(ValidationResult {
             layout_name: "Custom".to_string(),
             score: report,
-            geometry,
+            geometry: proto_geometry,
             heatmap,
             penalty_map: vec![],
         })
@@ -156,7 +152,7 @@ pub async fn cmd_get_smart_swaps(
         let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
             .map_err(|e| CommandError::Validation(e.to_string()))?;
 
-        Ok::<Vec<SwapSuggestion>, CommandError>(runtime.suggest_improvements(&layout))
+        Ok::<Vec<SwapSuggestion>, CommandError>(runtime.suggest_improvements(&layout)?)
     })
     .await
     .map_err(|e| CommandError::Internal(e.to_string()))??;

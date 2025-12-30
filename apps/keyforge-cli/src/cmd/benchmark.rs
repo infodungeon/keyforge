@@ -25,7 +25,7 @@ pub fn run(args: BenchmarkArgs, runtime: Runtime) -> Result<(), Box<dyn std::err
     let mut score = 0.0;
 
     for _ in 0..args.iterations {
-        score += runtime.score(&layout);
+        score += runtime.score(&layout)?;
     }
 
     let duration = start.elapsed();

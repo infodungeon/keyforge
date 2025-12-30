@@ -107,7 +107,7 @@ proptest! {
         let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
 
         // 2. Run Shadow Execution
-        let fast_score = engine.score(&layout);
+        let fast_score = engine.score(&layout).unwrap();
         let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
 
         // 3. Assert Parity

@@ -126,10 +126,12 @@ function AppContent() {
         return {
           id: id.trim(),
           weight: w ? parseFloat(w) : 1.0,
+          hash: null,
         };
       });
 
       const request = {
+        version: 1,
         definition: {
           meta: {
             name: "Custom Job",
@@ -143,9 +145,13 @@ function AppContent() {
         },
         weights: weights,
         params: searchParams,
-        pinned_keys: pinnedKeys,
+        pinned_keys: [], // TODO: Parse pinnedKeys string into KeyConstraint[]
         corpora: corpora,
-        cost_matrix: selectedCostMatrix || "cost_matrix.json",
+        cost_matrix: { type: "Predefined", data: selectedCostMatrix || "cost_matrix.json" } as const,
+        biometrics: [],
+        parent_job_id: null,
+        baseline_score: null,
+        parents: [],
       };
 
       const jobId = await backend.dispatchJob(hiveUrl, hiveSecret, request);

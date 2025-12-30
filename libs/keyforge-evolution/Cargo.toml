@@ -11,11 +11,10 @@ keyforge-model = { path = "../keyforge-model" }
 keyforge-physics = { path = "../keyforge-physics" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 tracing = { version = "0.1", features = ["attributes"] }
-rayon = { version = "1.10", optional = true }
 thiserror = "1.0"
 
 [features]
-default = ["rayon"]
+default = []
 single_threaded = []
 
 [dev-dependencies]

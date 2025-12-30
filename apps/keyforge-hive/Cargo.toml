@@ -17,7 +17,10 @@ keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-security = { path = "../../libs/keyforge-security" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-core = { path = "../../libs/keyforge-core" }
+keyforge-compute = { path = "../../libs/keyforge-compute" }
+
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
+async-trait = "0.1"
 
 # Web Framework
 axum = { version = "0.7.9", features = ["ws"] }
@@ -29,7 +32,14 @@ toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
-tower-http = { version = "0.5.2", features = ["cors", "trace", "fs", "limit", "request-id", "util"] }
+tower-http = { version = "0.5.2", features = [
+    "cors",
+    "trace",
+    "fs",
+    "limit",
+    "request-id",
+    "util",
+] }
 futures = "0.3"
 
 # Rate Limiting

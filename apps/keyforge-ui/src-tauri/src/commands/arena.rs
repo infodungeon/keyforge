@@ -7,16 +7,23 @@ use keyforge_protocol::BiometricSample;
 use tauri::AppHandle;
 
 #[tauri::command]
-pub fn cmd_get_typing_words(
+pub async fn cmd_get_typing_words(
     app: AppHandle,
     corpora: Vec<CorpusSource>,
     count: usize,
 ) -> Result<Vec<String>, String> {
+    use keyforge_adapter::conversion;
     let data_dir = get_data_dir(&app)?;
     let provider = FsProvider::new(data_dir);
+    
+    let domain_corpora: Vec<keyforge_model::config::CorpusSource> = corpora
+        .iter()
+        .map(conversion::to_domain_corpus_source)
+        .collect();
 
     let bundle = provider
-        .load_corpus(&corpora)
+        .load_corpus(&domain_corpora)
+        .await
         .map_err(|e| format!("Failed to load corpora for Arena: {}", e))?;
 
     if bundle.words.is_empty() {
@@ -83,16 +90,23 @@ pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn cmd_get_corpus_bigrams(
+pub async fn cmd_get_corpus_bigrams(
     app: AppHandle,
     corpora: Vec<CorpusSource>,
     limit: usize,
 ) -> Result<Vec<String>, String> {
+    use keyforge_adapter::conversion;
     let data_dir = get_data_dir(&app)?;
     let provider = FsProvider::new(data_dir);
 
+    let domain_corpora: Vec<keyforge_model::config::CorpusSource> = corpora
+        .iter()
+        .map(conversion::to_domain_corpus_source)
+        .collect();
+
     let bundle = provider
-        .load_corpus(&corpora)
+        .load_corpus(&domain_corpora)
+        .await
         .map_err(|e| format!("Failed to load corpora: {}", e))?;
 
     let mut bigrams = Vec::new();

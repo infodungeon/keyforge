@@ -29,9 +29,7 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
         return cost;
     }
 
-    let f1_val = f1.as_u8() as i8;
-    let f2_val = f2.as_u8() as i8;
-    let finger_diff = (f1_val - f2_val).abs();
+    let finger_diff = f1.distance(f2);
     
     let row_diff = (k1.row - k2.row).abs();
 

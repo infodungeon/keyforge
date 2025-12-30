@@ -5,10 +5,15 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::info;
 
+use crate::agent::errors::AgentError;
+
 /// Measures approximate scoring throughput (iterations per second).
 ///
 /// This is used to tune worker batching and to report capability to the Hive.
-pub fn measure_performance() -> f64 {
+///
+/// # Errors
+/// Returns `AgentError::Calibration` if the physics engine cannot be initialized.
+pub fn measure_performance() -> Result<f64, AgentError> {
     info!("calibrating physics engine");
 
     let key_count = 30;
@@ -27,7 +32,7 @@ pub fn measure_performance() -> f64 {
         })
         .collect();
 
-    let keyboard = Keyboard::new(keys, 1).expect("Failed to create calibration keyboard");
+    let keyboard = Keyboard::new(keys, 1).map_err(|e| AgentError::Calibration(e.to_string()))?;
     let corpus = Corpus::default();
     let rubric = Rubric::default();
     let config = SearchConfig::default();
@@ -66,5 +71,5 @@ pub fn measure_performance() -> f64 {
 
     info!("calibration_result_kops" = sops / 1000.0);
 
-    sops
+    Ok(sops)
 }

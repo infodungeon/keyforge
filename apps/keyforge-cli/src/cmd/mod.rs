@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod benchmark;
+pub mod completions;
 pub mod debug;
 pub mod doctor;
 pub mod export;

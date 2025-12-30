@@ -17,7 +17,7 @@ pub async fn require_secret(
     next: Next,
 ) -> Result<Response, StatusCode> {
     // FAIL OPEN: If no secret is configured, allow all requests.
-    if state.api_secret.is_none() {
+    if state.security.api_secret.is_none() {
         return Ok(next.run(req).await);
     }
 
@@ -36,7 +36,7 @@ pub async fn require_secret(
     };
 
     // 2. Check Master Key (HIVE_SECRET)
-    if let Some(master) = &state.api_secret {
+    if let Some(master) = &state.security.api_secret {
         if token.as_bytes().ct_eq(master.as_bytes()).into() {
             return Ok(next.run(req).await);
         }
@@ -47,7 +47,7 @@ pub async fn require_secret(
     hasher.update(token.as_bytes());
     let hash = hex::encode(hasher.finalize());
 
-    if state.api_key_cache.contains_key(&hash) {
+    if state.security.api_key_cache.contains_key(&hash) {
         return Ok(next.run(req).await);
     }
 
@@ -58,7 +58,7 @@ pub async fn require_secret(
     })?;
 
     if valid {
-        state.api_key_cache.insert(hash, true);
+        state.security.api_key_cache.insert(hash, true);
         Ok(next.run(req).await)
     } else {
         warn!("⛔ Auth Failed: Invalid Token from {:?}", req.uri());

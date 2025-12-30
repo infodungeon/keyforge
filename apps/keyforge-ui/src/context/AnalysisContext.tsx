@@ -38,7 +38,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [isValidating, setIsValidating] = useState(false);
 
   const validationReqId = useRef(0);
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Run Validation when layout changes
   useEffect(() => {

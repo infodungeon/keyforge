@@ -3,7 +3,6 @@ import { KeyNode, KeyboardGeometry } from "../types";
 import {
   Plus,
   Trash2,
-  Copy,
   Grid,
   Move,
   AlignStartVertical,
@@ -143,15 +142,20 @@ export function VisualBuilder({ geometry, onChange }: Props) {
 
   const addKey = () => {
     const newKey: KeyNode = {
-      id: `k${geometry.keys.length}`,
+      index: geometry.keys.length,
+      label: `k${geometry.keys.length}`,
       x: 0,
       y: 0,
       w: 1,
       h: 1,
+      r: 0,
+      rx: 0,
+      ry: 0,
       hand: 0,
       finger: 1,
       row: 0,
       col: 0,
+      is_home: false,
       is_stretch: false,
     };
 
@@ -180,6 +184,7 @@ export function VisualBuilder({ geometry, onChange }: Props) {
   const alignX = () => {
     if (selectedIndices.size < 2) return;
     const firstIdx = selectedIndices.values().next().value;
+    if (firstIdx === undefined) return;
     const targetX = geometry.keys[firstIdx].x;
 
     const updates = new Map();
@@ -190,6 +195,7 @@ export function VisualBuilder({ geometry, onChange }: Props) {
   const alignY = () => {
     if (selectedIndices.size < 2) return;
     const firstIdx = selectedIndices.values().next().value;
+    if (firstIdx === undefined) return;
     const targetY = geometry.keys[firstIdx].y;
 
     const updates = new Map();
@@ -260,14 +266,14 @@ export function VisualBuilder({ geometry, onChange }: Props) {
                 <text
                   x={width / 2}
                   y={height / 2}
-                  fontSize={0.25}
+                  fontSize={0.3}
                   fill={isSel ? "white" : "#64748b"}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   pointerEvents="none"
                   className="font-mono select-none"
                 >
-                  {i}
+                  {k.label}
                 </text>
                 <circle
                   cx={width - 0.2}
@@ -275,7 +281,7 @@ export function VisualBuilder({ geometry, onChange }: Props) {
                   r={0.08}
                   fill={
                     ["#64748b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"][
-                      k.finger % 5
+                    k.finger % 5
                     ]
                   }
                 />

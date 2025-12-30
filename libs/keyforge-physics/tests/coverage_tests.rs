@@ -111,7 +111,7 @@ fn test_heuristics_suggestions() {
         cost_overrides: vec![],
     };
 
-    let suggestions = suggest_improvements(&req);
+    let suggestions = suggest_improvements(&req).unwrap();
     // We verify it runs without panic and returns a valid vector
     // It might be empty if no swaps improve the score, but it shouldn't crash
     assert!(suggestions.len() <= 5);
@@ -155,7 +155,7 @@ fn test_public_api_wrappers() {
     };
 
     // Test analyze
-    let report = keyforge_physics::analyze(&req);
+    let report = keyforge_physics::analyze(&req).unwrap();
     assert!(
         report.score > 0.0,
         "Analyze score was {}, expected > 0",
@@ -163,7 +163,7 @@ fn test_public_api_wrappers() {
     );
 
     // Test score
-    let opt_res = keyforge_physics::score(&req);
+    let opt_res = keyforge_physics::score(&req).unwrap();
     assert!(
         opt_res.score > 0.0,
         "Score result was {}, expected > 0",

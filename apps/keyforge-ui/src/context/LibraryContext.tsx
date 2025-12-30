@@ -35,7 +35,7 @@ interface LibraryContextType {
   selectedExtras: string[];
   toggleExtra: (name: string) => void;
 
-  availableLayouts: Record<string, string>;
+  availableLayouts: Record<string, string | undefined>;
   standardLayouts: string[];
 
   refreshLibrary: () => Promise<number>;
@@ -88,7 +88,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   // Layout Data
   const [availableLayouts, setAvailableLayouts] = useState<
-    Record<string, string>
+    Record<string, string | undefined>
   >({});
   const [standardLayouts, setStandardLayouts] = useState<string[]>([]);
 

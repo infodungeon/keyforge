@@ -49,7 +49,7 @@ impl Fingerprinter {
             let similarity = matches as f32 / len as f32;
             let distance = len - matches;
 
-            if best.as_ref().map_or(true, |b| similarity > b.similarity) {
+            if best.as_ref().is_none_or(|b| similarity > b.similarity) {
                 best = Some(LayoutIdentity {
                     name: name.clone(),
                     similarity,

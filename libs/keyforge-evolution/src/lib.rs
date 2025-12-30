@@ -1,15 +1,9 @@
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum EvolutionError {
-    #[error("Physics Violation: {0}")]
-    Physics(#[from] keyforge_physics::PhysicsError),
-
-    #[error("Configuration Error: {0}")]
-    Config(String),
-}
+pub use errors::EvolutionError;
 pub mod supervisor;
 pub mod errors;
+
+#[cfg(test)]
+mod tests_integration;
 
 use keyforge_model::{Layout, SearchConfig, KeyCode, OptimizationResult};
 use keyforge_physics::{EngineRequest, ScoringEngine};
@@ -19,10 +13,14 @@ use supervisor::strategies::{CoolingAnnealing, GroupMutation};
 use supervisor::traits::RealTimeKeeper;
 use supervisor::Optimizer;
 
+/// Trait for receiving progress updates during optimization.
 pub trait ProgressCallback: Send + Sync {
+    /// Called periodically with the current optimization state.
+    /// Returns `true` to continue, `false` to abort.
     fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool;
 }
 
+/// A progress callback that does nothing.
 pub struct NoOpCallback;
 impl ProgressCallback for NoOpCallback {
     fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
@@ -30,18 +28,20 @@ impl ProgressCallback for NoOpCallback {
     }
 }
 
-/// Legacy Entry Point: Compiles the engine from scratch (Keep for backward compat).
-pub fn optimize(req: &EngineRequest) -> OptimizationResult {
+/// Optimizes a keyboard layout based on an `EngineRequest`.
+///
+/// This function is a convenience wrapper that creates a `ScoringEngine` internally.
+/// For repeated optimizations, consider using `evolve` with a pre-compiled engine.
+pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
     optimize_with_callback(req, NoOpCallback)
 }
 
-/// Legacy Entry Point with Callback.
+/// Optimizes a keyboard layout with a progress callback.
 pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
-) -> OptimizationResult {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)
-        .expect("Failed to initialize physics engine");
+) -> Result<OptimizationResult, EvolutionError> {
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
     let engine_arc = Arc::new(engine);
 
     // Determine pinned keys for legacy request
@@ -59,13 +59,15 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     )
 }
 
-/// New Entry Point: Uses a pre-compiled, shared Physics Engine.
-/// This is used by the Workspace Runtime.
+/// Performs optimization using a pre-compiled `ScoringEngine`.
+///
+/// This is the recommended entry point for performance-sensitive applications
+/// that need to run multiple optimizations against the same parameters.
 pub fn evolve<CB: ProgressCallback>(
     engine: Arc<ScoringEngine>,
     config: &SearchConfig,
     callback: CB,
-) -> OptimizationResult {
+) -> Result<OptimizationResult, EvolutionError> {
     // Default: All keys unlocked, default initial layout
     let unlocked_indices = (0..engine.key_count()).collect();
     evolve_internal(engine, config, unlocked_indices, None, callback, None)
@@ -79,7 +81,7 @@ fn evolve_internal<CB: ProgressCallback>(
     initial_layout: Option<Layout>,
     callback: CB,
     pinned_keys: Option<&[Option<KeyCode>]>,
-) -> OptimizationResult {
+) -> Result<OptimizationResult, EvolutionError> {
     let mut layout = initial_layout.unwrap_or_else(|| {
         let keys: Vec<KeyCode> = (0..engine.key_count()).map(|i| KeyCode(i as u16)).collect();
         Layout::new_unchecked(keys)
@@ -87,11 +89,11 @@ fn evolve_internal<CB: ProgressCallback>(
 
     // Guardrail: Ensure layout matches engine geometry
     if layout.keys.len() != engine.key_count() {
-        panic!(
-            "Evolution Error: Initial layout size {} does not match engine key count {}",
+        return Err(EvolutionError::Config(format!(
+            "Initial layout size {} does not match engine key count {}",
             layout.keys.len(),
             engine.key_count()
-        );
+        )));
     }
 
     // Apply pinned keys to the initial layout if provided
@@ -106,7 +108,7 @@ fn evolve_internal<CB: ProgressCallback>(
                     } else {
                         // If the key is missing from the initial layout, we cannot proceed safely
                         // without violating the permutation invariant.
-                        panic!("Pinned key {} not found in initial layout", code);
+                        return Err(EvolutionError::Config(format!("Pinned key {} not found in initial layout", code)));
                     }
                 }
             }
@@ -134,8 +136,7 @@ fn evolve_internal<CB: ProgressCallback>(
                 *patience,
                 *reheats,
                 *reheat_factor,
-            )
-            .expect("Invalid Annealing Configuration");
+            )?;
 
             // We pass &*engine to dereference the Arc to a reference
             let mut optimizer = Optimizer::new(
@@ -146,12 +147,12 @@ fn evolve_internal<CB: ProgressCallback>(
                 RealTimeKeeper,
             );
 
-            let best_layout = optimizer.run(Some(layout), callback);
+            let best_layout = optimizer.run(Some(layout), callback)?;
 
-            OptimizationResult {
-                score: engine.score(&best_layout),
+            Ok(OptimizationResult {
+                score: engine.score(&best_layout)?,
                 layout: best_layout,
-            }
+            })
         }
     }
 }
@@ -181,7 +182,7 @@ mod tests {
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
             initial_layout: None, pinned_keys: vec![], cost_overrides: vec![],
         };
-        let result = optimize(&req);
+        let result = optimize(&req).unwrap();
         assert!(result.score >= 0.0);
     }
 
@@ -195,7 +196,7 @@ mod tests {
             pinned_keys: vec![Some(KeyCode(1)), None],
             cost_overrides: vec![],
         };
-        let result = optimize(&req);
+        let result = optimize(&req).unwrap();
         assert_eq!(result.layout.keys[0], KeyCode(1));
     }
 
@@ -216,7 +217,7 @@ mod tests {
             }
         }
         let callback = CountingCallback { counter: counter.clone(), limit: 1 };
-        let result = optimize_with_callback(&req, callback);
+        let result = optimize_with_callback(&req, callback).unwrap();
         assert!(result.score >= 0.0);
         assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
@@ -226,7 +227,7 @@ mod tests {
         let (kb, cp, rb) = setup_env();
         let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap());
         let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 };
-        let result = evolve(engine, &config, crate::NoOpCallback);
+        let result = evolve(engine, &config, crate::NoOpCallback).unwrap();
         assert!(result.score >= 0.0);
     }
 
@@ -239,14 +240,13 @@ mod tests {
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
             initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
         };
-        let result = optimize(&req);
+        let result = optimize(&req).unwrap();
         assert_eq!(result.layout.keys[0], KeyCode(2));
         assert_eq!(result.layout.keys[2], KeyCode(0));
     }
 
     #[test]
-    #[should_panic(expected = "Pinned key 99 not found in initial layout")]
-    fn test_panic_on_missing_pin() {
+    fn test_error_on_missing_pin() {
         let keys = vec![
             KeyNode { index: 0, label: "k0".into(), hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), x: 0.0, y: 0.0, is_home: false, ..Default::default() },
             KeyNode { index: 1, label: "k1".into(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), col: ColIndex(1), x: 1.0, y: 0.0, is_home: false, ..Default::default() },
@@ -260,6 +260,11 @@ mod tests {
             keyboard: kb, corpus, rubric, config,
             initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
         };
-        crate::optimize(&req);
+        let result = crate::optimize(&req);
+        assert!(result.is_err());
+        match result {
+            Err(EvolutionError::Config(msg)) => assert!(msg.contains("Pinned key 99 not found")),
+            _ => panic!("Expected Config error"),
+        }
     }
 }

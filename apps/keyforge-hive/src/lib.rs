@@ -19,33 +19,38 @@ use tracing::{info, warn, Level};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-pub mod api;
-pub mod api_docs;
-pub mod features;
-pub mod auth;
+pub(crate) mod api;
+pub(crate) mod api_docs;
+pub(crate) mod features;
+pub(crate) mod auth;
 pub mod bootstrap;
 pub mod cache;
-pub mod config;
+pub(crate) mod commands;
+pub(crate) mod config;
 pub mod cron;
-pub mod error;
+pub(crate) mod error;
 pub mod infra;
-pub mod models;
-pub mod monitor;
+pub(crate) mod models;
+pub(crate) mod monitor;
 pub mod observability;
-pub mod services;
+pub(crate) mod services;
 pub mod state;
 
 pub use state::AppState;
+pub use services::verification::VerificationService;
 
 // Custom Rate Limiter State
 // We use DefaultKeyedStateStore which typically uses DashMap internally for thread-safe key storage.
 type GlobalLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
 type StrictLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
 
+/// Shared state for rate limiting, containing global and strict limiters.
 #[derive(Clone)]
 pub struct RateLimitState {
-    global: Arc<GlobalLimiter>,
-    strict: Arc<StrictLimiter>,
+    /// General rate limiter for all public endpoints.
+    pub global: Arc<GlobalLimiter>,
+    /// Stricter rate limiter for sensitive or expensive endpoints (e.g., job registration).
+    pub strict: Arc<StrictLimiter>,
 }
 
 pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
@@ -59,12 +64,17 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
             .allow_headers(Any)
     } else if cors_origins.is_empty() {
         info!("🔒 CORS: Dev Mode (allowing localhost:5173, localhost:1420, tauri://localhost)");
+        let dev_origins: Vec<axum::http::HeaderValue> = [
+            "http://localhost:5173",
+            "http://localhost:1420",
+            "tauri://localhost",
+        ]
+        .iter()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+
         CorsLayer::new()
-            .allow_origin([
-                "http://localhost:5173".parse().expect("valid dev origin"),
-                "http://localhost:1420".parse().expect("valid dev origin"),
-                "tauri://localhost".parse().expect("valid dev origin"),
-            ])
+            .allow_origin(dev_origins)
             .allow_methods([Method::GET, Method::POST, Method::DELETE])
             .allow_headers(Any)
     } else {
@@ -111,12 +121,12 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
 
     let rate_limit_state = RateLimitState {
         global: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(limit_per_sec.max(1)).unwrap())
-                .allow_burst(NonZeroU32::new(limit_burst.max(1)).unwrap()),
+            Quota::per_second(NonZeroU32::new(limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
+                .allow_burst(NonZeroU32::new(limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
         )),
         strict: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(strict_limit_per_sec.max(1)).unwrap())
-                .allow_burst(NonZeroU32::new(strict_limit_burst.max(1)).unwrap()),
+            Quota::per_second(NonZeroU32::new(strict_limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
+                .allow_burst(NonZeroU32::new(strict_limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
         )),
     };
 

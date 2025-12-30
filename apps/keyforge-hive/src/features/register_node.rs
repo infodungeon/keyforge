@@ -1,5 +1,5 @@
 use axum::{extract::State, Json};
-use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile, PROTOCOL_VERSION};
+use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile, Validator, PROTOCOL_VERSION};
 use std::sync::Arc;
 use tracing::info;
 use crate::error::{AppError, AppResult};
@@ -22,6 +22,7 @@ pub async fn handle(
     Json(payload): Json<NodeRequest>,
 ) -> AppResult<Json<NodeResponse>> {
     // Stage 1: Validation
+    payload.validate().map_err(AppError::Validation)?;
     validate_node_request(&payload)?;
 
     // Stage 2: Persistence (Heartbeat)

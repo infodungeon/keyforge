@@ -48,7 +48,7 @@ fn test_trigram_rolls_and_redirects() {
     };
 
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
-    let report = engine.analyze(&layout);
+    let report = engine.analyze(&layout).unwrap();
 
     // We expect some rolls and some redirects
     assert!(report.rolls > 0.0, "Expected rolls, got {}", report.rolls);
@@ -73,7 +73,7 @@ fn test_math_boundaries_infinity() {
     };
 
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
-    let score = engine.score(&layout);
+    let score = engine.score(&layout).unwrap();
 
     // Should be very large but finite (clamped to i64::MAX scaled down)
     assert!(score > 1_000_000.0);
@@ -99,7 +99,7 @@ fn test_math_boundaries_nan() {
     };
 
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
-    let score = engine.score(&layout);
+    let score = engine.score(&layout).unwrap();
 
     // NaN usually treated as 0 in safe_float_to_int
     assert!(score >= 0.0);
@@ -122,7 +122,7 @@ fn test_saturation_protection() {
 
     // This combination would overflow a standard calculation if not saturated
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
-    let score = engine.score(&layout);
+    let score = engine.score(&layout).unwrap();
 
     assert!(score.is_finite());
 }
@@ -140,7 +140,7 @@ fn test_missing_keys_in_layout() {
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
 
     // Should not panic, score should ignore the missing key pair
-    let score = engine.score(&layout);
+    let score = engine.score(&layout).unwrap();
     assert_eq!(score, 0.0);
 }
 
@@ -156,7 +156,7 @@ fn test_high_keycodes_safety() {
     let rubric = Rubric::default();
     let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
 
-    let score = engine.score(&layout);
+    let score = engine.score(&layout).unwrap();
     // REMOVED LIMIT: High keycodes are now correctly scored.
     assert!(score > 0.0);
 }
@@ -179,9 +179,9 @@ fn test_swap_delta_bounds() {
     }
 
     // Test out of bounds indices
-    let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 100);
+    let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 100).unwrap();
     assert_eq!(delta, 0);
 
-    let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 100, 0);
+    let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 100, 0).unwrap();
     assert_eq!(delta, 0);
 }

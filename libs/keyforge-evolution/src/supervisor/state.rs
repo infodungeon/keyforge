@@ -59,8 +59,8 @@ impl SearchState {
                 self.current_layout.keys.swap(idx_a, idx_b);
                 let code_a = self.current_layout.keys[idx_a];
                 let code_b = self.current_layout.keys[idx_b];
-                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0 as u16; }
-                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0 as u16; }
+                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0; }
+                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0; }
             }
             MutationAction::GroupSwap(a, b, c) => {
                 let idx_a = usize::from(a);
@@ -77,9 +77,9 @@ impl SearchState {
                 let code_b = self.current_layout.keys[idx_b];
                 let code_c = self.current_layout.keys[idx_c];
 
-                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0 as u16; }
-                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0 as u16; }
-                if (code_c.0 as usize) < self.pos_map.len() { self.pos_map[code_c.0 as usize] = c.0 as u16; }
+                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0; }
+                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0; }
+                if (code_c.0 as usize) < self.pos_map.len() { self.pos_map[code_c.0 as usize] = c.0; }
             }
         }
     }

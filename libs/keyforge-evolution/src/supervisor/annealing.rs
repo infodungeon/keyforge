@@ -97,13 +97,13 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         &mut self,
         initial_layout: Option<Layout>,
         callback: CB,
-    ) -> Layout {
+    ) -> Result<Layout, EvolutionError> {
         let layout = initial_layout.unwrap_or_else(|| {
             let keys: Vec<KeyCode> = (0..self.engine.key_count()).map(|i| KeyCode(i as u16)).collect();
             Layout::new_unchecked(keys)
         });
 
-        let initial_score = self.engine.score_raw(&layout.keys);
+        let initial_score = self.engine.score_raw(&layout.keys)?;
 
         // INVARIANT: kani::assume(initial_score >= 0);
         let mut state = SearchState::new(layout, initial_score, self.config.start_temp);
@@ -128,7 +128,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                 state.layout(),
                 state.pos_map(),
                 &mut self.rng,
-            ) {
+            )? {
                 if self.acceptance.should_accept(
                     proposal.delta,
                     state.temperature,
@@ -189,7 +189,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
             }
         }
 
-        state.best_layout().clone()
+        Ok(state.best_layout().clone())
     }
 }
 
@@ -280,7 +280,7 @@ mod tests {
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        optimizer.run(None, crate::NoOpCallback);
+        optimizer.run(None, crate::NoOpCallback).unwrap();
     }
 
     #[test]
@@ -294,7 +294,7 @@ mod tests {
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        let result = optimizer.run(None, crate::NoOpCallback);
+        let result = optimizer.run(None, crate::NoOpCallback).unwrap();
         assert_eq!(result.keys.len(), 2);
     }
 
@@ -321,7 +321,7 @@ mod tests {
             acceptance,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        optimizer.run(None, &callback);
+        optimizer.run(None, &callback).unwrap();
         assert!(!callback.failed.load(Ordering::SeqCst), "Score increased during zero-temperature annealing!");
     }
 
@@ -338,7 +338,7 @@ mod tests {
             acceptance,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        let final_layout = optimizer.run(None, crate::NoOpCallback);
+        let final_layout = optimizer.run(None, crate::NoOpCallback).unwrap();
         let mut seen = std::collections::HashSet::new();
         for &k in &final_layout.keys {
             assert!(seen.insert(k), "Duplicate key {} in final layout!", k);
@@ -358,7 +358,7 @@ mod tests {
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        opt_entropy.run(None, crate::NoOpCallback);
+        opt_entropy.run(None, crate::NoOpCallback).unwrap();
 
         // 2. Steps = 0
         assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
@@ -372,7 +372,7 @@ mod tests {
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        opt_fast.run(None, crate::NoOpCallback);
+        opt_fast.run(None, crate::NoOpCallback).unwrap();
     }
 
     #[test]
@@ -396,7 +396,7 @@ mod tests {
             acceptance,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        opt.run(None, ReportingCallback(calls.clone()));
+        opt.run(None, ReportingCallback(calls.clone())).unwrap();
         assert!(calls.load(Ordering::SeqCst) >= 2, "Progress callback not hit enough times!");
     }
 
@@ -419,7 +419,7 @@ mod tests {
             acceptance,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        let best = opt.run(None, BreakCallback);
+        let best = opt.run(None, BreakCallback).unwrap();
         assert_eq!(best.keys.len(), 2);
     }
 
@@ -449,6 +449,6 @@ mod tests {
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        opt.run(None, crate::NoOpCallback);
+        opt.run(None, crate::NoOpCallback).unwrap();
     }
 }

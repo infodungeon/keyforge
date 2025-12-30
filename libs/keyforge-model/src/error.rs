@@ -1,4 +1,5 @@
 use thiserror::Error;
+use serde::{Serialize, Deserialize};
 
 #[derive(Error, Debug)]
 pub enum ForgeError {
@@ -30,7 +31,7 @@ pub enum ForgeError {
     InvalidData(String),
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PhysicsError {
     #[error("Hand index {0} is invalid (must be 0 or 1)")]
     InvalidHandIndex(u8),

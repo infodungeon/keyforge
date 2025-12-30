@@ -1,6 +1,6 @@
 use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
-use keyforge_protocol::protocol::{CostMatrixSource, JobRequest, KeyConstraint};
+use keyforge_protocol::{CostMatrixSource, JobRequest, KeyConstraint};
 use keyforge_protocol::types::{KeyIndex, HandIndex, FingerIndex};
 use keyforge_protocol::Validator;
 use std::str::FromStr;
@@ -256,7 +256,7 @@ fn test_kle_export() {
         low_slots: vec![],
         home_row: 1,
     };
-    let json = keyforge_protocol::geometry::kle::to_kle_json(&geom).unwrap();
+    let json = keyforge_protocol::kle::to_kle_json(&geom).unwrap();
     assert!(json.contains("\"x\": 1.0"));
     assert!(json.contains("\"y\": 2.0"));
 }

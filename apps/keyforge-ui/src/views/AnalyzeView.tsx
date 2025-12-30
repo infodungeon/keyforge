@@ -46,11 +46,11 @@ export function AnalyzeView({
       const activeMap =
         mapMode === "frequency"
           ? activeResult.heatmap
-          : activeResult.penaltyMap;
+          : activeResult.penalty_map;
       const refMap =
         mapMode === "frequency"
           ? referenceResult.heatmap
-          : referenceResult.penaltyMap;
+          : referenceResult.penalty_map;
 
       if (!activeMap || !refMap) return [];
 
@@ -61,7 +61,7 @@ export function AnalyzeView({
     } else {
       return mapMode === "frequency"
         ? activeResult?.heatmap
-        : activeResult?.penaltyMap;
+        : activeResult?.penalty_map;
     }
   }, [activeResult, referenceResult, mapMode, showDiff]);
 
@@ -74,7 +74,7 @@ export function AnalyzeView({
     const newSet = new Set<string>();
     indices.forEach((idx) => {
       const key = activeResult.geometry.keys[idx];
-      if (key && key.id) newSet.add(key.id);
+      if (key && key.label) newSet.add(key.label);
     });
     setHighlightedKeys(newSet);
   };

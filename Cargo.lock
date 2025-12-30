@@ -876,6 +876,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.5.63"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90ef1fcbbf16b486489d0df91725ccc653c07115dd61f46363162535b74c6bc3"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.5.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1053,17 +1062,6 @@ dependencies = [
  "bitflags 2.10.0",
  "core-foundation 0.10.1",
  "libc",
-]
-
-[[package]]
-name = "core_affinity"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a034b3a7b624016c6e13f5df875747cc25f884156aad2abd12b6c46797971342"
-dependencies = [
- "libc",
- "num_cpus",
- "winapi",
 ]
 
 [[package]]
@@ -3205,11 +3203,11 @@ version = "0.8.0"
 dependencies = [
  "age",
  "anyhow",
+ "async-trait",
  "clap",
- "core_affinity",
  "dirs",
  "ed25519-dalek",
- "futures-util",
+ "futures",
  "hex",
  "hostname",
  "keyforge-adapter",
@@ -3220,23 +3218,20 @@ dependencies = [
  "keyforge-security",
  "libc",
  "machine-uid",
- "moka",
- "num_cpus",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
  "rand 0.8.5",
  "raw-cpuid",
- "rayon",
- "reqwest",
  "secrecy",
  "serde",
  "serde_json",
  "sha2",
  "sysinfo 0.37.2",
  "tempfile",
+ "thiserror 1.0.69",
  "tokio",
- "tokio-tungstenite 0.28.0",
+ "tokio-tungstenite 0.26.2",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -3250,6 +3245,7 @@ version = "0.8.0"
 dependencies = [
  "axum",
  "clap",
+ "clap_complete",
  "comfy-table",
  "ctrlc",
  "dirs",
@@ -3290,10 +3286,13 @@ dependencies = [
 name = "keyforge-compute"
 version = "0.8.0"
 dependencies = [
+ "keyforge-adapter",
  "keyforge-core",
  "keyforge-model",
+ "keyforge-physics",
  "keyforge-protocol",
  "serde",
+ "serde_json",
  "tracing",
 ]
 
@@ -3301,9 +3300,11 @@ dependencies = [
 name = "keyforge-core"
 version = "0.8.0"
 dependencies = [
+ "async-trait",
  "keyforge-evolution",
  "keyforge-model",
  "keyforge-physics",
+ "serde",
  "tracing",
 ]
 
@@ -3317,7 +3318,6 @@ dependencies = [
  "proptest",
  "rand 0.8.5",
  "rand_xoshiro",
- "rayon",
  "serde",
  "thiserror 1.0.69",
  "tracing",
@@ -3340,6 +3340,7 @@ name = "keyforge-hive"
 version = "0.8.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "axum-server",
  "base64 0.21.7",
@@ -3354,6 +3355,7 @@ dependencies = [
  "governor",
  "hex",
  "keyforge-adapter",
+ "keyforge-compute",
  "keyforge-core",
  "keyforge-infra",
  "keyforge-model",
@@ -3401,7 +3403,10 @@ dependencies = [
 name = "keyforge-infra"
 version = "0.8.0"
 dependencies = [
+ "async-trait",
  "backoff",
+ "bytes",
+ "chrono",
  "fs2",
  "futures-util",
  "hex",
@@ -3410,6 +3415,7 @@ dependencies = [
  "keyforge-model",
  "keyforge-protocol",
  "moka",
+ "notify",
  "once_cell",
  "reqwest",
  "rmp-serde",
@@ -3419,6 +3425,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
+ "toml 0.8.2",
  "tracing",
  "walkdir",
  "zstd",
@@ -3447,6 +3454,8 @@ dependencies = [
 name = "keyforge-persistence"
 version = "0.8.0"
 dependencies = [
+ "async-trait",
+ "hex",
  "keyforge-adapter",
  "keyforge-compute",
  "keyforge-core",
@@ -3455,6 +3464,7 @@ dependencies = [
  "keyforge-protocol",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
@@ -3467,7 +3477,6 @@ version = "0.8.0"
 dependencies = [
  "fastrand",
  "keyforge-model",
- "keyforge-protocol",
  "proptest",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -3480,12 +3489,17 @@ dependencies = [
 name = "keyforge-protocol"
 version = "0.8.0"
 dependencies = [
- "keyforge-model",
+ "anyhow",
+ "hex",
+ "kle-serial",
  "proptest",
+ "regex",
  "serde",
  "serde_json",
+ "sha2",
  "strum",
  "thiserror 2.0.17",
+ "ts-rs",
  "utoipa",
 ]
 
@@ -3506,6 +3520,7 @@ dependencies = [
 name = "keyforge-testing"
 version = "0.8.0"
 dependencies = [
+ "keyforge-core",
  "keyforge-model",
  "keyforge-protocol",
  "serde_json",
@@ -3516,6 +3531,7 @@ dependencies = [
 name = "keyforge-ui"
 version = "0.8.0"
 dependencies = [
+ "async-trait",
  "fastrand",
  "keyforge-adapter",
  "keyforge-compute",
@@ -3548,6 +3564,7 @@ dependencies = [
 name = "keyforge-wasm"
 version = "0.8.0"
 dependencies = [
+ "async-trait",
  "console_error_panic_hook",
  "getrandom 0.2.16",
  "keyforge-adapter",
@@ -3558,6 +3575,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -7208,6 +7226,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "termcolor"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
+dependencies = [
+ "winapi-util",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7407,14 +7434,16 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.28.0"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d25a406cddcc431a75d3d9afc6a7c0f7428d4891dd973e4d54c56b46127bf857"
+checksum = "7a9daff607c6d2bf6c16fd681ccb7eecc83e4e2cdc1ca067ffaadfca5de7f084"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
  "tokio",
- "tungstenite 0.28.0",
+ "tokio-native-tls",
+ "tungstenite 0.26.2",
 ]
 
 [[package]]
@@ -7808,6 +7837,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "ts-rs"
+version = "10.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e640d9b0964e9d39df633548591090ab92f7a4567bc31d3891af23471a3365c6"
+dependencies = [
+ "lazy_static",
+ "thiserror 2.0.17",
+ "ts-rs-macros",
+]
+
+[[package]]
+name = "ts-rs-macros"
+version = "10.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e9d8656589772eeec2cf7a8264d9cda40fb28b9bc53118ceb9e8c07f8f38730"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
+ "termcolor",
+]
+
+[[package]]
 name = "tungstenite"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7827,15 +7879,16 @@ dependencies = [
 
 [[package]]
 name = "tungstenite"
-version = "0.28.0"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8628dcc84e5a09eb3d8423d6cb682965dea9133204e8fb3efee74c2a0c259442"
+checksum = "4793cb5e56680ecbb1d843515b23b6de9a75eb04b66643e256a396d43be33c13"
 dependencies = [
  "bytes",
  "data-encoding",
  "http 1.4.0",
  "httparse",
  "log",
+ "native-tls",
  "rand 0.9.2",
  "sha1",
  "thiserror 2.0.17",

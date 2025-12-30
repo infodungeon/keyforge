@@ -24,8 +24,7 @@ fn get_binary_path() -> PathBuf {
 
 #[test]
 fn test_hermetic_search() {
-    let ctx = HermeticWorkspace::new();
-    ctx.ensure_default_weights();
+    let ctx = HermeticWorkspace::new().with_default_assets();
     let bin_path = get_binary_path();
 
     let output = Command::new(&bin_path)

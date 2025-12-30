@@ -8,8 +8,6 @@ pub mod nodes;
 pub mod results;
 pub mod submission;
 pub mod sync;
-pub mod system;
-pub mod user;
 pub mod validation;
 pub mod ws;
 
@@ -29,30 +27,6 @@ pub fn analysis_routes() -> Router<Arc<AppState>> {
         .route("/api/corpus/*name", axum::routing::get(corpus::get_corpus))
 }
 
-pub fn system_routes() -> Router<Arc<AppState>> {
-    Router::new()
-        .route("/", axum::routing::get(system::root))
-        .route("/health", axum::routing::get(system::health))
-        .route(
-            "/api/keyboards/:name",
-            axum::routing::get(system::get_keyboard),
-        )
-        .route("/ws", axum::routing::get(ws::handler))
-        .route("/sys/metrics", axum::routing::get(metrics::get_metrics))
-        .route(
-            "/sys/status",
-            axum::routing::get(metrics::get_system_status),
-        )
-        // Optimized Listing Endpoints
-        .route("/api/keyboards", axum::routing::get(system::list_keyboards))
-        .route("/api/corpora", axum::routing::get(system::list_corpora))
-        .route("/api/costs", axum::routing::get(system::list_costs))
-        .route(
-            "/api/keymap_extras",
-            axum::routing::get(system::list_keymap_extras),
-        )
-}
-
 pub fn auth_routes() -> Router<Arc<AppState>> {
     // Strict Limit: 1 request per second per IP for key generation
     let governor_conf = Arc::new(
@@ -61,7 +35,10 @@ pub fn auth_routes() -> Router<Arc<AppState>> {
             .burst_size(2)
             .key_extractor(PeerIpKeyExtractor)
             .finish()
-            .expect("valid auth governor config"),
+            .unwrap_or_else(|| {
+                tracing::error!("Failed to initialize auth governor, using fallback");
+                GovernorConfigBuilder::default().finish().expect("fallback governor must be valid")
+            }),
     );
 
     // PUBLIC ROUTE: Register

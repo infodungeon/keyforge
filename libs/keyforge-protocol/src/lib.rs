@@ -1,18 +1,22 @@
-pub mod error;
-pub mod protocol;
+pub(crate) mod error;
+pub(crate) mod protocol;
+pub mod parsing;
+pub mod keycodes;
 
-// Re-export Domain Modules from Model to maintain API compatibility
-pub use keyforge_model::config;
-pub use keyforge_model::constants;
-pub use keyforge_model::geometry;
-pub use keyforge_model::job;
-pub use keyforge_model::keycodes;
-pub use keyforge_model::parsing;
-pub use keyforge_model::types;
-pub use keyforge_model::validator;
+pub use error::{ErrorCode, ErrorResponse};
 
-// Re-export items at root for convenience (optional, but good for some patterns)
-pub use keyforge_model::validator::{Validator, LayoutValidator};
+pub mod dtos;
+
+pub use dtos::config;
+pub use dtos::constants;
+pub use dtos::geometry;
+pub use dtos::job;
+pub use dtos::kle;
+pub use dtos::types; // keycodes merged into types or not used?
+// pub use dtos::keycodes; // Not copied, assuming subset in types/constants
+pub use dtos::validator;
+
+pub use dtos::validator::{Validator, LayoutValidator};
 
 pub use protocol::{
     BiometricSample, JobConfig, JobQueueResponse, JobRequest, JobResponse,

@@ -1,7 +1,7 @@
 use keyforge_protocol::config::{ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::KeyboardGeometry;
 use keyforge_protocol::job::JobIdentifier;
-use keyforge_protocol::protocol::{CostMatrixSource, KeyConstraint};
+use keyforge_protocol::{CostMatrixSource, KeyConstraint};
 use keyforge_protocol::types::KeyIndex;
 
 #[test]

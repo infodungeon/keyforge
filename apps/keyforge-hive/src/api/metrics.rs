@@ -25,30 +25,25 @@ pub async fn get_metrics(State(_state): State<Arc<AppState>>) -> AppResult<impl 
 pub async fn get_system_status(
     State(state): State<Arc<AppState>>,
 ) -> AppResult<Json<SystemStatusResponse>> {
-    // 1. Refresh System Monitor
-    let (uptime, ram, cpu) = {
-        let mut monitor = state.monitor.lock().await;
-        monitor.refresh();
-        (
-            monitor.get_uptime(),
-            monitor.get_memory_used(),
-            monitor.get_cpu_usage(),
-        )
-    };
+    // 1. Refresh System Monitor (Lock-free atomic reads)
+    let uptime = state.monitor.get_uptime();
+    let ram = state.monitor.get_memory_used();
+    let cpu = state.monitor.get_cpu_usage();
+    let ops_per_sec = state.monitor.get_ops_per_sec();
 
     // 2. Fetch Cluster Stats (Placeholder for now, or simple counts)
     // In a real scenario, we'd query the DB or atomic counters.
     // For now, we'll use the queue depth as a proxy for activity or just 0.
-    let active_jobs = 0; // TODO: state.jobs.count_active().await
+    let active_jobs = state.jobs.active_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
     let nodes_online = 0; // TODO: state.nodes.count_online().await
-    let total_results = 0; // TODO: state.results.count_total().await
+    let total_results = state.jobs.completed_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
 
     let metrics = SystemMetrics {
         uptime_secs: uptime,
         active_jobs,
         total_results,
         nodes_online,
-        total_ops_per_sec: 0.0,
+        total_ops_per_sec: ops_per_sec as f32,
         server_memory_used: ram,
         server_cpu_usage: cpu,
     };

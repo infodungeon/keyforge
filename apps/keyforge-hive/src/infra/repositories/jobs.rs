@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
+/// Repository for managing job life cycles, registration, and claiming.
 #[derive(Clone)]
 pub struct JobRepository {
     pub(crate) pool: Pool<Postgres>,
@@ -146,7 +147,7 @@ impl JobRepository {
 
         if keys_exist.is_none() {
             for (idx, key) in req.definition.geometry.keys.iter().enumerate() {
-                let kidx = keyforge_model::types::KeyIndex(idx as u16);
+                let kidx = keyforge_protocol::types::KeyIndex(idx as u16);
                 let is_prime = req.definition.geometry.prime_slots.contains(&kidx);
                 let is_med = req.definition.geometry.med_slots.contains(&kidx);
                 let is_low = req.definition.geometry.low_slots.contains(&kidx);
@@ -377,6 +378,10 @@ impl JobRepository {
     }
 
     /// Resets jobs that have been processing for too long.
+    /// 
+    /// If the `node_id` column is missing (legacy schema), it uses a 6x longer timeout
+    /// to avoid prematurely resetting jobs that might still be active but untracked.
+    ///
     /// Returns the number of jobs reset or failed.
     pub async fn prune_stale_jobs(
         &self,

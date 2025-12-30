@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use keyforge_adapter::conversion;
 use keyforge_core::EngineRequest;
 use keyforge_infra::{AssetManager, UserRepo};
-use keyforge_model::loader::AssetLoader;
+use keyforge_core::loader::AssetLoader;
 use keyforge_model::OptimizationResult;
 use keyforge_protocol::JobConfig;
 use keyforge_protocol::Validator;
@@ -44,7 +44,7 @@ pub async fn prepare_assets<S: AssetSyncer>(
 
 pub struct PreparedJob {
     pub req: EngineRequest,
-    pub registry: keyforge_protocol::keycodes::KeycodeRegistry,
+    pub registry: keyforge_model::keycodes::KeycodeRegistry,
     // Kept for deterministic recalculation and reporting
     pub keyboard: std::sync::Arc<keyforge_model::Keyboard>,
     pub corpus: std::sync::Arc<keyforge_model::Corpus>,
@@ -52,7 +52,7 @@ pub struct PreparedJob {
     pub cost_overrides: Vec<(usize, usize, f32)>,
 }
 
-pub fn create_engine_request(
+pub async fn create_engine_request(
     loader: Box<dyn AssetLoader>,
     data_root: PathBuf,
     config: &JobConfig,
@@ -77,8 +77,12 @@ pub fn create_engine_request(
     let kb_name = &config.definition.meta.name;
     let safe_kb_name = keyforge_infra::sanitize_filename(kb_name);
 
+    // FIX: Convert to Model Definition for saving (UserRepo expects Model)
+    let model_def: keyforge_model::geometry::KeyboardDefinition = 
+        serde_json::from_value(serde_json::to_value(&config.definition)?)?;
+
     user_data
-        .save_keyboard_definition(&safe_kb_name, &config.definition)
+        .save_keyboard_definition(&safe_kb_name, &model_def)
         .context("failed to save keyboard definition")?;
 
     // Diversity Pick: Randomly select a parent layout if available
@@ -93,23 +97,37 @@ pub fn create_engine_request(
     // Load all assets needed to build an engine request
     let definition = loader
         .load_keyboard(&safe_kb_name)
+        .await
         .context("failed to load keyboard definition")?;
 
+    let domain_corpora: Vec<keyforge_model::config::CorpusSource> = config.corpora
+        .iter()
+        .map(conversion::to_domain_corpus_source)
+        .collect();
+
     let corpus = loader
-        .load_corpus(&config.corpora)
+        .load_corpus(&domain_corpora)
+        .await
         .context("failed to load corpus")?;
 
     let raw_cost = loader
         .load_cost_matrix(cost_filename)
+        .await
         .context("failed to load cost matrix")?;
 
     let registry = loader
         .load_keycodes("keycodes.json")
-        .unwrap_or_else(|_| keyforge_protocol::keycodes::KeycodeRegistry::new_with_defaults());
+        .await
+        .unwrap_or_else(|_| keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
 
-    let keyboard = conversion::to_domain_keyboard(&definition.geometry);
+    // definition is Model (from loader), so access fields directly to build graph
+    let keyboard = keyforge_model::Keyboard::new(
+        definition.geometry.keys.clone(), 
+        definition.geometry.home_row
+    ).map_err(|e| anyhow::anyhow!("Invalid keyboard definition: {}", e))?;
+    
     let rubric = conversion::to_domain_rubric(&config.weights);
-    let cost_overrides = conversion::resolve_cost_matrix(&raw_cost.entries, &definition.geometry);
+    let cost_overrides = raw_cost.resolve(&definition.geometry);
 
     let pinned_keys =
         conversion::resolve_constraints(&config.pinned_keys, keyboard.keys.len(), &registry)
@@ -135,7 +153,7 @@ pub fn create_engine_request(
 
     // Validate Pinned Keys against Layout
     if let Some(layout) = &initial_layout {
-        for (_i, pin) in pinned_keys.iter().enumerate() {
+        for pin in pinned_keys.iter() {
             if let Some(code) = pin {
                 if !layout.keys.contains(code) {
                      let label = registry.get_label(*code);
@@ -199,7 +217,7 @@ pub async fn run_optimization(
         }));
 
         match result {
-            Ok(opt_res) => Ok(opt_res),
+            Ok(opt_res_res) => opt_res_res.map_err(|e| anyhow::anyhow!(e)),
             Err(err) => {
                 let msg = if let Some(s) = err.downcast_ref::<&str>() {
                     format!("panic: {}", s)
@@ -215,7 +233,7 @@ pub async fn run_optimization(
 
     match tokio::time::timeout(timeout, handle).await {
         Ok(spawn_res) => match spawn_res {
-            Ok(optimization_res) => optimization_res,
+            Ok(optimization_res) => Ok(optimization_res?),
             Err(join_err) => {
                 if join_err.is_panic() {
                     Err(anyhow::anyhow!("optimization task panicked (join error)"))

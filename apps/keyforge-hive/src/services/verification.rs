@@ -6,10 +6,14 @@ use keyforge_protocol::{
     constants::{VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO},
     CostMatrixSource, ResultSubmission,
 };
+use keyforge_compute::SessionBuilder;
+use keyforge_infra::AssetLoader;
 use keyforge_security as crypto;
+use keyforge_core::ScoringEngine; // Corrected import
 use std::sync::Arc;
 use tracing::warn;
 
+/// Service responsible for verifying the correctness and authenticity of node submissions.
 #[derive(Clone)]
 pub struct VerificationService {
     jobs: JobRepository,
@@ -33,6 +37,7 @@ impl VerificationService {
         }
     }
 
+    /// Verifies both the signature and the calculated score of a result submission.
     pub async fn verify_submission(&self, sub: &ResultSubmission) -> AppResult<()> {
         self.verify_signature(sub).await?;
         self.verify_score(sub).await?;
@@ -73,7 +78,7 @@ impl VerificationService {
 
     async fn verify_score(&self, sub: &ResultSubmission) -> AppResult<()> {
         if let Some(engine) = self.engine_cache.get(&sub.job_id) {
-            return self.check_tolerance(engine.clone(), sub);
+            return self.check_tolerance(engine.clone(), sub).await;
         }
 
         let (geometry, weights, corpus_name, cost_raw) = self
@@ -93,51 +98,34 @@ impl VerificationService {
             CostMatrixSource::Predefined(cost_raw)
         };
 
-        let domain_kb = keyforge_adapter::conversion::to_domain_keyboard(&geometry);
-
-        use keyforge_model::loader::AssetLoader;
-        let corpus = self
-            .assets
-            .load_corpus(&[CorpusSource {
-                id: corpus_name.clone(),
-                weight: 1.0,
-                hash: None,
-            }])
-            .map_err(|e| AppError::Validation(format!("Corpus load failed: {}", e)))?;
-
-        let raw_cost_data = match &cost_source {
-            CostMatrixSource::Predefined(name) => self
-                .assets
-                .load_cost_matrix(name)
-                .map_err(|e| AppError::Validation(format!("Cost matrix load failed: {}", e)))?,
-            CostMatrixSource::Custom(_) => keyforge_model::loader::RawCostData { entries: vec![] },
+        let builder = SessionBuilder::new(self.assets.as_ref());
+        let kb_def = keyforge_protocol::geometry::KeyboardDefinition {
+            meta: Default::default(),
+            geometry,
+            layouts: Default::default(),
         };
 
-        let overrides =
-            keyforge_adapter::conversion::resolve_cost_matrix(&raw_cost_data.entries, &geometry);
+        let session = builder.build_preloaded(
+            &kb_def,
+            &[CorpusSource { id: corpus_name, weight: 1.0, hash: None }],
+            &weights,
+            &keyforge_protocol::config::SearchParams::default(),
+            "keycodes.json",
+            &cost_source,
+            None
+        ).await.map_err(|e| AppError::Validation(format!("Session build failed: {}", e)))?;
 
-        let domain_rubric = keyforge_adapter::conversion::to_domain_rubric(&weights);
-
-        let engine =
-            keyforge_core::ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)
-            .map_err(|e| AppError::Validation(format!("Physics error: {}", e)))?;
-        let engine_arc = Arc::new(engine);
-
-        self.engine_cache.insert(&sub.job_id, engine_arc.clone());
-
-        self.check_tolerance(engine_arc, sub)
+        self.engine_cache.insert(&sub.job_id, session.engine.clone());
+        self.check_tolerance(session.engine, sub).await
     }
 
-    fn check_tolerance(
+    async fn check_tolerance(
         &self,
-        engine: Arc<keyforge_core::ScoringEngine>,
+        engine: Arc<ScoringEngine>,
         sub: &ResultSubmission,
     ) -> AppResult<()> {
-        use keyforge_model::loader::AssetLoader;
-        let registry = self
-            .assets
-            .load_keycodes("keycodes.json")
-            .unwrap_or_else(|_| keyforge_protocol::keycodes::KeycodeRegistry::new_with_defaults());
+        let registry = self.assets.load_keycodes("keycodes.json").await
+            .unwrap_or_else(|_| keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
 
         let layout_struct = keyforge_adapter::conversion::parse_layout_string_strict(
             &sub.layout,
@@ -146,7 +134,8 @@ impl VerificationService {
         )
         .map_err(|e| AppError::Validation(format!("Layout parse error: {}", e)))?;
 
-        let calculated_score = engine.score(&layout_struct);
+        let calculated_score = engine.score(&layout_struct)
+            .map_err(|e| AppError::Validation(format!("Scoring error: {}", e)))?;
 
         let diff = (calculated_score - sub.score).abs();
         let tolerance =

@@ -1,5 +1,5 @@
 // ===== keyforge/ui/src-tauri/src/error.rs =====
-use keyforge_protocol::error::ErrorCode;
+use keyforge_protocol::ErrorCode;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -22,6 +22,9 @@ pub enum CommandError {
 
     #[error("Internal Error: {0}")]
     Internal(String),
+    
+    #[error("Physics Error: {0}")]
+    Physics(#[from] keyforge_core::PhysicsError),
 
     #[error("Not Found")]
     NotFound, // ADDED
@@ -45,6 +48,7 @@ impl Serialize for CommandError {
             CommandError::Validation(s) => (ErrorCode::JobValidationFailed, s.clone()),
             CommandError::Network(s) => (ErrorCode::UpstreamTimeout, s.clone()),
             CommandError::Internal(s) => (ErrorCode::InternalError, s.clone()),
+            CommandError::Physics(e) => (ErrorCode::InternalError, e.to_string()),
             CommandError::NotFound => (ErrorCode::NotFound, "Resource not found".to_string()),
         };
 

@@ -1,6 +1,7 @@
 use clap::Args;
 use std::path::Path;
 use sysinfo::System;
+use std::time::Duration;
 
 #[derive(Args, Debug, Clone)]
 pub struct DoctorArgs {}
@@ -8,6 +9,13 @@ pub struct DoctorArgs {}
 pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🩺 KeyForge Doctor");
     eprintln!("========================================");
+
+    // 0. Build Info
+    let (git_hash, build_date) = keyforge_infra::get_build_info();
+    eprintln!("🏷️  Version");
+    eprintln!("   Build Hash:  {}", git_hash);
+    eprintln!("   Build Date:  {}", build_date);
+    eprintln!();
 
     // 1. System Check
     let mut sys = System::new_all();
@@ -21,6 +29,13 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
     eprintln!("🖥️  System");
     eprintln!("   OS:       {} {}", os, os_ver);
     eprintln!("   Memory:   {} / {} MB", mem_used, mem_total);
+
+    // 1b. Toolchain Check
+    eprintln!("\n🛠️  Toolchain");
+    check_tool("rustc");
+    check_tool("cargo");
+    check_tool("node");
+    check_tool("npm");
 
     // 2. CPU Capabilities
     eprintln!("\n⚡ Processor");
@@ -90,11 +105,58 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
         }
     }
 
+    // 5. Database Connectivity (Removed - Optional Feature)
+    // The database is only used by Hive, not the CLI.
+    // Skipping this check to keep the CLI dependency-free.
+
+    // 6. Hive API Connectivity
+    eprintln!("\n🐝 Hive API");
+    let hive_url = std::env::var("KEYFORGE_HIVE_URL").ok().unwrap_or_else(|| "http://localhost:3000".to_string());
+    
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+    
+    match client.get(format!("{}/health", hive_url)).send() {
+        Ok(res) => {
+            if res.status().is_success() {
+                eprintln!("   ✅ Reachability: OK ({})", hive_url);
+            } else {
+                eprintln!("   ❌ Reachability: FAILED (Status: {})", res.status());
+                all_good = false;
+            }
+        }
+        Err(e) => {
+            eprintln!("   ⚠️  Reachability: FAILED ({}) - Is Hive running?", e);
+            // Don't fail the health check for optional Hive connectivity
+        }
+    }
+
     eprintln!("\n========================================");
     if all_good {
         eprintln!("✨ System Healthy. Ready to Forge.");
         Ok(())
     } else {
         Err("Issues detected. Run 'keyforge init' to repair workspace.".into())
+    }
+}
+
+fn check_tool(name: &str) {
+    match std::process::Command::new(name)
+        .arg("--version")
+        .output()
+    {
+        Ok(out) => {
+            let ver = String::from_utf8_lossy(&out.stdout)
+                .trim()
+                .split_whitespace()
+                .nth(1)
+                .unwrap_or("?")
+                .to_string();
+            eprintln!("   ✅ {:<8} {}", name, ver);
+        }
+        Err(_) => {
+            eprintln!("   ❌ {:<8} Not Found", name);
+        }
     }
 }

@@ -1,22 +1,64 @@
+use crate::error::PersistenceResult;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tempfile::NamedTempFile;
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 // 1MB Limit for session file
 const MAX_SESSION_FILE_SIZE: u64 = 1024 * 1024;
 
+/// A snapshot of the current user session.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct SessionSnapshot {
+    /// The name of the keyboard definition.
     pub keyboard: String,
+    /// The name of the current layout.
     pub layout_name: String,
+    /// The string representation of the layout.
     pub layout_string: String,
+    /// The corpus name or content.
     pub corpus: String,
+    /// The cost matrix source (e.g., "defaults.json").
     pub cost_matrix: String,
+    /// UNIX timestamp of when the snapshot was taken.
     pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct PersistedSession {
+    snapshot: SessionSnapshot,
+    checksum: String,
+}
+
+impl PersistedSession {
+    fn new(snapshot: SessionSnapshot) -> Self {
+        let checksum = Self::calculate_checksum(&snapshot);
+        Self { snapshot, checksum }
+    }
+
+    fn calculate_checksum(snapshot: &SessionSnapshot) -> String {
+        // We rely on serde_json to provide a consistent serialization for the checksum.
+        // While strictly not canonical, it is stable enough for self-verifying consistency
+        // within the same binary version.
+        let data = serde_json::to_vec(snapshot).unwrap_or_default();
+        hex::encode(Sha256::digest(data))
+    }
+
+    fn verify(&self) -> bool {
+        let calculated = Self::calculate_checksum(&self.snapshot);
+        if calculated != self.checksum {
+            warn!(
+                "Checksum mismatch! Stored: {}, Calculated: {}",
+                self.checksum, calculated
+            );
+            return false;
+        }
+        true
+    }
 }
 
 struct AutoSaveState {
@@ -24,6 +66,7 @@ struct AutoSaveState {
     last_save: Instant,
 }
 
+/// A service that handles automated background saving of the user session.
 pub struct AutoSaveService {
     path: PathBuf,
     state: Arc<Mutex<AutoSaveState>>,
@@ -42,36 +85,61 @@ impl AutoSaveService {
         }
     }
 
-    pub async fn load(&self) -> Option<SessionSnapshot> {
+    /// Loads the last saved session snapshot from disk.
+    ///
+    /// # Errors
+    /// Returns [PersistenceError::Io] if reading the file fails.
+    /// Returns [PersistenceError::Serde] if parsing JSON fails.
+    pub async fn load(&self) -> PersistenceResult<Option<SessionSnapshot>> {
         if !self.path.exists() {
-            return None;
+            return Ok(None);
         }
 
         if let Ok(meta) = tokio::fs::metadata(&self.path).await {
             if meta.len() > MAX_SESSION_FILE_SIZE {
                 warn!("Session file too large ({} bytes), ignoring.", meta.len());
-                return None;
+                return Ok(None);
             }
         }
 
-        match tokio::fs::read_to_string(&self.path).await {
-            Ok(content) => match serde_json::from_str(&content) {
-                Ok(snap) => Some(snap),
-                Err(e) => {
-                    warn!("Failed to parse session.json: {}", e);
-                    None
-                }
-            },
+        let content = tokio::fs::read_to_string(&self.path).await?;
+        
+        // Try loading as PersistedSession first (new format)
+        if let Ok(persisted) = serde_json::from_str::<PersistedSession>(&content) {
+            if persisted.verify() {
+                info!("Session loaded and verified successfully.");
+                return Ok(Some(persisted.snapshot));
+            } else {
+                warn!("Session file corrupted (checksum mismatch). Ignoring.");
+                return Ok(None);
+            }
+        }
+
+        // Fallback: Try loading raw SessionSnapshot (legacy format)
+        // This ensures backward compatibility during migration.
+        match serde_json::from_str::<SessionSnapshot>(&content) {
+            Ok(snap) => {
+                info!("Loaded legacy session format. converting to verified format on next save.");
+                Ok(Some(snap))
+            }
             Err(e) => {
-                warn!("Failed to read session.json: {}", e);
-                None
+                warn!("Failed to parse session file: {}", e);
+                Ok(None)
             }
         }
     }
 
+    /// Schedules a session snapshot to be saved to disk.
+    /// Flushing is debounced to avoid excessive disk IRQ.
     pub async fn schedule_save(&self, snapshot: SessionSnapshot) {
         let should_flush = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = match self.state.lock() {
+                Ok(s) => s,
+                Err(e) => {
+                    error!("Mutex poisoned in AutoSaveService: {}", e);
+                    return;
+                }
+            };
             state.pending = Some(snapshot);
             // Debounce: only flush if 2 seconds passed since last save
             state.last_save.elapsed() > Duration::from_secs(2)
@@ -86,7 +154,13 @@ impl AutoSaveService {
     /// If `force` is true, ignores the debounce timer.
     pub async fn flush(&self, force: bool) {
         let snapshot_to_save = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = match self.state.lock() {
+                Ok(s) => s,
+                Err(e) => {
+                    error!("Mutex poisoned in AutoSaveService flush: {}", e);
+                    return;
+                }
+            };
             if state.pending.is_none() {
                 return;
             }
@@ -103,7 +177,8 @@ impl AutoSaveService {
             let path = self.path.clone();
 
             let result = tokio::task::spawn_blocking(move || -> std::io::Result<()> {
-                let json = serde_json::to_string_pretty(&snap)
+                let persisted = PersistedSession::new(snap);
+                let json = serde_json::to_string_pretty(&persisted)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
                 let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
@@ -113,16 +188,25 @@ impl AutoSaveService {
                 temp_file.write_all(json.as_bytes())?;
                 temp_file.flush()?;
 
-                // Atomic persist with cross-device fallback
+                // Atomic persist
+                // NamedTempFile::persist tries atomic rename, and errors if it fails (e.g. cross-filesystem).
+                // However, we are creating it in `dir`, which is the same as target, so rename should work.
                 match temp_file.persist(&path) {
                     Ok(_) => Ok(()),
                     Err(e) => {
-                        // If atomic rename fails (e.g. cross-device link), copy manually
+                        // Manual fallback if atomic rename fails weirdly
+                        // Note: persist consumes the file, but returns PersistError containing the file on error
                         let mut source = e.file;
+                        // Seek to start to copy
                         source.seek(SeekFrom::Start(0))?;
+                        
+                        // We use a temporary file name for the copy destination to avoid partial writes to the target,
+                        // but ultimately we have to overwrite `path`.
+                        // Best effort here: open `path` with truncation. A partial write here is the risk we are trying to avoid,
+                        // but if atomic rename indicated we are on the same fs, it shouldn't have failed.
+                        // If we truly can't rename, we have to copy.
                         let mut dest = std::fs::File::create(&path)?;
                         std::io::copy(&mut source, &mut dest)?;
-                        // Temp file is deleted when source goes out of scope (if not persisted)
                         Ok(())
                     }
                 }
@@ -147,7 +231,7 @@ mod tests {
     async fn test_load_non_existent() {
         let dir = tempdir().unwrap();
         let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.is_none());
+        assert!(service.load().await.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -158,7 +242,7 @@ mod tests {
             .await
             .unwrap();
         let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.is_none());
+        assert!(service.load().await.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -167,7 +251,7 @@ mod tests {
         let path = dir.path().join("session.json");
         tokio::fs::write(&path, "invalid json").await.unwrap();
         let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.is_none());
+        assert!(service.load().await.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -182,7 +266,7 @@ mod tests {
         service.schedule_save(SessionSnapshot::default()).await;
         // This should have triggered flush(false) on line 81
         tokio::time::sleep(Duration::from_millis(100)).await;
-        assert!(service.load().await.is_some());
+        assert!(service.load().await.unwrap().is_some());
     }
 
     #[tokio::test]
@@ -192,6 +276,6 @@ mod tests {
         // Create a directory named session.json to force a read error (it's a directory, not a file)
         std::fs::create_dir(&path).unwrap();
         let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.is_none());
+        assert!(service.load().await.is_err());
     }
 }

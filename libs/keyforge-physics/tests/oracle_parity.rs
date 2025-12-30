@@ -105,7 +105,7 @@ proptest! {
         let layout = Layout::new_unchecked(keys.into_iter().map(KeyCode).collect());
 
         // 3. Run Shadow Execution
-        let fast_score = engine.score(&layout);
+        let fast_score = engine.score(&layout).unwrap();
         let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
 
         // 4. Assert Parity

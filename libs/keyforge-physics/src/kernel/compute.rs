@@ -1,7 +1,7 @@
 use super::types::{KeyCode, Score, ValidatedLayout};
 use super::EngineContext;
 use keyforge_model::{AnalysisReport, MetricViolation};
-use keyforge_protocol::constants::SCORE_SCALE;
+use keyforge_model::constants::SCORE_SCALE;
 use tracing::instrument;
 
 pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, pos_map: &mut [u16]) -> i64 {
@@ -15,8 +15,11 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, pos_map: &mut
         }
     }
 
-    for (c1_val, &p1) in pos_map.iter().enumerate() {
-        if p1 == 65535 { continue; }
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        if pos_map[c1_val] != p1 { continue; }
+        
         let start = ctx.bigram_starts[c1_val];
         let end = ctx.bigram_starts[c1_val + 1];
         for k in start..end {
@@ -32,8 +35,11 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, pos_map: &mut
         }
     }
 
-    for (c1_val, &p1) in pos_map.iter().enumerate() {
-        if p1 == 65535 { continue; }
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        if pos_map[c1_val] != p1 { continue; }
+
         let start = ctx.trigram_starts[c1_val];
         let end = ctx.trigram_starts[c1_val + 1];
         for k in start..end {
@@ -199,13 +205,12 @@ fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> 
 
     if h1 != h2 || h2 != h3 { return Score::ZERO; }
 
-    let f1 = ctx.fingers[p1].as_u8() as i8;
-    let f2 = ctx.fingers[p2].as_u8() as i8;
-    let f3 = ctx.fingers[p3].as_u8() as i8;
+    // Redirect check
+    if ctx.fingers[p1] == ctx.fingers[p3] && ctx.fingers[p1] != ctx.fingers[p2] { return ctx.penalty_redirect; }
+    
+    let dir1 = ctx.fingers[p2].diff(ctx.fingers[p1]);
+    let dir2 = ctx.fingers[p3].diff(ctx.fingers[p2]);
 
-    if f1 == f3 && f1 != f2 { return ctx.penalty_redirect; }
-    let dir1 = f2 - f1;
-    let dir2 = f3 - f2;
     if dir1 == 0 || dir2 == 0 { return Score::ZERO; }
     if dir1.signum() != dir2.signum() { return ctx.penalty_redirect; }
     if dir1 < 0 { return Score::ZERO.saturating_sub(ctx.bonus_roll); }
@@ -230,21 +235,27 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
     let mut scissors = Vec::new();
     let mut redirs = Vec::new();
 
-    for (c_val, &p) in pos_map.iter().enumerate() {
-        if p == 65535 { continue; }
+    for (p_idx, &code) in layout_slice.iter().enumerate().take(limit) {
+        let p = p_idx as u16;
+        let c_val = code.0 as usize;
+        if pos_map[c_val] != p { continue; }
+
         let freq = ctx.char_freqs[c_val] as f32;
         if freq > 0.0 {
             total_load += freq;
             let idx = p as usize;
             if idx < ctx.key_count {
                 heatmap[idx] += freq;
-                if ctx.hands[idx].as_u8() == 0 { left_hand_load += freq; }
+                if ctx.hands[idx].is_left() { left_hand_load += freq; }
             }
         }
     }
 
-    for (c1_val, &p1) in pos_map.iter().enumerate() {
-        if p1 == 65535 { continue; }
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        if pos_map[c1_val] != p1 { continue; }
+
         let start = ctx.bigram_starts[c1_val];
         let end = ctx.bigram_starts[c1_val + 1];
         for k in start..end {
@@ -266,11 +277,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
                             freq,
                         });
                     }
-                    let f1 = ctx.fingers[idx1].as_u8() as i8;
-                    let f2 = ctx.fingers[idx2].as_u8() as i8;
                     let r1 = ctx.rows[idx1];
                     let r2 = ctx.rows[idx2];
-                    if ctx.hands[idx1] == ctx.hands[idx2] && (f1 - f2).abs() == 1 && (r1 - r2).abs() >= 2 {
+                    if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
                         report.scissors += freq;
                         scissors.push(MetricViolation {
                             keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
@@ -283,8 +292,11 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
         }
     }
 
-    for (c1_val, &p1) in pos_map.iter().enumerate() {
-        if p1 == 65535 { continue; }
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        if pos_map[c1_val] != p1 { continue; }
+
         let start = ctx.trigram_starts[c1_val];
         let end = ctx.trigram_starts[c1_val + 1];
         for k in start..end {
@@ -313,7 +325,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
     }
 
     let sort_violations = |v: &mut Vec<MetricViolation>| {
-        v.sort_by(|a, b| b.freq.partial_cmp(&a.freq).unwrap());
+        v.sort_by(|a, b| b.freq.partial_cmp(&a.freq).unwrap_or(std::cmp::Ordering::Equal));
         v.truncate(10);
     };
     sort_violations(&mut sfbs);

@@ -1,7 +1,7 @@
 use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
  
-use keyforge_protocol::protocol::{
+use keyforge_protocol::{
     CostMatrixSource, JobConfig, JobRequest, KeyConstraint,
 };
 use keyforge_protocol::types::KeyIndex;

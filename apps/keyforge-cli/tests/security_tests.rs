@@ -21,7 +21,7 @@ fn get_binary_path() -> PathBuf {
 
 #[test]
 fn test_oversized_keyboard_file() {
-    let ctx = HermeticWorkspace::new();
+    let ctx = HermeticWorkspace::new().with_default_assets();
     let kb_path = ctx.data_root.join("user/keyboards/big_kb.json");
     let f = File::create(&kb_path).unwrap();
     f.set_len(101 * 1024 * 1024).unwrap();
@@ -52,7 +52,7 @@ fn test_oversized_keyboard_file() {
 
 #[test]
 fn test_deeply_nested_json_keyboard() {
-    let ctx = HermeticWorkspace::new();
+    let ctx = HermeticWorkspace::new().with_default_assets();
     let kb_path = ctx.data_root.join("user/keyboards/bomb.json");
     let mut f = File::create(&kb_path).unwrap();
 
@@ -102,7 +102,7 @@ fn test_deeply_nested_json_keyboard() {
 
 #[test]
 fn test_oversized_corpus_file() {
-    let ctx = HermeticWorkspace::new();
+    let ctx = HermeticWorkspace::new().with_default_assets();
     let corpus_dir = ctx.data_root.join("user/corpora/big_corpus");
     std::fs::create_dir_all(&corpus_dir).unwrap();
     let f = File::create(corpus_dir.join("1grams.json")).unwrap();

@@ -54,11 +54,11 @@ jobs:
           # Only keyforge-core may depend on keyforge-physics/keyforge-evolution directly.
           # keyforge-physics and keyforge-evolution obviously depend on themselves.
           bad_deps=$(rg -n "keyforge-(physics|evolution)\s*=\s*\{[^}]*path\s*=\s*\".*keyforge-(physics|evolution)\"" \
-            crates ui/src-tauri/Cargo.toml \
+            apps libs \
             --glob "Cargo.toml" \
-            --glob "!crates/keyforge-core/Cargo.toml" \
-            --glob "!crates/keyforge-physics/Cargo.toml" \
-            --glob "!crates/keyforge-evolution/Cargo.toml" \
+            --glob "!libs/keyforge-core/Cargo.toml" \
+            --glob "!libs/keyforge-physics/Cargo.toml" \
+            --glob "!libs/keyforge-evolution/Cargo.toml" \
             || true)
 
           if [ -n "${bad_deps}" ]; then
@@ -69,11 +69,12 @@ jobs:
 
           echo "Checking for disallowed direct imports of keyforge_physics/keyforge_evolution..."
           bad_imports=$(rg -n "\bkeyforge_(physics|evolution)::" \
-            --glob "crates/**/*.rs" \
-            --glob "!crates/keyforge-core/**" \
-            --glob "!crates/keyforge-physics/**" \
-            --glob "!crates/keyforge-evolution/**" \
-            crates \
+            --glob "libs/**/*.rs" \
+            --glob "apps/**/*.rs" \
+            --glob "!libs/keyforge-core/**" \
+            --glob "!libs/keyforge-physics/**" \
+            --glob "!libs/keyforge-evolution/**" \
+            . \
             || true)
 
           if [ -n "${bad_imports}" ]; then
@@ -83,11 +84,13 @@ jobs:
           fi
 
           echo "Checking protocol boundary: parsing only allowed in keyforge-protocol and keyforge-adapter..."
+          # keyforge-adapter has been moved or merged? Let's check against what we have.
           bad_protocol_parsing=$(rg -n "\bkeyforge_protocol::(parsing::|parse_key\b)" \
-            --glob "crates/**/*.rs" \
-            --glob "!crates/keyforge-protocol/**" \
-            --glob "!crates/keyforge-adapter/**" \
-            crates \
+            --glob "libs/**/*.rs" \
+            --glob "apps/**/*.rs" \
+            --glob "!libs/keyforge-protocol/**" \
+            --glob "!libs/keyforge-adapter/**" \
+            . \
             || true)
 
           if [ -n "${bad_protocol_parsing}" ]; then
@@ -107,6 +110,24 @@ jobs:
           DATABASE_TIMEOUT_SECONDS: 15
           RATE_LIMIT_PER_SEC: 100
         run: cargo test --release --workspace --exclude keyforge-ui
+
+  ui-check:
+    name: UI Health
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/keyforge-ui/package-lock.json
+      - name: Install Dependencies
+        run: cd apps/keyforge-ui && npm install
+      - name: Check Types
+        run: cd apps/keyforge-ui && npx tsc --noEmit
+      - name: Check Formatting
+        run: cd apps/keyforge-ui && npx prettier --check .
 
   coverage:
     name: Code Coverage
@@ -173,7 +194,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         run: |
-          cd ui
+          cd apps/keyforge-ui
           npm install
 
       # OPS-030: Code Signing (Placeholder for Secrets)
@@ -192,4 +213,4 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-          projectPath: ./ui
+          projectPath: ./apps/keyforge-ui

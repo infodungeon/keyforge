@@ -1,16 +1,16 @@
 use crate::config::HiveConfig;
 use bytes::Bytes;
-use keyforge_infra::{listing, FsProvider, ServerManifest};
-use keyforge_model::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_infra::{listing, CachingProvider, ServerManifest};
+use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
-use keyforge_protocol::config::{Config as AppConfig, CorpusSource};
-use keyforge_protocol::geometry::KeyboardDefinition;
-use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_protocol::config::Config as AppConfig;
+use keyforge_model::config::CorpusSource;
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
 use moka::sync::Cache;
-use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{error, info};
+
 
 pub struct CompiledEngineCache {
     cache: Cache<String, Arc<keyforge_core::ScoringEngine>>,
@@ -39,206 +39,41 @@ impl CompiledEngineCache {
     }
 }
 
-struct CacheState {
-    provider: FsProvider,
-    keyboards: Cache<String, Arc<KeyboardDefinition>>,
-    corpora: Cache<String, Arc<Corpus>>,
-    costs: Cache<String, Arc<RawCostData>>,
-    keycodes: Cache<String, Arc<KeycodeRegistry>>,
-    file_cache: Cache<String, Bytes>,
-    manifest: Cache<String, Arc<ServerManifest>>,
-    _watcher: Option<RecommendedWatcher>,
-}
-
 #[derive(Clone)]
 pub struct GlobalAssetCache {
-    state: Arc<CacheState>,
+    inner: CachingProvider,
+    data_path: PathBuf,
 }
 
 impl GlobalAssetCache {
     pub fn new(data_path: PathBuf) -> Self {
-        let provider = FsProvider::new(data_path.clone());
-        let keyboards = Cache::new(100);
-        let corpora = Cache::new(50);
-        let costs = Cache::new(100);
-        let keycodes = Cache::new(10);
-        let file_cache = Cache::new(1000);
-        let manifest = Cache::new(1);
-
-        let kb_c = keyboards.clone();
-        let cp_c = corpora.clone();
-        let cs_c = costs.clone();
-        let kc_c = keycodes.clone();
-        let fl_c = file_cache.clone();
-        let mf_c = manifest.clone();
-        let dp_c = data_path.clone();
-
-        let watcher_fn = move |res: notify::Result<Event>| match res {
-            Ok(event) => {
-                if event.kind.is_access() {
-                    return;
-                }
-                for path in event.paths {
-                    if let Ok(rel) = path.strip_prefix(&dp_c) {
-                        let path_str = rel.to_string_lossy();
-                        if !path_str.contains("system") {
-                            continue;
-                        }
-                        info!("♻️ System asset changed: {}", path_str);
-                        fl_c.invalidate_all();
-                        mf_c.invalidate_all();
-                        if path_str.contains("keyboards") {
-                            kb_c.invalidate_all();
-                        } else if path_str.contains("corpora") {
-                            cp_c.invalidate_all();
-                        } else if path_str.contains("weights") {
-                            cs_c.invalidate_all();
-                        } else if path_str.contains("config") {
-                            kc_c.invalidate_all();
-                        }
-                    }
-                }
-            }
-            Err(e) => error!("Watcher error: {:?}", e),
-        };
-
-        let mut watcher = RecommendedWatcher::new(watcher_fn, Config::default()).ok();
-        if let Some(w) = &mut watcher {
-            let _ = w.watch(&data_path, RecursiveMode::Recursive);
-            info!("👀 Hot-Reload Watcher Active on {:?}", data_path);
-        }
-
         Self {
-            state: Arc::new(CacheState {
-                provider,
-                keyboards,
-                corpora,
-                costs,
-                keycodes,
-                file_cache,
-                manifest,
-                _watcher: watcher,
-            }),
+            inner: CachingProvider::new(data_path.clone()),
+            data_path,
         }
     }
 
-    pub fn warm_all(&self) -> Result<(), String> {
-        info!("🔥 Warming Asset Cache (Full Binary Verification)...");
-        let system_root = self.state.provider.root.join("system");
-
-        let manifest = keyforge_infra::generate_manifest(&system_root)
-            .map_err(|e| format!("Manifest error: {}", e))?;
-
-        self.state
-            .manifest
-            .insert("default".into(), Arc::new(manifest.clone()));
-
-        let mut count_files = 0;
-        let mut count_keyboards = 0;
-        let mut count_corpora = 0;
-        let mut count_weights = 0;
-
-        for (rel_path, _) in manifest.files {
-            let full_path = system_root.join(&rel_path);
-            let bytes =
-                std::fs::read(&full_path).map_err(|e| format!("Read error {}: {}", rel_path, e))?;
-            self.state
-                .file_cache
-                .insert(rel_path.clone(), Bytes::from(bytes));
-
-            count_files += 1;
-
-            if rel_path.starts_with("keyboards/models/") {
-                let path = Path::new(&rel_path);
-                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-
-                let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
-                    s
-                } else {
-                    stem
-                };
-
-                if !clean_stem.is_empty() {
-                    if let Err(e) = self.load_keyboard(clean_stem) {
-                        tracing::warn!("Eager load failed for keyboard {}: {}", clean_stem, e);
-                    } else {
-                        count_keyboards += 1;
-                    }
-                }
-            } else if rel_path.starts_with("corpora/") && rel_path.ends_with("1grams.mpk.zst") {
-                let path = Path::new(&rel_path);
-                if let Some(parent) = path.parent() {
-                    if let Ok(id_path) = parent.strip_prefix("corpora") {
-                        let id = id_path.to_string_lossy().replace('\\', "/");
-                        if !id.is_empty() {
-                            if let Err(e) = self.load_corpus(&[CorpusSource {
-                                id: id.clone(),
-                                weight: 1.0,
-                                hash: None,
-                            }]) {
-                                tracing::warn!("Eager load failed for corpus {}: {}", id, e);
-                            } else {
-                                count_corpora += 1;
-                            }
-                        }
-                    }
-                }
-            } else if rel_path.starts_with("weights/") {
-                let path = Path::new(&rel_path);
-                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-
-                let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
-                    s
-                } else {
-                    stem
-                };
-
-                if !clean_stem.is_empty() {
-                    if let Err(e) = self.load_cost_matrix(clean_stem) {
-                        tracing::warn!("Eager load failed for weights {}: {}", clean_stem, e);
-                    } else {
-                        count_weights += 1;
-                    }
-                }
-            } else if rel_path == "config/keycodes.mpk.zst" {
-                if let Err(e) = self.load_keycodes("keycodes") {
-                    tracing::warn!("Eager load failed for keycodes: {}", e);
-                }
-            }
-        }
-
-        if count_files == 0 {
-            error!("❌ Asset cache warming failed: 0 assets found in system library.");
-            return Err("System library is empty".into());
-        }
-
-        info!(
-            "✅ Cache Warmed: {} assets ({} kb, {} corp, {} wgt).",
-            count_files, count_keyboards, count_corpora, count_weights
-        );
-        Ok(())
+    pub async fn warm_all(&self) -> Result<(), String> {
+        self.inner.warm_all().await
     }
 
     pub fn get_file_content(&self, path: &str) -> Option<Bytes> {
-        self.state.file_cache.get(path)
+        self.inner.get_file_content(path)
     }
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
-        self.state.manifest.get("default")
+        self.inner.get_manifest()
     }
     pub fn invalidate_all(&self) {
-        self.state.keyboards.invalidate_all();
-        self.state.corpora.invalidate_all();
-        self.state.costs.invalidate_all();
-        self.state.file_cache.invalidate_all();
+        self.inner.invalidate_all();
     }
     pub fn list_keyboards(&self) -> Vec<String> {
-        listing::list_keyboards(&self.state.provider.root).unwrap_or_default()
+        listing::list_keyboards(&self.data_path).unwrap_or_default()
     }
     pub fn list_corpora(&self) -> Vec<String> {
-        listing::list_corpora(&self.state.provider.root).unwrap_or_default()
+        listing::list_corpora(&self.data_path).unwrap_or_default()
     }
     pub fn list_cost_matrices(&self) -> Vec<String> {
-        listing::list_cost_matrices(&self.state.provider.root).unwrap_or_default()
+        listing::list_cost_matrices(&self.data_path).unwrap_or_default()
     }
     pub fn load_app_config(&self) -> Arc<AppConfig> {
         Arc::new(AppConfig::default())
@@ -246,49 +81,23 @@ impl GlobalAssetCache {
     pub fn load_hive_config(&self) -> Arc<HiveConfig> {
         Arc::new(HiveConfig::default())
     }
-    pub fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
-        self.state.provider.get_corpus_hash(id)
+    pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
+        self.inner.get_corpus_hash(id).await
     }
 }
 
+#[async_trait::async_trait]
 impl AssetLoader for GlobalAssetCache {
-    fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
-        if let Some(c) = self.state.keyboards.get(name) {
-            return Ok(c.as_ref().clone());
-        }
-        let kb = self.state.provider.load_keyboard(name)?;
-        self.state
-            .keyboards
-            .insert(name.to_string(), Arc::new(kb.clone()));
-        Ok(kb)
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
+        self.inner.load_keyboard(name).await
     }
-    fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
-        let key = serde_json::to_string(sources).unwrap_or_default();
-        if let Some(c) = self.state.corpora.get(&key) {
-            return Ok(c.as_ref().clone());
-        }
-        let cp = self.state.provider.load_corpus(sources)?;
-        self.state.corpora.insert(key, Arc::new(cp.clone()));
-        Ok(cp)
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+        self.inner.load_corpus(sources).await
     }
-    fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
-        if let Some(c) = self.state.costs.get(filename) {
-            return Ok(c.as_ref().clone());
-        }
-        let mt = self.state.provider.load_cost_matrix(filename)?;
-        self.state
-            .costs
-            .insert(filename.to_string(), Arc::new(mt.clone()));
-        Ok(mt)
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
+        self.inner.load_cost_matrix(filename).await
     }
-    fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
-        if let Some(c) = self.state.keycodes.get(filename) {
-            return Ok(c.as_ref().clone());
-        }
-        let rg = self.state.provider.load_keycodes(filename)?;
-        self.state
-            .keycodes
-            .insert(filename.to_string(), Arc::new(rg.clone()));
-        Ok(rg)
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
+        self.inner.load_keycodes(filename).await
     }
 }

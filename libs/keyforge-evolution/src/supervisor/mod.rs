@@ -1,6 +1,6 @@
-mod annealing;
-mod state;
-pub mod strategies;
-pub mod traits;
+pub(crate) mod annealing;
+pub(crate) mod state;
+pub(crate) mod strategies;
+pub(crate) mod traits;
 
-pub use annealing::{AnnealingConfig, Optimizer};
+pub(crate) use annealing::{AnnealingConfig, Optimizer};

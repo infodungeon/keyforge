@@ -27,11 +27,15 @@ struct Cli {
 
     #[arg(long, env = "KEYFORGE_DATA_DIR")]
     data_dir: Option<PathBuf>,
+
+    #[arg(long, env = "KEYFORGE_CONFIG")]
+    config: Option<PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
     Fetch(cmd::fetch::FetchArgs),
+    Completions(cmd::completions::CompletionsArgs),
     Doctor(cmd::doctor::DoctorArgs),
     Fmt(cmd::fmt::FmtArgs),
     Init(cmd::init::InitArgs),
@@ -65,18 +69,47 @@ async fn run_app() -> Result<(), CliError> {
     let matches = Cli::command().get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
-    if let Commands::Init(args) = &cli.command {
-        cmd::init::run(args.clone()).await?;
-        return Ok(());
+    // 1. Handle Stateless Commands (No Workspace needed)
+    match &cli.command {
+        Commands::Init(args) => {
+            cmd::init::run(args.clone()).await?;
+            return Ok(());
+        }
+        Commands::Completions(args) => {
+            cmd::completions::run(args.clone());
+            return Ok(());
+        }
+        Commands::Auth(args) => {
+            cmd::auth::run(args.clone()).await?;
+            return Ok(());
+        }
+        _ => {}
     }
 
-    let root = resolve_root(cli.data_dir)
+    // Configuration Resolution: CLI > Env > File > Default
+    let mut config = keyforge_infra::config::CommonConfig::default();
+    if let Some(config_path) = &cli.config {
+        match keyforge_infra::config::CommonConfig::from_file(config_path) {
+            Ok(file_cfg) => config.merge(file_cfg),
+            Err(e) => {
+                error!("Failed to load config file {:?}: {}", config_path, e);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    // Explicit CLI/Env overrides
+    if let Some(d) = cli.data_dir {
+        config.data_dir = Some(d);
+    }
+
+    let root = resolve_root(config.data_dir)
         .map_err(|e| CliError::Workspace(format!("Workspace Error: {}", e)))?;
 
-    // 1. Handle Stateless Commands
+    // 2. Handle Stateless Commands (Workspace needed)
     match &cli.command {
         Commands::Doctor(args) => {
-            cmd::doctor::run(args.clone(), &root)?;
+            cmd::doctor::run(args.clone(), &root).await?;
             return Ok(());
         }
         Commands::Fmt(args) => {
@@ -111,10 +144,6 @@ async fn run_app() -> Result<(), CliError> {
             cmd::update::run(args.clone()).await?;
             return Ok(());
         }
-        Commands::Auth(args) => {
-            cmd::auth::run(args.clone()).await?;
-            return Ok(());
-        }
         _ => {} // Proceed to Runtime commands
     }
 
@@ -124,15 +153,15 @@ async fn run_app() -> Result<(), CliError> {
     // These require the Physics Engine to be compiled.
     match cli.command {
         Commands::Search(args) => {
-            let runtime = build_runtime(&root, &args.shared, args.config.clone())?;
+            let runtime = build_runtime(&root, &args.shared, args.config.clone()).await?;
             cmd::search::run(args, runtime)?;
         }
         Commands::Validate(args) => {
-            let runtime = build_runtime(&root, &args.shared, args.config.clone())?;
+            let runtime = build_runtime(&root, &args.shared, args.config.clone()).await?;
             cmd::validate::run(args, runtime)?;
         }
         Commands::Benchmark(args) => {
-            let runtime = build_runtime(&root, &args.shared, args.config.clone())?;
+            let runtime = build_runtime(&root, &args.shared, args.config.clone()).await?;
             cmd::benchmark::run(args, runtime)?;
         }
         _ => unreachable!("Stateless commands handled above"),
@@ -142,7 +171,7 @@ async fn run_app() -> Result<(), CliError> {
 }
 
 /// Constructs a Project from CLI args and Compiles it into a Runtime.
-fn build_runtime(
+async fn build_runtime(
     root: &std::path::Path,
     shared: &cmd::shared::SharedArgs,
     config_args: crate::cli_args::config::ConfigArgs,
@@ -188,6 +217,7 @@ fn build_runtime(
 
     let runtime = compiler
         .compile(&project)
+        .await
         .map_err(|e| CliError::Workspace(format!("Compilation failed: {}", e)))?;
 
     Ok(runtime)
@@ -205,5 +235,7 @@ fn setup_signal_handler() {
         INTERRUPTED.store(true, std::sync::atomic::Ordering::SeqCst);
         eprintln!("\nShutting down gracefully... (press Ctrl+C again to force quit)");
     })
-    .expect("Error setting Ctrl-C handler");
+    .unwrap_or_else(|e| {
+        tracing::warn!("Failed to set Ctrl-C handler: {}", e);
+    });
 }

@@ -73,6 +73,8 @@ export class WebClient implements BackendClient {
         temp_max: 20.0,
         opt_limit_fast: 100,
         opt_limit_slow: 1500,
+        reheats: 3,
+        reheat_factor: 0.5,
       },
       weights: {
         penalty_sfr_weak_finger: 20.0,
@@ -115,7 +117,6 @@ export class WebClient implements BackendClient {
         trigram_coverage: 0.99,
         finger_penalty_scale: "0.0,1.0,1.1,1.3,1.6",
         comfortable_scissors: "21,23,34",
-        corpus_scale: 1.0,
       },
       defs: {
         tier_high_chars: "etaoinshr",
@@ -168,7 +169,7 @@ export class WebClient implements BackendClient {
   async getAllLayoutsScoped(
     keyboardId: string,
     hiveUrl?: string,
-  ): Promise<Record<string, string>> {
+  ): Promise<Record<string, string | undefined>> {
     try {
       const def = await this.fetchJson<KeyboardDefinition>(
         `api/keyboards/${keyboardId}`,
@@ -184,9 +185,9 @@ export class WebClient implements BackendClient {
     _keyboardId: string,
     _name: string,
     _layout: string,
-  ): Promise<void> {}
+  ): Promise<void> { }
 
-  async deleteUserLayout(_keyboardId: string, _name: string): Promise<void> {}
+  async deleteUserLayout(_keyboardId: string, _name: string): Promise<void> { }
 
   async submitUserLayout(
     hiveUrl: string,
@@ -434,7 +435,7 @@ export class WebClient implements BackendClient {
     return "// Export not supported in Web mode yet";
   }
 
-  async saveFile(_path: string, _content: string): Promise<void> {}
+  async saveFile(_path: string, _content: string): Promise<void> { }
 
   async parseKle(_json: string): Promise<KeyboardDefinition> {
     throw new Error("KLE Import not supported in Web Mode yet.");

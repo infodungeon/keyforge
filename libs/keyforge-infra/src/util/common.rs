@@ -22,7 +22,7 @@ pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-use keyforge_model::loader::RawCostData;
+use keyforge_core::loader::RawCostData;
 use keyforge_protocol::UserStatsStore;
 
 pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
@@ -31,8 +31,8 @@ pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
 }
 
 use crate::error::InfraError;
-use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_protocol::keycodes::{KeycodeDefinition, KeycodeRegistry};
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::keycodes::{KeycodeDefinition, KeycodeRegistry};
 
 pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
     let content = crate::fs::io::read_to_string_limited(path, MAX_INPUT_FILE_SIZE)?;

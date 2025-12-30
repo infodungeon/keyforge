@@ -1,6 +1,6 @@
 use axum::{extract::State, routing::get, Json, Router};
 use keyforge_protocol::config::Config;
-use keyforge_model::loader::AssetLoader;
+use keyforge_core::loader::AssetLoader;
 use keyforge_protocol::geometry::KeyboardDefinition;
 use serde::Serialize;
 use std::sync::Arc;
@@ -20,7 +20,6 @@ pub struct StatusResponse {
 
 /// VSA Feature: System & Diagnostics
 /// Provides health checks and metadata listings.
-
 pub async fn root() -> &'static str {
     "KeyForge Hive API v0.8"
 }
@@ -34,7 +33,7 @@ pub async fn root() -> &'static str {
     tag = "system"
 )]
 pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<StatusResponse>> {
-    let db_status = match sqlx::query("SELECT 1").execute(&state.jobs.pool).await {
+    let db_status = match sqlx::query("SELECT 1").execute(&state.jobs.repo.pool).await {
         Ok(_) => "connected".to_string(),
         Err(e) => {
             tracing::error!("Health Check DB Fail: {}", e);
@@ -72,11 +71,13 @@ pub async fn get_keyboard(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> AppResult<Json<KeyboardDefinition>> {
-    let kb = state.assets.load_keyboard(&name).map_err(|e| {
+    let kb = state.assets.load_keyboard(&name).await.map_err(|e| {
         tracing::error!("Failed to load keyboard {}: {}", name, e);
         AppError::NotFound
     })?;
-    Ok(Json(kb))
+    let proto_kb: KeyboardDefinition = serde_json::from_value(serde_json::to_value(&kb).unwrap())
+        .map_err(|e| AppError::Any(anyhow::anyhow!("Serialization error: {}", e)))?;
+    Ok(Json(proto_kb))
 }
 
 pub async fn get_app_config(State(state): State<Arc<AppState>>) -> AppResult<Json<Config>> {
@@ -114,4 +115,6 @@ pub fn system_routes() -> Router<Arc<AppState>> {
         .route("/api/corpora", get(list_corpora))
         .route("/api/costs", get(list_costs))
         .route("/api/keymap_extras", get(list_keymap_extras))
+        .route("/api/manifest", get(crate::api::sync::get_manifest))
+        .route("/api/data/system/{*path}", get(crate::api::sync::get_asset))
 }

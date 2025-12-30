@@ -1,6 +1,6 @@
 use keyforge_model::{Corpus, Keyboard, Layout, Rubric};
 use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
-use keyforge_protocol::constants::SCORE_SCALE;
+use keyforge_model::constants::SCORE_SCALE;
 
 pub struct DeterministicScorer;
 
@@ -118,7 +118,7 @@ fn calculate_pair_cost_int(k1: &FixedPointKey, k2: &FixedPointKey, rubric: &Fixe
         return cost;
     }
 
-    let finger_diff = (k1.finger.as_u8() as i8 - k2.finger.as_u8() as i8).abs();
+    let finger_diff = k1.finger.distance(k2.finger);
     let row_diff = (k1.row - k2.row).abs();
     if finger_diff == 1 && row_diff >= 2 { cost = cost.saturating_add(rubric.finger_effort[k1.finger.as_usize()]); }
     if row_diff == 0 && finger_diff == 1 {
@@ -130,12 +130,13 @@ fn calculate_pair_cost_int(k1: &FixedPointKey, k2: &FixedPointKey, rubric: &Fixe
 
 fn calculate_flow_cost_int(k1: &FixedPointKey, k2: &FixedPointKey, k3: &FixedPointKey, rubric: &FixedPointRubric) -> i64 {
     if k1.hand != k2.hand || k2.hand != k3.hand { return 0; }
-    let f1 = k1.finger.as_u8() as i8;
-    let f2 = k2.finger.as_u8() as i8;
-    let f3 = k3.finger.as_u8() as i8;
-    if f1 == f3 && f1 != f2 { return rubric.redirect; }
-    let dir1 = f2 - f1;
-    let dir2 = f3 - f2;
+    
+    // Redirect check
+    if k1.finger == k3.finger && k1.finger != k2.finger { return rubric.redirect; }
+
+    let dir1 = k2.finger.diff(k1.finger);
+    let dir2 = k3.finger.diff(k2.finger);
+    
     if dir1 == 0 || dir2 == 0 { return 0; }
     if dir1.signum() != dir2.signum() { return rubric.redirect; }
     if dir1 < 0 { return rubric.roll_bonus.saturating_neg(); }

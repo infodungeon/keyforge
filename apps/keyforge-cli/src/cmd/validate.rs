@@ -28,7 +28,7 @@ pub fn run(args: ValidateArgs, runtime: Runtime) -> Result<(), Box<dyn Error>> {
     let key_count = runtime.engine.key_count();
     let dummy_layout = keyforge_model::Layout::new_unchecked((0..key_count).map(|i| KeyCode(i as u16)).collect());
 
-    let report = runtime.analyze(&dummy_layout);
+    let report = runtime.analyze(&dummy_layout)?;
 
     eprintln!("=== Analysis Report (Dummy) ===");
     eprintln!("Score:        {:.3}", report.score);

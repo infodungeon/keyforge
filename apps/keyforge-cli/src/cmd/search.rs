@@ -71,7 +71,7 @@ pub fn run(args: SearchArgs, mut runtime: Runtime) -> Result<(), Box<dyn std::er
 
     let callback = CliProgress { bar: pb.clone() };
 
-    let result = runtime.optimize(callback);
+    let result = runtime.optimize(callback)?;
 
     pb.finish_with_message("Done");
 

@@ -1,7 +1,7 @@
 use crate::error::{InfraError, InfraResult};
 use crate::fs::io::atomic_write;
 use crate::util::common::{generate_cost_profile, sanitize_filename};
-use keyforge_protocol::geometry::KeyboardDefinition;
+use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

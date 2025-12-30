@@ -1,5 +1,5 @@
 use keyforge_protocol::keycodes::{KeycodeDefinition, KeycodeRegistry};
-use keyforge_model::types::KeyCode;
+use keyforge_protocol::types::KeyCode;
 
 #[test]
 fn test_registry_lookup() {

@@ -6,5 +6,6 @@ edition = "2021"
 [dependencies]
 keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-model = { path = "../keyforge-model" }
+keyforge-core = { path = "../keyforge-core" }
 serde_json = "1.0"
 tempfile = "3.10"

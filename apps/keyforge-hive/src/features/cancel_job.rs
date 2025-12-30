@@ -24,6 +24,7 @@ pub async fn handle(
 ) -> AppResult<String> {
     state
         .jobs
+        .repo
         .cancel(&job_id)
         .await
         .map_err(crate::error::AppError::Database)?;

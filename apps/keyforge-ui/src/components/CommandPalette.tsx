@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Search,
-  Command,
   ArrowRight,
   Zap,
   Layout,
@@ -31,7 +30,7 @@ export function CommandPalette({ setMode }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { layoutName, saveUserLayout, startJob } = useKeyboard();
+  const { layoutName, saveUserLayout } = useKeyboard();
   const { syncData } = useSystem();
 
   const actions: Action[] = [

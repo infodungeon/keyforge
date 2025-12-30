@@ -7,7 +7,7 @@ pub mod job;
 pub mod keyboard;
 pub mod keycodes;
 pub mod layout;
-pub mod loader;
+
 pub mod parsing;
 pub mod rubric;
 pub mod serde_utils;

@@ -161,7 +161,7 @@ fn test_optimize_legacy() {
         reheat_factor: 0.5,
     };
 
-    let result = optimize(&req);
+    let result = optimize(&req).unwrap();
     assert!(result.score.is_finite());
     assert!(result.layout.keys.len() >= 2);
 }
@@ -179,7 +179,7 @@ fn test_optimize_with_callback() {
         reheat_factor: 0.5,
     };
 
-    let result = optimize_with_callback(&req, TestCallback);
+    let result = optimize_with_callback(&req, TestCallback).unwrap();
     assert!(result.score.is_finite());
 }
 
@@ -199,6 +199,6 @@ fn test_optimize_with_engine() {
         reheat_factor: 0.5,
     };
 
-    let result = optimize_with_engine(engine_arc, &config, TestCallback);
+    let result = optimize_with_engine(engine_arc, &config, TestCallback).unwrap();
     assert!(result.score.is_finite());
 }

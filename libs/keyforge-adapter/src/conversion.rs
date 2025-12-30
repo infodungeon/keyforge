@@ -1,25 +1,27 @@
 use crate::error::{AdapterError, AdapterResult};
-use keyforge_model::{KeyCode, KeyNode};
+use keyforge_model::KeyCode;
 use keyforge_protocol::constants::MAX_LAYOUT_DATA_LEN;
-use keyforge_protocol::keycodes::KeycodeRegistry;
+use keyforge_model::keycodes::KeycodeRegistry; // Changed from protocol
 use keyforge_protocol::{config, geometry, KeyConstraint};
+
+pub fn to_domain_corpus_source(s: &config::CorpusSource) -> keyforge_model::config::CorpusSource {
+    keyforge_model::config::CorpusSource {
+        id: s.id.clone(),
+        weight: s.weight,
+        hash: s.hash.clone(),
+    }
+}
 
 pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> keyforge_model::Keyboard {
     let keys = geo
         .keys
         .iter()
         .enumerate()
-        .map(|(i, k)| KeyNode {
-            index: i,
-            label: k.label.clone(),
-            hand: k.hand,
-            finger: k.finger,
-            row: k.row,
-            col: k.col,
-            x: k.x,
-            y: k.y,
-            is_home: k.row == keyforge_model::types::RowIndex(geo.home_row),
-            ..Default::default()
+        .map(|(i, k)| {
+            let mut kn = to_domain_keynode(k.clone());
+            kn.index = i;
+            kn.is_home = k.row.0 == geo.home_row;
+            kn
         })
         .collect();
 
@@ -84,7 +86,7 @@ pub fn resolve_constraints(
 }
 
 pub fn resolve_cost_matrix(
-    raw_data: &[(String, String, f32)],
+    raw: &[(String, String, f32)],
     geo: &geometry::KeyboardGeometry,
 ) -> Vec<(usize, usize, f32)> {
     let mut overrides = Vec::new();
@@ -92,13 +94,15 @@ pub fn resolve_cost_matrix(
     for (i, k) in geo.keys.iter().enumerate() {
         id_map.insert(k.label.clone(), i);
     }
-    for (id1, id2, cost) in raw_data {
-        if let (Some(&idx1), Some(&idx2)) = (id_map.get(id1), id_map.get(id2)) {
+    for (from, to, cost) in raw {
+        if let (Some(&idx1), Some(&idx2)) = (id_map.get(from), id_map.get(to)) {
             overrides.push((idx1, idx2, *cost));
         }
     }
     overrides
 }
+
+
 
 /// Strict layout-string parsing.
 ///
@@ -217,4 +221,41 @@ pub fn parse_layout_string(
     registry: &KeycodeRegistry,
 ) -> AdapterResult<keyforge_model::Layout> {
     parse_layout_string_strict(s, size, registry)
+}
+
+// Convert Protocol -> Model
+pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
+    keyforge_model::KeyNode {
+        index: k.index,
+        label: k.label,
+        x: k.x,
+        y: k.y,
+        w: k.w,
+        h: k.h,
+        r: k.r,
+        rx: k.rx,
+        ry: k.ry,
+        hand: to_domain_hand_index(k.hand),
+        finger: to_domain_finger_index(k.finger),
+        row: to_domain_row_index(k.row),
+        col: to_domain_col_index(k.col),
+        is_home: k.is_home,
+        is_stretch: k.is_stretch,
+    }
+}
+
+pub fn to_domain_hand_index(val: keyforge_protocol::types::HandIndex) -> keyforge_model::types::HandIndex {
+    keyforge_model::types::HandIndex(val.0)
+}
+
+pub fn to_domain_finger_index(val: keyforge_protocol::types::FingerIndex) -> keyforge_model::types::FingerIndex {
+    keyforge_model::types::FingerIndex(val.0)
+}
+
+pub fn to_domain_row_index(val: keyforge_protocol::types::RowIndex) -> keyforge_model::types::RowIndex {
+    keyforge_model::types::RowIndex(val.0)
+}
+
+pub fn to_domain_col_index(val: keyforge_protocol::types::ColIndex) -> keyforge_model::types::ColIndex {
+    keyforge_model::types::ColIndex(val.0)
 }

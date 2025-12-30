@@ -1,5 +1,5 @@
 use axum::{extract::State, Json};
-use keyforge_protocol::{ResultSubmission, PROTOCOL_VERSION};
+use keyforge_protocol::{ResultSubmission, Validator, PROTOCOL_VERSION};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::oneshot;
@@ -29,6 +29,7 @@ pub async fn handle(
 
 async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppResult<String> {
     // Stage 1: Validation
+    payload.validate().map_err(AppError::Validation)?;
     validate_submission(&state, &payload)?;
 
     // Stage 2: Verification (Domain Logic)
@@ -36,6 +37,11 @@ async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppR
 
     // Stage 3: Persistence (Via Queue)
     persist_result(state, payload).await?;
+
+    state.jobs.active_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    state.jobs.completed_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+    state.monitor.record_op();
 
     Ok("Accepted".to_string())
 }
@@ -57,10 +63,10 @@ fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResul
 
     // Replay Protection
     let nonce_key = format!("{}:{}", payload.node_id, payload.nonce);
-    if state.nonce_cache.contains_key(&nonce_key) {
+    if state.security.nonce_cache.contains_key(&nonce_key) {
         return Err(AppError::Validation("Replay detected".into()));
     }
-    state.nonce_cache.insert(nonce_key, true);
+    state.security.nonce_cache.insert(nonce_key, true);
 
     Ok(())
 }

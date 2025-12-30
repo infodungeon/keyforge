@@ -1,12 +1,13 @@
 use crate::error::CommandError;
+use keyforge_infra::AssetLoader;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_export::{qmk::QmkExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::listing;
 use keyforge_infra::HiveClient;
 use keyforge_infra::UserRepo;
-use keyforge_protocol::geometry::kle::{parse_kle_json, to_kle_json};
-use keyforge_protocol::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
+use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
 use std::collections::HashMap;
 use std::path::Path;
 use tauri::AppHandle;
@@ -36,10 +37,10 @@ pub async fn cmd_get_keyboard_geometry(
     state: tauri::State<'_, SessionState>,
     name: String,
 ) -> Result<KeyboardGeometry, CommandError> {
-    use keyforge_infra::AssetLoader;
     state
         .assets
         .load_keyboard(&name)
+        .await
         .map(|def| def.geometry)
         .map_err(|e| CommandError::Config(format!("Failed to load geometry: {}", e)))
 }
@@ -54,8 +55,7 @@ pub async fn cmd_get_all_layouts_scoped(
     let user_data = UserRepo::new(data_dir);
     let mut all_layouts = user_data.get_layouts(&keyboard_id);
 
-    use keyforge_infra::AssetLoader;
-    if let Ok(def) = state.assets.load_keyboard(&keyboard_id) {
+    if let Ok(def) = state.assets.load_keyboard(&keyboard_id).await {
         all_layouts.extend(def.layouts);
     }
     Ok(all_layouts)

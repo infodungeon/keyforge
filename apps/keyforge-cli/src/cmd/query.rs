@@ -2,7 +2,7 @@ use crate::cli_parsers::resolve_path;
 use clap::Args;
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_protocol::geometry::KeyboardDefinition;
+use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::job::JobIdentifier;
 use keyforge_protocol::CostMatrixSource;
 use std::path::Path;
@@ -41,8 +41,11 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
 
     let cost_source = CostMatrixSource::Predefined(args.shared.cost.clone());
 
+    let proto_geometry: keyforge_protocol::geometry::KeyboardGeometry = 
+        serde_json::from_value(serde_json::to_value(&kb_def.geometry)?)?;
+
     let job_id = JobIdentifier::try_from_parts(
-        &kb_def.geometry,
+        &proto_geometry,
         &config.weights,
         &config.search,
         &constraints,

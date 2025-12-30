@@ -28,10 +28,10 @@ fn extract_score(output: &str) -> String {
 
 #[test]
 fn test_deterministic_output() {
-    let ctx = HermeticWorkspace::new();
-    ctx.ensure_default_weights();
+    let ctx = HermeticWorkspace::new().with_default_assets();
     let bin_path = get_binary_path();
 
+    let w_path = ctx.weights_path("default");
     let args = [
         "search",
         "--seed",
@@ -49,7 +49,7 @@ fn test_deterministic_output() {
         "--keyboard",
         "test_kb",
         "--weights",
-        ctx.weights_path.to_str().unwrap(),
+        w_path.to_str().unwrap(),
         "--keycodes",
         "keycodes.json",
     ];

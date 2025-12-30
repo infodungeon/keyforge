@@ -7,8 +7,8 @@ use std::fs::{self, File};
 use std::io::Write;
 use tempfile::tempdir;
 
-#[test]
-fn test_agent_session_bootstrap() {
+#[tokio::test]
+async fn test_agent_session_bootstrap() {
     let dir = tempdir().unwrap();
     let data_root = dir.path().join("data");
 

@@ -10,10 +10,13 @@ thiserror = "2.0"
 tracing = "0.1"
 tokio = { version = "1.0", features = ["fs", "io-util"] }
 tempfile = "3.10"
+sha2 = "0.10"
+hex = "0.4"
 
 keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-model = { path = "../keyforge-model" }
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-core = { path = "../keyforge-core" }
 keyforge-compute = { path = "../keyforge-compute" }
+async-trait = "0.1"
 keyforge-adapter = { path = "../keyforge-adapter" }

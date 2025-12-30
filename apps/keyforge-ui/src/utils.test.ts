@@ -1,3 +1,4 @@
+// @ts-ignore
 import { describe, it, expect, beforeEach } from "vitest";
 import { calculateStats } from "./services/stats";
 import { keycodeService } from "./services/keycode";
@@ -11,12 +12,12 @@ const mockGeometry: KeyboardGeometry = {
   low_slots: [],
   keys: [
     // Left Hand
-    { x: 0, y: 0, row: 0, col: 0, hand: 0, finger: 1 }, // Index
-    { x: 1, y: 0, row: 0, col: 1, hand: 0, finger: 4 }, // Pinky
+    { index: 0, label: "k0", x: 0, y: 0, w: 1, h: 1, r: 0, rx: 0, ry: 0, row: 0, col: 0, hand: 0, finger: 1, is_home: false, is_stretch: false }, // Index
+    { index: 1, label: "k1", x: 1, y: 0, w: 1, h: 1, r: 0, rx: 0, ry: 0, row: 0, col: 1, hand: 0, finger: 4, is_home: false, is_stretch: false }, // Pinky
     // Right Hand
-    { x: 8, y: 0, row: 0, col: 8, hand: 1, finger: 1 }, // Index
+    { index: 2, label: "k2", x: 8, y: 0, w: 1, h: 1, r: 0, rx: 0, ry: 0, row: 0, col: 8, hand: 1, finger: 1, is_home: false, is_stretch: false }, // Index
     // Thumb
-    { x: 3, y: 3, row: 3, col: 3, hand: 0, finger: 0 },
+    { index: 3, label: "k3", x: 3, y: 3, w: 1, h: 1, r: 0, rx: 0, ry: 0, row: 3, col: 3, hand: 0, finger: 0, is_home: false, is_stretch: false },
   ],
 };
 

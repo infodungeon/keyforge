@@ -14,6 +14,7 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 /// Constructs a HiveClient with optional authentication secret.
+/// Handles fallback to unauthenticated client if secret derivation fails.
 #[must_use]
 pub fn build_client(base_url: &str, secret: Option<String>) -> HiveClient {
     match HiveClient::new(base_url.to_string(), secret.clone()) {
@@ -34,6 +35,9 @@ pub fn build_client(base_url: &str, secret: Option<String>) -> HiveClient {
 }
 
 /// Registers the node with the Hive server and retrieves a tuning profile.
+///
+/// # Security
+/// Exits the process on 401 Unauthorized if a secret was provided.
 #[must_use]
 pub async fn register_node(
     client: &HiveClient,
@@ -114,6 +118,7 @@ pub async fn fetch_population(client: &HiveClient, job_id: &str) -> Vec<String> 
 
 // --- CIRCUIT BREAKER ---
 
+/// A circuit breaker to prevent hammering the Hive server during outages.
 #[derive(Debug)]
 pub struct CircuitBreaker {
     failures: u32,
@@ -168,6 +173,8 @@ impl CircuitBreaker {
 
 // --- ASYNC OUTBOX WITH PERSISTENCE ---
 
+/// An asynchronous outbox that persists results to a Write-Ahead Log (WAL) before sending.
+/// This ensures result durability even if the agent crashes or loses connectivity.
 pub struct ResultOutbox {
     sender: mpsc::Sender<ResultSubmission>,
 }
@@ -233,6 +240,8 @@ impl ResultOutbox {
         Self { sender: tx }
     }
 
+    /// Attempts to send a result through the outbox.
+    /// Returns an error if the internal buffer is full (back-pressure).
     pub fn try_send(&self, result: ResultSubmission) -> Result<(), anyhow::Error> {
         match self.sender.try_send(result) {
             Ok(_) => Ok(()),
@@ -295,6 +304,8 @@ async fn send_with_retry(
 }
 
 /// Verifies the identity of the Hive server using a pinned public key.
+///
+/// Returns `true` if verification succeeds or if no pinning is configured.
 pub fn verify_server_identity(
     server_public_key: &str,
     challenge: &str,

@@ -156,7 +156,7 @@ async fn setup_server() -> (String, PgPool, Arc<AppState>) {
     ));
 
     // Cache Warming
-    use keyforge_model::loader::AssetLoader;
+    use keyforge_core::loader::AssetLoader;
     let _ = state.assets.load_cost_matrix("cost_matrix.json");
     let _ = state
         .assets

@@ -45,7 +45,7 @@ pub trait MutationOperator {
         layout: &Layout,
         pos_map: &[u16],
         rng: &mut impl Rng,
-    ) -> Option<MutationProposal>;
+    ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError>;
 }
 
 /// Defines the criteria for accepting a proposed mutation.

@@ -20,7 +20,8 @@ use crate::state::AppState;
 pub async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<JobQueueResponse>> {
     // 1. Limit Concurrency via Semaphore (HIVE-006)
     let _permit = state
-        .poll_semaphore
+        .jobs
+        .semaphore
         .acquire()
         .await
         .map_err(|_| AppError::Any(anyhow::anyhow!("Semaphore closed")))?;
@@ -36,7 +37,8 @@ async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
 
     loop {
         // 1. Attempt to claim a job from the database
-        if let Some((id, req)) = state.jobs.claim_job().await.map_err(AppError::Database)? {
+        if let Some((id, req)) = state.jobs.repo.claim_job().await.map_err(AppError::Database)? {
+            state.jobs.active_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return Ok(JobQueueResponse {
                 job_id: Some(id),
                 config: Some(JobConfig::from(req)),
@@ -55,7 +57,7 @@ async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
         let remaining = timeout.saturating_sub(start.elapsed());
 
         tokio::select! {
-            _ = state.job_signal.notified() => {
+            _ = state.jobs.signal.notified() => {
                 // Return to start of loop to re-check DB
                 continue;
             }

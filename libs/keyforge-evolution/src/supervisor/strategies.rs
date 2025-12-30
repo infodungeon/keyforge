@@ -17,10 +17,10 @@ impl MutationOperator for SwapMutation {
         layout: &Layout,
         pos_map: &[u16],
         rng: &mut impl Rng,
-    ) -> Option<MutationProposal> {
+    ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError> {
         let len = self.unlocked_indices.len();
         if len < 2 {
-            return None;
+            return Ok(None);
         }
 
         let i = rng.gen_range(0..len);
@@ -33,12 +33,12 @@ impl MutationOperator for SwapMutation {
         let idx_a = self.unlocked_indices[i];
         let idx_b = self.unlocked_indices[j];
 
-        let delta = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b);
+        let delta = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
 
-        Some(MutationProposal {
+        Ok(Some(MutationProposal {
             delta,
             action: MutationAction::Swap(idx_a.into(), idx_b.into()),
-        })
+        }))
     }
 }
 
@@ -53,10 +53,10 @@ impl MutationOperator for GroupMutation {
         layout: &Layout,
         pos_map: &[u16],
         rng: &mut impl Rng,
-    ) -> Option<MutationProposal> {
+    ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError> {
         let len = self.unlocked_indices.len();
         if len < 2 {
-            return None;
+            return Ok(None);
         }
 
         // Adaptive Strategy:
@@ -70,12 +70,12 @@ impl MutationOperator for GroupMutation {
         let idx_b = self.unlocked_indices[indices.index(1)];
 
         if use_swap {
-            let delta = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b);
+            let delta = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
 
-            return Some(MutationProposal {
+            return Ok(Some(MutationProposal {
                 delta,
                 action: MutationAction::Swap(idx_a.into(), idx_b.into()),
-            });
+            }));
         }
 
         // 3-Way Swap
@@ -83,7 +83,7 @@ impl MutationOperator for GroupMutation {
 
         // Decomposed Delta Calculation (O(N))
         // 1. Swap A <-> B
-        let d1 = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b);
+        let d1 = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
 
         // 2. Simulate state after first swap
         let mut temp_pos_map = pos_map.to_vec();
@@ -96,16 +96,12 @@ impl MutationOperator for GroupMutation {
         temp_keys.swap(idx_a, idx_b);
 
         // 3. Swap A (now at idx_b) <-> C (at idx_c) ?
-        // Indices: a, b, c.
-        // Start: [A, B, C]
-        // Swap(a, b): [B, A, C]
-        // Swap(a, c): [C, A, B] -> Correct rotation.
-        let d2 = engine.calculate_swap_delta(&temp_keys, &temp_pos_map, idx_a, idx_c);
+        let d2 = engine.calculate_swap_delta(&temp_keys, &temp_pos_map, idx_a, idx_c)?;
 
-        Some(MutationProposal {
+        Ok(Some(MutationProposal {
             delta: d1 + d2,
             action: MutationAction::GroupSwap(idx_a.into(), idx_b.into(), idx_c.into()),
-        })
+        }))
     }
 }
 
@@ -186,9 +182,9 @@ mod tests {
             let score_before = engine.score_raw(&state.layout().keys);
             let mutation = GroupMutation { unlocked_indices: (0..size).collect() };
             let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
-            if let Some(proposal) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation) {
+            if let Ok(Some(proposal)) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation) {
                 state.apply_mutation(proposal.action);
-                let score_after = engine.score_raw(&state.layout().keys);
+                let score_after = engine.score_raw(&state.layout().keys).unwrap();
                 let actual_delta = score_after - score_before;
                 prop_assert_eq!(proposal.delta, actual_delta);
             }
