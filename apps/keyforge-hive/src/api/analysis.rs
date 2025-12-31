@@ -5,7 +5,7 @@ use crate::state::AppState;
 use axum::{extract::State, Json};
 use keyforge_adapter::conversion;
 use keyforge_core::loader::AssetLoader;
-use keyforge_protocol::config::ScoringWeights;
+use keyforge_model::ScoringWeights;
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -25,9 +25,7 @@ pub async fn validate_layout(
 
     // NOTE: this endpoint is effectively a “quick analysis” endpoint.
     // For now it uses a fixed corpus (same as previous behavior).
-    // NOTE: this endpoint is effectively a “quick analysis” endpoint.
-    // For now it uses a fixed corpus (same as previous behavior).
-    let corpus_sources = [keyforge_model::config::CorpusSource {
+    let corpus_sources = [keyforge_model::CorpusSource {
         id: "text/en_std".to_string(),
         weight: 1.0,
         hash: None,
@@ -86,10 +84,8 @@ pub async fn validate_layout(
     let report = engine.analyze(&layout)
         .map_err(|e| AppError::Validation(format!("Analysis failed: {}", e)))?;
 
-    // Convert Model Geometry to Protocol for Response
-    let proto_geometry: keyforge_protocol::geometry::KeyboardGeometry =
-        serde_json::from_value(serde_json::to_value(&definition.geometry)?)
-            .map_err(|e| AppError::Any(anyhow::anyhow!("Geometry conversion failed: {}", e)))?;
+    // Model geometry is now standard
+    let proto_geometry = definition.geometry.clone();
 
     Ok(Json(ValidationResult {
         layout_name: "Custom".to_string(),

@@ -1,15 +1,16 @@
 use crate::cache::{CompiledEngineCache, GlobalAssetCache};
 use crate::error::{AppError, AppResult};
 use crate::infra::repositories::{JobRepository, NodeRepository};
-use keyforge_protocol::{
-    config::CorpusSource,
+use keyforge_model::{
+    CorpusSource,
     constants::{VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO},
-    CostMatrixSource, ResultSubmission,
+    CostMatrixSource, KeyboardDefinition, SearchParams
 };
+use keyforge_protocol::ResultSubmission;
 use keyforge_compute::SessionBuilder;
 use keyforge_infra::AssetLoader;
 use keyforge_security as crypto;
-use keyforge_core::ScoringEngine; // Corrected import
+use keyforge_core::ScoringEngine;
 use std::sync::Arc;
 use tracing::warn;
 
@@ -99,7 +100,7 @@ impl VerificationService {
         };
 
         let builder = SessionBuilder::new(self.assets.as_ref());
-        let kb_def = keyforge_protocol::geometry::KeyboardDefinition {
+        let kb_def = KeyboardDefinition {
             meta: Default::default(),
             geometry,
             layouts: Default::default(),
@@ -109,7 +110,7 @@ impl VerificationService {
             &kb_def,
             &[CorpusSource { id: corpus_name, weight: 1.0, hash: None }],
             &weights,
-            &keyforge_protocol::config::SearchParams::default(),
+            &SearchParams::default(),
             "keycodes.json",
             &cost_source,
             None

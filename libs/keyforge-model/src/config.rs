@@ -38,6 +38,15 @@ pub struct Config {
     pub defs: LayoutDefinitions,
 }
 
+impl Validator for Config {
+    fn validate(&self) -> Result<(), String> {
+        self.search.validate()?;
+        self.weights.validate()?;
+        self.defs.validate()?;
+        Ok(())
+    }
+}
+
 /// Defines a source for text corpus data.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -50,6 +59,18 @@ pub struct CorpusSource {
     #[serde(default, skip_serializing_if = "crate::serde_utils::is_none")]
     #[cfg_attr(feature = "ts_bindings", ts(optional))]
     pub hash: Option<String>,
+}
+
+impl Validator for CorpusSource {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.trim().is_empty() {
+            return Err("Corpus ID cannot be empty".to_string());
+        }
+        if self.weight <= 0.0 || !self.weight.is_finite() {
+            return Err(format!("Invalid weight for corpus '{}': {}", self.id, self.weight));
+        }
+        Ok(())
+    }
 }
 
 impl Hash for CorpusSource {
@@ -394,6 +415,19 @@ impl Default for LayoutDefinitions {
     }
 }
 
+impl Validator for LayoutDefinitions {
+    fn validate(&self) -> Result<(), String> {
+        if self.tier_high_chars.is_empty() { return Err("tier_high_chars cannot be empty".to_string()); }
+        
+        // Validate numeric strings
+        if let Err(e) = parse_f32_array::<5>(&self.finger_repeat_scale) {
+            return Err(format!("Invalid finger_repeat_scale: {}", e));
+        }
+        
+        Ok(())
+    }
+}
+
 impl LayoutDefinitions {
     /// Parses the critical bigrams string into a vector of byte arrays.
     pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
@@ -448,6 +482,15 @@ pub struct KeyConstraint {
     pub index: KeyIndex,
     /// The key label to pin (e.g., "A", "Shift").
     pub key: String,
+}
+
+impl Validator for KeyConstraint {
+    fn validate(&self) -> Result<(), String> {
+        if self.key.trim().is_empty() {
+            return Err(format!("Constraint for index {} has empty key", self.index));
+        }
+        Ok(())
+    }
 }
 
 impl FromStr for KeyConstraint {

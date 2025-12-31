@@ -14,7 +14,7 @@
 use super::traits::{AcceptanceCriteria, MutationAction, MutationOperator, MutationProposal};
 use keyforge_model::Layout;
 use keyforge_physics::ScoringEngine;
-use keyforge_protocol::constants::SCORE_SCALE;
+use keyforge_model::constants::SCORE_SCALE;
 use rand::Rng;
 use rand::seq::index::sample;
 
@@ -36,8 +36,8 @@ impl MutationOperator for SwapMutation {
             return Ok(None);
         }
 
-        let i = rng.gen_range(0..len);
-        let mut j = rng.gen_range(0..len);
+        let i = rng.random_range(0..len);
+        let mut j = rng.random_range(0..len);
 
         if i == j {
             j = (j + 1) % len;
@@ -75,7 +75,7 @@ impl MutationOperator for GroupMutation {
         // Adaptive Strategy:
         // If < 3 keys, must use 2-way swap.
         // If >= 3 keys, 50% chance of 2-way, 50% chance of 3-way.
-        let use_swap = len < 3 || rng.gen_bool(0.5);
+        let use_swap = len < 3 || rng.random_bool(0.5);
         let sample_size = if use_swap { 2 } else { 3 };
 
         let indices = sample(rng, len, sample_size);
@@ -134,7 +134,7 @@ impl AcceptanceCriteria for CoolingAnnealing {
         let delta_f = delta as f32 / SCORE_SCALE;
         // INVARIANT: kani::assume(temperature > 0.0);
         let probability = (-delta_f / temperature).exp();
-        rng.gen::<f32>() < probability
+        rng.random::<f32>() < probability
     }
 }
 
@@ -192,7 +192,7 @@ mod tests {
             keys.shuffle(&mut rng_layout);
             let layout = Layout::new_unchecked(keys);
             let mut state = SearchState::new(layout, 0, 1.0);
-            let score_before = engine.score_raw(&state.layout().keys);
+            let score_before = engine.score_raw(&state.layout().keys).unwrap();
             let mutation = GroupMutation { unlocked_indices: (0..size).collect() };
             let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
             if let Ok(Some(proposal)) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation) {

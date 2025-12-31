@@ -59,6 +59,13 @@ pub struct KeyboardDefinition {
     pub layouts: HashMap<String, String>,
 }
 
+impl Validator for KeyboardDefinition {
+    fn validate(&self) -> Result<(), String> {
+        self.geometry.validate()?;
+        Ok(())
+    }
+}
+
 /// Represents a single physical key on the keyboard.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]

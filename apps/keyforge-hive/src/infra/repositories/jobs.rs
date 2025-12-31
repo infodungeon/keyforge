@@ -1,7 +1,8 @@
-use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
-use keyforge_protocol::constants::MAX_PINNED_KEYS_COUNT;
-use keyforge_protocol::geometry::{KeyboardDefinition, KeyboardGeometry};
-use keyforge_protocol::{CostMatrixSource, JobRequest, KeyConstraint, Validator};
+use keyforge_model::{CorpusSource, ScoringWeights, SearchParams, KeyIndex};
+use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
+use keyforge_model::{KeyboardDefinition, KeyboardGeometry};
+use keyforge_model::{CostMatrixSource, KeyConstraint, Validator};
+use keyforge_protocol::JobRequest;
 use sha2::{Digest, Sha256};
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
@@ -147,7 +148,7 @@ impl JobRepository {
 
         if keys_exist.is_none() {
             for (idx, key) in req.definition.geometry.keys.iter().enumerate() {
-                let kidx = keyforge_protocol::types::KeyIndex(idx as u16);
+                let kidx = KeyIndex(idx as u16);
                 let is_prime = req.definition.geometry.prime_slots.contains(&kidx);
                 let is_med = req.definition.geometry.med_slots.contains(&kidx);
                 let is_low = req.definition.geometry.low_slots.contains(&kidx);

@@ -4,13 +4,15 @@ use axum::{
     response::IntoResponse,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use keyforge_protocol::constants::{WS_MSG_CANCEL, WS_MSG_JOB};
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::time::interval;
 use tracing::{debug, info, warn};
+
+const WS_MSG_CANCEL: &str = "cancel";
+const WS_MSG_JOB: &str = "job";
 
 #[derive(Serialize)]
 #[serde(tag = "type", content = "payload")]
@@ -93,5 +95,5 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     }
 
     send_task.abort();
-    info!("�� Worker disconnected");
+    info!(" Worker disconnected");
 }

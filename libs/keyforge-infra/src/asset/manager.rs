@@ -14,7 +14,8 @@
 use crate::error::InfraResult;
 use crate::net::client::HiveClient;
 use crate::net::network::ensure_file;
-use keyforge_protocol::{CostMatrixSource, JobConfig};
+use keyforge_model::CostMatrixSource;
+use keyforge_protocol::JobConfig;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tracing::info;

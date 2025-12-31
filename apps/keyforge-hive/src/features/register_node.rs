@@ -1,5 +1,6 @@
 use axum::{extract::State, Json};
-use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile, Validator, PROTOCOL_VERSION};
+use keyforge_model::Validator;
+use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile, PROTOCOL_VERSION};
 use std::sync::Arc;
 use tracing::info;
 use crate::error::{AppError, AppResult};

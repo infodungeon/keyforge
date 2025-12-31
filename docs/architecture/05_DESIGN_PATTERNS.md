@@ -1,6 +1,6 @@
 # Design Patterns & Architectural Styles
 
-**Version:** 4.1
+**Version:** 4.2
 **Context:** Key patterns used to enforce reliability and maintainability.
 
 ## 1. The Typestate Pattern (Compiler State Machine)
@@ -76,3 +76,29 @@ Organize code by **Feature**, not by technical layer.
 **Target:** IO Boundaries
 
 Strip logic out of the "Driver" (HTTP Handler, CLI Command) and move it to a pure, testable function.
+
+## 7. The Hybrid DTO Pattern
+
+**Target:** `keyforge-protocol` / `keyforge-model`
+
+To avoid the boilerplate of maintaining duplicate structs (e.g., `JobRequestDto` vs `JobRequestDomain`), we embed **Domain Entities** directly inside **Data Transfer Objects**.
+
+*   **The DTO (`JobRequest`):** Acts as the "Envelope". It handles serialization and Protocol-level validation (Versioning, Request Limits).
+*   **The Domain Entity (`KeyboardDefinition`):** Acts as the "Payload". It handles Business Logic validation (Physics, Geometry).
+
+**The Validation Chain:**
+The DTO implements `Validator` and **must** delegate validation to its embedded Domain Entities.
+
+```rust
+impl Validator for JobRequest {
+    fn validate(&self) -> Result<(), String> {
+        // 1. Protocol Check (The Bouncer)
+        if self.biometrics.len() > 1000 { return Err("Too big"); }
+        
+        // 2. Domain Check (The Rules)
+        self.definition.validate()?; 
+        
+        Ok(())
+    }
+}
+```

@@ -4,10 +4,10 @@ version = "0.8.0"
 edition = "2021"
 
 [dependencies]
-crc32fast = "1.3"
-tikv-jemallocator = "0.5"
-bincode = "1.3"
-bytes = "1.5"
+crc32fast = "1.5"
+tikv-jemallocator = "0.6"
+postcard = { version = "1.1", features = ["use-std"] }
+bytes = "1.11"
 mime_guess = "2.0"
 
 # Internal
@@ -23,16 +23,16 @@ keyforge-persistence = { path = "../../libs/keyforge-persistence" }
 async-trait = "0.1"
 
 # Web Framework
-axum = { version = "0.7.9", features = ["ws"] }
-axum-server = { version = "0.7", features = ["tls-rustls"] }
+axum = { version = "0.8.8", features = ["ws"] }
+axum-server = { version = "0.8", features = ["tls-rustls"] }
 tokio = { version = "1.48", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-toml = "0.8"
+toml = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
-tower-http = { version = "0.5.2", features = [
+tower-http = { version = "0.6.8", features = [
     "cors",
     "trace",
     "fs",
@@ -43,8 +43,8 @@ tower-http = { version = "0.5.2", features = [
 futures = "0.3"
 
 # Rate Limiting
-tower_governor = "0.4.2"
-governor = "0.6.3"
+tower_governor = "0.8.0"
+governor = "0.10.4"
 
 # Database (PostgreSQL)
 sqlx = { version = "0.8.6", features = [
@@ -62,47 +62,47 @@ moka = { version = "0.12", features = ["sync"] }
 # Security
 subtle = "2.6"
 sha2 = "0.10"
-base64 = "0.21"
-rand = "0.8"
+base64 = "0.22"
+rand = "0.9"
 hex = "0.4"
 
 # Utilities
 clap = { version = "4.5.53", features = ["derive", "env"] }
 walkdir = "2"
-notify = "6.1"
+notify = "8.2"
 uuid = { version = "1.19", features = ["v4", "serde"] }
 chrono = { version = "0.4.42", features = ["serde"] }
 fastrand = "2.3.0"
-sysinfo = "0.30"
+sysinfo = "0.37"
 
 # TUI (Admin Console)
-ratatui = "0.26"
-crossterm = "0.27"
+ratatui = "0.30"
+crossterm = "0.29"
 
 # HTTP Client
-reqwest = { version = "0.12.24", features = ["json"] }
+reqwest = { version = "0.13.1", features = ["json"] }
 
 # Error Handling
 thiserror = "2.0.17"
 anyhow = "1.0.100"
 
 # API Documentation
-utoipa = { version = "4.2", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "7.1", features = ["axum"] }
+utoipa = { version = "5.4", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 
 # Observability
-opentelemetry = { version = "0.28.0", features = ["trace"] }
-opentelemetry_sdk = { version = "0.28.0", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.28.0", features = ["grpc-tonic"] }
-tracing-opentelemetry = "0.29.0"
-metrics = "0.22"
-once_cell = "1.19"
-metrics-exporter-prometheus = "0.13"
+opentelemetry = { version = "0.31.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
+tracing-opentelemetry = "0.32.0"
+metrics = "0.24"
+once_cell = "1.21"
+metrics-exporter-prometheus = "0.18"
 
 [dev-dependencies]
 uuid = { version = "1.19.0", features = ["v4"] }
 futures = "0.3.31"
-tempfile = "3.23.0"
+tempfile = "3.24.0"
 tokio = { version = "1.48.0", features = ["macros", "test-util"] }
-proptest = "1.4.0"
+proptest = "1.9.0"
 tower = { version = "0.5.2", features = ["util"] }

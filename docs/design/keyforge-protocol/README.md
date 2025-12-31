@@ -46,94 +46,33 @@ classDiagram
         +validate() Result
     }
 
-    class NodeRequest {
-        +String node_id
-        +String cpu_model
-        +i32 cores
-        +f32 ops_per_sec
-        +validate() Result
-    }
-
     %% --- Relationships ---
     JobRequest ..> JobConfig : Transformed by Hive
     JobConfig ..> ResultSubmission : Produces
 ```
 
-### Job Lifecycle DTOs
+## 2. Validation Strategy (The Bouncer Pattern)
 
-| DTO | Direction | Purpose |
-| :--- | :--- | :--- |
-| **`JobRequest`** | Client -> Server | Request a new optimization job. Contains `KeyboardDefinition`, `CorpusSource`, etc. |
-| **`JobConfig`** | Server -> Worker | The fully resolved configuration for a worker to execute. |
-| **`ResultSubmission`** | Worker -> Server | The optimized layout and its score, signed by the worker. |
+The Protocol layer acts as the **Bouncer** for the system. It enforces "Envelope Integrity" before allowing data to reach the Domain.
 
-## 2. Protocol Behavior
+### Responsibilities
 
-The interaction flow between the system components.
+1.  **Protocol Validation (The Envelope):**
+    *   **Versioning:** Is `version` compatible?
+    *   **Limits:** Is the payload too large? (e.g., `biometrics.len() > 10,000`).
+    *   **Structure:** Are required fields present?
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Hive as Server
-    participant DB as Database
-    participant Worker
+2.  **Domain Delegation (The Payload):**
+    *   The DTO **must** call `.validate()` on all embedded Domain Entities (`KeyboardDefinition`, `ScoringWeights`).
+    *   This ensures that business rules (e.g., "Weights must be positive") are enforced at the API boundary.
 
-    %% --- Submission Phase ---
-    Note over Client, DB: Phase 1: Submission
-    Client->>Hive: POST /jobs (JobRequest)
-    activate Hive
-    Hive->>Hive: JobRequest.validate()
-    alt Invalid
-        Hive-->>Client: 400 Bad Request (ErrorCode)
-    else Valid
-        Hive->>DB: Insert Job (Pending)
-        DB-->>Hive: JobID
-        Hive-->>Client: 202 Accepted (JobID)
-    end
-    deactivate Hive
-
-    %% --- Execution Phase ---
-    Note over Hive, Worker: Phase 2: Execution
-    loop Polling
-        Worker->>Hive: GET /jobs/queue (NodeRequest)
-        activate Hive
-        Hive->>DB: Fetch Pending Job
-        alt Empty
-            Hive-->>Worker: 204 No Content
-        else Found
-            DB-->>Hive: Job Data
-            Hive->>Hive: Transform -> JobConfig
-            Hive-->>Worker: 200 OK (JobConfig)
-        end
-        deactivate Hive
-    end
-
-    %% --- Completion Phase ---
-    Note over Worker, DB: Phase 3: Completion
-    Worker->>Worker: Optimize...
-    Worker->>Worker: Sign Result
-    Worker->>Hive: POST /results (ResultSubmission)
-    activate Hive
-    Hive->>Hive: ResultSubmission.validate()
-    Hive->>Hive: Verify Signature
-    Hive->>DB: Update Job (Completed)
-    Hive-->>Worker: 200 OK
-    deactivate Hive
-```
-
-## 3. Security & Validation
-
-### DoS Protection
+## 3. Security & DoS Protection
 
 To prevent memory exhaustion attacks via massive JSON payloads, we enforce strict limits on collection sizes during deserialization.
 
 * **Mechanism:** `#[serde(deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]`
 * **Limit:** Vectors are capped at 100,000 items.
 * **Target:** `biometrics`, `pinned_keys`, `corpora`.
-
-### Validation
-
-All DTOs implement the `Validator` trait. Validation occurs immediately upon deserialization at the API boundary.
 
 ## 4. The Error Registry
 
@@ -163,28 +102,6 @@ To ensure the Frontend (`keyforge-ui`) stays in sync with the Backend, we use `t
 * **Source:** `#[derive(TS)]` on DTOs.
 * **Output:** `bindings/` directory.
 * **Usage:** The Frontend imports these types directly, ensuring compile-time safety across the network boundary.
-
-### Example
-
-**Rust:**
-
-```rust
-#[derive(TS)]
-#[ts(export)]
-pub struct BiometricSample {
-    pub bigram: String,
-    pub ms: f64,
-}
-```
-
-**Generated TypeScript:**
-
-```typescript
-export type BiometricSample = {
-  bigram: string;
-  ms: number;
-};
-```
 
 ## 6. Versioning
 

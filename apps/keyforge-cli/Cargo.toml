@@ -9,10 +9,10 @@ path = "src/main.rs"
 
 [dependencies]
 dirs = "6.0"
-indicatif = "0.17"
+indicatif = "0.18"
 keyforge-core = { path = "../../libs/keyforge-core" }
-tokio = { version = "1.0", features = ["full"] }
-sysinfo = "0.30"
+tokio = { version = "1.48", features = ["full"] }
+sysinfo = "0.37"
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
 keyforge-compute = { path = "../../libs/keyforge-compute" }
@@ -22,32 +22,32 @@ keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 clap = { version = "4.5.53", features = ["derive", "env"] }
 clap_complete = "4.5"
-tracing = "0.1.43"
+tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
-tracing-opentelemetry = "0.29.0"
-opentelemetry = { version = "0.28.0", features = ["trace"] }
-opentelemetry_sdk = { version = "0.28.0", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.28.0", features = ["grpc-tonic"] }
+tracing-opentelemetry = "0.32.0"
+opentelemetry = { version = "0.31.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
 comfy-table = "7.2.1"
-serde_json = { version = "1.0.145", features = ["unbounded_depth"] }
+serde_json = { version = "1.0.148", features = ["unbounded_depth"] }
 serde = { version = "1.0.228", features = ["derive"] }
 rayon = "1.11.0"
 fastrand = "2.3"
-reqwest = { version = "0.12.24", features = ["blocking", "json"] }
+reqwest = { version = "0.13.1", features = ["blocking", "json"] }
 hex = "0.4"
-num_cpus = "1.16"
+num_cpus = "1.17"
 thiserror = "2.0"
-ctrlc = "3.4"
+ctrlc = "3.5"
 sqlx = { version = "0.8.6", features = [
     "runtime-tokio",
     "tls-rustls",
     "postgres",
 ] }
-self_update = "0.41"
+self_update = "0.42"
 
 [dev-dependencies]
 keyforge-testing = { path = "../../libs/keyforge-testing" }
-tempfile = "3.10"
+tempfile = "3.24"
 keyforge-hive = { path = "../keyforge-hive" }
 futures = "0.3"
-axum = "0.7"
+axum = "0.8"

@@ -1,4 +1,3 @@
-// ===== keyforge/crates/keyforge-agent/src/agent/network.rs =====
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use keyforge_infra::HiveClient;
 use keyforge_protocol::{
@@ -293,7 +292,7 @@ async fn send_with_retry(
         attempts += 1;
         if attempts < max_attempts {
             let base_backoff = 500 * (1 << attempts);
-            let jitter = rand::thread_rng().gen_range(0..500);
+            let jitter = rand::rng().random_range(0..500);
             let backoff = Duration::from_millis(base_backoff + jitter);
             tokio::time::sleep(backoff).await;
         }

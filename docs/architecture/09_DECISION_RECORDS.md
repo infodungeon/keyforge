@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-**Version:** 4.1
+**Version:** 4.2
 **Context:** Log of significant architectural decisions.
 
 ## Index
@@ -10,6 +10,7 @@
 * [ADR-003: Shared Secret Auth](#adr-003-shared-secret-auth)
 * [ADR-004: Postcard for Deterministic Hashing](#adr-004-postcard-for-deterministic-hashing)
 * [ADR-005: Feature Gating TypeScript Bindings](#adr-005-feature-gating-typescript-bindings)
+* [ADR-006: Universal Domain Validation](#adr-006-universal-domain-validation)
 
 ---
 
@@ -63,3 +64,15 @@
   * (+) Clean build logs for standard development (`cargo test`).
   * (+) Reduced dependency footprint for production builds.
   * (-) Developers must explicitly run `cargo test --features ts_bindings` to verify bindings.
+
+## ADR-006: Universal Domain Validation
+
+* **Status:** Accepted
+* **Date:** 2025-12-31
+* **Context:** Domain entities were being deserialized at various boundaries (API, Disk, WASM) without consistent validation. Some entities relied on inherent methods, others on traits, and some had no validation at all, leading to potential "shotgun parsing" vulnerabilities.
+* **Decision:** Implement the `Validator` trait for **all** Domain Entities in `keyforge-model`. Enforce `.validate()` calls immediately after deserialization at **all** system boundaries (`keyforge-infra`, `keyforge-hive`, `keyforge-wasm`).
+* **Consequences:**
+  * (+) Guarantees invalid data is caught at the IO boundary before entering the domain.
+  * (+) Centralizes validation logic in the Model layer (Single Source of Truth).
+  * (+) Ensures consistency across different drivers (CLI vs Web vs Server).
+  * (-) Requires boilerplate `Validator` implementations for simple structs.

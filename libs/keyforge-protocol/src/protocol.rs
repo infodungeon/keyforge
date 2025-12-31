@@ -90,7 +90,11 @@ impl Validator for JobRequest {
     fn validate(&self) -> Result<(), String> {
         self.weights.validate()?;
         self.params.validate()?;
-        self.definition.geometry.validate()?;
+        self.definition.validate()?;
+
+        for (i, corpus) in self.corpora.iter().enumerate() {
+            corpus.validate().map_err(|e| format!("Corpus #{}: {}", i, e))?;
+        }
 
         if self.definition.geometry.keys.len() > constants::MAX_KEYBOARD_KEYS {
             return Err(format!("Geometry exceeds maximum key limit ({})", constants::MAX_KEYBOARD_KEYS));

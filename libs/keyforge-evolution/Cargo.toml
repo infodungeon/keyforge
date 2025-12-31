@@ -4,18 +4,18 @@ version = "0.8.0"
 edition = "2021"
 
 [dependencies]
-rand = "0.8"
-rand_xoshiro = "0.6"
+rand = "0.9"
+rand_xoshiro = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 keyforge-model = { path = "../keyforge-model" }
 keyforge-physics = { path = "../keyforge-physics" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 tracing = { version = "0.1", features = ["attributes"] }
-thiserror = "1.0"
+thiserror = "2.0"
 
 [features]
 default = []
 single_threaded = []
 
 [dev-dependencies]
-proptest = "1.4"
+proptest = "1.9"

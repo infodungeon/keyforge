@@ -17,7 +17,7 @@ use crate::errors::EvolutionError;
 use crate::ProgressCallback;
 use keyforge_model::{Layout, KeyCode};
 use keyforge_physics::ScoringEngine;
-use keyforge_protocol::constants::SCORE_SCALE;
+use keyforge_model::constants::SCORE_SCALE;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
@@ -91,7 +91,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         time_keeper: T,
     ) -> Self {
         let rng = if config.seed == 0 {
-            Xoshiro256PlusPlus::from_entropy()
+            Xoshiro256PlusPlus::from_rng(&mut rand::rng())
         } else {
             Xoshiro256PlusPlus::seed_from_u64(config.seed)
         };
@@ -224,11 +224,11 @@ mod tests {
             _layout: &Layout,
             _pos_map: &[u16],
             _rng: &mut impl rand::Rng,
-        ) -> Option<MutationProposal> {
-            Some(MutationProposal {
+        ) -> Result<Option<MutationProposal>, EvolutionError> {
+            Ok(Some(MutationProposal {
                 delta: 1000,
                 action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
-            })
+            }))
         }
     }
 
@@ -447,11 +447,11 @@ mod tests {
                 _layout: &Layout,
                 _pos_map: &[u16],
                 _rng: &mut impl rand::Rng,
-            ) -> Option<MutationProposal> {
-                Some(MutationProposal {
+            ) -> Result<Option<MutationProposal>, EvolutionError> {
+                Ok(Some(MutationProposal {
                     delta: i64::MAX - 10,
                     action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
-                })
+                }))
             }
         }
         let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 1000, 0, 1.0).unwrap();

@@ -1,5 +1,5 @@
 use axum::{extract::State, Json};
-use keyforge_protocol::LayoutValidator;
+use keyforge_model::LayoutValidator;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use std::sync::Arc;

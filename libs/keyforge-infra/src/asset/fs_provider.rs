@@ -19,6 +19,7 @@ use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use sha2::Digest;
+use keyforge_model::validator::Validator;
 use std::fs::File;
 
 use std::path::{Path, PathBuf};
@@ -158,10 +159,14 @@ impl AssetLoader for FsProvider {
     async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
         let stem = name.strip_suffix(".json").unwrap_or(name);
         if let Some(p) = self.resolve_system_path("keyboards", stem) {
-            return self.load_binary(&p).await;
+            let kb: KeyboardDefinition = self.load_binary(&p).await?;
+            kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid system keyboard '{}': {}", name, e)))?;
+            return Ok(kb);
         }
         if let Some(p) = self.resolve_user_path("keyboards", stem) {
-            return self.load_json(&p).await;
+            let kb: KeyboardDefinition = self.load_json(&p).await?;
+            kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid user keyboard '{}': {}", name, e)))?;
+            return Ok(kb);
         }
         Err(ForgeError::NotFound(name.to_string()))
     }
@@ -228,6 +233,7 @@ impl AssetLoader for FsProvider {
                 }
             }
         }
+        corpus.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid corpus: {}", e)))?;
         Ok(corpus)
     }
 
@@ -260,12 +266,16 @@ impl AssetLoader for FsProvider {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         if let Some(p) = self.resolve_system_path("config", stem) {
             let defs = self.load_binary(&p).await?;
-            return Ok(KeycodeRegistry::new(defs));
+            let reg = KeycodeRegistry::new(defs);
+            reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid system keycodes: {}", e)))?;
+            return Ok(reg);
         }
         let p = self
             .resolve_user_path("config", stem)
             .ok_or(ForgeError::NotFound(filename.to_string()))?;
         let defs = self.load_json(&p).await?;
-        Ok(KeycodeRegistry::new(defs))
+        let reg = KeycodeRegistry::new(defs);
+        reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid user keycodes: {}", e)))?;
+        Ok(reg)
     }
 }

@@ -1,5 +1,5 @@
 use keyforge_model::AnalysisReport;
-use keyforge_protocol::geometry::KeyboardGeometry;
+use keyforge_model::KeyboardGeometry;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

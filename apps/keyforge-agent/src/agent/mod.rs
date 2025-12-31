@@ -12,7 +12,6 @@ use keyforge_infra::init::initialize_workspace;
 use keyforge_infra::HiveClient;
 use keyforge_protocol::{NodeRequest, ResultSubmission, PROTOCOL_VERSION};
 use keyforge_security as crypto;
-use rand::rngs::OsRng;
 use rand::Rng;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -289,7 +288,7 @@ async fn process_connection(
                             .unwrap_or(Duration::from_secs(0))
                             .as_secs();
 
-                        let nonce = OsRng.gen::<u64>();
+                        let nonce = rand::rng().random::<u64>();
 
                         // Sign the DETERMINISTIC score
                         let signature = crypto::sign_result_direct(

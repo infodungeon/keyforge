@@ -91,12 +91,12 @@ async fn test_wal_recovery() {
         node_id: node_id.clone(),
     };
 
-    let record_bytes = bincode::serialize(&record).unwrap();
+    let record_bytes = postcard::to_stdvec(&record).unwrap();
     let checksum = crc32fast::hash(&record_bytes);
 
     let entry = WalEntry { checksum, record };
 
-    let bytes = bincode::serialize(&entry).unwrap();
+    let bytes = postcard::to_stdvec(&entry).unwrap();
     std::fs::write(queue_dir.join(format!("{}.bin", wal_id)), bytes).unwrap();
 
     let assets = Arc::new(GlobalAssetCache::new(data_path.clone()));

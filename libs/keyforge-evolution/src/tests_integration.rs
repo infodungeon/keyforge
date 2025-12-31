@@ -101,7 +101,7 @@ fn test_monotonicity_zero_temp() {
         crate::supervisor::traits::RealTimeKeeper,
     );
 
-    optimizer.run(None, &callback);
+    optimizer.run(None, &callback).unwrap();
     assert!(!callback.failed.load(Ordering::SeqCst), "Score increased during zero-temperature annealing!");
 }
 
@@ -118,7 +118,7 @@ fn test_annealing_edge_cases() {
         CoolingAnnealing,
         crate::supervisor::traits::RealTimeKeeper,
     );
-    opt_entropy.run(None, crate::NoOpCallback);
+    opt_entropy.run(None, crate::NoOpCallback).unwrap();
 
     // 2. Steps = 0
     assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
@@ -132,7 +132,7 @@ fn test_annealing_edge_cases() {
         CoolingAnnealing,
         crate::supervisor::traits::RealTimeKeeper,
     );
-    opt_fast.run(None, crate::NoOpCallback);
+    opt_fast.run(None, crate::NoOpCallback).unwrap();
 }
 
 // --- Shadow Execution Tests ---
@@ -250,7 +250,7 @@ fn test_singularity_zero_temp_execution() {
         crate::supervisor::traits::RealTimeKeeper,
     );
 
-    let result = optimizer.run(None, crate::NoOpCallback);
+    let result = optimizer.run(None, crate::NoOpCallback).unwrap();
     assert_eq!(result.keys.len(), 2);
 }
 
@@ -300,11 +300,11 @@ impl MutationOperator for StagnantMutation {
         _layout: &Layout,
         _pos_map: &[u16],
         _rng: &mut impl rand::Rng,
-    ) -> Option<MutationProposal> {
-        Some(MutationProposal {
+    ) -> Result<Option<MutationProposal>, EvolutionError> {
+        Ok(Some(MutationProposal {
             delta: 1000,
             action: MutationAction::Swap(KeyIndex(0), KeyIndex(1)),
-        })
+        }))
     }
 }
 
@@ -316,5 +316,5 @@ fn test_reheat_exhaustion() {
     let mut optimizer = Optimizer::new(
         &engine, config, StagnantMutation, CoolingAnnealing, crate::supervisor::traits::RealTimeKeeper,
     );
-    optimizer.run(None, crate::NoOpCallback);
+    optimizer.run(None, crate::NoOpCallback).unwrap();
 }

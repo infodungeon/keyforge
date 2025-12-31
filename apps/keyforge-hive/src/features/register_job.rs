@@ -1,6 +1,6 @@
 use axum::{extract::State, Json};
-use keyforge_protocol::job::JobIdentifier;
-use keyforge_protocol::{CostMatrixSource, JobRequest, JobResponse, Validator, PROTOCOL_VERSION};
+use keyforge_model::{CostMatrixSource, JobIdentifier, Validator};
+use keyforge_protocol::{JobRequest, JobResponse, PROTOCOL_VERSION};
 use std::sync::Arc;
 use tracing::{info, warn};
 

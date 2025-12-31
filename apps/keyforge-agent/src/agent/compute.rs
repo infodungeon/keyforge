@@ -5,7 +5,7 @@ use keyforge_infra::{AssetManager, UserRepo};
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::OptimizationResult;
 use keyforge_protocol::JobConfig;
-use keyforge_protocol::Validator;
+use keyforge_model::Validator;
 use std::future::Future;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
@@ -13,6 +13,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::info;
+use rand::seq::IndexedRandom; 
 
 pub trait AssetSyncer {
     fn sync_assets(
@@ -87,8 +88,7 @@ pub async fn create_engine_request(
 
     // Diversity Pick: Randomly select a parent layout if available
     let start_layout = if !config.parents.is_empty() {
-        use rand::seq::SliceRandom;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         config.parents.choose(&mut rng).cloned()
     } else {
         None

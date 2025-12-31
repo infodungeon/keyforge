@@ -14,8 +14,9 @@
 use keyforge_adapter::conversion;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_core::ScoringSession;
-use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
-use keyforge_protocol::{CostMatrixSource, JobRequest};
+use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
+use keyforge_model::CostMatrixSource;
+use keyforge_protocol::JobRequest;
 use keyforge_physics::ScoringEngine;
 use keyforge_model::keycodes::KeycodeRegistry;
 use std::sync::Arc;
@@ -99,7 +100,7 @@ impl<'a> SessionBuilder<'a> {
     #[allow(clippy::too_many_arguments)]
     pub async fn build_preloaded(
         &self,
-        kb_def: &keyforge_protocol::geometry::KeyboardDefinition,
+        kb_def: &keyforge_model::geometry::KeyboardDefinition,
         corpora: &[CorpusSource],
         weights: &ScoringWeights,
         params: &SearchParams,
@@ -124,20 +125,13 @@ impl<'a> SessionBuilder<'a> {
         };
 
         // 2. Convert to Domain types
-        // kb_def is Protocol. Convert to Model.
+        // kb_def is Model. Convert to Runtime Keyboard.
         let domain_kb = conversion::to_domain_keyboard(&kb_def.geometry);
         let domain_rubric = conversion::to_domain_rubric(weights);
         let domain_config = conversion::to_domain_config(params, seed.unwrap_or(42));
         
-        // Resolve uses Model geometry. Reconstruct it from the converted domain_kb info.
-        let model_geo = keyforge_model::geometry::KeyboardGeometry {
-            keys: domain_kb.keys.clone(),
-            home_row: domain_kb.home_row,
-            prime_slots: vec![],
-            med_slots: vec![],
-            low_slots: vec![],
-        };
-        let overrides = raw_costs.resolve(&model_geo);
+        // Resolve uses Model geometry.
+        let overrides = raw_costs.resolve(&kb_def.geometry);
 
         // 3. Compile Engine
         let engine = ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)?;

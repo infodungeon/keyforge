@@ -19,13 +19,14 @@ classDiagram
         +SearchParams search
         +ScoringWeights weights
         +LayoutDefinitions defs
+        +validate() Result
     }
 
     class KeyboardDefinition {
         +KeyboardMeta meta
         +KeyboardGeometry geometry
         +HashMap layouts
-        +parse(json) Result
+        +validate() Result
     }
 
     %% --- Entities ---
@@ -132,20 +133,20 @@ Small, logic-heavy entities that are the "Atoms" of the system must **never** ex
 * **Guarantee:** If you hold a `Layout`, it is guaranteed to be valid (no duplicates).
 * **Trade-off:** Custom deserialization logic is often required.
 
-### B. Deferred Validation (Data Aggregates)
+### B. Universal Deferred Validation (Data Aggregates)
 
 Large configuration structs loaded from external sources (JSON) use public fields for easy serialization but require an explicit validation step.
 
-* **Target:** `ScoringWeights`, `KeyboardGeometry`, `JobRequest`.
+* **Target:** `Config`, `ScoringWeights`, `KeyboardDefinition`, `Corpus`, `JobRequest`.
 * **Mechanism:** `Validator` trait + Public Fields.
-* **Rule:** Validation must occur at the **System Boundary** (API Handler or File Loader).
-* **Trade-off:** It is possible to construct an invalid struct in code, but the `Validator` trait ensures it is caught before processing.
+* **Rule:** **All** Domain Entities that can be deserialized must implement the `Validator` trait.
+* **Enforcement:** Validation must occur at the **System Boundary** (API Handler, File Loader, WASM Bridge) immediately after deserialization.
 
 ```rust
 pub trait Validator {
     /// Validates the internal state of the object.
     /// Must be called immediately after deserialization.
-    fn validate(&self) -> Result<(), ForgeError>;
+    fn validate(&self) -> Result<(), String>;
 }
 ```
 
@@ -158,7 +159,7 @@ This table enumerates all validation rules and their enforcement points.
 | **`HandIndex`** | Must be `0` (Left) or `1` (Right). | **Construction** | `TryFrom<u8>` |
 | **`FingerIndex`** | Must be `0..=4` (Thumb..Pinky). | **Construction** | `TryFrom<u8>` |
 | **`KeyNode`** | `width > 0`, `height > 0`. Valid Hand/Finger indices. | **Deferred** | `KeyboardGeometry::validate()` |
-| **`KeyboardGeometry`** | 1. `keys` not empty. 2. `keys.len() <= MAX`. 3. Slots are disjoint. 4. Slot indices are in-bounds. | **Deferred** | `Validator::validate()` |
+| **`KeyboardDefinition`** | Geometry is valid. | **Deferred** | `Validator::validate()` |
 | **`Layout`** | 1. No duplicate `KeyCode`s. 2. (Contextual) Length must match `Keyboard`. | **Construction** | `TryFrom<Vec<KeyCode>>` |
 | **`Corpus`** | 1. `char_freqs` len == 65536. 2. Weights must be positive/finite. | **Deferred** | `Validator::validate()` |
 | **`ScoringWeights`** | 1. All floats must be finite. 2. Penalties must be non-negative. | **Deferred** | `Validator::validate()` |
@@ -175,54 +176,36 @@ This section maps the "Deferred" validations to their specific call sites.
 
 * **Location:** `src/features/*/handler.rs`
 * **Trigger:** Immediately after `axum::Json` deserializes a request body.
-* **Example:**
-
-```rust
-// In a Hive handler for POST /jobs
-pub async fn submit_job(Json(req): Json<JobRequest>) -> Result<impl IntoResponse, AppError> {
-    // DEFERRED VALIDATION EXECUTION
-    req.validate().map_err(AppError::Validation)?; 
-    // ... proceed with valid request
-}
-```
 
 #### 2. The Infrastructure Boundary (`keyforge-infra`)
 
 **Responsibility:** Ensure static assets (JSON files) loaded from disk are valid.
 
-* **Location:** `src/assets/loader.rs`
+* **Location:** `src/assets/fs_provider.rs`
 * **Trigger:** When reading configuration files like `keyboards/*.json` or `weights/*.json`.
-* **Example:**
+
+#### 3. The Client Boundary (`keyforge-wasm`)
+
+**Responsibility:** Protect the Web Client / WASM engine from invalid JS objects.
+
+* **Location:** `libs/keyforge-wasm/src/lib.rs`
+* **Trigger:** Immediately after `serde_wasm_bindgen::from_value`.
+
+### E. The Hybrid DTO Pattern
+
+Domain Entities in `keyforge-model` are explicitly designed to be **embedded** within Data Transfer Objects (DTOs) in `keyforge-protocol`.
+
+* **Design Goal:** Avoid duplicating struct definitions (e.g., `KeyboardDto` vs `Keyboard`).
+* **Responsibility:** The Domain Entity provides the `validate()` logic for business rules. The DTO is responsible for **calling** that logic during its own validation pass.
 
 ```rust
-// In the asset loader
-pub fn load_weights(path: &Path) -> Result<ScoringWeights, InfraError> {
-    let weights: ScoringWeights = serde_json::from_str(&fs::read_to_string(path)?)?;
-    
-    // DEFERRED VALIDATION EXECUTION
-    weights.validate().map_err(|e| InfraError::CorruptedAsset(path.into(), e))?;
-    
-    Ok(weights)
-}
-```
-
-#### 3. The Core Boundary (Contextual Integrity)
-
-**Responsibility:** Ensure entities are valid *relative to each other*.
-
-* **Location:** `libs/keyforge-physics/src/engine.rs`
-* **Trigger:** When a service is constructed that combines multiple entities.
-* **Example:**
-
-```rust
-// In the scoring engine constructor
-impl ScoringEngine {
-    pub fn new(layout: &Layout, keyboard: &Keyboard) -> Result<Self, PhysicsError> {
-        // CONTEXTUAL VALIDATION EXECUTION
-        if layout.len() != keyboard.key_count() {
-            return Err(PhysicsError::DimensionMismatch { ... });
-        }
-        // ... proceed with matched entities
+// In keyforge-protocol
+impl Validator for JobRequest {
+    fn validate(&self) -> Result<(), String> {
+        // Protocol checks...
+        // Delegate to Model:
+        self.definition.validate()?; 
+        Ok(())
     }
 }
 ```
@@ -237,3 +220,19 @@ We use **Postcard** for internal binary serialization, specifically for generati
 ## 5. Feature Flags
 
 * **`ts_bindings`**: Enables the `ts-rs` dependency and `#[derive(TS)]` macros. Used only when generating TypeScript definitions for the UI.
+
+## 6. Testing Strategy
+
+The integrity of the Model is verified through a multi-layered approach:
+
+1.**Unit Tests (`tests/*.rs`):**
+    - Verify `Validator` logic for each entity (e.g., `test_rubric_validation`).
+    - Ensure edge cases (empty strings, negative weights, NaN) are rejected.
+
+2.**Property Testing (`proptest`):**
+    - Generate random valid/invalid inputs to ensure `TryFrom` and `Validator` never panic, only return Errors.
+    - Verify round-trip serialization (JSON -> Struct -> JSON) preserves data.
+
+3.**Boundary Integration Tests (`keyforge-infra/tests`):**
+    - Verify that the `AssetLoader` correctly rejects invalid files on disk.
+    - Ensures the "Universal Validation" rule is actually enforced in practice.

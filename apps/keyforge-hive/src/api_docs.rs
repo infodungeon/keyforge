@@ -1,6 +1,7 @@
+use keyforge_model::{
+    CorpusSource, KeyNode, KeyboardDefinition, KeyboardGeometry, ScoringWeights, SearchParams,
+};
 use keyforge_protocol::{
-    config::{CorpusSource, LayoutDefinitions, ScoringWeights, SearchParams},
-    geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta},
     JobConfig, JobQueueResponse, JobRequest, JobResponse, NodeRequest, NodeResponse,
     PopulationResponse, ResultSubmission, TuningProfile,
 };
@@ -26,8 +27,8 @@ use utoipa::OpenApi;
             JobRequest, JobResponse, JobQueueResponse, JobConfig,
             PopulationResponse, ResultSubmission,
             NodeRequest, NodeResponse, TuningProfile,
-            KeyboardDefinition, KeyboardMeta, KeyboardGeometry, KeyNode,
-            ScoringWeights, SearchParams, LayoutDefinitions, CorpusSource,
+            KeyboardDefinition, KeyboardGeometry, KeyNode,
+            ScoringWeights, SearchParams, CorpusSource,
             crate::features::submit_layout::LayoutSubmission,
             crate::features::submit_layout::SubmissionResponse,
             crate::features::list_submissions::SubmissionEntry,

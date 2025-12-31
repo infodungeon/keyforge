@@ -13,9 +13,9 @@
 // limitations under the License.
 use crate::error::{AdapterError, AdapterResult};
 use keyforge_model::KeyCode;
-use keyforge_protocol::constants::MAX_LAYOUT_DATA_LEN;
-use keyforge_model::keycodes::KeycodeRegistry; // Changed from protocol
-use keyforge_protocol::{config, geometry, KeyConstraint};
+use keyforge_model::constants::MAX_LAYOUT_DATA_LEN;
+use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::{config, geometry, KeyConstraint};
 
 pub fn to_domain_corpus_source(s: &config::CorpusSource) -> keyforge_model::config::CorpusSource {
     keyforge_model::config::CorpusSource {
@@ -257,18 +257,18 @@ pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
     }
 }
 
-pub fn to_domain_hand_index(val: keyforge_protocol::types::HandIndex) -> keyforge_model::types::HandIndex {
+pub fn to_domain_hand_index(val: keyforge_model::types::HandIndex) -> keyforge_model::types::HandIndex {
     keyforge_model::types::HandIndex(val.0)
 }
 
-pub fn to_domain_finger_index(val: keyforge_protocol::types::FingerIndex) -> keyforge_model::types::FingerIndex {
+pub fn to_domain_finger_index(val: keyforge_model::types::FingerIndex) -> keyforge_model::types::FingerIndex {
     keyforge_model::types::FingerIndex(val.0)
 }
 
-pub fn to_domain_row_index(val: keyforge_protocol::types::RowIndex) -> keyforge_model::types::RowIndex {
+pub fn to_domain_row_index(val: keyforge_model::types::RowIndex) -> keyforge_model::types::RowIndex {
     keyforge_model::types::RowIndex(val.0)
 }
 
-pub fn to_domain_col_index(val: keyforge_protocol::types::ColIndex) -> keyforge_model::types::ColIndex {
+pub fn to_domain_col_index(val: keyforge_model::types::ColIndex) -> keyforge_model::types::ColIndex {
     keyforge_model::types::ColIndex(val.0)
 }

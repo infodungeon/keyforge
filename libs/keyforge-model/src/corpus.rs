@@ -15,6 +15,7 @@
 use crate::error::ForgeError;
 use crate::serde_utils::deserialize_limited_vec;
 use serde::{Deserialize, Serialize};
+use crate::validator::Validator;
 
 /// Represents the statistical data of a language or text source.
 /// Contains frequency data for characters, bigrams, and trigrams.
@@ -46,6 +47,12 @@ impl Default for Corpus {
     }
 }
 
+impl Validator for Corpus {
+    fn validate(&self) -> Result<(), String> {
+        self.validate_internal().map_err(|e| e.to_string())
+    }
+}
+
 impl Corpus {
     /// Validates the integrity of the Corpus.
     /// Ensures that frequency maps are sized correctly to prevent panics in the Physics engine.
@@ -64,5 +71,10 @@ impl Corpus {
         // We could check for duplicates here if strictness is required, but O(N) validation is preferred.
         
         Ok(())
+    }
+
+    // Internal helper to keep the ForgeError return type for existing callers
+    fn validate_internal(&self) -> Result<(), ForgeError> {
+        self.validate()
     }
 }

@@ -1,7 +1,7 @@
 use axum::{extract::State, routing::get, Json, Router};
-use keyforge_protocol::config::Config;
+use keyforge_model::Config;
 use keyforge_core::loader::AssetLoader;
-use keyforge_protocol::geometry::KeyboardDefinition;
+use keyforge_model::KeyboardDefinition;
 use serde::Serialize;
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -75,9 +75,7 @@ pub async fn get_keyboard(
         tracing::error!("Failed to load keyboard {}: {}", name, e);
         AppError::NotFound
     })?;
-    let proto_kb: KeyboardDefinition = serde_json::from_value(serde_json::to_value(&kb).unwrap())
-        .map_err(|e| AppError::Any(anyhow::anyhow!("Serialization error: {}", e)))?;
-    Ok(Json(proto_kb))
+    Ok(Json(kb))
 }
 
 pub async fn get_app_config(State(state): State<Arc<AppState>>) -> AppResult<Json<Config>> {

@@ -15,7 +15,7 @@ use crate::error::{InfraError, InfraResult};
 use crate::net::client::HiveClient;
 use backoff::ExponentialBackoff;
 use futures_util::StreamExt;
-use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::path::{Path, PathBuf};

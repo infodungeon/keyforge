@@ -123,10 +123,10 @@ impl WriteQueue {
                                 if let Ok(uuid) = Uuid::parse_str(stem) {
                                     match fs::read(&path).await {
                                         Ok(bytes) => {
-                                            match bincode::deserialize::<WalEntry>(&bytes) {
+                                            match postcard::from_bytes::<WalEntry>(&bytes) {
                                                 Ok(entry) => {
                                                     // Verify Checksum
-                                                    let calc_crc = match bincode::serialize(
+                                                    let calc_crc = match postcard::to_stdvec(
                                                         &entry.record,
                                                     ) {
                                                         Ok(b) => crc32fast::hash(&b),
@@ -226,7 +226,7 @@ impl WriteQueue {
                 };
 
                 // Calculate Checksum
-                let record_bytes = bincode::serialize(&record).unwrap_or_default();
+                let record_bytes = postcard::to_stdvec(&record).unwrap_or_default();
                 let checksum = crc32fast::hash(&record_bytes);
 
                 let entry = WalEntry {
@@ -237,7 +237,7 @@ impl WriteQueue {
                 let final_path = self.queue_dir.join(format!("{}.bin", id));
                 let temp_path = self.queue_dir.join(format!("{}.tmp", id));
 
-                match bincode::serialize(&entry) {
+                match postcard::to_stdvec(&entry) {
                     Ok(bytes) => {
                         // ROBUST WAL WRITE: Create, Write, Sync, Rename (with retry)
                         let mut attempts = 0;

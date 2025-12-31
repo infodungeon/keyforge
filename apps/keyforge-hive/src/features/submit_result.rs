@@ -1,5 +1,6 @@
 use axum::{extract::State, Json};
-use keyforge_protocol::{ResultSubmission, Validator, PROTOCOL_VERSION};
+use keyforge_model::Validator;
+use keyforge_protocol::{ResultSubmission, PROTOCOL_VERSION};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::oneshot;

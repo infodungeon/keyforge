@@ -17,6 +17,7 @@ use std::collections::HashMap;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
+use crate::validator::Validator;
 use crate::types::KeyCode;
 
 /// Definition of a logical key code (e.g., "KC_A").
@@ -33,6 +34,18 @@ pub struct KeycodeDefinition {
     pub aliases: Vec<String>,
 }
 
+impl Validator for KeycodeDefinition {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.trim().is_empty() {
+            return Err(format!("Keycode {} has empty ID", self.code));
+        }
+        if self.label.trim().is_empty() {
+            return Err(format!("Keycode {} ({}) has empty label", self.code, self.id));
+        }
+        Ok(())
+    }
+}
+
 /// Registry for looking up key codes by name or ID.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -41,6 +54,24 @@ pub struct KeycodeRegistry {
     pub definitions: Vec<KeycodeDefinition>,
     name_to_code: HashMap<String, KeyCode>,
     code_to_label: HashMap<KeyCode, String>,
+}
+
+impl Validator for KeycodeRegistry {
+    fn validate(&self) -> Result<(), String> {
+        let mut seen_codes = std::collections::HashSet::new();
+        let mut seen_ids = std::collections::HashSet::new();
+
+        for def in &self.definitions {
+            def.validate()?;
+            if !seen_codes.insert(def.code) {
+                return Err(format!("Duplicate KeyCode: {}", def.code));
+            }
+            if !seen_ids.insert(def.id.to_uppercase()) {
+                return Err(format!("Duplicate Key ID: {}", def.id));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl KeycodeRegistry {

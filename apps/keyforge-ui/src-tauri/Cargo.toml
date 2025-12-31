@@ -13,14 +13,14 @@ crate-type = ["rlib"]
 tauri-build = { version = "2.5.3", features = [] }
 
 [dependencies]
-tauri = { version = "2.9.4", features = [] }
-sysinfo = "0.30"
+tauri = { version = "2.9.5", features = [] }
+sysinfo = "0.37"
 tauri-plugin-opener = "2.5.2"
 tauri-plugin-shell = "2.3.3"
 tauri-plugin-dialog = "2.4.2"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
-tracing = "0.1.43"
+serde_json = "1.0.148"
+tracing = "0.1.44"
 tracing-subscriber = "0.3.22"
 moka = { version = "0.12", features = ["sync"] }
 tokio = { version = "1.48.0", features = ["full"] }
@@ -36,8 +36,8 @@ keyforge-model = { path = "../../../libs/keyforge-model" }
 keyforge-infra = { path = "../../../libs/keyforge-infra" }
 keyforge-core = { path = "../../../libs/keyforge-core" }
 async-trait = "0.1"
-tempfile = "3.23.0"
+tempfile = "3.24.0"
 thiserror = "2.0"
 
 [dev-dependencies]
-reqwest = { version = "0.12.24", features = ["json"] }
+reqwest = { version = "0.13.1", features = ["json"] }
