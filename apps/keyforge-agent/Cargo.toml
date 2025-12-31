@@ -30,7 +30,7 @@ futures = "0.3"
 
 raw-cpuid = "11.6"
 libc = "0.2"
-rand = "0.9.2"
+rand = "0.8"
 ed25519-dalek = { version = "2.2", features = ["rand_core"] }
 hex = "0.4"
 dirs = "6.0.0"

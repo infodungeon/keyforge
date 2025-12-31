@@ -17,11 +17,10 @@ use keyforge_adapter::conversion;
 use keyforge_core::ScoringEngine;
 use keyforge_core::loader::{AssetLoader, RawCostData};
 use keyforge_model::Corpus;
-use keyforge_protocol::config::{ScoringWeights, SearchParams};
-use keyforge_model::config::CorpusSource;
+use keyforge_model::config::{CorpusSource, ScoringWeights};
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::validator::Validator;
+use keyforge_model::validator::{LayoutValidator, Validator};
 use loader::InMemoryLoader;
 use wasm_bindgen::prelude::*;
 
@@ -54,21 +53,21 @@ impl KeyforgeEngine {
 
     pub fn load_keyboard(&self, name: String, json_def: JsValue) -> Result<(), JsValue> {
         let def: KeyboardDefinition = serde_wasm_bindgen::from_value(json_def)?;
-        def.validate().map_err(|e| JsValue::from_str(&e))?;
+        def.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
         self.loader.add_keyboard(name, def).map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
 
     pub fn load_keycodes(&self, json_registry: JsValue) -> Result<(), JsValue> {
         let reg: KeycodeRegistry = serde_wasm_bindgen::from_value(json_registry)?;
-        reg.validate().map_err(|e| JsValue::from_str(&e))?;
+        reg.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
         self.loader.set_keycodes(reg).map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
 
     pub fn load_corpus(&self, name: String, json_corpus: JsValue) -> Result<(), JsValue> {
         let corpus: Corpus = serde_wasm_bindgen::from_value(json_corpus)?;
-        corpus.validate().map_err(|e| JsValue::from_str(&e))?;
+        corpus.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
         self.loader.add_corpus(name, corpus).map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
@@ -94,7 +93,7 @@ impl KeyforgeEngine {
         // Since we don't have a full Protocol->Model adapter in WASM yet, we rely on serde compatibility.
         
         let w: ScoringWeights = serde_wasm_bindgen::from_value(weights)?;
-        w.validate().map_err(|e| JsValue::from_str(&e))?;
+        w.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
         
         // Params are unused in init_session (only used for annealing), but good to validate if we stored them.
         // let p: SearchParams = serde_wasm_bindgen::from_value(_params)?;
@@ -166,15 +165,15 @@ impl KeyforgeEngine {
     }
 }
 
-use keyforge_protocol::{JobRequest, LayoutValidator, Validator as ProtocolValidator};
+use keyforge_protocol::JobRequest;
 
 #[wasm_bindgen]
 pub fn validate_job_request(json_req: JsValue) -> Result<(), JsValue> {
     let req: JobRequest = serde_wasm_bindgen::from_value(json_req)?;
-    req.validate().map_err(|e| JsValue::from_str(&e))
+    req.validate().map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 #[wasm_bindgen]
 pub fn validate_layout_structure(layout_str: String) -> Result<(), JsValue> {
-    LayoutValidator::validate_structure(&layout_str).map_err(|e| JsValue::from_str(&e))
+    LayoutValidator::validate_structure(&layout_str).map_err(|e| JsValue::from_str(&e.to_string()))
 }

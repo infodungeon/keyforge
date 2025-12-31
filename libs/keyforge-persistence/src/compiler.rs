@@ -53,9 +53,9 @@ mod tests {
     use keyforge_model::error::ForgeError;
     use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
     use keyforge_model::Corpus;
-    use keyforge_protocol::config::CorpusSource;
-    use keyforge_protocol::geometry::KeyboardDefinition;
-    use keyforge_protocol::keycodes::KeycodeRegistry;
+    use keyforge_model::config::CorpusSource;
+    use keyforge_model::geometry::KeyboardDefinition;
+    use keyforge_model::keycodes::KeycodeRegistry;
 
     struct FailingLoader;
     #[async_trait::async_trait]

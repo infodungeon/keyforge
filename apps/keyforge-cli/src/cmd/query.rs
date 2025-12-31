@@ -1,10 +1,10 @@
 use crate::cli_parsers::resolve_path;
 use clap::Args;
 use keyforge_infra::fs::io::read_to_string_limited;
-use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_protocol::job::JobIdentifier;
-use keyforge_protocol::CostMatrixSource;
+use keyforge_model::job::JobIdentifier;
+use keyforge_model::CostMatrixSource;
 use std::path::Path;
 
 #[derive(Args, Debug, Clone)]
@@ -18,7 +18,7 @@ pub struct QueryArgs {
     pub shared: crate::cmd::shared::SharedArgs,
 }
 
-use keyforge_protocol::Validator;
+use keyforge_model::Validator;
 
 pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🔍 Calculating Job Hash for criteria…");
@@ -35,13 +35,13 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     let constraints = args.shared.pinned_keys;
 
     use std::convert::TryFrom;
-    let config = keyforge_protocol::config::Config::try_from(args.config)?;
+    let config = keyforge_model::config::Config::try_from(args.config)?;
     config.search.validate()?;
     config.weights.validate()?;
 
     let cost_source = CostMatrixSource::Predefined(args.shared.cost.clone());
 
-    let proto_geometry: keyforge_protocol::geometry::KeyboardGeometry = 
+    let proto_geometry: keyforge_model::geometry::KeyboardGeometry = 
         serde_json::from_value(serde_json::to_value(&kb_def.geometry)?)?;
 
     let job_id = JobIdentifier::try_from_parts(

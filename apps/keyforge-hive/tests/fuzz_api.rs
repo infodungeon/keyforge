@@ -1,7 +1,7 @@
 // crates/keyforge-hive/tests/fuzz_api.rs
-use keyforge_protocol::config::ScoringWeights;
-use keyforge_protocol::geometry::{KeyNode, KeyboardGeometry};
-use keyforge_protocol::Validator;
+use keyforge_model::config::ScoringWeights;
+use keyforge_model::geometry::{KeyNode, KeyboardGeometry};
+use keyforge_model::Validator;
 use proptest::prelude::*;
 
 // Strategy for generating random ScoringWeights

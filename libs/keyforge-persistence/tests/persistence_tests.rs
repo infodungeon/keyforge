@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use keyforge_persistence::{AutoSaveService, Project, ProjectMeta, SessionSnapshot};
-use keyforge_protocol::config::CorpusSource;
+use keyforge_model::config::CorpusSource;
 use serde_json;
 use tempfile::tempdir;
 use tokio;
@@ -119,9 +119,9 @@ async fn test_autosave_size_limit() {
 use keyforge_core::loader::{AssetLoader, CostEntry, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_persistence::{Compiler, PersistenceError};
-use keyforge_protocol::geometry::KeyboardDefinition;
-use keyforge_protocol::keycodes::KeycodeRegistry;
-use keyforge_protocol::CostMatrixSource;
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::CostMatrixSource;
 
 struct MockLoader;
 #[async_trait::async_trait]
@@ -130,8 +130,8 @@ impl AssetLoader for MockLoader {
         // FIX: Return a valid keyboard with 1 key to satisfy Keyboard::new invariant
         Ok(KeyboardDefinition {
             meta: Default::default(),
-            geometry: keyforge_protocol::geometry::KeyboardGeometry {
-                keys: vec![keyforge_protocol::geometry::KeyNode {
+            geometry: keyforge_model::geometry::KeyboardGeometry {
+                keys: vec![keyforge_model::geometry::KeyNode {
                     index: 0,
                     label: "k0".to_string(),
                     ..Default::default()
@@ -247,8 +247,8 @@ impl AssetLoader for FailingLoader {
         // Return valid dummy to pass keyboard check if we are testing other failures
         Ok(KeyboardDefinition {
             meta: Default::default(),
-            geometry: keyforge_protocol::geometry::KeyboardGeometry {
-                keys: vec![keyforge_protocol::geometry::KeyNode {
+            geometry: keyforge_model::geometry::KeyboardGeometry {
+                keys: vec![keyforge_model::geometry::KeyNode {
                     index: 0,
                     label: "k0".to_string(),
                     ..Default::default()

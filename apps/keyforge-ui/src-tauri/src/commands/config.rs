@@ -1,7 +1,7 @@
 use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
-use keyforge_protocol::config::Config;
+use keyforge_model::config::Config;
 // use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
 use keyforge_model::keycodes::KeycodeRegistry;
 use tauri::AppHandle;

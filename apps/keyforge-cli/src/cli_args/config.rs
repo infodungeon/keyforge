@@ -1,5 +1,5 @@
 use clap::Args;
-use keyforge_protocol::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
+use keyforge_model::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
 
 #[derive(Args, Debug, Clone)]
 pub struct ConfigArgs {
@@ -142,7 +142,7 @@ pub struct LayoutDefinitionsArgs {
     pub finger_repeat_scale: String,
 }
 
-use keyforge_protocol::Validator;
+use keyforge_model::Validator;
 use std::convert::TryFrom;
 
 impl TryFrom<ConfigArgs> for Config {

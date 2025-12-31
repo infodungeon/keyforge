@@ -1,5 +1,5 @@
-use keyforge_protocol::config::CorpusSource;
-use keyforge_protocol::KeyConstraint;
+use keyforge_model::config::CorpusSource;
+use keyforge_model::KeyConstraint;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 

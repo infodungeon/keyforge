@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
 // use keyforge_export::viz::physics::generate_physics_svg;
 use keyforge_infra::fs::io::read_to_string_limited;
-use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
 // use std::fs;
 use std::path::{Path, PathBuf};

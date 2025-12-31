@@ -55,7 +55,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                             };
 
                             if let Ok(json) = serde_json::to_string(&msg) {
-                                if sender.send(Message::Text(json)).await.is_err() {
+                                if sender.send(Message::Text(json.into())).await.is_err() {
                                     break;
                                 }
                             }
@@ -68,7 +68,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                 }
                 // Heartbeat Ping
                 _ = heartbeat.tick() => {
-                    if sender.send(Message::Ping(vec![])).await.is_err() {
+                    if sender.send(Message::Ping(vec![].into())).await.is_err() {
                         break;
                     }
                     debug!("💓 Sent Ping");

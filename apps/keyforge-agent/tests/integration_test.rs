@@ -1,6 +1,7 @@
 use keyforge_agent::agent::compute;
-use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
-use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
+use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+use keyforge_model::CostMatrixSource;
 use keyforge_protocol::JobConfig;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -53,7 +54,7 @@ async fn test_agent_session_bootstrap() {
             label: "a".into(),
             ..KeyNode::default()
         }],
-        prime_slots: vec![keyforge_protocol::types::KeyIndex(0)],
+        prime_slots: vec![keyforge_model::types::KeyIndex(0)],
         med_slots: vec![],
         low_slots: vec![],
         home_row: 0,
@@ -76,7 +77,7 @@ async fn test_agent_session_bootstrap() {
             weight: 1.0,
             hash: None,
         }],
-        cost_matrix: keyforge_protocol::CostMatrixSource::Predefined("cost.json".into()),
+        cost_matrix: CostMatrixSource::Predefined("cost.json".into()),
         biometrics: vec![],
         parent_job_id: None,
         baseline_score: None,
@@ -86,16 +87,14 @@ async fn test_agent_session_bootstrap() {
     let loader = Box::new(keyforge_infra::FsProvider::new(data_root.clone()));
 
     let prepared_result =
-        compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora");
+        compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora").await;
 
-    assert!(
-        prepared_result.is_ok(),
-        "Agent failed to bootstrap engine request: {:?}",
-        prepared_result.err()
-    );
-    let prepared = prepared_result.unwrap();
-
-    // Basic sanity checks
-    assert_eq!(prepared.req.keyboard.keys.len(), 1);
-    assert!(!prepared.req.corpus.bigrams.is_empty());
+    match prepared_result {
+        Ok(prepared) => {
+            // Basic sanity checks
+            assert_eq!(prepared.req.keyboard.keys.len(), 1);
+            assert!(!prepared.req.corpus.bigrams.is_empty());
+        }
+        Err(e) => panic!("Agent failed to bootstrap engine request: {:?}", e),
+    }
 }

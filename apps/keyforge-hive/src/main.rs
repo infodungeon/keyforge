@@ -203,7 +203,7 @@ async fn shutdown_signal(state: Arc<AppState>) {
     info!("👋 Shutdown complete.");
 }
 
-async fn shutdown_signal_axum(handle: axum_server::Handle, state: Arc<AppState>) {
+async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Arc<AppState>) {
     tokio::signal::ctrl_c().await.ok();
     info!("🛑 Signal received (TLS), initiating graceful shutdown...");
     handle.graceful_shutdown(Some(Duration::from_secs(30)));

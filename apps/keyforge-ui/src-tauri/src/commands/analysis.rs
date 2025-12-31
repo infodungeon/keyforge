@@ -7,7 +7,7 @@ use keyforge_adapter::conversion;
 use keyforge_infra::listing;
 use keyforge_model::SwapSuggestion;
 use keyforge_persistence::{Compiler, Project, ProjectMeta};
-use keyforge_protocol::config::{CorpusSource, ScoringWeights};
+use keyforge_model::config::{CorpusSource, ScoringWeights};
 use keyforge_model::geometry::KeyboardGeometry;
 use serde::Serialize;
 use tauri::AppHandle;
@@ -56,7 +56,7 @@ pub async fn cmd_load_dataset(
             weight: 1.0,
             hash: None,
         }],
-        cost_matrix: keyforge_protocol::CostMatrixSource::Predefined(cost_filename),
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_filename),
         ..Default::default()
     };
 
@@ -108,7 +108,7 @@ pub async fn cmd_validate_layout(
         let heatmap = report.heatmap.clone();
 
         // Convert Model geometry to Protocol geometry for the UI
-        let proto_geometry: keyforge_protocol::geometry::KeyboardGeometry = 
+        let proto_geometry: keyforge_model::geometry::KeyboardGeometry = 
             serde_json::from_value(serde_json::to_value(&geometry).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
 

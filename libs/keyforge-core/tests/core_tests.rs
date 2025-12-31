@@ -109,7 +109,7 @@ fn test_analyze_with_engine() {
     let engine = build_engine(&req).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-    let report = analyze_with_engine(&engine, &layout);
+    let report = analyze_with_engine(&engine, &layout).unwrap();
     assert!(report.score.is_finite());
 }
 
@@ -119,7 +119,7 @@ fn test_score_with_engine() {
     let engine = build_engine(&req).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-    let score = score_with_engine(&engine, &layout);
+    let score = score_with_engine(&engine, &layout).unwrap();
     assert!(score.is_finite());
 }
 
@@ -129,28 +129,29 @@ fn test_suggest_with_engine() {
     let engine = build_engine(&req).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-    let suggestions = suggest_with_engine(&engine, &layout);
+    let suggestions = suggest_with_engine(&engine, &layout).unwrap();
     let _ = suggestions.len();
 }
 
 #[test]
 fn test_analyze_legacy() {
     let req = minimal_request();
-    let report = analyze(&req);
+    let report = analyze(&req).unwrap();
     assert!(report.score.is_finite());
 }
 
 #[test]
 fn test_score_legacy() {
     let req = minimal_request();
-    let result = score(&req);
+    // Based on error logs, score() returns Result<OptimizationResult> or similar struct with .score
+    let result = score(&req).unwrap();
     assert!(result.score.is_finite());
 }
 
 #[test]
 fn test_suggest_legacy() {
     let req = minimal_request();
-    let suggestions = suggest(&req);
+    let suggestions = suggest(&req).unwrap();
     let _ = suggestions.len();
 }
 

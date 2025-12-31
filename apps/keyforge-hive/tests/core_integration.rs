@@ -2,8 +2,9 @@ use keyforge_adapter::conversion;
 use keyforge_core::ScoringEngine;
 use keyforge_infra::AssetLoader;
 use keyforge_infra::FsProvider;
-use keyforge_protocol::config::{CorpusSource, ScoringWeights};
-use keyforge_protocol::geometry::KeyboardDefinition;
+use keyforge_model::config::{CorpusSource, ScoringWeights};
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::Keyboard;
 use std::env;
 use std::path::PathBuf;
 
@@ -15,8 +16,8 @@ fn get_data_dir() -> PathBuf {
         .unwrap()
 }
 
-#[test]
-fn test_scorer_determinism_production_data() {
+#[tokio::test]
+async fn test_scorer_determinism_production_data() {
     let data_dir = get_data_dir();
     let cost_path = "cost_matrix.json";
     let kb_path = data_dir.join("keyboards/corne.json");
@@ -41,21 +42,28 @@ fn test_scorer_determinism_production_data() {
 
     let corpus_a = provider_a
         .load_corpus(&sources)
+        .await
         .expect("Failed to load corpus");
     let corpus_b = provider_b
         .load_corpus(&sources)
+        .await
         .expect("Failed to load corpus");
 
     let cost_data_a = provider_a
         .load_cost_matrix(cost_path)
+        .await
         .expect("Failed to load cost matrix");
     let cost_data_b = provider_b
         .load_cost_matrix(cost_path)
+        .await
         .expect("Failed to load cost matrix");
 
     let weights = ScoringWeights::default();
-    let keyboard_a = conversion::to_domain_keyboard(&def.geometry);
-    let keyboard_b = conversion::to_domain_keyboard(&def.geometry);
+    
+    // Construct Domain Entities
+    let keyboard_a = Keyboard::new(def.geometry.keys.clone(), def.geometry.home_row).unwrap();
+    let keyboard_b = Keyboard::new(def.geometry.keys.clone(), def.geometry.home_row).unwrap();
+    
     let rubric_a = conversion::to_domain_rubric(&weights);
     let rubric_b = conversion::to_domain_rubric(&weights);
 
@@ -75,12 +83,13 @@ fn test_scorer_determinism_production_data() {
     // Parse layout once (using keycodes from disk)
     let registry = provider_a
         .load_keycodes("keycodes.json")
+        .await
         .expect("Failed to load keycodes");
 
     let layout = conversion::parse_layout_string(qwerty, engine_a.key_count(), &registry).unwrap();
 
-    let report_a = engine_a.analyze(&layout);
-    let report_b = engine_b.analyze(&layout);
+    let report_a = engine_a.analyze(&layout).unwrap();
+    let report_b = engine_b.analyze(&layout).unwrap();
 
     println!("   Score A: {:.6}", report_a.score);
     println!("   Score B: {:.6}", report_b.score);

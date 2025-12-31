@@ -13,7 +13,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::info;
-use rand::seq::IndexedRandom; 
+use rand::seq::SliceRandom; 
 
 pub trait AssetSyncer {
     fn sync_assets(
@@ -88,7 +88,7 @@ pub async fn create_engine_request(
 
     // Diversity Pick: Randomly select a parent layout if available
     let start_layout = if !config.parents.is_empty() {
-        let mut rng = rand::rng();
+        let mut rng = rand::thread_rng();
         config.parents.choose(&mut rng).cloned()
     } else {
         None

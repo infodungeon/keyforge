@@ -27,8 +27,8 @@ pub struct SearchUpdate {
 #[derive(Deserialize)]
 pub struct StartSearchRequest {
     pub pinned_keys: String,
-    pub search_params: keyforge_protocol::config::SearchParams,
-    pub weights: keyforge_protocol::config::ScoringWeights,
+    pub search_params: keyforge_model::config::SearchParams,
+    pub weights: keyforge_model::config::ScoringWeights,
 }
 
 #[derive(Deserialize)]
@@ -48,7 +48,7 @@ pub struct SyncStats {
 pub struct ValidationResult {
     pub layout_name: String,
     pub score: keyforge_model::AnalysisReport,
-    pub geometry: keyforge_protocol::geometry::KeyboardGeometry,
+    pub geometry: keyforge_model::geometry::KeyboardGeometry,
     pub heatmap: Vec<f32>,
     pub penalty_map: Vec<f32>,
 }

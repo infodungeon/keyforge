@@ -198,7 +198,7 @@ fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetri
             Constraint::Percentage(50), // Logs
             Constraint::Length(3),      // Footer
         ])
-        .split(f.size());
+        .split(f.area());
 
     // Header
     let title = Paragraph::new("KEYFORGE HIVE COMMAND CENTER")

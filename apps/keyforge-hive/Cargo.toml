@@ -63,7 +63,7 @@ moka = { version = "0.12", features = ["sync"] }
 subtle = "2.6"
 sha2 = "0.10"
 base64 = "0.22"
-rand = "0.9"
+rand = "0.8"
 hex = "0.4"
 
 # Utilities

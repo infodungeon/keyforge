@@ -1,7 +1,6 @@
-use keyforge_infra::asset::FsProvider;
+use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::error::ForgeError;
-use std::path::PathBuf;
 use tokio::fs;
 
 #[tokio::test]

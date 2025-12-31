@@ -288,7 +288,7 @@ async fn process_connection(
                             .unwrap_or(Duration::from_secs(0))
                             .as_secs();
 
-                        let nonce = rand::rng().random::<u64>();
+                        let nonce = rand::thread_rng().gen::<u64>();
 
                         // Sign the DETERMINISTIC score
                         let signature = crypto::sign_result_direct(

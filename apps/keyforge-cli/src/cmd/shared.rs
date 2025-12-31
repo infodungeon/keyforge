@@ -39,5 +39,5 @@ pub struct SharedArgs {
     /// Physical-key constraints.
     /// Format: "INDEX:KEYCODE,..." (e.g. "3:Q,7:W")
     #[arg(long, value_parser = crate::cli_args::parse_key_constraint, value_delimiter = ',', help = "Force specific keys to specific physical indices. Format: 'INDEX:KEY_LABEL'.")]
-    pub pinned_keys: Vec<keyforge_protocol::KeyConstraint>,
+    pub pinned_keys: Vec<keyforge_model::KeyConstraint>,
 }

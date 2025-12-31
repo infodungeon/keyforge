@@ -19,7 +19,7 @@ impl SystemMonitor {
     pub fn new() -> Self {
         Self {
             sys: Mutex::new(System::new_with_specifics(
-                RefreshKind::new()
+                RefreshKind::nothing()
                     .with_cpu(CpuRefreshKind::everything())
                     .with_memory(MemoryRefreshKind::everything()),
             )),
@@ -39,7 +39,7 @@ impl SystemMonitor {
         let mut sys = self.sys.lock().await;
         sys.refresh_all();
         
-        let cpu = sys.global_cpu_info().cpu_usage();
+        let cpu = sys.global_cpu_usage();
         let mem = sys.used_memory();
         let up = System::uptime();
 

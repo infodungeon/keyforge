@@ -16,7 +16,7 @@ pub struct SystemHealth {
 #[tauri::command]
 pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
     let mut sys = System::new_with_specifics(
-        RefreshKind::new()
+        RefreshKind::nothing()
             .with_cpu(CpuRefreshKind::everything())
             .with_memory(MemoryRefreshKind::everything()),
     );
@@ -24,7 +24,7 @@ pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
     sys.refresh_all();
 
     SystemHealth {
-        cpu_usage: sys.global_cpu_info().cpu_usage(),
+        cpu_usage: sys.global_cpu_usage(),
         memory_used: sys.used_memory(),
         memory_total: sys.total_memory(),
         uptime: System::uptime(),

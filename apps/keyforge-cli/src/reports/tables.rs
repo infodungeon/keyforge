@@ -2,7 +2,7 @@ use super::benchmarks::BenchmarkEntry;
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
 use keyforge_model::AnalysisReport;
-use keyforge_protocol::config::ScoringWeights;
+use keyforge_model::config::ScoringWeights;
 
 #[allow(dead_code)]
 pub fn scoring(results: &[(String, AnalysisReport)]) {

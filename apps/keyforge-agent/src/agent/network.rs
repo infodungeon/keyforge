@@ -292,7 +292,7 @@ async fn send_with_retry(
         attempts += 1;
         if attempts < max_attempts {
             let base_backoff = 500 * (1 << attempts);
-            let jitter = rand::rng().random_range(0..500);
+            let jitter = rand::thread_rng().gen_range(0..500);
             let backoff = Duration::from_millis(base_backoff + jitter);
             tokio::time::sleep(backoff).await;
         }

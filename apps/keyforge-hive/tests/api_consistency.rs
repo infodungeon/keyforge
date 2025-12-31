@@ -1,4 +1,5 @@
 use keyforge_protocol::{JobConfig, JobQueueResponse};
+use keyforge_model::CostMatrixSource;
 
 #[test]
 fn test_queue_response_serialization() {
@@ -12,14 +13,14 @@ fn test_queue_response_serialization() {
     let full = JobQueueResponse {
         job_id: Some("job-123".into()),
         config: Some(JobConfig {
-            cost_matrix: keyforge_protocol::CostMatrixSource::Predefined("matrix.json".into()),
+            cost_matrix: CostMatrixSource::Predefined("matrix.json".into()),
             ..JobConfig::from(keyforge_protocol::JobRequest {
                 definition: Default::default(),
                 weights: Default::default(),
                 params: Default::default(),
                 pinned_keys: vec![],
                 corpora: vec![],
-                cost_matrix: keyforge_protocol::CostMatrixSource::Predefined("matrix.json".into()),
+                cost_matrix: CostMatrixSource::Predefined("matrix.json".into()),
                 version: 1,
                 biometrics: vec![],
                 parent_job_id: None,

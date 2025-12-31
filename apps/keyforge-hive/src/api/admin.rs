@@ -4,8 +4,9 @@ use axum::{extract::State, Json};
 use serde::Serialize;
 use std::sync::Arc;
 use tracing::info;
+use utoipa::ToSchema;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct AdminStatsResponse {
     active_jobs: i64,
     total_results: i64,
@@ -68,7 +69,7 @@ pub async fn reload_config(State(_state): State<Arc<AppState>>) -> AppResult<Str
     Ok("Config reload initiated".to_string())
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct FullBackup {
     keyboards: Vec<serde_json::Value>,
     jobs: Vec<serde_json::Value>,

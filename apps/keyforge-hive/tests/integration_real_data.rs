@@ -2,11 +2,11 @@ use keyforge_adapter::conversion;
 use keyforge_core::ScoringEngine;
 use keyforge_infra::FsProvider;
 use keyforge_infra::AssetLoader;
-use keyforge_protocol::config::{CorpusSource, ScoringWeights};
+use keyforge_model::config::{CorpusSource, ScoringWeights};
 use std::path::PathBuf;
 
-#[test]
-fn test_real_data_pipeline() {
+#[tokio::test]
+async fn test_real_data_pipeline() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let root = PathBuf::from(manifest_dir).join("../../data");
 
@@ -42,12 +42,15 @@ fn test_real_data_pipeline() {
     // Load real assets directly
     let def = provider
         .load_keyboard("ansi_104")
+        .await
         .expect("Failed to load keyboard");
     let corpus = provider
         .load_corpus(&sources)
+        .await
         .expect("Failed to load corpus");
     let cost_data = provider
         .load_cost_matrix("default_costmatrix.json")
+        .await
         .expect("Failed to load cost matrix");
 
     let rubric = conversion::to_domain_rubric(&weights);
@@ -59,6 +62,7 @@ fn test_real_data_pipeline() {
 
     let registry = provider
         .load_keycodes("keycodes.json")
+        .await
         .expect("Failed to load keycodes");
 
     // Analyze a concrete layout string (similar to CLI/UI input)
@@ -66,7 +70,7 @@ fn test_real_data_pipeline() {
     let layout = conversion::parse_layout_string(qwerty, engine.key_count(), &registry)
         .expect("Failed to parse layout");
 
-    let report = engine.analyze(&layout);
+    let report = engine.analyze(&layout).expect("Analysis failed");
 
     println!("Score: {}", report.score);
     println!("Distance: {}", report.distance);

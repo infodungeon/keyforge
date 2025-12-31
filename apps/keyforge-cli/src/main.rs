@@ -109,7 +109,7 @@ async fn run_app() -> Result<(), CliError> {
     // 2. Handle Stateless Commands (Workspace needed)
     match &cli.command {
         Commands::Doctor(args) => {
-            cmd::doctor::run(args.clone(), &root).await?;
+            cmd::doctor::run(args.clone(), &root)?;
             return Ok(());
         }
         Commands::Fmt(args) => {
@@ -188,16 +188,16 @@ async fn build_runtime(
         let w_path = crate::cli_parsers::resolve_path(w_input, None, root)?;
         let content = keyforge_infra::read_to_string_limited(
             &w_path,
-            keyforge_protocol::constants::MAX_INPUT_FILE_SIZE,
+            keyforge_model::constants::MAX_INPUT_FILE_SIZE,
         )?;
         serde_json::from_str(&content)?
     } else {
         use std::convert::TryFrom;
-        keyforge_protocol::config::Config::try_from(config_args.clone())?.weights
+        keyforge_model::config::Config::try_from(config_args.clone())?.weights
     };
 
     use std::convert::TryFrom;
-    let params = keyforge_protocol::config::Config::try_from(config_args)?.search;
+    let params = keyforge_model::config::Config::try_from(config_args)?.search;
 
     // 3. Construct Project (The Blueprint)
     let project = Project {
@@ -206,7 +206,7 @@ async fn build_runtime(
         weights,
         params,
         constraints: shared.pinned_keys.clone(),
-        cost_matrix: keyforge_protocol::CostMatrixSource::Predefined(shared.cost.clone()),
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined(shared.cost.clone()),
         seed: None, // Will be set by commands if needed
         ..Default::default()
     };

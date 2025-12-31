@@ -1,7 +1,7 @@
 use futures::future::join_all;
 use keyforge_hive::{create_app, state::AppState};
-use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
-use keyforge_protocol::geometry::KeyboardDefinition;
+use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
+use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::{JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION};
 use reqwest::{header, Client};
 use sqlx::postgres::{PgPool, PgPoolOptions};
@@ -160,7 +160,7 @@ async fn setup_server() -> (String, PgPool, Arc<AppState>) {
     let _ = state.assets.load_cost_matrix("cost_matrix.json");
     let _ = state
         .assets
-        .load_corpus(&[keyforge_protocol::config::CorpusSource {
+        .load_corpus(&[keyforge_model::config::CorpusSource {
             id: "default".into(),
             weight: 1.0,
             hash: None,
@@ -232,7 +232,7 @@ async fn test_heterogeneous_thundering_herd() {
                 weight: 1.0,
                 hash: None,
             }],
-            cost_matrix: keyforge_protocol::CostMatrixSource::Predefined("cost_matrix.json".into()),
+            cost_matrix: keyforge_model::CostMatrixSource::Predefined("cost_matrix.json".into()),
             biometrics: vec![],
             parent_job_id: None,
             baseline_score: None,

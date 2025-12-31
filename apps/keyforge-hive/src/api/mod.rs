@@ -24,7 +24,7 @@ pub fn analysis_routes() -> Router<Arc<AppState>> {
             "/analysis/validate",
             axum::routing::post(analysis::validate_layout),
         )
-        .route("/api/corpus/*name", axum::routing::get(corpus::get_corpus))
+        .route("/api/corpus/{*name}", axum::routing::get(corpus::get_corpus))
 }
 
 pub fn auth_routes() -> Router<Arc<AppState>> {
@@ -44,9 +44,7 @@ pub fn auth_routes() -> Router<Arc<AppState>> {
     // PUBLIC ROUTE: Register
     Router::new()
         .route("/auth/register", axum::routing::post(auth::register))
-        .layer(GovernorLayer {
-            config: governor_conf,
-        })
+        .layer(GovernorLayer::new(governor_conf))
 }
 
 pub fn protected_auth_routes() -> Router<Arc<AppState>> {

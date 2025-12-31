@@ -2,7 +2,7 @@ use crate::utils::get_data_dir;
 use keyforge_infra::AssetLoader;
 use keyforge_infra::FsProvider;
 use keyforge_infra::UserRepo;
-use keyforge_protocol::config::CorpusSource;
+use keyforge_model::config::CorpusSource;
 use keyforge_protocol::BiometricSample;
 use tauri::AppHandle;
 

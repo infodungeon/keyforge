@@ -2,7 +2,7 @@ use crate::cli_parsers::resolve_path;
 use clap::{Args, Subcommand, ValueEnum};
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::io::read_to_string_limited;
-use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::geometry::kle::to_kle_json;
 use keyforge_model::geometry::KeyboardDefinition;
 use std::error::Error;

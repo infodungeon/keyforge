@@ -6,8 +6,8 @@ use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_infra::listing::{
     list_corpora as ws_list_corpora, list_keyboards as ws_list_keyboards,
 };
-use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_protocol::geometry::KeyboardDefinition;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::geometry::KeyboardDefinition;
 use std::fs;
 use std::path::Path;
 

@@ -174,7 +174,7 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
             axum::routing::get(features::list_submissions::handle),
         )
         .route(
-            "/data/system/*path",
+            "/data/system/{*path}",
             axum::routing::get(features::assets::get_asset),
         )
         .route(

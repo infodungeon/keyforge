@@ -39,7 +39,7 @@ impl Validator for KeycodeDefinition {
         if self.id.trim().is_empty() {
             return Err(format!("Keycode {} has empty ID", self.code));
         }
-        if self.label.trim().is_empty() {
+        if self.label.is_empty() {
             return Err(format!("Keycode {} ({}) has empty label", self.code, self.id));
         }
         Ok(())
@@ -92,7 +92,7 @@ impl KeycodeRegistry {
             KeycodeDefinition {
                 code: KeyCode(0),
                 id: "KC_NO".into(),
-                label: "".into(),
+                label: " ".into(),
                 aliases: vec!["XXXXXXX".into()],
             },
             KeycodeDefinition {
