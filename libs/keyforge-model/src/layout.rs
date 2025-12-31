@@ -15,6 +15,7 @@
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use thiserror::Error;
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 pub use crate::types::{KeyCode, KeyIndex};
 
@@ -28,12 +29,12 @@ pub enum LayoutError {
 
 /// A specific mapping of KeyCodes to physical positions.
 /// The index in the vector corresponds to the `KeyIndex`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Layout {
     /// The list of keys.
     /// Optimization: Store up to 64 keys inline on the stack.
-    #[ts(type = "Vec<KeyCode>")]
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Vec<KeyCode>"))]
     pub keys: SmallVec<[KeyCode; 64]>,
 }
 

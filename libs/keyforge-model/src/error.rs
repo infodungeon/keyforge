@@ -14,6 +14,7 @@
 
 use thiserror::Error;
 use serde::{Serialize, Deserialize};
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
 /// The central error type for the KeyForge domain.
@@ -57,8 +58,8 @@ pub enum ForgeError {
 }
 
 /// Specific errors related to physical constraints and scoring.
-#[derive(Error, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum PhysicsError {
     /// Hand index out of bounds (must be 0 or 1).
     #[error("Hand index {0} is invalid (must be 0 or 1)")]

@@ -14,13 +14,14 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
 use crate::types::KeyCode;
 
 /// Definition of a logical key code (e.g., "KC_A").
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeycodeDefinition {
     /// The numeric code.
     pub code: KeyCode,
@@ -33,8 +34,8 @@ pub struct KeycodeDefinition {
 }
 
 /// Registry for looking up key codes by name or ID.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeycodeRegistry {
     /// List of all definitions.
     pub definitions: Vec<KeycodeDefinition>,

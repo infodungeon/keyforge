@@ -21,6 +21,7 @@ graph TD
         Persist("keyforge-persistence<br/>[ProjectRepo]")
         Wasm("keyforge-wasm<br/>[InMemoryLoader]")
         Export("keyforge-export<br/>[Exporter Trait]")
+        Adapt("keyforge-adapter<br/>[ACL]")
     end
 
     %% --- PORTS (Application Layer) ---
@@ -47,6 +48,7 @@ graph TD
     CLI --> Infra
     Hive --> Infra
     Hive --> Proto
+    Hive --> Adapt
     Agent --> Infra
     Agent --> Proto
     Agent --> Sec
@@ -55,6 +57,8 @@ graph TD
     %% Adapters use Ports & Domain
     Infra --> Persist
     Wasm --> Core
+    Adapt --> Proto
+    Adapt --> Model
     Persist --> Model
     Export --> Model
 
@@ -80,6 +84,7 @@ graph TD
     click Persist href "./keyforge-persistence/README.md" "Open Persistence Design"
     click Wasm href "./keyforge-wasm/README.md" "Open WASM Design"
     click Export href "./keyforge-export/README.md" "Open Export Design"
+    click Adapt href "./keyforge-adapter/README.md" "Open Adapter Design"
 
     %% Ports
     click Compute href "./keyforge-compute/README.md" "Open Compute Design"
@@ -112,6 +117,8 @@ Use these links to navigate the design documentation if the diagram is not inter
 * [**keyforge-persistence**](./keyforge-persistence/README.md) - Project State.
 * [**keyforge-wasm**](./keyforge-wasm/README.md) - Browser Bindings.
 * [**keyforge-export**](./keyforge-export/README.md) - Firmware Generation.
+* [**keyforge-adapter**](./keyforge-adapter/README.md) - Anti-Corruption Layer.
+* [**keyforge-testing**](./keyforge-testing/README.md) - Test Harness.
 
 ### 3. Ports (The Glue)
 

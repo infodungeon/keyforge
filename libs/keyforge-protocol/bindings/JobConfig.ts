@@ -7,4 +7,47 @@ import type { KeyboardDefinition } from "./KeyboardDefinition";
 import type { ScoringWeights } from "./ScoringWeights";
 import type { SearchParams } from "./SearchParams";
 
-export type JobConfig = { definition: KeyboardDefinition, weights: ScoringWeights, params: SearchParams, pinned_keys: Array<KeyConstraint>, corpora: Array<CorpusSource>, cost_matrix: CostMatrixSource, biometrics: Array<BiometricSample>, parent_job_id: string | null, baseline_score: number | null, parents: Array<string>, };
+/**
+ * Full configuration for a running job.
+ */
+export type JobConfig = { 
+/**
+ * Keyboard geometry definition.
+ */
+definition: KeyboardDefinition, 
+/**
+ * Scoring weights.
+ */
+weights: ScoringWeights, 
+/**
+ * Search parameters.
+ */
+params: SearchParams, 
+/**
+ * Keys pinned to specific positions.
+ */
+pinned_keys: Array<KeyConstraint>, 
+/**
+ * Text corpora to use.
+ */
+corpora: Array<CorpusSource>, 
+/**
+ * Cost matrix source.
+ */
+cost_matrix: CostMatrixSource, 
+/**
+ * User biometric data.
+ */
+biometrics: Array<BiometricSample>, 
+/**
+ * Parent job ID.
+ */
+parent_job_id: string | null, 
+/**
+ * Baseline score.
+ */
+baseline_score: number | null, 
+/**
+ * Parent job IDs.
+ */
+parents: Array<string>, };

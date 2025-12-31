@@ -18,49 +18,71 @@ use keyforge_model::{
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
 fn default_version() -> u32 { PROTOCOL_VERSION }
 fn default_cost_matrix() -> CostMatrixSource { CostMatrixSource::default() }
 fn default_corpora() -> Vec<CorpusSource> { vec![CorpusSource::default()] }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Represents a single timing sample for a bigram.
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct BiometricSample {
+    /// The bigram string (e.g., "th").
     pub bigram: String,
+    /// The time in milliseconds.
     pub ms: f64,
+    /// Timestamp of the sample.
     pub timestamp: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Aggregated statistics for a user.
+#[derive(Serialize, Deserialize, Clone, Default, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct UserStatsStore {
+    /// Total number of sessions.
     pub sessions: u64,
+    /// Total keystrokes typed.
     pub total_keystrokes: u64,
+    /// Collection of biometric samples.
+    #[serde(deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Request to initiate a new optimization job.
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobRequest {
+    /// Protocol version.
     #[serde(default = "default_version")]
     pub version: u32,
+    /// Keyboard geometry definition.
     pub definition: KeyboardDefinition,
+    /// Scoring weights.
     pub weights: ScoringWeights,
+    /// Search parameters.
     pub params: SearchParams,
-    #[serde(default)]
+    /// Keys pinned to specific positions.
+    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub pinned_keys: Vec<KeyConstraint>,
-    #[serde(default = "default_corpora")]
+    /// Text corpora to use.
+    #[serde(default = "default_corpora", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub corpora: Vec<CorpusSource>,
+    /// Cost matrix source.
     #[serde(default = "default_cost_matrix")]
     pub cost_matrix: CostMatrixSource,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// User biometric data.
+    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
+    /// Parent job ID (for evolution).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_job_id: Option<String>,
+    /// Baseline score to beat.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub baseline_score: Option<f32>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Parent job IDs (for merging).
+    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub parents: Vec<String>,
 }
 
@@ -100,25 +122,36 @@ impl Validator for JobRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Full configuration for a running job.
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobConfig {
+    /// Keyboard geometry definition.
     pub definition: KeyboardDefinition,
+    /// Scoring weights.
     pub weights: ScoringWeights,
+    /// Search parameters.
     pub params: SearchParams,
-    #[serde(default)]
+    /// Keys pinned to specific positions.
+    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub pinned_keys: Vec<KeyConstraint>,
-    #[serde(default = "default_corpora")]
+    /// Text corpora to use.
+    #[serde(default = "default_corpora", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub corpora: Vec<CorpusSource>,
+    /// Cost matrix source.
     #[serde(default = "default_cost_matrix")]
     pub cost_matrix: CostMatrixSource,
-    #[serde(default)]
+    /// User biometric data.
+    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
+    /// Parent job ID.
     #[serde(default)]
     pub parent_job_id: Option<String>,
+    /// Baseline score.
     #[serde(default)]
     pub baseline_score: Option<f32>,
-    #[serde(default)]
+    /// Parent job IDs.
+    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub parents: Vec<String>,
 }
 
@@ -139,51 +172,77 @@ impl From<JobRequest> for JobConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Response confirming job submission.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobResponse {
+    /// The assigned Job ID.
     pub job_id: String,
+    /// Whether this is a new job (true) or existing (false).
     pub is_new: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Response for a worker polling the queue.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobQueueResponse {
+    /// The Job ID to process, if any.
     pub job_id: Option<String>,
+    /// The configuration for the job, if any.
     pub config: Option<JobConfig>,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Response containing available layouts.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct PopulationResponse {
+    /// List of layout strings.
+    #[serde(deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
     pub layouts: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Submission of a result from a worker.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct ResultSubmission {
+    /// Protocol version.
     #[serde(default = "default_version")]
     pub version: u32,
+    /// The Job ID.
     pub job_id: String,
+    /// The layout string.
     pub layout: String,
+    /// The score achieved.
     pub score: f32,
+    /// Timestamp of the result.
     pub timestamp: u64,
+    /// Nonce for cryptographic verification.
     pub nonce: u64,
+    /// The Node ID of the worker.
     pub node_id: String,
+    /// Cryptographic signature.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Request from a node to register or heartbeat.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct NodeRequest {
+    /// Protocol version.
     #[serde(default = "default_version")]
     pub version: u32,
+    /// The Node ID.
     pub node_id: String,
+    /// CPU model name.
     pub cpu_model: String,
+    /// Number of cores.
     pub cores: i32,
+    /// L2 cache size in KB.
     pub l2_cache_kb: Option<i32>,
+    /// Operations per second benchmark.
     pub ops_per_sec: f32,
+    /// Public key for verification.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
 }
@@ -197,30 +256,45 @@ impl Validator for NodeRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Tuning profile for a worker.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct TuningProfile {
+    /// Strategy name.
     pub strategy: String,
+    /// Batch size for processing.
     pub batch_size: usize,
+    /// Number of threads to use.
     pub thread_count: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, TS)]
-#[ts(export)]
+/// Response to a node heartbeat.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct NodeResponse {
+    /// Status of the node (e.g., "Active").
     pub status: String,
+    /// Tuning profile to apply.
     pub tuning: TuningProfile,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, ToSchema, TS)]
-#[ts(export)]
+/// System-wide metrics.
+#[derive(Serialize, Deserialize, Debug, Default, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct SystemMetrics {
+    /// Uptime in seconds.
     pub uptime_secs: u64,
+    /// Number of active jobs.
     pub active_jobs: i64,
+    /// Total results processed.
     pub total_results: i64,
+    /// Number of nodes online.
     pub nodes_online: i64,
+    /// Total operations per second across the cluster.
     pub total_ops_per_sec: f32,
+    /// Server memory used in bytes.
     pub server_memory_used: u64,
+    /// Server CPU usage percentage.
     pub server_cpu_usage: f32,
 }
 
@@ -245,13 +319,20 @@ impl Validator for ResultSubmission {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, TS)]
-#[ts(export)]
+/// Status of a specific job.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobStatus {
+    /// The Job ID.
     pub job_id: String,
+    /// Current status (e.g., "Running").
     pub status: String,
+    /// Number of nodes working on this job.
     pub active_nodes: usize,
+    /// Best score found so far.
     pub best_score: Option<f32>,
+    /// Best layout found so far.
     pub best_layout: Option<String>,
+    /// Total samples processed.
     pub total_samples: usize,
 }

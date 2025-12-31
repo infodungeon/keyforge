@@ -11,32 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use keyforge_protocol::config::{CorpusSource, ScoringWeights, SearchParams};
-use keyforge_protocol::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
- 
-use keyforge_protocol::{
-    CostMatrixSource, JobConfig, JobRequest, KeyConstraint,
+
+use keyforge_model::{
+    CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, ScoringWeights, SearchParams,
+    Validator, KeyNode, KeyIndex
 };
-use keyforge_protocol::types::KeyIndex;
-use keyforge_protocol::Validator;
-use std::str::FromStr;
-
-#[test]
-fn test_corpus_source_parsing() {
-    let c = CorpusSource::from_str("rust:1.5").unwrap();
-    assert_eq!(c.id, "rust");
-    assert_eq!(c.weight, 1.5);
-    assert!(CorpusSource::from_str("rust:xyz").is_err());
-}
-
-#[test]
-fn test_key_constraint_parsing() {
-    let c = KeyConstraint::from_str("  10  :  KC_A  ").unwrap();
-    assert_eq!(c.index, KeyIndex(10));
-    assert_eq!(c.key, "KC_A");
-    assert!(KeyConstraint::from_str("10-KC_A").is_err());
-    assert!(KeyConstraint::from_str("NaN:KC_A").is_err());
-}
+use keyforge_protocol::{JobConfig, JobRequest};
 
 #[test]
 fn test_job_config_conversion() {
@@ -62,23 +42,6 @@ fn test_job_config_conversion() {
 }
 
 #[test]
-fn test_search_params_validation() {
-    let mut p = SearchParams::default();
-    p.search_epochs = 0;
-    assert!(p.validate().is_err());
-}
-
-#[test]
-fn test_geometry_validation() {
-    let mut geom = KeyboardGeometry::default();
-    assert!(geom.validate().is_err());
-    let mut k = KeyNode::default();
-    k.w = 0.0;
-    geom.keys = vec![k];
-    assert!(geom.validate().is_err());
-}
-
-#[test]
 fn test_job_request_validation() {
     let mut req = JobRequest {
         version: 1,
@@ -93,11 +56,26 @@ fn test_job_request_validation() {
         baseline_score: None,
         parents: vec![],
     };
+    
+    // Setup valid minimal geometry
     req.definition.geometry.keys = vec![KeyNode::default()];
     req.definition.geometry.prime_slots = vec![KeyIndex(0)];
+
+    // Test 1: Too many keys
+    let original_keys = req.definition.geometry.keys.clone();
+    req.definition.geometry.keys = vec![KeyNode::default(); 201];
+    assert!(req.validate().is_err(), "Should reject > 200 keys");
+    req.definition.geometry.keys = original_keys;
+
+    // Test 2: Pinned key out of bounds
     req.pinned_keys = vec![KeyConstraint {
-        index: KeyIndex(5),
+        index: KeyIndex(5), // Only 1 key exists (index 0)
         key: "A".into(),
     }];
-    assert!(req.validate().is_err());
+    assert!(req.validate().is_err(), "Should reject out of bounds pin");
+    req.pinned_keys.clear();
+
+    // Test 3: Cost Matrix Empty
+    req.cost_matrix = CostMatrixSource::Predefined("".into());
+    assert!(req.validate().is_err(), "Should reject empty cost matrix name");
 }

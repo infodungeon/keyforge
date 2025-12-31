@@ -72,15 +72,16 @@ pub use keyboard::Keyboard;
 pub use keycodes::KeycodeRegistry;
 pub use layout::Layout;
 pub use rubric::Rubric;
-pub use types::{KeyIndex, HandIndex, FingerIndex, RowIndex, ColIndex, Score, KeyCode};
-pub use validator::Validator;
+pub use types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, Score};
+pub use validator::{LayoutValidator, Validator};
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
 /// Configuration for the optimization search strategy.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum SearchConfig {
     /// Simulated Annealing strategy.
     Annealing {
@@ -145,8 +146,8 @@ impl SearchConfig {
 }
 
 /// Represents a specific N-gram that violates a metric threshold.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct MetricViolation {
     /// The keys involved (e.g., "TH").
     pub keys: String,
@@ -157,8 +158,8 @@ pub struct MetricViolation {
 }
 
 /// Detailed breakdown of a layout's performance.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct AnalysisReport {
     /// Total weighted score (lower is better).
     pub score: f32,
@@ -191,8 +192,8 @@ pub struct AnalysisReport {
 }
 
 /// The final output of an optimization run.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct OptimizationResult {
     /// The final score achieved.
     pub score: f32,
@@ -201,8 +202,8 @@ pub struct OptimizationResult {
 }
 
 /// A proposed change to the layout during optimization.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct SwapSuggestion {
     /// Index of the first key.
     pub index_a: usize,

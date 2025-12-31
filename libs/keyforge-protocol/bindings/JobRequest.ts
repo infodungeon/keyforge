@@ -7,4 +7,51 @@ import type { KeyboardDefinition } from "./KeyboardDefinition";
 import type { ScoringWeights } from "./ScoringWeights";
 import type { SearchParams } from "./SearchParams";
 
-export type JobRequest = { version: number, definition: KeyboardDefinition, weights: ScoringWeights, params: SearchParams, pinned_keys: Array<KeyConstraint>, corpora: Array<CorpusSource>, cost_matrix: CostMatrixSource, biometrics: Array<BiometricSample>, parent_job_id: string | null, baseline_score: number | null, parents: Array<string>, };
+/**
+ * Request to initiate a new optimization job.
+ */
+export type JobRequest = { 
+/**
+ * Protocol version.
+ */
+version: number, 
+/**
+ * Keyboard geometry definition.
+ */
+definition: KeyboardDefinition, 
+/**
+ * Scoring weights.
+ */
+weights: ScoringWeights, 
+/**
+ * Search parameters.
+ */
+params: SearchParams, 
+/**
+ * Keys pinned to specific positions.
+ */
+pinned_keys: Array<KeyConstraint>, 
+/**
+ * Text corpora to use.
+ */
+corpora: Array<CorpusSource>, 
+/**
+ * Cost matrix source.
+ */
+cost_matrix: CostMatrixSource, 
+/**
+ * User biometric data.
+ */
+biometrics?: Array<BiometricSample>, 
+/**
+ * Parent job ID (for evolution).
+ */
+parent_job_id?: string | null, 
+/**
+ * Baseline score to beat.
+ */
+baseline_score?: number | null, 
+/**
+ * Parent job IDs (for merging).
+ */
+parents?: Array<string>, };

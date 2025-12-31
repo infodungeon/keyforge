@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
+/// Standardized error codes for the KeyForge API.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, Display, EnumString,
 )]
@@ -22,36 +23,54 @@ use utoipa::ToSchema;
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
     // Generic
+    /// Internal server error.
     InternalError,
+    /// Bad request (validation failed).
     BadRequest,
+    /// Resource not found.
     NotFound,
 
     // Auth
+    /// Authentication token missing.
     AuthMissing,
+    /// Authentication token invalid.
     AuthInvalid,
+    /// Authentication token expired.
     AuthExpired,
+    /// Access forbidden.
     AuthForbidden,
 
     // Domain
+    /// Job validation failed.
     JobValidationFailed,
+    /// Job not found.
     JobNotFound,
+    /// Job already exists.
     JobAlreadyExists,
 
     // Infrastructure
+    /// Database error.
     DatabaseError,
+    /// Upstream service timeout.
     UpstreamTimeout,
+    /// Service unavailable.
     ServiceUnavailable,
 }
 
+/// Standardized error response structure.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ErrorResponse {
+    /// The error code.
     pub code: ErrorCode,
+    /// A human-readable message.
     pub message: String,
+    /// Optional details (JSON).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
 }
 
 impl ErrorResponse {
+    /// Creates a new ErrorResponse.
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,
@@ -60,6 +79,7 @@ impl ErrorResponse {
         }
     }
 
+    /// Adds details to the ErrorResponse.
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self

@@ -15,4 +15,4 @@ weight: number,
 /**
  * Optional hash for integrity verification.
  */
-hash: string | null, };
+hash?: string, };

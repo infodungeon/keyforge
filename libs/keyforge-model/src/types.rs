@@ -15,22 +15,16 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use utoipa::ToSchema;
-use ts_rs::{TS, Dependency};
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
 use crate::constants::SCORE_SCALE;
 
 /// Canonical index of a physical key in the keyboard array.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct KeyIndex(pub u16);
-
-impl TS for KeyIndex {
-    fn name() -> String { "KeyIndex".to_owned() }
-    fn decl() -> String { "type KeyIndex = number;".to_owned() }
-    fn inline() -> String { "number".to_owned() }
-    fn dependencies() -> Vec<Dependency> { vec![] }
-    fn transparent() -> bool { false }
-}
 
 impl fmt::Display for KeyIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
@@ -40,17 +34,10 @@ impl From<KeyIndex> for usize { fn from(idx: KeyIndex) -> Self { idx.0 as usize 
 
 /// Logical identifier for a character or action (e.g., 'A', 'Shift').
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct KeyCode(pub u16);
-
-impl TS for KeyCode {
-    fn name() -> String { "KeyCode".to_owned() }
-    fn decl() -> String { "type KeyCode = number;".to_owned() }
-    fn inline() -> String { "number".to_owned() }
-    fn dependencies() -> Vec<Dependency> { vec![] }
-    fn transparent() -> bool { false }
-}
 
 impl From<u16> for KeyCode { fn from(val: u16) -> Self { Self(val) } }
 impl From<KeyCode> for u16 { fn from(val: KeyCode) -> u16 { val.0 } }
@@ -60,17 +47,10 @@ impl fmt::Display for KeyCode {
 
 /// Identifies the hand (Left=0, Right=1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct HandIndex(pub u8);
-
-impl TS for HandIndex {
-    fn name() -> String { "HandIndex".to_owned() }
-    fn decl() -> String { "type HandIndex = number;".to_owned() }
-    fn inline() -> String { "number".to_owned() }
-    fn dependencies() -> Vec<Dependency> { vec![] }
-    fn transparent() -> bool { false }
-}
 
 impl HandIndex {
     /// Left Hand (0).
@@ -96,17 +76,10 @@ impl TryFrom<u8> for HandIndex {
 
 /// Identifies the finger (Thumb=0, Index=1, Middle=2, Ring=3, Pinky=4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct FingerIndex(pub u8);
-
-impl TS for FingerIndex {
-    fn name() -> String { "FingerIndex".to_owned() }
-    fn decl() -> String { "type FingerIndex = number;".to_owned() }
-    fn inline() -> String { "number".to_owned() }
-    fn dependencies() -> Vec<Dependency> { vec![] }
-    fn transparent() -> bool { false }
-}
 
 impl FingerIndex {
     /// Thumb (0).
@@ -138,17 +111,10 @@ impl TryFrom<u8> for FingerIndex {
 
 /// Logical row index (0-based).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct RowIndex(pub i8);
-
-impl TS for RowIndex {
-    fn name() -> String { "RowIndex".to_owned() }
-    fn decl() -> String { "type RowIndex = number;".to_owned() }
-    fn inline() -> String { "number".to_owned() }
-    fn dependencies() -> Vec<Dependency> { vec![] }
-    fn transparent() -> bool { false }
-}
 
 impl std::ops::Sub for RowIndex {
     type Output = i8;
@@ -157,17 +123,10 @@ impl std::ops::Sub for RowIndex {
 
 /// Logical column index (0-based).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct ColIndex(pub i8);
-
-impl TS for ColIndex {
-    fn name() -> String { "ColIndex".to_owned() }
-    fn decl() -> String { "type ColIndex = number;".to_owned() }
-    fn inline() -> String { "number".to_owned() }
-    fn dependencies() -> Vec<Dependency> { vec![] }
-    fn transparent() -> bool { false }
-}
 
 impl std::ops::Sub for ColIndex {
     type Output = i8;
@@ -177,17 +136,10 @@ impl std::ops::Sub for ColIndex {
 /// Fixed-point score representation.
 /// Internally stored as `i64` scaled by `SCORE_SCALE` (1,000,000).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct Score(pub i64);
-
-impl TS for Score {
-    fn name() -> String { "Score".to_owned() }
-    fn decl() -> String { "type Score = number;".to_owned() }
-    fn inline() -> String { "number".to_owned() }
-    fn dependencies() -> Vec<Dependency> { vec![] }
-    fn transparent() -> bool { false }
-}
 
 impl Score {
     /// Maximum possible score.

@@ -2,4 +2,27 @@
 import type { KeyIndex } from "./KeyIndex";
 import type { KeyNode } from "./KeyNode";
 
-export type KeyboardGeometry = { keys: Array<KeyNode>, prime_slots: Array<KeyIndex>, med_slots: Array<KeyIndex>, low_slots: Array<KeyIndex>, home_row: number, };
+/**
+ * Collection of keys and slot definitions defining the keyboard geometry.
+ */
+export type KeyboardGeometry = { 
+/**
+ * List of all physical keys.
+ */
+keys: Array<KeyNode>, 
+/**
+ * Indices of keys considered "Prime" (best positions).
+ */
+prime_slots: Array<KeyIndex>, 
+/**
+ * Indices of keys considered "Medium" quality.
+ */
+med_slots: Array<KeyIndex>, 
+/**
+ * Indices of keys considered "Low" quality.
+ */
+low_slots: Array<KeyIndex>, 
+/**
+ * The logical row index considered the "Home Row".
+ */
+home_row: number, };

@@ -17,6 +17,8 @@
 * [keyforge-persistence](./keyforge-persistence/README.md) - Project State.
 * [keyforge-wasm](./keyforge-wasm/README.md) - Browser Bindings.
 * [keyforge-export](./keyforge-export/README.md) - Firmware Generation.
+* [keyforge-adapter](./keyforge-adapter/README.md) - Anti-Corruption Layer.
+* [keyforge-testing](./keyforge-testing/README.md) - Test Harness.
 
 ## Drivers (The Apps)
 * [keyforge-hive](./keyforge-hive/README.md) - Server & API.

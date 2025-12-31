@@ -15,11 +15,12 @@
 use regex::Regex;
 use std::sync::OnceLock;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
 /// Represents a parsed action from a keymap file (e.g., QMK/ZMK format).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum KeyAction {
     /// A simple keycode (e.g., "KC_A").
     Simple(String),

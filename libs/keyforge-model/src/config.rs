@@ -23,11 +23,12 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
 /// The root configuration aggregate for a KeyForge session.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Config {
     /// Parameters controlling the annealing search process.
     pub search: SearchParams,
@@ -38,8 +39,8 @@ pub struct Config {
 }
 
 /// Defines a source for text corpus data.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct CorpusSource {
     /// The identifier or filename of the corpus (e.g., "text/en_std").
     pub id: String,
@@ -47,6 +48,7 @@ pub struct CorpusSource {
     pub weight: f32,
     /// Optional hash for integrity verification.
     #[serde(default, skip_serializing_if = "crate::serde_utils::is_none")]
+    #[cfg_attr(feature = "ts_bindings", ts(optional))]
     pub hash: Option<String>,
 }
 
@@ -100,8 +102,8 @@ impl FromStr for CorpusSource {
 }
 
 /// Parameters controlling the Simulated Annealing algorithm.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct SearchParams {
     /// Number of epochs (independent runs) to perform.
     pub search_epochs: usize,
@@ -184,9 +186,9 @@ impl Validator for SearchParams {
 }
 
 /// Weights and penalties defining the "personality" of the scoring engine.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(default)]
-#[ts(export)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct ScoringWeights {
     /// Penalty for Same Finger Repeat on a weak finger.
     pub penalty_sfr_weak_finger: f32,
@@ -364,9 +366,9 @@ impl ScoringWeights {
 }
 
 /// Definitions for character tiers and critical bigrams.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(default)]
-#[ts(export)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct LayoutDefinitions {
     /// Characters considered high priority.
     pub tier_high_chars: String,
@@ -415,9 +417,9 @@ fn parse_f32_array<const N: usize>(s: &str) -> Result<[f32; N], String> {
 }
 
 /// Defines the source of the cost matrix used for scoring.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema, TS)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
 #[serde(tag = "type", content = "data")]
-#[ts(export)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum CostMatrixSource {
     /// Use a built-in cost matrix file.
     Predefined(String),
@@ -439,8 +441,8 @@ impl fmt::Display for CostMatrixSource {
 }
 
 /// A constraint pinning a specific key to a specific physical index.
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema, TS)]
-#[ts(export)]
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyConstraint {
     /// The physical index to pin.
     pub index: KeyIndex,

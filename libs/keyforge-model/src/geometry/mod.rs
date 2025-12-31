@@ -18,14 +18,15 @@ use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
 /// Keyboard Layout Editor (KLE) integration.
 pub mod kle;
 
 /// Metadata describing a keyboard definition.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyboardMeta {
     /// Display name of the keyboard.
     pub name: String,
@@ -44,9 +45,9 @@ pub struct KeyboardMeta {
 }
 
 /// Complete definition of a keyboard, including metadata and geometry.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
 #[serde(deny_unknown_fields)]
-#[ts(export)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyboardDefinition {
     /// Metadata about the keyboard.
     #[serde(default)]
@@ -59,8 +60,8 @@ pub struct KeyboardDefinition {
 }
 
 /// Represents a single physical key on the keyboard.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyNode {
     /// Internal numeric ID (0..N) - Runtime optimization.
     #[serde(default)]
@@ -131,8 +132,8 @@ fn default_size() -> f32 { 1.0 }
 fn default_home_row() -> i8 { 1 }
 
 /// Collection of keys and slot definitions defining the keyboard geometry.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyboardGeometry {
     /// List of all physical keys.
     pub keys: Vec<KeyNode>,

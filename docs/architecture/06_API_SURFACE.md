@@ -36,3 +36,11 @@
   * **Public:** Read-only data.
   * **Strict:** Write operations (Rate Limited).
   * **Admin:** Destructive operations (`nuke`, `cancel`).
+
+## 5. Client Generation (TypeScript)
+
+The API contract is strictly typed. We provide generated TypeScript bindings for all DTOs.
+
+* **Tool:** `ts-rs`.
+* **Feature Flag:** `ts_bindings` (Must be enabled in `keyforge-protocol` to generate).
+* **Artifacts:** `libs/keyforge-protocol/bindings/*.ts`.
