@@ -1,1 +1,0 @@
-libs/keyforge-physics/src/lib.rs:56:9: replace ScoringEngine::suggest_improvements -> Vec<SwapSuggestion> with vec![Default::default()]

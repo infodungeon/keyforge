@@ -39,6 +39,7 @@ impl Validator for KeycodeDefinition {
         if self.id.trim().is_empty() {
             return Err(format!("Keycode {} has empty ID", self.code));
         }
+
         if self.label.is_empty() {
             return Err(format!("Keycode {} ({}) has empty label", self.code, self.id));
         }
