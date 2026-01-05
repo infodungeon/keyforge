@@ -1,5 +1,5 @@
 use keyforge_model::{CorpusSource, ScoringWeights, SearchParams, KeyIndex};
-use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
+use keyforge_model::constants::{MAX_PINNED_KEYS_COUNT, DEFAULT_CORPUS_ID};
 use keyforge_model::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::{CostMatrixSource, KeyConstraint, Validator};
 use keyforge_protocol::JobRequest;
@@ -223,7 +223,7 @@ impl JobRepository {
             .corpora
             .first()
             .map(|c| c.id.clone())
-            .unwrap_or_else(|| "text/en_std".to_string());
+            .unwrap_or_else(|| DEFAULT_CORPUS_ID.to_string());
         let pinned_json = serde_json::to_string(&req.pinned_keys)
             .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
 

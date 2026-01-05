@@ -274,8 +274,8 @@ fn test_parse_layout_string_permissive_padding() {
     let layout = conversion::parse_layout_string_permissive(layout_str, kb_geo.keys.len(), &registry);
     
     assert_eq!(layout.keys.len(), 2);
-    // "A" is not in registry, so it falls back to ASCII 'A' (65)
-    assert_eq!(layout.keys[0], KeyCode(65)); 
+    // "A" is not in registry, so it falls back to ASCII 'a' (97) due to normalization
+    assert_eq!(layout.keys[0], KeyCode(97)); 
     // Padded with KC_NO (0)
     assert_eq!(layout.keys[1], KeyCode(0)); 
 }

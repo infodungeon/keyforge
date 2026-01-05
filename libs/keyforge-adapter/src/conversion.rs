@@ -157,7 +157,7 @@ pub fn parse_layout_string_strict(
             if token.len() == 1 {
                 let c = token.chars().next().expect("token of length 1 should have a character");
                 if c.is_ascii() {
-                    keys.push(KeyCode(c as u16));
+                    keys.push(KeyCode(c.to_ascii_lowercase() as u16));
                     continue;
                 }
             }
@@ -206,7 +206,7 @@ pub fn parse_layout_string_permissive(
         } else if token.len() == 1 {
             if let Some(c) = token.chars().next() {
                 if c.is_ascii() {
-                    keys.push(KeyCode(c as u16));
+                    keys.push(KeyCode(c.to_ascii_lowercase() as u16));
                 } else {
                     keys.push(KeyCode(0));
                 }

@@ -77,7 +77,16 @@ impl Validator for KeycodeRegistry {
 
 impl KeycodeRegistry {
     /// Creates a new registry from a list of definitions.
-    pub fn new(definitions: Vec<KeycodeDefinition>) -> Self {
+    pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
+        // NORMALIZE: Force all Uppercase ASCII codes (65-90) to Lowercase (97-122)
+        // This aligns the internal representation with standard text corpora.
+        for def in &mut definitions {
+            let val = def.code.0;
+            if (65..=90).contains(&val) {
+                def.code = KeyCode(val + 32);
+            }
+        }
+
         let mut reg = Self {
             definitions,
             name_to_code: HashMap::new(),

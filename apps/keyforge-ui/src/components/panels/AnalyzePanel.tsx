@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ValidationResult, MetricViolation } from "../../types";
 import { DerivedStats } from "../../utils";
 import { StatBox } from "../Charts";
+import { SpaceHandPreference } from "../../services/stats";
 import {
   ChevronDown,
   ChevronRight,
@@ -15,6 +16,10 @@ interface Props {
   derivedStats: DerivedStats | null;
   showDiff: boolean;
   setShowDiff: (b: boolean) => void;
+  includeThumbs: boolean;
+  setIncludeThumbs: (b: boolean) => void;
+  spaceHand: SpaceHandPreference;
+  setSpaceHand: (p: SpaceHandPreference) => void;
 }
 
 const ViolationTable = ({
@@ -137,6 +142,10 @@ export function AnalyzePanel({
   derivedStats,
   showDiff,
   setShowDiff,
+  includeThumbs,
+  setIncludeThumbs,
+  spaceHand,
+  setSpaceHand,
 }: Props) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -178,9 +187,43 @@ export function AnalyzePanel({
       </div>
 
       <div>
-        <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-3">
-          Balance
-        </h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-[10px] font-bold text-slate-500 uppercase">
+            Balance
+          </h4>
+          <div className="flex flex-col gap-2 items-end">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="include-thumbs"
+                checked={includeThumbs}
+                onChange={(e) => setIncludeThumbs(e.target.checked)}
+                className="accent-blue-500 h-3 w-3 rounded border-slate-700 bg-slate-900"
+              />
+              <label htmlFor="include-thumbs" className="text-[9px] text-slate-400 cursor-pointer select-none">
+                Include Thumbs
+              </label>
+            </div>
+            {includeThumbs && (
+              <div className="flex flex-col gap-1 items-end">
+                <span className="text-[8px] text-slate-500 uppercase font-bold">Space Hand Preference</span>
+                <div className="flex bg-slate-800 rounded p-0.5 border border-slate-700">
+                  {(["left", "bilateral", "right"] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setSpaceHand(opt)}
+                      className={`px-2 py-0.5 text-[8px] uppercase font-bold rounded transition-colors ${
+                        spaceHand === opt ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      {opt === "bilateral" ? "Both" : opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         <div className="flex gap-1 h-3 rounded-full overflow-hidden mb-1">
           <div
             className="bg-blue-500 transition-all"

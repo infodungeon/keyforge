@@ -4,6 +4,7 @@ version = "0.8.0"
 edition = "2021"
 
 [dependencies]
+keyforge-persistence = { path = "../../libs/keyforge-persistence" }
 anyhow = "1.0"
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }

@@ -27,6 +27,7 @@ pub struct EngineContext {
     pub(crate) rows: Vec<RowIndex>,
     pub(crate) cols: Vec<ColIndex>,
     pub(crate) cost_matrix: Vec<Score>,
+    pub(crate) key_costs: Vec<Score>, // Static cost per key (Monogram)
     pub(crate) char_freqs: Vec<u32>,
     pub(crate) bigram_starts: Vec<usize>,
     pub(crate) bigram_others: Vec<KeyCode>,
@@ -49,4 +50,5 @@ pub struct EngineContext {
     pub(crate) penalty_redirect: Score,
     pub(crate) penalty_skip: Score,
     pub(crate) bonus_roll: Score,
+    pub(crate) space_preference: keyforge_model::types::SpaceHandPreference,
 }

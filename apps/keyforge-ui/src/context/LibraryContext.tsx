@@ -108,6 +108,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         backend.listKeymapExtras(hiveUrl),
       ]);
 
+      // SYSTEMIC VALIDATION
+      if (kbs.length === 0) throw new Error("No keyboards found in library.");
+      if (corps.length === 0) throw new Error("No corpora found in library.");
+      if (costs.length === 0) throw new Error("No cost matrices found in library.");
+
       setKeyboards(kbs);
       setCorpora(corps);
       setCostMatrices(costs);
@@ -116,10 +121,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setLibraryVersion((v) => v + 1);
       return kbs.length;
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error("Library Refresh Error:", e);
+      addToast("error", `Library Error: ${msg}`);
       return 0;
     }
-  }, [backend, hiveUrl]);
+  }, [backend, hiveUrl, addToast]);
 
   const performBootstrap = useCallback(async () => {
     setIsBootstrapping(true);
@@ -130,13 +137,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       if (count > 0) {
         addToast("success", "Workspace initialized successfully.");
       } else {
-        setBootstrapError(
-          "Download completed but no keyboards found. Check Hive data.",
-        );
+        throw new Error("Bootstrap completed but library is empty.");
       }
     } catch (e) {
-      setBootstrapError(`Connection Failed: ${e}`);
-      addToast("error", `Bootstrap Failed: ${e}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      setBootstrapError(`Bootstrap Failed: ${msg}`);
+      addToast("error", `Bootstrap Failed: ${msg}`);
     } finally {
       setIsBootstrapping(false);
     }
@@ -157,6 +163,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setSearchParams(conf.search);
 
         const reg = await backend.getKeycodes(hiveUrl);
+        if (!reg.definitions || reg.definitions.length === 0) {
+            throw new Error("Keycode Registry is empty.");
+        }
         keycodeService.loadDefinitions(reg.definitions);
 
         const kbCount = await refreshLibrary();
@@ -178,13 +187,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           await performBootstrap();
         }
       } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
         console.error("Library Init Error:", e);
+        addToast("error", `Initialization Failed: ${msg}`);
       } finally {
         setIsInitialized(true);
       }
     };
     init();
-  }, [backend, hiveUrl, refreshLibrary, performBootstrap, selectedKeyboard]);
+  }, [backend, hiveUrl, refreshLibrary, performBootstrap, selectedKeyboard, addToast]);
 
   useEffect(() => {
     if (!selectedKeyboard) return;
@@ -198,10 +209,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setStandardLayouts(Object.keys(all).filter((k) => k !== "Custom"));
       } catch (e) {
         console.error("Keyboard Load Error:", e);
+        addToast("error", `Failed to load layouts for ${selectedKeyboard}`);
       }
     };
     loadKb();
-  }, [selectedKeyboard, libraryVersion, backend, hiveUrl]);
+  }, [selectedKeyboard, libraryVersion, backend, hiveUrl, addToast]);
 
   const selectKeyboard = (name: string) => {
     setSelectedKeyboard(name);

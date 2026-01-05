@@ -18,6 +18,7 @@ use keyforge_core::loader::AssetLoader;
 
 /// Orchestrates the compilation of a [Project] into a [Runtime].
 /// This involves loading keyboards, corpora, and cost matrices via the [AssetLoader].
+use keyforge_model::constants::ASSET_KEYCODES;
 /// Refactored to use [SessionBuilder] for core compilation logic.
 pub struct Compiler<'a> {
     builder: SessionBuilder<'a>,
@@ -38,7 +39,7 @@ impl<'a> Compiler<'a> {
             &project.corpora,
             &project.weights,
             &project.params,
-            "keycodes.json",
+            ASSET_KEYCODES,
             &project.cost_matrix,
             project.seed,
         ).await.map_err(crate::error::PersistenceError::Loader)?;

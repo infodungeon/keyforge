@@ -11,6 +11,7 @@
 * [ADR-004: Postcard for Deterministic Hashing](#adr-004-postcard-for-deterministic-hashing)
 * [ADR-005: Feature Gating TypeScript Bindings](#adr-005-feature-gating-typescript-bindings)
 * [ADR-006: Universal Domain Validation](#adr-006-universal-domain-validation)
+* [ADR-007: Lowercase Alpha Normalization](#adr-007-lowercase-alpha-normalization)
 
 ---
 
@@ -76,3 +77,28 @@
   * (+) Centralizes validation logic in the Model layer (Single Source of Truth).
   * (+) Ensures consistency across different drivers (CLI vs Web vs Server).
   * (-) Requires boilerplate `Validator` implementations for simple structs.
+
+## ADR-007: Lowercase Alpha Normalization
+
+* **Status:** Accepted
+* **Date:** 2025-12-31
+* **Context:** Keyboards send keycodes (e.g., `KC_A`), but text corpora usually contain lowercase characters ('a'). Mixing case in the physics engine complicates frequency analysis and scoring.
+* **Decision:** Normalize all alphabetic keycodes to **lowercase** internally within the Domain Model (`KeycodeRegistry`, `Layout`, `Corpus`). Uppercase is treated purely as a **Presentation Layer** concern (UI rendering).
+* **Consequences:**
+  * (+) Simplifies scoring logic (no need to check both 'A' and 'a').
+  * (+) Consistent with standard text corpora.
+  * (-) UI must explicitly uppercase keys for display if desired.
+  * (-) Parsers must normalize input (e.g., "A" -> `KeyCode(97)`).
+
+## ADR-008: Synthetic Corpus Injection
+
+* **Status:** Accepted
+* **Date:** 2026-01-02
+* **Context:** Standard text corpora (e.g., books, articles) lack explicit `Enter` and `Backspace` events. Optimization engines trained solely on this data tend to place these critical keys in suboptimal positions (e.g., far corners), ignoring the reality of error correction and line breaking.
+* **Decision:** Inject synthetic frequency data for `Enter` and `Backspace` into `_std` (Standard Prose) corpora at load time.
+* **Backspace:** Calculated as `TotalChars * 0.03 (Error Rate) * 1.25 (Correction Factor)`. Distributed as `Char -> Bksp` transitions.
+* **Enter:** Calculated as `SentenceCount / 3.0 (Sentences per Paragraph)`. Distributed as `Punctuation -> Enter` transitions.
+* **Consequences:**
+* (+) Layouts optimize for realistic typing flows, including errors and formatting.
+* (+) `Backspace` and `Enter` are pulled closer to the home row/strong fingers.
+* (-) Synthetic distribution is heuristic; may not perfectly model individual user behavior (e.g., "spamming" backspace vs. long-press).

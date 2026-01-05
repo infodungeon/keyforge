@@ -17,6 +17,7 @@ use bytes::Bytes;
 use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
+use keyforge_model::constants::ASSET_KEYCODES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use moka::sync::Cache;
@@ -188,8 +189,8 @@ impl CachingProvider {
                         count_weights += 1;
                     }
                 }
-            } else if rel_path == "config/keycodes.mpk.zst" {
-                if let Err(e) = self.load_keycodes("keycodes").await {
+            } else if rel_path == format!("config/{}.mpk.zst", ASSET_KEYCODES) {
+                if let Err(e) = self.load_keycodes(ASSET_KEYCODES).await {
                     tracing::warn!("Eager load failed for keycodes: {}", e);
                 }
             }

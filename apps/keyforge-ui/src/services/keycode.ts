@@ -5,6 +5,7 @@ class KeycodeService {
   private codeToDef: Record<number, KeycodeDefinition> = {};
   private codeToLabel: Record<number, string> = {};
   private codeToShortName: Record<number, string> = {};
+  private isLoaded = false;
 
   constructor() {
     // No hardcoded data. Must call loadDefinitions.
@@ -26,16 +27,26 @@ class KeycodeService {
   }
 
   public loadDefinitions(defs: KeycodeDefinition[]) {
+    if (!defs || defs.length === 0) {
+        console.error("[KeycodeService] Received empty definitions!");
+        throw new Error("Keycode Registry Initialization Failed: No definitions provided.");
+    }
     this.nameToCode = {};
     this.codeToDef = {};
     this.codeToLabel = {};
     this.codeToShortName = {};
 
     defs.forEach((d) => this.register(d));
+    this.isLoaded = true;
+    console.log(`[KeycodeService] Loaded ${defs.length} definitions.`);
   }
 
   // Visual Label (Keycap) - Strictly from Registry
   public getVisualLabel(token: string): string {
+    if (!this.isLoaded) {
+        console.warn("[KeycodeService] Accessing before load:", token);
+        return token || "???";
+    }
     if (!token) return "";
 
     const upper = token.toUpperCase();
@@ -46,8 +57,9 @@ class KeycodeService {
       if (label) return label;
     }
 
-    // Fallback only if not found in registry (e.g. raw text)
-    return "";
+    // Fallback: Return raw token but warn
+    // console.warn(`[KeycodeService] Unknown key: ${token}`);
+    return token;
   }
 
   // Internal Data (Shortest Alias)

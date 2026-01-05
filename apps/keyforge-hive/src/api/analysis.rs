@@ -74,6 +74,7 @@ pub async fn validate_layout(
         initial_layout: None,
         pinned_keys: vec![],
         cost_overrides,
+        space_preference: keyforge_model::types::SpaceHandPreference::default(),
     })
     .map_err(|e| AppError::Validation(format!("Failed to build physics engine: {}", e)))?;
 

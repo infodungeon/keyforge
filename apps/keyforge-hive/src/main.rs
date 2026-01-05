@@ -14,7 +14,7 @@ use keyforge_hive::{
     observability,
     state::AppState,
 };
-use keyforge_infra::init::initialize_workspace;
+use keyforge_infra::init::{ensure_dir, validate_system_assets, USER_RUNTIME_DIRS};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -123,10 +123,20 @@ async fn main() {
                 }
             };
 
-            info!("�� Data root: {:?}", data_path);
-            if let Err(e) = initialize_workspace(&data_path, keyforge_infra::InitMode::Validate) {
-                error!("FATAL: Workspace initialization failed: {}", e);
+            info!("🐝 Data root: {:?}", data_path);
+
+            // 1. Validate System Assets (Infrastructure)
+            if let Err(e) = validate_system_assets(&data_path) {
+                error!("FATAL: System validation failed: {}", e);
                 std::process::exit(1);
+            }
+
+            // 2. Ensure Runtime Directories (Server Policy)
+            for d in USER_RUNTIME_DIRS {
+                if let Err(e) = ensure_dir(&data_path, d) {
+                    error!("FATAL: Failed to create runtime directory {}: {}", d, e);
+                    std::process::exit(1);
+                }
             }
 
             let server_key = std::env::var("HIVE_SERVER_KEY")

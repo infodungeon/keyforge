@@ -3,6 +3,7 @@ use keyforge_core::ScoringEngine;
 use keyforge_infra::FsProvider;
 use keyforge_infra::AssetLoader;
 use keyforge_model::config::{CorpusSource, ScoringWeights};
+use keyforge_model::constants::{ASSET_COST_MATRIX, ASSET_KEYCODES};
 use std::path::PathBuf;
 
 #[tokio::test]
@@ -49,7 +50,7 @@ async fn test_real_data_pipeline() {
         .await
         .expect("Failed to load corpus");
     let cost_data = provider
-        .load_cost_matrix("default_costmatrix.json")
+        .load_cost_matrix(ASSET_COST_MATRIX)
         .await
         .expect("Failed to load cost matrix");
 
@@ -61,7 +62,7 @@ async fn test_real_data_pipeline() {
         .expect("Failed to create scoring engine");
 
     let registry = provider
-        .load_keycodes("keycodes.json")
+        .load_keycodes(ASSET_KEYCODES)
         .await
         .expect("Failed to load keycodes");
 

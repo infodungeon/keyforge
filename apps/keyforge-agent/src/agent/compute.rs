@@ -1,7 +1,8 @@
+use keyforge_infra::AssetManager;
 use anyhow::{Context, Result};
 use keyforge_adapter::conversion;
 use keyforge_core::EngineRequest;
-use keyforge_infra::{AssetManager, UserRepo};
+use keyforge_persistence::UserRepo;
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::OptimizationResult;
 use keyforge_protocol::JobConfig;
@@ -178,6 +179,7 @@ pub async fn create_engine_request(
         initial_layout,
         pinned_keys,
         cost_overrides: cost_overrides.clone(),
+        space_preference: keyforge_model::types::SpaceHandPreference::default(),
     };
 
     Ok(PreparedJob {

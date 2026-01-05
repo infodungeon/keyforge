@@ -36,6 +36,12 @@ target/docker-context/
 # === KeyForge Specific ===
 # User data overlay (Runtime data)
 data/user/
+
+# === Corpora Generation ===
+corpora_data/
+words.json
+
+
 # Sandbox environment
 sandbox/
 # SQLx offline query data (Optional: Keep if you want CI to check queries without DB)

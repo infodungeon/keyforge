@@ -6,7 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { useBackend } from "../context/BackendContext";
 import { useSystem } from "../context/SystemContext";
 import { AppMode } from "../types";
-import { calculateStats } from "../utils";
+import { DerivedStats, SpaceHandPreference } from "../services/stats"; // Import types
 import { ContextControls } from "./ContextControls";
 import { Button } from "./ui/Button";
 import { SmartSuggestions } from "./SmartSuggestions";
@@ -39,6 +39,11 @@ interface Props {
   showDiff?: boolean;
   setShowDiff?: (b: boolean) => void;
   onSuggestionHover?: (indices: number[] | null) => void;
+  includeThumbs?: boolean;
+  setIncludeThumbs?: (b: boolean) => void;
+  spaceHand?: SpaceHandPreference;
+  setSpaceHand?: (p: SpaceHandPreference) => void;
+  derivedStats?: DerivedStats | null; // Accept from parent
 }
 
 export function Inspector({
@@ -53,6 +58,11 @@ export function Inspector({
   showDiff: controlledShowDiff,
   setShowDiff: controlledSetShowDiff,
   onSuggestionHover,
+  includeThumbs = true,
+  setIncludeThumbs = () => {},
+  spaceHand = "bilateral",
+  setSpaceHand = () => {},
+  derivedStats,
 }: Props) {
   const { activeResult, referenceResult } = useAnalysis();
   const {
@@ -77,11 +87,6 @@ export function Inspector({
   const [localShowDiff, setLocalShowDiff] = useState(false);
   const showDiff = controlledShowDiff ?? localShowDiff;
   const setShowDiff = controlledSetShowDiff ?? setLocalShowDiff;
-
-  const derivedStats =
-    activeResult?.geometry && activeResult?.heatmap
-      ? calculateStats(activeResult.geometry, activeResult.heatmap)
-      : null;
 
   const isStandard = standardLayouts.includes(layoutName);
 
@@ -136,7 +141,7 @@ export function Inspector({
   };
 
   return (
-    <div className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden shrink-0">
+    <div className="w-96 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden shrink-0">
       <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
         <h3 className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
           <PanelIcon size={14} /> {PanelTitle}
@@ -167,9 +172,13 @@ export function Inspector({
           <AnalyzePanel
             activeResult={activeResult}
             referenceResult={referenceResult}
-            derivedStats={derivedStats}
+            derivedStats={derivedStats || null}
             showDiff={showDiff}
             setShowDiff={setShowDiff}
+            includeThumbs={includeThumbs}
+            setIncludeThumbs={setIncludeThumbs}
+            spaceHand={spaceHand}
+            setSpaceHand={setSpaceHand}
           />
         )}
 

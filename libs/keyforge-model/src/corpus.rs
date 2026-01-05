@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::error::ForgeError;
-use crate::serde_utils::deserialize_limited_vec;
 use serde::{Deserialize, Serialize};
 use crate::validator::Validator;
 
@@ -23,16 +22,12 @@ use crate::validator::Validator;
 pub struct Corpus {
     /// Frequency of each character (index = char code).
     /// Must be exactly 65536 elements long to cover all u16 values.
-    #[serde(deserialize_with = "deserialize_limited_vec")]
     pub char_freqs: Vec<u32>,
     /// List of bigrams (char1, char2, frequency).
-    #[serde(deserialize_with = "deserialize_limited_vec")]
     pub bigrams: Vec<(u16, u16, u32)>,
     /// List of trigrams (char1, char2, char3, frequency).
-    #[serde(deserialize_with = "deserialize_limited_vec")]
     pub trigrams: Vec<(u16, u16, u16, u32)>,
     /// List of common words and their frequencies.
-    #[serde(deserialize_with = "deserialize_limited_vec")]
     pub words: Vec<(String, u32)>,
 }
 

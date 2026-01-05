@@ -33,6 +33,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const addToast = useCallback(
     (type: ToastType, message: string, duration = 5000) => {
       const id = Math.random().toString(36).substring(2, 9);
+      
+      // SYSTEMIC OBSERVABILITY: Always log to console
+      const logMsg = `[TOAST:${type.toUpperCase()}] ${message}`;
+      if (type === "error") console.error(logMsg);
+      else if (type === "warning") console.warn(logMsg);
+      else console.log(logMsg);
+
       setToasts((prev) => [...prev, { id, type, message, duration }]);
 
       if (duration > 0) {

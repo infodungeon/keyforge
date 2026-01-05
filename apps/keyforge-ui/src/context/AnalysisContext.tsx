@@ -6,6 +6,7 @@ import {
   ReactNode,
   useRef,
 } from "react";
+import { useToast } from "./ToastContext";
 import { ValidationResult } from "../types";
 import { useSession } from "./SessionContext";
 import { useLibrary } from "./LibraryContext";
@@ -25,10 +26,11 @@ const AnalysisContext = createContext<AnalysisContextType | undefined>(
 );
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
-  const { layoutString, layoutName, activeJobId } = useSession();
+  const { layoutString, layoutName, activeJobId, isDatasetLoaded } = useSession();
   const { weights, availableLayouts, selectedKeyboard } = useLibrary();
   const { hiveUrl } = useSystem();
   const backend = useBackend();
+  const { addToast } = useToast();
 
   const [activeResult, setActiveResult] = useState<ValidationResult | null>(
     null,
@@ -42,11 +44,12 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
 
   // Run Validation when layout changes
   useEffect(() => {
+    if (!isDatasetLoaded) return;
     if (!layoutString) {
       setActiveResult(null);
       return;
     }
-    if (activeJobId) return; // Don't validate while job is running (job updates handle this)
+    if (activeJobId) return; 
 
     const run = async () => {
       const currentId = ++validationReqId.current;
@@ -63,7 +66,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
           setActiveResult({ ...res, layout_name: layoutName });
         }
       } catch (e) {
-        console.error("Validation error:", e);
+        addToast("error", `Analysis Failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         if (currentId === validationReqId.current) setIsValidating(false);
       }
@@ -75,27 +78,47 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [layoutString, layoutName, weights, activeJobId, selectedKeyboard]);
+  }, [layoutString, layoutName, weights, activeJobId, selectedKeyboard, isDatasetLoaded]);
 
-  // Load Reference (Qwerty)
+  // Load Reference (Prefer Colemak-DH, then Qwerty, then Default)
   useEffect(() => {
+    if (!isDatasetLoaded) return; // Prevent "No runtime loaded" race condition
+
     const runRef = async () => {
-      if (availableLayouts["Qwerty"]) {
+      let targetName = "Colemak-DH";
+      let targetLayout = availableLayouts["Colemak-DH"];
+
+      if (!targetLayout) {
+        targetName = "Qwerty";
+        targetLayout = availableLayouts["Qwerty"];
+      }
+
+      if (!targetLayout) {
+        targetName = "default";
+        targetLayout = availableLayouts["default"];
+      }
+      
+      if (!targetLayout && Object.keys(availableLayouts).length > 0) {
+         targetName = Object.keys(availableLayouts)[0];
+         targetLayout = availableLayouts[targetName];
+      }
+
+      if (targetLayout) {
         try {
           const ref = await backend.validateLayout(
-            availableLayouts["Qwerty"],
+            targetLayout,
             undefined,
             hiveUrl,
             selectedKeyboard,
           );
-          setReferenceResult(ref);
+          setReferenceResult({ ...ref, layout_name: targetName });
         } catch (e) {
-          console.warn("Failed to load reference:", e);
+          console.warn(`Failed to load reference '${targetName}':`, JSON.stringify(e));
         }
       }
     };
     runRef();
-  }, [availableLayouts, selectedKeyboard]);
+  }, [availableLayouts, selectedKeyboard, isDatasetLoaded]);
 
   return (
     <AnalysisContext.Provider

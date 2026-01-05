@@ -126,12 +126,12 @@ export function LayoutView({ isSyncing, onSync }: Props) {
         onClick={handleBackgroundClick}
       >
         <div className="h-14 flex items-center px-6 border-b border-slate-800/50 justify-between bg-[#0B0F19]/90 backdrop-blur z-10">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black text-white tracking-tight">
-              {layoutName}
-            </h2>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700/50">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-black text-white tracking-tight">
               {selectedKeyboard}
+            </h2>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {layoutName}
             </span>
             {selectedKeyIndex !== null && (
               <span

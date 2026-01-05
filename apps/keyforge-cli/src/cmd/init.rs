@@ -1,6 +1,6 @@
 use crate::error::CliError;
 use clap::Args;
-use keyforge_infra::init::initialize_workspace;
+use keyforge_infra::init::{ensure_dir, USER_WORKSPACE_DIRS};
 use std::path::PathBuf;
 
 #[derive(Args, Debug, Clone)]
@@ -16,9 +16,11 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
     let root = args.path.join("data");
     eprintln!("🚀 Initializing KeyForge Workspace at {:?}", root);
 
-    // 1. Create Structure (Offline)
-    initialize_workspace(&root, keyforge_infra::InitMode::Provision)
-        .map_err(|e| CliError::Workspace(format!("Initialization failed: {}", e)))?;
+    // 1. Create Structure (Client Policy: Workspace Only)
+    for d in USER_WORKSPACE_DIRS {
+        ensure_dir(&root, d)
+            .map_err(|e| CliError::Workspace(format!("Failed to create {}: {}", d, e)))?;
+    }
 
     // 2. Download Essentials (Online)
     eprintln!("🌐 Connecting to Hive at {}...", args.hive);

@@ -11,9 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::error::{InfraError, InfraResult};
-use crate::fs::io::atomic_write;
-use crate::util::common::{generate_cost_profile, sanitize_filename};
+use keyforge_infra::error::{InfraError, InfraResult};
+use keyforge_infra::fs::io::atomic_write;
+use keyforge_infra::util::common::{generate_cost_profile, sanitize_filename};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 use serde::{Deserialize, Serialize};

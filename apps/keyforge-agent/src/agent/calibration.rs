@@ -47,6 +47,7 @@ pub fn measure_performance() -> Result<f64, AgentError> {
         initial_layout: Some(layout),
         pinned_keys: vec![],
         cost_overrides: vec![],
+        space_preference: keyforge_model::types::SpaceHandPreference::default(),
     };
 
     // warm

@@ -33,7 +33,7 @@
 
 ## 2. WORKSPACE MAP
 
-*(Paste the output of `tree -L 3 -I "target|node_modules|.git|data"` here)*
+*(Paste the output of `tree -L 6 -I "target|node_modules|.git|data"` here)*
 
 ---
 

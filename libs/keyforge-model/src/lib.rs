@@ -180,6 +180,9 @@ pub struct AnalysisReport {
     /// Per-key usage heatmap.
     #[serde(default)]
     pub heatmap: Vec<f32>,
+    /// Per-key penalty heatmap (Effort).
+    #[serde(default)]
+    pub penalty_map: Vec<f32>,
     /// Top SFB offenders.
     #[serde(default)]
     pub top_sfbs: Vec<MetricViolation>,

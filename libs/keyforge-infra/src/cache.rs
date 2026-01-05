@@ -16,6 +16,7 @@ use bytes::Bytes;
 use keyforge_infra::{listing, AssetLoader, FsProvider, RawCostData, ServerManifest};
 use keyforge_model::loader::LoaderResult;
 use keyforge_model::Corpus;
+use keyforge_model::constants::{ASSET_KEYCODES, ASSET_HIVE_CONFIG, ASSET_SYSTEM_CONFIG};
 use keyforge_protocol::config::{Config as AppConfig, CorpusSource};
 use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_protocol::geometry::KeyboardDefinition;
@@ -90,11 +91,11 @@ impl GlobalAssetCache {
                         } else if path_str.contains("weights") {
                             costs_clone.invalidate_all();
                         } else if path_str.contains("config") {
-                            if path_str.contains("keycodes") {
+                            if path_str.contains(ASSET_KEYCODES) {
                                 keycodes_clone.invalidate_all();
-                            } else if path_str.contains("hive.json") {
+                            } else if path_str.contains(&format!("{}.json", ASSET_HIVE_CONFIG)) {
                                 hive_config_clone.invalidate_all();
-                            } else if path_str.contains("config.json") {
+                            } else if path_str.contains(&format!("{}.json", ASSET_SYSTEM_CONFIG)) {
                                 app_config_clone.invalidate_all();
                             }
                         }
@@ -194,8 +195,8 @@ impl GlobalAssetCache {
                         }
                     }
                 }
-            } else if rel_path == "config/keycodes.mpk.zst" {
-                if let Err(e) = self.load_keycodes("keycodes") {
+            } else if rel_path == format!("config/{}.mpk.zst", ASSET_KEYCODES) {
+                if let Err(e) = self.load_keycodes(ASSET_KEYCODES) {
                     tracing::warn!("Eager load failed for keycodes: {}", e);
                 }
             }
@@ -271,7 +272,7 @@ impl GlobalAssetCache {
             return cached;
         }
 
-        let path = self.state.provider.root.join("system/config/hive.json");
+        let path = self.state.provider.root.join(format!("system/config/{}.json", ASSET_HIVE_CONFIG));
         let config = if path.exists() {
             match keyforge_infra::read_to_string_limited(&path, MAX_INPUT_FILE_SIZE) {
                 Ok(content) => serde_json::from_str(&content).unwrap_or_else(|e| {
@@ -299,7 +300,7 @@ impl GlobalAssetCache {
             return cached;
         }
 
-        let path = self.state.provider.root.join("system/config/config.json");
+        let path = self.state.provider.root.join(format!("system/config/{}.json", ASSET_SYSTEM_CONFIG));
         let config = if path.exists() {
             match keyforge_infra::read_to_string_limited(&path, MAX_INPUT_FILE_SIZE) {
                 Ok(content) => serde_json::from_str(&content).unwrap_or_else(|e| {

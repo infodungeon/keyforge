@@ -14,8 +14,9 @@
 use keyforge_model::error::ForgeError;
 use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
+use keyforge_model::constants::{STD_CORPUS_ERROR_RATE, STD_CORPUS_BACKSPACE_FACTOR, STD_CORPUS_SENTENCE_RATIO};
 use keyforge_model::config::CorpusSource;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::{MAX_INPUT_FILE_SIZE, CORPUS_TOKEN_MAP};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use sha2::Digest;
@@ -149,6 +150,144 @@ enum CostFormat {
     Direct(Vec<CostEntry>),
 }
 
+/// Resolves a corpus token string to a character.
+/// Handles special tokens like "SPACE", "ENTER", etc. using the shared map.
+/// Normalizes single characters to Lowercase to match KeycodeRegistry normalization.
+fn resolve_corpus_char(token: &str) -> Option<char> {
+    for (key, val) in CORPUS_TOKEN_MAP {
+        if token == *key {
+            return Some(*val);
+        }
+    }
+    // Fallback: If it's a single char, use it, normalizing to lowercase
+    if token.chars().count() == 1 {
+        token.chars().next().map(|c| c.to_ascii_lowercase())
+    } else {
+        None
+    }
+}
+
+/// Injects synthetic data (Enter, Backspace) for standard prose corpora.
+fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
+    if !is_std { return; }
+
+    // 1. Calculate Totals
+    let total_chars: u32 = corpus.char_freqs.iter().sum();
+    let sentence_count: u32 = 
+        corpus.char_freqs['.' as usize] + 
+        corpus.char_freqs['?' as usize] + 
+        corpus.char_freqs['!' as usize];
+
+    if total_chars == 0 { return; }
+
+    // 2. Calculate Injection Volumes
+    let enter_count = (sentence_count as f32 / STD_CORPUS_SENTENCE_RATIO).round() as u32;
+    let bksp_count = (total_chars as f32 * STD_CORPUS_ERROR_RATE * STD_CORPUS_BACKSPACE_FACTOR).round() as u32;
+
+    // 3. Inject 1-grams
+    corpus.char_freqs['\n' as usize] += enter_count;
+    corpus.char_freqs['\x08' as usize] += bksp_count;
+
+    // 4. Inject 2-grams (Bigrams)
+    // Strategy: Distribute transitions proportionally to character frequency
+    
+    // A. Backspace Injection (Random Error Model)
+    // X -> BKSP (Typo) and BKSP -> X (Correction)
+    // We distribute the total backspaces across all existing characters based on their frequency
+    if bksp_count > 0 {
+        let mut new_bigrams = Vec::new();
+        for (char_code, &freq) in corpus.char_freqs.iter().enumerate() {
+            if freq > 0 && char_code != '\x08' as usize && char_code != '\n' as usize {
+                let ratio = freq as f32 / total_chars as f32;
+                let share = (bksp_count as f32 * ratio).round() as u32;
+                if share > 0 {
+                    // Char -> Backspace
+                    new_bigrams.push((char_code as u16, '\x08' as u16, share));
+                    // Backspace -> Char
+                    new_bigrams.push(('\x08' as u16, char_code as u16, share));
+                }
+            }
+        }
+        corpus.bigrams.extend(new_bigrams);
+    }
+
+    // B. Enter Injection (Sentence Boundary Model)
+    // Punctuation -> Enter
+    if enter_count > 0 {
+        let puncts = ['.', '?', '!'];
+        let total_punct = sentence_count.max(1);
+        
+        for p in puncts {
+            let p_freq = corpus.char_freqs[p as usize];
+            if p_freq > 0 {
+                let ratio = p_freq as f32 / total_punct as f32;
+                let share = (enter_count as f32 * ratio).round() as u32;
+                if share > 0 {
+                    corpus.bigrams.push((p as u16, '\n' as u16, share));
+                }
+            }
+        }
+    }
+
+    // 5. Inject 3-grams (Trigrams)
+    // Strategy: Distribute transitions proportionally to existing Bigrams
+    
+    // A. Backspace Trigrams
+    // (A, B, BKSP) -> User typed A, B, then deleted B
+    if bksp_count > 0 {
+        let total_bigrams: u32 = corpus.bigrams.iter().map(|(_, _, f)| *f).sum();
+        if total_bigrams > 0 {
+            let mut new_trigrams = Vec::new();
+            for (a, b, freq) in &corpus.bigrams {
+                // Skip if already involves special keys to avoid recursion/noise
+                if *a == '\x08' as u16 || *b == '\x08' as u16 || *a == '\n' as u16 || *b == '\n' as u16 {
+                    continue;
+                }
+                
+                let ratio = *freq as f32 / total_bigrams as f32;
+                let share = (bksp_count as f32 * ratio).round() as u32;
+                
+                if share > 0 {
+                    // (A, B, BKSP)
+                    new_trigrams.push((*a, *b, '\x08' as u16, share));
+                }
+            }
+            corpus.trigrams.extend(new_trigrams);
+        }
+    }
+
+    // B. Enter Trigrams
+    // (A, Punct, Enter) -> End of sentence
+    if enter_count > 0 {
+        let puncts = ['.', '?', '!'];
+        let mut new_trigrams = Vec::new();
+        
+        // Filter bigrams ending in punctuation
+        let punct_bigrams: Vec<_> = corpus.bigrams.iter()
+            .filter(|(_, b, _)| puncts.contains(&(*b as u8 as char)))
+            .collect();
+            
+        let total_punct_bigrams: u32 = punct_bigrams.iter().map(|(_, _, f)| *f).sum();
+        
+        if total_punct_bigrams > 0 {
+            for (a, b, freq) in punct_bigrams {
+                let ratio = *freq as f32 / total_punct_bigrams as f32;
+                let share = (enter_count as f32 * ratio).round() as u32;
+                
+                if share > 0 {
+                    // (A, Punct, Enter)
+                    new_trigrams.push((*a, *b, '\n' as u16, share));
+                }
+            }
+            corpus.trigrams.extend(new_trigrams);
+        }
+    }
+
+    // SORTING: Essential for Physics Engine lookup tables
+    corpus.bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    corpus.trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+}
+
 // Pin boxing needed to match async_trait with explicit types
 // #[async_trait::async_trait] 
 // ^ We simply implement the method with correct signature for the trait
@@ -199,8 +338,9 @@ impl AssetLoader for FsProvider {
                 match stem {
                     "1grams" => {
                         for e in part {
-                            if let Some(c) = e["char"].as_str().and_then(|s| s.chars().next()) {
-                                if (c as usize) < 256 {
+                            // Use the new resolver logic
+                            if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
+                                if (c as usize) < 65536 {
                                     corpus.char_freqs[c as usize] +=
                                         (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32;
                                 }
@@ -209,16 +349,16 @@ impl AssetLoader for FsProvider {
                     }
                     "2grams" => {
                         for e in part {
-                            let c1 = e["char1"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
-                            let c2 = e["char2"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
+                            let c1 = e["char1"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
+                            let c2 = e["char2"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
                             corpus.bigrams.push((c1, c2, (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
                         }
                     }
                     "3grams" => {
                         for e in part {
-                            let c1 = e["char1"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
-                            let c2 = e["char2"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
-                            let c3 = e["char3"].as_str().and_then(|s| s.chars().next()).unwrap_or('\0') as u16;
+                            let c1 = e["char1"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
+                            let c2 = e["char2"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
+                            let c3 = e["char3"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
                             corpus.trigrams.push((c1, c2, c3, (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
                         }
                     }
@@ -233,6 +373,11 @@ impl AssetLoader for FsProvider {
                 }
             }
         }
+
+        // Apply Synthetic Injection if any source was standard prose
+        let is_std = sources.iter().any(|s| s.id.contains("_std"));
+        inject_synthetic_data(&mut corpus, is_std);
+
         corpus.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid corpus: {}", e)))?;
         Ok(corpus)
     }

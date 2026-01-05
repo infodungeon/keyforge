@@ -75,6 +75,7 @@ pub struct KeyNode {
     pub index: usize,
     /// Display label / String ID.
     #[serde(default)]
+    #[serde(alias = "id")]
     pub label: String,
     /// X coordinate (physical units).
     pub x: f32,

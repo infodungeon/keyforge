@@ -64,3 +64,58 @@ pub const MAX_JSON_DEPTH: usize = 50;
 pub const WS_MSG_JOB: &str = "JOB:";
 /// Prefix for Cancel messages.
 pub const WS_MSG_CANCEL: &str = "CANCEL:";
+
+// --- Corpus Parsing ---
+
+/// Mapping of special token strings to their character values.
+pub const CORPUS_TOKEN_MAP: &[(&str, char)] = &[
+    ("SPACE", ' '),
+    ("ENTER", '\n'),
+    ("TAB", '\t'),
+    ("BACKSPACE", '\x08'),
+    ("ESCAPE", '\x1b'),
+];
+
+/// Default finger effort weights.
+/// Order: Thumb, Index, Middle, Ring, Pinky.
+pub const DEFAULT_FINGER_PENALTY_SCALE: &str = "1.0, 1.0, 1.1, 1.3, 1.6";
+
+// --- Finger Effort Weights ---
+
+/// Base effort weight for the Thumb.
+pub const EFFORT_THUMB: f32 = 1.0;
+/// Base effort weight for the Index finger.
+pub const EFFORT_INDEX: f32 = 1.0;
+/// Base effort weight for the Middle finger.
+pub const EFFORT_MIDDLE: f32 = 1.1;
+/// Base effort weight for the Ring finger.
+pub const EFFORT_RING: f32 = 1.3;
+/// Base effort weight for the Pinky finger.
+pub const EFFORT_PINKY: f32 = 1.6;
+
+// --- System Assets ---
+
+/// Filename for the Agent configuration asset.
+pub const ASSET_AGENT_CONFIG: &str = "agent";
+/// Filename for the System configuration asset.
+pub const ASSET_SYSTEM_CONFIG: &str = "config";
+/// Filename for the Hive configuration asset.
+pub const ASSET_HIVE_CONFIG: &str = "hive";
+/// Filename for the Keycodes definition asset.
+pub const ASSET_KEYCODES: &str = "keycodes";
+/// Filename for the UI Categories asset.
+pub const ASSET_UI_CATEGORIES: &str = "ui_categories";
+/// Filename for the default Cost Matrix asset.
+pub const ASSET_COST_MATRIX: &str = "cost_matrix";
+
+/// Default corpus identifier.
+pub const DEFAULT_CORPUS_ID: &str = "text/en_std";
+
+// --- Corpus Injection Constants ---
+
+/// Assumed error rate for standard prose (3%).
+pub const STD_CORPUS_ERROR_RATE: f32 = 0.03;
+/// Correction factor for backspace usage (1.25x error rate).
+pub const STD_CORPUS_BACKSPACE_FACTOR: f32 = 1.25;
+/// Average sentences per paragraph for standard prose.
+pub const STD_CORPUS_SENTENCE_RATIO: f32 = 3.0;

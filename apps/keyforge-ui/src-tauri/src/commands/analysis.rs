@@ -89,12 +89,13 @@ pub async fn cmd_validate_layout(
             .clone()
     };
 
+    // FIX: Propagate loading errors instead of defaulting to empty geometry
     let geometry = if let Some(name) = keyboard_name {
         state.assets
             .load_keyboard(&name)
             .await
             .map(|def| def.geometry)
-            .unwrap_or_default()
+            .map_err(|e| CommandError::Config(format!("Failed to load keyboard '{}': {}", name, e)))?
     } else {
         KeyboardGeometry::default()
     };
@@ -102,12 +103,22 @@ pub async fn cmd_validate_layout(
     let result = tauri::async_runtime::spawn_blocking(move || {
         let key_count = runtime.engine.key_count();
         let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
-            .map_err(|e| CommandError::Validation(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!("Layout parsing failed: {}", e);
+                CommandError::Validation(e.to_string())
+            })?;
 
         let report = runtime.analyze(&layout)?;
         let heatmap = report.heatmap.clone();
+        let penalty_map = report.penalty_map.clone();
+        tracing::info!("Analysis complete. Score: {}, SFB: {}", report.score, report.sfb_total);
+        
+        // SANITY CHECK: Fail if stats are garbage
+        if report.score > 10_000_000.0 || report.sfb_ratio > 0.20 {
+            let msg = format!("Implausible Physics Result: Score={}, SFB={:.2}%", report.score, report.sfb_ratio * 100.0);
+            tracing::warn!("{}", msg);
+        }
 
-        // Convert Model geometry to Protocol geometry for the UI
         let proto_geometry: keyforge_model::geometry::KeyboardGeometry = 
             serde_json::from_value(serde_json::to_value(&geometry).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
@@ -117,11 +128,14 @@ pub async fn cmd_validate_layout(
             score: report,
             geometry: proto_geometry,
             heatmap,
-            penalty_map: vec![],
+            penalty_map,
         })
     })
     .await
-    .map_err(|e| CommandError::Internal(e.to_string()))??;
+    .map_err(|e| {
+        tracing::error!("Analysis thread panicked or failed: {}", e);
+        CommandError::Internal(e.to_string())
+    })??;
 
     Ok(result)
 }

@@ -3,20 +3,26 @@ name = "keyforge-persistence"
 version = "0.8.0"
 edition = "2021"
 
+[features]
+default = []
+server = ["sqlx"]
+
 [dependencies]
+keyforge-infra = { path = "../keyforge-infra" }
+keyforge-model = { path = "../keyforge-model" }
+keyforge-protocol = { path = "../keyforge-protocol" }
+keyforge-core = { path = "../keyforge-core" }
+keyforge-compute = { path = "../keyforge-compute" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-thiserror = "2.0"
+tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
-tokio = { version = "1.48", features = ["fs", "io-util"] }
-tempfile = "3.24"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2.0"
 sha2 = "0.10"
 hex = "0.4"
 
-keyforge-protocol = { path = "../keyforge-protocol" }
-keyforge-model = { path = "../keyforge-model" }
-keyforge-infra = { path = "../keyforge-infra" }
-keyforge-core = { path = "../keyforge-core" }
-keyforge-compute = { path = "../keyforge-compute" }
-async-trait = "0.1"
-keyforge-adapter = { path = "../keyforge-adapter" }
+# SQLx remains optional for the Agent
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "chrono"], optional = true }
+tempfile = "3.10"

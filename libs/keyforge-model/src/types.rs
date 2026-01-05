@@ -19,7 +19,7 @@ use utoipa::ToSchema;
 use ts_rs::TS;
 use crate::constants::SCORE_SCALE;
 
-/// Canonical index of a physical key in the keyboard array.
+/// Unique identifier for a physical key position on the keyboard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
@@ -45,7 +45,7 @@ impl fmt::Display for KeyCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
 }
 
-/// Identifies the hand (Left=0, Right=1).
+/// Identifier for a hand (Left=0, Right=1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
@@ -53,18 +53,19 @@ impl fmt::Display for KeyCode {
 pub struct HandIndex(pub u8);
 
 impl HandIndex {
-    /// Left Hand (0).
+    /// Left hand index (0).
     pub const LEFT: Self = Self(0);
-    /// Right Hand (1).
+    /// Right hand index (1).
     pub const RIGHT: Self = Self(1);
+    
     /// Returns the raw u8 value.
     pub fn as_u8(&self) -> u8 { self.0 }
     /// Returns the value as usize.
     pub fn as_usize(&self) -> usize { self.0 as usize }
-    /// Checks if Left.
-    pub fn is_left(&self) -> bool { self.0 == Self::LEFT.0 }
-    /// Checks if Right.
-    pub fn is_right(&self) -> bool { self.0 == Self::RIGHT.0 }
+    /// Returns true if this is the left hand.
+    pub fn is_left(&self) -> bool { self.0 == 0 }
+    /// Returns true if this is the right hand.
+    pub fn is_right(&self) -> bool { self.0 == 1 }
 }
 impl Default for HandIndex { fn default() -> Self { Self::LEFT } }
 impl TryFrom<u8> for HandIndex {
@@ -74,7 +75,7 @@ impl TryFrom<u8> for HandIndex {
     }
 }
 
-/// Identifies the finger (Thumb=0, Index=1, Middle=2, Ring=3, Pinky=4).
+/// Identifier for a finger (Thumb=0 to Pinky=4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
@@ -82,24 +83,31 @@ impl TryFrom<u8> for HandIndex {
 pub struct FingerIndex(pub u8);
 
 impl FingerIndex {
-    /// Thumb (0).
+    /// Thumb index (0).
     pub const THUMB: Self = Self(0);
-    /// Index Finger (1).
+    /// Index finger index (1).
     pub const INDEX: Self = Self(1);
-    /// Middle Finger (2).
+    /// Middle finger index (2).
     pub const MIDDLE: Self = Self(2);
-    /// Ring Finger (3).
+    /// Ring finger index (3).
     pub const RING: Self = Self(3);
-    /// Pinky Finger (4).
+    /// Pinky finger index (4).
     pub const PINKY: Self = Self(4);
+    
     /// Returns the raw u8 value.
     pub fn as_u8(&self) -> u8 { self.0 }
     /// Returns the value as usize.
     pub fn as_usize(&self) -> usize { self.0 as usize }
+    
     /// Calculates the absolute distance between two fingers.
-    pub fn distance(&self, other: Self) -> u8 { (self.0 as i8 - other.0 as i8).unsigned_abs() }
+    pub fn distance(&self, other: Self) -> u8 {
+        (self.0 as i8 - other.0 as i8).abs() as u8
+    }
+    
     /// Calculates the signed difference between two fingers.
-    pub fn diff(&self, other: Self) -> i8 { self.0 as i8 - other.0 as i8 }
+    pub fn diff(&self, other: Self) -> i8 {
+        self.0 as i8 - other.0 as i8
+    }
 }
 impl Default for FingerIndex { fn default() -> Self { Self::INDEX } }
 impl TryFrom<u8> for FingerIndex {
@@ -109,7 +117,7 @@ impl TryFrom<u8> for FingerIndex {
     }
 }
 
-/// Logical row index (0-based).
+/// Row index (Home=0, Top<0, Bottom>0).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
@@ -121,7 +129,7 @@ impl std::ops::Sub for RowIndex {
     fn sub(self, rhs: Self) -> Self::Output { self.0 - rhs.0 }
 }
 
-/// Logical column index (0-based).
+/// Column index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
@@ -133,8 +141,7 @@ impl std::ops::Sub for ColIndex {
     fn sub(self, rhs: Self) -> Self::Output { self.0 - rhs.0 }
 }
 
-/// Fixed-point score representation.
-/// Internally stored as `i64` scaled by `SCORE_SCALE` (1,000,000).
+/// Fixed-point score value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
@@ -148,26 +155,51 @@ impl Score {
     pub const MIN: Score = Score(i64::MIN);
     /// Zero score.
     pub const ZERO: Score = Score(0);
-    
-    /// Converts an f32 to Score, handling saturation and NaN.
+
+    /// Creates a Score from a float value, applying scaling.
     pub fn from_f32(val: f32) -> Self {
-        if val.is_nan() { return Self::ZERO; }
-        if val.is_infinite() { return if val.is_sign_positive() { Self::MAX } else { Self::MIN }; }
-        let scaled = val * SCORE_SCALE;
-        if scaled >= i64::MAX as f32 { return Self::MAX; }
-        if scaled <= i64::MIN as f32 { return Self::MIN; }
-        Self(scaled as i64)
+        Score((val * SCORE_SCALE) as i64)
+    }
+
+    /// Converts the Score back to a float, removing scaling.
+    pub fn to_f32(self) -> f32 {
+        self.0 as f32 / SCORE_SCALE
+    }
+
+    /// Saturating addition.
+    pub fn saturating_add(self, other: Score) -> Score {
+        Score(self.0.saturating_add(other.0))
     }
     
-    /// Converts Score back to f32.
-    pub fn to_f32(self) -> f32 { self.0 as f32 / SCORE_SCALE }
-    
-    /// Saturating addition.
-    pub fn saturating_add(self, other: Score) -> Score { Score(self.0.saturating_add(other.0)) }
     /// Saturating subtraction.
-    pub fn saturating_sub(self, other: Score) -> Score { Score(self.0.saturating_sub(other.0)) }
+    pub fn saturating_sub(self, other: Score) -> Score {
+        Score(self.0.saturating_sub(other.0))
+    }
+    
     /// Saturating multiplication by an integer factor.
-    pub fn saturating_mul(self, factor: i64) -> Score { Score(self.0.saturating_mul(factor)) }
+    pub fn saturating_mul(self, factor: i64) -> Score {
+        Score(self.0.saturating_mul(factor))
+    }
 }
-impl std::ops::Add for Score { type Output = Self; fn add(self, rhs: Self) -> Self::Output { self.saturating_add(rhs) } }
-impl std::ops::Sub for Score { type Output = Self; fn sub(self, rhs: Self) -> Self::Output { self.saturating_sub(rhs) } }
+impl std::ops::Add for Score {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output { Score(self.0 + rhs.0) }
+}
+impl std::ops::Sub for Score {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output { Score(self.0 - rhs.0) }
+}
+
+/// Preference for which hand should handle Space keys.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(rename_all = "lowercase")]
+pub enum SpaceHandPreference {
+    /// Only use left hand for space.
+    Left,
+    /// Only use right hand for space.
+    Right,
+    /// Use both hands (load balanced).
+    #[default]
+    Bilateral,
+}

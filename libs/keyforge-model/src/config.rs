@@ -14,7 +14,7 @@
 
 use crate::constants::{
     MAX_LOADER_TRIGRAM_LIMIT, MAX_OPT_LIMIT_FAST, MAX_SAFE_WEIGHT, MAX_SEARCH_EPOCHS,
-    MAX_SEARCH_STEPS, MAX_TEMP,
+    MAX_SEARCH_STEPS, MAX_TEMP, EFFORT_THUMB, EFFORT_INDEX, EFFORT_MIDDLE, EFFORT_RING, EFFORT_PINKY, ASSET_COST_MATRIX,
 };
 use crate::types::KeyIndex;
 use crate::validator::Validator;
@@ -334,7 +334,7 @@ impl Default for ScoringWeights {
             default_cost_ms: 0.0,
             loader_trigram_limit: 0,
             trigram_coverage: 0.0,
-            finger_penalty_scale: "".to_string(),
+            finger_penalty_scale: format!("{}, {}, {}, {}, {}", EFFORT_THUMB, EFFORT_INDEX, EFFORT_MIDDLE, EFFORT_RING, EFFORT_PINKY),
             comfortable_scissors: "".to_string(),
         }
     }
@@ -462,7 +462,7 @@ pub enum CostMatrixSource {
 }
 
 impl Default for CostMatrixSource {
-    fn default() -> Self { CostMatrixSource::Predefined("default_costmatrix.json".to_string()) }
+    fn default() -> Self { CostMatrixSource::Predefined(ASSET_COST_MATRIX.to_string()) }
 }
 
 impl fmt::Display for CostMatrixSource {

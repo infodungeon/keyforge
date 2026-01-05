@@ -14,6 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 use crate::error::ForgeError;
+use crate::constants::{EFFORT_THUMB, EFFORT_INDEX, EFFORT_MIDDLE, EFFORT_RING, EFFORT_PINKY};
 
 /// Configuration for the Physics Engine.
 /// Defines "What is expensive?" by assigning weights to physical movements.
@@ -53,7 +54,7 @@ impl Default for Rubric {
             sfb_lateral: 65.0,
             travel_lat: 3.5,
             travel_vert: 1.0,
-            finger_effort: [0.0, 1.0, 1.1, 1.3, 1.6],
+            finger_effort: [EFFORT_THUMB, EFFORT_INDEX, EFFORT_MIDDLE, EFFORT_RING, EFFORT_PINKY],
             redirect: 65.0,
             roll_bonus: 35.0,
             trigram_coverage: 0.99,

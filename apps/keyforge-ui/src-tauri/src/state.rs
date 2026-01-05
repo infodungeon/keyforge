@@ -45,9 +45,11 @@ impl AssetCache {
 impl AssetLoader for AssetCache {
     async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
         if let Some(cached) = self.keyboards.get(name) {
+            tracing::info!("Loaded keyboard '{}' from cache. Keys: {}", name, cached.geometry.keys.len());
             return Ok(cached.as_ref().clone());
         }
         let item = self.provider.load_keyboard(name).await?;
+        tracing::info!("Loaded keyboard '{}' from disk. Keys: {}", name, item.geometry.keys.len());
         self.keyboards
             .insert(name.to_string(), Arc::new(item.clone()));
         Ok(item)

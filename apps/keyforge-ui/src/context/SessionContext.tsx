@@ -25,6 +25,8 @@ interface SessionContextType {
 
   selectedKeyIndex: number | null;
   setSelectedKeyIndex: (i: number | null) => void;
+  
+  isDatasetLoaded: boolean;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -103,6 +105,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     lastSyncParams.current = syncKey;
 
     const syncSession = async () => {
+    console.log("DEBUG: Starting Session Sync...");
       if (isMounted.current) setIsDatasetLoaded(false);
 
       try {
@@ -118,15 +121,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         if (!isMounted.current) return;
         setIsDatasetLoaded(true);
+        console.log("DEBUG: Dataset Loaded. Fetching layouts...");
 
         const layouts = await backend.getAllLayoutsScoped(
           selectedKeyboard,
           hiveUrl,
         );
-        const preferred = layouts["Qwerty"]
-          ? "Qwerty"
-          : Object.keys(layouts)[0] || "Custom";
+        const preferred = layouts["Colemak-DH"]
+          ? "Colemak-DH"
+          : (layouts["Qwerty"] ? "Qwerty" : (Object.keys(layouts)[0] || "Custom"));
         const qmkStr = layouts[preferred] || "";
+        console.log("DEBUG: Layouts fetched:", Object.keys(layouts));
+        console.log("DEBUG: Preferred:", preferred, "String:", qmkStr);
 
         if (isMounted.current) {
           setLayoutName(preferred);
@@ -137,6 +143,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         console.error("Session Sync Failed:", e);
         if (isMounted.current) {
           setIsDatasetLoaded(true);
+        console.log("DEBUG: Dataset Loaded. Fetching layouts...");
           setLayoutName("Custom");
           addToast("error", `Failed to load keyboard: ${e}`);
         }
@@ -193,6 +200,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         stopJob,
         selectedKeyIndex,
         setSelectedKeyIndex,
+        isDatasetLoaded,
       }}
     >
       {children}

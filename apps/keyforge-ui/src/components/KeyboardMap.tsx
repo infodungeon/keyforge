@@ -1,4 +1,5 @@
-import { memo, useMemo } from "react";
+// ===== apps/keyforge-ui/src/components/KeyboardMap.tsx =====
+import { memo, useMemo, useState } from "react";
 import { KeyboardGeometry } from "../types";
 import { keycodeService } from "../utils";
 
@@ -21,7 +22,7 @@ function getHeatmapColor(val: number, maxVal: number, mode: MapMode): string {
   const intensity = Math.pow(val / maxVal, 0.7);
 
   return mode === "frequency"
-    ? `hsla(220, 90%, 60%, ${intensity * 0.9})`
+    ? `hsla(0, 90%, 60%, ${intensity * 0.9})`
     : `hsla(0, 90%, 60%, ${intensity * 0.9})`;
 }
 
@@ -40,7 +41,6 @@ interface KeyboardMapProps {
   mode?: MapMode;
 }
 
-// UI-010: Memoize the component to prevent re-renders during typing/optimization
 export const KeyboardMap = memo(function KeyboardMap({
   geometry,
   layoutString,
@@ -55,25 +55,28 @@ export const KeyboardMap = memo(function KeyboardMap({
   activeKeyIds,
   mode = "frequency",
 }: KeyboardMapProps) {
-  if (!geometry || !geometry.keys)
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-600 font-mono text-xs gap-2">
-        <div className="animate-pulse bg-slate-800/50 h-32 w-64 rounded-lg border border-slate-700/50"></div>
-        <div>NO GEOMETRY LOADED</div>
-      </div>
-    );
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  // UI-012: Memoize expensive calculations
-  const { maxX, maxY, maxVal, tokens, ghostTokens } = useMemo(() => {
+  // FIX: Hooks must be called unconditionally.
+  // We calculate values even if geometry is missing, returning defaults.
+  const { maxX, maxY, maxVal, totalVal, tokens, ghostTokens } = useMemo(() => {
+    if (!geometry || !geometry.keys || geometry.keys.length === 0) {
+      return { maxX: 0, maxY: 0, maxVal: 1.0, totalVal: 1.0, tokens: [], ghostTokens: [] };
+    }
+
     const maxX = Math.max(...geometry.keys.map((k) => k.x + (k.w || 1)));
     const maxY = Math.max(...geometry.keys.map((k) => k.y + (k.h || 1)));
 
     let maxVal = 1.0;
+    let totalVal = 1.0;
+
     if (heatmap) {
       if (mode === "diff") {
         maxVal = Math.max(...heatmap.map(Math.abs), 0.1);
+        totalVal = 1.0; // Diff mode doesn't use percentage
       } else {
         maxVal = Math.max(...heatmap, 1.0);
+        totalVal = heatmap.reduce((a, b) => a + b, 0) || 1.0;
       }
     }
 
@@ -85,8 +88,37 @@ export const KeyboardMap = memo(function KeyboardMap({
         .map((t) => keycodeService.getVisualLabel(t))
       : [];
 
-    return { maxX, maxY, maxVal, tokens, ghostTokens };
+    return { maxX, maxY, maxVal, totalVal, tokens, ghostTokens };
   }, [geometry, layoutString, ghostLayoutString, heatmap, mode]);
+
+  // Early Return 1: No Geometry
+  if (!geometry || !geometry.keys || geometry.keys.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-600 font-mono text-xs gap-2">
+        <div className="animate-pulse bg-slate-800/50 h-32 w-64 rounded-lg border border-slate-700/50"></div>
+        <div>NO GEOMETRY LOADED</div>
+      </div>
+    );
+  }
+
+  // Early Return 2: Invalid Geometry Calculation
+  if (isNaN(maxX) || isNaN(maxY) || maxX === -Infinity) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-red-400 font-mono text-xs gap-2 p-4 border border-red-900 bg-red-900/10 rounded">
+        <div>RENDER ERROR</div>
+        <div>Invalid Coordinates (maxX: {maxX}, maxY: {maxY})</div>
+        <pre className="text-[10px] text-slate-500">{JSON.stringify(geometry.keys[0], null, 2)}</pre>
+      </div>
+    );
+  }
+
+  const getTooltipText = (idx: number) => {
+    if (!heatmap || heatmap[idx] === undefined) return "";
+    const val = heatmap[idx];
+    if (mode === "diff") return val.toFixed(1);
+    const pct = (val / totalVal) * 100;
+    return `${pct.toFixed(2)}% (${val.toLocaleString()})`;
+  };
 
   return (
     <div
@@ -104,7 +136,6 @@ export const KeyboardMap = memo(function KeyboardMap({
           const isActive = activeKeyIds ? activeKeyIds.has(keyId) : false;
           const isSelected = selectedKeyIndex === index;
 
-          // Style calculation is fast, but we can inline it for clarity
           let fill = "rgba(30, 41, 59, 1)";
           let stroke = "rgb(2, 6, 23)";
           let strokeWidth = 2;
@@ -141,6 +172,11 @@ export const KeyboardMap = memo(function KeyboardMap({
             label = keycodeService.getVisualLabel(keyId);
           }
 
+          // Force Uppercase for single alpha characters (Presentation Layer)
+          if (label.length === 1 && /[a-z]/.test(label)) {
+            label = label.toUpperCase();
+          }
+
           const ghostLabel = ghostTokens[index];
           const hasGhost = ghostLabel && ghostLabel !== label;
 
@@ -170,6 +206,8 @@ export const KeyboardMap = memo(function KeyboardMap({
               onPointerLeave={() => {
                 onKeyPointerUp && onKeyPointerUp(index);
               }}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
               onClick={(e) => {
                 e.stopPropagation();
                 onKeyClick && onKeyClick(index);
@@ -187,7 +225,7 @@ export const KeyboardMap = memo(function KeyboardMap({
               />
               <text
                 x={(w * UNIT - GAP) / 2}
-                y={(h * UNIT - GAP) / 2 + 7}
+                y={(h * UNIT - GAP) / 2}
                 textAnchor="middle"
                 alignmentBaseline="middle"
                 fill={textColor}
@@ -215,6 +253,34 @@ export const KeyboardMap = memo(function KeyboardMap({
             </g>
           );
         })}
+
+        {/* Tooltip Overlay */}
+        {hoveredIndex !== null && geometry.keys[hoveredIndex] && heatmap && heatmap[hoveredIndex] !== undefined && (
+          <g
+            style={{ pointerEvents: "none" }}
+            transform={`translate(${geometry.keys[hoveredIndex].x * UNIT + (geometry.keys[hoveredIndex].w || 1) * UNIT / 2}, ${geometry.keys[hoveredIndex].y * UNIT - 10})`}
+          >
+            <rect
+              x="-60"
+              y="-16"
+              width="120"
+              height="16"
+              rx="4"
+              fill="#0f172a"
+              stroke="#334155"
+              strokeWidth="1"
+            />
+            <text
+              textAnchor="middle"
+              y="-4"
+              fill="white"
+              fontSize="10"
+              fontWeight="bold"
+            >
+              {getTooltipText(hoveredIndex)}
+            </text>
+          </g>
+        )}
       </svg>
     </div>
   );

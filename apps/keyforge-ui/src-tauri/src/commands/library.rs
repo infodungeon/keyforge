@@ -5,7 +5,7 @@ use crate::utils::get_data_dir;
 use keyforge_export::{qmk::QmkExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::listing;
 use keyforge_infra::HiveClient;
-use keyforge_infra::UserRepo;
+use keyforge_persistence::UserRepo;
 use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
 use std::collections::HashMap;

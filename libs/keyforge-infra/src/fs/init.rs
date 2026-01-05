@@ -17,21 +17,22 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{error, info};
 
+/// Defines how the workspace should be handled during startup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitMode {
-    /// Strict Mode: Validates system assets exist. Auto-creates full user environment (Workspace + Runtime).
+    /// Only verify that required system assets exist.
     Validate,
-    /// Setup Mode: Creates skeleton structure for CLI (System + Workspace). Skips Runtime dirs.
-    Provision,
+    /// Create the directory structure if missing and verify assets.
+    Create,
 }
 
-const REQUIRED_ASSETS: &[&str] = &[
+pub const REQUIRED_ASSETS: &[&str] = &[
     "config/keycodes",
-    "weights/default_costmatrix",
+    "weights/cost_matrix",
     "corpora/text/en_std/1grams",
 ];
 
-const SYSTEM_DIRS: &[&str] = &[
+pub const SYSTEM_DIRS: &[&str] = &[
     "system/config",
     "system/keyboards",
     "system/corpora/text/en_std",
@@ -39,64 +40,60 @@ const SYSTEM_DIRS: &[&str] = &[
     "system/benchmarks",
 ];
 
-// Directories needed for Logic/Analysis (CLI + Server + Agent)
-const USER_WORKSPACE_DIRS: &[&str] = &[
+pub const USER_WORKSPACE_DIRS: &[&str] = &[
     "user/keyboards",
     "user/corpora",
     "user/weights",
     "user/config",
 ];
 
-// Directories needed only for Execution/Persistence (Server + Agent)
-const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
+pub const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
+
+/// Orchestrates the setup of the KeyForge workspace.
+pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<()> {
+    info!("Initializing workspace at: {:?}", root);
+
+    if mode == InitMode::Create {
+        for dir in SYSTEM_DIRS {
+            ensure_dir(root, dir)?;
+        }
+        for dir in USER_WORKSPACE_DIRS {
+            ensure_dir(root, dir)?;
+        }
+        for dir in USER_RUNTIME_DIRS {
+            ensure_dir(root, dir)?;
+        }
+    }
+
+    validate_system_assets(root)?;
+    
+    info!("Workspace validation successful.");
+    Ok(())
+}
 
 fn check_asset_exists(system_root: &Path, rel_path: &str) -> bool {
-    // Check for binary (.mpk.zst) OR json (.json)
     let bin_path = system_root.join(format!("{}.mpk.zst", rel_path));
     let json_path = system_root.join(format!("{}.json", rel_path));
     bin_path.exists() || json_path.exists()
 }
 
-fn ensure_dir(root: &Path, rel_path: &str, created: &mut Vec<PathBuf>) -> InfraResult<()> {
+pub fn ensure_dir(root: &Path, rel_path: &str) -> InfraResult<PathBuf> {
     let p = root.join(rel_path);
     if !p.exists() {
         fs::create_dir_all(&p).map_err(InfraError::Io)?;
         info!("   Created: {:?}", p);
-        created.push(p);
     }
-    Ok(())
+    Ok(p)
 }
 
-pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<Vec<PathBuf>> {
-    let mut created = Vec::new();
+pub fn validate_system_assets(root: &Path) -> InfraResult<()> {
     let system_root = root.join("system");
-
-    match mode {
-        InitMode::Validate => {
-            // 1. Guard Dog: Check System Assets
-            for asset in REQUIRED_ASSETS {
-                if !check_asset_exists(&system_root, asset) {
-                    let msg = format!("FATAL: Required system asset missing: {}", asset);
-                    error!("{}", msg); // System Log
-                    eprintln!("{}", msg); // Stderr
-                    return Err(InfraError::Config(msg)); // Exception
-                }
-            }
-
-            // 2. Ensure User Environment (Workspace + Runtime)
-            // Server/Agent need queues and WALs to function.
-            for d in USER_WORKSPACE_DIRS.iter().chain(USER_RUNTIME_DIRS.iter()) {
-                ensure_dir(root, d, &mut created)?;
-            }
-        }
-        InitMode::Provision => {
-            // CLI Init: Create System skeletons + User Workspace.
-            // No Runtime dirs needed for offline CLI analysis.
-            for d in SYSTEM_DIRS.iter().chain(USER_WORKSPACE_DIRS.iter()) {
-                ensure_dir(root, d, &mut created)?;
-            }
+    for asset in REQUIRED_ASSETS {
+        if !check_asset_exists(&system_root, asset) {
+            let msg = format!("FATAL: Required system asset missing: {}", asset);
+            error!("{}", msg);
+            return Err(InfraError::Config(msg));
         }
     }
-
-    Ok(created)
+    Ok(())
 }

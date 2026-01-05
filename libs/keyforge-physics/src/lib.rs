@@ -29,6 +29,7 @@ use kernel::types::{KeyCode, ValidatedLayout};
 use keyforge_model::{
     AnalysisReport, Corpus, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig,
 };
+use keyforge_model::types::SpaceHandPreference;
 use keyforge_model::constants::SCORE_SCALE;
 use std::sync::Arc;
 use tracing::instrument;
@@ -44,7 +45,18 @@ impl ScoringEngine {
         rubric: &Rubric,
         cost_overrides: &[(usize, usize, f32)],
     ) -> Result<Self, PhysicsError> {
-        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_overrides)?;
+        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_overrides, SpaceHandPreference::default())?;
+        Ok(Self { ctx })
+    }
+
+    pub fn new_with_options(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        cost_overrides: &[(usize, usize, f32)],
+        space_preference: SpaceHandPreference,
+    ) -> Result<Self, PhysicsError> {
+        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_overrides, space_preference)?;
         Ok(Self { ctx })
     }
 
@@ -102,11 +114,12 @@ pub struct EngineRequest {
     pub initial_layout: Option<Layout>,
     pub pinned_keys: Vec<Option<KeyCode>>,
     pub cost_overrides: Vec<(usize, usize, f32)>,
+    pub space_preference: SpaceHandPreference,
 }
 
 #[instrument(skip(req))]
 pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
+    let engine = ScoringEngine::new_with_options(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides, req.space_preference)?;
 
     let layout = req
         .initial_layout
@@ -121,7 +134,7 @@ pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
 
 #[instrument(skip(req))]
 pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
+    let engine = ScoringEngine::new_with_options(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides, req.space_preference)?;
     let layout = req
         .initial_layout
         .clone()
@@ -137,7 +150,7 @@ pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
 
 #[instrument(skip(req))]
 pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
+    let engine = ScoringEngine::new_with_options(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides, req.space_preference)?;
     let layout = req
         .initial_layout
         .clone()

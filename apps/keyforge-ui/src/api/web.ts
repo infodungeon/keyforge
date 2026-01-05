@@ -115,7 +115,7 @@ export class WebClient implements BackendClient {
         default_cost_ms: 120.0,
         loader_trigram_limit: 3000,
         trigram_coverage: 0.99,
-        finger_penalty_scale: "0.0,1.0,1.1,1.3,1.6",
+        finger_penalty_scale: "1.0,1.0,1.1,1.3,1.6",
         comfortable_scissors: "21,23,34",
       },
       defs: {

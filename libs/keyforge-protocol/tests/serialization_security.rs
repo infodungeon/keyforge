@@ -13,24 +13,25 @@
 // limitations under the License.
 
 use keyforge_protocol::JobRequest;
+use keyforge_model::constants::ASSET_COST_MATRIX;
 
 #[test]
 fn test_deserialize_dos_protection_biometrics() {
     // Create a JSON payload with 100,001 biometric samples
     // Note: "name" is required in meta
-    let mut json = String::from(r#"
-    {
+    let mut json = String::from(format!(r#"
+    {{
         "version": 1,
-        "definition": { 
-            "meta": { "name": "SecurityTest" }, 
-            "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 1 } 
-        },
-        "weights": {},
-        "params": { "search_epochs": 1, "search_steps": 1, "search_patience": 1, "search_patience_threshold": 0.1, "temp_min": 0.1, "temp_max": 1.0, "opt_limit_fast": 1, "opt_limit_slow": 1, "reheats": 0, "reheat_factor": 0.5 },
+        "definition": {{ 
+            "meta": {{ "name": "SecurityTest" }}, 
+            "geometry": {{ "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 1 }} 
+        }},
+        "weights": {{}},
+        "params": {{ "search_epochs": 1, "search_steps": 1, "search_patience": 1, "search_patience_threshold": 0.1, "temp_min": 0.1, "temp_max": 1.0, "opt_limit_fast": 1, "opt_limit_slow": 1, "reheats": 0, "reheat_factor": 0.5 }},
         "pinned_keys": [],
         "corpora": [],
-        "cost_matrix": { "type": "Predefined", "data": "default" },
-        "biometrics": ["#);
+        "cost_matrix": {{ "type": "Predefined", "data": "{}" }},
+        "biometrics": ["#, ASSET_COST_MATRIX));
 
     for i in 0..100_001 {
         if i > 0 { json.push(','); }

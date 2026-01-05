@@ -2,6 +2,7 @@ use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tokio::sync::RwLock;
+use keyforge_infra::{initialize_workspace, InitMode};
 
 pub mod commands;
 pub mod error;
@@ -11,12 +12,24 @@ pub mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_target(false)
+        .init();
 
     tauri::Builder::default()
         .setup(|app| {
             let data_dir = utils::get_data_dir(app.handle())
                 .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, e)))?;
+
+            tracing::info!("Initializing workspace at: {:?}", data_dir);
+            
+            // Self-Healing Initialization
+            // We allow the app to continue even if this returns an error, 
+            // so the user can see the UI and potential error toasts.
+            if let Err(e) = initialize_workspace(&data_dir, InitMode::Create) {
+                tracing::error!("Workspace initialization error: {}", e);
+            }
 
             let asset_cache = AssetCache::new(data_dir);
 
@@ -83,18 +96,6 @@ pub fn run() {
             commands::system::cmd_get_system_health,
             commands::system::cmd_check_hive_health
         ])
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                let maybe_child = {
-                    let state = window.state::<LocalWorkerState>();
-                    let mut guard = state.child.lock().unwrap();
-                    guard.take()
-                };
-                if let Some(child) = maybe_child {
-                    let _ = child.kill();
-                }
-            }
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

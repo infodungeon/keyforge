@@ -8,6 +8,8 @@ const FINGER_COLORS = [
   "bg-pink-500",
 ];
 
+export type SpaceHandPreference = "left" | "right" | "bilateral";
+
 export interface DerivedStats {
   handBalance: { left: number; right: number };
   rowUsage: { top: number; home: number; bottom: number; thumb: number };
@@ -19,10 +21,67 @@ export interface DerivedStats {
   colUsage: { val: number; color: string }[];
 }
 
+export function adjustHeatmap(
+  geo: KeyboardGeometry,
+  heatmap: number[],
+  layoutTokens: string[],
+  preference: SpaceHandPreference
+): number[] {
+  if (!layoutTokens.length) return heatmap;
+
+  const newMap = [...heatmap];
+  const spaceIndices: number[] = [];
+  let totalSpaceVal = 0;
+
+  geo.keys.forEach((k, i) => {
+    const token = (layoutTokens[i] || "").toUpperCase();
+    if (["KC_SPC", "SPACE", "SPC", "KC_SPACE"].includes(token)) {
+      spaceIndices.push(i);
+      totalSpaceVal += newMap[i] || 0;
+    }
+  });
+
+  if (spaceIndices.length === 0) return newMap;
+
+  if (preference === "bilateral") {
+    const val = totalSpaceVal / spaceIndices.length;
+    spaceIndices.forEach(i => newMap[i] = val);
+    return newMap;
+  }
+
+  const leftSpaces = spaceIndices.filter(i => geo.keys[i].hand === 0);
+  const rightSpaces = spaceIndices.filter(i => geo.keys[i].hand === 1);
+
+  if (preference === "left") {
+    rightSpaces.forEach(i => newMap[i] = 0);
+    if (leftSpaces.length > 0) {
+      const val = totalSpaceVal / leftSpaces.length;
+      leftSpaces.forEach(i => newMap[i] = val);
+    }
+  } else if (preference === "right") {
+    leftSpaces.forEach(i => newMap[i] = 0);
+    if (rightSpaces.length > 0) {
+      const val = totalSpaceVal / rightSpaces.length;
+      rightSpaces.forEach(i => newMap[i] = val);
+    }
+  }
+
+  return newMap;
+}
+
 export function calculateStats(
   geo: KeyboardGeometry,
   heatmap: number[],
+  layoutTokens: string[] | boolean = [],
+  spaceHand: SpaceHandPreference = "bilateral",
+  includeThumbsArg: boolean = true,
 ): DerivedStats {
+  // Handle argument shifting for legacy calls (geo, heatmap, includeThumbs)
+  let includeThumbs = includeThumbsArg;
+  if (typeof layoutTokens === "boolean") {
+      includeThumbs = layoutTokens;
+  }
+
   let maxCol = 12;
   if (geo.keys.length > 0) {
     maxCol = Math.max(maxCol, ...geo.keys.map((k) => k.col)) + 1;
@@ -42,13 +101,17 @@ export function calculateStats(
   geo.keys.forEach((k, i) => {
     const val = heatmap[i] || 0;
     if (val === 0) return;
+
+    // Normalize finger index safe check
+    const fIndex = Math.min(4, Math.max(0, k.finger));
+
+    // If excluding thumbs, skip accumulation for total and hand balance
+    if (!includeThumbs && fIndex === 0) return;
+
     total += val;
 
     if (k.hand === 0) stats.handBalance.left += val;
     else stats.handBalance.right += val;
-
-    // Normalize finger index safe check
-    const fIndex = Math.min(4, Math.max(0, k.finger));
 
     // Accumulate totals
     stats.fingerUsage[fIndex] += val;

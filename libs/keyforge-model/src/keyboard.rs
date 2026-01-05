@@ -57,18 +57,18 @@ impl Keyboard {
         for hand in 0..=max_hand {
             for finger in 0..=max_finger {
                 // Find Home Row key for this finger
-                let origin = self
-                    .keys
-                    .iter()
-                    .find(|k| {
-                        k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.row.0 == self.home_row
-                    })
-                    .or_else(|| {
-                        // Fallback: Find *any* key for this finger if home row missing
-                        self.keys
-                            .iter()
-                            .find(|k| k.hand.as_usize() == hand && k.finger.as_usize() == finger)
-                    });
+                // Priority 1: Explicit is_home flag
+                let origin = self.keys.iter().find(|k| {
+                    k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.is_home
+                })
+                // Priority 2: Match home_row index
+                .or_else(|| self.keys.iter().find(|k| {
+                    k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.row.0 == self.home_row
+                }))
+                // Priority 3: Fallback to any key
+                .or_else(|| self.keys.iter().find(|k| {
+                    k.hand.as_usize() == hand && k.finger.as_usize() == finger
+                }));
 
                 if let Some(k) = origin {
                     self.finger_origins[hand][finger] = (k.x, k.y);

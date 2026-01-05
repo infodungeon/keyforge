@@ -16,7 +16,8 @@ members = [
     "libs/keyforge-core",
     "apps/keyforge-cli",
     "libs/keyforge-wasm",
-    "apps/keyforge-ui/src-tauri"
+    "apps/keyforge-ui/src-tauri",
+    "corpora/openbookcorpus",
 ]
 resolver = "2"
 
