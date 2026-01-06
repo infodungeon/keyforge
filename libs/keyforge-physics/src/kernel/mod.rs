@@ -28,7 +28,8 @@ pub struct EngineContext {
     pub(crate) cols: Vec<ColIndex>,
     pub(crate) cost_matrix: Vec<Score>,
     pub(crate) key_costs: Vec<Score>, // Static cost per key (Monogram)
-    pub(crate) char_freqs: Vec<u32>,
+    // UPDATED: u32 -> u64 to match Corpus definition
+    pub(crate) char_freqs: Vec<u64>,
     pub(crate) bigram_starts: Vec<usize>,
     pub(crate) bigram_others: Vec<KeyCode>,
     pub(crate) bigram_freqs: Vec<u32>,

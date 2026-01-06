@@ -57,6 +57,28 @@ impl DeterministicScorer {
             col: k.col,
         }).collect();
 
+        // 1. Monograms (Missing in previous version)
+        for (char_code, &freq) in corpus.char_freqs.iter().enumerate() {
+            if freq == 0 { continue; }
+            let p = pos_map[char_code];
+            if p != 65535 {
+                let idx = p as usize;
+                let k = &keyboard.keys[idx]; // Use original for float math to match Compiler
+                
+                let mut cost = rubric.finger_effort[k.finger.as_usize()];
+                
+                if let Some(origin) = keyboard.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
+                    let dx = (k.x - origin.0).abs();
+                    let dy = (k.y - origin.1).abs();
+                    cost += (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
+                }
+                
+                let cost_fixed = to_fixed(cost);
+                total_score = total_score.saturating_add(cost_fixed.saturating_mul(freq as i64));
+            }
+        }
+
+        // 2. Bigrams
         for &(c1, c2, freq) in &corpus.bigrams {
             let p1 = pos_map[c1 as usize];
             let p2 = pos_map[c2 as usize];
@@ -71,6 +93,7 @@ impl DeterministicScorer {
             }
         }
 
+        // 3. Trigrams
         for &(c1, c2, c3, freq) in &corpus.trigrams {
             let p1 = pos_map[c1 as usize];
             let p2 = pos_map[c2 as usize];

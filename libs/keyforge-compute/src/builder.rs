@@ -20,6 +20,7 @@ use keyforge_protocol::JobRequest;
 use keyforge_physics::ScoringEngine;
 use keyforge_model::keycodes::KeycodeRegistry;
 use std::sync::Arc;
+use tracing::info;
 
 pub struct SessionBuilder<'a> {
     loader: &'a dyn AssetLoader,
@@ -42,10 +43,8 @@ impl<'a> SessionBuilder<'a> {
         seed: Option<u64>,
     ) -> LoaderResult<ScoringSession> {
         // 1. Load Assets
-        // kb_def is loaded from disk -> Model type
         let kb_def = self.loader.load_keyboard(keyboard_name).await?;
         
-        // Convert corpora DTO -> Model
         let domain_corpora: Vec<keyforge_model::config::CorpusSource> = corpora
             .iter()
             .map(conversion::to_domain_corpus_source)
@@ -62,8 +61,6 @@ impl<'a> SessionBuilder<'a> {
         };
 
         // 2. Convert to Domain types
-        
-        // kb_def is already Model. Construct the graph.
         let domain_kb = keyforge_model::Keyboard::new(
             kb_def.geometry.keys.clone(),
             kb_def.geometry.home_row
@@ -72,11 +69,23 @@ impl<'a> SessionBuilder<'a> {
         let domain_rubric = conversion::to_domain_rubric(weights);
         let domain_config = conversion::to_domain_config(params, seed.unwrap_or(42));
         
-        // Resolve costs using the Model geometry
         let overrides = raw_costs.resolve(&kb_def.geometry);
 
         // 3. Compile Engine
         let engine = ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)?;
+
+        // TELEMETRY: Log engine stats
+        let keys = engine.key_count();
+        let trigrams = engine.trigram_count();
+        // Rough heuristic: 1M ops/sec baseline, scales linearly with trigrams
+        // Base cost ~ 50ns per bigram. Trigrams add ~10ns each.
+        // This is just for log estimation.
+        let est_ops = if trigrams > 0 { 50_000_000 / trigrams } else { 10_000_000 };
+        
+        info!(
+            "compiled_engine keys={} trigrams={} est_ops_per_sec={}", 
+            keys, trigrams, est_ops
+        );
 
         Ok(ScoringSession {
             engine: Arc::new(engine),
@@ -125,16 +134,24 @@ impl<'a> SessionBuilder<'a> {
         };
 
         // 2. Convert to Domain types
-        // kb_def is Model. Convert to Runtime Keyboard.
         let domain_kb = conversion::to_domain_keyboard(&kb_def.geometry);
         let domain_rubric = conversion::to_domain_rubric(weights);
         let domain_config = conversion::to_domain_config(params, seed.unwrap_or(42));
         
-        // Resolve uses Model geometry.
         let overrides = raw_costs.resolve(&kb_def.geometry);
 
         // 3. Compile Engine
         let engine = ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)?;
+
+        // TELEMETRY: Log engine stats
+        let keys = engine.key_count();
+        let trigrams = engine.trigram_count();
+        let est_ops = if trigrams > 0 { 50_000_000 / trigrams } else { 10_000_000 };
+        
+        info!(
+            "compiled_engine keys={} trigrams={} est_ops_per_sec={}", 
+            keys, trigrams, est_ops
+        );
 
         Ok(ScoringSession {
             engine: Arc::new(engine),

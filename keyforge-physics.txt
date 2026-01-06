@@ -1,0 +1,2314 @@
+// ===== libs/keyforge-physics/Cargo.toml =====
+[package]
+name = "keyforge-physics"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+keyforge-model = { path = "../keyforge-model" }
+
+fastrand = "2.3.0"
+tracing = { version = "0.1", features = ["attributes"] }
+thiserror = "2.0"
+
+[dev-dependencies]
+proptest = "1.9"
+rand = "0.9"
+rand_chacha = "0.9"
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use keyforge_model::{Layout, KeyCode};
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+pub struct LayoutIdentity {
+    pub name: String,
+    pub similarity: f32, // 0.0 to 1.0
+    pub distance: usize, // Hamming distance
+}
+
+pub struct Fingerprinter;
+
+static STANDARDS: OnceLock<HashMap<String, Vec<KeyCode>>> = OnceLock::new();
+
+impl Default for Fingerprinter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl Fingerprinter {
+    fn get_standards() -> &'static HashMap<String, Vec<KeyCode>> {
+        STANDARDS.get_or_init(|| {
+            let mut standards = HashMap::new();
+            standards.insert("Qwerty".into(), to_codes("qwertyuiopasdfghjkl;zxcvbnm,./"));
+            standards.insert("Colemak".into(), to_codes("qwfpgjluy;arstdhneiozxcvbkm,./"));
+            standards.insert("Dvorak".into(), to_codes("',.pyfgcrlaoeuidhtns;qjkxbmwvz"));
+            standards
+        })
+    }
+
+    pub fn identify(&self, layout: &Layout) -> Option<LayoutIdentity> {
+        let standards = Self::get_standards();
+        let mut best: Option<LayoutIdentity> = None;
+
+        for (name, std_keys) in standards {
+            let len = std_keys.len().min(layout.keys.len());
+            if len == 0 {
+                continue;
+            }
+
+            let mut matches = 0;
+            for (i, &std_code) in std_keys.iter().enumerate().take(len) {
+                if layout.keys[i] == std_code {
+                    matches += 1;
+                }
+            }
+
+            let similarity = matches as f32 / len as f32;
+            let distance = len - matches;
+
+            if best.as_ref().is_none_or(|b| similarity > b.similarity) {
+                best = Some(LayoutIdentity {
+                    name: name.clone(),
+                    similarity,
+                    distance,
+                });
+            }
+        }
+
+        if let Some(b) = best {
+            if b.similarity > 0.2 {
+                return Some(b);
+            }
+        }
+        None
+    }
+}
+
+fn to_codes(s: &str) -> Vec<KeyCode> {
+    s.chars().map(|c| KeyCode(c as u16)).collect()
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use crate::kernel::compute::{calculate_swap_delta, score_layout};
+use crate::kernel::types::ValidatedLayout;
+use crate::kernel::EngineContext;
+use keyforge_model::{Layout, SwapSuggestion};
+use keyforge_model::constants::SCORE_SCALE;
+
+pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion> {
+    // Guardrail: Validate layout before processing
+    let validated = match ValidatedLayout::new(&layout.keys, ctx.key_count) {
+        Ok(v) => v,
+        Err(_) => return vec![], // Invalid layout yields no suggestions
+    };
+
+    let mut pos_map = vec![65535u16; 65536];
+    let current_score = score_layout(ctx, &validated, &mut pos_map);
+
+    if current_score <= 0 {
+        return vec![];
+    }
+
+    let mut suggestions = Vec::new();
+    let len = layout.keys.len();
+
+    for i in 0..len {
+        for j in (i + 1)..len {
+            if layout.keys[i] == layout.keys[j] {
+                continue;
+            }
+
+            let delta = calculate_swap_delta(ctx, &validated, &pos_map, i, j);
+
+            if delta < 0 {
+                let improvement = delta.abs() as f32 / SCORE_SCALE;
+                let current_f32 = current_score as f32 / SCORE_SCALE;
+
+                let pct = if current_f32 > f32::EPSILON {
+                    (improvement / current_f32) * 100.0
+                } else {
+                    0.0
+                };
+
+                if pct > 0.1 && pct.is_finite() {
+                    suggestions.push(SwapSuggestion {
+                        index_a: i,
+                        index_b: j,
+                        key_a: format!("{}", layout.keys[i]),
+                        key_b: format!("{}", layout.keys[j]),
+                        score_delta: improvement,
+                        improvement_pct: pct,
+                    });
+                }
+            }
+        }
+    }
+
+    suggestions.sort_by(|a, b| b.improvement_pct.total_cmp(&a.improvement_pct));
+    suggestions.truncate(5);
+    suggestions
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+pub mod fingerprint;
+pub mod heuristics;
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+pub use keyforge_model::error::PhysicsError;
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use super::mechanics::calculate_pair_cost;
+use super::types::{KeyCode, KeyIndex, Score};
+use super::EngineContext;
+use keyforge_model::{Corpus, Keyboard, Rubric};
+use crate::errors::PhysicsError;
+use tracing::instrument;
+
+pub struct Compiler;
+
+impl Compiler {
+    #[instrument(skip_all)]
+    pub fn compile(
+        kb: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        overrides: &[(usize, usize, f32)],
+        space_preference: keyforge_model::types::SpaceHandPreference,
+    ) -> Result<EngineContext, PhysicsError> {
+        let key_count = kb.count();
+
+        let mut hands = Vec::with_capacity(key_count);
+        let mut fingers = Vec::with_capacity(key_count);
+        let mut rows = Vec::with_capacity(key_count);
+        let mut cols = Vec::with_capacity(key_count);
+        let mut key_costs = Vec::with_capacity(key_count);
+
+        for k in &kb.keys {
+            hands.push(k.hand);
+            fingers.push(k.finger);
+            rows.push(k.row);
+            cols.push(k.col);
+
+            // Calculate Static Monogram Cost
+            // Cost = Finger Effort + Travel (from origin)
+            // Note: calculate_pair_cost handles relative travel.
+            // Here we want absolute cost of pressing the key.
+            // We can approximate this using the finger effort weight.
+            // Travel cost is usually relative to home row, which is implicit in finger effort for some models,
+            // but explicit in others.
+            // Let's use finger_effort + row penalty (if we had it) + travel from finger origin.
+            
+            let mut cost = rubric.finger_effort[k.finger.as_usize()];
+            
+            // Add travel cost from finger origin (home row)
+            if let Some(origin) = kb.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
+                let dx = (k.x - origin.0).abs();
+                let dy = (k.y - origin.1).abs();
+                cost += (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
+            }
+
+            // DEBUG: Log cost for specific keys
+            if k.label == "KeyO" || k.label == "Dot" || k.label == "SpaceL" {
+                tracing::info!("Compiler: Key {} ({}) Cost: {}", k.index, k.label, cost);
+            }
+
+            key_costs.push(Score::from_f32(cost));
+        }
+
+        let mut cost_matrix = vec![Score::ZERO; key_count * key_count];
+
+        for i in 0..key_count {
+            for j in 0..key_count {
+                let cost = calculate_pair_cost(kb, rubric, KeyIndex::from(i), KeyIndex::from(j));
+                cost_matrix[i * key_count + j] = Score::from_f32(cost);
+            }
+        }
+
+        for &(i, j, cost) in overrides {
+            if i < key_count && j < key_count {
+                cost_matrix[i * key_count + j] = Score::from_f32(cost);
+            }
+        }
+
+        let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&corpus.bigrams);
+        let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) = flatten_bigrams_rev(&corpus.bigrams);
+        let pruned_trigrams = prune_trigrams(corpus.trigrams.clone(), rubric.trigram_coverage, rubric.trigram_limit);
+        let (trigram_starts, trigram_others1, trigram_others2, trigram_freqs) = flatten_trigrams_start(&pruned_trigrams);
+        let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) = flatten_trigrams_mid(&pruned_trigrams);
+        let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) = flatten_trigrams_end(&pruned_trigrams);
+        let char_freqs = corpus.char_freqs.clone();
+
+        Ok(EngineContext {
+            key_count, hands, fingers, rows, cols, cost_matrix, key_costs, char_freqs,
+            bigram_starts, bigram_others, bigram_freqs,
+            bigram_rev_starts, bigram_rev_others, bigram_rev_freqs,
+            trigram_starts, trigram_others1, trigram_others2, trigram_freqs,
+            trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs,
+            trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs,
+            penalty_redirect: Score::from_f32(rubric.redirect),
+            penalty_skip: Score::ZERO,
+            bonus_roll: Score::from_f32(rubric.roll_bonus),
+            space_preference,
+        })
+    }
+}
+
+fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
+    let mut buckets = vec![Vec::new(); 65536];
+    for &(c1, c2, freq) in source { buckets[c1 as usize].push((KeyCode(c2), freq)); }
+    flatten_buckets(buckets)
+}
+
+fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
+    let mut buckets = vec![Vec::new(); 65536];
+    for &(c1, c2, freq) in source { buckets[c2 as usize].push((KeyCode(c1), freq)); }
+    flatten_buckets(buckets)
+}
+
+fn prune_trigrams(mut source: Vec<(u16, u16, u16, u32)>, coverage: f32, limit: usize) -> Vec<(u16, u16, u16, u32)> {
+    source.sort_unstable_by(|a, b| b.3.cmp(&a.3).then_with(|| a.0.cmp(&b.0)).then_with(|| a.1.cmp(&b.1)).then_with(|| a.2.cmp(&b.2)));
+    let total_freq: u64 = source.iter().map(|x| x.3 as u64).sum();
+    let target = (total_freq as f64 * coverage as f64) as u64;
+    let mut acc = 0;
+    let mut cutoff = source.len();
+    for (i, item) in source.iter().enumerate() {
+        acc += item.3 as u64;
+        if acc >= target { cutoff = i + 1; break; }
+    }
+    if cutoff > limit { cutoff = limit; }
+    source.truncate(cutoff);
+    source
+}
+
+fn flatten_trigrams_start(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+    let mut buckets = vec![Vec::new(); 65536];
+    for &(c1, c2, c3, freq) in source { buckets[c1 as usize].push((KeyCode(c2), KeyCode(c3), freq)); }
+    flatten_buckets_tri(buckets)
+}
+
+fn flatten_trigrams_mid(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+    let mut buckets = vec![Vec::new(); 65536];
+    for &(c1, c2, c3, freq) in source { buckets[c2 as usize].push((KeyCode(c1), KeyCode(c3), freq)); }
+    flatten_buckets_tri(buckets)
+}
+
+fn flatten_trigrams_end(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+    let mut buckets = vec![Vec::new(); 65536];
+    for &(c1, c2, c3, freq) in source { buckets[c3 as usize].push((KeyCode(c1), KeyCode(c2), freq)); }
+    flatten_buckets_tri(buckets)
+}
+
+fn flatten_buckets(buckets: Vec<Vec<(KeyCode, u32)>>) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
+    let mut starts = vec![0; 65537];
+    let mut others = Vec::new();
+    let mut freqs = Vec::new();
+    let mut offset = 0;
+    for i in 0..65536 {
+        starts[i] = offset;
+        for (o, f) in &buckets[i] { others.push(*o); freqs.push(*f); }
+        offset += buckets[i].len();
+    }
+    starts[65536] = offset;
+    (starts, others, freqs)
+}
+
+fn flatten_buckets_tri(buckets: Vec<Vec<(KeyCode, KeyCode, u32)>>) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+    let mut starts = vec![0; 65537];
+    let mut o1 = Vec::new();
+    let mut o2 = Vec::new();
+    let mut freqs = Vec::new();
+    let mut offset = 0;
+    for i in 0..65536 {
+        starts[i] = offset;
+        for (a, b, f) in &buckets[i] { o1.push(*a); o2.push(*b); freqs.push(*f); }
+        offset += buckets[i].len();
+    }
+    starts[65536] = offset;
+    (starts, o1, o2, freqs)
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use super::types::{KeyCode, Score, ValidatedLayout};
+use super::EngineContext;
+use keyforge_model::{AnalysisReport, MetricViolation};
+use keyforge_model::types::SpaceHandPreference;
+use keyforge_model::constants::SCORE_SCALE;
+use tracing::instrument;
+
+pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, pos_map: &mut [u16]) -> i64 {
+    let mut total_score = Score::ZERO;
+    pos_map.fill(65535);
+    let layout_slice = layout.as_slice();
+    let limit = layout_slice.len().min(ctx.key_count);
+    
+    let mut space_count = 0;
+
+    for (i, &code) in layout_slice.iter().enumerate().take(limit) {
+        let c_val = code.0 as usize;
+        if c_val < pos_map.len() {
+            if c_val == 32 {
+                let hand = ctx.hands[i];
+                let allowed = match ctx.space_preference {
+                    SpaceHandPreference::Left => hand.is_left(),
+                    SpaceHandPreference::Right => hand.is_right(),
+                    SpaceHandPreference::Bilateral => true,
+                };
+                if allowed {
+                    pos_map[c_val] = i as u16;
+                    space_count += 1;
+                }
+            } else {
+                pos_map[c_val] = i as u16;
+            }
+        }
+    }
+
+    // Loop 0: Monograms (Base Effort + Travel from Origin)
+    for (p_idx, &code) in layout_slice.iter().enumerate().take(limit) {
+        let p = p_idx as usize;
+        let c_val = code.0 as usize;
+        
+        if c_val < ctx.char_freqs.len() {
+            let mut freq = ctx.char_freqs[c_val] as i64;
+            
+            if c_val == 32 {
+                let hand = ctx.hands[p];
+                let allowed = match ctx.space_preference {
+                    SpaceHandPreference::Left => hand.is_left(),
+                    SpaceHandPreference::Right => hand.is_right(),
+                    SpaceHandPreference::Bilateral => true,
+                };
+                if !allowed { continue; }
+                if space_count > 1 {
+                    freq /= space_count as i64;
+                }
+            }
+
+            if freq > 0 {
+                let cost = ctx.key_costs[p];
+                total_score = total_score.saturating_add(cost.saturating_mul(freq));
+            }
+        }
+    }
+
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        if pos_map[c1_val] != p1 { continue; }
+        
+        let start = ctx.bigram_starts[c1_val];
+        let end = ctx.bigram_starts[c1_val + 1];
+        for k in start..end {
+            let c2 = ctx.bigram_others[k];
+            let p2 = pos_map[c2.0 as usize];
+            if p2 != 65535 {
+                let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
+                if let Some(&cost) = ctx.cost_matrix.get(idx) {
+                    let freq = ctx.bigram_freqs[k] as i64;
+                    total_score = total_score.saturating_add(cost.saturating_mul(freq));
+                }
+            }
+        }
+    }
+
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        if pos_map[c1_val] != p1 { continue; }
+
+        let start = ctx.trigram_starts[c1_val];
+        let end = ctx.trigram_starts[c1_val + 1];
+        for k in start..end {
+            let c2 = ctx.trigram_others1[k];
+            let c3 = ctx.trigram_others2[k];
+            let p2 = pos_map[c2.0 as usize];
+            let p3 = pos_map[c3.0 as usize];
+            if p2 != 65535 && p3 != 65535 {
+                let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
+                if cost.0 != 0 {
+                    let freq = ctx.trigram_freqs[k] as i64;
+                    total_score = total_score.saturating_add(cost.saturating_mul(freq));
+                }
+            }
+        }
+    }
+    total_score.0
+}
+
+pub fn calculate_swap_delta(ctx: &EngineContext, layout: &ValidatedLayout, pos_map: &[u16], idx_a: usize, idx_b: usize) -> i64 {
+    let layout_slice = layout.as_slice();
+    if idx_a >= layout_slice.len() || idx_b >= layout_slice.len() { return 0; }
+    if idx_a >= ctx.key_count || idx_b >= ctx.key_count { return 0; }
+    if layout_slice[idx_a] == layout_slice[idx_b] { return 0; }
+
+    let code_a = layout_slice[idx_a];
+    let code_b = layout_slice[idx_b];
+    let mut delta = Score::ZERO;
+
+    // Monogram Delta
+    if (code_a.0 as usize) < ctx.char_freqs.len() {
+        let freq_a = ctx.char_freqs[code_a.0 as usize] as i64;
+        let cost_a_old = ctx.key_costs[idx_a];
+        let cost_a_new = ctx.key_costs[idx_b];
+        // Remove old cost, add new cost
+        // Delta = New - Old
+        // Delta += (CostNew - CostOld) * Freq
+        if cost_a_new > cost_a_old {
+            delta = delta.saturating_add((cost_a_new - cost_a_old).saturating_mul(freq_a));
+        } else {
+            delta = delta.saturating_sub((cost_a_old - cost_a_new).saturating_mul(freq_a));
+        }
+    }
+
+    if (code_b.0 as usize) < ctx.char_freqs.len() {
+        let freq_b = ctx.char_freqs[code_b.0 as usize] as i64;
+        let cost_b_old = ctx.key_costs[idx_b];
+        let cost_b_new = ctx.key_costs[idx_a];
+        if cost_b_new > cost_b_old {
+            delta = delta.saturating_add((cost_b_new - cost_b_old).saturating_mul(freq_b));
+        } else {
+            delta = delta.saturating_sub((cost_b_old - cost_b_new).saturating_mul(freq_b));
+        }
+    }
+
+    let get_pos = |c: KeyCode, p_map: &[u16]| -> usize {
+        if c == code_a { idx_a } else if c == code_b { idx_b } else { p_map[c.0 as usize] as usize }
+    };
+    let get_swapped_pos = |c: KeyCode, p_map: &[u16]| -> usize {
+        if c == code_a { idx_b } else if c == code_b { idx_a } else { p_map[c.0 as usize] as usize }
+    };
+
+    if (code_a.0 as usize) < 65536 { delta = delta.saturating_add(calc_key_delta(ctx, code_a, None, pos_map, &get_pos, &get_swapped_pos)); }
+    if (code_b.0 as usize) < 65536 { delta = delta.saturating_add(calc_key_delta(ctx, code_b, Some(code_a), pos_map, &get_pos, &get_swapped_pos)); }
+    delta.0
+}
+
+#[inline(never)]
+fn calc_key_delta<F1, F2>(ctx: &EngineContext, c_target: KeyCode, c_skip: Option<KeyCode>, pos_map: &[u16], get_old: &F1, get_new: &F2) -> Score
+where F1: Fn(KeyCode, &[u16]) -> usize, F2: Fn(KeyCode, &[u16]) -> usize {
+    let mut d = Score::ZERO;
+    d = d.saturating_add(calc_bigrams_delta(ctx, c_target, c_skip, pos_map, get_old, get_new));
+    d = d.saturating_add(calc_trigrams_delta(ctx, c_target, c_skip, pos_map, get_old, get_new));
+    d
+}
+
+#[inline(never)]
+fn calc_bigrams_delta(ctx: &EngineContext, c_target: KeyCode, c_skip: Option<KeyCode>, pos_map: &[u16], get_old: &dyn Fn(KeyCode, &[u16]) -> usize, get_new: &dyn Fn(KeyCode, &[u16]) -> usize) -> Score {
+    let mut d = Score::ZERO;
+    let start = ctx.bigram_starts[c_target.0 as usize];
+    let end = ctx.bigram_starts[c_target.0 as usize + 1];
+    for k in start..end {
+        let c_other = ctx.bigram_others[k];
+        if Some(c_other) == c_skip { continue; }
+        if pos_map[c_other.0 as usize] != 65535 {
+            let p1_old = get_old(c_target, pos_map);
+            let p2_old = get_old(c_other, pos_map);
+            if p1_old < ctx.key_count && p2_old < ctx.key_count {
+                let cost_old = ctx.cost_matrix[p1_old * ctx.key_count + p2_old];
+                let p1_new = get_new(c_target, pos_map);
+                let p2_new = get_new(c_other, pos_map);
+                if p1_new < ctx.key_count && p2_new < ctx.key_count {
+                    let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+                    let freq = ctx.bigram_freqs[k] as i64;
+                    d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
+                }
+            }
+        }
+    }
+    let start = ctx.bigram_rev_starts[c_target.0 as usize];
+    let end = ctx.bigram_rev_starts[c_target.0 as usize + 1];
+    for k in start..end {
+        let c_other = ctx.bigram_rev_others[k];
+        if c_other != c_target && Some(c_other) != c_skip && (c_other.0 as usize) < 65536 && pos_map[c_other.0 as usize] != 65535 {
+            let p1_old = get_old(c_other, pos_map);
+            let p2_old = get_old(c_target, pos_map);
+            if p1_old < ctx.key_count && p2_old < ctx.key_count {
+                let cost_old = ctx.cost_matrix[p1_old * ctx.key_count + p2_old];
+                let p1_new = get_new(c_other, pos_map);
+                let p2_new = get_new(c_target, pos_map);
+                if p1_new < ctx.key_count && p2_new < ctx.key_count {
+                    let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+                    let freq = ctx.bigram_rev_freqs[k] as i64;
+                    d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
+                }
+            }
+        }
+    }
+    d
+}
+
+#[inline(never)]
+fn calc_trigrams_delta(ctx: &EngineContext, c_target: KeyCode, c_skip: Option<KeyCode>, pos_map: &[u16], get_old: &dyn Fn(KeyCode, &[u16]) -> usize, get_new: &dyn Fn(KeyCode, &[u16]) -> usize) -> Score {
+    let mut d = Score::ZERO;
+    let start = ctx.trigram_starts[c_target.0 as usize];
+    let end = ctx.trigram_starts[c_target.0 as usize + 1];
+    for k in start..end {
+        let c2 = ctx.trigram_others1[k];
+        let c3 = ctx.trigram_others2[k];
+        if Some(c2) == c_skip || Some(c3) == c_skip { continue; }
+        if pos_map[c2.0 as usize] != 65535 && pos_map[c3.0 as usize] != 65535 {
+            let p1_old = get_old(c_target, pos_map);
+            let p2_old = get_old(c2, pos_map);
+            let p3_old = get_old(c3, pos_map);
+            let cost_old = calculate_flow_cost(ctx, p1_old, p2_old, p3_old);
+            let p1_new = get_new(c_target, pos_map);
+            let p2_new = get_new(c2, pos_map);
+            let p3_new = get_new(c3, pos_map);
+            let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
+            let freq = ctx.trigram_freqs[k] as i64;
+            d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
+        }
+    }
+    let start = ctx.trigram_mid_starts[c_target.0 as usize];
+    let end = ctx.trigram_mid_starts[c_target.0 as usize + 1];
+    for k in start..end {
+        let c1 = ctx.trigram_mid_others1[k];
+        let c3 = ctx.trigram_mid_others2[k];
+        if c1 != c_target && Some(c1) != c_skip && Some(c3) != c_skip && (c1.0 as usize) < 65536 && pos_map[c1.0 as usize] != 65535 && pos_map[c3.0 as usize] != 65535 {
+            let p1_old = get_old(c1, pos_map);
+            let p2_old = get_old(c_target, pos_map);
+            let p3_old = get_old(c3, pos_map);
+            let cost_old = calculate_flow_cost(ctx, p1_old, p2_old, p3_old);
+            let p1_new = get_new(c1, pos_map);
+            let p2_new = get_new(c_target, pos_map);
+            let p3_new = get_new(c3, pos_map);
+            let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
+            let freq = ctx.trigram_mid_freqs[k] as i64;
+            d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
+        }
+    }
+    let start = ctx.trigram_end_starts[c_target.0 as usize];
+    let end = ctx.trigram_end_starts[c_target.0 as usize + 1];
+    for k in start..end {
+        let c1 = ctx.trigram_end_others1[k];
+        let c2 = ctx.trigram_end_others2[k];
+        if c1 != c_target && c2 != c_target && Some(c1) != c_skip && Some(c2) != c_skip && (c1.0 as usize) < 65536 && pos_map[c1.0 as usize] != 65535 && pos_map[c2.0 as usize] != 65535 {
+            let p1_old = get_old(c1, pos_map);
+            let p2_old = get_old(c2, pos_map);
+            let p3_old = get_old(c_target, pos_map);
+            let cost_old = calculate_flow_cost(ctx, p1_old, p2_old, p3_old);
+            let p1_new = get_new(c1, pos_map);
+            let p2_new = get_new(c2, pos_map);
+            let p3_new = get_new(c_target, pos_map);
+            let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
+            let freq = ctx.trigram_end_freqs[k] as i64;
+            d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
+        }
+    }
+    d
+}
+
+#[inline(always)]
+fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> Score {
+    if p1 >= ctx.key_count || p2 >= ctx.key_count || p3 >= ctx.key_count { return Score::ZERO; }
+    let h1 = ctx.hands[p1];
+    let h2 = ctx.hands[p2];
+    let h3 = ctx.hands[p3];
+
+    if h1 != h2 || h2 != h3 { return Score::ZERO; }
+
+    // Redirect check
+    if ctx.fingers[p1] == ctx.fingers[p3] && ctx.fingers[p1] != ctx.fingers[p2] { return ctx.penalty_redirect; }
+    
+    let dir1 = ctx.fingers[p2].diff(ctx.fingers[p1]);
+    let dir2 = ctx.fingers[p3].diff(ctx.fingers[p2]);
+
+    if dir1 == 0 || dir2 == 0 { return Score::ZERO; }
+    if dir1.signum() != dir2.signum() { return ctx.penalty_redirect; }
+    if dir1 < 0 { return Score::ZERO.saturating_sub(ctx.bonus_roll); }
+    Score::ZERO
+}
+
+#[instrument(skip_all)]
+pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> AnalysisReport {
+    let mut report = AnalysisReport::default();
+    // Support duplicate keys: Map Char Code -> List of Positions
+    let mut pos_map: Vec<Vec<u16>> = vec![Vec::new(); 65536];
+    
+    let mut heatmap = vec![0.0; ctx.key_count];
+    let mut penalty_map = vec![0.0; ctx.key_count];
+    let layout_slice = layout.as_slice();
+    let limit = layout_slice.len().min(ctx.key_count);
+    
+    for (i, &code) in layout_slice.iter().enumerate().take(limit) {
+        if (code.0 as usize) < pos_map.len() {
+            let c_val = code.0 as usize;
+            if c_val == 32 {
+                let hand = ctx.hands[i];
+                let allowed = match ctx.space_preference {
+                    SpaceHandPreference::Left => hand.is_left(),
+                    SpaceHandPreference::Right => hand.is_right(),
+                    SpaceHandPreference::Bilateral => true,
+                };
+                if allowed {
+                    pos_map[c_val].push(i as u16);
+                }
+            } else {
+                pos_map[c_val].push(i as u16);
+            }
+        }
+    }
+
+    let mut total_bigrams = 0.0;
+    let mut left_hand_load = 0.0;
+    let mut total_load = 0.0;
+    let mut sfbs = Vec::new();
+    let mut scissors = Vec::new();
+    let mut redirs = Vec::new();
+
+    for (p_idx, &code) in layout_slice.iter().enumerate().take(limit) {
+        let p = p_idx as u16;
+        let c_val = code.0 as usize;
+        
+        // Only process if this is a valid position for this char
+        if !pos_map[c_val].contains(&p) { continue; }
+
+        // Monogram: 50/50 Distribution for duplicates
+        let count = pos_map[c_val].len() as f32;
+        let freq = (ctx.char_freqs[c_val] as f32) / count;
+
+        // DEBUG LOGGING
+        if c_val == 32 { // Space
+            tracing::info!("Analyze: Space Freq Raw: {}, Count: {}, Per Key: {}", ctx.char_freqs[c_val], count, freq);
+        }
+
+        if freq > 0.0 {
+            total_load += freq;
+            let idx = p as usize;
+            if idx < ctx.key_count {
+                heatmap[idx] += freq;
+                if ctx.hands[idx].is_left() { left_hand_load += freq; }
+                
+                // Monogram Cost (Base Effort)
+                let static_cost = ctx.key_costs[idx].to_f32();
+                penalty_map[idx] += freq * static_cost;
+            }
+        }
+    }
+    
+    tracing::info!("Analyze: Total Load: {}, Heatmap Sum: {}", total_load, heatmap.iter().sum::<f32>());
+
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        
+        // Optimization: Only process the *first* instance of a char to drive the bigram loop,
+        // then inside, iterate all instances of Src and Dst to find best pair.
+        if pos_map[c1_val].first() != Some(&p1) { continue; }
+
+        let start = ctx.bigram_starts[c1_val];
+        let end = ctx.bigram_starts[c1_val + 1];
+        for k in start..end {
+            let c2 = ctx.bigram_others[k];
+            let p2_candidates = &pos_map[c2.0 as usize];
+            
+            if !p2_candidates.is_empty() {
+                let freq = ctx.bigram_freqs[k] as f32;
+                total_bigrams += freq;
+                
+                // Find Best (Src, Dst) Pair
+                let mut best_cost = f32::MAX;
+                let mut best_pair = (0, 0);
+                
+                for &src_pos in &pos_map[c1_val] {
+                    for &dst_pos in p2_candidates {
+                        let idx1 = src_pos as usize;
+                        let idx2 = dst_pos as usize;
+                        if idx1 < ctx.key_count && idx2 < ctx.key_count {
+                            let cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
+                            if cost < best_cost {
+                                best_cost = cost;
+                                best_pair = (idx1, idx2);
+                            }
+                        }
+                    }
+                }
+                
+                let (idx1, idx2) = best_pair;
+                if best_cost != f32::MAX {
+                    let cost = best_cost;
+                    report.distance += cost * freq;
+                    
+                    // Distribute cost to both keys for the heatmap
+                    penalty_map[idx1] += cost * freq * 0.5;
+                    penalty_map[idx2] += cost * freq * 0.5;
+
+                    if ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
+                        report.sfb_total += freq;
+                        sfbs.push(MetricViolation {
+                            keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
+                            score: 1.0,
+                            freq,
+                        });
+                    }
+                    let r1 = ctx.rows[idx1];
+                    let r2 = ctx.rows[idx2];
+                    if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
+                        report.scissors += freq;
+                        scissors.push(MetricViolation {
+                            keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
+                            score: 1.0,
+                            freq,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
+        let p1 = p1_idx as u16;
+        let c1_val = code_a.0 as usize;
+        if pos_map[c1_val].first() != Some(&p1) { continue; }
+
+        let start = ctx.trigram_starts[c1_val];
+        let end = ctx.trigram_starts[c1_val + 1];
+        for k in start..end {
+            let c2 = ctx.trigram_others1[k];
+            let c3 = ctx.trigram_others2[k];
+            
+            let p2_candidates = &pos_map[c2.0 as usize];
+            let p3_candidates = &pos_map[c3.0 as usize];
+            
+            if !p2_candidates.is_empty() && !p3_candidates.is_empty() {
+                // Find Best (Src, Mid, Dst) Triplet
+                let mut best_cost_val = Score(i64::MAX);
+                let mut best_triplet = (0, 0, 0);
+                
+                for &p1 in &pos_map[c1_val] {
+                    for &p2 in p2_candidates {
+                        for &p3 in p3_candidates {
+                            let idx1 = p1 as usize;
+                            let idx2 = p2 as usize;
+                            let idx3 = p3 as usize;
+                            let cost = calculate_flow_cost(ctx, idx1, idx2, idx3);
+                            if cost < best_cost_val {
+                                best_cost_val = cost;
+                                best_triplet = (idx1, idx2, idx3);
+                            }
+                        }
+                    }
+                }
+                
+                let (idx1, idx2, idx3) = best_triplet;
+                let cost = best_cost_val;
+                let freq = ctx.trigram_freqs[k] as f32;
+                
+                if cost.0 != 0 {
+                    let cost_f32 = cost.to_f32();
+                    // Distribute flow cost to all 3 keys
+                    if idx1 < ctx.key_count { penalty_map[idx1] += cost_f32 * freq * 0.33; }
+                    if idx2 < ctx.key_count { penalty_map[idx2] += cost_f32 * freq * 0.33; }
+                    if idx3 < ctx.key_count { penalty_map[idx3] += cost_f32 * freq * 0.33; }
+                }
+
+                if cost == ctx.penalty_redirect {
+                    report.redirects += freq;
+                    redirs.push(MetricViolation {
+                        keys: format!(
+                            "{}{}{}",
+                            c1_val as u8 as char, c2.0 as u8 as char, c3.0 as u8 as char
+                        ),
+                        score: 1.0,
+                        freq,
+                    });
+                } else if cost < Score::ZERO {
+                    report.rolls += freq;
+                }
+            }
+        }
+    }
+
+    let sort_violations = |v: &mut Vec<MetricViolation>| {
+        v.sort_by(|a, b| b.freq.partial_cmp(&a.freq).unwrap_or(std::cmp::Ordering::Equal));
+        v.truncate(10);
+    };
+    sort_violations(&mut sfbs);
+    sort_violations(&mut scissors);
+    sort_violations(&mut redirs);
+    report.top_sfbs = sfbs;
+    report.top_scissors = scissors;
+    report.top_redirs = redirs;
+    report.heatmap = heatmap;
+    
+    report.penalty_map = penalty_map;
+    let mut scratch = vec![65535u16; 65536];
+    report.score = score_layout(ctx, layout, &mut scratch) as f32 / SCORE_SCALE;
+    report.distance /= SCORE_SCALE;
+    if total_bigrams > 0.0 { report.sfb_ratio = report.sfb_total / total_bigrams; }
+    if total_load > 0.0 { let left_ratio = left_hand_load / total_load; report.hand_balance = (left_ratio - 0.5) * -2.0; }
+    report
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use super::types::{DistanceSquared, KeyIndex};
+use keyforge_model::{Keyboard, Rubric};
+
+pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIndex) -> f32 {
+    let i_idx = usize::from(i);
+    let j_idx = usize::from(j);
+
+    if i_idx == j_idx { return 0.0; }
+
+    let k1 = &kb.keys[i_idx];
+    let k2 = &kb.keys[j_idx];
+
+    let h1 = k1.hand;
+    let h2 = k2.hand;
+    let f1 = k1.finger;
+    let f2 = k2.finger;
+
+    let dx = (k1.x - k2.x).abs();
+    let dy = (k1.y - k2.y).abs();
+    let dist_raw = (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
+    let dist_sq = DistanceSquared::new(dist_raw);
+    let mut cost = dist_sq.as_f32();
+
+    if h1 != h2 { return cost; }
+
+    if f1 == f2 {
+        let col_diff = (k1.col - k2.col).abs();
+        if col_diff == 1 { cost += rubric.sfb_lateral; } else { cost += rubric.sfb_base; }
+        return cost;
+    }
+
+    let finger_diff = f1.distance(f2);
+    
+    let row_diff = (k1.row - k2.row).abs();
+
+    if finger_diff == 1 && row_diff >= 2 {
+        cost += rubric.finger_effort[f1.as_usize()];
+    }
+
+    if row_diff == 0 && finger_diff == 1 {
+        let col_dist = (k1.col - k2.col).abs();
+        if col_dist > 1 { cost += rubric.sfb_lateral; }
+    }
+    cost
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+pub mod compiler;
+pub mod compute;
+pub mod mechanics;
+pub mod types;
+
+use self::types::{KeyCode, FingerIndex, HandIndex, RowIndex, ColIndex, Score};
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct EngineContext {
+    pub(crate) key_count: usize,
+    pub(crate) hands: Vec<HandIndex>,
+    pub(crate) fingers: Vec<FingerIndex>,
+    pub(crate) rows: Vec<RowIndex>,
+    pub(crate) cols: Vec<ColIndex>,
+    pub(crate) cost_matrix: Vec<Score>,
+    pub(crate) key_costs: Vec<Score>, // Static cost per key (Monogram)
+    // UPDATED: u32 -> u64 to match Corpus definition
+    pub(crate) char_freqs: Vec<u64>,
+    pub(crate) bigram_starts: Vec<usize>,
+    pub(crate) bigram_others: Vec<KeyCode>,
+    pub(crate) bigram_freqs: Vec<u32>,
+    pub(crate) bigram_rev_starts: Vec<usize>,
+    pub(crate) bigram_rev_others: Vec<KeyCode>,
+    pub(crate) bigram_rev_freqs: Vec<u32>,
+    pub(crate) trigram_starts: Vec<usize>,
+    pub(crate) trigram_others1: Vec<KeyCode>,
+    pub(crate) trigram_others2: Vec<KeyCode>,
+    pub(crate) trigram_freqs: Vec<u32>,
+    pub(crate) trigram_mid_starts: Vec<usize>,
+    pub(crate) trigram_mid_others1: Vec<KeyCode>,
+    pub(crate) trigram_mid_others2: Vec<KeyCode>,
+    pub(crate) trigram_mid_freqs: Vec<u32>,
+    pub(crate) trigram_end_starts: Vec<usize>,
+    pub(crate) trigram_end_others1: Vec<KeyCode>,
+    pub(crate) trigram_end_others2: Vec<KeyCode>,
+    pub(crate) trigram_end_freqs: Vec<u32>,
+    pub(crate) penalty_redirect: Score,
+    pub(crate) penalty_skip: Score,
+    pub(crate) bonus_roll: Score,
+    pub(crate) space_preference: keyforge_model::types::SpaceHandPreference,
+}
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use crate::errors::PhysicsError;
+pub use keyforge_model::types::{KeyCode, ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, Score};
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct DistanceSquared(f32);
+
+impl DistanceSquared {
+    pub fn new(val: f32) -> Self { Self(val.max(0.0)) }
+    pub fn as_f32(&self) -> f32 { self.0 }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ValidatedLayout<'a> {
+    slice: &'a [KeyCode],
+}
+
+impl<'a> ValidatedLayout<'a> {
+    pub fn new(slice: &'a [KeyCode], required_count: usize) -> Result<Self, PhysicsError> {
+        if slice.len() < required_count {
+            Err(PhysicsError::LayoutUnderflow(slice.len(), required_count))
+        } else {
+            Ok(Self { slice })
+        }
+    }
+    pub fn as_slice(&self) -> &'a [KeyCode] {
+        self.slice
+    }
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+mod analysis;
+mod kernel;
+pub mod verify; 
+pub mod errors;
+
+pub use analysis::fingerprint::LayoutIdentity;
+pub use keyforge_model::SwapSuggestion;
+
+use analysis::fingerprint::Fingerprinter;
+use analysis::heuristics::suggest_swaps;
+use kernel::compiler::Compiler;
+pub use errors::PhysicsError;
+use kernel::compute::{analyze_layout, score_layout};
+pub use kernel::EngineContext;
+use kernel::types::{KeyCode, ValidatedLayout};
+use keyforge_model::{
+    AnalysisReport, Corpus, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig,
+};
+use keyforge_model::types::SpaceHandPreference;
+use keyforge_model::constants::SCORE_SCALE;
+use std::sync::Arc;
+use tracing::instrument;
+
+pub struct ScoringEngine {
+    ctx: EngineContext,
+}
+
+impl ScoringEngine {
+    pub fn new(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        cost_overrides: &[(usize, usize, f32)],
+    ) -> Result<Self, PhysicsError> {
+        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_overrides, SpaceHandPreference::default())?;
+        Ok(Self { ctx })
+    }
+
+    pub fn new_with_options(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        cost_overrides: &[(usize, usize, f32)],
+        space_preference: SpaceHandPreference,
+    ) -> Result<Self, PhysicsError> {
+        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_overrides, space_preference)?;
+        Ok(Self { ctx })
+    }
+
+    #[instrument(skip(self, layout))]
+    pub fn score(&self, layout: &Layout) -> Result<f32, PhysicsError> {
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        
+        let mut pos_map = vec![65535u16; 65536];
+        Ok(score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE)
+    }
+
+    #[instrument(skip(self, layout))]
+    pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        Ok(analyze_layout(&self.ctx, &validated))
+    }
+
+    #[instrument(skip(self, layout))]
+    pub fn suggest_improvements(&self, layout: &Layout) -> Vec<SwapSuggestion> {
+        suggest_swaps(&self.ctx, layout)
+    }
+
+    pub fn calculate_swap_delta(
+        &self,
+        layout: &[KeyCode],
+        pos_map: &[u16],
+        idx_a: usize,
+        idx_b: usize,
+    ) -> Result<i64, PhysicsError> {
+        let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
+        Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, pos_map, idx_a, idx_b))
+    }
+
+    pub fn score_raw(&self, layout: &[KeyCode]) -> Result<i64, PhysicsError> {
+        let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
+        let mut pos_map = vec![65535u16; 65536];
+        Ok(score_layout(&self.ctx, &validated, &mut pos_map))
+    }
+
+    pub fn key_count(&self) -> usize {
+        self.ctx.key_count
+    }
+
+    pub fn trigram_count(&self) -> usize {
+        self.ctx.trigram_freqs.len()
+    }
+
+    pub fn context(&self) -> &EngineContext {
+        &self.ctx
+    }
+}
+
+#[derive(Clone)]
+pub struct EngineRequest {
+    pub keyboard: Arc<Keyboard>,
+    pub corpus: Arc<Corpus>,
+    pub rubric: Arc<Rubric>,
+    pub config: SearchConfig,
+    pub initial_layout: Option<Layout>,
+    pub pinned_keys: Vec<Option<KeyCode>>,
+    pub cost_overrides: Vec<(usize, usize, f32)>,
+    pub space_preference: SpaceHandPreference,
+}
+
+#[instrument(skip(req))]
+pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
+    let engine = ScoringEngine::new_with_options(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides, req.space_preference)?;
+
+    let layout = req
+        .initial_layout
+        .clone()
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
+
+    Ok(OptimizationResult {
+        score: engine.score(&layout)?,
+        layout,
+    })
+}
+
+#[instrument(skip(req))]
+pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
+    let engine = ScoringEngine::new_with_options(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides, req.space_preference)?;
+    let layout = req
+        .initial_layout
+        .clone()
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
+    engine.analyze(&layout)
+}
+
+#[instrument]
+pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
+    let fp = Fingerprinter;
+    fp.identify(layout)
+}
+
+#[instrument(skip(req))]
+pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
+    let engine = ScoringEngine::new_with_options(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides, req.space_preference)?;
+    let layout = req
+        .initial_layout
+        .clone()
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
+    Ok(engine.suggest_improvements(&layout))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
+    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+    use std::sync::Arc;
+
+    fn setup_physics_engine() -> ScoringEngine {
+        let keys = vec![
+            KeyNode { index: 0, label: "A".to_string(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(1), col: ColIndex(0), x: 0.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 1, label: "B".to_string(), hand: HandIndex(0), finger: FingerIndex(2), row: RowIndex(1), col: ColIndex(1), x: 1.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 2, label: "C".to_string(), hand: HandIndex(0), finger: FingerIndex(3), row: RowIndex(1), col: ColIndex(2), x: 2.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 3, label: "D".to_string(), hand: HandIndex(1), finger: FingerIndex(1), row: RowIndex(1), col: ColIndex(6), x: 6.0, y: 1.0, is_home: true, ..Default::default() },
+            KeyNode { index: 4, label: "E".to_string(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(3), col: ColIndex(0), x: 0.0, y: 3.0, is_home: false, ..Default::default() },
+        ];
+        let keyboard = Arc::new(Keyboard::new(keys, 1).unwrap());
+
+        let mut corpus = Corpus::default();
+        corpus.char_freqs[0] = 100;
+        corpus.char_freqs[1] = 50;
+        corpus.bigrams.push((0, 4, 10));
+        corpus.bigrams.push((1, 4, 5));
+        corpus.trigrams.push((2, 1, 0, 20));
+        corpus.trigrams.push((0, 2, 1, 15));
+
+        let rubric = Arc::new(Rubric::default());
+        ScoringEngine::new(&keyboard, &Arc::new(corpus), &rubric, &[]).unwrap()
+    }
+
+    fn setup_kb(size: usize) -> Keyboard {
+        let keys: Vec<KeyNode> = (0..size)
+            .map(|i| KeyNode {
+                index: i,
+                label: format!("k{}", i),
+                hand: HandIndex(0),
+                finger: FingerIndex(i as u8),
+                row: RowIndex(0),
+                col: ColIndex(i as i8),
+                x: i as f32,
+                y: 0.0,
+                is_home: true,
+                ..Default::default()
+            })
+            .collect();
+        Keyboard::new(keys, 0).unwrap()
+    }
+
+    #[test]
+    fn test_analyze_layout_comprehensive() {
+        let engine = setup_physics_engine();
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
+        let report = engine.analyze(&layout).unwrap();
+
+        assert_eq!(report.heatmap[0], 100.0);
+        assert_eq!(report.heatmap[1], 50.0);
+        assert!(report.sfb_ratio > 0.6 && report.sfb_ratio < 0.7);
+        assert!(report.scissors > 0.0);
+        assert!(report.rolls > 0.0);
+        assert!(report.redirects > 0.0);
+        assert_eq!(report.hand_balance, -1.0);
+    }
+
+    #[test]
+    fn test_analyze_layout_empty() {
+        let engine = setup_physics_engine();
+        // Layout size 0 vs key count 5 -> Should panic due to ValidatedLayout
+        let layout = Layout::new_unchecked(vec![]);
+        let result = std::panic::catch_unwind(|| {
+            engine.analyze(&layout).unwrap();
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_swap_delta_bounds_strict() {
+        let kb = setup_kb(5);
+        let layout_vec: Vec<KeyCode> = (0..10u16).map(KeyCode).collect();
+        let layout = Layout::new_unchecked(layout_vec);
+        let corpus = Corpus::default();
+        let rubric = Rubric::default();
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+
+        let mut pos_map = vec![65535u16; 65536];
+        for i in 0..5 {
+            pos_map[i] = i as u16;
+        }
+
+        let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 8).unwrap();
+        assert_eq!(delta, 0);
+        let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 8, 0).unwrap();
+        assert_eq!(delta, 0);
+    }
+
+    #[test]
+    fn test_swap_delta_reflexive_skips() {
+        let kb = setup_kb(5);
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 0, 100));
+        corpus.trigrams.push((0, 0, 0, 100));
+        corpus.trigrams.push((0, 1, 0, 100));
+        let rubric = Rubric::default();
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+
+        let mut pos_map = vec![65535u16; 65536];
+        for i in 0..5 {
+            pos_map[i as usize] = i as u16;
+        }
+        let _ = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 1).unwrap();
+    }
+
+    #[test]
+    fn test_swap_delta_math_coverage() {
+        let kb = setup_kb(5);
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 1, 100));
+        corpus.bigrams.push((1, 0, 100));
+        corpus.trigrams.push((0, 1, 2, 100));
+        corpus.trigrams.push((1, 0, 2, 100));
+        corpus.trigrams.push((1, 2, 0, 100));
+        let rubric = Rubric::default();
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+
+        let mut pos_map = vec![65535u16; 65536];
+        for i in 0..5 {
+            pos_map[i as usize] = i as u16;
+        }
+        let _ = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 3).unwrap();
+    }
+}
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use keyforge_model::{Corpus, Keyboard, Layout, Rubric};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+use keyforge_model::constants::SCORE_SCALE;
+
+pub struct DeterministicScorer;
+
+impl DeterministicScorer {
+    pub fn score(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        layout: &Layout,
+        overrides: &[(usize, usize, f32)],
+    ) -> f32 {
+        let mut total_score: i64 = 0;
+        let mut pos_map = vec![65535u16; 65536];
+        let limit = layout.keys.len().min(keyboard.keys.len());
+        for (i, &code) in layout.keys.iter().enumerate().take(limit) {
+            if (code.0 as usize) < pos_map.len() { pos_map[code.0 as usize] = i as u16; }
+        }
+
+        let fp_rubric = FixedPointRubric {
+            travel_lat: to_fixed(rubric.travel_lat),
+            travel_vert: to_fixed(rubric.travel_vert),
+            sfb_base: to_fixed(rubric.sfb_base),
+            sfb_lateral: to_fixed(rubric.sfb_lateral),
+            finger_effort: [
+                to_fixed(rubric.finger_effort[0]),
+                to_fixed(rubric.finger_effort[1]),
+                to_fixed(rubric.finger_effort[2]),
+                to_fixed(rubric.finger_effort[3]),
+                to_fixed(rubric.finger_effort[4]),
+            ],
+            redirect: to_fixed(rubric.redirect),
+            roll_bonus: to_fixed(rubric.roll_bonus),
+        };
+
+        let fp_keys: Vec<FixedPointKey> = keyboard.keys.iter().map(|k| FixedPointKey {
+            x: to_fixed(k.x),
+            y: to_fixed(k.y),
+            hand: k.hand,
+            finger: k.finger,
+            row: k.row,
+            col: k.col,
+        }).collect();
+
+        // 1. Monograms (Missing in previous version)
+        for (char_code, &freq) in corpus.char_freqs.iter().enumerate() {
+            if freq == 0 { continue; }
+            let p = pos_map[char_code];
+            if p != 65535 {
+                let idx = p as usize;
+                let k = &keyboard.keys[idx]; // Use original for float math to match Compiler
+                
+                let mut cost = rubric.finger_effort[k.finger.as_usize()];
+                
+                if let Some(origin) = keyboard.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
+                    let dx = (k.x - origin.0).abs();
+                    let dy = (k.y - origin.1).abs();
+                    cost += (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
+                }
+                
+                let cost_fixed = to_fixed(cost);
+                total_score = total_score.saturating_add(cost_fixed.saturating_mul(freq as i64));
+            }
+        }
+
+        // 2. Bigrams
+        for &(c1, c2, freq) in &corpus.bigrams {
+            let p1 = pos_map[c1 as usize];
+            let p2 = pos_map[c2 as usize];
+            if p1 != 65535 && p2 != 65535 {
+                let k1 = &fp_keys[p1 as usize];
+                let k2 = &fp_keys[p2 as usize];
+                let mut cost = calculate_pair_cost_int(k1, k2, &fp_rubric);
+                for &(o_i, o_j, o_cost) in overrides {
+                    if o_i == p1 as usize && o_j == p2 as usize { cost = to_fixed(o_cost); break; }
+                }
+                total_score = total_score.saturating_add(cost.saturating_mul(freq as i64));
+            }
+        }
+
+        // 3. Trigrams
+        for &(c1, c2, c3, freq) in &corpus.trigrams {
+            let p1 = pos_map[c1 as usize];
+            let p2 = pos_map[c2 as usize];
+            let p3 = pos_map[c3 as usize];
+            if p1 != 65535 && p2 != 65535 && p3 != 65535 {
+                let k1 = &fp_keys[p1 as usize];
+                let k2 = &fp_keys[p2 as usize];
+                let k3 = &fp_keys[p3 as usize];
+                let cost = calculate_flow_cost_int(k1, k2, k3, &fp_rubric);
+                if cost != 0 { total_score = total_score.saturating_add(cost.saturating_mul(freq as i64)); }
+            }
+        }
+        total_score as f32 / SCORE_SCALE
+    }
+}
+
+fn to_fixed(val: f32) -> i64 {
+    if val.is_nan() { return 0; }
+    if val.is_infinite() { return if val.is_sign_positive() { i64::MAX } else { i64::MIN }; }
+    let scaled = val * SCORE_SCALE;
+    if scaled >= i64::MAX as f32 { i64::MAX } else if scaled <= i64::MIN as f32 { i64::MIN } else { scaled as i64 }
+}
+
+struct FixedPointKey {
+    x: i64,
+    y: i64,
+    hand: HandIndex,
+    finger: FingerIndex,
+    row: RowIndex,
+    col: ColIndex,
+}
+
+struct FixedPointRubric {
+    travel_lat: i64,
+    travel_vert: i64,
+    sfb_base: i64,
+    sfb_lateral: i64,
+    finger_effort: [i64; 5],
+    redirect: i64,
+    roll_bonus: i64,
+}
+
+fn calculate_pair_cost_int(k1: &FixedPointKey, k2: &FixedPointKey, rubric: &FixedPointRubric) -> i64 {
+    if k1.x == k2.x && k1.y == k2.y { return 0; }
+    let dx = (k1.x - k2.x).abs();
+    let dy = (k1.y - k2.y).abs();
+    let scale_val = SCORE_SCALE as i128;
+    let scale_sq = scale_val * scale_val;
+    let term_x = (dx as i128).saturating_mul(dx as i128).saturating_mul(rubric.travel_lat as i128) / scale_sq;
+    let term_y = (dy as i128).saturating_mul(dy as i128).saturating_mul(rubric.travel_vert as i128) / scale_sq;
+    let dist_cost = term_x.saturating_add(term_y);
+    let mut cost = if dist_cost > i64::MAX as i128 { i64::MAX } else if dist_cost < i64::MIN as i128 { i64::MIN } else { dist_cost as i64 };
+
+    if k1.hand != k2.hand { return cost; }
+    if k1.finger == k2.finger {
+        let col_diff = (k1.col - k2.col).abs();
+        if col_diff == 1 { cost = cost.saturating_add(rubric.sfb_lateral); } else { cost = cost.saturating_add(rubric.sfb_base); }
+        return cost;
+    }
+
+    let finger_diff = k1.finger.distance(k2.finger);
+    let row_diff = (k1.row - k2.row).abs();
+    if finger_diff == 1 && row_diff >= 2 { cost = cost.saturating_add(rubric.finger_effort[k1.finger.as_usize()]); }
+    if row_diff == 0 && finger_diff == 1 {
+        let col_dist = (k1.col - k2.col).abs();
+        if col_dist > 1 { cost = cost.saturating_add(rubric.sfb_lateral); }
+    }
+    cost
+}
+
+fn calculate_flow_cost_int(k1: &FixedPointKey, k2: &FixedPointKey, k3: &FixedPointKey, rubric: &FixedPointRubric) -> i64 {
+    if k1.hand != k2.hand || k2.hand != k3.hand { return 0; }
+    
+    // Redirect check
+    if k1.finger == k3.finger && k1.finger != k2.finger { return rubric.redirect; }
+
+    let dir1 = k2.finger.diff(k1.finger);
+    let dir2 = k3.finger.diff(k2.finger);
+    
+    if dir1 == 0 || dir2 == 0 { return 0; }
+    if dir1.signum() != dir2.signum() { return rubric.redirect; }
+    if dir1 < 0 { return rubric.roll_bonus.saturating_neg(); }
+    0
+}
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_model::{
+    Corpus, KeyNode, Keyboard, Layout, Rubric, 
+    types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode, SpaceHandPreference}
+};
+use keyforge_physics::ScoringEngine;
+
+fn setup_kb(size: usize) -> Keyboard {
+    let keys: Vec<KeyNode> = (0..size)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex((i % 2) as u8),
+            finger: FingerIndex((i % 5) as u8),
+            row: RowIndex((i / 10) as i8),
+            col: ColIndex((i % 10) as i8),
+            x: (i % 10) as f32,
+            y: (i / 10) as f32,
+            is_home: false,
+            ..Default::default()
+        })
+        .collect();
+    Keyboard::new(keys, 1).unwrap()
+}
+
+#[test]
+fn test_metric_detection_sfb_scissors() {
+    // Manually construct a scenario to guarantee Scissor conditions
+    // Scissor: Same Hand, Adjacent Fingers, Row Diff >= 2
+    let keys = vec![
+        // Key 0: Hand 0, Finger 1, Row 0
+        KeyNode { index: 0, hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), ..Default::default() },
+        // Key 1: Hand 0, Finger 1, Row 0 (SFB with 0)
+        KeyNode { index: 1, hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), ..Default::default() },
+        // Key 2: Hand 0, Finger 2, Row 2 (Scissor with 0: Adj Finger, Row Diff 2)
+        KeyNode { index: 2, hand: HandIndex(0), finger: FingerIndex(2), row: RowIndex(2), ..Default::default() },
+    ];
+    let kb_manual = Keyboard::new(keys, 1).unwrap();
+    
+    let mut corpus_manual = Corpus::default();
+    corpus_manual.bigrams.push((0, 1, 100)); // SFB
+    corpus_manual.bigrams.push((0, 2, 100)); // Scissor
+
+    let engine = ScoringEngine::new(&kb_manual, &corpus_manual, &Rubric::default(), &[]).unwrap();
+    // Layout maps char 0->Key0, char 1->Key1, char 2->Key2
+    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
+    
+    let report = engine.analyze(&layout).unwrap();
+
+    assert!(report.sfb_total > 0.0, "Should detect SFBs");
+    assert!(report.scissors > 0.0, "Should detect Scissors");
+    assert!(!report.top_sfbs.is_empty());
+    assert!(!report.top_scissors.is_empty());
+}
+
+#[test]
+fn test_metric_detection_rolls_redirects() {
+    // Simple 1-row keyboard
+    let keys: Vec<KeyNode> = (0..5).map(|i| KeyNode {
+        index: i,
+        hand: HandIndex(0),
+        finger: FingerIndex(i as u8), // 0..4
+        ..Default::default()
+    }).collect();
+    let kb = Keyboard::new(keys, 0).unwrap();
+
+    // Layout: 0=a, 1=b, 2=c, 3=d, 4=e
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
+    let mut corpus = Corpus::default();
+
+    // Roll In: Pinky(4) -> Ring(3) -> Mid(2) => 'e' -> 'd' -> 'c'
+    corpus.trigrams.push((101, 100, 99, 100));
+    // Redirect: Mid(2) -> Ring(3) -> Mid(2) => 'c' -> 'd' -> 'c'
+    corpus.trigrams.push((99, 100, 99, 100));
+
+    let rubric = Rubric {
+        roll_bonus: 10.0,
+        redirect: 50.0,
+        trigram_coverage: 1.0,
+        trigram_limit: 100,
+        ..Rubric::default()
+    };
+
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let report = engine.analyze(&layout).unwrap();
+
+    assert!(report.rolls > 0.0, "Expected rolls");
+    assert!(report.redirects > 0.0, "Expected redirects");
+}
+
+#[test]
+fn test_heatmap_and_penalty_map() {
+    let kb = setup_kb(5);
+    let mut corpus = Corpus::default();
+    
+    // 'a'(97) and 'b'(98) have frequency
+    corpus.char_freqs[97] = 1000;
+    corpus.char_freqs[98] = 1000;
+    corpus.bigrams.push((97, 98, 500));
+
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
+    
+    let report = engine.analyze(&layout).unwrap();
+    
+    // Heatmap (Usage)
+    assert!(report.heatmap[0] > 0.0);
+    assert!(report.heatmap[1] > 0.0);
+    assert_eq!(report.heatmap[2], 0.0); // Unused key
+    
+    // Penalty Map (Effort)
+    assert!(report.penalty_map[0] > 0.0);
+    assert!(report.penalty_map[1] > 0.0);
+}
+
+#[test]
+fn test_space_hand_preference() {
+    // Setup: 2 keys. Key 0 (Left Hand), Key 1 (Right Hand).
+    let keys = vec![
+        KeyNode { index: 0, hand: HandIndex(0), ..Default::default() },
+        KeyNode { index: 1, hand: HandIndex(1), ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+
+    // Corpus: Only Space (32) has frequency.
+    let mut corpus = Corpus::default();
+    corpus.char_freqs[32] = 1000;
+
+    // Layout: Space on BOTH keys.
+    let layout = Layout::new_unchecked(vec![KeyCode(32), KeyCode(32)]);
+    let rubric = Rubric::default();
+
+    // 1. Left Preference: Should count Key 0, ignore Key 1.
+    let engine_l = ScoringEngine::new_with_options(&kb, &corpus, &rubric, &[], SpaceHandPreference::Left).unwrap();
+    let report_l = engine_l.analyze(&layout).unwrap();
+    assert!(report_l.heatmap[0] > 0.0);
+    assert_eq!(report_l.heatmap[1], 0.0);
+
+    // 2. Right Preference: Should ignore Key 0, count Key 1.
+    let engine_r = ScoringEngine::new_with_options(&kb, &corpus, &rubric, &[], SpaceHandPreference::Right).unwrap();
+    let report_r = engine_r.analyze(&layout).unwrap();
+    assert_eq!(report_r.heatmap[0], 0.0);
+    assert!(report_r.heatmap[1] > 0.0);
+
+    // 3. Bilateral: Should count both (split load).
+    let engine_b = ScoringEngine::new_with_options(&kb, &corpus, &rubric, &[], SpaceHandPreference::Bilateral).unwrap();
+    let report_b = engine_b.analyze(&layout).unwrap();
+    assert!(report_b.heatmap[0] > 0.0);
+    assert!(report_b.heatmap[1] > 0.0);
+}
+
+#[test]
+fn test_lateral_sfb_mechanics() {
+    // Setup: 2 keys. Same Hand, Same Finger, Same Row. Adjacent Cols (0 vs 1).
+    let keys = vec![
+        KeyNode { index: 0, col: ColIndex(0), ..Default::default() },
+        KeyNode { index: 1, col: ColIndex(1), ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((0, 1, 1)); // 1 occurrence
+
+    let mut rubric = Rubric::default();
+    rubric.sfb_base = 100.0;
+    rubric.sfb_lateral = 200.0; // Distinct value
+
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
+    
+    let score = engine.score(&layout).unwrap();
+    
+    // Should trigger Lateral SFB (200) + Distance Cost (small)
+    assert!(score >= 200.0);
+    // Should NOT be Base SFB (100)
+    assert!(score > 150.0);
+}
+
+#[test]
+fn test_lateral_stretch() {
+    // Setup: 2 keys. Same Hand, Same Row. Adjacent Fingers (1 vs 2).
+    // But Cols are far apart (0 vs 2). This is a "Lateral Stretch".
+    let keys = vec![
+        KeyNode { index: 0, finger: FingerIndex(1), col: ColIndex(0), ..Default::default() },
+        KeyNode { index: 1, finger: FingerIndex(2), col: ColIndex(2), ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((0, 1, 1));
+
+    let mut rubric = Rubric::default();
+    rubric.sfb_lateral = 500.0; // Used for lateral stretch penalty too
+
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
+    
+    let score = engine.score(&layout).unwrap();
+    assert!(score >= 500.0);
+}
+// ===== libs/keyforge-physics/tests/analysis_tests.rs =====
+
+// ===== libs/keyforge-physics/tests/coverage_tests.rs =====
+
+// ===== libs/keyforge-physics/tests/delta_validity.proptest-regressions =====
+
+// ===== libs/keyforge-physics/tests/delta_validity.rs =====
+
+// ===== libs/keyforge-physics/tests/edge_cases.rs =====
+
+// ===== libs/keyforge-physics/tests/heatmap_tests.rs =====
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_model::{
+    Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, 
+    types::{HandIndex, FingerIndex, KeyCode}
+};
+use keyforge_physics::{identify, suggest_improvements, EngineRequest, ScoringEngine};
+use std::sync::Arc;
+
+fn setup_kb() -> Keyboard {
+    let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode {
+        index: i,
+        label: format!("k{}", i),
+        hand: HandIndex(0),
+        finger: FingerIndex(i as u8),
+        x: i as f32,
+        ..Default::default()
+    }).collect();
+    Keyboard::new(keys, 0).unwrap()
+}
+
+#[test]
+fn test_fingerprint_identification() {
+    let qwerty_str = "qwertyuiopasdfghjkl;zxcvbnm,./";
+    let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode(c as u16)).collect();
+    let layout = Layout::new_unchecked(keys);
+
+    let id = identify(&layout);
+    assert!(id.is_some());
+    let id = id.unwrap();
+    assert_eq!(id.name, "Qwerty");
+    assert!(id.similarity > 0.9);
+}
+
+#[test]
+fn test_heuristics_swap_suggestion_success() {
+    let kb = setup_kb();
+    let mut corpus = Corpus::default();
+    // Bigram (0, 2) -> High Freq. Char 0 wants to be close to Char 2.
+    corpus.bigrams.push((0, 2, 1000));
+
+    let mut rubric = Rubric::default();
+    rubric.travel_lat = 10.0;
+
+    // Layout: 0, 1, 2. 
+    // Char 0 is at x=0. Char 2 is at x=2. Distance = 2.
+    // Swapping 0 and 1 puts Char 0 at x=1. Distance = 1. (Improvement)
+    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+
+    let suggestions = engine.suggest_improvements(&layout);
+    assert!(!suggestions.is_empty(), "Should suggest swapping 0 closer to 2");
+    assert!(suggestions[0].improvement_pct > 0.0);
+}
+
+#[test]
+fn test_heuristics_zero_score_early_return() {
+    let kb = setup_kb();
+    let corpus = Corpus::default(); // Empty corpus = 0 score
+    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
+
+    let suggestions = engine.suggest_improvements(&layout);
+    assert!(suggestions.is_empty(), "Zero score should return empty suggestions");
+}
+
+#[test]
+fn test_public_api_wrappers() {
+    let kb = Arc::new(setup_kb());
+    let mut corpus = Corpus::default();
+    corpus.char_freqs[97] = 100;
+    let corpus = Arc::new(corpus);
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
+
+    let req = EngineRequest {
+        keyboard: kb,
+        corpus,
+        rubric: Arc::new(Rubric::default()),
+        config: SearchConfig::default(),
+        initial_layout: Some(layout),
+        pinned_keys: vec![],
+        cost_overrides: vec![],
+        space_preference: Default::default(),
+    };
+
+    let suggestions = suggest_improvements(&req).unwrap();
+    // Just verify it runs without panic
+    assert!(suggestions.len() <= 5);
+}
+
+#[test]
+fn test_swap_degradation() {
+    let kb = setup_kb();
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((0, 1, 1000));
+    
+    let mut rubric = Rubric::default();
+    rubric.travel_lat = 10.0;
+    
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    
+    // Optimal Layout: 0, 1, 2. (0 and 1 are adjacent)
+    let layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
+    let mut pos_map = vec![65535u16; 65536];
+    pos_map[0] = 0; pos_map[1] = 1; pos_map[2] = 2;
+    
+    // Propose swapping 1 and 2.
+    // 1 moves from x=1 to x=2. Distance from 0 (x=0) increases from 1 to 2.
+    // Cost should INCREASE. Delta should be POSITIVE.
+    let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, 1, 2).unwrap();
+    
+    assert!(delta > 0, "Degrading swap should have positive delta");
+}
+// ===== libs/keyforge-physics/tests/oracle_parity.proptest-regressions =====
+
+// ===== libs/keyforge-physics/tests/oracle_parity.rs =====
+
+// ===== libs/keyforge-physics/tests/property_tests.proptest-regressions =====
+
+// ===== libs/keyforge-physics/tests/property_tests.rs =====
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_model::{
+    Corpus, KeyNode, Keyboard, Layout, Rubric, 
+    types::{HandIndex, FingerIndex, KeyCode}
+};
+use keyforge_physics::ScoringEngine;
+
+fn setup_kb() -> Keyboard {
+    let keys: Vec<KeyNode> = (0..5).map(|i| KeyNode {
+        index: i,
+        hand: HandIndex(0),
+        finger: FingerIndex(i as u8),
+        x: i as f32,
+        ..Default::default()
+    }).collect();
+    Keyboard::new(keys, 0).unwrap()
+}
+
+#[test]
+fn test_math_boundaries_infinity() {
+    let kb = setup_kb();
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((97, 98, 1000));
+
+    let rubric = Rubric {
+        travel_lat: f32::INFINITY,
+        ..Rubric::default()
+    };
+
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let score = engine.score(&layout).unwrap();
+
+    // Should be clamped to MAX but finite
+    assert!(score > 1_000_000.0);
+    assert!(score.is_finite());
+}
+
+#[test]
+fn test_math_boundaries_nan() {
+    let kb = setup_kb();
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((97, 98, 1000));
+
+    let rubric = Rubric {
+        travel_lat: f32::NAN,
+        ..Rubric::default()
+    };
+
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let score = engine.score(&layout).unwrap();
+
+    assert!(score >= 0.0);
+    assert!(!score.is_nan());
+}
+
+#[test]
+fn test_saturation_protection() {
+    let kb = setup_kb();
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((97, 98, u32::MAX)); // Massive frequency
+
+    let rubric = Rubric {
+        travel_lat: 1_000_000.0,
+        ..Rubric::default()
+    };
+
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let score = engine.score(&layout).unwrap();
+    assert!(score.is_finite());
+}
+
+#[test]
+fn test_missing_keys_in_layout() {
+    let kb = setup_kb();
+    // Layout missing key 98 ('b')
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(0), KeyCode(99), KeyCode(100), KeyCode(101)]);
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((97, 98, 100)); 
+
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
+    let score = engine.score(&layout).unwrap();
+    assert_eq!(score, 0.0); // Should ignore missing pair
+}
+
+#[test]
+fn test_swap_delta_bounds() {
+    let kb = setup_kb();
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((97, 98, 100));
+
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
+    let mut pos_map = vec![65535u16; 65536];
+    for (i, &code) in layout.keys.iter().enumerate() {
+        pos_map[code.0 as usize] = i as u16;
+    }
+
+    // Test out of bounds indices
+    let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 100).unwrap();
+    assert_eq!(delta, 0);
+}
+
+#[test]
+fn test_analyze_layout_empty() {
+    let kb = setup_kb();
+    let corpus = Corpus::default();
+    let rubric = Rubric::default();
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    
+    // Layout size 0 vs key count 5 -> Should return Error, not panic
+    let layout = Layout::new_unchecked(vec![]);
+    let result = engine.analyze(&layout);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_compiler_trigram_pruning() {
+    let kb = setup_kb();
+    let mut corpus = Corpus::default();
+    // Add 20 trigrams
+    for i in 0..20 {
+        corpus.trigrams.push((0, 1, i as u16, 100));
+    }
+    
+    let mut rubric = Rubric::default();
+    rubric.trigram_limit = 5; // Strict limit
+    
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    
+    // Verify using public accessor
+    assert_eq!(engine.trigram_count(), 5);
+}
+
+#[test]
+fn test_compiler_cost_overrides() {
+    let kb = setup_kb();
+    let mut corpus = Corpus::default();
+    corpus.bigrams.push((0, 1, 1));
+    
+    let rubric = Rubric::default();
+    
+    // Override cost between Key 0 and Key 1 to be massive (1000.0)
+    let overrides = vec![(0, 1, 1000.0)];
+    
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &overrides).unwrap();
+    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
+    
+    let score = engine.score(&layout).unwrap();
+    assert!(score >= 1000.0);
+}
+
+#[test]
+fn test_finger_origin_fallback() {
+    // Create a keyboard where Finger 1 has keys, but NONE are is_home=true.
+    // Compiler should not panic.
+    let keys = vec![
+        KeyNode { index: 0, finger: FingerIndex(1), is_home: false, ..Default::default() }
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+    let corpus = Corpus::default();
+    let rubric = Rubric::default();
+    
+    let result = ScoringEngine::new(&kb, &corpus, &rubric, &[]);
+    assert!(result.is_ok());
+}
+// ===== libs/keyforge-physics/tests/verification.proptest-regressions =====
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc a5df99622d7c9167d804e4089610ddfb6ef6202c0d19cefa1acf8ef42ff7d3cc # shrinks to (kb, layout_keys) = (Keyboard { keys: [KeyNode { index: 0, label: "k0", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 1, label: "k1", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 2, label: "k2", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 3, label: "k3", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 4, label: "k4", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 5, label: "k5", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 6, label: "k6", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 7, label: "k7", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 8, label: "k8", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 9, label: "k9", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 10, label: "k10", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 11, label: "k11", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 12, label: "k12", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 13, label: "k13", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 14, label: "k14", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 15, label: "k15", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 16, label: "k16", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 17, label: "k17", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 18, label: "k18", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 19, label: "k19", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 20, label: "k20", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 21, label: "k21", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 22, label: "k22", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 23, label: "k23", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 24, label: "k24", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 25, label: "k25", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 26, label: "k26", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }, KeyNode { index: 27, label: "k27", x: 0.0, y: 0.0, w: 1.0, h: 1.0, r: 0.0, rx: 0.0, ry: 0.0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), is_home: false, is_stretch: false }], home_row: 1, finger_origins: [[(0.0, 0.0)]] }, [KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(0), KeyCode(15), KeyCode(197), KeyCode(238), KeyCode(140), KeyCode(252), KeyCode(242)]), corpus = Corpus { char_freqs: [413, 161, 526, 344, 389, 182, 329, 426, 499, 532, 593, 892, 861, 991, 672, 371, 654, 482, 556, 344, 631, 675, 854, 459, 793, 553, 802, 669, 207, 861, 184, 801, 349, 975, 290, 530, 141, 831, 964, 825, 6, 996, 348, 184, 631, 681, 13, 625, 150, 52, 59, 14, 989, 395, 199, 661, 172, 406, 369, 206, 747, 81, 739, 252, 951, 696, 575, 331, 217, 617, 966, 357, 660, 880, 432, 223, 808, 737, 103, 893, 140, 886, 765, 293, 517, 544, 265, 6, 691, 178, 83, 823, 201, 706, 236, 635, 978, 445, 753, 450, 225, 758, 698, 185, 570, 451, 571, 429, 46, 200, 458, 841, 868, 800, 952, 192, 152, 38, 92, 42, 139, 574, 468, 659, 887, 680, 524, 766, 950, 567, 44, 489, 746, 630, 142, 790, 787, 910, 828, 919, 494, 641, 790, 357, 72, 832, 645, 896, 883, 193, 54, 241, 833, 946, 456, 523, 910, 91, 959, 459, 289, 892, 635, 136, 313, 220, 209, 710, 27, 175, 108, 905, 143, 935, 651, 752, 921, 464, 479, 566, 437, 726, 143, 421, 918, 321, 375, 955, 134, 191, 849, 570, 805, 546, 482, 394, 706, 293, 617, 706, 130, 28, 44, 314, 453, 377, 965, 453, 328, 685, 489, 649, 675, 12, 75, 343, 413, 400, 525, 477, 689, 868, 705, 275, 605, 825, 402, 417, 786, 946, 289, 222, 774, 486, 217, 727, 895, 504, 742, 754, 483, 967, 490, 518, 965, 93, 715, 316, 789, 217, 537, 974, 198, 557, 512, 391], bigrams: [(105, 1, 690), (241, 80, 136), (64, 118, 180), (254, 228, 693), (9, 33, 571)], trigrams: [(181, 76, 254, 677), (90, 118, 112, 372), (57, 110, 114, 307), (165, 3, 132, 564), (238, 135, 213, 18), (95, 51, 50, 251), (210, 201, 183, 941), (70, 22, 82, 66), (77, 19, 248, 170), (165, 164, 247, 709), (81, 158, 239, 927), (60, 141, 133, 132), (95, 124, 167, 544), (23, 243, 170, 387)], words: [] }, rubric = Rubric { sfb_base: 272.39362, sfb_lateral: 443.6359, travel_lat: 2.300736, travel_vert: 1.5438327, finger_effort: [1.3588879, 2.481938, 0.6117636, 4.0083766, 1.9856141], redirect: 173.20393, roll_bonus: 39.917423, trigram_coverage: 1.0, trigram_limit: 100000 }
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_model::{
+    Corpus, KeyNode, Keyboard, Layout, Rubric, 
+    types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode}
+};
+use keyforge_physics::{verify::DeterministicScorer, ScoringEngine};
+use proptest::prelude::*;
+use rand::SeedableRng;
+use std::sync::Arc;
+
+// --- STRATEGIES ---
+
+fn rubric_strategy() -> impl Strategy<Value = Rubric> {
+    (
+        0.0..1000.0f32,                     // sfb_base
+        0.0..500.0f32,                      // sfb_lateral
+        0.0..10.0f32,                       // travel_lat
+        0.0..5.0f32,                        // travel_vert
+        prop::array::uniform5(0.0..5.0f32), // finger_effort
+        0.0..200.0f32,                      // redirect
+        0.0..100.0f32,                      // roll_bonus
+    )
+    .prop_map(|(sfb, sfb_lat, t_lat, t_vert, fingers, redir, roll)| Rubric {
+        sfb_base: sfb,
+        sfb_lateral: sfb_lat,
+        travel_lat: t_lat,
+        travel_vert: t_vert,
+        finger_effort: fingers,
+        redirect: redir,
+        roll_bonus: roll,
+        trigram_coverage: 1.0, // Full coverage for deterministic check
+        trigram_limit: 100_000,
+    })
+}
+
+// Generates a Keyboard and a matching Layout of the same size
+fn kb_and_layout_strategy() -> impl Strategy<Value = (Keyboard, Vec<KeyCode>)> {
+    (10..50usize).prop_flat_map(|count| {
+        let kb_strat = prop::collection::vec(
+            (
+                -20.0..20.0f32, // x
+                -20.0..20.0f32, // y
+                0u8..2,         // hand
+                0u8..5,         // finger
+                -5i8..5,        // row
+                -10i8..15,      // col
+            ),
+            count,
+        )
+        .prop_map(move |keys_data| {
+            let keys = keys_data
+                .into_iter()
+                .enumerate()
+                .map(|(i, (x, y, hand, finger, row, col))| KeyNode {
+                    index: i,
+                    label: format!("k{}", i),
+                    hand: HandIndex(hand),
+                    finger: FingerIndex(finger),
+                    row: RowIndex(row),
+                    col: ColIndex(col),
+                    x,
+                    y,
+                    is_home: row == 1,
+                    ..Default::default()
+                })
+                .collect();
+            Keyboard::new(keys, 1).unwrap()
+        });
+
+        let layout_strat = prop::collection::vec(0u16..255, count)
+            .prop_map(|codes| codes.into_iter().map(KeyCode).collect());
+
+        (kb_strat, layout_strat)
+    })
+}
+
+fn corpus_strategy(char_range: std::ops::Range<u16>) -> impl Strategy<Value = Corpus> {
+    (
+        prop::collection::vec((char_range.clone(), char_range.clone(), 1u32..1000), 0..20),
+        prop::collection::vec((char_range.clone(), char_range.clone(), char_range.clone(), 1u32..1000), 0..20),
+        prop::collection::vec(0u64..1000, 256),
+    )
+    .prop_map(|(bigrams, trigrams, char_freqs)| {
+        let mut c = Corpus::default();
+        c.bigrams = bigrams;
+        c.trigrams = trigrams;
+        c.char_freqs = char_freqs;
+        c
+    })
+}
+
+// --- TESTS ---
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_oracle_parity(
+        (kb, layout_keys) in kb_and_layout_strategy(),
+        corpus in corpus_strategy(0..255),
+        rubric in rubric_strategy()
+    ) {
+        let layout = Layout::new_unchecked(layout_keys);
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+
+        let fast_score = engine.score(&layout).unwrap();
+        let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
+
+        let diff = (fast_score - slow_score).abs();
+        // Allow epsilon for float conversion noise
+        let tolerance = (fast_score.abs() * 1e-5).max(0.1);
+
+        prop_assert!(
+            diff < tolerance,
+            "Divergence! Fast: {}, Oracle: {}, Diff: {} (Allowed: {})",
+            fast_score, slow_score, diff, tolerance
+        );
+    }
+
+    #[test]
+    fn test_delta_validity(
+        (kb, mut layout_keys) in kb_and_layout_strategy(),
+        cp in corpus_strategy(0..30),
+        seed in any::<u64>(),
+        swap_idx_1 in 0..100usize, // Will modulo later
+        swap_idx_2 in 0..100usize
+    ) {
+        let len = layout_keys.len();
+        if len < 2 { return Ok(()); }
+        
+        let i = swap_idx_1 % len;
+        let j = swap_idx_2 % len;
+        if i == j { return Ok(()); }
+
+        // Ensure unique layout for clean delta testing
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        use rand::seq::SliceRandom;
+        layout_keys.shuffle(&mut rng);
+
+        let rubric = Rubric::default();
+        let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &[]).unwrap();
+
+        let score_before = engine.score_raw(&layout_keys).unwrap();
+        
+        let mut pos_map = vec![65535u16; 65536];
+        for (idx, &code) in layout_keys.iter().enumerate() {
+            pos_map[code.0 as usize] = idx as u16;
+        }
+
+        let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, i, j).unwrap();
+
+        layout_keys.swap(i, j);
+        let score_after = engine.score_raw(&layout_keys).unwrap();
+        
+        let actual_delta = score_after - score_before;
+
+        prop_assert_eq!(
+            actual_delta, delta, 
+            "Delta mismatch! Actual: {}, Calculated: {}", 
+            actual_delta, delta
+        );
+    }
+}
+
+#[test]
+fn test_delta_internals_manual() {
+    // Deterministic test for Reverse Bigram and Trigram Middle logic
+    let keys = vec![
+        KeyNode { index: 0, x: 0.0, ..Default::default() },
+        KeyNode { index: 1, x: 10.0, ..Default::default() },
+        KeyNode { index: 2, x: 20.0, ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+    
+    let mut corpus = Corpus::default();
+    // A->B (0->1). Swapping B affects this (Reverse Bigram path)
+    corpus.bigrams.push((0, 1, 100));
+    // X->Y->Z (0->1->2). Swapping Y affects this (Trigram Middle path)
+    corpus.trigrams.push((0, 1, 2, 100));
+    
+    let mut rubric = Rubric::default();
+    rubric.travel_lat = 1.0;
+    
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    
+    // Layout: A=K0, B=K1, C=K2
+    let mut layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
+    let mut pos_map = vec![65535u16; 65536];
+    pos_map[0] = 0; pos_map[1] = 1; pos_map[2] = 2;
+    
+    let score_before = engine.score_raw(&layout_keys).unwrap();
+    
+    // Swap B (K1) with C (K2).
+    // B moves from 10.0 to 20.0.
+    // Bigram A->B: Dist 10 -> 20. Cost increases.
+    // Trigram A->B->C: Dist 10+10 -> 20+10? (Depends on flow logic)
+    let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, 1, 2).unwrap();
+    
+    layout_keys.swap(1, 2);
+    let score_after = engine.score_raw(&layout_keys).unwrap();
+    
+    assert_eq!(score_after - score_before, delta, "Manual delta check failed");
+}

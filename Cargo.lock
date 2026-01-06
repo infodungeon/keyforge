@@ -3796,6 +3796,7 @@ dependencies = [
  "smallvec",
  "strum",
  "thiserror 2.0.17",
+ "tracing",
  "ts-rs",
  "utoipa",
 ]

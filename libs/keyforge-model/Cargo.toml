@@ -25,6 +25,7 @@ utoipa = { version = "5.4", features = [
     "preserve_path_order",
 ] }
 ts-rs = { version = "11.1", features = ["serde-compat"], optional = true }
+tracing = "0.1.44"
 
 [dev-dependencies]
 proptest = "1.9"

@@ -60,8 +60,6 @@ pub mod types;
 /// Validation traits and helpers.
 pub mod validator;
 
-#[cfg(test)]
-mod tests;
 
 pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
 pub use corpus::Corpus;

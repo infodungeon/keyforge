@@ -831,6 +831,7 @@ proptest = "1.9"
 default = []
 ts_bindings = ["dep:ts-rs"]
 
+// ===== libs/keyforge-model/src/config.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1339,6 +1340,7 @@ impl FromStr for KeyConstraint {
     }
 }
 
+// ===== libs/keyforge-model/src/constants.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1461,6 +1463,7 @@ pub const STD_CORPUS_BACKSPACE_FACTOR: f32 = 1.25;
 /// Average sentences per paragraph for standard prose.
 pub const STD_CORPUS_SENTENCE_RATIO: f32 = 3.0;
 
+// ===== libs/keyforge-model/src/corpus.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1536,6 +1539,7 @@ impl Corpus {
         self.validate()
     }
 }
+// ===== libs/keyforge-model/src/error.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1625,6 +1629,7 @@ pub enum PhysicsError {
     LayoutUnderflow(usize, usize),
 }
 
+// ===== libs/keyforge-model/src/geometry/kle.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1712,6 +1717,7 @@ pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
     Ok(json_str)
 }
 
+// ===== libs/keyforge-model/src/geometry/mod.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1948,6 +1954,7 @@ impl KeyboardGeometry {
     pub fn key_count(&self) -> usize { self.keys.len() }
 }
 
+// ===== libs/keyforge-model/src/job.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2060,6 +2067,7 @@ impl JobIdentifier {
     }
 }
 
+// ===== libs/keyforge-model/src/keyboard.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2145,6 +2153,7 @@ impl Keyboard {
     }
 }
 
+// ===== libs/keyforge-model/src/keycodes.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2286,6 +2295,7 @@ impl KeycodeRegistry {
     }
 }
 
+// ===== libs/keyforge-model/src/layout.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2365,6 +2375,7 @@ impl TryFrom<Vec<KeyCode>> for Layout {
     }
 }
 
+// ===== libs/keyforge-model/src/lib.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2589,6 +2600,7 @@ pub struct SwapSuggestion {
     pub improvement_pct: f32,
 }
 
+// ===== libs/keyforge-model/src/parsing.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2715,6 +2727,7 @@ pub fn parse_key(token: &str) -> KeyAction {
     KeyAction::Simple(t.to_string())
 }
 
+// ===== libs/keyforge-model/src/rubric.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2804,6 +2817,7 @@ impl Rubric {
     }
 }
 
+// ===== libs/keyforge-model/src/serde_utils.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2841,8 +2855,7 @@ pub fn is_none<T>(option: &Option<T>) -> bool {
     option.is_none()
 }
 
-// ===== libs/keyforge-model/src/tests.rs =====
-
+// ===== libs/keyforge-model/src/types.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3049,6 +3062,7 @@ pub enum SpaceHandPreference {
     Bilateral,
 }
 
+// ===== libs/keyforge-model/src/validator.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3085,6 +3099,7 @@ impl LayoutValidator {
     }
 }
 
+// ===== libs/keyforge-model/tests/config_validation.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3150,6 +3165,7 @@ fn test_search_config_validation() {
     assert!(c.validate().is_err());
 }
 
+// ===== libs/keyforge-model/tests/corpus_validation.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3193,6 +3209,7 @@ fn test_corpus_validation_valid_mutation() {
     assert!(c.validate().is_ok());
 }
 
+// ===== libs/keyforge-model/tests/integrity.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3271,6 +3288,7 @@ fn test_rubric_modification() {
     assert_eq!(r.finger_effort[4], 5.0);
 }
 
+// ===== libs/keyforge-model/tests/layout_properties.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3306,6 +3324,7 @@ proptest! {
     }
 }
 
+// ===== libs/keyforge-model/tests/lifecycle.rs =====
 use keyforge_model::{Corpus, Rubric, Score};
 use serde_json;
 
@@ -3339,6 +3358,7 @@ fn test_score_saturation() {
     let subbed = min - Score(100);
     assert_eq!(subbed, Score::MIN);
 }
+// ===== libs/keyforge-model/tests/parsing.rs =====
 use keyforge_model::parsing::{parse_key, KeyAction};
 use keyforge_model::geometry::KeyboardDefinition;
 
@@ -3378,6 +3398,7 @@ fn test_kle_import() {
         assert_eq!(kb.geometry.keys.len(), 2);
     }
 }
+// ===== libs/keyforge-model/tests/properties.rs =====
 use keyforge_model::{Layout, KeyCode};
 use proptest::prelude::*;
 use std::collections::HashSet;
@@ -3398,6 +3419,7 @@ proptest! {
         }
     }
 }
+// ===== libs/keyforge-model/tests/repro_geometry.rs =====
 use keyforge_model::geometry::KeyboardDefinition;
 
 #[test]
@@ -3428,6 +3450,7 @@ fn test_szr35_deserialization() {
     assert_eq!(def.geometry.keys[0].label, "KeyQ", "Label should be KeyQ");
 }
 
+// ===== libs/keyforge-model/tests/validation.rs =====
 use keyforge_model::{
     Corpus, Rubric, SearchConfig, Layout, KeyCode, Validator,
     KeyboardGeometry, KeyNode, HandIndex, FingerIndex

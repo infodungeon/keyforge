@@ -100,6 +100,10 @@ impl ScoringEngine {
         self.ctx.key_count
     }
 
+    pub fn trigram_count(&self) -> usize {
+        self.ctx.trigram_freqs.len()
+    }
+
     pub fn context(&self) -> &EngineContext {
         &self.ctx
     }

@@ -181,13 +181,41 @@ impl Score {
         Score(self.0.saturating_mul(factor))
     }
 }
+
 impl std::ops::Add for Score {
     type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output { Score(self.0 + rhs.0) }
+    fn add(self, rhs: Self) -> Self::Output { 
+        match self.0.checked_add(rhs.0) {
+            Some(val) => Score(val),
+            None => {
+                tracing::error!(
+                    lhs = self.0, 
+                    rhs = rhs.0, 
+                    "CRITICAL BUG: Score Overflow in Addition! Saturating."
+                );
+                // Saturate based on direction of addition
+                if rhs.0 >= 0 { Score::MAX } else { Score::MIN }
+            }
+        }
+    }
 }
+
 impl std::ops::Sub for Score {
     type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output { Score(self.0 - rhs.0) }
+    fn sub(self, rhs: Self) -> Self::Output { 
+        match self.0.checked_sub(rhs.0) {
+            Some(val) => Score(val),
+            None => {
+                tracing::error!(
+                    lhs = self.0, 
+                    rhs = rhs.0, 
+                    "CRITICAL BUG: Score Overflow in Subtraction! Saturating."
+                );
+                // Saturate based on direction of subtraction
+                if rhs.0 >= 0 { Score::MIN } else { Score::MAX }
+            }
+        }
+    }
 }
 
 /// Preference for which hand should handle Space keys.
