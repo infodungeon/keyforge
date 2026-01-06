@@ -102,7 +102,6 @@ def test_zipfs_law(data):
     correlation = numerator / denominator
     print(f"  Correlation Coefficient: {correlation:.4f}")
     
-    # UPDATED THRESHOLD: -0.95 is sufficient for word-level data
     if correlation < -0.95:
         print("  -> PASS: Near-perfect adherence to Zipf's Law.")
         return True
@@ -111,8 +110,14 @@ def test_zipfs_law(data):
         return False
 
 def main():
-    print("Validating words.json...")
-    data = load_data("words.json")
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        print("Error: No filename provided.")
+        sys.exit(1)
+
+    print(f"Validating {filename}...")
+    data = load_data(filename)
     print(f"Loaded {len(data)} unique words.")
     
     results = [

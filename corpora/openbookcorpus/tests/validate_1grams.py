@@ -4,9 +4,8 @@ import os
 import sys
 
 def load_data(filename):
-    # When running via 'cargo test', the CWD is the workspace root.
     if not os.path.exists(filename):
-        print(f"CRITICAL ERROR: '{filename}' not found in current directory: {os.getcwd()}")
+        print(f"CRITICAL ERROR: '{filename}' not found.")
         sys.exit(1)
         
     try:
@@ -51,7 +50,9 @@ def test_categories(data):
             categories["Punctuation"] += freq
         else:
             categories["UNKNOWN/OTHER"] += freq
-            print(f"  [WARNING] Found unexpected char: {repr(char)} (Count: {freq})")
+            # Only print warning if it's not a standard control char we might expect
+            if ord(char) > 32:
+                print(f"  [WARNING] Found unexpected char: {repr(char)} (Count: {freq})")
 
     # Print Stats
     for cat, count in categories.items():
@@ -68,7 +69,6 @@ def test_categories(data):
 
 def test_zipfs_law(data):
     print("\n--- TEST 2: Zipf's Law Correlation ---")
-    # Zipf's law states that freq is inversely proportional to rank.
     
     if len(data) < 10:
         print("  -> FAIL: Not enough data points to test Zipf's law.")
@@ -98,7 +98,6 @@ def test_zipfs_law(data):
     correlation = numerator / denominator
     print(f"Correlation Coefficient: {correlation:.4f}")
     
-    # UPDATED THRESHOLD: -0.85 is sufficient for character-level data
     if correlation < -0.85:
         print("  -> PASS: Strong adherence to Zipf's Law.")
         return True
@@ -178,7 +177,12 @@ def test_entropy(data):
         return False
 
 def main():
-    filename = "1grams.json"
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        print("Error: No filename provided.")
+        sys.exit(1)
+
     print(f"Validating {filename}...")
     
     data = load_data(filename)

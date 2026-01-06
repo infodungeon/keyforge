@@ -1,0 +1,1040 @@
+// ===== corpora/openbookcorpus/1grams.json =====
+
+// ===== corpora/openbookcorpus/2grams.json =====
+
+// ===== corpora/openbookcorpus/3grams.json =====
+
+// ===== corpora/openbookcorpus/Cargo.toml =====
+[package]
+name = "openbookcorpus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# ADD "json" HERE:
+reqwest = { version = "0.13.1", features = ["stream", "json"] }
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+indicatif = "0.18.3"
+
+# Processing dependencies
+parquet = "57.1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1"
+rayon = "1.11.0"
+rustc-hash = "2.1.1"
+
+// ===== corpora/openbookcorpus/detailed_organizer.py =====
+
+// ===== corpora/openbookcorpus/first_book_dump.txt =====
+
+// ===== corpora/openbookcorpus/src/main.rs =====
+use futures_util::StreamExt;
+use indicatif::{ProgressBar, ProgressStyle};
+use parquet::file::reader::{FileReader, SerializedFileReader};
+use parquet::record::RowAccessor;
+use rayon::prelude::*;
+use reqwest::Client;
+use rustc_hash::FxHashMap;
+use serde::Serialize;
+use serde_json::ser::{Formatter, Serializer};
+use serde_json::Value;
+use std::fs::{self, File};
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+// --- Configuration ---
+const DATASET_NAME: &str = "lucadiliello/bookcorpusopen";
+const CONCURRENT_DOWNLOADS: usize = 4;
+
+// --- Dynamic Path Logic ---
+fn get_data_dir() -> PathBuf {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    manifest_dir
+        .parent()
+        .expect("Could not find parent directory of crate")
+        .parent()
+        .expect("Could not find workspace root")
+        .join("corpora_data")
+}
+
+// --- Type Alias for Performance ---
+type FastMap<K, V> = FxHashMap<K, V>;
+
+// --- Data Structures for JSON Output ---
+#[derive(Serialize)]
+struct Char1Stats { char: String, freq: usize }
+#[derive(Serialize)]
+struct Char2Stats { char1: String, char2: String, freq: usize }
+#[derive(Serialize)]
+struct Char3Stats { char1: String, char2: String, char3: String, freq: usize }
+#[derive(Serialize)]
+struct WordStats { word: String, freq: usize }
+
+// Container for aggregating stats
+struct CorpusStats {
+    c1: FastMap<char, usize>,
+    c2: FastMap<(char, char), usize>,
+    c3: FastMap<(char, char, char), usize>,
+    words: FastMap<String, usize>,
+    book_count: usize,
+}
+
+impl CorpusStats {
+    fn new() -> Self {
+        Self {
+            c1: FastMap::default(),
+            c2: FastMap::default(),
+            c3: FastMap::default(),
+            words: FastMap::default(),
+            book_count: 0,
+        }
+    }
+
+    fn merge(&mut self, other: CorpusStats) {
+        for (k, v) in other.c1 { *self.c1.entry(k).or_insert(0) += v; }
+        for (k, v) in other.c2 { *self.c2.entry(k).or_insert(0) += v; }
+        for (k, v) in other.c3 { *self.c3.entry(k).or_insert(0) += v; }
+        for (k, v) in other.words { *self.words.entry(k).or_insert(0) += v; }
+        self.book_count += other.book_count;
+    }
+}
+
+// --- Optimized N-Gram Tracker ---
+struct NgramTracker {
+    p1: Option<char>,
+    p2: Option<char>,
+}
+
+impl NgramTracker {
+    fn new() -> Self {
+        Self { p1: None, p2: None }
+    }
+
+    #[inline(always)]
+    fn feed(&mut self, c: char, stats: &mut CorpusStats) {
+        *stats.c1.entry(c).or_insert(0) += 1;
+        if let Some(last) = self.p1 {
+            *stats.c2.entry((last, c)).or_insert(0) += 1;
+            if let Some(second_last) = self.p2 {
+                *stats.c3.entry((second_last, last, c)).or_insert(0) += 1;
+            }
+        }
+        self.p2 = self.p1;
+        self.p1 = Some(c);
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) {
+        self.p1 = None;
+        self.p2 = None;
+    }
+}
+
+// --- Strict Escape Formatter ---
+// This formatter forces ALL characters in VALUES to be written as \uXXXX.
+// It keeps KEYS (field names) readable.
+struct StrictEscapeFormatter {
+    is_key: bool,
+}
+
+impl StrictEscapeFormatter {
+    fn new() -> Self {
+        Self { is_key: false }
+    }
+}
+
+impl Formatter for StrictEscapeFormatter {
+    // 1. Start of Key: Write comma if needed, set state to Key
+    fn begin_object_key<W: ?Sized + std::io::Write>(
+        &mut self, 
+        writer: &mut W, 
+        first: bool
+    ) -> std::io::Result<()> {
+        if !first {
+            writer.write_all(b",")?;
+        }
+        self.is_key = true;
+        Ok(())
+    }
+
+    // 2. End of Key: Just reset state. DO NOT write colon here to avoid double colons.
+    fn end_object_key<W: ?Sized + std::io::Write>(&mut self, _writer: &mut W) -> std::io::Result<()> {
+        self.is_key = false;
+        Ok(())
+    }
+
+    // 3. Start of Value: Write the colon here.
+    fn begin_object_value<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(b":")?;
+        Ok(())
+    }
+
+    // 4. String Writing: Intercept and escape if it's a Value
+    fn write_string_fragment<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        fragment: &str,
+    ) -> std::io::Result<()> {
+        if self.is_key {
+            // Write keys normally (they are just ASCII field names like "freq")
+            writer.write_all(fragment.as_bytes())?;
+        } else {
+            // Write VALUES with strict escaping (e.g., " " -> "\u0020")
+            for c in fragment.chars() {
+                let c_u32 = c as u32;
+                if c_u32 <= 0xFFFF {
+                    // Basic Multilingual Plane (BMP)
+                    write!(writer, "\\u{:04x}", c_u32)?;
+                } else {
+                    // Supplementary Planes (Surrogate Pairs)
+                    let c_u32 = c_u32 - 0x10000;
+                    let high = 0xD800 + (c_u32 >> 10);
+                    let low = 0xDC00 + (c_u32 & 0x3FF);
+                    write!(writer, "\\u{:04x}\\u{:04x}", high, low)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+// --- Helper Functions ---
+#[inline(always)]
+fn is_keyboard_char(c: char) -> bool {
+    match c {
+        'a'..='z' | '0'..='9' => true,
+        '.' | ',' | '!' | '?' | ';' | ':' | '\'' | '"' |
+        '-' | '_' | '+' | '=' | '*' | '/' | '\\' | '|' |
+        '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' |
+        '@' | '#' | '$' | '%' | '^' | '&' | '`' | '~' => true,
+        _ => false,
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Setup Directory Path
+    let data_dir = get_data_dir();
+    
+    if !data_dir.exists() {
+        fs::create_dir_all(&data_dir)?;
+    }
+    
+    println!("Using data directory: {:?}", data_dir);
+
+    // 2. Get File List
+    println!("Fetching file list for {}...", DATASET_NAME);
+    let client = Client::new();
+    let api_url = format!("https://datasets-server.huggingface.co/parquet?dataset={}", DATASET_NAME);
+    
+    let resp = client.get(&api_url).send().await?;
+    if !resp.status().is_success() {
+        println!("Failed to fetch file list. Status: {}", resp.status());
+        return Ok(());
+    }
+
+    let json: Value = resp.json().await?;
+    let files = json["parquet_files"].as_array().ok_or("Invalid API response format")?;
+    let train_files: Vec<&Value> = files.iter().filter(|f| f["split"] == "train").collect();
+
+    if train_files.is_empty() {
+        println!("No training files found.");
+        return Ok(());
+    }
+    println!("Found {} shard(s).", train_files.len());
+
+    // 3. Download Shards
+    let mut local_file_paths = Vec::new();
+    let mut download_tasks = Vec::new();
+
+    for (i, file_info) in train_files.iter().enumerate() {
+        let url = file_info["url"].as_str().ok_or("Missing URL")?.to_string();
+        
+        let filename_path = data_dir.join(format!("shard_{}.parquet", i));
+        let filename_str = filename_path.to_string_lossy().to_string();
+        
+        local_file_paths.push(filename_str.clone());
+
+        if !filename_path.exists() || fs::metadata(&filename_path)?.len() < 1024 {
+            download_tasks.push((url, filename_str));
+        }
+    }
+
+    if !download_tasks.is_empty() {
+        println!("Downloading {} missing shards...", download_tasks.len());
+        let client_arc = Arc::new(client);
+        futures_util::stream::iter(download_tasks)
+            .map(|(url, path)| {
+                let c = client_arc.clone();
+                async move { download_file(&c, &url, &path).await }
+            })
+            .buffer_unordered(CONCURRENT_DOWNLOADS)
+            .collect::<Vec<_>>()
+            .await;
+    }
+
+    // 4. Analyze All Books
+    println!("\nStarting parallel analysis (Optimized: Zero-Copy Stream + FxHash)...");
+    let final_stats = process_dataset_parallel(&local_file_paths)?;
+
+    println!("\nAnalysis complete.");
+    println!("Total books processed: {}", final_stats.book_count);
+
+    // 5. Save Results
+    println!("Saving results to {:?}...", data_dir);
+    
+    save_json_file(&data_dir, "1grams.json", &final_stats.c1, |k, v| Char1Stats { char: k.to_string(), freq: *v }, true)?;
+    save_json_file(&data_dir, "2grams.json", &final_stats.c2, |k, v| Char2Stats { char1: k.0.to_string(), char2: k.1.to_string(), freq: *v }, true)?;
+    save_json_file(&data_dir, "3grams.json", &final_stats.c3, |k, v| Char3Stats { char1: k.0.to_string(), char2: k.1.to_string(), char3: k.2.to_string(), freq: *v }, true)?;
+    save_json_file(&data_dir, "words.json", &final_stats.words, |k, v| WordStats { word: k.clone(), freq: *v }, false)?;
+
+    println!("Done.");
+    Ok(())
+}
+
+async fn download_file(client: &Client, url: &str, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let res = client.get(url).send().await?;
+    let content = res.bytes().await?;
+    let mut file = File::create(path)?;
+    file.write_all(&content)?;
+    println!("Downloaded: {}", path);
+    Ok(())
+}
+
+fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dyn std::error::Error>> {
+    let pb = ProgressBar::new(file_paths.len() as u64);
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} Shards ({eta})")?
+        .progress_chars("#>-"));
+
+    let aggregated_stats = file_paths.par_iter()
+        .fold(CorpusStats::new, |mut stats, path| {
+            if let Ok(file) = File::open(path) {
+                if let Ok(reader) = SerializedFileReader::new(file) {
+                    if let Ok(row_iter) = reader.get_row_iter(None) {
+                        let mut tracker = NgramTracker::new();
+                        let mut word_buffer = String::with_capacity(32);
+
+                        for row_result in row_iter {
+                            if let Ok(row) = row_result {
+                                stats.book_count += 1;
+                                if let Ok(text) = row.get_string(0) {
+                                    let mut word_is_tainted = false;
+                                    let mut last_emitted_was_space = false; 
+
+                                    for c_raw in text.chars() {
+                                        let mut process_normalized_char = |n_char: char| {
+                                            for c in n_char.to_lowercase() {
+                                                if is_keyboard_char(c) {
+                                                    word_buffer.push(c);
+                                                    last_emitted_was_space = false;
+                                                } 
+                                                else if c == ' ' || c == '\t' {
+                                                    if !word_buffer.is_empty() {
+                                                        if word_is_tainted {
+                                                            tracker.reset();
+                                                        } else {
+                                                            // 1. Feed N-Grams (Raw typing flow, includes punctuation)
+                                                            for wc in word_buffer.chars() {
+                                                                tracker.feed(wc, &mut stats);
+                                                            }
+                                                            
+                                                            // 2. Extract Words (Strict Definition)
+                                                            // Trim leading/trailing non-alphanumeric (punctuation/symbols)
+                                                            // We keep digits here so "1st" remains "1st" and gets caught by the validator below.
+                                                            let trimmed = word_buffer.trim_matches(|c: char| !c.is_alphanumeric());
+
+                                                            // Validate Core:
+                                                            // - Must not be empty.
+                                                            // - Must consist ONLY of letters, apostrophes, or hyphens.
+                                                            // - This implicitly rejects digits ("1st" fails on '1') and other symbols.
+                                                            if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_alphabetic() || c == '\'' || c == '-') {
+                                                                *stats.words.entry(trimmed.to_string()).or_insert(0) += 1;
+                                                            }
+                                                        }
+                                                        word_buffer.clear();
+                                                        word_is_tainted = false;
+                                                        last_emitted_was_space = false;
+                                                    }
+                                                    if !last_emitted_was_space {
+                                                        tracker.feed(' ', &mut stats);
+                                                        last_emitted_was_space = true;
+                                                    }
+                                                } 
+                                                else if c == '\n' || c == '\r' {
+                                                    if !word_buffer.is_empty() {
+                                                        if word_is_tainted {
+                                                            tracker.reset();
+                                                        } else {
+                                                            // 1. Feed N-Grams
+                                                            for wc in word_buffer.chars() {
+                                                                tracker.feed(wc, &mut stats);
+                                                            }
+                                                            
+                                                            // 2. Extract Words (Strict Definition)
+                                                            let trimmed = word_buffer.trim_matches(|c: char| !c.is_alphanumeric());
+                                                            if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_alphabetic() || c == '\'' || c == '-') {
+                                                                *stats.words.entry(trimmed.to_string()).or_insert(0) += 1;
+                                                            }
+                                                        }
+                                                        word_buffer.clear();
+                                                        word_is_tainted = false;
+                                                    }
+                                                    if c == '\n' {
+                                                        tracker.feed('\n', &mut stats);
+                                                        last_emitted_was_space = false;
+                                                    }
+                                                } 
+                                                else {
+                                                    word_is_tainted = true;
+                                                }
+                                            }
+                                        };
+
+                                        match c_raw {
+                                            '“' | '”' | '„' => process_normalized_char('"'),
+                                            '‘' | '’' | '`' | '´' => process_normalized_char('\''),
+                                            '–' | '—' | '―' => process_normalized_char('-'),
+                                            'ﬁ' => { process_normalized_char('f'); process_normalized_char('i'); },
+                                            'ﬂ' => { process_normalized_char('f'); process_normalized_char('l'); },
+                                            'ﬀ' => { process_normalized_char('f'); process_normalized_char('f'); },
+                                            'ﬃ' => { process_normalized_char('f'); process_normalized_char('f'); process_normalized_char('i'); },
+                                            'ﬄ' => { process_normalized_char('f'); process_normalized_char('f'); process_normalized_char('l'); },
+                                            'æ' => { process_normalized_char('a'); process_normalized_char('e'); },
+                                            'œ' => { process_normalized_char('o'); process_normalized_char('e'); },
+                                            '\u{00ad}' | '\u{009d}' | '\\' | '_' => {}, 
+                                            _ => process_normalized_char(c_raw),
+                                        }
+                                    }
+
+                                    if !word_buffer.is_empty() {
+                                        if !word_is_tainted {
+                                            // 1. Feed N-Grams
+                                            for wc in word_buffer.chars() {
+                                                tracker.feed(wc, &mut stats);
+                                            }
+                                            
+                                            // 2. Extract Words (Strict Definition)
+                                            let trimmed = word_buffer.trim_matches(|c: char| !c.is_alphanumeric());
+                                            if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_alphabetic() || c == '\'' || c == '-') {
+                                                *stats.words.entry(trimmed.to_string()).or_insert(0) += 1;
+                                            }
+                                        }
+                                        word_buffer.clear();
+                                    }
+                                    tracker.reset();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            pb.inc(1);
+            stats
+        })
+        .reduce(CorpusStats::new, |mut a, b| {
+            a.merge(b);
+            a
+        });
+
+    pb.finish_with_message("Analysis complete");
+    Ok(aggregated_stats)
+}
+
+fn save_json_file<K, V, F, S>(
+    dir: &Path, 
+    filename: &str, 
+    map: &FastMap<K, V>, 
+    mapper: F, 
+    use_strict_escaping: bool
+) -> Result<(), Box<dyn std::error::Error>>
+where 
+    V: Ord + Copy,
+    S: Serialize,
+    F: Fn(&K, &V) -> S
+{
+    let mut vec: Vec<_> = map.iter().collect();
+    vec.sort_by(|a, b| b.1.cmp(a.1)); 
+    let json_out: Vec<S> = vec.iter().map(|(k, v)| mapper(k, v)).collect();
+    
+    let file_path = dir.join(filename);
+    let file = File::create(file_path)?;
+    let writer = BufWriter::new(file);
+    
+    if use_strict_escaping {
+        let mut serializer = Serializer::with_formatter(writer, StrictEscapeFormatter::new());
+        json_out.serialize(&mut serializer)?;
+    } else {
+        serde_json::to_writer(writer, &json_out)?;
+    }
+    
+    Ok(())
+}
+use std::process::Command;
+use std::path::{Path, PathBuf};
+
+// Helper to find the corpora_data directory (same logic as main.rs)
+fn get_data_dir() -> PathBuf {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    manifest_dir
+        .parent()
+        .expect("Could not find parent directory of crate")
+        .parent()
+        .expect("Could not find workspace root")
+        .join("corpora_data")
+}
+
+fn run_script(script_name: &str, json_filename: &str) {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let script_path = Path::new(manifest_dir)
+        .join("tests")
+        .join(script_name);
+
+    let data_dir = get_data_dir();
+    let json_path = data_dir.join(json_filename);
+
+    assert!(script_path.exists(), "Script not found: {:?}", script_path);
+    assert!(json_path.exists(), "JSON output not found: {:?}. Did you run the main program?", json_path);
+
+    println!("Running {} on {}...", script_name, json_path.display());
+    
+    let output = Command::new("python3") // Use "python" on Windows if needed
+        .arg(script_path)
+        .arg(json_path) // Pass the full path to the JSON file
+        .output()
+        .expect("Failed to execute Python script");
+
+    if !output.status.success() {
+        println!("--- STDOUT ({}) ---", script_name);
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+        println!("--- STDERR ({}) ---", script_name);
+        println!("{}", String::from_utf8_lossy(&output.stderr));
+        panic!("{} failed", script_name);
+    } else {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+}
+
+#[test]
+fn validate_1grams() {
+    run_script("validate_1grams.py", "1grams.json");
+}
+
+#[test]
+fn validate_ngrams() {
+    // validate_ngrams checks both 2grams and 3grams. 
+    // We pass the directory or handle it in the script. 
+    // For simplicity, let's update the script to take the directory or specific files.
+    // But to keep it simple here, we will assume the script is updated to take 
+    // the *directory* or we pass the base path.
+    
+    // Actually, validate_ngrams.py loads BOTH 2grams.json and 3grams.json.
+    // So we should pass the DIRECTORY to it, or update it to look in the right place.
+    // Let's pass the directory path.
+    let data_dir = get_data_dir();
+    
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let script_path = Path::new(manifest_dir).join("tests").join("validate_ngrams.py");
+
+    println!("Running validate_ngrams.py on directory {}...", data_dir.display());
+
+    let output = Command::new("python3")
+        .arg(script_path)
+        .arg(data_dir) // Pass the directory
+        .output()
+        .expect("Failed to execute Python script");
+
+    if !output.status.success() {
+        println!("--- STDOUT ---");
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+        println!("--- STDERR ---");
+        println!("{}", String::from_utf8_lossy(&output.stderr));
+        panic!("validate_ngrams failed");
+    } else {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+}
+
+#[test]
+fn validate_words() {
+    run_script("validate_words.py", "words.json");
+}
+// ===== corpora/openbookcorpus/tests/validate =====
+
+// ===== corpora/openbookcorpus/tests/validate_1grams.py =====
+import json
+import math
+import os
+import sys
+
+def load_data(filename):
+    if not os.path.exists(filename):
+        print(f"CRITICAL ERROR: '{filename}' not found.")
+        sys.exit(1)
+        
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"CRITICAL ERROR: Failed to decode JSON: {e}")
+        sys.exit(1)
+
+def test_categories(data):
+    print("\n--- TEST 1: Category Distribution ---")
+    categories = {
+        "Lowercase (a-z)": 0,
+        "Numbers (0-9)": 0,
+        "Space": 0,
+        "Newline": 0,
+        "Punctuation": 0,
+        "UNKNOWN/OTHER": 0
+    }
+    
+    total_count = sum(item['freq'] for item in data)
+    if total_count == 0:
+        print("  -> FAIL: Total frequency is zero.")
+        return False
+
+    # Whitelist of expected punctuation based on your Rust code
+    expected_punct = ".,!?;:'\"-_+=*/\\|()[]{}<>@#$%^&~`"
+
+    for item in data:
+        char = item['char']
+        freq = item['freq']
+        
+        if len(char) == 1 and 'a' <= char <= 'z':
+            categories["Lowercase (a-z)"] += freq
+        elif len(char) == 1 and '0' <= char <= '9':
+            categories["Numbers (0-9)"] += freq
+        elif char == ' ':
+            categories["Space"] += freq
+        elif char == '\n':
+            categories["Newline"] += freq
+        elif char in expected_punct:
+            categories["Punctuation"] += freq
+        else:
+            categories["UNKNOWN/OTHER"] += freq
+            # Only print warning if it's not a standard control char we might expect
+            if ord(char) > 32:
+                print(f"  [WARNING] Found unexpected char: {repr(char)} (Count: {freq})")
+
+    # Print Stats
+    for cat, count in categories.items():
+        percent = (count / total_count) * 100
+        print(f"{cat:<20}: {count:>15,} ({percent:>5.2f}%)")
+
+    # Validation Logic
+    if categories["UNKNOWN/OTHER"] > 0:
+        print("  -> FAIL: Dataset contains unclassified characters.")
+        return False
+    
+    print("  -> PASS: All characters fall into expected categories.")
+    return True
+
+def test_zipfs_law(data):
+    print("\n--- TEST 2: Zipf's Law Correlation ---")
+    
+    if len(data) < 10:
+        print("  -> FAIL: Not enough data points to test Zipf's law.")
+        return False
+
+    ranks = range(1, len(data) + 1)
+    freqs = [item['freq'] for item in data]
+    
+    log_ranks = [math.log(r) for r in ranks]
+    log_freqs = [math.log(f) for f in freqs]
+    
+    # Calculate Correlation Coefficient (Pearson)
+    n = len(data)
+    sum_x = sum(log_ranks)
+    sum_y = sum(log_freqs)
+    sum_xy = sum(x*y for x,y in zip(log_ranks, log_freqs))
+    sum_x2 = sum(x**2 for x in log_ranks)
+    sum_y2 = sum(y**2 for y in log_freqs)
+    
+    numerator = n * sum_xy - sum_x * sum_y
+    denominator = math.sqrt((n * sum_x2 - sum_x**2) * (n * sum_y2 - sum_y**2))
+    
+    if denominator == 0:
+        print("  -> FAIL: Math error (denominator is zero).")
+        return False
+
+    correlation = numerator / denominator
+    print(f"Correlation Coefficient: {correlation:.4f}")
+    
+    if correlation < -0.85:
+        print("  -> PASS: Strong adherence to Zipf's Law.")
+        return True
+    else:
+        print("  -> FAIL: Weak adherence. Data distribution looks unnatural.")
+        return False
+
+def test_top_n(data):
+    print("\n--- TEST 3: Top-12 Letter Consistency (ETAOIN) ---")
+    # Filter only letters for this test
+    letters = [item for item in data if len(item['char']) == 1 and 'a' <= item['char'] <= 'z']
+    
+    if len(letters) < 12:
+        print("  -> FAIL: Not enough letters found.")
+        return False
+
+    top_12_found = "".join([item['char'] for item in letters[:12]])
+    
+    # Standard English expectation
+    standard = "etaoinshrdlu"
+    
+    print(f"Standard Expectation: {standard}")
+    print(f"Your Dataset Found:   {top_12_found}")
+    
+    matches = 0
+    for c in standard:
+        if c in top_12_found:
+            matches += 1
+            
+    if matches >= 10:
+        print("  -> PASS: High alignment with standard English.")
+        return True
+    else:
+        print("  -> FAIL: Significant deviation from standard English.")
+        return False
+
+def test_artifacts(data):
+    print("\n--- TEST 4: Artifact Scan ---")
+    # These are characters we explicitly decided to clean/remove
+    forbidden = ['\\', '_', 'â', '\u00ad', '\t', '\r']
+    found_artifacts = []
+    
+    for item in data:
+        if item['char'] in forbidden:
+            found_artifacts.append(item)
+            
+    if not found_artifacts:
+        print("  -> PASS: No forbidden artifacts (\\, _, â, soft-hyphen, tab) found.")
+        return True
+    else:
+        print("  -> FAIL: Found forbidden artifacts:")
+        for item in found_artifacts:
+            print(f"     Char: {repr(item['char'])} | Freq: {item['freq']}")
+        return False
+
+def test_entropy(data):
+    print("\n--- TEST 5: Shannon Entropy ---")
+    # Entropy H = -sum(p(x) * log2(p(x)))
+    
+    total_count = sum(item['freq'] for item in data)
+    if total_count == 0:
+        return False
+
+    entropy = 0.0
+    for item in data:
+        p = item['freq'] / total_count
+        if p > 0:
+            entropy -= p * math.log2(p)
+            
+    print(f"Calculated Entropy: {entropy:.4f} bits/char")
+    
+    if 3.5 <= entropy <= 5.5:
+        print("  -> PASS: Entropy is within normal range for English text.")
+        return True
+    else:
+        print("  -> FAIL: Entropy is unusual (too repetitive or too random).")
+        return False
+
+def main():
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        print("Error: No filename provided.")
+        sys.exit(1)
+
+    print(f"Validating {filename}...")
+    
+    data = load_data(filename)
+    print(f"Loaded {len(data)} unique characters.")
+    
+    # Run Tests
+    results = [
+        test_categories(data),
+        test_zipfs_law(data),
+        test_top_n(data),
+        test_artifacts(data),
+        test_entropy(data)
+    ]
+    
+    print("\n" + "="*40)
+    if all(results):
+        print("ALL TESTS PASSED.")
+        sys.exit(0) # Success
+    else:
+        print("SOME TESTS FAILED.")
+        sys.exit(1) # Failure
+
+if __name__ == "__main__":
+    main()
+// ===== corpora/openbookcorpus/tests/validate_ngrams.py =====
+import json
+import sys
+import os
+
+def load_data(filename):
+    if not os.path.exists(filename):
+        print(f"CRITICAL: '{filename}' not found.")
+        sys.exit(1)
+    with open(filename, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def check_artifacts(name, data, keys):
+    print(f"\n--- TEST: Artifact Scan ({name}) ---")
+    forbidden = ['\\', '_', 'â', '\u00ad', '\t', '\r']
+    
+    failures = 0
+    for item in data:
+        # Construct the n-gram string
+        ngram = "".join(item[k] for k in keys)
+        
+        for char in ngram:
+            if char in forbidden:
+                print(f"  FAIL: Found forbidden char '{repr(char)}' in sequence '{repr(ngram)}'")
+                failures += 1
+                if failures > 5: return False
+    
+    if failures == 0:
+        print("  -> PASS: No artifacts found.")
+        return True
+    return False
+
+def check_space_compression(data):
+    print("\n--- TEST: Space Compression (2grams) ---")
+    # The Rust code compresses spaces. We should NEVER see (" ", " ").
+    
+    double_space_count = 0
+    for item in data:
+        if item['char1'] == ' ' and item['char2'] == ' ':
+            double_space_count += item['freq']
+            
+    if double_space_count == 0:
+        print("  -> PASS: Zero double-spaces found.")
+        return True
+    else:
+        print(f"  -> FAIL: Found {double_space_count} instances of double spaces.")
+        return False
+
+def check_top_ngrams(name, data, keys, standard_list):
+    print(f"\n--- TEST: Top {len(keys)}-Grams Consistency ({name}) ---")
+    
+    # Sort data by freq just in case
+    sorted_data = sorted(data, key=lambda x: x['freq'], reverse=True)
+    
+    # Extract top 20 n-grams from data
+    top_found = []
+    for i in range(20):
+        if i >= len(sorted_data): break
+        s = "".join(sorted_data[i][k] for k in keys)
+        # We only care about pure letter n-grams for this linguistic test
+        if s.isalpha():
+            top_found.append(s)
+            
+    # Check overlap with standard English
+    # We expect at least 50% overlap in the top 10-15 pure letter n-grams
+    matches = 0
+    for s in standard_list:
+        if s in top_found:
+            matches += 1
+            
+    print(f"  Standard Expectation: {standard_list}")
+    print(f"  Top Found (Letters):  {top_found[:len(standard_list)]}")
+    
+    if matches >= len(standard_list) // 2:
+        print("  -> PASS: High alignment with standard English.")
+        return True
+    else:
+        print("  -> FAIL: Significant deviation from standard English.")
+        return False
+
+def main():
+    if len(sys.argv) > 1:
+        base_dir = sys.argv[1]
+    else:
+        print("Error: No base directory provided.")
+        sys.exit(1)
+
+    all_passed = True
+    
+    # Construct paths
+    path2 = os.path.join(base_dir, "2grams.json")
+    path3 = os.path.join(base_dir, "3grams.json")
+
+    # --- 2-GRAMS ---
+    print(f"Validating {path2}...")
+    data2 = load_data(path2)
+    
+    if not check_artifacts("2grams", data2, ['char1', 'char2']): all_passed = False
+    if not check_space_compression(data2): all_passed = False
+    
+    # Standard English Bigrams: th, he, in, er, an, re, on, at, en, nd
+    if not check_top_ngrams("2grams", data2, ['char1', 'char2'], 
+                            ["th", "he", "in", "er", "an", "re", "on", "at"]): 
+        all_passed = False
+
+    # --- 3-GRAMS ---
+    print(f"\n" + "="*40 + f"\nValidating {path3}...")
+    data3 = load_data(path3)
+    
+    if not check_artifacts("3grams", data3, ['char1', 'char2', 'char3']): all_passed = False
+    
+    # Standard English Trigrams: the, and, ing, ent, ion, her, for, tha
+    if not check_top_ngrams("3grams", data3, ['char1', 'char2', 'char3'], 
+                            ["the", "and", "ing", "ent", "ion", "her", "for"]): 
+        all_passed = False
+
+    if all_passed:
+        print("\nALL N-GRAM TESTS PASSED.")
+        sys.exit(0)
+    else:
+        print("\nSOME N-GRAM TESTS FAILED.")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+// ===== corpora/openbookcorpus/tests/validate_words.py =====
+import json
+import sys
+import os
+import math
+
+def load_data(filename):
+    if not os.path.exists(filename):
+        print(f"CRITICAL: '{filename}' not found.")
+        sys.exit(1)
+    with open(filename, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def test_artifacts(data):
+    print("\n--- TEST: Artifact Scan ---")
+    forbidden = ['\\', '_', 'â', '\u00ad', '\t', '\r', ' '] # Space shouldn't be IN a word
+    
+    failures = 0
+    for item in data:
+        word = item['word']
+        for char in word:
+            if char in forbidden:
+                print(f"  FAIL: Found forbidden char '{repr(char)}' in word '{word}'")
+                failures += 1
+                if failures > 5: return False
+    
+    if failures == 0:
+        print("  -> PASS: No artifacts found.")
+        return True
+    return False
+
+def test_top_words(data):
+    print("\n--- TEST: Top 10 Words Consistency ---")
+    # Sort by freq
+    sorted_data = sorted(data, key=lambda x: x['freq'], reverse=True)
+    top_10 = [item['word'] for item in sorted_data[:10]]
+    
+    # Standard English Top Words
+    standard = ["the", "of", "and", "to", "a", "in", "is", "i", "that", "it"]
+    
+    print(f"  Standard: {standard}")
+    print(f"  Found:    {top_10}")
+    
+    matches = 0
+    for w in standard:
+        if w in top_10:
+            matches += 1
+            
+    if matches >= 7:
+        print("  -> PASS: High alignment with standard English vocabulary.")
+        return True
+    else:
+        print("  -> FAIL: Significant deviation in top vocabulary.")
+        return False
+
+def test_word_length(data):
+    print("\n--- TEST: Average Word Length ---")
+    # English average is typically 4.7 - 5.1 characters.
+    
+    total_chars = 0
+    total_words = 0
+    
+    for item in data:
+        w_len = len(item['word'])
+        freq = item['freq']
+        total_chars += (w_len * freq)
+        total_words += freq
+        
+    if total_words == 0: return False
+    
+    avg_len = total_chars / total_words
+    print(f"  Calculated Average Length: {avg_len:.2f} chars")
+    
+    if 4.0 <= avg_len <= 6.0:
+        print("  -> PASS: Word length is within expected range.")
+        return True
+    else:
+        print("  -> WARN: Word length is unusual.")
+        return False
+
+def test_zipfs_law(data):
+    print("\n--- TEST: Zipf's Law (Words) ---")
+    
+    if len(data) < 100: return False
+
+    ranks = range(1, len(data) + 1)
+    freqs = [item['freq'] for item in data]
+    
+    log_ranks = [math.log(r) for r in ranks]
+    log_freqs = [math.log(f) for f in freqs]
+    
+    # Pearson Correlation
+    n = len(data)
+    sum_x = sum(log_ranks)
+    sum_y = sum(log_freqs)
+    sum_xy = sum(x*y for x,y in zip(log_ranks, log_freqs))
+    sum_x2 = sum(x**2 for x in log_ranks)
+    sum_y2 = sum(y**2 for y in log_freqs)
+    
+    numerator = n * sum_xy - sum_x * sum_y
+    denominator = math.sqrt((n * sum_x2 - sum_x**2) * (n * sum_y2 - sum_y**2))
+    
+    correlation = numerator / denominator
+    print(f"  Correlation Coefficient: {correlation:.4f}")
+    
+    if correlation < -0.95:
+        print("  -> PASS: Near-perfect adherence to Zipf's Law.")
+        return True
+    else:
+        print("  -> FAIL: Weak adherence.")
+        return False
+
+def main():
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        print("Error: No filename provided.")
+        sys.exit(1)
+
+    print(f"Validating {filename}...")
+    data = load_data(filename)
+    print(f"Loaded {len(data)} unique words.")
+    
+    results = [
+        test_artifacts(data),
+        test_top_words(data),
+        test_word_length(data),
+        test_zipfs_law(data)
+    ]
+    
+    if all(results):
+        print("\nALL WORD TESTS PASSED.")
+        sys.exit(0)
+    else:
+        print("\nSOME WORD TESTS FAILED.")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

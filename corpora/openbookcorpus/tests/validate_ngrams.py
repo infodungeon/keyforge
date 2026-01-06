@@ -78,11 +78,21 @@ def check_top_ngrams(name, data, keys, standard_list):
         return False
 
 def main():
+    if len(sys.argv) > 1:
+        base_dir = sys.argv[1]
+    else:
+        print("Error: No base directory provided.")
+        sys.exit(1)
+
     all_passed = True
     
+    # Construct paths
+    path2 = os.path.join(base_dir, "2grams.json")
+    path3 = os.path.join(base_dir, "3grams.json")
+
     # --- 2-GRAMS ---
-    print("Validating 2grams.json...")
-    data2 = load_data("2grams.json")
+    print(f"Validating {path2}...")
+    data2 = load_data(path2)
     
     if not check_artifacts("2grams", data2, ['char1', 'char2']): all_passed = False
     if not check_space_compression(data2): all_passed = False
@@ -93,8 +103,8 @@ def main():
         all_passed = False
 
     # --- 3-GRAMS ---
-    print("\n" + "="*40 + "\nValidating 3grams.json...")
-    data3 = load_data("3grams.json")
+    print(f"\n" + "="*40 + f"\nValidating {path3}...")
+    data3 = load_data(path3)
     
     if not check_artifacts("3grams", data3, ['char1', 'char2', 'char3']): all_passed = False
     

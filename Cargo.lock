@@ -4929,7 +4929,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openbookcorpus_processor"
+name = "openbookcorpus"
 version = "0.1.0"
 dependencies = [
  "futures-util",
