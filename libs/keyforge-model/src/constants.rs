@@ -58,11 +58,16 @@ pub const MAX_INPUT_FILE_SIZE: u64 = 100 * 1024 * 1024;
 /// Maximum recursion depth for JSON parsing.
 pub const MAX_JSON_DEPTH: usize = 50;
 
-// --- WebSocket ---
+// --- WebSocket Internal Signaling ---
 
-/// Prefix for Job messages.
+/// Prefix for internal Job broadcast messages on the `state.tx` channel.
+/// Example: "JOB:12345"
+/// Note: This is NOT the external JSON protocol sent to clients.
 pub const WS_MSG_JOB: &str = "JOB:";
-/// Prefix for Cancel messages.
+
+/// Prefix for internal Cancel broadcast messages on the `state.tx` channel.
+/// Example: "CANCEL:12345"
+/// Note: This is NOT the external JSON protocol sent to clients.
 pub const WS_MSG_CANCEL: &str = "CANCEL:";
 
 // --- Corpus Parsing ---

@@ -172,8 +172,8 @@ fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     if !is_std { return; }
 
     // 1. Calculate Totals
-    let total_chars: u32 = corpus.char_freqs.iter().sum();
-    let sentence_count: u32 = 
+    let total_chars: u64 = corpus.char_freqs.iter().sum();
+    let sentence_count: u64 = 
         corpus.char_freqs['.' as usize] + 
         corpus.char_freqs['?' as usize] + 
         corpus.char_freqs['!' as usize];
@@ -181,8 +181,8 @@ fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     if total_chars == 0 { return; }
 
     // 2. Calculate Injection Volumes
-    let enter_count = (sentence_count as f32 / STD_CORPUS_SENTENCE_RATIO).round() as u32;
-    let bksp_count = (total_chars as f32 * STD_CORPUS_ERROR_RATE * STD_CORPUS_BACKSPACE_FACTOR).round() as u32;
+    let enter_count = (sentence_count as f32 / STD_CORPUS_SENTENCE_RATIO).round() as u64;
+    let bksp_count = (total_chars as f32 * STD_CORPUS_ERROR_RATE * STD_CORPUS_BACKSPACE_FACTOR).round() as u64;
 
     // 3. Inject 1-grams
     corpus.char_freqs['\n' as usize] += enter_count;
@@ -235,7 +235,7 @@ fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     // A. Backspace Trigrams
     // (A, B, BKSP) -> User typed A, B, then deleted B
     if bksp_count > 0 {
-        let total_bigrams: u32 = corpus.bigrams.iter().map(|(_, _, f)| *f).sum();
+        let total_bigrams: u64 = corpus.bigrams.iter().map(|(_, _, f)| *f as u64).sum();
         if total_bigrams > 0 {
             let mut new_trigrams = Vec::new();
             for (a, b, freq) in &corpus.bigrams {
@@ -267,7 +267,7 @@ fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
             .filter(|(_, b, _)| puncts.contains(&(*b as u8 as char)))
             .collect();
             
-        let total_punct_bigrams: u32 = punct_bigrams.iter().map(|(_, _, f)| *f).sum();
+        let total_punct_bigrams: u64 = punct_bigrams.iter().map(|(_, _, f)| *f as u64).sum();
         
         if total_punct_bigrams > 0 {
             for (a, b, freq) in punct_bigrams {
@@ -288,11 +288,6 @@ fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     corpus.trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
 }
 
-// Pin boxing needed to match async_trait with explicit types
-// #[async_trait::async_trait] 
-// ^ We simply implement the method with correct signature for the trait
-// But actually, keyforge-core defines the trait. 
-// Standard async_trait usage should work IF the types match perfectly.
 #[async_trait::async_trait]
 impl AssetLoader for FsProvider {
     async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
@@ -338,11 +333,10 @@ impl AssetLoader for FsProvider {
                 match stem {
                     "1grams" => {
                         for e in part {
-                            // Use the new resolver logic
                             if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
                                 if (c as usize) < 65536 {
                                     corpus.char_freqs[c as usize] +=
-                                        (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32;
+                                        (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u64;
                                 }
                             }
                         }
@@ -374,7 +368,6 @@ impl AssetLoader for FsProvider {
             }
         }
 
-        // Apply Synthetic Injection if any source was standard prose
         let is_std = sources.iter().any(|s| s.id.contains("_std"));
         inject_synthetic_data(&mut corpus, is_std);
 

@@ -1,0 +1,1970 @@
+// ===== libs/keyforge-evolution/Cargo.toml =====
+[package]
+name = "keyforge-evolution"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+rand = "0.9"
+rand_xoshiro = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+keyforge-model = { path = "../keyforge-model" }
+keyforge-physics = { path = "../keyforge-physics" }
+keyforge-protocol = { path = "../keyforge-protocol" }
+tracing = { version = "0.1", features = ["attributes"] }
+thiserror = "2.0"
+
+[features]
+default = []
+single_threaded = []
+
+[dev-dependencies]
+proptest = "1.9"
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use thiserror::Error;
+
+/// Errors that can occur during the evolution process.
+#[derive(Error, Debug)]
+pub enum EvolutionError {
+    /// Error propagated from the physics engine.
+    #[error("Physics Violation: {0}")]
+    Physics(#[from] keyforge_physics::PhysicsError),
+
+    /// Error caused by invalid configuration or input parameters.
+    #[error("Configuration Error: {0}")]
+    Config(String),
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+pub use errors::EvolutionError;
+pub mod supervisor;
+pub mod errors;
+
+#[cfg(test)]
+mod tests_integration;
+
+use keyforge_model::{Layout, SearchConfig, KeyCode, OptimizationResult};
+use keyforge_physics::{EngineRequest, ScoringEngine};
+use std::sync::Arc;
+use supervisor::AnnealingConfig;
+use supervisor::strategies::{CoolingAnnealing, GroupMutation};
+use supervisor::traits::RealTimeKeeper;
+use supervisor::Optimizer;
+
+/// Trait for receiving progress updates during optimization.
+pub trait ProgressCallback: Send + Sync {
+    /// Called periodically with the current optimization state.
+    /// Returns `true` to continue, `false` to abort.
+    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool;
+}
+
+/// A progress callback that does nothing.
+pub struct NoOpCallback;
+impl ProgressCallback for NoOpCallback {
+    fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+        true
+    }
+}
+
+/// Optimizes a keyboard layout based on an `EngineRequest`.
+///
+/// This function is a convenience wrapper that creates a `ScoringEngine` internally.
+/// For repeated optimizations, consider using `evolve` with a pre-compiled engine.
+pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
+    optimize_with_callback(req, NoOpCallback)
+}
+
+/// Optimizes a keyboard layout with a progress callback.
+pub fn optimize_with_callback<CB: ProgressCallback>(
+    req: &EngineRequest,
+    callback: CB,
+) -> Result<OptimizationResult, EvolutionError> {
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
+    let engine_arc = Arc::new(engine);
+
+    // Determine pinned keys for legacy request
+    let unlocked_indices: Vec<usize> = (0..engine_arc.key_count())
+        .filter(|&i| i >= req.pinned_keys.len() || req.pinned_keys[i].is_none())
+        .collect();
+
+    evolve_internal(
+        engine_arc,
+        &req.config,
+        unlocked_indices,
+        req.initial_layout.clone(),
+        callback,
+        Some(&req.pinned_keys),
+    )
+}
+
+/// Performs optimization using a pre-compiled `ScoringEngine`.
+///
+/// This is the recommended entry point for performance-sensitive applications
+/// that need to run multiple optimizations against the same parameters.
+pub fn evolve<CB: ProgressCallback>(
+    engine: Arc<ScoringEngine>,
+    config: &SearchConfig,
+    callback: CB,
+) -> Result<OptimizationResult, EvolutionError> {
+    // Default: All keys unlocked, default initial layout
+    let unlocked_indices = (0..engine.key_count()).collect();
+    evolve_internal(engine, config, unlocked_indices, None, callback, None)
+}
+
+/// Internal helper to share logic between legacy and new entry points.
+fn evolve_internal<CB: ProgressCallback>(
+    engine: Arc<ScoringEngine>,
+    config: &SearchConfig,
+    unlocked_indices: Vec<usize>,
+    initial_layout: Option<Layout>,
+    callback: CB,
+    pinned_keys: Option<&[Option<KeyCode>]>,
+) -> Result<OptimizationResult, EvolutionError> {
+    let mut layout = initial_layout.unwrap_or_else(|| {
+        let keys: Vec<KeyCode> = (0..engine.key_count()).map(|i| KeyCode(i as u16)).collect();
+        Layout::new_unchecked(keys)
+    });
+
+    // Guardrail: Ensure layout matches engine geometry
+    if layout.keys.len() != engine.key_count() {
+        return Err(EvolutionError::Config(format!(
+            "Initial layout size {} does not match engine key count {}",
+            layout.keys.len(),
+            engine.key_count()
+        )));
+    }
+
+    // Apply pinned keys to the initial layout if provided
+    if let Some(pinned) = pinned_keys {
+        for (i, &p) in pinned.iter().enumerate() {
+            if let Some(code) = p {
+                if i < layout.keys.len() {
+                    // Swap this key with wherever it currently is to maintain layout integrity
+                    // INVARIANT: Permutation integrity must be preserved.
+                    if let Some(pos) = layout.keys.iter().position(|&k| k == code) {
+                        layout.keys.swap(i, pos);
+                    } else {
+                        // If the key is missing from the initial layout, we cannot proceed safely
+                        // without violating the permutation invariant.
+                        return Err(EvolutionError::Config(format!("Pinned key {} not found in initial layout", code)));
+                    }
+                }
+            }
+        }
+    }
+
+    match config {
+        SearchConfig::Annealing {
+            steps,
+            start_temp,
+            end_temp,
+            seed,
+            patience,
+            reheats,
+            reheat_factor,
+        } => {
+            let mutation = GroupMutation { unlocked_indices };
+            let acceptance = CoolingAnnealing;
+
+            let annealing_config = AnnealingConfig::new(
+                *steps,
+                *start_temp,
+                *end_temp,
+                *seed,
+                *patience,
+                *reheats,
+                *reheat_factor,
+            )?;
+
+            // We pass &*engine to dereference the Arc to a reference
+            let mut optimizer = Optimizer::new(
+                &engine,
+                annealing_config,
+                mutation,
+                acceptance,
+                RealTimeKeeper,
+            );
+
+            let best_layout = optimizer.run(Some(layout), callback)?;
+
+            Ok(OptimizationResult {
+                score: engine.score(&best_layout)?,
+                layout: best_layout,
+            })
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
+    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+    use keyforge_physics::{EngineRequest, ScoringEngine};
+    use std::sync::Arc;
+
+    fn setup_env() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>) {
+        let keys = vec![
+            KeyNode { index: 0, label: "k0".to_string(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), col: ColIndex(0), x: 0.0, y: 0.0, is_home: true, ..Default::default() },
+            KeyNode { index: 1, label: "k1".to_string(), hand: HandIndex(0), finger: FingerIndex(2), row: RowIndex(0), col: ColIndex(1), x: 1.0, y: 0.0, is_home: true, ..Default::default() },
+            KeyNode { index: 2, label: "k2".to_string(), hand: HandIndex(0), finger: FingerIndex(3), row: RowIndex(0), col: ColIndex(2), x: 2.0, y: 0.0, is_home: true, ..Default::default() },
+        ];
+        (Arc::new(Keyboard::new(keys, 0).unwrap()), Arc::new(Corpus::default()), Arc::new(Rubric::default()))
+    }
+
+    #[test]
+    fn test_legacy_optimize_entry_point() {
+        let (kb, cp, rb) = setup_env();
+        let req = EngineRequest {
+            keyboard: kb, corpus: cp, rubric: rb,
+            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            initial_layout: None, pinned_keys: vec![], cost_overrides: vec![],
+        };
+        let result = optimize(&req).unwrap();
+        assert!(result.score >= 0.0);
+    }
+
+    #[test]
+    fn test_legacy_optimize_full_options() {
+        let (kb, cp, rb) = setup_env();
+        let req = EngineRequest {
+            keyboard: kb, corpus: cp, rubric: rb,
+            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            initial_layout: Some(Layout::new_unchecked(vec![KeyCode(1), KeyCode(0), KeyCode(2)])),
+            pinned_keys: vec![Some(KeyCode(1)), None],
+            cost_overrides: vec![],
+        };
+        let result = optimize(&req).unwrap();
+        assert_eq!(result.layout.keys[0], KeyCode(1));
+    }
+
+    #[test]
+    fn test_optimize_with_callback_termination() {
+        let (kb, cp, rb) = setup_env();
+        let req = EngineRequest {
+            keyboard: kb, corpus: cp, rubric: rb,
+            config: SearchConfig::Annealing { steps: 5000, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            initial_layout: None, pinned_keys: vec![], cost_overrides: vec![],
+        };
+        let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        struct CountingCallback { counter: Arc<std::sync::atomic::AtomicUsize>, limit: usize }
+        impl ProgressCallback for CountingCallback {
+            fn on_progress(&self, _step: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+                let val = self.counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                val < self.limit
+            }
+        }
+        let callback = CountingCallback { counter: counter.clone(), limit: 1 };
+        let result = optimize_with_callback(&req, callback).unwrap();
+        assert!(result.score >= 0.0);
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn test_evolve_api_direct() {
+        let (kb, cp, rb) = setup_env();
+        let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap());
+        let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 };
+        let result = evolve(engine, &config, crate::NoOpCallback).unwrap();
+        assert!(result.score >= 0.0);
+    }
+
+    #[test]
+    fn test_pinned_key_swap() {
+        let (kb, cp, rb) = setup_env();
+        let pinned = vec![Some(KeyCode(2)), None, None];
+        let req = EngineRequest {
+            keyboard: kb, corpus: cp, rubric: rb,
+            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
+        };
+        let result = optimize(&req).unwrap();
+        assert_eq!(result.layout.keys[0], KeyCode(2));
+        assert_eq!(result.layout.keys[2], KeyCode(0));
+    }
+
+    #[test]
+    fn test_error_on_missing_pin() {
+        let keys = vec![
+            KeyNode { index: 0, label: "k0".into(), hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), x: 0.0, y: 0.0, is_home: false, ..Default::default() },
+            KeyNode { index: 1, label: "k1".into(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), col: ColIndex(1), x: 1.0, y: 0.0, is_home: false, ..Default::default() },
+        ];
+        let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
+        let corpus = Arc::new(Corpus::default());
+        let rubric = Arc::new(Rubric::default());
+        let config = SearchConfig::Annealing { steps: 10, start_temp: 1.0, end_temp: 0.1, seed: 42, patience: 10, reheats: 0, reheat_factor: 1.0 };
+        let pinned = vec![Some(KeyCode(99)), None];
+        let req = EngineRequest {
+            keyboard: kb, corpus, rubric, config,
+            initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
+        };
+        let result = crate::optimize(&req);
+        assert!(result.is_err());
+        match result {
+            Err(EvolutionError::Config(msg)) => assert!(msg.contains("Pinned key 99 not found")),
+            _ => panic!("Expected Config error"),
+        }
+    }
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use super::state::SearchState;
+use super::traits::{AcceptanceCriteria, MutationOperator, TimeKeeper};
+use crate::errors::EvolutionError;
+use crate::ProgressCallback;
+use keyforge_model::{Layout, KeyCode};
+use keyforge_physics::ScoringEngine;
+use keyforge_model::constants::SCORE_SCALE;
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro256PlusPlus;
+
+#[derive(Debug, Clone, Copy)]
+pub struct AnnealingConfig {
+    pub steps: usize,
+    pub start_temp: f32,
+    pub end_temp: f32,
+    pub seed: u64,
+    pub patience: usize,
+    pub reheats: usize,
+    pub reheat_factor: f32,
+}
+
+impl AnnealingConfig {
+    pub fn new(
+        steps: usize,
+        start_temp: f32,
+        end_temp: f32,
+        seed: u64,
+        patience: usize,
+        reheats: usize,
+        reheat_factor: f32,
+    ) -> Result<Self, EvolutionError> {
+        if steps == 0 {
+            return Err(EvolutionError::Config("Steps must be > 0".into()));
+        }
+        if reheats > 0 && start_temp <= f32::EPSILON {
+            return Err(EvolutionError::Config(
+                "Start temp must be > 0 to enable reheating".into(),
+            ));
+        }
+        if start_temp < 0.0 || end_temp < 0.0 {
+            return Err(EvolutionError::Config(
+                "Temperatures must be non-negative".into(),
+            ));
+        }
+        if reheat_factor <= 0.0 {
+            return Err(EvolutionError::Config(
+                "Reheat factor must be > 0.0".into(),
+            ));
+        }
+        Ok(Self {
+            steps,
+            start_temp,
+            end_temp,
+            seed,
+            patience,
+            reheats,
+            reheat_factor,
+        })
+    }
+}
+
+pub struct Optimizer<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> {
+    engine: &'a ScoringEngine,
+    config: AnnealingConfig,
+    rng: Xoshiro256PlusPlus,
+    mutation: M,
+    acceptance: A,
+    time_keeper: T,
+}
+
+impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a, M, A, T> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        engine: &'a ScoringEngine,
+        config: AnnealingConfig,
+        mutation: M,
+        acceptance: A,
+        time_keeper: T,
+    ) -> Self {
+        let rng = if config.seed == 0 {
+            Xoshiro256PlusPlus::from_rng(&mut rand::rng())
+        } else {
+            Xoshiro256PlusPlus::seed_from_u64(config.seed)
+        };
+
+        Self {
+            engine,
+            config,
+            rng,
+            mutation,
+            acceptance,
+            time_keeper,
+        }
+    }
+
+    pub fn run<CB: ProgressCallback>(
+        &mut self,
+        initial_layout: Option<Layout>,
+        callback: CB,
+    ) -> Result<Layout, EvolutionError> {
+        let layout = initial_layout.unwrap_or_else(|| {
+            let keys: Vec<KeyCode> = (0..self.engine.key_count()).map(|i| KeyCode(i as u16)).collect();
+            Layout::new_unchecked(keys)
+        });
+
+        let initial_score = self.engine.score_raw(&layout.keys)?;
+
+        // INVARIANT: kani::assume(initial_score >= 0);
+        let mut state = SearchState::new(layout, initial_score, self.config.start_temp);
+
+        let cooling_rate = if self.config.steps > 0 && self.config.start_temp > f32::EPSILON {
+            (self.config.end_temp / self.config.start_temp).powf(1.0 / self.config.steps as f32)
+        } else {
+            0.0
+        };
+
+        let report_interval = (self.config.steps / 100).max(1000);
+        let start_time = self.time_keeper.now();
+        let mut last_report_time = start_time;
+        let mut last_report_step = 0;
+
+        let mut steps_since_improvement = 0;
+        let mut reheats_left = self.config.reheats;
+
+        for step in 0..self.config.steps {
+            if let Some(proposal) = self.mutation.propose(
+                self.engine,
+                state.layout(),
+                state.pos_map(),
+                &mut self.rng,
+            )? {
+                if self.acceptance.should_accept(
+                    proposal.delta,
+                    state.temperature,
+                    &mut self.rng,
+                ) {
+                    state.apply_mutation(proposal.action);
+
+                    state.current_score = state.current_score.checked_add(proposal.delta).unwrap_or(
+                        if proposal.delta > 0 {
+                            i64::MAX
+                        } else {
+                            i64::MIN
+                        },
+                    );
+
+                    if state.current_score < state.best_score {
+                        state.update_best();
+                        steps_since_improvement = 0;
+                    } else {
+                        steps_since_improvement += 1;
+                    }
+                } else {
+                    steps_since_improvement += 1;
+                }
+            }
+
+            // Reheating Logic
+            if steps_since_improvement > self.config.patience && reheats_left > 0 {
+                state.reheat_from_best(self.config.start_temp, self.config.reheat_factor);
+
+                reheats_left -= 1;
+                steps_since_improvement = 0;
+            }
+
+            state.temperature *= cooling_rate;
+            if state.temperature < 1e-10 {
+                state.temperature = 0.0;
+            }
+
+            if step > 0 && step % report_interval == 0 {
+                let now = self.time_keeper.now();
+                let elapsed = self.time_keeper.elapsed(last_report_time).as_secs_f32();
+                let steps_done = step - last_report_step;
+
+                let ips = if elapsed > 0.0 {
+                    (steps_done as f32 / elapsed) / 1_000_000.0
+                } else {
+                    0.0
+                };
+
+                let score_f32 = state.best_score as f32 / SCORE_SCALE;
+                if !callback.on_progress(step, score_f32, &state.best_layout().keys, ips) {
+                    break;
+                }
+
+                last_report_time = now;
+                last_report_step = step;
+            }
+        }
+
+        Ok(state.best_layout().clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::supervisor::strategies::{CoolingAnnealing, GroupMutation};
+    use crate::supervisor::traits::{MutationAction, MutationProposal};
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    // --- Mocks ---
+    struct StagnantMutation;
+    impl MutationOperator for StagnantMutation {
+        fn propose(
+            &self,
+            _engine: &ScoringEngine,
+            _layout: &Layout,
+            _pos_map: &[u16],
+            _rng: &mut impl rand::Rng,
+        ) -> Result<Option<MutationProposal>, EvolutionError> {
+            Ok(Some(MutationProposal {
+                delta: 1000,
+                action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
+            }))
+        }
+    }
+
+    struct ScoreCheckCallback {
+        last_score: std::sync::Mutex<f32>,
+        failed: AtomicBool,
+    }
+
+    impl ProgressCallback for ScoreCheckCallback {
+        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            let mut last = self.last_score.lock().unwrap();
+            if score > *last && *last != 0.0 && *last != f32::MAX {
+                self.failed.store(true, Ordering::SeqCst);
+            }
+            *last = score;
+            true
+        }
+    }
+
+    impl ProgressCallback for &ScoreCheckCallback {
+        fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool {
+            (**self).on_progress(epoch, score, layout, ips)
+        }
+    }
+
+    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+
+    fn setup_test_engine(size: usize) -> ScoringEngine {
+        let keys: Vec<_> = (0..size)
+            .map(|i| KeyNode {
+                index: i,
+                label: format!("k{}", i),
+                hand: HandIndex((i % 2) as u8),
+                finger: FingerIndex((i % 5) as u8),
+                row: RowIndex((i / 10) as i8),
+                col: ColIndex((i % 10) as i8),
+                x: (i % 10) as f32,
+                y: (i / 10) as f32,
+                is_home: false,
+                ..Default::default()
+            })
+            .collect();
+        let kb = Keyboard::new(keys, 1).unwrap();
+        let mut corpus = Corpus::default();
+        for i in 0..size {
+            corpus.char_freqs[i] = (i * 10) as u64; // FIX: Cast to u64
+            if i + 1 < size {
+                corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
+            }
+        }
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+    }
+
+    #[test]
+    fn test_force_reheat_logic() {
+        let engine = setup_test_engine(2);
+        let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 5, 2, 2.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            StagnantMutation,
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        optimizer.run(None, crate::NoOpCallback).unwrap();
+    }
+
+    #[test]
+    fn test_singularity_zero_temp_execution() {
+        let engine = setup_test_engine(2);
+        let config = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 0, 1.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            GroupMutation { unlocked_indices: vec![0, 1] },
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        let result = optimizer.run(None, crate::NoOpCallback).unwrap();
+        assert_eq!(result.keys.len(), 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "Start temp must be > 0 to enable reheating")]
+    fn test_singularity_reheat_validation() {
+        AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 1, 1.0).unwrap();
+    }
+
+    #[test]
+    fn test_monotonicity_zero_temp() {
+        let engine = setup_test_engine(30);
+        let mutation = GroupMutation { unlocked_indices: (0..30).collect() };
+        let acceptance = CoolingAnnealing;
+        let callback = ScoreCheckCallback {
+            last_score: std::sync::Mutex::new(f32::MAX),
+            failed: AtomicBool::new(false),
+        };
+        let config = AnnealingConfig::new(1000, 0.0, 0.0, 42, 1000, 0, 1.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        optimizer.run(None, &callback).unwrap();
+        assert!(!callback.failed.load(Ordering::SeqCst), "Score increased during zero-temperature annealing!");
+    }
+
+    #[test]
+    fn test_state_integrity_after_reheat() {
+        let engine = setup_test_engine(30);
+        let mutation = GroupMutation { unlocked_indices: (0..30).collect() };
+        let acceptance = CoolingAnnealing;
+        let config = AnnealingConfig::new(100, 1.0, 0.1, 42, 5, 1, 10.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        let final_layout = optimizer.run(None, crate::NoOpCallback).unwrap();
+        let mut seen = std::collections::HashSet::new();
+        for &k in &final_layout.keys {
+            assert!(seen.insert(k), "Duplicate key {} in final layout!", k);
+        }
+        assert_eq!(final_layout.keys.len(), 30);
+    }
+
+    #[test]
+    fn test_annealing_edge_cases() {
+        let engine = setup_test_engine(2);
+        // 1. Seed = 0 (Entropy)
+        let config_entropy = AnnealingConfig::new(10, 1.0, 0.1, 0, 10, 0, 1.0).unwrap();
+        let mut opt_entropy = Optimizer::new(
+            &engine,
+            config_entropy,
+            GroupMutation { unlocked_indices: vec![0, 1] },
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt_entropy.run(None, crate::NoOpCallback).unwrap();
+
+        // 2. Steps = 0
+        assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
+
+        // 3. Fast cooling
+        let config_fast = AnnealingConfig::new(100, 1e-9, 1e-20, 42, 10, 0, 1.0).unwrap();
+        let mut opt_fast = Optimizer::new(
+            &engine,
+            config_fast,
+            GroupMutation { unlocked_indices: vec![0, 1] },
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt_fast.run(None, crate::NoOpCallback).unwrap();
+    }
+
+    #[test]
+    fn test_progress_reporting_loop() {
+        let engine = setup_test_engine(2);
+        let mutation = GroupMutation { unlocked_indices: vec![0, 1] };
+        let acceptance = CoolingAnnealing;
+        let calls = Arc::new(AtomicUsize::new(0));
+        struct ReportingCallback(Arc<AtomicUsize>);
+        impl ProgressCallback for ReportingCallback {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                true
+            }
+        }
+        let config = AnnealingConfig::new(2100, 1.0, 0.1, 42, 2100, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt.run(None, ReportingCallback(calls.clone())).unwrap();
+        assert!(calls.load(Ordering::SeqCst) >= 2, "Progress callback not hit enough times!");
+    }
+
+    #[test]
+    fn test_optimizer_callback_break() {
+        let engine = setup_test_engine(2);
+        let mutation = GroupMutation { unlocked_indices: vec![0, 1] };
+        let acceptance = CoolingAnnealing;
+        struct BreakCallback;
+        impl ProgressCallback for BreakCallback {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+                false
+            }
+        }
+        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 2000, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            &engine,
+            config,
+            mutation,
+            acceptance,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        let best = opt.run(None, BreakCallback).unwrap();
+        assert_eq!(best.keys.len(), 2);
+    }
+
+    #[test]
+    fn test_saturation_and_ips_branches() {
+        let engine = setup_test_engine(30);
+        struct SaturatingMutation;
+        impl MutationOperator for SaturatingMutation {
+            fn propose(
+                &self,
+                _engine: &ScoringEngine,
+                _layout: &Layout,
+                _pos_map: &[u16],
+                _rng: &mut impl rand::Rng,
+            ) -> Result<Option<MutationProposal>, EvolutionError> {
+                Ok(Some(MutationProposal {
+                    delta: i64::MAX - 10,
+                    action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
+                }))
+            }
+        }
+        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 1000, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            &engine,
+            config,
+            SaturatingMutation,
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        opt.run(None, crate::NoOpCallback).unwrap();
+    }
+}
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+pub(crate) mod annealing;
+pub(crate) mod state;
+pub(crate) mod strategies;
+pub(crate) mod traits;
+
+pub(crate) use annealing::{AnnealingConfig, Optimizer};
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use keyforge_model::Layout;
+use super::traits::MutationAction;
+
+#[derive(Debug, Clone)]
+pub struct SearchState {
+    current_layout: Layout,
+    pub current_score: i64,
+    pos_map: Vec<u16>, 
+
+    best_layout: Layout,
+    pub best_score: i64,
+
+    pub temperature: f32,
+}
+
+impl SearchState {
+    pub fn new(layout: Layout, score: i64, start_temp: f32) -> Self {
+        // INVARIANT: Key count must fit in u16 to use 65535 as sentinel
+        assert!(layout.keys.len() < 65535, "Key count exceeds u16 limit");
+
+        // Initialize for full u16 range
+        let mut pos_map = vec![65535u16; 65536];
+        for (i, &code) in layout.keys.iter().enumerate() {
+            pos_map[code.0 as usize] = i as u16;
+        }
+
+        Self {
+            current_layout: layout.clone(),
+            current_score: score,
+            pos_map,
+            best_layout: layout,
+            best_score: score,
+            temperature: start_temp,
+        }
+    }
+
+    pub fn layout(&self) -> &Layout {
+        &self.current_layout
+    }
+
+    pub fn pos_map(&self) -> &[u16] {
+        &self.pos_map
+    }
+
+    pub fn best_layout(&self) -> &Layout {
+        &self.best_layout
+    }
+
+    pub fn update_best(&mut self) {
+        self.best_score = self.current_score;
+        self.best_layout = self.current_layout.clone();
+    }
+
+    pub fn apply_mutation(&mut self, action: MutationAction) {
+        match action {
+            MutationAction::Swap(a, b) => {
+                let idx_a = usize::from(a);
+                let idx_b = usize::from(b);
+                self.current_layout.keys.swap(idx_a, idx_b);
+                let code_a = self.current_layout.keys[idx_a];
+                let code_b = self.current_layout.keys[idx_b];
+                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0; }
+                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0; }
+            }
+            MutationAction::GroupSwap(a, b, c) => {
+                let idx_a = usize::from(a);
+                let idx_b = usize::from(b);
+                let idx_c = usize::from(c);
+                
+                // A -> B, B -> C, C -> A
+                let temp = self.current_layout.keys[idx_c];
+                self.current_layout.keys[idx_c] = self.current_layout.keys[idx_b];
+                self.current_layout.keys[idx_b] = self.current_layout.keys[idx_a];
+                self.current_layout.keys[idx_a] = temp;
+
+                let code_a = self.current_layout.keys[idx_a];
+                let code_b = self.current_layout.keys[idx_b];
+                let code_c = self.current_layout.keys[idx_c];
+
+                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0; }
+                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0; }
+                if (code_c.0 as usize) < self.pos_map.len() { self.pos_map[code_c.0 as usize] = c.0; }
+            }
+        }
+    }
+
+    pub fn reheat_from_best(&mut self, start_temp: f32, reheat_factor: f32) {
+        self.temperature = start_temp * reheat_factor;
+        self.current_layout = self.best_layout.clone();
+        self.current_score = self.best_score;
+
+        // Rebuild pos_map for best layout
+        self.pos_map.fill(65535);
+        for (i, &code) in self.current_layout.keys.iter().enumerate() {
+            if (code.0 as usize) < self.pos_map.len() {
+                self.pos_map[code.0 as usize] = i as u16;
+            }
+        }
+    }
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use super::traits::{AcceptanceCriteria, MutationAction, MutationOperator, MutationProposal};
+use keyforge_model::Layout;
+use keyforge_physics::ScoringEngine;
+use keyforge_model::constants::SCORE_SCALE;
+use rand::Rng;
+use rand::seq::index::sample;
+
+#[allow(dead_code)]
+pub struct SwapMutation {
+    pub unlocked_indices: Vec<usize>,
+}
+
+impl MutationOperator for SwapMutation {
+    fn propose(
+        &self,
+        engine: &ScoringEngine,
+        layout: &Layout,
+        pos_map: &[u16],
+        rng: &mut impl Rng,
+    ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError> {
+        let len = self.unlocked_indices.len();
+        if len < 2 {
+            return Ok(None);
+        }
+
+        let i = rng.random_range(0..len);
+        let mut j = rng.random_range(0..len);
+
+        if i == j {
+            j = (j + 1) % len;
+        }
+
+        let idx_a = self.unlocked_indices[i];
+        let idx_b = self.unlocked_indices[j];
+
+        let delta = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
+
+        Ok(Some(MutationProposal {
+            delta,
+            action: MutationAction::Swap(idx_a.into(), idx_b.into()),
+        }))
+    }
+}
+
+pub struct GroupMutation {
+    pub unlocked_indices: Vec<usize>,
+}
+
+impl MutationOperator for GroupMutation {
+    fn propose(
+        &self,
+        engine: &ScoringEngine,
+        layout: &Layout,
+        pos_map: &[u16],
+        rng: &mut impl Rng,
+    ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError> {
+        let len = self.unlocked_indices.len();
+        if len < 2 {
+            return Ok(None);
+        }
+
+        // Adaptive Strategy:
+        // If < 3 keys, must use 2-way swap.
+        // If >= 3 keys, 50% chance of 2-way, 50% chance of 3-way.
+        let use_swap = len < 3 || rng.random_bool(0.5);
+        let sample_size = if use_swap { 2 } else { 3 };
+
+        let indices = sample(rng, len, sample_size);
+        let idx_a = self.unlocked_indices[indices.index(0)];
+        let idx_b = self.unlocked_indices[indices.index(1)];
+
+        if use_swap {
+            let delta = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
+
+            return Ok(Some(MutationProposal {
+                delta,
+                action: MutationAction::Swap(idx_a.into(), idx_b.into()),
+            }));
+        }
+
+        // 3-Way Swap
+        let idx_c = self.unlocked_indices[indices.index(2)];
+
+        // Decomposed Delta Calculation (O(N))
+        // 1. Swap A <-> B
+        let d1 = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
+
+        // 2. Simulate state after first swap
+        let mut temp_pos_map = pos_map.to_vec();
+        let code_a = layout.keys[idx_a];
+        let code_b = layout.keys[idx_b];
+        if (code_a.0 as usize) < temp_pos_map.len() { temp_pos_map[code_a.0 as usize] = idx_b as u16; }
+        if (code_b.0 as usize) < temp_pos_map.len() { temp_pos_map[code_b.0 as usize] = idx_a as u16; }
+
+        let mut temp_keys = layout.keys.clone();
+        temp_keys.swap(idx_a, idx_b);
+
+        // 3. Swap A (now at idx_b) <-> C (at idx_c) ?
+        let d2 = engine.calculate_swap_delta(&temp_keys, &temp_pos_map, idx_a, idx_c)?;
+
+        Ok(Some(MutationProposal {
+            delta: d1 + d2,
+            action: MutationAction::GroupSwap(idx_a.into(), idx_b.into(), idx_c.into()),
+        }))
+    }
+}
+
+pub struct CoolingAnnealing;
+
+impl AcceptanceCriteria for CoolingAnnealing {
+    fn should_accept(&mut self, delta: i64, temperature: f32, rng: &mut impl Rng) -> bool {
+        if delta <= 0 {
+            return true;
+        }
+
+        if temperature < 1e-6 {
+            return false;
+        }
+
+        // FIX: Use SCORE_SCALE instead of hardcoded 1,000,000.0
+        let delta_f = delta as f32 / SCORE_SCALE;
+        // INVARIANT: kani::assume(temperature > 0.0);
+        let probability = (-delta_f / temperature).exp();
+        rng.random::<f32>() < probability
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::supervisor::state::SearchState;
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
+    use keyforge_physics::ScoringEngine;
+    use proptest::prelude::*;
+    use rand::SeedableRng;
+    use rand_xoshiro::Xoshiro256PlusPlus;
+
+    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode};
+
+    fn setup_engine(size: usize) -> ScoringEngine {
+        let keys: Vec<_> = (0..size)
+            .map(|i| KeyNode {
+                index: i,
+                label: format!("k{}", i),
+                hand: HandIndex((i % 2) as u8),
+                finger: FingerIndex((i % 5) as u8),
+                row: RowIndex((i / 10) as i8),
+                col: ColIndex((i % 10) as i8),
+                x: (i % 10) as f32,
+                y: (i / 10) as f32,
+                is_home: false,
+                ..Default::default()
+            })
+            .collect();
+        let kb = Keyboard::new(keys, 1).unwrap();
+        let mut corpus = Corpus::default();
+        for i in 0..size {
+            corpus.char_freqs[i] = 100;
+            for j in 0..size {
+                if i != j {
+                    corpus.bigrams.push((i as u16, j as u16, 10));
+                }
+            }
+        }
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+    }
+
+    proptest! {
+        #[test]
+        fn test_group_mutation_delta_oracle(
+            seed in any::<u64>(),
+            layout_seed in any::<u64>()
+        ) {
+            let size = 10;
+            let engine = setup_engine(size);
+            let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode).collect();
+            let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
+            use rand::seq::SliceRandom;
+            keys.shuffle(&mut rng_layout);
+            let layout = Layout::new_unchecked(keys);
+            let mut state = SearchState::new(layout, 0, 1.0);
+            let score_before = engine.score_raw(&state.layout().keys).unwrap();
+            let mutation = GroupMutation { unlocked_indices: (0..size).collect() };
+            let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
+            if let Ok(Some(proposal)) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation) {
+                state.apply_mutation(proposal.action);
+                let score_after = engine.score_raw(&state.layout().keys).unwrap();
+                let actual_delta = score_after - score_before;
+                prop_assert_eq!(proposal.delta, actual_delta);
+            }
+        }
+    }
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use keyforge_model::{KeyIndex, Layout};
+use keyforge_physics::ScoringEngine;
+use rand::Rng;
+use std::time::{Duration, Instant};
+
+/// Abstracts time for deterministic testing (Functional Purity).
+pub trait TimeKeeper {
+    fn now(&self) -> Instant;
+    fn elapsed(&self, start: Instant) -> Duration;
+}
+
+/// Default implementation using system time.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RealTimeKeeper;
+
+impl TimeKeeper for RealTimeKeeper {
+    fn now(&self) -> Instant {
+        Instant::now()
+    }
+    
+    fn elapsed(&self, start: Instant) -> Duration {
+        start.elapsed()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum MutationAction {
+    Swap(KeyIndex, KeyIndex),
+    GroupSwap(KeyIndex, KeyIndex, KeyIndex),
+}
+
+/// A proposed change to a layout.
+pub struct MutationProposal {
+    pub delta: i64,
+    /// Enum describing the mutation to apply.
+    /// Replaces Box<dyn FnOnce> to avoid heap allocation.
+    pub action: MutationAction,
+}
+
+/// Defines how to generate a potential layout change.
+pub trait MutationOperator {
+    fn propose(
+        &self,
+        engine: &ScoringEngine,
+        layout: &Layout,
+        pos_map: &[u16],
+        rng: &mut impl Rng,
+    ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError>;
+}
+
+/// Defines the criteria for accepting a proposed mutation.
+pub trait AcceptanceCriteria {
+    fn should_accept(&mut self, delta: i64, temperature: f32, rng: &mut impl Rng) -> bool;
+}
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use crate::supervisor::AnnealingConfig;
+use crate::supervisor::strategies::{CoolingAnnealing, GroupMutation};
+use crate::supervisor::traits::{MutationAction, MutationOperator, MutationProposal};
+use crate::supervisor::Optimizer;
+use crate::{optimize_with_callback, ProgressCallback, EvolutionError};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode, KeyIndex};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+use keyforge_physics::{EngineRequest, ScoringEngine};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// --- Helper Functions ---
+fn setup_env_integrated() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>) {
+    let keys = vec![
+        KeyNode { index: 0, label: "k0".to_string(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), col: ColIndex(0), x: 0.0, y: 0.0, is_home: true, ..Default::default() },
+        KeyNode { index: 1, label: "k1".to_string(), hand: HandIndex(0), finger: FingerIndex(2), row: RowIndex(0), col: ColIndex(1), x: 1.0, y: 0.0, is_home: true, ..Default::default() },
+        KeyNode { index: 2, label: "k2".to_string(), hand: HandIndex(0), finger: FingerIndex(3), row: RowIndex(0), col: ColIndex(2), x: 2.0, y: 0.0, is_home: true, ..Default::default() },
+    ];
+    (Arc::new(Keyboard::new(keys, 0).unwrap()), Arc::new(Corpus::default()), Arc::new(Rubric::default()))
+}
+
+fn setup_test_engine(size: usize) -> ScoringEngine {
+    let keys: Vec<_> = (0..size)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex((i % 2) as u8),
+            finger: FingerIndex((i % 5) as u8),
+            row: RowIndex((i / 10) as i8),
+            col: ColIndex((i % 10) as i8),
+            x: (i % 10) as f32,
+            y: (i / 10) as f32,
+            is_home: false,
+            ..Default::default()
+        })
+        .collect();
+    let kb = Keyboard::new(keys, 1).unwrap();
+    let mut corpus = Corpus::default();
+    for i in 0..size {
+        corpus.char_freqs[i] = (i * 10) as u64; // FIX: Cast to u64
+        if i + 1 < size {
+            corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
+        }
+    }
+    ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+}
+
+// --- Supervisor Logic Tests ---
+
+#[test]
+fn test_monotonicity_zero_temp() {
+    let engine = setup_test_engine(30);
+    let mutation = GroupMutation { unlocked_indices: (0..30).collect() };
+    let acceptance = CoolingAnnealing;
+
+    struct ScoreCheckCallback {
+        last_score: std::sync::Mutex<f32>,
+        failed: AtomicBool,
+    }
+    impl ProgressCallback for ScoreCheckCallback {
+        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            let mut last = self.last_score.lock().unwrap();
+            if score > *last && *last != 0.0 && *last != f32::MAX {
+                self.failed.store(true, Ordering::SeqCst);
+            }
+            *last = score;
+            true
+        }
+    }
+
+    impl ProgressCallback for &ScoreCheckCallback {
+        fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool {
+            (**self).on_progress(epoch, score, layout, ips)
+        }
+    }
+
+    let callback = ScoreCheckCallback {
+        last_score: std::sync::Mutex::new(f32::MAX),
+        failed: AtomicBool::new(false),
+    };
+
+    let config = AnnealingConfig::new(1000, 0.0, 0.0, 42, 1000, 0, 1.0).unwrap();
+    let mut optimizer = Optimizer::new(
+        &engine,
+        config,
+        mutation,
+        acceptance,
+        crate::supervisor::traits::RealTimeKeeper,
+    );
+
+    optimizer.run(None, &callback).unwrap();
+    assert!(!callback.failed.load(Ordering::SeqCst), "Score increased during zero-temperature annealing!");
+}
+
+#[test]
+fn test_annealing_edge_cases() {
+    let engine = setup_test_engine(2);
+
+    // 1. Seed = 0 (Entropy)
+    let config_entropy = AnnealingConfig::new(10, 1.0, 0.1, 0, 10, 0, 1.0).unwrap();
+    let mut opt_entropy = Optimizer::new(
+        &engine,
+        config_entropy,
+        GroupMutation { unlocked_indices: vec![0, 1] },
+        CoolingAnnealing,
+        crate::supervisor::traits::RealTimeKeeper,
+    );
+    opt_entropy.run(None, crate::NoOpCallback).unwrap();
+
+    // 2. Steps = 0
+    assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
+
+    // 3. Fast cooling
+    let config_fast = AnnealingConfig::new(100, 1e-9, 1e-20, 42, 10, 0, 1.0).unwrap();
+    let mut opt_fast = Optimizer::new(
+        &engine,
+        config_fast,
+        GroupMutation { unlocked_indices: vec![0, 1] },
+        CoolingAnnealing,
+        crate::supervisor::traits::RealTimeKeeper,
+    );
+    opt_fast.run(None, crate::NoOpCallback).unwrap();
+}
+
+// --- Shadow Execution Tests ---
+
+struct OracleCallback {
+    keyboard: Arc<Keyboard>,
+    corpus: Arc<Corpus>,
+    rubric: Arc<Rubric>,
+}
+
+impl ProgressCallback for OracleCallback {
+    fn on_progress(&self, step: usize, score: f32, layout_keys: &[KeyCode], _ips: f32) -> bool {
+        let layout = Layout::new_unchecked(layout_keys.to_vec());
+        let reference_score = keyforge_physics::verify::DeterministicScorer::score(
+            &self.keyboard, 
+            &self.corpus, 
+            &self.rubric, 
+            &layout, 
+            &[]
+        );
+        let epsilon = 1e-4;
+        if (score - reference_score).abs() > epsilon {
+            panic!(
+                "Shadow Execution Failure at step {}: Fast Score ({}) != Reference Score ({})",
+                step, score, reference_score
+            );
+        }
+        true
+    }
+}
+
+fn create_mock_corpus() -> Corpus {
+    let mut char_freqs = vec![0; 65536];
+    char_freqs[0] = 100; char_freqs[1] = 100; char_freqs[2] = 50;
+    Corpus {
+        bigrams: vec![(0, 1, 100), (1, 2, 50), (2, 3, 25)],
+        trigrams: vec![], char_freqs, words: vec![],
+    }
+}
+
+fn create_mock_keyboard() -> Keyboard {
+    let keys = vec![
+        KeyNode { index: 0, x: 0.0, y: 0.0, row: RowIndex(0), col: ColIndex(0), hand: HandIndex(0), finger: FingerIndex(1), label: "0".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 1, x: 1.0, y: 0.0, row: RowIndex(0), col: ColIndex(1), hand: HandIndex(0), finger: FingerIndex(2), label: "1".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 2, x: 2.0, y: 0.0, row: RowIndex(0), col: ColIndex(2), hand: HandIndex(0), finger: FingerIndex(3), label: "2".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 3, x: 3.0, y: 0.0, row: RowIndex(0), col: ColIndex(3), hand: HandIndex(0), finger: FingerIndex(4), label: "3".to_string(), is_home: false, ..Default::default() },
+    ];
+    Keyboard::new(keys, 0).unwrap()
+}
+
+#[test]
+fn test_oracle_pattern_match() {
+    let keyboard = Arc::new(create_mock_keyboard());
+    let corpus = Arc::new(create_mock_corpus());
+    let rubric = Arc::new(Rubric::default());
+    
+    let config = SearchConfig::Annealing {
+        steps: 2000, start_temp: 10.0, end_temp: 0.1, seed: 42,
+        patience: 100, reheats: 0, reheat_factor: 1.0,
+    };
+
+    let req = EngineRequest {
+        keyboard: keyboard.clone(),
+        corpus: corpus.clone(),
+        rubric: rubric.clone(),
+        config,
+        initial_layout: None,
+        pinned_keys: vec![],
+        cost_overrides: vec![],
+    };
+
+    let callback = OracleCallback {
+        keyboard: keyboard.clone(),
+        corpus: corpus.clone(),
+        rubric: rubric.clone(),
+    };
+
+    // This should now unwrap safely
+    let result = optimize_with_callback(&req, callback).unwrap();
+
+    let final_reference = keyforge_physics::verify::DeterministicScorer::score(
+        &req.keyboard, &req.corpus, &req.rubric, &result.layout, &[]
+    );
+    
+    assert!((result.score - final_reference).abs() < 1e-4);
+}
+
+// --- Singularity & Error Tests ---
+
+#[test]
+fn test_singularity_zero_temp_execution() {
+    let keys: Vec<_> = (0..2)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex(0),
+            finger: FingerIndex(0),
+            row: RowIndex(0),
+            col: ColIndex(i as i8),
+            x: i as f32,
+            y: 0.0,
+            is_home: false,
+            ..Default::default()
+        })
+        .collect();
+    let kb = Keyboard::new(keys, 0).unwrap();
+    let engine = ScoringEngine::new(&kb, &Corpus::default(), &Rubric::default(), &[]).unwrap();
+    
+    let config = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 0, 1.0).unwrap();
+    let mut optimizer = Optimizer::new(
+        &engine,
+        config,
+        GroupMutation { unlocked_indices: vec![0, 1] },
+        CoolingAnnealing,
+        crate::supervisor::traits::RealTimeKeeper,
+    );
+
+    let result = optimizer.run(None, crate::NoOpCallback).unwrap();
+    assert_eq!(result.keys.len(), 2);
+}
+
+#[test]
+#[should_panic(expected = "Start temp must be > 0 to enable reheating")]
+fn test_singularity_reheat_validation() {
+    AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 1, 1.0).unwrap();
+}
+
+#[test]
+fn test_error_on_missing_pin() {
+    let keys = vec![
+        KeyNode { index: 0, label: "k0".into(), hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), x: 0.0, y: 0.0, is_home: false, ..Default::default() },
+        KeyNode { index: 1, label: "k1".into(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), col: ColIndex(1), x: 1.0, y: 0.0, is_home: false, ..Default::default() },
+    ];
+    let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
+    let corpus = Arc::new(Corpus::default());
+    let rubric = Arc::new(Rubric::default());
+    
+    let config = SearchConfig::Annealing {
+        steps: 10, start_temp: 1.0, end_temp: 0.1, seed: 42,
+        patience: 10, reheats: 0, reheat_factor: 1.0,
+    };
+
+    let pinned = vec![Some(KeyCode(99)), None];
+
+    let req = EngineRequest {
+        keyboard: kb, corpus, rubric, config,
+        initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
+    };
+
+    let result = crate::optimize(&req);
+    assert!(result.is_err());
+    match result {
+        Err(EvolutionError::Config(msg)) => assert!(msg.contains("Pinned key 99 not found")),
+        _ => panic!("Expected Config error"),
+    }
+}
+
+// --- Coverage & Edge Cases handled in one go ---
+
+struct StagnantMutation;
+impl MutationOperator for StagnantMutation {
+    fn propose(
+        &self,
+        _engine: &ScoringEngine,
+        _layout: &Layout,
+        _pos_map: &[u16],
+        _rng: &mut impl rand::Rng,
+    ) -> Result<Option<MutationProposal>, EvolutionError> {
+        Ok(Some(MutationProposal {
+            delta: 1000,
+            action: MutationAction::Swap(KeyIndex(0), KeyIndex(1)),
+        }))
+    }
+}
+
+#[test]
+fn test_reheat_exhaustion() {
+    let (kb, cp, rb) = setup_env_integrated();
+    let engine = ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap();
+    let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 2, 2, 2.0).unwrap();
+    let mut optimizer = Optimizer::new(
+        &engine, config, StagnantMutation, CoolingAnnealing, crate::supervisor::traits::RealTimeKeeper,
+    );
+    optimizer.run(None, crate::NoOpCallback).unwrap();
+}
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_evolution::supervisor::{AnnealingConfig, Optimizer};
+use keyforge_evolution::supervisor::strategies::{CoolingAnnealing, GroupMutation};
+use keyforge_evolution::supervisor::traits::{MutationAction, MutationOperator, MutationProposal};
+use keyforge_evolution::EvolutionError;
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, KeyIndex};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+use keyforge_physics::ScoringEngine;
+use std::sync::Arc;
+
+fn setup_test_engine(size: usize) -> ScoringEngine {
+    let keys: Vec<_> = (0..size)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex((i % 2) as u8),
+            finger: FingerIndex((i % 5) as u8),
+            row: RowIndex((i / 10) as i8),
+            col: ColIndex((i % 10) as i8),
+            x: (i % 10) as f32,
+            y: (i / 10) as f32,
+            is_home: false,
+            ..Default::default()
+        })
+        .collect();
+    let kb = Keyboard::new(keys, 1).unwrap();
+    let mut corpus = Corpus::default();
+    for i in 0..size {
+        corpus.char_freqs[i] = (i * 10) as u64;
+        if i + 1 < size {
+            corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
+        }
+    }
+    ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+}
+
+struct StagnantMutation;
+impl MutationOperator for StagnantMutation {
+    fn propose(
+        &self,
+        _engine: &ScoringEngine,
+        _layout: &Layout,
+        _pos_map: &[u16],
+        _rng: &mut impl rand::Rng,
+    ) -> Result<Option<MutationProposal>, EvolutionError> {
+        Ok(Some(MutationProposal {
+            delta: 1000,
+            action: MutationAction::Swap(KeyIndex(0), KeyIndex(1)),
+        }))
+    }
+}
+
+#[test]
+fn test_force_reheat_logic() {
+    let engine = setup_test_engine(2);
+    let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 5, 2, 2.0).unwrap();
+    let mut optimizer = Optimizer::new(
+        &engine,
+        config,
+        StagnantMutation,
+        CoolingAnnealing,
+        keyforge_evolution::supervisor::traits::RealTimeKeeper,
+    );
+    optimizer.run(None, keyforge_evolution::NoOpCallback).unwrap();
+}
+
+#[test]
+fn test_singularity_zero_temp_execution() {
+    let engine = setup_test_engine(2);
+    let config = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 0, 1.0).unwrap();
+    let mut optimizer = Optimizer::new(
+        &engine,
+        config,
+        GroupMutation { unlocked_indices: vec![0, 1] },
+        CoolingAnnealing,
+        keyforge_evolution::supervisor::traits::RealTimeKeeper,
+    );
+    let result = optimizer.run(None, keyforge_evolution::NoOpCallback).unwrap();
+    assert_eq!(result.keys.len(), 2);
+}
+
+#[test]
+#[should_panic(expected = "Start temp must be > 0 to enable reheating")]
+fn test_singularity_reheat_validation() {
+    AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 1, 1.0).unwrap();
+}
+
+#[test]
+fn test_annealing_edge_cases() {
+    let engine = setup_test_engine(2);
+    // 1. Seed = 0 (Entropy)
+    let config_entropy = AnnealingConfig::new(10, 1.0, 0.1, 0, 10, 0, 1.0).unwrap();
+    let mut opt_entropy = Optimizer::new(
+        &engine,
+        config_entropy,
+        GroupMutation { unlocked_indices: vec![0, 1] },
+        CoolingAnnealing,
+        keyforge_evolution::supervisor::traits::RealTimeKeeper,
+    );
+    opt_entropy.run(None, keyforge_evolution::NoOpCallback).unwrap();
+
+    // 2. Steps = 0
+    assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
+
+    // 3. Fast cooling
+    let config_fast = AnnealingConfig::new(100, 1e-9, 1e-20, 42, 10, 0, 1.0).unwrap();
+    let mut opt_fast = Optimizer::new(
+        &engine,
+        config_fast,
+        GroupMutation { unlocked_indices: vec![0, 1] },
+        CoolingAnnealing,
+        keyforge_evolution::supervisor::traits::RealTimeKeeper,
+    );
+    opt_fast.run(None, keyforge_evolution::NoOpCallback).unwrap();
+}
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_evolution::{optimize_with_callback, ProgressCallback};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+use keyforge_physics::EngineRequest;
+use std::sync::Arc;
+
+struct OracleCallback {
+    keyboard: Arc<Keyboard>,
+    corpus: Arc<Corpus>,
+    rubric: Arc<Rubric>,
+}
+
+impl ProgressCallback for OracleCallback {
+    fn on_progress(&self, step: usize, score: f32, layout_keys: &[KeyCode], _ips: f32) -> bool {
+        let layout = Layout::new_unchecked(layout_keys.to_vec());
+        let reference_score = keyforge_physics::verify::DeterministicScorer::score(
+            &self.keyboard, 
+            &self.corpus, 
+            &self.rubric, 
+            &layout, 
+            &[]
+        );
+        let epsilon = 1e-4;
+        if (score - reference_score).abs() > epsilon {
+            panic!(
+                "Shadow Execution Failure at step {}: Fast Score ({}) != Reference Score ({})",
+                step, score, reference_score
+            );
+        }
+        true
+    }
+}
+
+fn create_mock_corpus() -> Corpus {
+    let mut char_freqs = vec![0; 65536];
+    char_freqs[0] = 100; char_freqs[1] = 100; char_freqs[2] = 50;
+    Corpus {
+        bigrams: vec![(0, 1, 100), (1, 2, 50), (2, 3, 25)],
+        trigrams: vec![], char_freqs, words: vec![],
+    }
+}
+
+fn create_mock_keyboard() -> Keyboard {
+    let keys = vec![
+        KeyNode { index: 0, x: 0.0, y: 0.0, row: RowIndex(0), col: ColIndex(0), hand: HandIndex(0), finger: FingerIndex(1), label: "0".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 1, x: 1.0, y: 0.0, row: RowIndex(0), col: ColIndex(1), hand: HandIndex(0), finger: FingerIndex(2), label: "1".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 2, x: 2.0, y: 0.0, row: RowIndex(0), col: ColIndex(2), hand: HandIndex(0), finger: FingerIndex(3), label: "2".to_string(), is_home: false, ..Default::default() },
+        KeyNode { index: 3, x: 3.0, y: 0.0, row: RowIndex(0), col: ColIndex(3), hand: HandIndex(0), finger: FingerIndex(4), label: "3".to_string(), is_home: false, ..Default::default() },
+    ];
+    Keyboard::new(keys, 0).unwrap()
+}
+
+#[test]
+fn test_oracle_pattern_match() {
+    let keyboard = Arc::new(create_mock_keyboard());
+    let corpus = Arc::new(create_mock_corpus());
+    let rubric = Arc::new(Rubric::default());
+    
+    let config = SearchConfig::Annealing {
+        steps: 2000, start_temp: 10.0, end_temp: 0.1, seed: 42,
+        patience: 100, reheats: 0, reheat_factor: 1.0,
+    };
+
+    let req = EngineRequest {
+        keyboard: keyboard.clone(),
+        corpus: corpus.clone(),
+        rubric: rubric.clone(),
+        config,
+        initial_layout: None,
+        pinned_keys: vec![],
+        cost_overrides: vec![],
+    };
+
+    let callback = OracleCallback {
+        keyboard: keyboard.clone(),
+        corpus: corpus.clone(),
+        rubric: rubric.clone(),
+    };
+
+    let result = optimize_with_callback(&req, callback).unwrap();
+
+    let final_reference = keyforge_physics::verify::DeterministicScorer::score(
+        &req.keyboard, &req.corpus, &req.rubric, &result.layout, &[]
+    );
+    
+    assert!((result.score - final_reference).abs() < 1e-4);
+}
+// ===== libs/keyforge-evolution/tests/mutation_integrity.proptest-regressions =====
+
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_evolution::supervisor::strategies::GroupMutation;
+use keyforge_evolution::supervisor::traits::MutationOperator;
+use keyforge_evolution::supervisor::state::SearchState;
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, KeyCode};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+use keyforge_physics::ScoringEngine;
+use proptest::prelude::*;
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro256PlusPlus;
+
+fn setup_engine(size: usize) -> ScoringEngine {
+    let keys: Vec<_> = (0..size)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex((i % 2) as u8),
+            finger: FingerIndex((i % 5) as u8),
+            row: RowIndex((i / 10) as i8),
+            col: ColIndex((i % 10) as i8),
+            x: (i % 10) as f32,
+            y: (i / 10) as f32,
+            is_home: false,
+            ..Default::default()
+        })
+        .collect();
+    let kb = Keyboard::new(keys, 1).unwrap();
+    let mut corpus = Corpus::default();
+    for i in 0..size {
+        corpus.char_freqs[i] = 100;
+        for j in 0..size {
+            if i != j {
+                corpus.bigrams.push((i as u16, j as u16, 10));
+            }
+        }
+    }
+    ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+}
+
+proptest! {
+    #[test]
+    fn test_group_mutation_delta_oracle(
+        seed in any::<u64>(),
+        layout_seed in any::<u64>()
+    ) {
+        let size = 10;
+        let engine = setup_engine(size);
+        let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode).collect();
+        let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
+        use rand::seq::SliceRandom;
+        keys.shuffle(&mut rng_layout);
+        let layout = Layout::new_unchecked(keys);
+        let mut state = SearchState::new(layout, 0, 1.0);
+        let score_before = engine.score_raw(&state.layout().keys).unwrap();
+        let mutation = GroupMutation { unlocked_indices: (0..size).collect() };
+        let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
+        if let Ok(Some(proposal)) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation) {
+            state.apply_mutation(proposal.action);
+            let score_after = engine.score_raw(&state.layout().keys).unwrap();
+            let actual_delta = score_after - score_before;
+            prop_assert_eq!(proposal.delta, actual_delta);
+        }
+    }
+}
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use keyforge_evolution::supervisor::{AnnealingConfig, Optimizer};
+use keyforge_evolution::supervisor::strategies::{CoolingAnnealing, GroupMutation};
+use keyforge_evolution::ProgressCallback;
+use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, KeyCode};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+use keyforge_physics::ScoringEngine;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
+
+fn setup_test_engine(size: usize) -> ScoringEngine {
+    let keys: Vec<_> = (0..size)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex((i % 2) as u8),
+            finger: FingerIndex((i % 5) as u8),
+            row: RowIndex((i / 10) as i8),
+            col: ColIndex((i % 10) as i8),
+            x: (i % 10) as f32,
+            y: (i / 10) as f32,
+            is_home: false,
+            ..Default::default()
+        })
+        .collect();
+    let kb = Keyboard::new(keys, 1).unwrap();
+    let mut corpus = Corpus::default();
+    for i in 0..size {
+        corpus.char_freqs[i] = (i * 10) as u64;
+    }
+    ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+}
+
+#[test]
+fn test_monotonicity_zero_temp() {
+    let engine = setup_test_engine(30);
+    let mutation = GroupMutation { unlocked_indices: (0..30).collect() };
+    let acceptance = CoolingAnnealing;
+
+    struct ScoreCheckCallback {
+        last_score: std::sync::Mutex<f32>,
+        failed: AtomicBool,
+    }
+    impl ProgressCallback for ScoreCheckCallback {
+        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            let mut last = self.last_score.lock().unwrap();
+            if score > *last && *last != 0.0 && *last != f32::MAX {
+                self.failed.store(true, Ordering::SeqCst);
+            }
+            *last = score;
+            true
+        }
+    }
+
+    let callback = ScoreCheckCallback {
+        last_score: std::sync::Mutex::new(f32::MAX),
+        failed: AtomicBool::new(false),
+    };
+
+    let config = AnnealingConfig::new(1000, 0.0, 0.0, 42, 1000, 0, 1.0).unwrap();
+    let mut optimizer = Optimizer::new(
+        &engine,
+        config,
+        mutation,
+        acceptance,
+        keyforge_evolution::supervisor::traits::RealTimeKeeper,
+    );
+
+    optimizer.run(None, &callback).unwrap();
+    assert!(!callback.failed.load(Ordering::SeqCst), "Score increased during zero-temperature annealing!");
+}
+
+#[test]
+fn test_progress_reporting_loop() {
+    let engine = setup_test_engine(2);
+    let mutation = GroupMutation { unlocked_indices: vec![0, 1] };
+    let acceptance = CoolingAnnealing;
+    let calls = Arc::new(AtomicUsize::new(0));
+    struct ReportingCallback(Arc<AtomicUsize>);
+    impl ProgressCallback for ReportingCallback {
+        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            true
+        }
+    }
+    let config = AnnealingConfig::new(2100, 1.0, 0.1, 42, 2100, 0, 1.0).unwrap();
+    let mut opt = Optimizer::new(
+        &engine,
+        config,
+        mutation,
+        acceptance,
+        keyforge_evolution::supervisor::traits::RealTimeKeeper,
+    );
+    opt.run(None, ReportingCallback(calls.clone())).unwrap();
+    assert!(calls.load(Ordering::SeqCst) >= 2, "Progress callback not hit enough times!");
+}
+
+#[test]
+fn test_optimizer_callback_break() {
+    let engine = setup_test_engine(2);
+    let mutation = GroupMutation { unlocked_indices: vec![0, 1] };
+    let acceptance = CoolingAnnealing;
+    struct BreakCallback;
+    impl ProgressCallback for BreakCallback {
+        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            false
+        }
+    }
+    let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 2000, 0, 1.0).unwrap();
+    let mut opt = Optimizer::new(
+        &engine,
+        config,
+        mutation,
+        acceptance,
+        keyforge_evolution::supervisor::traits::RealTimeKeeper,
+    );
+    let best = opt.run(None, BreakCallback).unwrap();
+    assert_eq!(best.keys.len(), 2);
+}

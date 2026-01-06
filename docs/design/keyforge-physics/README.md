@@ -26,3 +26,101 @@ sequenceDiagram
     
     Compiler->>Engine: new(Context)
     Engine-->>User: ScoringEngine
+```
+
+## 2. The Oracle Pattern (Verification)
+
+To ensure the optimized engine remains mathematically sound despite aggressive optimizations (flattened lookups, bit-shifting, and integer scaling), we employ a "Shadow Execution" strategy. Every property test compares the high-performance engine against the `DeterministicScorer`.
+
+### Oracle Parity Sequence
+
+```mermaid
+sequenceDiagram
+    participant T as Test Runner (Proptest)
+    participant C as Compiler
+    participant E as ScoringEngine (Optimized)
+    participant O as DeterministicScorer (Oracle)
+
+    Note over T: Generate Random Inputs<br/>(Keyboard, Corpus, Rubric, Layout)
+
+    T->>C: compile(kb, cp, rb)
+    C->>E: new(EngineContext)
+    
+    par Optimized Path
+        T->>E: score(Layout)
+        E->>E: Fixed-Point Accumulation<br/>(O(1) Lookup Tables)
+        E-->>T: Result A (i64)
+    and Naive Path (Oracle)
+        T->>O: score(kb, cp, rb, Layout)
+        O->>O: Naive Iteration<br/>(Direct Entity Access)
+        O-->>T: Result B (i64)
+    end
+
+    T->>T: Assert Result A == Result B
+    Note over T: Bit-for-bit parity check
+```
+
+## 3. Detailed Scoring Logic (Optimal Choice)
+
+The engine assumes the user is an "Optimal Typist." If a character exists on multiple physical keys, the engine dynamically selects the key (or combination of keys) that results in the lowest possible cost for that specific monogram, bigram, or trigram.
+
+### Dynamic Search Sequence
+
+```mermaid
+sequenceDiagram
+    participant S as score_layout
+    participant PM as PosMap (Internal)
+    participant CTX as EngineContext
+
+    S->>PM: new(layout)
+    Note right of PM: Maps KeyCode -> List of physical indices
+    PM-->>S: pm
+
+    Note over S: 1. Monogram Scoring
+    loop For each char in char_freqs
+        S->>PM: get(char)
+        PM-->>S: candidates [p1, p2, ...]
+        loop For each p in candidates
+            S->>CTX: key_costs[p]
+            S->>S: min_cost = min(cost, min_cost)
+        end
+        S->>S: total += min_cost * freq
+    end
+
+    Note over S: 2. Bigram Scoring
+    loop For each (c1, c2) in bigrams
+        S->>PM: get(c1)
+        PM-->>S: candidates1 [p1a, p1b, ...]
+        S->>PM: get(c2)
+        PM-->>S: candidates2 [p2a, p2b, ...]
+        loop For each p1 in candidates1
+            loop For each p2 in candidates2
+                S->>CTX: cost_matrix[p1, p2]
+                S->>S: min_cost = min(cost, min_cost)
+            end
+        end
+        S->>S: total += min_cost * freq
+    end
+
+    Note over S: 3. Trigram Scoring
+    loop For each (c1, c2, c3) in trigrams
+        S->>PM: get(c1), get(c2), get(c3)
+        PM-->>S: candidates1, candidates2, candidates3
+        loop For each p1 in candidates1
+            loop For each p2 in candidates2
+                loop For each p3 in candidates3
+                    S->>S: calculate_flow_cost(p1, p2, p3)
+                    S->>S: min_cost = min(cost, min_cost)
+                end
+            end
+        end
+        S->>S: total += min_cost * freq
+    end
+```
+
+## 4. Key Components
+
+* **Compiler:** Transforms domain entities into `EngineContext`. It handles the heavy lifting of spatial math and corpus pruning so the scoring loop remains tight.
+* **Compute Kernel:** The hot-path logic for monogram, bigram, and trigram scoring.
+* **Heuristics:** Provides fast swap suggestions by calculating score deltas rather than full re-scores.
+* **Fingerprinter:** Uses Hamming distance to identify known layout standards (Qwerty, Dvorak, etc.).

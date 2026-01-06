@@ -1,8 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc d6e25dafdf63212b5231e6816428d769f09d99551e5b8e77006aef777dbe832f # shrinks to mut layout = Layout { keys: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, a = 0, b = 0
-cc 4221d27304946211170a58225e8b31ecd6e3eb6704dd721a61e09091a45ceb6a # shrinks to mut layout = Layout { keys: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, a = 0, b = 0, c = 0

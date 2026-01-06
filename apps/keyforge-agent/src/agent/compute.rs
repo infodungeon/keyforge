@@ -1,3 +1,16 @@
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 use keyforge_infra::AssetManager;
 use anyhow::{Context, Result};
 use keyforge_adapter::conversion;
@@ -10,7 +23,7 @@ use keyforge_model::Validator;
 use std::future::Future;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::info;
@@ -47,7 +60,6 @@ pub async fn prepare_assets<S: AssetSyncer>(
 pub struct PreparedJob {
     pub req: EngineRequest,
     pub registry: keyforge_model::keycodes::KeycodeRegistry,
-    // Kept for deterministic recalculation and reporting
     pub keyboard: std::sync::Arc<keyforge_model::Keyboard>,
     pub corpus: std::sync::Arc<keyforge_model::Corpus>,
     pub rubric: std::sync::Arc<keyforge_model::Rubric>,
@@ -61,33 +73,19 @@ pub async fn create_engine_request(
     cost_filename: &str,
     _corpus_root: &str,
 ) -> Result<PreparedJob> {
-    config
-        .weights
-        .validate()
-        .map_err(|e| anyhow::anyhow!("invalid weights: {}", e))?;
-    config
-        .params
-        .validate()
-        .map_err(|e| anyhow::anyhow!("invalid params: {}", e))?;
-    config
-        .definition
-        .geometry
-        .validate()
-        .map_err(|e| anyhow::anyhow!("invalid geometry: {}", e))?;
+    config.weights.validate().map_err(|e| anyhow::anyhow!("invalid weights: {}", e))?;
+    config.params.validate().map_err(|e| anyhow::anyhow!("invalid params: {}", e))?;
+    config.definition.geometry.validate().map_err(|e| anyhow::anyhow!("invalid geometry: {}", e))?;
 
     let user_data = UserRepo::new(data_root.clone());
     let kb_name = &config.definition.meta.name;
     let safe_kb_name = keyforge_infra::sanitize_filename(kb_name);
 
-    // FIX: Convert to Model Definition for saving (UserRepo expects Model)
     let model_def: keyforge_model::geometry::KeyboardDefinition = 
         serde_json::from_value(serde_json::to_value(&config.definition)?)?;
 
-    user_data
-        .save_keyboard_definition(&safe_kb_name, &model_def)
-        .context("failed to save keyboard definition")?;
+    user_data.save_keyboard_definition(&safe_kb_name, &model_def).context("failed to save keyboard definition")?;
 
-    // Diversity Pick: Randomly select a parent layout if available
     let start_layout = if !config.parents.is_empty() {
         let mut rng = rand::thread_rng();
         config.parents.choose(&mut rng).cloned()
@@ -95,76 +93,38 @@ pub async fn create_engine_request(
         None
     };
 
-    // Load all assets needed to build an engine request
-    let definition = loader
-        .load_keyboard(&safe_kb_name)
-        .await
-        .context("failed to load keyboard definition")?;
+    let definition = loader.load_keyboard(&safe_kb_name).await.context("failed to load keyboard definition")?;
 
     let domain_corpora: Vec<keyforge_model::config::CorpusSource> = config.corpora
         .iter()
         .map(conversion::to_domain_corpus_source)
         .collect();
 
-    let corpus = loader
-        .load_corpus(&domain_corpora)
-        .await
-        .context("failed to load corpus")?;
+    let corpus = loader.load_corpus(&domain_corpora).await.context("failed to load corpus")?;
+    let raw_cost = loader.load_cost_matrix(cost_filename).await.context("failed to load cost matrix")?;
+    let registry = loader.load_keycodes("keycodes.json").await.unwrap_or_else(|_| keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
 
-    let raw_cost = loader
-        .load_cost_matrix(cost_filename)
-        .await
-        .context("failed to load cost matrix")?;
-
-    let registry = loader
-        .load_keycodes("keycodes.json")
-        .await
-        .unwrap_or_else(|_| keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
-
-    // definition is Model (from loader), so access fields directly to build graph
-    let keyboard = keyforge_model::Keyboard::new(
-        definition.geometry.keys.clone(), 
-        definition.geometry.home_row
-    ).map_err(|e| anyhow::anyhow!("Invalid keyboard definition: {}", e))?;
+    let keyboard = keyforge_model::Keyboard::new(definition.geometry.keys.clone(), definition.geometry.home_row)
+        .map_err(|e| anyhow::anyhow!("Invalid keyboard definition: {}", e))?;
     
     let rubric = conversion::to_domain_rubric(&config.weights);
     let cost_overrides = raw_cost.resolve(&definition.geometry);
-
-    let pinned_keys =
-        conversion::resolve_constraints(&config.pinned_keys, keyboard.keys.len(), &registry)
-            .map_err(|e| anyhow::anyhow!(e))?;
-
+    let pinned_keys = conversion::resolve_constraints(&config.pinned_keys, keyboard.keys.len(), &registry).map_err(|e| anyhow::anyhow!(e))?;
     let search_config = conversion::to_domain_config(&config.params, 42);
 
     let initial_layout = match start_layout {
-        Some(layout_str) => Some(
-            conversion::parse_layout_string(&layout_str, keyboard.keys.len(), &registry)
-                .map_err(|e| anyhow::anyhow!(e))?,
-        ),
-        None => {
-            // Try to load default layout from definition
-            if let Some(default_str) = definition.layouts.get("default") {
-                Some(conversion::parse_layout_string(default_str, keyboard.keys.len(), &registry)
-                    .map_err(|e| anyhow::anyhow!(e))?)
-            } else {
-                None
-            }
-        }
+        Some(layout_str) => Some(conversion::parse_layout_string(&layout_str, keyboard.keys.len(), &registry).map_err(|e| anyhow::anyhow!(e))?),
+        None => definition.layouts.get("default").map(|default_str| conversion::parse_layout_string(default_str, keyboard.keys.len(), &registry).map_err(|e| anyhow::anyhow!(e))).transpose()?,
     };
 
-    // Validate Pinned Keys against Layout
     if let Some(layout) = &initial_layout {
-        for pin in pinned_keys.iter() {
-            if let Some(code) = pin {
-                if !layout.keys.contains(code) {
-                     let label = registry.get_label(*code);
-                     return Err(anyhow::anyhow!("Pinned key '{}' (code {}) not found in initial layout", label, code.0));
-                }
+        for pin in pinned_keys.iter().flatten() {
+            if !layout.keys.contains(pin) {
+                 return Err(anyhow::anyhow!("Pinned key '{}' not found in initial layout", registry.get_label(*pin)));
             }
         }
     } else if pinned_keys.iter().any(|p| p.is_some()) {
-         // No layout, but pins exist.
-         return Err(anyhow::anyhow!("Pinned keys provided but no initial layout found. Please provide a parent layout or a 'default' layout in the keyboard definition."));
+         return Err(anyhow::anyhow!("Pinned keys provided but no initial layout found."));
     }
 
     let keyboard = std::sync::Arc::new(keyboard);
@@ -179,17 +139,9 @@ pub async fn create_engine_request(
         initial_layout,
         pinned_keys,
         cost_overrides: cost_overrides.clone(),
-        space_preference: keyforge_model::types::SpaceHandPreference::default(),
     };
 
-    Ok(PreparedJob {
-        req,
-        registry,
-        keyboard,
-        corpus,
-        rubric,
-        cost_overrides,
-    })
+    Ok(PreparedJob { req, registry, keyboard, corpus, rubric, cost_overrides })
 }
 
 pub async fn run_optimization(
@@ -198,11 +150,7 @@ pub async fn run_optimization(
     stop_flag: Arc<AtomicBool>,
     limiter: Arc<Semaphore>,
 ) -> Result<OptimizationResult> {
-    // P1 FIX: Acquire permit before spawning heavy blocking task
-    let _permit = limiter
-        .acquire()
-        .await
-        .map_err(|_| anyhow::anyhow!("Semaphore closed"))?;
+    let _permit = limiter.acquire().await.map_err(|_| anyhow::anyhow!("Semaphore closed"))?;
 
     info!(job_id = %job_id, "starting optimization loop");
 
@@ -212,30 +160,37 @@ pub async fn run_optimization(
     };
 
     let timeout = tokio::time::Duration::from_secs(3600);
+    let job_id_inner = job_id.clone();
 
     let handle = tokio::task::spawn_blocking(move || {
+        info!(job_id = %job_id_inner, "task: starting blocking optimization");
         let result = catch_unwind(AssertUnwindSafe(|| {
             keyforge_core::optimize_with_callback(&req, logger)
         }));
-
-        match result {
-            Ok(opt_res_res) => opt_res_res.map_err(|e| anyhow::anyhow!(e)),
-            Err(err) => {
-                let msg = if let Some(s) = err.downcast_ref::<&str>() {
-                    format!("panic: {}", s)
-                } else if let Some(s) = err.downcast_ref::<String>() {
-                    format!("panic: {}", s)
-                } else {
-                    "unknown panic".to_string()
-                };
-                Err(anyhow::anyhow!(msg))
-            }
-        }
+        
+        info!(
+            job_id = %job_id_inner, 
+            is_panic = result.is_err(), 
+            "task: blocking optimization returned"
+        );
+        result
     });
 
-    match tokio::time::timeout(timeout, handle).await {
+    let result = match tokio::time::timeout(timeout, handle).await {
         Ok(spawn_res) => match spawn_res {
-            Ok(optimization_res) => Ok(optimization_res?),
+            Ok(panic_res) => match panic_res {
+                Ok(core_res) => core_res.map_err(|e| anyhow::anyhow!(e.to_string())),
+                Err(panic_payload) => {
+                    let msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                        format!("panic: {}", s)
+                    } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                        format!("panic: {}", s)
+                    } else {
+                        "unknown panic".to_string()
+                    };
+                    Err(anyhow::anyhow!(msg))
+                }
+            },
             Err(join_err) => {
                 if join_err.is_panic() {
                     Err(anyhow::anyhow!("optimization task panicked (join error)"))
@@ -245,8 +200,21 @@ pub async fn run_optimization(
             }
         },
         Err(_) => {
-            stop_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+            stop_flag.store(true, Ordering::SeqCst);
             Err(anyhow::anyhow!("optimization timed out after 1 hour"))
         }
+    };
+
+    let final_stop = stop_flag.load(Ordering::SeqCst);
+    info!(
+        job_id = %job_id, 
+        stopped = final_stop, 
+        "run_optimization: final stop_flag check"
+    );
+
+    if final_stop {
+        return Err(anyhow::anyhow!("optimization cancelled"));
     }
+
+    result
 }

@@ -19,7 +19,9 @@ keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-core = { path = "../../libs/keyforge-core" }
 keyforge-compute = { path = "../../libs/keyforge-compute" }
 
-keyforge-persistence = { path = "../../libs/keyforge-persistence", features = ["server"] }
+keyforge-persistence = { path = "../../libs/keyforge-persistence", features = [
+    "server",
+] }
 async-trait = "0.1"
 
 # Web Framework
@@ -106,3 +108,5 @@ tempfile = "3.24.0"
 tokio = { version = "1.48.0", features = ["macros", "test-util"] }
 proptest = "1.9.0"
 tower = { version = "0.5.2", features = ["util"] }
+tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
+url = "2.5"

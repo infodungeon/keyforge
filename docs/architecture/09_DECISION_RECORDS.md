@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-**Version:** 4.2
+**Version:** 4.3
 **Context:** Log of significant architectural decisions.
 
 ## Index
@@ -12,6 +12,8 @@
 * [ADR-005: Feature Gating TypeScript Bindings](#adr-005-feature-gating-typescript-bindings)
 * [ADR-006: Universal Domain Validation](#adr-006-universal-domain-validation)
 * [ADR-007: Lowercase Alpha Normalization](#adr-007-lowercase-alpha-normalization)
+* [ADR-008: Synthetic Corpus Injection](#adr-008-synthetic-corpus-injection)
+* [ADR-009: Optimal Choice for Duplicate Keys](#adr-009-optimal-choice-for-duplicate-keys)
 
 ---
 
@@ -70,35 +72,44 @@
 
 * **Status:** Accepted
 * **Date:** 2025-12-31
-* **Context:** Domain entities were being deserialized at various boundaries (API, Disk, WASM) without consistent validation. Some entities relied on inherent methods, others on traits, and some had no validation at all, leading to potential "shotgun parsing" vulnerabilities.
-* **Decision:** Implement the `Validator` trait for **all** Domain Entities in `keyforge-model`. Enforce `.validate()` calls immediately after deserialization at **all** system boundaries (`keyforge-infra`, `keyforge-hive`, `keyforge-wasm`).
+* **Context:** Domain entities were being deserialized at various boundaries (API, Disk, WASM) without consistent validation.
+* **Decision:** Implement the `Validator` trait for **all** Domain Entities in `keyforge-model`. Enforce `.validate()` calls immediately after deserialization at **all** system boundaries.
 * **Consequences:**
   * (+) Guarantees invalid data is caught at the IO boundary before entering the domain.
-  * (+) Centralizes validation logic in the Model layer (Single Source of Truth).
-  * (+) Ensures consistency across different drivers (CLI vs Web vs Server).
+  * (+) Centralizes validation logic in the Model layer.
   * (-) Requires boilerplate `Validator` implementations for simple structs.
 
 ## ADR-007: Lowercase Alpha Normalization
 
 * **Status:** Accepted
 * **Date:** 2025-12-31
-* **Context:** Keyboards send keycodes (e.g., `KC_A`), but text corpora usually contain lowercase characters ('a'). Mixing case in the physics engine complicates frequency analysis and scoring.
-* **Decision:** Normalize all alphabetic keycodes to **lowercase** internally within the Domain Model (`KeycodeRegistry`, `Layout`, `Corpus`). Uppercase is treated purely as a **Presentation Layer** concern (UI rendering).
+* **Context:** Keyboards send keycodes (e.g., `KC_A`), but text corpora usually contain lowercase characters ('a').
+* **Decision:** Normalize all alphabetic keycodes to **lowercase** internally within the Domain Model. Uppercase is treated purely as a **Presentation Layer** concern.
 * **Consequences:**
-  * (+) Simplifies scoring logic (no need to check both 'A' and 'a').
+  * (+) Simplifies scoring logic.
   * (+) Consistent with standard text corpora.
   * (-) UI must explicitly uppercase keys for display if desired.
-  * (-) Parsers must normalize input (e.g., "A" -> `KeyCode(97)`).
 
 ## ADR-008: Synthetic Corpus Injection
 
 * **Status:** Accepted
 * **Date:** 2026-01-02
-* **Context:** Standard text corpora (e.g., books, articles) lack explicit `Enter` and `Backspace` events. Optimization engines trained solely on this data tend to place these critical keys in suboptimal positions (e.g., far corners), ignoring the reality of error correction and line breaking.
-* **Decision:** Inject synthetic frequency data for `Enter` and `Backspace` into `_std` (Standard Prose) corpora at load time.
-* **Backspace:** Calculated as `TotalChars * 0.03 (Error Rate) * 1.25 (Correction Factor)`. Distributed as `Char -> Bksp` transitions.
-* **Enter:** Calculated as `SentenceCount / 3.0 (Sentences per Paragraph)`. Distributed as `Punctuation -> Enter` transitions.
+* **Context:** Standard text corpora lack explicit `Enter` and `Backspace` events, leading to suboptimal placement of these keys.
+* **Decision:** Inject synthetic frequency data for `Enter` and `Backspace` into `_std` corpora at load time based on error rate and punctuation models.
 * **Consequences:**
-* (+) Layouts optimize for realistic typing flows, including errors and formatting.
-* (+) `Backspace` and `Enter` are pulled closer to the home row/strong fingers.
-* (-) Synthetic distribution is heuristic; may not perfectly model individual user behavior (e.g., "spamming" backspace vs. long-press).
+  * (+) Layouts optimize for realistic typing flows, including errors and formatting.
+  * (+) `Backspace` and `Enter` are pulled closer to the home row.
+  * (-) Synthetic distribution is heuristic.
+
+## ADR-009: Optimal Choice for Duplicate Keys
+
+* **Status:** Accepted
+* **Date:** 2026-01-06
+* **Context:** Keyboards often feature duplicate keys (e.g., split spacebars or bilateral modifiers). Previous logic used a "last one wins" or "distributed load" approach, which failed to model an "optimal typist" who chooses the best physical key for a given context.
+* **Decision:** Implement "Optimal Choice" logic. For every monogram, bigram, and trigram, the engine dynamically searches all physical instances of the involved characters to find the specific key (or combination) that yields the absolute minimum cost.
+* **Consequences:**
+  * (+) More realistic modeling of advanced and split layouts.
+  * (+) Provides the architectural foundation for future stateful keys (e.g., Repeat key).
+  * (+) Simplifies physics by removing `SpaceHandPreference` (now handled by the typist model).
+  * (-) Increased computational complexity in the fast-path `score_layout` due to dynamic searching.
+  

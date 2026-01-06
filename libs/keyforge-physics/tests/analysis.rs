@@ -14,7 +14,7 @@
 
 use keyforge_model::{
     Corpus, KeyNode, Keyboard, Layout, Rubric, 
-    types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode, SpaceHandPreference}
+    types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode}
 };
 use keyforge_physics::ScoringEngine;
 
@@ -124,42 +124,6 @@ fn test_heatmap_and_penalty_map() {
     // Penalty Map (Effort)
     assert!(report.penalty_map[0] > 0.0);
     assert!(report.penalty_map[1] > 0.0);
-}
-
-#[test]
-fn test_space_hand_preference() {
-    // Setup: 2 keys. Key 0 (Left Hand), Key 1 (Right Hand).
-    let keys = vec![
-        KeyNode { index: 0, hand: HandIndex(0), ..Default::default() },
-        KeyNode { index: 1, hand: HandIndex(1), ..Default::default() },
-    ];
-    let kb = Keyboard::new(keys, 0).unwrap();
-
-    // Corpus: Only Space (32) has frequency.
-    let mut corpus = Corpus::default();
-    corpus.char_freqs[32] = 1000;
-
-    // Layout: Space on BOTH keys.
-    let layout = Layout::new_unchecked(vec![KeyCode(32), KeyCode(32)]);
-    let rubric = Rubric::default();
-
-    // 1. Left Preference: Should count Key 0, ignore Key 1.
-    let engine_l = ScoringEngine::new_with_options(&kb, &corpus, &rubric, &[], SpaceHandPreference::Left).unwrap();
-    let report_l = engine_l.analyze(&layout).unwrap();
-    assert!(report_l.heatmap[0] > 0.0);
-    assert_eq!(report_l.heatmap[1], 0.0);
-
-    // 2. Right Preference: Should ignore Key 0, count Key 1.
-    let engine_r = ScoringEngine::new_with_options(&kb, &corpus, &rubric, &[], SpaceHandPreference::Right).unwrap();
-    let report_r = engine_r.analyze(&layout).unwrap();
-    assert_eq!(report_r.heatmap[0], 0.0);
-    assert!(report_r.heatmap[1] > 0.0);
-
-    // 3. Bilateral: Should count both (split load).
-    let engine_b = ScoringEngine::new_with_options(&kb, &corpus, &rubric, &[], SpaceHandPreference::Bilateral).unwrap();
-    let report_b = engine_b.analyze(&layout).unwrap();
-    assert!(report_b.heatmap[0] > 0.0);
-    assert!(report_b.heatmap[1] > 0.0);
 }
 
 #[test]

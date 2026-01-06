@@ -14,478 +14,268 @@
 use super::types::{KeyCode, Score, ValidatedLayout};
 use super::EngineContext;
 use keyforge_model::{AnalysisReport, MetricViolation};
-use keyforge_model::types::SpaceHandPreference;
 use keyforge_model::constants::SCORE_SCALE;
 use tracing::instrument;
 
-pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, pos_map: &mut [u16]) -> i64 {
+/// Internal structure to track duplicate key positions without heap allocation.
+struct PosMap {
+    starts: [u16; 65536],
+    counts: [u8; 65536],
+    indices: [u16; 512], 
+}
+
+impl PosMap {
+    fn new(layout: &[KeyCode], key_count: usize) -> Self {
+        let mut pm = Self {
+            starts: [0; 65536],
+            counts: [0; 65536],
+            indices: [0; 512],
+        };
+        
+        let limit = layout.len().min(key_count);
+        
+        // First pass: count occurrences
+        for &code in layout.iter().take(limit) {
+            pm.counts[code.0 as usize] += 1;
+        }
+
+        // Second pass: calculate starts (prefix sum)
+        let mut offset = 0;
+        for i in 0..65536 {
+            if pm.counts[i] > 0 {
+                pm.starts[i] = offset as u16;
+                offset += pm.counts[i] as usize;
+            }
+        }
+
+        // Third pass: fill indices
+        let mut current_offsets = [0u8; 65536];
+        for (i, &code) in layout.iter().enumerate().take(limit) {
+            let c_val = code.0 as usize;
+            let base = pm.starts[c_val] as usize;
+            let off = current_offsets[c_val] as usize;
+            let target = base + off;
+            if target < 512 {
+                pm.indices[target] = i as u16;
+                current_offsets[c_val] += 1;
+            }
+        }
+        pm
+    }
+
+    #[inline(always)]
+    fn get(&self, code: usize) -> &[u16] {
+        let start = self.starts[code] as usize;
+        let end = start + (self.counts[code] as usize);
+        &self.indices[start..end]
+    }
+}
+
+pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, _pos_map_scratch: &mut [u16]) -> i64 {
     let mut total_score = Score::ZERO;
-    pos_map.fill(65535);
     let layout_slice = layout.as_slice();
-    let limit = layout_slice.len().min(ctx.key_count);
-    
-    let mut space_count = 0;
+    let pm = PosMap::new(layout_slice, ctx.key_count);
 
-    for (i, &code) in layout_slice.iter().enumerate().take(limit) {
-        let c_val = code.0 as usize;
-        if c_val < pos_map.len() {
-            if c_val == 32 {
-                let hand = ctx.hands[i];
-                let allowed = match ctx.space_preference {
-                    SpaceHandPreference::Left => hand.is_left(),
-                    SpaceHandPreference::Right => hand.is_right(),
-                    SpaceHandPreference::Bilateral => true,
-                };
-                if allowed {
-                    pos_map[c_val] = i as u16;
-                    space_count += 1;
-                }
-            } else {
-                pos_map[c_val] = i as u16;
-            }
+    // 1. Monograms: Optimal Choice
+    for (c_val, &freq) in ctx.char_freqs.iter().enumerate() {
+        if freq == 0 { continue; }
+        let candidates = pm.get(c_val);
+        if candidates.is_empty() { continue; }
+
+        let mut min_cost = Score(i64::MAX);
+        for &p in candidates {
+            let cost = ctx.key_costs[p as usize];
+            if cost < min_cost { min_cost = cost; }
         }
+        total_score = total_score.saturating_add(min_cost.saturating_mul(freq as i64));
     }
 
-    // Loop 0: Monograms (Base Effort + Travel from Origin)
-    for (p_idx, &code) in layout_slice.iter().enumerate().take(limit) {
-        let p = p_idx as usize;
-        let c_val = code.0 as usize;
-        
-        if c_val < ctx.char_freqs.len() {
-            let mut freq = ctx.char_freqs[c_val] as i64;
-            
-            if c_val == 32 {
-                let hand = ctx.hands[p];
-                let allowed = match ctx.space_preference {
-                    SpaceHandPreference::Left => hand.is_left(),
-                    SpaceHandPreference::Right => hand.is_right(),
-                    SpaceHandPreference::Bilateral => true,
-                };
-                if !allowed { continue; }
-                if space_count > 1 {
-                    freq /= space_count as i64;
-                }
-            }
+    // 2. Bigrams: Optimal Choice
+    for (c1_val, &start) in ctx.bigram_starts.iter().enumerate().take(65536) {
+        let candidates1 = pm.get(c1_val);
+        if candidates1.is_empty() { continue; }
 
-            if freq > 0 {
-                let cost = ctx.key_costs[p];
-                total_score = total_score.saturating_add(cost.saturating_mul(freq));
-            }
-        }
-    }
-
-    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
-        let p1 = p1_idx as u16;
-        let c1_val = code_a.0 as usize;
-        if pos_map[c1_val] != p1 { continue; }
-        
-        let start = ctx.bigram_starts[c1_val];
         let end = ctx.bigram_starts[c1_val + 1];
         for k in start..end {
             let c2 = ctx.bigram_others[k];
-            let p2 = pos_map[c2.0 as usize];
-            if p2 != 65535 {
-                let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
-                if let Some(&cost) = ctx.cost_matrix.get(idx) {
-                    let freq = ctx.bigram_freqs[k] as i64;
-                    total_score = total_score.saturating_add(cost.saturating_mul(freq));
+            let candidates2 = pm.get(c2.0 as usize);
+            if candidates2.is_empty() { continue; }
+
+            let mut min_cost = Score(i64::MAX);
+            for &p1 in candidates1 {
+                for &p2 in candidates2 {
+                    let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
+                    let cost = ctx.cost_matrix[idx];
+                    if cost < min_cost { min_cost = cost; }
                 }
             }
+            let freq = ctx.bigram_freqs[k] as i64;
+            total_score = total_score.saturating_add(min_cost.saturating_mul(freq));
         }
     }
 
-    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
-        let p1 = p1_idx as u16;
-        let c1_val = code_a.0 as usize;
-        if pos_map[c1_val] != p1 { continue; }
+    // 3. Trigrams: Optimal Choice
+    for (c1_val, &start) in ctx.trigram_starts.iter().enumerate().take(65536) {
+        let candidates1 = pm.get(c1_val);
+        if candidates1.is_empty() { continue; }
 
-        let start = ctx.trigram_starts[c1_val];
         let end = ctx.trigram_starts[c1_val + 1];
         for k in start..end {
             let c2 = ctx.trigram_others1[k];
             let c3 = ctx.trigram_others2[k];
-            let p2 = pos_map[c2.0 as usize];
-            let p3 = pos_map[c3.0 as usize];
-            if p2 != 65535 && p3 != 65535 {
-                let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
-                if cost.0 != 0 {
-                    let freq = ctx.trigram_freqs[k] as i64;
-                    total_score = total_score.saturating_add(cost.saturating_mul(freq));
+            let candidates2 = pm.get(c2.0 as usize);
+            let candidates3 = pm.get(c3.0 as usize);
+            
+            if candidates2.is_empty() || candidates3.is_empty() { continue; }
+
+            let mut min_cost = Score(i64::MAX);
+            for &p1 in candidates1 {
+                for &p2 in candidates2 {
+                    for &p3 in candidates3 {
+                        let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
+                        if cost < min_cost { min_cost = cost; }
+                    }
                 }
+            }
+            if min_cost.0 != i64::MAX && min_cost.0 != 0 {
+                let freq = ctx.trigram_freqs[k] as i64;
+                total_score = total_score.saturating_add(min_cost.saturating_mul(freq));
             }
         }
     }
     total_score.0
 }
 
-pub fn calculate_swap_delta(ctx: &EngineContext, layout: &ValidatedLayout, pos_map: &[u16], idx_a: usize, idx_b: usize) -> i64 {
-    let layout_slice = layout.as_slice();
-    if idx_a >= layout_slice.len() || idx_b >= layout_slice.len() { return 0; }
-    if idx_a >= ctx.key_count || idx_b >= ctx.key_count { return 0; }
-    if layout_slice[idx_a] == layout_slice[idx_b] { return 0; }
-
-    let code_a = layout_slice[idx_a];
-    let code_b = layout_slice[idx_b];
-    let mut delta = Score::ZERO;
-
-    // Monogram Delta
-    if (code_a.0 as usize) < ctx.char_freqs.len() {
-        let freq_a = ctx.char_freqs[code_a.0 as usize] as i64;
-        let cost_a_old = ctx.key_costs[idx_a];
-        let cost_a_new = ctx.key_costs[idx_b];
-        // Remove old cost, add new cost
-        // Delta = New - Old
-        // Delta += (CostNew - CostOld) * Freq
-        if cost_a_new > cost_a_old {
-            delta = delta.saturating_add((cost_a_new - cost_a_old).saturating_mul(freq_a));
-        } else {
-            delta = delta.saturating_sub((cost_a_old - cost_a_new).saturating_mul(freq_a));
-        }
-    }
-
-    if (code_b.0 as usize) < ctx.char_freqs.len() {
-        let freq_b = ctx.char_freqs[code_b.0 as usize] as i64;
-        let cost_b_old = ctx.key_costs[idx_b];
-        let cost_b_new = ctx.key_costs[idx_a];
-        if cost_b_new > cost_b_old {
-            delta = delta.saturating_add((cost_b_new - cost_b_old).saturating_mul(freq_b));
-        } else {
-            delta = delta.saturating_sub((cost_b_old - cost_b_new).saturating_mul(freq_b));
-        }
-    }
-
-    let get_pos = |c: KeyCode, p_map: &[u16]| -> usize {
-        if c == code_a { idx_a } else if c == code_b { idx_b } else { p_map[c.0 as usize] as usize }
-    };
-    let get_swapped_pos = |c: KeyCode, p_map: &[u16]| -> usize {
-        if c == code_a { idx_b } else if c == code_b { idx_a } else { p_map[c.0 as usize] as usize }
-    };
-
-    if (code_a.0 as usize) < 65536 { delta = delta.saturating_add(calc_key_delta(ctx, code_a, None, pos_map, &get_pos, &get_swapped_pos)); }
-    if (code_b.0 as usize) < 65536 { delta = delta.saturating_add(calc_key_delta(ctx, code_b, Some(code_a), pos_map, &get_pos, &get_swapped_pos)); }
-    delta.0
-}
-
-#[inline(never)]
-fn calc_key_delta<F1, F2>(ctx: &EngineContext, c_target: KeyCode, c_skip: Option<KeyCode>, pos_map: &[u16], get_old: &F1, get_new: &F2) -> Score
-where F1: Fn(KeyCode, &[u16]) -> usize, F2: Fn(KeyCode, &[u16]) -> usize {
-    let mut d = Score::ZERO;
-    d = d.saturating_add(calc_bigrams_delta(ctx, c_target, c_skip, pos_map, get_old, get_new));
-    d = d.saturating_add(calc_trigrams_delta(ctx, c_target, c_skip, pos_map, get_old, get_new));
-    d
-}
-
-#[inline(never)]
-fn calc_bigrams_delta(ctx: &EngineContext, c_target: KeyCode, c_skip: Option<KeyCode>, pos_map: &[u16], get_old: &dyn Fn(KeyCode, &[u16]) -> usize, get_new: &dyn Fn(KeyCode, &[u16]) -> usize) -> Score {
-    let mut d = Score::ZERO;
-    let start = ctx.bigram_starts[c_target.0 as usize];
-    let end = ctx.bigram_starts[c_target.0 as usize + 1];
-    for k in start..end {
-        let c_other = ctx.bigram_others[k];
-        if Some(c_other) == c_skip { continue; }
-        if pos_map[c_other.0 as usize] != 65535 {
-            let p1_old = get_old(c_target, pos_map);
-            let p2_old = get_old(c_other, pos_map);
-            if p1_old < ctx.key_count && p2_old < ctx.key_count {
-                let cost_old = ctx.cost_matrix[p1_old * ctx.key_count + p2_old];
-                let p1_new = get_new(c_target, pos_map);
-                let p2_new = get_new(c_other, pos_map);
-                if p1_new < ctx.key_count && p2_new < ctx.key_count {
-                    let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
-                    let freq = ctx.bigram_freqs[k] as i64;
-                    d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
-                }
-            }
-        }
-    }
-    let start = ctx.bigram_rev_starts[c_target.0 as usize];
-    let end = ctx.bigram_rev_starts[c_target.0 as usize + 1];
-    for k in start..end {
-        let c_other = ctx.bigram_rev_others[k];
-        if c_other != c_target && Some(c_other) != c_skip && (c_other.0 as usize) < 65536 && pos_map[c_other.0 as usize] != 65535 {
-            let p1_old = get_old(c_other, pos_map);
-            let p2_old = get_old(c_target, pos_map);
-            if p1_old < ctx.key_count && p2_old < ctx.key_count {
-                let cost_old = ctx.cost_matrix[p1_old * ctx.key_count + p2_old];
-                let p1_new = get_new(c_other, pos_map);
-                let p2_new = get_new(c_target, pos_map);
-                if p1_new < ctx.key_count && p2_new < ctx.key_count {
-                    let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
-                    let freq = ctx.bigram_rev_freqs[k] as i64;
-                    d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
-                }
-            }
-        }
-    }
-    d
-}
-
-#[inline(never)]
-fn calc_trigrams_delta(ctx: &EngineContext, c_target: KeyCode, c_skip: Option<KeyCode>, pos_map: &[u16], get_old: &dyn Fn(KeyCode, &[u16]) -> usize, get_new: &dyn Fn(KeyCode, &[u16]) -> usize) -> Score {
-    let mut d = Score::ZERO;
-    let start = ctx.trigram_starts[c_target.0 as usize];
-    let end = ctx.trigram_starts[c_target.0 as usize + 1];
-    for k in start..end {
-        let c2 = ctx.trigram_others1[k];
-        let c3 = ctx.trigram_others2[k];
-        if Some(c2) == c_skip || Some(c3) == c_skip { continue; }
-        if pos_map[c2.0 as usize] != 65535 && pos_map[c3.0 as usize] != 65535 {
-            let p1_old = get_old(c_target, pos_map);
-            let p2_old = get_old(c2, pos_map);
-            let p3_old = get_old(c3, pos_map);
-            let cost_old = calculate_flow_cost(ctx, p1_old, p2_old, p3_old);
-            let p1_new = get_new(c_target, pos_map);
-            let p2_new = get_new(c2, pos_map);
-            let p3_new = get_new(c3, pos_map);
-            let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
-            let freq = ctx.trigram_freqs[k] as i64;
-            d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
-        }
-    }
-    let start = ctx.trigram_mid_starts[c_target.0 as usize];
-    let end = ctx.trigram_mid_starts[c_target.0 as usize + 1];
-    for k in start..end {
-        let c1 = ctx.trigram_mid_others1[k];
-        let c3 = ctx.trigram_mid_others2[k];
-        if c1 != c_target && Some(c1) != c_skip && Some(c3) != c_skip && (c1.0 as usize) < 65536 && pos_map[c1.0 as usize] != 65535 && pos_map[c3.0 as usize] != 65535 {
-            let p1_old = get_old(c1, pos_map);
-            let p2_old = get_old(c_target, pos_map);
-            let p3_old = get_old(c3, pos_map);
-            let cost_old = calculate_flow_cost(ctx, p1_old, p2_old, p3_old);
-            let p1_new = get_new(c1, pos_map);
-            let p2_new = get_new(c_target, pos_map);
-            let p3_new = get_new(c3, pos_map);
-            let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
-            let freq = ctx.trigram_mid_freqs[k] as i64;
-            d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
-        }
-    }
-    let start = ctx.trigram_end_starts[c_target.0 as usize];
-    let end = ctx.trigram_end_starts[c_target.0 as usize + 1];
-    for k in start..end {
-        let c1 = ctx.trigram_end_others1[k];
-        let c2 = ctx.trigram_end_others2[k];
-        if c1 != c_target && c2 != c_target && Some(c1) != c_skip && Some(c2) != c_skip && (c1.0 as usize) < 65536 && pos_map[c1.0 as usize] != 65535 && pos_map[c2.0 as usize] != 65535 {
-            let p1_old = get_old(c1, pos_map);
-            let p2_old = get_old(c2, pos_map);
-            let p3_old = get_old(c_target, pos_map);
-            let cost_old = calculate_flow_cost(ctx, p1_old, p2_old, p3_old);
-            let p1_new = get_new(c1, pos_map);
-            let p2_new = get_new(c2, pos_map);
-            let p3_new = get_new(c_target, pos_map);
-            let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
-            let freq = ctx.trigram_end_freqs[k] as i64;
-            d = d.saturating_add(cost_new.saturating_sub(cost_old).saturating_mul(freq));
-        }
-    }
-    d
-}
-
-#[inline(always)]
-fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> Score {
-    if p1 >= ctx.key_count || p2 >= ctx.key_count || p3 >= ctx.key_count { return Score::ZERO; }
-    let h1 = ctx.hands[p1];
-    let h2 = ctx.hands[p2];
-    let h3 = ctx.hands[p3];
-
-    if h1 != h2 || h2 != h3 { return Score::ZERO; }
-
-    // Redirect check
-    if ctx.fingers[p1] == ctx.fingers[p3] && ctx.fingers[p1] != ctx.fingers[p2] { return ctx.penalty_redirect; }
-    
-    let dir1 = ctx.fingers[p2].diff(ctx.fingers[p1]);
-    let dir2 = ctx.fingers[p3].diff(ctx.fingers[p2]);
-
-    if dir1 == 0 || dir2 == 0 { return Score::ZERO; }
-    if dir1.signum() != dir2.signum() { return ctx.penalty_redirect; }
-    if dir1 < 0 { return Score::ZERO.saturating_sub(ctx.bonus_roll); }
-    Score::ZERO
-}
-
 #[instrument(skip_all)]
 pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> AnalysisReport {
     let mut report = AnalysisReport::default();
-    // Support duplicate keys: Map Char Code -> List of Positions
-    let mut pos_map: Vec<Vec<u16>> = vec![Vec::new(); 65536];
+    let layout_slice = layout.as_slice();
+    let pm = PosMap::new(layout_slice, ctx.key_count);
     
     let mut heatmap = vec![0.0; ctx.key_count];
     let mut penalty_map = vec![0.0; ctx.key_count];
-    let layout_slice = layout.as_slice();
-    let limit = layout_slice.len().min(ctx.key_count);
-    
-    for (i, &code) in layout_slice.iter().enumerate().take(limit) {
-        if (code.0 as usize) < pos_map.len() {
-            let c_val = code.0 as usize;
-            if c_val == 32 {
-                let hand = ctx.hands[i];
-                let allowed = match ctx.space_preference {
-                    SpaceHandPreference::Left => hand.is_left(),
-                    SpaceHandPreference::Right => hand.is_right(),
-                    SpaceHandPreference::Bilateral => true,
-                };
-                if allowed {
-                    pos_map[c_val].push(i as u16);
-                }
-            } else {
-                pos_map[c_val].push(i as u16);
+
+    let mut total_load = 0.0;
+    let mut left_hand_load = 0.0;
+
+    // Monograms
+    for (c_val, &freq_u64) in ctx.char_freqs.iter().enumerate() {
+        let freq = freq_u64 as f32;
+        if freq <= 0.0 { continue; }
+        let candidates = pm.get(c_val);
+        if candidates.is_empty() { continue; }
+
+        let mut min_cost = f32::MAX;
+        let mut best_p = 0;
+        for &p in candidates {
+            let cost = ctx.key_costs[p as usize].to_f32();
+            if cost < min_cost {
+                min_cost = cost;
+                best_p = p as usize;
             }
         }
+
+        total_load += freq;
+        heatmap[best_p] += freq;
+        if ctx.hands[best_p].is_left() { left_hand_load += freq; }
+        penalty_map[best_p] += freq * min_cost;
     }
 
     let mut total_bigrams = 0.0;
-    let mut left_hand_load = 0.0;
-    let mut total_load = 0.0;
     let mut sfbs = Vec::new();
     let mut scissors = Vec::new();
-    let mut redirs = Vec::new();
 
-    for (p_idx, &code) in layout_slice.iter().enumerate().take(limit) {
-        let p = p_idx as u16;
-        let c_val = code.0 as usize;
-        
-        // Only process if this is a valid position for this char
-        if !pos_map[c_val].contains(&p) { continue; }
+    // Bigrams
+    for (c1_val, &start) in ctx.bigram_starts.iter().enumerate().take(65536) {
+        let candidates1 = pm.get(c1_val);
+        if candidates1.is_empty() { continue; }
 
-        // Monogram: 50/50 Distribution for duplicates
-        let count = pos_map[c_val].len() as f32;
-        let freq = (ctx.char_freqs[c_val] as f32) / count;
-
-        // DEBUG LOGGING
-        if c_val == 32 { // Space
-            tracing::info!("Analyze: Space Freq Raw: {}, Count: {}, Per Key: {}", ctx.char_freqs[c_val], count, freq);
-        }
-
-        if freq > 0.0 {
-            total_load += freq;
-            let idx = p as usize;
-            if idx < ctx.key_count {
-                heatmap[idx] += freq;
-                if ctx.hands[idx].is_left() { left_hand_load += freq; }
-                
-                // Monogram Cost (Base Effort)
-                let static_cost = ctx.key_costs[idx].to_f32();
-                penalty_map[idx] += freq * static_cost;
-            }
-        }
-    }
-    
-    tracing::info!("Analyze: Total Load: {}, Heatmap Sum: {}", total_load, heatmap.iter().sum::<f32>());
-
-    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
-        let p1 = p1_idx as u16;
-        let c1_val = code_a.0 as usize;
-        
-        // Optimization: Only process the *first* instance of a char to drive the bigram loop,
-        // then inside, iterate all instances of Src and Dst to find best pair.
-        if pos_map[c1_val].first() != Some(&p1) { continue; }
-
-        let start = ctx.bigram_starts[c1_val];
         let end = ctx.bigram_starts[c1_val + 1];
         for k in start..end {
             let c2 = ctx.bigram_others[k];
-            let p2_candidates = &pos_map[c2.0 as usize];
-            
-            if !p2_candidates.is_empty() {
-                let freq = ctx.bigram_freqs[k] as f32;
-                total_bigrams += freq;
-                
-                // Find Best (Src, Dst) Pair
-                let mut best_cost = f32::MAX;
-                let mut best_pair = (0, 0);
-                
-                for &src_pos in &pos_map[c1_val] {
-                    for &dst_pos in p2_candidates {
-                        let idx1 = src_pos as usize;
-                        let idx2 = dst_pos as usize;
-                        if idx1 < ctx.key_count && idx2 < ctx.key_count {
-                            let cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
-                            if cost < best_cost {
-                                best_cost = cost;
-                                best_pair = (idx1, idx2);
-                            }
-                        }
-                    }
-                }
-                
-                let (idx1, idx2) = best_pair;
-                if best_cost != f32::MAX {
-                    let cost = best_cost;
-                    report.distance += cost * freq;
-                    
-                    // Distribute cost to both keys for the heatmap
-                    penalty_map[idx1] += cost * freq * 0.5;
-                    penalty_map[idx2] += cost * freq * 0.5;
+            let candidates2 = pm.get(c2.0 as usize);
+            if candidates2.is_empty() { continue; }
 
-                    if ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
-                        report.sfb_total += freq;
-                        sfbs.push(MetricViolation {
-                            keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
-                            score: 1.0,
-                            freq,
-                        });
-                    }
-                    let r1 = ctx.rows[idx1];
-                    let r2 = ctx.rows[idx2];
-                    if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
-                        report.scissors += freq;
-                        scissors.push(MetricViolation {
-                            keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
-                            score: 1.0,
-                            freq,
-                        });
+            let freq = ctx.bigram_freqs[k] as f32;
+            total_bigrams += freq;
+
+            let mut min_cost = f32::MAX;
+            let mut best_pair = (0, 0);
+            for &p1 in candidates1 {
+                for &p2 in candidates2 {
+                    let cost = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)].to_f32();
+                    if cost < min_cost {
+                        min_cost = cost;
+                        best_pair = (p1 as usize, p2 as usize);
                     }
                 }
+            }
+
+            let (idx1, idx2) = best_pair;
+            report.distance += min_cost * freq;
+            penalty_map[idx1] += min_cost * freq * 0.5;
+            penalty_map[idx2] += min_cost * freq * 0.5;
+
+            if ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
+                report.sfb_total += freq;
+                sfbs.push(MetricViolation {
+                    keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
+                    score: 1.0,
+                    freq,
+                });
+            }
+            
+            let r1 = ctx.rows[idx1];
+            let r2 = ctx.rows[idx2];
+            if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
+                report.scissors += freq;
+                scissors.push(MetricViolation {
+                    keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
+                    score: 1.0,
+                    freq,
+                });
             }
         }
     }
 
-    for (p1_idx, &code_a) in layout_slice.iter().enumerate().take(limit) {
-        let p1 = p1_idx as u16;
-        let c1_val = code_a.0 as usize;
-        if pos_map[c1_val].first() != Some(&p1) { continue; }
+    let mut redirs = Vec::new();
+    // Trigrams
+    for (c1_val, &start) in ctx.trigram_starts.iter().enumerate().take(65536) {
+        let candidates1 = pm.get(c1_val);
+        if candidates1.is_empty() { continue; }
 
-        let start = ctx.trigram_starts[c1_val];
         let end = ctx.trigram_starts[c1_val + 1];
         for k in start..end {
             let c2 = ctx.trigram_others1[k];
             let c3 = ctx.trigram_others2[k];
-            
-            let p2_candidates = &pos_map[c2.0 as usize];
-            let p3_candidates = &pos_map[c3.0 as usize];
-            
-            if !p2_candidates.is_empty() && !p3_candidates.is_empty() {
-                // Find Best (Src, Mid, Dst) Triplet
-                let mut best_cost_val = Score(i64::MAX);
-                let mut best_triplet = (0, 0, 0);
-                
-                for &p1 in &pos_map[c1_val] {
-                    for &p2 in p2_candidates {
-                        for &p3 in p3_candidates {
-                            let idx1 = p1 as usize;
-                            let idx2 = p2 as usize;
-                            let idx3 = p3 as usize;
-                            let cost = calculate_flow_cost(ctx, idx1, idx2, idx3);
-                            if cost < best_cost_val {
-                                best_cost_val = cost;
-                                best_triplet = (idx1, idx2, idx3);
-                            }
+            let candidates2 = pm.get(c2.0 as usize);
+            let candidates3 = pm.get(c3.0 as usize);
+            if candidates2.is_empty() || candidates3.is_empty() { continue; }
+
+            let freq = ctx.trigram_freqs[k] as f32;
+            let mut min_cost_val = Score(i64::MAX);
+            let mut best_triplet = (0, 0, 0);
+
+            for &p1 in candidates1 {
+                for &p2 in candidates2 {
+                    for &p3 in candidates3 {
+                        let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
+                        if cost < min_cost_val {
+                            min_cost_val = cost;
+                            best_triplet = (p1 as usize, p2 as usize, p3 as usize);
                         }
                     }
                 }
-                
-                let (idx1, idx2, idx3) = best_triplet;
-                let cost = best_cost_val;
-                let freq = ctx.trigram_freqs[k] as f32;
-                
-                if cost.0 != 0 {
-                    let cost_f32 = cost.to_f32();
-                    // Distribute flow cost to all 3 keys
-                    if idx1 < ctx.key_count { penalty_map[idx1] += cost_f32 * freq * 0.33; }
-                    if idx2 < ctx.key_count { penalty_map[idx2] += cost_f32 * freq * 0.33; }
-                    if idx3 < ctx.key_count { penalty_map[idx3] += cost_f32 * freq * 0.33; }
-                }
+            }
 
-                if cost == ctx.penalty_redirect {
+            if min_cost_val.0 != i64::MAX {
+                let (idx1, idx2, idx3) = best_triplet;
+                let cost_f32 = min_cost_val.to_f32();
+                penalty_map[idx1] += cost_f32 * freq * 0.33;
+                penalty_map[idx2] += cost_f32 * freq * 0.33;
+                penalty_map[idx3] += cost_f32 * freq * 0.33;
+
+                if min_cost_val == ctx.penalty_redirect {
                     report.redirects += freq;
                     redirs.push(MetricViolation {
                         keys: format!(
@@ -495,7 +285,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
                         score: 1.0,
                         freq,
                     });
-                } else if cost < Score::ZERO {
+                } else if min_cost_val < Score::ZERO {
                     report.rolls += freq;
                 }
             }
@@ -509,16 +299,50 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
     sort_violations(&mut sfbs);
     sort_violations(&mut scissors);
     sort_violations(&mut redirs);
+    
     report.top_sfbs = sfbs;
     report.top_scissors = scissors;
     report.top_redirs = redirs;
     report.heatmap = heatmap;
-    
     report.penalty_map = penalty_map;
+    
     let mut scratch = vec![65535u16; 65536];
     report.score = score_layout(ctx, layout, &mut scratch) as f32 / SCORE_SCALE;
     report.distance /= SCORE_SCALE;
     if total_bigrams > 0.0 { report.sfb_ratio = report.sfb_total / total_bigrams; }
-    if total_load > 0.0 { let left_ratio = left_hand_load / total_load; report.hand_balance = (left_ratio - 0.5) * -2.0; }
+    if total_load > 0.0 { report.hand_balance = ((left_hand_load / total_load) - 0.5) * -2.0; }
     report
+}
+
+#[inline(always)]
+fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> Score {
+    let h1 = ctx.hands[p1];
+    let h2 = ctx.hands[p2];
+    let h3 = ctx.hands[p3];
+    if h1 != h2 || h2 != h3 { return Score::ZERO; }
+
+    if ctx.fingers[p1] == ctx.fingers[p3] && ctx.fingers[p1] != ctx.fingers[p2] { return ctx.penalty_redirect; }
+    
+    let dir1 = ctx.fingers[p2].diff(ctx.fingers[p1]);
+    let dir2 = ctx.fingers[p3].diff(ctx.fingers[p2]);
+    if dir1 == 0 || dir2 == 0 { return Score::ZERO; }
+    if dir1.signum() != dir2.signum() { return ctx.penalty_redirect; }
+    if dir1 < 0 { return Score::ZERO.saturating_sub(ctx.bonus_roll); }
+    Score::ZERO
+}
+
+pub fn calculate_swap_delta(ctx: &EngineContext, layout: &ValidatedLayout, _pos_map: &[u16], idx_a: usize, idx_b: usize) -> i64 {
+    let layout_slice = layout.as_slice();
+    if idx_a >= layout_slice.len() || idx_b >= layout_slice.len() { return 0; }
+    if idx_a >= ctx.key_count || idx_b >= ctx.key_count { return 0; }
+    if layout_slice[idx_a] == layout_slice[idx_b] { return 0; }
+
+    let score_before = score_layout(ctx, layout, &mut []);
+    
+    let mut swapped_keys = layout_slice.to_vec();
+    swapped_keys.swap(idx_a, idx_b);
+    let validated_after = ValidatedLayout::new(&swapped_keys, ctx.key_count).unwrap();
+    let score_after = score_layout(ctx, &validated_after, &mut []);
+    
+    score_after - score_before
 }

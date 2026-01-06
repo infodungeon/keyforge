@@ -27,7 +27,6 @@ impl Compiler {
         corpus: &Corpus,
         rubric: &Rubric,
         overrides: &[(usize, usize, f32)],
-        space_preference: keyforge_model::types::SpaceHandPreference,
     ) -> Result<EngineContext, PhysicsError> {
         let key_count = kb.count();
 
@@ -43,27 +42,12 @@ impl Compiler {
             rows.push(k.row);
             cols.push(k.col);
 
-            // Calculate Static Monogram Cost
-            // Cost = Finger Effort + Travel (from origin)
-            // Note: calculate_pair_cost handles relative travel.
-            // Here we want absolute cost of pressing the key.
-            // We can approximate this using the finger effort weight.
-            // Travel cost is usually relative to home row, which is implicit in finger effort for some models,
-            // but explicit in others.
-            // Let's use finger_effort + row penalty (if we had it) + travel from finger origin.
-            
             let mut cost = rubric.finger_effort[k.finger.as_usize()];
             
-            // Add travel cost from finger origin (home row)
             if let Some(origin) = kb.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
                 let dx = (k.x - origin.0).abs();
                 let dy = (k.y - origin.1).abs();
                 cost += (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
-            }
-
-            // DEBUG: Log cost for specific keys
-            if k.label == "KeyO" || k.label == "Dot" || k.label == "SpaceL" {
-                tracing::info!("Compiler: Key {} ({}) Cost: {}", k.index, k.label, cost);
             }
 
             key_costs.push(Score::from_f32(cost));
@@ -102,7 +86,6 @@ impl Compiler {
             penalty_redirect: Score::from_f32(rubric.redirect),
             penalty_skip: Score::ZERO,
             bonus_roll: Score::from_f32(rubric.roll_bonus),
-            space_preference,
         })
     }
 }

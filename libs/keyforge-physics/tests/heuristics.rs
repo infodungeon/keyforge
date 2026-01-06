@@ -92,7 +92,6 @@ fn test_public_api_wrappers() {
         initial_layout: Some(layout),
         pinned_keys: vec![],
         cost_overrides: vec![],
-        space_preference: Default::default(),
     };
 
     let suggestions = suggest_improvements(&req).unwrap();

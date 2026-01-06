@@ -50,7 +50,7 @@ fn setup_test_engine(size: usize) -> ScoringEngine {
     let kb = Keyboard::new(keys, 1).unwrap();
     let mut corpus = Corpus::default();
     for i in 0..size {
-        corpus.char_freqs[i] = (i * 10) as u32;
+        corpus.char_freqs[i] = (i * 10) as u64; // FIX: Cast to u64
         if i + 1 < size {
             corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
         }

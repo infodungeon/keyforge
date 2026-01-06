@@ -274,7 +274,7 @@ mod tests {
         let kb = Keyboard::new(keys, 1).unwrap();
         let mut corpus = Corpus::default();
         for i in 0..size {
-            corpus.char_freqs[i] = (i * 10) as u32;
+            corpus.char_freqs[i] = (i * 10) as u64; // FIX: Cast to u64
             if i + 1 < size {
                 corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
             }
@@ -463,5 +463,15 @@ mod tests {
             crate::supervisor::traits::RealTimeKeeper,
         );
         opt.run(None, crate::NoOpCallback).unwrap();
+    }
+
+    #[test]
+    fn test_reheat_exhaustion() {
+        let engine = setup_test_engine(2);
+        let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 2, 2, 2.0).unwrap();
+        let mut optimizer = Optimizer::new(
+            &engine, config, StagnantMutation, CoolingAnnealing, crate::supervisor::traits::RealTimeKeeper,
+        );
+        optimizer.run(None, crate::NoOpCallback).unwrap();
     }
 }

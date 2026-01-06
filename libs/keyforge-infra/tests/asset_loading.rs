@@ -1,3 +1,17 @@
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::error::ForgeError;
@@ -9,10 +23,16 @@ async fn test_load_valid_user_keyboard() {
     let kb_dir = temp.path().join("user/keyboards");
     fs::create_dir_all(&kb_dir).unwrap();
 
-    // Create a minimal valid keyboard
+    // Create a minimal valid keyboard with all mandatory fields
     let json = r#"{
         "meta": { "name": "Test Board", "author": "Unit Test" },
-        "geometry": { "keys": [{"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1}], "home_row": 2 }
+        "geometry": { 
+            "keys": [{"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1}], 
+            "prime_slots": [0],
+            "med_slots": [],
+            "low_slots": [],
+            "home_row": 2 
+        }
     }"#;
     fs::write(kb_dir.join("test_kb.json"), json).unwrap();
 
@@ -29,10 +49,16 @@ async fn test_load_invalid_keyboard_fails_validation() {
     let kb_dir = temp.path().join("user/keyboards");
     fs::create_dir_all(&kb_dir).unwrap();
 
-    // Invalid: Empty keys array
+    // Invalid: Empty keys array (passes deserialization but fails .validate())
     let json = r#"{
         "meta": { "name": "Bad", "author": "Test" },
-        "geometry": { "keys": [], "home_row": 2 }
+        "geometry": { 
+            "keys": [], 
+            "prime_slots": [],
+            "med_slots": [],
+            "low_slots": [],
+            "home_row": 2 
+        }
     }"#;
     fs::write(kb_dir.join("bad.json"), json).unwrap();
 

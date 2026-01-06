@@ -823,6 +823,7 @@ utoipa = { version = "5.4", features = [
     "preserve_path_order",
 ] }
 ts-rs = { version = "11.1", features = ["serde-compat"], optional = true }
+tracing = "0.1.44"
 
 [dev-dependencies]
 proptest = "1.9"
@@ -831,7 +832,6 @@ proptest = "1.9"
 default = []
 ts_bindings = ["dep:ts-rs"]
 
-// ===== libs/keyforge-model/src/config.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1340,7 +1340,6 @@ impl FromStr for KeyConstraint {
     }
 }
 
-// ===== libs/keyforge-model/src/constants.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1463,7 +1462,6 @@ pub const STD_CORPUS_BACKSPACE_FACTOR: f32 = 1.25;
 /// Average sentences per paragraph for standard prose.
 pub const STD_CORPUS_SENTENCE_RATIO: f32 = 3.0;
 
-// ===== libs/keyforge-model/src/corpus.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1539,7 +1537,6 @@ impl Corpus {
         self.validate()
     }
 }
-// ===== libs/keyforge-model/src/error.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1629,7 +1626,6 @@ pub enum PhysicsError {
     LayoutUnderflow(usize, usize),
 }
 
-// ===== libs/keyforge-model/src/geometry/kle.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1717,7 +1713,6 @@ pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
     Ok(json_str)
 }
 
-// ===== libs/keyforge-model/src/geometry/mod.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1954,7 +1949,6 @@ impl KeyboardGeometry {
     pub fn key_count(&self) -> usize { self.keys.len() }
 }
 
-// ===== libs/keyforge-model/src/job.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2067,7 +2061,6 @@ impl JobIdentifier {
     }
 }
 
-// ===== libs/keyforge-model/src/keyboard.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2153,7 +2146,6 @@ impl Keyboard {
     }
 }
 
-// ===== libs/keyforge-model/src/keycodes.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2295,7 +2287,6 @@ impl KeycodeRegistry {
     }
 }
 
-// ===== libs/keyforge-model/src/layout.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2375,7 +2366,6 @@ impl TryFrom<Vec<KeyCode>> for Layout {
     }
 }
 
-// ===== libs/keyforge-model/src/lib.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2438,8 +2428,6 @@ pub mod types;
 /// Validation traits and helpers.
 pub mod validator;
 
-#[cfg(test)]
-mod tests;
 
 pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
 pub use corpus::Corpus;
@@ -2599,8 +2587,6 @@ pub struct SwapSuggestion {
     /// Percentage improvement.
     pub improvement_pct: f32,
 }
-
-// ===== libs/keyforge-model/src/parsing.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2727,7 +2713,6 @@ pub fn parse_key(token: &str) -> KeyAction {
     KeyAction::Simple(t.to_string())
 }
 
-// ===== libs/keyforge-model/src/rubric.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2817,7 +2802,6 @@ impl Rubric {
     }
 }
 
-// ===== libs/keyforge-model/src/serde_utils.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2855,7 +2839,6 @@ pub fn is_none<T>(option: &Option<T>) -> bool {
     option.is_none()
 }
 
-// ===== libs/keyforge-model/src/types.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3039,13 +3022,41 @@ impl Score {
         Score(self.0.saturating_mul(factor))
     }
 }
+
 impl std::ops::Add for Score {
     type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output { Score(self.0 + rhs.0) }
+    fn add(self, rhs: Self) -> Self::Output { 
+        match self.0.checked_add(rhs.0) {
+            Some(val) => Score(val),
+            None => {
+                tracing::error!(
+                    lhs = self.0, 
+                    rhs = rhs.0, 
+                    "CRITICAL BUG: Score Overflow in Addition! Saturating."
+                );
+                // Saturate based on direction of addition
+                if rhs.0 >= 0 { Score::MAX } else { Score::MIN }
+            }
+        }
+    }
 }
+
 impl std::ops::Sub for Score {
     type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output { Score(self.0 - rhs.0) }
+    fn sub(self, rhs: Self) -> Self::Output { 
+        match self.0.checked_sub(rhs.0) {
+            Some(val) => Score(val),
+            None => {
+                tracing::error!(
+                    lhs = self.0, 
+                    rhs = rhs.0, 
+                    "CRITICAL BUG: Score Overflow in Subtraction! Saturating."
+                );
+                // Saturate based on direction of subtraction
+                if rhs.0 >= 0 { Score::MIN } else { Score::MAX }
+            }
+        }
+    }
 }
 
 /// Preference for which hand should handle Space keys.
@@ -3061,8 +3072,6 @@ pub enum SpaceHandPreference {
     #[default]
     Bilateral,
 }
-
-// ===== libs/keyforge-model/src/validator.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3099,7 +3108,6 @@ impl LayoutValidator {
     }
 }
 
-// ===== libs/keyforge-model/tests/config_validation.rs =====
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3113,117 +3121,8 @@ impl LayoutValidator {
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use keyforge_model::{Rubric, SearchConfig};
 
-#[test]
-fn test_rubric_validation() {
-    let mut r = Rubric::default();
-    assert!(r.validate().is_ok());
-
-    r.trigram_coverage = 1.5;
-    assert!(r.validate().is_err());
-
-    r.trigram_coverage = -0.1;
-    assert!(r.validate().is_err());
-
-    r.trigram_coverage = 0.5;
-    r.trigram_limit = 0;
-    assert!(r.validate().is_err());
-    
-    r.trigram_limit = 100;
-    r.sfb_base = -10.0;
-    assert!(r.validate().is_err());
-}
-
-#[test]
-fn test_search_config_validation() {
-    let mut c = SearchConfig::default();
-    assert!(c.validate().is_ok());
-
-    // Test Steps
-    c = SearchConfig::Annealing {
-        steps: 0,
-        start_temp: 100.0,
-        end_temp: 0.01,
-        seed: 42,
-        patience: 500,
-        reheats: 3,
-        reheat_factor: 0.5,
-    };
-    assert!(c.validate().is_err());
-
-    // Test Temp
-    c = SearchConfig::Annealing {
-        steps: 100,
-        start_temp: -1.0,
-        end_temp: 0.01,
-        seed: 42,
-        patience: 500,
-        reheats: 3,
-        reheat_factor: 0.5,
-    };
-    assert!(c.validate().is_err());
-}
-
-// ===== libs/keyforge-model/tests/corpus_validation.rs =====
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-use keyforge_model::Corpus;
-
-#[test]
-fn test_corpus_validation_default() {
-    let c = Corpus::default();
-    assert!(c.validate().is_ok());
-}
-
-#[test]
-fn test_corpus_validation_bad_freqs_short() {
-    let mut c = Corpus::default();
-    c.char_freqs = vec![0; 10]; // Too short
-    assert!(c.validate().is_err());
-}
-
-#[test]
-fn test_corpus_validation_bad_freqs_long() {
-    let mut c = Corpus::default();
-    c.char_freqs = vec![0; 70000]; // Too long
-    assert!(c.validate().is_err());
-}
-
-#[test]
-fn test_corpus_validation_valid_mutation() {
-    let mut c = Corpus::default();
-    c.char_freqs['a' as usize] = 100;
-    c.bigrams.push(('a' as u16, 'b' as u16, 50));
-    assert!(c.validate().is_ok());
-}
-
-// ===== libs/keyforge-model/tests/integrity.rs =====
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-use keyforge_model::{Corpus, Rubric};
+use keyforge_model::{Corpus, Rubric, Score, KeyboardDefinition};
 use serde_json;
 
 #[test]
@@ -3288,7 +3187,51 @@ fn test_rubric_modification() {
     assert_eq!(r.finger_effort[4], 5.0);
 }
 
-// ===== libs/keyforge-model/tests/layout_properties.rs =====
+#[test]
+fn test_score_overflow_logging() {
+    let max = Score::MAX;
+    
+    // This will trigger a tracing::error! log but should NOT crash.
+    // It should saturate to MAX.
+    let added = max + Score(100);
+    assert_eq!(added, Score::MAX);
+
+    let min = Score::MIN;
+    
+    // This will trigger a tracing::error! log but should NOT crash.
+    // It should saturate to MIN.
+    let subbed = min - Score(100);
+    assert_eq!(subbed, Score::MIN);
+}
+
+#[test]
+fn test_keyboard_definition_deserialization() {
+    // Tests deserialization of a known complex geometry (SZR35)
+    let json = r#"{
+      "meta": {
+        "name": "SZR35",
+        "author": "KeyForge",
+        "version": "1.0",
+        "notes": "36-key Split Column-Staggered (3x5+3).",
+        "type": "split_column_staggered"
+      },
+      "geometry": {
+        "keys": [
+          {"id": "KeyQ", "x": 0, "y": 0.5, "hand": 0, "finger": 4, "row": 0, "col": 0},
+          {"id": "KeyW", "x": 1, "y": 0.25, "hand": 0, "finger": 3, "row": 0, "col": 1}
+        ],
+        "prime_slots": [0, 1],
+        "med_slots": [],
+        "low_slots": [],
+        "home_row": 1
+      },
+      "layouts": {}
+    }"#;
+
+    let def: KeyboardDefinition = serde_json::from_str(json).expect("Failed to deserialize KeyboardDefinition");
+    assert_eq!(def.geometry.keys.len(), 2, "Should have 2 keys");
+    assert_eq!(def.geometry.keys[0].label, "KeyQ", "Label should be KeyQ");
+}
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3302,63 +3245,7 @@ fn test_rubric_modification() {
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use keyforge_model::{Layout, types::KeyCode};
-use proptest::prelude::*;
-use std::collections::HashSet;
 
-proptest! {
-    #[test]
-    fn test_layout_uniqueness_invariant(keys in prop::collection::vec(0u16..100, 0..50)) {
-        // Check if the input has duplicates
-        let mut set = HashSet::new();
-        let has_dupes = keys.iter().any(|&k| !set.insert(k));
-
-        let key_codes: Vec<KeyCode> = keys.into_iter().map(KeyCode).collect();
-        let result = Layout::try_from(key_codes);
-
-        if has_dupes {
-            prop_assert!(result.is_err(), "Layout should reject duplicates");
-        } else {
-            prop_assert!(result.is_ok(), "Layout should accept unique keys");
-        }
-    }
-}
-
-// ===== libs/keyforge-model/tests/lifecycle.rs =====
-use keyforge_model::{Corpus, Rubric, Score};
-use serde_json;
-
-#[test]
-fn test_corpus_serialization_roundtrip() {
-    let mut c = Corpus::default();
-    c.char_freqs['a' as usize] = 100;
-    c.bigrams.push(('a' as u16, 'b' as u16, 50));
-    
-    let json = serde_json::to_string(&c).unwrap();
-    let recovered: Corpus = serde_json::from_str(&json).unwrap();
-    
-    assert_eq!(recovered.char_freqs['a' as usize], 100);
-    assert_eq!(recovered.bigrams[0], ('a' as u16, 'b' as u16, 50));
-}
-
-#[test]
-fn test_rubric_defaults() {
-    let r = Rubric::default();
-    assert!(r.sfb_base > 0.0);
-    assert_eq!(r.finger_effort.len(), 5);
-}
-
-#[test]
-fn test_score_saturation() {
-    let max = Score::MAX;
-    let added = max + Score(100);
-    assert_eq!(added, Score::MAX);
-
-    let min = Score::MIN;
-    let subbed = min - Score(100);
-    assert_eq!(subbed, Score::MIN);
-}
-// ===== libs/keyforge-model/tests/parsing.rs =====
 use keyforge_model::parsing::{parse_key, KeyAction};
 use keyforge_model::geometry::KeyboardDefinition;
 
@@ -3389,16 +3276,25 @@ fn test_kle_import() {
     // Note: KeyboardDefinition::parse handles KLE detection
     let def = KeyboardDefinition::parse(json, Some("Test Board"));
     
-    // If KLE parsing is implemented, this should succeed. 
-    // If not fully implemented yet, we expect an error or specific behavior.
-    // Based on the code, `parse_kle_json` exists.
-    
     if let Ok(kb) = def {
         assert_eq!(kb.meta.name, "Test Board");
         assert_eq!(kb.geometry.keys.len(), 2);
     }
 }
-// ===== libs/keyforge-model/tests/properties.rs =====
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use keyforge_model::{Layout, KeyCode};
 use proptest::prelude::*;
 use std::collections::HashSet;
@@ -3419,41 +3315,23 @@ proptest! {
         }
     }
 }
-// ===== libs/keyforge-model/tests/repro_geometry.rs =====
-use keyforge_model::geometry::KeyboardDefinition;
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#[test]
-fn test_szr35_deserialization() {
-    let json = r#"{
-  "meta": {
-    "name": "SZR35",
-    "author": "KeyForge",
-    "version": "1.0",
-    "notes": "36-key Split Column-Staggered (3x5+3).",
-    "type": "split_column_staggered"
-  },
-  "geometry": {
-    "keys": [
-      {"id": "KeyQ", "x": 0, "y": 0.5, "hand": 0, "finger": 4, "row": 0, "col": 0},
-      {"id": "KeyW", "x": 1, "y": 0.25, "hand": 0, "finger": 3, "row": 0, "col": 1}
-    ],
-    "prime_slots": [0, 1],
-    "med_slots": [],
-    "low_slots": [],
-    "home_row": 1
-  },
-  "layouts": {}
-}"#;
-
-    let def: KeyboardDefinition = serde_json::from_str(json).expect("Failed to deserialize");
-    assert_eq!(def.geometry.keys.len(), 2, "Should have 2 keys");
-    assert_eq!(def.geometry.keys[0].label, "KeyQ", "Label should be KeyQ");
-}
-
-// ===== libs/keyforge-model/tests/validation.rs =====
 use keyforge_model::{
     Corpus, Rubric, SearchConfig, Layout, KeyCode, Validator,
-    KeyboardGeometry, KeyNode, HandIndex, FingerIndex
+    KeyboardGeometry, KeyNode, HandIndex
 };
 
 #[test]
@@ -3469,7 +3347,12 @@ fn test_layout_validation() {
 
 #[test]
 fn test_search_config_validation() {
-    let invalid = SearchConfig::Annealing {
+    // Valid default
+    let c = SearchConfig::default();
+    assert!(c.validate().is_ok());
+
+    // Invalid Steps
+    let invalid_steps = SearchConfig::Annealing {
         steps: 0,
         start_temp: 100.0,
         end_temp: 0.01,
@@ -3478,7 +3361,19 @@ fn test_search_config_validation() {
         reheats: 3,
         reheat_factor: 0.5,
     };
-    assert!(invalid.validate().is_err());
+    assert!(invalid_steps.validate().is_err());
+
+    // Invalid Temp
+    let invalid_temp = SearchConfig::Annealing {
+        steps: 100,
+        start_temp: -1.0,
+        end_temp: 0.01,
+        seed: 42,
+        patience: 500,
+        reheats: 3,
+        reheat_factor: 0.5,
+    };
+    assert!(invalid_temp.validate().is_err());
 }
 
 #[test]
@@ -3486,9 +3381,21 @@ fn test_rubric_validation() {
     let mut r = Rubric::default();
     assert!(r.validate().is_ok());
 
+    // Coverage bounds
     r.trigram_coverage = 1.5; // > 1.0
     assert!(r.validate().is_err());
+    r.trigram_coverage = -0.1;
+    assert!(r.validate().is_err());
 
+    // Reset to valid
+    r.trigram_coverage = 0.99;
+
+    // Limits
+    r.trigram_limit = 0;
+    assert!(r.validate().is_err());
+    r.trigram_limit = 100;
+
+    // Weights
     r.sfb_base = -10.0; // Negative penalty
     assert!(r.validate().is_err());
 }
@@ -3498,8 +3405,19 @@ fn test_corpus_validation() {
     let mut c = Corpus::default();
     assert!(c.validate().is_ok());
 
-    c.char_freqs = vec![0; 10]; // Too short
+    // Too short
+    c.char_freqs = vec![0; 10]; 
     assert!(c.validate().is_err());
+
+    // Too long
+    c.char_freqs = vec![0; 70000];
+    assert!(c.validate().is_err());
+
+    // Valid mutation
+    let mut c2 = Corpus::default();
+    c2.char_freqs['a' as usize] = 100;
+    c2.bigrams.push(('a' as u16, 'b' as u16, 50));
+    assert!(c2.validate().is_ok());
 }
 
 #[test]
@@ -3508,14 +3426,13 @@ fn test_keyboard_geometry_validation() {
     // Empty keys
     assert!(geom.validate().is_err());
 
-    // Invalid Key (Hand > 1)
+    // Invalid Key (Hand > 1) - forcing invalid state manually
+    // Note: HandIndex::try_from prevents this usually, but we test the geometry validator's check
     geom.keys.push(KeyNode {
-        hand: HandIndex(2).try_into().unwrap_or(HandIndex(0)), // HandIndex protects itself, but let's force bad data if possible or check logic
+        hand: HandIndex(0), 
+        w: 0.0, // Invalid dimension
         ..Default::default()
     });
-    // Actually HandIndex::try_from prevents creation of invalid HandIndex, 
-    // so we test the geometry validation logic for other fields like dimensions.
     
-    geom.keys[0].w = 0.0;
     assert!(geom.validate().is_err());
 }
