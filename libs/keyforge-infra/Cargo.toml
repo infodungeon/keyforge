@@ -38,3 +38,8 @@ async-trait = "0.1"
 
 [build-dependencies]
 chrono = "0.4"
+
+[dev-dependencies]
+wiremock = "0.6"
+temp-env = "0.3"
+tokio = { version = "1", features = ["full"] }

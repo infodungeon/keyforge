@@ -22,7 +22,8 @@ use crate::validator::Validator;
 pub struct Corpus {
     /// Frequency of each character (index = char code).
     /// Must be exactly 65536 elements long to cover all u16 values.
-    pub char_freqs: Vec<u32>,
+    /// Changed to u64 to support large corpora (>4B chars).
+    pub char_freqs: Vec<u64>,
     /// List of bigrams (char1, char2, frequency).
     pub bigrams: Vec<(u16, u16, u32)>,
     /// List of trigrams (char1, char2, char3, frequency).
@@ -63,7 +64,6 @@ impl Corpus {
 
         // 2. Bigrams/Trigrams
         // Since u16 indices are always < 65536, they are safe indices into char_freqs.
-        // We could check for duplicates here if strictness is required, but O(N) validation is preferred.
         
         Ok(())
     }
