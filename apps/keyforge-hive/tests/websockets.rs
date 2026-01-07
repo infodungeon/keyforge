@@ -67,7 +67,7 @@ async fn test_websocket_lifecycle() {
     let (ws_url, state) = start_test_server().await;
     let url = Url::parse(&ws_url).unwrap().join("ws?node_id=test-node").unwrap();
 
-    let (mut ws_stream, _) = tokio::time::timeout(
+    let (ws_stream, _) = tokio::time::timeout(
         std::time::Duration::from_secs(2),
         connect_async(url.to_string())
     )

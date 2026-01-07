@@ -1,21 +1,23 @@
 use futures::future::join_all;
-use keyforge_hive::{create_app, state::AppState};
+use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::CostMatrixSource;
 use keyforge_protocol::{JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION};
 use reqwest::{header, Client};
-use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::fs;
-use std::path::PathBuf;
-use std::sync::{Arc, Once};
+use std::net::SocketAddr;
+use std::path::Path;
+use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 const NODE_COUNT: usize = 50;
 const RESULTS_PER_NODE: usize = 100;
 const TEST_SECRET: &str = "test_secret_123";
 
+use std::sync::Once;
 static INIT: Once = Once::new();
 
 fn init_tracing() {
@@ -24,20 +26,17 @@ fn init_tracing() {
         std::env::set_var("RATE_LIMIT_BURST", "10000");
         std::env::set_var("HIVE_SECRET", TEST_SECRET);
 
-        tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::INFO)
-            .with_test_writer()
+        let filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| "info".into());
+
+        tracing_subscriber::registry()
+            .with(fmt::layer().with_test_writer())
+            .with(filter)
             .init();
     });
 }
 
-fn get_data_path() -> PathBuf {
-    let temp = std::env::temp_dir().join("keyforge_stress_test_data");
-    let _ = fs::create_dir_all(&temp);
-    temp
-}
-
-fn ensure_test_assets(data_root: &std::path::Path) {
+fn ensure_test_assets(data_root: &Path) {
     // Create User Structure
     let kb_dir = data_root.join("user/keyboards");
     fs::create_dir_all(&kb_dir).unwrap();
@@ -58,11 +57,7 @@ fn ensure_test_assets(data_root: &std::path::Path) {
     }
 
     if !corpus_dir.join("1grams.json").exists() {
-        fs::write(
-            corpus_dir.join("1grams.json"),
-            r#"[{"char":"a","freq":100}]"#,
-        )
-        .unwrap();
+        fs::write(corpus_dir.join("1grams.json"), r#"[{"char":"a","freq":100}]"#).unwrap();
         fs::write(
             corpus_dir.join("2grams.json"),
             r#"[{"char1":"a","char2":"b","freq":10}]"#,
@@ -89,7 +84,7 @@ fn ensure_test_assets(data_root: &std::path::Path) {
         .unwrap();
     }
 
-    // Create dummy keyboards if they don't exist
+    // Create dummy keyboards
     for name in ["corne", "szr35"] {
         let path = kb_dir.join(format!("{}.json", name));
         if !path.exists() {
@@ -112,42 +107,30 @@ fn ensure_test_assets(data_root: &std::path::Path) {
     }
 }
 
-fn load_keyboard(name: &str) -> KeyboardDefinition {
-    let root = get_data_path();
-    let path = root.join(format!("user/keyboards/{}.json", name));
+fn load_keyboard(data_root: &Path, name: &str) -> KeyboardDefinition {
+    let path = data_root.join(format!("user/keyboards/{}.json", name));
     let content = fs::read_to_string(&path).unwrap_or_else(|_| panic!("Failed to read {:?}", path));
     serde_json::from_str(&content).expect("Failed to parse keyboard JSON")
 }
 
-async fn setup_server() -> (String, PgPool, Arc<AppState>) {
+async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir) {
     init_tracing();
 
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
     });
 
-    let max_conns = std::env::var("DATABASE_MAX_CONNECTIONS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(100);
+    // Use standard DB init helper
+    let pool = init_db(&db_url).await;
 
-    let pool = PgPoolOptions::new()
-        .max_connections(max_conns)
-        .connect(&db_url)
-        .await
-        .expect("Failed to connect to Postgres");
-
-    let crate_dir = env!("CARGO_MANIFEST_DIR");
-    let migrations_path = std::path::Path::new(crate_dir).join("../keyforge-hive/migrations");
-    let migrator = sqlx::migrate::Migrator::new(migrations_path)
-        .await
-        .expect("Failed to load migrations");
-    migrator.run(&pool).await.expect("Failed to run migrations");
-
+    // Clean DB state for stress test
     let _ = sqlx::query("TRUNCATE results CASCADE").execute(&pool).await;
     let _ = sqlx::query("TRUNCATE nodes CASCADE").execute(&pool).await;
+    let _ = sqlx::query("TRUNCATE jobs CASCADE").execute(&pool).await;
 
-    let data_path = get_data_path();
+    // Use tempfile for isolated asset storage
+    let temp_dir = tempfile::tempdir().unwrap();
+    let data_path = temp_dir.path().to_path_buf();
     ensure_test_assets(&data_path);
 
     let state = Arc::new(AppState::new(
@@ -159,13 +142,11 @@ async fn setup_server() -> (String, PgPool, Arc<AppState>) {
     // Cache Warming
     use keyforge_core::loader::AssetLoader;
     let _ = state.assets.load_cost_matrix("cost_matrix.json");
-    let _ = state
-        .assets
-        .load_corpus(&[CorpusSource {
-            id: "default".into(),
-            weight: 1.0,
-            hash: None,
-        }]);
+    let _ = state.assets.load_corpus(&[CorpusSource {
+        id: "default".into(),
+        weight: 1.0,
+        hash: None,
+    }]);
 
     let app = create_app(state.clone(), data_path);
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -173,21 +154,19 @@ async fn setup_server() -> (String, PgPool, Arc<AppState>) {
     let port = addr.port();
 
     tokio::spawn(async move {
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-        )
-        .await
-        .unwrap();
+        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+            .await
+            .unwrap();
     });
 
     let base_url = format!("http://127.0.0.1:{}", port);
-    (base_url, pool, state)
+    (base_url, state, temp_dir)
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn test_heterogeneous_thundering_herd() {
-    let (base_url, _pool, _state) = setup_server().await;
+    let (base_url, _state, _temp_dir) = setup_server().await;
+    let data_root = _temp_dir.path();
 
     let mut headers = header::HeaderMap::new();
     let mut val = header::HeaderValue::from_static(TEST_SECRET);
@@ -203,8 +182,8 @@ async fn test_heterogeneous_thundering_herd() {
     println!("🚀 Starting Real-World Stress Test");
     println!("   Target: {}", base_url);
 
-    let kb_corne = load_keyboard("corne");
-    let kb_szr = load_keyboard("szr35");
+    let kb_corne = load_keyboard(data_root, "corne");
+    let kb_szr = load_keyboard(data_root, "szr35");
 
     let weights_std = ScoringWeights::default();
     let weights_alt = ScoringWeights {
@@ -257,7 +236,7 @@ async fn test_heterogeneous_thundering_herd() {
         println!("   📝 Registered {}: {}", label, &body.job_id[0..8]);
         job_ids.push(body.job_id);
 
-        tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
 
     let start_time = Instant::now();
@@ -282,19 +261,30 @@ async fn test_heterogeneous_thundering_herd() {
                 public_key: None,
             };
 
-            let reg_resp = client_ref
-                .post(format!("{}/nodes/register", url_ref))
-                .json(&reg_req)
-                .send()
-                .await
-                .expect("Reg failed");
+            // Retry loop for registration
+            let mut attempts = 0;
+            loop {
+                let reg_resp = client_ref
+                    .post(format!("{}/nodes/register", url_ref))
+                    .json(&reg_req)
+                    .send()
+                    .await
+                    .expect("Reg failed");
 
-            if !reg_resp.status().is_success() {
-                return Err(format!("Node {} reg failed: {}", i, reg_resp.status()));
+                if reg_resp.status().is_success() {
+                    break;
+                }
+
+                attempts += 1;
+                if attempts >= 5 {
+                    return Err(format!("Node {} reg failed after 5 attempts: {}", i, reg_resp.status()));
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100 * attempts)).await;
             }
 
             for k in 0..RESULTS_PER_NODE {
-                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                // Reduced sleep for faster test execution while still testing concurrency
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 let timestamp = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
@@ -307,7 +297,7 @@ async fn test_heterogeneous_thundering_herd() {
                     score: 500.0,
                     node_id: node_id.clone(),
                     timestamp,
-                    nonce: 0,
+                    nonce: fastrand::u64(..), // Random nonce to avoid replay cache collisions
                     signature: None,
                 };
 

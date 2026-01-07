@@ -5954,8 +5954,6 @@ impl AppState {
     }
 }
 
-// ===== apps/keyforge-hive/tests/api_consistency.rs =====
-
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -6050,8 +6048,6 @@ async fn test_submissions_list() {
 
     assert_eq!(response.status(), StatusCode::OK);
 }
-// ===== apps/keyforge-hive/tests/api_routes.rs =====
-
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -6173,10 +6169,6 @@ async fn test_api_user_nuke_success() {
         .unwrap();
     assert!(exists.is_none());
 }
-// ===== apps/keyforge-hive/tests/core_integration.rs =====
-
-// ===== apps/keyforge-hive/tests/fuzz_api.rs =====
-
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -6427,18 +6419,6 @@ async fn test_wal_recovery_integration() {
     let best = repo.get_best_score(&job_id).await.unwrap();
     assert_eq!(best, Some(123.45));
 }
-// ===== apps/keyforge-hive/tests/integration_real_data.rs =====
-
-// ===== apps/keyforge-hive/tests/persistence_recovery.rs =====
-
-// ===== apps/keyforge-hive/tests/prune_stale_jobs_compat.rs =====
-
-// ===== apps/keyforge-hive/tests/security_node_hijack.rs =====
-
-// ===== apps/keyforge-hive/tests/security_signature_enforcement.rs =====
-
-// ===== apps/keyforge-hive/tests/stress_test.rs =====
-
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
