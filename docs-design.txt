@@ -1,0 +1,1311 @@
+// ===== docs/design/ARCHITECTURE_MAP.md =====
+# System Architecture Map
+
+**Context:** High-level dependency graph overlaying the Hexagonal Architecture.
+**Interaction:** Click on a component in the diagram or use the [Component Index](#component-index) below.
+
+```mermaid
+graph TD
+    %% --- DRIVERS (Primary Adapters) ---
+    subgraph Drivers ["Drivers (The Outside World)"]
+        direction TB
+        CLI("keyforge-cli<br/>[Command]")
+        Hive("keyforge-hive<br/>[Axum Router]")
+        Agent("keyforge-agent<br/>[Worker Loop]")
+        UI("keyforge-ui<br/>[Frontend]")
+    end
+
+    %% --- ADAPTERS (Secondary Adapters) ---
+    subgraph Adapters ["Adapters (Infrastructure)"]
+        direction TB
+        Infra("keyforge-infra<br/>[AssetManager]")
+        Persist("keyforge-persistence<br/>[ProjectRepo]")
+        Wasm("keyforge-wasm<br/>[InMemoryLoader]")
+        Export("keyforge-export<br/>[Exporter Trait]")
+        Adapt("keyforge-adapter<br/>[ACL]")
+    end
+
+    %% --- PORTS (Application Layer) ---
+    subgraph Ports ["Ports (Application Glue)"]
+        direction TB
+        Compute("keyforge-compute<br/>[Runtime]")
+        Core("keyforge-core<br/>[Orchestrator]")
+        Proto("keyforge-protocol<br/>[DTOs]")
+        Sec("keyforge-security<br/>[Signer]")
+    end
+
+    %% --- CORE (Domain Layer) ---
+    subgraph Domain ["Core (The Nucleus)"]
+        direction TB
+        Evo("keyforge-evolution<br/>[Optimizer]")
+        Phys("keyforge-physics<br/>[ScoringEngine]")
+        Model("keyforge-model<br/>[Entities]")
+    end
+
+    %% === WIRING ===
+
+    %% Drivers use Adapters & Ports
+    CLI --> Compute
+    CLI --> Infra
+    Hive --> Infra
+    Hive --> Proto
+    Hive --> Adapt
+    Agent --> Infra
+    Agent --> Proto
+    Agent --> Sec
+    UI -.->|Binds to| Wasm
+
+    %% Adapters use Ports & Domain
+    Infra --> Persist
+    Wasm --> Core
+    Adapt --> Proto
+    Adapt --> Model
+    Persist --> Model
+    Export --> Model
+
+    %% Ports orchestrate Domain
+    Compute --> Core
+    Core --> Evo
+    Core --> Phys
+    Proto --> Model
+    Sec --> Model
+
+    %% Domain Dependencies (Pure)
+    Evo --> Phys
+    Phys --> Model
+
+    %% === INTERACTIVITY (Click to Navigate) ===
+    %% Drivers
+    click CLI href "./keyforge-cli/README.md" "Open CLI Design"
+    click Hive href "./keyforge-hive/README.md" "Open Hive Design"
+    click Agent href "./keyforge-agent/README.md" "Open Agent Design"
+    
+    %% Adapters
+    click Infra href "./keyforge-infra/README.md" "Open Infra Design"
+    click Persist href "./keyforge-persistence/README.md" "Open Persistence Design"
+    click Wasm href "./keyforge-wasm/README.md" "Open WASM Design"
+    click Export href "./keyforge-export/README.md" "Open Export Design"
+    click Adapt href "./keyforge-adapter/README.md" "Open Adapter Design"
+
+    %% Ports
+    click Compute href "./keyforge-compute/README.md" "Open Compute Design"
+    click Core href "./keyforge-core/README.md" "Open Core Design"
+    click Sec href "./keyforge-security/README.md" "Open Security Design"
+    
+    %% Core
+    click Evo href "./keyforge-evolution/README.md" "Open Evolution Design"
+    click Phys href "./keyforge-physics/README.md" "Open Physics Design"
+    
+    %% Data (Links to Architecture Docs)
+    click Model href "../architecture/01_DOMAIN_DICTIONARY.md" "Open Domain Dictionary"
+    click Proto href "../architecture/06_API_SURFACE.md" "Open API Contract"
+```
+
+## Component Index
+
+Use these links to navigate the design documentation if the diagram is not interactive.
+
+### 1. Drivers (The Apps)
+
+* [**keyforge-cli**](./keyforge-cli/README.md) - Command Line Interface.
+* [**keyforge-hive**](./keyforge-hive/README.md) - Server & API.
+* [**keyforge-agent**](./keyforge-agent/README.md) - Worker Node.
+* [**keyforge-ui**](./keyforge-ui/README.md) - Frontend Application.
+
+### 2. Adapters (The IO)
+
+* [**keyforge-infra**](./keyforge-infra/README.md) - Asset Manager & Repos.
+* [**keyforge-persistence**](./keyforge-persistence/README.md) - Project State.
+* [**keyforge-wasm**](./keyforge-wasm/README.md) - Browser Bindings.
+* [**keyforge-export**](./keyforge-export/README.md) - Firmware Generation.
+* [**keyforge-adapter**](./keyforge-adapter/README.md) - Anti-Corruption Layer.
+* [**keyforge-testing**](./keyforge-testing/README.md) - Test Harness.
+
+### 3. Ports (The Glue)
+
+* [**keyforge-core**](./keyforge-core/README.md) - Orchestration.
+* [**keyforge-compute**](./keyforge-compute/README.md) - Runtime Builder.
+* [**keyforge-security**](./keyforge-security/README.md) - Signing & Secrets.
+* [**keyforge-protocol**](../architecture/06_API_SURFACE.md) - DTOs & API Contract.
+
+### 4. Core (The Nucleus)
+
+* [**keyforge-physics**](./keyforge-physics/README.md) - Scoring Engine & Compiler.
+* [**keyforge-evolution**](./keyforge-evolution/README.md) - Annealing Loop.
+* [**keyforge-model**](../architecture/01_DOMAIN_DICTIONARY.md) - Domain Entities.
+
+## Layer Definitions
+
+1. **Drivers:** Entry points that drive the application. They parse user input (CLI args, HTTP requests) and call the Application Layer.
+2. **Adapters:** Implementations of abstract interfaces for IO (Filesystem, Network, Database).
+3. **Ports:** The "Glue" layer. Defines the shape of the application (Runtime, Security protocols, DTOs) without binding to specific IO.
+4. **Core:** Pure business logic. Zero dependencies on the outer layers. Deterministic and testable.
+
+// ===== docs/design/keyforge-adapter/README.md =====
+# Design: KeyForge Adapter
+
+**Responsibility:** Anti-Corruption Layer (ACL) & Data Translation.
+**Tier:** 3 (The Adapter)
+
+## 1. Purpose
+
+The `keyforge-adapter` crate serves as the boundary between the external world (DTOs from `keyforge-protocol`) and the internal domain (Entities from `keyforge-model`).
+
+It ensures that:
+1. **Validation:** Raw data is validated before becoming a Domain Entity.
+2. **Decoupling:** The Domain Layer never depends on the API Contract.
+3. **Versioning:** API changes do not ripple into the Core logic.
+
+## 2. Usage
+
+```rust
+use keyforge_adapter::conversion::TryIntoDomain;
+
+let dto = JobRequestDto { ... };
+let domain_entity: JobRequest = dto.try_into_domain()?;
+```
+
+// ===== docs/design/keyforge-agent/README.md =====
+# Design: KeyForge Agent
+
+**Responsibility:** Distributed computation (Worker).
+**Tier:** 3 (The Driver)
+
+## 1. The Execution Loop
+
+The Agent is a state machine that cycles between Polling, Computing, and Reporting.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Init
+    Init --> Connect : Hardware Detected
+    Connect --> Idle : WS Connected
+    
+    Idle --> Fetch : Job Signal Received
+    Fetch --> Compute : Config Downloaded
+    
+    state Compute {
+        [*] --> Prepare : Download Assets
+        Prepare --> Optimize : Assets Ready
+        Optimize --> Verify : Annealing Done
+        Verify --> Sign : Deterministic Check Passed
+    }
+    
+    Sign --> Submit : Signature Generated
+    Submit --> Idle : Result Accepted
+    
+    Compute --> Idle : Error / Cancelled
+```
+
+## 2. Security Measures
+
+* **Deterministic Verification:** The Agent re-runs the best layout through `DeterministicScorer` (Integer Math) to ensure the score is exact before signing.
+* **Ed25519 Signing:** Every result is signed with the node's private key. The Hive verifies this signature to prevent spoofing.
+
+// ===== docs/design/keyforge-cli/README.md =====
+# Design: KeyForge CLI
+
+**Responsibility:** Local development and analysis tool.
+**Tier:** 3 (The Driver)
+
+## 1. Command Structure
+
+The CLI uses `clap` subcommands to route execution.
+
+* **Stateless Commands:** `init`, `fmt`, `list`. Do not require a compiled engine.
+* **Runtime Commands:** `search`, `validate`, `benchmark`. Require `keyforge-compute`.
+
+## 2. The Runtime Builder
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI
+    participant Compiler
+    participant Runtime
+
+    User->>CLI: keyforge search --keyboard k.json
+    
+    CLI->>CLI: Resolve Paths (Workspace)
+    CLI->>CLI: Load Config (Args + Env)
+    
+    CLI->>Compiler: compile(Project)
+    Compiler->>Compiler: Load Assets
+    Compiler->>Compiler: Build Engine
+    
+    Compiler-->>Runtime: Runtime (Engine + Registry)
+    
+    CLI->>Runtime: optimize()
+```
+
+// ===== docs/design/keyforge-compute/README.md =====
+# Design: KeyForge Compute
+
+**Responsibility:** Application Service for local execution.
+**Tier:** 2 (The Glue)
+
+## 1. The Runtime Aggregate
+
+The `Runtime` struct is the primary entry point for clients (CLI, GUI) that want to execute physics operations. It bundles the stateless `ScoringEngine` with the stateful `SearchConfig` and `KeycodeRegistry`.
+
+```mermaid
+classDiagram
+    class Runtime {
+        +Arc~ScoringEngine~ engine
+        +Arc~KeycodeRegistry~ registry
+        +SearchConfig search_config
+        +score(Layout)
+        +optimize(Callback)
+    }
+
+    class ScoringEngine {
+        <<Service>>
+    }
+
+    Runtime *-- ScoringEngine : Wraps
+```
+
+## 2. Session Builder
+
+The `SessionBuilder` (or `Compiler` in persistence) constructs a `Runtime` from raw inputs.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Builder as SessionBuilder
+    participant Core as Core::Loader
+    participant Runtime
+
+    Client->>Builder: new()
+    Client->>Builder: with_keyboard(def)
+    Client->>Builder: with_corpus(data)
+    
+    Client->>Builder: build()
+    Builder->>Core: build_engine(req)
+    Core-->>Builder: ScoringEngine
+    
+    Builder-->>Runtime: Runtime
+    Runtime-->>Client: Ready
+```
+
+// ===== docs/design/keyforge-core/README.md =====
+# Design: KeyForge Core
+
+**Responsibility:** Pure orchestration and helper functions.
+**Tier:** 2 (The Glue)
+
+## 1. Orchestration Layer
+
+`keyforge-core` exists to prevent circular dependencies between `physics`, `evolution`, and `model`. It provides high-level functions that coordinate these lower-level crates.
+
+* **Constraint:** NO IO allowed. This crate must compile to WASM.
+
+## 2. Optimization Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Core
+    participant Physics as ScoringEngine
+    participant Evo as Evolution
+
+    Client->>Core: optimize_with_engine(Engine, Config)
+    
+    Core->>Evo: evolve(Engine, Config)
+    
+    loop Annealing
+        Evo->>Physics: score()
+    end
+    
+    Evo-->>Core: OptimizationResult
+    Core-->>Client: Result
+```
+
+// ===== docs/design/keyforge-evolution/README.md =====
+# Design: KeyForge Evolution
+
+**Responsibility:** Stochastic optimization (Simulated Annealing).
+**Tier:** 1 (The Nucleus)
+
+## 1. The Annealing Loop
+
+The `Optimizer` drives the search for the global minimum.
+
+```mermaid
+sequenceDiagram
+    participant Opt as Optimizer
+    participant State as SearchState
+    participant Mut as MutationOperator
+    participant Eng as ScoringEngine
+
+    Opt->>State: new(InitialLayout, Temp)
+    
+    loop Steps
+        Mut->>Eng: Propose Swap(A, B)
+        Eng-->>Mut: Delta (Score Change)
+        
+        alt Delta < 0 (Improvement)
+            Opt->>State: Accept
+        else Delta > 0 (Degradation)
+            Opt->>State: Check Temperature Probability
+            alt Random < P(Delta, Temp)
+                Opt->>State: Accept
+            else
+                Opt->>State: Reject
+            end
+        end
+        
+        Opt->>State: Cool Down (Temp * 0.99)
+        
+        opt Patience Exceeded
+            Opt->>State: Reheat (Temp = Start * Factor)
+        end
+    end
+```
+
+## 2. Strategies
+
+* **Cooling:** Exponential decay.
+* **Mutation:** `GroupMutation` (swaps two keys within the unlocked set).
+* **Reheating:** If the score hasn't improved for `N` steps, the temperature is spiked to escape local minima.
+
+// ===== docs/design/keyforge-export/README.md =====
+# Design: KeyForge Export
+
+**Responsibility:** Generating firmware configuration files.
+**Tier:** 3 (The Adapter)
+
+## 1. Exporter Trait
+
+A simple Strategy pattern for different firmware targets.
+
+```rust
+pub trait Exporter {
+    fn generate(&self, layout_name: &str, keys: &[String]) -> Result<String>;
+}
+```
+
+## 2. Supported Targets
+
+* **QMK:** Generates `keymap.c` arrays.
+* **ZMK:** Generates `.keymap` device tree overlays.
+* **VIA:** Generates JSON definitions.
+
+// ===== docs/design/keyforge-hive/README.md =====
+# Design: KeyForge Hive
+
+**Responsibility:** Job orchestration, API hosting, and State management.
+**Tier:** 3 (The Shell)
+
+## 1. Vertical Slice Architecture
+
+Each feature is self-contained in `src/features/<name>`.
+
+```mermaid
+graph TD
+    subgraph "Feature: Register Job"
+        Handler[handler.rs]
+        Logic[logic.rs]
+        Model[models.rs]
+    end
+    
+    subgraph "Shared Kernel"
+        State[AppState]
+        DB[UserRepo]
+    end
+    
+    Handler --> Logic
+    Logic --> Model
+    Logic --> State
+    State --> DB
+```
+
+## 2. The Worker Protocol (WebSocket)
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Hive
+    participant Queue
+
+    Agent->>Hive: Connect (WS /ws?node_id=X)
+    Hive-->>Agent: 101 Switching Protocols
+    
+    loop Heartbeat
+        Hive->>Agent: Ping
+        Agent-->>Hive: Pong
+    end
+    
+    Note over Hive: Job Submitted
+    
+    Hive->>Queue: Check Queue
+    Queue-->>Hive: JobID
+    
+    Hive->>Agent: { type: "Job", id: "123" }
+    Agent->>Hive: GET /jobs/123/config
+    
+    Note over Agent: Optimizing...
+    
+    Agent->>Hive: POST /results
+    Hive-->>Agent: 200 OK
+```
+
+// ===== docs/design/keyforge-infra/README.md =====
+# Design: KeyForge Infra
+
+**Responsibility:** IO Adapters (Filesystem, Network, Database).
+**Tier:** 3 (The Adapter)
+
+## 1. Asset Management
+
+The `AssetManager` abstracts the difference between local files and remote resources.
+
+```mermaid
+sequenceDiagram
+    participant App
+    participant Manager as AssetManager
+    participant FS as FsProvider
+    participant Net as HiveClient
+
+    App->>Manager: get("corpus/english.json")
+    
+    Manager->>FS: exists?
+    alt Yes
+        FS-->>Manager: Path
+    else No
+        Manager->>Net: download()
+        Net-->>Manager: Stream
+        Manager->>FS: write_atomic()
+        FS-->>Manager: Path
+    end
+    
+    Manager-->>App: Path
+```
+
+## 2. Corpus Loading Pipeline
+
+The loading of a standard corpus (e.g., `en_std`) involves a complex pipeline of caching, segmented file merging, and synthetic data injection.
+
+```mermaid
+sequenceDiagram
+    participant Client as Application
+    participant Cache as CachingProvider
+    participant FS as FsProvider
+    participant Disk as Filesystem
+    participant Logic as SyntheticInjector
+
+    Note over Client: Requesting "text/en_std"
+
+    Client->>Cache: load_corpus([Source("text/en_std")])
+    
+    Cache->>Cache: Check Memory (moka)
+    alt Cache Hit
+        Cache-->>Client: Arc(Corpus)
+    else Cache Miss
+        Cache->>FS: load_corpus(sources)
+        
+        create participant Corpus
+        FS->>Corpus: new()
+
+        loop For each Source (en_std)
+            Note right of FS: Path Resolution
+            FS->>Disk: Exists? system/corpora/text/en_std
+            Disk-->>FS: Yes (System Asset)
+            
+            loop For each Segment [1grams, 2grams, 3grams, words]
+                FS->>Disk: Read 1grams.mpk.zst
+                Disk-->>FS: Bytes (Zstd Compressed)
+                
+                FS->>FS: Decompress (Zstd) & Deserialize (MsgPack)
+                
+                FS->>FS: resolve_corpus_char()
+                Note right of FS: Maps "\u0020" -> ' '
+                
+                FS->>Corpus: Merge Frequencies
+            end
+        end
+
+        Note right of FS: Post-Processing
+
+        FS->>Logic: inject_synthetic_data(Corpus, is_std=true)
+        activate Logic
+        Logic->>Corpus: Calculate Stats (Sentence Count)
+        Logic->>Corpus: Inject '\n' (Enter) transitions
+        Logic->>Corpus: Inject '\x08' (Backspace) transitions
+        Logic->>Corpus: Sort N-Grams (Required for Binary Search)
+        deactivate Logic
+
+        FS->>Corpus: validate()
+        alt Invalid
+            Corpus-->>FS: Error
+            FS-->>Cache: Error
+            Cache-->>Client: Error
+        else Valid
+            Corpus-->>FS: Ok
+            FS-->>Cache: Corpus
+            Cache->>Cache: Insert into Memory
+            Cache-->>Client: Arc(Corpus)
+        end
+    end
+```
+
+### Key Steps
+
+1. **Cache Check:** The `CachingProvider` checks if the specific combination of sources exists in memory.
+2. **Path Resolution:** The `FsProvider` looks in `data/system/corpora` for binary assets (`.mpk.zst`) or `data/user/corpora` for JSON.
+3. **Segmented Loading:** The corpus is assembled from `1grams`, `2grams`, `3grams`, and `words` files.
+4. **Token Resolution:** String tokens (like `"\u0020"` or `"SPACE"`) are resolved to Rust `char` primitives.
+5. **Synthetic Injection:** For standard prose (`_std`), **Enter** and **Backspace** frequencies are synthetically injected based on punctuation and error rate models.
+6. **Sorting:** N-gram vectors are sorted to enable O(log n) binary search lookups in the Physics engine.
+
+## 3. Repository Pattern
+
+Data access is hidden behind traits to allow swapping backends (e.g., SQLite -> Postgres).
+
+* **UserRepo:** Manages User accounts and API keys.
+* **JobRepo:** (Planned) Manages Job state and results.
+
+// ===== docs/design/keyforge-model/README.md =====
+# Design: KeyForge Model
+
+**Responsibility:** Domain Entities, Strong Types, and Business Logic.
+**Tier:** 1 (The Nucleus)
+**Dependencies:** Pure Rust (serde, postcard, thiserror).
+
+## 1. The Domain Dictionary
+
+`keyforge-model` defines the "Ubiquitous Language" of the system. These types are the **Single Source of Truth**.
+
+### Domain Entity Map
+
+This diagram illustrates the relationships between the core entities, their attributes, and validation logic.
+
+```mermaid
+classDiagram
+    %% --- Aggregates ---
+    class Config {
+        +SearchParams search
+        +ScoringWeights weights
+        +LayoutDefinitions defs
+        +validate() Result
+    }
+
+    class KeyboardDefinition {
+        +KeyboardMeta meta
+        +KeyboardGeometry geometry
+        +HashMap layouts
+        +validate() Result
+    }
+
+    %% --- Entities ---
+    class KeyboardGeometry {
+        +Vec~KeyNode~ keys
+        +Vec~KeyIndex~ prime_slots
+        +i8 home_row
+        +validate() Result
+        +key_count() usize
+    }
+
+    class KeyNode {
+        +usize index
+        +HandIndex hand
+        +FingerIndex finger
+        +f32 x, y, w, h
+        +bool is_home
+    }
+
+    class Layout {
+        +SmallVec~KeyCode~ keys
+        +try_from(Vec~KeyCode~) Result
+    }
+
+    class Corpus {
+        +Vec~u32~ char_freqs
+        +Vec~Bigram~ bigrams
+        +Vec~Trigram~ trigrams
+        +validate() Result
+    }
+
+    %% --- Value Objects (Configuration) ---
+    class SearchParams {
+        +usize epochs
+        +usize steps
+        +f32 temp_min
+        +f32 temp_max
+        +validate() Result
+    }
+
+    class ScoringWeights {
+        +f32 sfb_penalty
+        +f32 scissor_penalty
+        +f32 roll_bonus
+        +validate() Result
+    }
+
+    %% --- Relationships ---
+    Config *-- SearchParams : Contains
+    Config *-- ScoringWeights : Contains
+    
+    KeyboardDefinition *-- KeyboardGeometry : Owns
+    KeyboardGeometry *-- KeyNode : Aggregates
+    
+    Layout ..> KeyboardGeometry : Maps to (via Index)
+```
+
+### Physical Entities (Hardware)
+
+| Type | Description | Invariant |
+| :--- | :--- | :--- |
+| **`Keyboard`** | The physical device definition. | Immutable during optimization. |
+| **`KeyNode`** | A single key with spatial coordinates (`x`, `y`) and finger assignment. | Must have valid `HandIndex` and `FingerIndex`. |
+| **`KeyIndex`** | `u16` Newtype. Canonical index of a key. | `0 <= index < key_count`. |
+
+### Logical Entities (Software)
+
+| Type | Description | Invariant |
+| :--- | :--- | :--- |
+| **`Layout`** | A mapping of `KeyCode`s to `KeyIndex`es. | No duplicate keys allowed. |
+| **`Corpus`** | N-gram frequency data (Bigrams, Trigrams). | `char_freqs` must cover `u16` range. |
+| **`Rubric`** | Scoring weights and penalties. | Weights must be positive and finite. |
+
+## 2. The Semantic Firewall (Newtypes)
+
+To prevent "Argument Swapping" bugs (e.g., passing a Row index to a Column function), we use the **Newtype Pattern** extensively.
+
+```rust
+// BAD: Ambiguous
+fn distance(idx_a: usize, idx_b: usize) -> f32;
+
+// GOOD: Semantic
+fn distance(a: KeyIndex, b: KeyIndex) -> f32;
+```
+
+### Core Types
+
+* **`KeyIndex(u16)`**: Index into the `Keyboard.keys` array.
+* **`KeyCode(u16)`**: Logical character or modifier ID.
+* **`Score(i64)`**: Fixed-point score representation (scaled by `1_000_000`).
+* **`HandIndex(u8)`**: 0 (Left) or 1 (Right).
+* **`FingerIndex(u8)`**: 0 (Thumb) to 4 (Pinky).
+
+## 3. Validation Strategy (The Hybrid Doctrine)
+
+We employ a hybrid strategy to balance **Correctness** (Parse, Don't Validate) with **Ergonomics** (Serialization).
+
+### A. Strict Construction (Logic Entities)
+
+Small, logic-heavy entities that are the "Atoms" of the system must **never** exist in an invalid state.
+
+* **Target:** `Layout`, `KeyIndex`, `HandIndex`.
+* **Mechanism:** Private fields + `TryFrom` / `new()`.
+* **Guarantee:** If you hold a `Layout`, it is guaranteed to be valid (no duplicates).
+* **Trade-off:** Custom deserialization logic is often required.
+
+### B. Universal Deferred Validation (Data Aggregates)
+
+Large configuration structs loaded from external sources (JSON) use public fields for easy serialization but require an explicit validation step.
+
+* **Target:** `Config`, `ScoringWeights`, `KeyboardDefinition`, `Corpus`, `JobRequest`.
+* **Mechanism:** `Validator` trait + Public Fields.
+* **Rule:** **All** Domain Entities that can be deserialized must implement the `Validator` trait.
+* **Enforcement:** Validation must occur at the **System Boundary** (API Handler, File Loader, WASM Bridge) immediately after deserialization.
+
+```rust
+pub trait Validator {
+    /// Validates the internal state of the object.
+    /// Must be called immediately after deserialization.
+    fn validate(&self) -> Result<(), String>;
+}
+```
+
+### C. Validation Matrix
+
+This table enumerates all validation rules and their enforcement points.
+
+| Entity | Validation Rules | Enforcement Point | Mechanism |
+| :--- | :--- | :--- | :--- |
+| **`HandIndex`** | Must be `0` (Left) or `1` (Right). | **Construction** | `TryFrom<u8>` |
+| **`FingerIndex`** | Must be `0..=4` (Thumb..Pinky). | **Construction** | `TryFrom<u8>` |
+| **`KeyNode`** | `width > 0`, `height > 0`. Valid Hand/Finger indices. | **Deferred** | `KeyboardGeometry::validate()` |
+| **`KeyboardDefinition`** | Geometry is valid. | **Deferred** | `Validator::validate()` |
+| **`Layout`** | 1. No duplicate `KeyCode`s. 2. (Contextual) Length must match `Keyboard`. | **Construction** | `TryFrom<Vec<KeyCode>>` |
+| **`Corpus`** | 1. `char_freqs` len == 65536. 2. Weights must be positive/finite. | **Deferred** | `Validator::validate()` |
+| **`ScoringWeights`** | 1. All floats must be finite. 2. Penalties must be non-negative. | **Deferred** | `Validator::validate()` |
+| **`SearchParams`** | 1. `steps > 0`. 2. `temp_min < temp_max`. | **Deferred** | `Validator::validate()` |
+| **`JobRequest`** | Deep validation of `geometry`, `weights`, `params`. | **Deferred** | `Validator::validate()` |
+
+### D. Enforcement Points (Execution Map)
+
+This section maps the "Deferred" validations to their specific call sites.
+
+#### 1. The API Boundary (`keyforge-hive`)
+
+**Responsibility:** Protect the server from malformed or malicious payloads.
+
+* **Location:** `src/features/*/handler.rs`
+* **Trigger:** Immediately after `axum::Json` deserializes a request body.
+
+#### 2. The Infrastructure Boundary (`keyforge-infra`)
+
+**Responsibility:** Ensure static assets (JSON files) loaded from disk are valid.
+
+* **Location:** `src/assets/fs_provider.rs`
+* **Trigger:** When reading configuration files like `keyboards/*.json` or `weights/*.json`.
+
+#### 3. The Client Boundary (`keyforge-wasm`)
+
+**Responsibility:** Protect the Web Client / WASM engine from invalid JS objects.
+
+* **Location:** `libs/keyforge-wasm/src/lib.rs`
+* **Trigger:** Immediately after `serde_wasm_bindgen::from_value`.
+
+### E. The Hybrid DTO Pattern
+
+Domain Entities in `keyforge-model` are explicitly designed to be **embedded** within Data Transfer Objects (DTOs) in `keyforge-protocol`.
+
+* **Design Goal:** Avoid duplicating struct definitions (e.g., `KeyboardDto` vs `Keyboard`).
+* **Responsibility:** The Domain Entity provides the `validate()` logic for business rules. The DTO is responsible for **calling** that logic during its own validation pass.
+
+```rust
+// In keyforge-protocol
+impl Validator for JobRequest {
+    fn validate(&self) -> Result<(), String> {
+        // Protocol checks...
+        // Delegate to Model:
+        self.definition.validate()?; 
+        Ok(())
+    }
+}
+```
+
+## 4. Serialization & Hashing
+
+We use **Postcard** for internal binary serialization, specifically for generating deterministic `JobIdentifier` hashes.
+
+* **Why Postcard?** It is designed for embedded systems (`no_std`), produces compact output, and guarantees deterministic serialization order, which is critical for content-addressable hashing.
+* **Usage:** `JobIdentifier::try_from_parts` serializes the Job Config to bytes via Postcard, then hashes those bytes with SHA-256.
+
+## 5. Feature Flags
+
+* **`ts_bindings`**: Enables the `ts-rs` dependency and `#[derive(TS)]` macros. Used only when generating TypeScript definitions for the UI.
+
+## 6. Testing Strategy
+
+The integrity of the Model is verified through a multi-layered approach:
+
+1.**Unit Tests (`tests/*.rs`):**
+    - Verify `Validator` logic for each entity (e.g., `test_rubric_validation`).
+    - Ensure edge cases (empty strings, negative weights, NaN) are rejected.
+
+2.**Property Testing (`proptest`):**
+    - Generate random valid/invalid inputs to ensure `TryFrom` and `Validator` never panic, only return Errors.
+    - Verify round-trip serialization (JSON -> Struct -> JSON) preserves data.
+
+3.**Boundary Integration Tests (`keyforge-infra/tests`):**
+    - Verify that the `AssetLoader` correctly rejects invalid files on disk.
+    - Ensures the "Universal Validation" rule is actually enforced in practice.
+
+// ===== docs/design/keyforge-persistence/README.md =====
+# Design: KeyForge Persistence
+
+**Responsibility:** Project state management and compilation.
+**Tier:** 3 (The Adapter)
+
+## 1. The Compiler Pattern
+
+We distinguish between the **Stored State** (`Project`) and the **Executable State** (`Runtime`).
+
+* **Project:** JSON-serializable DTO. Contains paths ("./data/corpus.json") and settings.
+* **Runtime:** In-memory object graph. Contains loaded data (`Vec<Bigram>`) and lookup tables.
+
+```mermaid
+sequenceDiagram
+    participant CLI
+    participant Compiler
+    participant Loader as AssetLoader
+    participant Runtime
+
+    CLI->>Compiler: compile(Project)
+    
+    Compiler->>Loader: load_keyboard(path)
+    Loader-->>Compiler: KeyboardDefinition
+    
+    Compiler->>Loader: load_corpus(path)
+    Loader-->>Compiler: Corpus
+    
+    Compiler->>Compiler: build_engine()
+    
+    Compiler-->>Runtime: Runtime
+```
+
+## 2. Autosave Service
+
+Background service to persist the user's session state.
+
+* **Strategy:** Debounced writes.
+* **Format:** JSON Snapshot.
+
+// ===== docs/design/keyforge-physics/README.md =====
+# Design: KeyForge Physics
+
+**Responsibility:** Pure mathematical scoring of keyboard layouts.
+**Tier:** 1 (The Nucleus)
+
+## 1. The Scoring Engine (Optimized)
+
+The `ScoringEngine` is a compiled, read-only struct optimized for O(1) lookups. It does not store the layout; it calculates the cost of applying a layout to a physical keyboard.
+
+### Compilation Process
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Compiler
+    participant Context as EngineContext
+    participant Engine as ScoringEngine
+
+    User->>Compiler: compile(Keyboard, Corpus, Rubric)
+    
+    Compiler->>Compiler: Flatten Corpus (Bigrams -> Vec)
+    Compiler->>Compiler: Pre-calculate Key Distances
+    Compiler->>Compiler: Apply Cost Overrides
+    
+    Compiler-->>Context: EngineContext (Lookup Tables)
+    
+    Compiler->>Engine: new(Context)
+    Engine-->>User: ScoringEngine
+```
+
+## 2. The Oracle Pattern (Verification)
+
+To ensure the optimized engine remains mathematically sound despite aggressive optimizations (flattened lookups, bit-shifting, and integer scaling), we employ a "Shadow Execution" strategy. Every property test compares the high-performance engine against the `DeterministicScorer`.
+
+### Oracle Parity Sequence
+
+```mermaid
+sequenceDiagram
+    participant T as Test Runner (Proptest)
+    participant C as Compiler
+    participant E as ScoringEngine (Optimized)
+    participant O as DeterministicScorer (Oracle)
+
+    Note over T: Generate Random Inputs<br/>(Keyboard, Corpus, Rubric, Layout)
+
+    T->>C: compile(kb, cp, rb)
+    C->>E: new(EngineContext)
+    
+    par Optimized Path
+        T->>E: score(Layout)
+        E->>E: Fixed-Point Accumulation<br/>(O(1) Lookup Tables)
+        E-->>T: Result A (i64)
+    and Naive Path (Oracle)
+        T->>O: score(kb, cp, rb, Layout)
+        O->>O: Naive Iteration<br/>(Direct Entity Access)
+        O-->>T: Result B (i64)
+    end
+
+    T->>T: Assert Result A == Result B
+    Note over T: Bit-for-bit parity check
+```
+
+## 3. Detailed Scoring Logic (Optimal Choice)
+
+The engine assumes the user is an "Optimal Typist." If a character exists on multiple physical keys, the engine dynamically selects the key (or combination of keys) that results in the lowest possible cost for that specific monogram, bigram, or trigram.
+
+### Dynamic Search Sequence
+
+```mermaid
+sequenceDiagram
+    participant S as score_layout
+    participant PM as PosMap (Internal)
+    participant CTX as EngineContext
+
+    S->>PM: new(layout)
+    Note right of PM: Maps KeyCode -> List of physical indices
+    PM-->>S: pm
+
+    Note over S: 1. Monogram Scoring
+    loop For each char in char_freqs
+        S->>PM: get(char)
+        PM-->>S: candidates [p1, p2, ...]
+        loop For each p in candidates
+            S->>CTX: key_costs[p]
+            S->>S: min_cost = min(cost, min_cost)
+        end
+        S->>S: total += min_cost * freq
+    end
+
+    Note over S: 2. Bigram Scoring
+    loop For each (c1, c2) in bigrams
+        S->>PM: get(c1)
+        PM-->>S: candidates1 [p1a, p1b, ...]
+        S->>PM: get(c2)
+        PM-->>S: candidates2 [p2a, p2b, ...]
+        loop For each p1 in candidates1
+            loop For each p2 in candidates2
+                S->>CTX: cost_matrix[p1, p2]
+                S->>S: min_cost = min(cost, min_cost)
+            end
+        end
+        S->>S: total += min_cost * freq
+    end
+
+    Note over S: 3. Trigram Scoring
+    loop For each (c1, c2, c3) in trigrams
+        S->>PM: get(c1), get(c2), get(c3)
+        PM-->>S: candidates1, candidates2, candidates3
+        loop For each p1 in candidates1
+            loop For each p2 in candidates2
+                loop For each p3 in candidates3
+                    S->>S: calculate_flow_cost(p1, p2, p3)
+                    S->>S: min_cost = min(cost, min_cost)
+                end
+            end
+        end
+        S->>S: total += min_cost * freq
+    end
+```
+
+## 4. Key Components
+
+* **Compiler:** Transforms domain entities into `EngineContext`. It handles the heavy lifting of spatial math and corpus pruning so the scoring loop remains tight.
+* **Compute Kernel:** The hot-path logic for monogram, bigram, and trigram scoring.
+* **Heuristics:** Provides fast swap suggestions by calculating score deltas rather than full re-scores.
+* **Fingerprinter:** Uses Hamming distance to identify known layout standards (Qwerty, Dvorak, etc.).
+
+// ===== docs/design/keyforge-protocol/README.md =====
+# Design: KeyForge Protocol
+
+**Responsibility:** Data Transfer Objects (DTOs), API Contract, and Error Registry.
+**Tier:** 2 (The Contract)
+**Dependencies:** `keyforge-model`.
+
+## 1. The Wire Contract
+
+This crate defines the shape of data sent over HTTP and WebSockets. It acts as the **Anti-Corruption Layer** between the outside world (JSON) and the internal domain (`keyforge-model`).
+
+### DTO Structure Map
+
+This diagram shows the Data Transfer Objects used to communicate between the Client, Server (Hive), and Worker (Agent).
+
+```mermaid
+classDiagram
+    %% --- Client -> Server ---
+    class JobRequest {
+        +u32 version
+        +KeyboardDefinition definition
+        +ScoringWeights weights
+        +SearchParams params
+        +Vec~KeyConstraint~ pinned_keys
+        +Vec~CorpusSource~ corpora
+        +validate() Result
+    }
+
+    %% --- Server -> Worker ---
+    class JobConfig {
+        +KeyboardDefinition definition
+        +ScoringWeights weights
+        +SearchParams params
+        +Vec~KeyConstraint~ pinned_keys
+        +Vec~CorpusSource~ corpora
+        +Option~f32~ baseline_score
+    }
+
+    %% --- Worker -> Server ---
+    class ResultSubmission {
+        +String job_id
+        +String node_id
+        +String layout
+        +f32 score
+        +u64 nonce
+        +String signature
+        +validate() Result
+    }
+
+    %% --- Relationships ---
+    JobRequest ..> JobConfig : Transformed by Hive
+    JobConfig ..> ResultSubmission : Produces
+```
+
+## 2. Validation Strategy (The Bouncer Pattern)
+
+The Protocol layer acts as the **Bouncer** for the system. It enforces "Envelope Integrity" before allowing data to reach the Domain.
+
+### Responsibilities
+
+1.  **Protocol Validation (The Envelope):**
+    *   **Versioning:** Is `version` compatible?
+    *   **Limits:** Is the payload too large? (e.g., `biometrics.len() > 10,000`).
+    *   **Structure:** Are required fields present?
+
+2.  **Domain Delegation (The Payload):**
+    *   The DTO **must** call `.validate()` on all embedded Domain Entities (`KeyboardDefinition`, `ScoringWeights`).
+    *   This ensures that business rules (e.g., "Weights must be positive") are enforced at the API boundary.
+
+## 3. Security & DoS Protection
+
+To prevent memory exhaustion attacks via massive JSON payloads, we enforce strict limits on collection sizes during deserialization.
+
+* **Mechanism:** `#[serde(deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]`
+* **Limit:** Vectors are capped at 100,000 items.
+* **Target:** `biometrics`, `pinned_keys`, `corpora`.
+
+## 4. The Error Registry
+
+We use a centralized `ErrorCode` enum to ensure consistent error handling across the stack (Rust Backend -> TypeScript Frontend).
+
+```rust
+#[derive(strum::Display, EnumString)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ErrorCode {
+    // Domain Errors
+    JOB_VALIDATION_FAILED,
+    PHYSICS_VIOLATION,
+    
+    // Infra Errors
+    DATABASE_ERROR,
+    AUTH_INVALID,
+}
+```
+
+**Invariant:** Every error returned by the API must map to a specific `ErrorCode`.
+
+## 5. TypeScript Integration
+
+To ensure the Frontend (`keyforge-ui`) stays in sync with the Backend, we use `ts-rs` to generate TypeScript definitions from Rust structs.
+
+* **Feature Flag:** `ts_bindings`. Must be enabled explicitly to generate bindings.
+* **Source:** `#[derive(TS)]` on DTOs.
+* **Output:** `bindings/` directory.
+* **Usage:** The Frontend imports these types directly, ensuring compile-time safety across the network boundary.
+
+## 6. Versioning
+
+* **`PROTOCOL_VERSION`**: A monotonic integer incremented whenever the wire format changes in a breaking way.
+* **Handshake:** Clients and Workers must announce their version on connection. The Server rejects incompatible versions.
+
+// ===== docs/design/keyforge-security/README.md =====
+# Design: KeyForge Security
+
+**Responsibility:** Cryptographic signing and secret management.
+**Tier:** 2 (The Shield)
+
+## 1. Result Signing Protocol
+
+To prevent malicious workers from submitting fake high scores, every result is signed.
+
+```mermaid
+sequenceDiagram
+    participant Worker
+    participant Sec as SecurityCrate
+    participant Hive
+
+    Note over Worker: Optimization Complete
+    
+    Worker->>Sec: sign_result(JobID, Layout, Score, Nonce)
+    Sec->>Sec: Hash(Payload)
+    Sec->>Sec: Ed25519_Sign(Hash, PrivateKey)
+    Sec-->>Worker: Signature (Hex)
+    
+    Worker->>Hive: Submit(Result + Signature)
+    
+    Hive->>Sec: verify_result(Payload, Signature, PublicKey)
+    alt Valid
+        Hive->>Hive: Accept
+    else Invalid
+        Hive->>Hive: Reject & Ban Node
+    end
+```
+
+## 2. Memory Safety
+
+* **SecretBytes:** Uses `zeroize` to wipe private keys from memory when dropped.
+* **No Logging:** Secrets are never implemented with `Debug` or `Display`.
+
+// ===== docs/design/keyforge-testing/README.md =====
+# Design: KeyForge Testing
+
+**Responsibility:** Hermetic Test Harness & Fixtures.
+**Tier:** 3 (The Tooling)
+
+## 1. The Hermetic Workspace
+
+The `HermeticWorkspace` struct provides an isolated, file-based environment for integration tests. It creates a temporary directory and populates it with "Golden Data" (Corpus, Keyboards, Weights).
+
+```rust
+use keyforge_testing::HermeticWorkspace;
+
+#[test]
+fn test_full_lifecycle() {
+    let ws = HermeticWorkspace::new()
+        .with_keyboard("ansi", default_ansi())
+        .with_corpus("english", "the", 100);
+    
+    // Run test against ws.data_root
+}
+```
+
+## 2. Golden Data
+
+This crate contains the canonical "Truth" for testing:
+* **Standard Keyboards:** ANSI, ISO, ErgoDox.
+* **Standard Corpora:** English, Code.
+* **Standard Rubrics:** Default weights.
+
+// ===== docs/design/keyforge-ui/README.md =====
+# Design: KeyForge UI
+
+**Responsibility:** User Interaction, Visualization, and Client-Side Analysis.
+**Tier:** 3 (The Driver)
+**Tech Stack:** React, TypeScript, Vite, Tauri, TailwindCSS.
+
+## 1. The Hybrid Runtime Architecture
+
+KeyForge UI is designed to run in two distinct environments using a **Bridge Adapter Pattern**. This allows the same frontend code to power both the Desktop App (High Performance) and the Web Demo (High Accessibility).
+
+```mermaid
+graph TD
+    subgraph "Presentation Layer (React)"
+        View["Views"]
+        Context["Context Stores"]
+        Hooks["Custom Hooks"]
+    end
+
+    subgraph "Bridge Layer (src/api)"
+        Client{"API Client Interface"}
+        TauriAdapter["Tauri Adapter"]
+        WebAdapter["Web Adapter"]
+    end
+
+    subgraph "Execution Layer"
+        RustCore["Tauri Core (Rust)"]
+        WasmCore["WASM Worker (Browser)"]
+    end
+
+    View --> Context
+    Context --> Hooks
+    Hooks --> Client
+    
+    Client -->|Desktop| TauriAdapter
+    Client -->|Browser| WebAdapter
+    
+    TauriAdapter -->|IPC| RustCore
+    WebAdapter -->|SharedArrayBuffer| WasmCore
+```
+
+## 2. State Management (Domain Contexts)
+
+We avoid a monolithic global store (like Redux) in favor of **Domain-Bounded Contexts**. This aligns with the Hexagonal Architecture of the backend.
+
+| Context | Domain | Responsibility |
+| :--- | :--- | :--- |
+| `SystemContext` | **App Lifecycle** | Theme, Toast notifications, Error boundaries. |
+| `BackendContext` | **Connectivity** | Manages the `API Client` instance (Tauri vs Web) and connection status. |
+| `LibraryContext` | **Persistence** | CRUD operations for Layouts, Corpora, and Results. |
+| `AnalysisContext` | **Physics** | Real-time scoring, Heatmaps, and Metric reports. |
+| `ArenaContext` | **Evolution** | Manages the "Arena" view where layouts battle (Genetic Algorithm visualization). |
+| `SessionContext` | **User** | User authentication and preferences. |
+
+## 3. The Bridge Pattern (`src/api`)
+
+The application never calls `invoke()` or `fetch()` directly. It uses a typed `ApiClient` interface.
+
+### Interface Definition
+
+```typescript
+export interface ApiClient {
+  // Core Physics
+  analyzeLayout(layout: Layout): Promise<AnalysisReport>;
+  
+  // Optimization
+  startJob(config: JobConfig): Promise<JobId>;
+  stopJob(id: JobId): Promise<void>;
+  
+  // System
+  getSystemMetrics(): Promise<SystemMetrics>;
+}
+```
+
+### Implementations
+
+1. **`tauri.ts`**: Proxies calls to the Rust backend via Tauri IPC.
+    * *Pros:* Native performance, File System access, Multi-threading.
+2. **`web.ts`**: Proxies calls to `keyforge-wasm` running in a Web Worker.
+    * *Pros:* Zero-install, Sandboxed.
+    * *Cons:* Single-threaded (mostly), Memory limits.
+
+## 4. Type Synchronization
+
+To ensure the "Semantic Firewall" extends to the frontend, we generate TypeScript definitions directly from Rust structs.
+
+* **Source:** `libs/keyforge-protocol/src/dto.rs`
+* **Tool:** `ts-rs` (or similar generation script).
+* **Destination:** `apps/keyforge-ui/src/types/generated/`
+
+**Invariant:** If the Rust backend changes a DTO, the Frontend build MUST fail until updated.
+
+## 5. Visualization Components
+
+* **`KeyboardMap`**: A dynamic SVG renderer that visualizes `KeyNode` spatial data. It supports overlays for Heatmaps, Finger Usage, and SFBs.
+* **`LiveGraph`**: Real-time plotting of the Annealing temperature and score deltas.
+* **`ArenaCanvas`**: A WebGL/Canvas view for visualizing high-frequency layout mutations during optimization.
+
+// ===== docs/design/keyforge-wasm/README.md =====
+# Design: KeyForge WASM
+
+**Responsibility:** Browser bindings for the Core engine.
+**Tier:** 3 (The Adapter)
+
+## 1. The InMemory Loader
+
+Since browsers have no filesystem, we inject assets directly into memory.
+
+```mermaid
+classDiagram
+    class KeyforgeEngine {
+        +InMemoryLoader loader
+        +init_session()
+        +analyze_layout()
+    }
+
+    class InMemoryLoader {
+        +HashMap~String, Keyboard~ keyboards
+        +HashMap~String, Corpus~ corpora
+    }
+
+    KeyforgeEngine *-- InMemoryLoader
+```
+
+## 2. JS Interop
+
+* **Serialization:** Uses `serde-wasm-bindgen` to convert JS Objects <-> Rust DTOs.
+* **Panic Hook:** `console_error_panic_hook` forwards Rust panics to the JS console.
+
+// ===== docs/design/README.md =====
+# KeyForge Design Documentation
+
+**Context:** Detailed internal design and sequence diagrams for each crate.
+
+## Core (The Nucleus)
+* [keyforge-physics](./keyforge-physics/README.md) - Scoring Engine & Compiler.
+* [keyforge-evolution](./keyforge-evolution/README.md) - Annealing Loop.
+* [keyforge-model](./keyforge-model/README.md) - Domain Entities (See Architecture).
+
+## Glue (The Middleware)
+* [keyforge-core](./keyforge-core/README.md) - Orchestration.
+* [keyforge-compute](./keyforge-compute/README.md) - Runtime Builder.
+* [keyforge-security](./keyforge-security/README.md) - Signing & Secrets.
+
+## Adapters (The IO)
+* [keyforge-infra](./keyforge-infra/README.md) - Asset Manager & Repos.
+* [keyforge-persistence](./keyforge-persistence/README.md) - Project State.
+* [keyforge-wasm](./keyforge-wasm/README.md) - Browser Bindings.
+* [keyforge-export](./keyforge-export/README.md) - Firmware Generation.
+* [keyforge-adapter](./keyforge-adapter/README.md) - Anti-Corruption Layer.
+* [keyforge-testing](./keyforge-testing/README.md) - Test Harness.
+
+## Drivers (The Apps)
+* [keyforge-hive](./keyforge-hive/README.md) - Server & API.
+* [keyforge-agent](./keyforge-agent/README.md) - Worker Node.
+* [keyforge-cli](./keyforge-cli/README.md) - Command Line Interface.
+
