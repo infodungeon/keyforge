@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use keyforge_agent::agent::compute;
+use keyforge_agent::models::SharedTelemetry;
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
 use keyforge_model::CostMatrixSource;
@@ -110,7 +111,8 @@ async fn test_optimization_cancellation() {
 
     let stop_flag = Arc::new(AtomicBool::new(true)); 
     let limiter = Arc::new(Semaphore::new(1));
+    let telemetry = SharedTelemetry::default();
 
-    let result = compute::run_optimization(req, "test-job".into(), stop_flag, limiter).await;
+    let result = compute::run_optimization(req, "test-job".into(), stop_flag, limiter, telemetry).await;
     assert!(result.is_err(), "Should have been cancelled by stop_flag");
 }

@@ -20,3 +20,5 @@ pub enum AgentError {
     #[error("Resource Error: {0}")]
     Resource(String),
 }
+
+pub type AgentResult<T> = Result<T, AgentError>;

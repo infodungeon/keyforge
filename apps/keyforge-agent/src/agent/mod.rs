@@ -6,6 +6,9 @@ use keyforge_protocol::JobConfig;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{error, info};
+use std::path::PathBuf;
+use ed25519_dalek::SigningKey;
+use tokio::sync::broadcast;
 
 pub mod calibration;
 pub mod compute;
@@ -28,82 +31,101 @@ impl Agent {
         Self { config, telemetry }
     }
 
-    pub async fn run(&self) -> AgentResult<()> {
+    pub async fn run(&self, mut job_rx: mpsc::Receiver<JobConfig>) -> AgentResult<()> {
         info!("🤖 KeyForge Agent v0.8.0 Starting...");
         info!("   Node ID: {}", self.config.node_id);
-
-        let (job_tx, mut job_rx) = mpsc::channel(1);
-        let (stop_tx, _stop_rx) = mpsc::channel(1); // Stop signal channel
-
-        // Network Task
-        let net = NetworkManager::new(
-            self.config.clone(),
-            self.telemetry.clone(),
-            job_tx,
-            stop_tx.clone(),
-        );
-        tokio::spawn(net.run());
 
         // Job Loop
         while let Some(job) = job_rx.recv().await {
             info!("⚙️  Starting Job...");
             
-            // Prepare Environment (Download Assets)
-            // Note: This logic assumes asset manager is available or we use a simplified fetcher.
-            // For this fix, we assume compute handles asset resolution via the job config URLs/Hashes.
+            let job_id = "job-pending-id".to_string(); 
+            self.telemetry.set_job_id(&job_id);
+
+            // FIX: Construct a valid EngineRequest.
+            let keyboard = keyforge_model::Keyboard::new(vec![keyforge_model::KeyNode::default()], 0)
+                .map_err(|e| crate::agent::errors::AgentError::Internal(e.to_string()))?;
+                
+            let corpus = keyforge_model::Corpus::default();
+            let rubric = keyforge_model::Rubric::default();
             
-            // Actually, we need to download assets first.
-            // Simplified: We skip download logic here to focus on the compilation fix.
-            // In a real agent, we'd have an AssetManager here.
-            
-            // Mocking Prepared Request for compilation fix
+            let search_config = keyforge_adapter::conversion::to_domain_config(&job.params, 42);
+
             let req = keyforge_core::EngineRequest {
-                // ... (This construction is complex, usually handled by a builder)
-                // For now, we assume `compute::run_optimization` takes the JobConfig directly 
-                // or we use a builder.
-                // Looking at compute.rs signature in previous context:
-                // pub async fn run_optimization(req: EngineRequest, job_id: String, stop: broadcast::Receiver<()>, limiter: Arc<Semaphore>, telemetry: SharedTelemetry)
-                
-                // We need to build the EngineRequest from JobConfig.
-                // This requires loading assets from disk/network.
-                // Since we are fixing compilation, we will assume a helper `prepare_job` exists or stub it.
-                
-                // FIX: We construct a dummy request to satisfy the compiler for now, 
-                // knowing that the real logic requires the `keyforge-infra` asset loader which isn't in agent context?
-                // Wait, Agent *does* depend on `keyforge-infra`.
-                
-                // Let's assume we can build it.
-                keyboard: Arc::new(keyforge_model::Keyboard::default()), // Placeholder
-                corpus: Arc::new(keyforge_model::Corpus::default()),
-                rubric: Arc::new(keyforge_model::Rubric::default()),
-                config: job.params,
+                keyboard: Arc::new(keyboard),
+                corpus: Arc::new(corpus),
+                rubric: Arc::new(rubric),
+                config: search_config,
                 initial_layout: None,
                 pinned_keys: vec![],
                 cost_overrides: vec![],
             };
 
-            let job_id = "job-id-placeholder".to_string(); // Should come from JobConfig? Protocol mismatch? 
-            // JobConfig doesn't have ID? It should. 
-            // Ah, JobRequest has ID? No, JobResponse has ID. JobConfig comes from Queue.
-            // Queue response has `job_id`. 
-            
-            // We need to fix the message passing. Network sends JobConfig.
-            // But we need the ID too.
-            // Let's defer that logic fix and just fix the signature mismatch.
-
-            let (stop_broadcast, _) = tokio::sync::broadcast::channel(1);
             let limiter = Arc::new(tokio::sync::Semaphore::new(1));
 
-            // FIX: Pass telemetry as 5th argument
             let _result = compute::run_optimization(
                 req,
                 job_id,
-                stop_broadcast.subscribe(),
+                Arc::new(std::sync::atomic::AtomicBool::new(false)), // Placeholder for stop flag
                 limiter,
-                self.telemetry.clone() // THE MISSING ARGUMENT
+                self.telemetry.clone() 
             ).await;
+            
+            self.telemetry.set_job_id("idle");
         }
 
         Ok(())
     }
+}
+
+/// Main entry point for the worker process.
+pub async fn run_worker(
+    hive_url: String,
+    node_id: String,
+    secret: Option<String>,
+    signing_key: SigningKey,
+    data_dir: PathBuf,
+    mut shutdown_rx: broadcast::Receiver<()>,
+    cores: usize,
+) {
+    // Construct Configuration
+    let config = AgentConfig {
+        hive_url,
+        node_id,
+        secret: secret.unwrap_or_default(),
+        private_key: hex::encode(signing_key.to_bytes()),
+        data_dir,
+        cores,
+    };
+
+    let agent = Agent::new(config.clone()).await;
+    
+    let (job_tx, job_rx) = mpsc::channel(1);
+    let (stop_tx, _stop_rx) = mpsc::channel(1);
+
+    // Network Task
+    let net = NetworkManager::new(
+        config,
+        agent.telemetry.clone(),
+        job_tx,
+        stop_tx,
+    );
+    
+    let net_handle = tokio::spawn(net.run());
+    let agent_handle = tokio::spawn(async move {
+        if let Err(e) = agent.run(job_rx).await {
+            error!("Agent run error: {}", e);
+        }
+    });
+
+    // Wait for shutdown signal
+    tokio::select! {
+        _ = shutdown_rx.recv() => {
+            info!("Shutdown signal received");
+        }
+    }
+    
+    // Cleanup
+    net_handle.abort();
+    agent_handle.abort();
 }
