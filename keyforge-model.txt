@@ -1400,11 +1400,16 @@ pub const MAX_INPUT_FILE_SIZE: u64 = 100 * 1024 * 1024;
 /// Maximum recursion depth for JSON parsing.
 pub const MAX_JSON_DEPTH: usize = 50;
 
-// --- WebSocket ---
+// --- WebSocket Internal Signaling ---
 
-/// Prefix for Job messages.
+/// Prefix for internal Job broadcast messages on the `state.tx` channel.
+/// Example: "JOB:12345"
+/// Note: This is NOT the external JSON protocol sent to clients.
 pub const WS_MSG_JOB: &str = "JOB:";
-/// Prefix for Cancel messages.
+
+/// Prefix for internal Cancel broadcast messages on the `state.tx` channel.
+/// Example: "CANCEL:12345"
+/// Note: This is NOT the external JSON protocol sent to clients.
 pub const WS_MSG_CANCEL: &str = "CANCEL:";
 
 // --- Corpus Parsing ---
@@ -1461,7 +1466,6 @@ pub const STD_CORPUS_ERROR_RATE: f32 = 0.03;
 pub const STD_CORPUS_BACKSPACE_FACTOR: f32 = 1.25;
 /// Average sentences per paragraph for standard prose.
 pub const STD_CORPUS_SENTENCE_RATIO: f32 = 3.0;
-
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

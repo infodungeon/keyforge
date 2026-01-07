@@ -38,18 +38,20 @@ pub async fn get_admin_stats(
         .count_total()
         .await
         .map_err(AppError::Database)?;
-    let nodes_online = state
-        .nodes
-        .count_recent()
+    
+    // Use Distributed Coordinator for real-time cluster stats
+    let (nodes_online, total_ops_per_sec) = state
+        .coordinator
+        .get_cluster_stats()
         .await
-        .map_err(AppError::Database)?;
-    let total_ops_per_sec = state.nodes.sum_ops().await.map_err(AppError::Database)?;
+        .unwrap_or((0, 0.0));
+
     let queue_depth = state.queue.current_depth().await;
 
     Ok(Json(AdminStatsResponse {
         active_jobs,
         total_results,
-        nodes_online,
+        nodes_online: nodes_online as i64,
         total_ops_per_sec,
         queue_depth,
     }))

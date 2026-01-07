@@ -21,9 +21,18 @@ use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use serde_json::json;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower::ServiceExt; 
+use tower::ServiceExt;
+use testcontainers_modules::redis::Redis;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use testcontainers_modules::testcontainers::ContainerAsync;
 
-async fn setup_test_app() -> (axum::Router, Arc<AppState>, sqlx::PgPool, tempfile::TempDir) {
+async fn setup_test_app() -> (axum::Router, Arc<AppState>, sqlx::PgPool, tempfile::TempDir, ContainerAsync<Redis>) {
+    // 1. Start Valkey (Redis) Container
+    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
+    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
+
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
     });
@@ -38,10 +47,10 @@ async fn setup_test_app() -> (axum::Router, Arc<AppState>, sqlx::PgPool, tempfil
         pool.clone(),
         data_path.clone(),
         "test_key".to_string(),
-    ));
+    ).await);
     let app = create_app(state.clone(), data_path);
 
-    (app, state, pool, temp_dir)
+    (app, state, pool, temp_dir, valkey_node)
 }
 
 fn test_addr() -> SocketAddr {
@@ -50,7 +59,7 @@ fn test_addr() -> SocketAddr {
 
 #[tokio::test]
 async fn test_api_user_nuke_unauthorized() {
-    let (app, _, _, _temp) = setup_test_app().await;
+    let (app, _, _, _temp, _valkey) = setup_test_app().await;
 
     let response = app
         .oneshot(
@@ -70,7 +79,7 @@ async fn test_api_user_nuke_unauthorized() {
 
 #[tokio::test]
 async fn test_api_user_nuke_invalid_confirmation() {
-    let (app, _, _, _temp) = setup_test_app().await;
+    let (app, _, _, _temp, _valkey) = setup_test_app().await;
 
     let response = app
         .oneshot(
@@ -91,7 +100,7 @@ async fn test_api_user_nuke_invalid_confirmation() {
 
 #[tokio::test]
 async fn test_api_user_nuke_success() {
-    let (app, state, pool, _temp) = setup_test_app().await;
+    let (app, state, pool, _temp, _valkey) = setup_test_app().await;
 
     let username = format!("nuke_target_{}", uuid::Uuid::new_v4());
     state.users.create_user(&username).await.unwrap();

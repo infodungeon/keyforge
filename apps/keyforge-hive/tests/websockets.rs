@@ -20,6 +20,9 @@ use tokio::net::TcpListener;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
 use keyforge_model::constants::WS_MSG_JOB;
+use testcontainers_modules::redis::Redis;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use testcontainers_modules::testcontainers::ContainerAsync;
 
 // Ensure tracing is initialized only once
 use std::sync::Once;
@@ -34,9 +37,15 @@ fn init_test_tracing() {
     });
 }
 
-async fn start_test_server() -> (String, Arc<AppState>) {
+async fn start_test_server() -> (String, Arc<AppState>, ContainerAsync<Redis>) {
     init_test_tracing();
     
+    // Start Valkey
+    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
+    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
+
     // Force HTTP
     std::env::remove_var("TLS_CERT");
     std::env::remove_var("TLS_KEY");
@@ -48,7 +57,7 @@ async fn start_test_server() -> (String, Arc<AppState>) {
     let temp_dir = tempfile::tempdir().unwrap();
     let data_path = temp_dir.path().to_path_buf();
 
-    let state = Arc::new(AppState::new(pool, data_path.clone(), "test_key".into()));
+    let state = Arc::new(AppState::new(pool, data_path.clone(), "test_key".into()).await);
     let app = create_app(state.clone(), data_path);
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -59,12 +68,12 @@ async fn start_test_server() -> (String, Arc<AppState>) {
     });
 
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    (format!("ws://{}:{}", "127.0.0.1", addr.port()), state)
+    (format!("ws://{}:{}", "127.0.0.1", addr.port()), state, valkey_node)
 }
 
 #[tokio::test]
 async fn test_websocket_lifecycle() {
-    let (ws_url, state) = start_test_server().await;
+    let (ws_url, state, _valkey) = start_test_server().await;
     let url = Url::parse(&ws_url).unwrap().join("ws?node_id=test-node").unwrap();
 
     let (ws_stream, _) = tokio::time::timeout(

@@ -2,15 +2,25 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use keyforge_infra::HiveClient;
 use keyforge_protocol::{
     JobConfig, JobQueueResponse, NodeRequest, NodeResponse, PopulationResponse, ResultSubmission,
-    TuningProfile,
+    TuningProfile, NodeTelemetry,
 };
 use rand::Rng;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 use uuid::Uuid;
+use tokio_tungstenite::tungstenite::protocol::Message;
+use crate::models::SharedTelemetry;
+use crate::agent::compute;
+use keyforge_core::DeterministicScorer;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio_tungstenite::connect_async;
+use tokio::sync::broadcast;
+use futures::{StreamExt, SinkExt};
 
 /// Constructs a HiveClient with optional authentication secret.
 /// Handles fallback to unauthenticated client if secret derivation fails.
@@ -338,4 +348,277 @@ pub fn verify_server_identity(
         .verify(challenge.as_bytes(), &sig)
         .map(|_| true)
         .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", content = "payload")]
+enum ServerMessage {
+    Job {
+        #[serde(rename = "id")]
+        _id: String,
+    },
+    Cancel {
+        id: String,
+    },
+}
+
+/// Manages a single WebSocket connection to the Hive.
+///
+/// Handles job signals, heartbeats, and cancellations.
+#[allow(clippy::too_many_arguments)]
+pub async fn process_connection(
+    mut ws_stream: tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+    client: &HiveClient,
+    outbox: &Arc<ResultOutbox>,
+    node_id: &str,
+    data_root: &std::path::Path,
+    signing_key: &ed25519_dalek::SigningKey,
+    compute_limiter: &Arc<Semaphore>,
+    shutdown: &mut broadcast::Receiver<()>,
+) {
+    let mut active_job_handle: Option<tokio::task::JoinHandle<()>> = None;
+    let mut active_stop_flag: Option<Arc<AtomicBool>> = None;
+    let mut active_job_id: Option<String> = None;
+    let mut check_queue = true;
+
+    // NEW: Shared Telemetry State
+    let telemetry = Arc::new(crate::models::AgentTelemetry::default());
+    // NEW: Telemetry Ticker (1Hz)
+    let mut telemetry_ticker = tokio::time::interval(Duration::from_secs(1));
+
+    loop {
+        if active_job_handle.is_none() && check_queue {
+            check_queue = false;
+            if let Some((job_id, config)) = fetch_job_queue(client).await {
+                info!(job_id = %job_id, "processing job");
+
+                let outbox_clone = outbox.clone();
+                let node_id_clone = node_id.to_string();
+                let data_root_clone = data_root.to_path_buf();
+                let client_clone = client.clone();
+                let signing_key = Arc::new(signing_key.clone());
+                let limiter_clone = compute_limiter.clone();
+                // Pass telemetry to compute task
+                let telemetry_clone = telemetry.clone();
+
+                let stop_flag = Arc::new(AtomicBool::new(false));
+                active_stop_flag = Some(stop_flag.clone());
+                active_job_id = Some(job_id.clone());
+
+                let job_id_task = job_id.clone();
+
+                let spawn_res = tokio::spawn(async move {
+                    let compute_res = async {
+                        let loader =
+                            Box::new(keyforge_infra::FsProvider::new(data_root_clone.clone()));
+
+                        let asset_manager = keyforge_infra::AssetManager::new(
+                            client_clone.clone(),
+                            data_root_clone.clone(),
+                        );
+
+                        let (cost_path, corpus_root) =
+                            compute::prepare_assets(&asset_manager, &config).await?;
+
+                        let prepared = compute::create_engine_request(
+                            loader,
+                            data_root_clone,
+                            &config,
+                            &cost_path,
+                            &corpus_root,
+                        ).await?;
+
+                        let registry = prepared.registry.clone();
+
+                        let result = compute::run_optimization(
+                            prepared.req,
+                            job_id_task.clone(),
+                            stop_flag,
+                            limiter_clone,
+                            telemetry_clone, // <--- New Argument
+                        )
+                        .await?;
+
+                        info!(
+                            job_id = %job_id_task,
+                            fast_score = result.score,
+                            "optimization complete"
+                        );
+
+                        // --- DETERMINISTIC RECALCULATION ---
+                        // We ignore the score from the optimizer (approximate float math)
+                        // and recalculate using the Sidecar (exact integer math).
+                        let deterministic_score = DeterministicScorer::score(
+                            &prepared.keyboard,
+                            &prepared.corpus,
+                            &prepared.rubric,
+                            &result.layout,
+                            &prepared.cost_overrides,
+                        );
+
+                        // Silence Protocol: Discard if no improvement over baseline
+                        if let Some(baseline) = config.baseline_score {
+                            if deterministic_score >= baseline {
+                                info!(
+                                    job_id = %job_id_task,
+                                    score = deterministic_score,
+                                    baseline = baseline,
+                                    "result discarded (no improvement)"
+                                );
+                                return Ok(());
+                            }
+                        }
+
+                        let layout_str = result
+                            .layout
+                            .keys
+                            .iter()
+                            .map(|&c| registry.get_label(c))
+                            .collect::<Vec<String>>()
+                            .join(" ");
+
+                        let timestamp = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or(Duration::from_secs(0))
+                            .as_secs();
+
+                        let nonce = rand::thread_rng().gen::<u64>();
+
+                        // Sign the DETERMINISTIC score
+                        let signature = crypto::sign_result_direct(
+                            &signing_key,
+                            &job_id_task,
+                            &layout_str,
+                            deterministic_score,
+                            timestamp,
+                            nonce,
+                        )
+                        .map_err(|e| anyhow::anyhow!("signing failed: {:?}", e))?;
+
+                        let _ = outbox_clone.try_send(ResultSubmission {
+                            version: keyforge_protocol::PROTOCOL_VERSION,
+                            job_id: job_id_task,
+                            layout: layout_str,
+                            score: deterministic_score,
+                            node_id: node_id_clone,
+                            timestamp,
+                            nonce,
+                            signature: Some(signature),
+                        });
+                        Ok::<(), anyhow::Error>(())
+                    }
+                    .await;
+
+                    if let Err(e) = compute_res {
+                        error!(error = %e, "compute error");
+                    }
+                });
+
+                active_job_handle = Some(spawn_res);
+            }
+        }
+
+        tokio::select! {
+            biased;
+
+            _ = shutdown.recv() => {
+                info!("agent shutting down (signal received)");
+                if let Some(flag) = active_stop_flag {
+                    flag.store(true, Ordering::SeqCst);
+                }
+                if let Some(handle) = active_job_handle {
+                    let _ = handle.await;
+                }
+                return;
+            }
+
+            // NEW: Telemetry Tick
+            _ = telemetry_ticker.tick() => {
+                let (ips, temp, best) = telemetry.snapshot();
+                
+                // Only send robust telemetry if active, otherwise simple ping
+                if ips > 0.0 || active_job_id.is_some() {
+                    let packet = NodeTelemetry {
+                        job_id: active_job_id.clone(),
+                        ips,
+                        temp,
+                        current_best: if best > 0.0 { Some(best) } else { None },
+                        memory_usage: 0, // Placeholder for sysinfo
+                        timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    };
+                    
+                    if let Ok(json) = serde_json::to_string(&packet) {
+                        if let Err(e) = ws_stream.send(Message::Text(json)).await {
+                            warn!("Telemetry send failed: {}", e);
+                            break; 
+                        }
+                    }
+                } else {
+                    if let Err(e) = ws_stream.send(Message::Ping(vec![].into())).await {
+                        warn!("Ping failed: {}", e);
+                        break;
+                    }
+                }
+            }
+
+            msg = ws_stream.next() => {
+                match msg {
+                    Some(Ok(Message::Text(txt))) => {
+                        if let Ok(server_msg) = serde_json::from_str::<ServerMessage>(&txt) {
+                            match server_msg {
+                                ServerMessage::Job { .. } => {
+                                    info!("job signal received");
+                                    check_queue = true;
+                                }
+                                ServerMessage::Cancel { id } => {
+                                    if let Some(current_id) = &active_job_id {
+                                        if current_id == &id {
+                                            info!(job_id = %id, "cancellation received");
+                                            if let Some(flag) = &active_stop_flag {
+                                                flag.store(true, Ordering::SeqCst);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if txt.contains("\"type\":\"Job\"") {
+                            check_queue = true;
+                        }
+                    }
+                    Some(Ok(Message::Ping(d))) => {
+                        if let Err(e) = ws_stream.send(Message::Pong(d)).await {
+                            warn!(error = %e, "failed to send pong");
+                            break;
+                        }
+                    }
+                    Some(Err(e)) => {
+                        warn!(error = %e, "websocket error");
+                        break;
+                    }
+                    None => break,
+                    _ => {}
+                }
+            }
+
+            _ = async {
+                if let Some(h) = active_job_handle.as_mut() {
+                    h.await.ok();
+                    true
+                } else {
+                    std::future::pending().await
+                }
+            }, if active_job_handle.is_some() => {
+                active_job_handle = None;
+                active_stop_flag = None;
+                active_job_id = None;
+                check_queue = true;
+            }
+
+            _ = tokio::time::sleep(Duration::from_secs(30)), if active_job_handle.is_none() => {
+                check_queue = true;
+            }
+        }
+    }
 }

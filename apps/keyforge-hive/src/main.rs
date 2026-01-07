@@ -141,9 +141,12 @@ async fn main() {
 
             let server_key = std::env::var("HIVE_SERVER_KEY")
                 .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
-            let state = Arc::new(AppState::new(pool, data_path.clone(), server_key));
+            
+            // ASYNC INIT
+            let state = Arc::new(AppState::new(pool, data_path.clone(), server_key).await);
 
-            if let Err(e) = state.assets.warm_all().await {
+            // WARMUP WITH COORDINATOR
+            if let Err(e) = state.assets.warm_all(&state.coordinator).await {
                 error!("FATAL: Asset warmup failed: {}", e);
                 std::process::exit(1);
             }

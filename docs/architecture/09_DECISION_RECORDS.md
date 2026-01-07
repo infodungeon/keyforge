@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-**Version:** 4.3
+**Version:** 4.4
 **Context:** Log of significant architectural decisions.
 
 ## Index
@@ -14,6 +14,7 @@
 * [ADR-007: Lowercase Alpha Normalization](#adr-007-lowercase-alpha-normalization)
 * [ADR-008: Synthetic Corpus Injection](#adr-008-synthetic-corpus-injection)
 * [ADR-009: Optimal Choice for Duplicate Keys](#adr-009-optimal-choice-for-duplicate-keys)
+* [ADR-010: Distributed Coordination via Valkey](#adr-010-distributed-coordination-via-valkey)
 
 ---
 
@@ -112,4 +113,25 @@
   * (+) Provides the architectural foundation for future stateful keys (e.g., Repeat key).
   * (+) Simplifies physics by removing `SpaceHandPreference` (now handled by the typist model).
   * (-) Increased computational complexity in the fast-path `score_layout` due to dynamic searching.
-  
+
+## ADR-010: Distributed Coordination via Valkey
+
+* **Status:** Accepted
+* **Date:** 2026-01-07
+* **Context:**
+  1. **Process Isolation:** The Hive WebSocket event loop was process-local (`tokio::broadcast`). If we scaled Hive to multiple instances, users connected to Instance A could not see events from Instance B.
+  2. **Database Load:** High-frequency ephemeral data (Agent Heartbeats at 1Hz, Real-time Score updates) was being written to PostgreSQL, causing write amplification and WAL bloat for data that has no long-term value.
+  3. **Consistency:** Asset caches were managed locally. If an admin updated a file on one server, others would serve stale data.
+* **Decision:** Introduce **Valkey** (an open-source Redis fork) as the **Coordination Layer**.
+  * **Role:** Acts as the "Nervous System" for the cluster.
+  * **Mechanism:**
+    *   **Heartbeats:** `SETEX` keys with TTL (Auto-expiry for dead nodes).
+    *   **Chatter:** `PUBLISH/SUBSCRIBE` for real-time score updates across the cluster.
+    *   **Manifest:** Stores the authoritative hash of system assets to ensure consistency.
+* **Consequences:**
+  * (+) **Scalability:** Hive is now stateless and can scale horizontally.
+  * (+) **Observability:** Real-time visibility into Agent temperature/IPS without SQL polling.
+  * (+) **Efficiency:** Zero SQL writes for ephemeral state.
+  * (-) **Complexity:** Adds a 4th container to the stack.
+  * (-) **Dependency:** Hive requires Valkey to start (hard dependency for coordination).
+  * (-) **Refactor:** Requires `testcontainers` for integration testing.

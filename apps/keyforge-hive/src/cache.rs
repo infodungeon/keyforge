@@ -1,19 +1,18 @@
 use crate::config::HiveConfig;
 use bytes::Bytes;
-use keyforge_infra::{listing, CachingProvider, ServerManifest};
-use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_infra::{listing, AssetLoader, CachingProvider, ServerManifest, DistributedCoordinator};
+use keyforge_core::loader::{LoaderResult, RawCostData};
 use keyforge_model::Corpus;
-use keyforge_model::Config as AppConfig;
-use keyforge_model::CorpusSource;
-use keyforge_model::KeyboardDefinition;
-use keyforge_model::KeycodeRegistry;
-use moka::sync::Cache;
+use keyforge_model::config::{Config as AppConfig, CorpusSource};
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_protocol::AssetManifestEntry;
 use std::path::PathBuf;
 use std::sync::Arc;
-
+use tracing::info;
 
 pub struct CompiledEngineCache {
-    cache: Cache<String, Arc<keyforge_core::ScoringEngine>>,
+    cache: moka::sync::Cache<String, Arc<keyforge_core::ScoringEngine>>,
 }
 
 impl Default for CompiledEngineCache {
@@ -25,7 +24,9 @@ impl Default for CompiledEngineCache {
 impl CompiledEngineCache {
     pub fn new() -> Self {
         Self {
-            cache: Cache::builder().max_capacity(500).build(),
+            cache: moka::sync::Cache::builder()
+                .max_capacity(500)
+                .build(),
         }
     }
     pub fn get(&self, id: &str) -> Option<Arc<keyforge_core::ScoringEngine>> {
@@ -53,8 +54,28 @@ impl GlobalAssetCache {
         }
     }
 
-    pub async fn warm_all(&self) -> Result<(), String> {
-        self.inner.warm_all().await
+    pub async fn warm_all(&self, coordinator: &DistributedCoordinator) -> Result<(), String> {
+        // 1. Local Warmup (Disk -> RAM)
+        self.inner.warm_all().await?;
+
+        // 2. Distributed Sync (RAM -> Valkey)
+        if let Some(manifest) = self.inner.get_manifest() {
+            info!("🌍 Syncing {} assets to Distributed Manifest...", manifest.files.len());
+            
+            for (id, hash) in &manifest.files {
+                let entry = AssetManifestEntry {
+                    id: id.clone(),
+                    hash: hash.clone(),
+                    size_bytes: 0, 
+                    last_updated: chrono::Utc::now().timestamp() as u64,
+                };
+                
+                if let Err(e) = coordinator.set_manifest_entry(&entry).await {
+                    tracing::warn!("Failed to sync asset {} to Valkey: {}", id, e);
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn get_file_content(&self, path: &str) -> Option<Bytes> {
@@ -76,9 +97,14 @@ impl GlobalAssetCache {
         listing::list_cost_matrices(&self.data_path).unwrap_or_default()
     }
     pub fn load_app_config(&self) -> Arc<AppConfig> {
+        // Default impl for now
         Arc::new(AppConfig::default())
     }
     pub fn load_hive_config(&self) -> Arc<HiveConfig> {
+        // CachingProvider wraps FsProvider which handles raw loading,
+        // but currently load_hive_config isn't exposed on CachingProvider directly
+        // in the infra struct. We use default for now or expose it if needed.
+        // For phase 3, we use default to satisfy the trait/struct usage.
         Arc::new(HiveConfig::default())
     }
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {

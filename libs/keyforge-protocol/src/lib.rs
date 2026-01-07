@@ -19,7 +19,7 @@
 //!
 //! ## Responsibilities
 //!
-//! * **Serialization:** Defines JSON structure for API requests/responses.
+//! * **Serialization:** Defines JSON structure for all API requests/responses.
 //! * **Versioning:** Enforces protocol compatibility via `PROTOCOL_VERSION`.
 //! * **Validation:** Implements `Validator` for DTOs to ensure data integrity before processing.
 //! * **Interop:** Generates TypeScript definitions via `ts-rs`.
@@ -36,8 +36,8 @@ pub use error::{ErrorCode, ErrorResponse};
 pub use keyforge_model as model;
 
 pub use protocol::{
-    BiometricSample, JobConfig, JobQueueResponse, JobRequest, JobResponse,
-    JobStatus, NodeRequest, NodeResponse, PopulationResponse, ResultSubmission,
+    AssetManifestEntry, BiometricSample, JobConfig, JobQueueResponse, JobRequest, JobResponse,
+    JobStatus, NodeRequest, NodeResponse, NodeTelemetry, PopulationResponse, ResultSubmission,
     SystemMetrics, TuningProfile, UserStatsStore,
 };
 

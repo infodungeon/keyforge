@@ -12,6 +12,9 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use testcontainers_modules::redis::Redis;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use testcontainers_modules::testcontainers::ContainerAsync;
 
 const NODE_COUNT: usize = 50;
 const RESULTS_PER_NODE: usize = 100;
@@ -113,8 +116,14 @@ fn load_keyboard(data_root: &Path, name: &str) -> KeyboardDefinition {
     serde_json::from_str(&content).expect("Failed to parse keyboard JSON")
 }
 
-async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir) {
+async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerAsync<Redis>) {
     init_tracing();
+
+    // Start Valkey
+    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
+    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
@@ -137,7 +146,7 @@ async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir) {
         pool.clone(),
         data_path.clone(),
         "test-key".to_string(),
-    ));
+    ).await);
 
     // Cache Warming
     use keyforge_core::loader::AssetLoader;
@@ -160,12 +169,12 @@ async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir) {
     });
 
     let base_url = format!("http://127.0.0.1:{}", port);
-    (base_url, state, temp_dir)
+    (base_url, state, temp_dir, valkey_node)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn test_heterogeneous_thundering_herd() {
-    let (base_url, _state, _temp_dir) = setup_server().await;
+    let (base_url, _state, _temp_dir, _valkey) = setup_server().await;
     let data_root = _temp_dir.path();
 
     let mut headers = header::HeaderMap::new();

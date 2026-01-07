@@ -18,24 +18,22 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::info;
+use crate::models::SharedTelemetry;
 
 /// A logger that tracks optimization progress and reports it back to the system.
 pub struct WorkerLogger {
     pub stop_flag: Arc<AtomicBool>,
     pub job_id: String,
+    pub telemetry: SharedTelemetry,
 }
 
 impl ProgressCallback for WorkerLogger {
     fn on_progress(&self, step: usize, score: f32, _layout: &[KeyCode], ips: f32) -> bool {
         let stopped = self.stop_flag.load(Ordering::SeqCst);
         
-        // INSTRUMENTATION: Log every heartbeat check
-        info!(
-            job_id = %self.job_id, 
-            step = step, 
-            stopped = stopped, 
-            "callback: checking stop flag"
-        );
+        // Update shared telemetry (Lock-free)
+        // Note: Core doesn't pass temp yet, so we pass 0.0 or infer it later.
+        self.telemetry.update(ips, 0.0, score);
 
         if stopped {
             return false;

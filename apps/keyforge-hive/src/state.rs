@@ -9,6 +9,7 @@ use crate::monitor::{SharedMonitor, SystemMonitor};
 use crate::services::job_manager::JobManager;
 use crate::services::security::SecurityContext;
 use crate::services::verification::VerificationService;
+use keyforge_infra::DistributedCoordinator;
 use sqlx::{Pool, Postgres};
 use std::env;
 use std::path::PathBuf;
@@ -26,7 +27,7 @@ pub struct AppState {
     pub security: Arc<SecurityContext>,
     pub verification: Arc<VerificationService>,
 
-    // Repositories (Public for now, but should eventually move into services)
+    // Repositories
     pub nodes: NodeRepository,
     pub results: ResultRepository,
     pub submissions: SubmissionRepository,
@@ -34,17 +35,20 @@ pub struct AppState {
     pub audit: AuditRepository,
 
     // Infrastructure
-    pub queue: Arc<WriteQueue>, // Kept here for legacy access if needed, but JobManager has it too
+    pub queue: Arc<WriteQueue>,
     pub assets: Arc<GlobalAssetCache>,
     pub engine_cache: Arc<CompiledEngineCache>,
     pub config: Arc<HiveConfig>,
     pub monitor: SharedMonitor,
     pub data_path: PathBuf,
     pub tx: broadcast::Sender<String>,
+    
+    // The Nervous System (Valkey)
+    pub coordinator: Arc<DistributedCoordinator>,
 }
 
 impl AppState {
-    pub fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String) -> Self {
+    pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String) -> Self {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());
         let results = ResultRepository::new(db.clone());
@@ -55,6 +59,17 @@ impl AppState {
         // Initialize Assets FIRST to load config
         let assets = Arc::new(GlobalAssetCache::new(data_path.clone()));
         let config = assets.load_hive_config();
+
+        // Determine Valkey URL (Env > Config > Default)
+        let valkey_url = env::var("KEYFORGE_VALKEY_URL")
+            .unwrap_or_else(|_| config.valkey_url.clone());
+
+        // Connect to Valkey (Fail Fast)
+        let coordinator = Arc::new(
+            DistributedCoordinator::new(&valkey_url)
+                .await
+                .expect("Failed to connect to Coordination Layer (Valkey)"),
+        );
 
         // Pass assets to queue for dynamic config access
         let queue = Arc::new(WriteQueue::new(
@@ -109,6 +124,7 @@ impl AppState {
             monitor,
             data_path,
             tx,
+            coordinator,
         }
     }
 }

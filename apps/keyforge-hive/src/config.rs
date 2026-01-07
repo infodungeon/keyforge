@@ -1,11 +1,31 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HiveConfig {
     #[serde(default)]
     pub queue: QueueConfig,
     #[serde(default)]
     pub network: NetworkConfig,
+    
+    /// Connection string for the coordination layer.
+    /// Defaults to localhost for dev, overridden by env var in Docker.
+    #[serde(default = "default_valkey")]
+    pub valkey_url: String,
+}
+
+fn default_valkey() -> String {
+    "redis://127.0.0.1:6379".to_string()
+}
+
+// Implement Default manually to use the default_valkey function
+impl Default for HiveConfig {
+    fn default() -> Self {
+        Self {
+            queue: QueueConfig::default(),
+            network: NetworkConfig::default(),
+            valkey_url: default_valkey(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

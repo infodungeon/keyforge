@@ -1,6 +1,6 @@
 # KeyForge Hive
 
-The KeyForge Hive is the central coordinator for the distributed layout optimization network. It manages jobs, persists results to PostgreSQL, and provides a REST/WebSocket API for CLI users and Worker Agents.
+The KeyForge Hive is the central coordinator for the distributed layout optimization network. It manages jobs, persists results to PostgreSQL, coordinates via Valkey, and provides a REST/WebSocket API for CLI users and Worker Agents.
 
 ## Configuration
 
@@ -35,6 +35,7 @@ data_root = "/var/lib/keyforge/data"
 | `--port` | `PORT` | `3000` | HTTP API listen port. |
 | `--tls-cert` | `TLS_CERT` | - | Path to TLS Certificate (PEM). |
 | `--tls-key` | `TLS_KEY` | - | Path to TLS Private Key (PEM). |
+| - | `KEYFORGE_VALKEY_URL` | `redis://127.0.0.1:6379` | Valkey connection string. |
 
 ### Deployment Architectures
 

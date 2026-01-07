@@ -19,6 +19,7 @@ pub use fs::paths::resolve_root;
 pub use net::client::HiveClient;
 pub use net::network::{ensure_corpus_bundle, ensure_cost_matrix, ensure_file};
 pub use net::sync::{bootstrap_essentials, generate_manifest, run_sync, ServerManifest, SyncStats};
+pub use net::distributed::DistributedCoordinator; 
 
 pub use asset::fs_provider::FsProvider;
 pub use asset::manager::AssetManager;

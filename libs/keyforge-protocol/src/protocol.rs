@@ -25,6 +25,35 @@ fn default_version() -> u32 { PROTOCOL_VERSION }
 fn default_cost_matrix() -> CostMatrixSource { CostMatrixSource::default() }
 fn default_corpora() -> Vec<CorpusSource> { vec![CorpusSource::default()] }
 
+/// Real-time status report from a Worker Node (Hot Path).
+/// Sent via WebSocket text frames to Hive, then serialized to Valkey.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct NodeTelemetry {
+    /// The Job currently being processed.
+    pub job_id: Option<String>,
+    /// Iterations Per Second (Performance).
+    pub ips: f32,
+    /// Current Annealing Temperature (State).
+    pub temp: f32,
+    /// Best score found in this session (Local Best).
+    pub current_best: Option<f32>,
+    /// Total memory usage in bytes.
+    pub memory_usage: u64,
+    /// Timestamp of this sample.
+    pub timestamp: u64,
+}
+
+/// A manifest entry for the Global Asset Cache.
+/// Stored in Valkey to ensure all nodes agree on asset versions.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub struct AssetManifestEntry {
+    pub id: String,
+    pub hash: String,
+    pub size_bytes: u64,
+    pub last_updated: u64,
+}
+
 /// Represents a single timing sample for a bigram.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]

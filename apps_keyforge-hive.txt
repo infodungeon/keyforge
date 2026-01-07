@@ -111,6 +111,9 @@ proptest = "1.9.0"
 tower = { version = "0.5.2", features = ["util"] }
 tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
 url = "2.5"
+# Valkey Integration Tests
+testcontainers = "0.26.3"
+testcontainers-modules = { version = "0.14.0", features = ["redis"] }
 
 // ===== apps/keyforge-hive/migrations/2025121200000_init.sql =====
 -- ===== EXTENSIONS =====
@@ -1210,6 +1213,8 @@ pub struct ApiDoc;
 // cancel_job -> features/cancel_job.rs
 // get_job_status -> features/get_job_status.rs
 
+// apps/keyforge-hive/src/api/metrics.rs
+
 use crate::error::AppResult;
 use crate::observability::{get_recent_logs, LogEntry};
 use crate::state::AppState;
@@ -1225,29 +1230,27 @@ pub struct SystemStatusResponse {
 }
 
 pub async fn get_metrics(State(_state): State<Arc<AppState>>) -> AppResult<impl IntoResponse> {
-    // This endpoint exposes Prometheus metrics (best-effort).
     let body = match crate::observability::get_metrics_handle() {
         Some(handle) => handle.render(),
         None => "# metrics disabled\n".to_string(),
     };
-
     Ok(body)
 }
 
 pub async fn get_system_status(
     State(state): State<Arc<AppState>>,
 ) -> AppResult<Json<SystemStatusResponse>> {
-    // 1. Refresh System Monitor (Lock-free atomic reads)
     let uptime = state.monitor.get_uptime();
     let ram = state.monitor.get_memory_used();
     let cpu = state.monitor.get_cpu_usage();
     let ops_per_sec = state.monitor.get_ops_per_sec();
 
-    // 2. Fetch Cluster Stats (Placeholder for now, or simple counts)
-    // In a real scenario, we'd query the DB or atomic counters.
-    // For now, we'll use the queue depth as a proxy for activity or just 0.
     let active_jobs = state.jobs.active_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
-    let nodes_online = 0; // TODO: state.nodes.count_online().await
+    
+    // FETCH DISTRIBUTED COUNT
+    // We use unwrap_or(0) to ensure the UI stays responsive even if Valkey blips.
+    let nodes_online = state.coordinator.count_active_nodes().await.unwrap_or(0) as i64;
+    
     let total_results = state.jobs.completed_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
 
     let metrics = SystemMetrics {
@@ -1255,17 +1258,15 @@ pub async fn get_system_status(
         active_jobs,
         total_results,
         nodes_online,
-        total_ops_per_sec: ops_per_sec as f32,
+        total_ops_per_sec: ops_per_sec as f32, // Local OPS for now
         server_memory_used: ram,
         server_cpu_usage: cpu,
     };
 
-    // 3. Fetch Logs
     let logs = get_recent_logs();
 
     Ok(Json(SystemStatusResponse { metrics, logs }))
 }
-
 pub mod admin;
 pub mod analysis;
 pub mod auth;
@@ -1449,20 +1450,6 @@ pub fn validate_path_component(path: &str) -> AppResult<()> {
     validate_id(path)
 }
 
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use crate::state::AppState;
 use axum::{
     extract::{ws::Message, ws::WebSocket, State, WebSocketUpgrade},
@@ -1476,23 +1463,16 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::time::interval;
 use tracing::{debug, info, warn, error};
 use keyforge_model::constants::{WS_MSG_JOB, WS_MSG_CANCEL};
+use keyforge_protocol::NodeTelemetry;
 
 /// Defines the external JSON protocol sent to WebSocket clients.
-///
-/// This enum is serialized with `#[serde(tag = "type", content = "payload")]`.
-/// Example: `{"type": "Job", "payload": {"id": "123"}}`
 #[derive(Serialize)]
 #[serde(tag = "type", content = "payload")]
 enum ServerMessage {
-    /// Notifies workers that a new job is available in the queue.
     Job { id: String },
-    /// Notifies workers to abort a specific job ID immediately.
     Cancel { id: String },
 }
 
-/// WebSocket upgrade handler.
-///
-/// Upgrades the HTTP connection to a WebSocket and spawns the connection handler.
 pub async fn handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
@@ -1500,24 +1480,15 @@ pub async fn handler(
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-/// Manages the lifecycle of a single WebSocket connection.
-///
-/// Responsibilities:
-/// 1. Subscribes to the internal broadcast channel (`state.tx`).
-/// 2. Translates internal signals (e.g., "JOB:123") into external JSON messages.
-/// 3. Sends periodic Heartbeat Pings to keep the connection alive.
-/// 4. Monitors the connection for Pongs and Client Close frames.
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let (mut sender, mut receiver) = socket.split();
     
-    // Subscribe to the internal broadcast bus.
-    // This channel carries raw string signals from API handlers.
+    // Subscribe to the internal broadcast bus (Process-Local)
     let mut rx = state.tx.subscribe();
-    info!("🔌 Worker connected via WebSocket. Subscribed to broadcast channel.");
+    info!("🔌 Worker connected via WebSocket.");
 
     // Task 1: Outbound Loop (Broadcasts & Heartbeats)
     let send_task = tokio::spawn(async move {
-        // Send a Ping every 30 seconds to detect dead connections.
         let mut heartbeat = interval(Duration::from_secs(30));
 
         loop {
@@ -1526,17 +1497,14 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                 msg_res = rx.recv() => {
                     match msg_res {
                         Ok(msg_str) => {
-                            // Parse the raw string signal using shared constants
                             let msg = if let Some(id) = msg_str.strip_prefix(WS_MSG_JOB) {
                                 ServerMessage::Job { id: id.to_string() }
                             } else if let Some(id) = msg_str.strip_prefix(WS_MSG_CANCEL) {
                                 ServerMessage::Cancel { id: id.to_string() }
                             } else {
-                                warn!("⚠️ Unknown internal message format: '{}'", msg_str);
                                 continue;
                             };
 
-                            // Serialize to JSON and send to client
                             if let Ok(json) = serde_json::to_string(&msg) {
                                 if let Err(e) = sender.send(Message::Text(json.into())).await {
                                     error!("❌ Failed to send message to client: {}", e);
@@ -1564,23 +1532,34 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
         }
     });
 
-    // Task 2: Inbound Loop (Liveness Check)
-    // We don't expect data from workers here (results go to POST /results),
-    // but we must read the stream to process Pongs and Close frames.
+    // Task 2: Inbound Loop (Telemetry & Liveness)
     loop {
-        // Enforce a 60s timeout. If the client doesn't respond to Pings (sent every 30s),
-        // we assume the connection is dead and close it to free resources.
+        // Enforce a 60s timeout on inbound activity
         match tokio::time::timeout(Duration::from_secs(60), receiver.next()).await {
-            Ok(Some(Ok(Message::Pong(_)))) => {
-                debug!("💓 Received Pong");
-            }
-            Ok(Some(Ok(Message::Close(_)))) => break,
-            Ok(None) => break, // Stream closed by client
-            Err(_) => {
-                warn!("🕒 WebSocket liveness timeout (no Pong for 60s)");
+            Ok(Some(Ok(msg))) => match msg {
+                Message::Pong(_) => {
+                    debug!("💓 Received Pong");
+                }
+                Message::Text(text) => {
+                    // Process Node Telemetry
+                    if let Ok(telemetry) = serde_json::from_str::<NodeTelemetry>(&text) {
+                        debug!("📊 Telemetry: IPS={:.1}, Temp={:.2}", telemetry.ips, telemetry.temp);
+                        // TODO: Extract Node ID from query params or auth context to persist this
+                        // state.coordinator.update_heartbeat(node_id, &telemetry).await;
+                    }
+                }
+                Message::Close(_) => break,
+                _ => {}
+            },
+            Ok(Some(Err(e))) => {
+                warn!("WebSocket error: {}", e);
                 break;
             }
-            _ => {} // Ignore other messages (Text/Binary)
+            Ok(None) => break, // Stream closed
+            Err(_) => {
+                warn!("🕒 WebSocket liveness timeout (no activity for 60s)");
+                break;
+            }
         }
     }
 
@@ -1691,20 +1670,19 @@ impl HiveBootstrapConfig {
 
 use crate::config::HiveConfig;
 use bytes::Bytes;
-use keyforge_infra::{listing, CachingProvider, ServerManifest};
-use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_infra::{listing, AssetLoader, CachingProvider, ServerManifest, DistributedCoordinator};
+use keyforge_core::loader::{LoaderResult, RawCostData};
 use keyforge_model::Corpus;
-use keyforge_model::Config as AppConfig;
-use keyforge_model::CorpusSource;
-use keyforge_model::KeyboardDefinition;
-use keyforge_model::KeycodeRegistry;
-use moka::sync::Cache;
+use keyforge_model::config::{Config as AppConfig, CorpusSource};
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_protocol::AssetManifestEntry;
 use std::path::PathBuf;
 use std::sync::Arc;
-
+use tracing::info;
 
 pub struct CompiledEngineCache {
-    cache: Cache<String, Arc<keyforge_core::ScoringEngine>>,
+    cache: moka::sync::Cache<String, Arc<keyforge_core::ScoringEngine>>,
 }
 
 impl Default for CompiledEngineCache {
@@ -1716,7 +1694,9 @@ impl Default for CompiledEngineCache {
 impl CompiledEngineCache {
     pub fn new() -> Self {
         Self {
-            cache: Cache::builder().max_capacity(500).build(),
+            cache: moka::sync::Cache::builder()
+                .max_capacity(500)
+                .build(),
         }
     }
     pub fn get(&self, id: &str) -> Option<Arc<keyforge_core::ScoringEngine>> {
@@ -1744,8 +1724,28 @@ impl GlobalAssetCache {
         }
     }
 
-    pub async fn warm_all(&self) -> Result<(), String> {
-        self.inner.warm_all().await
+    pub async fn warm_all(&self, coordinator: &DistributedCoordinator) -> Result<(), String> {
+        // 1. Local Warmup (Disk -> RAM)
+        self.inner.warm_all().await?;
+
+        // 2. Distributed Sync (RAM -> Valkey)
+        if let Some(manifest) = self.inner.get_manifest() {
+            info!("🌍 Syncing {} assets to Distributed Manifest...", manifest.files.len());
+            
+            for (id, hash) in &manifest.files {
+                let entry = AssetManifestEntry {
+                    id: id.clone(),
+                    hash: hash.clone(),
+                    size_bytes: 0, 
+                    last_updated: chrono::Utc::now().timestamp() as u64,
+                };
+                
+                if let Err(e) = coordinator.set_manifest_entry(&entry).await {
+                    tracing::warn!("Failed to sync asset {} to Valkey: {}", id, e);
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn get_file_content(&self, path: &str) -> Option<Bytes> {
@@ -1767,9 +1767,14 @@ impl GlobalAssetCache {
         listing::list_cost_matrices(&self.data_path).unwrap_or_default()
     }
     pub fn load_app_config(&self) -> Arc<AppConfig> {
+        // Default impl for now
         Arc::new(AppConfig::default())
     }
     pub fn load_hive_config(&self) -> Arc<HiveConfig> {
+        // CachingProvider wraps FsProvider which handles raw loading,
+        // but currently load_hive_config isn't exposed on CachingProvider directly
+        // in the infra struct. We use default for now or expose it if needed.
+        // For phase 3, we use default to satisfy the trait/struct usage.
         Arc::new(HiveConfig::default())
     }
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
@@ -1792,7 +1797,6 @@ impl AssetLoader for GlobalAssetCache {
         self.inner.load_keycodes(filename).await
     }
 }
-
 use keyforge_protocol::{JobRequest, ResultSubmission};
 // use keyforge_protocol::types::{JobId, NodeId}; // Assuming these exist or using String
 
@@ -1811,12 +1815,32 @@ pub enum HiveCommand {
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HiveConfig {
     #[serde(default)]
     pub queue: QueueConfig,
     #[serde(default)]
     pub network: NetworkConfig,
+    
+    /// Connection string for the coordination layer.
+    /// Defaults to localhost for dev, overridden by env var in Docker.
+    #[serde(default = "default_valkey")]
+    pub valkey_url: String,
+}
+
+fn default_valkey() -> String {
+    "redis://127.0.0.1:6379".to_string()
+}
+
+// Implement Default manually to use the default_valkey function
+impl Default for HiveConfig {
+    fn default() -> Self {
+        Self {
+            queue: QueueConfig::default(),
+            network: NetworkConfig::default(),
+            valkey_url: default_valkey(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1850,7 +1874,6 @@ impl Default for NetworkConfig {
         }
     }
 }
-
 use crate::infra::repositories::{JobRepository, NodeRepository, ResultRepository};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
@@ -4055,6 +4078,20 @@ pub use results::ResultRepository;
 pub use submissions::SubmissionRepository;
 pub use users::UserRepository; // ADDED
 
+// Copyright (c) 2025 KeyForge Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use sqlx::{Pool, Postgres};
 
 #[derive(Clone)]
@@ -4067,6 +4104,9 @@ impl NodeRepository {
         Self { pool }
     }
 
+    /// Registers a node's long-term identity and hardware profile.
+    /// Note: Liveness heartbeats are now handled by the DistributedCoordinator (Valkey).
+    /// This method should only be called on startup or major status changes.
     pub async fn register_heartbeat(
         &self,
         node_id: &str,
@@ -4077,10 +4117,8 @@ impl NodeRepository {
         public_key: Option<&str>,
     ) -> Result<(), sqlx::Error> {
         // App-Side TOFU (Trust On First Use)
-        // If the node exists and has a key, ensure the new key matches.
         if let Some(new_key) = public_key {
             if let Ok(Some(existing_key)) = self.get_public_key(node_id).await {
-                // Normalize keys (strip whitespace) for comparison
                 let existing_clean = existing_key.trim();
                 let new_clean = new_key.trim();
 
@@ -4107,7 +4145,6 @@ impl NodeRepository {
     }
 
     pub async fn get_public_key(&self, node_id: &str) -> Result<Option<String>, sqlx::Error> {
-        // Fix: Explicitly decode as Option<String> to handle NULLs in the DB
         let row: Option<Option<String>> =
             sqlx::query_scalar("SELECT public_key FROM nodes WHERE id = $1")
                 .bind(node_id)
@@ -4116,6 +4153,8 @@ impl NodeRepository {
         Ok(row.flatten())
     }
 
+    /// DEPRECATED: Use DistributedCoordinator::count_active_nodes() instead.
+    /// Kept for fallback/historical analysis.
     pub async fn count_recent(&self) -> Result<i64, sqlx::Error> {
         let count: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM nodes WHERE last_seen > NOW() - INTERVAL '1 minute'",
@@ -4125,6 +4164,7 @@ impl NodeRepository {
         Ok(count)
     }
 
+    /// DEPRECATED: Use DistributedCoordinator metrics.
     pub async fn sum_ops(&self) -> Result<f32, sqlx::Error> {
         let ops: f32 = sqlx::query_scalar(
             "SELECT COALESCE(SUM(performance_rating), 0) FROM nodes WHERE last_seen > NOW() - INTERVAL '1 minute'",
@@ -4141,14 +4181,6 @@ impl NodeRepository {
                 .execute(&self.pool)
                 .await?;
         Ok(result.rows_affected())
-    }
-
-    pub async fn touch_node(&self, node_id: &str) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE nodes SET last_seen = NOW() WHERE id = $1")
-            .bind(node_id)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
     }
 }
 
@@ -5218,9 +5250,12 @@ async fn main() {
 
             let server_key = std::env::var("HIVE_SERVER_KEY")
                 .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
-            let state = Arc::new(AppState::new(pool, data_path.clone(), server_key));
+            
+            // ASYNC INIT
+            let state = Arc::new(AppState::new(pool, data_path.clone(), server_key).await);
 
-            if let Err(e) = state.assets.warm_all().await {
+            // WARMUP WITH COORDINATOR
+            if let Err(e) = state.assets.warm_all(&state.coordinator).await {
                 error!("FATAL: Asset warmup failed: {}", e);
                 std::process::exit(1);
             }
@@ -5297,7 +5332,6 @@ async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Ar
     state.queue.shutdown().await;
     info!("👋 Shutdown complete.");
 }
-
 use keyforge_model::AnalysisReport;
 use keyforge_model::KeyboardGeometry;
 use serde::{Deserialize, Serialize};
@@ -5850,6 +5884,7 @@ use crate::monitor::{SharedMonitor, SystemMonitor};
 use crate::services::job_manager::JobManager;
 use crate::services::security::SecurityContext;
 use crate::services::verification::VerificationService;
+use keyforge_infra::DistributedCoordinator;
 use sqlx::{Pool, Postgres};
 use std::env;
 use std::path::PathBuf;
@@ -5867,7 +5902,7 @@ pub struct AppState {
     pub security: Arc<SecurityContext>,
     pub verification: Arc<VerificationService>,
 
-    // Repositories (Public for now, but should eventually move into services)
+    // Repositories
     pub nodes: NodeRepository,
     pub results: ResultRepository,
     pub submissions: SubmissionRepository,
@@ -5875,17 +5910,20 @@ pub struct AppState {
     pub audit: AuditRepository,
 
     // Infrastructure
-    pub queue: Arc<WriteQueue>, // Kept here for legacy access if needed, but JobManager has it too
+    pub queue: Arc<WriteQueue>,
     pub assets: Arc<GlobalAssetCache>,
     pub engine_cache: Arc<CompiledEngineCache>,
     pub config: Arc<HiveConfig>,
     pub monitor: SharedMonitor,
     pub data_path: PathBuf,
     pub tx: broadcast::Sender<String>,
+    
+    // The Nervous System (Valkey)
+    pub coordinator: Arc<DistributedCoordinator>,
 }
 
 impl AppState {
-    pub fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String) -> Self {
+    pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String) -> Self {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());
         let results = ResultRepository::new(db.clone());
@@ -5896,6 +5934,13 @@ impl AppState {
         // Initialize Assets FIRST to load config
         let assets = Arc::new(GlobalAssetCache::new(data_path.clone()));
         let config = assets.load_hive_config();
+
+        // Connect to Valkey (Fail Fast)
+        let coordinator = Arc::new(
+            DistributedCoordinator::new(&config.valkey_url)
+                .await
+                .expect("Failed to connect to Coordination Layer (Valkey)"),
+        );
 
         // Pass assets to queue for dynamic config access
         let queue = Arc::new(WriteQueue::new(
@@ -5950,10 +5995,10 @@ impl AppState {
             monitor,
             data_path,
             tx,
+            coordinator,
         }
     }
 }
-
 // Copyright (c) 2025 KeyForge Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -6168,6 +6213,351 @@ async fn test_api_user_nuke_success() {
         .await
         .unwrap();
     assert!(exists.is_none());
+}
+use futures::future::join_all;
+use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
+use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::CostMatrixSource;
+use keyforge_protocol::{JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION};
+use reqwest::{header, Client};
+use std::fs;
+use std::net::SocketAddr;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tokio::net::TcpListener;
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+
+const NODE_COUNT: usize = 50;
+const RESULTS_PER_NODE: usize = 100;
+const TEST_SECRET: &str = "test_secret_123";
+
+use std::sync::Once;
+static INIT: Once = Once::new();
+
+fn init_tracing() {
+    INIT.call_once(|| {
+        std::env::set_var("RATE_LIMIT_PER_SEC", "10000");
+        std::env::set_var("RATE_LIMIT_BURST", "10000");
+        std::env::set_var("HIVE_SECRET", TEST_SECRET);
+
+        let filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| "info".into());
+
+        tracing_subscriber::registry()
+            .with(fmt::layer().with_test_writer())
+            .with(filter)
+            .init();
+    });
+}
+
+fn ensure_test_assets(data_root: &Path) {
+    // Create User Structure
+    let kb_dir = data_root.join("user/keyboards");
+    fs::create_dir_all(&kb_dir).unwrap();
+    let weights_dir = data_root.join("user/weights");
+    fs::create_dir_all(&weights_dir).unwrap();
+    let corpus_dir = data_root.join("user/corpora/default");
+    fs::create_dir_all(&corpus_dir).unwrap();
+    let config_dir = data_root.join("user/config");
+    fs::create_dir_all(&config_dir).unwrap();
+
+    let cost_path = weights_dir.join("cost_matrix.json");
+    if !cost_path.exists() {
+        fs::write(
+            cost_path,
+            r#"[{"from_key":"KA","to_key":"KB","cost_ms":10.0,"confidence_samples":10}]"#,
+        )
+        .unwrap();
+    }
+
+    if !corpus_dir.join("1grams.json").exists() {
+        fs::write(corpus_dir.join("1grams.json"), r#"[{"char":"a","freq":100}]"#).unwrap();
+        fs::write(
+            corpus_dir.join("2grams.json"),
+            r#"[{"char1":"a","char2":"b","freq":10}]"#,
+        )
+        .unwrap();
+        fs::write(
+            corpus_dir.join("3grams.json"),
+            r#"[{"char1":"a","char2":"b","char3":"c","freq":5}]"#,
+        )
+        .unwrap();
+        fs::write(
+            corpus_dir.join("words.json"),
+            r#"[{"word":"test","freq":20}]"#,
+        )
+        .unwrap();
+    }
+
+    // Create dummy keycodes
+    if !config_dir.join("keycodes.json").exists() {
+        fs::write(
+            config_dir.join("keycodes.json"),
+            r#"[{"code": 97, "id": "KC_A", "label": "A", "aliases": []}]"#,
+        )
+        .unwrap();
+    }
+
+    // Create dummy keyboards
+    for name in ["corne", "szr35"] {
+        let path = kb_dir.join(format!("{}.json", name));
+        if !path.exists() {
+            let json = format!(
+                r#"{{
+                "meta": {{ "name": "{}", "author": "test", "version": "1", "type": "ortho" }},
+                "geometry": {{
+                    "keys": [
+                        {{"id": "KC_A", "x":0,"y":0,"hand":0,"finger":1,"row":0,"col":0}},
+                        {{"id": "KC_B", "x":1,"y":0,"hand":0,"finger":2,"row":0,"col":1}}
+                    ],
+                    "prime_slots": [0, 1], "med_slots": [], "low_slots": [], "home_row": 0
+                }},
+                "layouts": {{ "default": "KC_A KC_B" }}
+            }}"#,
+                name
+            );
+            fs::write(path, json).unwrap();
+        }
+    }
+}
+
+fn load_keyboard(data_root: &Path, name: &str) -> KeyboardDefinition {
+    let path = data_root.join(format!("user/keyboards/{}.json", name));
+    let content = fs::read_to_string(&path).unwrap_or_else(|_| panic!("Failed to read {:?}", path));
+    serde_json::from_str(&content).expect("Failed to parse keyboard JSON")
+}
+
+async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir) {
+    init_tracing();
+
+    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
+    });
+
+    // Use standard DB init helper
+    let pool = init_db(&db_url).await;
+
+    // Clean DB state for stress test
+    let _ = sqlx::query("TRUNCATE results CASCADE").execute(&pool).await;
+    let _ = sqlx::query("TRUNCATE nodes CASCADE").execute(&pool).await;
+    let _ = sqlx::query("TRUNCATE jobs CASCADE").execute(&pool).await;
+
+    // Use tempfile for isolated asset storage
+    let temp_dir = tempfile::tempdir().unwrap();
+    let data_path = temp_dir.path().to_path_buf();
+    ensure_test_assets(&data_path);
+
+    let state = Arc::new(AppState::new(
+        pool.clone(),
+        data_path.clone(),
+        "test-key".to_string(),
+    ));
+
+    // Cache Warming
+    use keyforge_core::loader::AssetLoader;
+    let _ = state.assets.load_cost_matrix("cost_matrix.json");
+    let _ = state.assets.load_corpus(&[CorpusSource {
+        id: "default".into(),
+        weight: 1.0,
+        hash: None,
+    }]);
+
+    let app = create_app(state.clone(), data_path);
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let port = addr.port();
+
+    tokio::spawn(async move {
+        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+            .await
+            .unwrap();
+    });
+
+    let base_url = format!("http://127.0.0.1:{}", port);
+    (base_url, state, temp_dir)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn test_heterogeneous_thundering_herd() {
+    let (base_url, _state, _temp_dir) = setup_server().await;
+    let data_root = _temp_dir.path();
+
+    let mut headers = header::HeaderMap::new();
+    let mut val = header::HeaderValue::from_static(TEST_SECRET);
+    val.set_sensitive(true);
+    headers.insert("X-Keyforge-Secret", val);
+
+    let client = Client::builder()
+        .default_headers(headers)
+        .pool_max_idle_per_host(NODE_COUNT)
+        .build()
+        .unwrap();
+
+    println!("🚀 Starting Real-World Stress Test");
+    println!("   Target: {}", base_url);
+
+    let kb_corne = load_keyboard(data_root, "corne");
+    let kb_szr = load_keyboard(data_root, "szr35");
+
+    let weights_std = ScoringWeights::default();
+    let weights_alt = ScoringWeights {
+        penalty_scissor: 500.0,
+        ..Default::default()
+    };
+
+    let jobs_config = vec![
+        (kb_corne.clone(), weights_std.clone(), "Corne-Std"),
+        (kb_corne.clone(), weights_alt.clone(), "Corne-Alt"),
+        (kb_szr.clone(), weights_std.clone(), "SZR-Std"),
+        (kb_szr.clone(), weights_alt.clone(), "SZR-Alt"),
+    ];
+
+    let mut job_ids = Vec::new();
+
+    for (kb, w, label) in jobs_config {
+        let req = JobRequest {
+            version: PROTOCOL_VERSION,
+            definition: kb,
+            weights: w,
+            params: SearchParams::default(),
+            pinned_keys: vec![],
+            corpora: vec![CorpusSource {
+                id: "default".to_string(),
+                weight: 1.0,
+                hash: None,
+            }],
+            cost_matrix: CostMatrixSource::Predefined("cost_matrix.json".into()),
+            biometrics: vec![],
+            parent_job_id: None,
+            baseline_score: None,
+            parents: vec![],
+        };
+
+        let resp = client
+            .post(format!("{}/jobs", base_url))
+            .json(&req)
+            .send()
+            .await
+            .expect("Failed to send request");
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            panic!("❌ Job Registration Failed: {} - {}", status, text);
+        }
+
+        let body: JobResponse = resp.json().await.expect("Failed to parse JobResponse");
+        println!("   📝 Registered {}: {}", label, &body.job_id[0..8]);
+        job_ids.push(body.job_id);
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    let start_time = Instant::now();
+    let mut handles = Vec::new();
+
+    for i in 0..NODE_COUNT {
+        let client_ref = client.clone();
+        let url_ref = base_url.clone();
+        let job_idx = i % 4;
+        let target_job = job_ids[job_idx].clone();
+
+        handles.push(tokio::spawn(async move {
+            let node_id = format!("worker-{}-job-{}", i, job_idx);
+
+            let reg_req = NodeRequest {
+                version: PROTOCOL_VERSION,
+                node_id: node_id.clone(),
+                cpu_model: "RustTestCPU".into(),
+                cores: 8,
+                l2_cache_kb: Some(1024),
+                ops_per_sec: 1_000_000.0,
+                public_key: None,
+            };
+
+            // Retry loop for registration
+            let mut attempts = 0;
+            loop {
+                let reg_resp = client_ref
+                    .post(format!("{}/nodes/register", url_ref))
+                    .json(&reg_req)
+                    .send()
+                    .await
+                    .expect("Reg failed");
+
+                if reg_resp.status().is_success() {
+                    break;
+                }
+
+                attempts += 1;
+                if attempts >= 5 {
+                    return Err(format!("Node {} reg failed after 5 attempts: {}", i, reg_resp.status()));
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100 * attempts)).await;
+            }
+
+            for k in 0..RESULTS_PER_NODE {
+                // Reduced sleep for faster test execution while still testing concurrency
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+
+                let res_req = ResultSubmission {
+                    version: PROTOCOL_VERSION,
+                    job_id: target_job.clone(),
+                    layout: format!("Q W E R T Y U I O P A S D F G H J K L ; {} {}", i, k),
+                    score: 500.0,
+                    node_id: node_id.clone(),
+                    timestamp,
+                    nonce: fastrand::u64(..), // Random nonce to avoid replay cache collisions
+                    signature: None,
+                };
+
+                let res_resp = client_ref
+                    .post(format!("{}/results", url_ref))
+                    .json(&res_req)
+                    .send()
+                    .await
+                    .expect("Submit failed");
+
+                let status = res_resp.status();
+
+                if status.is_server_error() {
+                    let txt = res_resp.text().await.unwrap_or_default();
+                    return Err(format!("Node {} crash: {} - {}", i, status, txt));
+                }
+            }
+            Ok(())
+        }));
+    }
+
+    let results = join_all(handles).await;
+    let duration = start_time.elapsed();
+
+    let mut failures = 0;
+    for res in results {
+        if let Ok(Err(e)) = res {
+            println!("   ⚠️  Worker Error: {}", e);
+            failures += 1;
+        }
+    }
+
+    assert_eq!(failures, 0, "Clients encountered errors");
+
+    let total_reqs = NODE_COUNT * RESULTS_PER_NODE;
+    println!(
+        "✅ Processed {} requests across 4 distinct jobs in {:.2}s",
+        total_reqs,
+        duration.as_secs_f32()
+    );
+    println!(
+        "   Throughput: {:.0} req/sec",
+        total_reqs as f32 / duration.as_secs_f32()
+    );
 }
 // Copyright (c) 2025 KeyForge Contributors
 //
@@ -6564,7 +6954,7 @@ async fn test_websocket_lifecycle() {
     let (ws_url, state) = start_test_server().await;
     let url = Url::parse(&ws_url).unwrap().join("ws?node_id=test-node").unwrap();
 
-    let (mut ws_stream, _) = tokio::time::timeout(
+    let (ws_stream, _) = tokio::time::timeout(
         std::time::Duration::from_secs(2),
         connect_async(url.to_string())
     )

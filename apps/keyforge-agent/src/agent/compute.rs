@@ -27,7 +27,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::info;
-use rand::seq::SliceRandom; 
+use rand::seq::SliceRandom;
+use crate::models::SharedTelemetry;
 
 pub trait AssetSyncer {
     fn sync_assets(
@@ -149,6 +150,7 @@ pub async fn run_optimization(
     job_id: String,
     stop_flag: Arc<AtomicBool>,
     limiter: Arc<Semaphore>,
+    telemetry: SharedTelemetry,
 ) -> Result<OptimizationResult> {
     let _permit = limiter.acquire().await.map_err(|_| anyhow::anyhow!("Semaphore closed"))?;
 
@@ -157,6 +159,7 @@ pub async fn run_optimization(
     let logger = crate::agent::telemetry::WorkerLogger {
         stop_flag: stop_flag.clone(),
         job_id: job_id.clone(),
+        telemetry: telemetry.clone(),
     };
 
     let timeout = tokio::time::Duration::from_secs(3600);
