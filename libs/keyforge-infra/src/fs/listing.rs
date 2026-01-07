@@ -25,7 +25,10 @@ fn scan_dir(
     results: &mut HashSet<String>,
 ) -> InfraResult<()> {
     let target = root.join(sub_path);
+    eprintln!("DEBUG: Scanning {:?} for extension '{}'", target, extension);
+    
     if !target.exists() {
+        eprintln!("DEBUG: Target does not exist: {:?}", target);
         return Ok(());
     }
 
@@ -41,6 +44,8 @@ fn scan_dir(
             None => continue,
         };
 
+        eprintln!("DEBUG: Found file: {}", filename);
+
         if filename.ends_with(extension) {
             let stem = filename
                 .strip_suffix(&format!(".{}", extension))
@@ -48,6 +53,7 @@ fn scan_dir(
             // Handle compound stems like "corne.mpk"
             let final_stem = stem.strip_suffix(".mpk").unwrap_or(stem);
             results.insert(final_stem.to_string());
+            eprintln!("DEBUG: Added stem: {}", final_stem);
         }
     }
     Ok(())

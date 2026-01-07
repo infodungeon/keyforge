@@ -29,6 +29,7 @@ pub fn get_binary_path() -> PathBuf {
 }
 
 /// Helper to extract the score from CLI stderr output.
+#[allow(dead_code)]
 pub fn extract_score(output: &str) -> String {
     for line in output.lines() {
         if let Some(idx) = line.find("Score: ") {

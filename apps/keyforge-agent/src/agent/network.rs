@@ -81,9 +81,9 @@ impl CircuitBreaker {
 
 /// Handles persistent queuing of results when offline.
 pub struct ResultOutbox {
-    client: HiveClient,
+    _client: HiveClient,
     wal_dir: PathBuf,
-    breaker: CircuitBreaker,
+    _breaker: CircuitBreaker,
 }
 
 impl ResultOutbox {
@@ -91,9 +91,9 @@ impl ResultOutbox {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
         Self {
-            client,
+            _client: client,
             wal_dir,
-            breaker: CircuitBreaker::new(threshold, 60),
+            _breaker: CircuitBreaker::new(threshold, 60),
         }
     }
 

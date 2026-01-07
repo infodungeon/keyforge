@@ -65,7 +65,12 @@ fn list_keyboards(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::E
     let names = ws_list_keyboards(root).map_err(|e| format!("Failed to list keyboards: {}", e))?;
     let count = names.len();
     for name in names.into_iter().take(limit) {
-        let p = root.join("keyboards").join(format!("{}.json", name));
+        // FIX: Use resolve_path to find the file in user/ or system/ directories
+        let p = match resolve_path(&name, Some("keyboards"), root) {
+            Ok(path) => path,
+            Err(_) => continue,
+        };
+
         if let Ok(content) = read_to_string_limited(&p, MAX_INPUT_FILE_SIZE) {
             if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(&content) {
                 table.add_row(vec![
@@ -99,11 +104,11 @@ fn list_corpora(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::Err
             ("root", parts[0])
         };
 
-        let path = if parts.len() == 2 {
-            root.join("corpora").join(cat).join(name)
-        } else {
-            root.join("corpora").join(name)
-        };
+        // Try to find the corpus in system or user paths
+        let system_path = root.join("system/corpora").join(&id);
+        let user_path = root.join("user/corpora").join(&id);
+        
+        let path = if user_path.exists() { user_path } else { system_path };
 
         let size = fs::metadata(path.join("1grams.json"))
             .map(|m| m.len())

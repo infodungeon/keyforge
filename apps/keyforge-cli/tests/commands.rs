@@ -1,6 +1,7 @@
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::process::Command;
+use std::fs;
 
 #[test]
 fn test_init_workspace() {
@@ -20,8 +21,31 @@ fn test_init_workspace() {
 
 #[test]
 fn test_list_assets() {
-    let ctx = HermeticWorkspace::new().with_default_assets();
+    let ctx = HermeticWorkspace::new();
     let bin = common::get_binary_path();
+    
+    let kb_dir = ctx.data_root.join("user/keyboards");
+    fs::create_dir_all(&kb_dir).unwrap();
+    
+    let json = r#"{
+        "meta": { "name": "Test Board", "author": "Unit Test", "version": "1", "type": "ortho" },
+        "geometry": { 
+            "keys": [{"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1}], 
+            "prime_slots": [0],
+            "med_slots": [],
+            "low_slots": [],
+            "home_row": 2 
+        },
+        "layouts": {}
+    }"#;
+    fs::write(kb_dir.join("test_kb.json"), json).unwrap();
+
+    // DEBUG: Verify file existence
+    println!("DEBUG: Data Root: {:?}", ctx.data_root);
+    println!("DEBUG: KB Dir Exists: {}", kb_dir.exists());
+    for entry in fs::read_dir(&kb_dir).unwrap() {
+        println!("DEBUG: Found file: {:?}", entry.unwrap().path());
+    }
 
     let output = Command::new(&bin)
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
@@ -30,8 +54,13 @@ fn test_list_assets() {
         .expect("Failed to run list");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(output.status.success());
-    assert!(stdout.contains("test_kb"));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    
+    println!("STDOUT:\n{}", stdout);
+    println!("STDERR:\n{}", stderr);
+
+    assert!(output.status.success(), "Command failed: {}", stderr);
+    assert!(stdout.contains("test_kb"), "Output did not contain 'test_kb'");
 }
 
 #[test]

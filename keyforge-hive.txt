@@ -6337,14 +6337,17 @@ async fn test_valkey_telemetry_flow() {
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_hive::cache::{CompiledEngineCache, GlobalAssetCache};
+use keyforge_hive::cache::CompiledEngineCache;
 use keyforge_hive::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_hive::VerificationService;
 use keyforge_protocol::ResultSubmission;
 use keyforge_security as crypto;
+use keyforge_infra::{ValkeyProvider, DistributedCoordinator};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
+use testcontainers_modules::redis::Redis;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
 #[tokio::test]
 async fn test_signature_enforcement() {
@@ -6353,10 +6356,18 @@ async fn test_signature_enforcement() {
     
     let node_repo = NodeRepository::new(pool.clone());
     let job_repo = JobRepository::new(pool.clone());
-    let asset_cache = Arc::new(GlobalAssetCache::new(std::path::PathBuf::from("data")));
+    
+    // Start Valkey
+    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
+    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    
+    let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
+    let assets = Arc::new(ValkeyProvider::new(coordinator));
+    
     let engine_cache = Arc::new(CompiledEngineCache::new());
 
-    let service = VerificationService::new(job_repo, node_repo.clone(), asset_cache, engine_cache);
+    let service = VerificationService::new(job_repo, node_repo.clone(), assets, engine_cache);
 
     let node_id = format!("node-{}", Uuid::new_v4());
     let (sk_hex, pk_hex) = crypto::generate_keypair();
@@ -6399,6 +6410,7 @@ async fn test_signature_enforcement() {
     assert!(res.is_err());
     assert_eq!(res.unwrap_err().to_string(), "Not Found");
 }
+
 >>>>>>>> END FILE: apps/keyforge-hive/tests/verification.rs <<<<<<<<
 >>>>>>>> START FILE: apps/keyforge-hive/tests/websockets.rs <<<<<<<<
 // Copyright (c) 2025 KeyForge Contributors

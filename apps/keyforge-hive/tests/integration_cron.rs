@@ -13,11 +13,13 @@
 // limitations under the License.
 
 use keyforge_hive::infra::{db::init_db, repositories::JobRepository, queue::WriteQueue, repositories::ResultRepository};
-use keyforge_hive::cache::GlobalAssetCache;
+use keyforge_infra::{ValkeyProvider, DistributedCoordinator};
 use uuid::Uuid;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
+use testcontainers_modules::redis::Redis;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
 async fn seed_min_job(pool: &sqlx::PgPool, job_id: &str) {
     let hash = Uuid::new_v4().to_string();
@@ -97,8 +99,15 @@ async fn test_wal_recovery_integration() {
     let bytes = postcard::to_stdvec(&entry).unwrap();
     std::fs::write(queue_dir.join(format!("{}.bin", Uuid::new_v4())), bytes).unwrap();
 
+    // Start Valkey
+    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
+    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    
+    let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
+    let assets = Arc::new(ValkeyProvider::new(coordinator));
+
     // Start Queue (Should recover WAL)
-    let assets = Arc::new(GlobalAssetCache::new(data_path.clone()));
     let _queue = WriteQueue::new(repo.clone(), data_path.clone(), assets);
 
     sleep(Duration::from_secs(2)).await;
