@@ -37,6 +37,14 @@ data_root = "/var/lib/keyforge/data"
 | `--tls-key` | `TLS_KEY` | - | Path to TLS Private Key (PEM). |
 | - | `KEYFORGE_VALKEY_URL` | `redis://127.0.0.1:6379` | Valkey connection string. |
 
+## Distributed Coordination (Valkey)
+
+KeyForge uses Valkey (Redis-compatible) as a high-performance coordination layer to prevent database contention during massive scaling events (e.g., 500+ nodes coming online simultaneously).
+
+- **Write Shield**: Node registration checks Valkey for existing hardware profiles before hitting PostgreSQL. This prevents row-level locking on the `hardware_profiles` table during thundering herds.
+- **Real-Time Stats**: Cluster throughput (OPS) and active node counts are aggregated in Valkey via telemetry heartbeats.
+- **Asset Manifest**: The authoritative hash of system assets is cached in Valkey for rapid worker synchronization.
+
 ### Deployment Architectures
 
 #### 1. Docker / Reverse Proxy (Recommended)

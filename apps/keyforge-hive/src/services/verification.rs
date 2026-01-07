@@ -1,4 +1,6 @@
-use crate::cache::{CompiledEngineCache, GlobalAssetCache};
+// apps/keyforge-hive/src/services/verification.rs
+
+use crate::cache::CompiledEngineCache;
 use crate::error::{AppError, AppResult};
 use crate::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_model::{
@@ -8,18 +10,17 @@ use keyforge_model::{
 };
 use keyforge_protocol::ResultSubmission;
 use keyforge_compute::SessionBuilder;
-use keyforge_infra::AssetLoader;
+use keyforge_infra::{AssetLoader, ValkeyProvider};
 use keyforge_security as crypto;
 use keyforge_core::ScoringEngine;
 use std::sync::Arc;
 use tracing::warn;
 
-/// Service responsible for verifying the correctness and authenticity of node submissions.
 #[derive(Clone)]
 pub struct VerificationService {
     jobs: JobRepository,
     nodes: NodeRepository,
-    assets: Arc<GlobalAssetCache>,
+    assets: Arc<ValkeyProvider>, // CHANGED
     engine_cache: Arc<CompiledEngineCache>,
 }
 
@@ -27,7 +28,7 @@ impl VerificationService {
     pub fn new(
         jobs: JobRepository,
         nodes: NodeRepository,
-        assets: Arc<GlobalAssetCache>,
+        assets: Arc<ValkeyProvider>,
         engine_cache: Arc<CompiledEngineCache>,
     ) -> Self {
         Self {
@@ -38,7 +39,6 @@ impl VerificationService {
         }
     }
 
-    /// Verifies both the signature and the calculated score of a result submission.
     pub async fn verify_submission(&self, sub: &ResultSubmission) -> AppResult<()> {
         self.verify_signature(sub).await?;
         self.verify_score(sub).await?;
@@ -46,12 +46,7 @@ impl VerificationService {
     }
 
     async fn verify_signature(&self, sub: &ResultSubmission) -> AppResult<()> {
-        let public_key = self
-            .nodes
-            .get_public_key(&sub.node_id)
-            .await
-            .map_err(AppError::Database)?;
-
+        let public_key = self.nodes.get_public_key(&sub.node_id).await.map_err(AppError::Database)?;
         let pk = public_key.ok_or_else(|| {
             AppError::Validation("Unregistered Node Identity: Public Key Required".into())
         })?;
@@ -65,8 +60,7 @@ impl VerificationService {
                 sub.timestamp,
                 sub.nonce,
                 sig,
-            )
-            .map_err(|e| AppError::Validation(format!("Crypto Error: {}", e)))?;
+            ).map_err(|e| AppError::Validation(format!("Crypto Error: {}", e)))?;
 
             if !valid {
                 return Err(AppError::Validation("Invalid Signature".into()));
@@ -82,12 +76,7 @@ impl VerificationService {
             return self.check_tolerance(engine.clone(), sub).await;
         }
 
-        let (geometry, weights, corpus_name, cost_raw) = self
-            .jobs
-            .get_config(&sub.job_id)
-            .await
-            .map_err(AppError::Database)?
-            .ok_or(AppError::NotFound)?;
+        let (geometry, weights, corpus_name, cost_raw) = self.jobs.get_config(&sub.job_id).await.map_err(AppError::Database)?.ok_or(AppError::NotFound)?;
 
         let cost_source = if cost_raw.trim().starts_with('[') || cost_raw.trim().starts_with('{') {
             if let Ok(src) = serde_json::from_str::<CostMatrixSource>(&cost_raw) {
@@ -120,11 +109,7 @@ impl VerificationService {
         self.check_tolerance(session.engine, sub).await
     }
 
-    async fn check_tolerance(
-        &self,
-        engine: Arc<ScoringEngine>,
-        sub: &ResultSubmission,
-    ) -> AppResult<()> {
+    async fn check_tolerance(&self, engine: Arc<ScoringEngine>, sub: &ResultSubmission) -> AppResult<()> {
         let registry = self.assets.load_keycodes("keycodes.json").await
             .unwrap_or_else(|_| keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
 
@@ -132,24 +117,17 @@ impl VerificationService {
             &sub.layout,
             engine.key_count(),
             &registry,
-        )
-        .map_err(|e| AppError::Validation(format!("Layout parse error: {}", e)))?;
+        ).map_err(|e| AppError::Validation(format!("Layout parse error: {}", e)))?;
 
-        let calculated_score = engine.score(&layout_struct)
-            .map_err(|e| AppError::Validation(format!("Scoring error: {}", e)))?;
+        let calculated_score = engine.score(&layout_struct).map_err(|e| AppError::Validation(format!("Scoring error: {}", e)))?;
 
         let diff = (calculated_score - sub.score).abs();
-        let tolerance =
-            (sub.score * VERIFICATION_TOLERANCE_RATIO).max(VERIFICATION_TOLERANCE_ABS_MIN);
+        let tolerance = (sub.score * VERIFICATION_TOLERANCE_RATIO).max(VERIFICATION_TOLERANCE_ABS_MIN);
 
         if diff > tolerance {
-            warn!(
-                "❌ Score Mismatch: Claimed {:.4} vs Calc {:.4} (Diff: {:.4})",
-                sub.score, calculated_score, diff
-            );
+            warn!("❌ Score Mismatch: Claimed {:.4} vs Calc {:.4} (Diff: {:.4})", sub.score, calculated_score, diff);
             return Err(AppError::Validation("Score verification failed".into()));
         }
-
         Ok(())
     }
 }

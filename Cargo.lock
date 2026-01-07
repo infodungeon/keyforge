@@ -3972,6 +3972,7 @@ dependencies = [
  "rand 0.8.5",
  "ratatui",
  "reqwest 0.13.1",
+ "rmp-serde",
  "serde",
  "serde_json",
  "sha2",
@@ -3998,6 +3999,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "walkdir",
+ "zstd",
 ]
 
 [[package]]

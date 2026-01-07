@@ -1,3 +1,5 @@
+// apps/keyforge-hive/src/features/register_job.rs
+
 use axum::{extract::State, Json};
 use keyforge_model::{CostMatrixSource, JobIdentifier, Validator};
 use keyforge_protocol::{JobRequest, JobResponse, PROTOCOL_VERSION};
@@ -6,9 +8,6 @@ use tracing::{info, warn};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-
-/// VSA Feature: Register Job
-/// Colocates API logic, validation, and process flow.
 
 #[utoipa::path(
     post,
@@ -24,25 +23,15 @@ pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<JobRequest>,
 ) -> AppResult<Json<JobResponse>> {
-    // Humble Handler: Plumb Axum state to the domain process
     let result = process_job_registration(&state, payload).await?;
-    
     Ok(Json(result))
 }
 
-/// The core domain process, designed using Railway Oriented Programming (ROP).
-/// This function is decoupled from Axum extracts, making it easily testable.
 async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> AppResult<JobResponse> {
-    // Stage 1: Validation
     validate_request(&payload)?;
-
-    // Stage 2: Resolution (IO/State dependent)
     resolve_assets(state, &mut payload).await?;
-
-    // Stage 3: Identification
     let job_id = generate_job_id(&payload)?;
 
-    // Stage 4: Persistence
     let is_new = state
         .jobs
         .repo
@@ -50,7 +39,6 @@ async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> 
         .await
         .map_err(AppError::Database)?;
 
-    // Stage 5: Side Effects
     if is_new {
         emit_registration_events(state, &job_id);
     }
@@ -77,6 +65,7 @@ fn validate_request(payload: &JobRequest) -> AppResult<()> {
 async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult<()> {
     for corpus in &mut payload.corpora {
         if corpus.hash.is_none() {
+            // FIX: Await the async hash retrieval
             let hash = state
                 .assets
                 .get_corpus_hash(&corpus.id)
@@ -111,7 +100,6 @@ fn emit_registration_events(state: &AppState, job_id: &str) {
     info!("🆕 (VSA/Humble/ROP) Registered Job: {}", &job_id[0..8]);
 }
 
-/// Internal safety validation specific to Hive's filesystem/path assumptions.
 fn validate_input_safety(req: &JobRequest) -> AppResult<()> {
     match &req.cost_matrix {
         CostMatrixSource::Predefined(name) => {

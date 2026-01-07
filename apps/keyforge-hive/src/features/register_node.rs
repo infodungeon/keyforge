@@ -1,14 +1,15 @@
+// apps/keyforge-hive/src/features/register_node.rs
+
 use axum::{extract::State, Json};
 use keyforge_model::Validator;
 use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile, PROTOCOL_VERSION};
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn, debug};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 /// VSA Feature: Register Node
 /// Handles node heartbeat, identity verification, and auto-tuning calculations.
-
 #[utoipa::path(
     post,
     path = "/nodes/register",
@@ -26,8 +27,50 @@ pub async fn handle(
     payload.validate().map_err(AppError::Validation)?;
     validate_node_request(&payload)?;
 
-    // Stage 2: Persistence (Heartbeat)
-    register_heartbeat(&state, &payload).await?;
+    // Stage 2: Persistence (Optimized)
+    // We use Valkey to check if the Hardware Profile is already known.
+    // If Known: Use "Lite" insert (Nodes table only) -> No contention.
+    // If Unknown: Use "Full" insert (Hardware Profiles + Nodes) -> Contention possible but rare.
+    
+    let is_new_profile = state.coordinator
+        .try_reserve_profile_update(&payload.cpu_model)
+        .await
+        .unwrap_or(true); // Fail-safe: Assume new if Valkey down
+
+    if is_new_profile {
+        // FULL PATH: Updates Hardware Profiles + Nodes
+        debug!("📝 Registering NEW Hardware Profile: {}", payload.cpu_model);
+        state.nodes.register_heartbeat(
+            &payload.node_id,
+            &payload.cpu_model,
+            payload.cores,
+            payload.l2_cache_kb,
+            payload.ops_per_sec,
+            payload.public_key.as_deref(),
+        ).await.map_err(|e| map_db_error(e))?;
+    } else {
+        // LITE PATH: Updates Nodes Only (Optimistic)
+        // If this fails (e.g. FK violation because Valkey was wrong), fallback to Full.
+        if let Err(e) = state.nodes.register_heartbeat_lite(
+            &payload.node_id,
+            &payload.cpu_model,
+            payload.cores,
+            payload.ops_per_sec,
+            payload.public_key.as_deref()
+        ).await {
+            warn!("⚠️ Lite registration failed (Fallback to Full): {}", e);
+            
+            // FALLBACK
+            state.nodes.register_heartbeat(
+                &payload.node_id,
+                &payload.cpu_model,
+                payload.cores,
+                payload.l2_cache_kb,
+                payload.ops_per_sec,
+                payload.public_key.as_deref(),
+            ).await.map_err(|e| map_db_error(e))?;
+        }
+    }
 
     // Stage 3: Auto-Tuning
     let tuning = calculate_tuning_profile(&payload);
@@ -45,12 +88,18 @@ pub async fn handle(
     }))
 }
 
+fn map_db_error(e: sqlx::Error) -> AppError {
+    if e.to_string().contains("Node Identity Mismatch") {
+        AppError::Validation("Node Identity Mismatch".into())
+    } else {
+        AppError::Database(e)
+    }
+}
+
 fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
-    // Flexible Version Check
     keyforge_protocol::check_version_compatibility(payload.version, PROTOCOL_VERSION)
         .map_err(AppError::Validation)?;
 
-    // Public Key Format Check
     if let Some(pk) = &payload.public_key {
         if pk.len() < 64
             || (!pk.starts_with("-----BEGIN PUBLIC KEY")
@@ -61,28 +110,6 @@ fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
             ));
         }
     }
-    Ok(())
-}
-
-async fn register_heartbeat(state: &AppState, payload: &NodeRequest) -> AppResult<()> {
-    state
-        .nodes
-        .register_heartbeat(
-            &payload.node_id,
-            &payload.cpu_model,
-            payload.cores,
-            payload.l2_cache_kb,
-            payload.ops_per_sec,
-            payload.public_key.as_deref(),
-        )
-        .await
-        .map_err(|e| {
-            if e.to_string().contains("Node Identity Mismatch") {
-                AppError::Validation("Node Identity Mismatch".into())
-            } else {
-                AppError::Database(e)
-            }
-        })?;
     Ok(())
 }
 

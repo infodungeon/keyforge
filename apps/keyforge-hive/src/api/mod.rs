@@ -7,7 +7,6 @@ pub mod metrics;
 pub mod nodes;
 pub mod results;
 pub mod submission;
-pub mod sync;
 pub mod validation;
 pub mod ws;
 

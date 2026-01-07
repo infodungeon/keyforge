@@ -1,4 +1,4 @@
-// apps/keyforge-hive/src/features/system.rs
+// apps/keyforge-hive/src/api/system.rs
 
 use axum::{extract::State, routing::get, Json, Router};
 use keyforge_model::Config;
@@ -75,6 +75,7 @@ pub async fn get_keyboard(
 }
 
 pub async fn get_app_config(State(state): State<Arc<AppState>>) -> AppResult<Json<Config>> {
+    // FIX: Use generic loader with "config"
     let config: Arc<Config> = state.assets.load_config_asset("config").await;
     Ok(Json(config.as_ref().clone()))
 }
@@ -90,7 +91,7 @@ pub async fn list_costs(State(state): State<Arc<AppState>>) -> AppResult<Json<Ve
 }
 
 pub async fn list_keymap_extras(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> AppResult<Json<Vec<String>>> {
     Ok(Json(vec![]))
 }
@@ -107,6 +108,6 @@ pub fn system_routes() -> Router<Arc<AppState>> {
         .route("/api/corpora", get(list_corpora))
         .route("/api/costs", get(list_costs))
         .route("/api/keymap_extras", get(list_keymap_extras))
-        .route("/api/manifest", get(crate::features::assets::get_manifest))
-        .route("/api/data/system/{*path}", get(crate::features::assets::get_asset))
+        .route("/api/manifest", get(crate::api::sync::get_manifest))
+        .route("/api/data/system/{*path}", get(crate::api::sync::get_asset))
 }

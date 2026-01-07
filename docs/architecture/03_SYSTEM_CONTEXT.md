@@ -1,6 +1,6 @@
 # System Context (Ports & Adapters)
 
-**Version:** 4.0
+**Version:** 4.1
 **Context:** Crate Boundaries and Interface Definitions.
 
 ## The Ports (Application Contracts)
@@ -21,7 +21,7 @@ pub trait ProgressCallback: Send + Sync {
 
 ### 2. Infrastructure Port (`libs/keyforge-infra`)
 
-The interface for accessing the outside world (Filesystem, Network, DB).
+The interface for accessing the outside world (Filesystem, Network, DB, Coordination).
 
 ```rust
 // Inferred from usages in `libs/keyforge-infra/src/asset/manager.rs`
@@ -34,6 +34,15 @@ pub trait AssetManager {
 pub trait JobRepository {
     fn save_job(&self, job: JobRequest) -> InfraResult<JobId>;
     fn get_status(&self, id: JobId) -> InfraResult<JobStatus>;
+}
+
+// Inferred from `libs/keyforge-infra/src/net/distributed.rs`
+pub trait Coordinator {
+    /// Distributed locking for hardware profile registration (Write Shield).
+    async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool>;
+    
+    /// Real-time telemetry for active nodes.
+    async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()>;
 }
 ```
 

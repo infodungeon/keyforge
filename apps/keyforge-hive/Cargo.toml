@@ -113,3 +113,6 @@ url = "2.5"
 # Valkey Integration Tests
 testcontainers = "0.26.3"
 testcontainers-modules = { version = "0.14.0", features = ["redis"] }
+# Test Data Hydration
+zstd = "0.13"
+rmp-serde = "1.3"

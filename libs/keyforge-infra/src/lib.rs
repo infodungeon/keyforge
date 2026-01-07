@@ -1,4 +1,5 @@
-// Copyright (c) 2025 KeyForge Contributors
+// libs/keyforge-infra/src/lib.rs
+
 pub mod asset;
 pub mod config;
 pub mod error;
@@ -24,6 +25,7 @@ pub use net::distributed::DistributedCoordinator;
 pub use asset::fs_provider::FsProvider;
 pub use asset::manager::AssetManager;
 pub use asset::caching_provider::CachingProvider;
+pub use asset::ValkeyProvider; // ADDED
 
 pub use keyforge_core::loader::{AssetLoader, RawCostData};
 

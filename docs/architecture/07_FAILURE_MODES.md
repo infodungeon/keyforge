@@ -1,6 +1,6 @@
 # Failure Mode Analysis (FMA)
 
-**Version:** 4.0
+**Version:** 4.1
 **Context:** Known failure states and recovery strategies.
 
 ## 1. Infrastructure Failures
@@ -8,6 +8,7 @@
 | Component | Failure Mode | Detection | Recovery Strategy |
 | :--- | :--- | :--- | :--- |
 | **Database** | Connection Lost | `InfraError::DbConnection` | **Retry** (Exponential Backoff). If exhausted, return 503 Service Unavailable. |
+| **Coordination** | Valkey Unreachable | `InfraError::Io` | **Degrade**. Real-time stats freeze. Write-shield fails open (assume new profile). |
 | **FileSystem** | Disk Full | `InfraError::Io` | **Crash**. Alert Admin. No automatic recovery possible. |
 | **Network** | Upstream Timeout | `InfraError::Network` | **Retry** (3 attempts). If failed, serve stale cache if available, else Error. |
 

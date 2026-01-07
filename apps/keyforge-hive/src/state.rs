@@ -1,4 +1,6 @@
-use crate::cache::{CompiledEngineCache, GlobalAssetCache};
+// apps/keyforge-hive/src/state.rs
+
+use crate::cache::CompiledEngineCache;
 use crate::config::HiveConfig;
 use crate::infra::queue::WriteQueue;
 use crate::infra::repositories::{
@@ -9,7 +11,7 @@ use crate::monitor::{SharedMonitor, SystemMonitor};
 use crate::services::job_manager::JobManager;
 use crate::services::security::SecurityContext;
 use crate::services::verification::VerificationService;
-use keyforge_infra::DistributedCoordinator;
+use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
 use sqlx::{Pool, Postgres};
 use std::env;
 use std::path::PathBuf;
@@ -18,32 +20,22 @@ use tokio::sync::broadcast;
 
 #[derive(Clone)]
 pub struct AppState {
-    /// Whether startup asset warmup succeeded.
-    /// When false, the server is running in degraded mode.
     pub assets_healthy: std::sync::Arc<std::sync::atomic::AtomicBool>,
-
-    // Sub-systems
     pub jobs: Arc<JobManager>,
     pub security: Arc<SecurityContext>,
     pub verification: Arc<VerificationService>,
-
-    // Repositories
     pub nodes: NodeRepository,
     pub results: ResultRepository,
     pub submissions: SubmissionRepository,
     pub users: UserRepository,
     pub audit: AuditRepository,
-
-    // Infrastructure
     pub queue: Arc<WriteQueue>,
-    pub assets: Arc<GlobalAssetCache>,
+    pub assets: Arc<ValkeyProvider>,
     pub engine_cache: Arc<CompiledEngineCache>,
     pub config: Arc<HiveConfig>,
     pub monitor: SharedMonitor,
     pub data_path: PathBuf,
     pub tx: broadcast::Sender<String>,
-    
-    // The Nervous System (Valkey)
     pub coordinator: Arc<DistributedCoordinator>,
 }
 
@@ -56,22 +48,20 @@ impl AppState {
         let users = UserRepository::new(db.clone());
         let audit = AuditRepository::new(db.clone());
 
-        // Initialize Assets FIRST to load config
-        let assets = Arc::new(GlobalAssetCache::new(data_path.clone()));
-        let config = assets.load_hive_config();
-
-        // Determine Valkey URL (Env > Config > Default)
         let valkey_url = env::var("KEYFORGE_VALKEY_URL")
-            .unwrap_or_else(|_| config.valkey_url.clone());
+            .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
 
-        // Connect to Valkey (Fail Fast)
         let coordinator = Arc::new(
             DistributedCoordinator::new(&valkey_url)
                 .await
                 .expect("Failed to connect to Coordination Layer (Valkey)"),
         );
 
-        // Pass assets to queue for dynamic config access
+        let assets = Arc::new(ValkeyProvider::new(coordinator.clone()));
+        
+        // FIX: Use generic loader with string "hive" (for hive.json)
+        let config: Arc<HiveConfig> = assets.load_config_asset("hive").await;
+
         let queue = Arc::new(WriteQueue::new(
             results.clone(),
             data_path.clone(),
@@ -79,13 +69,10 @@ impl AppState {
         ));
 
         let (tx, _) = broadcast::channel(10000);
-
         let api_secret = env::var("HIVE_SECRET").ok().filter(|s| !s.is_empty());
         let security = Arc::new(SecurityContext::new(api_secret, server_key));
-
         let monitor = Arc::new(SystemMonitor::new());
 
-        // Background monitor refresh task
         let monitor_clone = monitor.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
@@ -96,8 +83,6 @@ impl AppState {
         });
 
         let jobs = Arc::new(JobManager::new(job_repo.clone(), queue.clone()));
-
-        // Initialize the Engine Cache for verification performance
         let engine_cache = Arc::new(CompiledEngineCache::new());
 
         let verification = Arc::new(VerificationService::new(

@@ -1,3 +1,7 @@
+// apps/keyforge-hive/src/features/assets.rs
+
+use crate::error::AppResult;
+use crate::state::AppState;
 use axum::{
     body::Body,
     extract::{Path, State},
@@ -8,29 +12,16 @@ use axum::{
 use keyforge_infra::ServerManifest;
 use std::path::{Component, Path as StdPath};
 use std::sync::Arc;
-use tracing::info;
-use crate::error::{AppError, AppResult};
-use crate::state::AppState;
 
-/// VSA Feature: Asset Management
-/// Serves the manifest and static files from the asset cache.
 pub async fn get_manifest(State(state): State<Arc<AppState>>) -> AppResult<Json<ServerManifest>> {
-    if let Some(manifest) = state.assets.get_manifest() {
-        Ok(Json(manifest.as_ref().clone()))
-    } else {
-        info!("⚠️ Manifest cache miss, generating from disk...");
-        let system_root = state.data_path.join("system");
-        let manifest = keyforge_infra::generate_manifest(&system_root)
-            .map_err(|e| AppError::Any(anyhow::anyhow!(e)))?;
-        Ok(Json(manifest))
-    }
+    let manifest = state.assets.get_manifest().await;
+    Ok(Json(manifest))
 }
 
 pub async fn get_asset(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
 ) -> Result<Response, StatusCode> {
-    // SECURITY: Robust Path Traversal Check
     let path_obj = StdPath::new(&path);
     if path_obj.components().any(|c| {
         matches!(
@@ -41,7 +32,7 @@ pub async fn get_asset(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    if let Some(bytes) = state.assets.get_file_content(&path) {
+    if let Some(bytes) = state.assets.get_file_content(&path).await {
         let mime = mime_guess::from_path(&path).first_or_octet_stream();
 
         Response::builder()

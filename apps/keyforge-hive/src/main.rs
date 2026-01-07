@@ -1,9 +1,4 @@
-#[cfg(not(target_env = "msvc"))]
-use tikv_jemallocator::Jemalloc;
-
-#[cfg(not(target_env = "msvc"))]
-#[global_allocator]
-static ALLOC: Jemalloc = Jemalloc;
+// apps/keyforge-hive/src/main.rs
 
 use axum_server::tls_rustls::RustlsConfig;
 use clap::{Parser, Subcommand};
@@ -14,12 +9,14 @@ use keyforge_hive::{
     observability,
     state::AppState,
 };
-use keyforge_infra::init::{ensure_dir, validate_system_assets, USER_RUNTIME_DIRS};
+use keyforge_infra::init::{ensure_dir, USER_RUNTIME_DIRS};
+use keyforge_protocol::AssetManifestEntry;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
+use walkdir::WalkDir;
 
 #[derive(Parser)]
 struct Args {
@@ -56,6 +53,71 @@ enum Commands {
         #[arg(long, default_value = "http://localhost:3000")]
         url: String,
     },
+}
+
+async fn hydrate_valkey(coordinator: &keyforge_infra::DistributedCoordinator, root: &Path) {
+    info!("�� Hydrating Valkey from local system assets...");
+    let system_root = root.join("system");
+    let walker = WalkDir::new(&system_root).follow_links(true);
+
+    let mut count = 0;
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            let path = entry.path();
+            if let Ok(rel) = path.strip_prefix(&system_root) {
+                let key_path = rel.to_string_lossy().replace('\\', "/");
+                let valkey_key = format!("asset:blob:{}", key_path);
+
+                if let Ok(content) = tokio::fs::read(path).await {
+                    let size = content.len() as u64;
+                    // Calculate Hash for Manifest
+                    let hash = match keyforge_infra::util::common::calculate_file_hash(path) {
+                        Ok(h) => h,
+                        Err(_) => "unknown".to_string(),
+                    };
+
+                    // 1. Upload Blob (if missing)
+                    if coordinator.get_bin(&valkey_key).await.unwrap_or(None).is_none() {
+                        if let Err(e) = coordinator.set_bin(&valkey_key, &content).await {
+                            warn!("Failed to upload {}: {}", key_path, e);
+                        } else {
+                            count += 1;
+                        }
+                    }
+
+                    // 2. Update Manifest Entry (Always, to ensure consistency)
+                    let entry = AssetManifestEntry {
+                        id: key_path.clone(),
+                        hash,
+                        size_bytes: size,
+                        last_updated: chrono::Utc::now().timestamp() as u64,
+                    };
+                    let _ = coordinator.set_manifest_entry(&entry).await;
+                }
+            }
+        }
+    }
+    info!("✅ Hydration Complete: {} new assets uploaded.", count);
+}
+
+// Handler for clean shutdown in HTTP mode
+async fn shutdown_signal(state: Arc<AppState>) {
+    tokio::signal::ctrl_c().await.ok();
+    info!("🛑 Signal received, initiating graceful shutdown...");
+    state.queue.shutdown().await;
+    info!("👋 Shutdown complete.");
+}
+
+// Handler for clean shutdown in TLS mode (axum-server)
+// FIX: Added <SocketAddr> generic
+async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Arc<AppState>) {
+    tokio::signal::ctrl_c().await.ok();
+    info!("🛑 Signal received (TLS), initiating graceful shutdown...");
+    // Stop accepting new connections, wait up to 30s for active requests
+    handle.graceful_shutdown(Some(Duration::from_secs(30)));
+    // Flush the WriteQueue
+    state.queue.shutdown().await;
+    info!("👋 Shutdown complete.");
 }
 
 #[tokio::main]
@@ -107,31 +169,10 @@ async fn main() {
                 .or_else(|| file_config.map(|c| c.data_root))
                 .unwrap_or_else(|| PathBuf::from("."));
 
-            if !resolved_path.exists() {
-                error!("FATAL: Data directory does not exist: {:?}", resolved_path);
-                std::process::exit(1);
-            }
-
-            let data_path = match std::fs::canonicalize(&resolved_path) {
-                Ok(p) => p,
-                Err(e) => {
-                    error!(
-                        "FATAL: Failed to canonicalize data root {:?}: {}",
-                        resolved_path, e
-                    );
-                    std::process::exit(1);
-                }
-            };
+            let data_path = std::fs::canonicalize(&resolved_path).unwrap_or(resolved_path);
 
             info!("🐝 Data root: {:?}", data_path);
 
-            // 1. Validate System Assets (Infrastructure)
-            if let Err(e) = validate_system_assets(&data_path) {
-                error!("FATAL: System validation failed: {}", e);
-                std::process::exit(1);
-            }
-
-            // 2. Ensure Runtime Directories (Server Policy)
             for d in USER_RUNTIME_DIRS {
                 if let Err(e) = ensure_dir(&data_path, d) {
                     error!("FATAL: Failed to create runtime directory {}: {}", d, e);
@@ -142,14 +183,10 @@ async fn main() {
             let server_key = std::env::var("HIVE_SERVER_KEY")
                 .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
             
-            // ASYNC INIT
             let state = Arc::new(AppState::new(pool, data_path.clone(), server_key).await);
 
-            // WARMUP WITH COORDINATOR
-            if let Err(e) = state.assets.warm_all(&state.coordinator).await {
-                error!("FATAL: Asset warmup failed: {}", e);
-                std::process::exit(1);
-            }
+            // 2. HYDRATION (Self-Seeding)
+            hydrate_valkey(&state.coordinator, &data_path).await;
 
             let job_repo_arc = Arc::new(state.jobs.repo.clone());
             let node_repo_arc = Arc::new(state.nodes.clone());
@@ -175,7 +212,9 @@ async fn main() {
                 };
 
                 let handle = axum_server::Handle::new();
-                tokio::spawn(shutdown_signal_axum(handle.clone(), state));
+                
+                // Spawn the shutdown signal handler
+                tokio::spawn(shutdown_signal_axum(handle.clone(), state.clone()));
 
                 if let Err(e) = axum_server::bind_rustls(addr, config)
                     .handle(handle)
@@ -187,19 +226,11 @@ async fn main() {
                 }
             } else {
                 info!("🚀 Hive listening on {} (HTTP Mode)", addr);
-                let listener = match tokio::net::TcpListener::bind(addr).await {
-                    Ok(l) => l,
-                    Err(e) => {
-                        error!("FATAL: Failed to bind port {}: {}", addr, e);
-                        std::process::exit(1);
-                    }
-                };
-                if let Err(e) = axum::serve(
-                    listener,
-                    app.into_make_service_with_connect_info::<SocketAddr>(),
-                )
-                .with_graceful_shutdown(shutdown_signal(state))
-                .await
+                let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+                
+                if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+                    .with_graceful_shutdown(shutdown_signal(state.clone()))
+                    .await 
                 {
                     error!("FATAL: Server error: {}", e);
                     std::process::exit(1);
@@ -207,19 +238,4 @@ async fn main() {
             }
         }
     }
-}
-
-async fn shutdown_signal(state: Arc<AppState>) {
-    tokio::signal::ctrl_c().await.ok();
-    info!("🛑 Signal received, initiating graceful shutdown...");
-    state.queue.shutdown().await;
-    info!("👋 Shutdown complete.");
-}
-
-async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Arc<AppState>) {
-    tokio::signal::ctrl_c().await.ok();
-    info!("🛑 Signal received (TLS), initiating graceful shutdown...");
-    handle.graceful_shutdown(Some(Duration::from_secs(30)));
-    state.queue.shutdown().await;
-    info!("👋 Shutdown complete.");
 }

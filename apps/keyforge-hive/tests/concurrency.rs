@@ -3,7 +3,7 @@ use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::CostMatrixSource;
-use keyforge_protocol::{JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION};
+use keyforge_protocol::{AssetManifestEntry, JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION};
 use reqwest::{header, Client};
 use std::fs;
 use std::net::SocketAddr;
@@ -15,6 +15,7 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::testcontainers::ContainerAsync;
+use walkdir::WalkDir;
 
 const NODE_COUNT: usize = 50;
 const RESULTS_PER_NODE: usize = 100;
@@ -116,10 +117,80 @@ fn load_keyboard(data_root: &Path, name: &str) -> KeyboardDefinition {
     serde_json::from_str(&content).expect("Failed to parse keyboard JSON")
 }
 
+// Hydrates the Valkey instance with test assets from the temp directory.
+// This mimics the `hydrate_valkey` logic in `main.rs` but for the test environment.
+async fn hydrate_test_valkey(state: &Arc<AppState>, root: &Path) {
+    let system_root = root.join("user"); // Test uses user/ for convenience
+    let walker = WalkDir::new(&system_root).follow_links(true);
+
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            let path = entry.path();
+            if let Ok(rel) = path.strip_prefix(&system_root) {
+                let key_path = rel.to_string_lossy().replace('\\', "/");
+                // For tests, we map user/ assets to the expected Valkey keys.
+                // ValkeyProvider generally expects things relative to asset root.
+                // Since FsProvider mapped user/keyboards -> keyboards, we do same here.
+                let valkey_key = format!("asset:blob:{}", key_path);
+
+                if let Ok(content) = tokio::fs::read(path).await {
+                    // 1. Upload Blob
+                    let _ = state.coordinator.set_bin(&valkey_key, &content).await;
+
+                    // 2. Set Manifest (Critical for get_corpus_hash)
+                    // Note: In real app we use system/, here we map user/ content to manifest entries.
+                    // Special case: Corpora need specific paths for get_corpus_hash to work.
+                    // get_corpus_hash expects "corpora/{id}/1grams.mpk.zst".
+                    // Our test setup writes JSONs to user/corpora/default/*.json
+                    // ValkeyProvider usually looks for .mpk.zst. 
+                    // However, our test hydrate_mpk logic attempts decompression. 
+                    // If we upload JSON as the blob, the Zstd decoder will fail unless we compress it first.
+                    
+                    // TEST HACK: We need to compress the JSON to Zstd+MsgPack if we want ValkeyProvider to read it properly,
+                    // OR we need ValkeyProvider to handle raw JSON fallback.
+                    // Looking at `ValkeyProvider::hydrate_mpk`, it does `ZstdDecoder`.
+                    // So we MUST compress here.
+                    
+                    let packed = rmp_serde::to_vec(&serde_json::from_slice::<serde_json::Value>(&content).unwrap()).unwrap();
+                    let compressed = zstd::stream::encode_all(std::io::Cursor::new(packed), 0).unwrap();
+                    
+                    // We need to store it where ValkeyProvider looks.
+                    // ValkeyProvider looks for .mpk.zst extensions.
+                    // Test assets are .json. We rename on the fly.
+                    let store_key = if valkey_key.ends_with(".json") {
+                        valkey_key.replace(".json", ".mpk.zst")
+                    } else {
+                        valkey_key
+                    };
+
+                    let _ = state.coordinator.set_bin(&store_key, &compressed).await;
+
+                    // Register Manifest Hash
+                    // The ID for get_corpus_hash is "corpora/default/1grams.mpk.zst"
+                    // (if we used "default" as ID).
+                    let entry_id = if key_path.ends_with(".json") {
+                        key_path.replace(".json", ".mpk.zst")
+                    } else {
+                        key_path.clone()
+                    };
+                    
+                    let hash = "test_hash".to_string(); // Mock hash
+                    let entry = AssetManifestEntry {
+                        id: entry_id,
+                        hash,
+                        size_bytes: compressed.len() as u64,
+                        last_updated: 0,
+                    };
+                    let _ = state.coordinator.set_manifest_entry(&entry).await;
+                }
+            }
+        }
+    }
+}
+
 async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerAsync<Redis>) {
     init_tracing();
 
-    // Start Valkey
     let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
     let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
@@ -129,15 +200,11 @@ async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerA
         "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
     });
 
-    // Use standard DB init helper
     let pool = init_db(&db_url).await;
-
-    // Clean DB state for stress test
     let _ = sqlx::query("TRUNCATE results CASCADE").execute(&pool).await;
     let _ = sqlx::query("TRUNCATE nodes CASCADE").execute(&pool).await;
     let _ = sqlx::query("TRUNCATE jobs CASCADE").execute(&pool).await;
 
-    // Use tempfile for isolated asset storage
     let temp_dir = tempfile::tempdir().unwrap();
     let data_path = temp_dir.path().to_path_buf();
     ensure_test_assets(&data_path);
@@ -148,14 +215,8 @@ async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerA
         "test-key".to_string(),
     ).await);
 
-    // Cache Warming
-    use keyforge_core::loader::AssetLoader;
-    let _ = state.assets.load_cost_matrix("cost_matrix.json");
-    let _ = state.assets.load_corpus(&[CorpusSource {
-        id: "default".into(),
-        weight: 1.0,
-        hash: None,
-    }]);
+    // FIX: Hydrate Valkey with Test Assets (Compressed)
+    hydrate_test_valkey(&state, &data_path).await;
 
     let app = create_app(state.clone(), data_path);
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -188,7 +249,7 @@ async fn test_heterogeneous_thundering_herd() {
         .build()
         .unwrap();
 
-    println!("🚀 Starting Real-World Stress Test");
+    println!("�� Starting Real-World Stress Test");
     println!("   Target: {}", base_url);
 
     let kb_corne = load_keyboard(data_root, "corne");

@@ -25,8 +25,10 @@ services:
     restart: always
     ports:
       - "6379:6379"
+    # Hardening: Password auth, 256MB limit, LRU eviction, Ephemeral (no snapshots)
+    command: valkey-server --requirepass "dev_valkey_secret" --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
     healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
+      test: ["CMD", "valkey-cli", "-a", "dev_valkey_secret", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -47,7 +49,8 @@ services:
       DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
       HIVE_SECRET: ${HIVE_SECRET:-}
       RUST_LOG: info,keyforge_hive=debug
-      KEYFORGE_VALKEY_URL: redis://valkey:6379
+      # Updated connection string with password
+      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
     volumes:
       - ./data:/app/data
 
@@ -62,7 +65,6 @@ services:
       - "0.0.0.0:80:80"
       - "0.0.0.0:443:443"
     volumes:
-      # Updated to new root-level hosts directory
       - ./hosts/sites:/usr/local/apache2/htdocs:ro
       - ./hosts/certs:/etc/apache2/ssl:ro
 
