@@ -1,6 +1,8 @@
 // apps/keyforge-hive/tests/websockets.rs
 
-//! Integration tests for Hive WebSocket communication.\n\n\nuse futures::{SinkExt, StreamExt};
+//! Integration tests for Hive WebSocket communication.
+
+use futures::{SinkExt, StreamExt};
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use std::net::SocketAddr;
 use std::sync::Arc;

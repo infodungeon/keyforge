@@ -4,6 +4,7 @@
 
 
 use ui_lib::commands::library::cmd_safe_write_file;
+use tempfile::TempDir;
 
 #[test]
 fn test_safe_write_validation() {
