@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "High-performance computation kernels and optimized math for layout analysis and scoring."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [dependencies]
 keyforge-model = { path = "../keyforge-model" }

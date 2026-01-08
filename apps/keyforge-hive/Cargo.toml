@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Central orchestration server for managing KeyForge agents, UI state, and web services."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [dependencies]
 crc32fast = "1.5"

@@ -4,10 +4,12 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Communication protocols, API request/response types, and serialization formats for KeyForge services."
 repository.workspace = true
-lints.workspace = true
 readme = "../../docs/design/keyforge-protocol/README.md"
+
+[lints]
+workspace = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Physical modeling, ergonomic analysis, and scoring engine for keyboard layout valuation."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

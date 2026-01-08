@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Feature-rich command-line interface for local keyboard layout analysis and optimization."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [[bin]]
 name = "keyforge"

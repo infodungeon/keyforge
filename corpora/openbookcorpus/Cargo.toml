@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Specialized corpus management and data processing for the Open Book project dataset."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [dependencies]
 # ADD "json" HERE:

@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Security, authentication, and cryptographic utilities for secure KeyForge network communications."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [dependencies]
 zeroize = { version = "1.8", features = ["derive"] }

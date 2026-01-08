@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Cross-platform desktop UI for layout visualization and optimization, built with Tauri."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [lib]
 name = "ui_lib"

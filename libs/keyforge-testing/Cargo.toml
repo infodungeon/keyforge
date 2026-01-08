@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Utility library providing hermetic workspaces and test fixtures for the KeyForge ecosystem."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [dependencies]
 keyforge-protocol = { path = "../keyforge-protocol" }

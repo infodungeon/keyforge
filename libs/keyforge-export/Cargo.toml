@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Extensible export engine for generating specialized keyboard layout configuration files and assets."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [dependencies]
 keyforge-protocol = { path = "../keyforge-protocol" }

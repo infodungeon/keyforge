@@ -4,10 +4,12 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "Shared domain models, data structures, and types for keyboard layouts and linguistic corpora."
 repository.workspace = true
-lints.workspace = true
 readme = "../../docs/design/keyforge-model/README.md"
+
+[lints]
+workspace = true
 
 [dependencies]
 thiserror = "2.0"

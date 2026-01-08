@@ -4,9 +4,10 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description.workspace = true
+description = "WebAssembly bindings for running KeyForge layout analysis and scoring in browser environments."
 repository.workspace = true
-lints.workspace = true
+[lints]
+workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
