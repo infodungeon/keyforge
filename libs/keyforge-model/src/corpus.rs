@@ -1,5 +1,5 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
+// libs/keyforge-model/src/corpus.rs
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,6 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+
+//! Text corpus data structures and validation.
+//!
+//! A `Corpus` provides the statistical foundation for layout optimization,
+//! including character, bigram, and trigram frequencies.
 
 use crate::error::ForgeError;
 use serde::{Deserialize, Serialize};

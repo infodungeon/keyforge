@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 use keyforge_model::{Layout, KeyCode};
 use proptest::prelude::*;
 use std::collections::HashSet;

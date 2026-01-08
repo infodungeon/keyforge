@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 use keyforge_evolution::{optimize_with_callback, ProgressCallback, EvolutionError};
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
 use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};

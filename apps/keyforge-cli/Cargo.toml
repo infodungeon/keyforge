@@ -1,7 +1,11 @@
 [package]
 name = "keyforge-cli"
-version = "0.8.0"
+version.workspace = true
+authors.workspace = true
 edition = "2021"
+license.workspace = true
+description.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "keyforge"

@@ -1,11 +1,11 @@
 [package]
 name = "keyforge-model"
-version = "0.8.0"
+version.workspace = true
+authors.workspace = true
 edition = "2021"
-authors = ["KeyForge Contributors"]
-description = "Domain entities and core logic for the KeyForge keyboard layout optimizer."
-license = "Apache-2.0"
-repository = "https://github.com/keyforge/keyforge"
+license.workspace = true
+description.workspace = true
+repository.workspace = true
 readme = "../../docs/design/keyforge-model/README.md"
 
 [dependencies]

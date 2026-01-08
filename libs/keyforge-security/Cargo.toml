@@ -1,7 +1,11 @@
 [package]
 name = "keyforge-security"
-version = "0.8.0"
+version.workspace = true
+authors.workspace = true
 edition = "2021"
+license.workspace = true
+description.workspace = true
+repository.workspace = true
 
 [dependencies]
 zeroize = { version = "1.8", features = ["derive"] }

@@ -3786,7 +3786,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-adapter"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "keyforge-model",
  "keyforge-protocol",
@@ -3795,7 +3795,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-agent"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "age",
  "anyhow",
@@ -3839,7 +3839,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-cli"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "clap",
@@ -3882,7 +3882,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-compute"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "keyforge-adapter",
  "keyforge-core",
@@ -3896,7 +3896,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-core"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "keyforge-evolution",
@@ -3908,7 +3908,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-evolution"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "keyforge-model",
  "keyforge-physics",
@@ -3923,7 +3923,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-export"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3935,7 +3935,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-hive"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4005,7 +4005,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-infra"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "backoff",
@@ -4043,7 +4043,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-model"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "hex",
  "kle-serial",
@@ -4064,7 +4064,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-persistence"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4086,7 +4086,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-physics"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "fastrand",
  "keyforge-model",
@@ -4100,7 +4100,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-protocol"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "keyforge-model",
@@ -4115,7 +4115,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-security"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -4128,7 +4128,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-testing"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "keyforge-core",
  "keyforge-model",
@@ -4139,7 +4139,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-ui"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "fastrand",
@@ -4172,7 +4172,7 @@ dependencies = [
 
 [[package]]
 name = "keyforge-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "console_error_panic_hook",
@@ -5247,7 +5247,7 @@ dependencies = [
 
 [[package]]
 name = "openbookcorpus"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "futures-util",
  "indicatif 0.18.3",

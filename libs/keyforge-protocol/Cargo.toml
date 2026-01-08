@@ -1,11 +1,11 @@
 [package]
 name = "keyforge-protocol"
-version = "0.8.0"
+version.workspace = true
+authors.workspace = true
 edition = "2021"
-authors = ["KeyForge Contributors"]
-description = "Data Transfer Objects and API Contract for KeyForge."
-license = "Apache-2.0"
-repository = "https://github.com/keyforge/keyforge"
+license.workspace = true
+description.workspace = true
+repository.workspace = true
 readme = "../../docs/design/keyforge-protocol/README.md"
 
 [dependencies]

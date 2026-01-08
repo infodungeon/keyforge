@@ -1,9 +1,11 @@
 [package]
 name = "keyforge-ui"
-version = "0.8.0"
-description = "A Tauri App"
-authors = ["you"]
+version.workspace = true
+authors.workspace = true
 edition = "2021"
+license.workspace = true
+description.workspace = true
+repository.workspace = true
 
 [lib]
 name = "ui_lib"

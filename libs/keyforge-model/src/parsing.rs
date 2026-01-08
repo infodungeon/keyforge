@@ -1,5 +1,5 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
+// libs/keyforge-model/src/parsing.rs
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,6 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+
+//! Parsing logic for keymap formats.
+//!
+//! This module provides utilities for parsing external keymap formats 
+//! (like QMK or ZMK) into internal domain representations.
 
 use regex::Regex;
 use std::sync::OnceLock;

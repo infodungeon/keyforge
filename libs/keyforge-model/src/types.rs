@@ -1,5 +1,5 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
+// libs/keyforge-model/src/types.rs
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -58,9 +59,9 @@ impl HandIndex {
     /// Right hand index (1).
     pub const RIGHT: Self = Self(1);
     
-    /// Returns the raw u8 value.
+    /// Returns the raw `u8` value.
     pub fn as_u8(&self) -> u8 { self.0 }
-    /// Returns the value as usize.
+    /// Returns the value as `usize`.
     pub fn as_usize(&self) -> usize { self.0 as usize }
     /// Returns true if this is the left hand.
     pub fn is_left(&self) -> bool { self.0 == 0 }
@@ -94,9 +95,9 @@ impl FingerIndex {
     /// Pinky finger index (4).
     pub const PINKY: Self = Self(4);
     
-    /// Returns the raw u8 value.
+    /// Returns the raw `u8` value.
     pub fn as_u8(&self) -> u8 { self.0 }
-    /// Returns the value as usize.
+    /// Returns the value as `usize`.
     pub fn as_usize(&self) -> usize { self.0 as usize }
     
     /// Calculates the absolute distance between two fingers.
@@ -117,7 +118,9 @@ impl TryFrom<u8> for FingerIndex {
     }
 }
 
-/// Row index (Home=0, Top<0, Bottom>0).
+/// Row index.
+///
+/// Typically: Home=0, Top<0, Bottom>0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
@@ -130,6 +133,9 @@ impl std::ops::Sub for RowIndex {
 }
 
 /// Column index.
+///
+/// Positive values are typically to the right, negative to the left, 
+/// with 0 being a reference column (e.g., center or pinky column).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]

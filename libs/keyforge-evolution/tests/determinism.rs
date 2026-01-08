@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 use keyforge_evolution::{optimize_with_callback, ProgressCallback};
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
 use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
