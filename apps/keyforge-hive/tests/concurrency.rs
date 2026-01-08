@@ -1,5 +1,9 @@
 // apps/keyforge-hive/tests/concurrency.rs
 
+//! # Concurrency Tests for KeyForge Hive
+//!
+//! Stress testing suite for the Hive server under high concurrent loads.
+
 
 use futures::future::join_all;
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
@@ -191,6 +195,8 @@ async fn hydrate_test_valkey(state: &Arc<AppState>, root: &Path) {
     }
 }
 
+/// Sets up the test environment, including a Redis container and a temporary database.
+/// Verifies database connection pooling and Valkey (Redis) caching during asset hydration.
 async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerAsync<Redis>) {
     init_tracing();
 
@@ -236,6 +242,8 @@ async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerA
     (base_url, state, temp_dir, valkey_node)
 }
 
+/// Performs a "thundering herd" stress test with multiple worker nodes
+/// registering and submitting results simultaneously to ensure system stability.
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn test_heterogeneous_thundering_herd() {
     let (base_url, _state, _temp_dir, _valkey) = setup_server().await;

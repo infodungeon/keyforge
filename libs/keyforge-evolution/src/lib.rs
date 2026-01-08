@@ -247,7 +247,7 @@ mod tests {
         let (kb, cp, rb) = setup_env();
         let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap());
         let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 };
-        let result = evolve(engine, &config, crate::NoOpCallback).unwrap();
+        let result = evolve(engine, &config, NoOpCallback).unwrap();
         assert!(result.score >= 0.0);
     }
 
@@ -280,7 +280,7 @@ mod tests {
             keyboard: kb, corpus, rubric, config,
             initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
         };
-        let result = crate::optimize(&req);
+        let result = optimize(&req);
         assert!(result.is_err());
         match result {
             Err(EvolutionError::Config(msg)) => assert!(msg.contains("Pinned key 99 not found")),

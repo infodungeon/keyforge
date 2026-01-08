@@ -1,11 +1,16 @@
 // apps/keyforge-hive/tests/fuzz_inputs.rs
 
+//! # Input Fuzzing Tests for KeyForge
+//!
+//! Property-based testing for data structures and validation logic.
+
 
 use keyforge_model::config::ScoringWeights;
 use keyforge_model::geometry::{KeyNode, KeyboardGeometry};
 use keyforge_model::Validator;
 use proptest::prelude::*;
 
+/// Generates randomized `ScoringWeights` for validation fuzzing.
 fn weights_strategy() -> impl Strategy<Value = ScoringWeights> {
     (any::<f32>(), any::<f32>(), any::<f32>(), any::<usize>())
         .prop_map(|(sfb, scis, redir, limit)| ScoringWeights {
@@ -17,6 +22,7 @@ fn weights_strategy() -> impl Strategy<Value = ScoringWeights> {
         })
 }
 
+/// Generates arbitrary `KeyboardGeometry` configurations for validation fuzzing.
 fn geometry_strategy() -> impl Strategy<Value = KeyboardGeometry> {
     proptest::collection::vec(
         (any::<f32>(), any::<f32>(), 0u8..10, 0u8..10),
@@ -35,16 +41,19 @@ fn geometry_strategy() -> impl Strategy<Value = KeyboardGeometry> {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
 
+    /// Verifies that `ScoringWeights` validation handles randomized inputs.
     #[test]
     fn fuzz_weights_validation(w in weights_strategy()) {
         let _ = w.validate();
     }
 
+    /// Verifies that `KeyboardGeometry` validation handles arbitrary configurations.
     #[test]
     fn fuzz_geometry_validation(g in geometry_strategy()) {
         let _ = g.validate();
     }
 
+    /// Verifies that `JobRequest` deserialization is stable against arbitrary strings.
     #[test]
     fn fuzz_json_deserialization(s in "\\PC*") {
         let _ = serde_json::from_str::<keyforge_protocol::JobRequest>(&s);
