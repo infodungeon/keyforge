@@ -21,6 +21,15 @@ members = [
 ]
 resolver = "2"
 
+[workspace.lints.rust]
+missing_docs = "warn"
+unused_qualifications = "warn"
+unexpected_cfgs = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+
 [workspace.package]
 version = "0.9.0"
 authors = ["robert@infodungeon.com"]

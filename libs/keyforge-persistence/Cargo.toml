@@ -6,6 +6,7 @@ edition = "2021"
 license.workspace = true
 description.workspace = true
 repository.workspace = true
+lints.workspace = true
 
 [features]
 default = []
@@ -28,5 +29,11 @@ sha2 = "0.10"
 hex = "0.4"
 
 # SQLx remains optional for the Agent
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "chrono"], optional = true }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "macros",
+    "chrono",
+], optional = true }
 tempfile = "3.10"
