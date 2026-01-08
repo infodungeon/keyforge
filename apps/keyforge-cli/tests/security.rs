@@ -1,3 +1,9 @@
+// apps/keyforge-cli/tests/security.rs
+
+//! Integration tests for CLI input sanitization and security boundaries. Verifies that
+//! user-provided data (keymap strings, file paths) is correctly validated to prevent
+//! injection attacks and path traversal exploits.
+
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::fs::File;

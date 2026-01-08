@@ -1,16 +1,9 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// libs/keyforge-physics/tests/heuristics.rs
+
+//! Integration tests for the physics engine's heuristic reasoning. Verifies the accuracy
+//! of standard layout identification (e.g., Qwerty) and validates that the engine's
+//! improvement suggestions correctly identify score-reducing key swaps based on corpus
+//! frequencies and geometric travel costs.
 
 
 use keyforge_model::{

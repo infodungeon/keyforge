@@ -1,3 +1,10 @@
+// apps/keyforge-agent/tests/integration_test.rs
+
+//! End-to-end integration tests for the KeyForge agent. Verifies the complete session
+//! lifecycle, from workspace bootstrap to job execution, ensuring correct asset loading,
+//! corpus merging, and result serialization across hermetic test environments.
+
+
 use keyforge_agent::agent::compute;
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};

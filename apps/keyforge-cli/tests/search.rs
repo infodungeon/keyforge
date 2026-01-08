@@ -1,3 +1,9 @@
+// apps/keyforge-cli/tests/search.rs
+
+//! Integration tests for CLI layout search and optimization workflows. Verifies the
+//! end-to-end execution of optimization commands, ensuring correct propagation of search
+//! parameters, corpus loading, and result validation.
+
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::process::Command;

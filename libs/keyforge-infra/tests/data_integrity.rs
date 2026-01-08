@@ -1,3 +1,10 @@
+// libs/keyforge-infra/tests/data_integrity.rs
+
+//! Integration tests for production data integrity. Verifies that standard corpora
+//! (e.g., en_std) and cost matrices satisfy the domain's structural requirements when
+//! loaded from the real workspace data directory.
+
+
 use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::config::CorpusSource;

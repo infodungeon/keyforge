@@ -1,16 +1,10 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// libs/keyforge-infra/tests/fs_ops.rs
+
+//! Integration tests for infrastructure filesystem operations. Verifies the reliability
+//! of workspace initialization, the exclusivity of the `WorkspaceLock` for preventing
+//! concurrent access, and the accuracy of recursive asset listing filters.
+
+
 use keyforge_infra::{listing, WorkspaceLock, initialize_workspace, InitMode};
 use std::fs;
 

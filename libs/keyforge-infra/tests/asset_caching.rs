@@ -1,3 +1,10 @@
+// libs/keyforge-infra/tests/asset_caching.rs
+
+//! Integration tests for infrastructure asset caching and warmup. Verifies the
+//! `CachingProvider`'s ability to recursively scan and index workspace assets,
+//! ensuring that system manifests are correctly populated during the warmup phase.
+
+
 use keyforge_infra::CachingProvider;
 use keyforge_core::loader::AssetLoader;
 use std::path::PathBuf;

@@ -1,16 +1,11 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// libs/keyforge-infra/tests/network_sync.rs
+
+//! Integration tests for infrastructure network synchronization. Simulates a standard
+//! sync flow using `HiveClient` and `wiremock` to verify that assets are correctly
+//! identified via manifests, hashed for integrity, and downloaded to the local
+//! workspace.
+
+
 use keyforge_infra::{HiveClient, run_sync};
 use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};

@@ -1,4 +1,8 @@
-use tempfile::TempDir;
+// apps/keyforge-ui/src-tauri/tests/security_tests.rs
+
+//! Integration tests for safe file I/O in the UI application.
+
+
 use ui_lib::commands::library::cmd_safe_write_file;
 
 #[test]

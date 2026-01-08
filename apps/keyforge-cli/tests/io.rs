@@ -1,3 +1,9 @@
+// apps/keyforge-cli/tests/io.rs
+
+//! Integration tests for CLI path resolution and I/O operations. Verifies the robustness
+//! of file path expansion, workspace-relative lookups, and defensive I/O error handling
+//! across various edge cases.
+
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::fs;

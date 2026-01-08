@@ -1,3 +1,8 @@
+// corpora/openbookcorpus/tests/python_integration.rs
+
+//! Integration tests for Python-based corpus validation.
+
+
 use std::process::Command;
 use std::path::{Path, PathBuf};
 

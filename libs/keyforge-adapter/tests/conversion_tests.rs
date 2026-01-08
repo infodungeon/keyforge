@@ -1,16 +1,11 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// libs/keyforge-adapter/tests/conversion_tests.rs
+
+//! Integration tests for the KeyForge adapter layer. Verifies the translation between
+//! external protocol entities and internal domain models, including robust validation
+//! of layout string parsing (strict and permissive), keycode alias resolution, and
+//! search parameter mapping.
+
+
 use keyforge_adapter::conversion;
 use keyforge_adapter::error::AdapterError;
 use keyforge_model::{

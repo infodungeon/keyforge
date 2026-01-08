@@ -1,3 +1,7 @@
+// apps/keyforge-hive/tests/integration_valkey.rs
+
+//! Integration tests for Hive Valkey (Redis) telemetry storage.
+
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use keyforge_protocol::NodeTelemetry;
 use std::net::SocketAddr;

@@ -1,16 +1,10 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// libs/keyforge-persistence/tests/persistence_tests.rs
+
+//! Integration tests for project persistence and autosave services. Verifies the
+//! serialization round-trip for Project entities and the reliability of the
+//! `AutoSaveService` in capturing and recovering session snapshots from the filesystem.
+
+
 use keyforge_persistence::{AutoSaveService, Project, ProjectMeta, SessionSnapshot};
 use keyforge_model::config::CorpusSource;
 use serde_json;

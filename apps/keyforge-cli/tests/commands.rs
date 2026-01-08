@@ -1,3 +1,9 @@
+// apps/keyforge-cli/tests/commands.rs
+
+//! Integration tests for CLI command execution. Verifies the correctness of the `fetch`
+//! and `init` commands, ensuring proper workspace initialization, asset synchronization,
+//! and hermetic test isolation.
+
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::process::Command;

@@ -1,3 +1,10 @@
+// libs/keyforge-infra/tests/fs_utils.rs
+
+//! Integration tests for infrastructure filesystem listing and filtering. Verifies the
+//! logic for identifying and categorizing system and user-provided assets, ensuring
+//! that build artifacts and unrelated file types are correctly ignored.
+
+
 use keyforge_infra::listing;
 use std::fs;
 
