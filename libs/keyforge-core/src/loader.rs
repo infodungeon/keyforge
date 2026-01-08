@@ -18,23 +18,33 @@ use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::Corpus;
 
+/// A specialized result type for asset loading operations.
 pub type LoaderResult<T> = Result<T, ForgeError>;
 
 use serde::{Deserialize, Serialize};
 
+/// A single entry in a cost matrix, defining the travel cost between two keys.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CostEntry {
+    /// The label of the starting key.
     pub from: String,
+    /// The label of the destination key.
     pub to: String,
+    /// The physical cost (e.g., distance or effort) of moving between these keys.
     pub cost: f32,
 }
 
+/// A collection of travel cost entries, typically loaded from a JSON or CSV file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RawCostData {
+    /// The list of individual cost mappings.
     pub entries: Vec<CostEntry>,
 }
 
 impl RawCostData {
+    /// Resolves the raw cost entries against a specific keyboard geometry.
+    ///
+    /// This translates label-based lookups into high-performance index-based lookups.
     pub fn resolve(&self, geo: &keyforge_model::geometry::KeyboardGeometry) -> Vec<(usize, usize, f32)> {
         let mut overrides = Vec::new();
         let mut id_map = std::collections::HashMap::new();
@@ -50,10 +60,18 @@ impl RawCostData {
     }
 }
 
+/// A trait for types that can load KeyForge assets from an external source.
+///
+/// This is the primary abstraction for IO, allowing core logic to remain 
+/// agnostic to the filesystem, network, or embedded storage.
 #[async_trait::async_trait]
 pub trait AssetLoader: Send + Sync {
+    /// Loads a keyboard definition by name.
     async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition>;
+    /// Loads one or more corpora and merges them into a single bundle.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus>;
+    /// Loads a cost matrix from the specified file.
     async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData>;
+    /// Loads a keycode registry for mapping between labels and codes.
     async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry>;
 }

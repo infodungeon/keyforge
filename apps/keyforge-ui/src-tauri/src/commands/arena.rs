@@ -17,7 +17,7 @@ pub async fn cmd_get_typing_words(
     let data_dir = get_data_dir(&app)?;
     let provider = FsProvider::new(data_dir);
     
-    let domain_corpora: Vec<keyforge_model::config::CorpusSource> = corpora
+    let domain_corpora: Vec<CorpusSource> = corpora
         .iter()
         .map(conversion::to_domain_corpus_source)
         .collect();
@@ -105,7 +105,7 @@ pub async fn cmd_get_corpus_bigrams(
     let data_dir = get_data_dir(&app)?;
     let provider = FsProvider::new(data_dir);
 
-    let domain_corpora: Vec<keyforge_model::config::CorpusSource> = corpora
+    let domain_corpora: Vec<CorpusSource> = corpora
         .iter()
         .map(conversion::to_domain_corpus_source)
         .collect();

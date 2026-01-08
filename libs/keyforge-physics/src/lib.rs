@@ -20,7 +20,9 @@
 
 mod analysis;
 mod kernel;
+/// Layout verification and validity scoring.
 pub mod verify; 
+/// Physics-specific error types.
 pub mod errors;
 
 pub use analysis::fingerprint::LayoutIdentity;
@@ -74,17 +76,22 @@ impl ScoringEngine {
         Ok(score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE)
     }
 
+    /// Analyzes a layout and returns a detailed report of its performance.
     #[instrument(skip(self, layout))]
     pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         Ok(analyze_layout(&self.ctx, &validated))
     }
 
+    /// Suggests ergonomic improvements for a layout by evaluating potential key swaps.
     #[instrument(skip(self, layout))]
     pub fn suggest_improvements(&self, layout: &Layout) -> Vec<SwapSuggestion> {
         suggest_swaps(&self.ctx, layout)
     }
 
+    /// Calculates the change in score resulting from swapping two keys.
+    ///
+    /// This is an optimized operation used during local search.
     pub fn calculate_swap_delta(
         &self,
         layout: &[KeyCode],
@@ -96,36 +103,52 @@ impl ScoringEngine {
         Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, pos_map, idx_a, idx_b))
     }
 
+    /// Returns the raw, unweighted physics score for a layout.
     pub fn score_raw(&self, layout: &[KeyCode]) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
         let mut pos_map = vec![65535u16; 65536];
         Ok(score_layout(&self.ctx, &validated, &mut pos_map))
     }
 
+    /// Returns the total number of keys supported by this engine.
     pub fn key_count(&self) -> usize {
         self.ctx.key_count
     }
 
+    /// Returns the total number of trigrams used for scoring.
     pub fn trigram_count(&self) -> usize {
         self.ctx.trigram_freqs.len()
     }
 
+    /// Returns a reference to the internal engine context.
     pub fn context(&self) -> &EngineContext {
         &self.ctx
     }
 }
 
+/// A request structure for performing common engine operations.
+///
+/// This structure bundles all necessary data to instantiate a `ScoringEngine` 
+/// and perform a task like scoring or analysis.
 #[derive(Clone)]
 pub struct EngineRequest {
+    /// The physical keyboard geometry.
     pub keyboard: Arc<Keyboard>,
+    /// The language statistics to use.
     pub corpus: Arc<Corpus>,
+    /// The ergonomic weights to apply.
     pub rubric: Arc<Rubric>,
+    /// Optimization and search parameters.
     pub config: SearchConfig,
+    /// The starting layout for the operation.
     pub initial_layout: Option<Layout>,
+    /// Keys that must remain in their initial positions.
     pub pinned_keys: Vec<Option<KeyCode>>,
+    /// Manual overrides for key-to-key travel costs.
     pub cost_overrides: Vec<(usize, usize, f32)>,
 }
 
+/// Performs a one-off scoring operation for the given request.
 #[instrument(skip(req))]
 pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
     let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
@@ -139,6 +162,7 @@ pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
     })
 }
 
+/// Performs a one-off analysis operation for the given request.
 #[instrument(skip(req))]
 pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
     let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
@@ -149,12 +173,14 @@ pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
     engine.analyze(&layout)
 }
 
+/// Identifies a layout by comparing it to known standards.
 #[instrument]
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
     let fp = Fingerprinter;
     fp.identify(layout)
 }
 
+/// Suggests improvements for the layout described in the request.
 #[instrument(skip(req))]
 pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
     let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;

@@ -21,12 +21,16 @@ use std::sync::Arc;
 /// Holds the compiled physics engine and associated metadata.
 #[derive(Clone)]
 pub struct ScoringSession {
+    /// The pre-compiled evaluation engine.
     pub engine: Arc<ScoringEngine>,
+    /// The registry used for resolving key labels.
     pub registry: Arc<KeycodeRegistry>,
+    /// The search parameters used for this session.
     pub search_config: SearchConfig,
 }
 
 impl ScoringSession {
+    /// Creates a new `ScoringSession` from the provided engine, registry, and config.
     pub fn new(
         engine: Arc<ScoringEngine>,
         registry: Arc<KeycodeRegistry>,

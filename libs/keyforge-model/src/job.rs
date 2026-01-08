@@ -57,7 +57,7 @@ impl JobIdentifier {
     ) -> Result<Self, JobIdError> {
         let mut hasher = Sha256::new();
 
-        fn feed<T: serde::Serialize>(hasher: &mut Sha256, value: &T) -> Result<(), JobIdError> {
+        fn feed<T: Serialize>(hasher: &mut Sha256, value: &T) -> Result<(), JobIdError> {
             // Use postcard for deterministic binary serialization
             let bytes = postcard::to_stdvec(value)
                 .map_err(|e| JobIdError::Serialize(e.to_string()))?;

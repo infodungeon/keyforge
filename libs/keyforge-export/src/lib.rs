@@ -12,12 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # KeyForge Export
+//!
+//! Provides functionality for exporting keyboard layouts to various 
+//! firmware and configuration formats.
+
+/// QMK firmware configuration exporter.
 pub mod qmk;
+/// VIA firmware (JSON) exporter.
 pub mod via;
+/// ZMK firmware (devicetree) exporter.
 pub mod zmk;
 
 use anyhow::Result;
 
+/// A trait for types that can export keymaps to varied keyboard firmware formats.
 pub trait Exporter {
+    /// Generates the source code or configuration for a specific firmware format.
+    ///
+    /// - `layout_name`: The human-readable name of the layout.
+    /// - `keys`: A slice of key labels or tokens to be exported.
     fn generate(&self, layout_name: &str, keys: &[String]) -> Result<String>;
 }

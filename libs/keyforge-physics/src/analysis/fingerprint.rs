@@ -16,10 +16,14 @@ use keyforge_model::{Layout, KeyCode};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+/// Represents the identity of a layout based on its similarity to standard layouts.
 pub struct LayoutIdentity {
+    /// The name of the standard layout (e.g., "Qwerty", "Colemak").
     pub name: String,
-    pub similarity: f32, // 0.0 to 1.0
-    pub distance: usize, // Hamming distance
+    /// A similarity score from 0.0 to 1.0.
+    pub similarity: f32,
+    /// The Hamming distance (number of mismatched keys) from the standard.
+    pub distance: usize,
 }
 
 pub struct Fingerprinter;

@@ -136,7 +136,7 @@ impl WriteQueue {
                 let batch_size = current_config.queue.batch_size;
                 let flush_interval = current_config.queue.flush_interval_ms;
 
-                let timeout = tokio::time::sleep(Duration::from_millis(flush_interval));
+                let timeout = sleep(Duration::from_millis(flush_interval));
 
                 tokio::select! {
                     msg = rx.recv() => {

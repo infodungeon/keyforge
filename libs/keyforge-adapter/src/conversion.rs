@@ -18,14 +18,19 @@ use keyforge_model::constants::MAX_LAYOUT_DATA_LEN;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::{config, geometry, KeyConstraint};
 
-pub fn to_domain_corpus_source(s: &config::CorpusSource) -> keyforge_model::config::CorpusSource {
-    keyforge_model::config::CorpusSource {
+/// Converts a protocol-level corpus source into a domain-level source.
+pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource {
+    config::CorpusSource {
         id: s.id.clone(),
         weight: s.weight,
         hash: s.hash.clone(),
     }
 }
 
+/// Converts protocol-level keyboard geometry into a domain-level keyboard.
+///
+/// This resolves physical properties like home row positions and calculates 
+/// internal indices for high-performance scoring.
 pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> keyforge_model::Keyboard {
     let keys = geo
         .keys
@@ -42,6 +47,7 @@ pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> keyforge_model::K
     keyforge_model::Keyboard::new(keys, geo.home_row).expect("Failed to create keyboard from adapter geometry")
 }
 
+/// Converts protocol-level scoring weights into a domain-level evaluation rubric.
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
     let finger_scales = w.get_finger_penalty_scale();
     keyforge_model::Rubric {
@@ -57,6 +63,7 @@ pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
     }
 }
 
+/// Converts protocol-level search parameters into domain-level search configuration.
 pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::SearchConfig {
     keyforge_model::SearchConfig::Annealing {
         steps: p.search_steps,
@@ -69,6 +76,10 @@ pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::
     }
 }
 
+/// Resolves a list of protocol constraints against a keycount and registry.
+///
+/// Returns a vector of optional keycodes where each `Some(code)` represents 
+/// a pinned key at that index.
 pub fn resolve_constraints(
     proto_constraints: &[KeyConstraint],
     key_count: usize,
@@ -99,6 +110,7 @@ pub fn resolve_constraints(
     Ok(pins)
 }
 
+/// Resolves a label-based cost matrix into an index-based override list.
 pub fn resolve_cost_matrix(
     raw: &[(String, String, f32)],
     geo: &geometry::KeyboardGeometry,
@@ -238,6 +250,7 @@ pub fn parse_layout_string(
 }
 
 // Convert Protocol -> Model
+/// Converts a protocol-level key node into a domain-level node.
 pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
     keyforge_model::KeyNode {
         index: k.index,
@@ -258,18 +271,22 @@ pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
     }
 }
 
+/// Identity conversion for hand indices (facilitates protocol decoupling).
 pub fn to_domain_hand_index(val: keyforge_model::types::HandIndex) -> keyforge_model::types::HandIndex {
     keyforge_model::types::HandIndex(val.0)
 }
 
+/// Identity conversion for finger indices (facilitates protocol decoupling).
 pub fn to_domain_finger_index(val: keyforge_model::types::FingerIndex) -> keyforge_model::types::FingerIndex {
     keyforge_model::types::FingerIndex(val.0)
 }
 
+/// Identity conversion for row indices (facilitates protocol decoupling).
 pub fn to_domain_row_index(val: keyforge_model::types::RowIndex) -> keyforge_model::types::RowIndex {
     keyforge_model::types::RowIndex(val.0)
 }
 
+/// Identity conversion for column indices (facilitates protocol decoupling).
 pub fn to_domain_col_index(val: keyforge_model::types::ColIndex) -> keyforge_model::types::ColIndex {
     keyforge_model::types::ColIndex(val.0)
 }

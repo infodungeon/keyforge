@@ -124,7 +124,7 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
     let max_retries = 30;
     let delay = Duration::from_secs(1);
 
-    let max_connections = std::env::var("DATABASE_MAX_CONNECTIONS")
+    let max_connections = env::var("DATABASE_MAX_CONNECTIONS")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(100);

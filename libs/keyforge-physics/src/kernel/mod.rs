@@ -19,6 +19,10 @@ pub mod types;
 
 use self::types::{KeyCode, FingerIndex, HandIndex, RowIndex, ColIndex, Score};
 
+/// Compiled, high-performance context used by the physics engine for scoring.
+///
+/// This structure holds flattened, cache-friendly representations of 
+/// language statistics and physical travel costs.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct EngineContext {

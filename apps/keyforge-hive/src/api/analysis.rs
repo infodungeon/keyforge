@@ -88,9 +88,9 @@ pub async fn validate_layout(
     let cost_overrides: Vec<(usize, usize, f32)> = Vec::new();
 
     let engine = keyforge_core::build_engine(&keyforge_core::EngineRequest {
-        keyboard: std::sync::Arc::new(domain_keyboard),
-        corpus: std::sync::Arc::new(corpus),
-        rubric: std::sync::Arc::new(domain_rubric),
+        keyboard: Arc::new(domain_keyboard),
+        corpus: Arc::new(corpus),
+        rubric: Arc::new(domain_rubric),
         config: keyforge_model::SearchConfig::default(),
         initial_layout: None,
         pinned_keys: vec![],

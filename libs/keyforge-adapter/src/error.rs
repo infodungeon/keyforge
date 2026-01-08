@@ -14,16 +14,21 @@
 
 use thiserror::Error;
 
+/// Errors that can occur during domain conversion or protocol translation.
 #[derive(Debug, Error, PartialEq)]
 pub enum AdapterError {
+    /// Provided data failed validation constraints.
     #[error("Validation failed: {0}")]
     Validation(String),
 
+    /// A key label or token was not found in the registry.
     #[error("Unknown key token: {0}")]
     UnknownToken(String),
 
+    /// The layout string length exceeds the safety limit.
     #[error("Layout string exceeds maximum length of {0}")]
     LayoutTooLong(usize),
 }
 
+/// A specialized result type for adapter operations.
 pub type AdapterResult<T> = Result<T, AdapterError>;

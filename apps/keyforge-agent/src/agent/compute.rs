@@ -71,11 +71,11 @@ pub struct PreparedJob {
     /// The keycode registry used for token mapping.
     pub registry: keyforge_model::keycodes::KeycodeRegistry,
     /// The active keyboard model.
-    pub keyboard: std::sync::Arc<keyforge_model::Keyboard>,
+    pub keyboard: Arc<keyforge_model::Keyboard>,
     /// The active corpus model.
-    pub corpus: std::sync::Arc<keyforge_model::Corpus>,
+    pub corpus: Arc<keyforge_model::Corpus>,
     /// The active scoring rubric.
-    pub rubric: std::sync::Arc<keyforge_model::Rubric>,
+    pub rubric: Arc<keyforge_model::Rubric>,
     /// Resolved cost model overrides.
     pub cost_overrides: Vec<(usize, usize, f32)>,
 }
@@ -144,9 +144,9 @@ pub async fn create_engine_request(
          return Err(anyhow::anyhow!("Pinned keys provided but no initial layout found."));
     }
 
-    let keyboard = std::sync::Arc::new(keyboard);
-    let corpus = std::sync::Arc::new(corpus);
-    let rubric = std::sync::Arc::new(rubric);
+    let keyboard = Arc::new(keyboard);
+    let corpus = Arc::new(corpus);
+    let rubric = Arc::new(rubric);
 
     let req = EngineRequest {
         keyboard: keyboard.clone(),

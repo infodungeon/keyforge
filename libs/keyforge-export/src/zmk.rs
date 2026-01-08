@@ -16,6 +16,9 @@ use crate::Exporter;
 use anyhow::Result;
 use keyforge_adapter::parsing::{parse_key, KeyAction};
 
+/// An exporter for the ZMK (Zephyr Mechanical Keyboard) firmware.
+///
+/// This generates a Devicetree (.keymap) file compatible with ZMK's build system.
 pub struct ZmkExporter;
 
 fn sanitize(s: &str) -> String {

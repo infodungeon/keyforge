@@ -128,7 +128,7 @@ pub async fn cmd_validate_layout(
             tracing::warn!("{}", msg);
         }
 
-        let proto_geometry: keyforge_model::geometry::KeyboardGeometry = 
+        let proto_geometry: KeyboardGeometry = 
             serde_json::from_value(serde_json::to_value(&geometry).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
 

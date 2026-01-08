@@ -195,18 +195,18 @@ async fn run_app() -> Result<(), CliError> {
 async fn build_runtime(
     root: &std::path::Path,
     shared: &cmd::shared::SharedArgs,
-    config_args: crate::cli_args::config::ConfigArgs,
+    config_args: cli_args::config::ConfigArgs,
 ) -> Result<Runtime, Box<dyn Error>> {
     // 1. Parse Args
-    let corpora = crate::cli_args::parse_corpora(&shared.corpus)?;
+    let corpora = cli_args::parse_corpora(&shared.corpus)?;
 
     // Resolve Keyboard Path (Handles relative/absolute/workspace paths)
-    let kb_path = crate::cli_parsers::resolve_path(&shared.keyboard, Some("keyboards"), root)?;
+    let kb_path = cli_parsers::resolve_path(&shared.keyboard, Some("keyboards"), root)?;
     let kb_str = kb_path.to_string_lossy().to_string();
 
     // 2. Load Overrides (Optional Weights File)
     let weights = if let Some(w_input) = &shared.weights {
-        let w_path = crate::cli_parsers::resolve_path(w_input, None, root)?;
+        let w_path = cli_parsers::resolve_path(w_input, None, root)?;
         let content = keyforge_infra::read_to_string_limited(
             &w_path,
             keyforge_model::constants::MAX_INPUT_FILE_SIZE,

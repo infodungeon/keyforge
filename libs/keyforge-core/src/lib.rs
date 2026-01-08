@@ -23,7 +23,9 @@
 //! - running analysis
 //! - running optimization
 
+/// Traits and types for loading external assets (keyboards, corpora, etc.).
 pub mod loader;
+/// High-level session management for optimization runs.
 pub mod session;
 pub use session::ScoringSession;
 pub use keyforge_evolution::{ProgressCallback, EvolutionError};
@@ -86,7 +88,8 @@ pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionErro
 }
 
 /// Optimize using the legacy request style, reporting progress via callback.
-pub fn optimize_with_callback<CB: keyforge_evolution::ProgressCallback>(
+/// Optimize using the legacy request style, reporting progress via callback.
+pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
@@ -97,7 +100,11 @@ pub fn optimize_with_callback<CB: keyforge_evolution::ProgressCallback>(
 ///
 /// This is the most efficient path for environments that repeatedly optimize against
 /// the same keyboard/corpus/rubric.
-pub fn optimize_with_engine<CB: keyforge_evolution::ProgressCallback>(
+/// Optimize using a precompiled engine.
+///
+/// This is the most efficient path for environments that repeatedly optimize against
+/// the same keyboard/corpus/rubric.
+pub fn optimize_with_engine<CB: ProgressCallback>(
     engine: Arc<ScoringEngine>,
     config: &keyforge_model::SearchConfig,
     callback: CB,

@@ -1,4 +1,14 @@
-// ===== corpora/openbookcorpus/src/main.rs =====
+//! # OpenBookCorpus Processor
+//!
+//! A high-performance utility for downloading and processing the 
+//! [OpenBookCorpus](https://huggingface.co/datasets/lucadiliello/bookcorpusopen) 
+//! dataset into N-gram statistics for KeyForge.
+//!
+//! Features:
+//! - Parallel processing using `rayon` and `parquet`.
+//! - Concurrent shard downloads.
+//! - Strict character normalization and validation for keyboard optimization.
+//! - Optimized FastMap (FxHash) aggregation.
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use parquet::file::reader::{FileReader, SerializedFileReader};
@@ -10,7 +20,7 @@ use serde::Serialize;
 use serde_json::ser::{Formatter, Serializer};
 use serde_json::Value;
 use std::fs::{self, File};
-use std::io::{BufWriter, Write};
+use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -114,20 +124,20 @@ impl StrictEscapeFormatter {
 }
 
 impl Formatter for StrictEscapeFormatter {
-    fn begin_object_key<W: ?Sized + std::io::Write>(&mut self, writer: &mut W, first: bool) -> std::io::Result<()> {
+    fn begin_object_key<W: ?Sized + Write>(&mut self, writer: &mut W, first: bool) -> io::Result<()> {
         if !first { writer.write_all(b",")?; }
         self.is_key = true;
         Ok(())
     }
-    fn end_object_key<W: ?Sized + std::io::Write>(&mut self, _writer: &mut W) -> std::io::Result<()> {
+    fn end_object_key<W: ?Sized + Write>(&mut self, _writer: &mut W) -> io::Result<()> {
         self.is_key = false;
         Ok(())
     }
-    fn begin_object_value<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+    fn begin_object_value<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
         writer.write_all(b":")?;
         Ok(())
     }
-    fn write_string_fragment<W: ?Sized + std::io::Write>(&mut self, writer: &mut W, fragment: &str) -> std::io::Result<()> {
+    fn write_string_fragment<W: ?Sized + Write>(&mut self, writer: &mut W, fragment: &str) -> io::Result<()> {
         if self.is_key {
             writer.write_all(fragment.as_bytes())?;
         } else {

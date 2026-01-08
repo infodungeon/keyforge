@@ -16,6 +16,10 @@ use crate::Exporter;
 use anyhow::Result;
 use serde_json::json;
 
+/// An exporter for the VIA keyboard configurator.
+///
+/// This generates a JSON file that can be imported into the VIA desktop app 
+/// or web interface to update a compatible keyboard.
 pub struct ViaExporter;
 
 impl Exporter for ViaExporter {

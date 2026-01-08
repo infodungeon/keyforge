@@ -16,6 +16,9 @@ use crate::Exporter;
 use anyhow::Result;
 use keyforge_adapter::parsing::{parse_key, KeyAction};
 
+/// An exporter for the QMK (Quantum Mechanical Keyboard) firmware.
+///
+/// This generates a standard C keymap file compatible with `keymap.c`.
 pub struct QmkExporter;
 
 fn sanitize(s: &str) -> String {

@@ -76,7 +76,7 @@ impl Agent {
 
             // FIX: Construct a valid EngineRequest.
             let keyboard = keyforge_model::Keyboard::new(vec![keyforge_model::KeyNode::default()], 0)
-                .map_err(|e| crate::agent::errors::AgentError::Internal(e.to_string()))?;
+                .map_err(|e| errors::AgentError::Internal(e.to_string()))?;
                 
             let corpus = keyforge_model::Corpus::default();
             let rubric = keyforge_model::Rubric::default();

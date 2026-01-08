@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # KeyForge Testing Utilities
+//!
+//! Provides a hermetic workspace and asset injection tools for 
+//! integration testing across the KeyForge project.
+
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
@@ -20,8 +25,14 @@ use keyforge_model::geometry::{KeyboardDefinition, KeyboardMeta, KeyboardGeometr
 use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyIndex};
 use keyforge_core::loader::{RawCostData, CostEntry};
 
+/// A hermetic, isolated filesystem workspace for integration tests.
+///
+/// This provides a temporary directory structure that mimics the KeyForge 
+/// data layout, allowing tests to inject assets without side effects.
 pub struct HermeticWorkspace {
+    /// The root temporary directory.
     pub temp_dir: TempDir,
+    /// The path to the 'data' root within the temporary directory.
     pub data_root: PathBuf,
 }
 
@@ -32,6 +43,7 @@ impl Default for HermeticWorkspace {
 }
 
 impl HermeticWorkspace {
+    /// Creates a new empty hermetic workspace with the standard directory structure.
     pub fn new() -> Self {
         let temp = tempfile::tempdir().expect("Failed to create temp dir");
         let data_root = temp.path().join("data");
@@ -48,6 +60,7 @@ impl HermeticWorkspace {
         }
     }
 
+    /// Populates the workspace with a minimal set of default assets.
     pub fn with_default_assets(mut self) -> Self {
         let kb = self.default_kb();
         self = self.with_keyboard("test_kb", kb)
@@ -65,6 +78,9 @@ impl HermeticWorkspace {
         self
     }
 
+    /// Injects a "poison pill" set of assets designed to fail validation or scoring.
+    ///
+    /// Useful for testing error handling and robustness.
     pub fn with_poison_pill(self) -> Self {
         let key_ids = [
             "KeyQ", "KeyW", "KeyE", "KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO", "KeyP",
@@ -146,6 +162,7 @@ impl HermeticWorkspace {
             .with_weights("poison_weights", r#"{ "weight_finger_effort": 0.0 }"#)
     }
 
+    /// Writes a keyboard definition to the workspace.
     pub fn with_keyboard(self, name: &str, def: KeyboardDefinition) -> Self {
         let path = self.keyboard_path(name);
         let f = File::create(&path).unwrap();
@@ -153,6 +170,7 @@ impl HermeticWorkspace {
         self
     }
 
+    /// Creates a corpus with a single character frequency entry.
     pub fn with_corpus(self, name: &str, char: &str, freq: u32) -> Self {
         let corpus_dir = self.corpus_dir(name);
         fs::create_dir_all(&corpus_dir).unwrap();
@@ -167,6 +185,7 @@ impl HermeticWorkspace {
         self
     }
 
+    /// Writes a cost matrix JSON file to the workspace.
     pub fn with_cost_matrix(self, filename: &str, entries: Vec<CostEntry>) -> Self {
         let path = self.cost_path(filename);
         let data = RawCostData { entries };
@@ -175,18 +194,21 @@ impl HermeticWorkspace {
         self
     }
 
+    /// Writes the global keycodes registry file.
     pub fn with_keycodes(self, json: &str) -> Self {
         let path = self.keycodes_path();
         fs::write(path, json).unwrap();
         self
     }
 
+    /// Writes a scoring weights file.
     pub fn with_weights(self, name: &str, json: &str) -> Self {
         let path = self.weights_path(name);
         fs::write(path, json).unwrap();
         self
     }
 
+    /// Ensures the default weights file exists, creating it if necessary.
     pub fn ensure_default_weights(&self) {
         let path = self.weights_path("default");
         if !path.exists() {
@@ -207,18 +229,23 @@ impl HermeticWorkspace {
     }
 
     // Path Helpers for Compatibility
+    /// Returns the absolute path to a keyboard definition in the workspace.
     pub fn keyboard_path(&self, name: &str) -> PathBuf {
         self.data_root.join(format!("user/keyboards/{}.json", name))
     }
+    /// Returns the absolute path to a cost matrix file in the workspace.
     pub fn cost_path(&self, name: &str) -> PathBuf {
         self.data_root.join(format!("user/weights/{}", name))
     }
+    /// Returns the absolute path to a weights file in the workspace.
     pub fn weights_path(&self, name: &str) -> PathBuf {
         self.data_root.join(format!("user/weights/{}.json", name))
     }
+    /// Returns the path to the global keycodes registry in the workspace.
     pub fn keycodes_path(&self) -> PathBuf {
         self.data_root.join("user/config/keycodes.json")
     }
+    /// Returns the directory path for a corpus in the workspace.
     pub fn corpus_dir(&self, name: &str) -> PathBuf {
         self.data_root.join(format!("user/corpora/{}", name))
     }
