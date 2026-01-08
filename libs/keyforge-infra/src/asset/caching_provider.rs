@@ -46,6 +46,9 @@ pub struct CachingProvider {
 }
 
 impl CachingProvider {
+    /// Creates a new `CachingProvider` that caches assets from the specified data path.
+    ///
+    /// It also starts a filesystem watcher to invalidate the cache when system assets change.
     pub fn new(data_path: PathBuf) -> Self {
         let provider = FsProvider::new(data_path.clone());
         let keyboards = Cache::new(100);
@@ -112,6 +115,10 @@ impl CachingProvider {
         }
     }
 
+    /// Eagerly loads all system assets into the memory cache.
+    ///
+    /// This is typically called during application startup to ensure that
+    /// core assets are immediately available.
     pub async fn warm_all(&self) -> Result<(), String> {
         info!("🔥 Warming Asset Cache (Full Binary Verification)...");
         let system_root = self.state.provider.root.join("system");
@@ -165,7 +172,7 @@ impl CachingProvider {
                                 id: id.clone(),
                                 weight: 1.0,
                                 hash: None,
-                            }]).await {
+                              }]).await {
                                 tracing::warn!("Eager load failed for corpus {}: {}", id, e);
                             } else {
                                 count_corpora += 1;
@@ -209,12 +216,17 @@ impl CachingProvider {
         Ok(())
     }
 
+    /// Retrieves the raw byte content of a cached file by its relative path.
     pub fn get_file_content(&self, path: &str) -> Option<Bytes> {
         self.state.file_cache.get(path)
     }
+
+    /// Returns the current system asset manifest.
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
         self.state.manifest.get("default")
     }
+
+    /// Purges all cached items from memory.
     pub fn invalidate_all(&self) {
         self.state.keyboards.invalidate_all();
         self.state.corpora.invalidate_all();
@@ -223,6 +235,8 @@ impl CachingProvider {
         self.state.manifest.invalidate_all();
         self.state.keycodes.invalidate_all();
     }
+
+    /// Calculates a stable hash for a corpus, using the underlying `FsProvider`.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         self.state.provider.get_corpus_hash(id).await
     }

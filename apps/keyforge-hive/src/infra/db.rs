@@ -30,11 +30,21 @@ pub enum DbInitError {
 
     /// Failed to establish a connection after several retries.
     #[error("Could not connect to Postgres after {attempts} attempts: {db_url}")]
-    ConnectTimeout { attempts: u32, db_url: String },
+    ConnectTimeout {
+        /// Number of connection attempts made.
+        attempts: u32,
+        /// The database URL that failed to connect.
+        db_url: String,
+    },
 
     /// Database migrations failed, possibly due to lock contention or syntax errors.
     #[error("Database migration failed after {attempts} attempts: {error}")]
-    MigrationFailed { attempts: u32, error: String },
+    MigrationFailed {
+        /// Number of migration attempts made.
+        attempts: u32,
+        /// The error message returned by the migration engine.
+        error: String,
+    },
 }
 
 /// Attempts to initialize the database pool and run migrations with a retry policy.

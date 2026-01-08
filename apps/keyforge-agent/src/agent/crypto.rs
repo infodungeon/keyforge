@@ -16,6 +16,10 @@
 use crate::agent::errors::{AgentError, AgentResult};
 use keyforge_security as sec;
 
+/// Signs an optimization result using the agent's private key.
+///
+/// This provides a stable interface for the network layer to sign results
+/// before submitting them to the Hive.
 pub fn sign_result_direct(
     private_key_hex: &str,
     job_id: &str,

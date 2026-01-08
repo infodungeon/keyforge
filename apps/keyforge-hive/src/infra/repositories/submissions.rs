@@ -16,16 +16,19 @@
 use crate::features::list_submissions::SubmissionEntry;
 use sqlx::{Pool, Postgres, Row};
 
+/// Repository for managing user-submitted keyboard layouts.
 #[derive(Clone)]
 pub struct SubmissionRepository {
     pool: Pool<Postgres>,
 }
 
 impl SubmissionRepository {
+    /// Creates a new `SubmissionRepository` with the given database pool.
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
 
+    /// Saves a newly submitted layout to the database.
     pub async fn save(&self, name: &str, layout: &str, author: &str) -> Result<i64, sqlx::Error> {
         let rec = sqlx::query(
             "INSERT INTO submissions (name, layout_str, author) VALUES ($1, $2, $3) RETURNING id",
@@ -40,6 +43,7 @@ impl SubmissionRepository {
         Ok(id as i64)
     }
 
+    /// Retrieves a list of recent submissions, up to the specified limit.
     pub async fn get_recent(&self, limit: i64) -> Result<Vec<SubmissionEntry>, sqlx::Error> {
         let rows = sqlx::query(
             r#"

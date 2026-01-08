@@ -15,27 +15,39 @@
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
+/// Repository for managing audit logs in the database.
 #[derive(Clone)]
 pub struct AuditRepository {
     pool: Pool<Postgres>,
 }
 
+/// Represents a single audit log entry.
 pub struct AuditLog<'a> {
+    /// The action performed (e.g., "create_job", "delete_user").
     pub action: &'a str,
+    /// The ID of the user or system component performing the action.
     pub actor_id: Option<Uuid>,
+    /// The resource affected by the action (e.g., job ID).
     pub target: Option<&'a str>,
+    /// Additional context or data associated with the event.
     pub details: Option<serde_json::Value>,
+    /// The IP address from which the request originated.
     pub ip: Option<String>,
+    /// The HTTP status code returned by the operation.
     pub status_code: Option<i32>,
+    /// The unique request ID from the tracing context.
     pub request_id: Option<Uuid>,
+    /// The User-Agent string of the client.
     pub user_agent: Option<String>,
 }
 
 impl AuditRepository {
+    /// Creates a new `AuditRepository` with the given database pool.
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
 
+    /// Persists an audit log entry to the database.
     pub async fn log(&self, entry: AuditLog<'_>) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

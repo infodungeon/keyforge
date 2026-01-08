@@ -21,16 +21,24 @@ use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tracing::info;
 
+/// Service responsible for orchestrating the presence and integrity of assets on the local node.
+///
+/// It coordinates with the Hive API to download missing assets and verifies their
+/// authenticity using cryptographic hashes.
 pub struct AssetManager {
     client: HiveClient,
     root: PathBuf,
 }
 
 impl AssetManager {
+    /// Creates a new `AssetManager` instance.
     pub fn new(client: HiveClient, root: PathBuf) -> Self {
         Self { client, root }
     }
 
+    /// Ensures the specified keyboard definition is present locally.
+    ///
+    /// If missing, it will be downloaded from the Hive.
     pub async fn ensure_keyboard(&self, name: &str) -> InfraResult<PathBuf> {
         let safe_name = crate::util::common::sanitize_filename(name);
         let filename = format!("{}.json", safe_name);
@@ -42,6 +50,7 @@ impl AssetManager {
         Ok(local_path)
     }
 
+    /// Ensures the specified cost matrix file is present locally.
     pub async fn ensure_cost_matrix(&self, filename: &str) -> InfraResult<PathBuf> {
         let local_path = self.root.join(filename);
         let remote_path = format!("data/{}", filename);
@@ -51,6 +60,9 @@ impl AssetManager {
         Ok(local_path)
     }
 
+    /// Ensures a corpus bundle (set of JSON files) is present and optionally matches a hash.
+    ///
+    /// This handles multi-file downloads and integrity verification.
     pub async fn ensure_corpus(
         &self,
         corpus_id: &str,
@@ -125,6 +137,9 @@ impl AssetManager {
         Ok(bundle_dir)
     }
 
+    /// Syncs all assets required for a specific job configuration.
+    ///
+    /// Returns a tuple of `(cost_matrix_filename, corpora_directory_name)`.
     pub async fn sync_job_assets(&self, config: &JobConfig) -> InfraResult<(String, String)> {
         info!("📦 Syncing assets for job...");
 

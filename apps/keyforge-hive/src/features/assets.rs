@@ -26,11 +26,13 @@ use keyforge_infra::ServerManifest;
 use std::path::{Component, Path as StdPath};
 use std::sync::Arc;
 
+/// Retrieves the server manifest, which lists all available assets and their hashes.
 pub async fn get_manifest(State(state): State<Arc<AppState>>) -> AppResult<Json<ServerManifest>> {
     let manifest = state.assets.get_manifest().await;
     Ok(Json(manifest))
 }
 
+/// Retrieves the content of a specific asset by its relative path.
 pub async fn get_asset(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,

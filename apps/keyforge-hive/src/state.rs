@@ -31,28 +31,52 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
+/// Global application state for the KeyForge Hive.
+///
+/// This struct holds all long-lived resources, including database repositories,
+/// background services, caches, and coordination handles. It is intended to be
+/// wrapped in an `Arc` and shared across all request handlers.
 #[derive(Clone)]
 pub struct AppState {
-    pub assets_healthy: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Flag indicating if the required system assets (corpora, etc.) are available.
+    pub assets_healthy: Arc<std::sync::atomic::AtomicBool>,
+    /// Manager for optimization jobs and life cycle.
     pub jobs: Arc<JobManager>,
+    /// Global security context for secrets and keys.
     pub security: Arc<SecurityContext>,
+    /// Service for verifying and ranking submitted layouts.
     pub verification: Arc<VerificationService>,
+    /// Repository for worker node metadata.
     pub nodes: NodeRepository,
+    /// Repository for optimization results.
     pub results: ResultRepository,
+    /// Repository for layout submissions.
     pub submissions: SubmissionRepository,
+    /// Repository for user management.
     pub users: UserRepository,
+    /// Repository for security audit logs.
     pub audit: AuditRepository,
+    /// Queue for asynchronous result persistence.
     pub queue: Arc<WriteQueue>,
+    /// High-level asset provider (Valkey-backed).
     pub assets: Arc<ValkeyProvider>,
+    /// Cache for pre-compiled optimization engines.
     pub engine_cache: Arc<CompiledEngineCache>,
+    /// Static Hive configuration loaded from the environment/assets.
     pub config: Arc<HiveConfig>,
+    /// Real-time system monitoring and metrics.
     pub monitor: SharedMonitor,
+    /// Local filesystem path for transient storage.
     pub data_path: PathBuf,
+    /// Broadcast channel for real-time events (e.g., TUI updates).
     pub tx: broadcast::Sender<String>,
+    /// Coordinator for distributed state (Valkey).
     pub coordinator: Arc<DistributedCoordinator>,
 }
 
 impl AppState {
+    /// Initializes the `AppState` by connecting to the database and Valkey,
+    /// and starting background monitors.
     pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String) -> Self {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());
@@ -106,7 +130,7 @@ impl AppState {
         ));
 
         Self {
-            assets_healthy: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            assets_healthy: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             jobs,
             security,
             verification,

@@ -15,16 +15,19 @@
 
 use sqlx::{Pool, Postgres, QueryBuilder, Row};
 
+/// Repository for managing optimization results and population samples.
 #[derive(Clone)]
 pub struct ResultRepository {
     pool: Pool<Postgres>,
 }
 
 impl ResultRepository {
+    /// Creates a new `ResultRepository` with the given database pool.
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
 
+    /// Retrieves the top 50 layouts for a given job ID.
     pub async fn get_population(&self, job_id: &str) -> Result<Vec<String>, sqlx::Error> {
         let rows = sqlx::query(
             r#"
@@ -45,6 +48,7 @@ impl ResultRepository {
             .collect())
     }
 
+    /// Retrieves the best (lowest) score for a given job ID.
     pub async fn get_best_score(&self, job_id: &str) -> Result<Option<f32>, sqlx::Error> {
         let row = sqlx::query("SELECT min(score) as min_score FROM results WHERE job_id = $1")
             .bind(job_id)
@@ -59,6 +63,7 @@ impl ResultRepository {
         }
     }
 
+    /// Inserts a batch of results into the database.
     pub async fn insert_batch(&self, items: &[(&str, &str, f32, &str)]) -> Result<(), sqlx::Error> {
         if items.is_empty() {
             return Ok(());
@@ -81,6 +86,7 @@ impl ResultRepository {
         Ok(())
     }
 
+    /// Counts the total number of results across all jobs.
     pub async fn count_total(&self) -> Result<i64, sqlx::Error> {
         let count: i64 = sqlx::query_scalar("SELECT count(*) FROM results")
             .fetch_one(&self.pool)
@@ -88,6 +94,8 @@ impl ResultRepository {
         Ok(count)
     }
 
+    /// Retrieves summary statistics for a given job.
+    /// Returns (unique_nodes, total_samples, best_score, best_layout).
     pub async fn get_stats(
         &self,
         job_id: &str,
@@ -117,6 +125,7 @@ impl ResultRepository {
         ))
     }
 
+    /// Prunes results older than a certain age, keeping the top N per job.
     pub async fn prune_old_results(&self, days: i32, keep_top: i32) -> Result<u64, sqlx::Error> {
         let query = r#"
             DELETE FROM results

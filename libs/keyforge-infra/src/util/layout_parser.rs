@@ -28,6 +28,11 @@ static LAYOUT_CACHE: Lazy<Cache<String, Layout>> = Lazy::new(|| {
         .build()
 });
 
+/// Parses a space-separated layout string into a `Layout` object, using an LRU cache for performance.
+///
+/// This "permissive" parser maps high-level semantic tokens (like `MT(MOD_LSFT, KC_ENT)`)
+/// to physical keycodes using the provided registry. If a token is unknown, it falls back
+/// to `KC_NO` instead of failing.
 pub fn parse_layout_string_permissive_cached(
     s: &str,
     size: usize,

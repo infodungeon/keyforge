@@ -54,9 +54,13 @@ pub struct NodeTelemetry {
 /// Stored in Valkey to ensure all nodes agree on asset versions.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct AssetManifestEntry {
+    /// Unique identifier for the asset (e.g., "keyboard:corne" or "corpus:english").
     pub id: String,
+    /// BLAKE3 or SHA256 hash of the asset content for integrity verification.
     pub hash: String,
+    /// Total size of the asset in bytes.
     pub size_bytes: u64,
+    /// UNIX timestamp of when the asset was last modified or synchronized.
     pub last_updated: u64,
 }
 

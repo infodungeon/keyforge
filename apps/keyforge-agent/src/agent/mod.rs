@@ -29,27 +29,40 @@ use std::path::PathBuf;
 use ed25519_dalek::SigningKey;
 use tokio::sync::broadcast;
 
+/// JIT calibration for CPU-bound scoring tasks.
 pub mod calibration;
+/// Optimization engine orchestration and job execution.
 pub mod compute;
+/// Agent-specific error types and results.
 pub mod errors;
+/// System maintenance and garbage collection.
 pub mod maintenance;
+/// Secure WebSocket and HTTP communication with the Hive.
 pub mod network;
+/// Real-time telemetry and metrics reporting.
 pub mod telemetry;
+/// Cryptographic primitives for agent identity and signing.
 pub mod crypto; // Re-export crypto for network module
 
 use self::errors::AgentResult;
 
+/// The main Agent coordinator that orchestrates optimization jobs.
 pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,
 }
 
 impl Agent {
+    /// Creates a new `Agent` with the given configuration.
     pub async fn new(config: AgentConfig) -> Self {
         let telemetry = SharedTelemetry::default();
         Self { config, telemetry }
     }
 
+    /// Starts the agent's job processing loop.
+    ///
+    /// It listens for `JobConfig` messages from the network layer and coordinates
+    /// the execution of optimization tasks.
     pub async fn run(&self, mut job_rx: mpsc::Receiver<JobConfig>) -> AgentResult<()> {
         info!("🤖 KeyForge Agent v0.8.0 Starting...");
         info!("   Node ID: {}", self.config.node_id);
@@ -97,7 +110,10 @@ impl Agent {
     }
 }
 
-/// Main entry point for the worker process.
+/// The primary entry point for starting a KeyForge worker agent.
+///
+/// This function initializes the agent, sets up networking and telemetry,
+/// and starts the job processing loop. It runs until a shutdown signal is received.
 pub async fn run_worker(
     hive_url: String,
     node_id: String,

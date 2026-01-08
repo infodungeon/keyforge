@@ -32,6 +32,7 @@ use crate::state::AppState;
     ),
     tag = "jobs"
 )]
+/// Handles a request to register a new optimization job.
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<JobRequest>,
@@ -40,6 +41,7 @@ pub async fn handle(
     Ok(Json(result))
 }
 
+/// Orchestrates the job registration flow: validation, asset resolution, and database persistence.
 async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> AppResult<JobResponse> {
     validate_request(&payload)?;
     resolve_assets(state, &mut payload).await?;
@@ -59,6 +61,7 @@ async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> 
     Ok(JobResponse { job_id, is_new })
 }
 
+/// Validates the protocol version and request parameters.
 fn validate_request(payload: &JobRequest) -> AppResult<()> {
     if payload.version != PROTOCOL_VERSION {
         return Err(AppError::Validation(format!(
@@ -75,6 +78,7 @@ fn validate_request(payload: &JobRequest) -> AppResult<()> {
     Ok(())
 }
 
+/// Resolves corpus hashes if they were not provided in the request.
 async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult<()> {
     for corpus in &mut payload.corpora {
         if corpus.hash.is_none() {
@@ -90,6 +94,7 @@ async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult
     Ok(())
 }
 
+/// Generates a deterministic job ID based on the job configuration.
 fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
     let corpora_fingerprint =
         serde_json::to_string(&payload.corpora).unwrap_or_else(|_| "default".to_string());
@@ -107,12 +112,14 @@ fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
     Ok(id.hash)
 }
 
+/// Notifies waiters and logs the registration of a new job.
 fn emit_registration_events(state: &AppState, job_id: &str) {
     let _ = state.tx.send(format!("JOB:{}", job_id));
     state.jobs.signal.notify_waiters();
     info!("🆕 (VSA/Humble/ROP) Registered Job: {}", &job_id[0..8]);
 }
 
+/// Performs security-related validation on input paths and IDs.
 fn validate_input_safety(req: &JobRequest) -> AppResult<()> {
     match &req.cost_matrix {
         CostMatrixSource::Predefined(name) => {

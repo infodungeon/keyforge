@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 /// GET /api/corpus/:name
 /// Returns a fully-processed Corpus struct for the given corpus name
+/// Retrieves a fully processed corpus definition by name.
 pub async fn get_corpus(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,

@@ -24,13 +24,19 @@ use keyforge_model::ScoringWeights;
 use serde::Deserialize;
 use std::sync::Arc;
 
+/// Request payload for performing a quick on-demand analysis of a keyboard layout.
 #[derive(Deserialize)]
 pub struct ValidateRequest {
+    /// The serialized layout string to analyze.
     pub layout_str: String,
+    /// Optional scoring weights to use. Defaults to standard weights if omitted.
     pub weights: Option<ScoringWeights>,
+    /// Optional name of the keyboard geometry to use. Defaults to "ortho_30".
     pub keyboard_name: Option<String>,
 }
 
+/// Performs a quick scoring analysis of a layout against a standard corpus.
+/// This endpoint does not register a job or persist results.
 pub async fn validate_layout(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<ValidateRequest>,

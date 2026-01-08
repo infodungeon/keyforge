@@ -96,7 +96,7 @@ pub enum SearchConfig {
         patience: usize,
         /// Number of times to reheat.
         reheats: usize,
-        /// Multiplier for start_temp when reheating.
+        /// Multiplier for `start_temp` when reheating.
         reheat_factor: f32,
     },
 }
@@ -117,6 +117,10 @@ impl Default for SearchConfig {
 
 impl SearchConfig {
     /// Validates that configuration parameters are within safe bounds.
+    /// Validates the search parameters.
+    ///
+    /// # Errors
+    /// Returns a `ForgeError` if the parameters are out of reasonable bounds.
     pub fn validate(&self) -> Result<(), ForgeError> {
         match self {
             SearchConfig::Annealing {

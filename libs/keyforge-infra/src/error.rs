@@ -14,28 +14,42 @@
 
 use thiserror::Error;
 
+/// The primary error type for infrastructure-related operations in KeyForge.
 #[derive(Error, Debug)]
 pub enum InfraError {
+    /// An error occurred during file I/O or directory management.
     #[error("IO Error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// An error occurred during network communication with the Hive.
     #[error("Network Error: {0}")]
     Network(#[from] reqwest::Error),
 
+    /// An error occurred during JSON serialization or deserialization.
     #[error("Serialization Error: {0}")]
     Serde(#[from] serde_json::Error),
 
+    /// A file's SHA-256 hash did not match the expected value.
     #[error("Hash Mismatch: Expected {expected}, Got {actual}")]
-    HashMismatch { expected: String, actual: String },
+    HashMismatch {
+        /// The hash value that was expected.
+        expected: String,
+        /// The actual hash value computed from the content.
+        actual: String,
+    },
 
+    /// Failed to acquire or release a workspace file lock.
     #[error("Lock Error: {0}")]
     LockError(String),
 
+    /// A configuration error (e.g., malformed URL or missing required asset).
     #[error("Config Error: {0}")]
     Config(String),
 
+    /// Data validation failed during asset loading.
     #[error("Validation Error: {0}")]
     Validation(String),
 }
 
+/// A specialized Result type for infrastructure operations.
 pub type InfraResult<T> = Result<T, InfraError>;

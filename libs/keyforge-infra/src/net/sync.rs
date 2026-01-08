@@ -22,19 +22,31 @@ use std::path::{Component, Path};
 use tracing::{error, info};
 use walkdir::WalkDir;
 
+/// Represents a snapshot of the expected files and their hashes on the Hive server.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServerManifest {
+    /// A map of relative file paths to their SHA-256 hashes.
     pub files: HashMap<String, String>,
 }
 
+/// Statistics about a completed workspace synchronization operation.
 #[derive(Serialize, Clone, Debug)]
 pub struct SyncStats {
+    /// Number of files successfully downloaded.
     pub downloaded: usize,
+    /// Number of files merged (unused in current implementation but reserved).
     pub merged: usize,
+    /// Number of files that were already up-to-date and skipped.
     pub skipped: usize,
+    /// A list of error messages encountered during sync.
     pub errors: Vec<String>,
 }
 
+/// Synchronizes the local system directory with the Hive server's manifest.
+///
+/// It performs integrity checks using SHA-256 hashes and only downloads files
+/// that are missing or have changed. It includes security checks to prevent
+/// path traversal attacks from a compromised server.
 pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<SyncStats, String> {
     info!("🔄 Starting Sync...");
     let server_manifest: ServerManifest = client
@@ -107,6 +119,9 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     Ok(stats)
 }
 
+/// Eagerly downloads a minimal set of essential assets required for basic operation.
+///
+/// This is used during the first-time setup or when a node is reset.
 pub async fn bootstrap_essentials(
     client: &HiveClient,
     local_root: &Path,
@@ -136,6 +151,9 @@ pub async fn bootstrap_essentials(
     Ok(downloaded)
 }
 
+/// Scans a local directory and generates a manifest of all files and their hashes.
+///
+/// This is used by the Hive server to publish its current asset state to clients.
 pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerManifest> {
     let mut files = HashMap::new();
 

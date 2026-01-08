@@ -31,6 +31,7 @@ fn is_reserved_name(name: &str) -> bool {
 }
 
 /// Validates that a string is a safe filename.
+/// Validates that a string is a safe filename, preventing path traversal and reserved name usage.
 pub fn validate_filename(name: &str) -> AppResult<()> {
     if name.is_empty() || name.len() > 255 {
         return Err(AppError::Validation("Invalid filename length".into()));
@@ -51,6 +52,7 @@ pub fn validate_filename(name: &str) -> AppResult<()> {
 }
 
 /// Validates that a string is a safe identifier (e.g. Corpus ID).
+/// Validates that a string is a safe identifier (e.g., Corpus ID), disallowing dots.
 pub fn validate_id(id: &str) -> AppResult<()> {
     if id.is_empty() || id.len() > 64 {
         return Err(AppError::Validation("Invalid ID length".into()));
@@ -67,6 +69,7 @@ pub fn validate_id(id: &str) -> AppResult<()> {
     Ok(())
 }
 
+/// Validates that a string is a safe path component.
 pub fn validate_path_component(path: &str) -> AppResult<()> {
     validate_id(path)
 }

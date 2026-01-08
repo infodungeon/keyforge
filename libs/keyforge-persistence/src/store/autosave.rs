@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::error::{PersistenceError, PersistenceResult};
+use crate::error::PersistenceResult;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Seek, SeekFrom, Write};
@@ -87,6 +87,7 @@ pub struct AutoSaveService {
 }
 
 impl AutoSaveService {
+    /// Creates a new `AutoSaveService` instance with a session file located in the provided root path.
     pub fn new(root_path: PathBuf) -> Self {
         let path = root_path.join("session.json");
 

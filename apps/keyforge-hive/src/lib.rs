@@ -43,26 +43,32 @@ pub(crate) mod api;
 pub(crate) mod api_docs;
 pub(crate) mod features;
 pub(crate) mod auth;
+/// Self-healing and bootstrap logic for system assets.
 pub mod bootstrap;
+/// Global and local caching mechanisms.
 pub mod cache;
 pub(crate) mod commands;
 pub(crate) mod config;
+/// Background jobs and periodic tasks.
 pub mod cron;
 pub(crate) mod error;
+/// Infrastructure layer including database and message queue.
 pub mod infra;
 pub(crate) mod models;
 pub(crate) mod monitor;
+/// Telemetry, logging, and metrics collection.
 pub mod observability;
 pub(crate) mod services;
+/// Global application state and configuration.
 pub mod state;
 
 pub use state::AppState;
 pub use services::verification::VerificationService;
 
-// Custom Rate Limiter State
-// We use DefaultKeyedStateStore which typically uses DashMap internally for thread-safe key storage.
-type GlobalLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
-type StrictLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
+/// A keyed rate limiter used for general API traffic management.
+pub type GlobalLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
+/// A stricter keyed rate limiter for sensitive or compute-intensive endpoints.
+pub type StrictLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
 
 /// Shared state for rate limiting, containing global and strict limiters.
 #[derive(Clone)]
@@ -73,6 +79,10 @@ pub struct RateLimitState {
     pub strict: Arc<StrictLimiter>,
 }
 
+/// Constructs the main Axum application router.
+///
+/// This function configures CORS, rate limiting, logging, request IDs,
+/// and nests all API features and documentation routes.
 pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
     // --- CORS ---
     let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();

@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Specialized HTTP client for communicating with the KeyForge Hive.
 pub mod client;
+/// High-level network operations for asset fetching and verification.
 pub mod network;
+/// Workspace synchronization logic for matching local data with the server.
 pub mod sync;
+/// Distributed orchestration and coordination (e.g., via Valkey).
 pub mod distributed; 

@@ -40,11 +40,19 @@ use keyforge_model::constants::SCORE_SCALE;
 use std::sync::Arc;
 use tracing::instrument;
 
+/// The core evaluation engine for KeyForge layouts.
+///
+/// `ScoringEngine` encapsulates the compiled physics kernel, including 
+/// pre-calculated travel costs and frequency-weighted optimization targets.
 pub struct ScoringEngine {
     ctx: EngineContext,
 }
 
 impl ScoringEngine {
+    /// Compiles a new scoring engine from the provided keyboard, corpus, and rubric.
+    ///
+    /// This performs expensive pre-computations and returns an engine ready 
+    /// for high-performance evaluations.
     pub fn new(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -55,6 +63,10 @@ impl ScoringEngine {
         Ok(Self { ctx })
     }
 
+    /// Evaluates the physical cost score for a given layout.
+    ///
+    /// Lower scores indicate better ergonomic performance. The result is 
+    /// normalized for comparison across different corpora and rubrics.
     #[instrument(skip(self, layout))]
     pub fn score(&self, layout: &Layout) -> Result<f32, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;

@@ -3,36 +3,48 @@ use keyforge_protocol::ErrorCode;
 use serde::Serialize;
 use thiserror::Error;
 
+/// Unified error type for Tauri commands in the KeyForge UI.
 #[derive(Debug, Error)]
 pub enum CommandError {
+    /// Errors occurring during filesystem operations.
     #[error("IO Error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// Errors occurring during JSON serialization or deserialization.
     #[error("Serialization Error: {0}")]
     Serde(#[from] serde_json::Error),
 
+    /// Errors related to invalid application configuration.
     #[error("Configuration Error: {0}")]
     Config(String),
 
+    /// Input validation failures for user-provided data.
     #[error("Validation Error: {0}")]
     Validation(String),
 
+    /// Errors encountered during communication with the remote Hive server.
     #[error("Network Error: {0}")]
     Network(String),
 
+    /// Categorized internal logic failures.
     #[error("Internal Error: {0}")]
     Internal(String),
     
+    /// Errors propagated from the core physics engine.
     #[error("Physics Error: {0}")]
     Physics(#[from] keyforge_core::PhysicsError),
 
+    /// Error indicating that a requested resource was not found.
     #[error("Not Found")]
     NotFound, // ADDED
 }
 
+/// Standardized error response sent to the frontend for failed commands.
 #[derive(Serialize)]
 pub struct CommandErrorResponse {
+    /// A stable machine-readable error code.
     pub code: ErrorCode,
+    /// A human-readable description of the error.
     pub message: String,
 }
 

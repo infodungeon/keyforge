@@ -16,11 +16,16 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::env;
 
+/// Common infrastructure configuration shared across KeyForge applications.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CommonConfig {
+    /// Root directory for local application data.
     pub data_dir: Option<PathBuf>,
+    /// Base URL for the remote Hive server.
     pub hive_url: Option<String>,
+    /// Desired logging level (e.g., "info", "debug").
     pub logging_level: Option<String>,
+    /// Number of CPU cores to utilize for parallel processing.
     pub cores: Option<usize>,
 }
 

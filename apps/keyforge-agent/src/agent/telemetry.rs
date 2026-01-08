@@ -23,8 +23,11 @@ use crate::models::SharedTelemetry;
 
 /// A logger that tracks optimization progress and reports it back to the system.
 pub struct WorkerLogger {
+    /// Atomic flag used to signals the engine to stop gracefully.
     pub stop_flag: Arc<AtomicBool>,
+    /// The unique identifier of the job being logged.
     pub job_id: String,
+    /// Shared telemetry handle for live metric updates.
     pub telemetry: SharedTelemetry,
 }
 

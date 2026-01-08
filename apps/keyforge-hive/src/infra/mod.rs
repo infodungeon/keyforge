@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Database connection pooling and migrations.
 pub mod db;
+/// Distributed message queue and job handlers.
 pub mod queue;
+/// Data access layer for domain entities.
 pub mod repositories;
+/// Terminal User Interface for server management.
 pub mod tui;

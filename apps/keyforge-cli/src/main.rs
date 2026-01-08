@@ -247,6 +247,7 @@ async fn build_runtime(
 // Global interrupt flag for graceful shutdown
 static INTERRUPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// Returns true if the application has received an interrupt signal (e.g., Ctrl+C).
 pub fn is_interrupted() -> bool {
     INTERRUPTED.load(std::sync::atomic::Ordering::SeqCst)
 }

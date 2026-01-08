@@ -32,6 +32,7 @@ use crate::state::AppState;
     ),
     tag = "jobs"
 )]
+/// Handles a long-polling request to claim the next available job from the queue.
 pub async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<JobQueueResponse>> {
     // 1. Limit Concurrency via Semaphore (HIVE-006)
     let _permit = state
@@ -46,6 +47,7 @@ pub async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<JobQue
     Ok(Json(result))
 }
 
+/// Polls the database for an available job, waiting for a signal if none are found.
 async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
     let start = Instant::now();
     let timeout = Duration::from_secs(20);

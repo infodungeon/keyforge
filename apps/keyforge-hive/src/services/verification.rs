@@ -29,6 +29,10 @@ use keyforge_core::ScoringEngine;
 use std::sync::Arc;
 use tracing::warn;
 
+/// A service responsible for validating submitted optimization results.
+///
+/// It performs cryptographic signature verification and re-scores the submitted 
+/// layout to ensure the claimed score is within an acceptable tolerance.
 #[derive(Clone)]
 pub struct VerificationService {
     jobs: JobRepository,
@@ -38,6 +42,7 @@ pub struct VerificationService {
 }
 
 impl VerificationService {
+    /// Creates a new `VerificationService` with the required repositories and caches.
     pub fn new(
         jobs: JobRepository,
         nodes: NodeRepository,
@@ -52,6 +57,10 @@ impl VerificationService {
         }
     }
 
+    /// Performs a full verification of a result submission.
+    ///
+    /// This includes checking the Ed25519 signature and re-calculating the 
+    /// score using the same physics engine configuration used for the job.
     pub async fn verify_submission(&self, sub: &ResultSubmission) -> AppResult<()> {
         self.verify_signature(sub).await?;
         self.verify_score(sub).await?;

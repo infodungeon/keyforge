@@ -13,4 +13,8 @@
 // limitations under the License.
 
 
+//! API endpoints for community layout submissions.
+//! 
+//! Note: Submission listing and creation logic has been migrated to `features/list_submissions.rs` and `features/submit_layout.rs`.
+
 // Migrated to features/submit_layout.rs and features/list_submissions.rs

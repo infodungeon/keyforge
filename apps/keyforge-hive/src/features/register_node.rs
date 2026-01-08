@@ -32,6 +32,7 @@ use crate::state::AppState;
     ),
     tag = "nodes"
 )]
+/// Handles a node registration or heartbeat request, performing identity verification and auto-tuning.
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<NodeRequest>,
@@ -101,6 +102,7 @@ pub async fn handle(
     }))
 }
 
+/// Maps database errors to application errors, specifically handling node identity mismatches.
 fn map_db_error(e: sqlx::Error) -> AppError {
     if e.to_string().contains("Node Identity Mismatch") {
         AppError::Validation("Node Identity Mismatch".into())
@@ -109,6 +111,7 @@ fn map_db_error(e: sqlx::Error) -> AppError {
     }
 }
 
+/// Validates the protocol version and public key format of a node request.
 fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
     keyforge_protocol::check_version_compatibility(payload.version, PROTOCOL_VERSION)
         .map_err(AppError::Validation)?;
@@ -126,6 +129,7 @@ fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
     Ok(())
 }
 
+/// Calculates an optimized tuning profile for a node based on its hardware specs.
 fn calculate_tuning_profile(payload: &NodeRequest) -> TuningProfile {
     let strategy = if let Some(l2) = payload.l2_cache_kb {
         if l2 >= 1024 { "table" } else { "fly" }

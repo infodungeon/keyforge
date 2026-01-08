@@ -23,16 +23,23 @@ use tracing::{info, warn};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+/// Request payload for submitting a new keyboard layout to the community.
 #[derive(Deserialize, ToSchema)]
 pub struct LayoutSubmission {
+    /// Desired name for the layout.
     pub name: String,
+    /// Serialization of the layout configuration.
     pub layout: String,
+    /// Author's name or pseudonym.
     pub author: String,
 }
 
+/// Response confirming the acceptance of a layout submission.
 #[derive(Serialize, ToSchema)]
 pub struct SubmissionResponse {
+    /// Unique identifier assigned to the submission.
     pub id: i64,
+    /// Current processing status of the submission.
     pub status: String,
 }
 
@@ -49,6 +56,7 @@ pub struct SubmissionResponse {
     ),
     tag = "submissions"
 )]
+/// Handles a layout submission request, performing validation and persistent storage.
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LayoutSubmission>,

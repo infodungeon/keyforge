@@ -17,11 +17,18 @@ use fs2::FileExt;
 use std::fs::File;
 use std::path::Path;
 
+/// A process-level lock that ensures only one instance of KeyForge is accessing the workspace.
+///
+/// This uses mandatory file locking (via `fs2`) on a lockfile within the workspace root.
 pub struct WorkspaceLock {
     file: File,
 }
 
 impl WorkspaceLock {
+    /// Attempts to acquire an exclusive lock on the specified path.
+    ///
+    /// # Errors
+    /// Returns `InfraError::LockError` if the lock is already held by another process.
     pub fn acquire(path: &Path) -> InfraResult<Self> {
         let file = File::open(path).map_err(InfraError::Io)?;
 
@@ -33,6 +40,9 @@ impl WorkspaceLock {
         Ok(Self { file })
     }
 
+    /// Explicitly releases the lock.
+    ///
+    /// The lock is also automatically released when the `WorkspaceLock` instance is dropped.
     pub fn release(&self) -> InfraResult<()> {
         self.file.unlock().map_err(InfraError::Io)?;
         Ok(())

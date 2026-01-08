@@ -5,6 +5,7 @@ use keyforge_infra::HiveClient;
 use keyforge_protocol::{JobRequest, JobResponse, JobStatus};
 use tauri::{AppHandle, Window};
 
+/// Dispatches a new search job to the remote Hive server.
 #[tauri::command]
 pub async fn cmd_dispatch_job(
     _state: tauri::State<'_, SessionState>,
@@ -40,6 +41,7 @@ pub async fn cmd_dispatch_job(
     Ok(body.job_id)
 }
 
+/// Polls the Hive server for the current status of a remote search job.
 #[tauri::command]
 pub async fn cmd_poll_hive_status(
     hive_url: String,
@@ -76,6 +78,7 @@ pub async fn cmd_poll_hive_status(
 }
 
 #[tauri::command]
+/// Toggles the local compute worker for distributed job processing.
 pub fn cmd_toggle_local_worker(
     _app: AppHandle,
     _state: tauri::State<'_, LocalWorkerState>,
@@ -88,6 +91,7 @@ pub fn cmd_toggle_local_worker(
 }
 
 #[tauri::command]
+/// Initiates a local search/optimization operation.
 pub async fn cmd_start_search(
     _window: Window,
     _state: tauri::State<'_, SessionState>,
@@ -99,6 +103,7 @@ pub async fn cmd_start_search(
     ))
 }
 
+/// Signals a stop to the currently running local search operation.
 #[tauri::command]
 pub fn cmd_stop_search(search_state: tauri::State<SearchState>) {
     if let Ok(mut flag) = search_state.stop_flag.lock() {

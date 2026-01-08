@@ -12,16 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Admin and maintenance endpoints.
 pub mod admin;
+/// Layout analysis and validation endpoints.
 pub mod analysis;
+/// User authentication and token management.
 pub mod auth;
+/// Corpus asset serving.
 pub mod corpus;
+/// Job lifecycle and management.
 pub mod jobs;
+/// Cluster metrics and prometheus scraping.
 pub mod metrics;
+/// Worker node management.
 pub mod nodes;
+/// Optimization result queries.
 pub mod results;
+/// General layout submission management.
 pub mod submission;
+/// Input validation helpers.
 pub mod validation;
+/// Real-time communication via WebSockets.
 pub mod ws;
 
 use crate::state::AppState;
@@ -31,6 +42,7 @@ use tower_governor::{
     governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor, GovernorLayer,
 };
 
+/// Returns the router for layout analysis and corpus serving.
 pub fn analysis_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route(
@@ -40,6 +52,7 @@ pub fn analysis_routes() -> Router<Arc<AppState>> {
         .route("/api/corpus/{*name}", axum::routing::get(corpus::get_corpus))
 }
 
+/// Returns the router for the public user registration endpoint.
 pub fn auth_routes() -> Router<Arc<AppState>> {
     // Strict Limit: 1 request per second per IP for key generation
     let governor_conf = Arc::new(
@@ -60,11 +73,13 @@ pub fn auth_routes() -> Router<Arc<AppState>> {
         .layer(GovernorLayer::new(governor_conf))
 }
 
+/// Returns the router for authenticated authentication endpoints (e.g., API key generation).
 pub fn protected_auth_routes() -> Router<Arc<AppState>> {
     // PROTECTED ROUTE: Add Key (Requires Auth Middleware)
     Router::new().route("/auth/keys", axum::routing::post(auth::generate_key))
 }
 
+/// Returns the router for administrative and maintenance tasks.
 pub fn admin_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/stats", axum::routing::get(admin::get_admin_stats))

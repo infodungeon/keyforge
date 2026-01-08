@@ -36,6 +36,7 @@ use crate::infra::queue::DbEvent;
     ),
     tag = "results"
 )]
+/// Handles the submission of an optimization result from a compute node.
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<ResultSubmission>,
@@ -43,6 +44,7 @@ pub async fn handle(
     process_submission(&state, payload).await
 }
 
+/// Orchestrates the result submission flow: validation, cryptographic verification, and persistent storage.
 async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppResult<String> {
     // Stage 1: Validation
     payload.validate().map_err(AppError::Validation)?;
@@ -62,6 +64,7 @@ async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppR
     Ok("Accepted".to_string())
 }
 
+/// Performs technical validation of the submission, including protocol consistency and replay protection.
 fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResult<()> {
     // Protocol Check
     if payload.version != PROTOCOL_VERSION {
@@ -87,6 +90,7 @@ fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResul
     Ok(())
 }
 
+/// Pushes the verified result to the background write queue for durable persistence.
 async fn persist_result(state: &AppState, payload: ResultSubmission) -> AppResult<()> {
     let (tx, rx) = oneshot::channel();
     state

@@ -19,6 +19,7 @@
 //! applications.
 
 use keyforge_core::{ProgressCallback, EvolutionError, ScoringSession};
+/// Builder for constructing computation sessions.
 pub mod builder;
 pub use builder::SessionBuilder;
 use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SwapSuggestion, SearchConfig};
@@ -30,31 +31,39 @@ use tracing::instrument;
 /// The pure computation runtime.
 #[derive(Clone)]
 pub struct Runtime {
+    /// The underlying physical scoring engine.
     pub engine: Arc<ScoringEngine>,
+    /// Registry of all valid keycodes.
     pub registry: Arc<KeycodeRegistry>,
+    /// Global configuration for search and optimization.
     pub search_config: SearchConfig,
 }
 
 impl Runtime {
+    /// Creates a new `Runtime` from initialized components.
     pub fn new(engine: Arc<ScoringEngine>, registry: Arc<KeycodeRegistry>, search_config: SearchConfig) -> Self {
         Self { engine, registry, search_config }
     }
 
+    /// Evaluates the physical cost of a layout.
     #[instrument(skip(self, layout))]
     pub fn score(&self, layout: &Layout) -> Result<f32, keyforge_physics::PhysicsError> {
         self.engine.score(layout)
     }
 
+    /// Generates a comprehensive ergonomics analysis for a layout.
     #[instrument(skip(self, layout))]
     pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
         self.engine.analyze(layout)
     }
 
+    /// Suggests layout improvements based on the current scoring model.
     #[instrument(skip(self, layout))]
     pub fn suggest_improvements(&self, layout: &Layout) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
         Ok(self.engine.suggest_improvements(layout))
     }
 
+    /// Runs the evolution optimizer on the current runtime context.
     #[instrument(skip(self, callback))]
     pub fn optimize(&self, callback: impl ProgressCallback) -> Result<OptimizationResult, EvolutionError> {
         keyforge_core::optimize_with_engine(

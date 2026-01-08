@@ -30,7 +30,7 @@ fn main() {
     let build_date = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     
     let content = format!(
-        "pub const GIT_HASH: &str = \"{}\";\npub const BUILD_DATE: &str = \"{}\";\n",
+        "/// The short Git commit hash identifying the source code used for this build.\npub const GIT_HASH: &str = \"{}\";\n/// The date and time when this workspace was compiled.\npub const BUILD_DATE: &str = \"{}\";\n",
         git_hash, build_date
     );
 

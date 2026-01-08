@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Security audit log persistence.
 pub mod audit;
+/// Optimization job lifecycle management.
 pub mod jobs;
+/// Worker node registry and telemetry management.
 pub mod nodes;
+/// Optimization result storage.
 pub mod results;
+/// User layout submission persistence.
 pub mod submissions;
-pub mod users; // ADDED
+/// User account and profile management.
+pub mod users;
 
 pub use audit::AuditRepository;
 pub use jobs::JobRepository;
 pub use nodes::NodeRepository;
 pub use results::ResultRepository;
 pub use submissions::SubmissionRepository;
-pub use users::UserRepository; // ADDED
+pub use users::UserRepository;

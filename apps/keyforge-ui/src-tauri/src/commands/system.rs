@@ -4,15 +4,22 @@ use serde::Serialize;
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 use tauri::AppHandle;
 
+/// Represents the current physical health metrics of the local system.
 #[derive(Serialize)]
 pub struct SystemHealth {
+    /// Global CPU usage percentage.
     pub cpu_usage: f32,
+    /// Amount of physical memory used in bytes.
     pub memory_used: u64,
+    /// Total amount of physical memory in bytes.
     pub memory_total: u64,
+    /// System uptime in seconds.
     pub uptime: u64,
+    /// Number of logical CPU cores.
     pub cores: usize,
 }
 
+/// Retrieves the current system health metrics.
 #[tauri::command]
 pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
     let mut sys = System::new_with_specifics(
@@ -32,6 +39,7 @@ pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
     }
 }
 
+/// Checks the health of a remote Hive server.
 #[tauri::command]
 pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandError> {
     let client =

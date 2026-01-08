@@ -1,16 +1,7 @@
-// Copyright (c) 2025 KeyForge Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+//! Security and cryptographic primitives for the KeyForge workspace.
+//!
+//! This crate provides wrappers for sensitive data (using zeroization),
+//! utilities for Ed25519 digital signatures, and secure random nonce generation.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
@@ -18,42 +9,61 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+/// Errors that can occur during security operations.
 #[derive(Error, Debug)]
 pub enum SecurityError {
+    /// Failed to encode or decode a cryptographic primitive (e.g., hex string parsing).
     #[error("Encoding Error: {0}")]
     Encoding(String),
+    /// An issue with a secret or public key (e.g., invalid length or format).
     #[error("Key Error: {0}")]
     Key(String),
+    /// Failed to create or verify a digital signature.
     #[error("Signature Error: {0}")]
     Signature(String),
 }
 
+/// A specialized Result type for security operations.
 pub type SecurityResult<T> = Result<T, SecurityError>;
 
+/// A wrapper for sensitive byte arrays that ensures data is zeroed out on drop.
+///
+/// Use this for storing raw keys or other sensitive binary data in memory to
+/// mitigate the risk of data leakage after the value is no longer needed.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretBytes(Vec<u8>);
 
 impl SecretBytes {
+    /// Wraps a vector of bytes in a `SecretBytes` container.
     pub fn new(data: Vec<u8>) -> Self {
         Self(data)
     }
+    /// Returns a reference to the protected byte slice.
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
 }
 
+/// A wrapper for sensitive strings that ensures data is zeroed out on drop.
+///
+/// Use this for storing passwords, API keys, or other sensitive text in memory.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretString(String);
 
 impl SecretString {
+    /// Wraps a string in a `SecretString` container.
     pub fn new(s: String) -> Self {
         Self(s)
     }
+    /// Returns a reference to the protected string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
+/// Generates a new Ed25519 keypair and returns them as hex-encoded strings.
+///
+/// Returns a tuple of `(signing_key_hex, verifying_key_hex)`.
 pub fn generate_keypair() -> (String, String) {
     let mut csprng = OsRng;
     let signing_key = SigningKey::generate(&mut csprng);
@@ -84,6 +94,13 @@ fn build_payload(job_id: &str, layout: &str, score: f32, timestamp: u64, nonce: 
     payload
 }
 
+/// Signs an optimization result using a hex-encoded Ed25519 secret key.
+///
+/// The signature covers the `job_id`, `layout`, `score`, `timestamp`, and `nonce`.
+/// Returns the hex-encoded signature string.
+///
+/// # Errors
+/// Returns `SecurityError::Encoding` if the secret key is not a valid 64-character hex string.
 pub fn sign_result(
     secret_hex: &str,
     job_id: &str,
@@ -113,6 +130,11 @@ pub fn sign_result(
     sign_result_direct(&signing_key, job_id, layout, score, timestamp, nonce)
 }
 
+/// Signs an optimization result using a pre-loaded `SigningKey`.
+///
+/// This is the "direct" version of `sign_result` that avoids re-parsing the key.
+/// The signature covers the `job_id`, `layout`, `score`, `timestamp`, and `nonce`.
+/// Returns the hex-encoded signature string.
 pub fn sign_result_direct(
     signing_key: &SigningKey,
     job_id: &str,
@@ -126,6 +148,13 @@ pub fn sign_result_direct(
     Ok(hex::encode(signature.to_bytes()))
 }
 
+/// Verifies a signed optimization result against a hex-encoded Ed25519 public key.
+///
+/// Rebuilds the payload from the provided parameters and checks it against the `signature_hex`.
+/// Returns `Ok(true)` if the signature is valid, or `Ok(false)` if authentication fails.
+///
+/// # Errors
+/// Returns `SecurityError` if any of the hex inputs are malformed or keys are invalid lengths.
 pub fn verify_result(
     public_hex: &str,
     job_id: &str,
@@ -169,6 +198,9 @@ pub fn verify_result(
     }
 }
 
+/// Generates a cryptographically secure random 64-bit nonce.
+///
+/// Used to prevent replay attacks in signed messages.
 pub fn generate_nonce() -> u64 {
     use rand::RngCore;
     OsRng.next_u64()

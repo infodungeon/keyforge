@@ -31,7 +31,10 @@ use tracing::info;
 use rand::seq::SliceRandom;
 use crate::models::SharedTelemetry;
 
+/// A trait for types that can synchronize assets required for an optimization job.
 pub trait AssetSyncer {
+    /// Syncs assets for the given job configuration, returning the cost matrix filename
+    /// and the corpora bundle directory name.
     fn sync_assets(
         &self,
         config: &JobConfig,
@@ -52,6 +55,7 @@ impl AssetSyncer for AssetManager {
     }
 }
 
+/// Helper to prepare all assets required for a job.
 pub async fn prepare_assets<S: AssetSyncer>(
     syncer: &S,
     config: &JobConfig,
@@ -59,15 +63,26 @@ pub async fn prepare_assets<S: AssetSyncer>(
     syncer.sync_assets(config).await
 }
 
+/// Represents a job that has been hydrated with all necessary domain models
+/// and is ready to be passed to the optimization engine.
 pub struct PreparedJob {
+    /// The hydrated engine request.
     pub req: EngineRequest,
+    /// The keycode registry used for token mapping.
     pub registry: keyforge_model::keycodes::KeycodeRegistry,
+    /// The active keyboard model.
     pub keyboard: std::sync::Arc<keyforge_model::Keyboard>,
+    /// The active corpus model.
     pub corpus: std::sync::Arc<keyforge_model::Corpus>,
+    /// The active scoring rubric.
     pub rubric: std::sync::Arc<keyforge_model::Rubric>,
+    /// Resolved cost model overrides.
     pub cost_overrides: Vec<(usize, usize, f32)>,
 }
 
+/// Loads assets from the filesystem, validates them, and constructs an `EngineRequest`.
+///
+/// This involves mapping the protocol-level `JobConfig` to domain-specific models.
 pub async fn create_engine_request(
     loader: Box<dyn AssetLoader>,
     data_root: PathBuf,
@@ -146,6 +161,10 @@ pub async fn create_engine_request(
     Ok(PreparedJob { req, registry, keyboard, corpus, rubric, cost_overrides })
 }
 
+/// Executes the core optimization loop for a job.
+///
+/// This function wraps the blocking `keyforge_core` engine call, provides a stop flag
+/// for cancellation, and handles telemetry reporting/concurrency limiting.
 pub async fn run_optimization(
     req: EngineRequest,
     job_id: String,

@@ -16,6 +16,10 @@ use crate::error::{InfraError, InfraResult};
 use reqwest::{header, Client, RequestBuilder};
 use std::time::Duration;
 
+/// A specialized HTTP client for interacting with the KeyForge Hive API.
+///
+/// It handles base URL normalization, secret-based authentication, and
+/// provides helpers for constructing requests to the Hive.
 #[derive(Clone)]
 pub struct HiveClient {
     base_url: String,
@@ -23,6 +27,10 @@ pub struct HiveClient {
 }
 
 impl HiveClient {
+    /// Creates a new `HiveClient` from the given base URL.
+    ///
+    /// If a secret is provided, it will be included in the `X-Keyforge-Secret` header
+    /// for all requests.
     pub fn new(base_url: String, secret: Option<String>) -> InfraResult<Self> {
         let mut headers = header::HeaderMap::new();
         if let Some(s) = secret {
@@ -73,10 +81,12 @@ impl HiveClient {
         &self.inner
     }
 
+    /// Starts a GET request to the specified path relative to the base URL.
     pub fn get(&self, path: &str) -> RequestBuilder {
         self.inner.get(self.url(path))
     }
 
+    /// Starts a POST request to the specified path relative to the base URL.
     pub fn post(&self, path: &str) -> RequestBuilder {
         self.inner.post(self.url(path))
     }

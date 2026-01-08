@@ -1,4 +1,8 @@
-// libs/keyforge-wasm/src/lib.rs
+//! # KeyForge WASM Bindings
+//!
+//! WebAssembly bindings for the KeyForge scoring engine. This crate 
+//! exposes a high-level JS interface for layout analysis and 
+//! optimization in the browser.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +29,7 @@ use keyforge_model::validator::{LayoutValidator, Validator};
 use loader::InMemoryLoader;
 use wasm_bindgen::prelude::*;
 
+/// The primary entry point for using KeyForge in WebAssembly environments.
 #[wasm_bindgen]
 pub struct KeyforgeEngine {
     loader: InMemoryLoader,
@@ -41,6 +46,7 @@ impl Default for KeyforgeEngine {
 
 #[wasm_bindgen]
 impl KeyforgeEngine {
+    /// Creates a new `KeyforgeEngine` instance.
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
@@ -52,6 +58,7 @@ impl KeyforgeEngine {
         }
     }
 
+    /// Loads a keyboard definition into the engine's memory.
     pub fn load_keyboard(&self, name: String, json_def: JsValue) -> Result<(), JsValue> {
         let def: KeyboardDefinition = serde_wasm_bindgen::from_value(json_def)?;
         def.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
@@ -59,6 +66,7 @@ impl KeyforgeEngine {
         Ok(())
     }
 
+    /// Loads the keycode registry into the engine's memory.
     pub fn load_keycodes(&self, json_registry: JsValue) -> Result<(), JsValue> {
         let reg: KeycodeRegistry = serde_wasm_bindgen::from_value(json_registry)?;
         reg.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
@@ -66,6 +74,7 @@ impl KeyforgeEngine {
         Ok(())
     }
 
+    /// Loads a language corpus into the engine's memory.
     pub fn load_corpus(&self, name: String, json_corpus: JsValue) -> Result<(), JsValue> {
         let corpus: Corpus = serde_wasm_bindgen::from_value(json_corpus)?;
         corpus.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
@@ -73,6 +82,7 @@ impl KeyforgeEngine {
         Ok(())
     }
 
+    /// Loads a physical cost matrix into the engine's memory.
     pub fn load_cost_matrix(&self, name: String, json_cost: JsValue) -> Result<(), JsValue> {
         let cost: RawCostData = serde_wasm_bindgen::from_value(json_cost)?;
         // RawCostData is a Core type, not Model. It might not have Validator yet.
@@ -82,6 +92,7 @@ impl KeyforgeEngine {
         Ok(())
     }
 
+    /// Initializes a scoring session with the specified assets and weights.
     pub async fn init_session(
         &mut self,
         keyboard_name: String,
@@ -146,6 +157,7 @@ impl KeyforgeEngine {
         Ok(())
     }
 
+    /// Analyzes a layout string and returns a comprehensive report.
     pub fn analyze_layout(&self, layout_str: String) -> Result<JsValue, JsValue> {
         let engine = self
             .engine
@@ -168,12 +180,14 @@ impl KeyforgeEngine {
 
 use keyforge_protocol::JobRequest;
 
+/// Validates a job request object passed from JavaScript.
 #[wasm_bindgen]
 pub fn validate_job_request(json_req: JsValue) -> Result<(), JsValue> {
     let req: JobRequest = serde_wasm_bindgen::from_value(json_req)?;
     req.validate().map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+/// Validates the structure of a layout string.
 #[wasm_bindgen]
 pub fn validate_layout_structure(layout_str: String) -> Result<(), JsValue> {
     LayoutValidator::validate_structure(&layout_str).map_err(|e| JsValue::from_str(&e.to_string()))

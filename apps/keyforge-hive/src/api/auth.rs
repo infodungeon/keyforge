@@ -23,19 +23,26 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
+/// Request payload for registering a new user.
 #[derive(Deserialize, ToSchema)]
 pub struct RegisterRequest {
+    /// Desired username. Must be unique.
     pub username: String,
 }
 
+/// Request payload for creating a new API key.
 #[derive(Deserialize, ToSchema)]
 pub struct CreateKeyRequest {
+    /// Human-readable label for the key (e.g., "Laptop", "CI/CD").
     pub label: String,
 }
 
+/// Response payload containing a newly generated API key and its hash.
 #[derive(Serialize, ToSchema)]
 pub struct ApiKeyResponse {
+    /// The plaintext API key. This is only returned once upon generation.
     pub api_key: String,
+    /// The SHA-256 hash of the API key, for reference.
     pub key_hash: String,
 }
 
@@ -63,6 +70,7 @@ fn generate_secure_key() -> (String, String) {
     ),
     tag = "auth"
 )]
+/// Registers a new user account and returns a master API key.
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterRequest>,
@@ -102,6 +110,7 @@ pub async fn register(
     tag = "auth",
     security(("api_key" = []))
 )]
+/// Generates a new API key for the authenticated user.
 pub async fn generate_key(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,

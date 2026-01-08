@@ -1,15 +1,31 @@
-use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
+//! # KeyForge UI Backend
+//!
+//! Rust backend for the KeyForge Tauri application. This crate handles 
+//! state management, background search workers, and bridges frontend 
+//! requests to core KeyForge libraries via Tauri commands.
+
+pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tokio::sync::RwLock;
 use keyforge_infra::{initialize_workspace, InitMode};
 
+/// Command handlers for Tauri invoke calls.
 pub mod commands;
+/// Shared error types for command results.
 pub mod error;
+/// Data models for frontend communication.
 pub mod models;
+/// Application state management and synchronization.
 pub mod state;
+/// Internal utility functions.
 pub mod utils;
 
+/// The main entry point for the KeyForge UI application.
+///
+/// This function initializes logging, sets up the Tauri builder, configures
+/// plugins, and establishes the global application state including the 
+/// asset cache and worker coordination.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()

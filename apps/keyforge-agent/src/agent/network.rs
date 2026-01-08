@@ -30,6 +30,8 @@ use sysinfo::{System, ProcessesToUpdate};
 use std::path::PathBuf;
 use keyforge_infra::HiveClient;
 
+/// Manages high-level network operations for the agent, including WebSocket communication,
+/// telemetry reporting, and job fetching.
 pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
@@ -51,7 +53,8 @@ enum ServerMessage {
     },
 }
 
-/// Simple circuit breaker to prevent hammering the server.
+/// A circuit breaker that prevents the agent from overwhelming the Hive server
+/// with requests after repeated failures.
 pub struct CircuitBreaker {
     failures: u32,
     threshold: u32,
@@ -60,6 +63,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
+    /// Creates a new `CircuitBreaker`.
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
         Self {
             failures: 0,
@@ -69,6 +73,7 @@ impl CircuitBreaker {
         }
     }
 
+    /// Returns `true` if an attempt is allowed under the current failure count and cooldown.
     pub fn can_attempt(&self) -> bool {
         if self.failures < self.threshold {
             return true;
@@ -81,18 +86,21 @@ impl CircuitBreaker {
         false
     }
 
+    /// Records a failure and sets the last failure timestamp.
     pub fn record_failure(&mut self) {
         self.failures += 1;
         self.last_failure = Some(Instant::now());
     }
 
+    /// Resets the failure counter.
     pub fn record_success(&mut self) {
         self.failures = 0;
         self.last_failure = None;
     }
 }
 
-/// Handles persistent queuing of results when offline.
+/// An outbox for job results that ensures they are eventually sent to the Hive,
+/// even across network disruptions, by using a Write-Ahead Log (WAL).
 pub struct ResultOutbox {
     _client: HiveClient,
     wal_dir: PathBuf,
@@ -100,6 +108,7 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
+    /// Creates a new `ResultOutbox` pointing to the agent's data root.
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
@@ -110,6 +119,7 @@ impl ResultOutbox {
         }
     }
 
+    /// Attempts to send a result submission, or logs it to the WAL if sending fails.
     pub fn try_send(&self, submission: ResultSubmission) -> AgentResult<()> {
         // In a real impl, this would spawn a task or use a queue.
         // For now, we just write to disk if we can't send immediately (mock logic for test).
@@ -126,6 +136,7 @@ impl ResultOutbox {
 }
 
 impl NetworkManager {
+    /// Creates a new `NetworkManager`.
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
@@ -144,6 +155,7 @@ impl NetworkManager {
         }
     }
 
+    /// Starts the main network event loop.
     pub async fn run(self) {
         let mut backoff = Duration::from_secs(1);
         loop {
@@ -261,6 +273,7 @@ impl NetworkManager {
         Ok(())
     }
 
+    /// Submits a signed optimization result to the Hive.
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
         

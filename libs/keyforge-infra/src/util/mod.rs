@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Common helper functions for hashing and string manipulation.
 pub mod common;
+/// Specialized parser for raw layout strings and keymap definitions.
 pub mod layout_parser;
+/// Utilities for processing and injecting synthetic data into corpora.
 pub mod corpus;

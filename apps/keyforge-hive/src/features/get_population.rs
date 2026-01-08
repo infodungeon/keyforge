@@ -32,6 +32,7 @@ use crate::state::AppState;
     ),
     tag = "jobs"
 )]
+/// Handles a request to retrieve the current top layouts for a job.
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Path(job_id): Path<String>,

@@ -8,11 +8,13 @@ use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
 use tauri::AppHandle;
 
+/// Returns the default global application configuration.
 #[tauri::command]
 pub fn cmd_get_default_config() -> Config {
     Config::default()
 }
 
+/// Retrieves the current keycode registry, either from the active runtime or by loading it from disk.
 #[tauri::command]
 pub async fn cmd_get_keycodes(
     state: tauri::State<'_, SessionState>,
@@ -31,6 +33,7 @@ pub async fn cmd_get_keycodes(
     }
 }
 
+/// Retrieves UI category metadata from local configuration files.
 #[tauri::command]
 pub fn cmd_get_ui_categories(
     app: AppHandle,

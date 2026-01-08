@@ -21,9 +21,12 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::infra::repositories::audit::AuditLog;
 
+/// Request payload for permanently deleting all user data.
 #[derive(Deserialize, ToSchema)]
 pub struct NukeRequest {
+    /// The username of the account to be deleted.
     pub username: String,
+    /// Confirmation string. Must be exactly "DELETE_EVERYTHING".
     pub confirmation: String,
 }
 
@@ -40,6 +43,7 @@ pub struct NukeRequest {
     ),
     tag = "user"
 )]
+/// Handles a request to permanently delete all data associated with a user account.
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<NukeRequest>,

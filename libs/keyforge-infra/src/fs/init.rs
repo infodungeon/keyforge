@@ -26,12 +26,14 @@ pub enum InitMode {
     Create,
 }
 
+/// A list of system assets that must be present for the application to function.
 pub const REQUIRED_ASSETS: &[&str] = &[
     "config/keycodes",
     "weights/cost_matrix",
     "corpora/text/en_std/1grams",
 ];
 
+/// Directories containing system-provided data, models, and benchmarks.
 pub const SYSTEM_DIRS: &[&str] = &[
     "system/config",
     "system/keyboards",
@@ -40,6 +42,7 @@ pub const SYSTEM_DIRS: &[&str] = &[
     "system/benchmarks",
 ];
 
+/// Directories for user-created content that should be persisted (e.g., custom layouts).
 pub const USER_WORKSPACE_DIRS: &[&str] = &[
     "user/keyboards",
     "user/corpora",
@@ -47,6 +50,7 @@ pub const USER_WORKSPACE_DIRS: &[&str] = &[
     "user/config",
 ];
 
+/// Directories for volatile or transient data (e.g., queues, WALs).
 pub const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
 
 /// Orchestrates the setup of the KeyForge workspace.
@@ -77,6 +81,7 @@ fn check_asset_exists(system_root: &Path, rel_path: &str) -> bool {
     bin_path.exists() || json_path.exists()
 }
 
+/// Ensures a directory exists relative to the root, creating it if necessary.
 pub fn ensure_dir(root: &Path, rel_path: &str) -> InfraResult<PathBuf> {
     let p = root.join(rel_path);
     if !p.exists() {
@@ -86,6 +91,10 @@ pub fn ensure_dir(root: &Path, rel_path: &str) -> InfraResult<PathBuf> {
     Ok(p)
 }
 
+/// Validates that all critical system assets are present in the workspace.
+///
+/// # Errors
+/// Returns `InfraError::Config` if any required asset is missing.
 pub fn validate_system_assets(root: &Path) -> InfraResult<()> {
     let system_root = root.join("system");
     for asset in REQUIRED_ASSETS {

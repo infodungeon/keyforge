@@ -18,6 +18,10 @@ use std::sync::Arc;
 use tokio::time::{interval, Duration};
 use tracing::{error, info};
 
+/// Spawns background maintenance tasks that run periodically.
+///
+/// This includes the "Zombie Reaper" for stuck jobs, old job cleanup,
+/// node pruning, and result database maintenance.
 pub async fn start_cron_jobs(
     job_repo: Arc<JobRepository>,
     node_repo: Arc<NodeRepository>,

@@ -16,12 +16,14 @@
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
+/// Repository for managing users and authentication keys.
 #[derive(Clone)]
 pub struct UserRepository {
     pub(crate) pool: Pool<Postgres>,
 }
 
 impl UserRepository {
+    /// Creates a new `UserRepository` with the given database pool.
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -43,6 +45,7 @@ impl UserRepository {
         }
     }
 
+    /// Registers a new API key for a user.
     pub async fn create_api_key(
         &self,
         user_id: Uuid,
@@ -58,6 +61,7 @@ impl UserRepository {
         Ok(())
     }
 
+    /// Validates an API key hash and updates its last-used timestamp.
     pub async fn validate_key(&self, key_hash: &str) -> Result<bool, sqlx::Error> {
         let exists = sqlx::query("SELECT 1 FROM api_keys WHERE key_hash = $1")
             .bind(key_hash)
@@ -96,6 +100,7 @@ impl UserRepository {
         }
     }
 
+    /// Checks if a user has exceeded their job submission quotas.
     pub async fn check_job_quota(&self, user_id: Uuid) -> Result<bool, sqlx::Error> {
         let row = sqlx::query("SELECT max_active_jobs, max_daily_jobs FROM users WHERE id = $1")
             .bind(user_id)

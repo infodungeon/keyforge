@@ -18,6 +18,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 // Re-export CompiledEngineCache
+/// An LRU cache for pre-hydrated `ScoringEngine` instances.
+///
+/// This avoids the overhead of reloading and parsing corpora/keyboards for 
+/// every verification request on the same job.
 pub struct CompiledEngineCache {
     cache: Cache<String, Arc<keyforge_core::ScoringEngine>>,
 }
@@ -29,6 +33,8 @@ impl Default for CompiledEngineCache {
 }
 
 impl CompiledEngineCache {
+    /// Creates a new `CompiledEngineCache` with a capacity of 500 engines
+    /// and a 30-minute TTL.
     pub fn new() -> Self {
         Self {
             cache: Cache::builder()
@@ -38,14 +44,17 @@ impl CompiledEngineCache {
         }
     }
 
+    /// Retrieves a cached engine by job ID.
     pub fn get(&self, job_id: &str) -> Option<Arc<keyforge_core::ScoringEngine>> {
         self.cache.get(job_id)
     }
 
+    /// Inserts a hydrated engine into the cache.
     pub fn insert(&self, job_id: &str, engine: Arc<keyforge_core::ScoringEngine>) {
         self.cache.insert(job_id.to_string(), engine);
     }
 
+    /// Clears all entries from the cache.
     pub fn invalidate_all(&self) {
         self.cache.invalidate_all();
     }

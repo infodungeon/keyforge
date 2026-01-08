@@ -2,6 +2,11 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use std::env;
 
+/// Determines the canonical data directory for the application.
+///
+/// Priority:
+/// 1. `KEYFORGE_DATA_DIR` environment variable.
+/// 2. OS-specific user data directory (e.g., `~/.local/share/keyforge` on Linux).
 pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
     // Priority 1: Environment Variable (Dev/Sandbox)
     if let Ok(dir) = env::var("KEYFORGE_DATA_DIR") {

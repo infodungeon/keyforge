@@ -13,4 +13,8 @@
 // limitations under the License.
 
 
+//! API endpoints for result management.
+//! 
+//! Note: Result submission logic has been migrated to `features/submit_result.rs`.
+
 // Migrated to features/submit_result.rs

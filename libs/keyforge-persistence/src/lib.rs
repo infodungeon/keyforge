@@ -17,9 +17,13 @@
 //! Abstractions for data storage and project management. This crate handles 
 //! saving and loading keyboard definitions, corpora, and optimization results.
 
+/// Error types and specialized Result for persistence operations.
 pub mod error;
+/// Repositories for specialized data storage (e.g., user layouts, biometrics).
 pub mod repo;
+/// Project-level management and metadata.
 pub mod project;
+/// Compilation logic for creating optimized engines from persisted definitions.
 pub mod compiler;
 
 // Re-exports for UI/CLI
@@ -29,5 +33,6 @@ pub use error::{PersistenceError, PersistenceResult};
 
 // Re-exports for Hive/Agent
 pub use repo::user_repo::UserRepo;
+/// Services for background data persistence (e.g., autosave).
 pub mod store;
 pub use store::autosave::{AutoSaveService, SessionSnapshot};

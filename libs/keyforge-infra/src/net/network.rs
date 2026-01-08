@@ -156,6 +156,7 @@ pub async fn ensure_file(
     Ok(())
 }
 
+/// Ensures that all files in a corpus bundle are downloaded and present locally.
 pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> InfraResult<String> {
     let bundle_dir = if corpus_name == "default" {
         "data/corpora/text/en_std".to_string()
@@ -176,6 +177,7 @@ pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> Inf
     Ok(bundle_dir)
 }
 
+/// Ensures the specified cost matrix file is downloaded and present in the workspace.
 pub async fn ensure_cost_matrix(
     client: &HiveClient,
     workspace_root: &Path,

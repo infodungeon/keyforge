@@ -13,6 +13,12 @@
 // limitations under the License.
 
 
+//! # KeyForge Agent Binary
+//!
+//! The main entry point for the KeyForge distributed compute agent. 
+//! This executable initializes the agent's identity, securely loads 
+//! keys, and starts the worker process to process optimization jobs.
+
 use clap::Parser;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::rngs::OsRng;

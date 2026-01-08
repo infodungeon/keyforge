@@ -21,11 +21,17 @@ use tracing::{info, warn};
 /// CPU cache and core topology information.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CpuCacheTopology {
+    /// The brand name of the CPU (e.g., "AMD Ryzen 9 5950X").
     pub model: String,
+    /// The target architecture (e.g., "x86_64", "aarch64").
     pub architecture: String,
+    /// The number of logical cores detected.
     pub cores: usize,
+    /// L1 Data cache size in kilobytes.
     pub l1_data_kb: Option<usize>,
+    /// L2 cache size in kilobytes.
     pub l2_kb: Option<usize>,
+    /// L3 cache size in kilobytes.
     pub l3_kb: Option<usize>,
 }
 

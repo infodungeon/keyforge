@@ -16,9 +16,17 @@ use keyforge_model::{Corpus, Keyboard, Layout, Rubric};
 use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
 use keyforge_model::constants::SCORE_SCALE;
 
+/// A slow, ground-truth implementation of the scoring logic used for validation.
+///
+/// Unlike the optimized `ScoringEngine`, `DeterministicScorer` does not use 
+/// bit-manipulation or kernel caching, making it useful as an oracle for testing.
 pub struct DeterministicScorer;
 
 impl DeterministicScorer {
+    /// Calculates a ground-truth score using the reference implementation.
+    ///
+    /// This is significantly slower than the optimized engine but provides 
+    /// a baseline for verifying the correctness of the physics kernel.
     pub fn score(
         keyboard: &Keyboard,
         corpus: &Corpus,

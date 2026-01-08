@@ -26,12 +26,18 @@ use keyforge_model::validator::Validator;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+/// An asset provider that loads data directly from the local filesystem.
+///
+/// It supports loading both system-level assets (stored in zstd-compressed MessagePack)
+/// and user-level assets (stored as plain JSON).
 #[derive(Clone)]
 pub struct FsProvider {
+    /// The root directory where all assets (system and user) are located.
     pub root: PathBuf,
 }
 
 impl FsProvider {
+    /// Creates a new `FsProvider` with the specified root path.
     pub fn new(root: PathBuf) -> Self {
         Self { root }
     }
@@ -92,6 +98,10 @@ impl FsProvider {
         p.exists().then_some(p)
     }
 
+    /// Calculates a stable hash for a corpus by hashing its constituent parts.
+    ///
+    /// This is used to detect if a corpus has changed locally or if it matches
+    /// the version expected by the Hive.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         let files = ["1grams", "2grams", "3grams", "words"];
         let is_system = self.root.join("system/corpora").join(id).exists();

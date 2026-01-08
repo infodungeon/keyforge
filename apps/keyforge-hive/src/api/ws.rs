@@ -37,6 +37,7 @@ enum ServerMessage {
     Cancel { id: String },
 }
 
+/// Handles a WebSocket upgrade request, extracting the node ID and initiating the socket handler.
 pub async fn handler(
     ws: WebSocketUpgrade,
     Query(params): Query<HashMap<String, String>>,
@@ -46,12 +47,13 @@ pub async fn handler(
     ws.on_upgrade(move |socket| handle_socket(socket, state, node_id))
 }
 
+/// Orchestrates the WebSocket lifecycle, managing outbound broadcasts and inbound telemetry.
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>, node_id: String) {
     let (mut sender, mut receiver) = socket.split();
     
     // Subscribe to the internal broadcast bus (Process-Local)
     let mut rx = state.tx.subscribe();
-    info!("�� Worker connected via WebSocket: {}", node_id);
+    info!(" Worker connected via WebSocket: {}", node_id);
 
     // Task 1: Outbound Loop (Broadcasts & Heartbeats)
     let send_task = tokio::spawn(async move {

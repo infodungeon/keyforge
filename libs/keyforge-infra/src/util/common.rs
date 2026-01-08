@@ -18,15 +18,16 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+/// Calculates the SHA-256 hash of a file on disk.
 pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
-    let mut file = File::open(path).map_err(crate::error::InfraError::Io)?;
+    let mut file = File::open(path).map_err(InfraError::Io)?;
     let mut hasher = Sha256::new();
     let mut buffer = [0; 4096];
 
     loop {
         let n = file
             .read(&mut buffer)
-            .map_err(crate::error::InfraError::Io)?;
+            .map_err(InfraError::Io)?;
         if n == 0 {
             break;
         }
@@ -39,6 +40,9 @@ pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
 use keyforge_core::loader::RawCostData;
 use keyforge_protocol::UserStatsStore;
 
+/// Generates a serialized cost matrix based on the user's historical typing statistics.
+///
+/// **Note**: This is currently a placeholder that returns an empty cost matrix.
 pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
     let data = RawCostData { entries: vec![] };
     serde_json::to_string(&data).unwrap_or_else(|_| "{\"entries\":[]}".to_string())
@@ -48,6 +52,7 @@ use crate::error::InfraError;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::keycodes::{KeycodeDefinition, KeycodeRegistry};
 
+/// Loads a keycode registry from a JSON file.
 pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
     let content = crate::fs::io::read_to_string_limited(path, MAX_INPUT_FILE_SIZE)?;
 

@@ -13,6 +13,12 @@
 // limitations under the License.
 
 
+//! # KeyForge Hive Binary
+//!
+//! The main entry point for the KeyForge Hive server. This executable 
+//! initializes the application state, starts the Axum HTTP server, 
+//! and begins background maintenance tasks.
+
 use axum_server::tls_rustls::RustlsConfig;
 use clap::{Parser, Subcommand};
 use keyforge_hive::{
@@ -68,6 +74,7 @@ enum Commands {
     },
 }
 
+/// Populates the Valkey global asset cache from the local filesystem data root.
 async fn hydrate_valkey(coordinator: &keyforge_infra::DistributedCoordinator, root: &Path) {
     info!("�� Hydrating Valkey from local system assets...");
     let system_root = root.join("system");
@@ -114,6 +121,7 @@ async fn hydrate_valkey(coordinator: &keyforge_infra::DistributedCoordinator, ro
 }
 
 // Handler for clean shutdown in HTTP mode
+/// Signal handler for clean shutdown in HTTP mode.
 async fn shutdown_signal(state: Arc<AppState>) {
     tokio::signal::ctrl_c().await.ok();
     info!("🛑 Signal received, initiating graceful shutdown...");
@@ -123,6 +131,7 @@ async fn shutdown_signal(state: Arc<AppState>) {
 
 // Handler for clean shutdown in TLS mode (axum-server)
 // FIX: Added <SocketAddr> generic
+/// Signal handler for clean shutdown in TLS mode.
 async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Arc<AppState>) {
     tokio::signal::ctrl_c().await.ok();
     info!("🛑 Signal received (TLS), initiating graceful shutdown...");

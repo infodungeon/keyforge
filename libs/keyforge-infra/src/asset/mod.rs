@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Filesystem-based asset provider for local development and testing.
 pub mod fs_provider;
+/// High-level orchestration for fetching and ensuring asset presence.
 pub mod manager;
+/// Tiered caching provider for high-performance asset reads.
 pub mod caching_provider;
+/// Distributed asset provider backed by an external data store (e.g., Valkey).
 pub mod valkey_provider;
 
 pub use valkey_provider::ValkeyProvider;

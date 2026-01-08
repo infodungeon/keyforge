@@ -28,16 +28,22 @@ use tracing::warn;
 
 const ASSET_PREFIX: &str = "asset:blob";
 
+/// An asset provider that loads data from a distributed data store (Valkey/Redis).
+///
+/// This is used by worker nodes in a distributed cluster to fetch assets
+/// without requiring direct filesystem access to the Hive's data root.
 #[derive(Clone)]
 pub struct ValkeyProvider {
     coordinator: Arc<DistributedCoordinator>,
 }
 
 impl ValkeyProvider {
+    /// Creates a new `ValkeyProvider` using the provided distributed coordinator.
     pub fn new(coordinator: Arc<DistributedCoordinator>) -> Self {
         Self { coordinator }
     }
 
+    /// Fetches the current system asset manifest from the distributed store.
     pub async fn get_manifest(&self) -> ServerManifest {
         match self.coordinator.get_all_manifest_entries().await {
             Ok(files) => ServerManifest { files },
@@ -48,9 +54,10 @@ impl ValkeyProvider {
         }
     }
 
-    // No-op for stateless provider
+    /// Stateless provider: cache invalidation is managed by the distributed store itself.
     pub fn invalidate_all(&self) {}
 
+    /// Retrieves the hash of a corpus from the distributed store.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         let key = format!("corpora/{}/1grams.mpk.zst", id);
         match self.coordinator.get_manifest_hash(&key).await {
@@ -84,11 +91,13 @@ impl ValkeyProvider {
 
     // --- Helper Methods for Hive ---
 
+    /// Retrieves the raw byte content of a file from the distributed store.
     pub async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
         let key = format!("{}:{}", ASSET_PREFIX, path);
         self.coordinator.get_bin(&key).await.unwrap_or(None)
     }
 
+    /// Lists all available keyboard definitions in the distributed store.
     pub async fn list_keyboards(&self) -> Vec<String> {
         let pattern = format!("{}:keyboards/models/*.mpk.zst", ASSET_PREFIX);
         let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
@@ -105,6 +114,7 @@ impl ValkeyProvider {
         names
     }
 
+    /// Lists all available corpora IDs in the distributed store.
     pub async fn list_corpora(&self) -> Vec<String> {
         let pattern = format!("{}:corpora/*", ASSET_PREFIX);
         let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
@@ -125,6 +135,7 @@ impl ValkeyProvider {
         ids
     }
 
+    /// Lists all available cost matrices in the distributed store.
     pub async fn list_cost_matrices(&self) -> Vec<String> {
         let pattern = format!("{}:weights/*.mpk.zst", ASSET_PREFIX);
         let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
@@ -140,6 +151,7 @@ impl ValkeyProvider {
         names
     }
 
+    /// Loads a configuration asset from the distributed store, with an optional fallback to JSON if compressed MsgPack is missing.
     pub async fn load_config_asset<T: serde::de::DeserializeOwned + Send + 'static + Default>(&self, name: &str) -> Arc<T> {
         let mpk_path = format!("config/{}.mpk.zst", name);
         if let Ok(cfg) = self.hydrate_mpk::<T>(&mpk_path).await {

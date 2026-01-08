@@ -25,12 +25,17 @@ use tracing::{info, debug};
 use futures::stream::StreamExt;
 use std::collections::HashMap;
 
+/// A coordinator that manages distributed state and communication across a cluster of nodes.
+///
+/// It uses a central data store (Valkey/Redis) to handle heartbeats, cluster telemetry,
+/// asset manifestation, and inter-node event publishing.
 #[derive(Clone)]
 pub struct DistributedCoordinator {
     client: Client,
 }
 
 impl DistributedCoordinator {
+    /// Connects to the coordination layer using the provided Valkey/Redis URL.
     pub async fn new(url: &str) -> InfraResult<Self> {
         let config = RedisConfig::from_url(url).map_err(|e| {
             InfraError::Config(format!("Invalid Valkey URL: {}", e))
@@ -61,18 +66,21 @@ impl DistributedCoordinator {
 
     // --- BLOB STORAGE ---
 
+    /// Retrieves binary data from the store by key.
     pub async fn get_bin(&self, key: &str) -> InfraResult<Option<bytes::Bytes>> {
         self.client.get(key).await.map_err(|e| {
              InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
         })
     }
 
+    /// Stores binary data in the store with the specified key.
     pub async fn set_bin(&self, key: &str, data: &[u8]) -> InfraResult<()> {
         self.client.set(key, data, None, None, false).await.map_err(|e| {
              InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
         })
     }
 
+    /// Scans for keys matching the given glob-style pattern.
     pub async fn scan_keys(&self, pattern: &str) -> InfraResult<Vec<String>> {
         let mut stream = self.client.scan(pattern, Some(1000), None);
         let mut results = Vec::new();
@@ -95,6 +103,10 @@ impl DistributedCoordinator {
 
     // --- COORDINATION ---
 
+    /// Attempts to reserve an update slot for a hardware profile.
+    ///
+    /// This uses an atomic SET NX with a 24-hour expiration to ensure that
+    /// calibration only happens once per day per hardware signature in a cluster.
     pub async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool> {
         let key = format!("v4:hw_profile:{}", cpu_signature);
         let result: Option<()> = self.client.set(
@@ -114,6 +126,10 @@ impl DistributedCoordinator {
         Ok(is_new)
     }
 
+    /// Updates the heartbeat and telemetry for a node.
+    ///
+    /// The entry will automatically expire if not refreshed within 30 seconds,
+    /// indicating that the node is offline.
     pub async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()> {
         let key = format!("v4:node:{}:telemetry", node_id);
         let bytes = postcard::to_stdvec(telemetry).map_err(|e| {
@@ -123,6 +139,7 @@ impl DistributedCoordinator {
             .await.map_err(|e| InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))
     }
 
+    /// Retrieves the latest telemetry for a specific node.
     pub async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>> {
         let key = format!("v4:node:{}:telemetry", node_id);
         let bytes: Option<bytes::Bytes> = self.client.get(key).await.map_err(|e| {
@@ -138,6 +155,9 @@ impl DistributedCoordinator {
         }
     }
 
+    /// Aggregates statistics across all heartbeating nodes in the cluster.
+    ///
+    /// Returns a tuple of `(active_node_count, aggregate_throughput_ips)`.
     pub async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)> {
         let keys = self.scan_keys("v4:node:*:telemetry").await?;
         if keys.is_empty() { return Ok((0, 0.0)); }
@@ -157,6 +177,7 @@ impl DistributedCoordinator {
         Ok((count, total_ops))
     }
 
+    /// Publishes a job update event to a dedicated Pub/Sub channel.
     pub async fn publish_update(&self, job_id: &str, event: &str) -> InfraResult<()> {
         let channel = format!("job:{}:updates", job_id);
         self.client.publish::<(), _, _>(channel, event).await.map_err(|e| {
@@ -164,6 +185,7 @@ impl DistributedCoordinator {
         })
     }
 
+    /// Sets an entry in the distributed asset manifest.
     pub async fn set_manifest_entry(&self, entry: &AssetManifestEntry) -> InfraResult<()> {
         let key = format!("v4:manifest:{}", entry.id);
         self.client.hset::<(), _, _>(
@@ -178,6 +200,7 @@ impl DistributedCoordinator {
         })
     }
 
+    /// Retrieves the hash of a specific asset from the distributed manifest.
     pub async fn get_manifest_hash(&self, asset_id: &str) -> InfraResult<Option<String>> {
         let key = format!("v4:manifest:{}", asset_id);
         let hash: Option<String> = self.client.hget(key, "hash").await.map_err(|e| {
@@ -186,6 +209,7 @@ impl DistributedCoordinator {
         Ok(hash)
     }
 
+    /// Fetches the entire distributed asset manifest as a map of ID to SHA-256 hash.
     pub async fn get_all_manifest_entries(&self) -> InfraResult<HashMap<String, String>> {
         let keys = self.scan_keys("v4:manifest:*").await?;
         let mut map = HashMap::new();
@@ -204,6 +228,7 @@ impl DistributedCoordinator {
         Ok(map)
     }
 
+    /// Returns the number of currently active nodes in the cluster.
     pub async fn count_active_nodes(&self) -> InfraResult<usize> {
         let (count, _) = self.get_cluster_stats().await?;
         Ok(count)

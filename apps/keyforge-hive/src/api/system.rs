@@ -22,16 +22,24 @@ use utoipa::ToSchema;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+/// Response payload for system health and status checks.
 #[derive(Serialize, ToSchema)]
 pub struct StatusResponse {
+    /// General system status ("ok" or "degraded").
     pub status: String,
+    /// Current version of the Hive server.
     pub version: String,
+    /// Informational message about the system state.
     pub message: String,
+    /// Status of the database connection.
     pub db: String,
+    /// Number of events currently in the background write queue.
     pub queue_depth: usize,
+    /// Status of the asset loading system.
     pub assets: String,
 }
 
+/// Returns a simple greeting string for the API root.
 pub async fn root() -> &'static str {
     "KeyForge Hive API v0.8"
 }
@@ -44,6 +52,7 @@ pub async fn root() -> &'static str {
     ),
     tag = "system"
 )]
+/// Performs a comprehensive health check of the system's core components.
 pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<StatusResponse>> {
     let db_status = match sqlx::query("SELECT 1").execute(&state.jobs.repo.pool).await {
         Ok(_) => "connected".to_string(),
@@ -70,11 +79,13 @@ pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<Status
     }))
 }
 
+/// Lists all available keyboard geometries.
 pub async fn list_keyboards(State(state): State<Arc<AppState>>) -> AppResult<Json<Vec<String>>> {
     let list = state.assets.list_keyboards().await;
     Ok(Json(list))
 }
 
+/// Retrieves the definition of a specific keyboard by name.
 pub async fn get_keyboard(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(name): axum::extract::Path<String>,
@@ -86,28 +97,33 @@ pub async fn get_keyboard(
     Ok(Json(kb))
 }
 
+/// Retrieves the global application configuration.
 pub async fn get_app_config(State(state): State<Arc<AppState>>) -> AppResult<Json<Config>> {
     // FIX: Use generic loader with "config"
     let config: Arc<Config> = state.assets.load_config_asset("config").await;
     Ok(Json(config.as_ref().clone()))
 }
 
+/// Lists all available corpora for optimization.
 pub async fn list_corpora(State(state): State<Arc<AppState>>) -> AppResult<Json<Vec<String>>> {
     let list = state.assets.list_corpora().await;
     Ok(Json(list))
 }
 
+/// Lists all available cost matrices for optimization.
 pub async fn list_costs(State(state): State<Arc<AppState>>) -> AppResult<Json<Vec<String>>> {
     let list = state.assets.list_cost_matrices().await;
     Ok(Json(list))
 }
 
+/// Lists any additional keymap assets.
 pub async fn list_keymap_extras(
     State(state): State<Arc<AppState>>,
 ) -> AppResult<Json<Vec<String>>> {
     Ok(Json(vec![]))
 }
 
+/// Builds and returns the Axum router for system-related endpoints.
 pub fn system_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(root))

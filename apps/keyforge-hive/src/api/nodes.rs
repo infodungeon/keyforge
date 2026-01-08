@@ -13,4 +13,8 @@
 // limitations under the License.
 
 
+//! API endpoints for node management.
+//! 
+//! Note: Node registration and heartbeat logic has been migrated to `features/register_node.rs`.
+
 // Migrated to features/register_node.rs

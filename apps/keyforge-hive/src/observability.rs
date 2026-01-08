@@ -24,16 +24,22 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 
 // --- Log Capture ---
 
+/// A captured log entry stored in the in-memory buffer.
 #[derive(Clone, Serialize, Debug)]
 pub struct LogEntry {
+    /// RFC3339 formatted timestamp of the event.
     pub timestamp: String,
+    /// The tracing level (e.g., "WARN", "ERROR").
     pub level: String,
+    /// The formatted message string.
     pub message: String,
 }
 
+/// Global in-memory log buffer for recent WARN/ERROR events.
 pub static LOG_BUFFER: Lazy<Mutex<VecDeque<LogEntry>>> =
     Lazy::new(|| Mutex::new(VecDeque::with_capacity(50)));
 
+/// Returns a copy of the most recent logs from the capture buffer.
 pub fn get_recent_logs() -> Vec<LogEntry> {
     if let Ok(buffer) = LOG_BUFFER.lock() {
         buffer.iter().cloned().collect()
@@ -42,6 +48,7 @@ pub fn get_recent_logs() -> Vec<LogEntry> {
     }
 }
 
+/// Custom tracing layer that captures WARN and ERROR events into an in-memory buffer.
 struct LogCaptureLayer;
 
 impl<S> Layer<S> for LogCaptureLayer
@@ -75,6 +82,7 @@ where
     }
 }
 
+/// Visitor for extracting the message field from tracing events.
 struct MessageVisitor {
     message: String,
 }
@@ -102,6 +110,7 @@ impl tracing::field::Visit for MessageVisitor {
 
 // --- Initialization ---
 
+/// Global handle to the Prometheus metrics recorder.
 pub static PROMETHEUS_HANDLE: Lazy<Option<PrometheusHandle>> =
     Lazy::new(|| match PrometheusBuilder::new().install_recorder() {
         Ok(h) => Some(h),
@@ -111,6 +120,9 @@ pub static PROMETHEUS_HANDLE: Lazy<Option<PrometheusHandle>> =
         }
     });
 
+/// Initializes the global tracing subscriber with console, file, and OTLP output.
+///
+/// This also sets up the in-memory log capture layer for the TUI.
 pub fn init_tracing() {
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
@@ -159,6 +171,7 @@ pub fn init_tracing() {
     }
 }
 
+/// Completes the initialization of the tracing subscriber, optionally adding OTLP support if configured.
 fn init_final<S>(subscriber: S)
 where
     S: tracing::Subscriber
@@ -197,6 +210,7 @@ where
     }
 }
 
+/// Returns a clone of the Prometheus metrics handle if it was successfully initialized.
 pub fn get_metrics_handle() -> Option<PrometheusHandle> {
     PROMETHEUS_HANDLE.clone()
 }

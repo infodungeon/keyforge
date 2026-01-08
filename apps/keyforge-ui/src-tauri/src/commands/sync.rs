@@ -5,6 +5,7 @@ use keyforge_infra::SyncStats;
 use keyforge_infra::{bootstrap_essentials, run_sync};
 use tauri::AppHandle;
 
+/// Synchronizes local application data with a remote Hive server.
 #[tauri::command]
 pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats, String> {
     let local_data_dir = get_data_dir(&app)?;
@@ -15,6 +16,7 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
     run_sync(&client, &local_data_dir).await
 }
 
+/// Bootstraps essential application assets from a remote Hive server.
 #[tauri::command]
 pub async fn cmd_bootstrap_assets(app: AppHandle, hive_url: String) -> Result<Vec<String>, String> {
     let local_data_dir = get_data_dir(&app)?;

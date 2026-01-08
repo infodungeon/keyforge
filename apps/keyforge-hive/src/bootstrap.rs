@@ -30,8 +30,10 @@ pub struct HiveBootstrapConfig {
 }
 
 impl HiveBootstrapConfig {
+    /// The canonical filesystem path where the Hive looks for its bootstrap configuration.
     pub const DEFAULT_PATH: &'static str = "/etc/keyforge/hive.toml";
 
+    /// Loads the bootstrap configuration from the specified TOML file.
     pub fn load(path: &Path) -> Result<Self, String> {
         let raw = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read bootstrap config {:?}: {}", path, e))?;

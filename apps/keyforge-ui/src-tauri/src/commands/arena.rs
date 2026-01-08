@@ -6,6 +6,7 @@ use keyforge_model::config::CorpusSource;
 use keyforge_protocol::BiometricSample;
 use tauri::AppHandle;
 
+/// Generates a list of random words from the selected corpora for typing practice.
 #[tauri::command]
 pub async fn cmd_get_typing_words(
     app: AppHandle,
@@ -55,6 +56,7 @@ pub async fn cmd_get_typing_words(
     Ok(selected)
 }
 
+/// Persists typing session biometric data to the local user repository.
 #[tauri::command]
 pub fn cmd_save_biometrics(
     app: AppHandle,
@@ -67,6 +69,7 @@ pub fn cmd_save_biometrics(
         .map_err(|e| e.to_string())
 }
 
+/// Loads historical biometric data for the current user.
 #[tauri::command]
 pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, String> {
     let data_dir = get_data_dir(&app)?;
@@ -74,6 +77,7 @@ pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, Strin
     Ok(user_data.get_biometrics())
 }
 
+/// Analyzes biometric data to generate a personalized typing profile.
 #[tauri::command]
 pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
     let data_dir = get_data_dir(&app)?;
@@ -81,6 +85,7 @@ pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
     user_data.generate_profile().map_err(|e| e.to_string())
 }
 
+/// Clears all historical biometric data for the current user.
 #[tauri::command]
 pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, String> {
     let data_dir = get_data_dir(&app)?;
@@ -89,6 +94,7 @@ pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, String> {
     Ok("Biometric data cleared successfully.".to_string())
 }
 
+/// Retrieves the most frequent bigrams from the selected corpora.
 #[tauri::command]
 pub async fn cmd_get_corpus_bigrams(
     app: AppHandle,

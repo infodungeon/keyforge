@@ -17,6 +17,10 @@ use std::io::{Read, Write};
 use std::path::Path;
 use tempfile::NamedTempFile;
 
+/// Performs an atomic write by writing to a temporary file and then moving it to the target path.
+///
+/// This ensures that the target file is never in a partially written state, even if the
+/// process crashes or power is lost during the write.
 pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> InfraResult<()> {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -34,6 +38,9 @@ pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> Infr
     Ok(())
 }
 
+/// Reads a file's content into a string, but only if its size is below the specified limit.
+///
+/// This is a security measure to prevent memory exhaustion when reading untrusted input files.
 pub fn read_to_string_limited<P: AsRef<Path>>(path: P, limit_bytes: u64) -> InfraResult<String> {
     let path = path.as_ref();
     let file = std::fs::File::open(path).map_err(InfraError::Io)?;

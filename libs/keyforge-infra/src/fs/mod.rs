@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Workspace and system directory initialization.
 pub mod init;
+/// Atomic file writes and limited reading.
 pub mod io;
+/// Asset discovery and directory listing.
 pub mod listing;
+/// Process-level file locking for the workspace.
 pub mod lock;
+/// Path resolution and workspace root discovery.
 pub mod paths;

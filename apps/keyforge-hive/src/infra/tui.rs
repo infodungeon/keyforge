@@ -31,16 +31,23 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+/// A single log entry from the Hive server.
 #[derive(Deserialize, Default, Clone)]
 pub struct LogEntry {
+    /// RFC3339 formatted timestamp.
     pub timestamp: String,
+    /// Log level (e.g., "INFO", "WARN", "ERROR").
     pub level: String,
+    /// The actual log message content.
     pub message: String,
 }
 
+/// The combined response from the system status endpoint.
 #[derive(Deserialize, Default, Clone)]
 pub struct SystemStatusResponse {
+    /// Aggregate system and cluster metrics.
     pub metrics: SystemMetrics,
+    /// A collection of recent important log entries.
     pub logs: Vec<LogEntry>,
 }
 
@@ -144,6 +151,10 @@ impl DockerMonitor {
     }
 }
 
+/// Starts the interactive TUI monitor for the KeyForge Hive.
+///
+/// This function takes over the terminal, connects to the Hive API,
+/// and displays real-time metrics, logs, and Docker container status.
 pub async fn run_monitor(
     url: String,
     secret: Option<String>,

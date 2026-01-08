@@ -1,0 +1,588 @@
+libs/keyforge-protocol/src/protocol.rs:57 - missing documentation for a struct field -     pub id: String,
+libs/keyforge-protocol/src/protocol.rs:58 - missing documentation for a struct field -     pub hash: String,
+libs/keyforge-protocol/src/protocol.rs:59 - missing documentation for a struct field -     pub size_bytes: u64,
+libs/keyforge-protocol/src/protocol.rs:60 - missing documentation for a struct field -     pub last_updated: u64,
+libs/keyforge-physics/src/lib.rs:23 - missing documentation for a module - pub mod verify; 
+libs/keyforge-physics/src/lib.rs:24 - missing documentation for a module - pub mod errors;
+libs/keyforge-physics/src/lib.rs:43 - missing documentation for a struct - pub struct ScoringEngine {
+libs/keyforge-physics/src/lib.rs:48 - missing documentation for an associated function -     pub fn new(
+libs/keyforge-physics/src/lib.rs:59 - missing documentation for a method -     pub fn score(&self, layout: &Layout) -> Result<f32, PhysicsError> {
+libs/keyforge-physics/src/lib.rs:66 - missing documentation for a method -     pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
+libs/keyforge-physics/src/lib.rs:72 - missing documentation for a method -     pub fn suggest_improvements(&self, layout: &Layout) -> Vec<SwapSuggestion> {
+libs/keyforge-physics/src/lib.rs:76 - missing documentation for a method -     pub fn calculate_swap_delta(
+libs/keyforge-physics/src/lib.rs:87 - missing documentation for a method -     pub fn score_raw(&self, layout: &[KeyCode]) -> Result<i64, PhysicsError> {
+libs/keyforge-physics/src/lib.rs:93 - missing documentation for a method -     pub fn key_count(&self) -> usize {
+libs/keyforge-physics/src/lib.rs:97 - missing documentation for a method -     pub fn trigram_count(&self) -> usize {
+libs/keyforge-physics/src/lib.rs:101 - missing documentation for a method -     pub fn context(&self) -> &EngineContext {
+libs/keyforge-physics/src/lib.rs:107 - missing documentation for a struct - pub struct EngineRequest {
+libs/keyforge-physics/src/lib.rs:108 - missing documentation for a struct field -     pub keyboard: Arc<Keyboard>,
+libs/keyforge-physics/src/lib.rs:109 - missing documentation for a struct field -     pub corpus: Arc<Corpus>,
+libs/keyforge-physics/src/lib.rs:110 - missing documentation for a struct field -     pub rubric: Arc<Rubric>,
+libs/keyforge-physics/src/lib.rs:111 - missing documentation for a struct field -     pub config: SearchConfig,
+libs/keyforge-physics/src/lib.rs:112 - missing documentation for a struct field -     pub initial_layout: Option<Layout>,
+libs/keyforge-physics/src/lib.rs:113 - missing documentation for a struct field -     pub pinned_keys: Vec<Option<KeyCode>>,
+libs/keyforge-physics/src/lib.rs:114 - missing documentation for a struct field -     pub cost_overrides: Vec<(usize, usize, f32)>,
+libs/keyforge-physics/src/lib.rs:118 - missing documentation for a function - pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
+libs/keyforge-physics/src/lib.rs:131 - missing documentation for a function - pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
+libs/keyforge-physics/src/lib.rs:141 - missing documentation for a function - pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
+libs/keyforge-physics/src/lib.rs:147 - missing documentation for a function - pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
+libs/keyforge-physics/src/analysis/fingerprint.rs:19 - missing documentation for a struct - pub struct LayoutIdentity {
+libs/keyforge-physics/src/analysis/fingerprint.rs:20 - missing documentation for a struct field -     pub name: String,
+libs/keyforge-physics/src/analysis/fingerprint.rs:21 - missing documentation for a struct field -     pub similarity: f32, // 0.0 to 1.0
+libs/keyforge-physics/src/analysis/fingerprint.rs:22 - missing documentation for a struct field -     pub distance: usize, // Hamming distance
+libs/keyforge-physics/src/kernel/mod.rs:24 - missing documentation for a struct - pub struct EngineContext {
+libs/keyforge-physics/src/verify.rs:19 - missing documentation for a struct - pub struct DeterministicScorer;
+libs/keyforge-physics/src/verify.rs:22 - missing documentation for an associated function -     pub fn score(
+libs/keyforge-core/src/lib.rs:26 - missing documentation for a module - pub mod loader;
+libs/keyforge-core/src/lib.rs:27 - missing documentation for a module - pub mod session;
+libs/keyforge-core/src/loader.rs:21 - missing documentation for a type alias - pub type LoaderResult<T> = Result<T, ForgeError>;
+libs/keyforge-core/src/loader.rs:26 - missing documentation for a struct - pub struct CostEntry {
+libs/keyforge-core/src/loader.rs:27 - missing documentation for a struct field -     pub from: String,
+libs/keyforge-core/src/loader.rs:28 - missing documentation for a struct field -     pub to: String,
+libs/keyforge-core/src/loader.rs:29 - missing documentation for a struct field -     pub cost: f32,
+libs/keyforge-core/src/loader.rs:33 - missing documentation for a struct - pub struct RawCostData {
+libs/keyforge-core/src/loader.rs:34 - missing documentation for a struct field -     pub entries: Vec<CostEntry>,
+libs/keyforge-core/src/loader.rs:38 - missing documentation for a method -     pub fn resolve(&self, geo: &keyforge_model::geometry::KeyboardGeometry) -> Vec<(usize, usize, f32)> {
+libs/keyforge-core/src/loader.rs:54 - missing documentation for a trait - pub trait AssetLoader: Send + Sync {
+libs/keyforge-core/src/loader.rs:55 - missing documentation for a method -     async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition>;
+libs/keyforge-core/src/loader.rs:56 - missing documentation for a method -     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus>;
+libs/keyforge-core/src/loader.rs:57 - missing documentation for a method -     async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData>;
+libs/keyforge-core/src/loader.rs:58 - missing documentation for a method -     async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry>;
+libs/keyforge-core/src/session.rs:24 - missing documentation for a struct field -     pub engine: Arc<ScoringEngine>,
+libs/keyforge-core/src/session.rs:25 - missing documentation for a struct field -     pub registry: Arc<KeycodeRegistry>,
+libs/keyforge-core/src/session.rs:26 - missing documentation for a struct field -     pub search_config: SearchConfig,
+libs/keyforge-core/src/session.rs:30 - missing documentation for an associated function -     pub fn new(
+libs/keyforge-adapter/src/lib.rs:20 - missing documentation for a module - pub mod conversion;
+libs/keyforge-adapter/src/lib.rs:21 - missing documentation for a module - pub mod error;
+libs/keyforge-adapter/src/conversion.rs:21 - missing documentation for a function - pub fn to_domain_corpus_source(s: &config::CorpusSource) -> keyforge_model::config::CorpusSource {
+libs/keyforge-adapter/src/conversion.rs:29 - missing documentation for a function - pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> keyforge_model::Keyboard {
+libs/keyforge-adapter/src/conversion.rs:45 - missing documentation for a function - pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
+libs/keyforge-adapter/src/conversion.rs:60 - missing documentation for a function - pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::SearchConfig {
+libs/keyforge-adapter/src/conversion.rs:72 - missing documentation for a function - pub fn resolve_constraints(
+libs/keyforge-adapter/src/conversion.rs:102 - missing documentation for a function - pub fn resolve_cost_matrix(
+libs/keyforge-adapter/src/conversion.rs:241 - missing documentation for a function - pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
+libs/keyforge-adapter/src/conversion.rs:261 - missing documentation for a function - pub fn to_domain_hand_index(val: keyforge_model::types::HandIndex) -> keyforge_model::types::HandIndex {
+libs/keyforge-adapter/src/conversion.rs:265 - missing documentation for a function - pub fn to_domain_finger_index(val: keyforge_model::types::FingerIndex) -> keyforge_model::types::FingerIndex {
+libs/keyforge-adapter/src/conversion.rs:269 - missing documentation for a function - pub fn to_domain_row_index(val: keyforge_model::types::RowIndex) -> keyforge_model::types::RowIndex {
+libs/keyforge-adapter/src/conversion.rs:273 - missing documentation for a function - pub fn to_domain_col_index(val: keyforge_model::types::ColIndex) -> keyforge_model::types::ColIndex {
+libs/keyforge-adapter/src/error.rs:18 - missing documentation for an enum - pub enum AdapterError {
+libs/keyforge-adapter/src/error.rs:20 - missing documentation for a variant -     Validation(String),
+libs/keyforge-adapter/src/error.rs:23 - missing documentation for a variant -     UnknownToken(String),
+libs/keyforge-adapter/src/error.rs:26 - missing documentation for a variant -     LayoutTooLong(usize),
+libs/keyforge-adapter/src/error.rs:29 - missing documentation for a type alias - pub type AdapterResult<T> = Result<T, AdapterError>;
+libs/keyforge-infra/build.rs:14 - missing documentation for the crate - use std::process::Command;
+libs/keyforge-compute/src/lib.rs:22 - missing documentation for a module - pub mod builder;
+libs/keyforge-compute/src/lib.rs:33 - missing documentation for a struct field -     pub engine: Arc<ScoringEngine>,
+libs/keyforge-compute/src/lib.rs:34 - missing documentation for a struct field -     pub registry: Arc<KeycodeRegistry>,
+libs/keyforge-compute/src/lib.rs:35 - missing documentation for a struct field -     pub search_config: SearchConfig,
+libs/keyforge-compute/src/lib.rs:39 - missing documentation for an associated function -     pub fn new(engine: Arc<ScoringEngine>, registry: Arc<KeycodeRegistry>, search_config: SearchConfig) -> Self {
+libs/keyforge-compute/src/lib.rs:44 - missing documentation for a method -     pub fn score(&self, layout: &Layout) -> Result<f32, keyforge_physics::PhysicsError> {
+libs/keyforge-compute/src/lib.rs:49 - missing documentation for a method -     pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
+libs/keyforge-compute/src/lib.rs:54 - missing documentation for a method -     pub fn suggest_improvements(&self, layout: &Layout) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
+libs/keyforge-compute/src/lib.rs:59 - missing documentation for a method -     pub fn optimize(&self, callback: impl ProgressCallback) -> Result<OptimizationResult, EvolutionError> {
+libs/keyforge-compute/src/builder.rs:26 - missing documentation for a struct - pub struct SessionBuilder<'a> {
+libs/keyforge-compute/src/builder.rs:31 - missing documentation for an associated function -     pub fn new(loader: &'a dyn AssetLoader) -> Self {
+libs/keyforge-compute/src/builder.rs:36 - missing documentation for a method -     pub async fn build(
+libs/keyforge-compute/src/builder.rs:98 - missing documentation for a method -     pub async fn build_from_job(&self, job: &JobRequest) -> LoaderResult<ScoringSession> {
+libs/keyforge-compute/src/builder.rs:111 - missing documentation for a method -     pub async fn build_preloaded(
+libs/keyforge-security/src/lib.rs:15 - missing documentation for the crate - use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+libs/keyforge-security/src/lib.rs:22 - missing documentation for an enum - pub enum SecurityError {
+libs/keyforge-security/src/lib.rs:24 - missing documentation for a variant -     Encoding(String),
+libs/keyforge-security/src/lib.rs:26 - missing documentation for a variant -     Key(String),
+libs/keyforge-security/src/lib.rs:28 - missing documentation for a variant -     Signature(String),
+libs/keyforge-security/src/lib.rs:31 - missing documentation for a type alias - pub type SecurityResult<T> = Result<T, SecurityError>;
+libs/keyforge-security/src/lib.rs:34 - missing documentation for a struct - pub struct SecretBytes(Vec<u8>);
+libs/keyforge-security/src/lib.rs:37 - missing documentation for an associated function -     pub fn new(data: Vec<u8>) -> Self {
+libs/keyforge-security/src/lib.rs:40 - missing documentation for a method -     pub fn as_slice(&self) -> &[u8] {
+libs/keyforge-security/src/lib.rs:46 - missing documentation for a struct - pub struct SecretString(String);
+libs/keyforge-security/src/lib.rs:49 - missing documentation for an associated function -     pub fn new(s: String) -> Self {
+libs/keyforge-security/src/lib.rs:52 - missing documentation for a method -     pub fn as_str(&self) -> &str {
+libs/keyforge-security/src/lib.rs:57 - missing documentation for a function - pub fn generate_keypair() -> (String, String) {
+libs/keyforge-security/src/lib.rs:87 - missing documentation for a function - pub fn sign_result(
+libs/keyforge-security/src/lib.rs:116 - missing documentation for a function - pub fn sign_result_direct(
+libs/keyforge-security/src/lib.rs:129 - missing documentation for a function - pub fn verify_result(
+libs/keyforge-security/src/lib.rs:172 - missing documentation for a function - pub fn generate_nonce() -> u64 {
+libs/keyforge-export/src/lib.rs:15 - missing documentation for the crate - pub mod qmk;
+libs/keyforge-export/src/lib.rs:15 - missing documentation for a module - pub mod qmk;
+libs/keyforge-export/src/lib.rs:16 - missing documentation for a module - pub mod via;
+libs/keyforge-export/src/lib.rs:17 - missing documentation for a module - pub mod zmk;
+libs/keyforge-export/src/lib.rs:21 - missing documentation for a trait - pub trait Exporter {
+libs/keyforge-export/src/lib.rs:22 - missing documentation for a method -     fn generate(&self, layout_name: &str, keys: &[String]) -> Result<String>;
+libs/keyforge-export/src/qmk.rs:19 - missing documentation for a struct - pub struct QmkExporter;
+libs/keyforge-export/src/via.rs:19 - missing documentation for a struct - pub struct ViaExporter;
+libs/keyforge-export/src/zmk.rs:19 - missing documentation for a struct - pub struct ZmkExporter;
+apps/keyforge-ui/src-tauri/build.rs:1 - missing documentation for the crate - fn main() {
+libs/keyforge-wasm/src/lib.rs:15 - missing documentation for the crate - mod loader;
+libs/keyforge-wasm/src/lib.rs:29 - missing documentation for a struct - pub struct KeyforgeEngine {
+libs/keyforge-wasm/src/lib.rs:45 - missing documentation for an associated function -     pub fn new() -> Self {
+libs/keyforge-wasm/src/lib.rs:55 - missing documentation for a method -     pub fn load_keyboard(&self, name: String, json_def: JsValue) -> Result<(), JsValue> {
+libs/keyforge-wasm/src/lib.rs:62 - missing documentation for a method -     pub fn load_keycodes(&self, json_registry: JsValue) -> Result<(), JsValue> {
+libs/keyforge-wasm/src/lib.rs:69 - missing documentation for a method -     pub fn load_corpus(&self, name: String, json_corpus: JsValue) -> Result<(), JsValue> {
+libs/keyforge-wasm/src/lib.rs:76 - missing documentation for a method -     pub fn load_cost_matrix(&self, name: String, json_cost: JsValue) -> Result<(), JsValue> {
+libs/keyforge-wasm/src/lib.rs:85 - missing documentation for a method -     pub async fn init_session(
+libs/keyforge-wasm/src/lib.rs:149 - missing documentation for a method -     pub fn analyze_layout(&self, layout_str: String) -> Result<JsValue, JsValue> {
+libs/keyforge-wasm/src/lib.rs:172 - missing documentation for a function - pub fn validate_job_request(json_req: JsValue) -> Result<(), JsValue> {
+libs/keyforge-wasm/src/lib.rs:178 - missing documentation for a function - pub fn validate_layout_structure(layout_str: String) -> Result<(), JsValue> {
+libs/keyforge-testing/src/lib.rs:15 - missing documentation for the crate - use std::fs::{self, File};
+libs/keyforge-testing/src/lib.rs:23 - missing documentation for a struct - pub struct HermeticWorkspace {
+libs/keyforge-testing/src/lib.rs:24 - missing documentation for a struct field -     pub temp_dir: TempDir,
+libs/keyforge-testing/src/lib.rs:25 - missing documentation for a struct field -     pub data_root: PathBuf,
+libs/keyforge-testing/src/lib.rs:35 - missing documentation for an associated function -     pub fn new() -> Self {
+libs/keyforge-testing/src/lib.rs:51 - missing documentation for a method -     pub fn with_default_assets(mut self) -> Self {
+libs/keyforge-testing/src/lib.rs:68 - missing documentation for a method -     pub fn with_poison_pill(self) -> Self {
+libs/keyforge-testing/src/lib.rs:149 - missing documentation for a method -     pub fn with_keyboard(self, name: &str, def: KeyboardDefinition) -> Self {
+libs/keyforge-testing/src/lib.rs:156 - missing documentation for a method -     pub fn with_corpus(self, name: &str, char: &str, freq: u32) -> Self {
+libs/keyforge-testing/src/lib.rs:170 - missing documentation for a method -     pub fn with_cost_matrix(self, filename: &str, entries: Vec<CostEntry>) -> Self {
+libs/keyforge-testing/src/lib.rs:178 - missing documentation for a method -     pub fn with_keycodes(self, json: &str) -> Self {
+libs/keyforge-testing/src/lib.rs:184 - missing documentation for a method -     pub fn with_weights(self, name: &str, json: &str) -> Self {
+libs/keyforge-testing/src/lib.rs:190 - missing documentation for a method -     pub fn ensure_default_weights(&self) {
+libs/keyforge-testing/src/lib.rs:210 - missing documentation for a method -     pub fn keyboard_path(&self, name: &str) -> PathBuf {
+libs/keyforge-testing/src/lib.rs:213 - missing documentation for a method -     pub fn cost_path(&self, name: &str) -> PathBuf {
+libs/keyforge-testing/src/lib.rs:216 - missing documentation for a method -     pub fn weights_path(&self, name: &str) -> PathBuf {
+libs/keyforge-testing/src/lib.rs:219 - missing documentation for a method -     pub fn keycodes_path(&self) -> PathBuf {
+libs/keyforge-testing/src/lib.rs:222 - missing documentation for a method -     pub fn corpus_dir(&self, name: &str) -> PathBuf {
+corpora/openbookcorpus/src/main.rs:2 - missing documentation for the crate - use futures_util::StreamExt;
+libs/keyforge-infra/src/lib.rs:22 - missing documentation for a module - pub mod asset;
+libs/keyforge-infra/src/lib.rs:23 - missing documentation for a module - pub mod config;
+libs/keyforge-infra/src/lib.rs:24 - missing documentation for a module - pub mod error;
+libs/keyforge-infra/src/lib.rs:25 - missing documentation for a module - pub mod fs;
+libs/keyforge-infra/src/lib.rs:26 - missing documentation for a module - pub mod net;
+libs/keyforge-infra/src/lib.rs:27 - missing documentation for a module - pub mod util;
+/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/debug/build/keyforge-infra-3a2e55fe93cf2840/out/build_info.rs:1 - missing documentation for a constant - pub const GIT_HASH: &str = "da3010a";
+/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/debug/build/keyforge-infra-3a2e55fe93cf2840/out/build_info.rs:2 - missing documentation for a constant - pub const BUILD_DATE: &str = "2026-01-08 10:49:23";
+libs/keyforge-infra/src/lib.rs:58 - missing documentation for a function - pub fn get_build_info() -> (&'static str, &'static str) {
+libs/keyforge-infra/src/asset/mod.rs:15 - missing documentation for a module - pub mod fs_provider;
+libs/keyforge-infra/src/asset/mod.rs:16 - missing documentation for a module - pub mod manager;
+libs/keyforge-infra/src/asset/mod.rs:17 - missing documentation for a module - pub mod caching_provider;
+libs/keyforge-infra/src/asset/mod.rs:18 - missing documentation for a module - pub mod valkey_provider;
+libs/keyforge-infra/src/asset/fs_provider.rs:30 - missing documentation for a struct - pub struct FsProvider {
+libs/keyforge-infra/src/asset/fs_provider.rs:31 - missing documentation for a struct field -     pub root: PathBuf,
+libs/keyforge-infra/src/asset/fs_provider.rs:35 - missing documentation for an associated function -     pub fn new(root: PathBuf) -> Self {
+libs/keyforge-infra/src/asset/fs_provider.rs:95 - missing documentation for a method -     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
+libs/keyforge-infra/src/asset/manager.rs:24 - missing documentation for a struct - pub struct AssetManager {
+libs/keyforge-infra/src/asset/manager.rs:30 - missing documentation for an associated function -     pub fn new(client: HiveClient, root: PathBuf) -> Self {
+libs/keyforge-infra/src/asset/manager.rs:34 - missing documentation for a method -     pub async fn ensure_keyboard(&self, name: &str) -> InfraResult<PathBuf> {
+libs/keyforge-infra/src/asset/manager.rs:45 - missing documentation for a method -     pub async fn ensure_cost_matrix(&self, filename: &str) -> InfraResult<PathBuf> {
+libs/keyforge-infra/src/asset/manager.rs:54 - missing documentation for a method -     pub async fn ensure_corpus(
+libs/keyforge-infra/src/asset/manager.rs:128 - missing documentation for a method -     pub async fn sync_job_assets(&self, config: &JobConfig) -> InfraResult<(String, String)> {
+libs/keyforge-infra/src/asset/caching_provider.rs:49 - missing documentation for an associated function -     pub fn new(data_path: PathBuf) -> Self {
+libs/keyforge-infra/src/asset/caching_provider.rs:115 - missing documentation for a method -     pub async fn warm_all(&self) -> Result<(), String> {
+libs/keyforge-infra/src/asset/caching_provider.rs:212 - missing documentation for a method -     pub fn get_file_content(&self, path: &str) -> Option<Bytes> {
+libs/keyforge-infra/src/asset/caching_provider.rs:215 - missing documentation for a method -     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
+libs/keyforge-infra/src/asset/caching_provider.rs:218 - missing documentation for a method -     pub fn invalidate_all(&self) {
+libs/keyforge-infra/src/asset/caching_provider.rs:226 - missing documentation for a method -     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
+libs/keyforge-infra/src/asset/valkey_provider.rs:32 - missing documentation for a struct - pub struct ValkeyProvider {
+libs/keyforge-infra/src/asset/valkey_provider.rs:37 - missing documentation for an associated function -     pub fn new(coordinator: Arc<DistributedCoordinator>) -> Self {
+libs/keyforge-infra/src/asset/valkey_provider.rs:41 - missing documentation for a method -     pub async fn get_manifest(&self) -> ServerManifest {
+libs/keyforge-infra/src/asset/valkey_provider.rs:52 - missing documentation for a method -     pub fn invalidate_all(&self) {}
+libs/keyforge-infra/src/asset/valkey_provider.rs:54 - missing documentation for a method -     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
+libs/keyforge-infra/src/asset/valkey_provider.rs:87 - missing documentation for a method -     pub async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
+libs/keyforge-infra/src/asset/valkey_provider.rs:92 - missing documentation for a method -     pub async fn list_keyboards(&self) -> Vec<String> {
+libs/keyforge-infra/src/asset/valkey_provider.rs:108 - missing documentation for a method -     pub async fn list_corpora(&self) -> Vec<String> {
+libs/keyforge-infra/src/asset/valkey_provider.rs:128 - missing documentation for a method -     pub async fn list_cost_matrices(&self) -> Vec<String> {
+libs/keyforge-infra/src/asset/valkey_provider.rs:143 - missing documentation for a method -     pub async fn load_config_asset<T: serde::de::DeserializeOwned + Send + 'static + Default>(&self, name: &str) -> Arc<T> {
+libs/keyforge-infra/src/config.rs:20 - missing documentation for a struct - pub struct CommonConfig {
+libs/keyforge-infra/src/config.rs:21 - missing documentation for a struct field -     pub data_dir: Option<PathBuf>,
+libs/keyforge-infra/src/config.rs:22 - missing documentation for a struct field -     pub hive_url: Option<String>,
+libs/keyforge-infra/src/config.rs:23 - missing documentation for a struct field -     pub logging_level: Option<String>,
+libs/keyforge-infra/src/config.rs:24 - missing documentation for a struct field -     pub cores: Option<usize>,
+libs/keyforge-infra/src/error.rs:18 - missing documentation for an enum - pub enum InfraError {
+libs/keyforge-infra/src/error.rs:20 - missing documentation for a variant -     Io(#[from] std::io::Error),
+libs/keyforge-infra/src/error.rs:23 - missing documentation for a variant -     Network(#[from] reqwest::Error),
+libs/keyforge-infra/src/error.rs:26 - missing documentation for a variant -     Serde(#[from] serde_json::Error),
+libs/keyforge-infra/src/error.rs:29 - missing documentation for a variant -     HashMismatch { expected: String, actual: String },
+libs/keyforge-infra/src/error.rs:29 - missing documentation for a struct field -     HashMismatch { expected: String, actual: String },
+libs/keyforge-infra/src/error.rs:29 - missing documentation for a struct field -     HashMismatch { expected: String, actual: String },
+libs/keyforge-infra/src/error.rs:32 - missing documentation for a variant -     LockError(String),
+libs/keyforge-infra/src/error.rs:35 - missing documentation for a variant -     Config(String),
+libs/keyforge-infra/src/error.rs:38 - missing documentation for a variant -     Validation(String),
+libs/keyforge-infra/src/error.rs:41 - missing documentation for a type alias - pub type InfraResult<T> = Result<T, InfraError>;
+libs/keyforge-infra/src/fs/mod.rs:15 - missing documentation for a module - pub mod init;
+libs/keyforge-infra/src/fs/mod.rs:16 - missing documentation for a module - pub mod io;
+libs/keyforge-infra/src/fs/mod.rs:17 - missing documentation for a module - pub mod listing;
+libs/keyforge-infra/src/fs/mod.rs:18 - missing documentation for a module - pub mod lock;
+libs/keyforge-infra/src/fs/mod.rs:19 - missing documentation for a module - pub mod paths;
+libs/keyforge-infra/src/fs/init.rs:29 - missing documentation for a constant - pub const REQUIRED_ASSETS: &[&str] = &[
+libs/keyforge-infra/src/fs/init.rs:35 - missing documentation for a constant - pub const SYSTEM_DIRS: &[&str] = &[
+libs/keyforge-infra/src/fs/init.rs:43 - missing documentation for a constant - pub const USER_WORKSPACE_DIRS: &[&str] = &[
+libs/keyforge-infra/src/fs/init.rs:50 - missing documentation for a constant - pub const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
+libs/keyforge-infra/src/fs/init.rs:80 - missing documentation for a function - pub fn ensure_dir(root: &Path, rel_path: &str) -> InfraResult<PathBuf> {
+libs/keyforge-infra/src/fs/init.rs:89 - missing documentation for a function - pub fn validate_system_assets(root: &Path) -> InfraResult<()> {
+libs/keyforge-infra/src/fs/io.rs:20 - missing documentation for a function - pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> InfraResult<()> {
+libs/keyforge-infra/src/fs/io.rs:37 - missing documentation for a function - pub fn read_to_string_limited<P: AsRef<Path>>(path: P, limit_bytes: u64) -> InfraResult<String> {
+libs/keyforge-infra/src/fs/listing.rs:63 - missing documentation for a function - pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
+libs/keyforge-infra/src/fs/listing.rs:75 - missing documentation for a function - pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
+libs/keyforge-infra/src/fs/listing.rs:114 - missing documentation for a function - pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
+libs/keyforge-infra/src/fs/listing.rs:125 - missing documentation for a function - pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
+libs/keyforge-infra/src/fs/lock.rs:20 - missing documentation for a struct - pub struct WorkspaceLock {
+libs/keyforge-infra/src/fs/lock.rs:25 - missing documentation for an associated function -     pub fn acquire(path: &Path) -> InfraResult<Self> {
+libs/keyforge-infra/src/fs/lock.rs:36 - missing documentation for a method -     pub fn release(&self) -> InfraResult<()> {
+libs/keyforge-infra/src/net/mod.rs:15 - missing documentation for a module - pub mod client;
+libs/keyforge-infra/src/net/mod.rs:16 - missing documentation for a module - pub mod network;
+libs/keyforge-infra/src/net/mod.rs:17 - missing documentation for a module - pub mod sync;
+libs/keyforge-infra/src/net/mod.rs:18 - missing documentation for a module - pub mod distributed; 
+libs/keyforge-infra/src/net/client.rs:20 - missing documentation for a struct - pub struct HiveClient {
+libs/keyforge-infra/src/net/client.rs:26 - missing documentation for an associated function -     pub fn new(base_url: String, secret: Option<String>) -> InfraResult<Self> {
+libs/keyforge-infra/src/net/client.rs:76 - missing documentation for a method -     pub fn get(&self, path: &str) -> RequestBuilder {
+libs/keyforge-infra/src/net/client.rs:80 - missing documentation for a method -     pub fn post(&self, path: &str) -> RequestBuilder {
+libs/keyforge-infra/src/net/network.rs:159 - missing documentation for a function - pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> InfraResult<String> {
+libs/keyforge-infra/src/net/network.rs:179 - missing documentation for a function - pub async fn ensure_cost_matrix(
+libs/keyforge-infra/src/net/sync.rs:26 - missing documentation for a struct - pub struct ServerManifest {
+libs/keyforge-infra/src/net/sync.rs:27 - missing documentation for a struct field -     pub files: HashMap<String, String>,
+libs/keyforge-infra/src/net/sync.rs:31 - missing documentation for a struct - pub struct SyncStats {
+libs/keyforge-infra/src/net/sync.rs:32 - missing documentation for a struct field -     pub downloaded: usize,
+libs/keyforge-infra/src/net/sync.rs:33 - missing documentation for a struct field -     pub merged: usize,
+libs/keyforge-infra/src/net/sync.rs:34 - missing documentation for a struct field -     pub skipped: usize,
+libs/keyforge-infra/src/net/sync.rs:35 - missing documentation for a struct field -     pub errors: Vec<String>,
+libs/keyforge-infra/src/net/sync.rs:38 - missing documentation for a function - pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<SyncStats, String> {
+libs/keyforge-infra/src/net/sync.rs:110 - missing documentation for a function - pub async fn bootstrap_essentials(
+libs/keyforge-infra/src/net/sync.rs:139 - missing documentation for a function - pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerManifest> {
+libs/keyforge-infra/src/net/distributed.rs:29 - missing documentation for a struct - pub struct DistributedCoordinator {
+libs/keyforge-infra/src/net/distributed.rs:34 - missing documentation for an associated function -     pub async fn new(url: &str) -> InfraResult<Self> {
+libs/keyforge-infra/src/net/distributed.rs:64 - missing documentation for a method -     pub async fn get_bin(&self, key: &str) -> InfraResult<Option<bytes::Bytes>> {
+libs/keyforge-infra/src/net/distributed.rs:70 - missing documentation for a method -     pub async fn set_bin(&self, key: &str, data: &[u8]) -> InfraResult<()> {
+libs/keyforge-infra/src/net/distributed.rs:76 - missing documentation for a method -     pub async fn scan_keys(&self, pattern: &str) -> InfraResult<Vec<String>> {
+libs/keyforge-infra/src/net/distributed.rs:98 - missing documentation for a method -     pub async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool> {
+libs/keyforge-infra/src/net/distributed.rs:117 - missing documentation for a method -     pub async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()> {
+libs/keyforge-infra/src/net/distributed.rs:126 - missing documentation for a method -     pub async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>> {
+libs/keyforge-infra/src/net/distributed.rs:141 - missing documentation for a method -     pub async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)> {
+libs/keyforge-infra/src/net/distributed.rs:160 - missing documentation for a method -     pub async fn publish_update(&self, job_id: &str, event: &str) -> InfraResult<()> {
+libs/keyforge-infra/src/net/distributed.rs:167 - missing documentation for a method -     pub async fn set_manifest_entry(&self, entry: &AssetManifestEntry) -> InfraResult<()> {
+libs/keyforge-infra/src/net/distributed.rs:181 - missing documentation for a method -     pub async fn get_manifest_hash(&self, asset_id: &str) -> InfraResult<Option<String>> {
+libs/keyforge-infra/src/net/distributed.rs:189 - missing documentation for a method -     pub async fn get_all_manifest_entries(&self) -> InfraResult<HashMap<String, String>> {
+libs/keyforge-infra/src/net/distributed.rs:207 - missing documentation for a method -     pub async fn count_active_nodes(&self) -> InfraResult<usize> {
+libs/keyforge-infra/src/util/mod.rs:15 - missing documentation for a module - pub mod common;
+libs/keyforge-infra/src/util/mod.rs:16 - missing documentation for a module - pub mod layout_parser;
+libs/keyforge-infra/src/util/mod.rs:17 - missing documentation for a module - pub mod corpus;
+libs/keyforge-infra/src/util/common.rs:21 - missing documentation for a function - pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
+libs/keyforge-infra/src/util/common.rs:42 - missing documentation for a function - pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
+libs/keyforge-infra/src/util/common.rs:51 - missing documentation for a function - pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
+libs/keyforge-infra/src/util/layout_parser.rs:31 - missing documentation for a function - pub fn parse_layout_string_permissive_cached(
+libs/keyforge-persistence/src/lib.rs:20 - missing documentation for a module - pub mod error;
+libs/keyforge-persistence/src/lib.rs:21 - missing documentation for a module - pub mod repo;
+libs/keyforge-persistence/src/lib.rs:22 - missing documentation for a module - pub mod project;
+libs/keyforge-persistence/src/lib.rs:23 - missing documentation for a module - pub mod compiler;
+libs/keyforge-persistence/src/lib.rs:32 - missing documentation for a module - pub mod store;
+libs/keyforge-persistence/src/repo/mod.rs:15 - missing documentation for a module - pub mod user_repo;
+libs/keyforge-persistence/src/repo/user_repo.rs:28 - missing documentation for a struct - pub struct UserLayoutStore {
+libs/keyforge-persistence/src/repo/user_repo.rs:32 - missing documentation for a struct - pub struct UserRepo {
+libs/keyforge-persistence/src/repo/user_repo.rs:37 - missing documentation for an associated function -     pub fn new(root: PathBuf) -> Self {
+libs/keyforge-persistence/src/repo/user_repo.rs:62 - missing documentation for a method -     pub fn save_layout(&self, kb_id: &str, name: &str, layout: &str) -> InfraResult<()> {
+libs/keyforge-persistence/src/repo/user_repo.rs:69 - missing documentation for a method -     pub fn delete_layout(&self, kb_id: &str, name: &str) -> InfraResult<()> {
+libs/keyforge-persistence/src/repo/user_repo.rs:78 - missing documentation for a method -     pub fn get_layouts(&self, kb_id: &str) -> HashMap<String, String> {
+libs/keyforge-persistence/src/repo/user_repo.rs:104 - missing documentation for a method -     pub fn record_biometrics(&self, samples: Vec<BiometricSample>) -> InfraResult<String> {
+libs/keyforge-persistence/src/repo/user_repo.rs:136 - missing documentation for a method -     pub fn get_biometrics(&self) -> Vec<BiometricSample> {
+libs/keyforge-persistence/src/repo/user_repo.rs:140 - missing documentation for a method -     pub fn reset_biometrics(&self) -> InfraResult<()> {
+libs/keyforge-persistence/src/repo/user_repo.rs:148 - missing documentation for a method -     pub fn generate_profile(&self) -> InfraResult<String> {
+libs/keyforge-persistence/src/repo/user_repo.rs:169 - missing documentation for a method -     pub fn save_keyboard_definition(
+libs/keyforge-persistence/src/store/mod.rs:15 - missing documentation for a module - pub mod autosave;
+libs/keyforge-persistence/src/store/autosave.rs:90 - missing documentation for an associated function -     pub fn new(root_path: PathBuf) -> Self {
+apps/keyforge-agent/src/lib.rs:16 - missing documentation for the crate - pub mod agent; // The Core Agent Logic
+apps/keyforge-agent/src/lib.rs:17 - missing documentation for a module - pub mod hw_detect;
+apps/keyforge-agent/src/lib.rs:18 - missing documentation for a module - pub mod logging;
+apps/keyforge-agent/src/lib.rs:19 - missing documentation for a module - pub mod models;
+apps/keyforge-agent/src/agent/mod.rs:32 - missing documentation for a module - pub mod calibration;
+apps/keyforge-agent/src/agent/mod.rs:33 - missing documentation for a module - pub mod compute;
+apps/keyforge-agent/src/agent/mod.rs:34 - missing documentation for a module - pub mod errors;
+apps/keyforge-agent/src/agent/mod.rs:35 - missing documentation for a module - pub mod maintenance;
+apps/keyforge-agent/src/agent/mod.rs:36 - missing documentation for a module - pub mod network;
+apps/keyforge-agent/src/agent/mod.rs:37 - missing documentation for a module - pub mod telemetry;
+apps/keyforge-agent/src/agent/mod.rs:38 - missing documentation for a module - pub mod crypto; // Re-export crypto for network module
+apps/keyforge-agent/src/agent/mod.rs:42 - missing documentation for a struct - pub struct Agent {
+apps/keyforge-agent/src/agent/mod.rs:48 - missing documentation for an associated function -     pub async fn new(config: AgentConfig) -> Self {
+apps/keyforge-agent/src/agent/mod.rs:53 - missing documentation for a method -     pub async fn run(&self, mut job_rx: mpsc::Receiver<JobConfig>) -> AgentResult<()> {
+apps/keyforge-agent/src/agent/compute.rs:34 - missing documentation for a trait - pub trait AssetSyncer {
+apps/keyforge-agent/src/agent/compute.rs:35 - missing documentation for a method -     fn sync_assets(
+apps/keyforge-agent/src/agent/compute.rs:55 - missing documentation for a function - pub async fn prepare_assets<S: AssetSyncer>(
+apps/keyforge-agent/src/agent/compute.rs:62 - missing documentation for a struct - pub struct PreparedJob {
+apps/keyforge-agent/src/agent/compute.rs:63 - missing documentation for a struct field -     pub req: EngineRequest,
+apps/keyforge-agent/src/agent/compute.rs:64 - missing documentation for a struct field -     pub registry: keyforge_model::keycodes::KeycodeRegistry,
+apps/keyforge-agent/src/agent/compute.rs:65 - missing documentation for a struct field -     pub keyboard: std::sync::Arc<keyforge_model::Keyboard>,
+apps/keyforge-agent/src/agent/compute.rs:66 - missing documentation for a struct field -     pub corpus: std::sync::Arc<keyforge_model::Corpus>,
+apps/keyforge-agent/src/agent/compute.rs:67 - missing documentation for a struct field -     pub rubric: std::sync::Arc<keyforge_model::Rubric>,
+apps/keyforge-agent/src/agent/compute.rs:68 - missing documentation for a struct field -     pub cost_overrides: Vec<(usize, usize, f32)>,
+apps/keyforge-agent/src/agent/compute.rs:71 - missing documentation for a function - pub async fn create_engine_request(
+apps/keyforge-agent/src/agent/compute.rs:149 - missing documentation for a function - pub async fn run_optimization(
+apps/keyforge-agent/src/agent/errors.rs:19 - missing documentation for an enum - pub enum AgentError {
+apps/keyforge-agent/src/agent/errors.rs:21 - missing documentation for a variant -     Identity(String),
+apps/keyforge-agent/src/agent/errors.rs:24 - missing documentation for a variant -     Hardware(String),
+apps/keyforge-agent/src/agent/errors.rs:27 - missing documentation for a variant -     Calibration(String),
+apps/keyforge-agent/src/agent/errors.rs:30 - missing documentation for a variant -     Network(String),
+apps/keyforge-agent/src/agent/errors.rs:33 - missing documentation for a variant -     Internal(String),
+apps/keyforge-agent/src/agent/errors.rs:36 - missing documentation for a variant -     Resource(String),
+apps/keyforge-agent/src/agent/errors.rs:39 - missing documentation for a type alias - pub type AgentResult<T> = Result<T, AgentError>;
+apps/keyforge-agent/src/agent/network.rs:33 - missing documentation for a struct - pub struct NetworkManager {
+apps/keyforge-agent/src/agent/network.rs:63 - missing documentation for an associated function -     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
+apps/keyforge-agent/src/agent/network.rs:72 - missing documentation for a method -     pub fn can_attempt(&self) -> bool {
+apps/keyforge-agent/src/agent/network.rs:84 - missing documentation for a method -     pub fn record_failure(&mut self) {
+apps/keyforge-agent/src/agent/network.rs:89 - missing documentation for a method -     pub fn record_success(&mut self) {
+apps/keyforge-agent/src/agent/network.rs:103 - missing documentation for an associated function -     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
+apps/keyforge-agent/src/agent/network.rs:113 - missing documentation for a method -     pub fn try_send(&self, submission: ResultSubmission) -> AgentResult<()> {
+apps/keyforge-agent/src/agent/network.rs:129 - missing documentation for an associated function -     pub fn new(
+apps/keyforge-agent/src/agent/network.rs:147 - missing documentation for a method -     pub async fn run(self) {
+apps/keyforge-agent/src/agent/network.rs:264 - missing documentation for a method -     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
+apps/keyforge-agent/src/agent/telemetry.rs:26 - missing documentation for a struct field -     pub stop_flag: Arc<AtomicBool>,
+apps/keyforge-agent/src/agent/telemetry.rs:27 - missing documentation for a struct field -     pub job_id: String,
+apps/keyforge-agent/src/agent/telemetry.rs:28 - missing documentation for a struct field -     pub telemetry: SharedTelemetry,
+apps/keyforge-agent/src/agent/crypto.rs:19 - missing documentation for a function - pub fn sign_result_direct(
+apps/keyforge-agent/src/hw_detect.rs:24 - missing documentation for a struct field -     pub model: String,
+apps/keyforge-agent/src/hw_detect.rs:25 - missing documentation for a struct field -     pub architecture: String,
+apps/keyforge-agent/src/hw_detect.rs:26 - missing documentation for a struct field -     pub cores: usize,
+apps/keyforge-agent/src/hw_detect.rs:27 - missing documentation for a struct field -     pub l1_data_kb: Option<usize>,
+apps/keyforge-agent/src/hw_detect.rs:28 - missing documentation for a struct field -     pub l2_kb: Option<usize>,
+apps/keyforge-agent/src/hw_detect.rs:29 - missing documentation for a struct field -     pub l3_kb: Option<usize>,
+apps/keyforge-agent/src/models.rs:28 - missing documentation for a struct field -     pub hive_url: String,
+apps/keyforge-agent/src/models.rs:29 - missing documentation for a struct field -     pub node_id: String,
+apps/keyforge-agent/src/models.rs:30 - missing documentation for a struct field -     pub secret: String,
+apps/keyforge-agent/src/models.rs:31 - missing documentation for a struct field -     pub private_key: String,
+apps/keyforge-agent/src/models.rs:32 - missing documentation for a struct field -     pub data_dir: PathBuf,
+apps/keyforge-agent/src/models.rs:33 - missing documentation for a struct field -     pub cores: usize,
+apps/keyforge-agent/src/models.rs:54 - missing documentation for a struct field -     pub ips: AtomicU32,
+apps/keyforge-agent/src/models.rs:55 - missing documentation for a struct field -     pub temp: AtomicU32,
+apps/keyforge-agent/src/models.rs:56 - missing documentation for a struct field -     pub best_score: AtomicU32,
+apps/keyforge-agent/src/models.rs:57 - missing documentation for a struct field -     pub job_id_hash: AtomicU64, // Partial hash for identification
+apps/keyforge-agent/src/models.rs:58 - missing documentation for a struct field -     pub current_job_id: RwLock<String>,
+apps/keyforge-agent/src/models.rs:74 - missing documentation for a method -     pub fn update(&self, ips: f32, temp: f32, best_score: f32) {
+apps/keyforge-agent/src/models.rs:80 - missing documentation for a method -     pub fn set_job_id(&self, id: &str) {
+apps/keyforge-agent/src/models.rs:86 - missing documentation for a method -     pub fn get_job_id(&self) -> String {
+apps/keyforge-agent/src/models.rs:90 - missing documentation for a method -     pub fn snapshot(&self) -> (f32, f32, f32) {
+apps/keyforge-agent/src/models.rs:99 - missing documentation for a type alias - pub type SharedTelemetry = Arc<AgentTelemetry>;
+apps/keyforge-cli/src/main.rs:250 - missing documentation for a function - pub fn is_interrupted() -> bool {
+apps/keyforge-agent/src/main.rs:16 - missing documentation for the crate - use clap::Parser;
+apps/keyforge-ui/src-tauri/src/lib.rs:1 - missing documentation for the crate - use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
+apps/keyforge-ui/src-tauri/src/lib.rs:7 - missing documentation for a module - pub mod commands;
+apps/keyforge-ui/src-tauri/src/lib.rs:8 - missing documentation for a module - pub mod error;
+apps/keyforge-ui/src-tauri/src/lib.rs:9 - missing documentation for a module - pub mod models;
+apps/keyforge-ui/src-tauri/src/lib.rs:10 - missing documentation for a module - pub mod state;
+apps/keyforge-ui/src-tauri/src/lib.rs:11 - missing documentation for a module - pub mod utils;
+apps/keyforge-ui/src-tauri/src/lib.rs:14 - missing documentation for a function - pub fn run() {
+apps/keyforge-ui/src-tauri/src/commands/mod.rs:1 - missing documentation for a module - pub mod analysis;
+apps/keyforge-ui/src-tauri/src/commands/mod.rs:2 - missing documentation for a module - pub mod arena;
+apps/keyforge-ui/src-tauri/src/commands/mod.rs:3 - missing documentation for a module - pub mod config;
+apps/keyforge-ui/src-tauri/src/commands/mod.rs:4 - missing documentation for a module - pub mod library;
+apps/keyforge-ui/src-tauri/src/commands/mod.rs:5 - missing documentation for a module - pub mod search;
+apps/keyforge-ui/src-tauri/src/commands/mod.rs:6 - missing documentation for a module - pub mod sync;
+apps/keyforge-ui/src-tauri/src/commands/mod.rs:7 - missing documentation for a module - pub mod system;
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:16 - missing documentation for a struct - pub struct CorpusStats {
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:17 - missing documentation for a struct field -     pub name: String,
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:18 - missing documentation for a struct field -     pub size_bytes: u64,
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:19 - missing documentation for a struct field -     pub path: String,
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:23 - missing documentation for a function - pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:29 - missing documentation for a function - pub fn cmd_get_corpus_stats(_app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:34 - missing documentation for a function - pub fn cmd_list_cost_matrices(app: AppHandle) -> Result<Vec<String>, CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:40 - missing documentation for a function - pub async fn cmd_load_dataset(
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:77 - missing documentation for a function - pub async fn cmd_validate_layout(
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:144 - missing documentation for a function - pub async fn cmd_get_layout_stats(
+apps/keyforge-ui/src-tauri/src/commands/analysis.rs:152 - missing documentation for a function - pub async fn cmd_get_smart_swaps(
+apps/keyforge-ui/src-tauri/src/commands/arena.rs:10 - missing documentation for a function - pub async fn cmd_get_typing_words(
+apps/keyforge-ui/src-tauri/src/commands/arena.rs:59 - missing documentation for a function - pub fn cmd_save_biometrics(
+apps/keyforge-ui/src-tauri/src/commands/arena.rs:71 - missing documentation for a function - pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, String> {
+apps/keyforge-ui/src-tauri/src/commands/arena.rs:78 - missing documentation for a function - pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
+apps/keyforge-ui/src-tauri/src/commands/arena.rs:85 - missing documentation for a function - pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, String> {
+apps/keyforge-ui/src-tauri/src/commands/arena.rs:93 - missing documentation for a function - pub async fn cmd_get_corpus_bigrams(
+apps/keyforge-ui/src-tauri/src/commands/config.rs:12 - missing documentation for a function - pub fn cmd_get_default_config() -> Config {
+apps/keyforge-ui/src-tauri/src/commands/config.rs:17 - missing documentation for a function - pub async fn cmd_get_keycodes(
+apps/keyforge-ui/src-tauri/src/commands/config.rs:35 - missing documentation for a function - pub fn cmd_get_ui_categories(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:16 - missing documentation for a function - pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/library.rs:22 - missing documentation for a function - pub fn cmd_list_keymap_extras(app: AppHandle) -> Result<Vec<String>, CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/library.rs:28 - missing documentation for a function - pub async fn cmd_get_loaded_layouts(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:35 - missing documentation for a function - pub async fn cmd_get_keyboard_geometry(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:49 - missing documentation for a function - pub async fn cmd_get_all_layouts_scoped(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:65 - missing documentation for a function - pub fn cmd_save_user_layout(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:78 - missing documentation for a function - pub fn cmd_delete_user_layout(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:90 - missing documentation for a function - pub async fn cmd_submit_user_layout(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:116 - missing documentation for a function - pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/library.rs:132 - missing documentation for a function - pub fn cmd_export_to_kle(def: KeyboardDefinition) -> Result<String, CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/library.rs:137 - missing documentation for a function - pub fn cmd_save_keyboard(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:149 - missing documentation for a function - pub fn cmd_export_firmware(
+apps/keyforge-ui/src-tauri/src/commands/library.rs:169 - missing documentation for a function - pub fn cmd_safe_write_file(path: String, content: String) -> Result<(), CommandError> {
+apps/keyforge-ui/src-tauri/src/commands/search.rs:9 - missing documentation for a function - pub async fn cmd_dispatch_job(
+apps/keyforge-ui/src-tauri/src/commands/search.rs:44 - missing documentation for a function - pub async fn cmd_poll_hive_status(
+apps/keyforge-ui/src-tauri/src/commands/search.rs:79 - missing documentation for a function - pub fn cmd_toggle_local_worker(
+apps/keyforge-ui/src-tauri/src/commands/search.rs:91 - missing documentation for a function - pub async fn cmd_start_search(
+apps/keyforge-ui/src-tauri/src/commands/search.rs:103 - missing documentation for a function - pub fn cmd_stop_search(search_state: tauri::State<SearchState>) {
+apps/keyforge-ui/src-tauri/src/commands/sync.rs:9 - missing documentation for a function - pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats, String> {
+apps/keyforge-ui/src-tauri/src/commands/sync.rs:19 - missing documentation for a function - pub async fn cmd_bootstrap_assets(app: AppHandle, hive_url: String) -> Result<Vec<String>, String> {
+apps/keyforge-ui/src-tauri/src/commands/system.rs:8 - missing documentation for a struct - pub struct SystemHealth {
+apps/keyforge-ui/src-tauri/src/commands/system.rs:9 - missing documentation for a struct field -     pub cpu_usage: f32,
+apps/keyforge-ui/src-tauri/src/commands/system.rs:10 - missing documentation for a struct field -     pub memory_used: u64,
+apps/keyforge-ui/src-tauri/src/commands/system.rs:11 - missing documentation for a struct field -     pub memory_total: u64,
+apps/keyforge-ui/src-tauri/src/commands/system.rs:12 - missing documentation for a struct field -     pub uptime: u64,
+apps/keyforge-ui/src-tauri/src/commands/system.rs:13 - missing documentation for a struct field -     pub cores: usize,
+apps/keyforge-ui/src-tauri/src/commands/system.rs:17 - missing documentation for a function - pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
+apps/keyforge-ui/src-tauri/src/commands/system.rs:36 - missing documentation for a function - pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandError> {
+apps/keyforge-ui/src-tauri/src/error.rs:7 - missing documentation for an enum - pub enum CommandError {
+apps/keyforge-ui/src-tauri/src/error.rs:9 - missing documentation for a variant -     Io(#[from] std::io::Error),
+apps/keyforge-ui/src-tauri/src/error.rs:12 - missing documentation for a variant -     Serde(#[from] serde_json::Error),
+apps/keyforge-ui/src-tauri/src/error.rs:15 - missing documentation for a variant -     Config(String),
+apps/keyforge-ui/src-tauri/src/error.rs:18 - missing documentation for a variant -     Validation(String),
+apps/keyforge-ui/src-tauri/src/error.rs:21 - missing documentation for a variant -     Network(String),
+apps/keyforge-ui/src-tauri/src/error.rs:24 - missing documentation for a variant -     Internal(String),
+apps/keyforge-ui/src-tauri/src/error.rs:27 - missing documentation for a variant -     Physics(#[from] keyforge_core::PhysicsError),
+apps/keyforge-ui/src-tauri/src/error.rs:30 - missing documentation for a variant -     NotFound, // ADDED
+apps/keyforge-ui/src-tauri/src/error.rs:34 - missing documentation for a struct - pub struct CommandErrorResponse {
+apps/keyforge-ui/src-tauri/src/error.rs:35 - missing documentation for a struct field -     pub code: ErrorCode,
+apps/keyforge-ui/src-tauri/src/error.rs:36 - missing documentation for a struct field -     pub message: String,
+apps/keyforge-ui/src-tauri/src/models.rs:13 - missing documentation for a struct - pub struct JobStatusUpdate {
+apps/keyforge-ui/src-tauri/src/models.rs:14 - missing documentation for a struct field -     pub active_nodes: usize,
+apps/keyforge-ui/src-tauri/src/models.rs:15 - missing documentation for a struct field -     pub best_score: f32,
+apps/keyforge-ui/src-tauri/src/models.rs:16 - missing documentation for a struct field -     pub best_layout: String,
+apps/keyforge-ui/src-tauri/src/models.rs:20 - missing documentation for a struct - pub struct SearchUpdate {
+apps/keyforge-ui/src-tauri/src/models.rs:21 - missing documentation for a struct field -     pub epoch: usize,
+apps/keyforge-ui/src-tauri/src/models.rs:22 - missing documentation for a struct field -     pub score: f32,
+apps/keyforge-ui/src-tauri/src/models.rs:23 - missing documentation for a struct field -     pub layout: String,
+apps/keyforge-ui/src-tauri/src/models.rs:24 - missing documentation for a struct field -     pub ips: f32,
+apps/keyforge-ui/src-tauri/src/models.rs:28 - missing documentation for a struct - pub struct StartSearchRequest {
+apps/keyforge-ui/src-tauri/src/models.rs:29 - missing documentation for a struct field -     pub pinned_keys: String,
+apps/keyforge-ui/src-tauri/src/models.rs:30 - missing documentation for a struct field -     pub search_params: keyforge_model::config::SearchParams,
+apps/keyforge-ui/src-tauri/src/models.rs:31 - missing documentation for a struct field -     pub weights: keyforge_model::config::ScoringWeights,
+apps/keyforge-ui/src-tauri/src/models.rs:35 - missing documentation for a struct - pub struct ServerManifest {
+apps/keyforge-ui/src-tauri/src/models.rs:36 - missing documentation for a struct field -     pub files: HashMap<String, String>,
+apps/keyforge-ui/src-tauri/src/models.rs:40 - missing documentation for a struct - pub struct SyncStats {
+apps/keyforge-ui/src-tauri/src/models.rs:41 - missing documentation for a struct field -     pub downloaded: usize,
+apps/keyforge-ui/src-tauri/src/models.rs:42 - missing documentation for a struct field -     pub merged: usize,
+apps/keyforge-ui/src-tauri/src/models.rs:43 - missing documentation for a struct field -     pub skipped: usize,
+apps/keyforge-ui/src-tauri/src/models.rs:44 - missing documentation for a struct field -     pub errors: Vec<String>,
+apps/keyforge-ui/src-tauri/src/models.rs:48 - missing documentation for a struct - pub struct ValidationResult {
+apps/keyforge-ui/src-tauri/src/models.rs:49 - missing documentation for a struct field -     pub layout_name: String,
+apps/keyforge-ui/src-tauri/src/models.rs:50 - missing documentation for a struct field -     pub score: keyforge_model::AnalysisReport,
+apps/keyforge-ui/src-tauri/src/models.rs:51 - missing documentation for a struct field -     pub geometry: keyforge_model::geometry::KeyboardGeometry,
+apps/keyforge-ui/src-tauri/src/models.rs:52 - missing documentation for a struct field -     pub heatmap: Vec<f32>,
+apps/keyforge-ui/src-tauri/src/models.rs:53 - missing documentation for a struct field -     pub penalty_map: Vec<f32>,
+apps/keyforge-ui/src-tauri/src/models.rs:57 - missing documentation for a struct - pub struct DerivedStats {
+apps/keyforge-ui/src-tauri/src/models.rs:58 - missing documentation for a struct field -     pub hand_balance: f32,
+apps/keyforge-ui/src-tauri/src/state.rs:15 - missing documentation for a struct - pub struct LocalWorkerState {
+apps/keyforge-ui/src-tauri/src/state.rs:16 - missing documentation for a struct field -     pub child: Arc<Mutex<Option<CommandChild>>>,
+apps/keyforge-ui/src-tauri/src/state.rs:19 - missing documentation for a struct - pub struct SearchState {
+apps/keyforge-ui/src-tauri/src/state.rs:20 - missing documentation for a struct field -     pub stop_flag: Arc<Mutex<bool>>,
+apps/keyforge-ui/src-tauri/src/state.rs:24 - missing documentation for a struct - pub struct AssetCache {
+apps/keyforge-ui/src-tauri/src/state.rs:33 - missing documentation for an associated function -     pub fn new(root: PathBuf) -> Self {
+apps/keyforge-ui/src-tauri/src/state.rs:92 - missing documentation for a struct - pub struct SessionState {
+apps/keyforge-ui/src-tauri/src/state.rs:93 - missing documentation for a struct field -     pub active: Arc<RwLock<Option<Runtime>>>,
+apps/keyforge-ui/src-tauri/src/state.rs:94 - missing documentation for a struct field -     pub assets: Arc<AssetCache>,
+apps/keyforge-ui/src-tauri/src/utils.rs:5 - missing documentation for a function - pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
+apps/keyforge-hive/src/lib.rs:46 - missing documentation for a module - pub mod bootstrap;
+apps/keyforge-hive/src/lib.rs:47 - missing documentation for a module - pub mod cache;
+apps/keyforge-hive/src/lib.rs:50 - missing documentation for a module - pub mod cron;
+apps/keyforge-hive/src/lib.rs:52 - missing documentation for a module - pub mod infra;
+apps/keyforge-hive/src/lib.rs:55 - missing documentation for a module - pub mod observability;
+apps/keyforge-hive/src/lib.rs:57 - missing documentation for a module - pub mod state;
+apps/keyforge-hive/src/lib.rs:76 - missing documentation for a function - pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
+apps/keyforge-hive/src/bootstrap.rs:33 - missing documentation for an associated constant -     pub const DEFAULT_PATH: &'static str = "/etc/keyforge/hive.toml";
+apps/keyforge-hive/src/bootstrap.rs:35 - missing documentation for an associated function -     pub fn load(path: &Path) -> Result<Self, String> {
+apps/keyforge-hive/src/cache.rs:21 - missing documentation for a struct - pub struct CompiledEngineCache {
+apps/keyforge-hive/src/cache.rs:32 - missing documentation for an associated function -     pub fn new() -> Self {
+apps/keyforge-hive/src/cache.rs:41 - missing documentation for a method -     pub fn get(&self, job_id: &str) -> Option<Arc<keyforge_core::ScoringEngine>> {
+apps/keyforge-hive/src/cache.rs:45 - missing documentation for a method -     pub fn insert(&self, job_id: &str, engine: Arc<keyforge_core::ScoringEngine>) {
+apps/keyforge-hive/src/cache.rs:49 - missing documentation for a method -     pub fn invalidate_all(&self) {
+apps/keyforge-hive/src/cron.rs:21 - missing documentation for a function - pub async fn start_cron_jobs(
+apps/keyforge-hive/src/infra/mod.rs:15 - missing documentation for a module - pub mod db;
+apps/keyforge-hive/src/infra/mod.rs:16 - missing documentation for a module - pub mod queue;
+apps/keyforge-hive/src/infra/mod.rs:17 - missing documentation for a module - pub mod repositories;
+apps/keyforge-hive/src/infra/mod.rs:18 - missing documentation for a module - pub mod tui;
+apps/keyforge-hive/src/infra/db.rs:33 - missing documentation for a struct field -     ConnectTimeout { attempts: u32, db_url: String },
+apps/keyforge-hive/src/infra/db.rs:33 - missing documentation for a struct field -     ConnectTimeout { attempts: u32, db_url: String },
+apps/keyforge-hive/src/infra/db.rs:37 - missing documentation for a struct field -     MigrationFailed { attempts: u32, error: String },
+apps/keyforge-hive/src/infra/db.rs:37 - missing documentation for a struct field -     MigrationFailed { attempts: u32, error: String },
+apps/keyforge-hive/src/infra/queue.rs:44 - missing documentation for an enum - pub enum DbEvent {
+apps/keyforge-hive/src/infra/queue.rs:45 - missing documentation for a variant -     Result {
+apps/keyforge-hive/src/infra/queue.rs:46 - missing documentation for a struct field -         job_id: String,
+apps/keyforge-hive/src/infra/queue.rs:47 - missing documentation for a struct field -         layout: String,
+apps/keyforge-hive/src/infra/queue.rs:48 - missing documentation for a struct field -         score: f32,
+apps/keyforge-hive/src/infra/queue.rs:49 - missing documentation for a struct field -         node_id: String,
+apps/keyforge-hive/src/infra/queue.rs:50 - missing documentation for a struct field -         ack: Option<oneshot::Sender<()>>,
+apps/keyforge-hive/src/infra/queue.rs:52 - missing documentation for a variant -     Shutdown(oneshot::Sender<()>),
+apps/keyforge-hive/src/infra/queue.rs:90 - missing documentation for a struct - pub struct WriteQueue {
+apps/keyforge-hive/src/infra/queue.rs:97 - missing documentation for an associated function -     pub fn new(repo: ResultRepository, data_path: PathBuf, assets: Arc<ValkeyProvider>) -> Self {
+apps/keyforge-hive/src/infra/queue.rs:160 - missing documentation for a method -     pub async fn push(&self, event: DbEvent) {
+apps/keyforge-hive/src/infra/queue.rs:193 - missing documentation for a method -     pub async fn current_depth(&self) -> usize {
+apps/keyforge-hive/src/infra/queue.rs:197 - missing documentation for a method -     pub async fn shutdown(&self) {
+apps/keyforge-hive/src/infra/repositories/mod.rs:15 - missing documentation for a module - pub mod audit;
+apps/keyforge-hive/src/infra/repositories/mod.rs:16 - missing documentation for a module - pub mod jobs;
+apps/keyforge-hive/src/infra/repositories/mod.rs:17 - missing documentation for a module - pub mod nodes;
+apps/keyforge-hive/src/infra/repositories/mod.rs:18 - missing documentation for a module - pub mod results;
+apps/keyforge-hive/src/infra/repositories/mod.rs:19 - missing documentation for a module - pub mod submissions;
+apps/keyforge-hive/src/infra/repositories/mod.rs:20 - missing documentation for a module - pub mod users; // ADDED
+apps/keyforge-hive/src/infra/repositories/audit.rs:19 - missing documentation for a struct - pub struct AuditRepository {
+apps/keyforge-hive/src/infra/repositories/audit.rs:23 - missing documentation for a struct - pub struct AuditLog<'a> {
+apps/keyforge-hive/src/infra/repositories/audit.rs:24 - missing documentation for a struct field -     pub action: &'a str,
+apps/keyforge-hive/src/infra/repositories/audit.rs:25 - missing documentation for a struct field -     pub actor_id: Option<Uuid>,
+apps/keyforge-hive/src/infra/repositories/audit.rs:26 - missing documentation for a struct field -     pub target: Option<&'a str>,
+apps/keyforge-hive/src/infra/repositories/audit.rs:27 - missing documentation for a struct field -     pub details: Option<serde_json::Value>,
+apps/keyforge-hive/src/infra/repositories/audit.rs:28 - missing documentation for a struct field -     pub ip: Option<String>,
+apps/keyforge-hive/src/infra/repositories/audit.rs:29 - missing documentation for a struct field -     pub status_code: Option<i32>,
+apps/keyforge-hive/src/infra/repositories/audit.rs:30 - missing documentation for a struct field -     pub request_id: Option<Uuid>,
+apps/keyforge-hive/src/infra/repositories/audit.rs:31 - missing documentation for a struct field -     pub user_agent: Option<String>,
+apps/keyforge-hive/src/infra/repositories/audit.rs:35 - missing documentation for an associated function -     pub fn new(pool: Pool<Postgres>) -> Self {
+apps/keyforge-hive/src/infra/repositories/audit.rs:39 - missing documentation for a method -     pub async fn log(&self, entry: AuditLog<'_>) -> Result<(), sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/jobs.rs:31 - missing documentation for an associated function -     pub fn new(pool: Pool<Postgres>) -> Self {
+apps/keyforge-hive/src/infra/repositories/jobs.rs:35 - missing documentation for a method -     pub async fn ping(&self) -> Result<(), sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/jobs.rs:40 - missing documentation for a method -     pub async fn exists(&self, job_id: &str) -> Result<bool, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/jobs.rs:48 - missing documentation for a method -     pub async fn register(
+apps/keyforge-hive/src/infra/repositories/jobs.rs:279 - missing documentation for a method -     pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/jobs.rs:471 - missing documentation for a method -     pub async fn get_config(
+apps/keyforge-hive/src/infra/repositories/jobs.rs:519 - missing documentation for a method -     pub async fn cancel(&self, job_id: &str) -> Result<(), sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/jobs.rs:527 - missing documentation for a method -     pub async fn count_active(&self) -> Result<i64, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/jobs.rs:534 - missing documentation for a method -     pub async fn prune_old_jobs(&self, days: i32) -> Result<u64, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/nodes.rs:19 - missing documentation for a struct - pub struct NodeRepository {
+apps/keyforge-hive/src/infra/repositories/nodes.rs:24 - missing documentation for an associated function -     pub fn new(pool: Pool<Postgres>) -> Self {
+apps/keyforge-hive/src/infra/repositories/nodes.rs:107 - missing documentation for a method -     pub async fn get_public_key(&self, node_id: &str) -> Result<Option<String>, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/nodes.rs:116 - missing documentation for a method -     pub async fn prune_inactive_nodes(&self, minutes: i32) -> Result<u64, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/results.rs:19 - missing documentation for a struct - pub struct ResultRepository {
+apps/keyforge-hive/src/infra/repositories/results.rs:24 - missing documentation for an associated function -     pub fn new(pool: Pool<Postgres>) -> Self {
+apps/keyforge-hive/src/infra/repositories/results.rs:28 - missing documentation for a method -     pub async fn get_population(&self, job_id: &str) -> Result<Vec<String>, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/results.rs:48 - missing documentation for a method -     pub async fn get_best_score(&self, job_id: &str) -> Result<Option<f32>, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/results.rs:62 - missing documentation for a method -     pub async fn insert_batch(&self, items: &[(&str, &str, f32, &str)]) -> Result<(), sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/results.rs:84 - missing documentation for a method -     pub async fn count_total(&self) -> Result<i64, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/results.rs:91 - missing documentation for a method -     pub async fn get_stats(
+apps/keyforge-hive/src/infra/repositories/results.rs:120 - missing documentation for a method -     pub async fn prune_old_results(&self, days: i32, keep_top: i32) -> Result<u64, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/submissions.rs:20 - missing documentation for a struct - pub struct SubmissionRepository {
+apps/keyforge-hive/src/infra/repositories/submissions.rs:25 - missing documentation for an associated function -     pub fn new(pool: Pool<Postgres>) -> Self {
+apps/keyforge-hive/src/infra/repositories/submissions.rs:29 - missing documentation for a method -     pub async fn save(&self, name: &str, layout: &str, author: &str) -> Result<i64, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/submissions.rs:43 - missing documentation for a method -     pub async fn get_recent(&self, limit: i64) -> Result<Vec<SubmissionEntry>, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/users.rs:20 - missing documentation for a struct - pub struct UserRepository {
+apps/keyforge-hive/src/infra/repositories/users.rs:25 - missing documentation for an associated function -     pub fn new(pool: Pool<Postgres>) -> Self {
+apps/keyforge-hive/src/infra/repositories/users.rs:46 - missing documentation for a method -     pub async fn create_api_key(
+apps/keyforge-hive/src/infra/repositories/users.rs:61 - missing documentation for a method -     pub async fn validate_key(&self, key_hash: &str) -> Result<bool, sqlx::Error> {
+apps/keyforge-hive/src/infra/repositories/users.rs:99 - missing documentation for a method -     pub async fn check_job_quota(&self, user_id: Uuid) -> Result<bool, sqlx::Error> {
+apps/keyforge-hive/src/infra/tui.rs:35 - missing documentation for a struct - pub struct LogEntry {
+apps/keyforge-hive/src/infra/tui.rs:36 - missing documentation for a struct field -     pub timestamp: String,
+apps/keyforge-hive/src/infra/tui.rs:37 - missing documentation for a struct field -     pub level: String,
+apps/keyforge-hive/src/infra/tui.rs:38 - missing documentation for a struct field -     pub message: String,
+apps/keyforge-hive/src/infra/tui.rs:42 - missing documentation for a struct - pub struct SystemStatusResponse {
+apps/keyforge-hive/src/infra/tui.rs:43 - missing documentation for a struct field -     pub metrics: SystemMetrics,
+apps/keyforge-hive/src/infra/tui.rs:44 - missing documentation for a struct field -     pub logs: Vec<LogEntry>,
+apps/keyforge-hive/src/infra/tui.rs:147 - missing documentation for a function - pub async fn run_monitor(
+apps/keyforge-hive/src/observability.rs:28 - missing documentation for a struct - pub struct LogEntry {
+apps/keyforge-hive/src/observability.rs:29 - missing documentation for a struct field -     pub timestamp: String,
+apps/keyforge-hive/src/observability.rs:30 - missing documentation for a struct field -     pub level: String,
+apps/keyforge-hive/src/observability.rs:31 - missing documentation for a struct field -     pub message: String,
+apps/keyforge-hive/src/observability.rs:34 - missing documentation for a static - pub static LOG_BUFFER: Lazy<Mutex<VecDeque<LogEntry>>> =
+apps/keyforge-hive/src/observability.rs:37 - missing documentation for a function - pub fn get_recent_logs() -> Vec<LogEntry> {
+apps/keyforge-hive/src/observability.rs:105 - missing documentation for a static - pub static PROMETHEUS_HANDLE: Lazy<Option<PrometheusHandle>> =
+apps/keyforge-hive/src/observability.rs:114 - missing documentation for a function - pub fn init_tracing() {
+apps/keyforge-hive/src/observability.rs:200 - missing documentation for a function - pub fn get_metrics_handle() -> Option<PrometheusHandle> {
+apps/keyforge-hive/src/services/verification.rs:33 - missing documentation for a struct - pub struct VerificationService {
+apps/keyforge-hive/src/services/verification.rs:41 - missing documentation for an associated function -     pub fn new(
+apps/keyforge-hive/src/services/verification.rs:55 - missing documentation for a method -     pub async fn verify_submission(&self, sub: &ResultSubmission) -> AppResult<()> {
+apps/keyforge-hive/src/state.rs:35 - missing documentation for a struct - pub struct AppState {
+apps/keyforge-hive/src/state.rs:36 - missing documentation for a struct field -     pub assets_healthy: std::sync::Arc<std::sync::atomic::AtomicBool>,
+apps/keyforge-hive/src/state.rs:37 - missing documentation for a struct field -     pub jobs: Arc<JobManager>,
+apps/keyforge-hive/src/state.rs:38 - missing documentation for a struct field -     pub security: Arc<SecurityContext>,
+apps/keyforge-hive/src/state.rs:39 - missing documentation for a struct field -     pub verification: Arc<VerificationService>,
+apps/keyforge-hive/src/state.rs:40 - missing documentation for a struct field -     pub nodes: NodeRepository,
+apps/keyforge-hive/src/state.rs:41 - missing documentation for a struct field -     pub results: ResultRepository,
+apps/keyforge-hive/src/state.rs:42 - missing documentation for a struct field -     pub submissions: SubmissionRepository,
+apps/keyforge-hive/src/state.rs:43 - missing documentation for a struct field -     pub users: UserRepository,
+apps/keyforge-hive/src/state.rs:44 - missing documentation for a struct field -     pub audit: AuditRepository,
+apps/keyforge-hive/src/state.rs:45 - missing documentation for a struct field -     pub queue: Arc<WriteQueue>,
+apps/keyforge-hive/src/state.rs:46 - missing documentation for a struct field -     pub assets: Arc<ValkeyProvider>,
+apps/keyforge-hive/src/state.rs:47 - missing documentation for a struct field -     pub engine_cache: Arc<CompiledEngineCache>,
+apps/keyforge-hive/src/state.rs:48 - missing documentation for a struct field -     pub config: Arc<HiveConfig>,
+apps/keyforge-hive/src/state.rs:49 - missing documentation for a struct field -     pub monitor: SharedMonitor,
+apps/keyforge-hive/src/state.rs:50 - missing documentation for a struct field -     pub data_path: PathBuf,
+apps/keyforge-hive/src/state.rs:51 - missing documentation for a struct field -     pub tx: broadcast::Sender<String>,
+apps/keyforge-hive/src/state.rs:52 - missing documentation for a struct field -     pub coordinator: Arc<DistributedCoordinator>,
+apps/keyforge-hive/src/state.rs:56 - missing documentation for an associated function -     pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String) -> Self {
+apps/keyforge-ui/src-tauri/src/main.rs:1 - missing documentation for the crate - #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+apps/keyforge-hive/src/main.rs:16 - missing documentation for the crate - use axum_server::tls_rustls::RustlsConfig;

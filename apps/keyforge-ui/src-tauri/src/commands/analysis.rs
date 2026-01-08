@@ -12,30 +12,38 @@ use keyforge_model::geometry::KeyboardGeometry;
 use serde::Serialize;
 use tauri::AppHandle;
 
+/// Statistics for a specific corpus on disk.
 #[derive(Serialize)]
 pub struct CorpusStats {
+    /// Name of the corpus.
     pub name: String,
+    /// Size of the processed corpus data in bytes.
     pub size_bytes: u64,
+    /// Canonical filesystem path to the corpus file.
     pub path: String,
 }
 
+/// Lists all available corpora in the application's data directory.
 #[tauri::command]
 pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
+/// Returns detailed statistics for all available corpora. (Implementation pending).
 #[tauri::command]
 pub fn cmd_get_corpus_stats(_app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
     Ok(vec![])
 }
 
+/// Lists all available cost matrices in the application's data directory.
 #[tauri::command]
 pub fn cmd_list_cost_matrices(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     listing::list_cost_matrices(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
+/// Compiles a new search runtime using the specified assets and stores it in the session state.
 #[tauri::command]
 pub async fn cmd_load_dataset(
     _app: AppHandle,
@@ -73,6 +81,7 @@ pub async fn cmd_load_dataset(
     Ok("Runtime Compiled".to_string())
 }
 
+/// Validates a layout string against the currently active search runtime.
 #[tauri::command]
 pub async fn cmd_validate_layout(
     _app: AppHandle,
@@ -140,6 +149,7 @@ pub async fn cmd_validate_layout(
     Ok(result)
 }
 
+/// Returns derived statistics for a layout, such as hand balance.
 #[tauri::command]
 pub async fn cmd_get_layout_stats(
     _state: tauri::State<'_, SessionState>,
@@ -148,6 +158,7 @@ pub async fn cmd_get_layout_stats(
     Ok(DerivedStats { hand_balance: 0.0 })
 }
 
+/// Suggests a set of character swaps to improve the current layout.
 #[tauri::command]
 pub async fn cmd_get_smart_swaps(
     state: tauri::State<'_, SessionState>,

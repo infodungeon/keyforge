@@ -24,19 +24,23 @@ use uuid::Uuid;
 /// Repository for managing job life cycles, registration, and claiming.
 #[derive(Clone)]
 pub struct JobRepository {
+    /// The underlying Postgres connection pool.
     pub(crate) pool: Pool<Postgres>,
 }
 
 impl JobRepository {
+    /// Creates a new `JobRepository` with the given connection pool.
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
 
+    /// Checks if the database is reachable.
     pub async fn ping(&self) -> Result<(), sqlx::Error> {
         sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())
     }
 
+    /// Returns true if a job with the given ID already exists.
     pub async fn exists(&self, job_id: &str) -> Result<bool, sqlx::Error> {
         let result = sqlx::query("SELECT 1 FROM jobs WHERE id = $1")
             .bind(job_id)
@@ -45,6 +49,10 @@ impl JobRepository {
         Ok(result.is_some())
     }
 
+    /// Registers a new optimization job in the database.
+    ///
+    /// This is a complex atomic operation that also idempotently registers the 
+    /// keyboard geometry, scoring profile, and search configuration.
     pub async fn register(
         &self,
         job_id: &str,
@@ -276,6 +284,10 @@ impl JobRepository {
         Ok(result.rows_affected() > 0)
     }
 
+    /// Attempts to claim an 'active' job for a worker node.
+    ///
+    /// It uses `SKIP LOCKED` to safely handle concurrent workers, transitioning 
+    /// the job to 'processing' and returning its configuration.
     pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
         let row = sqlx::query(
             r#"
@@ -468,6 +480,7 @@ impl JobRepository {
         }
     }
 
+    /// Retrieves the configuration required to verify or re-run a job.
     pub async fn get_config(
         &self,
         job_id: &str,
@@ -516,6 +529,7 @@ impl JobRepository {
         }
     }
 
+    /// Transitions a job to the 'cancelled' state.
     pub async fn cancel(&self, job_id: &str) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE jobs SET status = 'cancelled' WHERE id = $1")
             .bind(job_id)
@@ -524,6 +538,7 @@ impl JobRepository {
         Ok(())
     }
 
+    /// Returns the number of jobs currently in the 'active' state.
     pub async fn count_active(&self) -> Result<i64, sqlx::Error> {
         let count: i64 = sqlx::query_scalar("SELECT count(*) FROM jobs WHERE status = 'active'")
             .fetch_one(&self.pool)
@@ -531,6 +546,7 @@ impl JobRepository {
         Ok(count)
     }
 
+    /// Deletes jobs that are no longer active and are older than the specified duration.
     pub async fn prune_old_jobs(&self, days: i32) -> Result<u64, sqlx::Error> {
         let result = sqlx::query("DELETE FROM jobs WHERE status != 'active' AND created_at < NOW() - make_interval(days => $1)")
             .bind(days)

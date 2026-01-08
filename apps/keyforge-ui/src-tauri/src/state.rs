@@ -12,24 +12,37 @@ use std::sync::{Arc, Mutex};
 use tauri_plugin_shell::process::CommandChild;
 use tokio::sync::RwLock;
 
+/// Manages the state and lifecycle of a local child process worker.
 pub struct LocalWorkerState {
+    /// Handle to the active child process, if any.
     pub child: Arc<Mutex<Option<CommandChild>>>,
 }
 
+/// Shared flag used to signal stop to asynchronous search operations.
 pub struct SearchState {
+    /// Thread-safe flag indicating if the search should terminate.
     pub stop_flag: Arc<Mutex<bool>>,
 }
 
+/// In-memory cache for frequently accessed assets, backed by the filesystem.
+///
+/// This provides a thread-safe implementation of `AssetLoader` with LRU eviction.
 #[derive(Clone)]
 pub struct AssetCache {
+    /// The underlying filesystem provider for loading assets.
     provider: FsProvider,
+    /// Cache for keyboard geometry definitions.
     keyboards: Cache<String, Arc<KeyboardDefinition>>,
+    /// Cache for processed corpora.
     corpora: Cache<String, Arc<Corpus>>,
+    /// Cache for raw cost matrix data.
     costs: Cache<String, Arc<RawCostData>>,
+    /// Cache for keycode registries.
     keycodes: Cache<String, Arc<KeycodeRegistry>>,
 }
 
 impl AssetCache {
+    /// Creates a new `AssetCache` rooted at the specified data directory.
     pub fn new(root: PathBuf) -> Self {
         Self {
             provider: FsProvider::new(root),
@@ -89,7 +102,10 @@ impl AssetLoader for AssetCache {
     }
 }
 
+/// Central application state for the current user session.
 pub struct SessionState {
+    /// The active search runtime, if one is currently engaged.
     pub active: Arc<RwLock<Option<Runtime>>>,
+    /// Global asset cache for the session.
     pub assets: Arc<AssetCache>,
 }

@@ -41,14 +41,22 @@ struct WalEntry {
     record: PersistedRecord,
 }
 
+/// Events that can be submitted to the background write queue for persistence.
 pub enum DbEvent {
+    /// A new optimization result to be persisted.
     Result {
+        /// The ID of the job that produced this result.
         job_id: String,
+        /// The serialized layout string.
         layout: String,
+        /// The optimization score.
         score: f32,
+        /// The identifier of the node that performed the work.
         node_id: String,
+        /// Optional acknowledgement channel to signal completion.
         ack: Option<oneshot::Sender<()>>,
     },
+    /// A signal to shut down the queue gracefully.
     Shutdown(oneshot::Sender<()>),
 }
 
@@ -87,6 +95,12 @@ impl DeadLetterQueue {
     }
 }
 
+/// A background worker that manages asynchronous, batched persistence of 
+/// optimization results to the database.
+///
+/// It uses a Write-Ahead Log (WAL) on the local filesystem to ensure data 
+/// durability even if the database is temporarily unavailable or if the 
+/// process crashes before a batch is flushed.
 pub struct WriteQueue {
     sender: mpsc::Sender<InternalEvent>,
     queue_dir: PathBuf,
@@ -94,6 +108,10 @@ pub struct WriteQueue {
 }
 
 impl WriteQueue {
+    /// Creates and starts a new `WriteQueue`.
+    ///
+    /// It initializes the WAL and DLQ directories and spawns the background 
+    /// processing task.
     pub fn new(repo: ResultRepository, data_path: PathBuf, assets: Arc<ValkeyProvider>) -> Self {
         let queue_dir = data_path.join("user/queue");
         let dlq = DeadLetterQueue::new(data_path.clone());
@@ -157,6 +175,9 @@ impl WriteQueue {
         }
     }
 
+    /// Pushes a new event onto the queue.
+    ///
+    /// The event is first written to the WAL before being sent to the background task.
     pub async fn push(&self, event: DbEvent) {
         match event {
             DbEvent::Result { job_id, layout, score, node_id, ack } => {
@@ -190,10 +211,12 @@ impl WriteQueue {
         }
     }
 
+    /// Returns the current number of messages waiting in the queue buffer.
     pub async fn current_depth(&self) -> usize {
         10000 - self.sender.capacity()
     }
 
+    /// Triggers a graceful shutdown of the queue, ensuring all items are flushed.
     pub async fn shutdown(&self) {
         let (tx, rx) = oneshot::channel();
         if self.sender.send(InternalEvent::Shutdown(tx)).await.is_ok() {

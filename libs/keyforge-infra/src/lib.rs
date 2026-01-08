@@ -19,11 +19,17 @@
 //! management.
 
 
+/// Asset management and providers (filesystem, caching, Valkey).
 pub mod asset;
+/// Common configuration structures.
 pub mod config;
+/// Infrastructure-specific error types.
 pub mod error;
+/// Filesystem operations, workspace initialization, and locking.
 pub mod fs;
+/// Network clients, synchronization, and distributed coordination.
 pub mod net;
+/// Common utility functions and parsers.
 pub mod util;
 
 pub use error::{InfraError, InfraResult};
@@ -55,6 +61,7 @@ pub use util::layout_parser::parse_layout_string_permissive_cached;
 
 include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
 
+/// Returns the build information (Git hash and build date) injected during compilation.
 pub fn get_build_info() -> (&'static str, &'static str) {
     (GIT_HASH, BUILD_DATE)
 }

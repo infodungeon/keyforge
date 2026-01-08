@@ -60,6 +60,9 @@ fn scan_dir(
     Ok(())
 }
 
+/// Discovers all available keyboard definitions in both the system library and user workspace.
+///
+/// Returns a sorted list of unique keyboard identifiers (file stems).
 pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Binary Only - Updated to new structure
@@ -72,6 +75,10 @@ pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     Ok(sorted)
 }
 
+/// Discovers all available corpora by searching for directory-based bundles.
+///
+/// A corpus is considered present if it contains a `1grams` anchor file.
+/// Returns a sorted list of unique corpus identifiers.
 pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     let mut ids = HashSet::new();
 
@@ -111,6 +118,7 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     Ok(sorted)
 }
 
+/// Lists all available cost matrices (effort models).
 pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Weights are now in system/weights
@@ -122,6 +130,7 @@ pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     Ok(sorted)
 }
 
+/// Lists available keymap extras (e.g., custom symbols or macros).
 pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     scan_dir(root, "system/keymap_extras", "mpk.zst", &mut names)?;

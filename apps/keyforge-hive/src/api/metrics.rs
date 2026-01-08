@@ -21,12 +21,16 @@ use keyforge_protocol::SystemMetrics;
 use serde::Serialize;
 use std::sync::Arc;
 
+/// Response payload combining system metrics and recent logs for the monitoring TUI.
 #[derive(Serialize)]
 pub struct SystemStatusResponse {
+    /// Comprehensive system performance metrics.
     pub metrics: SystemMetrics,
+    /// Collection of recent log entries.
     pub logs: Vec<LogEntry>,
 }
 
+/// Renders Prometheus-formatted metrics for scraping.
 pub async fn get_metrics(State(_state): State<Arc<AppState>>) -> AppResult<impl IntoResponse> {
     let body = match crate::observability::get_metrics_handle() {
         Some(handle) => handle.render(),
@@ -35,6 +39,7 @@ pub async fn get_metrics(State(_state): State<Arc<AppState>>) -> AppResult<impl 
     Ok(body)
 }
 
+/// Retrieves the complete system status, including cluster-wide metrics and recent logs.
 pub async fn get_system_status(
     State(state): State<Arc<AppState>>,
 ) -> AppResult<Json<SystemStatusResponse>> {

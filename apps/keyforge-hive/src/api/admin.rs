@@ -21,12 +21,18 @@ use std::sync::Arc;
 use tracing::info;
 use utoipa::ToSchema;
 
+/// Response payload for administrative system statistics.
 #[derive(Serialize, ToSchema)]
 pub struct AdminStatsResponse {
+    /// Number of jobs currently in 'active' status.
     active_jobs: i64,
+    /// Total number of results recorded in the system.
     total_results: i64,
+    /// Number of compute nodes currently connected.
     nodes_online: i64,
+    /// Aggregate operations per second across the cluster.
     total_ops_per_sec: f32,
+    /// Number of items awaiting persistence in the write queue.
     queue_depth: usize,
 }
 
@@ -39,6 +45,7 @@ pub struct AdminStatsResponse {
     tag = "admin",
     security(("api_key" = []))
 )]
+/// Retrieves high-level administrative statistics about jobs, results, and nodes.
 pub async fn get_admin_stats(
     State(state): State<Arc<AppState>>,
 ) -> AppResult<Json<AdminStatsResponse>> {
@@ -81,16 +88,22 @@ pub async fn get_admin_stats(
     tag = "admin",
     security(("api_key" = []))
 )]
+/// Signals the system to reload its configuration from disk.
 pub async fn reload_config(State(_state): State<Arc<AppState>>) -> AppResult<String> {
     info!("⚙️ Admin requested config reload (not yet implemented)");
     Ok("Config reload initiated".to_string())
 }
 
+/// Represents a full (or partial sample) backup of the system's core data.
 #[derive(Serialize, ToSchema)]
 pub struct FullBackup {
+    /// List of registered keyboard geometries.
     keyboards: Vec<serde_json::Value>,
+    /// List of active job configurations.
     jobs: Vec<serde_json::Value>,
+    /// Sample of recent results for verification.
     results_sample: Vec<serde_json::Value>,
+    /// Timestamp of when the backup was generated.
     timestamp: String,
 }
 
@@ -103,6 +116,7 @@ pub struct FullBackup {
     tag = "admin",
     security(("api_key" = []))
 )]
+/// Generates a comprehensive backup of the database state.
 pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<FullBackup>> {
     // 1. Keyboards
     let keyboards = sqlx::query!("SELECT * FROM keyboards")
@@ -169,6 +183,7 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
     tag = "admin",
     security(("api_key" = []))
 )]
+/// Invalidates and clears all system-wide caches (assets and scoring engines).
 pub async fn clear_cache(State(state): State<Arc<AppState>>) -> AppResult<String> {
     info!("🧹 Admin requested global cache invalidation");
     state.assets.invalidate_all();

@@ -12,12 +12,14 @@ use std::collections::HashMap;
 use std::path::Path;
 use tauri::AppHandle;
 
+/// Lists all available keyboard geometries in the workspace.
 #[tauri::command]
 pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     listing::list_keyboards(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
+/// Lists all available keymap extra assets.
 #[tauri::command]
 pub fn cmd_list_keymap_extras(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
@@ -25,12 +27,14 @@ pub fn cmd_list_keymap_extras(app: AppHandle) -> Result<Vec<String>, CommandErro
 }
 
 #[tauri::command]
+/// Retrieves all currently loaded layouts from the session state.
 pub async fn cmd_get_loaded_layouts(
     _state: tauri::State<'_, SessionState>,
 ) -> Result<HashMap<String, String>, CommandError> {
     Ok(HashMap::new())
 }
 
+/// Retrieves the geometry definition for a specific keyboard.
 #[tauri::command]
 pub async fn cmd_get_keyboard_geometry(
     _app: AppHandle,
@@ -46,6 +50,7 @@ pub async fn cmd_get_keyboard_geometry(
 }
 
 #[tauri::command]
+/// Retrieves all layouts (both system and user) for a specific keyboard.
 pub async fn cmd_get_all_layouts_scoped(
     app: AppHandle,
     state: tauri::State<'_, SessionState>,
@@ -61,6 +66,7 @@ pub async fn cmd_get_all_layouts_scoped(
     Ok(all_layouts)
 }
 
+/// Saves a custom user layout to the local repository.
 #[tauri::command]
 pub fn cmd_save_user_layout(
     app: AppHandle,
@@ -75,6 +81,7 @@ pub fn cmd_save_user_layout(
 }
 
 #[tauri::command]
+/// Deletes a custom user layout from the local repository.
 pub fn cmd_delete_user_layout(
     app: AppHandle,
     keyboard_id: String,
@@ -86,6 +93,7 @@ pub fn cmd_delete_user_layout(
         .map_err(|e| CommandError::Internal(e.to_string()))
 }
 
+/// Submits a user layout to the remote Hive server for community review.
 #[tauri::command]
 pub async fn cmd_submit_user_layout(
     hive_url: String,
@@ -113,6 +121,7 @@ pub async fn cmd_submit_user_layout(
 }
 
 #[tauri::command]
+/// Parses a Keyboard Layout Editor (KLE) JSON string into a KeyForge geometry.
 pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
     let geometry = parse_kle_json(&json).map_err(|e| CommandError::Validation(e.to_string()))?;
     Ok(KeyboardDefinition {
@@ -129,11 +138,13 @@ pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
 }
 
 #[tauri::command]
+/// Exports a KeyForge geometry definition to a KLE JSON string.
 pub fn cmd_export_to_kle(def: KeyboardDefinition) -> Result<String, CommandError> {
     to_kle_json(&def.geometry).map_err(|e| CommandError::Validation(e.to_string()))
 }
 
 #[tauri::command]
+/// Saves a keyboard definition file to the application's local keyboard library.
 pub fn cmd_save_keyboard(
     app: AppHandle,
     filename: String,
@@ -145,6 +156,7 @@ pub fn cmd_save_keyboard(
         .map_err(|e| CommandError::Internal(e.to_string()))
 }
 
+/// Exports a layout to a target firmware format (e.g., QMK, ZMK).
 #[tauri::command]
 pub fn cmd_export_firmware(
     layout_name: String,
@@ -166,6 +178,7 @@ pub fn cmd_export_firmware(
 }
 
 #[tauri::command]
+/// Writes a file to a specified path after ensuring it resides within a safe directory.
 pub fn cmd_safe_write_file(path: String, content: String) -> Result<(), CommandError> {
     let p = Path::new(&path);
     let allowed_exts = ["json", "txt", "c", "h", "keymap", "conf"];

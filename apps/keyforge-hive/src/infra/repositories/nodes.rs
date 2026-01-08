@@ -15,12 +15,14 @@
 
 use sqlx::{Pool, Postgres};
 
+/// Repository for managing compute nodes and hardware profiles.
 #[derive(Clone)]
 pub struct NodeRepository {
     pool: Pool<Postgres>,
 }
 
 impl NodeRepository {
+    /// Creates a new `NodeRepository` with the given database pool.
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -87,6 +89,7 @@ impl NodeRepository {
         Ok(())
     }
 
+    /// Verifies that the public key matches the one stored for the node ID.
     async fn verify_key(&self, node_id: &str, public_key: Option<&str>) -> Result<(), sqlx::Error> {
         if let Some(new_key) = public_key {
             if let Ok(Some(existing_key)) = self.get_public_key(node_id).await {
@@ -104,6 +107,7 @@ impl NodeRepository {
         Ok(())
     }
 
+    /// Retrieves the registered public key for a node.
     pub async fn get_public_key(&self, node_id: &str) -> Result<Option<String>, sqlx::Error> {
         let row: Option<Option<String>> =
             sqlx::query_scalar("SELECT public_key FROM nodes WHERE id = $1")
@@ -113,6 +117,7 @@ impl NodeRepository {
         Ok(row.flatten())
     }
 
+    /// Prunes nodes that haven't been seen within the specified interval.
     pub async fn prune_inactive_nodes(&self, minutes: i32) -> Result<u64, sqlx::Error> {
         let result =
             sqlx::query("DELETE FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1)")

@@ -23,15 +23,21 @@ use keyforge_model::keycodes::KeycodeRegistry;
 use std::sync::Arc;
 use tracing::info;
 
+/// A builder for constructing `ScoringSession` instances from various asset sources.
 pub struct SessionBuilder<'a> {
     loader: &'a dyn AssetLoader,
 }
 
 impl<'a> SessionBuilder<'a> {
+    /// Creates a new `SessionBuilder` using the provided asset loader.
     pub fn new(loader: &'a dyn AssetLoader) -> Self {
         Self { loader }
     }
 
+    /// Builds a new scoring session by loading all necessary assets from the loader.
+    ///
+    /// This method is async as it may involve I/O or network requests to fetch 
+    /// keyboards, corpora, or cost matrices.
     #[allow(clippy::too_many_arguments)]
     pub async fn build(
         &self,
@@ -46,7 +52,7 @@ impl<'a> SessionBuilder<'a> {
         // 1. Load Assets
         let kb_def = self.loader.load_keyboard(keyboard_name).await?;
         
-        let domain_corpora: Vec<keyforge_model::config::CorpusSource> = corpora
+        let domain_corpora: Vec<CorpusSource> = corpora
             .iter()
             .map(conversion::to_domain_corpus_source)
             .collect();
@@ -95,6 +101,7 @@ impl<'a> SessionBuilder<'a> {
         })
     }
 
+    /// Builds a scoring session directly from a `JobRequest` DTO.
     pub async fn build_from_job(&self, job: &JobRequest) -> LoaderResult<ScoringSession> {
         self.build_preloaded(
             &job.definition,
@@ -107,6 +114,10 @@ impl<'a> SessionBuilder<'a> {
         ).await
     }
 
+    /// Builds a scoring session using a pre-loaded keyboard definition.
+    ///
+    /// This is useful when the keyboard geometry is already known (e.g., in a 
+    /// distributed compute node after receiving a job).
     #[allow(clippy::too_many_arguments)]
     pub async fn build_preloaded(
         &self,
@@ -119,7 +130,7 @@ impl<'a> SessionBuilder<'a> {
         seed: Option<u64>,
     ) -> LoaderResult<ScoringSession> {
         // 1. Load Assets (Only those not preloaded)
-        let domain_corpora: Vec<keyforge_model::config::CorpusSource> = corpora
+        let domain_corpora: Vec<CorpusSource> = corpora
             .iter()
             .map(conversion::to_domain_corpus_source)
             .collect();
