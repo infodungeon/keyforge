@@ -18,7 +18,7 @@ use std::fs;
 use std::path::Path;
 
 /// Helper to scan a specific sub-path and add stems to a set.
-/// Extension is the target suffix (e.g., "mpk.zst").
+/// Extension is the target suffix (e.g., "mpk.zst" or "json").
 fn scan_dir(
     root: &Path,
     sub_path: &str,
@@ -26,10 +26,9 @@ fn scan_dir(
     results: &mut HashSet<String>,
 ) -> InfraResult<()> {
     let target = root.join(sub_path);
-    eprintln!("DEBUG: Scanning {:?} for extension '{}'", target, extension);
+    // eprintln!("DEBUG: Scanning {:?} for extension '{}'", target, extension);
     
     if !target.exists() {
-        eprintln!("DEBUG: Target does not exist: {:?}", target);
         return Ok(());
     }
 
@@ -45,16 +44,17 @@ fn scan_dir(
             None => continue,
         };
 
-        eprintln!("DEBUG: Found file: {}", filename);
-
         if filename.ends_with(extension) {
             let stem = filename
                 .strip_suffix(&format!(".{}", extension))
                 .unwrap_or(filename);
-            // Handle compound stems like "corne.mpk"
+            
+            // NOTE: Previous logic arbitrarily stripped ".mpk" here. 
+            // We now rely on consistent naming. If "foo.mpk.zst" is scanned with ext "zst",
+            // stem is "foo.mpk". If scanned with "mpk.zst", stem is "foo".
+            // To maintain compatibility with "mpk" files being the Stem Identity, if the result ends in .mpk, we strip it.
             let final_stem = stem.strip_suffix(".mpk").unwrap_or(stem);
             results.insert(final_stem.to_string());
-            eprintln!("DEBUG: Added stem: {}", final_stem);
         }
     }
     Ok(())

@@ -65,7 +65,7 @@ struct WalEntry {
 async fn test_wal_recovery_integration() {
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string());
     let pool = init_db(&db_url).await;
-    let repo = ResultRepository::new(pool.clone());
+    let repo = ResultRepository::new(pool.clone(), 50);
 
     let temp_dir = tempfile::tempdir().unwrap();
     let data_path = temp_dir.path().to_path_buf();
@@ -95,10 +95,11 @@ async fn test_wal_recovery_integration() {
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
     
     let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
-    let assets = Arc::new(ValkeyProvider::new(coordinator));
+    let _assets = Arc::new(ValkeyProvider::new(coordinator));
 
     // Start Queue (Should recover WAL)
-    let _queue = WriteQueue::new(repo.clone(), data_path.clone(), assets);
+    use keyforge_hive::config::QueueConfig;
+    let _queue = WriteQueue::new(repo.clone(), data_path.clone(), QueueConfig::default());
 
     sleep(Duration::from_secs(2)).await;
 

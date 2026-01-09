@@ -43,7 +43,9 @@ use keyforge_protocol::UserStatsStore;
 /// Generates a serialized cost matrix based on the user's historical typing statistics.
 ///
 /// **Note**: This is currently a placeholder that returns an empty cost matrix.
+/// TODO: Implement statistical analysis of UserStatsStore to generate specific K/V pairs.
 pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
+    tracing::warn!("generate_cost_profile is a STUB - returning empty matrix");
     let data = RawCostData { entries: vec![] };
     serde_json::to_string(&data).unwrap_or_else(|_| "{\"entries\":[]}".to_string())
 }

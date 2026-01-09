@@ -18,13 +18,15 @@ use sqlx::{Pool, Postgres, QueryBuilder, Row};
 /// Repository for managing optimization results and population samples.
 #[derive(Clone)]
 pub struct ResultRepository {
+
     pool: Pool<Postgres>,
+    max_population: usize,
 }
 
 impl ResultRepository {
     /// Creates a new `ResultRepository` with the given database pool.
-    pub fn new(pool: Pool<Postgres>) -> Self {
-        Self { pool }
+    pub fn new(pool: Pool<Postgres>, max_population: usize) -> Self {
+        Self { pool, max_population }
     }
 
     /// Retrieves the top 50 layouts for a given job ID.
@@ -35,10 +37,11 @@ impl ResultRepository {
             FROM results 
             WHERE job_id = $1 
             ORDER BY score ASC 
-            LIMIT 50
+            LIMIT $2
             "#,
         )
         .bind(job_id)
+        .bind(self.max_population as i64)
         .fetch_all(&self.pool)
         .await?;
 

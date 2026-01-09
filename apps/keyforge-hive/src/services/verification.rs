@@ -100,15 +100,9 @@ impl VerificationService {
 
         let (geometry, weights, corpus_name, cost_raw) = self.jobs.get_config(&sub.job_id).await.map_err(AppError::Database)?.ok_or(AppError::NotFound)?;
 
-        let cost_source = if cost_raw.trim().starts_with('[') || cost_raw.trim().starts_with('{') {
-            if let Ok(src) = serde_json::from_str::<CostMatrixSource>(&cost_raw) {
-                src
-            } else {
-                CostMatrixSource::Predefined(cost_raw)
-            }
-        } else {
-            CostMatrixSource::Predefined(cost_raw)
-        };
+        // Try to parse as JSON first, fallback to Predefined ID
+        let cost_source = serde_json::from_str::<CostMatrixSource>(&cost_raw)
+            .unwrap_or_else(|_| CostMatrixSource::Predefined(cost_raw.clone()));
 
         let builder = SessionBuilder::new(self.assets.as_ref());
         let kb_def = KeyboardDefinition {
@@ -117,12 +111,15 @@ impl VerificationService {
             layouts: Default::default(),
         };
 
+        // TODO: Make this configurable per job or system-wide
+        const DEFAULT_KEYCODES_FILE: &str = "system/keycodes.json";
+
         let session = builder.build_preloaded(
             &kb_def,
             &[CorpusSource { id: corpus_name, weight: 1.0, hash: None }],
             &weights,
             &SearchParams::default(),
-            "keycodes.json",
+            DEFAULT_KEYCODES_FILE,
             &cost_source,
             None
         ).await.map_err(|e| AppError::Validation(format!("Session build failed: {}", e)))?;
@@ -132,7 +129,9 @@ impl VerificationService {
     }
 
     async fn check_tolerance(&self, engine: Arc<ScoringEngine>, sub: &ResultSubmission) -> AppResult<()> {
-        let registry = self.assets.load_keycodes("keycodes.json").await
+        const DEFAULT_KEYCODES_FILE: &str = "system/keycodes.json";
+        
+        let registry = self.assets.load_keycodes(DEFAULT_KEYCODES_FILE).await
             .unwrap_or_else(|_| Arc::new(keyforge_model::keycodes::KeycodeRegistry::new_with_defaults()));
 
         let layout_struct = keyforge_adapter::conversion::parse_layout_string_strict(

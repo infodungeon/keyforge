@@ -33,9 +33,11 @@ async fn setup_test_app() -> (axum::Router, Arc<AppState>, ContainerAsync<Redis>
     let data_path = temp_dir.path().to_path_buf();
 
     // 4. Initialize App State
-    // This will now connect to the Valkey container we just started
-    let state = Arc::new(AppState::new(pool, data_path.clone(), "test_key".into()).await);
-    let app = create_app(state.clone(), data_path);
+    let mut config = keyforge_hive::config::AppConfig::mock();
+    config.valkey_url = valkey_url;
+    
+    let state = Arc::new(AppState::new(pool, data_path.clone(), "test_key".into(), config.clone()).await);
+    let app = create_app(state.clone(), &config, data_path);
     
     // Return container guard to keep it alive
     (app, state, valkey_node)

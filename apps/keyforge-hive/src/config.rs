@@ -40,8 +40,23 @@ pub struct AppConfig {
     pub valkey_url: String,
 
     /// CORS allowed origins (comma separated or *).
+
+    /// CORS allowed origins (comma separated or *).
     #[serde(default)]
     pub cors_origins: String,
+
+    /// Unique Server Identity Key (Machine ID).
+    /// If not provided, one will be generated Ephemerally (WARNING: unstable across restarts).
+    #[serde(default)]
+    pub server_key: Option<String>,
+
+    /// Maximum number of layouts to keep per job in the population.
+    #[serde(default = "default_population_limit")]
+    pub population_limit: usize,
+}
+
+fn default_population_limit() -> usize {
+    50
 }
 
 impl AppConfig {
@@ -56,7 +71,10 @@ impl AppConfig {
 
         // Optional / Defaulted
         let valkey_url = env::var("VALKEY_URL").unwrap_or_else(|_| default_valkey());
+
         let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
+        let server_key = env::var("HIVE_SERVER_KEY").ok();
+        let population_limit = parse_env("POPULATION_LIMIT", 50);
         
         // Rate Limits
         let rate_limits = RateLimitConfig::load();
@@ -68,8 +86,26 @@ impl AppConfig {
             network: NetworkConfig::default(),
             rate_limits,
             valkey_url,
+
             cors_origins,
+            server_key,
+            population_limit,
         })
+    }
+
+    /// Creates a default configuration for testing.
+    pub fn mock() -> Self {
+        Self {
+            database_url: "postgres://mock".to_string(),
+            hive_secret: "mock_secret".to_string(),
+            queue: QueueConfig::default(),
+            network: NetworkConfig::default(),
+            rate_limits: RateLimitConfig::default(),
+            valkey_url: "redis://127.0.0.1:6379".to_string(),
+            cors_origins: "*".to_string(),
+            server_key: Some("mock_server_key".to_string()),
+            population_limit: 50,
+        }
     }
 }
 

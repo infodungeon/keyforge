@@ -217,8 +217,10 @@ async fn main() {
                 }
             }
 
-            let server_key = std::env::var("HIVE_SERVER_KEY")
-                .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
+            let server_key = config.server_key.clone().unwrap_or_else(|| {
+                warn!("⚠️ No HIVE_SERVER_KEY configured. Generating ephemeral identity.");
+                uuid::Uuid::new_v4().to_string()
+            });
             
             // Init State
             let state = Arc::new(AppState::new(pool, data_path.clone(), server_key, config.clone()).await);

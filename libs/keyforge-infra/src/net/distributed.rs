@@ -25,6 +25,13 @@ use tracing::{info, debug};
 use futures::stream::StreamExt;
 use std::collections::HashMap;
 
+// --- CONSTANTS ---
+
+const KEY_PREFIX_V4: &str = "v4";
+const CONNECT_TIMEOUT_SEC: u64 = 10;
+const PROFILE_LOCK_TTL_SEC: i64 = 86400; // 24 hours
+const HEARTBEAT_TTL_SEC: i64 = 30;
+
 /// A coordinator that manages distributed state and communication across a cluster of nodes.
 ///
 /// It uses a central data store (Valkey/Redis) to handle heartbeats, cluster telemetry,
@@ -43,7 +50,7 @@ impl DistributedCoordinator {
         
         let client = Builder::from_config(config)
             .with_connection_config(|c| {
-                c.connection_timeout = Duration::from_secs(10);
+                c.connection_timeout = Duration::from_secs(CONNECT_TIMEOUT_SEC);
             })
             .build()
             .map_err(|e| {
@@ -108,11 +115,11 @@ impl DistributedCoordinator {
     /// This uses an atomic SET NX with a 24-hour expiration to ensure that
     /// calibration only happens once per day per hardware signature in a cluster.
     pub async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool> {
-        let key = format!("v4:hw_profile:{}", cpu_signature);
+        let key = format!("{}:hw_profile:{}", KEY_PREFIX_V4, cpu_signature);
         let result: Option<()> = self.client.set(
             key,
             "1",
-            Some(Expiration::EX(86400)),
+            Some(Expiration::EX(PROFILE_LOCK_TTL_SEC)),
             Some(SetOptions::NX),
             false
         ).await.map_err(|e| {
@@ -131,17 +138,17 @@ impl DistributedCoordinator {
     /// The entry will automatically expire if not refreshed within 30 seconds,
     /// indicating that the node is offline.
     pub async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()> {
-        let key = format!("v4:node:{}:telemetry", node_id);
+        let key = format!("{}:node:{}:telemetry", KEY_PREFIX_V4, node_id);
         let bytes = postcard::to_stdvec(telemetry).map_err(|e| {
             InfraError::Serde(serde::ser::Error::custom(e))
         })?;
-        self.client.set::<(), _, _>(key, bytes, Some(Expiration::EX(30)), None, false)
+        self.client.set::<(), _, _>(key, bytes, Some(Expiration::EX(HEARTBEAT_TTL_SEC)), None, false)
             .await.map_err(|e| InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))
     }
 
     /// Retrieves the latest telemetry for a specific node.
     pub async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>> {
-        let key = format!("v4:node:{}:telemetry", node_id);
+        let key = format!("{}:node:{}:telemetry", KEY_PREFIX_V4, node_id);
         let bytes: Option<bytes::Bytes> = self.client.get(key).await.map_err(|e| {
              InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
         })?;
@@ -159,7 +166,7 @@ impl DistributedCoordinator {
     ///
     /// Returns a tuple of `(active_node_count, aggregate_throughput_ips)`.
     pub async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)> {
-        let keys = self.scan_keys("v4:node:*:telemetry").await?;
+        let keys = self.scan_keys(&format!("{}:node:*:telemetry", KEY_PREFIX_V4)).await?;
         if keys.is_empty() { return Ok((0, 0.0)); }
 
         let values: Vec<Option<bytes::Bytes>> = self.client.mget(keys).await.map_err(|e| {
@@ -187,7 +194,7 @@ impl DistributedCoordinator {
 
     /// Sets an entry in the distributed asset manifest.
     pub async fn set_manifest_entry(&self, entry: &AssetManifestEntry) -> InfraResult<()> {
-        let key = format!("v4:manifest:{}", entry.id);
+        let key = format!("{}:manifest:{}", KEY_PREFIX_V4, entry.id);
         self.client.hset::<(), _, _>(
             key, 
             vec![
@@ -202,7 +209,7 @@ impl DistributedCoordinator {
 
     /// Retrieves the hash of a specific asset from the distributed manifest.
     pub async fn get_manifest_hash(&self, asset_id: &str) -> InfraResult<Option<String>> {
-        let key = format!("v4:manifest:{}", asset_id);
+        let key = format!("{}:manifest:{}", KEY_PREFIX_V4, asset_id);
         let hash: Option<String> = self.client.hget(key, "hash").await.map_err(|e| {
              InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
         })?;
@@ -211,11 +218,11 @@ impl DistributedCoordinator {
 
     /// Fetches the entire distributed asset manifest as a map of ID to SHA-256 hash.
     pub async fn get_all_manifest_entries(&self) -> InfraResult<HashMap<String, String>> {
-        let keys = self.scan_keys("v4:manifest:*").await?;
+        let keys = self.scan_keys(&format!("{}:manifest:*", KEY_PREFIX_V4)).await?;
         let mut map = HashMap::new();
 
         for key in keys {
-            if let Some(id) = key.strip_prefix("v4:manifest:") {
+            if let Some(id) = key.strip_prefix(&format!("{}:manifest:", KEY_PREFIX_V4)) {
                 let hash: Option<String> = self.client.hget(&key, "hash").await.map_err(|e| {
                     InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
                 })?;

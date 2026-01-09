@@ -218,16 +218,21 @@ async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerA
     let data_path = temp_dir.path().to_path_buf();
     ensure_test_assets(&data_path);
 
+    let mut config = keyforge_hive::config::AppConfig::mock();
+    config.valkey_url = valkey_url;
+    config.hive_secret = TEST_SECRET.to_string();
+
     let state = Arc::new(AppState::new(
         pool.clone(),
         data_path.clone(),
         "test-key".to_string(),
+        config.clone()
     ).await);
 
     // FIX: Hydrate Valkey with Test Assets (Compressed)
     hydrate_test_valkey(&state, &data_path).await;
 
-    let app = create_app(state.clone(), data_path);
+    let app = create_app(state.clone(), &config, data_path);
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let port = addr.port();

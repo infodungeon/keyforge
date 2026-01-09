@@ -27,8 +27,11 @@ pub struct NukeRequest {
     /// The username of the account to be deleted.
     pub username: String,
     /// Confirmation string. Must be exactly "DELETE_EVERYTHING".
+    #[schema(example = "DELETE_EVERYTHING")]
     pub confirmation: String,
 }
+
+const NUKE_CONFIRMATION_KEY: &str = "DELETE_EVERYTHING";
 
 /// VSA Feature: Nuke User Data
 /// Permanently erases all data for a specific user.
@@ -48,7 +51,7 @@ pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<NukeRequest>,
 ) -> AppResult<String> {
-    if payload.confirmation != "DELETE_EVERYTHING" {
+    if payload.confirmation != NUKE_CONFIRMATION_KEY {
         return Err(AppError::Validation("Invalid confirmation string".into()));
     }
 

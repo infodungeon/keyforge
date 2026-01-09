@@ -76,7 +76,7 @@ impl AppState {
     pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String, config: AppConfig) -> Self {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());
-        let results = ResultRepository::new(db.clone());
+        let results = ResultRepository::new(db.clone(), config.population_limit);
         let submissions = SubmissionRepository::new(db.clone());
         let users = UserRepository::new(db.clone());
         let audit = AuditRepository::new(db.clone());

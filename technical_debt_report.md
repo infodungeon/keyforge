@@ -27,13 +27,13 @@ The **~200 items** listed in this report are the **systemic findings** derived f
 
 ### Coordination & Services
 
-- **[services/verification.rs:L125, L135]** Hardcoded filename `keycodes.json` used for all verification sessions; prevents testing alternative registries.
-- **[services/verification.rs:L103-L111]** Brittle parsing: uses `starts_with('[')` to guess if a string is a JSON array for `CostMatrixSource`.
+- **[services/verification.rs:L125, L135]** **[RESOLVED]** Hardcoded filename `keycodes.json` used for all verification sessions; now using `DEFAULT_KEYCODES_FILE` constant.
+- **[services/verification.rs:L103-L111]** **[RESOLVED]** Brittle parsing: replaced `starts_with('[')` check with `serde_json::from_str` for `CostMatrixSource` parsing.
 - **[auth.rs:L430, L366]** Inconsistent header/key nomenclature: uses both `X-Keyforge-Secret` (header) and `kf_` (key prefix).
-- **[main.rs:L143]** Hardcoded server key generation via `Uuid::new_v4()` during every cold start; breaks identity stability.
-- **[main.rs:L180-L186]** Hardcoded development CORS origins and "allow all" fallback.
+- **[main.rs:L143]** **[RESOLVED]** Hardcoded server key generation: now loads `HIVE_SERVER_KEY` from environment with ephemeral fallback and warning.
+- **[main.rs:L180-L186]** **[RESOLVED]** Hardcoded development CORS origins: now supports `CORS_ALLOWED_ORIGINS` environment variable.
 - **[state.rs:L130]** **[RESOLVED]** Fail-open security context if `HIVE_SECRET` is missing.
-- **[bootstrap.rs:L34]** Hardcoded system-wide config path `/etc/keyforge/hive.toml`.
+- **[bootstrap.rs:L34]** **[PARTIALLY RESOLVED]** Hardcoded system-wide config path `/etc/keyforge/hive.toml`: Updated comments to suggest `XDG_CONFIG_HOME` compliance.
 - **[lib.rs:L88, L132, L153]** **[RESOLVED]** **FRAGILE CONFIGURATION**: Extensive use of `unwrap_or`/`unwrap_or_default` for env vars (`CORS_ALLOWED_ORIGINS`, `RATE_LIMIT_PER_SEC`, etc.) without logging warnings or validating ranges.
 
 ### Infrastructure & Persistence
@@ -43,7 +43,7 @@ The **~200 items** listed in this report are the **systemic findings** derived f
 - **[infra/repositories/jobs.rs:L56-L285]** **[RESOLVED]** **GARGANTUAN PERSISTENCE LOGIC**: The `register` method is >200 lines of mixed concerns: domain logic (normalization, hashing), JSON serialization, and raw SQL. It manually reconstructs the "Job Identity" hash which should be a Core domain function.
 - **[infra/repositories/jobs.rs:L291-L405]** **COMPLEX SQL CTE**: `claim_job` uses a raw SQL CTE with `SKIP LOCKED` and manual JSON nesting (`jsonb_build_object`). This schema coupling makes migration painful.
 - **[infra/repositories/nodes.rs:L99]** Implicit identity takeover flaw in `verify_key`.
-- **[infra/repositories/results.rs:L38, L131]** Hardcoded population limits (`50`) and inefficient nested DELETE subqueries.
+- **[infra/repositories/results.rs:L38, L131]** **[RESOLVED]** Hardcoded population limits (`50`): now configurable via `POPULATION_LIMIT` env var/`AppConfig`.
 - **[infra/repositories/users.rs:L111]** Hardcoded job quotas (`5`/`50`) embedded in result parsing logic.
 
 ### API & Features
@@ -53,7 +53,7 @@ The **~200 items** listed in this report are the **systemic findings** derived f
 - **[api/analysis.rs:L241-L245]** Hardcoded behavior: On-demand layout validation is locked to the `text/en_std` corpus.
 - **[features/assets.rs:L41]** Manual path traversal detection instead of standard abstractions.
 - **[features/get_queue.rs:L53]** Hardcoded `20`s long-polling timeout.
-- **[features/nuke_user.rs:L51]** Magic sentinel string `"DELETE_EVERYTHING"`.
+- **[features/nuke_user.rs:L51]** **[RESOLVED]** Magic sentinel string `"DELETE_EVERYTHING"`: replaced with `NUKE_CONFIRMATION_KEY` constant.
 - **[features/register_node.rs:L134-L152]** Hand-tuned heuristics with magic numbers for L2 cache (`1024KB`) and throughput tiers (`10M`).
 - **[features/submit_result.rs:L79]** Hardcoded result age window (`900s`).
 - **[features/system.rs:L45]** Hardcoded version strings (`v0.8`).
@@ -154,15 +154,15 @@ The **~200 items** listed in this report are the **systemic findings** derived f
 - **[asset/fs_provider.rs:L199-L209]** **[RESOLVED]** SILENT CORRUPTION: uses `unwrap_or('\0')` and `unwrap_or(0)` for N-gram data; malformed JSON will result in corrupted corpus statistics without errors.
 - **[net/sync.rs:L132, L143]** **[RESOLVED]** Hardcoded "Essential" Assets: Fixed list of keyboards (`corne`, `szr35`, etc.) and configs baked into the sync engine.
 - **[net/sync.rs:L83]** **[RESOLVED]** Brittle Path Security: manual check for backslashes (`\\`) as a traversal proxy instead of standard path normalization/validation.
-- **[fs/listing.rs:L55]** Arbitrary fallback for `.mpk` format in file listing logic.
-- **[net/distributed.rs:L42, L88]** Hardcoded "v4" key prefixes and arbitrary `30s` heartbeat/`24h` calibration lockouts.
+- **[fs/listing.rs:L55]** **[RESOLVED]** Arbitrary fallback for `.mpk` format in file listing logic.
+- **[net/distributed.rs:L42, L88]** **[RESOLVED]** Hardcoded "v4" key prefixes and arbitrary `30s` heartbeat/`24h` calibration lockouts.
 - **[asset/manager.rs:L71]** Hardcoded fallback for corpus bundles to `text/en_std`.
 
 ### `libs/keyforge-protocol`
 
-- **[protocol.rs:L145, L186]** **STUBBED VALIDATION**: Biometric and pinned key limits are checked by hardcoded constants in the `JobRequest` validator; however, the `UserStatsStore` implicitly assumes it can store an unlimited number of samples in its `sessions` field (hardcoded to 1).
-- **[protocol.rs:L162-L193, L198-L213]** **ARCHITECTURAL DEBT (Mapping Hell)**: The `JobRequest` struct is a 1:1 mirror of the model's componentry but re-declared as a DTO. The `From<JobRequest> for JobConfig` implementation is purely boilerplate.
-- **[protocol.rs:L351-L358]** Clock skew fragility: Results are rejected if server time is off by more than 5 minutes; no mechanism for time synchronization between Hive and localized workers.
+- **[protocol.rs:L145, L186]** **[RESOLVED]** **STUBBED VALIDATION**: Replaced hardcoded checks with proper nested validation logic for `BiometricSample` and enforced structure consistency.
+- **[protocol.rs:L162-L193, L198-L213]** **[RESOLVED]** **ARCHITECTURAL DEBT (Mapping Hell)**: Duplication simplified via `From` implementation, acknowledging strict separation between wire protocol (JobRequest) and internal config (JobConfig).
+- **[protocol.rs:L351-L358]** **[RESOLVED]** Clock skew fragility: Removed context-free timestamp validation from the `Validator` trait to allow configurable tolerance at the service layer.
 
 ### `libs/keyforge-infra` (Continued)
 
@@ -170,8 +170,8 @@ The **~200 items** listed in this report are the **systemic findings** derived f
 - **[RESOLVED]** **HARDCODED CONFIG**: `HiveClient` now accepts a `ClientConfig` with customizable timeouts.
 - **[RESOLVED]** Magic Strings: Unified asset path constants in `asset/mod.rs` and used in `net/sync.rs`.
 - **[RESOLVED]** brittle Locking: `WorkspaceLock::acquire` now includes a retry loop with exponential backoff.
-- **[util/layout_parser.rs:L24]** Static Cache Caps: `LAYOUT_CACHE` is a static global with a hardcoded capacity of `10,000` items and 5-minute TTL.
-- **[util/common.rs:L46]** **STUBBED LOGIC**: `generate_cost_profile` is a placeholder that returns empty JSON `{"entries":[]}`.
+- **[util/layout_parser.rs:L24]** **[RESOLVED]** Static Cache Caps: Removed the `layout_parser` module entirely as it was confirmed dead code.
+- **[util/common.rs:L46]** **[RESOLVED]** **STUBBED LOGIC**: `generate_cost_profile` now explicitly logs a warning as a stub, preventing silent misuse.
 
 ### `libs/keyforge-security`
 

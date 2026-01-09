@@ -77,6 +77,18 @@ pub struct BiometricSample {
     pub timestamp: u64,
 }
 
+impl Validator for BiometricSample {
+    fn validate(&self) -> Result<(), String> {
+        if self.bigram.len() != 2 {
+            return Err(format!("Invalid bigram length: '{}'", self.bigram));
+        }
+        if self.ms <= 0.0 || self.ms > 10_000.0 {
+            return Err(format!("Biometric sample out of realistic range: {}ms", self.ms));
+        }
+        Ok(())
+    }
+}
+
 /// Aggregated statistics for a user.
 #[derive(Serialize, Deserialize, Clone, Default, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -144,6 +156,9 @@ impl Validator for JobRequest {
         }
         if self.biometrics.len() > constants::MAX_BIOMETRIC_SAMPLES {
             return Err(format!("Too many biometric samples (Limit: {})", constants::MAX_BIOMETRIC_SAMPLES));
+        }
+        for (i, sample) in self.biometrics.iter().enumerate() {
+            sample.validate().map_err(|e| format!("Biometric #{}: {}", i, e))?;
         }
 
         match &self.cost_matrix {
@@ -347,13 +362,8 @@ impl Validator for ResultSubmission {
         // Layout structure check
         LayoutValidator::validate_structure(&self.layout)?;
 
-        // Timestamp check
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
-            .as_secs();
-        if self.timestamp > now + constants::MAX_FUTURE_SKEW_SEC { return Err("Timestamp is in the future".into()); }
-        if self.timestamp < now.saturating_sub(constants::MAX_PAST_SKEW_SEC) { return Err("Timestamp is too old".into()); }
+        // Timestamp check removed from context-free validation.
+        // Clock skew should be enforced by the business layer with configurable tolerance.
         
         Ok(())
     }

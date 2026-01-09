@@ -57,7 +57,7 @@ pub use keyforge_core::loader::{AssetLoader, RawCostData};
 pub use util::common::{
     calculate_file_hash, generate_cost_profile, load_keycode_registry, sanitize_filename,
 };
-pub use util::layout_parser::parse_layout_string_permissive_cached;
+
 
 include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
 

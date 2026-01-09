@@ -134,6 +134,7 @@ impl KeycodeRegistry {
         for def in &self.definitions {
             self.code_to_label.insert(def.code, def.label.clone());
             self.name_to_code.insert(def.id.to_uppercase(), def.code);
+            self.name_to_code.insert(def.label.to_uppercase(), def.code);
             for alias in &def.aliases {
                 self.name_to_code.insert(alias.to_uppercase(), def.code);
             }

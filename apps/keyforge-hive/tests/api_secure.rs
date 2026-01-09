@@ -33,12 +33,17 @@ async fn setup_test_app() -> (axum::Router, Arc<AppState>, sqlx::PgPool, tempfil
     let temp_dir = tempfile::tempdir().unwrap();
     let data_path = temp_dir.path().to_path_buf();
 
+    let mut config = keyforge_hive::config::AppConfig::mock();
+    config.valkey_url = valkey_url;
+    config.hive_secret = "test_secret".to_string();
+
     let state = Arc::new(AppState::new(
         pool.clone(),
         data_path.clone(),
         "test_key".to_string(),
+        config.clone()
     ).await);
-    let app = create_app(state.clone(), data_path);
+    let app = create_app(state.clone(), &config, data_path);
 
     (app, state, pool, temp_dir, valkey_node)
 }

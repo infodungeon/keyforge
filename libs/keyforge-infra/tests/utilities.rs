@@ -6,8 +6,8 @@
 
 
 use keyforge_infra::config::CommonConfig;
-use keyforge_infra::{sanitize_filename, parse_layout_string_permissive_cached};
-use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_infra::sanitize_filename;
+
 
 #[test]
 fn test_config_from_env() {
@@ -23,14 +23,4 @@ fn test_filename_sanitization() {
     // "../../etc/passwd" -> ".." + "_" + ".." + "_" + "etc" + "_" + "passwd"
     assert_eq!(sanitize_filename("../../etc/passwd"), ".._.._etc_passwd");
     assert_eq!(sanitize_filename("valid-file.json"), "valid-file.json");
-}
-
-#[test]
-fn test_layout_parser() {
-    let registry = KeycodeRegistry::default(); 
-    
-    let layout_str = "KC_A KC_B";
-    let layout = parse_layout_string_permissive_cached(layout_str, 2, &registry).unwrap();
-    
-    assert_eq!(layout.keys.len(), 2);
 }

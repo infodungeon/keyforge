@@ -31,6 +31,7 @@ pub struct HiveBootstrapConfig {
 
 impl HiveBootstrapConfig {
     /// The canonical filesystem path where the Hive looks for its bootstrap configuration.
+    // TODO: Use XDG_CONFIG_HOME if possible, but keep /etc as system fallback.
     pub const DEFAULT_PATH: &'static str = "/etc/keyforge/hive.toml";
 
     /// Loads the bootstrap configuration from the specified TOML file.
