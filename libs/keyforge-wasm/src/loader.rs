@@ -67,18 +67,18 @@ impl AssetLoader for InMemoryLoader {
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
-        if let Some(first) = sources.first() {
-            self.corpora
-                .read()
-                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
-                .get(&first.id)
-                .cloned()
-                .ok_or_else(|| {
-                    ForgeError::NotFound(format!("Corpus '{}' not found in memory", first.id))
-                })
-        } else {
-            Ok(Corpus::default())
+        let mut merged = Corpus::default();
+        let corpora = self.corpora.read().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?;
+
+        for source in sources {
+            if let Some(corpus) = corpora.get(&source.id) {
+                merged.merge(corpus, source.weight);
+            } else {
+                return Err(ForgeError::NotFound(format!("Corpus '{}' not found in memory", source.id)));
+            }
         }
+
+        Ok(merged)
     }
 
     async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {

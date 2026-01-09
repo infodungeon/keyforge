@@ -32,12 +32,23 @@ impl WorkspaceLock {
     pub fn acquire(path: &Path) -> InfraResult<Self> {
         let file = File::open(path).map_err(InfraError::Io)?;
 
-        // Try to acquire an exclusive lock
-        file.try_lock_exclusive().map_err(|e| {
-            InfraError::LockError(format!("Failed to acquire lock on {:?}: {}", path, e))
-        })?;
-
-        Ok(Self { file })
+        // Retry loop to handle race conditions (e.g. restart)
+        let mut attempts = 0;
+        loop {
+            match file.try_lock_exclusive() {
+                Ok(_) => return Ok(Self { file }),
+                Err(e) => {
+                    attempts += 1;
+                    if attempts >= 5 {
+                        return Err(InfraError::LockError(format!(
+                            "Failed to acquire lock on {:?} after 5 attempts: {}",
+                            path, e
+                        )));
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            }
+        }
     }
 
     /// Explicitly releases the lock.

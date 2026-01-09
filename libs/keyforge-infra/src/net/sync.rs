@@ -72,25 +72,17 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
         fs::canonicalize(&system_root).map_err(|e| format!("Invalid local system root: {}", e))?;
 
     for (rel_path, server_hash) in server_manifest.files {
-        let path_obj = Path::new(&rel_path);
-        if path_obj.is_absolute()
-            || path_obj.components().any(|c| {
-                matches!(
-                    c,
-                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
-                )
-            })
-            || rel_path.contains('\\')
-        {
-            let msg = format!(
-                "SECURITY WARNING: Server attempted path traversal: {}",
-                rel_path
-            );
-            error!("{}", msg);
-            stats.errors.push(msg);
-            continue;
-        }
+        let normalized = match crate::util::common::normalize_path(&rel_path) {
+            Some(p) => p,
+            None => {
+                let msg = format!("SECURITY WARNING: Server attempted path traversal: {}", rel_path);
+                error!("{}", msg);
+                stats.errors.push(msg);
+                continue;
+            }
+        };
 
+        let path_obj = Path::new(&normalized);
         let target_path = jail.join(path_obj);
         if let Some(parent) = target_path.parent() {
             if !parent.exists() {
@@ -126,26 +118,37 @@ pub async fn bootstrap_essentials(
     client: &HiveClient,
     local_root: &Path,
 ) -> Result<Vec<String>, String> {
-    info!("🚀 Bootstrapping essential assets (Binary Format)...");
+    info!("🚀 Bootstrapping essential assets (Dynamic Discovery)...");
     let mut downloaded = Vec::new();
 
-    let keyboards = ["ortho_30", "ansi_104", "corne", "szr35"];
-    for kb in keyboards {
-        let filename = format!("{}.mpk.zst", kb);
-        // Updated to reflect new directory structure
-        let remote = client.url(&format!("data/system/keyboards/models/{}", filename));
-        let local = local_root.join("system/keyboards/models").join(&filename);
-        if ensure_file(client, &remote, &local, None).await.is_ok() {
-            downloaded.push(kb.to_string());
-        }
-    }
+    let manifest: ServerManifest = client
+        .get("manifest")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch manifest during bootstrap: {}", e))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid manifest JSON during bootstrap: {}", e))?;
 
-    let configs = ["keycodes.mpk.zst", "ui_categories.mpk.zst"];
-    for cfg in configs {
-        let remote = client.url(&format!("data/system/config/{}", cfg));
-        let local = local_root.join("system/config").join(cfg);
-        if ensure_file(client, &remote, &local, None).await.is_ok() {
-            downloaded.push(cfg.to_string());
+    for (rel_path, server_hash) in manifest.files {
+        // Essential assets: all keyboard models and specific configs
+        let is_keyboard = rel_path.starts_with(crate::asset::ASSET_PATH_KEYBOARDS) && rel_path.ends_with(".mpk.zst");
+        let is_keycodes = rel_path == format!("{}{}.mpk.zst", crate::asset::ASSET_PATH_CONFIG, keyforge_model::constants::ASSET_KEYCODES);
+        let is_categories = rel_path == format!("{}ui_categories.mpk.zst", crate::asset::ASSET_PATH_CONFIG);
+
+        if is_keyboard || is_keycodes || is_categories {
+            let remote = client.url(&format!("data/system/{}", rel_path));
+            let local = local_root.join("system").join(&rel_path);
+            
+            if let Some(parent) = local.parent() {
+                if !parent.exists() {
+                    let _ = fs::create_dir_all(parent);
+                }
+            }
+
+            if ensure_file(client, &remote, &local, Some(&server_hash)).await.is_ok() {
+                downloaded.push(rel_path);
+            }
         }
     }
     Ok(downloaded)

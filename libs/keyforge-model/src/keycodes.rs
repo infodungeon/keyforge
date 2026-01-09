@@ -84,7 +84,7 @@ impl Validator for KeycodeRegistry {
 impl KeycodeRegistry {
     /// Creates a new registry from a list of definitions.
     pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
-        // NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
+        // 1. NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
         // This ensures consistence between corpus text (which is lowercased for heatmaps) 
         // and key definitions.
         for def in &mut definitions {
@@ -93,6 +93,11 @@ impl KeycodeRegistry {
                 def.code = KeyCode((val as u8).to_ascii_lowercase() as u16);
             }
         }
+
+        // 2. DEDUPLICATE: If multiple definitions now have the same code (e.g. 'A' and 'a'), 
+        // keep the one with the lowercase code or the first one encountered.
+        let mut seen = std::collections::HashSet::new();
+        definitions.retain(|def| seen.insert(def.code));
 
         let mut reg = Self {
             definitions,

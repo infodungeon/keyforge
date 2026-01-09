@@ -25,7 +25,7 @@ use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::time::interval;
 use tracing::{debug, info, warn, error};
-use keyforge_model::constants::{WS_MSG_JOB, WS_MSG_CANCEL};
+use keyforge_protocol::constants::{WS_MSG_JOB, WS_MSG_CANCEL};
 use keyforge_protocol::NodeTelemetry;
 use std::collections::HashMap;
 

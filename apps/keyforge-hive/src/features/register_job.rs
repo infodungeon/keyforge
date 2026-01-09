@@ -128,7 +128,6 @@ fn validate_input_safety(req: &JobRequest) -> AppResult<()> {
                 e
             })?;
         }
-        CostMatrixSource::Custom(_) => {}
     }
 
     for c in &req.corpora {

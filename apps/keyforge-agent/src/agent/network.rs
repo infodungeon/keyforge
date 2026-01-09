@@ -36,7 +36,7 @@ pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
     telemetry: SharedTelemetry,
-    job_tx: mpsc::Sender<JobConfig>,
+    job_tx: mpsc::Sender<(String, JobConfig)>,
     stop_tx: mpsc::Sender<()>,
 }
 
@@ -140,7 +140,7 @@ impl NetworkManager {
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
-        job_tx: mpsc::Sender<JobConfig>,
+        job_tx: mpsc::Sender<(String, JobConfig)>,
         stop_tx: mpsc::Sender<()>,
     ) -> Self {
         Self {
@@ -266,8 +266,9 @@ impl NetworkManager {
                 .await
                 .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
                 
-            if let Some(config) = queue_resp.config {
-                let _ = self.job_tx.send(config).await;
+            if let (Some(jid), Some(config)) = (queue_resp.job_id, queue_resp.config) {
+                 info!("📥 Acquired Job {}", jid);
+                 let _ = self.job_tx.send((jid, config)).await;
             }
         }
         Ok(())

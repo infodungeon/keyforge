@@ -102,7 +102,12 @@ pub async fn cmd_submit_user_layout(
     layout: String,
     author: String,
 ) -> Result<String, CommandError> {
-    let client = HiveClient::new(hive_url, Some(hive_secret))
+    let config = keyforge_infra::net::client::ClientConfig {
+        base_url: hive_url,
+        secret: Some(hive_secret),
+        ..Default::default()
+    };
+    let client = HiveClient::new(config)
         .map_err(|e| CommandError::Config(e.to_string()))?;
     let res = client
         .post("submissions")
@@ -170,10 +175,13 @@ pub fn cmd_export_firmware(
     let exporter: Box<dyn Exporter> = match format.to_lowercase().as_str() {
         "qmk" => Box::new(QmkExporter),
         "zmk" => Box::new(ZmkExporter),
+        "via" => Box::new(keyforge_export::via::ViaExporter),
         _ => return Err(CommandError::Validation("Unsupported format.".into())),
     };
+    // For now, treat the entire string as a single layer. 
+    // Future expansion could involve splitting by a delimiter for multi-layer support.
     exporter
-        .generate(&layout_name, &keys)
+        .generate(&layout_name, &[keys])
         .map_err(|e| CommandError::Internal(e.to_string()))
 }
 

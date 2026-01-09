@@ -13,7 +13,13 @@ pub async fn cmd_dispatch_job(
     hive_secret: String,
     request: RegisterJobRequest,
 ) -> Result<String, CommandError> {
-    let client = HiveClient::new(hive_url, Some(hive_secret))
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: Some(hive_secret),
+        ..Default::default()
+    };
+    let client = HiveClient::new(config)
         .map_err(|e| CommandError::Config(e.to_string()))?;
 
     // Convert UI model to Protocol model (they are aliases but explicit cast helps clarity)
@@ -48,7 +54,13 @@ pub async fn cmd_poll_hive_status(
     hive_secret: String,
     job_id: String,
 ) -> Result<JobStatusUpdate, CommandError> {
-    let client = HiveClient::new(hive_url, Some(hive_secret))
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: Some(hive_secret),
+        ..Default::default()
+    };
+    let client = HiveClient::new(config)
         .map_err(|e| CommandError::Config(e.to_string()))?;
 
     let path = format!("jobs/{}/status", job_id);

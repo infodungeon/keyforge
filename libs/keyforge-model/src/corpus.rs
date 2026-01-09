@@ -74,6 +74,35 @@ impl Corpus {
         Ok(())
     }
 
+    /// Merges another corpus into this one with a specific weight.
+    pub fn merge(&mut self, other: &Self, weight: f32) {
+        // 1. Merge character frequencies
+        for (i, &freq) in other.char_freqs.iter().enumerate() {
+            if i < self.char_freqs.len() {
+                self.char_freqs[i] += (freq as f32 * weight).round() as u64;
+            }
+        }
+
+        // 2. Merge bigrams
+        for &(c1, c2, freq) in &other.bigrams {
+            self.bigrams.push((c1, c2, (freq as f32 * weight).round() as u32));
+        }
+
+        // 3. Merge trigrams
+        for &(c1, c2, c3, freq) in &other.trigrams {
+            self.trigrams.push((c1, c2, c3, (freq as f32 * weight).round() as u32));
+        }
+
+        // 4. Merge words
+        for (word, freq) in &other.words {
+            self.words.push((word.clone(), (*freq as f32 * weight).round() as u32));
+        }
+
+        // Keep bigrams/trigrams sorted for the engine
+        self.bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        self.trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    }
+
     // Internal helper to keep the ForgeError return type for existing callers
     fn validate_internal(&self) -> Result<(), ForgeError> {
         self.validate()

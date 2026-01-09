@@ -99,6 +99,7 @@ fn test_biometric_limit_validation() {
         bigram: "th".to_string(),
         ms: 100.0,
         timestamp: i as u64
+    }).collect();
     assert!(req.validate().is_ok());
 
     // One too many

@@ -22,3 +22,12 @@ pub mod caching_provider;
 pub mod valkey_provider;
 
 pub use valkey_provider::ValkeyProvider;
+
+/// Path prefix for keyboard definition files.
+pub const ASSET_PATH_KEYBOARDS: &str = "keyboards/models/";
+/// Path prefix for corpus files.
+pub const ASSET_PATH_CORPORA: &str = "corpora/";
+/// Path prefix for cost matrix files.
+pub const ASSET_PATH_WEIGHTS: &str = "weights/";
+/// Path prefix for configuration files.
+pub const ASSET_PATH_CONFIG: &str = "config/";

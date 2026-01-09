@@ -58,7 +58,7 @@ fn test_to_domain_keyboard_conversion() {
         home_row: 0,
     };
 
-    let domain_keyboard = conversion::to_domain_keyboard(&proto_geo);
+    let domain_keyboard = conversion::to_domain_keyboard(&proto_geo).expect("Failed to convert keyboard");
 
     assert_eq!(domain_keyboard.count(), 2);
     assert_eq!(domain_keyboard.home_row, 0);
@@ -98,7 +98,7 @@ fn test_resolve_constraints_valid() {
     };
     let mut registry = KeycodeRegistry::new_with_defaults();
     registry.definitions.push(KeycodeDefinition { code: KeyCode(10), id: "KC_A".to_string(), label: "A".to_string(), aliases: vec![] });
-    registry.definitions.push(KeycodeDefinition { code: KeyCode(11), id: "KC_B".to_string(), label: "B".to_string(), aliases: vec![] });
+    registry.definitions.push(KeycodeDefinition { code: KeyCode(11), id: "KC_B".to_string(), label: "B".to_string(), aliases: vec!["11".to_string()] });
     registry.rebuild_maps();
 
     let proto_constraints = vec![
@@ -269,8 +269,8 @@ fn test_parse_layout_string_permissive_padding() {
     let layout = conversion::parse_layout_string_permissive(layout_str, kb_geo.keys.len(), &registry);
     
     assert_eq!(layout.keys.len(), 2);
-    // "A" is not in registry, so it falls back to ASCII 'a' (97) due to normalization
-    assert_eq!(layout.keys[0], KeyCode(97)); 
+    // "A" is not in registry, and the ASCII backdoor is removed, so it should be KC_NO (0)
+    assert_eq!(layout.keys[0], KeyCode(0)); 
     // Padded with KC_NO (0)
     assert_eq!(layout.keys[1], KeyCode(0)); 
 }

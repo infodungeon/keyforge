@@ -25,7 +25,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 use uuid::Uuid;
-use crate::config::HiveConfig;
+use crate::config::QueueConfig;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct PersistedRecord {
@@ -112,15 +112,14 @@ impl WriteQueue {
     ///
     /// It initializes the WAL and DLQ directories and spawns the background 
     /// processing task.
-    pub fn new(repo: ResultRepository, data_path: PathBuf, assets: Arc<ValkeyProvider>) -> Self {
+    pub fn new(repo: ResultRepository, data_path: PathBuf, config: QueueConfig) -> Self {
         let queue_dir = data_path.join("user/queue");
         let dlq = DeadLetterQueue::new(data_path.clone());
-        let capacity = 1000; 
+        let capacity = config.channel_capacity; 
 
         let (tx, mut rx) = mpsc::channel(capacity);
         let queue_dir_clone = queue_dir.clone();
         let dlq_clone = DeadLetterQueue::new(data_path.clone());
-        let assets_clone = assets.clone();
 
         tokio::spawn(async move {
             if let Err(e) = fs::create_dir_all(&queue_dir_clone).await {
@@ -155,10 +154,8 @@ impl WriteQueue {
             }
 
             loop {
-                // FIX: Use generic load_config_asset
-                let current_config: Arc<HiveConfig> = assets_clone.load_config_asset("hive").await;
-                let batch_size = current_config.queue.batch_size;
-                let flush_interval = current_config.queue.flush_interval_ms;
+                let batch_size = config.batch_size;
+                let flush_interval = config.flush_interval_ms;
 
                 let timeout = sleep(Duration::from_millis(flush_interval));
 

@@ -63,7 +63,7 @@ pub fn comparisons(
     if !results.is_empty() {
         let best = results
             .iter()
-            .min_by(|a, b| a.1.score.partial_cmp(&b.1.score).unwrap())
+            .min_by(|a, b| a.1.score.partial_cmp(&b.1.score).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap();
         let best_score = best.1.score;
 

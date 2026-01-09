@@ -115,7 +115,6 @@ use keyforge_model::Corpus;
 use keyforge_persistence::{Compiler, PersistenceError};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::CostMatrixSource;
 
 struct MockLoader;
 #[async_trait::async_trait]
@@ -160,17 +159,6 @@ async fn test_compiler_success() {
     let runtime = compiler.compile(&project).await.expect("Compilation failed");
     // key_count is usize, so >= 0 is always true. Just checking it exists.
     let _ = runtime.engine.key_count();
-}
-
-#[tokio::test]
-async fn test_compiler_custom_cost_success() {
-    let loader = MockLoader;
-    let compiler = Compiler::new(&loader);
-    let mut project = Project::default();
-    project.cost_matrix = CostMatrixSource::Custom("{\"entries\":[]}".into());
-
-    let result = compiler.compile(&project).await;
-    assert!(result.is_ok());
 }
 
 #[tokio::test]

@@ -63,8 +63,6 @@ impl<'a> SessionBuilder<'a> {
 
         let raw_costs = match cost_matrix {
             CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,
-            CostMatrixSource::Custom(json) => serde_json::from_str(json)
-                .map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Invalid custom cost JSON: {}", e)))?,
         };
 
         // 2. Convert to Domain types
@@ -141,12 +139,11 @@ impl<'a> SessionBuilder<'a> {
 
         let raw_costs = match cost_matrix {
             CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,
-            CostMatrixSource::Custom(json) => serde_json::from_str(json)
-                .map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Invalid custom cost JSON: {}", e)))?,
         };
 
         // 2. Convert to Domain types
-        let domain_kb = conversion::to_domain_keyboard(&kb_def.geometry);
+        let domain_kb = conversion::to_domain_keyboard(&kb_def.geometry)
+            .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?;
         let domain_rubric = conversion::to_domain_rubric(weights);
         let domain_config = conversion::to_domain_config(params, seed.unwrap_or(42));
         

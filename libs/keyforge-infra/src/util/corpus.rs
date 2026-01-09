@@ -20,6 +20,79 @@ use keyforge_model::constants::{
     STD_CORPUS_BACKSPACE_FACTOR, 
     STD_CORPUS_SENTENCE_RATIO
 };
+use keyforge_core::loader::LoaderResult;
+use keyforge_model::error::ForgeError;
+use serde_json::Value;
+
+/// Populates a corpus structure from raw n-gram segments with weighted frequencies.
+/// 
+/// This function handles 1-grams, 2-grams, 3-grams, and words, applying the provided
+/// segment weight and performing strict validation to prevent silent data corruption.
+pub fn populate_corpus_from_segments(
+    corpus: &mut Corpus,
+    weight: f32,
+    segments: Vec<(&str, Vec<Value>)>,
+) -> LoaderResult<()> {
+    for (stem, part) in segments {
+        match stem {
+            "1grams" => {
+                for e in part {
+                    if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
+                        if (c as usize) < 65536 {
+                            let freq = e["freq"].as_u64().ok_or_else(|| {
+                                ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {:?}", e))
+                            })?;
+                            corpus.char_freqs[c as usize] += (freq as f32 * weight).round() as u64;
+                        }
+                    }
+                }
+            }
+            "2grams" => {
+                for e in part {
+                    let freq = e["freq"].as_u64().ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {:?}", e))
+                    })?;
+                    let c1 = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing char1 in 2gram entry: {:?}", e))
+                    })? as u16;
+                    let c2 = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing char2 in 2gram entry: {:?}", e))
+                    })? as u16;
+                    corpus.bigrams.push((c1, c2, (freq as f32 * weight).round() as u32));
+                }
+            }
+            "3grams" => {
+                for e in part {
+                    let freq = e["freq"].as_u64().ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {:?}", e))
+                    })?;
+                    let c1 = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing char1 in 3gram entry: {:?}", e))
+                    })? as u16;
+                    let c2 = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing char2 in 3gram entry: {:?}", e))
+                    })? as u16;
+                    let c3 = e["char3"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing char3 in 3gram entry: {:?}", e))
+                    })? as u16;
+                    corpus.trigrams.push((c1, c2, c3, (freq as f32 * weight).round() as u32));
+                }
+            }
+            "words" => {
+                for e in part {
+                    let freq = e["freq"].as_u64().ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing frequency in word entry: {:?}", e))
+                    })?;
+                    if let Some(w) = e["word"].as_str() {
+                        corpus.words.push((w.to_string(), (freq as f32 * weight).round() as u32));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
 
 /// Resolves a corpus token string to a character.
 pub fn resolve_corpus_char(token: &str) -> Option<char> {

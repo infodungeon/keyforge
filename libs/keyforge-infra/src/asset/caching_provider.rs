@@ -145,62 +145,20 @@ impl CachingProvider {
 
             count_files += 1;
 
-            if rel_path.starts_with("keyboards/models/") {
-                let path = Path::new(&rel_path);
-                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-
-                let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
-                    s
-                } else {
-                    stem
-                };
-
-                if !clean_stem.is_empty() {
-                    if let Err(e) = self.load_keyboard(clean_stem).await {
-                        tracing::warn!("Eager load failed for keyboard {}: {}", clean_stem, e);
-                    } else {
-                        count_keyboards += 1;
-                    }
-                }
-            } else if rel_path.starts_with("corpora/") && rel_path.ends_with("1grams.mpk.zst") {
-                let path = Path::new(&rel_path);
-                if let Some(parent) = path.parent() {
-                    if let Ok(id_path) = parent.strip_prefix("corpora") {
-                        let id = id_path.to_string_lossy().replace('\\', "/");
-                        if !id.is_empty() {
-                            if let Err(e) = self.load_corpus(&[CorpusSource {
-                                id: id.clone(),
-                                weight: 1.0,
-                                hash: None,
-                              }]).await {
-                                tracing::warn!("Eager load failed for corpus {}: {}", id, e);
-                            } else {
-                                count_corpora += 1;
-                            }
-                        }
-                    }
-                }
-            } else if rel_path.starts_with("weights/") {
-                let path = Path::new(&rel_path);
-                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-
-                let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
-                    s
-                } else {
-                    stem
-                };
-
-                if !clean_stem.is_empty() {
-                    if let Err(e) = self.load_cost_matrix(clean_stem).await {
-                        tracing::warn!("Eager load failed for weights {}: {}", clean_stem, e);
-                    } else {
-                        count_weights += 1;
-                    }
-                }
-            } else if rel_path == format!("config/{}.mpk.zst", ASSET_KEYCODES) {
-                if let Err(e) = self.load_keycodes(ASSET_KEYCODES).await {
-                    tracing::warn!("Eager load failed for keycodes: {}", e);
-                }
+            if self.try_ensure_keyboard(&rel_path).await? {
+                count_keyboards += 1;
+                continue;
+            }
+            if self.try_ensure_corpus(&rel_path).await? {
+                count_corpora += 1;
+                continue;
+            }
+            if self.try_ensure_weights(&rel_path).await? {
+                count_weights += 1;
+                continue;
+            }
+            if self.try_ensure_config(&rel_path).await? {
+                continue;
             }
         }
 
@@ -239,6 +197,69 @@ impl CachingProvider {
     /// Calculates a stable hash for a corpus, using the underlying `FsProvider`.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         self.state.provider.get_corpus_hash(id).await
+    }
+
+    async fn try_ensure_keyboard(&self, rel_path: &str) -> Result<bool, String> {
+        if rel_path.starts_with(crate::asset::ASSET_PATH_KEYBOARDS) {
+            let path = Path::new(rel_path);
+            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+             let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") { s } else { stem };
+            if !clean_stem.is_empty() {
+                if let Err(e) = self.load_keyboard(clean_stem).await {
+                    tracing::warn!("Eager load failed for keyboard {}: {}", clean_stem, e);
+                }
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    async fn try_ensure_corpus(&self, rel_path: &str) -> Result<bool, String> {
+        if rel_path.starts_with(crate::asset::ASSET_PATH_CORPORA) && rel_path.ends_with("1grams.mpk.zst") {
+             let path = Path::new(rel_path);
+             if let Some(parent) = path.parent() {
+                 if let Ok(id_path) = parent.strip_prefix("corpora") {
+                     let id = id_path.to_string_lossy().replace('\\', "/");
+                     if !id.is_empty() {
+                         if let Err(e) = self.load_corpus(&[CorpusSource {
+                             id: id.clone(),
+                             weight: 1.0,
+                             hash: None,
+                         }]).await {
+                             tracing::warn!("Eager load failed for corpus {}: {}", id, e);
+                         }
+                         return Ok(true);
+                     }
+                 }
+             }
+        }
+        Ok(false)
+    }
+
+    async fn try_ensure_weights(&self, rel_path: &str) -> Result<bool, String> {
+        if rel_path.starts_with(crate::asset::ASSET_PATH_WEIGHTS) {
+             let path = Path::new(rel_path);
+             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+             let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") { s } else { stem };
+
+             if !clean_stem.is_empty() {
+                 if let Err(e) = self.load_cost_matrix(clean_stem).await {
+                     tracing::warn!("Eager load failed for weights {}: {}", clean_stem, e);
+                 }
+                 return Ok(true);
+             }
+        }
+        Ok(false)
+    }
+
+    async fn try_ensure_config(&self, rel_path: &str) -> Result<bool, String> {
+        if rel_path == format!("config/{}.mpk.zst", ASSET_KEYCODES) {
+            if let Err(e) = self.load_keycodes(ASSET_KEYCODES).await {
+                 tracing::warn!("Eager load failed for keycodes: {}", e);
+            }
+            return Ok(true);
+        }
+        Ok(false)
     }
 }
 

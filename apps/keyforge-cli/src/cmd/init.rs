@@ -39,7 +39,12 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
 
     // 2. Download Essentials (Online)
     eprintln!("🌐 Connecting to Hive at {}...", args.hive);
-    let client = match keyforge_infra::HiveClient::new(args.hive, None) {
+    let config = keyforge_infra::net::client::ClientConfig {
+        base_url: args.hive.clone(),
+        secret: None,
+        ..Default::default()
+    };
+    let client = match keyforge_infra::HiveClient::new(config) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("⚠️  Could not connect to Hive: {}. Skipping downloads.", e);

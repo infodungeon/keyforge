@@ -22,6 +22,10 @@ use keyforge_model::constants::SCORE_SCALE;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
+const TEMP_UNDERFLOW_THRESHOLD: f32 = 1e-10;
+const DEFAULT_REPORT_DIVISOR: usize = 100;
+const MIN_REPORT_INTERVAL: usize = 1000;
+
 #[derive(Debug, Clone, Copy)]
 pub struct AnnealingConfig {
     pub steps: usize,
@@ -128,7 +132,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
             0.0
         };
 
-        let report_interval = (self.config.steps / 100).max(1000);
+        let report_interval = (self.config.steps / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL);
         let start_time = self.time_keeper.now();
         let mut last_report_time = start_time;
         let mut last_report_step = 0;
@@ -178,7 +182,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
             }
 
             state.temperature *= cooling_rate;
-            if state.temperature < 1e-10 {
+            if state.temperature < TEMP_UNDERFLOW_THRESHOLD {
                 state.temperature = 0.0;
             }
 

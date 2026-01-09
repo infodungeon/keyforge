@@ -31,5 +31,5 @@ async fn test_system_warmup() {
     assert!(kb.is_ok());
     
     let kc = provider.load_keycodes("keycodes").await;
-    assert!(kc.is_ok());
+    assert!(kc.is_ok(), "Keycodes load failed: {:?}", kc.err());
 }

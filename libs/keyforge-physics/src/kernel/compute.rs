@@ -18,71 +18,99 @@ use keyforge_model::{AnalysisReport, MetricViolation};
 use keyforge_model::constants::SCORE_SCALE;
 use tracing::instrument;
 
-/// Internal structure to track duplicate key positions without heap allocation.
-struct PosMap {
-    starts: [u16; 65536],
-    counts: [u8; 65536],
-    indices: [u16; 512], 
+struct PosMap<'a> {
+    starts: &'a [u16],
+    counts: &'a [u8],
+    indices: &'a [u16],
+    used_keys: &'a [u16],
 }
 
-impl PosMap {
-    fn new(layout: &[KeyCode], key_count: usize) -> Self {
-        let mut pm = Self {
-            starts: [0; 65536],
-            counts: [0; 65536],
-            indices: [0; 512],
-        };
-        
+impl<'a> PosMap<'a> {
+    /// Creates a PosMap by manually populating the provided scratch buffers.
+    /// This avoids large array initialization on every call.
+    fn from_scratch(
+        layout: &[KeyCode],
+        key_count: usize,
+        starts: &'a mut [u16],
+        counts: &'a mut [u8],
+        indices: &'a mut [u16],
+        used_keys: &'a mut Vec<u16>,
+    ) -> Self {
         let limit = layout.len().min(key_count);
-        
-        // First pass: count occurrences
+        used_keys.clear();
+
+        // Pass 1: Count occurrences
         for &code in layout.iter().take(limit) {
-            pm.counts[code.0 as usize] += 1;
+            let c = code.0 as usize;
+            if counts[c] == 0 {
+                used_keys.push(code.0);
+            }
+            counts[c] += 1;
         }
 
-        // Second pass: calculate starts (prefix sum)
+        // Pass 2: Calculate starts (prefix sum)
         let mut offset = 0;
-        for i in 0..65536 {
-            if pm.counts[i] > 0 {
-                pm.starts[i] = offset as u16;
-                offset += pm.counts[i] as usize;
+        // We only need to iterate over used_keys to set starts
+        // But for prefix sum to work correctly with indices, we need them sorted
+        used_keys.sort_unstable();
+        for &code in used_keys.iter() {
+            let c = code as usize;
+            starts[c] = offset as u16;
+            offset += counts[c] as usize;
+        }
+
+        // Pass 3: Fill indices
+        // Temporary offset tracker (could be stack array if small enough)
+        let mut current_offsets = [0u8; 512]; // Max keys is 512
+        for (i, &code) in layout.iter().enumerate().take(limit) {
+            let c = code.0 as usize;
+            let base = starts[c] as usize;
+            // Find current offset for this code. 
+            // Since we don't want another 64k array, we can use a small linear search or a map,
+            // but for O(N), let's just use the fact that we know which keys are used.
+            // Actually, we can just use another scratch buffer of size 512 for 'current_offsets' 
+            // if we map keycodes to a 0..used_keys.len() range.
+            
+            // Optimization: find index of code in used_keys
+            if let Ok(u_idx) = used_keys.binary_search(&code.0) {
+                let off = current_offsets[u_idx] as usize;
+                indices[base + off] = i as u16;
+                current_offsets[u_idx] += 1;
             }
         }
 
-        // Third pass: fill indices
-        let mut current_offsets = [0u8; 65536];
-        for (i, &code) in layout.iter().enumerate().take(limit) {
-            let c_val = code.0 as usize;
-            let base = pm.starts[c_val] as usize;
-            let off = current_offsets[c_val] as usize;
-            let target = base + off;
-            if target < 512 {
-                pm.indices[target] = i as u16;
-                current_offsets[c_val] += 1;
-            }
-        }
-        pm
+        Self { starts, counts, indices, used_keys }
     }
 
     #[inline(always)]
     fn get(&self, code: usize) -> &[u16] {
+        if code >= 65536 { return &[]; }
         let start = self.starts[code] as usize;
-        let end = start + (self.counts[code] as usize);
-        &self.indices[start..end]
+        let count = self.counts[code] as usize;
+        if count == 0 { return &[]; }
+        &self.indices[start..start + count]
     }
 }
 
-pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, _pos_map_scratch: &mut [u16]) -> i64 {
+pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, scratch: &mut PhysicsScratch) -> i64 {
     let mut total_score = Score::ZERO;
     let layout_slice = layout.as_slice();
-    let pm = PosMap::new(layout_slice, ctx.key_count);
+    let pm = PosMap::from_scratch(
+        layout_slice,
+        ctx.key_count,
+        &mut scratch.starts,
+        &mut scratch.counts,
+        &mut scratch.indices,
+        &mut scratch.used_keys,
+    );
 
     // 1. Monograms: Optimal Choice
-    for (c_val, &freq) in ctx.char_freqs.iter().enumerate() {
+    for &code in pm.used_keys.iter() {
+        let c_val = code as usize;
+        let freq = ctx.char_freqs[c_val];
         if freq == 0 { continue; }
         let candidates = pm.get(c_val);
-        if candidates.is_empty() { continue; }
-
+        
         let mut min_cost = Score(i64::MAX);
         for &p in candidates {
             let cost = ctx.key_costs[p as usize];
@@ -92,11 +120,12 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, _pos_map_scra
     }
 
     // 2. Bigrams: Optimal Choice
-    for (c1_val, &start) in ctx.bigram_starts.iter().enumerate().take(65536) {
+    for &code1 in pm.used_keys.iter() {
+        let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
-        if candidates1.is_empty() { continue; }
-
+        let start = ctx.bigram_starts[c1_val];
         let end = ctx.bigram_starts[c1_val + 1];
+        
         for k in start..end {
             let c2 = ctx.bigram_others[k];
             let candidates2 = pm.get(c2.0 as usize);
@@ -116,11 +145,12 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, _pos_map_scra
     }
 
     // 3. Trigrams: Optimal Choice
-    for (c1_val, &start) in ctx.trigram_starts.iter().enumerate().take(65536) {
+    for &code1 in pm.used_keys.iter() {
+        let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
-        if candidates1.is_empty() { continue; }
-
+        let start = ctx.trigram_starts[c1_val];
         let end = ctx.trigram_starts[c1_val + 1];
+
         for k in start..end {
             let c2 = ctx.trigram_others1[k];
             let c3 = ctx.trigram_others2[k];
@@ -144,14 +174,52 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, _pos_map_scra
             }
         }
     }
+
+    // Clean up scratch for next use
+    scratch.clear_used();
     total_score.0
+}
+
+/// Scratch space for physics operations to avoid re-allocating large arrays.
+pub struct PhysicsScratch {
+    starts: [u16; 65536],
+    counts: [u8; 65536],
+    indices: [u16; 512],
+    used_keys: Vec<u16>,
+}
+
+impl PhysicsScratch {
+    pub fn new() -> Self {
+        Self {
+            starts: [0; 65536],
+            counts: [0; 65536],
+            indices: [0; 512],
+            used_keys: Vec::with_capacity(128),
+        }
+    }
+
+    fn clear_used(&mut self) {
+        for &code in &self.used_keys {
+            let c = code as usize;
+            self.starts[c] = 0;
+            self.counts[c] = 0;
+        }
+    }
 }
 
 #[instrument(skip_all)]
 pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> AnalysisReport {
     let mut report = AnalysisReport::default();
     let layout_slice = layout.as_slice();
-    let pm = PosMap::new(layout_slice, ctx.key_count);
+    let mut scratch = PhysicsScratch::new();
+    let pm = PosMap::from_scratch(
+        layout_slice,
+        ctx.key_count,
+        &mut scratch.starts,
+        &mut scratch.counts,
+        &mut scratch.indices,
+        &mut scratch.used_keys,
+    );
     
     let mut heatmap = vec![0.0; ctx.key_count];
     let mut penalty_map = vec![0.0; ctx.key_count];
@@ -160,11 +228,11 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
     let mut left_hand_load = 0.0;
 
     // Monograms
-    for (c_val, &freq_u64) in ctx.char_freqs.iter().enumerate() {
-        let freq = freq_u64 as f32;
+    for &code in pm.used_keys.iter() {
+        let c_val = code as usize;
+        let freq = ctx.char_freqs[c_val] as f32;
         if freq <= 0.0 { continue; }
         let candidates = pm.get(c_val);
-        if candidates.is_empty() { continue; }
 
         let mut min_cost = f32::MAX;
         let mut best_p = 0;
@@ -187,11 +255,12 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
     let mut scissors = Vec::new();
 
     // Bigrams
-    for (c1_val, &start) in ctx.bigram_starts.iter().enumerate().take(65536) {
+    for &code1 in pm.used_keys.iter() {
+        let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
-        if candidates1.is_empty() { continue; }
-
+        let start = ctx.bigram_starts[c1_val];
         let end = ctx.bigram_starts[c1_val + 1];
+
         for k in start..end {
             let c2 = ctx.bigram_others[k];
             let candidates2 = pm.get(c2.0 as usize);
@@ -241,11 +310,12 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
 
     let mut redirs = Vec::new();
     // Trigrams
-    for (c1_val, &start) in ctx.trigram_starts.iter().enumerate().take(65536) {
+    for &code1 in pm.used_keys.iter() {
+        let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
-        if candidates1.is_empty() { continue; }
-
+        let start = ctx.trigram_starts[c1_val];
         let end = ctx.trigram_starts[c1_val + 1];
+
         for k in start..end {
             let c2 = ctx.trigram_others1[k];
             let c3 = ctx.trigram_others2[k];
@@ -307,7 +377,6 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> Analysis
     report.heatmap = heatmap;
     report.penalty_map = penalty_map;
     
-    let mut scratch = vec![65535u16; 65536];
     report.score = score_layout(ctx, layout, &mut scratch) as f32 / SCORE_SCALE;
     report.distance /= SCORE_SCALE;
     if total_bigrams > 0.0 { report.sfb_ratio = report.sfb_total / total_bigrams; }
@@ -332,18 +401,82 @@ fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> 
     Score::ZERO
 }
 
-pub fn calculate_swap_delta(ctx: &EngineContext, layout: &ValidatedLayout, _pos_map: &[u16], idx_a: usize, idx_b: usize) -> i64 {
+pub fn calculate_swap_delta(
+    ctx: &EngineContext,
+    layout: &ValidatedLayout,
+    pos_map: &[u16],
+    idx_a: usize,
+    idx_b: usize,
+) -> i64 {
     let layout_slice = layout.as_slice();
     if idx_a >= layout_slice.len() || idx_b >= layout_slice.len() { return 0; }
-    if idx_a >= ctx.key_count || idx_b >= ctx.key_count { return 0; }
-    if layout_slice[idx_a] == layout_slice[idx_b] { return 0; }
+    let code_a = layout_slice[idx_a];
+    let code_b = layout_slice[idx_b];
+    if code_a == code_b { return 0; }
 
-    let score_before = score_layout(ctx, layout, &mut []);
-    
-    let mut swapped_keys = layout_slice.to_vec();
-    swapped_keys.swap(idx_a, idx_b);
-    let validated_after = ValidatedLayout::new(&swapped_keys, ctx.key_count).unwrap();
-    let score_after = score_layout(ctx, &validated_after, &mut []);
-    
-    score_after - score_before
+    let mut delta = 0i64;
+    let n = ctx.key_count;
+
+    // 1. Monograms
+    let freq_a = ctx.char_freqs[code_a.0 as usize] as i64;
+    let freq_b = ctx.char_freqs[code_b.0 as usize] as i64;
+    delta += (ctx.key_costs[idx_b].0 - ctx.key_costs[idx_a].0) * freq_a;
+    delta += (ctx.key_costs[idx_a].0 - ctx.key_costs[idx_b].0) * freq_b;
+
+    // 2. Bigrams
+    let start_a = ctx.bigram_starts[code_a.0 as usize];
+    let end_a = ctx.bigram_starts[code_a.0 as usize + 1];
+    for k in start_a..end_a {
+        let c2 = ctx.bigram_others[k];
+        let p2 = pos_map[c2.0 as usize] as usize;
+        if p2 == 65535 { continue; }
+        let freq = ctx.bigram_freqs[k] as i64;
+        let p2_effective = if p2 == idx_b { idx_a } else { p2 };
+        delta += (ctx.cost_matrix[idx_b * n + p2_effective].0 - ctx.cost_matrix[idx_a * n + p2].0) * freq;
+    }
+
+    let start_b = ctx.bigram_starts[code_b.0 as usize];
+    let end_b = ctx.bigram_starts[code_b.0 as usize + 1];
+    for k in start_b..end_b {
+        let c2 = ctx.bigram_others[k];
+        let p2 = pos_map[c2.0 as usize] as usize;
+        if p2 == 65535 { continue; }
+        let freq = ctx.bigram_freqs[k] as i64;
+        let p2_effective = if p2 == idx_a { idx_b } else { p2 };
+        delta += (ctx.cost_matrix[idx_a * n + p2_effective].0 - ctx.cost_matrix[idx_b * n + p2].0) * freq;
+    }
+
+    let start_rev_a = ctx.bigram_rev_starts[code_a.0 as usize];
+    let end_rev_a = ctx.bigram_rev_starts[code_a.0 as usize + 1];
+    for k in start_rev_a..end_rev_a {
+        let c1 = ctx.bigram_rev_others[k];
+        if c1 == code_a || c1 == code_b { continue; } 
+        let p1 = pos_map[c1.0 as usize] as usize;
+        if p1 == 65535 { continue; }
+        let freq = ctx.bigram_rev_freqs[k] as i64;
+        delta += (ctx.cost_matrix[p1 * n + idx_b].0 - ctx.cost_matrix[p1 * n + idx_a].0) * freq;
+    }
+
+    let start_rev_b = ctx.bigram_rev_starts[code_b.0 as usize];
+    let end_rev_b = ctx.bigram_rev_starts[code_b.0 as usize + 1];
+    for k in start_rev_b..end_rev_b {
+        let c1 = ctx.bigram_rev_others[k];
+        if c1 == code_a || c1 == code_b { continue; } 
+        let p1 = pos_map[c1.0 as usize] as usize;
+        if p1 == 65535 { continue; }
+        let freq = ctx.bigram_rev_freqs[k] as i64;
+        delta += (ctx.cost_matrix[p1 * n + idx_a].0 - ctx.cost_matrix[p1 * n + idx_b].0) * freq;
+    }
+
+    if !ctx.trigram_freqs.is_empty() {
+        let mut sc = PhysicsScratch::new();
+        let score_before = score_layout(ctx, layout, &mut sc);
+        let mut keys = layout_slice.to_vec();
+        keys.swap(idx_a, idx_b);
+        let validated_after = ValidatedLayout::new(&keys, ctx.key_count).unwrap();
+        let score_after = score_layout(ctx, &validated_after, &mut sc);
+        return score_after - score_before;
+    }
+
+    delta
 }

@@ -166,7 +166,13 @@ pub async fn run_monitor(
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let client = HiveClient::new(url, secret).map_err(io::Error::other)?;
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: url,
+        secret: secret,
+        ..Default::default()
+    };
+    let client = HiveClient::new(config).map_err(io::Error::other)?;
     let docker = DockerMonitor::new();
 
     let mut status = SystemStatusResponse::default();

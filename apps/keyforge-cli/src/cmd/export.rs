@@ -100,7 +100,7 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
                     FirmwareFormat::Via => Box::new(ViaExporter),
                     FirmwareFormat::Kle => unreachable!(),
                 };
-                exporter.generate(&layout, &keys)?
+                exporter.generate(&layout, &[keys])?
             };
 
             if let Some(out_path) = output {

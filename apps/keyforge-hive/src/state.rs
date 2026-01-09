@@ -14,7 +14,7 @@
 
 
 use crate::cache::CompiledEngineCache;
-use crate::config::HiveConfig;
+use crate::config::AppConfig;
 use crate::infra::queue::WriteQueue;
 use crate::infra::repositories::{
     AuditRepository, JobRepository, NodeRepository, ResultRepository, SubmissionRepository,
@@ -32,10 +32,6 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 /// Global application state for the KeyForge Hive.
-///
-/// This struct holds all long-lived resources, including database repositories,
-/// background services, caches, and coordination handles. It is intended to be
-/// wrapped in an `Arc` and shared across all request handlers.
 #[derive(Clone)]
 pub struct AppState {
     /// Flag indicating if the required system assets (corpora, etc.) are available.
@@ -63,7 +59,7 @@ pub struct AppState {
     /// Cache for pre-compiled optimization engines.
     pub engine_cache: Arc<CompiledEngineCache>,
     /// Static Hive configuration loaded from the environment/assets.
-    pub config: Arc<HiveConfig>,
+    pub config: Arc<AppConfig>,
     /// Real-time system monitoring and metrics.
     pub monitor: SharedMonitor,
     /// Local filesystem path for transient storage.
@@ -77,7 +73,7 @@ pub struct AppState {
 impl AppState {
     /// Initializes the `AppState` by connecting to the database and Valkey,
     /// and starting background monitors.
-    pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String) -> Self {
+    pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String, config: AppConfig) -> Self {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());
         let results = ResultRepository::new(db.clone());
@@ -85,29 +81,27 @@ impl AppState {
         let users = UserRepository::new(db.clone());
         let audit = AuditRepository::new(db.clone());
 
-        let valkey_url = env::var("KEYFORGE_VALKEY_URL")
-            .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
-
         let coordinator = Arc::new(
-            DistributedCoordinator::new(&valkey_url)
+            DistributedCoordinator::new(&config.valkey_url)
                 .await
                 .expect("Failed to connect to Coordination Layer (Valkey)"),
         );
 
         let assets = Arc::new(ValkeyProvider::new(coordinator.clone()));
         
-        // FIX: Use generic loader with string "hive" (for hive.json)
-        let config: Arc<HiveConfig> = assets.load_config_asset("hive").await;
+        let config_arc = Arc::new(config.clone());
 
         let queue = Arc::new(WriteQueue::new(
             results.clone(),
             data_path.clone(),
-            assets.clone(),
+            config.queue.clone(),
         ));
 
         let (tx, _) = broadcast::channel(10000);
-        let api_secret = env::var("HIVE_SECRET").ok().filter(|s| !s.is_empty());
-        let security = Arc::new(SecurityContext::new(api_secret, server_key));
+        
+        // HIVE_SECRET is now enforced by AppConfig
+        let security = Arc::new(SecurityContext::new(Some(config.hive_secret), server_key));
+        
         let monitor = Arc::new(SystemMonitor::new());
 
         let monitor_clone = monitor.clone();
@@ -142,7 +136,7 @@ impl AppState {
             queue,
             assets,
             engine_cache,
-            config,
+            config: config_arc,
             monitor,
             data_path,
             tx,

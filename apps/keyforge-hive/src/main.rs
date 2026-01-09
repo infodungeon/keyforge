@@ -157,7 +157,22 @@ async fn main() {
             observability::init_tracing();
             info!("🐝 KeyForge Hive is initializing...");
 
-            let pool = match db::try_init_db(&args.db).await {
+            // Load Configuration Check
+            let config = match keyforge_hive::config::AppConfig::load_from_env() {
+                Ok(c) => c,
+                Err(e) => {
+                    error!("FATAL: Configuration Error: {}", e);
+                    std::process::exit(1);
+                }
+            };
+            
+            // Allow override of DB URL from CLI args if provided (though env is preferred)
+            // Note: Args default matches "postgres://..." so we only use args.db if it differs from default OR if we want CLI priority.
+            // But AppConfig enforces DATABASE_URL existence. Let's stick to the AppConfig as the source of truth, 
+            // but for backward compatibility, if CLI arg is provided and specific, we might warn. 
+            // For now, let's use the loaded config.
+
+            let pool = match db::try_init_db(&config.database_url).await {
                 Ok(p) => p,
                 Err(e) => {
                     error!("FATAL: Database initialization failed: {}", e);
@@ -205,7 +220,8 @@ async fn main() {
             let server_key = std::env::var("HIVE_SERVER_KEY")
                 .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
             
-            let state = Arc::new(AppState::new(pool, data_path.clone(), server_key).await);
+            // Init State
+            let state = Arc::new(AppState::new(pool, data_path.clone(), server_key, config.clone()).await);
 
             // 2. HYDRATION (Self-Seeding)
             hydrate_valkey(&state.coordinator, &data_path).await;
@@ -220,12 +236,12 @@ async fn main() {
                 result_repo_arc,
             ));
 
-            let app = create_app(state.clone(), data_path);
+            let app = create_app(state.clone(), &config, data_path);
             let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
 
             if let (Some(cert), Some(key)) = (args.tls_cert, args.tls_key) {
                 info!("🚀 Hive listening on {} (TLS Enabled)", addr);
-                let config = match RustlsConfig::from_pem_file(cert, key).await {
+                let tls_config = match RustlsConfig::from_pem_file(cert, key).await {
                     Ok(c) => c,
                     Err(e) => {
                         error!("FATAL: Failed to load TLS certificates: {}", e);
@@ -238,7 +254,7 @@ async fn main() {
                 // Spawn the shutdown signal handler
                 tokio::spawn(shutdown_signal_axum(handle.clone(), state.clone()));
 
-                if let Err(e) = axum_server::bind_rustls(addr, config)
+                if let Err(e) = axum_server::bind_rustls(addr, tls_config)
                     .handle(handle)
                     .serve(app.into_make_service_with_connect_info::<SocketAddr>())
                     .await

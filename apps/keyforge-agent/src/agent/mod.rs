@@ -47,61 +47,117 @@ pub mod crypto; // Re-export crypto for network module
 use self::errors::AgentResult;
 
 /// The main Agent coordinator that orchestrates optimization jobs.
+use keyforge_infra::net::client::ClientConfig;
+
+/// The main Agent coordinator that orchestrates optimization jobs.
 pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,
+    assets: keyforge_infra::AssetManager,
 }
 
 impl Agent {
     /// Creates a new `Agent` with the given configuration.
-    pub async fn new(config: AgentConfig) -> Self {
+    pub async fn new(config: AgentConfig) -> AgentResult<Self> {
         let telemetry = SharedTelemetry::default();
-        Self { config, telemetry }
+        
+        // Initialize Hive Client for asset downloads
+        let client_config = ClientConfig {
+            base_url: config.hive_url.clone(),
+            secret: Some(config.secret.clone()),
+            ..Default::default()
+        };
+        
+        let client = keyforge_infra::HiveClient::new(client_config)
+            .map_err(|e| errors::AgentError::Internal(format!("Failed to create hive client: {}", e)))?;
+            
+        let assets = keyforge_infra::AssetManager::new(client, config.data_dir.clone());
+
+        Ok(Self { config, telemetry, assets })
     }
 
     /// Starts the agent's job processing loop.
     ///
     /// It listens for `JobConfig` messages from the network layer and coordinates
     /// the execution of optimization tasks.
-    pub async fn run(&self, mut job_rx: mpsc::Receiver<JobConfig>) -> AgentResult<()> {
+    pub async fn run(
+        &self, 
+        mut job_rx: mpsc::Receiver<(String, JobConfig)>,
+        mut stop_rx: mpsc::Receiver<()>
+    ) -> AgentResult<()> {
         info!("🤖 KeyForge Agent v0.8.0 Starting...");
         info!("   Node ID: {}", self.config.node_id);
 
         // Job Loop
-        while let Some(job) = job_rx.recv().await {
-            info!("⚙️  Starting Job...");
-            
-            let job_id = "job-pending-id".to_string(); 
-            self.telemetry.set_job_id(&job_id);
-
-            // FIX: Construct a valid EngineRequest.
-            let keyboard = keyforge_model::Keyboard::new(vec![keyforge_model::KeyNode::default()], 0)
-                .map_err(|e| errors::AgentError::Internal(e.to_string()))?;
-                
-            let corpus = keyforge_model::Corpus::default();
-            let rubric = keyforge_model::Rubric::default();
-            
-            let search_config = keyforge_adapter::conversion::to_domain_config(&job.params, 42);
-
-            let req = keyforge_core::EngineRequest {
-                keyboard: Arc::new(keyboard),
-                corpus: Arc::new(corpus),
-                rubric: Arc::new(rubric),
-                config: search_config,
-                initial_layout: None,
-                pinned_keys: vec![],
-                cost_overrides: vec![],
+        loop {
+            let (job_id, job) = tokio::select! {
+                Some((id, j)) = job_rx.recv() => (id, j),
+                _ = stop_rx.recv() => {
+                    info!("Received stop signal while idle.");
+                    continue;
+                }
+                else => break, // Channel closed
             };
 
-            let limiter = Arc::new(tokio::sync::Semaphore::new(1));
+            info!("⚙️  Starting Job (ID: {})...", job_id);
+            self.telemetry.set_job_id(&job_id);
 
-            let _result = compute::run_optimization(
-                req,
-                job_id,
-                Arc::new(std::sync::atomic::AtomicBool::new(false)), // Placeholder for stop flag
-                limiter,
-                self.telemetry.clone() 
-            ).await;
+            // 1. Sync Assets
+            info!("   Syncing assets...");
+            let (cost_file, _corpus_dir) = match compute::prepare_assets(&self.assets, &job).await {
+                Ok(res) => res,
+                Err(e) => {
+                    error!("Asset sync failed: {}", e);
+                    self.telemetry.set_job_id("idle");
+                    continue;
+                }
+            };
+
+            // 2. Prepare Engine Request
+            let loader = Box::new(keyforge_infra::FsProvider::new(self.config.data_dir.clone()));
+            let prepared_job = match compute::create_engine_request(
+                loader, 
+                self.config.data_dir.clone(), 
+                &job, 
+                &cost_file, 
+                "corpora" // Standard corpora dir
+            ).await {
+                Ok(pj) => pj,
+                Err(e) => {
+                    error!("Failed to prepare job: {}", e);
+                    self.telemetry.set_job_id("idle");
+                    continue;
+                }
+            };
+
+            // 3. Execution (with Cancellation Support)
+            let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let limiter = Arc::new(tokio::sync::Semaphore::new(self.config.cores.max(1)));
+
+            info!("   Launching optimization Engine...");
+            tokio::select! {
+                res = compute::run_optimization(
+                    prepared_job.req,
+                    job_id.clone(),
+                    stop_flag.clone(),
+                    limiter,
+                    self.telemetry.clone()
+                ) => {
+                    match res {
+                        Ok(opt_res) => {
+                            info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
+                            // TODO: Submit result via NetworkManager channel (future work)
+                        }
+                        Err(e) => {
+                            error!("❌ Job {} Failed: {}", job_id, e);
+                        }
+                    }
+                }
+                _ = stop_rx.recv() => {
+                    info!("🛑 Cancellation received for job {}", job_id);
+                    stop_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
             
             self.telemetry.set_job_id("idle");
         }
@@ -133,10 +189,16 @@ pub async fn run_worker(
         cores,
     };
 
-    let agent = Agent::new(config.clone()).await;
+    let agent = match Agent::new(config.clone()).await {
+        Ok(a) => a,
+        Err(e) => {
+            error!("Failed to initialize agent: {}", e);
+            return;
+        }
+    };
     
     let (job_tx, job_rx) = mpsc::channel(1);
-    let (stop_tx, _stop_rx) = mpsc::channel(1);
+    let (stop_tx, stop_rx) = mpsc::channel(1);
 
     // Network Task
     let net = NetworkManager::new(
@@ -148,7 +210,7 @@ pub async fn run_worker(
     
     let net_handle = tokio::spawn(net.run());
     let agent_handle = tokio::spawn(async move {
-        if let Err(e) = agent.run(job_rx).await {
+        if let Err(e) = agent.run(job_rx, stop_rx).await {
             error!("Agent run error: {}", e);
         }
     });

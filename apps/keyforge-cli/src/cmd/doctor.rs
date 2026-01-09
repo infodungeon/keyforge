@@ -126,7 +126,13 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
 
     // 6. Hive API Connectivity
     eprintln!("\n🐝 Hive API");
-    let hive_url = std::env::var("KEYFORGE_HIVE_URL").ok().unwrap_or_else(|| "http://localhost:3000".to_string());
+    let hive_url = match std::env::var("KEYFORGE_HIVE_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!("   ℹ️  KEYFORGE_HIVE_URL not set. Defaulting to 'http://localhost:3000'.");
+            "http://localhost:3000".to_string()
+        }
+    };
     
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(5))

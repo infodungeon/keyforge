@@ -69,11 +69,10 @@ impl ScoringEngine {
     ///
     /// Lower scores indicate better ergonomic performance. The result is 
     /// normalized for comparison across different corpora and rubrics.
-    #[instrument(skip(self, layout))]
     pub fn score(&self, layout: &Layout) -> Result<f32, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        let mut pos_map = vec![65535u16; 65536];
-        Ok(score_layout(&self.ctx, &validated, &mut pos_map) as f32 / SCORE_SCALE)
+        let mut scratch = kernel::compute::PhysicsScratch::new();
+        Ok(score_layout(&self.ctx, &validated, &mut scratch) as f32 / SCORE_SCALE)
     }
 
     /// Analyzes a layout and returns a detailed report of its performance.
@@ -106,8 +105,8 @@ impl ScoringEngine {
     /// Returns the raw, unweighted physics score for a layout.
     pub fn score_raw(&self, layout: &[KeyCode]) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
-        let mut pos_map = vec![65535u16; 65536];
-        Ok(score_layout(&self.ctx, &validated, &mut pos_map))
+        let mut scratch = kernel::compute::PhysicsScratch::new();
+        Ok(score_layout(&self.ctx, &validated, &mut scratch))
     }
 
     /// Returns the total number of keys supported by this engine.

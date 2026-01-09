@@ -114,7 +114,7 @@ async fn run_app() -> Result<(), CliError> {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
                 error!("Failed to load config file {:?}: {}", config_path, e);
-                std::process::exit(1);
+                return Err(CliError::Other(format!("Failed to load config: {}", e)));
             }
         }
     }

@@ -14,7 +14,7 @@
 
 
 use crate::net::distributed::DistributedCoordinator;
-use crate::util::corpus::{inject_synthetic_data, resolve_corpus_char};
+use crate::util::corpus::inject_synthetic_data;
 use crate::net::sync::ServerManifest;
 use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
@@ -213,43 +213,7 @@ impl AssetLoader for ValkeyProvider {
                 }
             }
 
-            for (stem, part) in segments {
-                match stem {
-                    "1grams" => {
-                        for e in part {
-                            if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
-                                if (c as usize) < 65536 {
-                                    corpus.char_freqs[c as usize] +=
-                                        (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u64;
-                                }
-                            }
-                        }
-                    }
-                    "2grams" => {
-                        for e in part {
-                            let c1 = e["char1"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
-                            let c2 = e["char2"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
-                            corpus.bigrams.push((c1, c2, (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
-                        }
-                    }
-                    "3grams" => {
-                        for e in part {
-                            let c1 = e["char1"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
-                            let c2 = e["char2"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
-                            let c3 = e["char3"].as_str().and_then(resolve_corpus_char).unwrap_or('\0') as u16;
-                            corpus.trigrams.push((c1, c2, c3, (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
-                        }
-                    }
-                    "words" => {
-                        for e in part {
-                            if let Some(w) = e["word"].as_str() {
-                                corpus.words.push((w.to_string(), (e["freq"].as_u64().unwrap_or(0) as f32 * src.weight).round() as u32));
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
+            crate::util::corpus::populate_corpus_from_segments(&mut corpus, src.weight, segments)?;
         }
 
         let is_std = sources.iter().any(|s| s.id.contains("_std"));

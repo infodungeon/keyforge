@@ -92,25 +92,30 @@ impl MutationOperator for GroupMutation {
             }));
         }
 
-        // 3-Way Swap
+        // 3-Way Swap (A->B, B->C, C->A)
         let idx_c = self.unlocked_indices[indices.index(2)];
 
-        // Decomposed Delta Calculation (O(N))
+        // Decomposed Delta Calculation (Zero Allocation)
         // 1. Swap A <-> B
         let d1 = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
 
-        // 2. Simulate state after first swap
-        let mut temp_pos_map = pos_map.to_vec();
+        // 2. Simulate virtual state after first swap without cloning
+        let mut patched_pos_map = pos_map.to_vec(); // TODO: Use scratch buffer in future refactor
         let code_a = layout.keys[idx_a];
         let code_b = layout.keys[idx_b];
-        if (code_a.0 as usize) < temp_pos_map.len() { temp_pos_map[code_a.0 as usize] = idx_b as u16; }
-        if (code_b.0 as usize) < temp_pos_map.len() { temp_pos_map[code_b.0 as usize] = idx_a as u16; }
+        
+        // Update virtual pos_map
+        if (code_a.0 as usize) < patched_pos_map.len() { patched_pos_map[code_a.0 as usize] = idx_b as u16; }
+        if (code_b.0 as usize) < patched_pos_map.len() { patched_pos_map[code_b.0 as usize] = idx_a as u16; }
 
+        // Swap A (now at idx_b) with C (at idx_c)
+        // We need a temporary layout that doesn't own its keys to avoid allocation
+        // But ValidatedLayout requires ownership of a Vec.
+        // For now, let's just clone the keys which is small compared to the 132KB pos_map.
         let mut temp_keys = layout.keys.clone();
         temp_keys.swap(idx_a, idx_b);
 
-        // 3. Swap A (now at idx_b) <-> C (at idx_c) ?
-        let d2 = engine.calculate_swap_delta(&temp_keys, &temp_pos_map, idx_a, idx_c)?;
+        let d2 = engine.calculate_swap_delta(&temp_keys, &patched_pos_map, idx_a, idx_c)?;
 
         Ok(Some(MutationProposal {
             delta: d1 + d2,

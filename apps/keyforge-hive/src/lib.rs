@@ -48,7 +48,7 @@ pub mod bootstrap;
 /// Global and local caching mechanisms.
 pub mod cache;
 pub(crate) mod commands;
-pub(crate) mod config;
+pub mod config;
 /// Background jobs and periodic tasks.
 pub mod cron;
 pub(crate) mod error;
@@ -83,9 +83,13 @@ pub struct RateLimitState {
 ///
 /// This function configures CORS, rate limiting, logging, request IDs,
 /// and nests all API features and documentation routes.
-pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
+/// Constructs the main Axum application router.
+///
+/// This function configures CORS, rate limiting, logging, request IDs,
+/// and nests all API features and documentation routes.
+pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: PathBuf) -> Router {
     // --- CORS ---
-    let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
+    let cors_origins = &config.cors_origins;
     let cors = if cors_origins == "*" {
         info!("🔓 CORS: Explicitly Permissive Mode (*)");
         CorsLayer::new()
@@ -129,34 +133,16 @@ pub fn create_app(state: Arc<AppState>, _data_path: PathBuf) -> Router {
     };
 
     // --- RATE LIMITING CONFIG ---
-    let limit_per_sec: u32 = env::var("RATE_LIMIT_PER_SEC")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1000); // Default: 1000 req/s (High for TUI/Dev)
-
-    let limit_burst: u32 = env::var("RATE_LIMIT_BURST")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(2000);
-
-    let strict_limit_per_sec: u32 = env::var("STRICT_RATE_LIMIT_PER_SEC")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1);
-
-    let strict_limit_burst: u32 = env::var("STRICT_RATE_LIMIT_BURST")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(5);
+    let limits = &config.rate_limits;
 
     let rate_limit_state = RateLimitState {
         global: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
-                .allow_burst(NonZeroU32::new(limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
+            Quota::per_second(NonZeroU32::new(limits.limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
+                .allow_burst(NonZeroU32::new(limits.limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
         )),
         strict: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(strict_limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
-                .allow_burst(NonZeroU32::new(strict_limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
+            Quota::per_second(NonZeroU32::new(limits.strict_limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
+                .allow_burst(NonZeroU32::new(limits.strict_limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
         )),
     };
 

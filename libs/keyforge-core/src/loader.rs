@@ -60,6 +60,20 @@ impl RawCostData {
     }
 }
 
+impl keyforge_model::validator::Validator for RawCostData {
+    fn validate(&self) -> Result<(), String> {
+        for entry in &self.entries {
+            if entry.from.is_empty() || entry.to.is_empty() {
+                return Err("Cost entry labels cannot be empty".to_string());
+            }
+            if entry.cost < 0.0 {
+                return Err(format!("Negative cost found for {} -> {}", entry.from, entry.to));
+            }
+        }
+        Ok(())
+    }
+}
+
 /// A trait for types that can load KeyForge assets from an external source.
 ///
 /// This is the primary abstraction for IO, allowing core logic to remain 

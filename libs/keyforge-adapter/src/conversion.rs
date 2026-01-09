@@ -31,7 +31,7 @@ pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource
 ///
 /// This resolves physical properties like home row positions and calculates 
 /// internal indices for high-performance scoring.
-pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> keyforge_model::Keyboard {
+pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> AdapterResult<keyforge_model::Keyboard> {
     let keys = geo
         .keys
         .iter()
@@ -44,7 +44,8 @@ pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> keyforge_model::K
         })
         .collect();
 
-    keyforge_model::Keyboard::new(keys, geo.home_row).expect("Failed to create keyboard from adapter geometry")
+    keyforge_model::Keyboard::new(keys, geo.home_row)
+        .map_err(|e| AdapterError::Validation(format!("Failed to create keyboard: {}", e)))
 }
 
 /// Converts protocol-level scoring weights into a domain-level evaluation rubric.
@@ -93,12 +94,7 @@ pub fn resolve_constraints(
             if let Some(code) = registry.get_code(&c.key) {
                 pins[idx] = Some(code);
             } else {
-                // Try parsing as number if lookup fails (backward compatibility/direct ID)
-                if let Ok(code) = c.key.parse::<u16>() {
-                    pins[idx] = Some(KeyCode(code));
-                } else {
-                    return Err(AdapterError::UnknownToken(c.key.clone()));
-                }
+                return Err(AdapterError::UnknownToken(c.key.clone()));
             }
         } else {
             return Err(AdapterError::Validation(format!(
@@ -157,9 +153,13 @@ pub fn parse_layout_string_strict(
             continue;
         }
 
-        // 2. Try stripping arguments (e.g. "MO(1)" -> "MO")
-        let base_token = if let Some(idx) = token.find('(') {
-            &token[..idx]
+        // 2. Try stripping arguments safely (e.g. "MO(1)" -> "MO")
+        let base_token = if token.ends_with(')') {
+            if let Some(idx) = token.find('(') {
+                &token[..idx]
+            } else {
+                token
+            }
         } else {
             token
         };
@@ -167,14 +167,7 @@ pub fn parse_layout_string_strict(
         if let Some(code) = registry.get_code(base_token) {
             keys.push(code);
         } else {
-            if token.len() == 1 {
-                let c = token.chars().next().expect("token of length 1 should have a character");
-                if c.is_ascii() {
-                    keys.push(KeyCode(c.to_ascii_lowercase() as u16));
-                    continue;
-                }
-            }
-            // Strict parsing: Don't silently insert 0 for unknown tokens
+            // Strict parsing: remove length-1 ASCII backdoor. Everything must be in the registry.
             return Err(AdapterError::UnknownToken(token.to_string()));
         }
     }
@@ -208,24 +201,18 @@ pub fn parse_layout_string_permissive(
             continue;
         }
 
-        let base_token = if let Some(idx) = token.find('(') {
-            &token[..idx]
+        let base_token = if token.ends_with(')') {
+            if let Some(idx) = token.find('(') {
+                &token[..idx]
+            } else {
+                token
+            }
         } else {
             token
         };
 
         if let Some(code) = registry.get_code(base_token) {
             keys.push(code);
-        } else if token.len() == 1 {
-            if let Some(c) = token.chars().next() {
-                if c.is_ascii() {
-                    keys.push(KeyCode(c.to_ascii_lowercase() as u16));
-                } else {
-                    keys.push(KeyCode(0));
-                }
-            } else {
-                keys.push(KeyCode(0));
-            }
         } else {
             keys.push(KeyCode(0));
         }
@@ -262,31 +249,12 @@ pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
         r: k.r,
         rx: k.rx,
         ry: k.ry,
-        hand: to_domain_hand_index(k.hand),
-        finger: to_domain_finger_index(k.finger),
-        row: to_domain_row_index(k.row),
-        col: to_domain_col_index(k.col),
+        hand: k.hand,
+        finger: k.finger,
+        row: k.row,
+        col: k.col,
         is_home: k.is_home,
         is_stretch: k.is_stretch,
     }
 }
 
-/// Identity conversion for hand indices (facilitates protocol decoupling).
-pub fn to_domain_hand_index(val: keyforge_model::types::HandIndex) -> keyforge_model::types::HandIndex {
-    keyforge_model::types::HandIndex(val.0)
-}
-
-/// Identity conversion for finger indices (facilitates protocol decoupling).
-pub fn to_domain_finger_index(val: keyforge_model::types::FingerIndex) -> keyforge_model::types::FingerIndex {
-    keyforge_model::types::FingerIndex(val.0)
-}
-
-/// Identity conversion for row indices (facilitates protocol decoupling).
-pub fn to_domain_row_index(val: keyforge_model::types::RowIndex) -> keyforge_model::types::RowIndex {
-    keyforge_model::types::RowIndex(val.0)
-}
-
-/// Identity conversion for column indices (facilitates protocol decoupling).
-pub fn to_domain_col_index(val: keyforge_model::types::ColIndex) -> keyforge_model::types::ColIndex {
-    keyforge_model::types::ColIndex(val.0)
-}

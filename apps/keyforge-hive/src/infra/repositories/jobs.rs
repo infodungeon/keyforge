@@ -53,6 +53,7 @@ impl JobRepository {
     ///
     /// This is a complex atomic operation that also idempotently registers the 
     /// keyboard geometry, scoring profile, and search configuration.
+    /// Registers a new optimization job in the database.
     pub async fn register(
         &self,
         job_id: &str,
@@ -76,51 +77,10 @@ impl JobRepository {
             return Err(sqlx::Error::Protocol("Pinned keys too large".into()));
         }
 
-        let kb_meta = &req.definition.meta;
-        let lock_key = format!("{}{}{}", kb_meta.name, kb_meta.author, kb_meta.version);
-
-        // Hashing logic for components
-        let weights_clone = req.weights.clone();
-        let params_clone = req.params;
-        let lock_key_clone = lock_key.clone();
-
+        // 1. Calculate deterministic component hashes (CPU-bound)
+        let req_clone = req.clone();
         let (unique_hash, w_json, w_hash, p_hash) = tokio::task::spawn_blocking(move || {
-            fn norm(v: f32) -> f32 {
-                if v == 0.0 {
-                    0.0
-                } else {
-                    (v * 1_000_000.0).round() / 1_000_000.0
-                }
-            }
-
-            let mut hasher = Sha256::new();
-            hasher.update(lock_key_clone.as_bytes());
-            let unique_hash = hex::encode(hasher.finalize());
-
-            let mut w = weights_clone;
-            w.penalty_sfb_base = norm(w.penalty_sfb_base);
-            // ... (other norms omitted for brevity, assuming standard usage)
-
-            let w_json = serde_json::to_value(&w).map_err(|e| e.to_string())?;
-            let w_str = serde_json::to_string(&w).map_err(|e| e.to_string())?;
-            let mut hasher = Sha256::new();
-            hasher.update(w_str.as_bytes());
-            let w_hash = hex::encode(hasher.finalize());
-
-            let mut p = params_clone;
-            p.temp_min = norm(p.temp_min);
-
-            let p_json = serde_json::to_string(&p).map_err(|e| e.to_string())?;
-            let mut hasher = Sha256::new();
-            hasher.update(p_json.as_bytes());
-            let p_hash = hex::encode(hasher.finalize());
-
-            Ok::<(String, serde_json::Value, String, String), String>((
-                unique_hash,
-                w_json,
-                w_hash,
-                p_hash,
-            ))
+            Self::calculate_job_identity(&req_clone)
         })
         .await
         .map_err(|e| sqlx::Error::Protocol(format!("Hashing task failed: {}", e)))?
@@ -128,9 +88,90 @@ impl JobRepository {
 
         let mut tx = self.pool.begin().await?;
 
-        // Advisory Lock
+        // 2. Advisory Lock to prevent concurrent registration of the same geometry
+        self.acquire_advisory_lock(&mut tx, &unique_hash).await?;
+
+        // 3. Ensure Components Exist (Idempotent)
+        let kb_id = self.ensure_keyboard(&mut tx, &req.definition, &unique_hash).await?;
+        let score_id = self.ensure_scoring_profile(&mut tx, &w_json, &w_hash).await?;
+        let search_id = self.ensure_search_config(&mut tx, &req.params, &p_hash).await?;
+
+        // 4. Insert Job Record
+        let primary_corpus = req
+            .corpora
+            .first()
+            .map(|c| c.id.clone())
+            .unwrap_or_else(|| DEFAULT_CORPUS_ID.to_string());
+        
+        let result = sqlx::query(
+            r#"
+            INSERT INTO jobs (
+                id, keyboard_id, scoring_profile_id, search_config_id, 
+                pinned_keys, corpus_name, cost_matrix, owner_id, 
+                parent_job_id, priority
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (id) DO NOTHING
+            "#,
+        )
+        .bind(job_id)
+        .bind(kb_id)
+        .bind(score_id)
+        .bind(search_id)
+        // Note: In a real refactor we'd avoid re-serializing if possible, but for safety we do it here.
+        .bind(serde_json::to_string(&req.pinned_keys).unwrap_or_default())
+        .bind(&primary_corpus)
+        .bind(serde_json::to_string(&req.cost_matrix).unwrap_or_default())
+        .bind(owner_id)
+        .bind(parent_job_id)
+        .bind(priority)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Calculates deterministic hashes for job components.
+    fn calculate_job_identity(req: &JobRequest) -> Result<(String, serde_json::Value, String, String), String> {
+        let kb_meta = &req.definition.meta;
+        let lock_key = format!("{}{}{}", kb_meta.name, kb_meta.author, kb_meta.version);
+        
+        // Unique Hash (for Lock/Geometry)
+        let mut hasher = Sha256::new();
+        hasher.update(lock_key.as_bytes());
+        let unique_hash = hex::encode(hasher.finalize());
+
+        // Weights
+        fn norm(v: f32) -> f32 {
+            if v == 0.0 { 0.0 } else { (v * 1_000_000.0).round() / 1_000_000.0 }
+        }
+
+        let mut w = req.weights.clone();
+        w.penalty_sfb_base = norm(w.penalty_sfb_base);
+        
+        let w_json = serde_json::to_value(&w).map_err(|e| e.to_string())?;
+        let w_str = serde_json::to_string(&w).map_err(|e| e.to_string())?;
+        let mut hasher = Sha256::new();
+        hasher.update(w_str.as_bytes());
+        let w_hash = hex::encode(hasher.finalize());
+
+        // Search Params
+        let mut p = req.params;
+        p.temp_min = norm(p.temp_min);
+        
+        let p_json = serde_json::to_string(&p).map_err(|e| e.to_string())?;
+        let mut hasher = Sha256::new();
+        hasher.update(p_json.as_bytes());
+        let p_hash = hex::encode(hasher.finalize());
+
+        Ok((unique_hash, w_json, w_hash, p_hash))
+    }
+
+    async fn acquire_advisory_lock(&self, tx: &mut sqlx::Transaction<'_, Postgres>, unique_hash: &str) -> Result<(), sqlx::Error> {
         let mut bytes = [0u8; 8];
-        let hash_bytes = hex::decode(&unique_hash).unwrap_or_default();
+        let hash_bytes = hex::decode(unique_hash).unwrap_or_default();
         if hash_bytes.len() >= 8 {
             bytes.copy_from_slice(&hash_bytes[0..8]);
         }
@@ -138,10 +179,18 @@ impl JobRepository {
 
         sqlx::query("SELECT pg_advisory_xact_lock($1)")
             .bind(lock_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
+        Ok(())
+    }
 
-        // Keyboards
+    async fn ensure_keyboard(
+        &self, 
+        tx: &mut sqlx::Transaction<'_, Postgres>, 
+        def: &KeyboardDefinition, 
+        unique_hash: &str
+    ) -> Result<i32, sqlx::Error> {
+        let kb_meta = &def.meta;
         let row = sqlx::query(
             r#"
             INSERT INTO keyboards (name, author, version, notes, kb_type, unique_hash)
@@ -155,25 +204,23 @@ impl JobRepository {
         .bind(&kb_meta.version)
         .bind(&kb_meta.notes)
         .bind(&kb_meta.kb_type)
-        .bind(&unique_hash)
-        .fetch_one(&mut *tx)
+        .bind(unique_hash)
+        .fetch_one(&mut **tx)
         .await?;
 
         let kb_id: i32 = row.try_get("id")?;
 
-        // Keys
-        let keys_exist =
-            sqlx::query("SELECT 1 as ex FROM keyboard_keys WHERE keyboard_id = $1 LIMIT 1")
+        let keys_exist = sqlx::query("SELECT 1 FROM keyboard_keys WHERE keyboard_id = $1 LIMIT 1")
                 .bind(kb_id)
-                .fetch_optional(&mut *tx)
+                .fetch_optional(&mut **tx)
                 .await?;
 
         if keys_exist.is_none() {
-            for (idx, key) in req.definition.geometry.keys.iter().enumerate() {
+            for (idx, key) in def.geometry.keys.iter().enumerate() {
                 let kidx = KeyIndex(idx as u16);
-                let is_prime = req.definition.geometry.prime_slots.contains(&kidx);
-                let is_med = req.definition.geometry.med_slots.contains(&kidx);
-                let is_low = req.definition.geometry.low_slots.contains(&kidx);
+                let is_prime = def.geometry.prime_slots.contains(&kidx);
+                let is_med = def.geometry.med_slots.contains(&kidx);
+                let is_low = def.geometry.low_slots.contains(&kidx);
 
                 sqlx::query(
                     r#"
@@ -197,13 +244,20 @@ impl JobRepository {
                 .bind(is_med)
                 .bind(is_low)
                 .bind(key.r)
-                .execute(&mut *tx)
+                .execute(&mut **tx)
                 .await?;
             }
         }
+        Ok(kb_id)
+    }
 
-        // Scoring Profiles
-        let score_row = sqlx::query(
+    async fn ensure_scoring_profile(
+        &self, 
+        tx: &mut sqlx::Transaction<'_, Postgres>, 
+        w_json: &serde_json::Value,
+        w_hash: &str
+    ) -> Result<i32, sqlx::Error> {
+        let row = sqlx::query(
             r#"
             INSERT INTO scoring_profiles (weights, config_hash) 
             VALUES ($1, $2)
@@ -213,12 +267,18 @@ impl JobRepository {
         )
         .bind(w_json)
         .bind(w_hash)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
-        let score_id: i32 = score_row.try_get("id")?;
+        Ok(row.try_get("id")?)
+    }
 
-        // Search Config
-        let search_row = sqlx::query(
+    async fn ensure_search_config(
+        &self, 
+        tx: &mut sqlx::Transaction<'_, Postgres>, 
+        params: &SearchParams, 
+        p_hash: &str
+    ) -> Result<i32, sqlx::Error> {
+        let row = sqlx::query(
             r#"
             INSERT INTO search_configs (
                 search_epochs, search_steps, search_patience, search_patience_threshold,
@@ -228,60 +288,18 @@ impl JobRepository {
             RETURNING id
             "#,
         )
-        .bind(req.params.search_epochs as i32)
-        .bind(req.params.search_steps as i32)
-        .bind(req.params.search_patience as i32)
-        .bind(req.params.search_patience_threshold)
-        .bind(req.params.temp_min)
-        .bind(req.params.temp_max)
-        .bind(req.params.opt_limit_fast as i32)
-        .bind(req.params.opt_limit_slow as i32)
+        .bind(params.search_epochs as i32)
+        .bind(params.search_steps as i32)
+        .bind(params.search_patience as i32)
+        .bind(params.search_patience_threshold)
+        .bind(params.temp_min)
+        .bind(params.temp_max)
+        .bind(params.opt_limit_fast as i32)
+        .bind(params.opt_limit_slow as i32)
         .bind(p_hash)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
-        let search_id: i32 = search_row.try_get("id")?;
-
-        let primary_corpus = req
-            .corpora
-            .first()
-            .map(|c| c.id.clone())
-            .unwrap_or_else(|| DEFAULT_CORPUS_ID.to_string());
-        let pinned_json = serde_json::to_string(&req.pinned_keys)
-            .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
-
-        // Serialize CostMatrixSource
-        let cost_matrix_str = serde_json::to_string(&req.cost_matrix)
-            .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
-        let _parents_json =
-            serde_json::to_string(&req.parents).unwrap_or_else(|_| "[]".to_string());
-
-        let result = sqlx::query(
-            r#"
-            INSERT INTO jobs (
-                id, keyboard_id, scoring_profile_id, search_config_id, 
-                pinned_keys, corpus_name, cost_matrix, owner_id, 
-                parent_job_id, priority
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            ON CONFLICT (id) DO NOTHING
-            "#,
-        )
-        .bind(job_id)
-        .bind(kb_id)
-        .bind(score_id)
-        .bind(search_id)
-        .bind(pinned_json)
-        .bind(&primary_corpus)
-        .bind(&cost_matrix_str) // Use the serialized JSON string
-        .bind(owner_id)
-        .bind(parent_job_id)
-        .bind(priority)
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        Ok(result.rows_affected() > 0)
+        Ok(row.try_get("id")?)
     }
 
     /// Attempts to claim an 'active' job for a worker node.

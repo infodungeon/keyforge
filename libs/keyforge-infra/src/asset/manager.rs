@@ -17,7 +17,6 @@ use crate::net::client::HiveClient;
 use crate::net::network::ensure_file;
 use keyforge_model::CostMatrixSource;
 use keyforge_protocol::JobConfig;
-use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tracing::info;
 
@@ -147,17 +146,6 @@ impl AssetManager {
             CostMatrixSource::Predefined(filename) => {
                 self.ensure_cost_matrix(filename).await?;
                 filename.clone()
-            }
-            CostMatrixSource::Custom(content) => {
-                let mut hasher = Sha256::new();
-                hasher.update(content);
-                let hash = hex::encode(hasher.finalize());
-                let filename = format!("custom_cost_{}.json", hash);
-                let path = self.root.join(&filename);
-                if !path.exists() {
-                    crate::fs::io::atomic_write(&path, content)?;
-                }
-                filename
             }
         };
 

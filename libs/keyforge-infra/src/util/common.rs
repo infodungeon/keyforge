@@ -78,3 +78,30 @@ pub fn sanitize_filename(name: &str) -> String {
         })
         .collect()
 }
+
+/// Normalizes a path to prevent traversal and ensure consistent format (forward slashes).
+/// Returns None if the path attempts to step above its root.
+pub fn normalize_path(raw: &str) -> Option<String> {
+    let p = Path::new(raw);
+    let mut stack = Vec::new();
+
+    for comp in p.components() {
+        match comp {
+            std::path::Component::Normal(s) => stack.push(s.to_string_lossy()),
+            std::path::Component::ParentDir => {
+                if stack.is_empty() {
+                    return None;
+                }
+                stack.pop();
+            }
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => return None,
+            std::path::Component::CurDir => {}
+        }
+    }
+
+    if stack.is_empty() {
+        None
+    } else {
+        Some(stack.join("/"))
+    }
+}

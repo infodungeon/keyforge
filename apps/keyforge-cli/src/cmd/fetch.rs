@@ -37,7 +37,12 @@ pub enum FetchCommands {
 }
 
 pub async fn run(args: FetchArgs, root: &Path) -> Result<(), CliError> {
-    let client = keyforge_infra::HiveClient::new(args.hive.clone(), None)
+    let config = keyforge_infra::net::client::ClientConfig {
+        base_url: args.hive.clone(),
+        secret: None,
+        ..Default::default()
+    };
+    let client = keyforge_infra::HiveClient::new(config)
         .map_err(|e| CliError::Other(format!("Failed to create client: {}", e)))?;
 
     let manager = keyforge_infra::AssetManager::new(client, root.to_path_buf());

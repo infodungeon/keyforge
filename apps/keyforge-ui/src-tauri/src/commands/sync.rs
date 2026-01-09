@@ -11,7 +11,13 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
     let local_data_dir = get_data_dir(&app)?;
 
     // No secret needed for public sync
-    let client = HiveClient::new(hive_url, None).map_err(|e| e.to_string())?;
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: None,
+        ..Default::default()
+    };
+    let client = HiveClient::new(config).map_err(|e| e.to_string())?;
 
     run_sync(&client, &local_data_dir).await
 }
@@ -21,7 +27,13 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
 pub async fn cmd_bootstrap_assets(app: AppHandle, hive_url: String) -> Result<Vec<String>, String> {
     let local_data_dir = get_data_dir(&app)?;
 
-    let client = HiveClient::new(hive_url, None).map_err(|e| e.to_string())?;
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: None,
+        ..Default::default()
+    };
+    let client = HiveClient::new(config).map_err(|e| e.to_string())?;
 
     bootstrap_essentials(&client, &local_data_dir).await
 }

@@ -23,6 +23,8 @@ pub mod qmk;
 pub mod via;
 /// ZMK firmware (devicetree) exporter.
 pub mod zmk;
+/// Shared utilities for exporters.
+pub mod util;
 
 use anyhow::Result;
 
@@ -31,6 +33,6 @@ pub trait Exporter {
     /// Generates the source code or configuration for a specific firmware format.
     ///
     /// - `layout_name`: The human-readable name of the layout.
-    /// - `keys`: A slice of key labels or tokens to be exported.
-    fn generate(&self, layout_name: &str, keys: &[String]) -> Result<String>;
+    /// - `layers`: A slice of layers, where each layer is a vector of key labels/tokens.
+    fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String>;
 }

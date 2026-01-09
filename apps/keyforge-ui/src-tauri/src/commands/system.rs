@@ -42,8 +42,13 @@ pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
 /// Checks the health of a remote Hive server.
 #[tauri::command]
 pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandError> {
-    let client =
-        HiveClient::new(hive_url, None).map_err(|e| CommandError::Config(e.to_string()))?;
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: None,
+        ..Default::default()
+    };
+    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
 
     let resp = client
         .get("health")

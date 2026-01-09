@@ -16,6 +16,33 @@ use crate::error::{InfraError, InfraResult};
 use reqwest::{header, Client, RequestBuilder};
 use std::time::Duration;
 
+/// Configuration for the HiveClient.
+#[derive(Debug, Clone)]
+pub struct ClientConfig {
+    /// The base URL of the Hive server.
+    pub base_url: String,
+    /// Optional secret key for authentication.
+    pub secret: Option<String>,
+    /// Request timeout (default: 30s).
+    pub timeout: Duration,
+    /// Connection timeout (default: 10s).
+    pub connect_timeout: Duration,
+    /// Custom User-Agent string.
+    pub user_agent: String,
+}
+
+impl Default for ClientConfig {
+    fn default() -> Self {
+        Self {
+            base_url: "http://localhost:8000".to_string(),
+            secret: None,
+            timeout: Duration::from_secs(30),
+            connect_timeout: Duration::from_secs(10),
+            user_agent: "KeyForge-Client/0.7".to_string(),
+        }
+    }
+}
+
 /// A specialized HTTP client for interacting with the KeyForge Hive API.
 ///
 /// It handles base URL normalization, secret-based authentication, and
@@ -27,13 +54,13 @@ pub struct HiveClient {
 }
 
 impl HiveClient {
-    /// Creates a new `HiveClient` from the given base URL.
+    /// Creates a new `HiveClient` from the given configuration.
     ///
     /// If a secret is provided, it will be included in the `X-Keyforge-Secret` header
     /// for all requests.
-    pub fn new(base_url: String, secret: Option<String>) -> InfraResult<Self> {
+    pub fn new(config: ClientConfig) -> InfraResult<Self> {
         let mut headers = header::HeaderMap::new();
-        if let Some(s) = secret {
+        if let Some(s) = config.secret {
             if !s.is_empty() {
                 let mut val = header::HeaderValue::from_str(&s)
                     .map_err(|_| InfraError::Config("Invalid secret key characters".into()))?;
@@ -45,16 +72,18 @@ impl HiveClient {
         // Standard User Agent
         headers.insert(
             header::USER_AGENT,
-            header::HeaderValue::from_static("KeyForge-Client/0.7"),
+            header::HeaderValue::from_str(&config.user_agent)
+                .map_err(|_| InfraError::Config("Invalid user agent characters".into()))?,
         );
 
         let client = Client::builder()
             .default_headers(headers)
-            .timeout(Duration::from_secs(30))
-            .connect_timeout(Duration::from_secs(10))
+            .timeout(config.timeout)
+            .connect_timeout(config.connect_timeout)
             .build()?;
 
         // Normalize URL (strip trailing slash)
+        let base_url = config.base_url;
         let normalized_url = if base_url.ends_with('/') {
             base_url[..base_url.len() - 1].to_string()
         } else {

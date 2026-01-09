@@ -25,8 +25,8 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion
         Err(_) => return vec![], // Invalid layout yields no suggestions
     };
 
-    let mut pos_map = vec![65535u16; 65536];
-    let current_score = score_layout(ctx, &validated, &mut pos_map);
+    let mut scratch = crate::kernel::compute::PhysicsScratch::new();
+    let current_score = score_layout(ctx, &validated, &mut scratch);
 
     if current_score <= 0 {
         return vec![];
@@ -34,6 +34,12 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout) -> Vec<SwapSuggestion
 
     let mut suggestions = Vec::new();
     let len = layout.keys.len();
+
+    // Use a temporary pos_map for delta calculations
+    let mut pos_map = vec![65535u16; 65536];
+    for (i, &code) in layout.keys.iter().enumerate() {
+        pos_map[code.0 as usize] = i as u16;
+    }
 
     for i in 0..len {
         for j in (i + 1)..len {

@@ -85,9 +85,7 @@ impl KeyforgeEngine {
     /// Loads a physical cost matrix into the engine's memory.
     pub fn load_cost_matrix(&self, name: String, json_cost: JsValue) -> Result<(), JsValue> {
         let cost: RawCostData = serde_wasm_bindgen::from_value(json_cost)?;
-        // RawCostData is a Core type, not Model. It might not have Validator yet.
-        // Checking keyforge-core/src/loader.rs would be needed if we wanted to validate this too.
-        // For now, we assume RawCostData is simple enough or validated on conversion.
+        cost.validate().map_err(|e| JsValue::from_str(&e))?;
         self.loader.add_cost(name, cost).map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
@@ -107,9 +105,9 @@ impl KeyforgeEngine {
         let w: ScoringWeights = serde_wasm_bindgen::from_value(weights)?;
         w.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
         
-        // Params are unused in init_session (only used for annealing), but good to validate if we stored them.
-        // let p: SearchParams = serde_wasm_bindgen::from_value(_params)?;
-        // p.validate()...
+        // Validate search parameters
+        let _p: keyforge_model::config::SearchParams = serde_wasm_bindgen::from_value(_params)?;
+        _p.validate().map_err(|e| JsValue::from_str(&e))?;
 
         // Load assets from in-memory loader
         let def = self
@@ -124,6 +122,8 @@ impl KeyforgeEngine {
             .await
             .map_err(|e| e.to_string())?;
 
+        // Note: For now we support a single primary corpus via this simple API.
+        // Future iterations could pass a list of sources here.
         let sources = [CorpusSource {
             id: corpus_name,
             weight: 1.0,
