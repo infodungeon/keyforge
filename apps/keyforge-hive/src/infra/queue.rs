@@ -130,6 +130,30 @@ impl WriteQueue {
 
             let mut buffer = Vec::new();
 
+            // --- WAL RECOVERY PHASE ---
+            if let Ok(mut entries) = fs::read_dir(&queue_dir_clone).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    let path = entry.path();
+                    if path.extension().and_then(|s| s.to_str()) == Some("bin") {
+                        if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                            if let Ok(id) = Uuid::parse_str(file_stem) {
+                                if let Ok(bytes) = fs::read(&path).await {
+                                    if let Ok(val_entry) = postcard::from_bytes::<WalEntry>(&bytes) {
+                                        let record_bytes = postcard::to_stdvec(&val_entry.record).unwrap_or_default();
+                                        if crc32fast::hash(&record_bytes) == val_entry.checksum {
+                                            buffer.push((id, val_entry.record, None));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if !buffer.is_empty() {
+                    info!("🔄 WAL Recovery: Found {} orphaned records, re-injecting...", buffer.len());
+                }
+            }
+
             loop {
                 // FIX: Use generic load_config_asset
                 let current_config: Arc<HiveConfig> = assets_clone.load_config_asset("hive").await;

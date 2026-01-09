@@ -54,10 +54,10 @@ pub mod layout;
 pub mod parsing;
 /// Scoring configuration and weights.
 pub mod rubric;
-/// Serialization helpers (e.g., limited vec).
-pub mod serde_utils;
 /// Core newtypes (`KeyIndex`, `Score`, etc.).
 pub mod types;
+/// Internal utilities (private).
+pub mod utils;
 /// Validation traits and helpers.
 pub mod validator;
 
@@ -66,7 +66,7 @@ pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringW
 pub use corpus::Corpus;
 pub use error::ForgeError;
 pub use geometry::{KeyboardDefinition, KeyboardGeometry, KeyNode};
-pub use job::{JobIdentifier, JobIdError};
+pub use job::JobIdentifier;
 pub use keyboard::Keyboard;
 pub use keycodes::KeycodeRegistry;
 pub use layout::Layout;

@@ -84,12 +84,13 @@ impl Validator for KeycodeRegistry {
 impl KeycodeRegistry {
     /// Creates a new registry from a list of definitions.
     pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
-        // NORMALIZE: Force all Uppercase ASCII codes (65-90) to Lowercase (97-122)
-        // This aligns the internal representation with standard text corpora.
+        // NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
+        // This ensures consistence between corpus text (which is lowercased for heatmaps) 
+        // and key definitions.
         for def in &mut definitions {
             let val = def.code.0;
-            if (65..=90).contains(&val) {
-                def.code = KeyCode(val + 32);
+            if (b'A'..=b'Z').contains(&(val as u8)) {
+                def.code = KeyCode((val as u8).to_ascii_lowercase() as u16);
             }
         }
 

@@ -58,6 +58,19 @@ pub enum ForgeError {
     /// Invalid data format or content.
     #[error("Invalid Data: {0}")]
     InvalidData(String),
+
+    /// Error originating from the Model logic itself.
+    #[error("Model Error: {0}")]
+    Model(#[from] ModelError),
+}
+
+/// Errors related to core model logic and integrity.
+#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub enum ModelError {
+    /// Failed to serialize a component.
+    #[error("Serialization Failed: {0}")]
+    Serialization(String),
 }
 
 /// Specific errors related to physical constraints and scoring.

@@ -21,7 +21,6 @@
 use crate::config::{CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
 use crate::geometry::KeyboardGeometry;
 use sha2::{Digest, Sha256};
-use thiserror::Error;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
@@ -36,14 +35,7 @@ pub struct JobIdentifier {
     pub hash: String,
 }
 
-/// Errors that can occur during Job ID generation.
-#[derive(Debug, Error, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub enum JobIdError {
-    /// Failed to serialize a component for hashing.
-    #[error("Failed to serialize job identifier component: {0}")]
-    Serialize(String),
-}
+use crate::error::ModelError;
 
 impl JobIdentifier {
     /// Attempts to generate a Job ID from the constituent parts.
@@ -54,13 +46,13 @@ impl JobIdentifier {
         pinned_keys: &[KeyConstraint],
         corpus_name: &str,
         cost_matrix: &CostMatrixSource,
-    ) -> Result<Self, JobIdError> {
+    ) -> Result<Self, ModelError> {
         let mut hasher = Sha256::new();
 
-        fn feed<T: Serialize>(hasher: &mut Sha256, value: &T) -> Result<(), JobIdError> {
+        fn feed<T: Serialize>(hasher: &mut Sha256, value: &T) -> Result<(), ModelError> {
             // Use postcard for deterministic binary serialization
             let bytes = postcard::to_stdvec(value)
-                .map_err(|e| JobIdError::Serialize(e.to_string()))?;
+                .map_err(|e| ModelError::Serialization(e.to_string()))?;
             hasher.update((bytes.len() as u64).to_le_bytes());
             hasher.update(&bytes);
             Ok(())
@@ -83,10 +75,6 @@ impl JobIdentifier {
                 hasher.update(b"PRE");
                 hasher.update(s.as_bytes());
             }
-            CostMatrixSource::Custom(s) => {
-                hasher.update(b"CUST");
-                hasher.update(s.as_bytes());
-            }
         }
 
         let result = hasher.finalize();
@@ -95,7 +83,8 @@ impl JobIdentifier {
         })
     }
 
-    /// Generates a Job ID, panicking on serialization failure.
+    /// Generates a Job ID, returning a Result.
+    /// This replaces the panicking `from_parts` method.
     pub fn from_parts(
         geometry: &KeyboardGeometry,
         weights: &ScoringWeights,
@@ -103,7 +92,7 @@ impl JobIdentifier {
         pinned_keys: &[KeyConstraint],
         corpus_name: &str,
         cost_matrix: &CostMatrixSource,
-    ) -> Self {
+    ) -> Result<Self, ModelError> {
         Self::try_from_parts(
             geometry,
             weights,
@@ -112,6 +101,5 @@ impl JobIdentifier {
             corpus_name,
             cost_matrix,
         )
-        .expect("JobIdentifier::from_parts failed")
     }
 }

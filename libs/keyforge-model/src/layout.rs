@@ -18,7 +18,6 @@
 //! `KeyIndex` positions on a keyboard.
 
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use thiserror::Error;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
@@ -38,9 +37,9 @@ pub enum LayoutError {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Layout {
     /// The list of keys.
-    /// Optimization: Store up to 64 keys inline on the stack.
+    /// The index corresponds to the KeyIndex.
     #[cfg_attr(feature = "ts_bindings", ts(type = "Vec<KeyCode>"))]
-    pub keys: SmallVec<[KeyCode; 64]>,
+    pub keys: Vec<KeyCode>,
 }
 
 impl Layout {
@@ -48,7 +47,7 @@ impl Layout {
     /// Use `try_from` for safe construction.
     pub fn new_unchecked(keys: Vec<KeyCode>) -> Self {
         Self {
-            keys: SmallVec::from_vec(keys),
+            keys,
         }
     }
 
@@ -77,7 +76,7 @@ impl TryFrom<Vec<KeyCode>> for Layout {
         }
 
         Ok(Self {
-            keys: SmallVec::from_vec(keys),
+            keys,
         })
     }
 }

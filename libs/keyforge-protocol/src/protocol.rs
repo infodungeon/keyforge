@@ -20,8 +20,9 @@
 use crate::PROTOCOL_VERSION;
 use keyforge_model::{
     CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, ScoringWeights, SearchParams,
-    Validator, LayoutValidator, constants,
+    Validator, LayoutValidator,
 };
+use crate::constants;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
@@ -85,7 +86,7 @@ pub struct UserStatsStore {
     /// Total keystrokes typed.
     pub total_keystrokes: u64,
     /// Collection of biometric samples.
-    #[serde(deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
 }
 
@@ -103,16 +104,16 @@ pub struct JobRequest {
     /// Search parameters.
     pub params: SearchParams,
     /// Keys pinned to specific positions.
-    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub pinned_keys: Vec<KeyConstraint>,
     /// Text corpora to use.
-    #[serde(default = "default_corpora", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default = "default_corpora", deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub corpora: Vec<CorpusSource>,
     /// Cost matrix source.
     #[serde(default = "default_cost_matrix")]
     pub cost_matrix: CostMatrixSource,
     /// User biometric data.
-    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
     /// Parent job ID (for evolution).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -121,7 +122,7 @@ pub struct JobRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub baseline_score: Option<f32>,
     /// Parent job IDs (for merging).
-    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub parents: Vec<String>,
 }
 
@@ -141,17 +142,13 @@ impl Validator for JobRequest {
         if self.pinned_keys.len() > constants::MAX_PINNED_KEYS_COUNT {
             return Err("Pinned keys configuration too large".to_string());
         }
-        if self.biometrics.len() > 10_000 {
-            return Err("Too many biometric samples (Limit: 10,000)".to_string());
+        if self.biometrics.len() > constants::MAX_BIOMETRIC_SAMPLES {
+            return Err(format!("Too many biometric samples (Limit: {})", constants::MAX_BIOMETRIC_SAMPLES));
         }
 
         match &self.cost_matrix {
             CostMatrixSource::Predefined(s) => {
                 if s.trim().is_empty() { return Err("Predefined cost matrix filename cannot be empty".to_string()); }
-            }
-            CostMatrixSource::Custom(s) => {
-                if s.trim().is_empty() { return Err("Custom cost matrix content cannot be empty".to_string()); }
-                if !s.contains(',') { return Err("Custom cost matrix does not appear to be valid CSV".to_string()); }
             }
         }
 
@@ -176,16 +173,16 @@ pub struct JobConfig {
     /// Search parameters.
     pub params: SearchParams,
     /// Keys pinned to specific positions.
-    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub pinned_keys: Vec<KeyConstraint>,
     /// Text corpora to use.
-    #[serde(default = "default_corpora", deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default = "default_corpora", deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub corpora: Vec<CorpusSource>,
     /// Cost matrix source.
     #[serde(default = "default_cost_matrix")]
     pub cost_matrix: CostMatrixSource,
     /// User biometric data.
-    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
     /// Parent job ID.
     #[serde(default)]
@@ -194,7 +191,7 @@ pub struct JobConfig {
     #[serde(default)]
     pub baseline_score: Option<f32>,
     /// Parent job IDs.
-    #[serde(default, deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub parents: Vec<String>,
 }
 
@@ -240,7 +237,7 @@ pub struct JobQueueResponse {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct PopulationResponse {
     /// List of layout strings.
-    #[serde(deserialize_with = "keyforge_model::serde_utils::deserialize_limited_vec")]
+    #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub layouts: Vec<String>,
 }
 
@@ -355,8 +352,8 @@ impl Validator for ResultSubmission {
             .duration_since(std::time::UNIX_EPOCH)
             .map_err(|e| e.to_string())?
             .as_secs();
-        if self.timestamp > now + 300 { return Err("Timestamp is in the future".into()); }
-        if self.timestamp < now.saturating_sub(1800) { return Err("Timestamp is too old".into()); }
+        if self.timestamp > now + constants::MAX_FUTURE_SKEW_SEC { return Err("Timestamp is in the future".into()); }
+        if self.timestamp < now.saturating_sub(constants::MAX_PAST_SKEW_SEC) { return Err("Timestamp is too old".into()); }
         
         Ok(())
     }

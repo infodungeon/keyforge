@@ -29,6 +29,8 @@
 
 pub(crate) mod error;
 pub(crate) mod protocol;
+pub mod constants;
+pub mod serde_utils;
 
 #[cfg(test)]
 mod tests;

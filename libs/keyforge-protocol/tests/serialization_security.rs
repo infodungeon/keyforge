@@ -38,5 +38,5 @@ fn test_deserialize_dos_protection_biometrics() {
     assert!(res.is_err(), "Should reject > 100k items");
     let err = res.unwrap_err().to_string();
     // We expect the error to be about the vector limit, not a missing field
-    assert!(err.contains("exceeds limit"), "Unexpected error: {}", err);
+    assert!(err.contains("exceeds transport limit"), "Unexpected error: {}", err);
 }

@@ -15,7 +15,7 @@
 
 use crate::constants::{
     MAX_LOADER_TRIGRAM_LIMIT, MAX_OPT_LIMIT_FAST, MAX_SAFE_WEIGHT, MAX_SEARCH_EPOCHS,
-    MAX_SEARCH_STEPS, MAX_TEMP, EFFORT_THUMB, EFFORT_INDEX, EFFORT_MIDDLE, EFFORT_RING, EFFORT_PINKY, ASSET_COST_MATRIX,
+    MAX_SEARCH_STEPS, MAX_TEMP, ASSET_COST_MATRIX,
 };
 use crate::types::KeyIndex;
 use crate::validator::Validator;
@@ -57,7 +57,8 @@ pub struct CorpusSource {
     /// The weight multiplier for this corpus (default: 1.0).
     pub weight: f32,
     /// Optional hash for integrity verification.
-    #[serde(default, skip_serializing_if = "crate::serde_utils::is_none")]
+    /// Optional hash for integrity verification.
+    #[serde(default, skip_serializing_if = "crate::utils::is_none")]
     #[cfg_attr(feature = "ts_bindings", ts(optional))]
     pub hash: Option<String>,
 }
@@ -335,7 +336,7 @@ impl Default for ScoringWeights {
             default_cost_ms: 0.0,
             loader_trigram_limit: 0,
             trigram_coverage: 0.0,
-            finger_penalty_scale: format!("{}, {}, {}, {}, {}", EFFORT_THUMB, EFFORT_INDEX, EFFORT_MIDDLE, EFFORT_RING, EFFORT_PINKY),
+            finger_penalty_scale: "1.0, 1.0, 1.0, 1.0, 1.0".to_string(),
             comfortable_scissors: "".to_string(),
         }
     }
@@ -458,8 +459,6 @@ fn parse_f32_array<const N: usize>(s: &str) -> Result<[f32; N], String> {
 pub enum CostMatrixSource {
     /// Use a built-in cost matrix file.
     Predefined(String),
-    /// Use a custom CSV string.
-    Custom(String),
 }
 
 impl Default for CostMatrixSource {
@@ -470,7 +469,6 @@ impl fmt::Display for CostMatrixSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CostMatrixSource::Predefined(s) => write!(f, "{}", s),
-            CostMatrixSource::Custom(_) => write!(f, "<custom_content>"),
         }
     }
 }

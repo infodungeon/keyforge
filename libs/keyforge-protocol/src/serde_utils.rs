@@ -1,4 +1,4 @@
-// libs/keyforge-model/src/serde_utils.rs
+// libs/keyforge-protocol/src/serde_utils.rs
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-//! Serialization and deserialization utilities.
+//! Serialization and deserialization utilities for the protocol layer.
 
 use serde::{Deserialize, Deserializer};
 
 /// Deserializes a vector with a hard limit on size to prevent memory exhaustion attacks.
+/// 
+/// This is a Transport Security Policy. It protects the application from processing
+/// maliciously large arrays that could cause OOM.
 pub fn deserialize_limited_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
     T: Deserialize<'de>,
 {
     let v: Vec<T> = Vec::deserialize(deserializer)?;
-    // Hard limit of 100k items to prevent memory exhaustion
+    // TRANSPORT POLICY: Hard limit of 100k items.
     if v.len() > 100_000 {
         return Err(serde::de::Error::custom(
-            "Vector exceeds limit of 100,000 items",
+            "Vector exceeds transport limit of 100,000 items",
         ));
     }
     Ok(v)
-}
-
-/// Helper for serde skip_serializing_if to satisfy ts-rs parser.
-pub fn is_none<T>(option: &Option<T>) -> bool {
-    option.is_none()
 }

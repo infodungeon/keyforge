@@ -59,17 +59,6 @@ pub const MAX_INPUT_FILE_SIZE: u64 = 100 * 1024 * 1024;
 /// Maximum recursion depth for JSON parsing.
 pub const MAX_JSON_DEPTH: usize = 50;
 
-// --- WebSocket Internal Signaling ---
-
-/// Prefix for internal Job broadcast messages on the `state.tx` channel.
-/// Example: "JOB:12345"
-/// Note: This is NOT the external JSON protocol sent to clients.
-pub const WS_MSG_JOB: &str = "JOB:";
-
-/// Prefix for internal Cancel broadcast messages on the `state.tx` channel.
-/// Example: "CANCEL:12345"
-/// Note: This is NOT the external JSON protocol sent to clients.
-pub const WS_MSG_CANCEL: &str = "CANCEL:";
 
 // --- Corpus Parsing ---
 
@@ -86,18 +75,6 @@ pub const CORPUS_TOKEN_MAP: &[(&str, char)] = &[
 /// Order: Thumb, Index, Middle, Ring, Pinky.
 pub const DEFAULT_FINGER_PENALTY_SCALE: &str = "1.0, 1.0, 1.1, 1.3, 1.6";
 
-// --- Finger Effort Weights ---
-
-/// Base effort weight for the Thumb.
-pub const EFFORT_THUMB: f32 = 1.0;
-/// Base effort weight for the Index finger.
-pub const EFFORT_INDEX: f32 = 1.0;
-/// Base effort weight for the Middle finger.
-pub const EFFORT_MIDDLE: f32 = 1.1;
-/// Base effort weight for the Ring finger.
-pub const EFFORT_RING: f32 = 1.3;
-/// Base effort weight for the Pinky finger.
-pub const EFFORT_PINKY: f32 = 1.6;
 
 // --- System Assets ---
 
