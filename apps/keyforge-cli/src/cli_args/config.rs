@@ -16,6 +16,7 @@
 use clap::Args;
 use keyforge_model::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
 
+/// Top-level configuration arguments combining search, weights, and definitions.
 #[derive(Args, Debug, Clone)]
 pub struct ConfigArgs {
     #[command(flatten)]
@@ -26,133 +27,191 @@ pub struct ConfigArgs {
     pub defs: LayoutDefinitionsArgs,
 }
 
+/// Arguments controlling the Simulated Annealing search process.
 #[derive(Args, Debug, Clone, Copy)]
 pub struct SearchParamsArgs {
+    /// Number of independent search epochs to run.
     #[arg(long, default_value_t = 10_000)]
     pub search_epochs: usize,
+    /// Maximum number of mutation steps per epoch.
     #[arg(long, default_value_t = 100_000)]
     pub search_steps: usize,
+    /// Steps without improvement before triggering a reheat.
     #[arg(long, default_value_t = 500)]
     pub search_patience: usize,
+    /// Threshold for patience reset (improvement must be > this).
     #[arg(long, default_value_t = 0.1)]
     pub search_patience_threshold: f32,
 
+    /// Minimum temperature (stop condition).
     #[arg(long, default_value_t = 0.005)]
     pub temp_min: f32,
+    /// Maximum temperature (start condition).
     #[arg(long, default_value_t = 20.0)]
     pub temp_max: f32,
 
+    /// Optimization limit for fast path.
     #[arg(long, default_value_t = 100)]
     pub opt_limit_fast: usize,
+    /// Optimization limit for slow path.
     #[arg(long, default_value_t = 1500)]
     pub opt_limit_slow: usize,
 
+    /// Number of times to reheat the system if stuck.
     #[arg(long, default_value_t = 3)]
     pub reheats: usize,
+    /// Factor to multiply temperature by when reheating.
     #[arg(long, default_value_t = 0.5)]
     pub reheat_factor: f32,
 }
 
+/// Arguments defining the scoring weights and penalties.
 #[derive(Args, Debug, Clone)]
 pub struct ScoringWeightsArgs {
+    /// Penalty for Same Finger Repeat on a weak finger.
     #[arg(long, default_value_t = 20.0)]
     pub penalty_sfr_weak_finger: f32,
+    /// Penalty for Same Finger Repeat involving a bad row jump.
     #[arg(long, default_value_t = 25.0)]
     pub penalty_sfr_bad_row: f32,
+    /// Penalty for lateral Same Finger Repeat.
     #[arg(long, default_value_t = 40.0)]
     pub penalty_sfr_lat: f32,
+    /// Penalty for lateral Same Finger Bigram.
     #[arg(long, default_value_t = 65.0)]
     pub penalty_sfb_lateral: f32,
+    /// Penalty for lateral SFB on a weak finger.
     #[arg(long, default_value_t = 160.0)]
     pub penalty_sfb_lateral_weak: f32,
+    /// Base penalty for any Same Finger Bigram.
     #[arg(long, default_value_t = 400.0)]
     pub penalty_sfb_base: f32,
+    /// Additional penalty for outward rolling SFBs.
     #[arg(long, default_value_t = 10.0)]
     pub penalty_sfb_outward_adder: f32,
+    /// Penalty for diagonal SFBs.
     #[arg(long, default_value_t = 240.0)]
     pub penalty_sfb_diagonal: f32,
+    /// Penalty for long-distance SFBs.
     #[arg(long, default_value_t = 280.0)]
     pub penalty_sfb_long: f32,
+    /// Penalty for bottom-row SFBs.
     #[arg(long, default_value_t = 45.0)]
     pub penalty_sfb_bottom: f32,
+    /// Multiplier for SFBs on weak fingers.
     #[arg(long, default_value_t = 2.7)]
     pub weight_weak_finger_sfb: f32,
 
+    /// Row difference threshold for "long" SFBs.
     #[arg(long, default_value_t = 2)]
     pub threshold_sfb_long_row_diff: i8,
+    /// Row difference threshold for scissors.
     #[arg(long, default_value_t = 2)]
     pub threshold_scissor_row_diff: i8,
 
+    /// Distance threshold for reach stretches.
     #[arg(long, default_value_t = 1.2)]
     pub threshold_reach_stretch: f32,
 
+    /// Penalty for scissor (adjacent finger stretch) movements.
     #[arg(long, default_value_t = 25.0)]
     pub penalty_scissor: f32,
+    /// Penalty for ring-pinky interactions.
     #[arg(long, default_value_t = 1.3)]
     pub penalty_ring_pinky: f32,
+    /// Penalty for lateral movement.
     #[arg(long, default_value_t = 50.0)]
     pub penalty_lateral: f32,
+    /// Penalty for single-key stretches.
     #[arg(long, default_value_t = 20.0)]
     pub penalty_monogram_stretch: f32,
+    /// Penalty for skipping a key (hurdle).
     #[arg(long, default_value_t = 20.0)]
     pub penalty_skip: f32,
+    /// Penalty for redirecting flow (e.g., Left -> Right -> Left).
     #[arg(long, default_value_t = 65.0)]
     pub penalty_redirect: f32,
+    /// Penalty for excessive hand alternation runs.
     #[arg(long, default_value_t = 5.0)]
     pub penalty_hand_run: f32,
+    /// Bonus (negative cost) for inward rolls.
     #[arg(long, default_value_t = 40.0)]
     pub bonus_inward_roll: f32,
+    /// Bonus for specific bigram inward rolls.
     #[arg(long, default_value_t = 35.0)]
     pub bonus_bigram_roll_in: f32,
+    /// Bonus for specific bigram outward rolls.
     #[arg(long, default_value_t = 25.0)]
     pub bonus_bigram_roll_out: f32,
+    /// Penalty for high-frequency keys in medium slots.
     #[arg(long, default_value_t = 12.0)]
     pub penalty_high_in_med: f32,
+    /// Penalty for high-frequency keys in low slots.
     #[arg(long, default_value_t = 20.0)]
     pub penalty_high_in_low: f32,
+    /// Penalty for medium-frequency keys in prime slots.
     #[arg(long, default_value_t = 2.0)]
     pub penalty_med_in_prime: f32,
+    /// Penalty for medium-frequency keys in low slots.
     #[arg(long, default_value_t = 2.0)]
     pub penalty_med_in_low: f32,
+    /// Penalty for low-frequency keys in prime slots.
     #[arg(long, default_value_t = 15.0)]
     pub penalty_low_in_prime: f32,
+    /// Penalty for low-frequency keys in medium slots.
     #[arg(long, default_value_t = 2.0)]
     pub penalty_low_in_med: f32,
+    /// Penalty for hand imbalance.
     #[arg(long, default_value_t = 200.0)]
     pub penalty_imbalance: f32,
+    /// Maximum allowed hand imbalance ratio.
     #[arg(long, default_value_t = 0.55)]
     pub max_hand_imbalance: f32,
+    /// Weight multiplier for vertical travel distance.
     #[arg(long, default_value_t = 1.0)]
     pub weight_vertical_travel: f32,
+    /// Weight multiplier for lateral travel distance.
     #[arg(long, default_value_t = 3.5)]
     pub weight_lateral_travel: f32,
+    /// Weight multiplier for finger effort.
     #[arg(long, default_value_t = 2.2)]
     pub weight_finger_effort: f32,
 
+    /// Default cost in milliseconds (if using time-based scoring).
     #[arg(long, default_value_t = 120.0)]
     pub default_cost_ms: f32,
+    /// Limit on the number of trigrams to load.
     #[arg(long, default_value_t = 3000)]
     pub loader_trigram_limit: usize,
+    /// Required trigram coverage (0.0 - 1.0).
     #[arg(long, default_value_t = 0.99)]
     pub trigram_coverage: f32,
 
+    /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
     #[arg(long, default_value = "0.0,1.0,1.1,1.3,1.6")]
     pub finger_penalty_scale: String,
 
+    /// Comma-separated list of comfortable scissor pairs.
     #[arg(long, default_value = "21,23,34")]
     pub comfortable_scissors: String,
 }
 
+/// Arguments defining character tiers and critical bigrams.
 #[derive(Args, Debug, Clone)]
 pub struct LayoutDefinitionsArgs {
+    /// Characters considered high priority.
     #[arg(long, default_value = "etaoinshr")]
     pub tier_high_chars: String,
+    /// Characters considered medium priority.
     #[arg(long, default_value = "ldcumwfgypb.,")]
     pub tier_med_chars: String,
+    /// Characters considered low priority.
     #[arg(long, default_value = "vkjxqz/;")]
     pub tier_low_chars: String,
+    /// Bigrams that must be optimized for.
     #[arg(long, default_value = "th,he,in,er,an,re,nd,ou")]
     pub critical_bigrams: String,
+    /// Scale factors for finger repeat penalties.
     #[arg(long, default_value = "1.0,1.0,1.0,1.2,1.5")]
     pub finger_repeat_scale: String,
 }

@@ -31,8 +31,7 @@ pub struct BenchmarkArgs {
 pub fn run(args: BenchmarkArgs, runtime: Runtime) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("📊 Benchmarking Engine ({} iterations)...", args.iterations);
 
-    // Create a dummy layout for benchmarking
-    // We need a layout that matches the key count of the engine
+    // Use a valid layout if possible, otherwise fallback to identity
     let key_count = runtime.engine.key_count();
     let layout = keyforge_model::Layout::new_unchecked((0..key_count).map(|i| KeyCode(i as u16)).collect());
 

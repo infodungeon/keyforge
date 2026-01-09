@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,12 +47,12 @@ async fn main() -> anyhow::Result<()> {
     keyforge_agent::logging::init_tracing();
     let args = Args::parse();
 
-    // Configuration Resolution: CLI > Env > File > Default
-    let mut config = keyforge_infra::config::CommonConfig::default();
+    // Configuration Resolution: CLI > Env > File > Default (AgentConfig)
+    let mut config = keyforge_agent::models::AgentConfig::default();
     
     // 1. Load from file if provided
     if let Some(config_path) = &args.config {
-        match keyforge_infra::config::CommonConfig::from_file(config_path) {
+        match keyforge_agent::models::PartialAgentConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
                 tracing::error!("Failed to load config file {:?}: {}", config_path, e);
@@ -60,16 +60,16 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     }
+    // Note: We could also look for default config locations here (e.g. /etc/keyforge/agent.json)
 
     // 2. Override with CLI/Env (args.hive etc already contain Env if CLI is missing)
-    if let Some(h) = args.hive { config.hive_url = Some(h); }
-    if let Some(c) = args.cores { config.cores = Some(c); }
-    if let Some(d) = args.data_dir { config.data_dir = Some(d); }
+    if let Some(h) = args.hive { config.hive_url = h; }
+    if let Some(c) = args.cores { config.cores = c; }
+    if let Some(d) = args.data_dir { config.data_dir = d; }
 
-    // 3. Apply Defaults
-    let hive_url = config.hive_url.clone().unwrap_or_else(|| "http://localhost:3000".to_string());
-    let cores = config.cores.unwrap_or(4);
-    let data_dir = config.resolve_data_dir();
+    // 3. Apply Defaults (Already done by AgentConfig::default())
+    let hive_url = config.hive_url.clone();
+    let data_dir = config.data_dir.clone();
 
     info!("agent starting");
     info!(hive_url = %hive_url, "connecting to hive");
@@ -111,7 +111,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // 3. Run Worker
-    keyforge_agent::run_worker(hive_url, node_id, None, signing_key, data_dir, rx, cores).await;
+    keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
 
     info!("agent exited cleanly");
     Ok(())

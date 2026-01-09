@@ -112,7 +112,7 @@ pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
 ///
 /// # Panics
 /// Panics if database initialization or migration fails.
-/// Prefer [`try_init_db`] in production application code.
+/// Prefer [] in production application code.
 pub async fn init_db(db_url: &str) -> PgPool {
     match try_init_db(db_url).await {
         Ok(p) => p,
@@ -154,6 +154,9 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
                     .after_connect(|conn, _meta| Box::pin(async move {
                         use sqlx::Executor;
                         // P1 FIX: Use REPEATABLE READ to ensure FOR UPDATE SKIP LOCKED works correctly
+                        // Note: SKIP LOCKED requires READ COMMITTED or REPEATABLE READ.
+                        // REPEATABLE READ is safer for consistency but can cause serialization failures.
+                        // We stick to REPEATABLE READ as per design, but ensure retries handle 40001.
                         conn.execute("SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ").await?;
                         conn.execute("SET statement_timeout = '30s'").await?;
                         Ok(())

@@ -24,6 +24,7 @@ use keyforge_model::keycodes::KeycodeRegistry;
 use sha2::Digest;
 use keyforge_model::validator::Validator;
 use std::fs::File;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -68,9 +69,12 @@ impl FsProvider {
 
     async fn load_json<T: serde::de::DeserializeOwned + Send + 'static>(&self, path: &Path) -> LoaderResult<T> {
         self.check_size(path).await?;
-        let content = tokio::fs::read_to_string(path).await?;
+        let path = path.to_path_buf();
+        // Streaming Fix: Use File::open + BufReader instead of reading string to memory
         tokio::task::spawn_blocking(move || {
-            serde_json::from_str(&content).map_err(ForgeError::Serde)
+            let file = File::open(&path)?;
+            let reader = BufReader::new(file);
+            serde_json::from_reader(reader).map_err(ForgeError::Serde)
         })
         .await
         .map_err(|e| ForgeError::Internal(e.to_string()))?

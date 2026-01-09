@@ -78,14 +78,30 @@ impl CachingProvider {
                             continue;
                         }
                         info!("♻️ System asset changed: {}", path_str);
+                        
+                        // Always invalidate file cache and manifest as they are global/raw
                         fl_c.invalidate_all();
                         mf_c.invalidate_all();
+
+                        // Granular Invalidation
                         if path_str.contains("keyboards") {
-                            kb_c.invalidate_all();
+                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
+                                kb_c.invalidate(clean);
+                            } else {
+                                kb_c.invalidate_all();
+                            }
                         } else if path_str.contains("corpora") {
+                            // Corpora keys are complex JSON strings of sources.
+                            // Hard to map file -> key. Invalidate all for safety.
                             cp_c.invalidate_all();
                         } else if path_str.contains("weights") {
-                            cs_c.invalidate_all();
+                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
+                                cs_c.invalidate(clean);
+                            } else {
+                                cs_c.invalidate_all();
+                            }
                         } else if path_str.contains("config") {
                             kc_c.invalidate_all();
                         }

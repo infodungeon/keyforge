@@ -16,6 +16,7 @@ use crate::error::{InfraError, InfraResult};
 use fs2::FileExt;
 use std::fs::File;
 use std::path::Path;
+use std::time::Duration;
 
 /// A process-level lock that ensures only one instance of KeyForge is accessing the workspace.
 ///
@@ -32,20 +33,23 @@ impl WorkspaceLock {
     pub fn acquire(path: &Path) -> InfraResult<Self> {
         let file = File::open(path).map_err(InfraError::Io)?;
 
-        // Retry loop to handle race conditions (e.g. restart)
+        // Retry loop with exponential backoff
         let mut attempts = 0;
+        let mut delay = Duration::from_millis(50);
+        
         loop {
             match file.try_lock_exclusive() {
                 Ok(_) => return Ok(Self { file }),
                 Err(e) => {
                     attempts += 1;
-                    if attempts >= 5 {
+                    if attempts >= 10 {
                         return Err(InfraError::LockError(format!(
-                            "Failed to acquire lock on {:?} after 5 attempts: {}",
-                            path, e
+                            "Failed to acquire lock on {:?} after {} attempts: {}",
+                            path, attempts, e
                         )));
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    std::thread::sleep(delay);
+                    delay = (delay * 2).min(Duration::from_secs(1));
                 }
             }
         }

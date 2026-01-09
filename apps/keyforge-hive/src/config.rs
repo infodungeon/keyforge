@@ -40,8 +40,6 @@ pub struct AppConfig {
     pub valkey_url: String,
 
     /// CORS allowed origins (comma separated or *).
-
-    /// CORS allowed origins (comma separated or *).
     #[serde(default)]
     pub cors_origins: String,
 
@@ -60,10 +58,10 @@ fn default_population_limit() -> usize {
 }
 
 impl AppConfig {
-    /// Loads the configuration from environment variables, using defaults where possible.
+    /// Loads the configuration from environment variables.
     /// Returns an error if critical variables (DATABASE_URL, HIVE_SECRET) are missing.
     pub fn load_from_env() -> AppResult<Self> {
-        // Critical Requirements
+        // Critical Requirements - Fail Fast
         let database_url = env::var("DATABASE_URL")
             .map_err(|_| AppError::Config("Missing required env var: DATABASE_URL".into()))?;
         let hive_secret = env::var("HIVE_SECRET")

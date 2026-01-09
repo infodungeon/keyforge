@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,13 +21,13 @@
 
 use crate::models::{AgentConfig, SharedTelemetry};
 use crate::agent::network::NetworkManager;
-use keyforge_protocol::JobConfig;
+use keyforge_protocol::{JobConfig, ResultSubmission};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{error, info};
-use std::path::PathBuf;
 use ed25519_dalek::SigningKey;
 use tokio::sync::broadcast;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// JIT calibration for CPU-bound scoring tasks.
 pub mod calibration;
@@ -54,11 +54,12 @@ pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,
     assets: keyforge_infra::AssetManager,
+    result_tx: mpsc::Sender<ResultSubmission>,
 }
 
 impl Agent {
-    /// Creates a new `Agent` with the given configuration.
-    pub async fn new(config: AgentConfig) -> AgentResult<Self> {
+    /// Creates a new  with the given configuration.
+    pub async fn new(config: AgentConfig, result_tx: mpsc::Sender<ResultSubmission>) -> AgentResult<Self> {
         let telemetry = SharedTelemetry::default();
         
         // Initialize Hive Client for asset downloads
@@ -73,12 +74,12 @@ impl Agent {
             
         let assets = keyforge_infra::AssetManager::new(client, config.data_dir.clone());
 
-        Ok(Self { config, telemetry, assets })
+        Ok(Self { config, telemetry, assets, result_tx })
     }
 
     /// Starts the agent's job processing loop.
     ///
-    /// It listens for `JobConfig` messages from the network layer and coordinates
+    /// It listens for  messages from the network layer and coordinates
     /// the execution of optimization tasks.
     pub async fn run(
         &self, 
@@ -132,7 +133,7 @@ impl Agent {
 
             // 3. Execution (with Cancellation Support)
             let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let limiter = Arc::new(tokio::sync::Semaphore::new(self.config.cores.max(1)));
+            let limiter = Arc::new(tokio::sync::Semaphore::new(self.config.cores.max(1))); // Per-job limiter for now
 
             info!("   Launching optimization Engine...");
             tokio::select! {
@@ -146,7 +147,24 @@ impl Agent {
                     match res {
                         Ok(opt_res) => {
                             info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
-                            // TODO: Submit result via NetworkManager channel (future work)
+                            
+                            // Serialize layout to JSON string for protocol
+                            let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
+
+                            let submission = ResultSubmission {
+                                version: 1,
+                                job_id: job_id.clone(),
+                                layout: layout_str,
+                                score: opt_res.score,
+                                node_id: self.config.node_id.clone(),
+                                timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+                                nonce: rand::random(),
+                                signature: None, // Will be signed by NetworkManager
+                            };
+                            
+                            if let Err(e) = self.result_tx.send(submission).await {
+                                error!("Failed to queue result for submission: {}", e);
+                            }
                         }
                         Err(e) => {
                             error!("❌ Job {} Failed: {}", job_id, e);
@@ -171,25 +189,18 @@ impl Agent {
 /// This function initializes the agent, sets up networking and telemetry,
 /// and starts the job processing loop. It runs until a shutdown signal is received.
 pub async fn run_worker(
-    hive_url: String,
+    mut config: AgentConfig,
     node_id: String,
-    secret: Option<String>,
     signing_key: SigningKey,
-    data_dir: PathBuf,
     mut shutdown_rx: broadcast::Receiver<()>,
-    cores: usize,
 ) {
-    // Construct Configuration
-    let config = AgentConfig {
-        hive_url,
-        node_id,
-        secret: secret.unwrap_or_default(),
-        private_key: hex::encode(signing_key.to_bytes()),
-        data_dir,
-        cores,
-    };
+    // Inject Identity
+    config.node_id = node_id;
+    config.private_key = hex::encode(signing_key.to_bytes());
 
-    let agent = match Agent::new(config.clone()).await {
+    let (result_tx, result_rx) = mpsc::channel(100);
+
+    let agent = match Agent::new(config.clone(), result_tx).await {
         Ok(a) => a,
         Err(e) => {
             error!("Failed to initialize agent: {}", e);
@@ -201,12 +212,19 @@ pub async fn run_worker(
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
     // Network Task
-    let net = NetworkManager::new(
+    let net = match NetworkManager::new(
         config,
         agent.telemetry.clone(),
         job_tx,
+        result_rx,
         stop_tx,
-    );
+    ) {
+        Ok(n) => n,
+        Err(e) => {
+            error!("Failed to initialize network manager: {}", e);
+            return;
+        }
+    };
     
     let net_handle = tokio::spawn(net.run());
     let agent_handle = tokio::spawn(async move {

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,7 @@ use std::time::{Duration, Instant};
 use tracing::info;
 
 use crate::agent::errors::AgentError;
+use crate::models::CalibrationConfig;
 
 /// Measures approximate scoring throughput (iterations per second).
 ///
@@ -27,15 +28,15 @@ use crate::agent::errors::AgentError;
 ///
 /// # Errors
 /// Returns `AgentError::Calibration` if the physics engine cannot be initialized.
-pub fn measure_performance() -> Result<f64, AgentError> {
+pub fn measure_performance(config: &CalibrationConfig) -> Result<f64, AgentError> {
     info!("calibrating physics engine");
 
-    let key_count = 30;
+    let key_count = config.key_count;
     let keys: Vec<KeyNode> = (0..key_count)
         .map(|i| KeyNode {
             index: i,
             label: format!("k{}", i),
-            hand: HandIndex(if i < 15 { 0 } else { 1 }),
+            hand: HandIndex(if i < key_count / 2 { 0 } else { 1 }),
             finger: FingerIndex((i % 5) as u8),
             row: RowIndex((i / 10) as i8),
             col: ColIndex((i % 10) as i8),
@@ -46,10 +47,10 @@ pub fn measure_performance() -> Result<f64, AgentError> {
         })
         .collect();
 
-    let keyboard = Keyboard::new(keys, 1).map_err(|e| AgentError::Calibration(e.to_string()))?;
+    let keyboard = Keyboard::new(keys, 1).map_err(|e| AgentError::Calibration(e.to_string()))?; // Home row 1
     let corpus = Corpus::default();
     let rubric = Rubric::default();
-    let config = SearchConfig::default();
+    let search_config = SearchConfig::default();
 
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
@@ -57,27 +58,27 @@ pub fn measure_performance() -> Result<f64, AgentError> {
         keyboard: Arc::new(keyboard),
         corpus: Arc::new(corpus),
         rubric: Arc::new(rubric),
-        config,
+        config: search_config,
         initial_layout: Some(layout),
         pinned_keys: vec![],
         cost_overrides: vec![],
     };
 
     // warm
-    for _ in 0..100 {
+    for _ in 0..config.warmup_iterations {
         let _ = keyforge_core::score(&req);
     }
 
     let start = Instant::now();
-    let duration = Duration::from_millis(1000);
+    let duration = Duration::from_millis(config.duration_ms);
     let mut iterations: u64 = 0;
-    let batch = 100;
+    let batch = config.batch_size;
 
     while start.elapsed() < duration {
         for _ in 0..batch {
             let _ = keyforge_core::score(&req);
         }
-        iterations += batch;
+        iterations += batch as u64;
     }
 
     let elapsed = start.elapsed().as_secs_f64();

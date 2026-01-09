@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -37,6 +37,7 @@ pub struct NetworkManager {
     config: AgentConfig,
     telemetry: SharedTelemetry,
     job_tx: mpsc::Sender<(String, JobConfig)>,
+    result_rx: mpsc::Receiver<ResultSubmission>,
     stop_tx: mpsc::Sender<()>,
 }
 
@@ -141,28 +142,32 @@ impl NetworkManager {
         config: AgentConfig,
         telemetry: SharedTelemetry,
         job_tx: mpsc::Sender<(String, JobConfig)>,
+        result_rx: mpsc::Receiver<ResultSubmission>,
         stop_tx: mpsc::Sender<()>,
-    ) -> Self {
-        Self {
-            client: Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build()
-                .unwrap(),
+    ) -> AgentResult<Self> {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(config.network.timeout_seconds))
+            .build()
+            .map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to build HTTP client: {}", e)))?;
+
+        Ok(Self {
+            client,
             config,
             telemetry,
             job_tx,
+            result_rx,
             stop_tx,
-        }
+        })
     }
 
     /// Starts the main network event loop.
-    pub async fn run(self) {
-        let mut backoff = Duration::from_secs(1);
+    pub async fn run(mut self) {
+        let mut backoff = Duration::from_secs(1); // Initial backoff
         loop {
             if let Err(e) = self.connect_and_loop().await {
                 error!("🔌 Connection Lost: {}. Retrying in {:?}...", e, backoff);
                 tokio::time::sleep(backoff).await;
-                backoff = (backoff * 2).min(Duration::from_secs(60));
+                backoff = (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
             } else {
                 // Graceful exit
                 break;
@@ -170,7 +175,7 @@ impl NetworkManager {
         }
     }
 
-    async fn connect_and_loop(&self) -> AgentResult<()> {
+    async fn connect_and_loop(&mut self) -> AgentResult<()> {
         let ws_url = Url::parse(&self.config.hive_url)
             .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?
             .join(&format!("ws?node_id={}", self.config.node_id))
@@ -186,7 +191,7 @@ impl NetworkManager {
         
         info!("✅ WebSocket Connected");
 
-        let mut heartbeat = interval(Duration::from_secs(15));
+        let mut heartbeat = interval(Duration::from_secs(self.config.network.heartbeat_interval_seconds));
         let telemetry = self.telemetry.clone();
         
         // Initialize System for process monitoring
@@ -233,7 +238,7 @@ impl NetworkManager {
                             if let Ok(server_msg) = serde_json::from_str::<ServerMessage>(&txt) {
                                 match server_msg {
                                     ServerMessage::Job { id } => {
-                                        info!("📩 Received Job Signal: {}", id);
+                                        info!("�� Received Job Signal: {}", id);
                                         self.fetch_and_start_job(&id).await?;
                                     }
                                     ServerMessage::Cancel { id } => {
@@ -247,6 +252,14 @@ impl NetworkManager {
                         Some(Err(e)) => return Err(crate::agent::errors::AgentError::Network(e.to_string())),
                         None => return Err(crate::agent::errors::AgentError::Network("Stream ended".into())),
                         _ => {}
+                    }
+                }
+                // Handle outgoing results
+                Some(result) = self.result_rx.recv() => {
+                    info!("📤 Submitting result for job {}", result.job_id);
+                    if let Err(e) = self.submit_result(result).await {
+                        error!("Failed to submit result: {}", e);
+                        // TODO: Queue to WAL (ResultOutbox)
                     }
                 }
             }

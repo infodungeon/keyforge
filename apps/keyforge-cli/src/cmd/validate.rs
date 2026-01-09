@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,18 +34,22 @@ pub struct ValidateArgs {
 pub fn run(args: ValidateArgs, runtime: Runtime) -> Result<(), Box<dyn Error>> {
     eprintln!("🔎 Validating Layout...");
 
-    if let Some(_name) = &args.layout {
-        return Err("Looking up layouts by name is temporarily disabled in v0.8.0. Please provide the layout string directly.".into());
-    }
+    let layout = if let Some(name) = &args.layout {
+        // If it looks like a layout string (contains spaces), parse it.
+        if name.contains(' ') {
+             keyforge_adapter::conversion::parse_layout_string(name, runtime.engine.key_count(), &runtime.registry)?
+        } else {
+             return Err(format!("Layout lookup by name '{}' is not supported yet. Please provide the full layout string.", name).into());
+        }
+    } else {
+        // Use the keys from the registry to form a dummy layout for testing
+        let key_count = runtime.engine.key_count();
+        keyforge_model::Layout::new_unchecked((0..key_count).map(|i| KeyCode(i as u16)).collect())
+    };
 
-    // Use the keys from the registry to form a dummy layout for testing
-    // In a real scenario, we would parse a layout string here.
-    let key_count = runtime.engine.key_count();
-    let dummy_layout = keyforge_model::Layout::new_unchecked((0..key_count).map(|i| KeyCode(i as u16)).collect());
+    let report = runtime.analyze(&layout)?;
 
-    let report = runtime.analyze(&dummy_layout)?;
-
-    eprintln!("=== Analysis Report (Dummy) ===");
+    eprintln!("=== Analysis Report ===");
     eprintln!("Score:        {:.3}", report.score);
     eprintln!("Distance:     {:.3}", report.distance);
     eprintln!("SFB Ratio:    {:.2}%", report.sfb_ratio * 100.0);

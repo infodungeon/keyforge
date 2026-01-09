@@ -16,6 +16,15 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::env;
 
+/// Environment variable key for the data directory path.
+pub const ENV_DATA_DIR: &str = "KEYFORGE_DATA_DIR";
+/// Environment variable key for the Hive server URL.
+pub const ENV_HIVE_URL: &str = "KEYFORGE_HIVE_URL";
+/// Environment variable key for the logging level.
+pub const ENV_LOG_LEVEL: &str = "KEYFORGE_LOG";
+/// Environment variable key for the number of CPU cores to use.
+pub const ENV_CORES: &str = "KEYFORGE_CORES";
+
 /// Common infrastructure configuration shared across KeyForge applications.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CommonConfig {
@@ -40,10 +49,10 @@ impl CommonConfig {
     /// Loads configuration from environment variables.
     pub fn from_env() -> Self {
         Self {
-            data_dir: env::var("KEYFORGE_DATA_DIR").ok().map(PathBuf::from),
-            hive_url: env::var("KEYFORGE_HIVE_URL").ok(),
-            logging_level: env::var("KEYFORGE_LOG").ok(),
-            cores: env::var("KEYFORGE_CORES").ok().and_then(|s| s.parse().ok()),
+            data_dir: env::var(ENV_DATA_DIR).ok().map(PathBuf::from),
+            hive_url: env::var(ENV_HIVE_URL).ok(),
+            logging_level: env::var(ENV_LOG_LEVEL).ok(),
+            cores: env::var(ENV_CORES).ok().and_then(|s| s.parse().ok()),
         }
     }
 

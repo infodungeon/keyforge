@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -53,26 +53,13 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
         }
     };
 
-    let manager = keyforge_infra::AssetManager::new(client, root.clone());
-
-    let assets = [
-        ("keyboard", "ansi_104"),
-        ("keyboard", "corne"),
-        ("corpus", "default"),
-        ("cost", "cost_matrix.json"),
-    ];
-
-    for (kind, name) in assets {
-        let res = match kind {
-            "keyboard" => manager.ensure_keyboard(name).await,
-            "corpus" => manager.ensure_corpus(name, None).await,
-            "cost" => manager.ensure_cost_matrix(name).await,
-            _ => Ok(PathBuf::new()),
-        };
-
-        match res {
-            Ok(_) => eprintln!("   ⬇️  Downloaded: {}", name),
-            Err(e) => eprintln!("   ⚠️  Failed to download {}: {}", name, e),
+    // Use dynamic bootstrap instead of hardcoded list
+    match keyforge_infra::net::sync::bootstrap_essentials(&client, &root).await {
+        Ok(files) => {
+            eprintln!("✅ Downloaded {} essential assets.", files.len());
+        }
+        Err(e) => {
+            eprintln!("⚠️  Bootstrap failed: {}", e);
         }
     }
 

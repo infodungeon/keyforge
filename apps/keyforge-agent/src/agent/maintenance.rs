@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,21 +16,20 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tracing::{info, warn};
-
-const TTL_DAYS: u64 = 7;
-const TTL_SECS: u64 = TTL_DAYS * 24 * 60 * 60;
+use crate::models::MaintenanceConfig;
 
 /// Prunes stale user data.
 /// Now targets `data/user/keyboards` specifically.
 /// Since `system` is read-only, we don't need a whitelist.
-pub async fn prune_stale_data(data_root: PathBuf) -> std::io::Result<()> {
+pub async fn prune_stale_data(data_root: PathBuf, config: &MaintenanceConfig) -> std::io::Result<()> {
     // Target the user directory
     let target_dir = data_root.join("user/keyboards");
     if !target_dir.exists() {
         return Ok(());
     }
 
-    let cutoff = SystemTime::now() - Duration::from_secs(TTL_SECS);
+    let ttl_secs = config.ttl_days * 86400;
+    let cutoff = SystemTime::now() - Duration::from_secs(ttl_secs);
     let mut entries = fs::read_dir(&target_dir).await?;
     let mut count = 0;
 

@@ -47,10 +47,13 @@ async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> 
     resolve_assets(state, &mut payload).await?;
     let job_id = generate_job_id(&payload)?;
 
+    // Use default priority 0 for now, but could be configurable via payload in future
+    let priority = 0;
+
     let is_new = state
         .jobs
         .repo
-        .register(&job_id, &payload, None, payload.parent_job_id.clone(), 0)
+        .register(&job_id, &payload, None, payload.parent_job_id.clone(), priority)
         .await
         .map_err(AppError::Database)?;
 

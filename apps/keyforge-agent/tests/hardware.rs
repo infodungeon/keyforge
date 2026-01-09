@@ -7,6 +7,7 @@
 
 use keyforge_agent::hw_detect;
 use keyforge_agent::agent::calibration;
+use keyforge_agent::models::CalibrationConfig;
 
 #[tokio::test]
 async fn test_topology_detection() {
@@ -17,6 +18,12 @@ async fn test_topology_detection() {
 
 #[test]
 fn test_performance_calibration() {
-    let ops = calibration::measure_performance().unwrap();
+    let config = CalibrationConfig {
+        key_count: 10,
+        warmup_iterations: 1,
+        duration_ms: 100,
+        batch_size: 10,
+    };
+    let ops = calibration::measure_performance(&config).unwrap();
     assert!(ops > 0.0, "Calibration should report positive throughput");
 }

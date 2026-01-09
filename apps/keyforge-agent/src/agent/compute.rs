@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -172,6 +172,7 @@ pub async fn run_optimization(
     limiter: Arc<Semaphore>,
     telemetry: SharedTelemetry,
 ) -> Result<OptimizationResult> {
+    // Acquire permit to respect core limits (even if serial, this prepares for async)
     let _permit = limiter.acquire().await.map_err(|_| anyhow::anyhow!("Semaphore closed"))?;
 
     info!(job_id = %job_id, "starting optimization loop");

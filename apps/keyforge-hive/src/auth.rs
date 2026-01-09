@@ -31,9 +31,11 @@ pub async fn require_secret(
     req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    // FAIL OPEN: If no secret is configured, allow all requests.
+    // FAIL CLOSED: If no secret is configured, deny all requests.
+    // This prevents accidental exposure of sensitive endpoints.
     if state.security.api_secret.is_none() {
-        return Ok(next.run(req).await);
+        warn!("⛔ Auth Failed: Server has no secret configured.");
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     // 1. Extract Header
