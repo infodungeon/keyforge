@@ -133,7 +133,7 @@ impl VerificationService {
 
     async fn check_tolerance(&self, engine: Arc<ScoringEngine>, sub: &ResultSubmission) -> AppResult<()> {
         let registry = self.assets.load_keycodes("keycodes.json").await
-            .unwrap_or_else(|_| keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
+            .unwrap_or_else(|_| Arc::new(keyforge_model::keycodes::KeycodeRegistry::new_with_defaults()));
 
         let layout_struct = keyforge_adapter::conversion::parse_layout_string_strict(
             &sub.layout,

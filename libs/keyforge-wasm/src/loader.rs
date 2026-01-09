@@ -25,37 +25,37 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Default)]
 pub struct InMemoryLoader {
-    keyboards: Arc<RwLock<HashMap<String, KeyboardDefinition>>>,
-    corpora: Arc<RwLock<HashMap<String, Corpus>>>,
-    costs: Arc<RwLock<HashMap<String, RawCostData>>>,
-    keycodes: Arc<RwLock<KeycodeRegistry>>,
+    keyboards: Arc<RwLock<HashMap<String, Arc<KeyboardDefinition>>>>,
+    corpora: Arc<RwLock<HashMap<String, Arc<Corpus>>>>,
+    costs: Arc<RwLock<HashMap<String, Arc<RawCostData>>>>,
+    keycodes: Arc<RwLock<Arc<KeycodeRegistry>>>,
 }
 
 impl InMemoryLoader {
     pub fn add_keyboard(&self, name: String, def: KeyboardDefinition) -> LoaderResult<()> {
-        self.keyboards.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?.insert(name, def);
+        self.keyboards.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?.insert(name, Arc::new(def));
         Ok(())
     }
 
     pub fn add_corpus(&self, name: String, corpus: Corpus) -> LoaderResult<()> {
-        self.corpora.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?.insert(name, corpus);
+        self.corpora.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?.insert(name, Arc::new(corpus));
         Ok(())
     }
 
     pub fn add_cost(&self, name: String, cost: RawCostData) -> LoaderResult<()> {
-        self.costs.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?.insert(name, cost);
+        self.costs.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?.insert(name, Arc::new(cost));
         Ok(())
     }
 
     pub fn set_keycodes(&self, registry: KeycodeRegistry) -> LoaderResult<()> {
-        *self.keycodes.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))? = registry;
+        *self.keycodes.write().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))? = Arc::new(registry);
         Ok(())
     }
 }
 
 #[async_trait::async_trait]
 impl AssetLoader for InMemoryLoader {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
         self.keyboards
             .read()
             .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
@@ -66,7 +66,7 @@ impl AssetLoader for InMemoryLoader {
             })
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let mut merged = Corpus::default();
         let corpora = self.corpora.read().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?;
 
@@ -78,10 +78,10 @@ impl AssetLoader for InMemoryLoader {
             }
         }
 
-        Ok(merged)
+        Ok(Arc::new(merged))
     }
 
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
         self.costs
             .read()
             .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
@@ -92,7 +92,7 @@ impl AssetLoader for InMemoryLoader {
             })
     }
 
-    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
         Ok(self.keycodes.read().map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?.clone())
     }
 }

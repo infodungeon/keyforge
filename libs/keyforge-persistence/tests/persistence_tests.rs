@@ -119,9 +119,9 @@ use keyforge_model::keycodes::KeycodeRegistry;
 struct MockLoader;
 #[async_trait::async_trait]
 impl AssetLoader for MockLoader {
-    async fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, _name: &str) -> LoaderResult<std::sync::Arc<KeyboardDefinition>> {
         // FIX: Return a valid keyboard with 1 key to satisfy Keyboard::new invariant
-        Ok(KeyboardDefinition {
+        Ok(std::sync::Arc::new(KeyboardDefinition {
             meta: Default::default(),
             geometry: keyforge_model::geometry::KeyboardGeometry {
                 keys: vec![keyforge_model::geometry::KeyNode {
@@ -135,18 +135,18 @@ impl AssetLoader for MockLoader {
                 home_row: 0,
             },
             layouts: Default::default(),
-        })
+        }))
     }
-    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
-        Ok(Corpus::default())
+    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<std::sync::Arc<Corpus>> {
+        Ok(std::sync::Arc::new(Corpus::default()))
     }
-    async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
-        Ok(RawCostData {
+    async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<std::sync::Arc<RawCostData>> {
+        Ok(std::sync::Arc::new(RawCostData {
             entries: vec![CostEntry { from: "A".into(), to: "B".into(), cost: 1.0 }],
-        })
+        }))
     }
-    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
-        Ok(KeycodeRegistry::new_with_defaults())
+    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<std::sync::Arc<KeycodeRegistry>> {
+        Ok(std::sync::Arc::new(KeycodeRegistry::new_with_defaults()))
     }
 }
 
@@ -222,12 +222,12 @@ struct FailingLoader {
 
 #[async_trait::async_trait]
 impl AssetLoader for FailingLoader {
-    async fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, _name: &str) -> LoaderResult<std::sync::Arc<KeyboardDefinition>> {
         if !self.fail_corpus && !self.fail_costs {
             return Err(keyforge_model::error::ForgeError::NotFound("kb".into()));
         }
         // Return valid dummy to pass keyboard check if we are testing other failures
-        Ok(KeyboardDefinition {
+        Ok(std::sync::Arc::new(KeyboardDefinition {
             meta: Default::default(),
             geometry: keyforge_model::geometry::KeyboardGeometry {
                 keys: vec![keyforge_model::geometry::KeyNode {
@@ -241,25 +241,25 @@ impl AssetLoader for FailingLoader {
                 home_row: 0,
             },
             layouts: Default::default(),
-        })
+        }))
     }
-    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<std::sync::Arc<Corpus>> {
         if self.fail_corpus {
             return Err(keyforge_model::error::ForgeError::NotFound(
                 "corpus".into(),
             ));
         }
-        Ok(Corpus::default())
+        Ok(std::sync::Arc::new(Corpus::default()))
     }
-    async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<std::sync::Arc<RawCostData>> {
         if self.fail_costs {
             return Err(keyforge_model::error::ForgeError::NotFound(
                 "costs".into(),
             ));
         }
-        Ok(RawCostData { entries: vec![] })
+        Ok(std::sync::Arc::new(RawCostData { entries: vec![] }))
     }
-    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<std::sync::Arc<KeycodeRegistry>> {
         Err(keyforge_model::error::ForgeError::NotFound(
             "keys".into(),
         ))

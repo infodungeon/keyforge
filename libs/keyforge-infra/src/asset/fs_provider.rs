@@ -25,6 +25,7 @@ use sha2::Digest;
 use keyforge_model::validator::Validator;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// An asset provider that loads data directly from the local filesystem.
 ///
@@ -143,22 +144,22 @@ enum CostFormat {
 
 #[async_trait::async_trait]
 impl AssetLoader for FsProvider {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
         let stem = name.strip_suffix(".json").unwrap_or(name);
         if let Some(p) = self.resolve_system_path("keyboards", stem) {
             let kb: KeyboardDefinition = self.load_binary(&p).await?;
             kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid system keyboard '{}': {}", name, e)))?;
-            return Ok(kb);
+            return Ok(Arc::new(kb));
         }
         if let Some(p) = self.resolve_user_path("keyboards", stem) {
             let kb: KeyboardDefinition = self.load_json(&p).await?;
             kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid user keyboard '{}': {}", name, e)))?;
-            return Ok(kb);
+            return Ok(Arc::new(kb));
         }
         Err(ForgeError::NotFound(name.to_string()))
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let mut corpus = Corpus::default();
         for src in sources {
             let is_system = self.root.join("system/corpora").join(&src.id).exists();
@@ -189,13 +190,14 @@ impl AssetLoader for FsProvider {
         inject_synthetic_data(&mut corpus, is_std);
 
         corpus.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid corpus: {}", e)))?;
-        Ok(corpus)
+        Ok(Arc::new(corpus))
     }
 
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         if let Some(p) = self.resolve_system_path("weights", stem) {
-            return self.load_binary(&p).await;
+            let data: RawCostData = self.load_binary(&p).await?;
+            return Ok(Arc::new(data));
         }
         if let Some(p) = self.resolve_user_path("weights", stem) {
             let format: CostFormat = self.load_json(&p).await?;
@@ -203,7 +205,7 @@ impl AssetLoader for FsProvider {
                 CostFormat::Wrapped { entries } => entries,
                 CostFormat::Direct(v) => v,
             };
-            return Ok(RawCostData {
+            return Ok(Arc::new(RawCostData {
                 entries: entries
                     .into_iter()
                     .map(|e| keyforge_core::loader::CostEntry {
@@ -212,23 +214,23 @@ impl AssetLoader for FsProvider {
                         cost: e.cost_ms,
                     })
                     .collect(),
-            });
+            }));
         }
         Err(ForgeError::NotFound(filename.to_string()))
     }
 
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         if let Some(p) = self.resolve_system_path("config", stem) {
             let defs = self.load_binary(&p).await?;
             let reg = KeycodeRegistry::new(defs);
             reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid system keycodes: {}", e)))?;
-            return Ok(reg);
+            return Ok(Arc::new(reg));
         }
         let p = self.resolve_user_path("config", stem).ok_or(ForgeError::NotFound(filename.to_string()))?;
         let defs = self.load_json(&p).await?;
         let reg = KeycodeRegistry::new(defs);
         reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid user keycodes: {}", e)))?;
-        Ok(reg)
+        Ok(Arc::new(reg))
     }
 }

@@ -19,8 +19,22 @@ fn test_key_action_parsing() {
     }
 
     match parse_key("LT(2, KC_SPC)") {
-        KeyAction::LayerTap { layer: 2, key } => assert_eq!(key, "KC_SPC"),
+        KeyAction::LayerTap { layer: 2, key } => assert_eq!(*key, KeyAction::Simple("KC_SPC".to_string())),
         _ => panic!("Failed to parse LT"),
+    }
+
+    // Verify recurisve parsing
+    match parse_key("MT(MOD_LCTL, LT(1, A))") {
+        KeyAction::ModTap { mod_name, key } => {
+            assert_eq!(mod_name, "MOD_LCTL");
+            match *key {
+                KeyAction::LayerTap { layer: 1, key: inner_key } => {
+                    assert_eq!(*inner_key, KeyAction::Simple("KC_A".to_string()));
+                },
+                _ => panic!("Failed to parse nested LT"),
+            }
+        },
+        _ => panic!("Failed to parse nested ModTap"),
     }
 }
 

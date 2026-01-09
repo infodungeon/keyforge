@@ -167,6 +167,12 @@ impl Score {
         Score((val * SCORE_SCALE) as i64)
     }
 
+    /// Creates a Score from a raw i64 that is already scaled.
+    /// Use this when deserializing or loading pre-calculated values.
+    pub fn from_scaled_i64(val: i64) -> Self {
+        Score(val)
+    }
+
     /// Converts the Score back to a float, removing scaling.
     pub fn to_f32(self) -> f32 {
         self.0 as f32 / SCORE_SCALE

@@ -69,7 +69,7 @@ pub struct PreparedJob {
     /// The hydrated engine request.
     pub req: EngineRequest,
     /// The keycode registry used for token mapping.
-    pub registry: keyforge_model::keycodes::KeycodeRegistry,
+    pub registry: Arc<keyforge_model::keycodes::KeycodeRegistry>,
     /// The active keyboard model.
     pub keyboard: Arc<keyforge_model::Keyboard>,
     /// The active corpus model.
@@ -119,7 +119,7 @@ pub async fn create_engine_request(
 
     let corpus = loader.load_corpus(&domain_corpora).await.context("failed to load corpus")?;
     let raw_cost = loader.load_cost_matrix(cost_filename).await.context("failed to load cost matrix")?;
-    let registry = loader.load_keycodes("keycodes.json").await.unwrap_or_else(|_| keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
+    let registry = loader.load_keycodes("keycodes.json").await.unwrap_or_else(|_| Arc::new(keyforge_model::keycodes::KeycodeRegistry::new_with_defaults()));
 
     let keyboard = keyforge_model::Keyboard::new(definition.geometry.keys.clone(), definition.geometry.home_row)
         .map_err(|e| anyhow::anyhow!("Invalid keyboard definition: {}", e))?;
@@ -145,7 +145,7 @@ pub async fn create_engine_request(
     }
 
     let keyboard = Arc::new(keyboard);
-    let corpus = Arc::new(corpus);
+    let corpus = corpus;
     let rubric = Arc::new(rubric);
 
     let req = EngineRequest {

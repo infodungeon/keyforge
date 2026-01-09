@@ -56,48 +56,45 @@ impl AssetCache {
 
 #[async_trait::async_trait]
 impl AssetLoader for AssetCache {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
         if let Some(cached) = self.keyboards.get(name) {
             tracing::info!("Loaded keyboard '{}' from cache. Keys: {}", name, cached.geometry.keys.len());
-            return Ok(cached.as_ref().clone());
+            return Ok(cached);
         }
         let item = self.provider.load_keyboard(name).await?;
         tracing::info!("Loaded keyboard '{}' from disk. Keys: {}", name, item.geometry.keys.len());
-        self.keyboards
-            .insert(name.to_string(), Arc::new(item.clone()));
+        self.keyboards.insert(name.to_string(), item.clone());
         Ok(item)
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         // We need a deterministic key for caching
         let key =
             serde_json::to_string(sources).map_err(keyforge_model::error::ForgeError::Serde)?;
 
         if let Some(cached) = self.corpora.get(&key) {
-            return Ok(cached.as_ref().clone());
+            return Ok(cached);
         }
         let item = self.provider.load_corpus(sources).await?;
-        self.corpora.insert(key, Arc::new(item.clone()));
+        self.corpora.insert(key, item.clone());
         Ok(item)
     }
 
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
         if let Some(cached) = self.costs.get(filename) {
-            return Ok(cached.as_ref().clone());
+            return Ok(cached);
         }
         let item = self.provider.load_cost_matrix(filename).await?;
-        self.costs
-            .insert(filename.to_string(), Arc::new(item.clone()));
+        self.costs.insert(filename.to_string(), item.clone());
         Ok(item)
     }
 
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
         if let Some(cached) = self.keycodes.get(filename) {
-            return Ok(cached.as_ref().clone());
+            return Ok(cached);
         }
         let item = self.provider.load_keycodes(filename).await?;
-        self.keycodes
-            .insert(filename.to_string(), Arc::new(item.clone()));
+        self.keycodes.insert(filename.to_string(), item.clone());
         Ok(item)
     }
 }

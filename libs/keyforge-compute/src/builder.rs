@@ -23,6 +23,11 @@ use keyforge_model::keycodes::KeycodeRegistry;
 use std::sync::Arc;
 use tracing::info;
 
+const DEFAULT_SEED: u64 = 42;
+// Heuristic constants for telemetry estimation
+const EST_OPS_BASELINE: usize = 10_000_000;
+const EST_OPS_SCALING: usize = 50_000_000;
+
 /// A builder for constructing `ScoringSession` instances from various asset sources.
 pub struct SessionBuilder<'a> {
     loader: &'a dyn AssetLoader,
@@ -59,7 +64,7 @@ impl<'a> SessionBuilder<'a> {
             
         let corpus = self.loader.load_corpus(&domain_corpora).await?;
         let registry = self.loader.load_keycodes(keycodes_filename).await
-            .unwrap_or_else(|_| KeycodeRegistry::new_with_defaults());
+            .unwrap_or_else(|_| Arc::new(KeycodeRegistry::new_with_defaults()));
 
         let raw_costs = match cost_matrix {
             CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,
@@ -72,7 +77,7 @@ impl<'a> SessionBuilder<'a> {
         ).map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Invalid keyboard definition: {}", e)))?;
 
         let domain_rubric = conversion::to_domain_rubric(weights);
-        let domain_config = conversion::to_domain_config(params, seed.unwrap_or(42));
+        let domain_config = conversion::to_domain_config(params, seed.unwrap_or(DEFAULT_SEED));
         
         let overrides = raw_costs.resolve(&kb_def.geometry);
 
@@ -85,7 +90,7 @@ impl<'a> SessionBuilder<'a> {
         // Rough heuristic: 1M ops/sec baseline, scales linearly with trigrams
         // Base cost ~ 50ns per bigram. Trigrams add ~10ns each.
         // This is just for log estimation.
-        let est_ops = if trigrams > 0 { 50_000_000 / trigrams } else { 10_000_000 };
+        let est_ops = if trigrams > 0 { EST_OPS_SCALING / trigrams } else { EST_OPS_BASELINE };
         
         info!(
             "compiled_engine keys={} trigrams={} est_ops_per_sec={}", 
@@ -94,7 +99,7 @@ impl<'a> SessionBuilder<'a> {
 
         Ok(ScoringSession {
             engine: Arc::new(engine),
-            registry: Arc::new(registry),
+            registry,
             search_config: domain_config,
         })
     }
@@ -135,7 +140,7 @@ impl<'a> SessionBuilder<'a> {
 
         let corpus = self.loader.load_corpus(&domain_corpora).await?;
         let registry = self.loader.load_keycodes(keycodes_filename).await
-            .unwrap_or_else(|_| KeycodeRegistry::new_with_defaults());
+            .unwrap_or_else(|_| Arc::new(KeycodeRegistry::new_with_defaults()));
 
         let raw_costs = match cost_matrix {
             CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,
@@ -145,7 +150,7 @@ impl<'a> SessionBuilder<'a> {
         let domain_kb = conversion::to_domain_keyboard(&kb_def.geometry)
             .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?;
         let domain_rubric = conversion::to_domain_rubric(weights);
-        let domain_config = conversion::to_domain_config(params, seed.unwrap_or(42));
+        let domain_config = conversion::to_domain_config(params, seed.unwrap_or(DEFAULT_SEED));
         
         let overrides = raw_costs.resolve(&kb_def.geometry);
 
@@ -155,7 +160,7 @@ impl<'a> SessionBuilder<'a> {
         // TELEMETRY: Log engine stats
         let keys = engine.key_count();
         let trigrams = engine.trigram_count();
-        let est_ops = if trigrams > 0 { 50_000_000 / trigrams } else { 10_000_000 };
+        let est_ops = if trigrams > 0 { EST_OPS_SCALING / trigrams } else { EST_OPS_BASELINE };
         
         info!(
             "compiled_engine keys={} trigrams={} est_ops_per_sec={}", 
@@ -164,7 +169,7 @@ impl<'a> SessionBuilder<'a> {
 
         Ok(ScoringSession {
             engine: Arc::new(engine),
-            registry: Arc::new(registry),
+            registry,
             search_config: domain_config,
         })
     }

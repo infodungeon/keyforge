@@ -58,8 +58,14 @@ pub fn parse_layout_string_permissive_cached(
         let code = match action {
             KeyAction::Simple(s) => registry.get_code(&s),
             // For ModTap/LayerTap, we score the base key (tap action)
-            KeyAction::ModTap { key, .. } => registry.get_code(&key),
-            KeyAction::LayerTap { key, .. } => registry.get_code(&key),
+            KeyAction::ModTap { key, .. } => match *key {
+                KeyAction::Simple(ref s) | KeyAction::Raw(ref s) => registry.get_code(s),
+                _ => None,
+            },
+            KeyAction::LayerTap { key, .. } => match *key {
+                KeyAction::Simple(ref s) | KeyAction::Raw(ref s) => registry.get_code(s),
+                _ => None,
+            },
             // Layer actions map to their codes if present
             KeyAction::LayerMomentary(_) => registry.get_code("MO"),
             KeyAction::LayerToggle(_) => registry.get_code("TG"),

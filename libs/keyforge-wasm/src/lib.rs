@@ -19,10 +19,12 @@
 mod loader;
 
 use keyforge_adapter::conversion;
+use std::sync::Arc;
 use keyforge_core::ScoringEngine;
 use keyforge_core::loader::{AssetLoader, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_model::config::{CorpusSource, ScoringWeights};
+use keyforge_model::SearchConfig;
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::validator::{LayoutValidator, Validator};
@@ -34,8 +36,9 @@ use wasm_bindgen::prelude::*;
 pub struct KeyforgeEngine {
     loader: InMemoryLoader,
     engine: Option<ScoringEngine>,
-    registry: Option<KeycodeRegistry>,
+    registry: Option<Arc<KeycodeRegistry>>,
     geometry: Option<KeyboardGeometry>,
+    search_config: Option<SearchConfig>,
 }
 
 impl Default for KeyforgeEngine {
@@ -55,6 +58,7 @@ impl KeyforgeEngine {
             engine: None,
             registry: None,
             geometry: None,
+            search_config: None,
         }
     }
 
@@ -94,10 +98,10 @@ impl KeyforgeEngine {
     pub async fn init_session(
         &mut self,
         keyboard_name: String,
-        corpus_name: String,
+        corpus_source: JsValue,
         cost_matrix: String,
         weights: JsValue,
-        _params: JsValue,
+        params: JsValue,
     ) -> Result<(), JsValue> {
         // Note: We treat JS inputs as Protocol DTOs where possible, but here we need Model types for the Engine.
         // Since we don't have a full Protocol->Model adapter in WASM yet, we rely on serde compatibility.
@@ -106,8 +110,12 @@ impl KeyforgeEngine {
         w.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
         
         // Validate search parameters
-        let _p: keyforge_model::config::SearchParams = serde_wasm_bindgen::from_value(_params)?;
-        _p.validate().map_err(|e| JsValue::from_str(&e))?;
+        let p: keyforge_model::config::SearchParams = serde_wasm_bindgen::from_value(params)?;
+        p.validate().map_err(|e| JsValue::from_str(&e))?;
+        // Convert to domain config (hardcoded seed for WASM determinism unless passed?)
+        // WASM usually wants determinism. Let's use 42 for now as we don't expose seed in params DTO yet?
+        // Actually Params DTO might not have seed.
+        let domain_config = conversion::to_domain_config(&p, 42);
 
         // Load assets from in-memory loader
         let def = self
@@ -122,13 +130,17 @@ impl KeyforgeEngine {
             .await
             .map_err(|e| e.to_string())?;
 
-        // Note: For now we support a single primary corpus via this simple API.
-        // Future iterations could pass a list of sources here.
-        let sources = [CorpusSource {
-            id: corpus_name,
-            weight: 1.0,
-            hash: None,
-        }];
+        // Handle polymorphic corpus source (String ID or Array of Weighted Sources)
+        let sources: Vec<CorpusSource> = if corpus_source.is_string() {
+            let id = corpus_source.as_string().unwrap();
+            vec![CorpusSource {
+                id,
+                weight: 1.0,
+                hash: None,
+            }]
+        } else {
+            serde_wasm_bindgen::from_value(corpus_source)?
+        };
 
         let corpus = self
             .loader
@@ -153,7 +165,8 @@ impl KeyforgeEngine {
 
         self.engine = Some(engine);
         self.registry = Some(reg);
-        self.geometry = Some(def.geometry);
+        self.geometry = Some(def.geometry.clone());
+        self.search_config = Some(domain_config);
         Ok(())
     }
 

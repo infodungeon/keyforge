@@ -74,6 +74,8 @@ impl keyforge_model::validator::Validator for RawCostData {
     }
 }
 
+use std::sync::Arc;
+
 /// A trait for types that can load KeyForge assets from an external source.
 ///
 /// This is the primary abstraction for IO, allowing core logic to remain 
@@ -81,11 +83,11 @@ impl keyforge_model::validator::Validator for RawCostData {
 #[async_trait::async_trait]
 pub trait AssetLoader: Send + Sync {
     /// Loads a keyboard definition by name.
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition>;
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>>;
     /// Loads one or more corpora and merges them into a single bundle.
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus>;
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
     /// Loads a cost matrix from the specified file.
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData>;
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>>;
     /// Loads a keycode registry for mapping between labels and codes.
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry>;
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>>;
 }

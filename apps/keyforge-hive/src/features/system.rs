@@ -95,7 +95,7 @@ pub async fn get_keyboard(
         tracing::error!("Failed to load keyboard {}: {}", name, e);
         AppError::NotFound
     })?;
-    Ok(Json(kb))
+    Ok(Json(kb.as_ref().clone()))
 }
 
 /// Retrieves the global application configuration.

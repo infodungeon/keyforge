@@ -41,5 +41,5 @@ pub async fn get_corpus(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(Json(corpus))
+    Ok(Json(corpus.as_ref().clone()))
 }

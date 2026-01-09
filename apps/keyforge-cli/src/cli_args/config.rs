@@ -166,7 +166,7 @@ impl TryFrom<ConfigArgs> for Config {
         let config = Self {
             search: SearchParams::try_from(args.search)?,
             weights: ScoringWeights::try_from(args.weights)?,
-            defs: LayoutDefinitions::from(args.defs),
+            defs: LayoutDefinitions::try_from(args.defs)?,
         };
         config.search.validate()?;
         config.weights.validate()?;
@@ -236,7 +236,7 @@ impl TryFrom<ScoringWeightsArgs> for ScoringWeights {
             default_cost_ms: args.default_cost_ms,
             loader_trigram_limit: args.loader_trigram_limit,
             trigram_coverage: args.trigram_coverage,
-            finger_penalty_scale: args.finger_penalty_scale,
+            finger_penalty_scale: parse_array_5(&args.finger_penalty_scale)?,
             comfortable_scissors: args.comfortable_scissors,
         };
         w.validate()?;
@@ -244,14 +244,27 @@ impl TryFrom<ScoringWeightsArgs> for ScoringWeights {
     }
 }
 
-impl From<LayoutDefinitionsArgs> for LayoutDefinitions {
-    fn from(args: LayoutDefinitionsArgs) -> Self {
-        Self {
+impl TryFrom<LayoutDefinitionsArgs> for LayoutDefinitions {
+    type Error = String;
+    fn try_from(args: LayoutDefinitionsArgs) -> Result<Self, Self::Error> {
+        Ok(Self {
             tier_high_chars: args.tier_high_chars,
             tier_med_chars: args.tier_med_chars,
             tier_low_chars: args.tier_low_chars,
             critical_bigrams: args.critical_bigrams,
-            finger_repeat_scale: args.finger_repeat_scale,
-        }
+            finger_repeat_scale: parse_array_5(&args.finger_repeat_scale)?,
+        })
     }
+}
+
+fn parse_array_5(s: &str) -> Result<[f32; 5], String> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 5 {
+        return Err(format!("Expected 5 values, got {}", parts.len()));
+    }
+    let mut arr = [0.0; 5];
+    for (i, p) in parts.iter().enumerate() {
+        arr[i] = p.trim().parse::<f32>().map_err(|e| e.to_string())?;
+    }
+    Ok(arr)
 }

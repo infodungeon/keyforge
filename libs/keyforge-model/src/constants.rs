@@ -71,9 +71,7 @@ pub const CORPUS_TOKEN_MAP: &[(&str, char)] = &[
     ("ESCAPE", '\x1b'),
 ];
 
-/// Default finger effort weights.
-/// Order: Thumb, Index, Middle, Ring, Pinky.
-pub const DEFAULT_FINGER_PENALTY_SCALE: &str = "1.0, 1.0, 1.1, 1.3, 1.6";
+
 
 
 // --- System Assets ---

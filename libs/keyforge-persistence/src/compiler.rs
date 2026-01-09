@@ -58,21 +58,22 @@ mod tests {
     use keyforge_model::config::CorpusSource;
     use keyforge_model::geometry::KeyboardDefinition;
     use keyforge_model::keycodes::KeycodeRegistry;
+    use std::sync::Arc;
 
     struct FailingLoader;
     #[async_trait::async_trait]
     impl AssetLoader for FailingLoader {
-        async fn load_keyboard(&self, _name: &str) -> LoaderResult<KeyboardDefinition> {
+        async fn load_keyboard(&self, _name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
             Err(ForgeError::NotFound("kb".into()))
         }
-        async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+        async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
             Err(ForgeError::NotFound("corpus".into()))
         }
-        async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<RawCostData> {
+        async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<Arc<RawCostData>> {
             Err(ForgeError::NotFound("cost".into()))
         }
-        async fn load_keycodes(&self, _filename: &str) -> LoaderResult<KeycodeRegistry> {
-            Ok(KeycodeRegistry::new_with_defaults())
+        async fn load_keycodes(&self, _filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
+            Ok(Arc::new(KeycodeRegistry::new_with_defaults()))
         }
     }
 

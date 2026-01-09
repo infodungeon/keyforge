@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use crate::error::{AppError, AppResult};
 
+/// The global application configuration, aggregating settings for database, network, queue, and rate limiting.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     /// Database connection string.
@@ -24,10 +25,13 @@ pub struct AppConfig {
     pub hive_secret: String,
     
     // --- Sub-configs ---
+    /// Configuration for the background job processing queue.
     #[serde(default)]
     pub queue: QueueConfig,
+    /// Configuration for network timeouts and connection limits.
     #[serde(default)]
     pub network: NetworkConfig,
+    /// Configuration for API rate limiting policies.
     #[serde(default)]
     pub rate_limits: RateLimitConfig,
     
@@ -41,6 +45,8 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
+    /// Loads the configuration from environment variables, using defaults where possible.
+    /// Returns an error if critical variables (DATABASE_URL, HIVE_SECRET) are missing.
     pub fn load_from_env() -> AppResult<Self> {
         // Critical Requirements
         let database_url = env::var("DATABASE_URL")
@@ -71,10 +77,14 @@ fn default_valkey() -> String {
     "redis://127.0.0.1:6379".to_string()
 }
 
+/// Configuration settings for the job queue system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueConfig {
+    /// The number of items to process in a single batch transaction.
     pub batch_size: usize,
+    /// The interval in milliseconds between forced queue flushes.
     pub flush_interval_ms: u64,
+    /// The maximum number of pending items allowed in the in-memory channel.
     pub channel_capacity: usize,
 }
 
@@ -88,9 +98,12 @@ impl Default for QueueConfig {
     }
 }
 
+/// Network usage parameters for controlling resource consumption.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
+    /// The maximum number of concurrent database or network connections allowed.
     pub max_connections: u32,
+    /// The default timeout in seconds for network operations.
     pub timeout_seconds: u64,
 }
 
@@ -103,11 +116,16 @@ impl Default for NetworkConfig {
     }
 }
 
+/// Rate limiting parameters for API protection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitConfig {
+    /// The standard number of requests allowed per second per IP.
     pub limit_per_sec: u32,
+    /// The burst allowance for standard requests.
     pub limit_burst: u32,
+    /// The stricter request limit per second for sensitive endpoints (e.g., job registration).
     pub strict_limit_per_sec: u32,
+    /// The burst allowance for sensitive endpoints.
     pub strict_limit_burst: u32,
 }
 

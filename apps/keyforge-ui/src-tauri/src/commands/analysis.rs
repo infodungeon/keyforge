@@ -103,7 +103,7 @@ pub async fn cmd_validate_layout(
         state.assets
             .load_keyboard(&name)
             .await
-            .map(|def| def.geometry)
+            .map(|def| def.geometry.clone())
             .map_err(|e| CommandError::Config(format!("Failed to load keyboard '{}': {}", name, e)))?
     } else {
         KeyboardGeometry::default()

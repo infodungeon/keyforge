@@ -118,7 +118,7 @@ pub async fn cmd_get_corpus_bigrams(
     let mut bigrams = Vec::new();
 
     let mut sorted_bgs = bundle.bigrams.clone();
-    sorted_bgs.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+    sorted_bgs.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
 
     for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {
         let s = String::from_utf8(vec![b1 as u8, b2 as u8]).unwrap_or_default();

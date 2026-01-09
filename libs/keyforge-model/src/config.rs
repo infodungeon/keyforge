@@ -289,8 +289,9 @@ pub struct ScoringWeights {
     pub loader_trigram_limit: usize,
     /// Required trigram coverage (0.0 - 1.0).
     pub trigram_coverage: f32,
-    /// Comma-separated string of finger penalty multipliers.
-    pub finger_penalty_scale: String,
+    /// Finger penalty multipliers.
+    /// Order: Thumb, Index, Middle, Ring, Pinky.
+    pub finger_penalty_scale: [f32; 5],
     /// Comma-separated string of comfortable scissor pairs.
     pub comfortable_scissors: String,
 }
@@ -336,7 +337,7 @@ impl Default for ScoringWeights {
             default_cost_ms: 0.0,
             loader_trigram_limit: 0,
             trigram_coverage: 0.0,
-            finger_penalty_scale: "1.0, 1.0, 1.0, 1.0, 1.0".to_string(),
+            finger_penalty_scale: [1.0, 1.0, 1.1, 1.3, 1.6],
             comfortable_scissors: "".to_string(),
         }
     }
@@ -353,20 +354,17 @@ impl Validator for ScoringWeights {
         if self.penalty_sfb_base > MAX_SAFE_WEIGHT || self.penalty_scissor > MAX_SAFE_WEIGHT {
             return Err(format!("Weights cannot exceed {:.0}", MAX_SAFE_WEIGHT));
         }
-        if !self.finger_penalty_scale.is_empty() {
-            if let Err(e) = parse_f32_array::<5>(&self.finger_penalty_scale) {
-                return Err(format!("Invalid finger_penalty_scale: {}", e));
-            }
+        for (i, &w) in self.finger_penalty_scale.iter().enumerate() {
+            if w < 0.0 { return Err(format!("finger_penalty_scale[{}] cannot be negative", i)); }
         }
         Ok(())
     }
 }
 
 impl ScoringWeights {
-    /// Parses the finger penalty scale string into an array.
+    /// Returns the finger penalty scale array.
     pub fn get_finger_penalty_scale(&self) -> [f32; 5] {
-        if self.finger_penalty_scale.is_empty() { return [0.0; 5]; }
-        parse_f32_array::<5>(&self.finger_penalty_scale).unwrap_or([0.0; 5])
+        self.finger_penalty_scale
     }
     /// Calculates the allowed deviation from perfect hand balance (0.5).
     pub fn allowed_hand_balance_deviation(&self) -> f32 {
@@ -402,7 +400,8 @@ pub struct LayoutDefinitions {
     /// Bigrams that must be optimized for.
     pub critical_bigrams: String,
     /// Scale factors for finger repeat penalties.
-    pub finger_repeat_scale: String,
+    /// Order: Thumb, Index, Middle, Ring, Pinky.
+    pub finger_repeat_scale: [f32; 5],
 }
 
 impl Default for LayoutDefinitions {
@@ -412,7 +411,7 @@ impl Default for LayoutDefinitions {
             tier_med_chars: "ldcumwfgypb.,".to_string(),
             tier_low_chars: "vkjxqz/;".to_string(),
             critical_bigrams: "th,he,in,er,an,re,nd,ou".to_string(),
-            finger_repeat_scale: "1.0,1.0,1.0,1.2,1.5".to_string(),
+            finger_repeat_scale: [1.0, 1.0, 1.0, 1.2, 1.5],
         }
     }
 }
@@ -421,9 +420,9 @@ impl Validator for LayoutDefinitions {
     fn validate(&self) -> Result<(), String> {
         if self.tier_high_chars.is_empty() { return Err("tier_high_chars cannot be empty".to_string()); }
         
-        // Validate numeric strings
-        if let Err(e) = parse_f32_array::<5>(&self.finger_repeat_scale) {
-            return Err(format!("Invalid finger_repeat_scale: {}", e));
+        // Validate arrays
+        for (i, &v) in self.finger_repeat_scale.iter().enumerate() {
+            if v < 0.0 { return Err(format!("finger_repeat_scale[{}] cannot be negative", i)); }
         }
         
         Ok(())
@@ -440,17 +439,7 @@ impl LayoutDefinitions {
     }
 }
 
-fn parse_f32_array<const N: usize>(s: &str) -> Result<[f32; N], String> {
-    let parts: Vec<&str> = s.split(',').collect();
-    if parts.len() != N { return Err(format!("Expected {} values, found {}", N, parts.len())); }
-    let mut arr = [0.0; N];
-    for (i, p) in parts.iter().enumerate() {
-        let val: f32 = p.trim().parse().map_err(|_| format!("Invalid number: {}", p))?;
-        if !val.is_finite() { return Err(format!("Value must be finite: {}", p)); }
-        arr[i] = val;
-    }
-    Ok(arr)
-}
+
 
 /// Defines the source of the cost matrix used for scoring.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]

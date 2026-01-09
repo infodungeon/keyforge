@@ -265,43 +265,43 @@ impl CachingProvider {
 
 #[async_trait::async_trait]
 impl AssetLoader for CachingProvider {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
         if let Some(c) = self.state.keyboards.get(name) {
-            return Ok(c.as_ref().clone());
+            return Ok(c);
         }
         let kb = self.state.provider.load_keyboard(name).await?;
         self.state
             .keyboards
-            .insert(name.to_string(), Arc::new(kb.clone()));
+            .insert(name.to_string(), kb.clone());
         Ok(kb)
     }
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let key = serde_json::to_string(sources).unwrap_or_default();
         if let Some(c) = self.state.corpora.get(&key) {
-            return Ok(c.as_ref().clone());
+            return Ok(c);
         }
         let cp = self.state.provider.load_corpus(sources).await?;
-        self.state.corpora.insert(key, Arc::new(cp.clone()));
+        self.state.corpora.insert(key, cp.clone());
         Ok(cp)
     }
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
         if let Some(c) = self.state.costs.get(filename) {
-            return Ok(c.as_ref().clone());
+            return Ok(c);
         }
         let mt = self.state.provider.load_cost_matrix(filename).await?;
         self.state
             .costs
-            .insert(filename.to_string(), Arc::new(mt.clone()));
+            .insert(filename.to_string(), mt.clone());
         Ok(mt)
     }
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
         if let Some(c) = self.state.keycodes.get(filename) {
-            return Ok(c.as_ref().clone());
+            return Ok(c);
         }
         let rg = self.state.provider.load_keycodes(filename).await?;
         self.state
             .keycodes
-            .insert(filename.to_string(), Arc::new(rg.clone()));
+            .insert(filename.to_string(), rg.clone());
         Ok(rg)
     }
 }

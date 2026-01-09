@@ -68,9 +68,23 @@ impl Exporter for QmkExporter {
                     KeyAction::LayerToggle(l) => format!("TG({})", l),
                     KeyAction::LayerOn(l) => format!("TO({})", l),
                     KeyAction::ModTap { mod_name, key } => {
-                        format!("{}_T({})", util::sanitize_c(&mod_name), util::sanitize_c(&key))
+                        // Recursive sanitization is tricky without a full `to_qmk_code` helper.
+                        // Let's implement a quick match for the inner key.
+                        let key_str = match *key {
+                            KeyAction::Simple(s) => util::sanitize_c(&s), 
+                            KeyAction::Raw(s) => util::sanitize_c(&s),
+                            _ => "TRNS".to_string(), // Fallback
+                        };
+                        format!("{}_T({})", util::sanitize_c(&mod_name), key_str)
                     }
-                    KeyAction::LayerTap { layer, key } => format!("LT({}, {})", layer, util::sanitize_c(&key)),
+                    KeyAction::LayerTap { layer, key } => {
+                        let key_str = match *key {
+                            KeyAction::Simple(s) => util::sanitize_c(&s),
+                            KeyAction::Raw(s) => util::sanitize_c(&s),
+                            _ => "TRNS".to_string(),
+                        };
+                        format!("LT({}, {})", layer, key_str)
+                    },
                     KeyAction::StickyMod(m) => {
                         let qmk_mod = util::map_modifier(&m, ModFormat::Qmk);
                         format!("OSM({})", qmk_mod)

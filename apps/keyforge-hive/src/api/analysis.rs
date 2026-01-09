@@ -89,7 +89,7 @@ pub async fn validate_layout(
 
     let engine = keyforge_core::build_engine(&keyforge_core::EngineRequest {
         keyboard: Arc::new(domain_keyboard),
-        corpus: Arc::new(corpus),
+        corpus: corpus,
         rubric: Arc::new(domain_rubric),
         config: keyforge_model::SearchConfig::default(),
         initial_layout: None,

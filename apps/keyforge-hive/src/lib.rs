@@ -48,6 +48,7 @@ pub mod bootstrap;
 /// Global and local caching mechanisms.
 pub mod cache;
 pub(crate) mod commands;
+/// Application configuration and environment variable loading.
 pub mod config;
 /// Background jobs and periodic tasks.
 pub mod cron;

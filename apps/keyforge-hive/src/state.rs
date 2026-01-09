@@ -26,7 +26,7 @@ use crate::services::security::SecurityContext;
 use crate::services::verification::VerificationService;
 use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
 use sqlx::{Pool, Postgres};
-use std::env;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;

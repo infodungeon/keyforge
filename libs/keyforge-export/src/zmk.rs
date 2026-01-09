@@ -62,7 +62,12 @@ impl Exporter for ZmkExporter {
                     KeyAction::LayerOn(l) => format!("&to {}", l),
                     KeyAction::ModTap { mod_name, key } => {
                         let zmk_mod = util::map_modifier(&mod_name, ModFormat::Zmk);
-                        let clean_key = key.strip_prefix("KC_").unwrap_or(&key);
+                        let key_str = match *key {
+                            KeyAction::Simple(s) => s,
+                            KeyAction::Raw(s) => s,
+                            _ => "failed_recursion".to_string(),
+                        };
+                        let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);
                         format!(
                             "&mt {} {}",
                             util::sanitize_zmk(&zmk_mod),
@@ -70,7 +75,12 @@ impl Exporter for ZmkExporter {
                         )
                     }
                     KeyAction::LayerTap { layer, key } => {
-                        let clean_key = key.strip_prefix("KC_").unwrap_or(&key);
+                        let key_str = match *key {
+                            KeyAction::Simple(s) => s,
+                            KeyAction::Raw(s) => s,
+                            _ => "failed_recursion".to_string(),
+                        };
+                        let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);
                         format!("&lt {} {}", layer, util::sanitize_zmk(clean_key))
                     }
                     KeyAction::StickyMod(m) => {

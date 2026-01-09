@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-//! Security and cryptographic primitives for the KeyForge workspace.
+//! Security and cryptographic primitives for the `KeyForge` workspace.
 //!
 //! This crate provides wrappers for sensitive data (using zeroization),
 //! utilities for Ed25519 digital signatures, and secure random nonce generation.
@@ -50,10 +50,12 @@ pub struct SecretBytes(Vec<u8>);
 
 impl SecretBytes {
     /// Wraps a vector of bytes in a `SecretBytes` container.
+    #[must_use] 
     pub fn new(data: Vec<u8>) -> Self {
         Self(data)
     }
     /// Returns a reference to the protected byte slice.
+    #[must_use] 
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
@@ -67,10 +69,12 @@ pub struct SecretString(String);
 
 impl SecretString {
     /// Wraps a string in a `SecretString` container.
+    #[must_use] 
     pub fn new(s: String) -> Self {
         Self(s)
     }
     /// Returns a reference to the protected string slice.
+    #[must_use] 
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -79,6 +83,7 @@ impl SecretString {
 /// Generates a new Ed25519 keypair and returns them as hex-encoded strings.
 ///
 /// Returns a tuple of `(signing_key_hex, verifying_key_hex)`.
+#[must_use] 
 pub fn generate_keypair() -> (String, String) {
     let mut csprng = OsRng;
     let signing_key = SigningKey::generate(&mut csprng);
@@ -99,7 +104,9 @@ fn build_payload(job_id: &str, layout: &str, score: f32, timestamp: u64, nonce: 
     hasher.update(layout.as_bytes());
     let layout_hash = hasher.finalize_reset();
 
-    let mut payload = Vec::with_capacity(32 + 32 + 4 + 8 + 8);
+// 32 bytes (job_hash) + 32 bytes (layout_hash) + 4 bytes (score) + 8 bytes (timestamp) + 8 bytes (nonce)
+    let capacity = 32 + 32 + size_of::<f32>() + size_of::<u64>() + size_of::<u64>();
+    let mut payload = Vec::with_capacity(capacity);
     payload.extend_from_slice(&job_hash);
     payload.extend_from_slice(&layout_hash);
     payload.extend_from_slice(&score.to_le_bytes());
@@ -124,11 +131,8 @@ pub fn sign_result(
     timestamp: u64,
     nonce: u64,
 ) -> SecurityResult<String> {
-    if secret_hex.len() != 64 {
-        return Err(SecurityError::Encoding(
-            "Key must be 64 hex characters".into(),
-        ));
-    }
+    let secret_hex = secret_hex.trim();
+
 
     let secret_bytes = SecretBytes::new(
         hex::decode(secret_hex)
@@ -150,6 +154,10 @@ pub fn sign_result(
 /// This is the "direct" version of `sign_result` that avoids re-parsing the key.
 /// The signature covers the `job_id`, `layout`, `score`, `timestamp`, and `nonce`.
 /// Returns the hex-encoded signature string.
+///
+/// # Errors
+/// This function is currently infallible but returns a `Result` for consistency with the
+/// `sign_result` API and to support future cryptographic backends that may fail.
 pub fn sign_result_direct(
     signing_key: &SigningKey,
     job_id: &str,
@@ -179,11 +187,9 @@ pub fn verify_result(
     nonce: u64,
     signature_hex: &str,
 ) -> SecurityResult<bool> {
-    if public_hex.len() != 64 {
-        return Err(SecurityError::Encoding(
-            "Key must be 64 hex characters".into(),
-        ));
-    }
+    let public_hex = public_hex.trim();
+    let signature_hex = signature_hex.trim();
+
     let public_bytes = hex::decode(public_hex)
         .map_err(|_| SecurityError::Encoding("Invalid public key hex".into()))?;
 
@@ -208,7 +214,7 @@ pub fn verify_result(
     let payload = build_payload(job_id, layout, score, timestamp, nonce);
 
     match verifying_key.verify(&payload, &signature) {
-        Ok(_) => Ok(true),
+        Ok(()) => Ok(true),
         Err(_) => Ok(false),
     }
 }
@@ -216,7 +222,67 @@ pub fn verify_result(
 /// Generates a cryptographically secure random 64-bit nonce.
 ///
 /// Used to prevent replay attacks in signed messages.
+#[must_use] 
 pub fn generate_nonce() -> u64 {
     use rand::RngCore;
     OsRng.next_u64()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sign_and_verify_happy_path() {
+        let (secret, public) = generate_keypair();
+        let job_id = "job-123";
+        let layout = "qwerty...";
+        let score = 98.6;
+        let timestamp = 1234567890;
+        let nonce = generate_nonce();
+
+        let sig = sign_result(&secret, job_id, layout, score, timestamp, nonce).unwrap();
+        let valid = verify_result(&public, job_id, layout, score, timestamp, nonce, &sig).unwrap();
+
+        assert!(valid, "Signature should verify correctly");
+    }
+
+    #[test]
+    fn test_sign_with_whitespace() {
+        let (secret, public) = generate_keypair();
+        // Add whitespace to secret
+        let spaced_secret = format!("  {}  ", secret);
+
+        let sig = sign_result(&spaced_secret, "job", "layout", 1.0, 0, 0).unwrap();
+        let valid = verify_result(&public, "job", "layout", 1.0, 0, 0, &sig).unwrap();
+        assert!(valid, "Detailed whitespace should be trimmed");
+    }
+
+    #[test]
+    fn test_verify_with_whitespace() {
+        let (secret, public) = generate_keypair();
+        let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0).unwrap();
+
+        let spaced_public = format!("\n{}\t", public);
+        let spaced_sig = format!(" {} ", sig);
+
+        let valid = verify_result(&spaced_public, "job", "layout", 1.0, 0, 0, &spaced_sig).unwrap();
+        assert!(valid, "Public key and signature whitespace should be trimmed");
+    }
+
+    #[test]
+    fn test_invalid_hex() {
+        let res = sign_result("not-hex-at-all", "job", "layout", 1.0, 0, 0);
+        assert!(matches!(res, Err(SecurityError::Encoding(_))));
+    }
+
+    #[test]
+    fn test_verify_tampered_payload() {
+        let (secret, public) = generate_keypair();
+        let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0).unwrap();
+
+        // Check with different score
+        let valid = verify_result(&public, "job", "layout", 99.0, 0, 0, &sig).unwrap();
+        assert!(!valid, "Tampered payload should verify as false");
+    }
 }

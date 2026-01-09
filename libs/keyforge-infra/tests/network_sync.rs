@@ -13,7 +13,10 @@ use wiremock::matchers::{method, path};
 #[tokio::test]
 async fn test_sync_flow() {
     let mock_server = MockServer::start().await;
-    let client = HiveClient::new(mock_server.uri(), None).unwrap();
+    let client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
+        base_url: mock_server.uri(),
+        ..Default::default()
+    }).unwrap();
     let temp = tempfile::tempdir().unwrap();
 
     // The correct SHA-256 hash of the string "content"

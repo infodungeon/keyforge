@@ -169,28 +169,29 @@ impl ValkeyProvider {
 
 #[async_trait::async_trait]
 impl AssetLoader for ValkeyProvider {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<KeyboardDefinition> {
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
         let path = format!("keyboards/models/{}.mpk.zst", name);
         let kb: KeyboardDefinition = self.hydrate_mpk(&path).await?;
         kb.validate().map_err(|e| ForgeError::InvalidData(e))?;
-        Ok(kb)
+        Ok(Arc::new(kb))
     }
 
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<RawCostData> {
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         let path = format!("weights/{}.mpk.zst", stem);
-        self.hydrate_mpk(&path).await
+        let data: RawCostData = self.hydrate_mpk(&path).await?;
+        Ok(Arc::new(data))
     }
 
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<KeycodeRegistry> {
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         let path = format!("config/{}.mpk.zst", stem);
         let reg: KeycodeRegistry = self.hydrate_mpk(&path).await?;
         reg.validate().map_err(|e| ForgeError::InvalidData(e))?;
-        Ok(reg)
+        Ok(Arc::new(reg))
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Corpus> {
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let mut corpus = Corpus::default();
         
         for src in sources {
@@ -220,6 +221,6 @@ impl AssetLoader for ValkeyProvider {
         inject_synthetic_data(&mut corpus, is_std);
 
         corpus.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid corpus: {}", e)))?;
-        Ok(corpus)
+        Ok(Arc::new(corpus))
     }
 }
