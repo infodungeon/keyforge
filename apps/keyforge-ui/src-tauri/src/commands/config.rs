@@ -26,8 +26,8 @@ pub async fn cmd_get_keycodes(
         match state.assets.load_keycodes(ASSET_KEYCODES).await {
             Ok(reg) => Ok(reg.as_ref().clone()),
             Err(e) => {
-                tracing::warn!("Failed to load keycodes from disk, using defaults: {}", e);
-                Ok(KeycodeRegistry::new_with_defaults())
+                tracing::error!("Failed to load keycodes from disk: {}", e);
+                Err(CommandError::Config(format!("Keycodes load failed: {}", e)))
             }
         }
     }

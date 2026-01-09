@@ -6,7 +6,7 @@ use std::env;
 ///
 /// Priority:
 /// 1. `KEYFORGE_DATA_DIR` environment variable.
-/// 2. OS-specific user data directory (e.g., `~/.local/share/keyforge` on Linux).
+/// 2. XDG/System data directory (e.g., `~/.local/share/keyforge` on Linux, `AppData` on Windows).
 pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
     // Priority 1: Environment Variable (Dev/Sandbox)
     if let Ok(dir) = env::var("KEYFORGE_DATA_DIR") {
@@ -14,11 +14,9 @@ pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
     }
 
     // Priority 2: OS App Data Dir (Production)
-    #[cfg(target_os = "linux")]
-    {
-        if let Ok(home) = env::var("HOME") {
-            return Ok(PathBuf::from(home).join(".local/share/keyforge"));
-        }
+    if let Some(mut dir) = dirs::data_dir() {
+        dir.push("keyforge");
+        return Ok(dir);
     }
 
     Err("Could not determine data directory".to_string())

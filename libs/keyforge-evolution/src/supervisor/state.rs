@@ -14,6 +14,7 @@
 
 use keyforge_model::Layout;
 use super::traits::MutationAction;
+use crate::errors::EvolutionError;
 
 #[derive(Debug, Clone)]
 pub struct SearchState {
@@ -28,9 +29,11 @@ pub struct SearchState {
 }
 
 impl SearchState {
-    pub fn new(layout: Layout, score: i64, start_temp: f32) -> Self {
+    pub fn new(layout: Layout, score: i64, start_temp: f32) -> Result<Self, EvolutionError> {
         // INVARIANT: Key count must fit in u16 to use 65535 as sentinel
-        assert!(layout.keys.len() < 65535, "Key count exceeds u16 limit");
+        if layout.keys.len() >= 65535 {
+            return Err(EvolutionError::Config("Key count exceeds u16 limit".into()));
+        }
 
         // Initialize for full u16 range
         let mut pos_map = vec![65535u16; 65536];
@@ -38,14 +41,14 @@ impl SearchState {
             pos_map[code.0 as usize] = i as u16;
         }
 
-        Self {
+        Ok(Self {
             current_layout: layout.clone(),
             current_score: score,
             pos_map,
             best_layout: layout,
             best_score: score,
             temperature: start_temp,
-        }
+        })
     }
 
     pub fn layout(&self) -> &Layout {

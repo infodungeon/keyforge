@@ -30,10 +30,33 @@ pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
     listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
-/// Returns detailed statistics for all available corpora. (Implementation pending).
+/// Returns detailed statistics for all available corpora.
 #[tauri::command]
-pub fn cmd_get_corpus_stats(_app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
-    Ok(vec![])
+pub fn cmd_get_corpus_stats(app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
+    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    let ids = listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))?;
+    
+    let mut stats = Vec::new();
+    for id in ids {
+        // Try system then user
+        let sys_path = root.join("system/corpora").join(&id).join("1grams.mpk.zst");
+        let usr_path = root.join("user/corpora").join(&id).join("1grams.json");
+        
+        let (path, size) = if sys_path.exists() {
+            (sys_path.to_string_lossy().to_string(), std::fs::metadata(&sys_path).map(|m| m.len()).unwrap_or(0))
+        } else if usr_path.exists() {
+            (usr_path.to_string_lossy().to_string(), std::fs::metadata(&usr_path).map(|m| m.len()).unwrap_or(0))
+        } else {
+            continue;
+        };
+
+        stats.push(CorpusStats {
+            name: id,
+            size_bytes: size,
+            path,
+        });
+    }
+    Ok(stats)
 }
 
 /// Lists all available cost matrices in the application's data directory.

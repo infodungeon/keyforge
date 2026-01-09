@@ -14,10 +14,6 @@
 
 
 //! # KeyForge Agent Binary
-//!
-//! The main entry point for the KeyForge distributed compute agent. 
-//! This executable initializes the agent's identity, securely loads 
-//! keys, and starts the worker process to process optimization jobs.
 
 use clap::Parser;
 use ed25519_dalek::{SigningKey, VerifyingKey};
@@ -26,6 +22,7 @@ use std::path::PathBuf;
 use tokio::sync::broadcast;
 use tracing::info;
 use keyforge_agent::agent::errors::AgentError;
+use keyforge_agent::models::{AgentConfig, PartialAgentConfig, SystemConfig};
 
 #[derive(Parser)]
 struct Args {
@@ -42,32 +39,75 @@ struct Args {
     config: Option<PathBuf>,
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    keyforge_agent::logging::init_tracing();
-    let args = Args::parse();
+fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Option<PartialAgentConfig> {
+    let mut candidates = vec![
+        PathBuf::from("agent.mpk.zst"),
+        PathBuf::from("agent.toml"),
+        PathBuf::from("agent.json"),
+        dirs::config_dir().unwrap_or_default().join("keyforge/agent.mpk.zst"),
+        dirs::config_dir().unwrap_or_default().join("keyforge/agent.toml"),
+        dirs::config_dir().unwrap_or_default().join("keyforge/agent.json"),
+        PathBuf::from("/etc/keyforge/agent.mpk.zst"),
+        PathBuf::from("/etc/keyforge/agent.toml"),
+        PathBuf::from("/etc/keyforge/agent.json"),
+    ];
 
-    // Configuration Resolution: CLI > Env > File > Default (AgentConfig)
-    let mut config = keyforge_agent::models::AgentConfig::default();
-    
-    // 1. Load from file if provided
-    if let Some(config_path) = &args.config {
-        match keyforge_agent::models::PartialAgentConfig::from_file(config_path) {
-            Ok(file_cfg) => config.merge(file_cfg),
-            Err(e) => {
-                tracing::error!("Failed to load config file {:?}: {}", config_path, e);
-                std::process::exit(1);
+    if let Some(data_dir) = data_dir_override {
+        candidates.insert(0, data_dir.join("user/config/agent.mpk.zst"));
+        candidates.insert(1, data_dir.join("user/config/agent.toml"));
+        candidates.insert(2, data_dir.join("user/config/agent.json"));
+        candidates.insert(3, data_dir.join("system/config/agent.mpk.zst"));
+        candidates.insert(4, data_dir.join("system/config/agent.toml"));
+        candidates.insert(5, data_dir.join("system/config/agent.json"));
+    } else if let Ok(env_dir) = std::env::var("KEYFORGE_DATA_DIR") {
+        let path = PathBuf::from(env_dir);
+        candidates.insert(0, path.join("user/config/agent.mpk.zst"));
+        candidates.insert(1, path.join("user/config/agent.toml"));
+        candidates.insert(2, path.join("user/config/agent.json"));
+        candidates.insert(3, path.join("system/config/agent.mpk.zst"));
+        candidates.insert(4, path.join("system/config/agent.toml"));
+        candidates.insert(5, path.join("system/config/agent.json"));
+    }
+
+    for path in candidates {
+        if path.exists() {
+            println!("Loading configuration from {:?}", path);
+            match PartialAgentConfig::from_file(&path) {
+                Ok(cfg) => return Some(cfg),
+                Err(e) => eprintln!("Failed to parse config file {:?}: {}", path, e),
             }
         }
     }
-    // Note: We could also look for default config locations here (e.g. /etc/keyforge/agent.json)
+    println!("No configuration file found in standard locations. Using defaults.");
+    None
+}
 
-    // 2. Override with CLI/Env (args.hive etc already contain Env if CLI is missing)
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let mut config = AgentConfig::default();
+    
+    // 1. Load config
+    if let Some(config_path) = &args.config {
+        match PartialAgentConfig::from_file(config_path) {
+            Ok(file_cfg) => config.merge(file_cfg),
+            Err(e) => {
+                eprintln!("Failed to load config file {:?}: {}", config_path, e);
+                std::process::exit(1);
+            }
+        }
+    } else if let Some(file_cfg) = load_config_from_standard_paths(args.data_dir.as_ref()) {
+        config.merge(file_cfg);
+    }
+
+    // 2. Override with CLI/Env
     if let Some(h) = args.hive { config.hive_url = h; }
     if let Some(c) = args.cores { config.cores = c; }
     if let Some(d) = args.data_dir { config.data_dir = d; }
 
-    // 3. Apply Defaults (Already done by AgentConfig::default())
+    // 3. Init Logging with configured filter
+    keyforge_agent::logging::init_tracing(&config.logging.default_filter);
+
     let hive_url = config.hive_url.clone();
     let data_dir = config.data_dir.clone();
 
@@ -75,20 +115,18 @@ async fn main() -> anyhow::Result<()> {
     info!(hive_url = %hive_url, "connecting to hive");
     info!(data_dir = ?data_dir, "data directory configured");
 
-    // 1. Identity Management
-    let signing_key = load_or_create_identity()?;
+    // 4. Identity Management
+    let signing_key = load_or_create_identity(&config.system)?;
 
     let public_key = VerifyingKey::from(&signing_key);
-    // Task 5: Use first 8 chars of PK hash instead of raw hex-encoded PK
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(public_key.to_bytes());
     let pk_hash = hex::encode(hasher.finalize());
-    let node_id = format!("agent-{}", &pk_hash[0..8]);
+    let node_id = format!("{}{}", config.system.node_id_prefix, &pk_hash[0..8]);
 
-    // 2. Signal Handling
-    // Task 48: Increase broadcast channel capacity above 1
-    let (tx, rx) = broadcast::channel(16);
+    // 5. Signal Handling
+    let (tx, rx) = broadcast::channel(config.system.shutdown_channel_capacity);
     #[cfg(unix)]
     let mut sig_usr1 =
         tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
@@ -110,35 +148,24 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    // 3. Run Worker
+    // 6. Run Worker
     keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
 
     info!("agent exited cleanly");
     Ok(())
 }
 
-/// Loads the agent's identity key, decrypting it if it exists, or generating a new one.
-///
-/// # Security
-/// - The identity is encrypted at rest using the `age` crate.
-/// - The passphrase is derived from a machine-specific ID.
-/// - File permissions are hardened to 0600 on Unix systems.
-///
-/// # Errors
-/// Returns `AgentError::Identity` if the identity cannot be loaded or created.
-fn load_or_create_identity() -> Result<SigningKey, AgentError> {
-    // P2 FIX: Use XDG config directory instead of home root
+fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentError> {
     let mut path = dirs::config_dir().ok_or_else(|| AgentError::Identity("could not find config directory".into()))?;
-    path.push("keyforge");
+    path.push(&config.config_dir_name);
 
     if !path.exists() {
         std::fs::create_dir_all(&path)
             .map_err(|e| AgentError::Identity(format!("failed to create config dir: {}", e)))?;
     }
 
-    path.push("agent.key.age");
+    path.push(&config.key_file_name);
 
-    // Task 9: Deriving machine ID
     let passphrase = machine_id_timeout_safe()
         .map_err(|e| AgentError::Identity(format!("Fatal: Could not derive machine ID. Secure fallback unavailable: {}", e)))?;
 
@@ -148,7 +175,6 @@ fn load_or_create_identity() -> Result<SigningKey, AgentError> {
         let decryptor =
             age::Decryptor::new(file).map_err(|e| AgentError::Identity(format!("age decryptor error: {}", e)))?;
 
-        // age 0.11 expects a SecretString which might be a specific secrecy type
         let identity = age::scrypt::Identity::new(passphrase.clone().into());
         let mut reader = decryptor
             .decrypt(std::iter::once(&identity as &dyn age::Identity))
@@ -170,7 +196,6 @@ fn load_or_create_identity() -> Result<SigningKey, AgentError> {
         let mut csprng = OsRng;
         let key = SigningKey::generate(&mut csprng);
 
-        // Task 9 & 10: Encrypt and harden permissions
         let encryptor = age::Encryptor::with_user_passphrase(passphrase.into());
 
         let mut output = Vec::new();
@@ -185,7 +210,6 @@ fn load_or_create_identity() -> Result<SigningKey, AgentError> {
             .finish()
             .map_err(|e| AgentError::Identity(format!("failed to finish age encryption: {}", e)))?;
 
-        // Create file with hardened permissions (0600 on Unix)
         #[cfg(unix)]
         {
             use std::os::unix::fs::OpenOptionsExt;
@@ -210,7 +234,6 @@ fn load_or_create_identity() -> Result<SigningKey, AgentError> {
     }
 }
 
-/// Retrieves a stable machine-specific ID.
 fn machine_id_timeout_safe() -> Result<String, String> {
     machine_uid::get().map_err(|e| {
         format!(

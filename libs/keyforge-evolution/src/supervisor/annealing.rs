@@ -22,9 +22,9 @@ use keyforge_model::constants::SCORE_SCALE;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
-const TEMP_UNDERFLOW_THRESHOLD: f32 = 1e-10;
-const DEFAULT_REPORT_DIVISOR: usize = 100;
-const MIN_REPORT_INTERVAL: usize = 1000;
+pub const TEMP_UNDERFLOW_THRESHOLD: f32 = 1e-10;
+pub const DEFAULT_REPORT_DIVISOR: usize = 100;
+pub const MIN_REPORT_INTERVAL: usize = 1000;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnnealingConfig {
@@ -124,7 +124,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         let initial_score = self.engine.score_raw(&layout.keys)?;
 
         // INVARIANT: kani::assume(initial_score >= 0);
-        let mut state = SearchState::new(layout, initial_score, self.config.start_temp);
+        let mut state = SearchState::new(layout, initial_score, self.config.start_temp)?;
 
         let cooling_rate = if self.config.steps > 0 && self.config.start_temp > f32::EPSILON {
             (self.config.end_temp / self.config.start_temp).powf(1.0 / self.config.steps as f32)

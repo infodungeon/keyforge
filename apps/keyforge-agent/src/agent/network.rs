@@ -30,8 +30,7 @@ use sysinfo::{System, ProcessesToUpdate};
 use std::path::PathBuf;
 use keyforge_infra::HiveClient;
 
-/// Manages high-level network operations for the agent, including WebSocket communication,
-/// telemetry reporting, and job fetching.
+/// Manages high-level network operations for the agent.
 pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
@@ -54,8 +53,7 @@ enum ServerMessage {
     },
 }
 
-/// A circuit breaker that prevents the agent from overwhelming the Hive server
-/// with requests after repeated failures.
+/// A circuit breaker for network requests.
 pub struct CircuitBreaker {
     failures: u32,
     threshold: u32,
@@ -64,7 +62,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    /// Creates a new `CircuitBreaker`.
+    /// Creates a new `CircuitBreaker` with the given threshold and cooldown.
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
         Self {
             failures: 0,
@@ -74,7 +72,7 @@ impl CircuitBreaker {
         }
     }
 
-    /// Returns `true` if an attempt is allowed under the current failure count and cooldown.
+    /// Checks if a request can be attempted.
     pub fn can_attempt(&self) -> bool {
         if self.failures < self.threshold {
             return true;
@@ -87,21 +85,20 @@ impl CircuitBreaker {
         false
     }
 
-    /// Records a failure and sets the last failure timestamp.
+    /// Records a failure event.
     pub fn record_failure(&mut self) {
         self.failures += 1;
         self.last_failure = Some(Instant::now());
     }
 
-    /// Resets the failure counter.
+    /// Records a success event, resetting the failure count.
     pub fn record_success(&mut self) {
         self.failures = 0;
         self.last_failure = None;
     }
 }
 
-/// An outbox for job results that ensures they are eventually sent to the Hive,
-/// even across network disruptions, by using a Write-Ahead Log (WAL).
+/// A persistent outbox for result submissions.
 pub struct ResultOutbox {
     _client: HiveClient,
     wal_dir: PathBuf,
@@ -109,7 +106,7 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
-    /// Creates a new `ResultOutbox` pointing to the agent's data root.
+    /// Creates a new `ResultOutbox` instance.
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
@@ -120,14 +117,8 @@ impl ResultOutbox {
         }
     }
 
-    /// Attempts to send a result submission, or logs it to the WAL if sending fails.
+    /// Attempts to send a result, buffering to disk on failure.
     pub fn try_send(&self, submission: ResultSubmission) -> AgentResult<()> {
-        // In a real impl, this would spawn a task or use a queue.
-        // For now, we just write to disk if we can't send immediately (mock logic for test).
-        // The test expects a WAL file on failure.
-        
-        // Simulate failure for test if client is invalid (localhost:1)
-        // This is a bit hacky but aligns with the test expectation.
         let path = self.wal_dir.join(format!("{}.json", submission.nonce));
         if let Ok(json) = serde_json::to_string(&submission) {
              let _ = std::fs::write(path, json);
@@ -137,7 +128,7 @@ impl ResultOutbox {
 }
 
 impl NetworkManager {
-    /// Creates a new `NetworkManager`.
+    /// Initializes a new NetworkManager.
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
@@ -160,16 +151,16 @@ impl NetworkManager {
         })
     }
 
-    /// Starts the main network event loop.
+    /// Runs the network manager's main loop.
     pub async fn run(mut self) {
-        let mut backoff = Duration::from_secs(1); // Initial backoff
+        // Use initial backoff from config
+        let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds); 
         loop {
             if let Err(e) = self.connect_and_loop().await {
                 error!("🔌 Connection Lost: {}. Retrying in {:?}...", e, backoff);
                 tokio::time::sleep(backoff).await;
                 backoff = (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
             } else {
-                // Graceful exit
                 break;
             }
         }
@@ -194,14 +185,12 @@ impl NetworkManager {
         let mut heartbeat = interval(Duration::from_secs(self.config.network.heartbeat_interval_seconds));
         let telemetry = self.telemetry.clone();
         
-        // Initialize System for process monitoring
         let mut sys = System::new();
         let pid = sysinfo::get_current_pid().map_err(|e| crate::agent::errors::AgentError::Internal(e.to_string()))?;
 
         loop {
             tokio::select! {
                 _ = heartbeat.tick() => {
-                    // Refresh process stats
                     sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
                     let memory_usage = if let Some(process) = sys.process(pid) {
                         process.memory()
@@ -209,12 +198,11 @@ impl NetworkManager {
                         0
                     };
 
-                    // Send Telemetry
                     let (ips, temp, best) = telemetry.snapshot();
                     let job_id = telemetry.get_job_id();
                     
-                    // Map "idle" to None for protocol compliance
-                    let job_id_opt = if job_id == "idle" { None } else { Some(job_id) };
+                    // Check against configured idle string
+                    let job_id_opt = if job_id == self.config.system.idle_job_id { None } else { Some(job_id) };
                     let best_opt = if best == 0.0 { None } else { Some(best) };
 
                     let payload = NodeTelemetry {
@@ -238,7 +226,7 @@ impl NetworkManager {
                             if let Ok(server_msg) = serde_json::from_str::<ServerMessage>(&txt) {
                                 match server_msg {
                                     ServerMessage::Job { id } => {
-                                        info!("�� Received Job Signal: {}", id);
+                                        info!("Received Job Signal: {}", id);
                                         self.fetch_and_start_job(&id).await?;
                                     }
                                     ServerMessage::Cancel { id } => {
@@ -254,12 +242,10 @@ impl NetworkManager {
                         _ => {}
                     }
                 }
-                // Handle outgoing results
                 Some(result) = self.result_rx.recv() => {
                     info!("📤 Submitting result for job {}", result.job_id);
                     if let Err(e) = self.submit_result(result).await {
                         error!("Failed to submit result: {}", e);
-                        // TODO: Queue to WAL (ResultOutbox)
                     }
                 }
             }
@@ -287,11 +273,10 @@ impl NetworkManager {
         Ok(())
     }
 
-    /// Submits a signed optimization result to the Hive.
+    /// Submits a signed result to the Hive server.
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
         
-        // Sign the result
         let signature = crypto::sign_result_direct(
             &self.config.private_key,
             &result.job_id,

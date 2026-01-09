@@ -76,6 +76,7 @@ impl MutationOperator for GroupMutation {
         // Adaptive Strategy:
         // If < 3 keys, must use 2-way swap.
         // If >= 3 keys, 50% chance of 2-way, 50% chance of 3-way.
+        // TODO: Make this probability configurable in SearchConfig
         let use_swap = len < 3 || rng.random_bool(0.5);
         let sample_size = if use_swap { 2 } else { 3 };
 
@@ -197,7 +198,7 @@ mod tests {
             use rand::seq::SliceRandom;
             keys.shuffle(&mut rng_layout);
             let layout = Layout::new_unchecked(keys);
-            let mut state = SearchState::new(layout, 0, 1.0);
+            let mut state = SearchState::new(layout, 0, 1.0).unwrap();
             let score_before = engine.score_raw(&state.layout().keys).unwrap();
             let mutation = GroupMutation { unlocked_indices: (0..size).collect() };
             let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);

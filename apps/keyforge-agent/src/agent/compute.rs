@@ -29,7 +29,7 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::info;
 use rand::seq::SliceRandom;
-use crate::models::SharedTelemetry;
+use crate::models::{SharedTelemetry, ComputeConfig};
 
 /// A trait for types that can synchronize assets required for an optimization job.
 pub trait AssetSyncer {
@@ -38,13 +38,14 @@ pub trait AssetSyncer {
     fn sync_assets(
         &self,
         config: &JobConfig,
+        limits: &ComputeConfig,
     ) -> impl Future<Output = Result<(String, String)>> + Send;
 }
 
 impl AssetSyncer for AssetManager {
-    async fn sync_assets(&self, config: &JobConfig) -> Result<(String, String)> {
-        if config.corpora.len() > 10 {
-            return Err(anyhow::anyhow!("Too many corpora (limit 10)"));
+    async fn sync_assets(&self, config: &JobConfig, limits: &ComputeConfig) -> Result<(String, String)> {
+        if config.corpora.len() > limits.max_corpora_sources {
+            return Err(anyhow::anyhow!("Too many corpora (limit {})", limits.max_corpora_sources));
         }
         if config.corpora.is_empty() {
             return Err(anyhow::anyhow!("job config has no corpora specified"));
@@ -59,8 +60,9 @@ impl AssetSyncer for AssetManager {
 pub async fn prepare_assets<S: AssetSyncer>(
     syncer: &S,
     config: &JobConfig,
+    limits: &ComputeConfig,
 ) -> Result<(String, String)> {
-    syncer.sync_assets(config).await
+    syncer.sync_assets(config, limits).await
 }
 
 /// Represents a job that has been hydrated with all necessary domain models
@@ -81,14 +83,13 @@ pub struct PreparedJob {
 }
 
 /// Loads assets from the filesystem, validates them, and constructs an `EngineRequest`.
-///
-/// This involves mapping the protocol-level `JobConfig` to domain-specific models.
 pub async fn create_engine_request(
     loader: Box<dyn AssetLoader>,
     data_root: PathBuf,
     config: &JobConfig,
     cost_filename: &str,
     _corpus_root: &str,
+    compute_config: &ComputeConfig,
 ) -> Result<PreparedJob> {
     config.weights.validate().map_err(|e| anyhow::anyhow!("invalid weights: {}", e))?;
     config.params.validate().map_err(|e| anyhow::anyhow!("invalid params: {}", e))?;
@@ -119,7 +120,7 @@ pub async fn create_engine_request(
 
     let corpus = loader.load_corpus(&domain_corpora).await.context("failed to load corpus")?;
     let raw_cost = loader.load_cost_matrix(cost_filename).await.context("failed to load cost matrix")?;
-    let registry = loader.load_keycodes("keycodes.json").await.unwrap_or_else(|_| Arc::new(keyforge_model::keycodes::KeycodeRegistry::new_with_defaults()));
+    let registry = loader.load_keycodes(&compute_config.keycodes_file).await.unwrap_or_else(|_| Arc::new(keyforge_model::keycodes::KeycodeRegistry::new_with_defaults()));
 
     let keyboard = keyforge_model::Keyboard::new(definition.geometry.keys.clone(), definition.geometry.home_row)
         .map_err(|e| anyhow::anyhow!("Invalid keyboard definition: {}", e))?;
@@ -127,7 +128,9 @@ pub async fn create_engine_request(
     let rubric = conversion::to_domain_rubric(&config.weights);
     let cost_overrides = raw_cost.resolve(&definition.geometry);
     let pinned_keys = conversion::resolve_constraints(&config.pinned_keys, keyboard.keys.len(), &registry).map_err(|e| anyhow::anyhow!(e))?;
-    let search_config = conversion::to_domain_config(&config.params, 42);
+    
+    // Use default_search_seed from config
+    let search_config = conversion::to_domain_config(&config.params, compute_config.default_search_seed);
 
     let initial_layout = match start_layout {
         Some(layout_str) => Some(conversion::parse_layout_string(&layout_str, keyboard.keys.len(), &registry).map_err(|e| anyhow::anyhow!(e))?),
@@ -162,17 +165,15 @@ pub async fn create_engine_request(
 }
 
 /// Executes the core optimization loop for a job.
-///
-/// This function wraps the blocking `keyforge_core` engine call, provides a stop flag
-/// for cancellation, and handles telemetry reporting/concurrency limiting.
 pub async fn run_optimization(
     req: EngineRequest,
     job_id: String,
     stop_flag: Arc<AtomicBool>,
     limiter: Arc<Semaphore>,
     telemetry: SharedTelemetry,
+    timeout_sec: u64,
+    log_sampling_rate: usize,
 ) -> Result<OptimizationResult> {
-    // Acquire permit to respect core limits (even if serial, this prepares for async)
     let _permit = limiter.acquire().await.map_err(|_| anyhow::anyhow!("Semaphore closed"))?;
 
     info!(job_id = %job_id, "starting optimization loop");
@@ -181,9 +182,10 @@ pub async fn run_optimization(
         stop_flag: stop_flag.clone(),
         job_id: job_id.clone(),
         telemetry: telemetry.clone(),
+        sample_rate: log_sampling_rate,
     };
 
-    let timeout = tokio::time::Duration::from_secs(3600);
+    let timeout = tokio::time::Duration::from_secs(timeout_sec);
     let job_id_inner = job_id.clone();
 
     let handle = tokio::task::spawn_blocking(move || {
@@ -225,17 +227,11 @@ pub async fn run_optimization(
         },
         Err(_) => {
             stop_flag.store(true, Ordering::SeqCst);
-            Err(anyhow::anyhow!("optimization timed out after 1 hour"))
+            Err(anyhow::anyhow!("optimization timed out after {} seconds", timeout_sec))
         }
     };
 
     let final_stop = stop_flag.load(Ordering::SeqCst);
-    info!(
-        job_id = %job_id, 
-        stopped = final_stop, 
-        "run_optimization: final stop_flag check"
-    );
-
     if final_stop {
         return Err(anyhow::anyhow!("optimization cancelled"));
     }

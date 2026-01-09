@@ -13,45 +13,89 @@
 // limitations under the License.
 
 use keyforge_core::EngineRequest;
-use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
-use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
+use keyforge_infra::AssetManager;
+use keyforge_model::{Corpus, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
+use keyforge_model::geometry::KeyboardDefinition;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::info;
+use tracing::{info, warn};
+use serde::{Deserialize, Serialize};
 
 use crate::agent::errors::AgentError;
-use crate::models::CalibrationConfig;
+
+#[derive(Serialize, Deserialize)]
+struct CalibrationData {
+    ips: f64,
+    timestamp: u64,
+    version: String,
+}
 
 /// Measures approximate scoring throughput (iterations per second).
 ///
-/// This is used to tune worker batching and to report capability to the Hive.
-///
-/// # Errors
-/// Returns `AgentError::Calibration` if the physics engine cannot be initialized.
-pub fn measure_performance(config: &CalibrationConfig) -> Result<f64, AgentError> {
-    info!("calibrating physics engine");
+/// This function:
+/// 1. Checks for a cached `calibration.json`.
+/// 2. If missing, ensures the "corne" keyboard asset is available.
+/// 3. Runs a physics benchmark.
+/// 4. Persists the result.
+pub async fn calibrate(assets: &AssetManager, data_root: &Path) -> Result<f64, AgentError> {
+    let cal_path = data_root.join("user/calibration.json");
 
-    let key_count = config.key_count;
-    let keys: Vec<KeyNode> = (0..key_count)
-        .map(|i| KeyNode {
-            index: i,
-            label: format!("k{}", i),
-            hand: HandIndex(if i < key_count / 2 { 0 } else { 1 }),
-            finger: FingerIndex((i % 5) as u8),
-            row: RowIndex((i / 10) as i8),
-            col: ColIndex((i % 10) as i8),
-            x: (i % 10) as f32,
-            y: (i / 10) as f32,
-            is_home: (10..20).contains(&i),
-            ..Default::default()
-        })
-        .collect();
+    // 1. Check Cache
+    if cal_path.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&cal_path).await {
+            if let Ok(data) = serde_json::from_str::<CalibrationData>(&content) {
+                info!("Loaded cached calibration: {:.2} kOPS", data.ips / 1000.0);
+                return Ok(data.ips);
+            }
+        }
+        warn!("Invalid calibration file, recalibrating...");
+    }
 
-    let keyboard = Keyboard::new(keys, 1).map_err(|e| AgentError::Calibration(e.to_string()))?; // Home row 1
+    info!("Starting hardware calibration...");
+
+    // 2. Ensure Asset (Corne)
+    let kb_path = assets.ensure_keyboard("corne").await
+        .map_err(|e| AgentError::Calibration(format!("Failed to fetch reference keyboard: {}", e)))?;
+
+    // 3. Load & Parse
+    let content = tokio::fs::read_to_string(&kb_path).await
+        .map_err(|e| AgentError::Calibration(format!("Failed to read keyboard: {}", e)))?;
+    
+    let def: KeyboardDefinition = serde_json::from_str(&content)
+        .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {}", e)))?;
+
+    let keyboard = Keyboard::new(def.geometry.keys, def.geometry.home_row)
+        .map_err(|e| AgentError::Calibration(e.to_string()))?;
+
+    // 4. Run Benchmark
+    let ips = run_benchmark(keyboard)?;
+
+    // 5. Persist
+    let data = CalibrationData {
+        ips,
+        timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    };
+
+    if let Some(parent) = cal_path.parent() {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| AgentError::Resource(e.to_string()))?;
+    }
+
+    let json = serde_json::to_string(&data).unwrap();
+    tokio::fs::write(&cal_path, json).await.map_err(|e| AgentError::Resource(e.to_string()))?;
+
+    info!("Calibration complete: {:.2} kOPS", ips / 1000.0);
+    Ok(ips)
+}
+
+fn run_benchmark(keyboard: Keyboard) -> Result<f64, AgentError> {
+    let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
     let search_config = SearchConfig::default();
-
+    
+    // Create a dummy layout matching the key count
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
     let req = EngineRequest {
@@ -64,15 +108,15 @@ pub fn measure_performance(config: &CalibrationConfig) -> Result<f64, AgentError
         cost_overrides: vec![],
     };
 
-    // warm
-    for _ in 0..config.warmup_iterations {
+    // Warmup
+    for _ in 0..100 {
         let _ = keyforge_core::score(&req);
     }
 
     let start = Instant::now();
-    let duration = Duration::from_millis(config.duration_ms);
+    let duration = Duration::from_millis(1000);
     let mut iterations: u64 = 0;
-    let batch = config.batch_size;
+    let batch = 100;
 
     while start.elapsed() < duration {
         for _ in 0..batch {
@@ -82,9 +126,9 @@ pub fn measure_performance(config: &CalibrationConfig) -> Result<f64, AgentError
     }
 
     let elapsed = start.elapsed().as_secs_f64();
-    let sops = iterations as f64 / elapsed;
-
-    info!("calibration_result_kops" = sops / 1000.0);
-
-    Ok(sops)
+    if elapsed == 0.0 {
+        return Ok(0.0);
+    }
+    
+    Ok(iterations as f64 / elapsed)
 }

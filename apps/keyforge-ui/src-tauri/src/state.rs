@@ -44,10 +44,14 @@ pub struct AssetCache {
 impl AssetCache {
     /// Creates a new `AssetCache` rooted at the specified data directory.
     pub fn new(root: PathBuf) -> Self {
+        // Configurable cache sizes via env or defaults
+        let kb_size = std::env::var("CACHE_KB_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(100);
+        let cp_size = std::env::var("CACHE_CORPUS_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(50);
+
         Self {
             provider: FsProvider::new(root),
-            keyboards: Cache::builder().max_capacity(100).build(),
-            corpora: Cache::builder().max_capacity(50).build(),
+            keyboards: Cache::builder().max_capacity(kb_size).build(),
+            corpora: Cache::builder().max_capacity(cp_size).build(),
             costs: Cache::builder().max_capacity(50).build(),
             keycodes: Cache::builder().max_capacity(10).build(),
         }

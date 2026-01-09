@@ -54,6 +54,8 @@ pub struct NetworkConfig {
     pub heartbeat_interval_seconds: u64,
     /// Maximum backoff duration for retries in seconds.
     pub max_backoff_seconds: u64,
+    /// Initial backoff duration for retries in seconds.
+    pub initial_backoff_seconds: u64,
     /// Number of failures before tripping the circuit breaker.
     pub circuit_breaker_threshold: u32,
     /// Cooldown period in seconds after the circuit breaker trips.
@@ -66,6 +68,7 @@ impl Default for NetworkConfig {
             timeout_seconds: 30,
             heartbeat_interval_seconds: 15,
             max_backoff_seconds: 60,
+            initial_backoff_seconds: 1,
             circuit_breaker_threshold: 5,
             circuit_breaker_cooldown: 60,
         }
@@ -79,6 +82,8 @@ pub struct MaintenanceConfig {
     pub ttl_days: u64,
     /// Interval between pruning checks in seconds.
     pub prune_interval_seconds: u64,
+    /// Directory to target for pruning (relative to data root).
+    pub prune_target_dir: String,
 }
 
 impl Default for MaintenanceConfig {
@@ -86,12 +91,96 @@ impl Default for MaintenanceConfig {
         Self {
             ttl_days: 7,
             prune_interval_seconds: 3600,
+            prune_target_dir: "user/keyboards".to_string(),
+        }
+    }
+}
+
+/// Configuration for the compute and optimization engine.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComputeConfig {
+    /// Maximum number of corpus sources allowed per job.
+    pub max_corpora_sources: usize,
+    /// Default timeout for a job in seconds.
+    pub job_timeout_sec: u64,
+    /// Name of the keycodes definition file.
+    pub keycodes_file: String,
+    /// Default random seed for search if not provided by job.
+    pub default_search_seed: u64,
+}
+
+impl Default for ComputeConfig {
+    fn default() -> Self {
+        Self {
+            max_corpora_sources: 50,
+            job_timeout_sec: 3600,
+            keycodes_file: "keycodes.json".to_string(),
+            default_search_seed: 42,
+        }
+    }
+}
+
+/// Configuration for internal telemetry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetryConfig {
+    /// Rate at which to sample progress logs (e.g. log every Nth step).
+    pub progress_log_sampling_rate: usize,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            progress_log_sampling_rate: 100,
+        }
+    }
+}
+
+/// Configuration for logging output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggingConfig {
+    /// Default EnvFilter string (e.g., "info,keyforge_agent=debug").
+    pub default_filter: String,
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            default_filter: "info,keyforge_agent=debug".to_string(),
+        }
+    }
+}
+
+/// Configuration for system-level identifiers and limits.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemConfig {
+    /// Prefix used when generating node IDs.
+    pub node_id_prefix: String,
+    /// Capacity of the shutdown signal broadcast channel.
+    pub shutdown_channel_capacity: usize,
+    /// Capacity of the result submission channel.
+    pub result_channel_capacity: usize,
+    /// Name of the configuration directory (e.g., "keyforge").
+    pub config_dir_name: String,
+    /// Name of the identity key file (e.g., "agent.key.age").
+    pub key_file_name: String,
+    /// The string used to represent an idle state in telemetry.
+    pub idle_job_id: String,
+}
+
+impl Default for SystemConfig {
+    fn default() -> Self {
+        Self {
+            node_id_prefix: "agent-".to_string(),
+            shutdown_channel_capacity: 16,
+            result_channel_capacity: 100,
+            config_dir_name: "keyforge".to_string(),
+            key_file_name: "agent.key.age".to_string(),
+            idle_job_id: "idle".to_string(),
         }
     }
 }
 
 /// Configuration specific to the Agent.
-/// This resolves the Option types from CommonConfig into concrete values required for runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     /// The base URL of the Hive server.
@@ -116,6 +205,18 @@ pub struct AgentConfig {
     /// Maintenance settings.
     #[serde(default)]
     pub maintenance: MaintenanceConfig,
+    /// Compute settings.
+    #[serde(default)]
+    pub compute: ComputeConfig,
+    /// Telemetry settings.
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
+    /// Logging settings.
+    #[serde(default)]
+    pub logging: LoggingConfig,
+    /// System settings.
+    #[serde(default)]
+    pub system: SystemConfig,
 }
 
 impl Default for AgentConfig {
@@ -130,6 +231,10 @@ impl Default for AgentConfig {
             calibration: CalibrationConfig::default(),
             network: NetworkConfig::default(),
             maintenance: MaintenanceConfig::default(),
+            compute: ComputeConfig::default(),
+            telemetry: TelemetryConfig::default(),
+            logging: LoggingConfig::default(),
+            system: SystemConfig::default(),
         }
     }
 }
@@ -155,15 +260,37 @@ pub struct PartialAgentConfig {
     pub network: Option<NetworkConfig>,
     /// Optional override for Maintenance settings.
     pub maintenance: Option<MaintenanceConfig>,
+    /// Optional override for Compute settings.
+    pub compute: Option<ComputeConfig>,
+    /// Optional override for Telemetry settings.
+    pub telemetry: Option<TelemetryConfig>,
+    /// Optional override for Logging settings.
+    pub logging: Option<LoggingConfig>,
+    /// Optional override for System settings.
+    pub system: Option<SystemConfig>,
 }
 
 impl PartialAgentConfig {
-    /// Loads a partial configuration from a file (JSON or TOML).
+    /// Loads a partial configuration from a file (JSON, TOML, or MPK.ZST).
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
-        let content = std::fs::read_to_string(&path)
+        let path = path.as_ref();
+        
+        // Handle MPK.ZST (Compressed MessagePack)
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+             if ext == "zst" || path.to_string_lossy().ends_with(".mpk.zst") {
+                 let file = std::fs::File::open(path)
+                     .map_err(|e| format!("Failed to open config file: {}", e))?;
+                 let decoder = zstd::Decoder::new(file)
+                     .map_err(|e| format!("Failed to init zstd decoder: {}", e))?;
+                 return rmp_serde::from_read(decoder)
+                     .map_err(|e| format!("Failed to parse MPK config: {}", e));
+             }
+        }
+
+        let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read config file: {}", e))?;
         
-        if path.as_ref().extension().and_then(|s| s.to_str()) == Some("toml") {
+        if path.extension().and_then(|s| s.to_str()) == Some("toml") {
              toml::from_str(&content).map_err(|e| format!("Failed to parse TOML config: {}", e))
         } else {
              serde_json::from_str(&content).map_err(|e| format!("Failed to parse JSON config: {}", e))
@@ -183,11 +310,14 @@ impl AgentConfig {
         if let Some(v) = partial.calibration { self.calibration = v; }
         if let Some(v) = partial.network { self.network = v; }
         if let Some(v) = partial.maintenance { self.maintenance = v; }
+        if let Some(v) = partial.compute { self.compute = v; }
+        if let Some(v) = partial.telemetry { self.telemetry = v; }
+        if let Some(v) = partial.logging { self.logging = v; }
+        if let Some(v) = partial.system { self.system = v; }
     }
 }
 
 /// Shared state for real-time telemetry.
-/// Uses atomics for lock-free updates from the hot loop.
 #[derive(Debug)]
 pub struct AgentTelemetry {
     /// Throughput in 'Items Per Second' (standard f32 bits).

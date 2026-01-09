@@ -187,7 +187,9 @@ pub fn cmd_export_firmware(
 
 #[tauri::command]
 /// Writes a file to a specified path after ensuring it resides within a safe directory.
-pub fn cmd_safe_write_file(path: String, content: String) -> Result<(), CommandError> {
+///
+/// If `overwrite` is false and the file exists, returns an error.
+pub fn cmd_safe_write_file(path: String, content: String, overwrite: bool) -> Result<(), CommandError> {
     let p = Path::new(&path);
     let allowed_exts = ["json", "txt", "c", "h", "keymap", "conf"];
     let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("");
@@ -200,5 +202,10 @@ pub fn cmd_safe_write_file(path: String, content: String) -> Result<(), CommandE
     if path.contains("..") {
         return Err(CommandError::Validation("Path traversal detected.".into()));
     }
+    
+    if !overwrite && p.exists() {
+        return Err(CommandError::Validation("File already exists".into()));
+    }
+
     std::fs::write(&path, content).map_err(CommandError::Io)
 }

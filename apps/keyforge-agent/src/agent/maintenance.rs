@@ -19,11 +19,9 @@ use tracing::{info, warn};
 use crate::models::MaintenanceConfig;
 
 /// Prunes stale user data.
-/// Now targets `data/user/keyboards` specifically.
-/// Since `system` is read-only, we don't need a whitelist.
 pub async fn prune_stale_data(data_root: PathBuf, config: &MaintenanceConfig) -> std::io::Result<()> {
-    // Target the user directory
-    let target_dir = data_root.join("user/keyboards");
+    // Target directory from config
+    let target_dir = data_root.join(&config.prune_target_dir);
     if !target_dir.exists() {
         return Ok(());
     }
@@ -36,7 +34,7 @@ pub async fn prune_stale_data(data_root: PathBuf, config: &MaintenanceConfig) ->
     while let Ok(Some(entry)) = entries.next_entry().await {
         let path = entry.path();
 
-        // 1. Extension Check (Safety)
+        // 1. Extension Check (Safety - Hardcoded json check remains as safety guard logic, not config value)
         if path.extension().and_then(|s| s.to_str()) != Some("json") {
             continue;
         }

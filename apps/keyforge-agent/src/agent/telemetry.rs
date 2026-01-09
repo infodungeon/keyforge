@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,6 +29,8 @@ pub struct WorkerLogger {
     pub job_id: String,
     /// Shared telemetry handle for live metric updates.
     pub telemetry: SharedTelemetry,
+    /// Rate at which to log progress (e.g. every N steps).
+    pub sample_rate: usize,
 }
 
 impl ProgressCallback for WorkerLogger {
@@ -36,7 +38,6 @@ impl ProgressCallback for WorkerLogger {
         let stopped = self.stop_flag.load(Ordering::SeqCst);
         
         // Update shared telemetry (Lock-free)
-        // Note: Core doesn't pass temp yet, so we pass 0.0 or infer it later.
         self.telemetry.update(ips, 0.0, score);
 
         if stopped {
@@ -48,7 +49,7 @@ impl ProgressCallback for WorkerLogger {
         step.hash(&mut hasher);
         let hash = hasher.finish();
 
-        if hash % 100 == 0 {
+        if hash % (self.sample_rate as u64).max(1) == 0 {
             info!(
                 job_id = %self.job_id,
                 step = step,

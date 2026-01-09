@@ -14,10 +14,6 @@
 
 
 //! Core logic for the KeyForge Agent.
-//!
-//! The Agent is responsible for receiving optimization jobs from the Hive,
-//! executing them, and reporting back the results.
-
 
 use crate::models::{AgentConfig, SharedTelemetry};
 use crate::agent::network::NetworkManager;
@@ -42,11 +38,9 @@ pub mod network;
 /// Real-time telemetry and metrics reporting.
 pub mod telemetry;
 /// Cryptographic primitives for agent identity and signing.
-pub mod crypto; // Re-export crypto for network module
+pub mod crypto;
 
 use self::errors::AgentResult;
-
-/// The main Agent coordinator that orchestrates optimization jobs.
 use keyforge_infra::net::client::ClientConfig;
 
 /// The main Agent coordinator that orchestrates optimization jobs.
@@ -58,11 +52,10 @@ pub struct Agent {
 }
 
 impl Agent {
-    /// Creates a new  with the given configuration.
+    /// Creates a new Agent instance with the given configuration.
     pub async fn new(config: AgentConfig, result_tx: mpsc::Sender<ResultSubmission>) -> AgentResult<Self> {
         let telemetry = SharedTelemetry::default();
         
-        // Initialize Hive Client for asset downloads
         let client_config = ClientConfig {
             base_url: config.hive_url.clone(),
             secret: Some(config.secret.clone()),
@@ -74,13 +67,14 @@ impl Agent {
             
         let assets = keyforge_infra::AssetManager::new(client, config.data_dir.clone());
 
+        if let Err(e) = calibration::calibrate(&assets, &config.data_dir).await {
+            tracing::error!("Calibration failed: {}. Using safe default.", e);
+        }
+
         Ok(Self { config, telemetry, assets, result_tx })
     }
 
     /// Starts the agent's job processing loop.
-    ///
-    /// It listens for  messages from the network layer and coordinates
-    /// the execution of optimization tasks.
     pub async fn run(
         &self, 
         mut job_rx: mpsc::Receiver<(String, JobConfig)>,
@@ -89,7 +83,6 @@ impl Agent {
         info!("🤖 KeyForge Agent v0.8.0 Starting...");
         info!("   Node ID: {}", self.config.node_id);
 
-        // Job Loop
         loop {
             let (job_id, job) = tokio::select! {
                 Some((id, j)) = job_rx.recv() => (id, j),
@@ -103,37 +96,35 @@ impl Agent {
             info!("⚙️  Starting Job (ID: {})...", job_id);
             self.telemetry.set_job_id(&job_id);
 
-            // 1. Sync Assets
             info!("   Syncing assets...");
-            let (cost_file, _corpus_dir) = match compute::prepare_assets(&self.assets, &job).await {
+            let (cost_file, _corpus_dir) = match compute::prepare_assets(&self.assets, &job, &self.config.compute).await {
                 Ok(res) => res,
                 Err(e) => {
                     error!("Asset sync failed: {}", e);
-                    self.telemetry.set_job_id("idle");
+                    self.telemetry.set_job_id(&self.config.system.idle_job_id);
                     continue;
                 }
             };
 
-            // 2. Prepare Engine Request
             let loader = Box::new(keyforge_infra::FsProvider::new(self.config.data_dir.clone()));
             let prepared_job = match compute::create_engine_request(
                 loader, 
                 self.config.data_dir.clone(), 
                 &job, 
                 &cost_file, 
-                "corpora" // Standard corpora dir
+                "corpora", 
+                &self.config.compute
             ).await {
                 Ok(pj) => pj,
                 Err(e) => {
                     error!("Failed to prepare job: {}", e);
-                    self.telemetry.set_job_id("idle");
+                    self.telemetry.set_job_id(&self.config.system.idle_job_id);
                     continue;
                 }
             };
 
-            // 3. Execution (with Cancellation Support)
             let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let limiter = Arc::new(tokio::sync::Semaphore::new(self.config.cores.max(1))); // Per-job limiter for now
+            let limiter = Arc::new(tokio::sync::Semaphore::new(self.config.cores.max(1))); 
 
             info!("   Launching optimization Engine...");
             tokio::select! {
@@ -142,13 +133,14 @@ impl Agent {
                     job_id.clone(),
                     stop_flag.clone(),
                     limiter,
-                    self.telemetry.clone()
+                    self.telemetry.clone(),
+                    self.config.compute.job_timeout_sec,
+                    self.config.telemetry.progress_log_sampling_rate
                 ) => {
                     match res {
                         Ok(opt_res) => {
                             info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
                             
-                            // Serialize layout to JSON string for protocol
                             let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
 
                             let submission = ResultSubmission {
@@ -159,7 +151,7 @@ impl Agent {
                                 node_id: self.config.node_id.clone(),
                                 timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
                                 nonce: rand::random(),
-                                signature: None, // Will be signed by NetworkManager
+                                signature: None, 
                             };
                             
                             if let Err(e) = self.result_tx.send(submission).await {
@@ -177,7 +169,7 @@ impl Agent {
                 }
             }
             
-            self.telemetry.set_job_id("idle");
+            self.telemetry.set_job_id(&self.config.system.idle_job_id);
         }
 
         Ok(())
@@ -185,20 +177,16 @@ impl Agent {
 }
 
 /// The primary entry point for starting a KeyForge worker agent.
-///
-/// This function initializes the agent, sets up networking and telemetry,
-/// and starts the job processing loop. It runs until a shutdown signal is received.
 pub async fn run_worker(
     mut config: AgentConfig,
     node_id: String,
     signing_key: SigningKey,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) {
-    // Inject Identity
     config.node_id = node_id;
     config.private_key = hex::encode(signing_key.to_bytes());
 
-    let (result_tx, result_rx) = mpsc::channel(100);
+    let (result_tx, result_rx) = mpsc::channel(config.system.result_channel_capacity);
 
     let agent = match Agent::new(config.clone(), result_tx).await {
         Ok(a) => a,
@@ -211,7 +199,6 @@ pub async fn run_worker(
     let (job_tx, job_rx) = mpsc::channel(1);
     let (stop_tx, stop_rx) = mpsc::channel(1);
 
-    // Network Task
     let net = match NetworkManager::new(
         config,
         agent.telemetry.clone(),
@@ -233,14 +220,12 @@ pub async fn run_worker(
         }
     });
 
-    // Wait for shutdown signal
     tokio::select! {
         _ = shutdown_rx.recv() => {
             info!("Shutdown signal received");
         }
     }
     
-    // Cleanup
     net_handle.abort();
     agent_handle.abort();
 }
