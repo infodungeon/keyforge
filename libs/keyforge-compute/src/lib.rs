@@ -29,7 +29,7 @@ use std::sync::Arc;
 use tracing::instrument;
 
 /// The pure computation runtime.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Runtime {
     /// The underlying physical scoring engine.
     pub engine: Arc<ScoringEngine>,

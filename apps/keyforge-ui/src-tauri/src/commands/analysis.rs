@@ -13,7 +13,7 @@ use serde::Serialize;
 use tauri::AppHandle;
 
 /// Statistics for a specific corpus on disk.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct CorpusStats {
     /// Name of the corpus.
     pub name: String,

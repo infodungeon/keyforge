@@ -23,7 +23,7 @@ use keyforge_model::keycodes::KeycodeRegistry;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct InMemoryLoader {
     keyboards: Arc<RwLock<HashMap<String, Arc<KeyboardDefinition>>>>,
     corpora: Arc<RwLock<HashMap<String, Arc<Corpus>>>>,

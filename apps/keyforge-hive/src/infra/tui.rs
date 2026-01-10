@@ -32,7 +32,7 @@ use std::thread;
 use std::time::Duration;
 
 /// A single log entry from the Hive server.
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, Debug)]
 pub struct LogEntry {
     /// RFC3339 formatted timestamp.
     pub timestamp: String,
@@ -43,7 +43,7 @@ pub struct LogEntry {
 }
 
 /// The combined response from the system status endpoint.
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, Debug)]
 pub struct SystemStatusResponse {
     /// Aggregate system and cluster metrics.
     pub metrics: SystemMetrics,
@@ -51,7 +51,7 @@ pub struct SystemStatusResponse {
     pub logs: Vec<LogEntry>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 struct ContainerMetrics {
     name: String,
     status: String,
@@ -60,6 +60,7 @@ struct ContainerMetrics {
     is_online: bool,
 }
 
+#[derive(Debug)]
 struct DockerMonitor {
     state: Arc<Mutex<Vec<ContainerMetrics>>>,
 }

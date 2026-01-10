@@ -33,6 +33,12 @@ pub struct SessionBuilder<'a> {
     loader: &'a dyn AssetLoader,
 }
 
+impl<'a> std::fmt::Debug for SessionBuilder<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SessionBuilder").finish()
+    }
+}
+
 impl<'a> SessionBuilder<'a> {
     /// Creates a new `SessionBuilder` using the provided asset loader.
     pub fn new(loader: &'a dyn AssetLoader) -> Self {

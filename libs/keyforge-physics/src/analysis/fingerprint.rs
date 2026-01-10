@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 /// Represents the identity of a layout based on its similarity to standard layouts.
+#[derive(Debug, Clone)]
 pub struct LayoutIdentity {
     /// The name of the standard layout (e.g., "Qwerty", "Colemak").
     pub name: String,
@@ -26,6 +27,7 @@ pub struct LayoutIdentity {
     pub distance: usize,
 }
 
+#[derive(Debug)]
 pub struct Fingerprinter;
 
 static STANDARDS: OnceLock<HashMap<String, Vec<KeyCode>>> = OnceLock::new();

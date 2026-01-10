@@ -12,6 +12,7 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
+#[derive(Debug)]
 pub struct AppState {
     pub provider: ValkeyProvider,
 }

@@ -41,6 +41,7 @@ pub trait ProgressCallback: Send + Sync {
 }
 
 /// A progress callback that does nothing.
+#[derive(Debug)]
 pub struct NoOpCallback;
 impl ProgressCallback for NoOpCallback {
     fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
@@ -229,6 +230,7 @@ mod tests {
             initial_layout: None, pinned_keys: vec![], cost_overrides: vec![],
         };
         let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        #[derive(Debug)]
         struct CountingCallback { counter: Arc<std::sync::atomic::AtomicUsize>, limit: usize }
         impl ProgressCallback for CountingCallback {
             fn on_progress(&self, _step: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {

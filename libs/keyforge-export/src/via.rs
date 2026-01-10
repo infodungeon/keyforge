@@ -20,6 +20,7 @@ use serde_json::json;
 ///
 /// This generates a JSON file that can be imported into the VIA desktop app 
 /// or web interface to update a compatible keyboard.
+#[derive(Debug)]
 pub struct ViaExporter;
 
 impl Exporter for ViaExporter {

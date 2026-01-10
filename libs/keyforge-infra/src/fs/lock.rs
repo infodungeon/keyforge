@@ -21,6 +21,7 @@ use std::time::Duration;
 /// A process-level lock that ensures only one instance of KeyForge is accessing the workspace.
 ///
 /// This uses mandatory file locking (via `fs2`) on a lockfile within the workspace root.
+#[derive(Debug)]
 pub struct WorkspaceLock {
     file: File,
 }

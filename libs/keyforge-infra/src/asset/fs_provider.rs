@@ -32,7 +32,7 @@ use std::sync::Arc;
 ///
 /// It supports loading both system-level assets (stored in zstd-compressed MessagePack)
 /// and user-level assets (stored as plain JSON).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FsProvider {
     /// The root directory where all assets (system and user) are located.
     pub root: PathBuf,

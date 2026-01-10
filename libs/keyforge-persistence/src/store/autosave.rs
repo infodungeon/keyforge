@@ -75,12 +75,14 @@ impl PersistedSession {
     }
 }
 
+#[derive(Debug)]
 struct AutoSaveState {
     pending: Option<SessionSnapshot>,
     last_save: Instant,
 }
 
 /// A service that handles automated background saving of the user session.
+#[derive(Debug)]
 pub struct AutoSaveService {
     path: PathBuf,
     state: Arc<Mutex<AutoSaveState>>,

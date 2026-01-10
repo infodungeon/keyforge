@@ -38,9 +38,24 @@ struct CacheState {
     _watcher: Option<RecommendedWatcher>,
 }
 
+impl std::fmt::Debug for CacheState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CacheState")
+            .field("provider", &self.provider)
+            .field("keyboards", &"Cache")
+            .field("corpora", &"Cache")
+            .field("costs", &"Cache")
+            .field("keycodes", &"Cache")
+            .field("file_cache", &"Cache")
+            .field("manifest", &"Cache")
+            .field("_watcher", &self._watcher.as_ref().map(|_| "RecommendedWatcher"))
+            .finish()
+    }
+}
+
 /// A thread-safe, caching asset loader with hot-reloading capabilities.
 /// Wraps FsProvider with memory caching and file-system watching.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CachingProvider {
     state: Arc<CacheState>,
 }

@@ -20,6 +20,7 @@ use keyforge_adapter::parsing::{parse_key, KeyAction};
 /// An exporter for the ZMK (Zephyr Mechanical Keyboard) firmware.
 ///
 /// This generates a Devicetree (.keymap) file compatible with ZMK's build system.
+#[derive(Debug)]
 pub struct ZmkExporter;
 
 impl Exporter for ZmkExporter {

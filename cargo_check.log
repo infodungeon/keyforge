@@ -1,0 +1,436 @@
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-model/src/validator.rs:26:1
+   |
+26 | pub struct LayoutValidator;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: `keyforge-model` (lib) generated 1 warning
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-physics/src/analysis/fingerprint.rs:20:1
+   |
+20 | / pub struct LayoutIdentity {
+21 | |     /// The name of the standard layout (e.g., "Qwerty", "Colemak").
+22 | |     pub name: String,
+23 | |     /// A similarity score from 0.0 to 1.0.
+...  |
+26 | |     pub distance: usize,
+27 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-physics/src/verify.rs:23:1
+   |
+23 | pub struct DeterministicScorer;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `keyforge-physics` (lib) generated 2 warnings
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-evolution/src/lib.rs:44:1
+   |
+44 | pub struct NoOpCallback;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: `keyforge-evolution` (lib) generated 1 warning
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-core/src/session.rs:23:1
+   |
+23 | / pub struct ScoringSession {
+24 | |     /// The pre-compiled evaluation engine.
+25 | |     pub engine: Arc<ScoringEngine>,
+26 | |     /// The registry used for resolving key labels.
+...  |
+29 | |     pub search_config: SearchConfig,
+30 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: `keyforge-core` (lib) generated 1 warning
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-compute/src/lib.rs:33:1
+   |
+33 | / pub struct Runtime {
+34 | |     /// The underlying physical scoring engine.
+35 | |     pub engine: Arc<ScoringEngine>,
+36 | |     /// Registry of all valid keycodes.
+...  |
+39 | |     pub search_config: SearchConfig,
+40 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-compute/src/builder.rs:32:1
+   |
+32 | / pub struct SessionBuilder<'a> {
+33 | |     loader: &'a dyn AssetLoader,
+34 | | }
+   | |_^
+
+warning: `keyforge-compute` (lib) generated 2 warnings
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-security/src/lib.rs:49:1
+   |
+49 | pub struct SecretBytes(Vec<u8>);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-security/src/lib.rs:68:1
+   |
+68 | pub struct SecretString(String);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `keyforge-security` (lib) generated 2 warnings
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-export/src/qmk.rs:23:1
+   |
+23 | pub struct QmkExporter;
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-export/src/via.rs:23:1
+   |
+23 | pub struct ViaExporter;
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-export/src/zmk.rs:23:1
+   |
+23 | pub struct ZmkExporter;
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `keyforge-export` (lib) generated 3 warnings
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-wasm/src/lib.rs:36:1
+   |
+36 | / pub struct KeyforgeEngine {
+37 | |     loader: InMemoryLoader,
+38 | |     engine: Option<ScoringEngine>,
+39 | |     registry: Option<Arc<KeycodeRegistry>>,
+40 | |     geometry: Option<KeyboardGeometry>,
+41 | |     search_config: Option<SearchConfig>,
+42 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-testing/src/lib.rs:32:1
+   |
+32 | / pub struct HermeticWorkspace {
+33 | |     /// The root temporary directory.
+34 | |     pub temp_dir: TempDir,
+35 | |     /// The path to the 'data' root within the temporary directory.
+36 | |     pub data_root: PathBuf,
+37 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: `keyforge-wasm` (lib) generated 1 warning
+warning: `keyforge-testing` (lib) generated 1 warning
+warning: unused import: `error`
+  --> libs/keyforge-infra/src/net/sync.rs:10:15
+   |
+10 | use tracing::{error, info};
+   |               ^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-infra/src/asset/fs_provider.rs:36:1
+   |
+36 | / pub struct FsProvider {
+37 | |     /// The root directory where all assets (system and user) are located.
+38 | |     pub root: PathBuf,
+39 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-infra/src/asset/caching_provider.rs:44:1
+   |
+44 | / pub struct CachingProvider {
+45 | |     state: Arc<CacheState>,
+46 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-infra/src/fs/lock.rs:24:1
+   |
+24 | / pub struct WorkspaceLock {
+25 | |     file: File,
+26 | | }
+   | |_^
+
+warning: `keyforge-infra` (lib) generated 4 warnings (run `cargo fix --lib -p keyforge-infra` to apply 1 suggestion)
+    Checking keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-assets/src/lib.rs:15:1
+   |
+15 | / pub struct AppState {
+16 | |     pub provider: ValkeyProvider,
+17 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: `keyforge-assets` (lib) generated 1 warning
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-persistence/src/repo/user_repo.rs:29:1
+   |
+29 | / pub struct UserLayoutStore {
+30 | |     layouts: HashMap<String, HashMap<String, String>>,
+31 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-persistence/src/repo/user_repo.rs:37:1
+   |
+37 | / pub struct UserRepo {
+38 | |     root: PathBuf,
+39 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-persistence/src/compiler.rs:24:1
+   |
+24 | / pub struct Compiler<'a> {
+25 | |     builder: SessionBuilder<'a>,
+26 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-persistence/src/store/autosave.rs:84:1
+   |
+84 | / pub struct AutoSaveService {
+85 | |     path: PathBuf,
+86 | |     state: Arc<Mutex<AutoSaveState>>,
+87 | | }
+   | |_^
+
+warning: `keyforge-persistence` (lib) generated 4 warnings
+    Checking keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+    Checking keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
+    Checking keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
+    Checking keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
+warning: unused import: `warn`
+  --> apps/keyforge-assets/src/main.rs:15:21
+   |
+15 | use tracing::{info, warn};
+   |                     ^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `keyforge-assets` (bin "keyforge-assets") generated 1 warning (run `cargo fix --bin "keyforge-assets"` to apply 1 suggestion)
+warning: hidden lifetime parameters in types are deprecated
+  --> apps/keyforge-ui/src-tauri/src/commands/search.rs:96:50
+   |
+96 | pub fn cmd_stop_search(search_state: tauri::State<SearchState>) {
+   |                                      ------------^------------ expected lifetime parameter
+   |
+   = note: `-W elided-lifetimes-in-paths` implied by `-W rust-2018-idioms`
+   = help: to override `-W rust-2018-idioms` add `#[allow(elided_lifetimes_in_paths)]`
+help: indicate the anonymous lifetime
+   |
+96 | pub fn cmd_stop_search(search_state: tauri::State<'_, SearchState>) {
+   |                                                   +++
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/commands/analysis.rs:17:1
+   |
+17 | / pub struct CorpusStats {
+18 | |     /// Name of the corpus.
+19 | |     pub name: String,
+20 | |     /// Size of the processed corpus data in bytes.
+...  |
+23 | |     pub path: String,
+24 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/commands/system.rs:8:1
+   |
+ 8 | / pub struct SystemHealth {
+ 9 | |     pub cpu_usage: f32,
+10 | |     pub memory_used: u64,
+11 | |     pub memory_total: u64,
+12 | |     pub uptime: u64,
+13 | |     pub cores: usize,
+14 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/error.rs:44:1
+   |
+44 | / pub struct CommandErrorResponse {
+45 | |     /// A stable machine-readable error code.
+46 | |     pub code: ErrorCode,
+47 | |     /// A human-readable description of the error.
+48 | |     pub message: String,
+49 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/models.rs:14:1
+   |
+14 | / pub struct JobStatusUpdate {
+15 | |     /// Number of active compute nodes contributing to this job.
+16 | |     pub active_nodes: usize,
+17 | |     /// The best (lowest) physical cost score found so far.
+...  |
+20 | |     pub best_layout: String,
+21 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/models.rs:25:1
+   |
+25 | / pub struct SearchUpdate {
+26 | |     /// The current optimization epoch (iteration count).
+27 | |     pub epoch: usize,
+28 | |     /// The current best score achieved in this search.
+...  |
+33 | |     pub ips: f32,
+34 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/models.rs:38:1
+   |
+38 | / pub struct StartSearchRequest {
+39 | |     /// Encoded string representing pinned keys (positions that shouldn't move).
+40 | |     pub pinned_keys: String,
+41 | |     /// Configuration parameters for the optimization algorithm.
+...  |
+44 | |     pub weights: keyforge_model::config::ScoringWeights,
+45 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/models.rs:49:1
+   |
+49 | / pub struct ServerManifest {
+50 | |     /// Map of relative file paths to their content hashes or metadata.
+51 | |     pub files: HashMap<String, String>,
+52 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/models.rs:69:1
+   |
+69 | / pub struct ValidationResult {
+70 | |     /// Name of the layout that was validated.
+71 | |     pub layout_name: String,
+72 | |     /// Comprehensive analysis report including ergonomics metrics.
+...  |
+79 | |     pub penalty_map: Vec<f32>,
+80 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/models.rs:84:1
+   |
+84 | / pub struct DerivedStats {
+85 | |     /// Calculated balance between left and right hand usage (0.0 to 1.0).
+86 | |     pub hand_balance: f32,
+87 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/state.rs:16:1
+   |
+16 | / pub struct LocalWorkerState {
+17 | |     /// Handle to the active child process, if any.
+18 | |     pub child: Arc<Mutex<Option<CommandChild>>>,
+19 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/state.rs:22:1
+   |
+22 | / pub struct SearchState {
+23 | |     /// Thread-safe flag indicating if the search should terminate.
+24 | |     pub stop_flag: Arc<Mutex<bool>>,
+25 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-ui/src-tauri/src/state.rs:31:1
+   |
+31 | / pub struct AssetCache {
+32 | |     /// The underlying filesystem provider for loading assets.
+33 | |     provider: FsProvider,
+34 | |     /// Cache for keyboard geometry definitions.
+...  |
+41 | |     keycodes: Cache<String, Arc<KeycodeRegistry>>,
+42 | | }
+   | |_^
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+   --> apps/keyforge-ui/src-tauri/src/state.rs:107:1
+    |
+107 | / pub struct SessionState {
+108 | |     /// The active search runtime, if one is currently engaged.
+109 | |     pub active: Arc<RwLock<Option<Runtime>>>,
+110 | |     /// Global asset cache for the session.
+111 | |     pub assets: Arc<AssetCache>,
+112 | | }
+    | |_^
+
+warning: `keyforge-ui` (lib) generated 14 warnings
+error[E0277]: `JobRepository` doesn't implement `std::fmt::Debug`
+  --> apps/keyforge-hive/src/services/job_manager.rs:23:5
+   |
+21 | #[derive(Clone, Debug)]
+   |                 ----- in this derive macro expansion
+22 | pub struct JobManager {
+23 |     pub repo: JobRepository,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `JobRepository`
+   |
+   = note: add `#[derive(Debug)]` to `JobRepository` or manually `impl std::fmt::Debug for JobRepository`
+help: consider annotating `JobRepository` with `#[derive(Debug)]`
+  --> apps/keyforge-hive/src/infra/repositories/jobs.rs:26:1
+   |
+26 + #[derive(Debug)]
+27 | pub struct JobRepository {
+   |
+
+error[E0277]: `JobRepository` doesn't implement `std::fmt::Debug`
+  --> apps/keyforge-hive/src/services/verification.rs:38:5
+   |
+36 | #[derive(Clone, Debug)]
+   |                 ----- in this derive macro expansion
+37 | pub struct VerificationService {
+38 |     jobs: JobRepository,
+   |     ^^^^^^^^^^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `JobRepository`
+   |
+   = note: add `#[derive(Debug)]` to `JobRepository` or manually `impl std::fmt::Debug for JobRepository`
+help: consider annotating `JobRepository` with `#[derive(Debug)]`
+  --> apps/keyforge-hive/src/infra/repositories/jobs.rs:26:1
+   |
+26 + #[derive(Debug)]
+27 | pub struct JobRepository {
+   |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `keyforge-hive` (lib) due to 2 previous errors

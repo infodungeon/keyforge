@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// A persistent store for user-created layouts, organized by keyboard ID.
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct UserLayoutStore {
     layouts: HashMap<String, HashMap<String, String>>,
 }
@@ -34,6 +34,7 @@ pub struct UserLayoutStore {
 ///
 /// This handles the storage of custom layouts, biometric samples for personalization,
 /// and custom keyboard definitions.
+#[derive(Debug)]
 pub struct UserRepo {
     root: PathBuf,
 }

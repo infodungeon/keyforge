@@ -21,6 +21,7 @@ use keyforge_core::loader::AssetLoader;
 /// This involves loading keyboards, corpora, and cost matrices via the [AssetLoader].
 use keyforge_model::constants::ASSET_KEYCODES;
 /// Refactored to use [SessionBuilder] for core compilation logic.
+#[derive(Debug)]
 pub struct Compiler<'a> {
     builder: SessionBuilder<'a>,
 }

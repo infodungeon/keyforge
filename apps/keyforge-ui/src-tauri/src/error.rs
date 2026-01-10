@@ -40,7 +40,7 @@ pub enum CommandError {
 }
 
 /// Standardized error response sent to the frontend for failed commands.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct CommandErrorResponse {
     /// A stable machine-readable error code.
     pub code: ErrorCode,

@@ -32,6 +32,7 @@ use loader::InMemoryLoader;
 use wasm_bindgen::prelude::*;
 
 /// The primary entry point for using KeyForge in WebAssembly environments.
+#[derive(Debug)]
 #[wasm_bindgen]
 pub struct KeyforgeEngine {
     loader: InMemoryLoader,

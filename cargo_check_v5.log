@@ -1,0 +1,56 @@
+    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+    Checking keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
+    Checking keyforge-core v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-core)
+    Checking keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
+    Checking keyforge-testing v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing)
+    Checking keyforge-wasm v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm)
+warning: unused import: `error`
+  --> libs/keyforge-infra/src/net/sync.rs:10:15
+   |
+10 | use tracing::{error, info};
+   |               ^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `keyforge-infra` (lib) generated 1 warning (run `cargo fix --lib -p keyforge-infra` to apply 1 suggestion)
+    Checking keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
+warning: unused import: `warn`
+  --> apps/keyforge-assets/src/main.rs:15:21
+   |
+15 | use tracing::{info, warn};
+   |                     ^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+    Checking keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
+    Checking keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+    Checking keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
+    Checking keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
+warning: `keyforge-assets` (bin "keyforge-assets") generated 1 warning (run `cargo fix --bin "keyforge-assets"` to apply 1 suggestion)
+warning: hidden lifetime parameters in types are deprecated
+  --> apps/keyforge-ui/src-tauri/src/commands/search.rs:96:50
+   |
+96 | pub fn cmd_stop_search(search_state: tauri::State<SearchState>) {
+   |                                      ------------^------------ expected lifetime parameter
+   |
+   = note: `-W elided-lifetimes-in-paths` implied by `-W rust-2018-idioms`
+   = help: to override `-W rust-2018-idioms` add `#[allow(elided_lifetimes_in_paths)]`
+help: indicate the anonymous lifetime
+   |
+96 | pub fn cmd_stop_search(search_state: tauri::State<'_, SearchState>) {
+   |                                                   +++
+
+warning: `keyforge-ui` (lib) generated 1 warning
+warning: unused import: `Path`
+  --> apps/keyforge-hive/src/main.rs:33:17
+   |
+33 | use std::path::{Path, PathBuf};
+   |                 ^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `keyforge-hive` (bin "keyforge-hive") generated 1 warning (run `cargo fix --bin "keyforge-hive"` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.52s

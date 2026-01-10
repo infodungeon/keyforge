@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 /// A consolidated environment for scoring and optimization.
 /// Holds the compiled physics engine and associated metadata.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ScoringSession {
     /// The pre-compiled evaluation engine.
     pub engine: Arc<ScoringEngine>,

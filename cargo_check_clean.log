@@ -1,0 +1,765 @@
+   Compiling quote v1.0.42
+   Compiling unicode-ident v1.0.22
+   Compiling proc-macro2 v1.0.104
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+   Compiling libc v0.2.178
+    Checking cfg-if v1.0.4
+   Compiling version_check v0.9.5
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.16.1
+   Compiling pkg-config v0.3.32
+   Compiling heck v0.5.0
+    Checking once_cell v1.21.3
+   Compiling zerocopy v0.8.31
+    Checking pin-project-lite v0.2.16
+   Compiling parking_lot_core v0.9.12
+   Compiling autocfg v1.5.0
+    Checking memchr v2.7.6
+   Compiling shlex v1.3.0
+   Compiling indexmap v2.12.1
+   Compiling find-msvc-tools v0.1.6
+   Compiling typenum v1.19.0
+    Checking log v0.4.29
+   Compiling generic-array v0.14.7
+   Compiling syn v2.0.112
+    Checking futures-core v0.3.31
+   Compiling thiserror v2.0.17
+   Compiling zmij v1.0.5
+    Checking scopeguard v1.2.0
+    Checking lock_api v0.4.14
+   Compiling jobserver v0.1.34
+   Compiling serde_json v1.0.148
+    Checking itoa v1.0.17
+   Compiling getrandom v0.2.16
+   Compiling cc v1.2.51
+   Compiling winnow v0.5.40
+    Checking futures-io v0.3.31
+    Checking bitflags v2.10.0
+   Compiling target-lexicon v0.12.16
+   Compiling rand_core v0.6.4
+    Checking slab v0.4.11
+   Compiling version-compare v0.2.1
+    Checking futures-sink v0.3.31
+   Compiling stable_deref_trait v1.2.1
+   Compiling icu_properties_data v2.1.2
+   Compiling icu_normalizer_data v2.1.1
+    Checking futures-channel v0.3.31
+    Checking subtle v2.6.1
+   Compiling thiserror v1.0.69
+    Checking pin-utils v0.1.0
+    Checking errno v0.3.14
+    Checking futures-task v0.3.31
+    Checking bytes v1.11.0
+   Compiling semver v1.0.27
+    Checking signal-hook-registry v1.4.8
+    Checking allocator-api2 v0.2.21
+   Compiling siphasher v1.0.1
+   Compiling getrandom v0.3.4
+   Compiling phf_shared v0.11.3
+    Checking foldhash v0.2.0
+   Compiling rustc_version v0.4.1
+    Checking mio v1.1.1
+    Checking tracing-core v0.1.36
+   Compiling ppv-lite86 v0.2.21
+   Compiling dunce v1.0.5
+   Compiling syn v1.0.109
+   Compiling anyhow v1.0.100
+   Compiling aho-corasick v1.1.4
+    Checking socket2 v0.6.1
+   Compiling regex-syntax v0.8.8
+    Checking crypto-common v0.1.7
+    Checking block-buffer v0.10.4
+   Compiling crossbeam-utils v0.8.21
+   Compiling rand_chacha v0.3.1
+    Checking digest v0.10.7
+    Checking percent-encoding v2.3.2
+    Checking cpufeatures v0.2.17
+   Compiling rand v0.8.5
+   Compiling strsim v0.11.1
+   Compiling writeable v0.6.2
+   Compiling litemap v0.8.1
+    Checking http v1.4.0
+   Compiling fnv v1.0.7
+   Compiling ident_case v1.0.1
+   Compiling utf8_iter v1.0.4
+   Compiling phf_generator v0.11.3
+   Compiling form_urlencoded v1.2.2
+   Compiling byteorder v1.5.0
+   Compiling winnow v0.7.14
+   Compiling same-file v1.0.6
+   Compiling regex-automata v0.4.13
+   Compiling synstructure v0.13.2
+   Compiling uuid v1.19.0
+   Compiling rustversion v1.0.22
+   Compiling toml_parser v1.0.6+spec-1.1.0
+   Compiling walkdir v2.5.0
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling regex v1.12.2
+   Compiling siphasher v0.3.11
+   Compiling getrandom v0.1.16
+    Checking atomic-waker v1.1.2
+    Checking sha2 v0.10.9
+   Compiling ring v0.17.14
+    Checking rand_core v0.9.3
+   Compiling cmake v0.1.57
+   Compiling num-traits v0.2.19
+   Compiling fs_extra v1.3.0
+   Compiling httparse v1.10.1
+   Compiling typeid v1.0.3
+   Compiling rand_core v0.5.1
+    Checking http-body v1.0.1
+    Checking rand_chacha v0.9.0
+   Compiling darling_core v0.21.3
+   Compiling erased-serde v0.4.9
+    Checking base64 v0.22.1
+    Checking tower-service v0.3.3
+    Checking rand v0.9.2
+   Compiling rand_chacha v0.2.2
+   Compiling rand_pcg v0.2.1
+   Compiling phf_shared v0.8.0
+   Compiling proc-macro-hack v0.5.20+deprecated
+   Compiling aws-lc-rs v1.15.2
+    Checking try-lock v0.2.5
+    Checking httpdate v1.0.3
+    Checking mime v0.3.17
+    Checking want v0.3.1
+   Compiling aws-lc-sys v0.35.0
+   Compiling rand v0.7.3
+   Compiling phf_shared v0.10.0
+    Checking fastrand v2.3.0
+   Compiling new_debug_unreachable v1.0.6
+   Compiling phf_generator v0.10.0
+   Compiling phf_codegen v0.11.3
+   Compiling string_cache_codegen v0.5.4
+   Compiling proc-macro-error-attr v1.0.4
+    Checking ipnet v2.11.0
+    Checking untrusted v0.9.0
+   Compiling precomputed-hash v0.1.1
+   Compiling phf_generator v0.8.0
+   Compiling mac v0.1.1
+   Compiling futf v0.1.5
+   Compiling phf_codegen v0.8.0
+   Compiling serde_spanned v1.0.4
+   Compiling proc-macro-error v1.0.4
+   Compiling vcpkg v0.2.15
+   Compiling rustix v1.1.3
+   Compiling rustls v0.23.35
+   Compiling dtoa v1.0.11
+   Compiling utf-8 v0.7.6
+   Compiling toml_writer v1.0.6+spec-1.1.0
+   Compiling bitflags v1.3.2
+   Compiling toml v0.9.10+spec-1.1.0
+   Compiling tendril v0.4.3
+   Compiling dtoa-short v0.3.5
+   Compiling markup5ever v0.14.1
+   Compiling selectors v0.24.0
+    Checking http-body-util v0.1.3
+   Compiling indexmap v1.9.3
+    Checking hex v0.4.3
+   Compiling matches v0.1.10
+   Compiling alloc-no-stdlib v2.0.4
+   Compiling camino v1.2.2
+    Checking linux-raw-sys v0.11.0
+   Compiling unic-common v0.9.0
+   Compiling unic-char-range v0.9.0
+   Compiling convert_case v0.4.0
+   Compiling nodrop v0.1.14
+   Compiling servo_arc v0.2.0
+   Compiling unic-char-property v0.9.0
+   Compiling unic-ucd-version v0.9.0
+   Compiling alloc-stdlib v0.2.2
+   Compiling phf v0.8.0
+   Compiling serde_derive_internals v0.29.1
+   Compiling fxhash v0.2.1
+    Checking sync_wrapper v1.0.2
+   Compiling openssl-sys v0.9.111
+    Checking tower-layer v0.3.3
+   Compiling schemars v0.8.22
+   Compiling hashbrown v0.12.3
+   Compiling brotli-decompressor v5.0.0
+   Compiling unic-ucd-ident v0.9.0
+   Compiling cfb v0.7.3
+   Compiling heapless v0.7.17
+   Compiling heck v0.4.1
+   Compiling dyn-clone v1.0.20
+   Compiling brotli v8.0.2
+   Compiling serde-untagged v0.1.9
+    Checking hash32 v0.2.1
+   Compiling infer v0.19.0
+    Checking spin v0.9.8
+   Compiling glob v0.3.3
+    Checking parking v2.2.1
+    Checking ryu v1.0.22
+   Compiling openssl v0.10.75
+    Checking foreign-types-shared v0.1.1
+    Checking foreign-types v0.3.2
+    Checking concurrent-queue v2.5.0
+   Compiling native-tls v0.2.14
+    Checking rgb v0.8.52
+    Checking crossbeam-channel v0.5.15
+    Checking lazy_static v1.5.0
+   Compiling unicase v2.8.1
+    Checking openssl-probe v0.2.0
+    Checking openssl-probe v0.1.6
+   Compiling crc32fast v1.5.0
+   Compiling mime_guess v2.0.5
+   Compiling memoffset v0.9.1
+   Compiling simd-adler32 v0.3.8
+   Compiling gio v0.18.4
+   Compiling portable-atomic v1.13.0
+   Compiling iana-time-zone v0.1.64
+   Compiling chrono v0.4.42
+    Checking event-listener v5.4.1
+    Checking rand_xoshiro v0.7.0
+   Compiling adler2 v2.0.1
+   Compiling num-conv v0.1.0
+    Checking powerfmt v0.2.0
+   Compiling time-core v0.1.6
+   Compiling zlib-rs v0.5.5
+    Checking unicode-segmentation v1.12.0
+    Checking deranged v0.5.5
+   Compiling time-macros v0.2.24
+   Compiling miniz_oxide v0.8.9
+    Checking crossbeam-epoch v0.9.18
+    Checking iri-string v0.7.10
+   Compiling option-ext v0.2.0
+    Checking http-range-header v0.4.2
+    Checking num_threads v0.1.7
+   Compiling zeroize v1.8.2
+   Compiling rustls-pki-types v1.13.2
+   Compiling dirs-sys v0.5.0
+   Compiling libz-rs-sys v0.5.5
+   Compiling embed-resource v3.0.6
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling flate2 v1.1.5
+    Checking minimal-lexical v0.2.1
+    Checking nom v7.1.3
+   Compiling tauri-winres v0.3.5
+   Compiling dirs v6.0.0
+    Checking arc-swap v1.8.0
+    Checking sha1 v0.10.6
+   Compiling field-offset v0.3.6
+   Compiling crc16 v0.4.0
+    Checking cookie-factory v0.3.2
+    Checking data-encoding v2.9.0
+    Checking time v0.3.44
+    Checking tempfile v3.24.0
+    Checking hmac v0.12.1
+   Compiling gtk v0.18.2
+   Compiling serde_derive v1.0.228
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.1
+   Compiling zerovec-derive v0.11.2
+   Compiling displaydoc v0.2.5
+   Compiling thiserror-impl v2.0.17
+   Compiling futures-macro v0.3.31
+   Compiling thiserror-impl v1.0.69
+   Compiling tracing-attributes v0.1.31
+   Compiling phf_macros v0.11.3
+   Compiling tokio-macros v2.6.0
+   Compiling zeroize_derive v1.4.3
+    Checking futures-util v0.3.31
+    Checking phf v0.11.3
+   Compiling darling_macro v0.21.3
+    Checking futures-executor v0.3.31
+   Compiling cssparser v0.29.6
+   Compiling darling v0.21.3
+   Compiling phf_macros v0.10.0
+   Compiling serde_with_macros v3.16.1
+   Compiling strum_macros v0.27.2
+   Compiling cssparser-macros v0.6.1
+   Compiling ctor v0.2.9
+    Checking tracing v0.1.44
+   Compiling derive_more v0.99.20
+   Compiling zerofrom v0.1.6
+   Compiling yoke v0.8.1
+    Checking zerovec v0.11.5
+   Compiling zerotrie v0.2.3
+   Compiling match_token v0.1.0
+    Checking tinystr v0.8.2
+    Checking icu_locale_core v2.1.1
+   Compiling potential_utf v0.1.4
+   Compiling icu_collections v2.1.1
+    Checking icu_provider v2.1.1
+   Compiling phf v0.10.1
+    Checking icu_properties v2.1.2
+    Checking smallvec v1.15.1
+   Compiling toml_datetime v0.6.3
+   Compiling serde_spanned v0.6.9
+   Compiling toml_edit v0.20.2
+   Compiling cfg-expr v0.15.8
+    Checking parking_lot v0.12.5
+    Checking tokio v1.48.0
+   Compiling icu_normalizer v2.1.1
+    Checking either v1.15.0
+   Compiling idna_adapter v1.2.1
+   Compiling idna v1.1.0
+   Compiling url v2.5.7
+   Compiling toml v0.8.2
+   Compiling system-deps v6.2.2
+   Compiling string_cache v0.8.9
+   Compiling proc-macro-crate v2.0.2
+   Compiling jsonptr v0.6.3
+    Checking tokio-util v0.7.17
+   Compiling html5ever v0.29.1
+   Compiling cargo-platform v0.1.9
+    Checking h2 v0.4.12
+   Compiling schemars_derive v0.8.22
+   Compiling async-trait v0.1.89
+   Compiling cargo_metadata v0.19.2
+    Checking tower v0.5.2
+   Compiling json-patch v3.0.1
+   Compiling serde_with v3.16.1
+   Compiling urlpattern v0.3.0
+    Checking hyper v1.8.1
+   Compiling utoipa-gen v5.4.0
+    Checking tokio-stream v0.1.17
+    Checking strum v0.27.2
+    Checking webpki-roots v1.0.4
+    Checking cobs v0.3.0
+    Checking csscolorparser v0.7.2
+    Checking hyper-util v0.1.19
+   Compiling openssl-macros v0.1.1
+    Checking postcard v1.1.3
+    Checking kle-serial v0.3.3
+   Compiling glib-sys v0.18.1
+   Compiling gobject-sys v0.18.0
+   Compiling gio-sys v0.18.1
+   Compiling gdk-sys v0.18.2
+   Compiling pango-sys v0.18.0
+   Compiling gdk-pixbuf-sys v0.18.0
+   Compiling atk-sys v0.18.2
+   Compiling cairo-sys-rs v0.18.2
+   Compiling glib-macros v0.18.5
+   Compiling gtk-sys v0.18.2
+    Checking serde-big-array v0.5.1
+    Checking rustls-native-certs v0.8.3
+    Checking tower-http v0.6.8
+    Checking serde_urlencoded v0.7.1
+   Compiling toml_edit v0.19.15
+   Compiling cargo_toml v0.22.3
+   Compiling javascriptcore-rs-sys v1.1.1
+   Compiling soup3-sys v0.5.0
+   Compiling proc-macro-crate v1.3.1
+   Compiling bumpalo v3.19.1
+   Compiling foldhash v0.1.5
+    Checking unicode-width v0.2.2
+   Compiling tinyvec_macros v0.1.1
+   Compiling zstd-safe v7.2.4
+   Compiling signal-hook v0.3.18
+   Compiling tinyvec v1.10.0
+   Compiling hashbrown v0.15.5
+   Compiling kuchikiki v0.8.8-speedreader
+    Checking tokio-native-tls v0.3.1
+    Checking tungstenite v0.28.0
+   Compiling webkit2gtk-sys v2.0.1
+    Checking bytes-utils v0.1.4
+   Compiling unic-langid-impl v0.9.6
+    Checking axum-core v0.5.6
+    Checking tokio-tungstenite v0.28.0
+   Compiling rustls-webpki v0.103.8
+   Compiling x11 v2.21.0
+    Checking serde_path_to_error v0.1.20
+    Checking inotify-sys v0.1.5
+   Compiling tauri-utils v2.8.1
+    Checking encoding_rs v0.8.35
+   Compiling crc-catalog v2.4.0
+    Checking matchit v0.8.4
+    Checking urlencoding v2.1.3
+    Checking axum v0.8.8
+   Compiling crc v3.4.0
+    Checking inotify v0.11.0
+   Compiling gtk3-macros v0.18.2
+   Compiling webpki-roots v0.26.11
+    Checking redis-protocol v6.0.0
+   Compiling unic-langid v0.9.6
+   Compiling hashlink v0.10.0
+   Compiling unicode-normalization v0.1.25
+   Compiling gdkx11-sys v0.18.2
+   Compiling futures-intrusive v0.5.0
+    Checking tracing-serde v0.2.0
+    Checking futures v0.3.31
+   Compiling fred-macros v0.1.0
+   Compiling crossbeam-queue v0.3.12
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+    Checking sharded-slab v0.1.7
+    Checking rmp v0.8.15
+    Checking float-cmp v0.10.0
+    Checking matchers v0.2.0
+    Checking tracing-log v0.2.0
+    Checking socket2 v0.5.10
+    Checking thread_local v1.1.9
+    Checking instant v0.1.13
+    Checking nu-ansi-term v0.50.3
+    Checking tagptr v0.2.0
+   Compiling unicode-bidi v0.3.18
+    Checking static_assertions v1.1.0
+   Compiling unicode-properties v0.1.4
+    Checking notify-types v2.0.0
+    Checking utf8parse v0.2.2
+    Checking anstyle-parse v0.2.7
+   Compiling stringprep v0.1.5
+    Checking notify v8.2.0
+    Checking moka v0.12.12
+   Compiling tauri-plugin v2.5.2
+   Compiling tauri-build v2.5.3
+    Checking tracing-subscriber v0.3.22
+   Compiling sqlx-core v0.8.6
+    Checking backoff v0.4.0
+   Compiling hkdf v0.12.4
+    Checking rmp-serde v1.3.1
+    Checking dpi v0.1.2
+   Compiling pin-project-internal v1.1.10
+   Compiling atoi v2.0.0
+   Compiling rust-embed-utils v8.9.0
+   Compiling md-5 v0.10.6
+   Compiling x11-dl v2.21.0
+    Checking fs2 v0.4.3
+   Compiling cookie v0.18.1
+    Checking glib v0.18.5
+    Checking anstyle v1.0.13
+   Compiling dotenvy v0.15.7
+    Checking raw-window-handle v0.6.2
+    Checking is_terminal_polyfill v1.70.2
+    Checking anstyle-query v1.1.5
+   Compiling wasm-bindgen-shared v0.2.106
+   Compiling whoami v1.6.1
+   Compiling home v0.5.12
+    Checking colorchoice v1.0.4
+    Checking anstream v0.6.21
+   Compiling sqlx-postgres v0.8.6
+   Compiling rust-embed-impl v8.9.0
+   Compiling enumflags2_derive v0.7.12
+   Compiling fdeflate v0.3.7
+    Checking cairo-rs v0.18.5
+    Checking atk v0.18.2
+    Checking javascriptcore-rs v1.1.2
+   Compiling toml_edit v0.23.10+spec-1.0.0
+    Checking clap_lex v0.7.6
+    Checking clap_builder v4.5.53
+   Compiling proc-macro-crate v3.4.0
+    Checking pin-project v1.1.10
+   Compiling sqlx-macros-core v0.8.6
+   Compiling png v0.17.16
+   Compiling itertools v0.14.0
+    Checking hyper-timeout v0.5.2
+   Compiling zvariant_utils v3.2.1
+    Checking opentelemetry v0.31.0
+    Checking gdk-pixbuf v0.18.5
+    Checking pango v0.18.3
+    Checking soup3 v0.5.0
+   Compiling clap_derive v4.5.49
+   Compiling dlopen2_derive v0.4.3
+    Checking gdk v0.18.2
+   Compiling curve25519-dalek v4.1.3
+   Compiling tauri-runtime v2.9.2
+   Compiling wry v0.53.5
+    Checking utoipa v5.4.0
+   Compiling convert_case v0.10.0
+    Checking dlopen2 v0.8.2
+    Checking gdkx11 v0.18.2
+   Compiling zvariant_derive v5.8.0
+   Compiling prost-derive v0.14.1
+    Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
+    Checking tonic v0.14.2
+    Checking keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
+    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+   Compiling ico v0.4.0
+    Checking keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-physics/src/analysis/fingerprint.rs:20:1
+   |
+20 | / pub struct LayoutIdentity {
+21 | |     /// The name of the standard layout (e.g., "Qwerty", "Colemak").
+22 | |     pub name: String,
+23 | |     /// A similarity score from 0.0 to 1.0.
+...  |
+26 | |     pub distance: usize,
+27 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-physics/src/verify.rs:23:1
+   |
+23 | pub struct DeterministicScorer;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `keyforge-physics` (lib) generated 2 warnings
+    Checking keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
+warning: type does not implement `Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> libs/keyforge-evolution/src/lib.rs:44:1
+   |
+44 | pub struct NoOpCallback;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: `keyforge-evolution` (lib) generated 1 warning
+    Checking keyforge-core v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-core)
+    Checking keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
+    Checking hyper-tls v0.6.0
+    Checking gdkwayland-sys v0.18.2
+   Compiling curve25519-dalek-derive v0.1.1
+    Checking event-listener-strategy v0.5.4
+    Checking futures-lite v2.6.1
+   Compiling darling_core v0.20.11
+    Checking inout v0.1.4
+    Checking raw-cpuid v11.6.0
+   Compiling tauri-runtime-wry v2.9.3
+   Compiling rustc-hash v2.1.1
+   Compiling cfg_aliases v0.2.1
+   Compiling nix v0.30.1
+   Compiling type-map v0.5.1
+    Checking zstd v0.13.3
+    Checking cipher v0.4.4
+   Compiling tauri-codegen v2.5.2
+   Compiling derive_more-impl v2.1.1
+    Checking opentelemetry_sdk v0.31.0
+    Checking itertools v0.13.0
+   Compiling toml v0.5.11
+   Compiling basic-toml v0.1.10
+    Checking clap v4.5.53
+    Checking keyboard-types v0.7.0
+   Compiling serialize-to-javascript-impl v0.1.2
+   Compiling serde_repr v0.1.20
+    Checking prost v0.14.1
+    Checking castaway v0.2.4
+   Compiling async-io v2.6.0
+   Compiling self_cell v1.2.2
+   Compiling litrs v1.0.0
+   Compiling indoc v2.0.7
+   Compiling instability v0.3.10
+   Compiling self_cell v0.10.3
+    Checking compact_str v0.9.0
+    Checking rust-embed v8.9.0
+    Checking tonic-prost v0.14.2
+   Compiling document-features v0.2.12
+   Compiling i18n-config v0.4.8
+   Compiling find-crate v0.6.3
+    Checking serialize-to-javascript v0.1.2
+    Checking unicode-truncate v2.0.0
+   Compiling sqlx-macros v0.8.6
+   Compiling wasm-bindgen-macro-support v0.2.106
+    Checking derive_more v2.1.1
+   Compiling intl-memoizer v0.5.3
+   Compiling enumflags2 v0.7.12
+    Checking signal-hook-mio v0.2.5
+   Compiling intl_pluralrules v7.0.2
+   Compiling fluent-langneg v0.13.1
+    Checking kasuari v0.4.11
+   Compiling fluent-syntax v0.11.1
+    Checking polling v3.11.0
+   Compiling wasm-bindgen v0.2.106
+    Checking lru v0.16.2
+    Checking sysinfo v0.37.2
+   Compiling ahash v0.8.12
+    Checking async-task v4.7.1
+   Compiling rustc-hash v1.1.0
+    Checking signature v2.2.0
+   Compiling endi v1.1.1
+    Checking ed25519 v2.2.3
+   Compiling zvariant v5.8.0
+   Compiling fluent-bundle v0.15.3
+    Checking ratatui-core v0.1.0
+   Compiling i18n-embed-impl v0.8.4
+    Checking crossterm v0.29.0
+    Checking webkit2gtk v2.0.1
+    Checking tao v0.34.5
+    Checking muda v0.17.1
+    Checking opentelemetry-proto v0.31.0
+    Checking quanta v0.12.6
+    Checking async-channel v2.5.0
+   Compiling zopfli v0.8.3
+    Checking universal-hash v0.5.1
+    Checking is-docker v0.2.0
+    Checking opaque-debug v0.3.1
+    Checking poly1305 v0.8.0
+   Compiling zip v3.0.0
+   Compiling zbus_names v4.2.0
+   Compiling darling_macro v0.20.11
+    Checking is-wsl v0.4.0
+    Checking tokio-rustls v0.26.4
+    Checking rustls-platform-verifier v0.6.2
+    Checking hyper-rustls v0.27.7
+    Checking fred v10.1.0
+    Checking reqwest v0.13.1
+    Checking reqwest v0.12.28
+    Checking async-signal v0.2.13
+   Compiling fluent v0.16.1
+    Checking ed25519-dalek v2.2.0
+    Checking tracing-opentelemetry v0.32.0
+    Checking chacha20 v0.9.1
+    Checking async-lock v3.4.2
+    Checking piper v0.2.4
+   Compiling tikv-jemalloc-sys v0.6.1+5.3.0-1-ge13ca993e8ccb9ba9847cc330696e02839f328f7
+    Checking aead v0.5.2
+   Compiling proc-macro-error-attr2 v2.0.0
+    Checking line-clipping v0.3.5
+    Checking opentelemetry-http v0.31.0
+    Checking os_pipe v1.2.3
+   Compiling fs-err v3.2.2
+    Checking pathdiff v0.2.3
+   Compiling rfd v0.15.4
+    Checking hashbrown v0.14.5
+    Checking open v5.3.3
+    Checking sigchld v0.2.4
+    Checking opentelemetry-otlp v0.31.0
+    Checking chacha20poly1305 v0.10.1
+   Compiling utoipa-swagger-ui v9.0.2
+    Checking async-process v2.5.0
+   Compiling darling v0.20.11
+    Checking dashmap v6.1.0
+   Compiling proc-macro-error2 v2.0.1
+   Compiling i18n-embed v0.15.4
+    Checking blocking v1.6.2
+    Checking keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
+    Checking metrics v0.24.3
+   Compiling zbus_macros v5.12.0
+    Checking async-executor v1.13.3
+    Checking salsa20 v0.10.2
+    Checking async-broadcast v0.7.2
+    Checking secrecy v0.10.3
+    Checking pbkdf2 v0.12.2
+    Checking spinning_top v0.3.0
+    Checking ordered-stream v0.2.0
+    Checking nonempty v0.7.0
+    Checking web-time v1.1.0
+    Checking sketches-ddsketch v0.3.0
+    Checking nonzero_ext v0.3.0
+   Compiling rustix v0.38.44
+    Checking base64 v0.21.7
+    Checking futures-timer v3.0.3
+    Checking io_tee v0.1.1
+   Compiling rayon-core v1.13.0
+   Compiling metrics-exporter-prometheus v0.18.1
+    Checking age-core v0.11.0
+    Checking governor v0.10.4
+    Checking metrics-util v0.20.1
+    Checking forwarded-header-value v0.1.1
+    Checking scrypt v0.11.0
+    Checking shared_child v1.1.1
+    Checking x25519-dalek v2.0.1
+    Checking keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
+    Checking sqlx v0.8.6
+    Checking console v0.15.11
+    Checking crossbeam-deque v0.8.6
+    Checking number_prefix v0.4.0
+    Checking bech32 v0.9.1
+   Compiling self_update v0.42.0
+    Checking linux-raw-sys v0.4.15
+    Checking indicatif v0.17.11
+   Compiling i18n-embed-fl v0.9.4
+    Checking axum-server v0.8.0
+    Checking tower_governor v0.8.0
+    Checking tracing-appender v0.2.4
+    Checking console v0.16.2
+    Checking self-replace v1.5.0
+    Checking ratatui-widgets v0.3.0
+    Checking ratatui-crossterm v0.1.0
+    Checking hostname v0.4.2
+    Checking quick-xml v0.37.5
+    Checking unit-prefix v0.5.2
+    Checking machine-uid v0.5.4
+    Checking which v6.0.3
+    Checking rayon v1.11.0
+    Checking indicatif v0.18.3
+    Checking ctrlc v3.5.1
+    Checking comfy-table v7.2.1
+    Checking clap_complete v4.5.64
+    Checking num_cpus v1.17.0
+    Checking keyforge-testing v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing)
+    Checking ratatui-macros v0.7.0
+    Checking ratatui v0.30.0
+warning: unused import: `error`
+  --> libs/keyforge-infra/src/net/sync.rs:10:15
+   |
+10 | use tracing::{error, info};
+   |               ^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling wasm-bindgen-macro v0.2.106
+    Checking js-sys v0.3.83
+warning: `keyforge-infra` (lib) generated 1 warning (run `cargo fix --lib -p keyforge-infra` to apply 1 suggestion)
+    Checking keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+    Checking console_error_panic_hook v0.1.7
+warning: unused import: `warn`
+  --> apps/keyforge-assets/src/main.rs:15:21
+   |
+15 | use tracing::{info, warn};
+   |                     ^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+    Checking keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
+warning: `keyforge-assets` (bin "keyforge-assets") generated 1 warning (run `cargo fix --bin "keyforge-assets"` to apply 1 suggestion)
+    Checking serde-wasm-bindgen v0.6.5
+    Checking age v0.11.2
+    Checking wasm-bindgen-futures v0.4.56
+    Checking keyforge-wasm v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm)
+    Checking keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
+   Compiling tauri v2.9.5
+   Compiling tauri-macros v2.5.2
+   Compiling tauri-plugin-fs v2.4.4
+   Compiling tauri-plugin-dialog v2.4.2
+   Compiling tauri-plugin-shell v2.3.3
+   Compiling tauri-plugin-opener v2.5.2
+    Checking zbus v5.12.0
+   Compiling keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+    Checking tikv-jemallocator v0.6.1
+    Checking keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
+warning: hidden lifetime parameters in types are deprecated
+  --> apps/keyforge-ui/src-tauri/src/commands/search.rs:96:50
+   |
+96 | pub fn cmd_stop_search(search_state: tauri::State<SearchState>) {
+   |                                      ------------^------------ expected lifetime parameter
+   |
+   = note: `-W elided-lifetimes-in-paths` implied by `-W rust-2018-idioms`
+   = help: to override `-W rust-2018-idioms` add `#[allow(elided_lifetimes_in_paths)]`
+help: indicate the anonymous lifetime
+   |
+96 | pub fn cmd_stop_search(search_state: tauri::State<'_, SearchState>) {
+   |                                                   +++
+
+warning: `keyforge-ui` (lib) generated 1 warning
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-hive/src/infra/tui.rs:36:1
+   |
+36 | / pub struct LogEntry {
+37 | |     /// RFC3339 formatted timestamp.
+38 | |     pub timestamp: String,
+39 | |     /// Log level (e.g., "INFO", "WARN", "ERROR").
+...  |
+42 | |     pub message: String,
+43 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-W missing-debug-implementations`
+
+warning: type does not implement `std::fmt::Debug`; consider adding `#[derive(Debug)]` or a manual implementation
+  --> apps/keyforge-hive/src/infra/tui.rs:47:1
+   |
+47 | / pub struct SystemStatusResponse {
+48 | |     /// Aggregate system and cluster metrics.
+49 | |     pub metrics: SystemMetrics,
+50 | |     /// A collection of recent important log entries.
+51 | |     pub logs: Vec<LogEntry>,
+52 | | }
+   | |_^
+
+warning: `keyforge-hive` (lib) generated 2 warnings
+warning: unused import: `Path`
+  --> apps/keyforge-hive/src/main.rs:33:17
+   |
+33 | use std::path::{Path, PathBuf};
+   |                 ^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `keyforge-hive` (bin "keyforge-hive") generated 1 warning (run `cargo fix --bin "keyforge-hive"` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 22m 46s

@@ -22,7 +22,7 @@ use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
 /// Repository for managing job life cycles, registration, and claiming.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct JobRepository {
     /// The underlying Postgres connection pool.
     pub(crate) pool: Pool<Postgres>,

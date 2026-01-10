@@ -4,7 +4,7 @@ use serde::Serialize;
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 use tauri::AppHandle;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct SystemHealth {
     pub cpu_usage: f32,
     pub memory_used: u64,

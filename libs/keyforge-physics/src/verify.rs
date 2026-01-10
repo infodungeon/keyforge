@@ -20,6 +20,7 @@ use keyforge_model::constants::SCORE_SCALE;
 ///
 /// Unlike the optimized `ScoringEngine`, `DeterministicScorer` does not use 
 /// bit-manipulation or kernel caching, making it useful as an oracle for testing.
+#[derive(Debug)]
 pub struct DeterministicScorer;
 
 impl DeterministicScorer {
@@ -142,6 +143,7 @@ fn to_fixed(val: f32) -> i64 {
     if scaled >= i64::MAX as f32 { i64::MAX } else if scaled <= i64::MIN as f32 { i64::MIN } else { scaled as i64 }
 }
 
+#[derive(Debug)]
 struct FixedPointKey {
     x: i64,
     y: i64,
@@ -151,6 +153,7 @@ struct FixedPointKey {
     col: ColIndex,
 }
 
+#[derive(Debug)]
 struct FixedPointRubric {
     travel_lat: i64,
     travel_vert: i64,

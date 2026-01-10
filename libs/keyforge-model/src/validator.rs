@@ -23,6 +23,7 @@ pub trait Validator {
 }
 
 /// Helper for validating layout strings.
+#[derive(Debug)]
 pub struct LayoutValidator;
 impl LayoutValidator {
     /// Checks if a layout string has basic structural integrity.

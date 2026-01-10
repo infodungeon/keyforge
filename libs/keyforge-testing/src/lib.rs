@@ -29,6 +29,7 @@ use keyforge_core::loader::{RawCostData, CostEntry};
 ///
 /// This provides a temporary directory structure that mimics the KeyForge 
 /// data layout, allowing tests to inject assets without side effects.
+#[derive(Debug)]
 pub struct HermeticWorkspace {
     /// The root temporary directory.
     pub temp_dir: TempDir,

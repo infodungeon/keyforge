@@ -20,6 +20,7 @@ use keyforge_adapter::parsing::{parse_key, KeyAction};
 /// An exporter for the QMK (Quantum Mechanical Keyboard) firmware.
 ///
 /// This generates a standard C keymap file compatible with `keymap.c`.
+#[derive(Debug)]
 pub struct QmkExporter;
 
 const MAX_OUTPUT_SIZE: usize = 4 * 1024 * 1024; // 4MB Limit

@@ -48,6 +48,12 @@ pub type SecurityResult<T> = Result<T, SecurityError>;
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretBytes(Vec<u8>);
 
+impl std::fmt::Debug for SecretBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SecretBytes").field(&"***REDACTED***").finish()
+    }
+}
+
 impl SecretBytes {
     /// Wraps a vector of bytes in a `SecretBytes` container.
     #[must_use] 
@@ -66,6 +72,12 @@ impl SecretBytes {
 /// Use this for storing passwords, API keys, or other sensitive text in memory.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretString(String);
+
+impl std::fmt::Debug for SecretString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SecretString").field(&"***REDACTED***").finish()
+    }
+}
 
 impl SecretString {
     /// Wraps a string in a `SecretString` container.

@@ -18,7 +18,17 @@ pub struct LocalWorkerState {
     pub child: Arc<Mutex<Option<CommandChild>>>,
 }
 
+impl std::fmt::Debug for LocalWorkerState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let guard = self.child.lock().unwrap();
+        f.debug_struct("LocalWorkerState")
+            .field("active", &guard.is_some())
+            .finish()
+    }
+}
+
 /// Shared flag used to signal stop to asynchronous search operations.
+#[derive(Debug)]
 pub struct SearchState {
     /// Thread-safe flag indicating if the search should terminate.
     pub stop_flag: Arc<Mutex<bool>>,
@@ -27,7 +37,7 @@ pub struct SearchState {
 /// In-memory cache for frequently accessed assets, backed by the filesystem.
 ///
 /// This provides a thread-safe implementation of `AssetLoader` with LRU eviction.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AssetCache {
     /// The underlying filesystem provider for loading assets.
     provider: FsProvider,
@@ -104,6 +114,7 @@ impl AssetLoader for AssetCache {
 }
 
 /// Central application state for the current user session.
+#[derive(Debug)]
 pub struct SessionState {
     /// The active search runtime, if one is currently engaged.
     pub active: Arc<RwLock<Option<Runtime>>>,

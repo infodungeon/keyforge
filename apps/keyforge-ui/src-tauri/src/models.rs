@@ -10,7 +10,7 @@ pub use keyforge_protocol::{
 };
 
 /// Periodic status update for a remote job running on the Hive.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug)]
 pub struct JobStatusUpdate {
     /// Number of active compute nodes contributing to this job.
     pub active_nodes: usize,
@@ -21,7 +21,7 @@ pub struct JobStatusUpdate {
 }
 
 /// Real-time search update from a local worker or optimizer.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug)]
 pub struct SearchUpdate {
     /// The current optimization epoch (iteration count).
     pub epoch: usize,
@@ -34,7 +34,7 @@ pub struct SearchUpdate {
 }
 
 /// Request to start a new local search operation.
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct StartSearchRequest {
     /// Encoded string representing pinned keys (positions that shouldn't move).
     pub pinned_keys: String,
@@ -45,7 +45,7 @@ pub struct StartSearchRequest {
 }
 
 /// Manifest of files available on a remote server.
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct ServerManifest {
     /// Map of relative file paths to their content hashes or metadata.
     pub files: HashMap<String, String>,
@@ -65,7 +65,7 @@ pub struct SyncStats {
 }
 
 /// Result of a layout validation and analysis operation.
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct ValidationResult {
     /// Name of the layout that was validated.
     pub layout_name: String,
@@ -80,7 +80,7 @@ pub struct ValidationResult {
 }
 
 /// Statistics derived from raw analysis data for UI display.
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct DerivedStats {
     /// Calculated balance between left and right hand usage (0.0 to 1.0).
     pub hand_balance: f32,
