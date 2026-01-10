@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,7 +33,7 @@ use tracing::warn;
 ///
 /// It performs cryptographic signature verification and re-scores the submitted 
 /// layout to ensure the claimed score is within an acceptable tolerance.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VerificationService {
     jobs: JobRepository,
     nodes: NodeRepository,

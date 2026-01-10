@@ -42,6 +42,7 @@ struct WalEntry {
 }
 
 /// Events that can be submitted to the background write queue for persistence.
+#[derive(Debug)]
 pub enum DbEvent {
     /// A new optimization result to be persisted.
     Result {
@@ -69,6 +70,7 @@ enum InternalEvent {
     Shutdown(oneshot::Sender<()>),
 }
 
+#[derive(Debug)]
 struct DeadLetterQueue {
     path: PathBuf,
 }
@@ -101,6 +103,7 @@ impl DeadLetterQueue {
 /// It uses a Write-Ahead Log (WAL) on the local filesystem to ensure data 
 /// durability even if the database is temporarily unavailable or if the 
 /// process crashes before a batch is flushed.
+#[derive(Debug)]
 pub struct WriteQueue {
     sender: mpsc::Sender<InternalEvent>,
     queue_dir: PathBuf,

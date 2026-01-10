@@ -36,7 +36,7 @@ const HEARTBEAT_TTL_SEC: i64 = 30;
 ///
 /// It uses a central data store (Valkey/Redis) to handle heartbeats, cluster telemetry,
 /// asset manifestation, and inter-node event publishing.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DistributedCoordinator {
     client: Client,
 }

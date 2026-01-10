@@ -46,6 +46,7 @@ use tracing::instrument;
 ///
 /// `ScoringEngine` encapsulates the compiled physics kernel, including 
 /// pre-calculated travel costs and frequency-weighted optimization targets.
+#[derive(Debug)]
 pub struct ScoringEngine {
     ctx: EngineContext,
 }
@@ -129,7 +130,7 @@ impl ScoringEngine {
 ///
 /// This structure bundles all necessary data to instantiate a `ScoringEngine` 
 /// and perform a task like scoring or analysis.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EngineRequest {
     /// The physical keyboard geometry.
     pub keyboard: Arc<Keyboard>,

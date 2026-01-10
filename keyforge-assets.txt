@@ -1,0 +1,162 @@
+>>>>>>>> START FILE: apps/keyforge-assets/Cargo.toml <<<<<<<<
+[package]
+name = "keyforge-assets"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+description = "High-performance HTTP server for streaming static assets from Valkey."
+repository.workspace = true
+[lints]
+workspace = true
+
+[dependencies]
+axum = { version = "0.8.1", features = ["http1", "http2", "tokio"] }
+tokio = { version = "1.48", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+serde_json = "1.0"
+clap = { version = "4.5", features = ["derive", "env"] }
+anyhow = "1.0"
+
+>>>>>>>> END FILE: apps/keyforge-assets/Cargo.toml <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-assets/src/main.rs <<<<<<<<
+// apps/keyforge-assets/src/main.rs
+
+use axum::{
+    extract::{Path, State},
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
+    routing::get,
+    Json, Router,
+};
+use clap::Parser;
+use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
+use std::sync::Arc;
+use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+use tracing::{info, warn};
+
+#[derive(Parser)]
+struct Args {
+    #[arg(long, env = "PORT", default_value_t = 3001)]
+    port: u16,
+
+    #[arg(long, env = "KEYFORGE_VALKEY_URL", default_value = "redis://127.0.0.1:6379")]
+    valkey_url: String,
+}
+
+struct AppState {
+    provider: ValkeyProvider,
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+    let args = Args::parse();
+
+    info!("🔌 Connecting to Valkey at {}", args.valkey_url);
+    let coordinator = Arc::new(
+        DistributedCoordinator::new(&args.valkey_url)
+            .await
+            .map_err(|e| anyhow::anyhow!("Valkey connection failed: {}", e))?,
+    );
+
+    let provider = ValkeyProvider::new(coordinator);
+    let state = Arc::new(AppState { provider });
+
+    let app = Router::new()
+        .route("/health", get(health_check))
+        .route("/manifest", get(get_manifest))
+        .route("/data/{*path}", get(get_asset))
+        .layer(CorsLayer::permissive())
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], args.port));
+    info!("🚀 Asset Server listening on http://{}", addr);
+    
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
+
+async fn health_check() -> impl IntoResponse {
+    "OK"
+}
+
+async fn get_manifest(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let manifest = state.provider.get_manifest().await;
+    Json(manifest)
+}
+
+async fn get_asset(
+    Path(path): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Response {
+    // Basic path sanitization is handled by axum Path (decoding), 
+    // but we should ensure no weird traversals just in case.
+    if path.contains("..") {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    match state.provider.get_file_content(&path).await {
+        Some(bytes) => {
+            let mime = mime_guess::from_path(&path).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref())], bytes).into_response()
+        }
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+>>>>>>>> END FILE: apps/keyforge-assets/src/main.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-assets/tests/integration.rs <<<<<<<<
+// apps/keyforge-assets/tests/integration.rs
+
+//! Integration tests for the KeyForge Asset Server.
+//! Verifies that assets are correctly served from the distributed store.
+
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
+use keyforge_assets::create_app;
+use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
+use std::sync::Arc;
+use tower::ServiceExt;
+use testcontainers_modules::redis::Redis;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
+
+#[tokio::test]
+async fn test_manifest_endpoint() {
+    // 1. Start Valkey
+    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
+    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+
+    // 2. Setup Coordinator & Provider
+    let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
+    let provider = Arc::new(ValkeyProvider::new(coordinator.clone()));
+
+    // 3. Create App
+    let app = create_app(provider);
+
+    // 4. Request /manifest
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/manifest")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+>>>>>>>> END FILE: apps/keyforge-assets/tests/integration.rs <<<<<<<<

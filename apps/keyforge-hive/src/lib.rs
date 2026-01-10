@@ -72,7 +72,7 @@ pub type GlobalLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, Def
 pub type StrictLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
 
 /// Shared state for rate limiting, containing global and strict limiters.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RateLimitState {
     /// General rate limiter for all public endpoints.
     pub global: Arc<GlobalLimiter>,
@@ -85,7 +85,7 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
     // --- CORS ---
     let cors_origins = &config.cors_origins;
     let cors = if cors_origins == "*" {
-        info!("🔓 CORS: Explicitly Permissive Mode (*)");
+        info!("�� CORS: Explicitly Permissive Mode (*)");
         CorsLayer::new()
             .allow_origin(Any)
             .allow_methods([Method::GET, Method::POST, Method::DELETE])

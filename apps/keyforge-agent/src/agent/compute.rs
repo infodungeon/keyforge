@@ -67,6 +67,7 @@ pub async fn prepare_assets<S: AssetSyncer>(
 
 /// Represents a job that has been hydrated with all necessary domain models
 /// and is ready to be passed to the optimization engine.
+#[derive(Debug)]
 pub struct PreparedJob {
     /// The hydrated engine request.
     pub req: EngineRequest,

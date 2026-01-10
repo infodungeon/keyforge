@@ -17,6 +17,7 @@ use sysinfo::{System, ProcessesToUpdate};
 use std::path::PathBuf;
 use keyforge_infra::HiveClient;
 
+#[derive(Debug)]
 pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
@@ -34,6 +35,7 @@ enum ServerMessage {
     Cancel { #[serde(rename = "id")] id: String },
 }
 
+#[derive(Debug)]
 pub struct CircuitBreaker {
     failures: u32,
     threshold: u32,
@@ -54,6 +56,7 @@ impl CircuitBreaker {
     pub fn record_success(&mut self) { self.failures = 0; self.last_failure = None; }
 }
 
+#[derive(Debug)]
 pub struct ResultOutbox {
     _client: HiveClient,
     wal_dir: PathBuf,

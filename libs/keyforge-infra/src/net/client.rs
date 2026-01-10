@@ -47,7 +47,7 @@ impl Default for ClientConfig {
 }
 
 /// A specialized HTTP client for interacting with the KeyForge ecosystem.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HiveClient {
     api_url: String,
     asset_url: String,

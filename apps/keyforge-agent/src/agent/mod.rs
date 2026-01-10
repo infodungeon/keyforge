@@ -24,6 +24,7 @@ pub mod crypto;
 use self::errors::AgentResult;
 use keyforge_infra::net::client::ClientConfig;
 
+#[derive(Debug)]
 pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,

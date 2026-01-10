@@ -1,11 +1,39 @@
+>>>>>>>> START FILE: apps/keyforge-assetmgr/Cargo.toml <<<<<<<<
+[package]
+name = "keyforge-assetmgr"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+description = "Operational tool for managing, seeding, and watching distributed assets in Valkey."
+repository.workspace = true
+[lints]
+workspace = true
+
+[dependencies]
+tokio = { version = "1.48", features = ["full"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+walkdir = "2.5"
+anyhow = "1.0"
+chrono = "0.4"
+notify = "8.2" 
+futures = "0.3"
+
+>>>>>>>> END FILE: apps/keyforge-assetmgr/Cargo.toml <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-assetmgr/src/main.rs <<<<<<<<
 // apps/keyforge-assetmgr/src/main.rs
 
 use clap::{Parser, Subcommand};
 use keyforge_infra::DistributedCoordinator;
 use keyforge_protocol::AssetManifestEntry;
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 use walkdir::WalkDir;
@@ -251,3 +279,5 @@ async fn upload_file(coordinator: &DistributedCoordinator, root: &Path, path: &P
     info!("⬆️  Synced: {}", key_path);
     Ok(())
 }
+
+>>>>>>>> END FILE: apps/keyforge-assetmgr/src/main.rs <<<<<<<<

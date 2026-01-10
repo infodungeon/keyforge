@@ -16,7 +16,7 @@ mod runner;
 use error::CliError;
 mod logging;
 mod reports;
-mod update;
+// mod update; // REMOVED: Duplicate module declaration. 'update' is already in 'cmd/mod.rs'
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

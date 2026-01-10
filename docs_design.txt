@@ -12,6 +12,7 @@ graph TD
         CLI("keyforge-cli<br/>[Command]")
         Hive("keyforge-hive<br/>[Control Plane]")
         Assets("keyforge-assets<br/>[Data Plane]")
+        AssetMgr("keyforge-assetmgr<br/>[Hydrator]")
         Agent("keyforge-agent<br/>[Worker Loop]")
         UI("keyforge-ui<br/>[Frontend]")
     end
@@ -54,6 +55,7 @@ graph TD
     Hive --> Adapt
     
     Assets --> Infra
+    AssetMgr --> Infra
     
     Agent --> Infra
     Agent --> Proto
@@ -83,6 +85,8 @@ graph TD
     %% Drivers
     click CLI href "./keyforge-cli/README.md" "Open CLI Design"
     click Hive href "./keyforge-hive/README.md" "Open Hive Design"
+    click Assets href "./keyforge-assets/README.md" "Open Asset Server Design"
+    click AssetMgr href "./keyforge-assetmgr/README.md" "Open Asset Manager Design"
     click Agent href "./keyforge-agent/README.md" "Open Agent Design"
     
     %% Adapters
@@ -113,8 +117,9 @@ Use these links to navigate the design documentation if the diagram is not inter
 ### 1. Drivers (The Apps)
 
 * [**keyforge-cli**](./keyforge-cli/README.md) - Command Line Interface.
-* [**keyforge-hive**](./keyforge-hive/README.md) - Control Plane Server.
-* [**keyforge-assets**](../plans/01_ASSET_SERVER_SPLIT.md) - Asset Server (Planned).
+* [**keyforge-hive**](./keyforge-hive/README.md) - Control Plane Server (Jobs, Auth).
+* [**keyforge-assets**](./keyforge-assets/README.md) - Data Plane Server (Static Assets).
+* [**keyforge-assetmgr**](./keyforge-assetmgr/README.md) - Asset Hydration Utility.
 * [**keyforge-agent**](./keyforge-agent/README.md) - Worker Node.
 * [**keyforge-ui**](./keyforge-ui/README.md) - Frontend Application.
 
@@ -211,6 +216,131 @@ stateDiagram-v2
 * **Ed25519 Signing:** Every result is signed with the node's private key. The Hive verifies this signature to prevent spoofing.
 
 >>>>>>>> END FILE: docs/design/keyforge-agent/README.md <<<<<<<<
+>>>>>>>> START FILE: docs/design/keyforge-assetmgr/README.md <<<<<<<<
+# Design: KeyForge Asset Manager
+
+**Responsibility:** Authoritative lifecycle management of system assets.
+**Tier:** 3 (The Daemon)
+
+## 1. Core Philosophy: The Write Master
+
+`keyforge-assetmgr` is the **single source of truth** for the state of assets in the distributed cluster. It is the only component permitted to **write** to the Asset keyspace in Valkey.
+
+Unlike a simple loader, the Asset Manager is a long-running daemon that actively enforces consistency between the Source (Disk/Git) and the State (Valkey).
+
+### Responsibilities
+
+1.  **Hydration (Startup):** Populates Valkey with the current state of the filesystem on boot.
+2.  **Synchronization (Hot Reload):** Watches the filesystem for changes. When a developer or admin updates a JSON file, the manager immediately propagates the change to the cluster.
+3.  **Validation (The Gatekeeper):** Before uploading any asset to Valkey, the Manager performs strict schema and logic validation (using `keyforge-model`). Invalid assets are rejected and logged; they **never** reach the serving layer.
+4.  **Garbage Collection:** Detects removed files and purges their corresponding keys from Valkey to prevent cache bloat.
+
+## 2. Architecture
+
+```mermaid
+graph TD
+    Disk[(Filesystem)] <--> Watcher[FSEvent Watcher]
+    Watcher --> Validator[Domain Validator]
+    Validator -- Valid --> Serializer[Compression Engine]
+    Serializer --> Writer[Valkey Writer]
+    Writer --> Valkey[(Coordination Layer)]
+    
+    Validator -- Invalid --> Logger[Error Log]
+```
+
+## 3. Data Flow (The Write Loop)
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Disk as Local Volume
+    participant Mgr as AssetMgr
+    participant Valkey
+
+    Dev->>Disk: Edit "weights/cost.json"
+    
+    Note over Mgr: File Watcher Event
+    Mgr->>Disk: Read Content
+    
+    Mgr->>Mgr: Validate (Schema Check)
+    alt Invalid
+        Mgr->>Dev: Log Error (Skip Upload)
+    else Valid
+        Mgr->>Mgr: Compress (Zstd)
+        Mgr->>Mgr: Calc Hash (SHA256)
+        
+        Mgr->>Valkey: SET asset:blob:weights/cost.json <bytes>
+        Mgr->>Valkey: HSET v4:manifest:weights/cost.json hash <hash>
+        
+        Mgr->>Valkey: PUBLISH asset_updates "weights/cost.json"
+    end
+```
+
+## 4. Modes of Operation
+
+*   **`daemon` (Default):** Performs initial hydration and then enters a blocking loop to watch for file changes.
+*   **`hydrate`:** Performs a one-time synchronization and exits (useful for CI/CD pipelines).
+*   **`verify`:** Runs validation logic against the filesystem without connecting to Valkey (dry run).
+
+## 5. Operational Invariants
+
+*   **Write Exclusivity:** No other service (Hive, Assets, CLI) writes to `asset:blob:*`.
+*   **Validity Guarantee:** If a key exists in Valkey, it is guaranteed to be a valid, loadable asset.
+*   **Eventual Consistency:** There is a non-zero latency between a disk write and a Valkey update, but the Manager ensures convergence.
+
+>>>>>>>> END FILE: docs/design/keyforge-assetmgr/README.md <<<<<<<<
+>>>>>>>> START FILE: docs/design/keyforge-assets/README.md <<<<<<<<
+# Design: KeyForge Assets
+
+**Responsibility:** High-performance serving of static system assets.
+**Tier:** 3 (The Driver)
+
+## 1. Architecture: The Data Plane
+
+`keyforge-assets` is a stateless HTTP server designed to serve read-only content from the distributed coordination layer (Valkey). It relieves `keyforge-hive` (The Control Plane) from I/O heavy operations.
+
+### Deployment Model
+
+*   **Stateless:** No local disk dependency. All data comes from Valkey.
+*   **Scalable:** Can be replicated infinitely behind a Load Balancer.
+*   **Public:** Read-only access does not require authentication (simplifies client logic, relies on Hash Verification for integrity).
+
+## 2. Interfaces
+
+### HTTP Endpoints
+
+| Method | Path | Description | Source |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/manifest` | Returns a JSON map of `{ "path": "hash" }` for all system assets. | `v4:manifest:*` |
+| `GET` | `/data/*` | Streams the binary content of a file. | `asset:blob:<path>` |
+| `GET` | `/health` | Liveness check (Valkey connectivity). | `PING` |
+
+## 3. Data Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant AssetServer
+    participant Valkey
+
+    Client->>AssetServer: GET /data/keyboards/corne.mpk.zst
+    AssetServer->>Valkey: GET asset:blob:keyboards/corne.mpk.zst
+    
+    alt Hit
+        Valkey-->>AssetServer: Bytes (Compressed)
+        AssetServer-->>Client: 200 OK (Stream)
+    else Miss
+        Valkey-->>AssetServer: nil
+        AssetServer-->>Client: 404 Not Found
+    end
+```
+
+## 4. Dependencies
+
+*   **`keyforge-infra`**: Uses `ValkeyProvider` to abstract the Redis protocol.
+*   **`axum`**: HTTP framework.
+
+>>>>>>>> END FILE: docs/design/keyforge-assets/README.md <<<<<<<<
 >>>>>>>> START FILE: docs/design/keyforge-cli/README.md <<<<<<<<
 # Design: KeyForge CLI
 
@@ -600,11 +730,14 @@ graph TD
 
 ## 2. The Worker Protocol (WebSocket)
 
+Hive manages the *Work* distribution, not the *Data* distribution.
+
 ```mermaid
 sequenceDiagram
     participant Agent
     participant Hive
     participant Queue
+    participant Assets as AssetServer
 
     Agent->>Hive: Connect (WS /ws?node_id=X)
     Hive-->>Agent: 101 Switching Protocols
@@ -620,13 +753,25 @@ sequenceDiagram
     Queue-->>Hive: JobID
     
     Hive->>Agent: { type: "Job", id: "123" }
-    Agent->>Hive: GET /jobs/123/config
+    
+    Note over Agent: Fetch Assets (Data Plane)
+    Agent->>Assets: GET /manifest
+    Agent->>Assets: GET /data/corpora/en_std/1grams
     
     Note over Agent: Optimizing...
     
     Agent->>Hive: POST /results
     Hive-->>Agent: 200 OK
 ```
+
+## 3. Scope Boundaries
+
+| In Scope (Hive) | Out of Scope (Assets) |
+| :--- | :--- |
+| Job Queue Management | Serving 50MB corpus files |
+| User Authentication | Asset Hashing / Integrity |
+| Result Verification | System Config Distribution |
+| Node Registry | |
 
 >>>>>>>> END FILE: docs/design/keyforge-hive/README.md <<<<<<<<
 >>>>>>>> START FILE: docs/design/keyforge-infra/README.md <<<<<<<<
@@ -1493,7 +1638,9 @@ classDiagram
 * [keyforge-testing](./keyforge-testing/README.md) - Test Harness.
 
 ## Drivers (The Apps)
-* [keyforge-hive](./keyforge-hive/README.md) - Server & API.
+* [keyforge-hive](./keyforge-hive/README.md) - Control Plane Server.
+* [keyforge-assets](./keyforge-assets/README.md) - Data Plane Server.
+* [keyforge-assetmgr](./keyforge-assetmgr/README.md) - Asset Hydration Utility.
 * [keyforge-agent](./keyforge-agent/README.md) - Worker Node.
 * [keyforge-cli](./keyforge-cli/README.md) - Command Line Interface.
 

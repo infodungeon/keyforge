@@ -22,6 +22,7 @@ use tracing::info;
 use crate::models::SharedTelemetry;
 
 /// A logger that tracks optimization progress and reports it back to the system.
+#[derive(Debug)]
 pub struct WorkerLogger {
     /// Atomic flag used to signals the engine to stop gracefully.
     pub stop_flag: Arc<AtomicBool>,

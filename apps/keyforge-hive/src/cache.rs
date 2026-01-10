@@ -22,6 +22,7 @@ use std::time::Duration;
 ///
 /// This avoids the overhead of reloading and parsing corpora/keyboards for 
 /// every verification request on the same job.
+#[derive(Debug)]
 pub struct CompiledEngineCache {
     cache: Cache<String, Arc<keyforge_core::ScoringEngine>>,
 }

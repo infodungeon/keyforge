@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -167,8 +167,12 @@ pub async fn run_monitor(
     let mut terminal = Terminal::new(backend)?;
 
     use keyforge_infra::net::client::ClientConfig;
+    // Assume assets are on port 3001 if hive is 3000, or just use same base if proxied
+    let asset_url = url.replace("3000", "3001");
+    
     let config = ClientConfig {
-        base_url: url,
+        api_url: url,
+        asset_url,
         secret: secret,
         ..Default::default()
     };
@@ -220,7 +224,7 @@ pub async fn run_monitor(
     Ok(())
 }
 
-fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetrics], err: &str) {
+fn ui(f: &mut Frame<'_>, status: &SystemStatusResponse, containers: &[ContainerMetrics], err: &str) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -298,7 +302,7 @@ fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetri
     f.render_widget(cluster_table, main_chunks[0]);
 
     // Right: Container Stats (Replaces Server RAM Gauge)
-    let container_rows: Vec<Row> = containers
+    let container_rows: Vec<Row<'_>> = containers
         .iter()
         .map(|c| {
             let style = if c.is_online {
@@ -337,7 +341,7 @@ fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetri
     f.render_widget(container_table, main_chunks[1]);
 
     // Logs Panel
-    let log_rows: Vec<Row> = status
+    let log_rows: Vec<Row<'_>> = status
         .logs
         .iter()
         .rev()

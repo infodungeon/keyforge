@@ -8,6 +8,7 @@ use keyforge_protocol::JobConfig;
 use std::path::PathBuf;
 use tracing::info;
 
+#[derive(Debug)]
 pub struct AssetManager {
     client: HiveClient,
     root: PathBuf,

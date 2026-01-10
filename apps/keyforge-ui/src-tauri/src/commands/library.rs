@@ -102,8 +102,12 @@ pub async fn cmd_submit_user_layout(
     layout: String,
     author: String,
 ) -> Result<String, CommandError> {
+    // Assume assets are on port 3001 if hive is 3000
+    let asset_url = hive_url.replace("3000", "3001");
+    
     let config = keyforge_infra::net::client::ClientConfig {
-        base_url: hive_url,
+        api_url: hive_url,
+        asset_url,
         secret: Some(hive_secret),
         ..Default::default()
     };

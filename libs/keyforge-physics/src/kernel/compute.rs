@@ -92,7 +92,7 @@ impl<'a> PosMap<'a> {
     }
 }
 
-pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout, scratch: &mut PhysicsScratch) -> i64 {
+pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: &mut PhysicsScratch) -> i64 {
     let mut total_score = Score::ZERO;
     let layout_slice = layout.as_slice();
     let pm = PosMap::from_scratch(
@@ -208,7 +208,7 @@ impl PhysicsScratch {
 }
 
 #[instrument(skip_all)]
-pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout) -> AnalysisReport {
+pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> AnalysisReport {
     let mut report = AnalysisReport::default();
     let layout_slice = layout.as_slice();
     let mut scratch = PhysicsScratch::new();
@@ -403,7 +403,7 @@ fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> 
 
 pub fn calculate_swap_delta(
     ctx: &EngineContext,
-    layout: &ValidatedLayout,
+    layout: &ValidatedLayout<'_>,
     pos_map: &[u16],
     idx_a: usize,
     idx_b: usize,

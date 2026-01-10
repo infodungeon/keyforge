@@ -16,12 +16,13 @@ use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 /// Repository for managing audit logs in the database.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AuditRepository {
     pool: Pool<Postgres>,
 }
 
 /// Represents a single audit log entry.
+#[derive(Debug)]
 pub struct AuditLog<'a> {
     /// The action performed (e.g., "create_job", "delete_user").
     pub action: &'a str,

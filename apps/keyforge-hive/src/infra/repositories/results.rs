@@ -16,7 +16,7 @@
 use sqlx::{Pool, Postgres, QueryBuilder, Row};
 
 /// Repository for managing optimization results and population samples.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ResultRepository {
 
     pool: Pool<Postgres>,
@@ -72,7 +72,7 @@ impl ResultRepository {
             return Ok(());
         }
 
-        let mut query_builder: QueryBuilder<Postgres> =
+        let mut query_builder: QueryBuilder<'_, Postgres> =
             QueryBuilder::new("INSERT INTO results (job_id, layout, score, node_id) ");
 
         query_builder.push_values(items, |mut b, (job, layout, score, node)| {

@@ -19,6 +19,7 @@ use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 /// Logging output modes.
+#[derive(Debug)]
 pub enum LogMode {
     /// Standard human-readable logs to stdout (for Worker/Daemon).
     Standard,

@@ -32,7 +32,7 @@ const ASSET_PREFIX: &str = "asset:blob";
 ///
 /// This is used by worker nodes in a distributed cluster to fetch assets
 /// without requiring direct filesystem access to the Hive's data root.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ValkeyProvider {
     coordinator: Arc<DistributedCoordinator>,
 }

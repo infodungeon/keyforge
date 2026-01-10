@@ -26,7 +26,6 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    # Hardening: Password auth, 256MB limit, LRU eviction, Ephemeral (no snapshots)
     command: valkey-server --requirepass "dev_valkey_secret" --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
     healthcheck:
       test: ["CMD", "valkey-cli", "-a", "dev_valkey_secret", "ping"]
@@ -34,9 +33,45 @@ services:
       timeout: 5s
       retries: 5
 
-  # The Application
+  # Asset Manager (Init Job)
+  assetmgr:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.assetmgr
+    container_name: keyforge_assetmgr
+    depends_on:
+      valkey:
+        condition: service_healthy
+    environment:
+      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+      KEYFORGE_DATA_DIR: /app/data
+    volumes:
+      - ../data:/app/data
+    command: ["keyforge-assetmgr", "hydrate"]
+
+  # Asset Server (Data Plane)
+  assets:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.assets
+    container_name: keyforge_assets
+    restart: always
+    depends_on:
+      assetmgr:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    environment:
+      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+      PORT: 3001
+
+  # Hive (Control Plane)
   hive:
-    image: keyforge-hive:latest
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.hive
     container_name: keyforge_hive
     restart: always
     depends_on:
@@ -50,29 +85,90 @@ services:
       DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
       HIVE_SECRET: ${HIVE_SECRET:-}
       RUST_LOG: info,keyforge_hive=debug
-      # Updated connection string with password
       KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
     volumes:
-      - ./data:/app/data
+      - ../data:/app/data
 
   # The Web server
   web:
     build:
-      context: .
+      context: ..
       dockerfile: ops/Dockerfile.web
     container_name: keyforge_web
     restart: always
     ports:
-      - "0.0.0.0:80:80"
-      - "0.0.0.0:443:443"
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./hosts/sites:/usr/local/apache2/htdocs:ro
-      - ./hosts/certs:/etc/apache2/ssl:ro
+      - ../hosts/sites:/usr/local/apache2/htdocs:ro
+      - ../hosts/certs:/etc/apache2/ssl:ro
 
 volumes:
   postgres_data:
 
 >>>>>>>> END FILE: ops/docker-compose.yml <<<<<<<<
+>>>>>>>> START FILE: ops/Dockerfile.assetmgr <<<<<<<<
+# Stage 1: Chef
+FROM rust:slim-bookworm AS chef
+WORKDIR /app
+RUN cargo install cargo-chef
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Stage 2: Builder
+FROM rust:slim-bookworm AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-chef
+COPY --from=chef /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Stage 3: Compiler
+COPY . .
+RUN cargo build --release --bin keyforge-assetmgr
+
+# Stage 4: Runtime (Distroless)
+# Using cc-debian12 includes libssl, libc, libgcc
+FROM gcr.io/distroless/cc-debian12
+WORKDIR /app
+COPY --from=builder /app/target/release/keyforge-assetmgr /app/keyforge-assetmgr
+# Asset Manager needs a volume mount for data
+ENV RUST_LOG=info
+# Runs in daemon mode by default
+ENTRYPOINT ["/app/keyforge-assetmgr", "daemon"]
+
+>>>>>>>> END FILE: ops/Dockerfile.assetmgr <<<<<<<<
+>>>>>>>> START FILE: ops/Dockerfile.assets <<<<<<<<
+# Stage 1: Chef
+FROM rust:slim-bookworm AS chef
+WORKDIR /app
+RUN cargo install cargo-chef
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Stage 2: Builder
+FROM rust:slim-bookworm AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-chef
+COPY --from=chef /app/recipe.json recipe.json
+# Build dependencies - this layer is cached until Cargo.lock changes
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Stage 3: Compiler
+COPY . .
+RUN cargo build --release --bin keyforge-assets
+
+# Stage 4: Runtime (Distroless)
+# Using cc-debian12 includes libssl, libc, libgcc
+FROM gcr.io/distroless/cc-debian12
+WORKDIR /app
+COPY --from=builder /app/target/release/keyforge-assets /app/keyforge-assets
+ENV RUST_LOG=info
+EXPOSE 3001
+ENTRYPOINT ["/app/keyforge-assets"]
+
+>>>>>>>> END FILE: ops/Dockerfile.assets <<<<<<<<
 >>>>>>>> START FILE: ops/Dockerfile.hive <<<<<<<<
 # Stage 1: Chef (Compute Recipe)
 FROM rust:slim-bookworm AS chef
@@ -98,16 +194,19 @@ ENV SQLX_OFFLINE=true
 COPY .sqlx .sqlx
 RUN cargo build --release --bin keyforge-hive
 
-# Stage 4: Runtime
-FROM debian:bookworm-slim
+# Stage 4: Runtime (Distroless)
+# Using cc-debian12 includes libssl, libc, libgcc
+FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
-RUN apt-get update && apt-get install -y libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/keyforge-hive /usr/local/bin/
-RUN mkdir -p /app/data
+COPY --from=builder /app/target/release/keyforge-hive /app/keyforge-hive
+# Create data dir in workdir (though distroless has limited fs ops, app creates subdirs in volume)
+# Note: Distroless has no mkdir. The app must handle creating dirs in the volume, 
+# OR we rely on Docker to create the mount point.
 ENV RUST_LOG=info
 ENV KEYFORGE_DATA_DIR=/app/data
 EXPOSE 3000
-CMD ["keyforge-hive"]
+ENTRYPOINT ["/app/keyforge-hive"]
+
 >>>>>>>> END FILE: ops/Dockerfile.hive <<<<<<<<
 >>>>>>>> START FILE: ops/Dockerfile.web <<<<<<<<
 FROM httpd:alpine
@@ -2495,6 +2594,58 @@ if [[ :$PATH: != *:"$HOME/.cargo/bin":* ]]; then
 fi
 
 >>>>>>>> END FILE: ops/scripts/verify_path.sh <<<<<<<<
+>>>>>>>> START FILE: ops/scripts/verify_split_architecture.sh <<<<<<<<
+#!/bin/bash
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo "🔍 Verifying Split Architecture Topology..."
+
+# 1. Check Ports
+echo -n "   Checking Hive (Control Plane) on :3000... "
+if curl -s -f -o /dev/null "http://localhost:3000/health"; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}FAIL${NC}"
+    exit 1
+fi
+
+echo -n "   Checking Assets (Data Plane) on :3001... "
+if curl -s -f -o /dev/null "http://localhost:3001/health"; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}FAIL${NC}"
+    exit 1
+fi
+
+# 2. Check Separation of Concerns
+echo "�� Verifying Route Segregation..."
+
+# Hive should NOT serve manifest
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000/manifest")
+if [ "$HTTP_CODE" == "404" ]; then
+    echo -e "   Hive /manifest -> 404: ${GREEN}PASS${NC} (Correctly removed)"
+else
+    echo -e "   Hive /manifest -> $HTTP_CODE: ${RED}FAIL${NC} (Should be 404)"
+    exit 1
+fi
+
+# Assets SHOULD serve manifest
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3001/manifest")
+if [ "$HTTP_CODE" == "200" ]; then
+    echo -e "   Assets /manifest -> 200: ${GREEN}PASS${NC}"
+else
+    echo -e "   Assets /manifest -> $HTTP_CODE: ${RED}FAIL${NC} (Should be 200)"
+    exit 1
+fi
+
+echo -e "\n✅ Split Architecture Verified Successfully."
+
+>>>>>>>> END FILE: ops/scripts/verify_split_architecture.sh <<<<<<<<
 >>>>>>>> START FILE: ops/scripts/verify_system.py <<<<<<<<
 import subprocess
 import time

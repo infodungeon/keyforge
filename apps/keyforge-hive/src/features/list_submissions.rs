@@ -21,7 +21,7 @@ use crate::error::AppResult;
 use crate::state::AppState;
 
 /// A single entry representing a community layout submission.
-#[derive(Serialize, ToSchema, Clone)]
+#[derive(Serialize, ToSchema, Clone, Debug)]
 pub struct SubmissionEntry {
     /// Unique identifier for the submission.
     pub id: i64,

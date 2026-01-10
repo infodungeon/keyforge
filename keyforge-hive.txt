@@ -600,9 +600,6 @@ pub async fn generate_key(
 }
 
 >>>>>>>> END FILE: apps/keyforge-hive/src/api/auth.rs <<<<<<<<
->>>>>>>> START FILE: apps/keyforge-hive/src/api/corpus.rs <<<<<<<<
-
->>>>>>>> END FILE: apps/keyforge-hive/src/api/corpus.rs <<<<<<<<
 >>>>>>>> START FILE: apps/keyforge-hive/src/api_docs.rs <<<<<<<<
 // apps/keyforge-hive/src/api_docs.rs
 
@@ -1907,9 +1904,6 @@ impl IntoResponse for AppError {
 pub type AppResult<T> = Result<T, AppError>;
 
 >>>>>>>> END FILE: apps/keyforge-hive/src/error.rs <<<<<<<<
->>>>>>>> START FILE: apps/keyforge-hive/src/features/assets.rs <<<<<<<<
-
->>>>>>>> END FILE: apps/keyforge-hive/src/features/assets.rs <<<<<<<<
 >>>>>>>> START FILE: apps/keyforge-hive/src/features/cancel_job.rs <<<<<<<<
 // apps/keyforge-hive/src/features/cancel_job.rs
 
@@ -5128,7 +5122,7 @@ fn ui(f: &mut Frame, status: &SystemStatusResponse, containers: &[ContainerMetri
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -5205,13 +5199,6 @@ pub struct RateLimitState {
 }
 
 /// Constructs the main Axum application router.
-///
-/// This function configures CORS, rate limiting, logging, request IDs,
-/// and nests all API features and documentation routes.
-/// Constructs the main Axum application router.
-///
-/// This function configures CORS, rate limiting, logging, request IDs,
-/// and nests all API features and documentation routes.
 pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: PathBuf) -> Router {
     // --- CORS ---
     let cors_origins = &config.cors_origins;
@@ -5309,14 +5296,9 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
     let public_routes = features::system::system_routes()
         .merge(api::analysis_routes())
         .merge(api::auth_routes())
-        .route("/manifest", axum::routing::get(features::assets::get_manifest))
         .route(
             "/submissions",
             axum::routing::get(features::list_submissions::handle),
-        )
-        .route(
-            "/data/system/{*path}",
-            axum::routing::get(features::assets::get_asset),
         )
         .route(
             "/data/config.json",
@@ -6500,24 +6482,6 @@ async fn test_health_check() {
         .oneshot(
             Request::builder()
                 .uri("/health")
-                .extension(ConnectInfo(test_addr()))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn test_manifest_access() {
-    let (app, _, _valkey) = setup_test_app().await;
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/manifest")
                 .extension(ConnectInfo(test_addr()))
                 .body(Body::empty())
                 .unwrap(),

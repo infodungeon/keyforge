@@ -16,7 +16,7 @@
 use sqlx::{Pool, Postgres};
 
 /// Repository for managing compute nodes and hardware profiles.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NodeRepository {
     pool: Pool<Postgres>,
 }
