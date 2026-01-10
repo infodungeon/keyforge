@@ -1,6 +1,6 @@
 # System Context (Ports & Adapters)
 
-**Version:** 4.1
+**Version:** 4.4
 **Context:** Crate Boundaries and Interface Definitions.
 
 ## The Ports (Application Contracts)
@@ -43,6 +43,9 @@ pub trait Coordinator {
     
     /// Real-time telemetry for active nodes.
     async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()>;
+    
+    /// Retrieve binary blobs (assets) from the distributed store.
+    async fn get_bin(&self, key: &str) -> InfraResult<Option<bytes::Bytes>>;
 }
 ```
 
@@ -52,7 +55,10 @@ pub trait Coordinator {
 graph TD
     subgraph "Tier 3: Drivers"
         Hive("keyforge-hive")
+        Assets("keyforge-assets")
+        AssetMgr("keyforge-assetmgr")
         CLI("keyforge-cli")
+        Agent("keyforge-agent")
     end
 
     subgraph "Tier 3: Adapters"
@@ -75,12 +81,17 @@ graph TD
     Hive --> Proto
     Hive --> Evo
     
+    Assets --> Infra
+    AssetMgr --> Infra
+    
     CLI --> Infra
-    CLI --> Evo
+    CLI -.->|Spawns| Agent
 
     Infra --> Model
     Proto --> Model
     
     Evo --> Phys
     Phys --> Model
+    Agent --> Infra
+    Agent --> Proto
 ```

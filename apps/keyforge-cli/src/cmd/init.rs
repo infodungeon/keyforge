@@ -1,18 +1,5 @@
 // apps/keyforge-cli/src/cmd/init.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use crate::error::CliError;
 use clap::Args;
 use keyforge_infra::init::{ensure_dir, USER_WORKSPACE_DIRS};
@@ -26,22 +13,24 @@ pub struct InitArgs {
 
     #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
+
+    #[arg(long, default_value = "http://localhost:3001")]
+    pub asset_url: String,
 }
 
 pub async fn run(args: InitArgs) -> Result<(), CliError> {
     let root = args.path.join("data");
     eprintln!("🚀 Initializing KeyForge Workspace at {:?}", root);
 
-    // 1. Create Structure (Client Policy: Workspace Only)
     for d in USER_WORKSPACE_DIRS {
         ensure_dir(&root, d)
             .map_err(|e| CliError::Workspace(format!("Failed to create {}: {}", d, e)))?;
     }
 
-    // 2. Download Essentials (Online)
     eprintln!("🌐 Connecting to Hive at {}...", args.hive);
     let config = keyforge_infra::net::client::ClientConfig {
-        base_url: args.hive.clone(),
+        api_url: args.hive.clone(),
+        asset_url: args.asset_url.clone(),
         secret: None,
         ..Default::default()
     };

@@ -42,7 +42,7 @@ pub struct StatusResponse {
 
 /// Returns a simple greeting string for the API root.
 pub async fn root() -> &'static str {
-    "KeyForge Hive API v0.8"
+    "KeyForge Hive API v0.9"
 }
 
 #[utoipa::path(
@@ -72,7 +72,7 @@ pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<Status
 
     Ok(Json(StatusResponse {
         status: "ok".to_string(),
-        version: "0.8.0".to_string(),
+        version: "0.9.0".to_string(),
         message: "Genetic Reservoir Active".to_string(),
         db: db_status,
         queue_depth,
@@ -136,6 +136,4 @@ pub fn system_routes() -> Router<Arc<AppState>> {
         .route("/api/corpora", get(list_corpora))
         .route("/api/costs", get(list_costs))
         .route("/api/keymap_extras", get(list_keymap_extras))
-        .route("/api/manifest", get(crate::features::assets::get_manifest))
-        .route("/api/data/system/{*path}", get(crate::features::assets::get_asset))
 }

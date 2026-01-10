@@ -17,16 +17,16 @@ path = "src/main.rs"
 [dependencies]
 dirs = "6.0"
 indicatif = "0.18"
-keyforge-core = { path = "../../libs/keyforge-core" }
 tokio = { version = "1.48", features = ["full"] }
 sysinfo = "0.37"
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
-keyforge-compute = { path = "../../libs/keyforge-compute" }
+# keyforge-compute removed
 keyforge-export = { path = "../../libs/keyforge-export" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
+# keyforge-core removed
 clap = { version = "4.5.53", features = ["derive", "env"] }
 clap_complete = "4.5"
 tracing = "0.1.44"
@@ -51,10 +51,11 @@ sqlx = { version = "0.8.6", features = [
     "postgres",
 ] }
 self_update = "0.42"
+tempfile = "3.24"
+which = "6.0"
 
 [dev-dependencies]
 keyforge-testing = { path = "../../libs/keyforge-testing" }
-tempfile = "3.24"
 keyforge-hive = { path = "../keyforge-hive" }
 futures = "0.3"
 axum = "0.8"
@@ -67,7 +68,7 @@ axum = "0.8"
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -78,6 +79,7 @@ axum = "0.8"
 
 use clap::Args;
 use keyforge_model::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
+use keyforge_model::constants::*;
 
 /// Top-level configuration arguments combining search, weights, and definitions.
 #[derive(Args, Debug, Clone)]
@@ -251,11 +253,11 @@ pub struct ScoringWeightsArgs {
     pub trigram_coverage: f32,
 
     /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
-    #[arg(long, default_value = "0.0,1.0,1.1,1.3,1.6")]
-    pub finger_penalty_scale: String,
+    #[arg(long, value_delimiter = ',', num_args = 5, default_value = DEFAULT_FINGER_PENALTY_SCALE)]
+    pub finger_penalty_scale: Vec<f32>,
 
     /// Comma-separated list of comfortable scissor pairs.
-    #[arg(long, default_value = "21,23,34")]
+    #[arg(long, default_value = DEFAULT_COMFORTABLE_SCISSORS)]
     pub comfortable_scissors: String,
 }
 
@@ -263,20 +265,20 @@ pub struct ScoringWeightsArgs {
 #[derive(Args, Debug, Clone)]
 pub struct LayoutDefinitionsArgs {
     /// Characters considered high priority.
-    #[arg(long, default_value = "etaoinshr")]
+    #[arg(long, default_value = DEFAULT_TIER_HIGH)]
     pub tier_high_chars: String,
     /// Characters considered medium priority.
-    #[arg(long, default_value = "ldcumwfgypb.,")]
+    #[arg(long, default_value = DEFAULT_TIER_MED)]
     pub tier_med_chars: String,
     /// Characters considered low priority.
-    #[arg(long, default_value = "vkjxqz/;")]
+    #[arg(long, default_value = DEFAULT_TIER_LOW)]
     pub tier_low_chars: String,
     /// Bigrams that must be optimized for.
-    #[arg(long, default_value = "th,he,in,er,an,re,nd,ou")]
+    #[arg(long, default_value = DEFAULT_CRITICAL_BIGRAMS)]
     pub critical_bigrams: String,
     /// Scale factors for finger repeat penalties.
-    #[arg(long, default_value = "1.0,1.0,1.0,1.2,1.5")]
-    pub finger_repeat_scale: String,
+    #[arg(long, value_delimiter = ',', num_args = 5, default_value = DEFAULT_FINGER_REPEAT_SCALE)]
+    pub finger_repeat_scale: Vec<f32>,
 }
 
 use keyforge_model::Validator;
@@ -310,6 +312,7 @@ impl TryFrom<SearchParamsArgs> for SearchParams {
             opt_limit_slow: args.opt_limit_slow,
             reheats: args.reheats,
             reheat_factor: args.reheat_factor,
+            seed: None, // [Fixed] Added
         };
         p.validate()?;
         Ok(p)
@@ -358,7 +361,7 @@ impl TryFrom<ScoringWeightsArgs> for ScoringWeights {
             default_cost_ms: args.default_cost_ms,
             loader_trigram_limit: args.loader_trigram_limit,
             trigram_coverage: args.trigram_coverage,
-            finger_penalty_scale: parse_array_5(&args.finger_penalty_scale)?,
+            finger_penalty_scale: vec_to_array_5(args.finger_penalty_scale)?,
             comfortable_scissors: args.comfortable_scissors,
         };
         w.validate()?;
@@ -374,19 +377,18 @@ impl TryFrom<LayoutDefinitionsArgs> for LayoutDefinitions {
             tier_med_chars: args.tier_med_chars,
             tier_low_chars: args.tier_low_chars,
             critical_bigrams: args.critical_bigrams,
-            finger_repeat_scale: parse_array_5(&args.finger_repeat_scale)?,
+            finger_repeat_scale: vec_to_array_5(args.finger_repeat_scale)?,
         })
     }
 }
 
-fn parse_array_5(s: &str) -> Result<[f32; 5], String> {
-    let parts: Vec<&str> = s.split(',').collect();
-    if parts.len() != 5 {
-        return Err(format!("Expected 5 values, got {}", parts.len()));
+fn vec_to_array_5(v: Vec<f32>) -> Result<[f32; 5], String> {
+    if v.len() != 5 {
+        return Err(format!("Expected 5 values, got {}", v.len()));
     }
     let mut arr = [0.0; 5];
-    for (i, p) in parts.iter().enumerate() {
-        arr[i] = p.trim().parse::<f32>().map_err(|e| e.to_string())?;
+    for (i, &val) in v.iter().enumerate() {
+        arr[i] = val;
     }
     Ok(arr)
 }
@@ -419,7 +421,7 @@ pub use crate::cli_parsers::{parse_corpora, parse_cost, parse_key_constraint, pa
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -432,6 +434,8 @@ use keyforge_model::config::CorpusSource;
 use keyforge_model::KeyConstraint;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use keyforge_model::constants::{MAX_KEYBOARD_NAME_LEN, MAX_FILENAME_LEN};
+use crate::constants::MAX_CLI_CORPORA;
 
 pub fn parse_key_constraint(s: &str) -> Result<KeyConstraint, String> {
     KeyConstraint::from_str(s)
@@ -519,8 +523,8 @@ pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<Pa
 }
 
 pub fn parse_keyboard(s: &str) -> Result<String, String> {
-    if s.len() > 100 {
-        return Err("keyboard name must be <= 100 chars".into());
+    if s.len() > MAX_KEYBOARD_NAME_LEN {
+        return Err(format!("keyboard name must be <= {} chars", MAX_KEYBOARD_NAME_LEN));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -530,8 +534,8 @@ pub fn parse_keyboard(s: &str) -> Result<String, String> {
 }
 
 pub fn parse_cost(s: &str) -> Result<String, String> {
-    if s.len() > 255 {
-        return Err("cost matrix filename must be <= 255 chars".into());
+    if s.len() > MAX_FILENAME_LEN {
+        return Err(format!("cost matrix filename must be <= {} chars", MAX_FILENAME_LEN));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -541,8 +545,8 @@ pub fn parse_cost(s: &str) -> Result<String, String> {
 }
 
 pub fn parse_corpora(args: &[String]) -> Result<Vec<CorpusSource>, String> {
-    if args.len() > 50 {
-        return Err("Too many corpora sources (limit 50)".into());
+    if args.len() > MAX_CLI_CORPORA {
+        return Err(format!("Too many corpora sources (limit {})", MAX_CLI_CORPORA));
     }
     args.iter().map(|s| CorpusSource::from_str(s)).collect()
 }
@@ -555,7 +559,7 @@ pub fn parse_corpora(args: &[String]) -> Result<Vec<CorpusSource>, String> {
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -568,13 +572,14 @@ use crate::error::{CliError, Result};
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use crate::constants::{DEFAULT_HIVE_URL, CONFIG_DIR_NAME, CLI_CONFIG_FILENAME};
 
 #[derive(Args, Debug, Clone)]
 pub struct AuthArgs {
     #[command(subcommand)]
     pub command: AuthCommands,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
 }
 
@@ -602,9 +607,9 @@ struct CliConfig {
 fn get_config_path() -> Result<PathBuf> {
     let mut path =
         dirs::config_dir().ok_or_else(|| CliError::Other("Could not find config dir".into()))?;
-    path.push("keyforge");
+    path.push(CONFIG_DIR_NAME);
     std::fs::create_dir_all(&path).map_err(CliError::Io)?;
-    path.push("cli.json");
+    path.push(CLI_CONFIG_FILENAME);
     Ok(path)
 }
 
@@ -614,11 +619,33 @@ fn save_key(key: &str) -> Result<()> {
         api_key: Some(key.to_string()),
     };
     let json = serde_json::to_string_pretty(&config)?;
-    std::fs::write(path, json).map_err(CliError::Io)?;
+    
+    // Write file
+    std::fs::write(&path, json).map_err(CliError::Io)?;
+
+    // Harden permissions on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(metadata) = std::fs::metadata(&path) {
+            let mut perms = metadata.permissions();
+            perms.set_mode(0o600); // User Read/Write ONLY
+            if let Err(e) = std::fs::set_permissions(&path, perms) {
+                eprintln!("⚠️  Warning: Failed to set secure permissions on config file: {}", e);
+            }
+        }
+    }
+
     Ok(())
 }
 
 pub fn load_key() -> Option<String> {
+    // 1. Check Env Var (Highest Priority for Headless/CI)
+    if let Ok(env_key) = std::env::var("KEYFORGE_API_KEY") {
+        return Some(env_key);
+    }
+
+    // 2. Check Config File
     let path = get_config_path().ok()?;
     if !path.exists() {
         return None;
@@ -670,11 +697,15 @@ pub async fn run(args: AuthArgs) -> Result<()> {
         }
         AuthCommands::Login { key } => {
             save_key(&key)?;
-            println!("✅ API Key saved.");
+            println!("✅ API Key saved securely.");
         }
         AuthCommands::Whoami => {
             if let Some(key) = load_key() {
-                let masked = format!("{}...{}", &key[0..6], &key[key.len() - 4..]);
+                let masked = if key.len() > 8 {
+                    format!("{}...{}", &key[0..6], &key[key.len() - 4..])
+                } else {
+                    "********".to_string()
+                };
                 println!("👤 Authenticated");
                 println!("🔑 Key: {}", masked);
             } else {
@@ -689,23 +720,9 @@ pub async fn run(args: AuthArgs) -> Result<()> {
 >>>>>>>> START FILE: apps/keyforge-cli/src/cmd/benchmark.rs <<<<<<<<
 // apps/keyforge-cli/src/cmd/benchmark.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use clap::Args;
-use keyforge_compute::Runtime;
-use keyforge_model::KeyCode;
-use std::time::Instant;
+use keyforge_protocol::JobConfig;
+use crate::runner::AgentRunner;
 
 #[derive(Args, Debug, Clone)]
 pub struct BenchmarkArgs {
@@ -717,27 +734,9 @@ pub struct BenchmarkArgs {
     pub shared: crate::cmd::shared::SharedArgs,
 }
 
-pub fn run(args: BenchmarkArgs, runtime: Runtime) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("📊 Benchmarking Engine ({} iterations)...", args.iterations);
-
-    // Use a valid layout if possible, otherwise fallback to identity
-    let key_count = runtime.engine.key_count();
-    let layout = keyforge_model::Layout::new_unchecked((0..key_count).map(|i| KeyCode(i as u16)).collect());
-
-    let start = Instant::now();
-    let mut score = 0.0;
-
-    for _ in 0..args.iterations {
-        score += runtime.score(&layout)?;
-    }
-
-    let duration = start.elapsed();
-    let kops = (args.iterations as f64 / duration.as_secs_f64()) / 1000.0;
-
-    eprintln!("Finished in {:.2?}", duration);
-    eprintln!("Throughput: {:.2} kOPS", kops);
-    eprintln!("CheckSum: {:.2}", score); // Prevent optimization
-
+pub fn run(args: BenchmarkArgs, runner: AgentRunner, job_config: JobConfig) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("📊 Benchmarking via Agent ({} iterations)...", args.iterations);
+    runner.run_benchmark(&job_config, args.iterations)?;
     Ok(())
 }
 
@@ -855,7 +854,7 @@ pub fn run(args: DebugArgs, root: &Path) -> Result<(), Box<dyn std::error::Error
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -868,11 +867,13 @@ use clap::Args;
 use std::path::Path;
 use sysinfo::System;
 use std::time::Duration;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct DoctorArgs {}
 
-pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+// [Fixed] Made async to avoid blocking reqwest
+pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🩺 KeyForge Doctor");
     eprintln!("========================================");
 
@@ -902,6 +903,7 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
     check_tool("cargo");
     check_tool("node");
     check_tool("npm");
+    check_tool("keyforge-agent"); // [Fixed] Check for sidecar binary
 
     // 2. CPU Capabilities
     eprintln!("\n⚡ Processor");
@@ -929,8 +931,8 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
         ("system/keyboards", true),
         ("system/corpora", true),
         ("system/weights", true),
-        ("system/weights/default_costmatrix.mpk.zst", false),
-        ("system/config/keycodes.mpk.zst", false),
+        ("system/weights/default_costmatrix.json", false), // Use json not mpk for local
+        ("system/config/keycodes.json", false),
     ];
 
     let mut all_good = true;
@@ -971,25 +973,16 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
         }
     }
 
-    // 5. Database Connectivity (Removed - Optional Feature)
-    // The database is only used by Hive, not the CLI.
-    // Skipping this check to keep the CLI dependency-free.
-
-    // 6. Hive API Connectivity
+    // 5. Hive API Connectivity
     eprintln!("\n🐝 Hive API");
-    let hive_url = match std::env::var("KEYFORGE_HIVE_URL") {
-        Ok(url) => url,
-        Err(_) => {
-            eprintln!("   ℹ️  KEYFORGE_HIVE_URL not set. Defaulting to 'http://localhost:3000'.");
-            "http://localhost:3000".to_string()
-        }
-    };
+    let hive_url = std::env::var("KEYFORGE_HIVE_URL").unwrap_or_else(|_| DEFAULT_HIVE_URL.to_string());
     
-    let client = reqwest::blocking::Client::builder()
+    // [Fixed] Async Client
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .build()?;
     
-    match client.get(format!("{}/health", hive_url)).send() {
+    match client.get(format!("{}/health", hive_url)).send().await {
         Ok(res) => {
             if res.status().is_success() {
                 eprintln!("   ✅ Reachability: OK ({})", hive_url);
@@ -1000,7 +993,6 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
         }
         Err(e) => {
             eprintln!("   ⚠️  Reachability: FAILED ({}) - Is Hive running?", e);
-            // Don't fail the health check for optional Hive connectivity
         }
     }
 
@@ -1025,10 +1017,10 @@ fn check_tool(name: &str) {
                 .nth(1)
                 .unwrap_or("?")
                 .to_string();
-            eprintln!("   ✅ {:<8} {}", name, ver);
+            eprintln!("   ✅ {:<15} {}", name, ver);
         }
         Err(_) => {
-            eprintln!("   ❌ {:<8} Not Found", name);
+            eprintln!("   ❌ {:<15} Not Found (Sidecar Required)", name);
         }
     }
 }
@@ -1162,45 +1154,34 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
 >>>>>>>> START FILE: apps/keyforge-cli/src/cmd/fetch.rs <<<<<<<<
 // apps/keyforge-cli/src/cmd/fetch.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use crate::error::CliError;
 use clap::{Args, Subcommand};
 use std::path::Path;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchArgs {
     #[command(subcommand)]
     pub command: FetchCommands,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
+    
+    #[arg(long, default_value = "http://localhost:3001")]
+    pub asset_url: String,
 }
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum FetchCommands {
-    /// Download a keyboard definition
     Keyboard { name: String },
-    /// Download a corpus bundle
     Corpus { name: String },
-    /// Download a cost matrix
     Cost { name: String },
 }
 
 pub async fn run(args: FetchArgs, root: &Path) -> Result<(), CliError> {
     let config = keyforge_infra::net::client::ClientConfig {
-        base_url: args.hive.clone(),
+        api_url: args.hive.clone(),
+        asset_url: args.asset_url.clone(),
         secret: None,
         ..Default::default()
     };
@@ -1227,7 +1208,7 @@ pub async fn run(args: FetchArgs, root: &Path) -> Result<(), CliError> {
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1242,16 +1223,18 @@ use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::KeyCode;
 use std::fmt::Write;
 use std::path::Path;
+use keyforge_model::constants::ASSET_KEYCODES_FILENAME;
+use crate::constants::DEFAULT_FMT_WIDTH;
 
 #[derive(Args, Debug, Clone)]
 pub struct FmtArgs {
     pub layout: String,
-    #[arg(short, long, default_value_t = 10)]
+    #[arg(short, long, default_value_t = DEFAULT_FMT_WIDTH)]
     pub width: usize,
 }
 
 pub fn run(args: FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let kc_path = root.join("keycodes.json");
+    let kc_path = root.join(ASSET_KEYCODES_FILENAME);
     let registry = if kc_path.exists() {
         load_keycode_registry(&kc_path).unwrap_or_else(|_| KeycodeRegistry::new_with_defaults())
     } else {
@@ -1287,47 +1270,37 @@ pub fn run(args: FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>>
 >>>>>>>> START FILE: apps/keyforge-cli/src/cmd/init.rs <<<<<<<<
 // apps/keyforge-cli/src/cmd/init.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use crate::error::CliError;
 use clap::Args;
 use keyforge_infra::init::{ensure_dir, USER_WORKSPACE_DIRS};
 use std::path::PathBuf;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
     #[arg(default_value = ".")]
     pub path: PathBuf,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
+
+    #[arg(long, default_value = "http://localhost:3001")]
+    pub asset_url: String,
 }
 
 pub async fn run(args: InitArgs) -> Result<(), CliError> {
     let root = args.path.join("data");
     eprintln!("🚀 Initializing KeyForge Workspace at {:?}", root);
 
-    // 1. Create Structure (Client Policy: Workspace Only)
     for d in USER_WORKSPACE_DIRS {
         ensure_dir(&root, d)
             .map_err(|e| CliError::Workspace(format!("Failed to create {}: {}", d, e)))?;
     }
 
-    // 2. Download Essentials (Online)
     eprintln!("🌐 Connecting to Hive at {}...", args.hive);
     let config = keyforge_infra::net::client::ClientConfig {
-        base_url: args.hive.clone(),
+        api_url: args.hive.clone(),
+        asset_url: args.asset_url.clone(),
         secret: None,
         ..Default::default()
     };
@@ -1340,7 +1313,6 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
         }
     };
 
-    // Use dynamic bootstrap instead of hardcoded list
     match keyforge_infra::net::sync::bootstrap_essentials(&client, &root).await {
         Ok(files) => {
             eprintln!("✅ Downloaded {} essential assets.", files.len());
@@ -1362,7 +1334,7 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1380,9 +1352,11 @@ use keyforge_infra::listing::{
     list_corpora as ws_list_corpora, list_keyboards as ws_list_keyboards,
 };
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::geometry::KeyboardDefinition; // Full parse fallback if needed
 use std::fs;
 use std::path::Path;
+use crate::constants::DEFAULT_LIST_LIMIT;
+use serde::Deserialize;
 
 #[derive(Args, Debug, Clone)]
 pub struct ListArgs {
@@ -1392,29 +1366,25 @@ pub struct ListArgs {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum ListCommands {
-    /// List available Keyboards
     Keyboards {
-        #[arg(
-            long,
-            default_value_t = 50,
-            help = "Limit the number of rows displayed"
-        )]
+        #[arg(long, default_value_t = DEFAULT_LIST_LIMIT)]
         limit: usize,
     },
-    /// List available Corpora
     Corpora {
-        #[arg(
-            long,
-            default_value_t = 50,
-            help = "Limit the number of rows displayed"
-        )]
+        #[arg(long, default_value_t = DEFAULT_LIST_LIMIT)]
         limit: usize,
     },
-    /// List Layouts defined within a specific Keyboard file
     Layouts {
-        #[arg(help = "Name of the keyboard file (e.g. ortho_30)")]
+        #[arg(help = "Name of the keyboard file")]
         keyboard: String,
     },
+}
+
+// [Fixed] Partial struct for fast metadata extraction
+#[derive(Deserialize)]
+struct KeyboardHeader {
+    meta: keyforge_model::geometry::KeyboardMeta,
+    // Ignore geometry for list speed
 }
 
 pub fn run(args: ListArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -1425,7 +1395,6 @@ pub fn run(args: ListArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>
     }
 }
 
-// Helper to check for NO_COLOR env var
 fn apply_style(table: &mut Table) {
     table.load_preset(ASCII_FULL);
 }
@@ -1433,24 +1402,25 @@ fn apply_style(table: &mut Table) {
 fn list_keyboards(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
     let mut table = Table::new();
     apply_style(&mut table);
-    table.set_header(vec!["File", "Name", "Type", "Keys"]);
+    table.set_header(vec!["File", "Name", "Type", "Author"]);
 
     let names = ws_list_keyboards(root).map_err(|e| format!("Failed to list keyboards: {}", e))?;
     let count = names.len();
     for name in names.into_iter().take(limit) {
-        // FIX: Use resolve_path to find the file in user/ or system/ directories
         let p = match resolve_path(&name, Some("keyboards"), root) {
             Ok(path) => path,
             Err(_) => continue,
         };
 
+        // Still read file (I/O bound), but optimize parsing
         if let Ok(content) = read_to_string_limited(&p, MAX_INPUT_FILE_SIZE) {
-            if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(&content) {
+            // [Fixed] Deserialize only metadata
+            if let Ok(header) = serde_json::from_str::<KeyboardHeader>(&content) {
                 table.add_row(vec![
                     name,
-                    def.meta.name,
-                    def.meta.kb_type,
-                    def.geometry.keys.len().to_string(),
+                    header.meta.name,
+                    header.meta.kb_type,
+                    header.meta.author,
                 ]);
             }
         }
@@ -1477,7 +1447,6 @@ fn list_corpora(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::Err
             ("root", parts[0])
         };
 
-        // Try to find the corpus in system or user paths
         let system_path = root.join("system/corpora").join(&id);
         let user_path = root.join("user/corpora").join(&id);
         
@@ -1506,6 +1475,7 @@ fn list_layouts(root: &Path, kb_name: &str) -> Result<(), Box<dyn std::error::Er
     let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
         .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
 
+    // Full parse required here for layouts map
     let def = serde_json::from_str::<KeyboardDefinition>(&content)
         .map_err(|e| format!("Failed to parse keyboard definition: {}", e))?;
 
@@ -1529,7 +1499,7 @@ fn list_layouts(root: &Path, kb_name: &str) -> Result<(), Box<dyn std::error::Er
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1563,7 +1533,7 @@ pub mod validate;
 // you may not use this file except in compliance with the License.
 // You    may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1577,15 +1547,16 @@ use keyforge_protocol::BiometricSample;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use crate::constants::{DEFAULT_USER_STATS_PATH, DEFAULT_PERSONAL_COST_PATH};
 
 #[derive(Args, Debug, Clone)]
 pub struct ProfileArgs {
     /// Path to the user statistics file (JSON or JSONL)
-    #[arg(short, long, default_value = "data/user_stats.jsonl")]
+    #[arg(short, long, default_value = DEFAULT_USER_STATS_PATH)]
     pub input: PathBuf,
 
     /// Path to write the generated cost profile JSON
-    #[arg(short, long, default_value = "data/personal_cost.json")]
+    #[arg(short, long, default_value = DEFAULT_PERSONAL_COST_PATH)]
     pub output: PathBuf,
 }
 
@@ -1661,7 +1632,7 @@ pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1673,18 +1644,21 @@ pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
 use crate::cli_parsers::resolve_path;
 use clap::Args;
 use keyforge_infra::fs::io::read_to_string_limited;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::{
+    MAX_INPUT_FILE_SIZE, DEFAULT_KEYBOARD_ID, ASSET_DEFAULT_COST_MATRIX
+};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::job::JobIdentifier;
 use keyforge_model::CostMatrixSource;
 use std::path::Path;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct QueryArgs {
     #[command(flatten)]
     pub config: crate::cli_args::config::ConfigArgs,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
     #[command(flatten)]
     pub shared: crate::cmd::shared::SharedArgs,
@@ -1695,7 +1669,11 @@ use keyforge_model::Validator;
 pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🔍 Calculating Job Hash for criteria…");
 
-    let kb_path = resolve_path(&args.shared.keyboard, Some("keyboards"), root)?;
+    // Resolve Defaults
+    let kb_input = args.shared.keyboard.unwrap_or_else(|| DEFAULT_KEYBOARD_ID.to_string());
+    let cost_input = args.shared.cost.unwrap_or_else(|| ASSET_DEFAULT_COST_MATRIX.to_string());
+
+    let kb_path = resolve_path(&kb_input, Some("keyboards"), root)?;
 
     let kb_content = read_to_string_limited(&kb_path, MAX_INPUT_FILE_SIZE)
         .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
@@ -1711,7 +1689,7 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     config.search.validate()?;
     config.weights.validate()?;
 
-    let cost_source = CostMatrixSource::Predefined(args.shared.cost.clone());
+    let cost_source = CostMatrixSource::Predefined(cost_input);
 
     let proto_geometry: keyforge_model::geometry::KeyboardGeometry = 
         serde_json::from_value(serde_json::to_value(&kb_def.geometry)?)?;
@@ -1759,24 +1737,9 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
 >>>>>>>> START FILE: apps/keyforge-cli/src/cmd/search.rs <<<<<<<<
 // apps/keyforge-cli/src/cmd/search.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use clap::Args;
-use indicatif::{ProgressBar, ProgressStyle};
-use keyforge_compute::Runtime;
-use keyforge_core::ProgressCallback;
-use keyforge_model::KeyCode;
+use keyforge_protocol::JobConfig;
+use crate::runner::AgentRunner;
 
 #[derive(Args, Debug, Clone)]
 pub struct SearchArgs {
@@ -1799,68 +1762,12 @@ pub struct SearchArgs {
     pub shared: crate::cmd::shared::SharedArgs,
 }
 
-struct CliProgress {
-    bar: ProgressBar,
-}
-
-impl ProgressCallback for CliProgress {
-    fn on_progress(&self, step: usize, score: f32, _layout: &[KeyCode], ips: f32) -> bool {
-        self.bar.set_position(step as u64);
-        self.bar
-            .set_message(format!("Score: {:.0} | {:.2} M/s", score, ips));
-
-        // Check global interrupt
-        if crate::is_interrupted() {
-            return false;
-        }
-        true
-    }
-}
-
-pub fn run(args: SearchArgs, mut runtime: Runtime) -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize global thread pool if requested
-    if args.threads > 0 {
-        let _ = rayon::ThreadPoolBuilder::new()
-            .num_threads(args.threads)
-            .build_global();
-    }
-
-    eprintln!("🔎 Starting optimisation…");
-
-    // Apply overrides to the runtime's local config copy
-    if let Some(s) = args.seed {
-        // FIX: Irrefutable pattern - used direct destructuring
-        let keyforge_model::SearchConfig::Annealing { ref mut seed, .. } = runtime.search_config;
-        *seed = s;
-    }
-
-    // FIX: Irrefutable pattern - used direct destructuring
-    let keyforge_model::SearchConfig::Annealing { steps, .. } = runtime.search_config;
-
-    let pb = ProgressBar::new(steps as u64);
-    pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-        .unwrap()
-        .progress_chars("#>-"));
-
-    let callback = CliProgress { bar: pb.clone() };
-
-    let result = runtime.optimize(callback)?;
-
-    pb.finish_with_message("Done");
-
-    eprintln!("\n=== �� FINAL RESULT ===");
-    eprintln!("Score: {:.3}", result.score);
-
-    let layout_str = result
-        .layout
-        .keys
-        .iter()
-        .map(|&c| runtime.registry.get_label(c))
-        .collect::<Vec<String>>()
-        .join(" ");
-
-    println!("{}", layout_str);
+pub fn run(_args: SearchArgs, runner: AgentRunner, job_config: JobConfig) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("🔎 Delegating optimization to Agent...");
+    
+    // Note: The runner handles spawning the agent which will output the results directly.
+    runner.run_search(&job_config)?;
+    
     Ok(())
 }
 
@@ -1872,7 +1779,7 @@ pub fn run(args: SearchArgs, mut runtime: Runtime) -> Result<(), Box<dyn std::er
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1882,42 +1789,39 @@ pub fn run(args: SearchArgs, mut runtime: Runtime) -> Result<(), Box<dyn std::er
 
 
 use clap::Args;
+// Removed unused imports
 
 /// Flags shared only by commands that actually load a physics session.
 #[derive(Args, Debug, Clone)]
 pub struct SharedArgs {
-    /// Keyboard name or path (e.g. "ortho_30", "ansi_104").
-    /// Defaults to "ortho_30" if not specified.
-    #[arg(short = 'k', long, value_parser = crate::cli_args::parse_keyboard, default_value = "ortho_30", help = "Keyboard name (e.g. 'ortho_30') or file path. Absolute paths and paths relative to CWD or the workspace 'keyboards/' directory are supported.")]
-    pub keyboard: String,
+    /// Keyboard name or path.
+    #[arg(short = 'k', long, value_parser = crate::cli_args::parse_keyboard, help = "Keyboard name (e.g. 'ortho_30') or file path.")]
+    pub keyboard: Option<String>,
 
     /// Cost-matrix JSON file used for biometric scoring.
-    #[arg(short, long, value_parser = crate::cli_args::parse_cost, default_value = "default_costmatrix.json", help = "Path to the cost matrix JSON file. Supports absolute paths and relative paths (checked in CWD and 'keyboards/').")]
-    pub cost: String,
+    #[arg(short, long, value_parser = crate::cli_args::parse_cost, help = "Path to the cost matrix JSON file.")]
+    pub cost: Option<String>,
 
     /// Corpus identifiers to load for frequency analysis.
-    /// Can be specified multiple times.
     #[arg(
         long,
-        default_value = "text/en_std",
-        help = "Corpus source identifier (e.g. 'text/en_std') or path. Can use 'name:weight' format."
+        help = "Corpus source identifier (e.g. 'text/en_std') or path."
     )]
-    pub corpus: Vec<String>,
+    pub corpus: Option<Vec<String>>,
 
     /// Optional path to a custom weights JSON file to override defaults.
     #[arg(
         long,
-        help = "Path to a JSON file containing specific scoring weights overrides. Supports absolute and relative paths."
+        help = "Path to a JSON file containing specific scoring weights overrides."
     )]
     pub weights: Option<String>,
 
     /// Keycodes definition file.
     #[arg(
         long,
-        default_value = "keycodes.json",
         help = "Path to the keycodes definition file."
     )]
-    pub keycodes: String,
+    pub keycodes: Option<String>,
 
     /// Physical-key constraints.
     /// Format: "INDEX:KEYCODE,..." (e.g. "3:Q,7:W")
@@ -1933,7 +1837,7 @@ pub struct SharedArgs {
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1943,8 +1847,28 @@ pub struct SharedArgs {
 
 
 use crate::error::{CliError, Result};
-use crate::update::{check_for_update, perform_update, UpdateConfig};
+use self_update::cargo_crate_version;
+use crate::constants::{DEFAULT_UPDATE_URL, REPO_OWNER};
 use clap::Args;
+
+/// Configuration for auto-update feature
+#[derive(Debug, Clone)]
+pub struct UpdateConfig {
+    /// URL of the update server API endpoint
+    pub server_url: String,
+    /// Auto-install without confirmation
+    pub auto_install: bool,
+}
+
+impl Default for UpdateConfig {
+    fn default() -> Self {
+        Self {
+            server_url: std::env::var("KEYFORGE_UPDATE_URL")
+                .unwrap_or_else(|_| DEFAULT_UPDATE_URL.to_string()),
+            auto_install: false,
+        }
+    }
+}
 
 #[derive(Args, Debug, Clone)]
 pub struct UpdateArgs {
@@ -2004,27 +1928,100 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
     Ok(())
 }
 
+/// Check if a newer version is available
+pub async fn check_for_update(config: &UpdateConfig) -> Result<Option<String>> {
+    let current_version = cargo_crate_version!();
+
+    // Query server for latest version
+    let response = reqwest::get(&config.server_url)
+        .await
+        .map_err(|e| CliError::Update(format!("Failed to check for updates: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(CliError::Update(format!(
+            "Update server returned error: {}",
+            response.status()
+        )));
+    }
+
+    let update_info: UpdateInfo = response
+        .json()
+        .await
+        .map_err(|e| CliError::Update(format!("Invalid response from update server: {}", e)))?;
+
+    if version_greater_than(&update_info.version, current_version) {
+        Ok(Some(update_info.version))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Perform binary update
+pub fn perform_update(config: &UpdateConfig) -> Result<String> {
+    let status = self_update::backends::github::Update::configure()
+        .repo_owner(REPO_OWNER) 
+        .repo_name("keyforge")
+        .bin_name("keyforge")
+        .current_version(cargo_crate_version!())
+        .no_confirm(config.auto_install)
+        .build()
+        .map_err(|e| CliError::Update(format!("Update configuration failed: {}", e)))?
+        .update()
+        .map_err(|e| CliError::Update(format!("Update failed: {}", e)))?;
+
+    Ok(status.version().to_string())
+}
+
+/// Simple semantic version comparison
+fn version_greater_than(v1: &str, v2: &str) -> bool {
+    let parse_version = |v: &str| -> Vec<u32> {
+        v.trim_start_matches('v')
+            .split('.')
+            .filter_map(|s| s.parse().ok())
+            .collect()
+    };
+
+    let v1_parts = parse_version(v1);
+    let v2_parts = parse_version(v2);
+
+    for (a, b) in v1_parts.iter().zip(v2_parts.iter()) {
+        if a > b {
+            return true;
+        } else if a < b {
+            return false;
+        }
+    }
+
+    v1_parts.len() > v2_parts.len()
+}
+
+/// Response from update server
+#[derive(Debug, serde::Deserialize)]
+struct UpdateInfo {
+    version: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version_comparison() {
+        assert!(version_greater_than("0.9.0", "0.8.0"));
+        assert!(version_greater_than("1.0.0", "0.9.9"));
+        assert!(!version_greater_than("0.8.0", "0.9.0"));
+        assert!(!version_greater_than("0.8.0", "0.8.0"));
+        assert!(version_greater_than("0.8.1", "0.8.0"));
+    }
+}
+
 >>>>>>>> END FILE: apps/keyforge-cli/src/cmd/update.rs <<<<<<<<
 >>>>>>>> START FILE: apps/keyforge-cli/src/cmd/validate.rs <<<<<<<<
 // apps/keyforge-cli/src/cmd/validate.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use clap::Args;
-use keyforge_compute::Runtime;
-use keyforge_model::KeyCode;
-use std::error::Error;
+use keyforge_protocol::JobConfig;
+use crate::runner::AgentRunner;
 
 #[derive(Args, Debug, Clone)]
 pub struct ValidateArgs {
@@ -2039,34 +2036,60 @@ pub struct ValidateArgs {
     pub layout: Option<String>,
 }
 
-pub fn run(args: ValidateArgs, runtime: Runtime) -> Result<(), Box<dyn Error>> {
-    eprintln!("🔎 Validating Layout...");
+pub fn run(args: ValidateArgs, runner: AgentRunner, job_config: JobConfig) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("🔎 Validating Layout via Agent...");
 
-    let layout = if let Some(name) = &args.layout {
-        // If it looks like a layout string (contains spaces), parse it.
-        if name.contains(' ') {
-             keyforge_adapter::conversion::parse_layout_string(name, runtime.engine.key_count(), &runtime.registry)?
-        } else {
-             return Err(format!("Layout lookup by name '{}' is not supported yet. Please provide the full layout string.", name).into());
-        }
-    } else {
-        // Use the keys from the registry to form a dummy layout for testing
-        let key_count = runtime.engine.key_count();
-        keyforge_model::Layout::new_unchecked((0..key_count).map(|i| KeyCode(i as u16)).collect())
-    };
-
-    let report = runtime.analyze(&layout)?;
-
-    eprintln!("=== Analysis Report ===");
-    eprintln!("Score:        {:.3}", report.score);
-    eprintln!("Distance:     {:.3}", report.distance);
-    eprintln!("SFB Ratio:    {:.2}%", report.sfb_ratio * 100.0);
-    eprintln!("Hand Balance: {:.2}", report.hand_balance);
+    let layout_str = args.layout.ok_or("Layout string is required for validation")?;
+    
+    runner.run_validation(&job_config, &layout_str)?;
 
     Ok(())
 }
 
 >>>>>>>> END FILE: apps/keyforge-cli/src/cmd/validate.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-cli/src/constants.rs <<<<<<<<
+// apps/keyforge-cli/src/constants.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/// Default URL for the Hive server.
+pub const DEFAULT_HIVE_URL: &str = "http://localhost:3000";
+/// Maximum number of corpus sources allowed in CLI args.
+pub const MAX_CLI_CORPORA: usize = 50;
+/// Name of the configuration directory.
+pub const CONFIG_DIR_NAME: &str = "keyforge";
+/// Name of the CLI configuration file.
+pub const CLI_CONFIG_FILENAME: &str = "cli.json";
+/// Default number of iterations for benchmarks.
+pub const DEFAULT_BENCHMARK_ITERATIONS: usize = 100_000;
+/// Default width for formatted layout output.
+pub const DEFAULT_FMT_WIDTH: usize = 10;
+/// Default limit for list commands.
+pub const DEFAULT_LIST_LIMIT: usize = 50;
+/// Default path for user statistics.
+pub const DEFAULT_USER_STATS_PATH: &str = "data/user_stats.jsonl";
+/// Default path for personal cost profile.
+pub const DEFAULT_PERSONAL_COST_PATH: &str = "data/personal_cost.json";
+/// Default URL for checking updates.
+pub const DEFAULT_UPDATE_URL: &str = "https://keyforge-releases.example.com/api/latest";
+/// GitHub repository owner for self-updates.
+pub const REPO_OWNER: &str = "your-org";
+/// Default output filename for debug visualizations.
+pub const DEFAULT_DEBUG_OUTPUT: &str = "debug_physics.svg";
+/// Default path for benchmark reference data.
+pub const DEFAULT_BENCHMARK_PATH: &str = "data/benchmarks/cyanophage.json";
+
+>>>>>>>> END FILE: apps/keyforge-cli/src/constants.rs <<<<<<<<
 >>>>>>>> START FILE: apps/keyforge-cli/src/error.rs <<<<<<<<
 // apps/keyforge-cli/src/error.rs
 
@@ -2088,25 +2111,32 @@ use thiserror::Error;
 /// CLI-specific error types with consistent formatting
 #[derive(Error, Debug)]
 pub enum CliError {
+    /// Network request failure.
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
 
+    /// Self-update failure.
     #[error("Update failed: {0}")]
     Update(String),
 
+    /// Workspace or filesystem error.
     #[error("Workspace error: {0}")]
     Workspace(String),
 
+    /// Input/Output error.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// JSON serialization/deserialization error.
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
+    /// Generic or miscellaneous error.
     #[error("{0}")]
     Other(String),
 }
 
+/// Result alias for CLI operations.
 pub type Result<T> = std::result::Result<T, CliError>;
 
 impl From<Box<dyn std::error::Error>> for CliError {
@@ -2186,29 +2216,9 @@ pub fn init_tracing() {
 >>>>>>>> START FILE: apps/keyforge-cli/src/main.rs <<<<<<<<
 // apps/keyforge-cli/src/main.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
-//! # KeyForge CLI
-//!
-//! Command-line interface for the KeyForge layout optimization system.
-//! This tool allows users to initialize workspaces, fetch assets, and run 
-//! local optimizations.
-
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
-use keyforge_compute::Runtime;
 use keyforge_infra::resolve_root;
-use keyforge_persistence::{Compiler, Project};
+use keyforge_protocol::JobConfig;
 use std::error::Error;
 use std::path::PathBuf;
 use tracing::{error, info, instrument};
@@ -2217,9 +2227,10 @@ mod cli_args;
 mod cli_parsers;
 mod cmd;
 mod error;
+pub mod constants;
+mod runner;
 use error::CliError;
 mod logging;
-
 mod reports;
 mod update;
 
@@ -2261,7 +2272,6 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
     setup_signal_handler();
-
     if let Err(e) = run_app().await {
         error!("Fatal Error: {}", e);
         return Err(e);
@@ -2272,28 +2282,16 @@ async fn main() -> Result<(), CliError> {
 #[instrument]
 async fn run_app() -> Result<(), CliError> {
     logging::init_tracing();
-
     let matches = Cli::command().get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
-    // 1. Handle Stateless Commands (No Workspace needed)
     match &cli.command {
-        Commands::Init(args) => {
-            cmd::init::run(args.clone()).await?;
-            return Ok(());
-        }
-        Commands::Completions(args) => {
-            cmd::completions::run(args.clone());
-            return Ok(());
-        }
-        Commands::Auth(args) => {
-            cmd::auth::run(args.clone()).await?;
-            return Ok(());
-        }
+        Commands::Init(args) => { cmd::init::run(args.clone()).await?; return Ok(()); }
+        Commands::Completions(args) => { cmd::completions::run(args.clone()); return Ok(()); }
+        Commands::Auth(args) => { cmd::auth::run(args.clone()).await?; return Ok(()); }
         _ => {}
     }
 
-    // Configuration Resolution: CLI > Env > File > Default
     let mut config = keyforge_infra::config::CommonConfig::default();
     if let Some(config_path) = &cli.config {
         match keyforge_infra::config::CommonConfig::from_file(config_path) {
@@ -2304,93 +2302,60 @@ async fn run_app() -> Result<(), CliError> {
             }
         }
     }
-
-    // Explicit CLI/Env overrides
-    if let Some(d) = cli.data_dir {
-        config.data_dir = Some(d);
-    }
+    if let Some(d) = cli.data_dir { config.data_dir = Some(d); }
 
     let root = resolve_root(config.data_dir)
         .map_err(|e| CliError::Workspace(format!("Workspace Error: {}", e)))?;
 
-    // 2. Handle Stateless Commands (Workspace needed)
     match &cli.command {
-        Commands::Doctor(args) => {
-            cmd::doctor::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::Fmt(args) => {
-            cmd::fmt::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::List(args) => {
-            cmd::list::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::Query(args) => {
-            cmd::query::run(args.clone(), &root).await?;
-            return Ok(());
-        }
-        Commands::Profile(args) => {
-            cmd::profile::run(args.clone())?;
-            return Ok(());
-        }
-        Commands::Export(args) => {
-            cmd::export::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::Fetch(args) => {
-            cmd::fetch::run(args.clone(), &root).await?;
-            return Ok(());
-        }
-        Commands::Debug(args) => {
-            cmd::debug::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::Update(args) => {
-            cmd::update::run(args.clone()).await?;
-            return Ok(());
-        }
-        _ => {} // Proceed to Runtime commands
+        Commands::Doctor(args) => { cmd::doctor::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::Fmt(args) => { cmd::fmt::run(args.clone(), &root)?; return Ok(()); }
+        Commands::List(args) => { cmd::list::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Query(args) => { cmd::query::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::Profile(args) => { cmd::profile::run(args.clone())?; return Ok(()); }
+        Commands::Export(args) => { cmd::export::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Fetch(args) => { cmd::fetch::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::Debug(args) => { cmd::debug::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Update(args) => { cmd::update::run(args.clone()).await?; return Ok(()); }
+        _ => {} 
     }
 
-    info!("🚀 Initialising KeyForge Core via Compiler…");
+    info!("🚀 Initializing Agent Runner...");
+    let runner = runner::AgentRunner::new(root.clone())?;
 
-    // 2. Handle Runtime Commands (Search, Validate, Benchmark)
-    // These require the Physics Engine to be compiled.
     match cli.command {
         Commands::Search(args) => {
-            let runtime = build_runtime(&root, &args.shared, args.config.clone()).await?;
-            cmd::search::run(args, runtime)?;
+            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            cmd::search::run(args, runner, job)?;
         }
         Commands::Validate(args) => {
-            let runtime = build_runtime(&root, &args.shared, args.config.clone()).await?;
-            cmd::validate::run(args, runtime)?;
+            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            cmd::validate::run(args, runner, job)?;
         }
         Commands::Benchmark(args) => {
-            let runtime = build_runtime(&root, &args.shared, args.config.clone()).await?;
-            cmd::benchmark::run(args, runtime)?;
+            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            cmd::benchmark::run(args, runner, job)?;
         }
         _ => unreachable!("Stateless commands handled above"),
     }
-
     Ok(())
 }
 
-/// Constructs a Project from CLI args and Compiles it into a Runtime.
-async fn build_runtime(
+fn build_job_config(
     root: &std::path::Path,
     shared: &cmd::shared::SharedArgs,
     config_args: cli_args::config::ConfigArgs,
-) -> Result<Runtime, Box<dyn Error>> {
-    // 1. Parse Args
-    let corpora = cli_args::parse_corpora(&shared.corpus)?;
+) -> Result<JobConfig, Box<dyn Error>> {
+    let corpus_list = shared.corpus.clone().unwrap_or_else(|| vec!["text/en_std".to_string()]);
+    let corpora = cli_args::parse_corpora(&corpus_list)?;
+    let kb_name = shared.keyboard.clone().unwrap_or_else(|| "ortho_30".to_string());
+    let kb_path = cli_parsers::resolve_path(&kb_name, Some("keyboards"), root)?;
+    let kb_content = keyforge_infra::read_to_string_limited(
+        &kb_path,
+        keyforge_model::constants::MAX_INPUT_FILE_SIZE,
+    )?;
+    let definition: keyforge_model::geometry::KeyboardDefinition = serde_json::from_str(&kb_content)?;
 
-    // Resolve Keyboard Path (Handles relative/absolute/workspace paths)
-    let kb_path = cli_parsers::resolve_path(&shared.keyboard, Some("keyboards"), root)?;
-    let kb_str = kb_path.to_string_lossy().to_string();
-
-    // 2. Load Overrides (Optional Weights File)
     let weights = if let Some(w_input) = &shared.weights {
         let w_path = cli_parsers::resolve_path(w_input, None, root)?;
         let content = keyforge_infra::read_to_string_limited(
@@ -2405,45 +2370,31 @@ async fn build_runtime(
 
     use std::convert::TryFrom;
     let params = keyforge_model::config::Config::try_from(config_args)?.search;
+    let cost_name = shared.cost.clone().unwrap_or_else(|| "default_costmatrix.json".to_string());
 
-    // 3. Construct Project (The Blueprint)
-    let project = Project {
-        keyboard: kb_str, // Use resolved absolute path
-        corpora,
+    Ok(JobConfig {
+        definition,
         weights,
         params,
-        constraints: shared.pinned_keys.clone(),
-        cost_matrix: keyforge_model::CostMatrixSource::Predefined(shared.cost.clone()),
-        seed: None, // Will be set by commands if needed
-        ..Default::default()
-    };
-
-    // 4. Compile (The Heavy Lift)
-    let loader = keyforge_infra::FsProvider::new(root.to_path_buf());
-    let compiler = Compiler::new(&loader);
-
-    let runtime = compiler
-        .compile(&project)
-        .await
-        .map_err(|e| CliError::Workspace(format!("Compilation failed: {}", e)))?;
-
-    Ok(runtime)
+        pinned_keys: shared.pinned_keys.clone(),
+        corpora,
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_name),
+        biometrics: vec![],
+        parent_job_id: None,
+        baseline_score: None,
+        parents: vec![],
+    })
 }
 
-// Global interrupt flag for graceful shutdown
 static INTERRUPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Returns true if the application has received an interrupt signal (e.g., Ctrl+C).
 pub fn is_interrupted() -> bool {
     INTERRUPTED.load(std::sync::atomic::Ordering::SeqCst)
 }
-
 fn setup_signal_handler() {
     ctrlc::set_handler(|| {
         INTERRUPTED.store(true, std::sync::atomic::Ordering::SeqCst);
         eprintln!("\nShutting down gracefully... (press Ctrl+C again to force quit)");
-    })
-    .unwrap_or_else(|e| {
+    }).unwrap_or_else(|e| {
         tracing::warn!("Failed to set Ctrl-C handler: {}", e);
     });
 }
@@ -2612,7 +2563,7 @@ pub fn print_comparison_report(results: &[(String, keyforge_model::AnalysisRepor
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -2669,10 +2620,23 @@ pub fn comparisons(
     _benchmarks: Option<&Vec<BenchmarkEntry>>,
 ) {
     if !results.is_empty() {
+        // [Fixed] Safe float comparison
         let best = results
             .iter()
-            .min_by(|a, b| a.1.score.partial_cmp(&b.1.score).unwrap_or(std::cmp::Ordering::Equal))
-            .unwrap();
+            .min_by(|a, b| {
+                a.1.score.partial_cmp(&b.1.score).unwrap_or_else(|| {
+                    // Treat NaN as infinity (worst)
+                    if a.1.score.is_nan() && !b.1.score.is_nan() {
+                        std::cmp::Ordering::Greater
+                    } else if !a.1.score.is_nan() && b.1.score.is_nan() {
+                        std::cmp::Ordering::Less
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                })
+            })
+            .unwrap(); // Results checked for !empty above
+            
         let best_score = best.1.score;
 
         let mut table = Table::new();
@@ -2702,6 +2666,140 @@ pub fn comparisons(
 }
 
 >>>>>>>> END FILE: apps/keyforge-cli/src/reports/tables.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-cli/src/runner.rs <<<<<<<<
+// apps/keyforge-cli/src/runner.rs
+
+use crate::error::CliError;
+use keyforge_protocol::JobConfig;
+use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use tracing::{debug, info};
+
+/// Locates the `keyforge-agent` binary.
+/// 1. Checks `KEYFORGE_AGENT_PATH` env var.
+/// 2. Checks sibling directory of current executable.
+/// 3. Checks PATH.
+fn find_agent() -> Result<PathBuf, CliError> {
+    if let Ok(path) = std::env::var("KEYFORGE_AGENT_PATH") {
+        return Ok(PathBuf::from(path));
+    }
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let sibling = dir.join("keyforge-agent");
+            if sibling.exists() {
+                return Ok(sibling);
+            }
+            // Windows check
+            let sibling_exe = dir.join("keyforge-agent.exe");
+            if sibling_exe.exists() {
+                return Ok(sibling_exe);
+            }
+        }
+    }
+
+    which::which("keyforge-agent")
+        .map_err(|_| CliError::Other("Could not find 'keyforge-agent' binary. Please ensure it is installed or set KEYFORGE_AGENT_PATH.".into()))
+}
+
+pub struct AgentRunner {
+    agent_path: PathBuf,
+    data_dir: PathBuf,
+}
+
+impl AgentRunner {
+    pub fn new(data_dir: PathBuf) -> Result<Self, CliError> {
+        let agent_path = find_agent()?;
+        debug!("Using agent at: {:?}", agent_path);
+        Ok(Self {
+            agent_path,
+            data_dir,
+        })
+    }
+
+    /// Runs the agent in 'run' mode for a full optimization job.
+    pub fn run_search(&self, config: &JobConfig) -> Result<(), CliError> {
+        let temp_file = tempfile::NamedTempFile::new().map_err(CliError::Io)?;
+        let temp_path = temp_file.path().to_path_buf();
+        
+        let json = serde_json::to_string(config).map_err(CliError::Json)?;
+        std::fs::write(&temp_path, json).map_err(CliError::Io)?;
+
+        let mut cmd = Command::new(&self.agent_path);
+        cmd.arg("--data-dir").arg(&self.data_dir);
+        cmd.arg("run");
+        cmd.arg(temp_path);
+        
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+
+        info!("Spawning agent...");
+        let mut child = cmd.spawn().map_err(CliError::Io)?;
+
+        // Stream Output
+        if let Some(stdout) = child.stdout.take() {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                match line {
+                    Ok(l) => println!("{}", l),
+                    Err(_) => break,
+                }
+            }
+        }
+
+        let status = child.wait().map_err(CliError::Io)?;
+        if !status.success() {
+            return Err(CliError::Other(format!("Agent exited with status: {}", status)));
+        }
+
+        Ok(())
+    }
+
+    /// Runs the agent in 'bench' mode.
+    pub fn run_benchmark(&self, config: &JobConfig, iterations: usize) -> Result<(), CliError> {
+        let temp_file = tempfile::NamedTempFile::new().map_err(CliError::Io)?;
+        let temp_path = temp_file.path().to_path_buf();
+        
+        let json = serde_json::to_string(config).map_err(CliError::Json)?;
+        std::fs::write(&temp_path, json).map_err(CliError::Io)?;
+
+        let mut cmd = Command::new(&self.agent_path);
+        cmd.arg("--data-dir").arg(&self.data_dir);
+        cmd.arg("bench");
+        cmd.arg(temp_path);
+        cmd.arg("--iterations").arg(iterations.to_string());
+
+        let status = cmd.status().map_err(CliError::Io)?;
+        if !status.success() {
+            return Err(CliError::Other("Benchmark failed".into()));
+        }
+        Ok(())
+    }
+
+    /// Runs the agent in 'score' mode.
+    pub fn run_validation(&self, config: &JobConfig, layout: &str) -> Result<(), CliError> {
+        let temp_file = tempfile::NamedTempFile::new().map_err(CliError::Io)?;
+        let temp_path = temp_file.path().to_path_buf();
+        
+        let json = serde_json::to_string(config).map_err(CliError::Json)?;
+        std::fs::write(&temp_path, json).map_err(CliError::Io)?;
+
+        let mut cmd = Command::new(&self.agent_path);
+        cmd.arg("--data-dir").arg(&self.data_dir);
+        cmd.arg("score");
+        cmd.arg(temp_path);
+        cmd.arg(layout);
+
+        let status = cmd.status().map_err(CliError::Io)?;
+        if !status.success() {
+            return Err(CliError::Other("Validation failed".into()));
+        }
+        Ok(())
+    }
+}
+
+>>>>>>>> END FILE: apps/keyforge-cli/src/runner.rs <<<<<<<<
 >>>>>>>> START FILE: apps/keyforge-cli/src/update.rs <<<<<<<<
 // apps/keyforge-cli/src/update.rs
 

@@ -148,3 +148,25 @@ mutate-physics:
 
 doc:
     cargo doc --workspace --no-deps --open
+
+# --- Asset Management ---
+
+# Build the Asset Server container
+build-assets:
+    docker build -f ops/Dockerfile.assets -t keyforge-assets .
+
+# Build the Asset Manager container
+build-assetmgr:
+    docker build -f ops/Dockerfile.assetmgr -t keyforge-assetmgr .
+
+# Hydrate Valkey with local assets (useful for dev iteration)
+hydrate:
+    docker-compose run --rm assetmgr hydrate
+
+# Check Asset Server Health
+check-assets:
+    curl -v http://localhost:3001/health
+
+# Check Asset Manifest
+check-manifest:
+    curl -v http://localhost:3001/manifest

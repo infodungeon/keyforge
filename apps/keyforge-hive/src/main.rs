@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,13 +29,11 @@ use keyforge_hive::{
     state::AppState,
 };
 use keyforge_infra::init::{ensure_dir, USER_RUNTIME_DIRS};
-use keyforge_protocol::AssetManifestEntry;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info, warn};
-use walkdir::WalkDir;
 
 #[derive(Parser)]
 struct Args {
@@ -74,52 +72,6 @@ enum Commands {
     },
 }
 
-/// Populates the Valkey global asset cache from the local filesystem data root.
-async fn hydrate_valkey(coordinator: &keyforge_infra::DistributedCoordinator, root: &Path) {
-    info!("�� Hydrating Valkey from local system assets...");
-    let system_root = root.join("system");
-    let walker = WalkDir::new(&system_root).follow_links(true);
-
-    let mut count = 0;
-    for entry in walker.into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() {
-            let path = entry.path();
-            if let Ok(rel) = path.strip_prefix(&system_root) {
-                let key_path = rel.to_string_lossy().replace('\\', "/");
-                let valkey_key = format!("asset:blob:{}", key_path);
-
-                if let Ok(content) = tokio::fs::read(path).await {
-                    let size = content.len() as u64;
-                    // Calculate Hash for Manifest
-                    let hash = match keyforge_infra::util::common::calculate_file_hash(path) {
-                        Ok(h) => h,
-                        Err(_) => "unknown".to_string(),
-                    };
-
-                    // 1. Upload Blob (if missing)
-                    if coordinator.get_bin(&valkey_key).await.unwrap_or(None).is_none() {
-                        if let Err(e) = coordinator.set_bin(&valkey_key, &content).await {
-                            warn!("Failed to upload {}: {}", key_path, e);
-                        } else {
-                            count += 1;
-                        }
-                    }
-
-                    // 2. Update Manifest Entry (Always, to ensure consistency)
-                    let entry = AssetManifestEntry {
-                        id: key_path.clone(),
-                        hash,
-                        size_bytes: size,
-                        last_updated: chrono::Utc::now().timestamp() as u64,
-                    };
-                    let _ = coordinator.set_manifest_entry(&entry).await;
-                }
-            }
-        }
-    }
-    info!("✅ Hydration Complete: {} new assets uploaded.", count);
-}
-
 // Handler for clean shutdown in HTTP mode
 /// Signal handler for clean shutdown in HTTP mode.
 async fn shutdown_signal(state: Arc<AppState>) {
@@ -130,7 +82,6 @@ async fn shutdown_signal(state: Arc<AppState>) {
 }
 
 // Handler for clean shutdown in TLS mode (axum-server)
-// FIX: Added <SocketAddr> generic
 /// Signal handler for clean shutdown in TLS mode.
 async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Arc<AppState>) {
     tokio::signal::ctrl_c().await.ok();
@@ -166,12 +117,6 @@ async fn main() {
                 }
             };
             
-            // Allow override of DB URL from CLI args if provided (though env is preferred)
-            // Note: Args default matches "postgres://..." so we only use args.db if it differs from default OR if we want CLI priority.
-            // But AppConfig enforces DATABASE_URL existence. Let's stick to the AppConfig as the source of truth, 
-            // but for backward compatibility, if CLI arg is provided and specific, we might warn. 
-            // For now, let's use the loaded config.
-
             let pool = match db::try_init_db(&config.database_url).await {
                 Ok(p) => p,
                 Err(e) => {
@@ -224,9 +169,6 @@ async fn main() {
             
             // Init State
             let state = Arc::new(AppState::new(pool, data_path.clone(), server_key, config.clone()).await);
-
-            // 2. HYDRATION (Self-Seeding)
-            hydrate_valkey(&state.coordinator, &data_path).await;
 
             let job_repo_arc = Arc::new(state.jobs.repo.clone());
             let node_repo_arc = Arc::new(state.nodes.clone());

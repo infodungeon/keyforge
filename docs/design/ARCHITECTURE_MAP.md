@@ -9,7 +9,9 @@ graph TD
     subgraph Drivers ["Drivers (The Outside World)"]
         direction TB
         CLI("keyforge-cli<br/>[Command]")
-        Hive("keyforge-hive<br/>[Axum Router]")
+        Hive("keyforge-hive<br/>[Control Plane]")
+        Assets("keyforge-assets<br/>[Data Plane]")
+        AssetMgr("keyforge-assetmgr<br/>[Hydrator]")
         Agent("keyforge-agent<br/>[Worker Loop]")
         UI("keyforge-ui<br/>[Frontend]")
     end
@@ -46,9 +48,14 @@ graph TD
     %% Drivers use Adapters & Ports
     CLI --> Compute
     CLI --> Infra
+    
     Hive --> Infra
     Hive --> Proto
     Hive --> Adapt
+    
+    Assets --> Infra
+    AssetMgr --> Infra
+    
     Agent --> Infra
     Agent --> Proto
     Agent --> Sec
@@ -77,6 +84,8 @@ graph TD
     %% Drivers
     click CLI href "./keyforge-cli/README.md" "Open CLI Design"
     click Hive href "./keyforge-hive/README.md" "Open Hive Design"
+    click Assets href "./keyforge-assets/README.md" "Open Asset Server Design"
+    click AssetMgr href "./keyforge-assetmgr/README.md" "Open Asset Manager Design"
     click Agent href "./keyforge-agent/README.md" "Open Agent Design"
     
     %% Adapters
@@ -107,7 +116,9 @@ Use these links to navigate the design documentation if the diagram is not inter
 ### 1. Drivers (The Apps)
 
 * [**keyforge-cli**](./keyforge-cli/README.md) - Command Line Interface.
-* [**keyforge-hive**](./keyforge-hive/README.md) - Server & API.
+* [**keyforge-hive**](./keyforge-hive/README.md) - Control Plane Server (Jobs, Auth).
+* [**keyforge-assets**](./keyforge-assets/README.md) - Data Plane Server (Static Assets).
+* [**keyforge-assetmgr**](./keyforge-assetmgr/README.md) - Asset Hydration Utility.
 * [**keyforge-agent**](./keyforge-agent/README.md) - Worker Node.
 * [**keyforge-ui**](./keyforge-ui/README.md) - Frontend Application.
 

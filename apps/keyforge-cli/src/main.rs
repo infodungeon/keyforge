@@ -1,23 +1,5 @@
 // apps/keyforge-cli/src/main.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
-//! # KeyForge CLI
-//!
-//! Command-line interface for the KeyForge layout optimization system.
-//! This tool acts as a driver for the `keyforge-agent` sidecar.
-
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use keyforge_infra::resolve_root;
 use keyforge_protocol::JobConfig;
@@ -29,12 +11,10 @@ mod cli_args;
 mod cli_parsers;
 mod cmd;
 mod error;
-/// Shared constants for the CLI.
 pub mod constants;
 mod runner;
 use error::CliError;
 mod logging;
-
 mod reports;
 mod update;
 
@@ -76,7 +56,6 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
     setup_signal_handler();
-
     if let Err(e) = run_app().await {
         error!("Fatal Error: {}", e);
         return Err(e);
@@ -87,28 +66,16 @@ async fn main() -> Result<(), CliError> {
 #[instrument]
 async fn run_app() -> Result<(), CliError> {
     logging::init_tracing();
-
     let matches = Cli::command().get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
-    // 1. Handle Stateless Commands (No Workspace needed)
     match &cli.command {
-        Commands::Init(args) => {
-            cmd::init::run(args.clone()).await?;
-            return Ok(());
-        }
-        Commands::Completions(args) => {
-            cmd::completions::run(args.clone());
-            return Ok(());
-        }
-        Commands::Auth(args) => {
-            cmd::auth::run(args.clone()).await?;
-            return Ok(());
-        }
+        Commands::Init(args) => { cmd::init::run(args.clone()).await?; return Ok(()); }
+        Commands::Completions(args) => { cmd::completions::run(args.clone()); return Ok(()); }
+        Commands::Auth(args) => { cmd::auth::run(args.clone()).await?; return Ok(()); }
         _ => {}
     }
 
-    // Configuration Resolution
     let mut config = keyforge_infra::config::CommonConfig::default();
     if let Some(config_path) = &cli.config {
         match keyforge_infra::config::CommonConfig::from_file(config_path) {
@@ -119,59 +86,27 @@ async fn run_app() -> Result<(), CliError> {
             }
         }
     }
-
-    if let Some(d) = cli.data_dir {
-        config.data_dir = Some(d);
-    }
+    if let Some(d) = cli.data_dir { config.data_dir = Some(d); }
 
     let root = resolve_root(config.data_dir)
         .map_err(|e| CliError::Workspace(format!("Workspace Error: {}", e)))?;
 
-    // 2. Handle Stateless Commands (Workspace needed)
     match &cli.command {
-        Commands::Doctor(args) => {
-            cmd::doctor::run(args.clone(), &root).await?;
-            return Ok(());
-        }
-        Commands::Fmt(args) => {
-            cmd::fmt::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::List(args) => {
-            cmd::list::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::Query(args) => {
-            cmd::query::run(args.clone(), &root).await?;
-            return Ok(());
-        }
-        Commands::Profile(args) => {
-            cmd::profile::run(args.clone())?;
-            return Ok(());
-        }
-        Commands::Export(args) => {
-            cmd::export::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::Fetch(args) => {
-            cmd::fetch::run(args.clone(), &root).await?;
-            return Ok(());
-        }
-        Commands::Debug(args) => {
-            cmd::debug::run(args.clone(), &root)?;
-            return Ok(());
-        }
-        Commands::Update(args) => {
-            cmd::update::run(args.clone()).await?;
-            return Ok(());
-        }
+        Commands::Doctor(args) => { cmd::doctor::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::Fmt(args) => { cmd::fmt::run(args.clone(), &root)?; return Ok(()); }
+        Commands::List(args) => { cmd::list::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Query(args) => { cmd::query::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::Profile(args) => { cmd::profile::run(args.clone())?; return Ok(()); }
+        Commands::Export(args) => { cmd::export::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Fetch(args) => { cmd::fetch::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::Debug(args) => { cmd::debug::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Update(args) => { cmd::update::run(args.clone()).await?; return Ok(()); }
         _ => {} 
     }
 
     info!("🚀 Initializing Agent Runner...");
     let runner = runner::AgentRunner::new(root.clone())?;
 
-    // 3. Handle Agent-Delegated Commands
     match cli.command {
         Commands::Search(args) => {
             let job = build_job_config(&root, &args.shared, args.config.clone())?;
@@ -187,33 +122,24 @@ async fn run_app() -> Result<(), CliError> {
         }
         _ => unreachable!("Stateless commands handled above"),
     }
-
     Ok(())
 }
 
-/// Constructs a JobConfig from CLI args for the Agent.
 fn build_job_config(
     root: &std::path::Path,
     shared: &cmd::shared::SharedArgs,
     config_args: cli_args::config::ConfigArgs,
 ) -> Result<JobConfig, Box<dyn Error>> {
-    // 1. Parse Args
     let corpus_list = shared.corpus.clone().unwrap_or_else(|| vec!["text/en_std".to_string()]);
     let corpora = cli_args::parse_corpora(&corpus_list)?;
-
     let kb_name = shared.keyboard.clone().unwrap_or_else(|| "ortho_30".to_string());
-    
-    // Resolve Keyboard Path
     let kb_path = cli_parsers::resolve_path(&kb_name, Some("keyboards"), root)?;
-    
-    // Load Keyboard Definition
     let kb_content = keyforge_infra::read_to_string_limited(
         &kb_path,
         keyforge_model::constants::MAX_INPUT_FILE_SIZE,
     )?;
     let definition: keyforge_model::geometry::KeyboardDefinition = serde_json::from_str(&kb_content)?;
 
-    // 2. Load Overrides (Optional Weights File)
     let weights = if let Some(w_input) = &shared.weights {
         let w_path = cli_parsers::resolve_path(w_input, None, root)?;
         let content = keyforge_infra::read_to_string_limited(
@@ -228,7 +154,6 @@ fn build_job_config(
 
     use std::convert::TryFrom;
     let params = keyforge_model::config::Config::try_from(config_args)?.search;
-
     let cost_name = shared.cost.clone().unwrap_or_else(|| "default_costmatrix.json".to_string());
 
     Ok(JobConfig {
@@ -245,20 +170,15 @@ fn build_job_config(
     })
 }
 
-// Global interrupt flag for graceful shutdown
 static INTERRUPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Returns true if the application has received an interrupt signal (e.g., Ctrl+C).
 pub fn is_interrupted() -> bool {
     INTERRUPTED.load(std::sync::atomic::Ordering::SeqCst)
 }
-
 fn setup_signal_handler() {
     ctrlc::set_handler(|| {
         INTERRUPTED.store(true, std::sync::atomic::Ordering::SeqCst);
         eprintln!("\nShutting down gracefully... (press Ctrl+C again to force quit)");
-    })
-    .unwrap_or_else(|e| {
+    }).unwrap_or_else(|e| {
         tracing::warn!("Failed to set Ctrl-C handler: {}", e);
     });
 }

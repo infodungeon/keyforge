@@ -1,0 +1,28 @@
+# Stage 1: Chef
+FROM rust:slim-bookworm AS chef
+WORKDIR /app
+RUN cargo install cargo-chef
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Stage 2: Builder
+FROM rust:slim-bookworm AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-chef
+COPY --from=chef /app/recipe.json recipe.json
+# Build dependencies - this layer is cached until Cargo.lock changes
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Stage 3: Compiler
+COPY . .
+RUN cargo build --release --bin keyforge-assets
+
+# Stage 4: Runtime (Distroless)
+# Using cc-debian12 includes libssl, libc, libgcc
+FROM gcr.io/distroless/cc-debian12
+WORKDIR /app
+COPY --from=builder /app/target/release/keyforge-assets /app/keyforge-assets
+ENV RUST_LOG=info
+EXPOSE 3001
+ENTRYPOINT ["/app/keyforge-assets"]

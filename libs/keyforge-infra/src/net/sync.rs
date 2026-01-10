@@ -1,17 +1,5 @@
 // libs/keyforge-infra/src/net/sync.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use crate::net::client::HiveClient;
 use crate::net::network::ensure_file;
 use crate::util::common::calculate_file_hash;
@@ -22,87 +10,51 @@ use std::path::{Component, Path};
 use tracing::{error, info};
 use walkdir::WalkDir;
 
-/// Represents a snapshot of the expected files and their hashes on the Hive server.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServerManifest {
-    /// A map of relative file paths to their SHA-256 hashes.
     pub files: HashMap<String, String>,
 }
 
-/// Statistics about a completed workspace synchronization operation.
 #[derive(Serialize, Clone, Debug)]
 pub struct SyncStats {
-    /// Number of files successfully downloaded.
     pub downloaded: usize,
-    /// Number of files merged (unused in current implementation but reserved).
     pub merged: usize,
-    /// Number of files that were already up-to-date and skipped.
     pub skipped: usize,
-    /// A list of error messages encountered during sync.
     pub errors: Vec<String>,
 }
 
-/// Synchronizes the local system directory with the Hive server's manifest.
-///
-/// It performs integrity checks using SHA-256 hashes and only downloads files
-/// that are missing or have changed. It includes security checks to prevent
-/// path traversal attacks from a compromised server.
 pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<SyncStats, String> {
     info!("🔄 Starting Sync...");
-    let server_manifest: ServerManifest = client
-        .get("manifest")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to connect to Hive: {}", e))?
-        .json()
-        .await
+    // Manifest is served from Asset Server
+    let url = client.asset_url("manifest");
+    
+    let server_manifest: ServerManifest = client.inner().get(&url)
+        .send().await
+        .map_err(|e| format!("Failed to fetch manifest: {}", e))?
+        .json().await
         .map_err(|e| format!("Invalid manifest JSON: {}", e))?;
 
-    let mut stats = SyncStats {
-        downloaded: 0,
-        merged: 0,
-        skipped: 0,
-        errors: vec![],
-    };
+    let mut stats = SyncStats { downloaded: 0, merged: 0, skipped: 0, errors: vec![] };
     let system_root = local_data_root.join("system");
-    if !system_root.exists() {
-        fs::create_dir_all(&system_root).map_err(|e| e.to_string())?;
-    }
-    let jail =
-        fs::canonicalize(&system_root).map_err(|e| format!("Invalid local system root: {}", e))?;
+    if !system_root.exists() { fs::create_dir_all(&system_root).map_err(|e| e.to_string())?; }
+    let jail = fs::canonicalize(&system_root).map_err(|e| e.to_string())?;
 
     for (rel_path, server_hash) in server_manifest.files {
         let normalized = match crate::util::common::normalize_path(&rel_path) {
             Some(p) => p,
-            None => {
-                let msg = format!("SECURITY WARNING: Server attempted path traversal: {}", rel_path);
-                error!("{}", msg);
-                stats.errors.push(msg);
-                continue;
-            }
+            None => continue,
         };
 
-        let path_obj = Path::new(&normalized);
-        let target_path = jail.join(path_obj);
-        if let Some(parent) = target_path.parent() {
-            if !parent.exists() {
-                let _ = fs::create_dir_all(parent);
-            }
-        }
-
+        let target_path = jail.join(normalized);
         let needs_update = if target_path.exists() {
             calculate_file_hash(&target_path).unwrap_or_default() != server_hash
-        } else {
-            true
-        };
+        } else { true };
 
         if needs_update {
-            let remote_url = client.url(&format!("data/system/{}", rel_path));
+            let remote_url = client.asset_url(&format!("data/system/{}", rel_path));
             match ensure_file(client, &remote_url, &target_path, Some(&server_hash)).await {
                 Ok(_) => stats.downloaded += 1,
-                Err(e) => stats
-                    .errors
-                    .push(format!("Sync failed for {}: {}", rel_path, e)),
+                Err(e) => stats.errors.push(format!("{}: {}", rel_path, e)),
             }
         } else {
             stats.skipped += 1;
@@ -111,41 +63,22 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     Ok(stats)
 }
 
-/// Eagerly downloads a minimal set of essential assets required for basic operation.
-///
-/// This is used during the first-time setup or when a node is reset.
-pub async fn bootstrap_essentials(
-    client: &HiveClient,
-    local_root: &Path,
-) -> Result<Vec<String>, String> {
-    info!("🚀 Bootstrapping essential assets (Dynamic Discovery)...");
+pub async fn bootstrap_essentials(client: &HiveClient, local_root: &Path) -> Result<Vec<String>, String> {
+    info!("🚀 Bootstrapping essential assets...");
+    let url = client.asset_url("manifest");
+    let manifest: ServerManifest = client.inner().get(&url)
+        .send().await.map_err(|e| e.to_string())?
+        .json().await.map_err(|e| e.to_string())?;
+
     let mut downloaded = Vec::new();
-
-    let manifest: ServerManifest = client
-        .get("manifest")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch manifest during bootstrap: {}", e))?
-        .json()
-        .await
-        .map_err(|e| format!("Invalid manifest JSON during bootstrap: {}", e))?;
-
     for (rel_path, server_hash) in manifest.files {
-        // Essential assets: all keyboard models and specific configs
-        let is_keyboard = rel_path.starts_with(crate::asset::ASSET_PATH_KEYBOARDS) && rel_path.ends_with(".mpk.zst");
-        let is_keycodes = rel_path == format!("{}{}.mpk.zst", crate::asset::ASSET_PATH_CONFIG, keyforge_model::constants::ASSET_KEYCODES);
-        let is_categories = rel_path == format!("{}ui_categories.mpk.zst", crate::asset::ASSET_PATH_CONFIG);
+        let is_keyboard = rel_path.starts_with("keyboards/models/") && rel_path.ends_with(".mpk.zst");
+        let is_keycodes = rel_path.contains("keycodes.mpk.zst");
+        let is_cats = rel_path.contains("ui_categories.mpk.zst");
 
-        if is_keyboard || is_keycodes || is_categories {
-            let remote = client.url(&format!("data/system/{}", rel_path));
+        if is_keyboard || is_keycodes || is_cats {
+            let remote = client.asset_url(&format!("data/system/{}", rel_path));
             let local = local_root.join("system").join(&rel_path);
-            
-            if let Some(parent) = local.parent() {
-                if !parent.exists() {
-                    let _ = fs::create_dir_all(parent);
-                }
-            }
-
             if ensure_file(client, &remote, &local, Some(&server_hash)).await.is_ok() {
                 downloaded.push(rel_path);
             }
@@ -154,48 +87,17 @@ pub async fn bootstrap_essentials(
     Ok(downloaded)
 }
 
-/// Scans a local directory and generates a manifest of all files and their hashes.
-///
-/// This is used by the Hive server to publish its current asset state to clients.
 pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerManifest> {
     let mut files = HashMap::new();
-
-    // Scan entire data_root recursively, following symlinks
     let walker = WalkDir::new(data_root).follow_links(true);
 
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             let path = entry.path();
-
-            // Skip hidden files/directories
-            if path
-                .components()
-                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.')))
-            {
-                continue;
-            }
-
-            // Skip benchmarks directory
-            if path
-                .components()
-                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy() == "benchmarks"))
-            {
-                continue;
-            }
-
-            // Skip testing artifacts
-            if path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .map(|s| s.starts_with("testing."))
-                .unwrap_or(false)
-            {
-                continue;
-            }
-
+            if path.components().any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.'))) { continue; }
+            
             if let Ok(hash) = calculate_file_hash(path) {
                 if let Ok(relative) = path.strip_prefix(data_root) {
-                    // println!("✅ Added to Manifest: {}", relative.to_string_lossy());
                     files.insert(relative.to_string_lossy().replace('\\', "/"), hash);
                 }
             }

@@ -32,7 +32,5 @@ pub mod submit_layout;
 pub mod list_submissions;
 /// Administrative endpoint for deleting all user data (GDPR/Test cleanup).
 pub mod nuke_user;
-/// Static asset management and manifest serving.
-pub mod assets;
 /// General system status and version info.
 pub mod system;

@@ -1,18 +1,5 @@
 // apps/keyforge-agent/src/agent/network.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use crate::agent::errors::AgentResult;
 use crate::models::{AgentConfig, SharedTelemetry};
 use crate::agent::crypto;
@@ -30,7 +17,6 @@ use sysinfo::{System, ProcessesToUpdate};
 use std::path::PathBuf;
 use keyforge_infra::HiveClient;
 
-/// Manages high-level network operations for the agent.
 pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
@@ -44,17 +30,10 @@ pub struct NetworkManager {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "type", content = "payload")]
 enum ServerMessage {
-    Job { 
-        #[serde(rename = "id")]
-        id: String 
-    },
-    Cancel { 
-        #[serde(rename = "id")]
-        id: String 
-    },
+    Job { #[serde(rename = "id")] id: String },
+    Cancel { #[serde(rename = "id")] id: String },
 }
 
-/// A circuit breaker for network requests.
 pub struct CircuitBreaker {
     failures: u32,
     threshold: u32,
@@ -63,43 +42,18 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    /// Creates a new `CircuitBreaker`.
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
-        Self {
-            failures: 0,
-            threshold,
-            last_failure: None,
-            cooldown: Duration::from_secs(cooldown_secs),
-        }
+        Self { failures: 0, threshold, last_failure: None, cooldown: Duration::from_secs(cooldown_secs) }
     }
-
-    /// Returns `true` if an attempt is allowed.
     pub fn can_attempt(&self) -> bool {
-        if self.failures < self.threshold {
-            return true;
-        }
-        if let Some(last) = self.last_failure {
-            if last.elapsed() > self.cooldown {
-                return true;
-            }
-        }
+        if self.failures < self.threshold { return true; }
+        if let Some(last) = self.last_failure { if last.elapsed() > self.cooldown { return true; } }
         false
     }
-
-    /// Records a failure.
-    pub fn record_failure(&mut self) {
-        self.failures += 1;
-        self.last_failure = Some(Instant::now());
-    }
-
-    /// Resets the failure counter.
-    pub fn record_success(&mut self) {
-        self.failures = 0;
-        self.last_failure = None;
-    }
+    pub fn record_failure(&mut self) { self.failures += 1; self.last_failure = Some(Instant::now()); }
+    pub fn record_success(&mut self) { self.failures = 0; self.last_failure = None; }
 }
 
-/// A persistent outbox for result submissions.
 pub struct ResultOutbox {
     _client: HiveClient,
     wal_dir: PathBuf,
@@ -107,18 +61,11 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
-    /// Creates a new `ResultOutbox`.
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
-        Self {
-            _client: client,
-            wal_dir,
-            _breaker: CircuitBreaker::new(threshold, 60),
-        }
+        Self { _client: client, wal_dir, _breaker: CircuitBreaker::new(threshold, 60) }
     }
-
-    /// Buffers a result to disk.
     pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
         let path = self.wal_dir.join(format!("{}.json", submission.nonce));
         if let Ok(json) = serde_json::to_string(submission) {
@@ -130,8 +77,6 @@ impl ResultOutbox {
         }
         Ok(())
     }
-
-    /// Retrieves all pending submissions from disk.
     pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
         let mut pending = Vec::new();
         if let Ok(entries) = std::fs::read_dir(&self.wal_dir) {
@@ -151,8 +96,6 @@ impl ResultOutbox {
         }
         pending
     }
-
-    /// Deletes a WAL file.
     pub fn delete(&self, path: &PathBuf) {
         if let Err(e) = std::fs::remove_file(path) {
             warn!("Failed to delete WAL file {:?}: {}", path, e);
@@ -163,7 +106,6 @@ impl ResultOutbox {
 }
 
 impl NetworkManager {
-    /// Creates a new `NetworkManager`.
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
@@ -177,7 +119,8 @@ impl NetworkManager {
             .map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to build HTTP client: {}", e)))?;
 
         let hive_client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
-            base_url: config.hive_url.clone(),
+            api_url: config.hive_url.clone(),
+            asset_url: config.asset_url.clone(), // Passthrough
             secret: Some(config.secret.clone()),
             ..Default::default()
         }).map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to init outbox client: {}", e)))?;
@@ -188,18 +131,9 @@ impl NetworkManager {
             config.network.circuit_breaker_threshold
         );
 
-        Ok(Self {
-            client,
-            config,
-            telemetry,
-            job_tx,
-            result_rx,
-            stop_tx,
-            outbox,
-        })
+        Ok(Self { client, config, telemetry, job_tx, result_rx, stop_tx, outbox })
     }
 
-    /// Starts the main network event loop.
     pub async fn run(mut self) {
         let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds); 
         loop {
@@ -217,11 +151,8 @@ impl NetworkManager {
         let mut ws_url = Url::parse(&self.config.hive_url)
             .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
         
-        if ws_url.scheme() == "http" {
-            let _ = ws_url.set_scheme("ws");
-        } else if ws_url.scheme() == "https" {
-            let _ = ws_url.set_scheme("wss");
-        }
+        if ws_url.scheme() == "http" { let _ = ws_url.set_scheme("ws"); } 
+        else if ws_url.scheme() == "https" { let _ = ws_url.set_scheme("wss"); }
         
         ws_url.set_path("ws");
         ws_url.query_pairs_mut().append_pair("node_id", &self.config.node_id);
@@ -246,11 +177,7 @@ impl NetworkManager {
             tokio::select! {
                 _ = heartbeat.tick() => {
                     sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
-                    let memory_usage = if let Some(process) = sys.process(pid) {
-                        process.memory()
-                    } else {
-                        0
-                    };
+                    let memory_usage = if let Some(process) = sys.process(pid) { process.memory() } else { 0 };
 
                     let (ips, temp, best) = telemetry.snapshot();
                     let job_id = telemetry.get_job_id();
@@ -272,7 +199,6 @@ impl NetworkManager {
                             return Err(crate::agent::errors::AgentError::Network(e.to_string()));
                         }
                     }
-
                     self.flush_wal().await;
                 }
                 msg = read.next() => {
@@ -328,10 +254,8 @@ impl NetworkManager {
         Ok(())
     }
 
-    /// Submits a result to the Hive server.
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
-        
         let mut signed_result = result.clone();
 
         if signed_result.signature.is_none() {
@@ -375,12 +299,8 @@ impl NetworkManager {
 
     async fn flush_wal(&self) {
         let pending = self.outbox.get_pending();
-        if pending.is_empty() {
-            return;
-        }
-
+        if pending.is_empty() { return; }
         info!("🔄 WAL Flush: Attempting to resend {} pending submissions...", pending.len());
-
         for (path, submission) in pending {
             match self.submit_result(submission).await {
                 Ok(_) => {

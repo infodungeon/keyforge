@@ -21,6 +21,8 @@
 * [keyforge-testing](./keyforge-testing/README.md) - Test Harness.
 
 ## Drivers (The Apps)
-* [keyforge-hive](./keyforge-hive/README.md) - Server & API.
+* [keyforge-hive](./keyforge-hive/README.md) - Control Plane Server.
+* [keyforge-assets](./keyforge-assets/README.md) - Data Plane Server.
+* [keyforge-assetmgr](./keyforge-assetmgr/README.md) - Asset Hydration Utility.
 * [keyforge-agent](./keyforge-agent/README.md) - Worker Node.
 * [keyforge-cli](./keyforge-cli/README.md) - Command Line Interface.

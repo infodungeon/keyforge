@@ -66,24 +66,6 @@ async fn test_health_check() {
 }
 
 #[tokio::test]
-async fn test_manifest_access() {
-    let (app, _, _valkey) = setup_test_app().await;
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/manifest")
-                .extension(ConnectInfo(test_addr()))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-}
-
-#[tokio::test]
 async fn test_submissions_list() {
     let (app, _, _valkey) = setup_test_app().await;
 

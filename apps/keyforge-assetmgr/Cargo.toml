@@ -1,0 +1,23 @@
+[package]
+name = "keyforge-assetmgr"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+description = "Operational tool for managing, seeding, and watching distributed assets in Valkey."
+repository.workspace = true
+[lints]
+workspace = true
+
+[dependencies]
+tokio = { version = "1.48", features = ["full"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+walkdir = "2.5"
+anyhow = "1.0"
+chrono = "0.4"
+notify = "8.2" 
+futures = "0.3"

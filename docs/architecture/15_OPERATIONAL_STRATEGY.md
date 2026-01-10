@@ -1,7 +1,7 @@
 # Operational Strategy (Day-2 Operations)
 
-**Version:** 4.3
-**Context:** Maintenance, Scaling, and Reliability.
+**Version:** 4.6
+**Context:** Maintenance, Scaling, Reliability, and Containerization.
 
 ## 1. Database Migrations
 
@@ -24,19 +24,48 @@ KeyForge uses **Valkey** (Redis-compatible) as a high-speed coordination layer. 
 *   **Role:** Stores ephemeral node telemetry (IPS, Temperature, RAM) with a 30-second TTL. This removes 99% of `UPDATE nodes SET ...` traffic from the primary database.
 
 ### C. The Source of Truth for Assets
-*   **Function:** `set_manifest_entry`
-*   **Role:** Stores the authoritative SHA-256 hash of system assets. This allows workers to verify they have the latest corpus/weights without thrashing the disk I/O on the server.
+*   **Function:** `set_manifest_entry` / `get_bin`
+*   **Role:** Stores the authoritative SHA-256 hash of system assets and the binary content itself. This decouples file serving from the API logic.
 
 ### D. The Event Bus (Pub/Sub)
 *   **Function:** `publish_update`
 *   **Role:** Broadcasts job status changes (e.g., "Job 123 Completed") to all connected clients instantly, regardless of which server instance they are connected to.
 
-### Operational Configuration
-*   **Connection:** `KEYFORGE_VALKEY_URL` (e.g., `redis://:password@127.0.0.1:6379`).
-*   **Eviction:** `maxmemory-policy` set to `allkeys-lru` to ensure old heartbeats die first if RAM is full.
-*   **Persistence:** `--save ""` (Ephemeral). We do not persist heartbeats across restarts to avoid "Zombie Nodes".
+## 3. The Asset Lifecycle (Data Plane)
 
-## 3. Secret Management
+The Asset Architecture follows a strict **Writer/Reader separation**.
+
+### The Manager (`keyforge-assetmgr`)
+*   **Role:** The Write Master (Daemon).
+*   **Privileges:** Read/Write access to Valkey. Read access to Disk.
+*   **Lifecycle:** Long-running process.
+*   **Behavior:**
+    1.  **Boot:** Scans `data/system`, validates every file, and hydrates Valkey.
+    2.  **Runtime:** Watches the filesystem using OS-native events (inotify/FSEvents).
+    3.  **Update:** When a file changes, it re-validates and re-uploads atomically.
+    4.  **Notify:** Publishes `asset_update` events to the cluster so caches can be invalidated.
+
+### The Server (`keyforge-assets`)
+*   **Role:** The Read Replica (Gateway).
+*   **Privileges:** **Read-Only** access to Valkey. No Disk access required.
+*   **Lifecycle:** Stateless request handler.
+*   **Behavior:** Serves HTTP requests by streaming data directly from Valkey memory.
+
+## 4. Containerization Strategy
+
+We adhere to the **Minimal Attack Surface** doctrine.
+
+### Rust Services (`hive`, `assets`, `assetmgr`)
+*   **Base Image:** `gcr.io/distroless/cc-debian12`
+*   **Components:** Contains only the compiled binary, `glibc`, `libssl`, and `libgcc`.
+*   **Security:** No shell (`/bin/sh`), no package manager (`apt`), no temp files.
+*   **Size:** ~25MB compressed.
+
+### Infrastructure Services
+*   **Database:** `postgres:16-alpine`. Standard minimal image based on Alpine Linux.
+*   **Web Proxy:** `httpd:alpine`. Minimal Apache build based on Alpine Linux.
+
+## 5. Secret Management
 
 * **Storage:** Environment Variables (`HIVE_SECRET`, `DATABASE_URL`, `KEYFORGE_VALKEY_URL`).
 * **Rotation:**
@@ -44,14 +73,8 @@ KeyForge uses **Valkey** (Redis-compatible) as a high-speed coordination layer. 
   2. Trigger a Rolling Restart.
   3. Nodes re-authenticate with the new secret.
 
-## 4. Backpressure & Overload
-
-* **Job Queue:** Bounded. If the DB Queue table exceeds N rows, `POST /jobs` returns `503 Service Unavailable`.
-* **Concurrency:** `tokio::semaphore` limits the number of concurrent DB connections.
-* **Rate Limiting:** `governor` middleware rejects excessive API calls.
-
-## 5. Disaster Recovery
+## 6. Disaster Recovery
 
 * **RPO:** 24 Hours (Daily Backups).
 * **RTO:** 1 Hour (Redeploy Stack).
-* **Strategy:** Postgres Dump for persistent state. Assets re-downloaded from upstream.
+* **Strategy:** Postgres Dump for persistent state. Assets re-hydrated automatically by `assetmgr` from the mounted volume or container image.

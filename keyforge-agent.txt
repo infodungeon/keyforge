@@ -614,19 +614,6 @@ pub async fn prune_stale_data(data_root: PathBuf, config: &MaintenanceConfig) ->
 >>>>>>>> START FILE: apps/keyforge-agent/src/agent/mod.rs <<<<<<<<
 // apps/keyforge-agent/src/agent/mod.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 //! Core logic for the KeyForge Agent.
 
 use crate::models::{AgentConfig, SharedTelemetry};
@@ -640,39 +627,31 @@ use tokio::sync::broadcast;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 
-/// JIT calibration for CPU-bound scoring tasks.
 pub mod calibration;
-/// Optimization engine orchestration and job execution.
 pub mod compute;
-/// Agent-specific error types and results.
 pub mod errors;
-/// System maintenance and garbage collection.
 pub mod maintenance;
-/// Secure WebSocket and HTTP communication with the Hive.
 pub mod network;
-/// Real-time telemetry and metrics reporting.
 pub mod telemetry;
-/// Cryptographic primitives for agent identity and signing.
 pub mod crypto;
 
 use self::errors::AgentResult;
 use keyforge_infra::net::client::ClientConfig;
 
-/// The main Agent coordinator that orchestrates optimization jobs.
 pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,
-    assets: Arc<keyforge_infra::AssetManager>, // Wrapped in Arc for sharing
+    assets: Arc<keyforge_infra::AssetManager>, 
     result_tx: mpsc::Sender<ResultSubmission>,
 }
 
 impl Agent {
-    /// Creates a new Agent instance with the given configuration.
     pub async fn new(config: AgentConfig, result_tx: mpsc::Sender<ResultSubmission>) -> AgentResult<Self> {
         let telemetry = SharedTelemetry::default();
         
         let client_config = ClientConfig {
-            base_url: config.hive_url.clone(),
+            api_url: config.hive_url.clone(),
+            asset_url: config.asset_url.clone(), // Pass through
             secret: Some(config.secret.clone()),
             ..Default::default()
         };
@@ -689,36 +668,32 @@ impl Agent {
         Ok(Self { 
             config, 
             telemetry, 
-            assets: Arc::new(assets), // Arc wrapping
+            assets: Arc::new(assets), 
             result_tx 
         })
     }
 
-    /// Starts the agent's job processing loop.
     pub async fn run(
         &self, 
         mut job_rx: mpsc::Receiver<(String, JobConfig)>,
         mut stop_rx: mpsc::Receiver<()>
     ) -> AgentResult<()> {
-        info!("🤖 KeyForge Agent v0.8.0 Starting...");
+        info!("🤖 KeyForge Agent v0.9.0 Starting...");
         info!("   Node ID: {}", self.config.node_id);
         info!("   Capacity: {} Cores", self.config.cores);
 
-        // Global Semaphore for Core Management
         let global_semaphore = Arc::new(Semaphore::new(self.config.cores));
-        
         let mut running_jobs: HashMap<String, Arc<std::sync::atomic::AtomicBool>> = HashMap::new();
 
         loop {
             tokio::select! {
-                // 1. New Job Arrival
                 Some((job_id, job)) = job_rx.recv() => {
                     info!("⚙️  Queued Job (ID: {})...", job_id);
                     
                     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
                     running_jobs.insert(job_id.clone(), stop_flag.clone());
 
-                    let assets = self.assets.clone(); // Cheap Arc clone
+                    let assets = self.assets.clone();
                     let config_compute = self.config.compute.clone();
                     let config_system = self.config.system.clone();
                     let config_telemetry = self.config.telemetry.clone();
@@ -727,21 +702,17 @@ impl Agent {
                     let telemetry = self.telemetry.clone();
                     let node_id = self.config.node_id.clone();
                     let semaphore = global_semaphore.clone();
-                    
-                    // Determine cores needed (Assume 1 for now)
                     let permits_needed = 1; 
 
                     tokio::spawn(async move {
-                        // 1. Acquire Resources (Wait if full)
                         let _permit = match semaphore.acquire_many(permits_needed).await {
                             Ok(p) => p,
-                            Err(_) => return, // Semaphore closed
+                            Err(_) => return,
                         };
 
                         info!("🚀 Starting Job {} (Acquired resources)", job_id);
                         telemetry.set_job_id(&job_id);
 
-                        // 2. Sync Assets
                         let (cost_file, _corpus_dir) = match compute::prepare_assets(&*assets, &job, &config_compute).await {
                             Ok(res) => res,
                             Err(e) => {
@@ -750,7 +721,6 @@ impl Agent {
                             }
                         };
 
-                        // 3. Prepare
                         let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
                         let prepared_job = match compute::create_engine_request(
                             loader, 
@@ -767,7 +737,6 @@ impl Agent {
                             }
                         };
 
-                        // 4. Run
                         let inner_limiter = Arc::new(Semaphore::new(1));
 
                         match compute::run_optimization(
@@ -800,13 +769,9 @@ impl Agent {
                                 warn!("❌ Job {} Terminated: {}", job_id, e);
                             }
                         }
-                        
-                        // Drop permit automatically here
                         telemetry.set_job_id(&config_system.idle_job_id);
                     });
                 }
-
-                // 2. Stop Signal (Cancellation)
                 _ = stop_rx.recv() => {
                     info!("🛑 Global Stop Signal Received. Cancelling {} jobs...", running_jobs.len());
                     for (jid, flag) in running_jobs.iter() {
@@ -820,7 +785,6 @@ impl Agent {
     }
 }
 
-/// The primary entry point for starting a KeyForge worker agent.
 pub async fn run_worker(
     mut config: AgentConfig,
     node_id: String,
@@ -878,19 +842,6 @@ pub async fn run_worker(
 >>>>>>>> START FILE: apps/keyforge-agent/src/agent/network.rs <<<<<<<<
 // apps/keyforge-agent/src/agent/network.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use crate::agent::errors::AgentResult;
 use crate::models::{AgentConfig, SharedTelemetry};
 use crate::agent::crypto;
@@ -908,7 +859,6 @@ use sysinfo::{System, ProcessesToUpdate};
 use std::path::PathBuf;
 use keyforge_infra::HiveClient;
 
-/// Manages high-level network operations for the agent.
 pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
@@ -922,17 +872,10 @@ pub struct NetworkManager {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "type", content = "payload")]
 enum ServerMessage {
-    Job { 
-        #[serde(rename = "id")]
-        id: String 
-    },
-    Cancel { 
-        #[serde(rename = "id")]
-        id: String 
-    },
+    Job { #[serde(rename = "id")] id: String },
+    Cancel { #[serde(rename = "id")] id: String },
 }
 
-/// A circuit breaker for network requests.
 pub struct CircuitBreaker {
     failures: u32,
     threshold: u32,
@@ -941,43 +884,18 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    /// Creates a new `CircuitBreaker`.
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
-        Self {
-            failures: 0,
-            threshold,
-            last_failure: None,
-            cooldown: Duration::from_secs(cooldown_secs),
-        }
+        Self { failures: 0, threshold, last_failure: None, cooldown: Duration::from_secs(cooldown_secs) }
     }
-
-    /// Returns `true` if an attempt is allowed.
     pub fn can_attempt(&self) -> bool {
-        if self.failures < self.threshold {
-            return true;
-        }
-        if let Some(last) = self.last_failure {
-            if last.elapsed() > self.cooldown {
-                return true;
-            }
-        }
+        if self.failures < self.threshold { return true; }
+        if let Some(last) = self.last_failure { if last.elapsed() > self.cooldown { return true; } }
         false
     }
-
-    /// Records a failure.
-    pub fn record_failure(&mut self) {
-        self.failures += 1;
-        self.last_failure = Some(Instant::now());
-    }
-
-    /// Resets the failure counter.
-    pub fn record_success(&mut self) {
-        self.failures = 0;
-        self.last_failure = None;
-    }
+    pub fn record_failure(&mut self) { self.failures += 1; self.last_failure = Some(Instant::now()); }
+    pub fn record_success(&mut self) { self.failures = 0; self.last_failure = None; }
 }
 
-/// A persistent outbox for result submissions.
 pub struct ResultOutbox {
     _client: HiveClient,
     wal_dir: PathBuf,
@@ -985,18 +903,11 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
-    /// Creates a new `ResultOutbox`.
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
-        Self {
-            _client: client,
-            wal_dir,
-            _breaker: CircuitBreaker::new(threshold, 60),
-        }
+        Self { _client: client, wal_dir, _breaker: CircuitBreaker::new(threshold, 60) }
     }
-
-    /// Buffers a result to disk.
     pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
         let path = self.wal_dir.join(format!("{}.json", submission.nonce));
         if let Ok(json) = serde_json::to_string(submission) {
@@ -1008,8 +919,6 @@ impl ResultOutbox {
         }
         Ok(())
     }
-
-    /// Retrieves all pending submissions from disk.
     pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
         let mut pending = Vec::new();
         if let Ok(entries) = std::fs::read_dir(&self.wal_dir) {
@@ -1029,8 +938,6 @@ impl ResultOutbox {
         }
         pending
     }
-
-    /// Deletes a WAL file.
     pub fn delete(&self, path: &PathBuf) {
         if let Err(e) = std::fs::remove_file(path) {
             warn!("Failed to delete WAL file {:?}: {}", path, e);
@@ -1041,7 +948,6 @@ impl ResultOutbox {
 }
 
 impl NetworkManager {
-    /// Creates a new `NetworkManager`.
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
@@ -1055,7 +961,8 @@ impl NetworkManager {
             .map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to build HTTP client: {}", e)))?;
 
         let hive_client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
-            base_url: config.hive_url.clone(),
+            api_url: config.hive_url.clone(),
+            asset_url: config.asset_url.clone(), // Passthrough
             secret: Some(config.secret.clone()),
             ..Default::default()
         }).map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to init outbox client: {}", e)))?;
@@ -1066,18 +973,9 @@ impl NetworkManager {
             config.network.circuit_breaker_threshold
         );
 
-        Ok(Self {
-            client,
-            config,
-            telemetry,
-            job_tx,
-            result_rx,
-            stop_tx,
-            outbox,
-        })
+        Ok(Self { client, config, telemetry, job_tx, result_rx, stop_tx, outbox })
     }
 
-    /// Starts the main network event loop.
     pub async fn run(mut self) {
         let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds); 
         loop {
@@ -1091,16 +989,12 @@ impl NetworkManager {
         }
     }
 
-    // ... (rest of implementation unchanged, already fixed in previous steps)
     async fn connect_and_loop(&mut self) -> AgentResult<()> {
         let mut ws_url = Url::parse(&self.config.hive_url)
             .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
         
-        if ws_url.scheme() == "http" {
-            let _ = ws_url.set_scheme("ws");
-        } else if ws_url.scheme() == "https" {
-            let _ = ws_url.set_scheme("wss");
-        }
+        if ws_url.scheme() == "http" { let _ = ws_url.set_scheme("ws"); } 
+        else if ws_url.scheme() == "https" { let _ = ws_url.set_scheme("wss"); }
         
         ws_url.set_path("ws");
         ws_url.query_pairs_mut().append_pair("node_id", &self.config.node_id);
@@ -1125,11 +1019,7 @@ impl NetworkManager {
             tokio::select! {
                 _ = heartbeat.tick() => {
                     sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
-                    let memory_usage = if let Some(process) = sys.process(pid) {
-                        process.memory()
-                    } else {
-                        0
-                    };
+                    let memory_usage = if let Some(process) = sys.process(pid) { process.memory() } else { 0 };
 
                     let (ips, temp, best) = telemetry.snapshot();
                     let job_id = telemetry.get_job_id();
@@ -1151,7 +1041,6 @@ impl NetworkManager {
                             return Err(crate::agent::errors::AgentError::Network(e.to_string()));
                         }
                     }
-
                     self.flush_wal().await;
                 }
                 msg = read.next() => {
@@ -1209,7 +1098,6 @@ impl NetworkManager {
 
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
-        
         let mut signed_result = result.clone();
 
         if signed_result.signature.is_none() {
@@ -1253,12 +1141,8 @@ impl NetworkManager {
 
     async fn flush_wal(&self) {
         let pending = self.outbox.get_pending();
-        if pending.is_empty() {
-            return;
-        }
-
+        if pending.is_empty() { return; }
         info!("🔄 WAL Flush: Attempting to resend {} pending submissions...", pending.len());
-
         for (path, submission) in pending {
             match self.submit_result(submission).await {
                 Ok(_) => {
@@ -2075,65 +1959,34 @@ fn machine_id_timeout_safe() -> Result<String, String> {
 >>>>>>>> START FILE: apps/keyforge-agent/src/models.rs <<<<<<<<
 // apps/keyforge-agent/src/models.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
-// Re-export specific types if needed
 pub use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile};
 
-/// Configuration for the hardware calibration process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalibrationConfig {
-    /// Number of keys to simulate during calibration.
     pub key_count: usize,
-    /// Number of iterations to run before measuring to warm up the CPU/Cache.
     pub warmup_iterations: usize,
-    /// Duration in milliseconds to run the calibration loop.
     pub duration_ms: u64,
-    /// Number of scoring operations per batch.
     pub batch_size: usize,
 }
 
 impl Default for CalibrationConfig {
     fn default() -> Self {
-        Self {
-            key_count: 30,
-            warmup_iterations: 100,
-            duration_ms: 1000,
-            batch_size: 100,
-        }
+        Self { key_count: 30, warmup_iterations: 100, duration_ms: 1000, batch_size: 100 }
     }
 }
 
-/// Configuration for network communication and resilience.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
-    /// Request timeout in seconds.
     pub timeout_seconds: u64,
-    /// Interval between heartbeat messages in seconds.
     pub heartbeat_interval_seconds: u64,
-    /// Maximum backoff duration for retries in seconds.
     pub max_backoff_seconds: u64,
-    /// Initial backoff duration for retries in seconds.
     pub initial_backoff_seconds: u64,
-    /// Number of failures before tripping the circuit breaker.
     pub circuit_breaker_threshold: u32,
-    /// Cooldown period in seconds after the circuit breaker trips.
     pub circuit_breaker_cooldown: u64,
 }
 
@@ -2150,99 +2003,54 @@ impl Default for NetworkConfig {
     }
 }
 
-/// Configuration for local data maintenance and garbage collection.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MaintenanceConfig {
-    /// Time-to-live for cached assets in days.
     pub ttl_days: u64,
-    /// Interval between pruning checks in seconds.
     pub prune_interval_seconds: u64,
-    /// Directory to target for pruning (relative to data root).
     pub prune_target_dir: String,
 }
 
-impl Default for MaintenanceConfig {
-    fn default() -> Self {
-        Self {
-            ttl_days: 7,
-            prune_interval_seconds: 3600,
-            prune_target_dir: "user/keyboards".to_string(),
-        }
-    }
-}
-
-/// Configuration for the compute and optimization engine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComputeConfig {
-    /// Maximum number of corpus sources allowed per job.
     pub max_corpora_sources: usize,
-    /// Default timeout for a job in seconds.
     pub job_timeout_sec: u64,
-    /// Name of the keycodes definition file.
     pub keycodes_file: String,
-    /// Default random seed for search if not provided by job.
     pub default_search_seed: u64,
 }
 
 impl Default for ComputeConfig {
     fn default() -> Self {
-        Self {
-            max_corpora_sources: 50,
-            job_timeout_sec: 3600,
-            keycodes_file: "keycodes.json".to_string(),
-            default_search_seed: 42,
-        }
+        Self { max_corpora_sources: 50, job_timeout_sec: 3600, keycodes_file: "keycodes.json".to_string(), default_search_seed: 42 }
     }
 }
 
-/// Configuration for internal telemetry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryConfig {
-    /// Rate at which to sample progress logs (e.g. log every Nth step).
     pub progress_log_sampling_rate: usize,
 }
 
 impl Default for TelemetryConfig {
-    fn default() -> Self {
-        Self {
-            progress_log_sampling_rate: 100,
-        }
-    }
+    fn default() -> Self { Self { progress_log_sampling_rate: 100 } }
 }
 
-/// Configuration for logging output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
-    /// Default EnvFilter string (e.g., "info,keyforge_agent=debug").
     pub default_filter: String,
 }
 
 impl Default for LoggingConfig {
-    fn default() -> Self {
-        Self {
-            default_filter: "info,keyforge_agent=debug".to_string(),
-        }
-    }
+    fn default() -> Self { Self { default_filter: "info,keyforge_agent=debug".to_string() } }
 }
 
-/// Configuration for system-level identifiers and limits.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfig {
-    /// Prefix used when generating node IDs.
     pub node_id_prefix: String,
-    /// Capacity of the shutdown signal broadcast channel.
     pub shutdown_channel_capacity: usize,
-    /// Capacity of the result submission channel.
     pub result_channel_capacity: usize,
-    /// Name of the configuration directory (e.g., "keyforge").
     pub config_dir_name: String,
-    /// Name of the identity key file (e.g., "agent.key.age").
     pub key_file_name: String,
-    /// The string used to represent an idle state in telemetry.
     pub idle_job_id: String,
-    /// Optional override for machine ID used in key encryption.
     pub machine_id_override: Option<String>,
-    /// Directory name for corpora assets.
     pub corpora_dir_name: String,
 }
 
@@ -2261,41 +2069,27 @@ impl Default for SystemConfig {
     }
 }
 
-/// Configuration specific to the Agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
-    /// The base URL of the Hive server.
     pub hive_url: String,
-    /// The unique identifier for this node.
+    pub asset_url: String, // NEW field
     pub node_id: String,
-    /// The secret key for authenticating with the Hive.
     pub secret: String,
-    /// The hex-encoded Ed25519 private key for signing results.
     pub private_key: String,
-    /// The directory where assets and runtime data are stored.
     pub data_dir: PathBuf,
-    /// The number of CPU cores to use for optimization.
     pub cores: usize,
-    
-    /// Calibration settings.
     #[serde(default)]
     pub calibration: CalibrationConfig,
-    /// Network settings.
     #[serde(default)]
     pub network: NetworkConfig,
-    /// Maintenance settings.
     #[serde(default)]
     pub maintenance: MaintenanceConfig,
-    /// Compute settings.
     #[serde(default)]
     pub compute: ComputeConfig,
-    /// Telemetry settings.
     #[serde(default)]
     pub telemetry: TelemetryConfig,
-    /// Logging settings.
     #[serde(default)]
     pub logging: LoggingConfig,
-    /// System settings.
     #[serde(default)]
     pub system: SystemConfig,
 }
@@ -2304,85 +2098,65 @@ impl Default for AgentConfig {
     fn default() -> Self {
         Self {
             hive_url: "http://localhost:3000".to_string(),
+            asset_url: "http://localhost:3001".to_string(),
             node_id: "unknown".to_string(),
             secret: "".to_string(),
             private_key: "".to_string(),
             data_dir: PathBuf::from("data"),
             cores: 1,
-            calibration: CalibrationConfig::default(),
-            network: NetworkConfig::default(),
-            maintenance: MaintenanceConfig::default(),
-            compute: ComputeConfig::default(),
-            telemetry: TelemetryConfig::default(),
-            logging: LoggingConfig::default(),
-            system: SystemConfig::default(),
+            calibration: Default::default(),
+            network: Default::default(),
+            maintenance: Default::default(),
+            compute: Default::default(),
+            telemetry: Default::default(),
+            logging: Default::default(),
+            system: Default::default(),
         }
     }
 }
 
-/// Partial configuration for loading from files (all fields optional).
+// Partial Config for file loading
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PartialAgentConfig {
-    /// Optional override for Hive URL.
     pub hive_url: Option<String>,
-    /// Optional override for Node ID.
+    pub asset_url: Option<String>, // NEW field
     pub node_id: Option<String>,
-    /// Optional override for Secret.
     pub secret: Option<String>,
-    /// Optional override for Private Key.
     pub private_key: Option<String>,
-    /// Optional override for Data Directory.
     pub data_dir: Option<PathBuf>,
-    /// Optional override for Core count.
     pub cores: Option<usize>,
-    /// Optional override for Calibration settings.
     pub calibration: Option<CalibrationConfig>,
-    /// Optional override for Network settings.
     pub network: Option<NetworkConfig>,
-    /// Optional override for Maintenance settings.
     pub maintenance: Option<MaintenanceConfig>,
-    /// Optional override for Compute settings.
     pub compute: Option<ComputeConfig>,
-    /// Optional override for Telemetry settings.
     pub telemetry: Option<TelemetryConfig>,
-    /// Optional override for Logging settings.
     pub logging: Option<LoggingConfig>,
-    /// Optional override for System settings.
     pub system: Option<SystemConfig>,
 }
 
 impl PartialAgentConfig {
-    /// Loads a partial configuration from a file (JSON, TOML, or MPK.ZST).
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
+    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, String> {
         let path = path.as_ref();
-        
-        // Handle MPK.ZST (Compressed MessagePack)
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
              if ext == "zst" || path.to_string_lossy().ends_with(".mpk.zst") {
-                 let file = std::fs::File::open(path)
-                     .map_err(|e| format!("Failed to open config file: {}", e))?;
-                 let decoder = zstd::Decoder::new(file)
-                     .map_err(|e| format!("Failed to init zstd decoder: {}", e))?;
-                 return rmp_serde::from_read(decoder)
-                     .map_err(|e| format!("Failed to parse MPK config: {}", e));
+                 let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+                 let decoder = zstd::Decoder::new(file).map_err(|e| e.to_string())?;
+                 return rmp_serde::from_read(decoder).map_err(|e| e.to_string());
              }
         }
-
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read config file: {}", e))?;
-        
+        let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
         if path.extension().and_then(|s| s.to_str()) == Some("toml") {
-             toml::from_str(&content).map_err(|e| format!("Failed to parse TOML config: {}", e))
+             toml::from_str(&content).map_err(|e| e.to_string())
         } else {
-             serde_json::from_str(&content).map_err(|e| format!("Failed to parse JSON config: {}", e))
+             serde_json::from_str(&content).map_err(|e| e.to_string())
         }
     }
 }
 
 impl AgentConfig {
-    /// Merges a partial configuration into this one, overriding existing values.
     pub fn merge(&mut self, partial: PartialAgentConfig) {
         if let Some(v) = partial.hive_url { self.hive_url = v; }
+        if let Some(v) = partial.asset_url { self.asset_url = v; }
         if let Some(v) = partial.node_id { self.node_id = v; }
         if let Some(v) = partial.secret { self.secret = v; }
         if let Some(v) = partial.private_key { self.private_key = v; }
@@ -2398,18 +2172,12 @@ impl AgentConfig {
     }
 }
 
-/// Shared state for real-time telemetry.
 #[derive(Debug)]
 pub struct AgentTelemetry {
-    /// Throughput in 'Items Per Second' (standard f32 bits).
     pub ips: AtomicU32,
-    /// Estimated core temperature (standard f32 bits).
     pub temp: AtomicU32,
-    /// The best (lowest) score found so far for the current job.
     pub best_score: AtomicU32,
-    /// A partial hash of the current job ID for quick identification.
     pub job_id_hash: AtomicU64,
-    /// The full ID of the job currently being processed.
     pub current_job_id: RwLock<String>,
 }
 
@@ -2426,26 +2194,19 @@ impl Default for AgentTelemetry {
 }
 
 impl AgentTelemetry {
-    /// Atomic update of the telemetry metrics.
     pub fn update(&self, ips: f32, temp: f32, best_score: f32) {
         self.ips.store(ips.to_bits(), Ordering::Relaxed);
         self.temp.store(temp.to_bits(), Ordering::Relaxed);
         self.best_score.store(best_score.to_bits(), Ordering::Relaxed);
     }
-
-    /// Safely sets the current job ID.
     pub fn set_job_id(&self, id: &str) {
         if let Ok(mut lock) = self.current_job_id.write() {
             *lock = id.to_string();
         }
     }
-
-    /// Returns a copy of the current job ID.
     pub fn get_job_id(&self) -> String {
         self.current_job_id.read().map(|s| s.clone()).unwrap_or_else(|_| "unknown".to_string())
     }
-
-    /// Returns a point-in-time snapshot of the metrics as .
     pub fn snapshot(&self) -> (f32, f32, f32) {
         (
             f32::from_bits(self.ips.load(Ordering::Relaxed)),
@@ -2455,7 +2216,6 @@ impl AgentTelemetry {
     }
 }
 
-/// A thread-safe, reference-counted handle to the agent's telemetry state.
 pub type SharedTelemetry = Arc<AgentTelemetry>;
 
 >>>>>>>> END FILE: apps/keyforge-agent/src/models.rs <<<<<<<<

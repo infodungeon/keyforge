@@ -1,6 +1,6 @@
 # Design Patterns & Architectural Styles
 
-**Version:** 4.2
+**Version:** 4.3
 **Context:** Key patterns used to enforce reliability and maintainability.
 
 ## 1. The Typestate Pattern (Compiler State Machine)
@@ -102,3 +102,12 @@ impl Validator for JobRequest {
     }
 }
 ```
+
+## 8. The Agent Runner Pattern
+
+**Target:** `keyforge-cli`
+
+Decouples User Intent (CLI Arguments) from Execution (Physics). The CLI acts as a Manager that prepares the environment and configuration, then spawns the Worker to do the job.
+
+*   **Mechanism:** CLI builds `JobConfig` -> Serializes to JSON -> Spawns `keyforge-agent run job.json` -> Streams stdout to User.
+*   **Benefit:** Ensures that "Local Search" and "Remote Job" run on identical physics engines.

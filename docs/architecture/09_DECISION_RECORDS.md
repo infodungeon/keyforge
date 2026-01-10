@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-**Version:** 4.4
+**Version:** 4.6
 **Context:** Log of significant architectural decisions.
 
 ## Index
@@ -15,6 +15,8 @@
 * [ADR-008: Synthetic Corpus Injection](#adr-008-synthetic-corpus-injection)
 * [ADR-009: Optimal Choice for Duplicate Keys](#adr-009-optimal-choice-for-duplicate-keys)
 * [ADR-010: Distributed Coordination via Valkey](#adr-010-distributed-coordination-via-valkey)
+* [ADR-011: The Thin Client CLI (Agent Runner)](#adr-011-the-thin-client-cli-agent-runner)
+* [ADR-012: The Control/Asset Plane Split](#adr-012-the-controlasset-plane-split)
 
 ---
 
@@ -135,3 +137,28 @@
   * (-) **Complexity:** Adds a 4th container to the stack.
   * (-) **Dependency:** Hive requires Valkey to start (hard dependency for coordination).
   * (-) **Refactor:** Requires `testcontainers` for integration testing.
+
+## ADR-011: The Thin Client CLI (Agent Runner)
+
+* **Status:** Accepted
+* **Date:** 2026-01-10
+* **Context:** The CLI previously statically linked `keyforge-compute` and `keyforge-physics`. This created two execution environments: Local (CLI-embedded engine) and Remote (Agent-embedded engine). Ensuring parity was difficult and CLI compile times were slow.
+* **Decision:** Refactor the CLI into a "Thin Client". It performs IO and Asset Management but delegates all heavy lifting (`search`, `bench`, `validate`) to the `keyforge-agent` binary via subprocess spawning.
+* **Consequences:**
+  * (+) **Parity:** Local and Remote runs use the exact same binary (`keyforge-agent`).
+  * (+) **Build Times:** CLI compiles faster as it drops heavy math dependencies.
+  * (-) **UX:** Requires user to have `keyforge-agent` in PATH or side-loaded.
+
+## ADR-012: The Control/Asset Plane Split
+
+* **Status:** Accepted
+* **Date:** 2026-01-12
+* **Context:** Hive currently handles both "Logic" (Jobs, Auth) and "Content" (Serving 50MB corpus files). High download traffic from agents/CLIs competes with the API's CPU resources.
+* **Decision:** Split the architecture into two distinct services:
+  1.  **Hive (Control Plane):** Handles orchestration, auth, and state.
+  2.  **Assets (Data Plane):** A dedicated, stateless HTTP service that streams assets directly from Valkey.
+* **Consequences:**
+  * (+) **Scalability:** Asset Server can be cached via CDN or scaled independently.
+  * (+) **Security:** Asset Server can be public (read-only), while Hive remains private/authenticated.
+  * (+) **Architecture:** Explicit separation of concerns.
+  * (-) **Complexity:** Clients must manage two base URLs (`KEYFORGE_API_URL` and `KEYFORGE_ASSET_URL`).

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -81,13 +81,6 @@ pub struct RateLimitState {
 }
 
 /// Constructs the main Axum application router.
-///
-/// This function configures CORS, rate limiting, logging, request IDs,
-/// and nests all API features and documentation routes.
-/// Constructs the main Axum application router.
-///
-/// This function configures CORS, rate limiting, logging, request IDs,
-/// and nests all API features and documentation routes.
 pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: PathBuf) -> Router {
     // --- CORS ---
     let cors_origins = &config.cors_origins;
@@ -185,14 +178,9 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
     let public_routes = features::system::system_routes()
         .merge(api::analysis_routes())
         .merge(api::auth_routes())
-        .route("/manifest", axum::routing::get(features::assets::get_manifest))
         .route(
             "/submissions",
             axum::routing::get(features::list_submissions::handle),
-        )
-        .route(
-            "/data/system/{*path}",
-            axum::routing::get(features::assets::get_asset),
         )
         .route(
             "/data/config.json",

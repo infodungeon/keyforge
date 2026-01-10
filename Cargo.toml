@@ -1,44 +1,51 @@
 [workspace]
+resolver = "2"
 members = [
-    "libs/keyforge-testing",
+    "apps/keyforge-hive",
     "apps/keyforge-agent",
-    "libs/keyforge-compute",
-    "libs/keyforge-export",
+    "apps/keyforge-cli",
+    "apps/keyforge-assetmgr",
+    "apps/keyforge-assets",
+    "apps/keyforge-ui/src-tauri",
+    "libs/keyforge-core",
     "libs/keyforge-model",
+    "libs/keyforge-infra",
     "libs/keyforge-physics",
     "libs/keyforge-evolution",
-    "apps/keyforge-hive",
     "libs/keyforge-protocol",
-    "libs/keyforge-persistence",
-    "libs/keyforge-infra",
-    "libs/keyforge-security",
     "libs/keyforge-adapter",
-    "libs/keyforge-core",
-    "apps/keyforge-cli",
+    "libs/keyforge-security",
+    "libs/keyforge-testing",
+    "libs/keyforge-persistence",
+    "libs/keyforge-compute",
     "libs/keyforge-wasm",
-    "apps/keyforge-ui/src-tauri",
-    "corpora/openbookcorpus",
+    "libs/keyforge-export"
 ]
-resolver = "2"
-
-[workspace.lints.rust]
-missing_docs = "warn"
-unused_qualifications = "warn"
-unexpected_cfgs = "warn"
-
-[workspace.lints.clippy]
-all = "warn"
-pedantic = "warn"
 
 [workspace.package]
 version = "0.9.0"
-authors = ["robert@infodungeon.com"]
+authors = ["KeyForge Team"]
 license = "Apache-2.0"
-description = "The KeyForge agent software."
-repository = "https://github.com/infodungeon/keyforge.git"
+repository = "https://github.com/keyforge-project/keyforge"
+edition = "2021"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+expect_used = "deny"
+unwrap_used = "warn"
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
 
 [profile.release]
-lto = "fat"
+lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[profile.dev.package."*"]
+opt-level = 3

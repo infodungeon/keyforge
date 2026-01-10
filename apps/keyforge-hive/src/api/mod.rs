@@ -18,8 +18,6 @@ pub mod admin;
 pub mod analysis;
 /// User authentication and token management.
 pub mod auth;
-/// Corpus asset serving.
-pub mod corpus;
 /// Job lifecycle and management.
 pub mod jobs;
 /// Cluster metrics and prometheus scraping.
@@ -42,14 +40,13 @@ use tower_governor::{
     governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor, GovernorLayer,
 };
 
-/// Returns the router for layout analysis and corpus serving.
+/// Returns the router for layout analysis.
 pub fn analysis_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route(
             "/analysis/validate",
             axum::routing::post(analysis::validate_layout),
         )
-        .route("/api/corpus/{*name}", axum::routing::get(corpus::get_corpus))
 }
 
 /// Returns the router for the public user registration endpoint.

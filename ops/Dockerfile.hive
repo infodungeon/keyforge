@@ -22,13 +22,15 @@ ENV SQLX_OFFLINE=true
 COPY .sqlx .sqlx
 RUN cargo build --release --bin keyforge-hive
 
-# Stage 4: Runtime
-FROM debian:bookworm-slim
+# Stage 4: Runtime (Distroless)
+# Using cc-debian12 includes libssl, libc, libgcc
+FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
-RUN apt-get update && apt-get install -y libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/keyforge-hive /usr/local/bin/
-RUN mkdir -p /app/data
+COPY --from=builder /app/target/release/keyforge-hive /app/keyforge-hive
+# Create data dir in workdir (though distroless has limited fs ops, app creates subdirs in volume)
+# Note: Distroless has no mkdir. The app must handle creating dirs in the volume, 
+# OR we rely on Docker to create the mount point.
 ENV RUST_LOG=info
 ENV KEYFORGE_DATA_DIR=/app/data
 EXPOSE 3000
-CMD ["keyforge-hive"]
+ENTRYPOINT ["/app/keyforge-hive"]
