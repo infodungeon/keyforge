@@ -1,0 +1,1441 @@
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/build.rs <<<<<<<<
+//! Build script for the KeyForge UI application.
+
+/// Main entry point for the build script.
+
+fn main() {
+    tauri_build::build()
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/build.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/Cargo.toml <<<<<<<<
+[package]
+name = "keyforge-ui"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+description = "Cross-platform desktop UI for layout visualization and optimization, built with Tauri."
+repository.workspace = true
+[lints]
+workspace = true
+
+[lib]
+name = "ui_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.9.5", features = [] }
+sysinfo = "0.37"
+tauri-plugin-opener = "2.5.2"
+tauri-plugin-shell = "2.3.3"
+tauri-plugin-dialog = "2.4.2"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.148"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+moka = { version = "0.12", features = ["sync"] }
+tokio = { version = "1.48.0", features = ["full"] }
+fastrand = "2.3.0"
+zstd = "0.13"
+rmp-serde = "1.3"
+keyforge-protocol = { path = "../../../libs/keyforge-protocol" }
+keyforge-adapter = { path = "../../../libs/keyforge-adapter" }
+keyforge-persistence = { path = "../../../libs/keyforge-persistence" }
+keyforge-compute = { path = "../../../libs/keyforge-compute" }
+keyforge-export = { path = "../../../libs/keyforge-export" }
+keyforge-model = { path = "../../../libs/keyforge-model" }
+keyforge-infra = { path = "../../../libs/keyforge-infra" }
+keyforge-core = { path = "../../../libs/keyforge-core" }
+async-trait = "0.1"
+tempfile = "3.24.0"
+thiserror = "2.0"
+dirs = "6.0"
+
+[dev-dependencies]
+reqwest = { version = "0.13.1", features = ["json"] }
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/Cargo.toml <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/analysis.rs <<<<<<<<
+use crate::error::CommandError;
+use keyforge_infra::AssetLoader;
+use crate::models::{DerivedStats, ValidationResult};
+use crate::state::SessionState;
+use crate::utils::get_data_dir;
+use keyforge_adapter::conversion;
+use keyforge_infra::listing;
+use keyforge_model::SwapSuggestion;
+use keyforge_persistence::{Compiler, Project, ProjectMeta};
+use keyforge_model::config::{CorpusSource, ScoringWeights};
+use keyforge_model::geometry::KeyboardGeometry;
+use serde::Serialize;
+use tauri::AppHandle;
+
+/// Statistics for a specific corpus on disk.
+#[derive(Serialize)]
+pub struct CorpusStats {
+    /// Name of the corpus.
+    pub name: String,
+    /// Size of the processed corpus data in bytes.
+    pub size_bytes: u64,
+    /// Canonical filesystem path to the corpus file.
+    pub path: String,
+}
+
+/// Lists all available corpora in the application's data directory.
+#[tauri::command]
+pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
+    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+/// Returns detailed statistics for all available corpora.
+#[tauri::command]
+pub fn cmd_get_corpus_stats(app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
+    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    let ids = listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))?;
+    
+    let mut stats = Vec::new();
+    for id in ids {
+        // Try system then user
+        let sys_path = root.join("system/corpora").join(&id).join("1grams.mpk.zst");
+        let usr_path = root.join("user/corpora").join(&id).join("1grams.json");
+        
+        let (path, size) = if sys_path.exists() {
+            (sys_path.to_string_lossy().to_string(), std::fs::metadata(&sys_path).map(|m| m.len()).unwrap_or(0))
+        } else if usr_path.exists() {
+            (usr_path.to_string_lossy().to_string(), std::fs::metadata(&usr_path).map(|m| m.len()).unwrap_or(0))
+        } else {
+            continue;
+        };
+
+        stats.push(CorpusStats {
+            name: id,
+            size_bytes: size,
+            path,
+        });
+    }
+    Ok(stats)
+}
+
+/// Lists all available cost matrices in the application's data directory.
+#[tauri::command]
+pub fn cmd_list_cost_matrices(app: AppHandle) -> Result<Vec<String>, CommandError> {
+    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    listing::list_cost_matrices(&root).map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+/// Compiles a new search runtime using the specified assets and stores it in the session state.
+#[tauri::command]
+pub async fn cmd_load_dataset(
+    _app: AppHandle,
+    state: tauri::State<'_, SessionState>,
+    keyboard_name: String,
+    corpus_filename: String,
+    cost_filename: String,
+    _extras: Vec<String>,
+) -> Result<String, CommandError> {
+    let project = Project {
+        meta: ProjectMeta {
+            name: "UI Session".into(),
+            ..Default::default()
+        },
+        keyboard: keyboard_name,
+        corpora: vec![CorpusSource {
+            id: corpus_filename,
+            weight: 1.0,
+            hash: None,
+        }],
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_filename),
+        ..Default::default()
+    };
+
+    let assets = state.assets.clone();
+
+    let compiler = Compiler::new(assets.as_ref());
+    let runtime = compiler
+        .compile(&project)
+        .await
+        .map_err(|e| CommandError::Config(format!("Failed to compile session: {}", e)))?;
+
+    *state.active.write().await = Some(runtime);
+
+    Ok("Runtime Compiled".to_string())
+}
+
+/// Validates a layout string against the currently active search runtime.
+#[tauri::command]
+pub async fn cmd_validate_layout(
+    _app: AppHandle,
+    state: tauri::State<'_, SessionState>,
+    layout_str: String,
+    _weights: Option<ScoringWeights>,
+    keyboard_name: Option<String>,
+) -> Result<ValidationResult, CommandError> {
+    let runtime = {
+        let guard = state.active.read().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| CommandError::Config("No runtime loaded".into()))?
+            .clone()
+    };
+
+    // FIX: Propagate loading errors instead of defaulting to empty geometry
+    let geometry = if let Some(name) = keyboard_name {
+        state.assets
+            .load_keyboard(&name)
+            .await
+            .map(|def| def.geometry.clone())
+            .map_err(|e| CommandError::Config(format!("Failed to load keyboard '{}': {}", name, e)))?
+    } else {
+        KeyboardGeometry::default()
+    };
+
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let key_count = runtime.engine.key_count();
+        let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
+            .map_err(|e| {
+                tracing::error!("Layout parsing failed: {}", e);
+                CommandError::Validation(e.to_string())
+            })?;
+
+        let report = runtime.analyze(&layout)?;
+        let heatmap = report.heatmap.clone();
+        let penalty_map = report.penalty_map.clone();
+        tracing::info!("Analysis complete. Score: {}, SFB: {}", report.score, report.sfb_total);
+        
+        // SANITY CHECK: Fail if stats are garbage
+        if report.score > 10_000_000.0 || report.sfb_ratio > 0.20 {
+            let msg = format!("Implausible Physics Result: Score={}, SFB={:.2}%", report.score, report.sfb_ratio * 100.0);
+            tracing::warn!("{}", msg);
+        }
+
+        let proto_geometry: KeyboardGeometry = 
+            serde_json::from_value(serde_json::to_value(&geometry).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+
+        Ok::<ValidationResult, CommandError>(ValidationResult {
+            layout_name: "Custom".to_string(),
+            score: report,
+            geometry: proto_geometry,
+            heatmap,
+            penalty_map,
+        })
+    })
+    .await
+    .map_err(|e| {
+        tracing::error!("Analysis thread panicked or failed: {}", e);
+        CommandError::Internal(e.to_string())
+    })??;
+
+    Ok(result)
+}
+
+/// Returns derived statistics for a layout, such as hand balance.
+#[tauri::command]
+pub async fn cmd_get_layout_stats(
+    _state: tauri::State<'_, SessionState>,
+    _layout_str: String,
+) -> Result<DerivedStats, CommandError> {
+    Ok(DerivedStats { hand_balance: 0.0 })
+}
+
+/// Suggests a set of character swaps to improve the current layout.
+#[tauri::command]
+pub async fn cmd_get_smart_swaps(
+    state: tauri::State<'_, SessionState>,
+    layout_str: String,
+) -> Result<Vec<SwapSuggestion>, CommandError> {
+    let runtime = {
+        let guard = state.active.read().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| CommandError::Config("No runtime loaded".into()))?
+            .clone()
+    };
+
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let key_count = runtime.engine.key_count();
+        let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
+            .map_err(|e| CommandError::Validation(e.to_string()))?;
+
+        Ok::<Vec<SwapSuggestion>, CommandError>(runtime.suggest_improvements(&layout)?)
+    })
+    .await
+    .map_err(|e| CommandError::Internal(e.to_string()))??;
+
+    Ok(result)
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/analysis.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/arena.rs <<<<<<<<
+use crate::utils::get_data_dir;
+use keyforge_infra::AssetLoader;
+use keyforge_infra::FsProvider;
+use keyforge_persistence::UserRepo;
+use keyforge_model::config::CorpusSource;
+use keyforge_protocol::BiometricSample;
+use tauri::AppHandle;
+
+/// Generates a list of random words from the selected corpora for typing practice.
+#[tauri::command]
+pub async fn cmd_get_typing_words(
+    app: AppHandle,
+    corpora: Vec<CorpusSource>,
+    count: usize,
+) -> Result<Vec<String>, String> {
+    use keyforge_adapter::conversion;
+    let data_dir = get_data_dir(&app)?;
+    let provider = FsProvider::new(data_dir);
+    
+    let domain_corpora: Vec<CorpusSource> = corpora
+        .iter()
+        .map(conversion::to_domain_corpus_source)
+        .collect();
+
+    let bundle = provider
+        .load_corpus(&domain_corpora)
+        .await
+        .map_err(|e| format!("Failed to load corpora for Arena: {}", e))?;
+
+    if bundle.words.is_empty() {
+        return Err("The selected corpora contain no word data.".into());
+    }
+
+    let mut rng = fastrand::Rng::new();
+    let mut selected = Vec::with_capacity(count);
+
+    let top_n = 2000.min(bundle.words.len());
+    let candidates = &bundle.words[0..top_n];
+    let total_freq: f64 = candidates.iter().map(|(_, f)| *f as f64).sum();
+
+    for _ in 0..count {
+        let target = rng.f64() * total_freq;
+        let mut current = 0.0;
+        let mut picked = &candidates[0].0;
+
+        for (w, f) in candidates {
+            current += *f as f64;
+            if current >= target {
+                picked = w;
+                break;
+            }
+        }
+        selected.push(picked.clone());
+    }
+
+    Ok(selected)
+}
+
+/// Persists typing session biometric data to the local user repository.
+#[tauri::command]
+pub fn cmd_save_biometrics(
+    app: AppHandle,
+    samples: Vec<BiometricSample>,
+) -> Result<String, String> {
+    let data_dir = get_data_dir(&app)?;
+    let user_data = UserRepo::new(data_dir);
+    user_data
+        .record_biometrics(samples)
+        .map_err(|e| e.to_string())
+}
+
+/// Loads historical biometric data for the current user.
+#[tauri::command]
+pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, String> {
+    let data_dir = get_data_dir(&app)?;
+    let user_data = UserRepo::new(data_dir);
+    Ok(user_data.get_biometrics())
+}
+
+/// Analyzes biometric data to generate a personalized typing profile.
+#[tauri::command]
+pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
+    let data_dir = get_data_dir(&app)?;
+    let user_data = UserRepo::new(data_dir);
+    user_data.generate_profile().map_err(|e| e.to_string())
+}
+
+/// Clears all historical biometric data for the current user.
+#[tauri::command]
+pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, String> {
+    let data_dir = get_data_dir(&app)?;
+    let user_data = UserRepo::new(data_dir);
+    user_data.reset_biometrics().map_err(|e| e.to_string())?;
+    Ok("Biometric data cleared successfully.".to_string())
+}
+
+/// Retrieves the most frequent bigrams from the selected corpora.
+#[tauri::command]
+pub async fn cmd_get_corpus_bigrams(
+    app: AppHandle,
+    corpora: Vec<CorpusSource>,
+    limit: usize,
+) -> Result<Vec<String>, String> {
+    use keyforge_adapter::conversion;
+    let data_dir = get_data_dir(&app)?;
+    let provider = FsProvider::new(data_dir);
+
+    let domain_corpora: Vec<CorpusSource> = corpora
+        .iter()
+        .map(conversion::to_domain_corpus_source)
+        .collect();
+
+    let bundle = provider
+        .load_corpus(&domain_corpora)
+        .await
+        .map_err(|e| format!("Failed to load corpora: {}", e))?;
+
+    let mut bigrams = Vec::new();
+
+    let mut sorted_bgs = bundle.bigrams.clone();
+    sorted_bgs.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+
+    for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {
+        let s = String::from_utf8(vec![b1 as u8, b2 as u8]).unwrap_or_default();
+        if s.chars().all(|c| c.is_alphabetic()) {
+            bigrams.push(s);
+        }
+    }
+
+    Ok(bigrams)
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/arena.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/config.rs <<<<<<<<
+use crate::error::CommandError;
+use crate::state::SessionState;
+use crate::utils::get_data_dir;
+use keyforge_model::config::Config;
+// use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
+use keyforge_infra::AssetLoader;
+use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
+use tauri::AppHandle;
+
+/// Returns the default global application configuration.
+#[tauri::command]
+pub fn cmd_get_default_config() -> Config {
+    Config::default()
+}
+
+/// Retrieves the current keycode registry, either from the active runtime or by loading it from disk.
+#[tauri::command]
+pub async fn cmd_get_keycodes(
+    state: tauri::State<'_, SessionState>,
+) -> Result<KeycodeRegistry, CommandError> {
+    let guard = state.active.read().await;
+    if let Some(runtime) = guard.as_ref() {
+        Ok(runtime.registry.as_ref().clone())
+    } else {
+        match state.assets.load_keycodes(ASSET_KEYCODES).await {
+            Ok(reg) => Ok(reg.as_ref().clone()),
+            Err(e) => {
+                tracing::error!("Failed to load keycodes from disk: {}", e);
+                Err(CommandError::Config(format!("Keycodes load failed: {}", e)))
+            }
+        }
+    }
+}
+
+/// Retrieves UI category metadata from local configuration files.
+#[tauri::command]
+pub fn cmd_get_ui_categories(
+    app: AppHandle,
+    _state: tauri::State<'_, SessionState>,
+) -> Result<serde_json::Value, CommandError> {
+    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
+    let provider = keyforge_infra::FsProvider::new(data_dir);
+
+    let stem = ASSET_UI_CATEGORIES;
+    let system_path = provider
+        .root
+        .join("system/config")
+        .join(format!("{}.mpk.zst", stem));
+
+    if system_path.exists() {
+        let file = std::fs::File::open(system_path)?;
+        let decoder =
+            zstd::Decoder::new(file).map_err(|e| CommandError::Internal(e.to_string()))?;
+        let json: serde_json::Value =
+            rmp_serde::from_read(decoder).map_err(|e| CommandError::Internal(e.to_string()))?;
+        return Ok(json);
+    }
+
+    let user_path = provider.root.join("user/config/ui_categories.json");
+    if user_path.exists() {
+        let content = std::fs::read_to_string(user_path)?;
+        return Ok(serde_json::from_str(&content)?);
+    }
+
+    Err(CommandError::Config("ui_categories not found".into()))
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/config.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/library.rs <<<<<<<<
+use crate::error::CommandError;
+use keyforge_infra::AssetLoader;
+use crate::state::SessionState;
+use crate::utils::get_data_dir;
+use keyforge_export::{qmk::QmkExporter, zmk::ZmkExporter, Exporter};
+use keyforge_infra::listing;
+use keyforge_infra::HiveClient;
+use keyforge_persistence::UserRepo;
+use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
+use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+use std::collections::HashMap;
+use std::path::Path;
+use tauri::AppHandle;
+
+/// Lists all available keyboard geometries in the workspace.
+#[tauri::command]
+pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
+    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    listing::list_keyboards(&root).map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+/// Lists all available keymap extra assets.
+#[tauri::command]
+pub fn cmd_list_keymap_extras(app: AppHandle) -> Result<Vec<String>, CommandError> {
+    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    listing::list_keymap_extras(&root).map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+#[tauri::command]
+/// Retrieves all currently loaded layouts from the session state.
+pub async fn cmd_get_loaded_layouts(
+    _state: tauri::State<'_, SessionState>,
+) -> Result<HashMap<String, String>, CommandError> {
+    Ok(HashMap::new())
+}
+
+/// Retrieves the geometry definition for a specific keyboard.
+#[tauri::command]
+pub async fn cmd_get_keyboard_geometry(
+    _app: AppHandle,
+    state: tauri::State<'_, SessionState>,
+    name: String,
+) -> Result<KeyboardGeometry, CommandError> {
+    state
+        .assets
+        .load_keyboard(&name)
+        .await
+        .map(|def| def.geometry.clone())
+        .map_err(|e| CommandError::Config(format!("Failed to load geometry: {}", e)))
+}
+
+#[tauri::command]
+/// Retrieves all layouts (both system and user) for a specific keyboard.
+pub async fn cmd_get_all_layouts_scoped(
+    app: AppHandle,
+    state: tauri::State<'_, SessionState>,
+    keyboard_id: String,
+) -> Result<HashMap<String, String>, CommandError> {
+    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
+    let user_data = UserRepo::new(data_dir);
+    let mut all_layouts = user_data.get_layouts(&keyboard_id);
+
+    if let Ok(def) = state.assets.load_keyboard(&keyboard_id).await {
+        all_layouts.extend(def.layouts.clone());
+    }
+    Ok(all_layouts)
+}
+
+/// Saves a custom user layout to the local repository.
+#[tauri::command]
+pub fn cmd_save_user_layout(
+    app: AppHandle,
+    keyboard_id: String,
+    name: String,
+    layout: String,
+) -> Result<(), CommandError> {
+    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
+    UserRepo::new(data_dir)
+        .save_layout(&keyboard_id, &name, &layout)
+        .map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+#[tauri::command]
+/// Deletes a custom user layout from the local repository.
+pub fn cmd_delete_user_layout(
+    app: AppHandle,
+    keyboard_id: String,
+    name: String,
+) -> Result<(), CommandError> {
+    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
+    UserRepo::new(data_dir)
+        .delete_layout(&keyboard_id, &name)
+        .map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+/// Submits a user layout to the remote Hive server for community review.
+#[tauri::command]
+pub async fn cmd_submit_user_layout(
+    hive_url: String,
+    hive_secret: String,
+    name: String,
+    layout: String,
+    author: String,
+) -> Result<String, CommandError> {
+    let config = keyforge_infra::net::client::ClientConfig {
+        base_url: hive_url,
+        secret: Some(hive_secret),
+        ..Default::default()
+    };
+    let client = HiveClient::new(config)
+        .map_err(|e| CommandError::Config(e.to_string()))?;
+    let res = client
+        .post("submissions")
+        .json(&serde_json::json!({ "name": name, "layout": layout, "author": author }))
+        .send()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+    if res.status().is_success() {
+        Ok("Submitted".to_string())
+    } else {
+        Err(CommandError::Network(format!(
+            "Server Error: {}",
+            res.status()
+        )))
+    }
+}
+
+#[tauri::command]
+/// Parses a Keyboard Layout Editor (KLE) JSON string into a KeyForge geometry.
+pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
+    let geometry = parse_kle_json(&json).map_err(|e| CommandError::Validation(e.to_string()))?;
+    Ok(KeyboardDefinition {
+        meta: KeyboardMeta {
+            name: "Untitled Board".into(),
+            author: "Unknown".into(),
+            version: "1.0".into(),
+            notes: "Imported from KLE".into(),
+            kb_type: "ortho".into(),
+        },
+        geometry,
+        layouts: HashMap::new(),
+    })
+}
+
+#[tauri::command]
+/// Exports a KeyForge geometry definition to a KLE JSON string.
+pub fn cmd_export_to_kle(def: KeyboardDefinition) -> Result<String, CommandError> {
+    to_kle_json(&def.geometry).map_err(|e| CommandError::Validation(e.to_string()))
+}
+
+#[tauri::command]
+/// Saves a keyboard definition file to the application's local keyboard library.
+pub fn cmd_save_keyboard(
+    app: AppHandle,
+    filename: String,
+    def: KeyboardDefinition,
+) -> Result<(), CommandError> {
+    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
+    UserRepo::new(data_dir)
+        .save_keyboard_definition(&filename, &def)
+        .map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+/// Exports a layout to a target firmware format (e.g., QMK, ZMK).
+#[tauri::command]
+pub fn cmd_export_firmware(
+    layout_name: String,
+    layout_str: String,
+    format: String,
+) -> Result<String, CommandError> {
+    let keys: Vec<String> = layout_str
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
+    let exporter: Box<dyn Exporter> = match format.to_lowercase().as_str() {
+        "qmk" => Box::new(QmkExporter),
+        "zmk" => Box::new(ZmkExporter),
+        "via" => Box::new(keyforge_export::via::ViaExporter),
+        _ => return Err(CommandError::Validation("Unsupported format.".into())),
+    };
+    // For now, treat the entire string as a single layer. 
+    // Future expansion could involve splitting by a delimiter for multi-layer support.
+    exporter
+        .generate(&layout_name, &[keys])
+        .map_err(|e| CommandError::Internal(e.to_string()))
+}
+
+#[tauri::command]
+/// Writes a file to a specified path after ensuring it resides within a safe directory.
+///
+/// If `overwrite` is false and the file exists, returns an error.
+pub fn cmd_safe_write_file(path: String, content: String, overwrite: bool) -> Result<(), CommandError> {
+    let p = Path::new(&path);
+    let allowed_exts = ["json", "txt", "c", "h", "keymap", "conf"];
+    let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("");
+    if !allowed_exts.contains(&ext) {
+        return Err(CommandError::Validation(format!(
+            "File extension '{}' is not allowed.",
+            ext
+        )));
+    }
+    if path.contains("..") {
+        return Err(CommandError::Validation("Path traversal detected.".into()));
+    }
+    
+    if !overwrite && p.exists() {
+        return Err(CommandError::Validation("File already exists".into()));
+    }
+
+    std::fs::write(&path, content).map_err(CommandError::Io)
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/library.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/mod.rs <<<<<<<<
+/// Commands for analyzing layout ergonomics and performance.
+pub mod analysis;
+/// Commands for managing remote compute arenas and jobs.
+pub mod arena;
+/// Commands for application and search configuration.
+pub mod config;
+/// Commands for interacting with the local keyboard and layout library.
+pub mod library;
+/// Commands for controlling local optimization searches.
+pub mod search;
+/// Commands for synchronizing data with the Hive.
+pub mod sync;
+/// Commands for system-level operations and information.
+pub mod system;
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/mod.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/search.rs <<<<<<<<
+use crate::error::CommandError;
+use crate::models::{JobStatusUpdate, RegisterJobRequest, StartSearchRequest};
+use crate::state::{LocalWorkerState, SearchState, SessionState};
+use keyforge_infra::HiveClient;
+use keyforge_protocol::{JobRequest, JobResponse, JobStatus};
+use tauri::{AppHandle, Window};
+
+/// Dispatches a new search job to the remote Hive server.
+#[tauri::command]
+pub async fn cmd_dispatch_job(
+    _state: tauri::State<'_, SessionState>,
+    hive_url: String,
+    hive_secret: String,
+    request: RegisterJobRequest,
+) -> Result<String, CommandError> {
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: Some(hive_secret),
+        ..Default::default()
+    };
+    let client = HiveClient::new(config)
+        .map_err(|e| CommandError::Config(e.to_string()))?;
+
+    // Convert UI model to Protocol model (they are aliases but explicit cast helps clarity)
+    let job_req: JobRequest = request;
+
+    let resp = client
+        .post("jobs")
+        .json(&job_req)
+        .send()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+
+    if !resp.status().is_success() {
+        return Err(CommandError::Network(format!(
+            "Server Error: {}",
+            resp.status()
+        )));
+    }
+
+    let body: JobResponse = resp
+        .json()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+
+    Ok(body.job_id)
+}
+
+/// Polls the Hive server for the current status of a remote search job.
+#[tauri::command]
+pub async fn cmd_poll_hive_status(
+    hive_url: String,
+    hive_secret: String,
+    job_id: String,
+) -> Result<JobStatusUpdate, CommandError> {
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: Some(hive_secret),
+        ..Default::default()
+    };
+    let client = HiveClient::new(config)
+        .map_err(|e| CommandError::Config(e.to_string()))?;
+
+    let path = format!("jobs/{}/status", job_id);
+    let resp = client
+        .get(&path)
+        .send()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+
+    if !resp.status().is_success() {
+        return Err(CommandError::Network(format!(
+            "Server Error: {}",
+            resp.status()
+        )));
+    }
+
+    let status: JobStatus = resp
+        .json()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+
+    Ok(JobStatusUpdate {
+        active_nodes: status.active_nodes,
+        best_score: status.best_score.unwrap_or(0.0),
+        best_layout: status.best_layout.unwrap_or_default(),
+    })
+}
+
+#[tauri::command]
+/// Toggles the local compute worker for distributed job processing.
+pub fn cmd_toggle_local_worker(
+    _app: AppHandle,
+    _state: tauri::State<'_, LocalWorkerState>,
+    _enabled: bool,
+    _hive_url: String,
+    _hive_secret: String,
+) -> Result<String, CommandError> {
+    // TODO: Implement local worker spawning logic using keyforge-agent binary
+    Ok("Toggled".into())
+}
+
+#[tauri::command]
+/// Initiates a local search/optimization operation.
+pub async fn cmd_start_search(
+    _window: Window,
+    _state: tauri::State<'_, SessionState>,
+    _search_state: tauri::State<'_, SearchState>,
+    _request: StartSearchRequest,
+) -> Result<String, CommandError> {
+    Err(CommandError::Internal(
+        "Local optimization temporarily disabled during refactor".into(),
+    ))
+}
+
+/// Signals a stop to the currently running local search operation.
+#[tauri::command]
+pub fn cmd_stop_search(search_state: tauri::State<SearchState>) {
+    if let Ok(mut flag) = search_state.stop_flag.lock() {
+        *flag = true;
+    }
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/search.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/sync.rs <<<<<<<<
+// ===== keyforge/ui/src-tauri/src/commands/sync.rs =====
+use crate::utils::get_data_dir;
+use keyforge_infra::HiveClient;
+use keyforge_infra::SyncStats;
+use keyforge_infra::{bootstrap_essentials, run_sync};
+use tauri::AppHandle;
+
+/// Synchronizes local application data with a remote Hive server.
+#[tauri::command]
+pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats, String> {
+    let local_data_dir = get_data_dir(&app)?;
+
+    // No secret needed for public sync
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: None,
+        ..Default::default()
+    };
+    let client = HiveClient::new(config).map_err(|e| e.to_string())?;
+
+    run_sync(&client, &local_data_dir).await
+}
+
+/// Bootstraps essential application assets from a remote Hive server.
+#[tauri::command]
+pub async fn cmd_bootstrap_assets(app: AppHandle, hive_url: String) -> Result<Vec<String>, String> {
+    let local_data_dir = get_data_dir(&app)?;
+
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: None,
+        ..Default::default()
+    };
+    let client = HiveClient::new(config).map_err(|e| e.to_string())?;
+
+    bootstrap_essentials(&client, &local_data_dir).await
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/sync.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/commands/system.rs <<<<<<<<
+use crate::error::CommandError;
+use keyforge_infra::HiveClient;
+use serde::Serialize;
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
+use tauri::AppHandle;
+
+/// Represents the current physical health metrics of the local system.
+#[derive(Serialize)]
+pub struct SystemHealth {
+    /// Global CPU usage percentage.
+    pub cpu_usage: f32,
+    /// Amount of physical memory used in bytes.
+    pub memory_used: u64,
+    /// Total amount of physical memory in bytes.
+    pub memory_total: u64,
+    /// System uptime in seconds.
+    pub uptime: u64,
+    /// Number of logical CPU cores.
+    pub cores: usize,
+}
+
+/// Retrieves the current system health metrics.
+#[tauri::command]
+pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
+    let mut sys = System::new_with_specifics(
+        RefreshKind::nothing()
+            .with_cpu(CpuRefreshKind::everything())
+            .with_memory(MemoryRefreshKind::everything()),
+    );
+
+    sys.refresh_all();
+
+    SystemHealth {
+        cpu_usage: sys.global_cpu_usage(),
+        memory_used: sys.used_memory(),
+        memory_total: sys.total_memory(),
+        uptime: System::uptime(),
+        cores: sys.cpus().len(),
+    }
+}
+
+/// Checks the health of a remote Hive server.
+#[tauri::command]
+pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandError> {
+    use keyforge_infra::net::client::ClientConfig;
+    let config = ClientConfig {
+        base_url: hive_url,
+        secret: None,
+        ..Default::default()
+    };
+    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
+
+    let resp = client
+        .get("health")
+        .send()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+
+    if resp.status().is_success() {
+        Ok("OK".to_string())
+    } else {
+        Err(CommandError::Network(format!(
+            "Health check failed: {}",
+            resp.status()
+        )))
+    }
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/commands/system.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/error.rs <<<<<<<<
+// ===== keyforge/ui/src-tauri/src/error.rs =====
+use keyforge_protocol::ErrorCode;
+use serde::Serialize;
+use thiserror::Error;
+
+/// Unified error type for Tauri commands in the KeyForge UI.
+#[derive(Debug, Error)]
+pub enum CommandError {
+    /// Errors occurring during filesystem operations.
+    #[error("IO Error: {0}")]
+    Io(#[from] std::io::Error),
+
+    /// Errors occurring during JSON serialization or deserialization.
+    #[error("Serialization Error: {0}")]
+    Serde(#[from] serde_json::Error),
+
+    /// Errors related to invalid application configuration.
+    #[error("Configuration Error: {0}")]
+    Config(String),
+
+    /// Input validation failures for user-provided data.
+    #[error("Validation Error: {0}")]
+    Validation(String),
+
+    /// Errors encountered during communication with the remote Hive server.
+    #[error("Network Error: {0}")]
+    Network(String),
+
+    /// Categorized internal logic failures.
+    #[error("Internal Error: {0}")]
+    Internal(String),
+    
+    /// Errors propagated from the core physics engine.
+    #[error("Physics Error: {0}")]
+    Physics(#[from] keyforge_core::PhysicsError),
+
+    /// Error indicating that a requested resource was not found.
+    #[error("Not Found")]
+    NotFound, // ADDED
+}
+
+/// Standardized error response sent to the frontend for failed commands.
+#[derive(Serialize)]
+pub struct CommandErrorResponse {
+    /// A stable machine-readable error code.
+    pub code: ErrorCode,
+    /// A human-readable description of the error.
+    pub message: String,
+}
+
+impl Serialize for CommandError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let (code, msg) = match self {
+            CommandError::Io(e) => (ErrorCode::InternalError, e.to_string()),
+            CommandError::Serde(e) => (ErrorCode::BadRequest, e.to_string()),
+            CommandError::Config(s) => (ErrorCode::BadRequest, s.clone()),
+            CommandError::Validation(s) => (ErrorCode::JobValidationFailed, s.clone()),
+            CommandError::Network(s) => (ErrorCode::UpstreamTimeout, s.clone()),
+            CommandError::Internal(s) => (ErrorCode::InternalError, s.clone()),
+            CommandError::Physics(e) => (ErrorCode::InternalError, e.to_string()),
+            CommandError::NotFound => (ErrorCode::NotFound, "Resource not found".to_string()),
+        };
+
+        CommandErrorResponse { code, message: msg }.serialize(serializer)
+    }
+}
+
+impl From<String> for CommandError {
+    fn from(s: String) -> Self {
+        CommandError::Internal(s)
+    }
+}
+
+impl From<&str> for CommandError {
+    fn from(s: &str) -> Self {
+        CommandError::Internal(s.to_string())
+    }
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/error.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/lib.rs <<<<<<<<
+//! # KeyForge UI Backend
+//!
+//! Rust backend for the KeyForge Tauri application. This crate handles 
+//! state management, background search workers, and bridges frontend 
+//! requests to core KeyForge libraries via Tauri commands.
+
+pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
+use std::sync::{Arc, Mutex};
+use tauri::Manager;
+use tokio::sync::RwLock;
+use keyforge_infra::{initialize_workspace, InitMode};
+
+/// Command handlers for Tauri invoke calls.
+pub mod commands;
+/// Shared error types for command results.
+pub mod error;
+/// Data models for frontend communication.
+pub mod models;
+/// Application state management and synchronization.
+pub mod state;
+/// Internal utility functions.
+pub mod utils;
+
+/// The main entry point for the KeyForge UI application.
+///
+/// This function initializes logging, sets up the Tauri builder, configures
+/// plugins, and establishes the global application state including the 
+/// asset cache and worker coordination.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_target(false)
+        .init();
+
+    tauri::Builder::default()
+        .setup(|app| {
+            let data_dir = utils::get_data_dir(app.handle())
+                .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, e)))?;
+
+            tracing::info!("Initializing workspace at: {:?}", data_dir);
+            
+            // Self-Healing Initialization
+            // We allow the app to continue even if this returns an error, 
+            // so the user can see the UI and potential error toasts.
+            if let Err(e) = initialize_workspace(&data_dir, InitMode::Create) {
+                tracing::error!("Workspace initialization error: {}", e);
+            }
+
+            let asset_cache = AssetCache::new(data_dir);
+
+            app.manage(SessionState {
+                active: Arc::new(RwLock::new(None)),
+                assets: Arc::new(asset_cache),
+            });
+
+            Ok(())
+        })
+        .manage(LocalWorkerState {
+            child: Arc::new(Mutex::new(None)),
+        })
+        .manage(SearchState {
+            stop_flag: Arc::new(Mutex::new(false)),
+        })
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![
+            // Config
+            commands::config::cmd_get_default_config,
+            commands::config::cmd_get_keycodes,
+            commands::config::cmd_get_ui_categories,
+            // Library
+            commands::library::cmd_list_keyboards,
+            commands::library::cmd_list_keymap_extras,
+            commands::library::cmd_get_loaded_layouts,
+            commands::library::cmd_get_all_layouts_scoped,
+            commands::library::cmd_get_keyboard_geometry,
+            commands::library::cmd_save_user_layout,
+            commands::library::cmd_delete_user_layout,
+            commands::library::cmd_submit_user_layout,
+            commands::library::cmd_parse_kle,
+            commands::library::cmd_export_to_kle,
+            commands::library::cmd_save_keyboard,
+            commands::library::cmd_export_firmware,
+            commands::library::cmd_safe_write_file,
+            // Analysis
+            commands::analysis::cmd_list_corpora,
+            commands::analysis::cmd_get_corpus_stats,
+            commands::analysis::cmd_list_cost_matrices,
+            commands::analysis::cmd_load_dataset,
+            commands::analysis::cmd_validate_layout,
+            commands::analysis::cmd_get_layout_stats,
+            commands::analysis::cmd_get_smart_swaps,
+            // Search
+            commands::search::cmd_dispatch_job,
+            commands::search::cmd_poll_hive_status,
+            commands::search::cmd_toggle_local_worker,
+            commands::search::cmd_start_search,
+            commands::search::cmd_stop_search,
+            // Sync
+            commands::sync::cmd_sync_data,
+            commands::sync::cmd_bootstrap_assets,
+            // Arena
+            commands::arena::cmd_get_typing_words,
+            commands::arena::cmd_save_biometrics,
+            commands::arena::cmd_load_user_stats,
+            commands::arena::cmd_generate_personal_profile,
+            commands::arena::cmd_reset_user_stats,
+            commands::arena::cmd_get_corpus_bigrams,
+            // System
+            commands::system::cmd_get_system_health,
+            commands::system::cmd_check_hive_health
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/lib.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/main.rs <<<<<<<<
+//! KeyForge UI Application Entry Point
+//!
+//! This crate provides the desktop user interface for KeyForge, built with Tauri and React.
+//! It coordinates between the local search agent, the remote Hive server, and the 
+//! hardware layout editor.
+
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+/// Main executable entry.
+fn main() {
+    // This calls the run() function in lib.rs
+    ui_lib::run();
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/main.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/models.rs <<<<<<<<
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+// RE-EXPORTS from Protocol
+pub use keyforge_protocol::{
+    BiometricSample, JobConfig, JobRequest as RegisterJobRequest,
+    JobResponse as RegisterJobResponse, NodeRequest as RegisterNodeRequest,
+    NodeResponse as RegisterNodeResponse, PopulationResponse,
+    ResultSubmission as SubmitResultRequest, TuningProfile, UserStatsStore,
+};
+
+/// Periodic status update for a remote job running on the Hive.
+#[derive(Clone, Serialize)]
+pub struct JobStatusUpdate {
+    /// Number of active compute nodes contributing to this job.
+    pub active_nodes: usize,
+    /// The best (lowest) physical cost score found so far.
+    pub best_score: f32,
+    /// The serialized layout string of the current best result.
+    pub best_layout: String,
+}
+
+/// Real-time search update from a local worker or optimizer.
+#[derive(Clone, Serialize)]
+pub struct SearchUpdate {
+    /// The current optimization epoch (iteration count).
+    pub epoch: usize,
+    /// The current best score achieved in this search.
+    pub score: f32,
+    /// The current best layout found by this search.
+    pub layout: String,
+    /// Search throughput in "Items Per Second".
+    pub ips: f32,
+}
+
+/// Request to start a new local search operation.
+#[derive(Deserialize)]
+pub struct StartSearchRequest {
+    /// Encoded string representing pinned keys (positions that shouldn't move).
+    pub pinned_keys: String,
+    /// Configuration parameters for the optimization algorithm.
+    pub search_params: keyforge_model::config::SearchParams,
+    /// Ergonomic weights used to calculate the physical score.
+    pub weights: keyforge_model::config::ScoringWeights,
+}
+
+/// Manifest of files available on a remote server.
+#[derive(Deserialize)]
+pub struct ServerManifest {
+    /// Map of relative file paths to their content hashes or metadata.
+    pub files: HashMap<String, String>,
+}
+
+/// Statistics gathered during a data synchronization operation.
+#[derive(Serialize, Clone, Debug)]
+pub struct SyncStats {
+    /// Number of new files downloaded.
+    pub downloaded: usize,
+    /// Number of files merged into the local repository.
+    pub merged: usize,
+    /// Number of files skipped (already up-to-date).
+    pub skipped: usize,
+    /// List of error messages encountered during sync.
+    pub errors: Vec<String>,
+}
+
+/// Result of a layout validation and analysis operation.
+#[derive(Serialize, Clone)]
+pub struct ValidationResult {
+    /// Name of the layout that was validated.
+    pub layout_name: String,
+    /// Comprehensive analysis report including ergonomics metrics.
+    pub score: keyforge_model::AnalysisReport,
+    /// Physical geometry of the keyboard used for analysis.
+    pub geometry: keyforge_model::geometry::KeyboardGeometry,
+    /// Frequency heatmap indicating which keys are used most relative to their position.
+    pub heatmap: Vec<f32>,
+    /// Map of ergonomic penalties applied across the layout.
+    pub penalty_map: Vec<f32>,
+}
+
+/// Statistics derived from raw analysis data for UI display.
+#[derive(Serialize, Clone)]
+pub struct DerivedStats {
+    /// Calculated balance between left and right hand usage (0.0 to 1.0).
+    pub hand_balance: f32,
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/models.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/mod.rs <<<<<<<<
+pub mod analysis;
+pub mod arena;
+pub mod config;
+pub mod library;
+pub mod search;
+pub mod sync;
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/mod.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/state.rs <<<<<<<<
+use keyforge_infra::FsProvider;
+use keyforge_model::Corpus;
+use keyforge_model::config::CorpusSource;
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
+// Removed unused import: WorkspaceError
+use keyforge_compute::Runtime;
+use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use moka::sync::Cache;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use tauri_plugin_shell::process::CommandChild;
+use tokio::sync::RwLock;
+
+/// Manages the state and lifecycle of a local child process worker.
+pub struct LocalWorkerState {
+    /// Handle to the active child process, if any.
+    pub child: Arc<Mutex<Option<CommandChild>>>,
+}
+
+/// Shared flag used to signal stop to asynchronous search operations.
+pub struct SearchState {
+    /// Thread-safe flag indicating if the search should terminate.
+    pub stop_flag: Arc<Mutex<bool>>,
+}
+
+/// In-memory cache for frequently accessed assets, backed by the filesystem.
+///
+/// This provides a thread-safe implementation of `AssetLoader` with LRU eviction.
+#[derive(Clone)]
+pub struct AssetCache {
+    /// The underlying filesystem provider for loading assets.
+    provider: FsProvider,
+    /// Cache for keyboard geometry definitions.
+    keyboards: Cache<String, Arc<KeyboardDefinition>>,
+    /// Cache for processed corpora.
+    corpora: Cache<String, Arc<Corpus>>,
+    /// Cache for raw cost matrix data.
+    costs: Cache<String, Arc<RawCostData>>,
+    /// Cache for keycode registries.
+    keycodes: Cache<String, Arc<KeycodeRegistry>>,
+}
+
+impl AssetCache {
+    /// Creates a new `AssetCache` rooted at the specified data directory.
+    pub fn new(root: PathBuf) -> Self {
+        // Configurable cache sizes via env or defaults
+        let kb_size = std::env::var("CACHE_KB_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(100);
+        let cp_size = std::env::var("CACHE_CORPUS_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(50);
+
+        Self {
+            provider: FsProvider::new(root),
+            keyboards: Cache::builder().max_capacity(kb_size).build(),
+            corpora: Cache::builder().max_capacity(cp_size).build(),
+            costs: Cache::builder().max_capacity(50).build(),
+            keycodes: Cache::builder().max_capacity(10).build(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl AssetLoader for AssetCache {
+    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
+        if let Some(cached) = self.keyboards.get(name) {
+            tracing::info!("Loaded keyboard '{}' from cache. Keys: {}", name, cached.geometry.keys.len());
+            return Ok(cached);
+        }
+        let item = self.provider.load_keyboard(name).await?;
+        tracing::info!("Loaded keyboard '{}' from disk. Keys: {}", name, item.geometry.keys.len());
+        self.keyboards.insert(name.to_string(), item.clone());
+        Ok(item)
+    }
+
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
+        // We need a deterministic key for caching
+        let key =
+            serde_json::to_string(sources).map_err(keyforge_model::error::ForgeError::Serde)?;
+
+        if let Some(cached) = self.corpora.get(&key) {
+            return Ok(cached);
+        }
+        let item = self.provider.load_corpus(sources).await?;
+        self.corpora.insert(key, item.clone());
+        Ok(item)
+    }
+
+    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
+        if let Some(cached) = self.costs.get(filename) {
+            return Ok(cached);
+        }
+        let item = self.provider.load_cost_matrix(filename).await?;
+        self.costs.insert(filename.to_string(), item.clone());
+        Ok(item)
+    }
+
+    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
+        if let Some(cached) = self.keycodes.get(filename) {
+            return Ok(cached);
+        }
+        let item = self.provider.load_keycodes(filename).await?;
+        self.keycodes.insert(filename.to_string(), item.clone());
+        Ok(item)
+    }
+}
+
+/// Central application state for the current user session.
+pub struct SessionState {
+    /// The active search runtime, if one is currently engaged.
+    pub active: Arc<RwLock<Option<Runtime>>>,
+    /// Global asset cache for the session.
+    pub assets: Arc<AssetCache>,
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/state.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/src/utils.rs <<<<<<<<
+use std::path::PathBuf;
+use tauri::AppHandle;
+use std::env;
+
+/// Determines the canonical data directory for the application.
+///
+/// Priority:
+/// 1. `KEYFORGE_DATA_DIR` environment variable.
+/// 2. XDG/System data directory (e.g., `~/.local/share/keyforge` on Linux, `AppData` on Windows).
+pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
+    // Priority 1: Environment Variable (Dev/Sandbox)
+    if let Ok(dir) = env::var("KEYFORGE_DATA_DIR") {
+        return Ok(PathBuf::from(dir));
+    }
+
+    // Priority 2: OS App Data Dir (Production)
+    if let Some(mut dir) = dirs::data_dir() {
+        dir.push("keyforge");
+        return Ok(dir);
+    }
+
+    Err("Could not determine data directory".to_string())
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/src/utils.rs <<<<<<<<
+>>>>>>>> START FILE: apps/keyforge-ui/src-tauri/tests/security_tests.rs <<<<<<<<
+// apps/keyforge-ui/src-tauri/tests/security_tests.rs
+
+//! Integration tests for safe file I/O in the UI application.
+
+
+use ui_lib::commands::library::cmd_safe_write_file;
+use tempfile::TempDir;
+
+#[test]
+fn test_safe_write_validation() {
+    let temp = TempDir::new().unwrap();
+    let root = temp.path();
+
+    // 1. Valid Write
+    let valid_path = root.join("layout.json");
+    let res = cmd_safe_write_file(valid_path.to_str().unwrap().to_string(), "{}".into());
+    assert!(res.is_ok(), "Valid JSON write should succeed");
+
+    // 2. Invalid Extension
+    let invalid_ext = root.join("script.sh");
+    let res = cmd_safe_write_file(
+        invalid_ext.to_str().unwrap().to_string(),
+        "echo hack".into(),
+    );
+    assert!(res.is_err(), "Shell script write should fail");
+
+    // 3. Path Traversal
+    // Note: cmd_safe_write_file checks for ".." string
+    let traversal = root.join("../outside.json");
+    let res = cmd_safe_write_file(traversal.to_str().unwrap().to_string(), "{}".into());
+    assert!(res.is_err(), "Path traversal should fail");
+}
+
+>>>>>>>> END FILE: apps/keyforge-ui/src-tauri/tests/security_tests.rs <<<<<<<<

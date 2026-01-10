@@ -17,13 +17,14 @@ use crate::error::CliError;
 use clap::Args;
 use keyforge_infra::init::{ensure_dir, USER_WORKSPACE_DIRS};
 use std::path::PathBuf;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
     #[arg(default_value = ".")]
     pub path: PathBuf,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
 }
 
@@ -53,7 +54,6 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
         }
     };
 
-    // Use dynamic bootstrap instead of hardcoded list
     match keyforge_infra::net::sync::bootstrap_essentials(&client, &root).await {
         Ok(files) => {
             eprintln!("✅ Downloaded {} essential assets.", files.len());

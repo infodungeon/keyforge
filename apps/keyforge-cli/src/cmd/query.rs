@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,18 +16,21 @@
 use crate::cli_parsers::resolve_path;
 use clap::Args;
 use keyforge_infra::fs::io::read_to_string_limited;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::{
+    MAX_INPUT_FILE_SIZE, DEFAULT_KEYBOARD_ID, ASSET_DEFAULT_COST_MATRIX
+};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::job::JobIdentifier;
 use keyforge_model::CostMatrixSource;
 use std::path::Path;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct QueryArgs {
     #[command(flatten)]
     pub config: crate::cli_args::config::ConfigArgs,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
     #[command(flatten)]
     pub shared: crate::cmd::shared::SharedArgs,
@@ -38,7 +41,11 @@ use keyforge_model::Validator;
 pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🔍 Calculating Job Hash for criteria…");
 
-    let kb_path = resolve_path(&args.shared.keyboard, Some("keyboards"), root)?;
+    // Resolve Defaults
+    let kb_input = args.shared.keyboard.unwrap_or_else(|| DEFAULT_KEYBOARD_ID.to_string());
+    let cost_input = args.shared.cost.unwrap_or_else(|| ASSET_DEFAULT_COST_MATRIX.to_string());
+
+    let kb_path = resolve_path(&kb_input, Some("keyboards"), root)?;
 
     let kb_content = read_to_string_limited(&kb_path, MAX_INPUT_FILE_SIZE)
         .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
@@ -54,7 +61,7 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     config.search.validate()?;
     config.weights.validate()?;
 
-    let cost_source = CostMatrixSource::Predefined(args.shared.cost.clone());
+    let cost_source = CostMatrixSource::Predefined(cost_input);
 
     let proto_geometry: keyforge_model::geometry::KeyboardGeometry = 
         serde_json::from_value(serde_json::to_value(&kb_def.geometry)?)?;

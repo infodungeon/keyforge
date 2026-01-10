@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,8 @@ use keyforge_model::config::CorpusSource;
 use keyforge_model::KeyConstraint;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use keyforge_model::constants::{MAX_KEYBOARD_NAME_LEN, MAX_FILENAME_LEN};
+use crate::constants::MAX_CLI_CORPORA;
 
 pub fn parse_key_constraint(s: &str) -> Result<KeyConstraint, String> {
     KeyConstraint::from_str(s)
@@ -104,8 +106,8 @@ pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<Pa
 }
 
 pub fn parse_keyboard(s: &str) -> Result<String, String> {
-    if s.len() > 100 {
-        return Err("keyboard name must be <= 100 chars".into());
+    if s.len() > MAX_KEYBOARD_NAME_LEN {
+        return Err(format!("keyboard name must be <= {} chars", MAX_KEYBOARD_NAME_LEN));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -115,8 +117,8 @@ pub fn parse_keyboard(s: &str) -> Result<String, String> {
 }
 
 pub fn parse_cost(s: &str) -> Result<String, String> {
-    if s.len() > 255 {
-        return Err("cost matrix filename must be <= 255 chars".into());
+    if s.len() > MAX_FILENAME_LEN {
+        return Err(format!("cost matrix filename must be <= {} chars", MAX_FILENAME_LEN));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -126,8 +128,8 @@ pub fn parse_cost(s: &str) -> Result<String, String> {
 }
 
 pub fn parse_corpora(args: &[String]) -> Result<Vec<CorpusSource>, String> {
-    if args.len() > 50 {
-        return Err("Too many corpora sources (limit 50)".into());
+    if args.len() > MAX_CLI_CORPORA {
+        return Err(format!("Too many corpora sources (limit {})", MAX_CLI_CORPORA));
     }
     args.iter().map(|s| CorpusSource::from_str(s)).collect()
 }

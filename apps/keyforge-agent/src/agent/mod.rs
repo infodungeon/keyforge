@@ -19,11 +19,12 @@ use crate::models::{AgentConfig, SharedTelemetry};
 use crate::agent::network::NetworkManager;
 use keyforge_protocol::{JobConfig, ResultSubmission};
 use std::sync::Arc;
-use tokio::sync::mpsc;
-use tracing::{error, info};
+use tokio::sync::{mpsc, Semaphore};
+use tracing::{error, info, warn};
 use ed25519_dalek::SigningKey;
 use tokio::sync::broadcast;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
 
 /// JIT calibration for CPU-bound scoring tasks.
 pub mod calibration;
@@ -47,7 +48,7 @@ use keyforge_infra::net::client::ClientConfig;
 pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,
-    assets: keyforge_infra::AssetManager,
+    assets: Arc<keyforge_infra::AssetManager>, // Wrapped in Arc for sharing
     result_tx: mpsc::Sender<ResultSubmission>,
 }
 
@@ -71,7 +72,12 @@ impl Agent {
             tracing::error!("Calibration failed: {}. Using safe default.", e);
         }
 
-        Ok(Self { config, telemetry, assets, result_tx })
+        Ok(Self { 
+            config, 
+            telemetry, 
+            assets: Arc::new(assets), // Arc wrapping
+            result_tx 
+        })
     }
 
     /// Starts the agent's job processing loop.
@@ -82,97 +88,121 @@ impl Agent {
     ) -> AgentResult<()> {
         info!("🤖 KeyForge Agent v0.8.0 Starting...");
         info!("   Node ID: {}", self.config.node_id);
+        info!("   Capacity: {} Cores", self.config.cores);
+
+        // Global Semaphore for Core Management
+        let global_semaphore = Arc::new(Semaphore::new(self.config.cores));
+        
+        let mut running_jobs: HashMap<String, Arc<std::sync::atomic::AtomicBool>> = HashMap::new();
 
         loop {
-            let (job_id, job) = tokio::select! {
-                Some((id, j)) = job_rx.recv() => (id, j),
-                _ = stop_rx.recv() => {
-                    info!("Received stop signal while idle.");
-                    continue;
-                }
-                else => break, // Channel closed
-            };
-
-            info!("⚙️  Starting Job (ID: {})...", job_id);
-            self.telemetry.set_job_id(&job_id);
-
-            info!("   Syncing assets...");
-            let (cost_file, _corpus_dir) = match compute::prepare_assets(&self.assets, &job, &self.config.compute).await {
-                Ok(res) => res,
-                Err(e) => {
-                    error!("Asset sync failed: {}", e);
-                    self.telemetry.set_job_id(&self.config.system.idle_job_id);
-                    continue;
-                }
-            };
-
-            let loader = Box::new(keyforge_infra::FsProvider::new(self.config.data_dir.clone()));
-            let prepared_job = match compute::create_engine_request(
-                loader, 
-                self.config.data_dir.clone(), 
-                &job, 
-                &cost_file, 
-                "corpora", 
-                &self.config.compute
-            ).await {
-                Ok(pj) => pj,
-                Err(e) => {
-                    error!("Failed to prepare job: {}", e);
-                    self.telemetry.set_job_id(&self.config.system.idle_job_id);
-                    continue;
-                }
-            };
-
-            let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let limiter = Arc::new(tokio::sync::Semaphore::new(self.config.cores.max(1))); 
-
-            info!("   Launching optimization Engine...");
             tokio::select! {
-                res = compute::run_optimization(
-                    prepared_job.req,
-                    job_id.clone(),
-                    stop_flag.clone(),
-                    limiter,
-                    self.telemetry.clone(),
-                    self.config.compute.job_timeout_sec,
-                    self.config.telemetry.progress_log_sampling_rate
-                ) => {
-                    match res {
-                        Ok(opt_res) => {
-                            info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
-                            
-                            let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
+                // 1. New Job Arrival
+                Some((job_id, job)) = job_rx.recv() => {
+                    info!("⚙️  Queued Job (ID: {})...", job_id);
+                    
+                    let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+                    running_jobs.insert(job_id.clone(), stop_flag.clone());
 
-                            let submission = ResultSubmission {
-                                version: 1,
-                                job_id: job_id.clone(),
-                                layout: layout_str,
-                                score: opt_res.score,
-                                node_id: self.config.node_id.clone(),
-                                timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
-                                nonce: rand::random(),
-                                signature: None, 
-                            };
-                            
-                            if let Err(e) = self.result_tx.send(submission).await {
-                                error!("Failed to queue result for submission: {}", e);
+                    let assets = self.assets.clone(); // Cheap Arc clone
+                    let config_compute = self.config.compute.clone();
+                    let config_system = self.config.system.clone();
+                    let config_telemetry = self.config.telemetry.clone();
+                    let data_dir = self.config.data_dir.clone();
+                    let result_tx = self.result_tx.clone();
+                    let telemetry = self.telemetry.clone();
+                    let node_id = self.config.node_id.clone();
+                    let semaphore = global_semaphore.clone();
+                    
+                    // Determine cores needed (Assume 1 for now)
+                    let permits_needed = 1; 
+
+                    tokio::spawn(async move {
+                        // 1. Acquire Resources (Wait if full)
+                        let _permit = match semaphore.acquire_many(permits_needed).await {
+                            Ok(p) => p,
+                            Err(_) => return, // Semaphore closed
+                        };
+
+                        info!("🚀 Starting Job {} (Acquired resources)", job_id);
+                        telemetry.set_job_id(&job_id);
+
+                        // 2. Sync Assets
+                        let (cost_file, _corpus_dir) = match compute::prepare_assets(&*assets, &job, &config_compute).await {
+                            Ok(res) => res,
+                            Err(e) => {
+                                error!("Job {} Asset sync failed: {}", job_id, e);
+                                return;
+                            }
+                        };
+
+                        // 3. Prepare
+                        let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
+                        let prepared_job = match compute::create_engine_request(
+                            loader, 
+                            data_dir, 
+                            &job, 
+                            &cost_file, 
+                            &config_system.corpora_dir_name, 
+                            &config_compute
+                        ).await {
+                            Ok(pj) => pj,
+                            Err(e) => {
+                                error!("Job {} Preparation failed: {}", job_id, e);
+                                return;
+                            }
+                        };
+
+                        // 4. Run
+                        let inner_limiter = Arc::new(Semaphore::new(1));
+
+                        match compute::run_optimization(
+                            prepared_job.req,
+                            job_id.clone(),
+                            stop_flag,
+                            inner_limiter,
+                            telemetry.clone(),
+                            config_compute.job_timeout_sec,
+                            config_telemetry.progress_log_sampling_rate
+                        ).await {
+                            Ok(opt_res) => {
+                                info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
+                                let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
+                                let submission = ResultSubmission {
+                                    version: 1,
+                                    job_id: job_id.clone(),
+                                    layout: layout_str,
+                                    score: opt_res.score,
+                                    node_id,
+                                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+                                    nonce: rand::random(),
+                                    signature: None, 
+                                };
+                                if let Err(e) = result_tx.send(submission).await {
+                                    error!("Failed to queue result for {}: {}", job_id, e);
+                                }
+                            }
+                            Err(e) => {
+                                warn!("❌ Job {} Terminated: {}", job_id, e);
                             }
                         }
-                        Err(e) => {
-                            error!("❌ Job {} Failed: {}", job_id, e);
-                        }
-                    }
+                        
+                        // Drop permit automatically here
+                        telemetry.set_job_id(&config_system.idle_job_id);
+                    });
                 }
+
+                // 2. Stop Signal (Cancellation)
                 _ = stop_rx.recv() => {
-                    info!("🛑 Cancellation received for job {}", job_id);
-                    stop_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                    info!("🛑 Global Stop Signal Received. Cancelling {} jobs...", running_jobs.len());
+                    for (jid, flag) in running_jobs.iter() {
+                        info!("   Cancelling {}", jid);
+                        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                    running_jobs.clear();
                 }
             }
-            
-            self.telemetry.set_job_id(&self.config.system.idle_job_id);
         }
-
-        Ok(())
     }
 }
 
@@ -196,8 +226,8 @@ pub async fn run_worker(
         }
     };
     
-    let (job_tx, job_rx) = mpsc::channel(1);
-    let (stop_tx, stop_rx) = mpsc::channel(1);
+    let (job_tx, job_rx) = mpsc::channel(100); 
+    let (stop_tx, stop_rx) = mpsc::channel(100);
 
     let net = match NetworkManager::new(
         config,

@@ -1,0 +1,42 @@
+{
+    "network": {
+        "circuit_breaker_threshold": 5,
+        "circuit_breaker_cooldown": 30,
+        "max_backoff_seconds": 60,
+        "initial_backoff_seconds": 1,
+        "timeout_seconds": 30,
+        "heartbeat_interval_seconds": 15
+    },
+    "maintenance": {
+        "ttl_days": 7,
+        "prune_interval_seconds": 3600,
+        "prune_target_dir": "user/keyboards"
+    },
+    "compute": {
+        "max_corpora_sources": 50,
+        "job_timeout_sec": 3600,
+        "keycodes_file": "keycodes.json",
+        "default_search_seed": 42
+    },
+    "calibration": {
+        "key_count": 30,
+        "warmup_iterations": 100,
+        "duration_ms": 1000,
+        "batch_size": 100
+    },
+    "telemetry": {
+        "progress_log_sampling_rate": 100
+    },
+    "logging": {
+        "default_filter": "info,keyforge_agent=debug"
+    },
+    "system": {
+        "node_id_prefix": "agent-",
+        "shutdown_channel_capacity": 16,
+        "result_channel_capacity": 100,
+        "config_dir_name": "keyforge",
+        "key_file_name": "agent.key.age",
+        "idle_job_id": "idle",
+        "corpora_dir_name": "corpora"
+    }
+}

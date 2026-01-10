@@ -3855,7 +3855,6 @@ dependencies = [
  "hex",
  "indicatif 0.18.3",
  "keyforge-adapter",
- "keyforge-compute",
  "keyforge-core",
  "keyforge-export",
  "keyforge-hive",

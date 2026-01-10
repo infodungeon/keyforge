@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,16 +19,18 @@ use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::KeyCode;
 use std::fmt::Write;
 use std::path::Path;
+use keyforge_model::constants::ASSET_KEYCODES_FILENAME;
+use crate::constants::DEFAULT_FMT_WIDTH;
 
 #[derive(Args, Debug, Clone)]
 pub struct FmtArgs {
     pub layout: String,
-    #[arg(short, long, default_value_t = 10)]
+    #[arg(short, long, default_value_t = DEFAULT_FMT_WIDTH)]
     pub width: usize,
 }
 
 pub fn run(args: FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let kc_path = root.join("keycodes.json");
+    let kc_path = root.join(ASSET_KEYCODES_FILENAME);
     let registry = if kc_path.exists() {
         load_keycode_registry(&kc_path).unwrap_or_else(|_| KeycodeRegistry::new_with_defaults())
     } else {

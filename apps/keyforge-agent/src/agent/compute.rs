@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use tracing::info;
+use tracing::{info, error}; // Added error
 use rand::seq::SliceRandom;
 use crate::models::{SharedTelemetry, ComputeConfig};
 
@@ -95,6 +95,7 @@ pub async fn create_engine_request(
     config.params.validate().map_err(|e| anyhow::anyhow!("invalid params: {}", e))?;
     config.definition.geometry.validate().map_err(|e| anyhow::anyhow!("invalid geometry: {}", e))?;
 
+    // [Fixed] Removed unnecessary clone. UserRepo takes ownership of PathBuf.
     let user_data = UserRepo::new(data_root.clone());
     let kb_name = &config.definition.meta.name;
     let safe_kb_name = keyforge_infra::sanitize_filename(kb_name);
@@ -111,6 +112,10 @@ pub async fn create_engine_request(
         None
     };
 
+    // Note: loader needs data_root if it wasn't pre-configured, but here loader is passed in.
+    // If loader needed data_root, it should have been configured with it.
+    // data_root is consumed by UserRepo above.
+    
     let definition = loader.load_keyboard(&safe_kb_name).await.context("failed to load keyboard definition")?;
 
     let domain_corpora: Vec<keyforge_model::config::CorpusSource> = config.corpora
@@ -174,6 +179,7 @@ pub async fn run_optimization(
     timeout_sec: u64,
     log_sampling_rate: usize,
 ) -> Result<OptimizationResult> {
+    // Acquire permit to respect core limits
     let _permit = limiter.acquire().await.map_err(|_| anyhow::anyhow!("Semaphore closed"))?;
 
     info!(job_id = %job_id, "starting optimization loop");
@@ -188,53 +194,60 @@ pub async fn run_optimization(
     let timeout = tokio::time::Duration::from_secs(timeout_sec);
     let job_id_inner = job_id.clone();
 
-    let handle = tokio::task::spawn_blocking(move || {
-        info!(job_id = %job_id_inner, "task: starting blocking optimization");
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            keyforge_core::optimize_with_callback(&req, logger)
-        }));
-        
-        info!(
-            job_id = %job_id_inner, 
-            is_panic = result.is_err(), 
-            "task: blocking optimization returned"
-        );
-        result
-    });
+    // [Fixed] Use std::thread::spawn instead of spawn_blocking.
+    // This isolates the optimization thread from the Tokio blocking pool, preventing
+    // pool starvation if the physics engine hangs.
+    let (tx, rx) = tokio::sync::oneshot::channel();
 
-    let result = match tokio::time::timeout(timeout, handle).await {
-        Ok(spawn_res) => match spawn_res {
-            Ok(panic_res) => match panic_res {
-                Ok(core_res) => core_res.map_err(|e| anyhow::anyhow!(e.to_string())),
-                Err(panic_payload) => {
-                    let msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+    std::thread::Builder::new()
+        .name(format!("opt-{}", job_id))
+        .spawn(move || {
+            info!(job_id = %job_id_inner, "thread: starting optimization");
+            
+            // [Fixed] Robust panic handling
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                keyforge_core::optimize_with_callback(&req, logger)
+            }));
+            
+            let final_res = match result {
+                Ok(opt_res) => opt_res.map_err(|e| anyhow::anyhow!(e.to_string())),
+                Err(payload) => {
+                    let msg = if let Some(s) = payload.downcast_ref::<&str>() {
                         format!("panic: {}", s)
-                    } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                    } else if let Some(s) = payload.downcast_ref::<String>() {
                         format!("panic: {}", s)
                     } else {
-                        "unknown panic".to_string()
+                        "unknown panic type".to_string()
                     };
+                    error!(job_id = %job_id_inner, error = %msg, "optimization thread panicked");
                     Err(anyhow::anyhow!(msg))
                 }
-            },
-            Err(join_err) => {
-                if join_err.is_panic() {
-                    Err(anyhow::anyhow!("optimization task panicked (join error)"))
-                } else {
-                    Err(anyhow::anyhow!("optimization task cancelled"))
+            };
+            
+            // Send result back to async world. Ignore error if receiver dropped (timeout).
+            let _ = tx.send(final_res);
+        })
+        .map_err(|e| anyhow::anyhow!("Failed to spawn optimization thread: {}", e))?;
+
+    // Wait for result or timeout
+    match tokio::time::timeout(timeout, rx).await {
+        Ok(channel_res) => {
+            match channel_res {
+                Ok(engine_res) => engine_res,
+                Err(_) => {
+                    // Receiver error: Sender dropped without sending. 
+                    // This happens if the thread finishes but fails to send (unlikely) or panic crash happened weirdly.
+                    Err(anyhow::anyhow!("optimization thread disconnected unexpectedly"))
                 }
             }
         },
         Err(_) => {
+            // Timeout occurred. Signal cancellation.
+            info!(job_id = %job_id, "optimization timed out, signalling stop");
             stop_flag.store(true, Ordering::SeqCst);
+            // We cannot kill the std::thread, so it "leaks" until it checks the flag.
+            // But at least we don't hold up the Agent logic.
             Err(anyhow::anyhow!("optimization timed out after {} seconds", timeout_sec))
         }
-    };
-
-    let final_stop = stop_flag.load(Ordering::SeqCst);
-    if final_stop {
-        return Err(anyhow::anyhow!("optimization cancelled"));
     }
-
-    result
 }

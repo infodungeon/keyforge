@@ -228,7 +228,7 @@ impl From<JobRequest> for JobConfig {
 }
 
 /// Response confirming job submission.
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobResponse {
     /// The assigned Job ID.
@@ -238,7 +238,7 @@ pub struct JobResponse {
 }
 
 /// Response for a worker polling the queue.
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobQueueResponse {
     /// The Job ID to process, if any.
@@ -248,7 +248,7 @@ pub struct JobQueueResponse {
 }
 
 /// Response containing available layouts.
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct PopulationResponse {
     /// List of layout strings.
@@ -257,7 +257,7 @@ pub struct PopulationResponse {
 }
 
 /// Submission of a result from a worker.
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct ResultSubmission {
     /// Protocol version.
@@ -281,7 +281,7 @@ pub struct ResultSubmission {
 }
 
 /// Request from a node to register or heartbeat.
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct NodeRequest {
     /// Protocol version.
@@ -312,7 +312,7 @@ impl Validator for NodeRequest {
 }
 
 /// Tuning profile for a worker.
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct TuningProfile {
     /// Strategy name.
@@ -324,7 +324,7 @@ pub struct TuningProfile {
 }
 
 /// Response to a node heartbeat.
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct NodeResponse {
     /// Status of the node (e.g., "Active").

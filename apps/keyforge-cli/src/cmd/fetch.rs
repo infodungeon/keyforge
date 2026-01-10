@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,13 +16,14 @@
 use crate::error::CliError;
 use clap::{Args, Subcommand};
 use std::path::Path;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchArgs {
     #[command(subcommand)]
     pub command: FetchCommands,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
 }
 

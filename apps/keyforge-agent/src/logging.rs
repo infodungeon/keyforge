@@ -18,60 +18,51 @@
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+/// Logging output modes.
+pub enum LogMode {
+    /// Standard human-readable logs to stdout (for Worker/Daemon).
+    Standard,
+    /// Structured JSON logs to stderr (for Sidecar/Run mode).
+    JsonStderr,
+}
+
 /// Initializes the tracing system for the agent.
-///
-/// It supports both local stdout logging and distributed tracing via OTLP if
-/// the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable is set.
-///
-/// Accepts a `default_filter` string to set the logging level if RUST_LOG is not set.
-pub fn init_tracing(default_filter: &str) {
+pub fn init_tracing(default_filter: &str, mode: LogMode) {
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(default_filter));
 
-    let fmt_layer = tracing_subscriber::fmt::layer();
-
-    if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok() {
-        match opentelemetry_otlp::SpanExporter::builder()
-            .with_tonic()
-            .build()
-        {
-            Ok(exporter) => {
-                let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-                    .with_batch_exporter(exporter)
-                    .build();
-
-                use opentelemetry::trace::TracerProvider;
-                let tracer = provider.tracer("keyforge-agent");
-
-                let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-
-                tracing_subscriber::registry()
-                    .with(filter)
-                    .with(fmt_layer)
-                    .with(telemetry_layer)
-                    .init();
-
-                // Task 27: Structured logging
-                tracing::info!(mode = "otlp", "distributed tracing enabled");
+    match mode {
+        LogMode::Standard => {
+            let fmt_layer = tracing_subscriber::fmt::layer();
+            // Check for OTLP only in Standard mode
+            if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok() {
+                if let Ok(exporter) = opentelemetry_otlp::SpanExporter::builder().with_tonic().build() {
+                    let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+                        .with_batch_exporter(exporter)
+                        .build();
+                    let tracer = opentelemetry::trace::TracerProvider::tracer(&provider, "keyforge-agent");
+                    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+                    
+                    tracing_subscriber::registry()
+                        .with(filter)
+                        .with(fmt_layer)
+                        .with(telemetry_layer)
+                        .init();
+                    return;
+                }
             }
-            Err(e) => {
-                tracing_subscriber::registry()
-                    .with(filter)
-                    .with(fmt_layer)
-                    .init();
-                // Task 27: Structured logging
-                tracing::warn!(error = %e, "failed to create OTLP exporter, falling back to local");
-            }
+            // Fallback
+            tracing_subscriber::registry().with(filter).with(fmt_layer).init();
+        },
+        LogMode::JsonStderr => {
+            // Write JSON to stderr to keep stdout clean for results
+            let fmt_layer = tracing_subscriber::fmt::layer()
+                .json()
+                .with_writer(std::io::stderr);
+            
+            tracing_subscriber::registry().with(filter).with(fmt_layer).init();
         }
-    } else {
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(fmt_layer)
-            .init();
-
-        // Task 27: Structured logging
-        tracing::info!(mode = "stdout", "local logging enabled");
     }
 }

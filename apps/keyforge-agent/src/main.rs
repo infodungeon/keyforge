@@ -15,17 +15,21 @@
 
 //! # KeyForge Agent Binary
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::rngs::OsRng;
 use std::path::PathBuf;
-use tokio::sync::broadcast;
-use tracing::info;
+use tokio::sync::{broadcast, mpsc};
+use tracing::{info, error};
 use keyforge_agent::agent::errors::AgentError;
 use keyforge_agent::models::{AgentConfig, PartialAgentConfig, SystemConfig};
+use keyforge_protocol::JobConfig;
 
 #[derive(Parser)]
 struct Args {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
     #[arg(long, env = "KEYFORGE_HIVE_URL")]
     hive: Option<String>,
 
@@ -37,6 +41,32 @@ struct Args {
 
     #[arg(long, env = "KEYFORGE_CONFIG")]
     config: Option<PathBuf>,
+}
+
+#[derive(Subcommand, Clone)]
+enum Commands {
+    /// Start as a long-running worker node connecting to a Hive.
+    Worker,
+    /// Run a single optimization job defined in a file.
+    Run {
+        /// Path to the JobConfig JSON file.
+        job_file: PathBuf,
+    },
+    /// Score a specific layout string against a JobConfig.
+    Score {
+        /// Path to the JobConfig JSON file.
+        job_file: PathBuf,
+        /// The layout string to score.
+        layout: String,
+    },
+    /// Run a physics benchmark using the environment from a JobConfig.
+    Bench {
+        /// Path to the JobConfig JSON file.
+        job_file: PathBuf,
+        /// Number of iterations.
+        #[arg(long, default_value_t = 100_000)]
+        iterations: usize,
+    }
 }
 
 fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Option<PartialAgentConfig> {
@@ -71,14 +101,11 @@ fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Optio
 
     for path in candidates {
         if path.exists() {
-            println!("Loading configuration from {:?}", path);
-            match PartialAgentConfig::from_file(&path) {
-                Ok(cfg) => return Some(cfg),
-                Err(e) => eprintln!("Failed to parse config file {:?}: {}", path, e),
+            if let Ok(cfg) = PartialAgentConfig::from_file(&path) {
+                return Some(cfg);
             }
         }
     }
-    println!("No configuration file found in standard locations. Using defaults.");
     None
 }
 
@@ -87,7 +114,6 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let mut config = AgentConfig::default();
     
-    // 1. Load config
     if let Some(config_path) = &args.config {
         match PartialAgentConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
@@ -100,58 +126,169 @@ async fn main() -> anyhow::Result<()> {
         config.merge(file_cfg);
     }
 
-    // 2. Override with CLI/Env
     if let Some(h) = args.hive { config.hive_url = h; }
     if let Some(c) = args.cores { config.cores = c; }
     if let Some(d) = args.data_dir { config.data_dir = d; }
 
-    // 3. Init Logging with configured filter
-    keyforge_agent::logging::init_tracing(&config.logging.default_filter);
+    let command = args.command.unwrap_or(Commands::Worker);
+    let log_mode = match command {
+        Commands::Worker => keyforge_agent::logging::LogMode::Standard,
+        _ => keyforge_agent::logging::LogMode::JsonStderr,
+    };
+    
+    keyforge_agent::logging::init_tracing(&config.logging.default_filter, log_mode);
 
     let hive_url = config.hive_url.clone();
     let data_dir = config.data_dir.clone();
 
-    info!("agent starting");
-    info!(hive_url = %hive_url, "connecting to hive");
-    info!(data_dir = ?data_dir, "data directory configured");
+    match command {
+        Commands::Worker => {
+            let signing_key = load_or_create_identity(&config.system)?;
+            let public_key = VerifyingKey::from(&signing_key);
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(public_key.to_bytes());
+            let pk_hash = hex::encode(hasher.finalize());
+            let node_id = format!("{}{}", config.system.node_id_prefix, &pk_hash[0..8]);
 
-    // 4. Identity Management
-    let signing_key = load_or_create_identity(&config.system)?;
+            info!("agent starting in WORKER mode");
+            info!(hive_url = %hive_url, "connecting to hive");
+            info!(data_dir = ?data_dir, "data directory configured");
 
-    let public_key = VerifyingKey::from(&signing_key);
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(public_key.to_bytes());
-    let pk_hash = hex::encode(hasher.finalize());
-    let node_id = format!("{}{}", config.system.node_id_prefix, &pk_hash[0..8]);
+            let (tx, rx) = broadcast::channel(config.system.shutdown_channel_capacity);
+            #[cfg(unix)]
+            let mut sig_usr1 =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
+                    .map_err(|e| anyhow::anyhow!("failed to register SIGUSR1: {}", e))?;
+            #[cfg(not(unix))]
+            let mut sig_usr1 = std::future::pending::<()>();
 
-    // 5. Signal Handling
-    let (tx, rx) = broadcast::channel(config.system.shutdown_channel_capacity);
-    #[cfg(unix)]
-    let mut sig_usr1 =
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
-            .map_err(|e| anyhow::anyhow!("failed to register SIGUSR1: {}", e))?;
-    #[cfg(not(unix))]
-    let mut sig_usr1 = std::future::pending::<()>();
+            let tx_clone = tx.clone();
+            tokio::spawn(async move {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        let _ = tx_clone.send(());
+                    }
+                    _ = sig_usr1.recv() => {
+                        let _ = tx_clone.send(());
+                    }
+                }
+            });
 
-    let tx_clone = tx.clone();
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
-                info!("received ctrl-c, initiating shutdown");
-                let _ = tx_clone.send(());
+            keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
+        }
+        Commands::Run { job_file } => {
+            let content = tokio::fs::read_to_string(&job_file).await
+                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
+            let job: JobConfig = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+
+            let (result_tx, mut result_rx) = mpsc::channel(1);
+            let agent = keyforge_agent::agent::Agent::new(config.clone(), result_tx).await
+                .map_err(|e| anyhow::anyhow!("Failed to init agent: {}", e))?;
+
+            let (job_tx, job_rx) = mpsc::channel(1);
+            let (_, stop_rx) = mpsc::channel(1);
+            
+            let agent_handle = tokio::spawn(async move {
+                agent.run(job_rx, stop_rx).await
+            });
+
+            let job_id = "local-job".to_string(); 
+            job_tx.send((job_id, job)).await.ok();
+            
+            if let Some(result) = result_rx.recv().await {
+                let json = serde_json::to_string(&result).unwrap();
+                println!("{}", json);
+            } else {
+                error!("No result produced!");
+                std::process::exit(1);
             }
-            _ = sig_usr1.recv() => {
-                info!("received SIGUSR1, initiating graceful drain");
-                let _ = tx_clone.send(());
+            
+            drop(job_tx);
+            let _ = agent_handle.await;
+        }
+        Commands::Score { job_file, layout } => {
+            let content = tokio::fs::read_to_string(&job_file).await
+                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
+            let job: JobConfig = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+            
+            let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
+            
+            let assets = keyforge_infra::AssetManager::new(
+                keyforge_infra::HiveClient::new(Default::default())?, 
+                data_dir.clone()
+            );
+            
+            let (cost_file, _) = keyforge_agent::agent::compute::prepare_assets(&assets, &job, &config.compute).await?;
+            
+            let mut prepared = keyforge_agent::agent::compute::create_engine_request(
+                loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
+            ).await?;
+
+            let layout_parsed = keyforge_adapter::conversion::parse_layout_string(
+                &layout, 
+                prepared.req.keyboard.keys.len(), 
+                &prepared.registry
+            ).map_err(|e| anyhow::anyhow!("Invalid layout: {}", e))?;
+            
+            prepared.req.initial_layout = Some(layout_parsed);
+
+            let report = keyforge_core::analyze(&prepared.req);
+            match report {
+                Ok(r) => println!("{}", serde_json::to_string_pretty(&r)?),
+                Err(e) => return Err(anyhow::anyhow!("Analysis failed: {:?}", e)),
             }
         }
-    });
+        Commands::Bench { job_file, iterations } => {
+            let content = tokio::fs::read_to_string(&job_file).await
+                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
+            let job: JobConfig = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+            
+            let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
+            let assets = keyforge_infra::AssetManager::new(
+                keyforge_infra::HiveClient::new(Default::default())?, 
+                data_dir.clone()
+            );
+            
+            let (cost_file, _) = keyforge_agent::agent::compute::prepare_assets(&assets, &job, &config.compute).await?;
+            
+            let mut prepared = keyforge_agent::agent::compute::create_engine_request(
+                loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
+            ).await?;
 
-    // 6. Run Worker
-    keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
+            let start = std::time::Instant::now();
+            let mut score_sum = 0.0;
+            
+            if prepared.req.initial_layout.is_none() {
+                use keyforge_model::{Layout, KeyCode};
+                let layout = Layout::new_unchecked((0..prepared.req.keyboard.keys.len() as u16).map(KeyCode).collect());
+                prepared.req.initial_layout = Some(layout);
+            }
 
-    info!("agent exited cleanly");
+            for _ in 0..iterations {
+                // [Fixed] Extract score from Result
+                let res = keyforge_core::score(&prepared.req);
+                score_sum += match res {
+                    Ok(opt) => opt.score,
+                    Err(_) => 0.0,
+                };
+            }
+            
+            let duration = start.elapsed();
+            let kops = (iterations as f64 / duration.as_secs_f64()) / 1000.0;
+            
+            println!("{}", serde_json::json!({
+                "iterations": iterations,
+                "duration_ms": duration.as_millis(),
+                "kops": kops,
+                "checksum": score_sum
+            }));
+        }
+    }
+
     Ok(())
 }
 
@@ -166,8 +303,14 @@ fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentErr
 
     path.push(&config.key_file_name);
 
-    let passphrase = machine_id_timeout_safe()
-        .map_err(|e| AgentError::Identity(format!("Fatal: Could not derive machine ID. Secure fallback unavailable: {}", e)))?;
+    let passphrase = if let Some(override_id) = &config.machine_id_override {
+        override_id.clone()
+    } else if let Ok(env_id) = std::env::var("KEYFORGE_MACHINE_ID") {
+        env_id
+    } else {
+        machine_id_timeout_safe()
+            .map_err(|e| AgentError::Identity(format!("Fatal: Could not derive machine ID. Secure fallback unavailable: {}", e)))?
+    };
 
     if path.exists() {
         let file =
@@ -190,7 +333,6 @@ fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentErr
             .try_into()
             .map_err(|_| AgentError::Identity("invalid key file length (expected 32 bytes)".into()))?;
 
-        info!(path = ?path, "loaded encrypted identity");
         Ok(SigningKey::from_bytes(&array))
     } else {
         let mut csprng = OsRng;

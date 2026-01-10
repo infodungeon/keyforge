@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,11 +17,13 @@ use clap::Args;
 use std::path::Path;
 use sysinfo::System;
 use std::time::Duration;
+use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct DoctorArgs {}
 
-pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+// [Fixed] Made async to avoid blocking reqwest
+pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🩺 KeyForge Doctor");
     eprintln!("========================================");
 
@@ -51,6 +53,7 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
     check_tool("cargo");
     check_tool("node");
     check_tool("npm");
+    check_tool("keyforge-agent"); // [Fixed] Check for sidecar binary
 
     // 2. CPU Capabilities
     eprintln!("\n⚡ Processor");
@@ -78,8 +81,8 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
         ("system/keyboards", true),
         ("system/corpora", true),
         ("system/weights", true),
-        ("system/weights/default_costmatrix.mpk.zst", false),
-        ("system/config/keycodes.mpk.zst", false),
+        ("system/weights/default_costmatrix.json", false), // Use json not mpk for local
+        ("system/config/keycodes.json", false),
     ];
 
     let mut all_good = true;
@@ -120,25 +123,16 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
         }
     }
 
-    // 5. Database Connectivity (Removed - Optional Feature)
-    // The database is only used by Hive, not the CLI.
-    // Skipping this check to keep the CLI dependency-free.
-
-    // 6. Hive API Connectivity
+    // 5. Hive API Connectivity
     eprintln!("\n🐝 Hive API");
-    let hive_url = match std::env::var("KEYFORGE_HIVE_URL") {
-        Ok(url) => url,
-        Err(_) => {
-            eprintln!("   ℹ️  KEYFORGE_HIVE_URL not set. Defaulting to 'http://localhost:3000'.");
-            "http://localhost:3000".to_string()
-        }
-    };
+    let hive_url = std::env::var("KEYFORGE_HIVE_URL").unwrap_or_else(|_| DEFAULT_HIVE_URL.to_string());
     
-    let client = reqwest::blocking::Client::builder()
+    // [Fixed] Async Client
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .build()?;
     
-    match client.get(format!("{}/health", hive_url)).send() {
+    match client.get(format!("{}/health", hive_url)).send().await {
         Ok(res) => {
             if res.status().is_success() {
                 eprintln!("   ✅ Reachability: OK ({})", hive_url);
@@ -149,7 +143,6 @@ pub fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Err
         }
         Err(e) => {
             eprintln!("   ⚠️  Reachability: FAILED ({}) - Is Hive running?", e);
-            // Don't fail the health check for optional Hive connectivity
         }
     }
 
@@ -174,10 +167,10 @@ fn check_tool(name: &str) {
                 .nth(1)
                 .unwrap_or("?")
                 .to_string();
-            eprintln!("   ✅ {:<8} {}", name, ver);
+            eprintln!("   ✅ {:<15} {}", name, ver);
         }
         Err(_) => {
-            eprintln!("   ❌ {:<8} Not Found", name);
+            eprintln!("   ❌ {:<15} Not Found (Sidecar Required)", name);
         }
     }
 }

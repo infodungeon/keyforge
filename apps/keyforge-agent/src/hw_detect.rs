@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,11 +28,11 @@ pub struct CpuCacheTopology {
     /// The number of logical cores detected.
     pub cores: usize,
     /// L1 Data cache size in kilobytes.
-    pub l1_data_kb: Option<usize>,
+    pub l1_data_kb: Option<u64>, // [Fixed] Changed to u64
     /// L2 cache size in kilobytes.
-    pub l2_kb: Option<usize>,
+    pub l2_kb: Option<u64>,      // [Fixed] Changed to u64
     /// L3 cache size in kilobytes.
-    pub l3_kb: Option<usize>,
+    pub l3_kb: Option<u64>,      // [Fixed] Changed to u64
 }
 
 impl Default for CpuCacheTopology {
@@ -129,16 +129,16 @@ fn detect_x86_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
                 * cache.associativity() as u64
                 * cache.coherency_line_size() as u64)
                 / 1024;
-            let size_kb = u64_to_usize_saturating(size_kb_u64);
-
+            
+            // [Fixed] Direct assignment to u64
             match cache.level() {
                 1 => {
                     if cache.cache_type() == CacheType::Data {
-                        topo.l1_data_kb = Some(size_kb);
+                        topo.l1_data_kb = Some(size_kb_u64);
                     }
                 }
-                2 => topo.l2_kb = Some(size_kb),
-                3 => topo.l3_kb = Some(size_kb),
+                2 => topo.l2_kb = Some(size_kb_u64),
+                3 => topo.l3_kb = Some(size_kb_u64),
                 _ => {}
             }
         }
@@ -148,7 +148,6 @@ fn detect_x86_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
 
 #[cfg(target_os = "macos")]
 fn detect_macos_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
-    // Task 52: Avoid sysctl binary spawn, use libc
     use libc::{size_t, sysctlbyname};
     use std::ptr;
 
@@ -156,7 +155,6 @@ fn detect_macos_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
         let mut value: u64 = 0;
         let mut size = std::mem::size_of::<u64>() as size_t;
         let c_name = std::ffi::CString::new(name).ok()?;
-        // SAFETY: sysctlbyname is a safe call with valid pointers
         unsafe {
             if sysctlbyname(
                 c_name.as_ptr(),
@@ -173,28 +171,27 @@ fn detect_macos_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
         }
     }
 
+    // [Fixed] Direct assignment (bytes -> KB)
     if let Some(bytes) = get_sysctl_u64("hw.l1dcachesize") {
-        topo.l1_data_kb = Some(u64_to_usize_saturating(bytes / 1024));
+        topo.l1_data_kb = Some(bytes / 1024);
     }
     if let Some(bytes) = get_sysctl_u64("hw.l2cachesize") {
-        topo.l2_kb = Some(u64_to_usize_saturating(bytes / 1024));
+        topo.l2_kb = Some(bytes / 1024);
     }
     if let Some(bytes) = get_sysctl_u64("hw.l3cachesize") {
-        topo.l3_kb = Some(u64_to_usize_saturating(bytes / 1024));
+        topo.l3_kb = Some(bytes / 1024);
     }
     Ok(())
 }
 
 #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
 fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
-    // Task 51: ARM-Windows cache detection
     use std::alloc::{alloc, Layout};
     use windows_sys::Win32::System::SystemInformation::{
         GetLogicalProcessorInformationEx, RelationCache, SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX,
     };
 
     let mut len: u32 = 0;
-    // SAFETY: First call to get required buffer size
     unsafe {
         GetLogicalProcessorInformationEx(RelationCache, ptr::null_mut(), &mut len);
     }
@@ -212,22 +209,20 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentErr
         return Ok(());
     }
 
-    // SAFETY: Buffer allocated with correct size and alignment
     unsafe {
         if GetLogicalProcessorInformationEx(RelationCache, ptr as *mut _, &mut len) != 0 {
             let mut offset = 0;
             while offset < len {
                 let info =
                     &*(ptr.add(offset as usize) as *const SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX);
-                // RELATION_CACHE_INFORMATION is at the end of the union
                 let cache = &info.u.Cache;
                 let size_kb_u64 = (cache.Size as u64 / 1024);
-                let size_kb = u64_to_usize_saturating(size_kb_u64);
 
+                // [Fixed] Direct assignment
                 match cache.Level {
-                    1 => topo.l1_data_kb = Some(size_kb),
-                    2 => topo.l2_kb = Some(size_kb),
-                    3 => topo.l3_kb = Some(size_kb),
+                    1 => topo.l1_data_kb = Some(size_kb_u64),
+                    2 => topo.l2_kb = Some(size_kb_u64),
+                    3 => topo.l3_kb = Some(size_kb_u64),
                     _ => {}
                 }
                 offset += info.Size;
@@ -236,19 +231,4 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentErr
         std::alloc::dealloc(ptr, layout);
     }
     Ok(())
-}
-
-/// Safely casts a u64 to usize, saturating at usize::MAX and warning if truncation occurs.
-/// This prevents integer overflow issues on 32-bit systems when handling large cache sizes.
-fn u64_to_usize_saturating(value: u64) -> usize {
-    if value > usize::MAX as u64 {
-        warn!(
-            "Value {} exceeds platform usize limit {}, saturating to limit.",
-            value,
-            usize::MAX
-        );
-        usize::MAX
-    } else {
-        value as usize
-    }
 }

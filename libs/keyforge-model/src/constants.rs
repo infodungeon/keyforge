@@ -25,6 +25,10 @@ pub const MAX_PINNED_KEYS_COUNT: usize = 200;
 pub const MAX_PINNED_KEYS_LEN: usize = 10_000;
 /// Maximum length of a layout name.
 pub const MAX_LAYOUT_NAME_LEN: usize = 64;
+/// Maximum length of a keyboard definition name.
+pub const MAX_KEYBOARD_NAME_LEN: usize = 100;
+/// Maximum length of a filename (e.g. cost matrix).
+pub const MAX_FILENAME_LEN: usize = 255;
 /// Maximum length of an author name.
 pub const MAX_AUTHOR_NAME_LEN: usize = 64;
 /// Maximum length of layout data string.
@@ -71,9 +75,6 @@ pub const CORPUS_TOKEN_MAP: &[(&str, char)] = &[
     ("ESCAPE", '\x1b'),
 ];
 
-
-
-
 // --- System Assets ---
 
 /// Filename for the Agent configuration asset.
@@ -84,13 +85,24 @@ pub const ASSET_SYSTEM_CONFIG: &str = "config";
 pub const ASSET_HIVE_CONFIG: &str = "hive";
 /// Filename for the Keycodes definition asset.
 pub const ASSET_KEYCODES: &str = "keycodes";
+/// Filename for the Keycodes definition filename.
+pub const ASSET_KEYCODES_FILENAME: &str = "keycodes.json";
 /// Filename for the UI Categories asset.
 pub const ASSET_UI_CATEGORIES: &str = "ui_categories";
 /// Filename for the default Cost Matrix asset.
 pub const ASSET_COST_MATRIX: &str = "cost_matrix";
+/// Filename for the default Cost Matrix JSON file.
+pub const ASSET_DEFAULT_COST_MATRIX: &str = "default_costmatrix.json";
 
 /// Default corpus identifier.
 pub const DEFAULT_CORPUS_ID: &str = "text/en_std";
+/// Default keyboard identifier.
+pub const DEFAULT_KEYBOARD_ID: &str = "ortho_30";
+
+// --- Presentation ---
+
+/// Default column width for grid views.
+pub const DEFAULT_GRID_WIDTH: usize = 10;
 
 // --- Corpus Injection Constants ---
 
@@ -100,3 +112,21 @@ pub const STD_CORPUS_ERROR_RATE: f32 = 0.03;
 pub const STD_CORPUS_BACKSPACE_FACTOR: f32 = 1.25;
 /// Average sentences per paragraph for standard prose.
 pub const STD_CORPUS_SENTENCE_RATIO: f32 = 3.0;
+
+// --- Default Values (Strings) ---
+
+/// Default characters considered high priority (Home row candidates).
+pub const DEFAULT_TIER_HIGH: &str = "etaoinshr";
+/// Default characters considered medium priority.
+pub const DEFAULT_TIER_MED: &str = "ldcumwfgypb.,";
+/// Default characters considered low priority.
+pub const DEFAULT_TIER_LOW: &str = "vkjxqz/;";
+
+/// Default bigrams that must be optimized for.
+pub const DEFAULT_CRITICAL_BIGRAMS: &str = "th,he,in,er,an,re,nd,ou";
+/// Default scale factors for finger penalties (Thumb, Index, Middle, Ring, Pinky).
+pub const DEFAULT_FINGER_PENALTY_SCALE: &str = "0.0,1.0,1.1,1.3,1.6";
+/// Default scale factors for finger repeat penalties.
+pub const DEFAULT_FINGER_REPEAT_SCALE: &str = "1.0,1.0,1.0,1.2,1.5";
+/// Default comfortable scissor pairs (Indices).
+pub const DEFAULT_COMFORTABLE_SCISSORS: &str = "21,23,34";

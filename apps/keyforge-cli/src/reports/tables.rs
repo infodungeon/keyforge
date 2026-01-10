@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -61,10 +61,23 @@ pub fn comparisons(
     _benchmarks: Option<&Vec<BenchmarkEntry>>,
 ) {
     if !results.is_empty() {
+        // [Fixed] Safe float comparison
         let best = results
             .iter()
-            .min_by(|a, b| a.1.score.partial_cmp(&b.1.score).unwrap_or(std::cmp::Ordering::Equal))
-            .unwrap();
+            .min_by(|a, b| {
+                a.1.score.partial_cmp(&b.1.score).unwrap_or_else(|| {
+                    // Treat NaN as infinity (worst)
+                    if a.1.score.is_nan() && !b.1.score.is_nan() {
+                        std::cmp::Ordering::Greater
+                    } else if !a.1.score.is_nan() && b.1.score.is_nan() {
+                        std::cmp::Ordering::Less
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                })
+            })
+            .unwrap(); // Results checked for !empty above
+            
         let best_score = best.1.score;
 
         let mut table = Table::new();

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
 
 use clap::Args;
 use keyforge_model::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
+use keyforge_model::constants::*;
 
 /// Top-level configuration arguments combining search, weights, and definitions.
 #[derive(Args, Debug, Clone)]
@@ -188,11 +189,11 @@ pub struct ScoringWeightsArgs {
     pub trigram_coverage: f32,
 
     /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
-    #[arg(long, default_value = "0.0,1.0,1.1,1.3,1.6")]
-    pub finger_penalty_scale: String,
+    #[arg(long, value_delimiter = ',', num_args = 5, default_value = DEFAULT_FINGER_PENALTY_SCALE)]
+    pub finger_penalty_scale: Vec<f32>,
 
     /// Comma-separated list of comfortable scissor pairs.
-    #[arg(long, default_value = "21,23,34")]
+    #[arg(long, default_value = DEFAULT_COMFORTABLE_SCISSORS)]
     pub comfortable_scissors: String,
 }
 
@@ -200,20 +201,20 @@ pub struct ScoringWeightsArgs {
 #[derive(Args, Debug, Clone)]
 pub struct LayoutDefinitionsArgs {
     /// Characters considered high priority.
-    #[arg(long, default_value = "etaoinshr")]
+    #[arg(long, default_value = DEFAULT_TIER_HIGH)]
     pub tier_high_chars: String,
     /// Characters considered medium priority.
-    #[arg(long, default_value = "ldcumwfgypb.,")]
+    #[arg(long, default_value = DEFAULT_TIER_MED)]
     pub tier_med_chars: String,
     /// Characters considered low priority.
-    #[arg(long, default_value = "vkjxqz/;")]
+    #[arg(long, default_value = DEFAULT_TIER_LOW)]
     pub tier_low_chars: String,
     /// Bigrams that must be optimized for.
-    #[arg(long, default_value = "th,he,in,er,an,re,nd,ou")]
+    #[arg(long, default_value = DEFAULT_CRITICAL_BIGRAMS)]
     pub critical_bigrams: String,
     /// Scale factors for finger repeat penalties.
-    #[arg(long, default_value = "1.0,1.0,1.0,1.2,1.5")]
-    pub finger_repeat_scale: String,
+    #[arg(long, value_delimiter = ',', num_args = 5, default_value = DEFAULT_FINGER_REPEAT_SCALE)]
+    pub finger_repeat_scale: Vec<f32>,
 }
 
 use keyforge_model::Validator;
@@ -247,6 +248,7 @@ impl TryFrom<SearchParamsArgs> for SearchParams {
             opt_limit_slow: args.opt_limit_slow,
             reheats: args.reheats,
             reheat_factor: args.reheat_factor,
+            seed: None, // [Fixed] Added
         };
         p.validate()?;
         Ok(p)
@@ -295,7 +297,7 @@ impl TryFrom<ScoringWeightsArgs> for ScoringWeights {
             default_cost_ms: args.default_cost_ms,
             loader_trigram_limit: args.loader_trigram_limit,
             trigram_coverage: args.trigram_coverage,
-            finger_penalty_scale: parse_array_5(&args.finger_penalty_scale)?,
+            finger_penalty_scale: vec_to_array_5(args.finger_penalty_scale)?,
             comfortable_scissors: args.comfortable_scissors,
         };
         w.validate()?;
@@ -311,19 +313,18 @@ impl TryFrom<LayoutDefinitionsArgs> for LayoutDefinitions {
             tier_med_chars: args.tier_med_chars,
             tier_low_chars: args.tier_low_chars,
             critical_bigrams: args.critical_bigrams,
-            finger_repeat_scale: parse_array_5(&args.finger_repeat_scale)?,
+            finger_repeat_scale: vec_to_array_5(args.finger_repeat_scale)?,
         })
     }
 }
 
-fn parse_array_5(s: &str) -> Result<[f32; 5], String> {
-    let parts: Vec<&str> = s.split(',').collect();
-    if parts.len() != 5 {
-        return Err(format!("Expected 5 values, got {}", parts.len()));
+fn vec_to_array_5(v: Vec<f32>) -> Result<[f32; 5], String> {
+    if v.len() != 5 {
+        return Err(format!("Expected 5 values, got {}", v.len()));
     }
     let mut arr = [0.0; 5];
-    for (i, p) in parts.iter().enumerate() {
-        arr[i] = p.trim().parse::<f32>().map_err(|e| e.to_string())?;
+    for (i, &val) in v.iter().enumerate() {
+        arr[i] = val;
     }
     Ok(arr)
 }

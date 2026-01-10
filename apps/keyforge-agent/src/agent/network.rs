@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH, Instant};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use tracing::{error, info, warn};
+use tracing::{error, info, warn, debug};
 use url::Url;
 use serde::{Deserialize, Serialize};
 use sysinfo::{System, ProcessesToUpdate};
@@ -38,6 +38,7 @@ pub struct NetworkManager {
     job_tx: mpsc::Sender<(String, JobConfig)>,
     result_rx: mpsc::Receiver<ResultSubmission>,
     stop_tx: mpsc::Sender<()>,
+    outbox: ResultOutbox,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -62,7 +63,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    /// Creates a new `CircuitBreaker` with the given threshold and cooldown.
+    /// Creates a new `CircuitBreaker`.
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
         Self {
             failures: 0,
@@ -72,7 +73,7 @@ impl CircuitBreaker {
         }
     }
 
-    /// Checks if a request can be attempted.
+    /// Returns `true` if an attempt is allowed.
     pub fn can_attempt(&self) -> bool {
         if self.failures < self.threshold {
             return true;
@@ -85,13 +86,13 @@ impl CircuitBreaker {
         false
     }
 
-    /// Records a failure event.
+    /// Records a failure.
     pub fn record_failure(&mut self) {
         self.failures += 1;
         self.last_failure = Some(Instant::now());
     }
 
-    /// Records a success event, resetting the failure count.
+    /// Resets the failure counter.
     pub fn record_success(&mut self) {
         self.failures = 0;
         self.last_failure = None;
@@ -106,7 +107,7 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
-    /// Creates a new `ResultOutbox` instance.
+    /// Creates a new `ResultOutbox`.
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
@@ -117,18 +118,52 @@ impl ResultOutbox {
         }
     }
 
-    /// Attempts to send a result, buffering to disk on failure.
-    pub fn try_send(&self, submission: ResultSubmission) -> AgentResult<()> {
+    /// Buffers a result to disk.
+    pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
         let path = self.wal_dir.join(format!("{}.json", submission.nonce));
-        if let Ok(json) = serde_json::to_string(&submission) {
-             let _ = std::fs::write(path, json);
+        if let Ok(json) = serde_json::to_string(submission) {
+             if let Err(e) = std::fs::write(&path, json) {
+                 error!("CRITICAL: Failed to write result to WAL at {:?}: {}", path, e);
+                 return Err(crate::agent::errors::AgentError::Resource(e.to_string()));
+             }
+             info!("Buffered result {} to WAL", submission.job_id);
         }
         Ok(())
+    }
+
+    /// Retrieves all pending submissions from disk.
+    pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
+        let mut pending = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&self.wal_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(sub) = serde_json::from_str::<ResultSubmission>(&content) {
+                            pending.push((path, sub));
+                        } else {
+                            warn!("Deleting corrupt WAL file: {:?}", path);
+                            let _ = std::fs::remove_file(path);
+                        }
+                    }
+                }
+            }
+        }
+        pending
+    }
+
+    /// Deletes a WAL file.
+    pub fn delete(&self, path: &PathBuf) {
+        if let Err(e) = std::fs::remove_file(path) {
+            warn!("Failed to delete WAL file {:?}: {}", path, e);
+        } else {
+            debug!("Removed WAL file {:?}", path);
+        }
     }
 }
 
 impl NetworkManager {
-    /// Initializes a new NetworkManager.
+    /// Creates a new `NetworkManager`.
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
@@ -141,6 +176,18 @@ impl NetworkManager {
             .build()
             .map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to build HTTP client: {}", e)))?;
 
+        let hive_client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
+            base_url: config.hive_url.clone(),
+            secret: Some(config.secret.clone()),
+            ..Default::default()
+        }).map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to init outbox client: {}", e)))?;
+
+        let outbox = ResultOutbox::new(
+            hive_client, 
+            config.data_dir.clone(), 
+            config.network.circuit_breaker_threshold
+        );
+
         Ok(Self {
             client,
             config,
@@ -148,12 +195,12 @@ impl NetworkManager {
             job_tx,
             result_rx,
             stop_tx,
+            outbox,
         })
     }
 
-    /// Runs the network manager's main loop.
+    /// Starts the main network event loop.
     pub async fn run(mut self) {
-        // Use initial backoff from config
         let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds); 
         loop {
             if let Err(e) = self.connect_and_loop().await {
@@ -166,11 +213,19 @@ impl NetworkManager {
         }
     }
 
+    // ... (rest of implementation unchanged, already fixed in previous steps)
     async fn connect_and_loop(&mut self) -> AgentResult<()> {
-        let ws_url = Url::parse(&self.config.hive_url)
-            .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?
-            .join(&format!("ws?node_id={}", self.config.node_id))
+        let mut ws_url = Url::parse(&self.config.hive_url)
             .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
+        
+        if ws_url.scheme() == "http" {
+            let _ = ws_url.set_scheme("ws");
+        } else if ws_url.scheme() == "https" {
+            let _ = ws_url.set_scheme("wss");
+        }
+        
+        ws_url.set_path("ws");
+        ws_url.query_pairs_mut().append_pair("node_id", &self.config.node_id);
 
         info!("🌐 Connecting to Hive: {}", ws_url);
         
@@ -201,7 +256,6 @@ impl NetworkManager {
                     let (ips, temp, best) = telemetry.snapshot();
                     let job_id = telemetry.get_job_id();
                     
-                    // Check against configured idle string
                     let job_id_opt = if job_id == self.config.system.idle_job_id { None } else { Some(job_id) };
                     let best_opt = if best == 0.0 { None } else { Some(best) };
 
@@ -219,6 +273,8 @@ impl NetworkManager {
                             return Err(crate::agent::errors::AgentError::Network(e.to_string()));
                         }
                     }
+
+                    self.flush_wal().await;
                 }
                 msg = read.next() => {
                     match msg {
@@ -245,7 +301,7 @@ impl NetworkManager {
                 Some(result) = self.result_rx.recv() => {
                     info!("📤 Submitting result for job {}", result.job_id);
                     if let Err(e) = self.submit_result(result).await {
-                        error!("Failed to submit result: {}", e);
+                        error!("Failed to submit result: {}. Buffering to WAL.", e);
                     }
                 }
             }
@@ -273,35 +329,69 @@ impl NetworkManager {
         Ok(())
     }
 
-    /// Submits a signed result to the Hive server.
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
         
-        let signature = crypto::sign_result_direct(
-            &self.config.private_key,
-            &result.job_id,
-            &result.layout,
-            result.score,
-            result.timestamp,
-            result.nonce
-        )?;
+        let mut signed_result = result.clone();
 
-        let mut signed_result = result;
-        signed_result.signature = Some(signature);
+        if signed_result.signature.is_none() {
+            let signature = crypto::sign_result_direct(
+                &self.config.private_key,
+                &result.job_id,
+                &result.layout,
+                result.score,
+                result.timestamp,
+                result.nonce
+            )?;
+            signed_result.signature = Some(signature);
+        }
 
         let resp = self.client.post(&url)
             .header("X-Keyforge-Secret", &self.config.secret)
             .json(&signed_result)
             .send()
-            .await
-            .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
+            .await;
 
-        if !resp.status().is_success() {
-            let txt = resp.text().await.unwrap_or_default();
-            error!("❌ Submission Failed: {}", txt);
-            return Err(crate::agent::errors::AgentError::Network(format!("Submission failed: {}", txt)));
+        match resp {
+            Ok(r) => {
+                let status = r.status();
+                if !status.is_success() {
+                    let txt = r.text().await.unwrap_or_default();
+                    error!("❌ Submission Rejected: {}", txt);
+                    if status.is_server_error() {
+                        self.outbox.save_to_wal(&signed_result)?;
+                    }
+                    return Err(crate::agent::errors::AgentError::Network(format!("Submission rejected: {}", txt)));
+                }
+                Ok(())
+            }
+            Err(e) => {
+                error!("❌ Network Error during submission: {}", e);
+                self.outbox.save_to_wal(&signed_result)?;
+                Err(crate::agent::errors::AgentError::Network(e.to_string()))
+            }
         }
-        
-        Ok(())
+    }
+
+    async fn flush_wal(&self) {
+        let pending = self.outbox.get_pending();
+        if pending.is_empty() {
+            return;
+        }
+
+        info!("🔄 WAL Flush: Attempting to resend {} pending submissions...", pending.len());
+
+        for (path, submission) in pending {
+            match self.submit_result(submission).await {
+                Ok(_) => {
+                    info!("✅ Resent successfully: {:?}", path.file_name());
+                    self.outbox.delete(&path);
+                }
+                Err(e) => {
+                    warn!("⚠️ Failed to resend {:?}: {}", path.file_name(), e);
+                    break;
+                }
+            }
+        }
     }
 }

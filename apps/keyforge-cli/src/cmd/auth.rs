@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,13 +17,14 @@ use crate::error::{CliError, Result};
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use crate::constants::{DEFAULT_HIVE_URL, CONFIG_DIR_NAME, CLI_CONFIG_FILENAME};
 
 #[derive(Args, Debug, Clone)]
 pub struct AuthArgs {
     #[command(subcommand)]
     pub command: AuthCommands,
 
-    #[arg(long, default_value = "http://localhost:3000")]
+    #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
 }
 
@@ -51,9 +52,9 @@ struct CliConfig {
 fn get_config_path() -> Result<PathBuf> {
     let mut path =
         dirs::config_dir().ok_or_else(|| CliError::Other("Could not find config dir".into()))?;
-    path.push("keyforge");
+    path.push(CONFIG_DIR_NAME);
     std::fs::create_dir_all(&path).map_err(CliError::Io)?;
-    path.push("cli.json");
+    path.push(CLI_CONFIG_FILENAME);
     Ok(path)
 }
 
@@ -63,11 +64,33 @@ fn save_key(key: &str) -> Result<()> {
         api_key: Some(key.to_string()),
     };
     let json = serde_json::to_string_pretty(&config)?;
-    std::fs::write(path, json).map_err(CliError::Io)?;
+    
+    // Write file
+    std::fs::write(&path, json).map_err(CliError::Io)?;
+
+    // Harden permissions on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(metadata) = std::fs::metadata(&path) {
+            let mut perms = metadata.permissions();
+            perms.set_mode(0o600); // User Read/Write ONLY
+            if let Err(e) = std::fs::set_permissions(&path, perms) {
+                eprintln!("⚠️  Warning: Failed to set secure permissions on config file: {}", e);
+            }
+        }
+    }
+
     Ok(())
 }
 
 pub fn load_key() -> Option<String> {
+    // 1. Check Env Var (Highest Priority for Headless/CI)
+    if let Ok(env_key) = std::env::var("KEYFORGE_API_KEY") {
+        return Some(env_key);
+    }
+
+    // 2. Check Config File
     let path = get_config_path().ok()?;
     if !path.exists() {
         return None;
@@ -119,11 +142,15 @@ pub async fn run(args: AuthArgs) -> Result<()> {
         }
         AuthCommands::Login { key } => {
             save_key(&key)?;
-            println!("✅ API Key saved.");
+            println!("✅ API Key saved securely.");
         }
         AuthCommands::Whoami => {
             if let Some(key) = load_key() {
-                let masked = format!("{}...{}", &key[0..6], &key[key.len() - 4..]);
+                let masked = if key.len() > 8 {
+                    format!("{}...{}", &key[0..6], &key[key.len() - 4..])
+                } else {
+                    "********".to_string()
+                };
                 println!("👤 Authenticated");
                 println!("🔑 Key: {}", masked);
             } else {

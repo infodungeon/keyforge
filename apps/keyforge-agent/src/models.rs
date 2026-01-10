@@ -165,6 +165,10 @@ pub struct SystemConfig {
     pub key_file_name: String,
     /// The string used to represent an idle state in telemetry.
     pub idle_job_id: String,
+    /// Optional override for machine ID used in key encryption.
+    pub machine_id_override: Option<String>,
+    /// Directory name for corpora assets.
+    pub corpora_dir_name: String,
 }
 
 impl Default for SystemConfig {
@@ -176,6 +180,8 @@ impl Default for SystemConfig {
             config_dir_name: "keyforge".to_string(),
             key_file_name: "agent.key.age".to_string(),
             idle_job_id: "idle".to_string(),
+            machine_id_override: None,
+            corpora_dir_name: "corpora".to_string(),
         }
     }
 }

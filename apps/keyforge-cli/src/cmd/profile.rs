@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You    may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,15 +18,16 @@ use keyforge_protocol::BiometricSample;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use crate::constants::{DEFAULT_USER_STATS_PATH, DEFAULT_PERSONAL_COST_PATH};
 
 #[derive(Args, Debug, Clone)]
 pub struct ProfileArgs {
     /// Path to the user statistics file (JSON or JSONL)
-    #[arg(short, long, default_value = "data/user_stats.jsonl")]
+    #[arg(short, long, default_value = DEFAULT_USER_STATS_PATH)]
     pub input: PathBuf,
 
     /// Path to write the generated cost profile JSON
-    #[arg(short, long, default_value = "data/personal_cost.json")]
+    #[arg(short, long, default_value = DEFAULT_PERSONAL_COST_PATH)]
     pub output: PathBuf,
 }
 

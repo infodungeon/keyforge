@@ -18,6 +18,8 @@ use tokio::fs;
 use tracing::{info, warn};
 use crate::models::MaintenanceConfig;
 
+const SAFE_EXTENSION: &str = "json";
+
 /// Prunes stale user data.
 pub async fn prune_stale_data(data_root: PathBuf, config: &MaintenanceConfig) -> std::io::Result<()> {
     // Target directory from config
@@ -34,8 +36,8 @@ pub async fn prune_stale_data(data_root: PathBuf, config: &MaintenanceConfig) ->
     while let Ok(Some(entry)) = entries.next_entry().await {
         let path = entry.path();
 
-        // 1. Extension Check (Safety - Hardcoded json check remains as safety guard logic, not config value)
-        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+        // 1. Extension Check (Safety)
+        if path.extension().and_then(|s| s.to_str()) != Some(SAFE_EXTENSION) {
             continue;
         }
 

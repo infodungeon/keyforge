@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,6 +33,9 @@ pub enum CliError {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
+    #[error("Configuration Error: {0}")] // [Fixed] Added Config variant
+    Config(String),
+
     #[error("{0}")]
     Other(String),
 }
@@ -42,5 +45,12 @@ pub type Result<T> = std::result::Result<T, CliError>;
 impl From<Box<dyn std::error::Error>> for CliError {
     fn from(e: Box<dyn std::error::Error>) -> Self {
         CliError::Other(e.to_string())
+    }
+}
+
+// Implement From<String> for Config if helpful
+impl From<String> for CliError {
+    fn from(s: String) -> Self {
+        CliError::Other(s)
     }
 }
