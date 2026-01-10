@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,49 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Centralized constants for the KeyForge CLI.
-
-// --- Defaults ---
-
-/// Default Hive Server URL.
+/// Default URL for the Hive server.
 pub const DEFAULT_HIVE_URL: &str = "http://localhost:3000";
-
-/// Default configuration directory name.
-pub const CONFIG_DIR_NAME: &str = "keyforge";
-
-/// Default CLI configuration filename.
-pub const CLI_CONFIG_FILENAME: &str = "cli.json";
-
-/// Default update server URL.
-pub const DEFAULT_UPDATE_URL: &str = "https://keyforge-releases.example.com/api/latest";
-
-/// Default GitHub organization for updates.
-pub const REPO_OWNER: &str = "keyforge-org";
-
-/// Default output filename for physics debug visualization.
-pub const DEFAULT_DEBUG_OUTPUT: &str = "debug_physics.svg";
-
-// --- Limits & Thresholds ---
-
-/// Maximum number of corpora sources allowed in CLI arguments.
+/// Maximum number of corpus sources allowed in CLI args.
 pub const MAX_CLI_CORPORA: usize = 50;
-
-/// Default number of iterations for benchmarking.
+/// Name of the configuration directory.
+pub const CONFIG_DIR_NAME: &str = "keyforge";
+/// Name of the CLI configuration file.
+pub const CLI_CONFIG_FILENAME: &str = "cli.json";
+/// Default number of iterations for benchmarks.
 pub const DEFAULT_BENCHMARK_ITERATIONS: usize = 100_000;
-
-/// Default row limit for listing assets.
-pub const DEFAULT_LIST_LIMIT: usize = 50;
-
-/// Default width for layout formatting.
+/// Default width for formatted layout output.
 pub const DEFAULT_FMT_WIDTH: usize = 10;
-
-// --- Paths ---
-
-/// Default input path for user statistics.
+/// Default limit for list commands.
+pub const DEFAULT_LIST_LIMIT: usize = 50;
+/// Default path for user statistics.
 pub const DEFAULT_USER_STATS_PATH: &str = "data/user_stats.jsonl";
-
-/// Default output path for generated cost profiles.
+/// Default path for personal cost profile.
 pub const DEFAULT_PERSONAL_COST_PATH: &str = "data/personal_cost.json";
-
-/// Default benchmark data path.
+/// Default URL for checking updates.
+pub const DEFAULT_UPDATE_URL: &str = "https://keyforge-releases.example.com/api/latest";
+/// GitHub repository owner for self-updates.
+pub const REPO_OWNER: &str = "your-org";
+/// Default output filename for debug visualizations.
+pub const DEFAULT_DEBUG_OUTPUT: &str = "debug_physics.svg";
+/// Default path for benchmark reference data.
 pub const DEFAULT_BENCHMARK_PATH: &str = "data/benchmarks/cyanophage.json";

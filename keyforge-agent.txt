@@ -733,7 +733,7 @@ impl Agent {
 
                     tokio::spawn(async move {
                         // 1. Acquire Resources (Wait if full)
-                        let permit = match semaphore.acquire_many(permits_needed).await {
+                        let _permit = match semaphore.acquire_many(permits_needed).await {
                             Ok(p) => p,
                             Err(_) => return, // Semaphore closed
                         };
@@ -742,7 +742,7 @@ impl Agent {
                         telemetry.set_job_id(&job_id);
 
                         // 2. Sync Assets
-                        let (cost_file, _corpus_dir) = match compute::prepare_assets(&assets, &job, &config_compute).await {
+                        let (cost_file, _corpus_dir) = match compute::prepare_assets(&*assets, &job, &config_compute).await {
                             Ok(res) => res,
                             Err(e) => {
                                 error!("Job {} Asset sync failed: {}", job_id, e);
@@ -941,6 +941,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
+    /// Creates a new `CircuitBreaker`.
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
         Self {
             failures: 0,
@@ -950,6 +951,7 @@ impl CircuitBreaker {
         }
     }
 
+    /// Returns `true` if an attempt is allowed.
     pub fn can_attempt(&self) -> bool {
         if self.failures < self.threshold {
             return true;
@@ -962,11 +964,13 @@ impl CircuitBreaker {
         false
     }
 
+    /// Records a failure.
     pub fn record_failure(&mut self) {
         self.failures += 1;
         self.last_failure = Some(Instant::now());
     }
 
+    /// Resets the failure counter.
     pub fn record_success(&mut self) {
         self.failures = 0;
         self.last_failure = None;
@@ -981,6 +985,7 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
+    /// Creates a new `ResultOutbox`.
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
@@ -991,6 +996,7 @@ impl ResultOutbox {
         }
     }
 
+    /// Buffers a result to disk.
     pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
         let path = self.wal_dir.join(format!("{}.json", submission.nonce));
         if let Ok(json) = serde_json::to_string(submission) {
@@ -1024,6 +1030,7 @@ impl ResultOutbox {
         pending
     }
 
+    /// Deletes a WAL file.
     pub fn delete(&self, path: &PathBuf) {
         if let Err(e) = std::fs::remove_file(path) {
             warn!("Failed to delete WAL file {:?}: {}", path, e);
@@ -1034,6 +1041,7 @@ impl ResultOutbox {
 }
 
 impl NetworkManager {
+    /// Creates a new `NetworkManager`.
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
@@ -1069,6 +1077,7 @@ impl NetworkManager {
         })
     }
 
+    /// Starts the main network event loop.
     pub async fn run(mut self) {
         let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds); 
         loop {
@@ -1082,11 +1091,11 @@ impl NetworkManager {
         }
     }
 
+    // ... (rest of implementation unchanged, already fixed in previous steps)
     async fn connect_and_loop(&mut self) -> AgentResult<()> {
         let mut ws_url = Url::parse(&self.config.hive_url)
             .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
         
-        // [Fixed] Safe URL construction
         if ws_url.scheme() == "http" {
             let _ = ws_url.set_scheme("ws");
         } else if ws_url.scheme() == "https" {
@@ -1143,7 +1152,6 @@ impl NetworkManager {
                         }
                     }
 
-                    // Flush WAL on heartbeat
                     self.flush_wal().await;
                 }
                 msg = read.next() => {
@@ -1192,20 +1200,18 @@ impl NetworkManager {
                 .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
                 
             if let (Some(jid), Some(config)) = (queue_resp.job_id, queue_resp.config) {
-                 info!("�� Acquired Job {}", jid);
+                 info!("📥 Acquired Job {}", jid);
                  let _ = self.job_tx.send((jid, config)).await;
             }
         }
         Ok(())
     }
 
-    /// Submits a signed result to the Hive server.
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
         
         let mut signed_result = result.clone();
 
-        // Sign only if signature is missing
         if signed_result.signature.is_none() {
             let signature = crypto::sign_result_direct(
                 &self.config.private_key,
@@ -1226,11 +1232,11 @@ impl NetworkManager {
 
         match resp {
             Ok(r) => {
-                if !r.status().is_success() {
+                let status = r.status();
+                if !status.is_success() {
                     let txt = r.text().await.unwrap_or_default();
                     error!("❌ Submission Rejected: {}", txt);
-                    // If server error, backup to WAL. If client error (4xx), discard (WAL won't help).
-                    if r.status().is_server_error() {
+                    if status.is_server_error() {
                         self.outbox.save_to_wal(&signed_result)?;
                     }
                     return Err(crate::agent::errors::AgentError::Network(format!("Submission rejected: {}", txt)));
@@ -1238,7 +1244,6 @@ impl NetworkManager {
                 Ok(())
             }
             Err(e) => {
-                // Network failure -> Save to WAL
                 error!("❌ Network Error during submission: {}", e);
                 self.outbox.save_to_wal(&signed_result)?;
                 Err(crate::agent::errors::AgentError::Network(e.to_string()))
@@ -1246,7 +1251,6 @@ impl NetworkManager {
         }
     }
 
-    /// Flushes pending WAL files.
     async fn flush_wal(&self) {
         let pending = self.outbox.get_pending();
         if pending.is_empty() {
@@ -1629,61 +1633,52 @@ pub use agent::run_worker;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+/// Logging output modes.
+pub enum LogMode {
+    /// Standard human-readable logs to stdout (for Worker/Daemon).
+    Standard,
+    /// Structured JSON logs to stderr (for Sidecar/Run mode).
+    JsonStderr,
+}
+
 /// Initializes the tracing system for the agent.
-///
-/// It supports both local stdout logging and distributed tracing via OTLP if
-/// the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable is set.
-///
-/// Accepts a `default_filter` string to set the logging level if RUST_LOG is not set.
-pub fn init_tracing(default_filter: &str) {
+pub fn init_tracing(default_filter: &str, mode: LogMode) {
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(default_filter));
 
-    let fmt_layer = tracing_subscriber::fmt::layer();
-
-    if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok() {
-        match opentelemetry_otlp::SpanExporter::builder()
-            .with_tonic()
-            .build()
-        {
-            Ok(exporter) => {
-                let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-                    .with_batch_exporter(exporter)
-                    .build();
-
-                use opentelemetry::trace::TracerProvider;
-                let tracer = provider.tracer("keyforge-agent");
-
-                let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-
-                tracing_subscriber::registry()
-                    .with(filter)
-                    .with(fmt_layer)
-                    .with(telemetry_layer)
-                    .init();
-
-                // Task 27: Structured logging
-                tracing::info!(mode = "otlp", "distributed tracing enabled");
+    match mode {
+        LogMode::Standard => {
+            let fmt_layer = tracing_subscriber::fmt::layer();
+            // Check for OTLP only in Standard mode
+            if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok() {
+                if let Ok(exporter) = opentelemetry_otlp::SpanExporter::builder().with_tonic().build() {
+                    let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+                        .with_batch_exporter(exporter)
+                        .build();
+                    let tracer = opentelemetry::trace::TracerProvider::tracer(&provider, "keyforge-agent");
+                    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+                    
+                    tracing_subscriber::registry()
+                        .with(filter)
+                        .with(fmt_layer)
+                        .with(telemetry_layer)
+                        .init();
+                    return;
+                }
             }
-            Err(e) => {
-                tracing_subscriber::registry()
-                    .with(filter)
-                    .with(fmt_layer)
-                    .init();
-                // Task 27: Structured logging
-                tracing::warn!(error = %e, "failed to create OTLP exporter, falling back to local");
-            }
+            // Fallback
+            tracing_subscriber::registry().with(filter).with(fmt_layer).init();
+        },
+        LogMode::JsonStderr => {
+            // Write JSON to stderr to keep stdout clean for results
+            let fmt_layer = tracing_subscriber::fmt::layer()
+                .json()
+                .with_writer(std::io::stderr);
+            
+            tracing_subscriber::registry().with(filter).with(fmt_layer).init();
         }
-    } else {
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(fmt_layer)
-            .init();
-
-        // Task 27: Structured logging
-        tracing::info!(mode = "stdout", "local logging enabled");
     }
 }
 
@@ -1706,17 +1701,21 @@ pub fn init_tracing(default_filter: &str) {
 
 //! # KeyForge Agent Binary
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::rngs::OsRng;
 use std::path::PathBuf;
-use tokio::sync::broadcast;
-use tracing::info;
+use tokio::sync::{broadcast, mpsc};
+use tracing::{info, error};
 use keyforge_agent::agent::errors::AgentError;
 use keyforge_agent::models::{AgentConfig, PartialAgentConfig, SystemConfig};
+use keyforge_protocol::JobConfig;
 
 #[derive(Parser)]
 struct Args {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
     #[arg(long, env = "KEYFORGE_HIVE_URL")]
     hive: Option<String>,
 
@@ -1728,6 +1727,32 @@ struct Args {
 
     #[arg(long, env = "KEYFORGE_CONFIG")]
     config: Option<PathBuf>,
+}
+
+#[derive(Subcommand, Clone)]
+enum Commands {
+    /// Start as a long-running worker node connecting to a Hive.
+    Worker,
+    /// Run a single optimization job defined in a file.
+    Run {
+        /// Path to the JobConfig JSON file.
+        job_file: PathBuf,
+    },
+    /// Score a specific layout string against a JobConfig.
+    Score {
+        /// Path to the JobConfig JSON file.
+        job_file: PathBuf,
+        /// The layout string to score.
+        layout: String,
+    },
+    /// Run a physics benchmark using the environment from a JobConfig.
+    Bench {
+        /// Path to the JobConfig JSON file.
+        job_file: PathBuf,
+        /// Number of iterations.
+        #[arg(long, default_value_t = 100_000)]
+        iterations: usize,
+    }
 }
 
 fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Option<PartialAgentConfig> {
@@ -1762,14 +1787,11 @@ fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Optio
 
     for path in candidates {
         if path.exists() {
-            println!("Loading configuration from {:?}", path);
-            match PartialAgentConfig::from_file(&path) {
-                Ok(cfg) => return Some(cfg),
-                Err(e) => eprintln!("Failed to parse config file {:?}: {}", path, e),
+            if let Ok(cfg) = PartialAgentConfig::from_file(&path) {
+                return Some(cfg);
             }
         }
     }
-    println!("No configuration file found in standard locations. Using defaults.");
     None
 }
 
@@ -1778,7 +1800,6 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let mut config = AgentConfig::default();
     
-    // 1. Load config
     if let Some(config_path) = &args.config {
         match PartialAgentConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
@@ -1791,58 +1812,169 @@ async fn main() -> anyhow::Result<()> {
         config.merge(file_cfg);
     }
 
-    // 2. Override with CLI/Env
     if let Some(h) = args.hive { config.hive_url = h; }
     if let Some(c) = args.cores { config.cores = c; }
     if let Some(d) = args.data_dir { config.data_dir = d; }
 
-    // 3. Init Logging with configured filter
-    keyforge_agent::logging::init_tracing(&config.logging.default_filter);
+    let command = args.command.unwrap_or(Commands::Worker);
+    let log_mode = match command {
+        Commands::Worker => keyforge_agent::logging::LogMode::Standard,
+        _ => keyforge_agent::logging::LogMode::JsonStderr,
+    };
+    
+    keyforge_agent::logging::init_tracing(&config.logging.default_filter, log_mode);
 
     let hive_url = config.hive_url.clone();
     let data_dir = config.data_dir.clone();
 
-    info!("agent starting");
-    info!(hive_url = %hive_url, "connecting to hive");
-    info!(data_dir = ?data_dir, "data directory configured");
+    match command {
+        Commands::Worker => {
+            let signing_key = load_or_create_identity(&config.system)?;
+            let public_key = VerifyingKey::from(&signing_key);
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(public_key.to_bytes());
+            let pk_hash = hex::encode(hasher.finalize());
+            let node_id = format!("{}{}", config.system.node_id_prefix, &pk_hash[0..8]);
 
-    // 4. Identity Management
-    let signing_key = load_or_create_identity(&config.system)?;
+            info!("agent starting in WORKER mode");
+            info!(hive_url = %hive_url, "connecting to hive");
+            info!(data_dir = ?data_dir, "data directory configured");
 
-    let public_key = VerifyingKey::from(&signing_key);
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(public_key.to_bytes());
-    let pk_hash = hex::encode(hasher.finalize());
-    let node_id = format!("{}{}", config.system.node_id_prefix, &pk_hash[0..8]);
+            let (tx, rx) = broadcast::channel(config.system.shutdown_channel_capacity);
+            #[cfg(unix)]
+            let mut sig_usr1 =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
+                    .map_err(|e| anyhow::anyhow!("failed to register SIGUSR1: {}", e))?;
+            #[cfg(not(unix))]
+            let mut sig_usr1 = std::future::pending::<()>();
 
-    // 5. Signal Handling
-    let (tx, rx) = broadcast::channel(config.system.shutdown_channel_capacity);
-    #[cfg(unix)]
-    let mut sig_usr1 =
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
-            .map_err(|e| anyhow::anyhow!("failed to register SIGUSR1: {}", e))?;
-    #[cfg(not(unix))]
-    let mut sig_usr1 = std::future::pending::<()>();
+            let tx_clone = tx.clone();
+            tokio::spawn(async move {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        let _ = tx_clone.send(());
+                    }
+                    _ = sig_usr1.recv() => {
+                        let _ = tx_clone.send(());
+                    }
+                }
+            });
 
-    let tx_clone = tx.clone();
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
-                info!("received ctrl-c, initiating shutdown");
-                let _ = tx_clone.send(());
+            keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
+        }
+        Commands::Run { job_file } => {
+            let content = tokio::fs::read_to_string(&job_file).await
+                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
+            let job: JobConfig = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+
+            let (result_tx, mut result_rx) = mpsc::channel(1);
+            let agent = keyforge_agent::agent::Agent::new(config.clone(), result_tx).await
+                .map_err(|e| anyhow::anyhow!("Failed to init agent: {}", e))?;
+
+            let (job_tx, job_rx) = mpsc::channel(1);
+            let (_, stop_rx) = mpsc::channel(1);
+            
+            let agent_handle = tokio::spawn(async move {
+                agent.run(job_rx, stop_rx).await
+            });
+
+            let job_id = "local-job".to_string(); 
+            job_tx.send((job_id, job)).await.ok();
+            
+            if let Some(result) = result_rx.recv().await {
+                let json = serde_json::to_string(&result).unwrap();
+                println!("{}", json);
+            } else {
+                error!("No result produced!");
+                std::process::exit(1);
             }
-            _ = sig_usr1.recv() => {
-                info!("received SIGUSR1, initiating graceful drain");
-                let _ = tx_clone.send(());
+            
+            drop(job_tx);
+            let _ = agent_handle.await;
+        }
+        Commands::Score { job_file, layout } => {
+            let content = tokio::fs::read_to_string(&job_file).await
+                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
+            let job: JobConfig = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+            
+            let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
+            
+            let assets = keyforge_infra::AssetManager::new(
+                keyforge_infra::HiveClient::new(Default::default())?, 
+                data_dir.clone()
+            );
+            
+            let (cost_file, _) = keyforge_agent::agent::compute::prepare_assets(&assets, &job, &config.compute).await?;
+            
+            let mut prepared = keyforge_agent::agent::compute::create_engine_request(
+                loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
+            ).await?;
+
+            let layout_parsed = keyforge_adapter::conversion::parse_layout_string(
+                &layout, 
+                prepared.req.keyboard.keys.len(), 
+                &prepared.registry
+            ).map_err(|e| anyhow::anyhow!("Invalid layout: {}", e))?;
+            
+            prepared.req.initial_layout = Some(layout_parsed);
+
+            let report = keyforge_core::analyze(&prepared.req);
+            match report {
+                Ok(r) => println!("{}", serde_json::to_string_pretty(&r)?),
+                Err(e) => return Err(anyhow::anyhow!("Analysis failed: {:?}", e)),
             }
         }
-    });
+        Commands::Bench { job_file, iterations } => {
+            let content = tokio::fs::read_to_string(&job_file).await
+                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
+            let job: JobConfig = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+            
+            let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
+            let assets = keyforge_infra::AssetManager::new(
+                keyforge_infra::HiveClient::new(Default::default())?, 
+                data_dir.clone()
+            );
+            
+            let (cost_file, _) = keyforge_agent::agent::compute::prepare_assets(&assets, &job, &config.compute).await?;
+            
+            let mut prepared = keyforge_agent::agent::compute::create_engine_request(
+                loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
+            ).await?;
 
-    // 6. Run Worker
-    keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
+            let start = std::time::Instant::now();
+            let mut score_sum = 0.0;
+            
+            if prepared.req.initial_layout.is_none() {
+                use keyforge_model::{Layout, KeyCode};
+                let layout = Layout::new_unchecked((0..prepared.req.keyboard.keys.len() as u16).map(KeyCode).collect());
+                prepared.req.initial_layout = Some(layout);
+            }
 
-    info!("agent exited cleanly");
+            for _ in 0..iterations {
+                // [Fixed] Extract score from Result
+                let res = keyforge_core::score(&prepared.req);
+                score_sum += match res {
+                    Ok(opt) => opt.score,
+                    Err(_) => 0.0,
+                };
+            }
+            
+            let duration = start.elapsed();
+            let kops = (iterations as f64 / duration.as_secs_f64()) / 1000.0;
+            
+            println!("{}", serde_json::json!({
+                "iterations": iterations,
+                "duration_ms": duration.as_millis(),
+                "kops": kops,
+                "checksum": score_sum
+            }));
+        }
+    }
+
     Ok(())
 }
 
@@ -1857,7 +1989,6 @@ fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentErr
 
     path.push(&config.key_file_name);
 
-    // [Fixed] Check override, then env var, then fallback
     let passphrase = if let Some(override_id) = &config.machine_id_override {
         override_id.clone()
     } else if let Ok(env_id) = std::env::var("KEYFORGE_MACHINE_ID") {
@@ -1888,7 +2019,6 @@ fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentErr
             .try_into()
             .map_err(|_| AgentError::Identity("invalid key file length (expected 32 bytes)".into()))?;
 
-        info!(path = ?path, "loaded encrypted identity");
         Ok(SigningKey::from_bytes(&array))
     } else {
         let mut csprng = OsRng;
@@ -1969,9 +2099,13 @@ pub use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile};
 /// Configuration for the hardware calibration process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalibrationConfig {
+    /// Number of keys to simulate during calibration.
     pub key_count: usize,
+    /// Number of iterations to run before measuring to warm up the CPU/Cache.
     pub warmup_iterations: usize,
+    /// Duration in milliseconds to run the calibration loop.
     pub duration_ms: u64,
+    /// Number of scoring operations per batch.
     pub batch_size: usize,
 }
 
@@ -1986,13 +2120,20 @@ impl Default for CalibrationConfig {
     }
 }
 
+/// Configuration for network communication and resilience.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
+    /// Request timeout in seconds.
     pub timeout_seconds: u64,
+    /// Interval between heartbeat messages in seconds.
     pub heartbeat_interval_seconds: u64,
+    /// Maximum backoff duration for retries in seconds.
     pub max_backoff_seconds: u64,
+    /// Initial backoff duration for retries in seconds.
     pub initial_backoff_seconds: u64,
+    /// Number of failures before tripping the circuit breaker.
     pub circuit_breaker_threshold: u32,
+    /// Cooldown period in seconds after the circuit breaker trips.
     pub circuit_breaker_cooldown: u64,
 }
 
@@ -2009,10 +2150,14 @@ impl Default for NetworkConfig {
     }
 }
 
+/// Configuration for local data maintenance and garbage collection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaintenanceConfig {
+    /// Time-to-live for cached assets in days.
     pub ttl_days: u64,
+    /// Interval between pruning checks in seconds.
     pub prune_interval_seconds: u64,
+    /// Directory to target for pruning (relative to data root).
     pub prune_target_dir: String,
 }
 
@@ -2026,11 +2171,16 @@ impl Default for MaintenanceConfig {
     }
 }
 
+/// Configuration for the compute and optimization engine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComputeConfig {
+    /// Maximum number of corpus sources allowed per job.
     pub max_corpora_sources: usize,
+    /// Default timeout for a job in seconds.
     pub job_timeout_sec: u64,
+    /// Name of the keycodes definition file.
     pub keycodes_file: String,
+    /// Default random seed for search if not provided by job.
     pub default_search_seed: u64,
 }
 
@@ -2045,8 +2195,10 @@ impl Default for ComputeConfig {
     }
 }
 
+/// Configuration for internal telemetry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryConfig {
+    /// Rate at which to sample progress logs (e.g. log every Nth step).
     pub progress_log_sampling_rate: usize,
 }
 
@@ -2058,8 +2210,10 @@ impl Default for TelemetryConfig {
     }
 }
 
+/// Configuration for logging output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
+    /// Default EnvFilter string (e.g., "info,keyforge_agent=debug").
     pub default_filter: String,
 }
 
@@ -2071,16 +2225,25 @@ impl Default for LoggingConfig {
     }
 }
 
+/// Configuration for system-level identifiers and limits.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfig {
+    /// Prefix used when generating node IDs.
     pub node_id_prefix: String,
+    /// Capacity of the shutdown signal broadcast channel.
     pub shutdown_channel_capacity: usize,
+    /// Capacity of the result submission channel.
     pub result_channel_capacity: usize,
+    /// Name of the configuration directory (e.g., "keyforge").
     pub config_dir_name: String,
+    /// Name of the identity key file (e.g., "agent.key.age").
     pub key_file_name: String,
+    /// The string used to represent an idle state in telemetry.
     pub idle_job_id: String,
+    /// Optional override for machine ID used in key encryption.
     pub machine_id_override: Option<String>,
-    pub corpora_dir_name: String, // [Fixed] Added
+    /// Directory name for corpora assets.
+    pub corpora_dir_name: String,
 }
 
 impl Default for SystemConfig {
@@ -2093,32 +2256,46 @@ impl Default for SystemConfig {
             key_file_name: "agent.key.age".to_string(),
             idle_job_id: "idle".to_string(),
             machine_id_override: None,
-            corpora_dir_name: "corpora".to_string(), // [Fixed] Default
+            corpora_dir_name: "corpora".to_string(),
         }
     }
 }
 
+/// Configuration specific to the Agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
+    /// The base URL of the Hive server.
     pub hive_url: String,
+    /// The unique identifier for this node.
     pub node_id: String,
+    /// The secret key for authenticating with the Hive.
     pub secret: String,
+    /// The hex-encoded Ed25519 private key for signing results.
     pub private_key: String,
+    /// The directory where assets and runtime data are stored.
     pub data_dir: PathBuf,
+    /// The number of CPU cores to use for optimization.
     pub cores: usize,
     
+    /// Calibration settings.
     #[serde(default)]
     pub calibration: CalibrationConfig,
+    /// Network settings.
     #[serde(default)]
     pub network: NetworkConfig,
+    /// Maintenance settings.
     #[serde(default)]
     pub maintenance: MaintenanceConfig,
+    /// Compute settings.
     #[serde(default)]
     pub compute: ComputeConfig,
+    /// Telemetry settings.
     #[serde(default)]
     pub telemetry: TelemetryConfig,
+    /// Logging settings.
     #[serde(default)]
     pub logging: LoggingConfig,
+    /// System settings.
     #[serde(default)]
     pub system: SystemConfig,
 }
@@ -2143,27 +2320,43 @@ impl Default for AgentConfig {
     }
 }
 
+/// Partial configuration for loading from files (all fields optional).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PartialAgentConfig {
+    /// Optional override for Hive URL.
     pub hive_url: Option<String>,
+    /// Optional override for Node ID.
     pub node_id: Option<String>,
+    /// Optional override for Secret.
     pub secret: Option<String>,
+    /// Optional override for Private Key.
     pub private_key: Option<String>,
+    /// Optional override for Data Directory.
     pub data_dir: Option<PathBuf>,
+    /// Optional override for Core count.
     pub cores: Option<usize>,
+    /// Optional override for Calibration settings.
     pub calibration: Option<CalibrationConfig>,
+    /// Optional override for Network settings.
     pub network: Option<NetworkConfig>,
+    /// Optional override for Maintenance settings.
     pub maintenance: Option<MaintenanceConfig>,
+    /// Optional override for Compute settings.
     pub compute: Option<ComputeConfig>,
+    /// Optional override for Telemetry settings.
     pub telemetry: Option<TelemetryConfig>,
+    /// Optional override for Logging settings.
     pub logging: Option<LoggingConfig>,
+    /// Optional override for System settings.
     pub system: Option<SystemConfig>,
 }
 
 impl PartialAgentConfig {
+    /// Loads a partial configuration from a file (JSON, TOML, or MPK.ZST).
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let path = path.as_ref();
         
+        // Handle MPK.ZST (Compressed MessagePack)
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
              if ext == "zst" || path.to_string_lossy().ends_with(".mpk.zst") {
                  let file = std::fs::File::open(path)
@@ -2187,6 +2380,7 @@ impl PartialAgentConfig {
 }
 
 impl AgentConfig {
+    /// Merges a partial configuration into this one, overriding existing values.
     pub fn merge(&mut self, partial: PartialAgentConfig) {
         if let Some(v) = partial.hive_url { self.hive_url = v; }
         if let Some(v) = partial.node_id { self.node_id = v; }
@@ -2204,12 +2398,18 @@ impl AgentConfig {
     }
 }
 
+/// Shared state for real-time telemetry.
 #[derive(Debug)]
 pub struct AgentTelemetry {
+    /// Throughput in 'Items Per Second' (standard f32 bits).
     pub ips: AtomicU32,
+    /// Estimated core temperature (standard f32 bits).
     pub temp: AtomicU32,
+    /// The best (lowest) score found so far for the current job.
     pub best_score: AtomicU32,
+    /// A partial hash of the current job ID for quick identification.
     pub job_id_hash: AtomicU64,
+    /// The full ID of the job currently being processed.
     pub current_job_id: RwLock<String>,
 }
 
@@ -2226,22 +2426,26 @@ impl Default for AgentTelemetry {
 }
 
 impl AgentTelemetry {
+    /// Atomic update of the telemetry metrics.
     pub fn update(&self, ips: f32, temp: f32, best_score: f32) {
         self.ips.store(ips.to_bits(), Ordering::Relaxed);
         self.temp.store(temp.to_bits(), Ordering::Relaxed);
         self.best_score.store(best_score.to_bits(), Ordering::Relaxed);
     }
 
+    /// Safely sets the current job ID.
     pub fn set_job_id(&self, id: &str) {
         if let Ok(mut lock) = self.current_job_id.write() {
             *lock = id.to_string();
         }
     }
 
+    /// Returns a copy of the current job ID.
     pub fn get_job_id(&self) -> String {
         self.current_job_id.read().map(|s| s.clone()).unwrap_or_else(|_| "unknown".to_string())
     }
 
+    /// Returns a point-in-time snapshot of the metrics as .
     pub fn snapshot(&self) -> (f32, f32, f32) {
         (
             f32::from_bits(self.ips.load(Ordering::Relaxed)),
@@ -2251,6 +2455,7 @@ impl AgentTelemetry {
     }
 }
 
+/// A thread-safe, reference-counted handle to the agent's telemetry state.
 pub type SharedTelemetry = Arc<AgentTelemetry>;
 
 >>>>>>>> END FILE: apps/keyforge-agent/src/models.rs <<<<<<<<

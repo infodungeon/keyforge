@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,22 +16,27 @@
 //! # KeyForge CLI
 //!
 //! Command-line interface for the KeyForge layout optimization system.
+//! This tool acts as a driver for the `keyforge-agent` sidecar.
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use keyforge_infra::resolve_root;
+use keyforge_protocol::JobConfig;
+use std::error::Error;
 use std::path::PathBuf;
-use tracing::{error, instrument};
+use tracing::{error, info, instrument};
 
 mod cli_args;
 mod cli_parsers;
 mod cmd;
 mod error;
-mod constants;
+/// Shared constants for the CLI.
+pub mod constants;
+mod runner;
 use error::CliError;
 mod logging;
 
 mod reports;
-// Note: update module is inside cmd/
+mod update;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -163,25 +168,87 @@ async fn run_app() -> Result<(), CliError> {
         _ => {} 
     }
 
-    // 3. Sidecar Commands (Delegated to Agent)
+    info!("🚀 Initializing Agent Runner...");
+    let runner = runner::AgentRunner::new(root.clone())?;
+
+    // 3. Handle Agent-Delegated Commands
     match cli.command {
         Commands::Search(args) => {
-            cmd::search::run(args, &root)?;
+            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            cmd::search::run(args, runner, job)?;
         }
         Commands::Validate(args) => {
-            cmd::validate::run(args, &root)?;
+            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            cmd::validate::run(args, runner, job)?;
         }
         Commands::Benchmark(args) => {
-            cmd::benchmark::run(args, &root)?;
+            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            cmd::benchmark::run(args, runner, job)?;
         }
-        _ => {} // Handled above
+        _ => unreachable!("Stateless commands handled above"),
     }
 
     Ok(())
 }
 
+/// Constructs a JobConfig from CLI args for the Agent.
+fn build_job_config(
+    root: &std::path::Path,
+    shared: &cmd::shared::SharedArgs,
+    config_args: cli_args::config::ConfigArgs,
+) -> Result<JobConfig, Box<dyn Error>> {
+    // 1. Parse Args
+    let corpus_list = shared.corpus.clone().unwrap_or_else(|| vec!["text/en_std".to_string()]);
+    let corpora = cli_args::parse_corpora(&corpus_list)?;
+
+    let kb_name = shared.keyboard.clone().unwrap_or_else(|| "ortho_30".to_string());
+    
+    // Resolve Keyboard Path
+    let kb_path = cli_parsers::resolve_path(&kb_name, Some("keyboards"), root)?;
+    
+    // Load Keyboard Definition
+    let kb_content = keyforge_infra::read_to_string_limited(
+        &kb_path,
+        keyforge_model::constants::MAX_INPUT_FILE_SIZE,
+    )?;
+    let definition: keyforge_model::geometry::KeyboardDefinition = serde_json::from_str(&kb_content)?;
+
+    // 2. Load Overrides (Optional Weights File)
+    let weights = if let Some(w_input) = &shared.weights {
+        let w_path = cli_parsers::resolve_path(w_input, None, root)?;
+        let content = keyforge_infra::read_to_string_limited(
+            &w_path,
+            keyforge_model::constants::MAX_INPUT_FILE_SIZE,
+        )?;
+        serde_json::from_str(&content)?
+    } else {
+        use std::convert::TryFrom;
+        keyforge_model::config::Config::try_from(config_args.clone())?.weights
+    };
+
+    use std::convert::TryFrom;
+    let params = keyforge_model::config::Config::try_from(config_args)?.search;
+
+    let cost_name = shared.cost.clone().unwrap_or_else(|| "default_costmatrix.json".to_string());
+
+    Ok(JobConfig {
+        definition,
+        weights,
+        params,
+        pinned_keys: shared.pinned_keys.clone(),
+        corpora,
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_name),
+        biometrics: vec![],
+        parent_job_id: None,
+        baseline_score: None,
+        parents: vec![],
+    })
+}
+
+// Global interrupt flag for graceful shutdown
 static INTERRUPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// Returns true if the application has received an interrupt signal (e.g., Ctrl+C).
 pub fn is_interrupted() -> bool {
     INTERRUPTED.load(std::sync::atomic::Ordering::SeqCst)
 }

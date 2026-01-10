@@ -213,7 +213,6 @@ impl NetworkManager {
         }
     }
 
-    // ... (rest of implementation unchanged, already fixed in previous steps)
     async fn connect_and_loop(&mut self) -> AgentResult<()> {
         let mut ws_url = Url::parse(&self.config.hive_url)
             .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
@@ -329,6 +328,7 @@ impl NetworkManager {
         Ok(())
     }
 
+    /// Submits a result to the Hive server.
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
         

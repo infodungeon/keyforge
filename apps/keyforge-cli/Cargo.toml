@@ -16,15 +16,16 @@ path = "src/main.rs"
 [dependencies]
 dirs = "6.0"
 indicatif = "0.18"
-keyforge-core = { path = "../../libs/keyforge-core" }
 tokio = { version = "1.48", features = ["full"] }
 sysinfo = "0.37"
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
+# keyforge-compute removed
 keyforge-export = { path = "../../libs/keyforge-export" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
+# keyforge-core removed
 clap = { version = "4.5.53", features = ["derive", "env"] }
 clap_complete = "4.5"
 tracing = "0.1.44"
@@ -49,7 +50,8 @@ sqlx = { version = "0.8.6", features = [
     "postgres",
 ] }
 self_update = "0.42"
-tempfile = "3.24" # [Fixed] Added to runtime deps
+tempfile = "3.24"
+which = "6.0"
 
 [dev-dependencies]
 keyforge-testing = { path = "../../libs/keyforge-testing" }

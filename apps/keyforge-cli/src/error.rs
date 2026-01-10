@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,39 +18,36 @@ use thiserror::Error;
 /// CLI-specific error types with consistent formatting
 #[derive(Error, Debug)]
 pub enum CliError {
+    /// Network request failure.
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
 
+    /// Self-update failure.
     #[error("Update failed: {0}")]
     Update(String),
 
+    /// Workspace or filesystem error.
     #[error("Workspace error: {0}")]
     Workspace(String),
 
+    /// Input/Output error.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// JSON serialization/deserialization error.
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
-    #[error("Configuration Error: {0}")] // [Fixed] Added Config variant
-    Config(String),
-
+    /// Generic or miscellaneous error.
     #[error("{0}")]
     Other(String),
 }
 
+/// Result alias for CLI operations.
 pub type Result<T> = std::result::Result<T, CliError>;
 
 impl From<Box<dyn std::error::Error>> for CliError {
     fn from(e: Box<dyn std::error::Error>) -> Self {
         CliError::Other(e.to_string())
-    }
-}
-
-// Implement From<String> for Config if helpful
-impl From<String> for CliError {
-    fn from(s: String) -> Self {
-        CliError::Other(s)
     }
 }
