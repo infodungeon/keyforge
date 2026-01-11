@@ -27,6 +27,10 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 use crate::config::QueueConfig;
 
+// --- Constants ---
+pub const QUEUE_MAX_RETRIES: u32 = 3;
+pub const QUEUE_RETRY_DELAY_MS: u64 = 100;
+
 #[derive(Serialize, Deserialize, Clone)]
 struct PersistedRecord {
     job_id: String,
@@ -108,6 +112,7 @@ pub struct WriteQueue {
     sender: mpsc::Sender<InternalEvent>,
     queue_dir: PathBuf,
     dlq: DeadLetterQueue,
+    capacity: usize,
 }
 
 impl WriteQueue {
@@ -132,19 +137,30 @@ impl WriteQueue {
 
             let mut buffer = Vec::new();
 
-            // --- WAL RECOVERY PHASE ---
+            // --- WAL RECOVERY PHASE (Ordered) ---
             if let Ok(mut entries) = fs::read_dir(&queue_dir_clone).await {
+                let mut wal_files = Vec::new();
                 while let Ok(Some(entry)) = entries.next_entry().await {
                     let path = entry.path();
                     if path.extension().and_then(|s| s.to_str()) == Some("bin") {
-                        if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
-                            if let Ok(id) = Uuid::parse_str(file_stem) {
-                                if let Ok(bytes) = fs::read(&path).await {
-                                    if let Ok(val_entry) = postcard::from_bytes::<WalEntry>(&bytes) {
-                                        let record_bytes = postcard::to_stdvec(&val_entry.record).unwrap_or_default();
-                                        if crc32fast::hash(&record_bytes) == val_entry.checksum {
-                                            buffer.push((id, val_entry.record, None));
-                                        }
+                        if let Ok(meta) = entry.metadata().await {
+                            let created = meta.created().unwrap_or(SystemTime::now());
+                            wal_files.push((created, path));
+                        }
+                    }
+                }
+                
+                // Sort by creation time to preserve order
+                wal_files.sort_by_key(|(t, _)| *t);
+
+                for (_, path) in wal_files {
+                    if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        if let Ok(id) = Uuid::parse_str(file_stem) {
+                            if let Ok(bytes) = fs::read(&path).await {
+                                if let Ok(val_entry) = postcard::from_bytes::<WalEntry>(&bytes) {
+                                    let record_bytes = postcard::to_stdvec(&val_entry.record).unwrap_or_default();
+                                    if crc32fast::hash(&record_bytes) == val_entry.checksum {
+                                        buffer.push((id, val_entry.record, None));
                                     }
                                 }
                             }
@@ -196,6 +212,7 @@ impl WriteQueue {
             sender: tx,
             queue_dir,
             dlq,
+            capacity,
         }
     }
 
@@ -237,7 +254,7 @@ impl WriteQueue {
 
     /// Returns the current number of messages waiting in the queue buffer.
     pub async fn current_depth(&self) -> usize {
-        10000 - self.sender.capacity()
+        self.capacity - self.sender.capacity()
     }
 
     /// Triggers a graceful shutdown of the queue, ensuring all items are flushed.
@@ -264,13 +281,13 @@ async fn flush_buffer(
     let mut attempts = 0;
     let mut success = false;
 
-    while attempts < 3 {
+    while attempts < QUEUE_MAX_RETRIES {
         if repo.insert_batch(&items).await.is_ok() {
             success = true;
             break;
         }
         attempts += 1;
-        sleep(Duration::from_millis(100 * attempts)).await;
+        sleep(Duration::from_millis(QUEUE_RETRY_DELAY_MS * attempts as u64)).await;
     }
 
     if success {

@@ -20,7 +20,7 @@ export class WebClient implements BackendClient {
   private hiveUrl: string;
   private cache: Map<string, Promise<any>> = new Map();
 
-  constructor(hiveUrl: string = "http://localhost:3000") {
+  constructor(hiveUrl: string = "https://hive.infodungeon.com:3000") {
     this.hiveUrl = hiveUrl;
   }
 

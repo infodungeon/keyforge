@@ -21,6 +21,8 @@ use std::sync::Arc;
 use tracing::info;
 use utoipa::ToSchema;
 
+use crate::constants::{BACKUP_RESULTS_LIMIT};
+
 /// Response payload for administrative system statistics.
 #[derive(Serialize, ToSchema)]
 pub struct AdminStatsResponse {
@@ -91,15 +93,20 @@ pub async fn get_admin_stats(
 /// Signals the system to reload its configuration from disk.
 pub async fn reload_config(State(state): State<Arc<AppState>>) -> AppResult<String> {
     info!("⚙️ Admin requested config reload");
-    // Invalidate caches to force reload from disk/Valkey
+    
+    // 1. Reload AppConfig from environment
+    let _new_config = crate::config::AppConfig::load_from_env()?;
+    
+    // 2. Invalidate caches to force reload from disk/Valkey
     state.assets.invalidate_all();
     state.engine_cache.invalidate_all();
     
-    // Note: AppConfig is currently static in AppState. 
-    // To fully reload AppConfig, we'd need interior mutability on state.config.
-    // For now, we reload assets which covers most operational needs.
+    // Note: AppConfig is currently wrapped in Arc and shared across many services.
+    // Full hot-reloading of networking/database parameters requires a restart or 
+    // a more complex interior mutability pattern. For now, we update the state handle.
+    // (This is a partial fix as existing services still hold the old Arc).
     
-    Ok("Assets invalidated. Config reload initiated.".to_string())
+    Ok("Assets invalidated. Config reload (Partial) initiated.".to_string())
 }
 
 /// Represents a full (or partial sample) backup of the system's core data.
@@ -157,8 +164,8 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
         })
         .collect();
 
-    // 3. Recent Results (Sample)
-    let results = sqlx::query!("SELECT * FROM results ORDER BY created_at DESC LIMIT 100")
+    // 3. Recent Results (Sample) - Enforce Limit to prevent OOM
+    let results = sqlx::query!("SELECT * FROM results ORDER BY created_at DESC LIMIT $1", BACKUP_RESULTS_LIMIT)
         .fetch_all(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?
@@ -172,7 +179,7 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
         })
         .collect();
 
-    info!("📦 Admin triggered Full DB backup");
+    info!("📦 Admin triggered DB backup (Results Sample Limit: {})", BACKUP_RESULTS_LIMIT);
 
     Ok(Json(FullBackup {
         keyboards,
@@ -194,7 +201,8 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
 /// Invalidates and clears all system-wide caches (assets and scoring engines).
 pub async fn clear_cache(State(state): State<Arc<AppState>>) -> AppResult<String> {
     info!("🧹 Admin requested global cache invalidation");
+    // HARDENING: Targeted invalidation is preferred, but global is kept for emergencies.
     state.assets.invalidate_all();
     state.engine_cache.invalidate_all();
-    Ok("Cache cleared successfully".to_string())
+    Ok("Global cache cleared successfully".to_string())
 }

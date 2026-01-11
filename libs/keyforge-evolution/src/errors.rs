@@ -26,4 +26,8 @@ pub enum EvolutionError {
     /// Error caused by invalid configuration or input parameters.
     #[error("Configuration Error: {0}")]
     Config(String),
+
+    /// Optimization was aborted by the user or system via a callback.
+    #[error("Optimization Aborted")]
+    Aborted,
 }

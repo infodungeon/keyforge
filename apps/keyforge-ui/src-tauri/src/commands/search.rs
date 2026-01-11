@@ -93,7 +93,7 @@ pub async fn cmd_start_search(
 }
 
 #[tauri::command]
-pub fn cmd_stop_search(search_state: tauri::State<SearchState>) {
+pub fn cmd_stop_search(search_state: tauri::State<'_, SearchState>) {
     if let Ok(mut flag) = search_state.stop_flag.lock() {
         *flag = true;
     }

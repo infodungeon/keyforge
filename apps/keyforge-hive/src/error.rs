@@ -39,6 +39,9 @@ pub enum AppError {
     #[error("Not Found")]
     NotFound,
 
+    #[error("Conflict: {0}")]
+    Conflict(String),
+
     #[error("Internal Server Error: {0}")]
     Any(#[from] anyhow::Error),
 
@@ -78,6 +81,7 @@ impl IntoResponse for AppError {
                 ErrorCode::NotFound,
                 "Resource not found".to_string(),
             ),
+            AppError::Conflict(s) => (StatusCode::CONFLICT, ErrorCode::BadRequest, s),
             AppError::Any(e) => {
                 tracing::error!("Internal Error: {}", e);
                 (

@@ -38,12 +38,14 @@ pub fn populate_corpus_from_segments(
             "1grams" => {
                 for e in part {
                     if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
-                        if (c as usize) < 65536 {
-                            let freq = e["freq"].as_u64().ok_or_else(|| {
-                                ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {:?}", e))
-                            })?;
-                            corpus.char_freqs[c as usize] += (freq as f32 * weight).round() as u64;
+                        if (c as u32) > 0xFFFF {
+                            return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {}", c)));
                         }
+                        let c_u16 = c as u16;
+                        let freq = e["freq"].as_u64().ok_or_else(|| {
+                            ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {:?}", e))
+                        })?;
+                        corpus.char_freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
                     }
                 }
             }
@@ -52,13 +54,18 @@ pub fn populate_corpus_from_segments(
                     let freq = e["freq"].as_u64().ok_or_else(|| {
                         ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {:?}", e))
                     })?;
-                    let c1 = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing char1 in 2gram entry: {:?}", e))
-                    })? as u16;
-                    let c2 = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing char2 in 2gram entry: {:?}", e))
-                    })? as u16;
-                    corpus.bigrams.push((c1, c2, (freq as f32 * weight).round() as u32));
+                    let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing or invalid char1 in 2gram entry: {:?}", e))
+                    })?;
+                    let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing or invalid char2 in 2gram entry: {:?}", e))
+                    })?;
+                    
+                    if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF {
+                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {} or {}", c1_char, c2_char)));
+                    }
+                    
+                    corpus.bigrams.push((c1_char as u16, c2_char as u16, (freq as f32 * weight).round() as u32));
                 }
             }
             "3grams" => {
@@ -66,16 +73,21 @@ pub fn populate_corpus_from_segments(
                     let freq = e["freq"].as_u64().ok_or_else(|| {
                         ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {:?}", e))
                     })?;
-                    let c1 = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing char1 in 3gram entry: {:?}", e))
-                    })? as u16;
-                    let c2 = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing char2 in 3gram entry: {:?}", e))
-                    })? as u16;
-                    let c3 = e["char3"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing char3 in 3gram entry: {:?}", e))
-                    })? as u16;
-                    corpus.trigrams.push((c1, c2, c3, (freq as f32 * weight).round() as u32));
+                    let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing or invalid char1 in 3gram entry: {:?}", e))
+                    })?;
+                    let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing or invalid char2 in 3gram entry: {:?}", e))
+                    })?;
+                    let c3_char = e["char3"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
+                        ForgeError::InvalidData(format!("Missing or invalid char3 in 3gram entry: {:?}", e))
+                    })?;
+
+                    if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF || (c3_char as u32) > 0xFFFF {
+                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {}, {}, or {}", c1_char, c2_char, c3_char)));
+                    }
+
+                    corpus.trigrams.push((c1_char as u16, c2_char as u16, c3_char as u16, (freq as f32 * weight).round() as u32));
                 }
             }
             "words" => {

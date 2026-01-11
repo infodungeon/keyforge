@@ -76,6 +76,7 @@ hex = "0.4"
 
 # Utilities
 clap = { version = "4.5.53", features = ["derive", "env"] }
+dirs = "6.0"
 walkdir = "2"
 notify = "8.2"
 uuid = { version = "1.19", features = ["v4", "serde"] }

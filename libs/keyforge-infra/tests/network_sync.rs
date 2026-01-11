@@ -14,7 +14,8 @@ use wiremock::matchers::{method, path};
 async fn test_sync_flow() {
     let mock_server = MockServer::start().await;
     let client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
-        base_url: mock_server.uri(),
+        api_url: mock_server.uri(),
+        asset_url: mock_server.uri(),
         ..Default::default()
     }).unwrap();
     let temp = tempfile::tempdir().unwrap();

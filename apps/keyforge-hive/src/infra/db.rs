@@ -120,19 +120,33 @@ pub async fn init_db(db_url: &str) -> PgPool {
     }
 }
 
+// --- Constants ---
+pub const DB_MAX_RETRIES: u32 = 30;
+pub const DB_RETRY_DELAY_SECS: u64 = 1;
+pub const DB_DEFAULT_MAX_CONNECTIONS: u32 = 100;
+pub const DB_DEFAULT_TIMEOUT_SECS: u64 = 10;
+pub const DB_IDLE_TIMEOUT_SECS: u64 = 600;
+pub const DB_MAX_LIFETIME_SECS: u64 = 1800;
+pub const DB_STATEMENT_TIMEOUT: &str = "30s";
+
+/// Errors that can occur during database initialization and migration.
+// ... (omitted: DbInitError)
+
+// ... (omitted: try_init_db, init_db)
+
 async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
-    let max_retries = 30;
-    let delay = Duration::from_secs(1);
+    let max_retries = DB_MAX_RETRIES;
+    let delay = Duration::from_secs(DB_RETRY_DELAY_SECS);
 
     let max_connections = env::var("DATABASE_MAX_CONNECTIONS")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(100);
+        .unwrap_or(DB_DEFAULT_MAX_CONNECTIONS);
 
     let timeout_secs = env::var("DATABASE_TIMEOUT_SECONDS")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(10);
+        .unwrap_or(DB_DEFAULT_TIMEOUT_SECS);
 
     info!(
         "   Pool Config: Max Conns={}, Timeout={}s",
@@ -149,8 +163,8 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
                 match PgPoolOptions::new()
                     .max_connections(max_connections)
                     .acquire_timeout(Duration::from_secs(timeout_secs))
-                    .idle_timeout(Duration::from_secs(600))
-                    .max_lifetime(Duration::from_secs(1800))
+                    .idle_timeout(Duration::from_secs(DB_IDLE_TIMEOUT_SECS))
+                    .max_lifetime(Duration::from_secs(DB_MAX_LIFETIME_SECS))
                     .after_connect(|conn, _meta| Box::pin(async move {
                         use sqlx::Executor;
                         // P1 FIX: Use REPEATABLE READ to ensure FOR UPDATE SKIP LOCKED works correctly
@@ -158,7 +172,8 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
                         // REPEATABLE READ is safer for consistency but can cause serialization failures.
                         // We stick to REPEATABLE READ as per design, but ensure retries handle 40001.
                         conn.execute("SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ").await?;
-                        conn.execute("SET statement_timeout = '30s'").await?;
+                        let stmt_timeout = format!("SET statement_timeout = '{}'", DB_STATEMENT_TIMEOUT);
+                        conn.execute(stmt_timeout.as_str()).await?;
                         Ok(())
                     }))
                     .connect_with(options)

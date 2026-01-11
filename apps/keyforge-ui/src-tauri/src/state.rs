@@ -6,6 +6,10 @@ use keyforge_model::keycodes::KeycodeRegistry;
 // Removed unused import: WorkspaceError
 use keyforge_compute::Runtime;
 use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_model::constants::{
+    DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY, DEFAULT_KB_CACHE_CAPACITY,
+    DEFAULT_KEYCODE_CACHE_CAPACITY,
+};
 use moka::sync::Cache;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -55,15 +59,29 @@ impl AssetCache {
     /// Creates a new `AssetCache` rooted at the specified data directory.
     pub fn new(root: PathBuf) -> Self {
         // Configurable cache sizes via env or defaults
-        let kb_size = std::env::var("CACHE_KB_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(100);
-        let cp_size = std::env::var("CACHE_CORPUS_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(50);
+        let kb_size = std::env::var("CACHE_KB_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_KB_CACHE_CAPACITY);
+        let cp_size = std::env::var("CACHE_CORPUS_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_CORPUS_CACHE_CAPACITY);
+        let cost_size = std::env::var("CACHE_COST_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_COST_CACHE_CAPACITY);
+        let kc_size = std::env::var("CACHE_KEYCODE_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_KEYCODE_CACHE_CAPACITY);
 
         Self {
             provider: FsProvider::new(root),
-            keyboards: Cache::builder().max_capacity(kb_size).build(),
-            corpora: Cache::builder().max_capacity(cp_size).build(),
-            costs: Cache::builder().max_capacity(50).build(),
-            keycodes: Cache::builder().max_capacity(10).build(),
+            keyboards: Cache::builder().max_capacity(kb_size as u64).build(),
+            corpora: Cache::builder().max_capacity(cp_size as u64).build(),
+            costs: Cache::builder().max_capacity(cost_size as u64).build(),
+            keycodes: Cache::builder().max_capacity(kc_size as u64).build(),
         }
     }
 }
@@ -82,9 +100,8 @@ impl AssetLoader for AssetCache {
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-        // We need a deterministic key for caching
-        let key =
-            serde_json::to_string(sources).map_err(keyforge_model::error::ForgeError::Serde)?;
+        // Use deterministic fingerprint for caching
+        let key = keyforge_infra::util::common::calculate_fingerprint(sources);
 
         if let Some(cached) = self.corpora.get(&key) {
             return Ok(cached);

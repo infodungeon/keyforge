@@ -38,3 +38,18 @@ pub fn extract_score(output: &str) -> String {
     }
     "NOT_FOUND".to_string()
 }
+
+/// Provisions the calibration asset (corne.json) so the agent doesn't hang trying to download it.
+#[allow(dead_code)]
+pub fn setup_calibration_assets(data_root: &std::path::Path) {
+    let corne_json = r#"{
+        "geometry": {
+            "keys": [{"x":0, "y":0}],
+            "home_row": [0]
+        },
+        "layouts": {}
+    }"#;
+    let user_kb_dir = data_root.join("user/keyboards");
+    std::fs::create_dir_all(&user_kb_dir).expect("failed to create kb dir");
+    std::fs::write(user_kb_dir.join("corne.json"), corne_json).expect("failed to write corne.json");
+}

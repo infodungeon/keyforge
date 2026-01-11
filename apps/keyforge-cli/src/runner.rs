@@ -50,7 +50,7 @@ impl AgentRunner {
     }
 
     /// Runs the agent in 'run' mode for a full optimization job.
-    pub fn run_search(&self, config: &JobConfig) -> Result<(), CliError> {
+    pub fn run_search(&self, config: &JobConfig, threads: usize) -> Result<(), CliError> {
         let temp_file = tempfile::NamedTempFile::new().map_err(CliError::Io)?;
         let temp_path = temp_file.path().to_path_buf();
         
@@ -59,11 +59,14 @@ impl AgentRunner {
 
         let mut cmd = Command::new(&self.agent_path);
         cmd.arg("--data-dir").arg(&self.data_dir);
+        if threads > 0 {
+            cmd.arg("--cores").arg(threads.to_string());
+        }
         cmd.arg("run");
         cmd.arg(temp_path);
         
         cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
+        cmd.stderr(Stdio::inherit());
 
         info!("Spawning agent...");
         let mut child = cmd.spawn().map_err(CliError::Io)?;

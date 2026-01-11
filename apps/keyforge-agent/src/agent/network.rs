@@ -64,10 +64,10 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
-    pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32) -> Self {
+    pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32, cooldown_secs: u64) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         std::fs::create_dir_all(&wal_dir).ok();
-        Self { _client: client, wal_dir, _breaker: CircuitBreaker::new(threshold, 60) }
+        Self { _client: client, wal_dir, _breaker: CircuitBreaker::new(threshold, cooldown_secs) }
     }
     pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
         let path = self.wal_dir.join(format!("{}.json", submission.nonce));
@@ -131,7 +131,8 @@ impl NetworkManager {
         let outbox = ResultOutbox::new(
             hive_client, 
             config.data_dir.clone(), 
-            config.network.circuit_breaker_threshold
+            config.network.circuit_breaker_threshold,
+            config.network.circuit_breaker_cooldown
         );
 
         Ok(Self { client, config, telemetry, job_tx, result_rx, stop_tx, outbox })

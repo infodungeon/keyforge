@@ -39,9 +39,11 @@ pub struct StatusResponse {
     pub assets: String,
 }
 
+use keyforge_model::constants::ASSET_SYSTEM_CONFIG;
+
 /// Returns a simple greeting string for the API root.
 pub async fn root() -> &'static str {
-    "KeyForge Hive API v0.8"
+    concat!("KeyForge Hive API v", env!("CARGO_PKG_VERSION"))
 }
 
 #[utoipa::path(
@@ -71,7 +73,7 @@ pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<Status
 
     Ok(Json(StatusResponse {
         status: "ok".to_string(),
-        version: "0.8.0".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
         message: "Genetic Reservoir Active".to_string(),
         db: db_status,
         queue_depth,
@@ -100,7 +102,7 @@ pub async fn get_keyboard(
 /// Retrieves the global application configuration.
 pub async fn get_app_config(State(state): State<Arc<AppState>>) -> AppResult<Json<Config>> {
     // FIX: Use generic loader with "config"
-    let config: Arc<Config> = state.assets.load_config_asset("config").await;
+    let config: Arc<Config> = state.assets.load_config_asset(ASSET_SYSTEM_CONFIG).await;
     Ok(Json(config.as_ref().clone()))
 }
 

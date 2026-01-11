@@ -109,6 +109,11 @@ impl FingerIndex {
     pub fn diff(&self, other: Self) -> i8 {
         self.0 as i8 - other.0 as i8
     }
+    
+    /// Returns true if this is considered a "weak" finger (Ring or Pinky).
+    pub fn is_weak(&self) -> bool {
+        self.0 == 3 || self.0 == 4
+    }
 }
 impl Default for FingerIndex { fn default() -> Self { Self::INDEX } }
 impl TryFrom<u8> for FingerIndex {

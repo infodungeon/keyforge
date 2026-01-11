@@ -25,6 +25,8 @@ pub mod via;
 pub mod zmk;
 /// Shared utilities for exporters.
 pub mod util;
+/// Visualization engine for keyboard layouts and physics models.
+pub mod viz;
 
 use anyhow::Result;
 

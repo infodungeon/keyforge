@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -53,7 +53,12 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     let kb_def = KeyboardDefinition::parse(&kb_content, None)
         .map_err(|e| format!("Failed to parse keyboard definition: {}", e))?;
 
-    let corpora_fingerprint = "default".to_string();
+    let corpora_input = args.shared.corpus.unwrap_or_else(|| vec!["text/en_std".to_string()]);
+    let mut domain_corpora = Vec::new();
+    for s in corpora_input {
+        domain_corpora.push(s.parse::<keyforge_model::config::CorpusSource>()?);
+    }
+    let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&domain_corpora);
     let constraints = args.shared.pinned_keys;
 
     use std::convert::TryFrom;
@@ -104,3 +109,4 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     }
     Ok(())
 }
+

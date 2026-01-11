@@ -74,8 +74,8 @@ fn kb_and_layout_strategy() -> impl Strategy<Value = (Keyboard, Vec<KeyCode>)> {
             Keyboard::new(keys, 1).unwrap()
         });
 
-        let layout_strat = prop::collection::vec(0u16..255, count)
-            .prop_map(|codes| codes.into_iter().map(KeyCode).collect());
+        let layout_strat = prop::collection::hash_set(0u16..255, count)
+            .prop_map(|codes| codes.into_iter().map(KeyCode).collect::<Vec<_>>());
 
         (kb_strat, layout_strat)
     })
@@ -207,4 +207,49 @@ fn test_delta_internals_manual() {
     let score_after = engine.score_raw(&layout_keys).unwrap();
     
     assert_eq!(score_after - score_before, delta, "Manual delta check failed");
+}
+
+#[test]
+fn test_delta_self_loop() {
+    let keys = vec![
+        KeyNode { index: 0, x: 0.0, ..Default::default() },
+        KeyNode { index: 1, x: 10.0, ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+    
+    let mut corpus = Corpus::default();
+    // A->A (0->0). Self loop.
+    corpus.bigrams.push((0, 0, 100));
+    
+    let mut rubric = Rubric::default();
+    rubric.travel_lat = 1.0;
+    
+    // Explicitly empty trigrams to force incremental path
+    rubric.trigram_limit = 0; 
+    
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    
+    // Layout: A=K0, B=K1
+    let mut layout_keys = vec![KeyCode(0), KeyCode(1)];
+    let mut pos_map = vec![65535u16; 65536];
+    pos_map[0] = 0; pos_map[1] = 1;
+    
+    let score_before = engine.score_raw(&layout_keys).unwrap();
+    
+    // Swap A and B. A moves 0->1. B moves 1->0.
+    // Bigram A->A:
+    // Old: K0->K0 (Dist 0). Cost 0.
+    // New: K1->K1 (Dist 0). Cost 0.
+    // Delta should be 0.
+    
+    // If bug exists:
+    // Old: K0->K0
+    // New: K1->K0 ? (Dist 10).
+    
+    let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, 0, 1).unwrap();
+    
+    layout_keys.swap(0, 1);
+    let score_after = engine.score_raw(&layout_keys).unwrap();
+    
+    assert_eq!(score_after - score_before, delta, "Self loop delta check failed");
 }

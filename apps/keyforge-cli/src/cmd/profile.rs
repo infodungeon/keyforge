@@ -53,14 +53,16 @@ pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
         match serde_json::from_str::<BiometricSample>(&l) {
             Ok(s) => samples.push(s),
             Err(_) => {
-                if l.trim().starts_with('[') {
-                    eprintln!(
-                        "⚠️  Legacy JSON array format detected. Loading entire file into memory."
-                    );
+                // If it looks like it might be a JSON array, or if it just failed to parse as a single sample,
+                // try parsing the whole file as a legacy UserStatsStore.
+                if error_count == 0 {
                     let content = std::fs::read_to_string(&args.input).unwrap_or_default();
                     if let Ok(legacy_store) =
                         serde_json::from_str::<keyforge_protocol::UserStatsStore>(&content)
                     {
+                        eprintln!(
+                            "⚠️  Legacy JSON array format detected. Loading entire file into memory."
+                        );
                         samples = legacy_store.biometrics;
                         break;
                     }

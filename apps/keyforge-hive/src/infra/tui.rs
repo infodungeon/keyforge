@@ -65,6 +65,10 @@ struct DockerMonitor {
     state: Arc<Mutex<Vec<ContainerMetrics>>>,
 }
 
+use crate::constants::TUI_DOCKER_REFRESH_INTERVAL_SECS;
+
+// ... (omitted: imports)
+
 impl DockerMonitor {
     fn new() -> Self {
         let state = Arc::new(Mutex::new(Vec::new()));
@@ -75,7 +79,7 @@ impl DockerMonitor {
             if let Ok(mut guard) = state_clone.lock() {
                 *guard = metrics;
             }
-            thread::sleep(Duration::from_secs(2));
+            thread::sleep(Duration::from_secs(TUI_DOCKER_REFRESH_INTERVAL_SECS));
         });
 
         Self { state }

@@ -17,6 +17,7 @@ use std::sync::Arc;
 use tracing::info;
 use crate::error::AppResult;
 use crate::state::AppState;
+use crate::constants::LOG_JOB_ID_TRUNCATION;
 
 /// VSA Feature: Cancel Job
 /// Terminates a job and notifies active workers.
@@ -46,6 +47,6 @@ pub async fn handle(
 
     let _ = state.tx.send(format!("CANCEL:{}", job_id));
 
-    info!("🛑 Cancelled Job: {}", &job_id[0..8]);
+    info!("🛑 Cancelled Job: {}", &job_id[0..LOG_JOB_ID_TRUNCATION]);
     Ok("Job cancelled".to_string())
 }

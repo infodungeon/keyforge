@@ -83,6 +83,7 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
         ("system/weights", true),
         ("system/weights/default_costmatrix.json", false), // Use json not mpk for local
         ("system/config/keycodes.json", false),
+        ("agent.key.age", false),
     ];
 
     let mut all_good = true;

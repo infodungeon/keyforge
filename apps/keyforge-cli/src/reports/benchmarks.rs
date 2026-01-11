@@ -52,7 +52,7 @@ impl Default for BenchmarkEntry {
 
 #[allow(dead_code)]
 pub fn load() -> Option<Vec<BenchmarkEntry>> {
-    let path = "data/benchmarks/cyanophage.json";
+    let path = crate::constants::DEFAULT_BENCHMARK_PATH;
 
     if !Path::new(path).exists() {
         eprintln!("⚠️  Notice: Benchmark file '{}' not found.", path);

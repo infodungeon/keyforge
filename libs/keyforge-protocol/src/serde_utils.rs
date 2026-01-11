@@ -14,6 +14,7 @@
 
 //! Serialization and deserialization utilities for the protocol layer.
 
+use keyforge_model::constants::MAX_TRANSPORT_VECTOR_ITEMS;
 use serde::{Deserialize, Deserializer};
 
 /// Deserializes a vector with a hard limit on size to prevent memory exhaustion attacks.
@@ -26,11 +27,11 @@ where
     T: Deserialize<'de>,
 {
     let v: Vec<T> = Vec::deserialize(deserializer)?;
-    // TRANSPORT POLICY: Hard limit of 100k items.
-    if v.len() > 100_000 {
-        return Err(serde::de::Error::custom(
-            "Vector exceeds transport limit of 100,000 items",
-        ));
+    if v.len() > MAX_TRANSPORT_VECTOR_ITEMS {
+        return Err(serde::de::Error::custom(format!(
+            "Vector exceeds transport limit of {} items",
+            MAX_TRANSPORT_VECTOR_ITEMS
+        )));
     }
     Ok(v)
 }

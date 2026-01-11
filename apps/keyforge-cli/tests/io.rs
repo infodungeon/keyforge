@@ -23,10 +23,15 @@ fn test_resolve_absolute() {
             "--corpus", "test_corpus",
             "--weights", ctx.weights_path("default").to_str().unwrap(),
             "--keycodes", ctx.keycodes_path().to_str().unwrap(),
+            "--layout", "default",
         ])
         .output()
         .expect("Failed to execute keyforge");
 
+    if !output.status.success() {
+        eprintln!("STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
+        eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+    }
     assert!(output.status.success(), "Absolute path resolution failed");
 }
 
@@ -48,10 +53,15 @@ fn test_resolve_cwd() {
             "--cost", "cost.json",
             "--corpus", "test_corpus",
             "--keycodes", "keycodes.json",
+            "--layout", "default",
         ])
         .output()
         .expect("Failed to execute keyforge");
 
+    if !output.status.success() {
+        eprintln!("STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
+        eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+    }
     assert!(output.status.success(), "CWD-relative resolution failed");
 }
 
@@ -69,9 +79,14 @@ fn test_resolve_workspace() {
             "--cost", "cost.json",
             "--corpus", "test_corpus",
             "--keycodes", "keycodes.json",
+            "--layout", "default",
         ])
         .output()
         .expect("Failed to execute keyforge");
 
+    if !output.status.success() {
+        eprintln!("STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
+        eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+    }
     assert!(output.status.success(), "Workspace-relative resolution failed");
 }

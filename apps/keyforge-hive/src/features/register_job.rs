@@ -21,6 +21,7 @@ use tracing::{info, warn};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+use crate::constants::{DEFAULT_JOB_PRIORITY, LOG_JOB_ID_TRUNCATION};
 
 #[utoipa::path(
     post,
@@ -47,13 +48,10 @@ async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> 
     resolve_assets(state, &mut payload).await?;
     let job_id = generate_job_id(&payload)?;
 
-    // Use default priority 0 for now, but could be configurable via payload in future
-    let priority = 0;
-
     let is_new = state
         .jobs
         .repo
-        .register(&job_id, &payload, None, payload.parent_job_id.clone(), priority)
+        .register(&job_id, &payload, None, payload.config.parent_job_id.clone(), DEFAULT_JOB_PRIORITY)
         .await
         .map_err(AppError::Database)?;
 
@@ -83,7 +81,7 @@ fn validate_request(payload: &JobRequest) -> AppResult<()> {
 
 /// Resolves corpus hashes if they were not provided in the request.
 async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult<()> {
-    for corpus in &mut payload.corpora {
+    for corpus in &mut payload.config.corpora {
         if corpus.hash.is_none() {
             // FIX: Await the async hash retrieval
             let hash = state
@@ -99,16 +97,15 @@ async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult
 
 /// Generates a deterministic job ID based on the job configuration.
 fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
-    let corpora_fingerprint =
-        serde_json::to_string(&payload.corpora).unwrap_or_else(|_| "default".to_string());
+    let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&payload.config.corpora);
 
     let id = JobIdentifier::try_from_parts(
-        &payload.definition.geometry,
-        &payload.weights,
-        &payload.params,
-        &payload.pinned_keys,
+        &payload.config.definition.geometry,
+        &payload.config.weights,
+        &payload.config.params,
+        &payload.config.pinned_keys,
         &corpora_fingerprint,
-        &payload.cost_matrix,
+        &payload.config.cost_matrix,
     )
     .map_err(|e| AppError::Validation(format!("job id generation failed: {}", e)))?;
     
@@ -119,21 +116,21 @@ fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
 fn emit_registration_events(state: &AppState, job_id: &str) {
     let _ = state.tx.send(format!("JOB:{}", job_id));
     state.jobs.signal.notify_waiters();
-    info!("🆕 (VSA/Humble/ROP) Registered Job: {}", &job_id[0..8]);
+    info!("🆕 (VSA/Humble/ROP) Registered Job: {}", &job_id[0..LOG_JOB_ID_TRUNCATION]);
 }
 
 /// Performs security-related validation on input paths and IDs.
 fn validate_input_safety(req: &JobRequest) -> AppResult<()> {
-    match &req.cost_matrix {
+    match &req.config.cost_matrix {
         CostMatrixSource::Predefined(name) => {
-            crate::api::validation::validate_filename(name).map_err(|e| {
+            crate::api::validation::validate_filename(&name).map_err(|e| {
                 warn!("Security Alert: Invalid cost_matrix path: {} ({})", name, e);
                 e
             })?;
         }
     }
 
-    for c in &req.corpora {
+    for c in &req.config.corpora {
         crate::api::validation::validate_path_component(&c.id).map_err(|e| {
             warn!("Security Alert: Invalid corpus ID: {} ({})", c.id, e);
             e

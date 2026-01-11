@@ -1,3 +1,4 @@
+use keyforge_model::constants::CONFIG_DIR_NAME;
 use std::path::PathBuf;
 use tauri::AppHandle;
 use std::env;
@@ -15,7 +16,7 @@ pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
 
     // Priority 2: OS App Data Dir (Production)
     if let Some(mut dir) = dirs::data_dir() {
-        dir.push("keyforge");
+        dir.push(CONFIG_DIR_NAME);
         return Ok(dir);
     }
 

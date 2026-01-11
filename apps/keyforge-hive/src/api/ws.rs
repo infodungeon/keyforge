@@ -29,6 +29,8 @@ use keyforge_protocol::constants::{WS_MSG_JOB, WS_MSG_CANCEL};
 use keyforge_protocol::NodeTelemetry;
 use std::collections::HashMap;
 
+use crate::constants::{DEFAULT_NODE_ID, WS_HEARTBEAT_INTERVAL_SECS, WS_LIVENESS_TIMEOUT_SECS};
+
 /// Defines the external JSON protocol sent to WebSocket clients.
 #[derive(Serialize)]
 #[serde(tag = "type", content = "payload")]
@@ -43,7 +45,7 @@ pub async fn handler(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let node_id = params.get("node_id").cloned().unwrap_or_else(|| "unknown".to_string());
+    let node_id = params.get("node_id").cloned().unwrap_or_else(|| DEFAULT_NODE_ID.to_string());
     ws.on_upgrade(move |socket| handle_socket(socket, state, node_id))
 }
 
@@ -56,8 +58,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, node_id: String)
     info!(" Worker connected via WebSocket: {}", node_id);
 
     // Task 1: Outbound Loop (Broadcasts & Heartbeats)
+    let config_heartbeat = state.config.network.timeout_seconds.checked_div(2).unwrap_or(WS_HEARTBEAT_INTERVAL_SECS);
     let send_task = tokio::spawn(async move {
-        let mut heartbeat = interval(Duration::from_secs(30));
+        let mut heartbeat = interval(Duration::from_secs(config_heartbeat));
 
         loop {
             tokio::select! {
@@ -101,9 +104,10 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, node_id: String)
     });
 
     // Task 2: Inbound Loop (Telemetry & Liveness)
+    let config_timeout = state.config.network.timeout_seconds.checked_mul(2).unwrap_or(WS_LIVENESS_TIMEOUT_SECS);
     loop {
-        // Enforce a 60s timeout on inbound activity
-        match tokio::time::timeout(Duration::from_secs(60), receiver.next()).await {
+        // Enforce a timeout on inbound activity
+        match tokio::time::timeout(Duration::from_secs(config_timeout), receiver.next()).await {
             Ok(Some(Ok(msg))) => match msg {
                 Message::Pong(_) => {
                     debug!("💓 Received Pong");

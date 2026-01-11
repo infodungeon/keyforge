@@ -3,12 +3,13 @@
 use clap::Args;
 use keyforge_protocol::JobConfig;
 use crate::runner::AgentRunner;
+use crate::constants::DEFAULT_BENCHMARK_ITERATIONS;
 
 #[derive(Args, Debug, Clone)]
 pub struct BenchmarkArgs {
     #[command(flatten)]
     pub config: crate::cli_args::config::ConfigArgs,
-    #[arg(long, default_value_t = 100_000)]
+    #[arg(long, default_value_t = DEFAULT_BENCHMARK_ITERATIONS)]
     pub iterations: usize,
     #[command(flatten)]
     pub shared: crate::cmd::shared::SharedArgs,

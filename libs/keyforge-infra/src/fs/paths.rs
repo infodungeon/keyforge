@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use keyforge_model::constants::DATA_DIR_CANDIDATES;
 use std::env;
 use std::path::PathBuf;
 
@@ -31,12 +32,7 @@ pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
         }
     }
 
-    let candidates = [
-        "data",
-        "../data",
-        "../../data",
-        "/app/data", // Docker convention
-    ];
+    let candidates = DATA_DIR_CANDIDATES;
 
     for c in candidates {
         let p = PathBuf::from(c);

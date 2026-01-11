@@ -17,7 +17,11 @@ use bytes::Bytes;
 use keyforge_infra::{listing, AssetLoader, FsProvider, RawCostData, ServerManifest};
 use keyforge_model::loader::LoaderResult;
 use keyforge_model::Corpus;
-use keyforge_model::constants::{ASSET_KEYCODES, ASSET_HIVE_CONFIG, ASSET_SYSTEM_CONFIG};
+use keyforge_model::constants::{
+    ASSET_HIVE_CONFIG, ASSET_KEYCODES, ASSET_SYSTEM_CONFIG, DEFAULT_CORPUS_CACHE_CAPACITY,
+    DEFAULT_COST_CACHE_CAPACITY, DEFAULT_ENGINE_CACHE_CAPACITY, DEFAULT_ENGINE_CACHE_TTL_SECS,
+    DEFAULT_KB_CACHE_CAPACITY, DEFAULT_KEYCODE_CACHE_CAPACITY,
+};
 use keyforge_protocol::config::{Config as AppConfig, CorpusSource};
 use keyforge_protocol::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_protocol::geometry::KeyboardDefinition;
@@ -56,10 +60,10 @@ impl GlobalAssetCache {
     pub fn new(data_path: PathBuf) -> Self {
         let provider = FsProvider::new(data_path.clone());
 
-        let costs = Cache::builder().max_capacity(100).build();
-        let corpora = Cache::builder().max_capacity(50).build();
-        let keyboards = Cache::builder().max_capacity(100).build();
-        let keycodes = Cache::builder().max_capacity(10).build();
+        let costs = Cache::builder().max_capacity(DEFAULT_COST_CACHE_CAPACITY as u64).build();
+        let corpora = Cache::builder().max_capacity(DEFAULT_CORPUS_CACHE_CAPACITY as u64).build();
+        let keyboards = Cache::builder().max_capacity(DEFAULT_KB_CACHE_CAPACITY as u64).build();
+        let keycodes = Cache::builder().max_capacity(DEFAULT_KEYCODE_CACHE_CAPACITY as u64).build();
         let hive_config = Cache::builder().max_capacity(1).build();
         let app_config = Cache::builder().max_capacity(1).build();
 
@@ -389,8 +393,8 @@ impl CompiledEngineCache {
     pub fn new() -> Self {
         Self {
             cache: Cache::builder()
-                .max_capacity(500)
-                .time_to_live(Duration::from_secs(1800))
+                .max_capacity(DEFAULT_ENGINE_CACHE_CAPACITY as u64)
+                .time_to_live(Duration::from_secs(DEFAULT_ENGINE_CACHE_TTL_SECS))
                 .build(),
         }
     }

@@ -31,8 +31,26 @@ pub struct HiveBootstrapConfig {
 
 impl HiveBootstrapConfig {
     /// The canonical filesystem path where the Hive looks for its bootstrap configuration.
-    // TODO: Use XDG_CONFIG_HOME if possible, but keep /etc as system fallback.
-    pub const DEFAULT_PATH: &'static str = "/etc/keyforge/hive.toml";
+    pub const DEFAULT_SYSTEM_PATH: &'static str = "/etc/keyforge/hive.toml";
+
+    /// Returns the resolved path for the bootstrap configuration.
+    pub fn resolve_path() -> PathBuf {
+        // 1. Env Var Override
+        if let Ok(p) = std::env::var("KEYFORGE_HIVE_CONFIG") {
+            return PathBuf::from(p);
+        }
+
+        // 2. User Home (XDG)
+        if let Some(mut p) = dirs::config_dir() {
+            p.push("keyforge/hive.toml");
+            if p.exists() {
+                return p;
+            }
+        }
+
+        // 3. System Fallback
+        PathBuf::from(Self::DEFAULT_SYSTEM_PATH)
+    }
 
     /// Loads the bootstrap configuration from the specified TOML file.
     pub fn load(path: &Path) -> Result<Self, String> {

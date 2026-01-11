@@ -16,6 +16,26 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use crate::error::{AppError, AppResult};
 
+// --- Defaults ---
+pub const DEFAULT_POPULATION_LIMIT: usize = 50;
+pub const DEFAULT_VALKEY_URL: &str = "redis://127.0.0.1:6379";
+pub const DEFAULT_QUEUE_BATCH_SIZE: usize = 500;
+pub const DEFAULT_QUEUE_FLUSH_INTERVAL_MS: u64 = 200;
+pub const DEFAULT_QUEUE_CHANNEL_CAPACITY: usize = 1000;
+pub const DEFAULT_NETWORK_MAX_CONNECTIONS: u32 = 100;
+pub const DEFAULT_NETWORK_TIMEOUT_SECONDS: u64 = 30;
+pub const DEFAULT_RATE_LIMIT_PER_SEC: u32 = 1000;
+pub const DEFAULT_RATE_LIMIT_BURST: u32 = 2000;
+pub const DEFAULT_STRICT_RATE_LIMIT_PER_SEC: u32 = 5;
+pub const DEFAULT_STRICT_RATE_LIMIT_BURST: u32 = 10;
+pub const DEFAULT_API_KEY_CACHE_CAPACITY: u64 = 1000;
+pub const DEFAULT_API_KEY_CACHE_TTL_SECS: u64 = 300;
+pub const DEFAULT_NONCE_CACHE_CAPACITY: u64 = 100_000;
+pub const DEFAULT_NONCE_CACHE_TTL_SECS: u64 = 600;
+pub const DEFAULT_SUBMISSION_EXPIRATION_SECS: u64 = 600;
+pub const DEFAULT_BROADCAST_CAPACITY: usize = 10000;
+pub const DEFAULT_MONITOR_INTERVAL_SECS: u64 = 5;
+
 /// The global application configuration, aggregating settings for database, network, queue, and rate limiting.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -54,7 +74,11 @@ pub struct AppConfig {
 }
 
 fn default_population_limit() -> usize {
-    50
+    DEFAULT_POPULATION_LIMIT
+}
+
+fn default_valkey() -> String {
+    DEFAULT_VALKEY_URL.to_string()
 }
 
 impl AppConfig {
@@ -72,7 +96,7 @@ impl AppConfig {
 
         let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
         let server_key = env::var("HIVE_SERVER_KEY").ok();
-        let population_limit = parse_env("POPULATION_LIMIT", 50);
+        let population_limit = parse_env("POPULATION_LIMIT", DEFAULT_POPULATION_LIMIT);
         
         // Rate Limits
         let rate_limits = RateLimitConfig::load();
@@ -80,8 +104,8 @@ impl AppConfig {
         Ok(Self {
             database_url,
             hive_secret,
-            queue: QueueConfig::default(),
-            network: NetworkConfig::default(),
+            queue: QueueConfig::load(),
+            network: NetworkConfig::load(),
             rate_limits,
             valkey_url,
 
@@ -99,16 +123,12 @@ impl AppConfig {
             queue: QueueConfig::default(),
             network: NetworkConfig::default(),
             rate_limits: RateLimitConfig::default(),
-            valkey_url: "redis://127.0.0.1:6379".to_string(),
+            valkey_url: DEFAULT_VALKEY_URL.to_string(),
             cors_origins: "*".to_string(),
             server_key: Some("mock_server_key".to_string()),
-            population_limit: 50,
+            population_limit: DEFAULT_POPULATION_LIMIT,
         }
     }
-}
-
-fn default_valkey() -> String {
-    "redis://127.0.0.1:6379".to_string()
 }
 
 /// Configuration settings for the job queue system.
@@ -122,13 +142,19 @@ pub struct QueueConfig {
     pub channel_capacity: usize,
 }
 
+impl QueueConfig {
+    fn load() -> Self {
+        Self {
+            batch_size: parse_env("QUEUE_BATCH_SIZE", DEFAULT_QUEUE_BATCH_SIZE),
+            flush_interval_ms: parse_env("QUEUE_FLUSH_INTERVAL", DEFAULT_QUEUE_FLUSH_INTERVAL_MS),
+            channel_capacity: parse_env("QUEUE_CAPACITY", DEFAULT_QUEUE_CHANNEL_CAPACITY),
+        }
+    }
+}
+
 impl Default for QueueConfig {
     fn default() -> Self {
-        Self {
-            batch_size: 500,
-            flush_interval_ms: 200,
-            channel_capacity: 1000,
-        }
+        Self::load()
     }
 }
 
@@ -141,12 +167,18 @@ pub struct NetworkConfig {
     pub timeout_seconds: u64,
 }
 
+impl NetworkConfig {
+    fn load() -> Self {
+        Self {
+            max_connections: parse_env("MAX_CONNECTIONS", DEFAULT_NETWORK_MAX_CONNECTIONS),
+            timeout_seconds: parse_env("NETWORK_TIMEOUT", DEFAULT_NETWORK_TIMEOUT_SECONDS),
+        }
+    }
+}
+
 impl Default for NetworkConfig {
     fn default() -> Self {
-        Self {
-            max_connections: 100,
-            timeout_seconds: 30,
-        }
+        Self::load()
     }
 }
 
@@ -166,10 +198,10 @@ pub struct RateLimitConfig {
 impl RateLimitConfig {
     fn load() -> Self {
         Self {
-            limit_per_sec: parse_env("RATE_LIMIT_PER_SEC", 1000),
-            limit_burst: parse_env("RATE_LIMIT_BURST", 2000),
-            strict_limit_per_sec: parse_env("STRICT_RATE_LIMIT_PER_SEC", 1),
-            strict_limit_burst: parse_env("STRICT_RATE_LIMIT_BURST", 5),
+            limit_per_sec: parse_env("RATE_LIMIT_PER_SEC", DEFAULT_RATE_LIMIT_PER_SEC),
+            limit_burst: parse_env("RATE_LIMIT_BURST", DEFAULT_RATE_LIMIT_BURST),
+            strict_limit_per_sec: parse_env("STRICT_RATE_LIMIT_PER_SEC", DEFAULT_STRICT_RATE_LIMIT_PER_SEC),
+            strict_limit_burst: parse_env("STRICT_RATE_LIMIT_BURST", DEFAULT_STRICT_RATE_LIMIT_BURST),
         }
     }
 }

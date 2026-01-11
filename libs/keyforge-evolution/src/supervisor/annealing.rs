@@ -18,13 +18,9 @@ use crate::errors::EvolutionError;
 use crate::ProgressCallback;
 use keyforge_model::{Layout, KeyCode};
 use keyforge_physics::ScoringEngine;
-use keyforge_model::constants::SCORE_SCALE;
+use keyforge_model::constants::{SCORE_SCALE, TEMP_UNDERFLOW_THRESHOLD, DEFAULT_REPORT_DIVISOR, MIN_REPORT_INTERVAL};
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
-
-pub const TEMP_UNDERFLOW_THRESHOLD: f32 = 1e-10;
-pub const DEFAULT_REPORT_DIVISOR: usize = 100;
-pub const MIN_REPORT_INTERVAL: usize = 1000;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnnealingConfig {
@@ -186,10 +182,10 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                 state.temperature = 0.0;
             }
 
-            if step > 0 && step % report_interval == 0 {
+            if step % report_interval == 0 {
                 let now = self.time_keeper.now();
                 let elapsed = self.time_keeper.elapsed(last_report_time).as_secs_f32();
-                let steps_done = step - last_report_step;
+                let steps_done = if step == 0 { 0 } else { step - last_report_step };
 
                 let ips = if elapsed > 0.0 {
                     (steps_done as f32 / elapsed) / 1_000_000.0
@@ -199,11 +195,13 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
                 let score_f32 = state.best_score as f32 / SCORE_SCALE;
                 if !callback.on_progress(step, score_f32, &state.best_layout().keys, ips) {
-                    break;
+                    return Err(EvolutionError::Aborted);
                 }
 
-                last_report_time = now;
-                last_report_step = step;
+                if step > 0 {
+                    last_report_time = now;
+                    last_report_step = step;
+                }
             }
         }
 
@@ -437,8 +435,8 @@ mod tests {
             acceptance,
             crate::supervisor::traits::RealTimeKeeper,
         );
-        let best = opt.run(None, BreakCallback).unwrap();
-        assert_eq!(best.keys.len(), 2);
+        let res = opt.run(None, BreakCallback);
+        assert!(matches!(res, Err(EvolutionError::Aborted)));
     }
 
     #[test]

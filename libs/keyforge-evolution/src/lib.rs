@@ -239,8 +239,8 @@ mod tests {
             }
         }
         let callback = CountingCallback { counter: counter.clone(), limit: 1 };
-        let result = optimize_with_callback(&req, callback).unwrap();
-        assert!(result.score >= 0.0);
+        let result = optimize_with_callback(&req, callback);
+        assert!(matches!(result, Err(EvolutionError::Aborted)));
         assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
 

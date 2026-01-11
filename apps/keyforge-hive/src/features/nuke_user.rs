@@ -20,6 +20,7 @@ use tracing::warn;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::infra::repositories::audit::AuditLog;
+use crate::constants::NUKE_CONFIRMATION_KEY;
 
 /// Request payload for permanently deleting all user data.
 #[derive(Deserialize, ToSchema)]
@@ -30,8 +31,6 @@ pub struct NukeRequest {
     #[schema(example = "DELETE_EVERYTHING")]
     pub confirmation: String,
 }
-
-const NUKE_CONFIRMATION_KEY: &str = "DELETE_EVERYTHING";
 
 /// VSA Feature: Nuke User Data
 /// Permanently erases all data for a specific user.

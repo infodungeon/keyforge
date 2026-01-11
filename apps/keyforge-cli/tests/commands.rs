@@ -8,6 +8,7 @@ mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::process::Command;
 use std::fs;
+use serde_json::Value;
 
 #[test]
 fn test_init_workspace() {
@@ -82,12 +83,22 @@ fn test_validate_output() {
             "--cost", "cost.json",
             "--corpus", "test_corpus",
             "--keycodes", "keycodes.json",
+            "--layout", "default",
         ])
         .output()
         .expect("Failed to run validate");
 
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
+    
+    if !output.status.success() {
+        eprintln!("STDOUT:\n{}", stdout);
+        eprintln!("STDERR:\n{}", stderr);
+    }
+
     assert!(output.status.success());
-    assert!(stderr.contains("Analysis Report"));
-    assert!(stderr.contains("Score:"));
+    
+    // Verify JSON output
+    let json: Value = serde_json::from_str(&stdout).expect("Failed to parse output JSON");
+    assert!(json.get("score").is_some(), "JSON output missing 'score' field: {}", stdout);
 }

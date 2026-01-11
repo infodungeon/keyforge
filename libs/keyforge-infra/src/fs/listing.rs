@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::asset::{ASSET_PATH_CORPORA, ASSET_PATH_KEYBOARDS, ASSET_PATH_KEYMAP_EXTRAS, ASSET_PATH_WEIGHTS};
 use crate::error::{InfraError, InfraResult};
 use std::collections::HashSet;
 use std::fs;
@@ -66,7 +67,7 @@ fn scan_dir(
 pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Binary Only - Updated to new structure
-    scan_dir(root, "system/keyboards/models", "mpk.zst", &mut names)?;
+    scan_dir(root, &format!("system/{}", ASSET_PATH_KEYBOARDS), "mpk.zst", &mut names)?;
     // User: Support JSON for development/customization
     scan_dir(root, "user/keyboards", "json", &mut names)?;
 
@@ -83,7 +84,7 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     let mut ids = HashSet::new();
 
     for (scope, ext) in [("system", "mpk.zst"), ("user", "json")] {
-        let base = root.join(scope).join("corpora");
+        let base = root.join(scope).join(ASSET_PATH_CORPORA);
         if !base.exists() {
             continue;
         }
@@ -117,12 +118,11 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     sorted.sort();
     Ok(sorted)
 }
-
 /// Lists all available cost matrices (effort models).
 pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Weights are now in system/weights
-    scan_dir(root, "system/weights", "mpk.zst", &mut names)?;
+    scan_dir(root, &format!("system/{}", ASSET_PATH_WEIGHTS), "mpk.zst", &mut names)?;
     scan_dir(root, "user/weights", "json", &mut names)?;
 
     let mut sorted: Vec<String> = names.into_iter().collect();
@@ -130,10 +130,11 @@ pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     Ok(sorted)
 }
 
+
 /// Lists available keymap extras (e.g., custom symbols or macros).
 pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
-    scan_dir(root, "system/keymap_extras", "mpk.zst", &mut names)?;
+    scan_dir(root, &format!("system/{}", ASSET_PATH_KEYMAP_EXTRAS), "mpk.zst", &mut names)?;
     scan_dir(root, "user/keymap_extras", "json", &mut names)?;
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();

@@ -48,7 +48,7 @@ fn test_job_request_serialization() {
 #[test]
 fn test_transport_security_policy() {
     // Construct a malicious JSON payload with 100,001 biometric samples
-    let oversized_vec: Vec<BiometricSample> = (0..100_001).map(|i| BiometricSample {
+    let _oversized_vec: Vec<BiometricSample> = (0..100_001).map(|i| BiometricSample {
         bigram: "th".to_string(),
         ms: 100.0,
         timestamp: i as u64
@@ -60,6 +60,7 @@ fn test_transport_security_policy() {
     #[derive(serde::Deserialize, Debug)]
     struct Wrapper {
         #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
+        #[allow(dead_code)]
         items: Vec<String>
     }
 
@@ -111,7 +112,7 @@ fn test_biometric_limit_validation() {
 
 #[test]
 fn test_timestamp_validation() {
-    let mut result = ResultSubmission {
+    let _result = ResultSubmission {
         version: PROTOCOL_VERSION,
         job_id: "test".into(),
         layout: "test".into(), // Will fail layout strict validation if we don't mock it, but we can check the time logic

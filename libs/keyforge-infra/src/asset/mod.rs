@@ -31,3 +31,5 @@ pub const ASSET_PATH_CORPORA: &str = "corpora/";
 pub const ASSET_PATH_WEIGHTS: &str = "weights/";
 /// Path prefix for configuration files.
 pub const ASSET_PATH_CONFIG: &str = "config/";
+/// Path prefix for keymap extra assets.
+pub const ASSET_PATH_KEYMAP_EXTRAS: &str = "keymap_extras/";

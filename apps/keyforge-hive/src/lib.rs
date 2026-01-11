@@ -43,6 +43,7 @@ pub(crate) mod api;
 pub(crate) mod api_docs;
 pub(crate) mod features;
 pub(crate) mod auth;
+pub mod constants;
 /// Self-healing and bootstrap logic for system assets.
 pub mod bootstrap;
 /// Global and local caching mechanisms.
@@ -190,7 +191,7 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
     let body_limit = env::var("MAX_JSON_BODY_SIZE")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(1024 * 1024);
+        .unwrap_or(crate::constants::DEFAULT_MAX_JSON_BODY_SIZE);
 
     let app_routes = public_routes
         .merge(secure_routes)

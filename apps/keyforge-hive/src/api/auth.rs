@@ -81,7 +81,7 @@ pub async fn register(
         .create_user(&payload.username)
         .await
         .map_err(AppError::Database)?
-        .ok_or_else(|| AppError::Validation("Username already taken".into()))?;
+        .ok_or_else(|| AppError::Conflict("Username already taken".into()))?;
 
     // 2. Generate Master Key
     let (full_key, hash) = generate_secure_key();

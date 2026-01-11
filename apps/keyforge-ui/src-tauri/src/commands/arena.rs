@@ -4,6 +4,7 @@ use keyforge_infra::FsProvider;
 use keyforge_persistence::UserRepo;
 use keyforge_model::config::CorpusSource;
 use keyforge_protocol::BiometricSample;
+use keyforge_model::constants::ARENA_TOP_WORDS_LIMIT;
 use tauri::AppHandle;
 
 /// Generates a list of random words from the selected corpora for typing practice.
@@ -34,7 +35,7 @@ pub async fn cmd_get_typing_words(
     let mut rng = fastrand::Rng::new();
     let mut selected = Vec::with_capacity(count);
 
-    let top_n = 2000.min(bundle.words.len());
+    let top_n = ARENA_TOP_WORDS_LIMIT.min(bundle.words.len());
     let candidates = &bundle.words[0..top_n];
     let total_freq: f64 = candidates.iter().map(|(_, f)| *f as f64).sum();
 
@@ -118,11 +119,14 @@ pub async fn cmd_get_corpus_bigrams(
     let mut bigrams = Vec::new();
 
     let mut sorted_bgs = bundle.bigrams.clone();
-    sorted_bgs.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+    sorted_bgs.sort_by(|a, b| b.2.cmp(&a.2));
 
     for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {
-        let s = String::from_utf8(vec![b1 as u8, b2 as u8]).unwrap_or_default();
-        if s.chars().all(|c| c.is_alphabetic()) {
+        let mut s = String::with_capacity(4);
+        if let Some(c1) = std::char::from_u32(b1 as u32) { s.push(c1); }
+        if let Some(c2) = std::char::from_u32(b2 as u32) { s.push(c2); }
+        
+        if !s.is_empty() && s.chars().all(|c| c.is_alphabetic()) {
             bigrams.push(s);
         }
     }

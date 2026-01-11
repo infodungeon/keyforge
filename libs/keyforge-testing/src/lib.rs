@@ -49,7 +49,13 @@ impl HermeticWorkspace {
         let temp = tempfile::tempdir().expect("Failed to create temp dir");
         let data_root = temp.path().join("data");
 
-        // Create Sandbox Structure (User Overlay)
+        // Create Sandbox Structure (Directly under data root for AssetManager compatibility)
+        fs::create_dir_all(data_root.join("keyboards")).unwrap();
+        fs::create_dir_all(data_root.join("corpora")).unwrap();
+        fs::create_dir_all(data_root.join("weights")).unwrap();
+        fs::create_dir_all(data_root.join("config")).unwrap();
+        
+        // Also create user structure for CLI legacy checks
         fs::create_dir_all(data_root.join("user/keyboards")).unwrap();
         fs::create_dir_all(data_root.join("user/corpora")).unwrap();
         fs::create_dir_all(data_root.join("user/weights")).unwrap();
@@ -218,7 +224,7 @@ impl HermeticWorkspace {
                 "penalty_scissor": 25.0,
                 "weight_vertical_travel": 1.0,
                 "weight_lateral_travel": 3.5,
-                "finger_penalty_scale": "0.0,1.0,1.1,1.3,1.6",
+                "finger_penalty_scale": [0.0, 1.0, 1.1, 1.3, 1.6],
                 "comfortable_scissors": "21,23,34",
                 "loader_trigram_limit": 20000,
                 "threshold_sfb_long_row_diff": 2,
@@ -232,23 +238,23 @@ impl HermeticWorkspace {
     // Path Helpers for Compatibility
     /// Returns the absolute path to a keyboard definition in the workspace.
     pub fn keyboard_path(&self, name: &str) -> PathBuf {
-        self.data_root.join(format!("user/keyboards/{}.json", name))
+        self.data_root.join("user/keyboards").join(format!("{}.json", name))
     }
     /// Returns the absolute path to a cost matrix file in the workspace.
     pub fn cost_path(&self, name: &str) -> PathBuf {
-        self.data_root.join(format!("user/weights/{}", name))
+        self.data_root.join("user/weights").join(name)
     }
     /// Returns the absolute path to a weights file in the workspace.
     pub fn weights_path(&self, name: &str) -> PathBuf {
-        self.data_root.join(format!("user/weights/{}.json", name))
+        self.data_root.join("user/weights").join(format!("{}.json", name))
     }
     /// Returns the path to the global keycodes registry in the workspace.
     pub fn keycodes_path(&self) -> PathBuf {
-        self.data_root.join("user/config/keycodes.json")
+        self.data_root.join("user/config").join("keycodes.json")
     }
     /// Returns the directory path for a corpus in the workspace.
     pub fn corpus_dir(&self, name: &str) -> PathBuf {
-        self.data_root.join(format!("user/corpora/{}", name))
+        self.data_root.join("user/corpora").join(name)
     }
 
     fn default_kb(&self) -> KeyboardDefinition {

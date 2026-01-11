@@ -15,6 +15,8 @@
 
 use crate::error::{AppError, AppResult};
 
+use crate::constants::{MAX_FILENAME_LEN, MAX_ID_LEN, RESERVED_USERNAMES};
+
 /// Shared helper for validating characters
 fn is_valid_char(c: char, allow_dot: bool) -> bool {
     c.is_alphanumeric() || c == '-' || c == '_' || (allow_dot && c == '.')
@@ -27,13 +29,13 @@ fn is_reserved_name(name: &str) -> bool {
         "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
         "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     ];
-    reserved.contains(&stem.as_str())
+    reserved.contains(&stem.as_str()) || RESERVED_USERNAMES.contains(&stem.as_str().to_lowercase().as_str())
 }
 
 /// Validates that a string is a safe filename.
 /// Validates that a string is a safe filename, preventing path traversal and reserved name usage.
 pub fn validate_filename(name: &str) -> AppResult<()> {
-    if name.is_empty() || name.len() > 255 {
+    if name.is_empty() || name.len() > MAX_FILENAME_LEN {
         return Err(AppError::Validation("Invalid filename length".into()));
     }
     if name == "." || name == ".." || is_reserved_name(name) {
@@ -54,7 +56,7 @@ pub fn validate_filename(name: &str) -> AppResult<()> {
 /// Validates that a string is a safe identifier (e.g. Corpus ID).
 /// Validates that a string is a safe identifier (e.g., Corpus ID), disallowing dots.
 pub fn validate_id(id: &str) -> AppResult<()> {
-    if id.is_empty() || id.len() > 64 {
+    if id.is_empty() || id.len() > MAX_ID_LEN {
         return Err(AppError::Validation("Invalid ID length".into()));
     }
     if is_reserved_name(id) {

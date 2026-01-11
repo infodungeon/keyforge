@@ -8,6 +8,7 @@ use keyforge_infra::HiveClient;
 use keyforge_persistence::UserRepo;
 use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+use keyforge_model::constants::{DEFAULT_KEYBOARD_NAME, DEFAULT_AUTHOR_NAME, DEFAULT_VERSION, DEFAULT_KLE_NOTES};
 use std::collections::HashMap;
 use std::path::Path;
 use tauri::AppHandle;
@@ -135,10 +136,10 @@ pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
     let geometry = parse_kle_json(&json).map_err(|e| CommandError::Validation(e.to_string()))?;
     Ok(KeyboardDefinition {
         meta: KeyboardMeta {
-            name: "Untitled Board".into(),
-            author: "Unknown".into(),
-            version: "1.0".into(),
-            notes: "Imported from KLE".into(),
+            name: DEFAULT_KEYBOARD_NAME.into(),
+            author: DEFAULT_AUTHOR_NAME.into(),
+            version: DEFAULT_VERSION.into(),
+            notes: DEFAULT_KLE_NOTES.into(),
             kb_type: "ortho".into(),
         },
         geometry,

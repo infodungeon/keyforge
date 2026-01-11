@@ -17,14 +17,14 @@ use crate::error::{CliError, Result};
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::constants::{DEFAULT_HIVE_URL, CONFIG_DIR_NAME, CLI_CONFIG_FILENAME};
+use crate::constants::{CONFIG_DIR_NAME, CLI_CONFIG_FILENAME};
 
 #[derive(Args, Debug, Clone)]
 pub struct AuthArgs {
     #[command(subcommand)]
     pub command: AuthCommands,
 
-    #[arg(long, default_value = DEFAULT_HIVE_URL)]
+    #[arg(long, default_value = keyforge_model::constants::DEFAULT_HIVE_URL)]
     pub hive: String,
 }
 

@@ -14,7 +14,7 @@
 
 
 use crate::cache::CompiledEngineCache;
-use crate::config::AppConfig;
+use crate::config::{AppConfig, DEFAULT_BROADCAST_CAPACITY, DEFAULT_MONITOR_INTERVAL_SECS};
 use crate::infra::queue::WriteQueue;
 use crate::infra::repositories::{
     AuditRepository, JobRepository, NodeRepository, ResultRepository, SubmissionRepository,
@@ -97,7 +97,7 @@ impl AppState {
             config.queue.clone(),
         ));
 
-        let (tx, _) = broadcast::channel(10000);
+        let (tx, _) = broadcast::channel(DEFAULT_BROADCAST_CAPACITY);
         
         // HIVE_SECRET is now enforced by AppConfig
         let security = Arc::new(SecurityContext::new(Some(config.hive_secret), server_key));
@@ -106,7 +106,7 @@ impl AppState {
 
         let monitor_clone = monitor.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(DEFAULT_MONITOR_INTERVAL_SECS));
             loop {
                 interval.tick().await;
                 monitor_clone.refresh().await;

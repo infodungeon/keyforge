@@ -70,7 +70,7 @@ async fn test_agent_session_bootstrap() {
     };
 
     let loader = Box::new(keyforge_infra::FsProvider::new(data_root.clone()));
-    let prepared = compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora").await.unwrap();
+    let prepared = compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora", &keyforge_agent::models::ComputeConfig::default()).await.unwrap();
 
     assert_eq!(prepared.req.keyboard.keys.len(), 1);
     assert!(!prepared.req.corpus.char_freqs.is_empty());
@@ -107,6 +107,6 @@ async fn test_optimization_cancellation() {
     let limiter = Arc::new(Semaphore::new(1));
     let telemetry = SharedTelemetry::default();
 
-    let result = compute::run_optimization(req, "test-job".into(), stop_flag, limiter, telemetry).await;
+    let result = compute::run_optimization(req, "test-job".into(), stop_flag, limiter, telemetry, 60, 100).await;
     assert!(result.is_err(), "Should have been cancelled by stop_flag");
 }

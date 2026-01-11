@@ -15,6 +15,7 @@
 
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
+use crate::constants::{DEFAULT_MAX_ACTIVE_JOBS, DEFAULT_MAX_DAILY_JOBS};
 
 /// Repository for managing users and authentication keys.
 #[derive(Clone, Debug)]
@@ -108,8 +109,8 @@ impl UserRepository {
             .await?;
 
         if let Some(r) = row {
-            let max_active: Option<i32> = r.try_get("max_active_jobs").unwrap_or(Some(5));
-            let max_daily: Option<i32> = r.try_get("max_daily_jobs").unwrap_or(Some(50));
+            let max_active: Option<i32> = r.try_get("max_active_jobs").unwrap_or(Some(DEFAULT_MAX_ACTIVE_JOBS));
+            let max_daily: Option<i32> = r.try_get("max_daily_jobs").unwrap_or(Some(DEFAULT_MAX_DAILY_JOBS));
 
             let active_count: i64 = sqlx::query_scalar(
                 "SELECT count(*) FROM jobs WHERE owner_id = $1 AND status = 'active'",
@@ -118,7 +119,7 @@ impl UserRepository {
             .fetch_one(&self.pool)
             .await?;
 
-            if active_count >= max_active.unwrap_or(5) as i64 {
+            if active_count >= max_active.unwrap_or(DEFAULT_MAX_ACTIVE_JOBS) as i64 {
                 return Ok(false);
             }
 
@@ -129,7 +130,7 @@ impl UserRepository {
             .fetch_one(&self.pool)
             .await?;
 
-            if daily_count >= max_daily.unwrap_or(50) as i64 {
+            if daily_count >= max_daily.unwrap_or(DEFAULT_MAX_DAILY_JOBS) as i64 {
                 return Ok(false);
             }
         }

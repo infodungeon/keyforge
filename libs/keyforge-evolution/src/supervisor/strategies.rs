@@ -15,7 +15,7 @@
 use super::traits::{AcceptanceCriteria, MutationAction, MutationOperator, MutationProposal};
 use keyforge_model::Layout;
 use keyforge_physics::ScoringEngine;
-use keyforge_model::constants::SCORE_SCALE;
+use keyforge_model::constants::{SCORE_SCALE, ANNEALING_MIN_TEMP};
 use rand::Rng;
 use rand::seq::index::sample;
 
@@ -133,7 +133,7 @@ impl AcceptanceCriteria for CoolingAnnealing {
             return true;
         }
 
-        if temperature < 1e-6 {
+        if temperature < ANNEALING_MIN_TEMP {
             return false;
         }
 

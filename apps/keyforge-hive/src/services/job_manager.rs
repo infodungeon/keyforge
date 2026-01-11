@@ -28,6 +28,8 @@ pub struct JobManager {
     pub completed_count: Arc<std::sync::atomic::AtomicUsize>,
 }
 
+use crate::config::DEFAULT_QUEUE_CHANNEL_CAPACITY;
+
 impl JobManager {
     pub fn new(
         repo: JobRepository,
@@ -37,7 +39,7 @@ impl JobManager {
             repo,
             queue,
             signal: Arc::new(Notify::new()),
-            semaphore: Arc::new(Semaphore::new(1000)),
+            semaphore: Arc::new(Semaphore::new(DEFAULT_QUEUE_CHANNEL_CAPACITY)),
             active_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             completed_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         }

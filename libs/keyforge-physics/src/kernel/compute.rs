@@ -15,7 +15,7 @@
 use super::types::{KeyCode, Score, ValidatedLayout};
 use super::EngineContext;
 use keyforge_model::{AnalysisReport, MetricViolation};
-use keyforge_model::constants::SCORE_SCALE;
+use keyforge_model::constants::{SCORE_SCALE, MAX_KEYBOARD_KEYS, MAX_REPORTED_VIOLATIONS};
 use tracing::instrument;
 
 struct PosMap<'a> {
@@ -60,8 +60,8 @@ impl<'a> PosMap<'a> {
         }
 
         // Pass 3: Fill indices
-        // Temporary offset tracker (could be stack array if small enough)
-        let mut current_offsets = [0u8; 512]; // Max keys is 512
+        // Temporary offset tracker
+        let mut current_offsets = [0u8; MAX_KEYBOARD_KEYS];
         for (i, &code) in layout.iter().enumerate().take(limit) {
             let c = code.0 as usize;
             let base = starts[c] as usize;
@@ -184,7 +184,7 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: 
 pub struct PhysicsScratch {
     starts: [u16; 65536],
     counts: [u8; 65536],
-    indices: [u16; 512],
+    indices: [u16; MAX_KEYBOARD_KEYS],
     used_keys: Vec<u16>,
 }
 
@@ -193,7 +193,7 @@ impl PhysicsScratch {
         Self {
             starts: [0; 65536],
             counts: [0; 65536],
-            indices: [0; 512],
+            indices: [0; MAX_KEYBOARD_KEYS],
             used_keys: Vec::with_capacity(128),
         }
     }
@@ -365,7 +365,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
     let sort_violations = |v: &mut Vec<MetricViolation>| {
         v.sort_by(|a, b| b.freq.partial_cmp(&a.freq).unwrap_or(std::cmp::Ordering::Equal));
-        v.truncate(10);
+        v.truncate(MAX_REPORTED_VIOLATIONS);
     };
     sort_violations(&mut sfbs);
     sort_violations(&mut scissors);
@@ -431,7 +431,13 @@ pub fn calculate_swap_delta(
         let p2 = pos_map[c2.0 as usize] as usize;
         if p2 == 65535 { continue; }
         let freq = ctx.bigram_freqs[k] as i64;
-        let p2_effective = if p2 == idx_b { idx_a } else { p2 };
+        let p2_effective = if p2 == idx_b { 
+            idx_a 
+        } else if p2 == idx_a {
+            idx_b
+        } else { 
+            p2 
+        };
         delta += (ctx.cost_matrix[idx_b * n + p2_effective].0 - ctx.cost_matrix[idx_a * n + p2].0) * freq;
     }
 
@@ -442,7 +448,13 @@ pub fn calculate_swap_delta(
         let p2 = pos_map[c2.0 as usize] as usize;
         if p2 == 65535 { continue; }
         let freq = ctx.bigram_freqs[k] as i64;
-        let p2_effective = if p2 == idx_a { idx_b } else { p2 };
+        let p2_effective = if p2 == idx_a { 
+            idx_b 
+        } else if p2 == idx_b {
+            idx_a
+        } else { 
+            p2 
+        };
         delta += (ctx.cost_matrix[idx_a * n + p2_effective].0 - ctx.cost_matrix[idx_b * n + p2].0) * freq;
     }
 

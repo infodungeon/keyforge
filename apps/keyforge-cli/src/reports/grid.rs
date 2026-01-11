@@ -18,13 +18,15 @@ use comfy_table::{Cell, CellAlignment, Table};
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::KeyCode;
 
+use keyforge_model::constants::DEFAULT_GRID_WIDTH;
+
 #[allow(dead_code)]
 pub fn print_layout(name: &str, codes: &[KeyCode], registry: &KeycodeRegistry) {
     println!("\nLayout: {}", name);
     let mut table = Table::new();
     table.load_preset(ASCII_FULL);
 
-    let cols = 10; // Standard visual row width for most split/ortho boards
+    let cols = DEFAULT_GRID_WIDTH; // Standard visual row width for most split/ortho boards
 
     for chunk in codes.chunks(cols) {
         let cells: Vec<Cell> = chunk

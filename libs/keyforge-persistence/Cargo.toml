@@ -28,6 +28,7 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2.0"
 sha2 = "0.10"
 hex = "0.4"
+fs2 = "0.4"
 
 # SQLx remains optional for the Agent
 sqlx = { version = "0.8", features = [

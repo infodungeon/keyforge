@@ -22,6 +22,11 @@ use std::env;
 use std::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
+// --- Constants ---
+pub const LOG_BUFFER_CAPACITY: usize = 50;
+pub const DEFAULT_ENV_FILTER: &str = "info,keyforge_hive=debug,tower_http=info";
+pub const DEFAULT_LOG_FILENAME: &str = "hive.log";
+
 // --- Log Capture ---
 
 /// A captured log entry stored in the in-memory buffer.
@@ -37,7 +42,7 @@ pub struct LogEntry {
 
 /// Global in-memory log buffer for recent WARN/ERROR events.
 pub static LOG_BUFFER: Lazy<Mutex<VecDeque<LogEntry>>> =
-    Lazy::new(|| Mutex::new(VecDeque::with_capacity(50)));
+    Lazy::new(|| Mutex::new(VecDeque::with_capacity(LOG_BUFFER_CAPACITY)));
 
 /// Returns a copy of the most recent logs from the capture buffer.
 pub fn get_recent_logs() -> Vec<LogEntry> {
@@ -73,7 +78,7 @@ where
             };
 
             if let Ok(mut buffer) = LOG_BUFFER.lock() {
-                if buffer.len() >= 50 {
+                if buffer.len() >= LOG_BUFFER_CAPACITY {
                     buffer.pop_front();
                 }
                 buffer.push_back(entry);
@@ -127,7 +132,7 @@ pub fn init_tracing() {
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| "info,keyforge_hive=debug,tower_http=info".into());
+        .unwrap_or_else(|_| DEFAULT_ENV_FILTER.into());
 
     let _ = Lazy::force(&PROMETHEUS_HANDLE);
 
@@ -155,7 +160,7 @@ pub fn init_tracing() {
 
     // 3. Optional File Layer
     if let Ok(log_dir) = env::var("KEYFORGE_LOG_DIR") {
-        let file_appender = tracing_appender::rolling::daily(log_dir, "hive.log");
+        let file_appender = tracing_appender::rolling::daily(log_dir, DEFAULT_LOG_FILENAME);
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
         std::mem::forget(guard);
 

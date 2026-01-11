@@ -14,6 +14,7 @@
 
 use crate::error::{InfraError, InfraResult};
 use fs2::FileExt;
+use keyforge_model::constants::{LOCK_INITIAL_DELAY_MS, LOCK_MAX_ATTEMPTS};
 use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
@@ -36,14 +37,14 @@ impl WorkspaceLock {
 
         // Retry loop with exponential backoff
         let mut attempts = 0;
-        let mut delay = Duration::from_millis(50);
+        let mut delay = Duration::from_millis(LOCK_INITIAL_DELAY_MS);
         
         loop {
             match file.try_lock_exclusive() {
                 Ok(_) => return Ok(Self { file }),
                 Err(e) => {
                     attempts += 1;
-                    if attempts >= 10 {
+                    if attempts >= LOCK_MAX_ATTEMPTS {
                         return Err(InfraError::LockError(format!(
                             "Failed to acquire lock on {:?} after {} attempts: {}",
                             path, attempts, e

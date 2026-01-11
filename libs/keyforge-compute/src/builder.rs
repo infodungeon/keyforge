@@ -113,12 +113,12 @@ impl<'a> SessionBuilder<'a> {
     /// Builds a scoring session directly from a `JobRequest` DTO.
     pub async fn build_from_job(&self, job: &JobRequest) -> LoaderResult<ScoringSession> {
         self.build_preloaded(
-            &job.definition,
-            &job.corpora,
-            &job.weights,
-            &job.params,
-            "keycodes.json",
-            &job.cost_matrix,
+            &job.config.definition,
+            &job.config.corpora,
+            &job.config.weights,
+            &job.config.params,
+            keyforge_model::constants::ASSET_KEYCODES_FILENAME,
+            &job.config.cost_matrix,
             None
         ).await
     }

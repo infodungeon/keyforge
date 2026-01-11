@@ -22,6 +22,9 @@ use std::sync::Arc;
 use tracing::{info, warn};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+use keyforge_model::constants::{
+    MAX_ID_LEN, MIN_LAYOUT_DATA_LEN, MAX_LAYOUT_DATA_LEN, MIN_LAYOUT_NAME_LEN
+};
 
 /// Request payload for submitting a new keyboard layout to the community.
 #[derive(Deserialize, ToSchema)]
@@ -66,18 +69,18 @@ pub async fn handle(
     let clean_layout = payload.layout.trim();
 
     // 1. Validation Logic
-    if clean_name.len() < 2 || clean_name.len() > 64 {
-        return Err(AppError::Validation("Name must be 2-64 chars".into()));
+    if clean_name.len() < MIN_LAYOUT_NAME_LEN || clean_name.len() > MAX_ID_LEN {
+        return Err(AppError::Validation(format!("Name must be {}-{} chars", MIN_LAYOUT_NAME_LEN, MAX_ID_LEN)));
     }
-    if clean_author.len() > 64 {
-        return Err(AppError::Validation("Author name too long".into()));
+    if clean_author.len() > MAX_ID_LEN {
+        return Err(AppError::Validation(format!("Author name too long (max {})", MAX_ID_LEN)));
     }
     
     // Check structure before size for better error messages
     LayoutValidator::validate_structure(clean_layout)
         .map_err(|e| AppError::Validation(e.to_string()))?;
 
-    if clean_layout.len() < 10 || clean_layout.len() > 5000 {
+    if clean_layout.len() < MIN_LAYOUT_DATA_LEN || clean_layout.len() > MAX_LAYOUT_DATA_LEN {
         return Err(AppError::Validation("Invalid layout data size".into()));
     }
 

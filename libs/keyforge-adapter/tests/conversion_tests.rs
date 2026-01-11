@@ -72,7 +72,7 @@ fn test_to_domain_rubric_conversion() {
         penalty_sfb_lateral: 50.0,
         weight_lateral_travel: 2.0,
         weight_vertical_travel: 1.0,
-        finger_penalty_scale: "1.0,1.0,1.0,1.2,1.5".to_string(),
+        finger_penalty_scale: [1.0, 1.0, 1.0, 1.2, 1.5],
         penalty_redirect: 30.0,
         bonus_bigram_roll_in: 20.0,
         loader_trigram_limit: 5000,

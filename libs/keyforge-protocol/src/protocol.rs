@@ -82,7 +82,7 @@ impl Validator for BiometricSample {
         if self.bigram.len() != 2 {
             return Err(format!("Invalid bigram length: '{}'", self.bigram));
         }
-        if self.ms <= 0.0 || self.ms > 10_000.0 {
+        if self.ms <= 0.0 || self.ms > constants::MAX_BIOMETRIC_MS {
             return Err(format!("Biometric sample out of realistic range: {}ms", self.ms));
         }
         Ok(())
@@ -102,13 +102,10 @@ pub struct UserStatsStore {
     pub biometrics: Vec<BiometricSample>,
 }
 
-/// Request to initiate a new optimization job.
+/// Full configuration for a running job.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct JobRequest {
-    /// Protocol version.
-    #[serde(default = "default_version")]
-    pub version: u32,
+pub struct JobConfig {
     /// Keyboard geometry definition.
     pub definition: KeyboardDefinition,
     /// Scoring weights.
@@ -127,18 +124,18 @@ pub struct JobRequest {
     /// User biometric data.
     #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
-    /// Parent job ID (for evolution).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Parent job ID.
+    #[serde(default)]
     pub parent_job_id: Option<String>,
-    /// Baseline score to beat.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Baseline score.
+    #[serde(default)]
     pub baseline_score: Option<f32>,
-    /// Parent job IDs (for merging).
-    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
+    /// Parent job IDs.
+    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub parents: Vec<String>,
 }
 
-impl Validator for JobRequest {
+impl Validator for JobConfig {
     fn validate(&self) -> Result<(), String> {
         self.weights.validate()?;
         self.params.validate()?;
@@ -148,10 +145,10 @@ impl Validator for JobRequest {
             corpus.validate().map_err(|e| format!("Corpus #{}: {}", i, e))?;
         }
 
-        if self.definition.geometry.keys.len() > constants::MAX_KEYBOARD_KEYS {
-            return Err(format!("Geometry exceeds maximum key limit ({})", constants::MAX_KEYBOARD_KEYS));
+        if self.definition.geometry.keys.len() > keyforge_model::constants::MAX_KEYBOARD_KEYS {
+            return Err(format!("Geometry exceeds maximum key limit ({})", keyforge_model::constants::MAX_KEYBOARD_KEYS));
         }
-        if self.pinned_keys.len() > constants::MAX_PINNED_KEYS_COUNT {
+        if self.pinned_keys.len() > keyforge_model::constants::MAX_PINNED_KEYS_COUNT {
             return Err("Pinned keys configuration too large".to_string());
         }
         if self.biometrics.len() > constants::MAX_BIOMETRIC_SAMPLES {
@@ -177,53 +174,40 @@ impl Validator for JobRequest {
     }
 }
 
-/// Full configuration for a running job.
+/// Request to initiate a new optimization job.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct JobConfig {
-    /// Keyboard geometry definition.
-    pub definition: KeyboardDefinition,
-    /// Scoring weights.
-    pub weights: ScoringWeights,
-    /// Search parameters.
-    pub params: SearchParams,
-    /// Keys pinned to specific positions.
-    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-    pub pinned_keys: Vec<KeyConstraint>,
-    /// Text corpora to use.
-    #[serde(default = "default_corpora", deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-    pub corpora: Vec<CorpusSource>,
-    /// Cost matrix source.
-    #[serde(default = "default_cost_matrix")]
-    pub cost_matrix: CostMatrixSource,
-    /// User biometric data.
-    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-    pub biometrics: Vec<BiometricSample>,
-    /// Parent job ID.
-    #[serde(default)]
-    pub parent_job_id: Option<String>,
-    /// Baseline score.
-    #[serde(default)]
-    pub baseline_score: Option<f32>,
-    /// Parent job IDs.
-    #[serde(default, deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-    pub parents: Vec<String>,
+pub struct JobRequest {
+    /// Protocol version.
+    #[serde(default = "default_version")]
+    pub version: u32,
+    /// The job configuration.
+    #[serde(flatten)]
+    pub config: JobConfig,
+}
+
+impl Validator for JobRequest {
+    fn validate(&self) -> Result<(), String> {
+        self.config.validate()
+    }
+}
+
+impl std::ops::Deref for JobRequest {
+    type Target = JobConfig;
+    fn deref(&self) -> &Self::Target {
+        &self.config
+    }
+}
+
+impl std::ops::DerefMut for JobRequest {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.config
+    }
 }
 
 impl From<JobRequest> for JobConfig {
     fn from(req: JobRequest) -> Self {
-        Self {
-            definition: req.definition,
-            weights: req.weights,
-            params: req.params,
-            pinned_keys: req.pinned_keys,
-            corpora: req.corpora,
-            cost_matrix: req.cost_matrix,
-            biometrics: req.biometrics,
-            parent_job_id: req.parent_job_id,
-            baseline_score: req.baseline_score,
-            parents: req.parents,
-        }
+        req.config
     }
 }
 
@@ -362,8 +346,18 @@ impl Validator for ResultSubmission {
         // Layout structure check
         LayoutValidator::validate_structure(&self.layout)?;
 
-        // Timestamp check removed from context-free validation.
-        // Clock skew should be enforced by the business layer with configurable tolerance.
+        // Clock skew check
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        
+        if self.timestamp > now + constants::MAX_FUTURE_SKEW_SEC {
+            return Err("Timestamp too far in the future (Clock skew?)".into());
+        }
+        if self.timestamp < now - constants::MAX_PAST_SKEW_SEC {
+            return Err("Timestamp too old (Stale result)".into());
+        }
         
         Ok(())
     }

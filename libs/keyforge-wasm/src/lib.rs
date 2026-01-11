@@ -24,6 +24,7 @@ use keyforge_core::ScoringEngine;
 use keyforge_core::loader::{AssetLoader, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_model::config::{CorpusSource, ScoringWeights};
+use keyforge_model::constants::{ASSET_KEYCODES_FILENAME, DEFAULT_CORPUS_WEIGHT, DEFAULT_SEARCH_SEED};
 use keyforge_model::SearchConfig;
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::keycodes::KeycodeRegistry;
@@ -114,9 +115,8 @@ impl KeyforgeEngine {
         let p: keyforge_model::config::SearchParams = serde_wasm_bindgen::from_value(params)?;
         p.validate().map_err(|e| JsValue::from_str(&e))?;
         // Convert to domain config (hardcoded seed for WASM determinism unless passed?)
-        // WASM usually wants determinism. Let's use 42 for now as we don't expose seed in params DTO yet?
-        // Actually Params DTO might not have seed.
-        let domain_config = conversion::to_domain_config(&p, 42);
+        // WASM usually wants determinism.
+        let domain_config = conversion::to_domain_config(&p, DEFAULT_SEARCH_SEED);
 
         // Load assets from in-memory loader
         let def = self
@@ -127,7 +127,7 @@ impl KeyforgeEngine {
 
         let reg = self
             .loader
-            .load_keycodes("keycodes.json")
+            .load_keycodes(ASSET_KEYCODES_FILENAME)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -136,7 +136,7 @@ impl KeyforgeEngine {
             let id = corpus_source.as_string().unwrap();
             vec![CorpusSource {
                 id,
-                weight: 1.0,
+                weight: DEFAULT_CORPUS_WEIGHT,
                 hash: None,
             }]
         } else {

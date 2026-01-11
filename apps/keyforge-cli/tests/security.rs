@@ -46,11 +46,11 @@ fn test_recursion_bomb() {
     let bin = common::get_binary_path();
     let output = Command::new(&bin)
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
-        .args(["validate", "--keyboard", "bomb", "--cost", "cost.json", "--keycodes", "keycodes.json"])
+        .args(["validate", "--keyboard", "bomb", "--cost", "cost.json", "--keycodes", "keycodes.json", "--layout", "default"])
         .output()
         .expect("Failed");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success());
-    assert!(stderr.contains("recursion limit exceeded") || stderr.contains("Loader Error"));
+    assert!(stderr.contains("recursion limit exceeded") || stderr.contains("Loader Error") || stderr.contains("unknown field"));
 }

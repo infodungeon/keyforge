@@ -38,22 +38,36 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     if h1 != h2 { return cost; }
 
     if f1 == f2 {
+        let row_diff = (k1.row - k2.row).abs();
         let col_diff = (k1.col - k2.col).abs();
-        if col_diff == 1 { cost += rubric.sfb_lateral; } else { cost += rubric.sfb_base; }
+
+        if col_diff == 1 {
+            // Lateral SFB
+            if f1.is_weak() {
+                cost += rubric.sfb_lateral_weak;
+            } else {
+                cost += rubric.sfb_lateral;
+            }
+        } else if col_diff > 1 {
+            // Diagonal SFB
+            cost += rubric.sfb_diagonal;
+        } else if row_diff >= rubric.threshold_sfb_long_row_diff {
+            // Long SFB (Vertical Jump)
+            cost += rubric.sfb_long;
+        } else {
+            // Standard SFB
+            cost += rubric.sfb_base;
+        }
         return cost;
     }
 
     let finger_diff = f1.distance(f2);
-    
     let row_diff = (k1.row - k2.row).abs();
 
-    if finger_diff == 1 && row_diff >= 2 {
-        cost += rubric.finger_effort[f1.as_usize()];
+    // Scissor detection (Adjacent fingers, large row difference)
+    if finger_diff == 1 && row_diff >= rubric.threshold_scissor_row_diff {
+        cost += rubric.penalty_scissor;
     }
 
-    if row_diff == 0 && finger_diff == 1 {
-        let col_dist = (k1.col - k2.col).abs();
-        if col_dist > 1 { cost += rubric.sfb_lateral; }
-    }
     cost
 }

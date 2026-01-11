@@ -50,7 +50,7 @@ pub async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<JobQue
 /// Polls the database for an available job, waiting for a signal if none are found.
 async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
     let start = Instant::now();
-    let timeout = Duration::from_secs(20);
+    let timeout = Duration::from_secs(state.config.network.timeout_seconds);
 
     loop {
         // 1. Attempt to claim a job from the database

@@ -19,6 +19,7 @@ use crate::net::sync::ServerManifest;
 use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
+use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::Validator;
@@ -26,7 +27,7 @@ use keyforge_model::error::ForgeError;
 use std::sync::Arc;
 use tracing::warn;
 
-const ASSET_PREFIX: &str = "asset:blob";
+const ASSET_PREFIX: &str = VALKEY_ASSET_PREFIX;
 
 /// An asset provider that loads data from a distributed data store (Valkey/Redis).
 ///
@@ -66,13 +67,13 @@ impl ValkeyProvider {
         }
     }
 
-    async fn fetch_blob(&self, subpath: &str) -> LoaderResult<Vec<u8>> {
+    async fn fetch_blob(&self, subpath: &str) -> LoaderResult<bytes::Bytes> {
         let key = format!("{}:{}", ASSET_PREFIX, subpath);
         let data = self.coordinator.get_bin(&key).await.map_err(|e| {
             ForgeError::Internal(format!("Valkey Fetch Error: {}", e))
         })?;
 
-        data.map(|b| b.to_vec()).ok_or_else(|| {
+        data.ok_or_else(|| {
             ForgeError::NotFound(subpath.to_string())
         })
     }
@@ -81,8 +82,7 @@ impl ValkeyProvider {
         let compressed = self.fetch_blob(subpath).await?;
         
         tokio::task::spawn_blocking(move || {
-            let cursor = std::io::Cursor::new(compressed);
-            let decoder = zstd::Decoder::new(cursor)
+            let decoder = zstd::Decoder::new(&compressed[..])
                 .map_err(|e| ForgeError::Internal(format!("Zstd Init Error: {}", e)))?;
             rmp_serde::from_read(decoder)
                 .map_err(|e| ForgeError::Internal(format!("Deserialization Error: {}", e)))
@@ -202,10 +202,9 @@ impl AssetLoader for ValkeyProvider {
 
             for part_name in parts {
                 let path = format!("{}/{}.mpk.zst", base, part_name);
-                if let Ok(vec) = self.fetch_blob(&path).await {
+                if let Ok(bytes) = self.fetch_blob(&path).await {
                     let part_res = tokio::task::spawn_blocking(move || {
-                        let cursor = std::io::Cursor::new(vec);
-                        let decoder = zstd::Decoder::new(cursor).map_err(|e| ForgeError::Internal(e.to_string()))?;
+                        let decoder = zstd::Decoder::new(&bytes[..]).map_err(|e| ForgeError::Internal(e.to_string()))?;
                         let data: Vec<serde_json::Value> = rmp_serde::from_read(decoder).map_err(|e| ForgeError::Internal(e.to_string()))?;
                         Ok::<Vec<serde_json::Value>, ForgeError>(data)
                     }).await.map_err(|e| ForgeError::Internal(e.to_string()))??;

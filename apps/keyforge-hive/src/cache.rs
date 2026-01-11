@@ -33,14 +33,18 @@ impl Default for CompiledEngineCache {
     }
 }
 
+/// Default capacity for the engine cache.
+pub const DEFAULT_ENGINE_CACHE_CAPACITY: u64 = 500;
+/// Default TTL for cached engines (30 minutes).
+pub const DEFAULT_ENGINE_CACHE_TTL_SECS: u64 = 1800;
+
 impl CompiledEngineCache {
-    /// Creates a new `CompiledEngineCache` with a capacity of 500 engines
-    /// and a 30-minute TTL.
+    /// Creates a new `CompiledEngineCache` with default capacity and TTL.
     pub fn new() -> Self {
         Self {
             cache: Cache::builder()
-                .max_capacity(500)
-                .time_to_live(Duration::from_secs(1800))
+                .max_capacity(DEFAULT_ENGINE_CACHE_CAPACITY)
+                .time_to_live(Duration::from_secs(DEFAULT_ENGINE_CACHE_TTL_SECS))
                 .build(),
         }
     }

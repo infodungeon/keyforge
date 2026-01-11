@@ -33,7 +33,13 @@ pub struct ValidateRequest {
     pub weights: Option<ScoringWeights>,
     /// Optional name of the keyboard geometry to use. Defaults to "ortho_30".
     pub keyboard_name: Option<String>,
+    /// Optional list of corpus sources. Defaults to "text/en_std" if omitted.
+    pub corpus_sources: Option<Vec<keyforge_model::CorpusSource>>,
+    /// Optional cost overrides. Defaults to empty if omitted.
+    pub cost_overrides: Option<Vec<(usize, usize, f32)>>,
 }
+
+use keyforge_model::constants::{DEFAULT_KEYBOARD_ID, DEFAULT_CORPUS_ID, ASSET_KEYCODES_FILENAME, DEFAULT_CORPUS_WEIGHT};
 
 /// Performs a quick scoring analysis of a layout against a standard corpus.
 /// This endpoint does not register a job or persist results.
@@ -42,15 +48,13 @@ pub async fn validate_layout(
     Json(payload): Json<ValidateRequest>,
 ) -> AppResult<Json<ValidationResult>> {
     // Use provided keyboard name or fallback
-    let keyboard_name = payload.keyboard_name.as_deref().unwrap_or("ortho_30");
+    let keyboard_name = payload.keyboard_name.as_deref().unwrap_or(DEFAULT_KEYBOARD_ID);
 
-    // NOTE: this endpoint is effectively a “quick analysis” endpoint.
-    // For now it uses a fixed corpus (same as previous behavior).
-    let corpus_sources = [keyforge_model::CorpusSource {
-        id: "text/en_std".to_string(),
-        weight: 1.0,
+    let corpus_sources = payload.corpus_sources.clone().unwrap_or_else(|| vec![keyforge_model::CorpusSource {
+        id: DEFAULT_CORPUS_ID.to_string(),
+        weight: DEFAULT_CORPUS_WEIGHT,
         hash: None,
-    }];
+    }]);
 
     // Load assets from the server’s global cache (implements AssetLoader)
     let definition = state
@@ -61,7 +65,7 @@ pub async fn validate_layout(
 
     let registry = state
         .assets
-        .load_keycodes("keycodes.json")
+        .load_keycodes(ASSET_KEYCODES_FILENAME)
         .await
         .map_err(|e| AppError::Validation(format!("Keycodes load failed: {}", e)))?;
 
@@ -84,8 +88,7 @@ pub async fn validate_layout(
 
     let domain_rubric = conversion::to_domain_rubric(&weights);
 
-    // No custom cost matrix overrides for this endpoint
-    let cost_overrides: Vec<(usize, usize, f32)> = Vec::new();
+    let cost_overrides = payload.cost_overrides.unwrap_or_default();
 
     let engine = keyforge_core::build_engine(&keyforge_core::EngineRequest {
         keyboard: Arc::new(domain_keyboard),

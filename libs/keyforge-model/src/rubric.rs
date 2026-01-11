@@ -26,23 +26,35 @@ use crate::error::ForgeError;
 /// Defines "What is expensive?" by assigning weights to physical movements.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rubric {
-    // SFB Penalties
-    /// Base penalty for Same Finger Bigrams.
-    pub sfb_base: f32,
-    /// Penalty for lateral SFBs.
-    pub sfb_lateral: f32,
-
-    // Geometry Weights
+    // --- Monograms ---
+    /// Effort multipliers for each finger (0=Thumb, 4=Pinky).
+    pub finger_effort: [f32; 5],
     /// Weight for lateral finger travel.
     pub travel_lat: f32,
     /// Weight for vertical finger travel.
     pub travel_vert: f32,
 
-    // Finger Weights (Thumb..Pinky)
-    /// Effort multipliers for each finger (0=Thumb, 4=Pinky).
-    pub finger_effort: [f32; 5],
+    // --- Bigrams (Same Finger) ---
+    /// Base penalty for Same Finger Bigrams.
+    pub sfb_base: f32,
+    /// Penalty for lateral SFBs.
+    pub sfb_lateral: f32,
+    /// Penalty for lateral SFB on a weak finger.
+    pub sfb_lateral_weak: f32,
+    /// Penalty for diagonal SFBs.
+    pub sfb_diagonal: f32,
+    /// Penalty for long-distance SFBs.
+    pub sfb_long: f32,
+    /// Row difference threshold for "long" SFBs.
+    pub threshold_sfb_long_row_diff: i8,
 
-    // Flow
+    // --- Bigrams (Adjacent Finger) ---
+    /// Penalty for scissor (adjacent finger stretch) movements.
+    pub penalty_scissor: f32,
+    /// Row difference threshold for scissors.
+    pub threshold_scissor_row_diff: i8,
+
+    // --- Flow & Trigrams ---
     /// Penalty for redirects (direction changes).
     pub redirect: f32,
     /// Bonus for inward rolls.
@@ -56,11 +68,17 @@ pub struct Rubric {
 impl Default for Rubric {
     fn default() -> Self {
         Self {
-            sfb_base: 400.0,
-            sfb_lateral: 65.0,
+            finger_effort: [1.0, 1.0, 1.1, 1.3, 1.6],
             travel_lat: 3.5,
             travel_vert: 1.0,
-            finger_effort: [1.0, 1.0, 1.1, 1.3, 1.6], // Default standard weighting
+            sfb_base: 400.0,
+            sfb_lateral: 65.0,
+            sfb_lateral_weak: 160.0,
+            sfb_diagonal: 240.0,
+            sfb_long: 280.0,
+            threshold_sfb_long_row_diff: 2,
+            penalty_scissor: 25.0,
+            threshold_scissor_row_diff: 2,
             redirect: 65.0,
             roll_bonus: 35.0,
             trigram_coverage: 0.99,

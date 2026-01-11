@@ -19,6 +19,9 @@
 //! initializes the application state, starts the Axum HTTP server, 
 //! and begins background maintenance tasks.
 
+use keyforge_hive::constants::{
+    DEFAULT_DATABASE_URL, DEFAULT_HIVE_PORT, DEFAULT_SHUTDOWN_TIMEOUT_SECS
+};
 use axum_server::tls_rustls::RustlsConfig;
 use clap::{Parser, Subcommand};
 use keyforge_hive::{
@@ -30,7 +33,7 @@ use keyforge_hive::{
 };
 use keyforge_infra::init::{ensure_dir, USER_RUNTIME_DIRS};
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info, warn};
@@ -49,11 +52,11 @@ struct Args {
     #[arg(
         long,
         env = "DATABASE_URL",
-        default_value = "postgres://keyforge:forge_password@localhost:5432/keyforge_hive"
+        default_value = DEFAULT_DATABASE_URL
     )]
     db: String,
 
-    #[arg(long, env = "PORT", default_value_t = 3000)]
+    #[arg(long, env = "PORT", default_value_t = DEFAULT_HIVE_PORT)]
     port: u16,
 
     #[arg(long, env = "TLS_CERT")]
@@ -63,11 +66,13 @@ struct Args {
     tls_key: Option<PathBuf>,
 }
 
+use keyforge_model::constants::DEFAULT_HIVE_URL;
+
 #[derive(Subcommand)]
 enum Commands {
     Serve,
     Monitor {
-        #[arg(long, default_value = "http://localhost:3000")]
+        #[arg(long, default_value = DEFAULT_HIVE_URL)]
         url: String,
     },
 }
@@ -86,8 +91,8 @@ async fn shutdown_signal(state: Arc<AppState>) {
 async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Arc<AppState>) {
     tokio::signal::ctrl_c().await.ok();
     info!("🛑 Signal received (TLS), initiating graceful shutdown...");
-    // Stop accepting new connections, wait up to 30s for active requests
-    handle.graceful_shutdown(Some(Duration::from_secs(30)));
+    // Stop accepting new connections, wait up to DEFAULT_SHUTDOWN_TIMEOUT_SECS
+    handle.graceful_shutdown(Some(Duration::from_secs(DEFAULT_SHUTDOWN_TIMEOUT_SECS)));
     // Flush the WriteQueue
     state.queue.shutdown().await;
     info!("👋 Shutdown complete.");
@@ -125,15 +130,13 @@ async fn main() {
                 }
             };
 
-            let bootstrap_path = args.bootstrap.clone().or_else(|| {
-                let p = PathBuf::from(HiveBootstrapConfig::DEFAULT_PATH);
-                p.exists().then_some(p)
-            });
+            // Use resolve_path logic
+            let bootstrap_path = args.bootstrap.clone().unwrap_or_else(HiveBootstrapConfig::resolve_path);
 
-            let file_config = if let Some(p) = bootstrap_path {
-                match HiveBootstrapConfig::load(&p) {
+            let file_config = if bootstrap_path.exists() {
+                match HiveBootstrapConfig::load(&bootstrap_path) {
                     Ok(cfg) => {
-                        info!("Using bootstrap config: {:?}", p);
+                        info!("Using bootstrap config: {:?}", bootstrap_path);
                         Some(cfg)
                     }
                     Err(e) => {

@@ -14,12 +14,13 @@
 
 
 use clap::{Args, Subcommand};
-// use keyforge_export::viz::physics::generate_physics_svg;
+use keyforge_export::viz::physics::generate_physics_svg;
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
-// use std::fs;
+use std::fs;
 use std::path::{Path, PathBuf};
+use crate::constants::DEFAULT_DEBUG_OUTPUT;
 
 #[derive(Args, Debug, Clone)]
 pub struct DebugArgs {
@@ -33,7 +34,7 @@ pub enum DebugCommands {
         #[arg(short, long)]
         keyboard: String,
 
-        #[arg(short, long, default_value = "debug_physics.svg")]
+        #[arg(short, long, default_value = DEFAULT_DEBUG_OUTPUT)]
         output: PathBuf,
     },
 }
@@ -54,15 +55,14 @@ pub fn run(args: DebugArgs, root: &Path) -> Result<(), Box<dyn std::error::Error
             let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
                 .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
 
-            let _def = KeyboardDefinition::parse(&content, None)
+            let def = KeyboardDefinition::parse(&content, None)
                 .map_err(|e| format!("Failed to parse keyboard JSON: {}", e))?;
 
-            /*
+            
             let svg_content = generate_physics_svg(&def.geometry);
             fs::write(&output, svg_content).map_err(|e| format!("Failed to write SVG: {}", e))?;
             eprintln!("✅ Physics visualization saved to {:?}", output);
-            */
-            eprintln!("⚠️ Physics visualization is currently disabled.");
+            
         }
     }
     Ok(())

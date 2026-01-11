@@ -48,7 +48,7 @@ impl Agent {
             
         let assets = keyforge_infra::AssetManager::new(client, config.data_dir.clone());
 
-        if let Err(e) = calibration::calibrate(&assets, &config.data_dir).await {
+        if let Err(e) = calibration::calibrate(&assets, &config.data_dir, &config.calibration).await {
             tracing::error!("Calibration failed: {}. Using safe default.", e);
         }
 
@@ -74,7 +74,14 @@ impl Agent {
 
         loop {
             tokio::select! {
-                Some((job_id, job)) = job_rx.recv() => {
+                msg = job_rx.recv() => {
+                    let (job_id, job) = match msg {
+                        Some(j) => j,
+                        None => {
+                            info!("Job queue closed. Exiting agent loop.");
+                            break Ok(());
+                        }
+                    };
                     info!("⚙️  Queued Job (ID: {})...", job_id);
                     
                     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -159,13 +166,21 @@ impl Agent {
                         telemetry.set_job_id(&config_system.idle_job_id);
                     });
                 }
-                _ = stop_rx.recv() => {
-                    info!("🛑 Global Stop Signal Received. Cancelling {} jobs...", running_jobs.len());
-                    for (jid, flag) in running_jobs.iter() {
-                        info!("   Cancelling {}", jid);
-                        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                msg = stop_rx.recv() => {
+                    match msg {
+                        Some(_) => {
+                            info!("🛑 Global Stop Signal Received. Cancelling {} jobs...", running_jobs.len());
+                            for (jid, flag) in running_jobs.iter() {
+                                info!("   Cancelling {}", jid);
+                                flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                            }
+                            running_jobs.clear();
+                        }
+                        None => {
+                            info!("Example: Stop channel closed. Exiting agent loop.");
+                            break Ok(());
+                        }
                     }
-                    running_jobs.clear();
                 }
             }
         }

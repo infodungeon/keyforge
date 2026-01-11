@@ -94,7 +94,7 @@ async fn test_agent_session_bootstrap() {
     let loader = Box::new(keyforge_infra::FsProvider::new(data_root.clone()));
 
     let prepared_result =
-        compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora").await;
+        compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora", &keyforge_agent::models::ComputeConfig::default()).await;
 
     match prepared_result {
         Ok(prepared) => {

@@ -13,6 +13,10 @@
 // limitations under the License.
 
 use crate::error::{InfraError, InfraResult};
+use keyforge_model::constants::{
+    DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_HIVE_URL, DEFAULT_REQUEST_TIMEOUT_SECS,
+    DEFAULT_USER_AGENT,
+};
 use reqwest::{header, Client, RequestBuilder};
 use std::time::Duration;
 
@@ -36,12 +40,12 @@ pub struct ClientConfig {
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
-            api_url: "http://localhost:3000".to_string(),
-            asset_url: "http://localhost:3001".to_string(),
+            api_url: DEFAULT_HIVE_URL.to_string(),
+            asset_url: "http://localhost:3001".to_string(), // Keep specific local default
             secret: None,
-            timeout: Duration::from_secs(30),
-            connect_timeout: Duration::from_secs(10),
-            user_agent: "KeyForge-Client/0.9".to_string(),
+            timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
+            connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),
+            user_agent: DEFAULT_USER_AGENT.to_string(),
         }
     }
 }

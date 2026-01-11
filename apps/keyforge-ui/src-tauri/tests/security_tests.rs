@@ -13,7 +13,7 @@ fn test_safe_write_validation() {
 
     // 1. Valid Write
     let valid_path = root.join("layout.json");
-    let res = cmd_safe_write_file(valid_path.to_str().unwrap().to_string(), "{}".into());
+    let res = cmd_safe_write_file(valid_path.to_str().unwrap().to_string(), "{}".into(), true);
     assert!(res.is_ok(), "Valid JSON write should succeed");
 
     // 2. Invalid Extension
@@ -21,12 +21,13 @@ fn test_safe_write_validation() {
     let res = cmd_safe_write_file(
         invalid_ext.to_str().unwrap().to_string(),
         "echo hack".into(),
+        true,
     );
     assert!(res.is_err(), "Shell script write should fail");
 
     // 3. Path Traversal
     // Note: cmd_safe_write_file checks for ".." string
     let traversal = root.join("../outside.json");
-    let res = cmd_safe_write_file(traversal.to_str().unwrap().to_string(), "{}".into());
+    let res = cmd_safe_write_file(traversal.to_str().unwrap().to_string(), "{}".into(), true);
     assert!(res.is_err(), "Path traversal should fail");
 }

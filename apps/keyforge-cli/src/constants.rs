@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Default URL for the Hive server.
-pub const DEFAULT_HIVE_URL: &str = "http://localhost:3000";
+pub use keyforge_model::constants::{DEFAULT_HIVE_URL, DEFAULT_BENCHMARK_ITERATIONS, CONFIG_DIR_NAME};
+
+/// Default name for the data directory.
+pub const DEFAULT_DATA_DIR: &str = "data";
 /// Maximum number of corpus sources allowed in CLI args.
 pub const MAX_CLI_CORPORA: usize = 50;
-/// Name of the configuration directory.
-pub const CONFIG_DIR_NAME: &str = "keyforge";
 /// Name of the CLI configuration file.
 pub const CLI_CONFIG_FILENAME: &str = "cli.json";
-/// Default number of iterations for benchmarks.
-pub const DEFAULT_BENCHMARK_ITERATIONS: usize = 100_000;
 /// Default width for formatted layout output.
 pub const DEFAULT_FMT_WIDTH: usize = 10;
 /// Default limit for list commands.

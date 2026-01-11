@@ -37,7 +37,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 
   // --- STATE ---
   const [hiveUrl, setHiveUrl] = useState(
-    () => localStorage.getItem("keyforge_hive_url") || "http://localhost:3000",
+    () => localStorage.getItem("keyforge_hive_url") || "https://hive.infodungeon.com:3000",
   );
   const [hiveSecret, setHiveSecret] = useState(
     () => localStorage.getItem("keyforge_hive_secret") || "",

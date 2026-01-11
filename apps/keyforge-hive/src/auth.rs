@@ -64,8 +64,12 @@ pub async fn require_secret(
     hasher.update(token.as_bytes());
     let hash = hex::encode(hasher.finalize());
 
-    if state.security.api_key_cache.contains_key(&hash) {
-        return Ok(next.run(req).await);
+    if let Some(valid) = state.security.api_key_cache.get(&hash) {
+        if valid {
+            return Ok(next.run(req).await);
+        } else {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
     }
 
     // Use Repository
@@ -74,8 +78,10 @@ pub async fn require_secret(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
+    // Cache result (positive or negative)
+    state.security.api_key_cache.insert(hash, valid);
+
     if valid {
-        state.security.api_key_cache.insert(hash, true);
         Ok(next.run(req).await)
     } else {
         warn!("⛔ Auth Failed: Invalid Token from {:?}", req.uri());

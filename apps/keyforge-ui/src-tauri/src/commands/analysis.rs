@@ -8,6 +8,7 @@ use keyforge_infra::listing;
 use keyforge_model::SwapSuggestion;
 use keyforge_persistence::{Compiler, Project, ProjectMeta};
 use keyforge_model::config::{CorpusSource, ScoringWeights};
+use keyforge_model::constants::{MAX_PLAUSIBLE_SCORE, MAX_PLAUSIBLE_SFB_RATIO};
 use keyforge_model::geometry::KeyboardGeometry;
 use serde::Serialize;
 use tauri::AppHandle;
@@ -146,7 +147,7 @@ pub async fn cmd_validate_layout(
         tracing::info!("Analysis complete. Score: {}, SFB: {}", report.score, report.sfb_total);
         
         // SANITY CHECK: Fail if stats are garbage
-        if report.score > 10_000_000.0 || report.sfb_ratio > 0.20 {
+        if report.score > MAX_PLAUSIBLE_SCORE || report.sfb_ratio > MAX_PLAUSIBLE_SFB_RATIO {
             let msg = format!("Implausible Physics Result: Score={}, SFB={:.2}%", report.score, report.sfb_ratio * 100.0);
             tracing::warn!("{}", msg);
         }

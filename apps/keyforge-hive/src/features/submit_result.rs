@@ -22,6 +22,7 @@ use tokio::sync::oneshot;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::infra::queue::DbEvent;
+use crate::config::DEFAULT_SUBMISSION_EXPIRATION_SECS;
 
 /// VSA Feature: Submit Result
 /// Handles result verification, replay protection, and persistence.
@@ -71,12 +72,12 @@ fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResul
         return Err(AppError::Validation("Protocol Mismatch".into()));
     }
 
-    // Expiration Check (15 min window)
+    // Expiration Check
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    if now.abs_diff(payload.timestamp) > 900 {
+    if now.abs_diff(payload.timestamp) > DEFAULT_SUBMISSION_EXPIRATION_SECS {
         return Err(AppError::Validation("Submission expired".into()));
     }
 

@@ -20,6 +20,10 @@ use std::sync::Arc;
 use tracing::{info, warn, debug};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+use crate::constants::{
+    TUNING_L2_CACHE_THRESHOLD, TUNING_OPS_THRESHOLD,
+    TUNING_BATCH_SIZE_LARGE, TUNING_BATCH_SIZE_SMALL
+};
 
 /// VSA Feature: Register Node
 /// Handles node heartbeat, identity verification, and auto-tuning calculations.
@@ -132,15 +136,15 @@ fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
 /// Calculates an optimized tuning profile for a node based on its hardware specs.
 fn calculate_tuning_profile(payload: &NodeRequest) -> TuningProfile {
     let strategy = if let Some(l2) = payload.l2_cache_kb {
-        if l2 >= 1024 { "table" } else { "fly" }
+        if l2 >= TUNING_L2_CACHE_THRESHOLD as i32 { "table" } else { "fly" }
     } else {
         "fly"
     };
 
-    let batch_size = if payload.ops_per_sec > 10_000_000.0 {
-        50_000
+    let batch_size = if payload.ops_per_sec > TUNING_OPS_THRESHOLD {
+        TUNING_BATCH_SIZE_LARGE
     } else {
-        10_000
+        TUNING_BATCH_SIZE_SMALL
     };
     let thread_count = (payload.cores - 1).max(1) as usize;
 

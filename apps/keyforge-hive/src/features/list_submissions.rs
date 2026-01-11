@@ -19,6 +19,7 @@ use utoipa::ToSchema;
 use std::sync::Arc;
 use crate::error::AppResult;
 use crate::state::AppState;
+use crate::constants::DEFAULT_LIST_LIMIT;
 
 /// A single entry representing a community layout submission.
 #[derive(Serialize, ToSchema, Clone, Debug)]
@@ -52,7 +53,7 @@ pub async fn handle(
 ) -> AppResult<Json<Vec<SubmissionEntry>>> {
     let entries = state
         .submissions
-        .get_recent(50)
+        .get_recent(DEFAULT_LIST_LIMIT)
         .await
         .map_err(crate::error::AppError::Database)?;
 

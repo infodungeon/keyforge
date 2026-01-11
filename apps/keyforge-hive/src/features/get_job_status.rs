@@ -17,6 +17,7 @@ use keyforge_protocol::JobStatus;
 use std::sync::Arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+use crate::constants::DEFAULT_STATUS_UNKNOWN;
 
 /// VSA Feature: Get Job Status
 /// Returns comprehensive status and statistics for a job.
@@ -44,7 +45,7 @@ pub async fn handle(
         .map_err(AppError::Database)?;
 
     let status = match status_row {
-        Some(r) => r.status.unwrap_or_else(|| "unknown".to_string()),
+        Some(r) => r.status.unwrap_or_else(|| DEFAULT_STATUS_UNKNOWN.to_string()),
         None => return Err(AppError::NotFound),
     };
 

@@ -19,6 +19,9 @@ use fred::types::config::Config as RedisConfig;
 use fred::types::{Expiration, Builder, SetOptions};
 use fred::types::scan::Scanner;
 use fred::clients::Client;
+use keyforge_model::constants::{
+    DEFAULT_CONNECT_TIMEOUT_SECS, DISTRIBUTED_KEY_VERSION, HEARTBEAT_TTL_SECS, PROFILE_LOCK_TTL_SECS,
+};
 use keyforge_protocol::{AssetManifestEntry, NodeTelemetry};
 use std::time::Duration;
 use tracing::{info, debug};
@@ -27,10 +30,10 @@ use std::collections::HashMap;
 
 // --- CONSTANTS ---
 
-const KEY_PREFIX_V4: &str = "v4";
-const CONNECT_TIMEOUT_SEC: u64 = 10;
-const PROFILE_LOCK_TTL_SEC: i64 = 86400; // 24 hours
-const HEARTBEAT_TTL_SEC: i64 = 30;
+const KEY_PREFIX_V4: &str = DISTRIBUTED_KEY_VERSION;
+const CONNECT_TIMEOUT_SEC: u64 = DEFAULT_CONNECT_TIMEOUT_SECS;
+const PROFILE_LOCK_TTL_SEC: i64 = PROFILE_LOCK_TTL_SECS;
+const HEARTBEAT_TTL_SEC: i64 = HEARTBEAT_TTL_SECS;
 
 /// A coordinator that manages distributed state and communication across a cluster of nodes.
 ///
@@ -139,23 +142,19 @@ impl DistributedCoordinator {
     /// indicating that the node is offline.
     pub async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()> {
         let key = format!("{}:node:{}:telemetry", KEY_PREFIX_V4, node_id);
-        let bytes = postcard::to_stdvec(telemetry).map_err(|e| {
-            InfraError::Serde(serde::ser::Error::custom(e))
-        })?;
-        self.client.set::<(), _, _>(key, bytes, Some(Expiration::EX(HEARTBEAT_TTL_SEC)), None, false)
+        let json = serde_json::to_string(telemetry).map_err(InfraError::Serde)?;
+        self.client.set::<(), _, _>(key, json, Some(Expiration::EX(HEARTBEAT_TTL_SEC)), None, false)
             .await.map_err(|e| InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))
     }
 
     /// Retrieves the latest telemetry for a specific node.
     pub async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>> {
         let key = format!("{}:node:{}:telemetry", KEY_PREFIX_V4, node_id);
-        let bytes: Option<bytes::Bytes> = self.client.get(key).await.map_err(|e| {
+        let data: Option<String> = self.client.get(key).await.map_err(|e| {
              InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
         })?;
-        if let Some(b) = bytes {
-            let t = postcard::from_bytes(&b).map_err(|e| {
-                InfraError::Serde(serde::de::Error::custom(e))
-            })?;
+        if let Some(s) = data {
+            let t = serde_json::from_str(&s).map_err(InfraError::Serde)?;
             Ok(Some(t))
         } else {
             Ok(None)
@@ -169,14 +168,14 @@ impl DistributedCoordinator {
         let keys = self.scan_keys(&format!("{}:node:*:telemetry", KEY_PREFIX_V4)).await?;
         if keys.is_empty() { return Ok((0, 0.0)); }
 
-        let values: Vec<Option<bytes::Bytes>> = self.client.mget(keys).await.map_err(|e| {
+        let values: Vec<Option<String>> = self.client.mget(keys).await.map_err(|e| {
              InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
         })?;
         
         let mut count = 0;
         let mut total_ops = 0.0;
         for val in values.into_iter().flatten() {
-            if let Ok(telemetry) = postcard::from_bytes::<NodeTelemetry>(&val) {
+            if let Ok(telemetry) = serde_json::from_str::<NodeTelemetry>(&val) {
                 count += 1;
                 total_ops += telemetry.ips;
             }

@@ -91,10 +91,12 @@ impl NodeRepository {
 
     /// Verifies that the public key matches the one stored for the node ID.
     async fn verify_key(&self, node_id: &str, public_key: Option<&str>) -> Result<(), sqlx::Error> {
-        if let Some(new_key) = public_key {
-            if let Ok(Some(existing_key)) = self.get_public_key(node_id).await {
-                let existing_clean = existing_key.trim();
-                let new_clean = new_key.trim();
+        let existing_key = self.get_public_key(node_id).await?;
+
+        match (existing_key, public_key) {
+            (Some(existing), Some(new)) => {
+                let existing_clean = existing.trim();
+                let new_clean = new.trim();
 
                 if !existing_clean.is_empty() && existing_clean != new_clean {
                     tracing::warn!("🚨 Security Alert: Node Identity Mismatch for {}", node_id);
@@ -103,6 +105,13 @@ impl NodeRepository {
                     ));
                 }
             }
+            (Some(_), None) => {
+                tracing::warn!("🚨 Security Alert: Node {} attempted heartbeat without public key", node_id);
+                return Err(sqlx::Error::Protocol(
+                    "Identity Required: Public Key must be provided for registered nodes".into(),
+                ));
+            }
+            _ => {} // New node or no key in DB, allow
         }
         Ok(())
     }

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path};
-use tracing::{error, info};
+use tracing::info;
 use walkdir::WalkDir;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -28,11 +28,20 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     // Manifest is served from Asset Server
     let url = client.asset_url("manifest");
     
-    let server_manifest: ServerManifest = client.inner().get(&url)
-        .send().await
-        .map_err(|e| format!("Failed to fetch manifest: {}", e))?
-        .json().await
-        .map_err(|e| format!("Invalid manifest JSON: {}", e))?;
+    let op = || async {
+        client.inner().get(&url)
+            .send().await
+            .map_err(|e| backoff::Error::transient(format!("Failed to fetch manifest: {}", e)))?
+            .json::<ServerManifest>().await
+            .map_err(|e| backoff::Error::permanent(format!("Invalid manifest JSON: {}", e)))
+    };
+
+    let backoff_conf = backoff::ExponentialBackoff {
+        max_elapsed_time: Some(std::time::Duration::from_secs(60)),
+        ..Default::default()
+    };
+
+    let server_manifest = backoff::future::retry(backoff_conf, op).await?;
 
     let mut stats = SyncStats { downloaded: 0, merged: 0, skipped: 0, errors: vec![] };
     let system_root = local_data_root.join("system");

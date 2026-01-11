@@ -12,7 +12,7 @@ use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Parser)]
 struct Args {

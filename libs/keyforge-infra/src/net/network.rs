@@ -16,7 +16,10 @@ use crate::error::{InfraError, InfraResult};
 use crate::net::client::HiveClient;
 use backoff::ExponentialBackoff;
 use futures_util::StreamExt;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::constants::{
+    ASSET_1GRAMS_FILENAME, ASSET_2GRAMS_FILENAME, ASSET_3GRAMS_FILENAME, ASSET_WORDS_FILENAME,
+    DEFAULT_CORPUS_ID, MAX_INPUT_FILE_SIZE,
+};
 use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -159,12 +162,17 @@ pub async fn ensure_file(
 /// Ensures that all files in a corpus bundle are downloaded and present locally.
 pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> InfraResult<String> {
     let bundle_dir = if corpus_name == "default" {
-        "data/corpora/text/en_std".to_string()
+        format!("data/corpora/{}", DEFAULT_CORPUS_ID)
     } else {
         format!("data/corpora/{}", corpus_name)
     };
 
-    let files = ["1grams.json", "2grams.json", "3grams.json", "words.json"];
+    let files = [
+        ASSET_1GRAMS_FILENAME,
+        ASSET_2GRAMS_FILENAME,
+        ASSET_3GRAMS_FILENAME,
+        ASSET_WORDS_FILENAME,
+    ];
 
     for f in files {
         let local_str = format!("{}/{}", bundle_dir, f);

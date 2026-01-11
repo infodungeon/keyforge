@@ -24,23 +24,34 @@ pub fn parse_key_constraint(s: &str) -> Result<KeyConstraint, String> {
     KeyConstraint::from_str(s)
 }
 
+/// Checks for a path's existence, and if not found and it has no extension,
+/// checks for the same path with a `.json` extension.
+fn check_path(path: &Path) -> Option<PathBuf> {
+    if path.exists() {
+        return Some(path.to_path_buf());
+    }
+    if path.extension().is_none() {
+        let p_json = path.with_extension("json");
+        if p_json.exists() {
+            return Some(p_json);
+        }
+    }
+    None
+}
+
 pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<PathBuf, String> {
     let input_path = Path::new(input);
 
-    // 1. Absolute paths: Always allowed for CLI users.
+    // 1. Absolute paths
     if input_path.is_absolute() {
-        if input_path.exists() {
-            return Ok(input_path.to_path_buf());
-        } else {
-            return Err(format!("Absolute path does not exist: {}", input));
-        }
+        return check_path(input_path)
+            .ok_or_else(|| format!("Absolute path does not exist: {}", input));
     }
 
-    // 2. Explicit CWD-relative paths (./ or ../)
+    // 2. Explicit CWD-relative paths
     if input.starts_with("./") || input.starts_with("../") {
         if let Ok(cwd) = std::env::current_dir() {
-            let p = cwd.join(input);
-            if p.exists() {
+            if let Some(p) = check_path(&cwd.join(input)) {
                 return Ok(p);
             }
         }
@@ -48,57 +59,18 @@ pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<Pa
 
     // 3. Workspace Resolution (Overlay: user -> system -> root)
     let sub = subdir.unwrap_or("");
-
-    // Check user/{subdir}/{input}
-    let user_path = root.join("user").join(sub).join(input);
-    if user_path.exists() {
-        return Ok(user_path);
-    }
-    // Try with .json
-    if !input.ends_with(".json") {
-        let user_json = user_path.with_extension("json");
-        if user_json.exists() {
-            return Ok(user_json);
+    let candidates = [
+        root.join("user").join(sub).join(input),
+        root.join("system").join(sub).join(input),
+        root.join(sub).join(input),
+        root.join(input),
+    ];
+    for p in candidates {
+        if let Some(found) = check_path(&p) {
+            return Ok(found);
         }
     }
-
-    // Check system/{subdir}/{input}
-    let system_path = root.join("system").join(sub).join(input);
-    if system_path.exists() {
-        return Ok(system_path);
-    }
-    // Try with .json
-    if !input.ends_with(".json") {
-        let system_json = system_path.with_extension("json");
-        if system_json.exists() {
-            return Ok(system_json);
-        }
-    }
-
-    // Check root/{subdir}/{input} (Legacy/Fallback)
-    let root_sub_path = root.join(sub).join(input);
-    if root_sub_path.exists() {
-        return Ok(root_sub_path);
-    }
-    if !input.ends_with(".json") {
-        let root_json = root_sub_path.with_extension("json");
-        if root_json.exists() {
-            return Ok(root_json);
-        }
-    }
-
-    // 4. Root-relative fallback (Directly in data root)
-    let root_direct = root.join(input);
-    if root_direct.exists() {
-        return Ok(root_direct);
-    }
-    if !input.ends_with(".json") {
-        let root_direct_json = root_direct.with_extension("json");
-        if root_direct_json.exists() {
-            return Ok(root_direct_json);
-        }
-    }
-
+    
     Err(format!(
         "Could not resolve path '{}'. Checked absolute, CWD, and workspace '{:?}' overlays.",
         input, subdir

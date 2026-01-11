@@ -97,7 +97,7 @@ pub async fn create_engine_request(
     config.definition.geometry.validate().map_err(|e| anyhow::anyhow!("invalid geometry: {}", e))?;
 
     // [Fixed] Removed unnecessary clone. UserRepo takes ownership of PathBuf.
-    let user_data = UserRepo::new(data_root.clone());
+    let user_data = UserRepo::new(data_root);
     let kb_name = &config.definition.meta.name;
     let safe_kb_name = keyforge_infra::sanitize_filename(kb_name);
 

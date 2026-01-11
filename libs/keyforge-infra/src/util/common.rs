@@ -66,6 +66,27 @@ pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
     Ok(KeycodeRegistry::new(defs))
 }
 
+use keyforge_model::config::CorpusSource;
+
+/// Generates a deterministic fingerprint for a set of corpora sources.
+pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
+    // 1. Sort by ID for canonicalization
+    let mut sorted = sources.to_vec();
+    sorted.sort_by(|a, b| a.id.cmp(&b.id));
+
+    // 2. Hash the sorted list
+    let mut hasher = Sha256::new();
+    if let Ok(bytes) = serde_json::to_vec(&sorted) {
+        hasher.update(bytes);
+    } else {
+        // Fallback: use raw ID list
+        for s in &sorted {
+            hasher.update(s.id.as_bytes());
+        }
+    }
+    hex::encode(hasher.finalize())
+}
+
 /// Aggressively sanitizes filenames to prevent traversal or shell issues.
 /// Allowlist: Alphanumeric, dot, underscore, hyphen.
 /// Replaces everything else with underscore.

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use keyforge_model::constants::DEFAULT_FALLBACK_PATH;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::env;
@@ -66,6 +67,6 @@ impl CommonConfig {
 
     /// Resolves the final data directory with fallback logic.
     pub fn resolve_data_dir(&self) -> PathBuf {
-        self.data_dir.clone().unwrap_or_else(|| PathBuf::from("."))
+        self.data_dir.clone().unwrap_or_else(|| PathBuf::from(DEFAULT_FALLBACK_PATH))
     }
 }

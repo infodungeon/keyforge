@@ -87,6 +87,13 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
             let code = if let FirmwareFormat::Kle = format {
                 // Special handling for KLE: Merge layout legends into geometry
                 let mut geom = def.geometry.clone();
+                if geom.keys.len() != keys.len() {
+                    eprintln!(
+                        "⚠️  Warning: Layout key count ({}) does not match geometry key count ({}). Export may be incorrect.",
+                        keys.len(),
+                        geom.keys.len()
+                    );
+                }
                 for (i, key) in geom.keys.iter_mut().enumerate() {
                     if let Some(legend) = keys.get(i) {
                         key.label = legend.clone();

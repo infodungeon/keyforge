@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use keyforge_model::{CorpusSource, ScoringWeights, SearchParams, KeyIndex};
-use keyforge_model::constants::{MAX_PINNED_KEYS_COUNT, DEFAULT_CORPUS_ID};
+use keyforge_model::constants::{MAX_PINNED_KEYS_COUNT, DEFAULT_CORPUS_ID, DEFAULT_CORPUS_WEIGHT};
+use crate::constants::{JOB_IDENTITY_PRECISION};
 use keyforge_model::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::{CostMatrixSource, KeyConstraint, Validator};
 use keyforge_protocol::JobRequest;
@@ -50,10 +51,6 @@ impl JobRepository {
     }
 
     /// Registers a new optimization job in the database.
-    ///
-    /// This is a complex atomic operation that also idempotently registers the 
-    /// keyboard geometry, scoring profile, and search configuration.
-    /// Registers a new optimization job in the database.
     pub async fn register(
         &self,
         job_id: &str,
@@ -66,16 +63,7 @@ impl JobRepository {
             return Ok(false);
         }
 
-        req.params
-            .validate()
-            .map_err(|e| sqlx::Error::Protocol(format!("Invalid search parameters: {}", e)))?;
-        req.weights
-            .validate()
-            .map_err(|e| sqlx::Error::Protocol(format!("Invalid scoring weights: {}", e)))?;
-
-        if req.pinned_keys.len() > MAX_PINNED_KEYS_COUNT {
-            return Err(sqlx::Error::Protocol("Pinned keys too large".into()));
-        }
+        self.validate_registration_request(req)?;
 
         // 1. Calculate deterministic component hashes (CPU-bound)
         let req_clone = req.clone();
@@ -92,13 +80,48 @@ impl JobRepository {
         self.acquire_advisory_lock(&mut tx, &unique_hash).await?;
 
         // 3. Ensure Components Exist (Idempotent)
-        let kb_id = self.ensure_keyboard(&mut tx, &req.definition, &unique_hash).await?;
+        let kb_id = self.ensure_keyboard(&mut tx, &req.config.definition, &unique_hash).await?;
         let score_id = self.ensure_scoring_profile(&mut tx, &w_json, &w_hash).await?;
-        let search_id = self.ensure_search_config(&mut tx, &req.params, &p_hash).await?;
+        let search_id = self.ensure_search_config(&mut tx, &req.config.params, &p_hash).await?;
 
         // 4. Insert Job Record
+        let is_new = self.insert_job_record(
+            &mut tx, job_id, kb_id, score_id, search_id, req, owner_id, parent_job_id, priority
+        ).await?;
+
+        tx.commit().await?;
+
+        Ok(is_new)
+    }
+
+    fn validate_registration_request(&self, req: &JobRequest) -> Result<(), sqlx::Error> {
+        req.config.params
+            .validate()
+            .map_err(|e| sqlx::Error::Protocol(format!("Invalid search parameters: {}", e)))?;
+        req.config.weights
+            .validate()
+            .map_err(|e| sqlx::Error::Protocol(format!("Invalid scoring weights: {}", e)))?;
+
+        if req.config.pinned_keys.len() > MAX_PINNED_KEYS_COUNT {
+            return Err(sqlx::Error::Protocol("Pinned keys too large".into()));
+        }
+        Ok(())
+    }
+
+    async fn insert_job_record(
+        &self,
+        tx: &mut sqlx::Transaction<'_, Postgres>,
+        job_id: &str,
+        kb_id: i32,
+        score_id: i32,
+        search_id: i32,
+        req: &JobRequest,
+        owner_id: Option<Uuid>,
+        parent_job_id: Option<String>,
+        priority: i32,
+    ) -> Result<bool, sqlx::Error> {
         let primary_corpus = req
-            .corpora
+            .config.corpora
             .first()
             .map(|c| c.id.clone())
             .unwrap_or_else(|| DEFAULT_CORPUS_ID.to_string());
@@ -118,24 +141,21 @@ impl JobRepository {
         .bind(kb_id)
         .bind(score_id)
         .bind(search_id)
-        // Note: In a real refactor we'd avoid re-serializing if possible, but for safety we do it here.
-        .bind(serde_json::to_string(&req.pinned_keys).unwrap_or_default())
+        .bind(serde_json::to_string(&req.config.pinned_keys).unwrap_or_default())
         .bind(&primary_corpus)
-        .bind(serde_json::to_string(&req.cost_matrix).unwrap_or_default())
+        .bind(serde_json::to_string(&req.config.cost_matrix).unwrap_or_default())
         .bind(owner_id)
         .bind(parent_job_id)
         .bind(priority)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
-
-        tx.commit().await?;
 
         Ok(result.rows_affected() > 0)
     }
 
     /// Calculates deterministic hashes for job components.
     fn calculate_job_identity(req: &JobRequest) -> Result<(String, serde_json::Value, String, String), String> {
-        let kb_meta = &req.definition.meta;
+        let kb_meta = &req.config.definition.meta;
         let lock_key = format!("{}{}{}", kb_meta.name, kb_meta.author, kb_meta.version);
         
         // Unique Hash (for Lock/Geometry)
@@ -145,10 +165,10 @@ impl JobRepository {
 
         // Weights
         fn norm(v: f32) -> f32 {
-            if v == 0.0 { 0.0 } else { (v * 1_000_000.0).round() / 1_000_000.0 }
+            if v == 0.0 { 0.0 } else { (v * JOB_IDENTITY_PRECISION).round() / JOB_IDENTITY_PRECISION }
         }
 
-        let mut w = req.weights.clone();
+        let mut w = req.config.weights.clone();
         w.penalty_sfb_base = norm(w.penalty_sfb_base);
         
         let w_json = serde_json::to_value(&w).map_err(|e| e.to_string())?;
@@ -158,7 +178,7 @@ impl JobRepository {
         let w_hash = hex::encode(hasher.finalize());
 
         // Search Params
-        let mut p = req.params;
+        let mut p = req.config.params;
         p.temp_min = norm(p.temp_min);
         
         let p_json = serde_json::to_string(&p).map_err(|e| e.to_string())?;
@@ -401,20 +421,22 @@ impl JobRepository {
                 id,
                 JobRequest {
                     version: keyforge_protocol::PROTOCOL_VERSION,
-                    definition: geometry,
-                    weights,
-                    params,
-                    pinned_keys,
-                    corpora: vec![CorpusSource {
-                        id: corpus_name,
-                        weight: 1.0,
-                        hash: None,
-                    }],
-                    cost_matrix,
-                    biometrics: vec![],
-                    parent_job_id,
-                    baseline_score,
-                    parents,
+                    config: keyforge_protocol::JobConfig {
+                        definition: geometry,
+                        weights,
+                        params,
+                        pinned_keys,
+                        corpora: vec![CorpusSource {
+                            id: corpus_name,
+                            weight: DEFAULT_CORPUS_WEIGHT,
+                            hash: None,
+                        }],
+                        cost_matrix,
+                        biometrics: vec![],
+                        parent_job_id,
+                        baseline_score,
+                        parents,
+                    },
                 },
             )))
         } else {

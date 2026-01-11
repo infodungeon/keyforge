@@ -20,7 +20,11 @@ async fn test_wal_persistence_on_failure() {
     let wal_dir = data_root.join("user/agent_wal");
 
     // Client pointing to nowhere to force failure
-    let client = HiveClient::new("http://localhost:1".into(), None).unwrap();
+    let client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
+        api_url: "http://localhost:1".into(),
+        asset_url: "http://localhost:1".into(),
+        ..Default::default()
+    }).unwrap();
     let outbox = ResultOutbox::new(client, data_root.clone(), 10);
 
     let submission = ResultSubmission {
@@ -34,7 +38,7 @@ async fn test_wal_persistence_on_failure() {
         signature: None,
     };
 
-    outbox.try_send(submission).unwrap();
+    outbox.save_to_wal(&submission).unwrap();
 
     // Wait for async processing
     tokio::time::sleep(Duration::from_millis(200)).await;

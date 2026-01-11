@@ -15,6 +15,7 @@
 use keyforge_infra::error::{InfraError, InfraResult};
 use keyforge_infra::fs::io::atomic_write;
 use keyforge_infra::util::common::{generate_cost_profile, sanitize_filename};
+use keyforge_model::constants::MIN_BIOMETRIC_SAMPLES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use fs2::FileExt;
 
 /// A persistent store for user-created layouts, organized by keyboard ID.
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -104,7 +106,8 @@ impl UserRepo {
         if path.exists() {
             if let Ok(file) = fs::File::open(&path) {
                 let reader = BufReader::new(file);
-                for line in reader.lines().map_while(Result::ok) {
+                // Limit to last 100k samples to prevent OOM
+                for line in reader.lines().map_while(Result::ok).take(100_000) {
                     if let Ok(sample) = serde_json::from_str::<BiometricSample>(&line) {
                         store.biometrics.push(sample);
                     }
@@ -132,6 +135,9 @@ impl UserRepo {
             .append(true)
             .open(&path)
             .map_err(InfraError::Io)?;
+
+        // Acquire exclusive lock before appending
+        file.lock_exclusive().map_err(InfraError::Io)?;
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -168,13 +174,14 @@ impl UserRepo {
     /// Generates a personalized cost profile based on collected biometric data.
     ///
     /// # Errors
-    /// Returns an error if there are fewer than 300 samples collected.
+    /// Returns an error if there are fewer than `MIN_BIOMETRIC_SAMPLES` collected.
     pub fn generate_profile(&self) -> InfraResult<String> {
         let store = self.load_stats_store();
-        if store.biometrics.len() < 300 {
+        if store.biometrics.len() < MIN_BIOMETRIC_SAMPLES {
             return Err(InfraError::Config(format!(
-                "Insufficient data. {}/300 samples collected.",
-                store.biometrics.len()
+                "Insufficient data. {}/{} samples collected.",
+                store.biometrics.len(),
+                MIN_BIOMETRIC_SAMPLES
             )));
         }
 

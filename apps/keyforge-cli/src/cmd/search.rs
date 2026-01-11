@@ -25,11 +25,11 @@ pub struct SearchArgs {
     pub shared: crate::cmd::shared::SharedArgs,
 }
 
-pub fn run(_args: SearchArgs, runner: AgentRunner, job_config: JobConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(args: SearchArgs, runner: AgentRunner, job_config: JobConfig) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🔎 Delegating optimization to Agent...");
     
     // Note: The runner handles spawning the agent which will output the results directly.
-    runner.run_search(&job_config)?;
+    runner.run_search(&job_config, args.threads)?;
     
     Ok(())
 }

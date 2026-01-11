@@ -18,7 +18,7 @@ use crate::error::{AppError, AppResult};
 use crate::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_model::{
     CorpusSource,
-    constants::{VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO},
+    constants::{VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO, DEFAULT_CORPUS_WEIGHT},
     CostMatrixSource, KeyboardDefinition, SearchParams
 };
 use keyforge_protocol::ResultSubmission;
@@ -102,7 +102,7 @@ impl VerificationService {
 
         // Try to parse as JSON first, fallback to Predefined ID
         let cost_source = serde_json::from_str::<CostMatrixSource>(&cost_raw)
-            .unwrap_or_else(|_| CostMatrixSource::Predefined(cost_raw.clone()));
+            .unwrap_or_else(|_| CostMatrixSource::Predefined(cost_raw));
 
         let builder = SessionBuilder::new(self.assets.as_ref());
         let kb_def = KeyboardDefinition {
@@ -112,14 +112,14 @@ impl VerificationService {
         };
 
         // TODO: Make this configurable per job or system-wide
-        const DEFAULT_KEYCODES_FILE: &str = "system/keycodes.json";
+        let keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME;
 
         let session = builder.build_preloaded(
             &kb_def,
-            &[CorpusSource { id: corpus_name, weight: 1.0, hash: None }],
+            &[CorpusSource { id: corpus_name, weight: DEFAULT_CORPUS_WEIGHT, hash: None }],
             &weights,
             &SearchParams::default(),
-            DEFAULT_KEYCODES_FILE,
+            keycodes_file,
             &cost_source,
             None
         ).await.map_err(|e| AppError::Validation(format!("Session build failed: {}", e)))?;
@@ -129,10 +129,10 @@ impl VerificationService {
     }
 
     async fn check_tolerance(&self, engine: Arc<ScoringEngine>, sub: &ResultSubmission) -> AppResult<()> {
-        const DEFAULT_KEYCODES_FILE: &str = "system/keycodes.json";
+        let keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME;
         
-        let registry = self.assets.load_keycodes(DEFAULT_KEYCODES_FILE).await
-            .unwrap_or_else(|_| Arc::new(keyforge_model::keycodes::KeycodeRegistry::new_with_defaults()));
+        let registry = self.assets.load_keycodes(keycodes_file).await
+            .map_err(|e| AppError::Validation(format!("Failed to load keycodes for verification: {}", e)))?;
 
         let layout_struct = keyforge_adapter::conversion::parse_layout_string_strict(
             &sub.layout,

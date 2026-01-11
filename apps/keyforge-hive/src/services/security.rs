@@ -13,6 +13,10 @@
 // limitations under the License.
 
 
+use crate::config::{
+    DEFAULT_API_KEY_CACHE_CAPACITY, DEFAULT_API_KEY_CACHE_TTL_SECS,
+    DEFAULT_NONCE_CACHE_CAPACITY, DEFAULT_NONCE_CACHE_TTL_SECS,
+};
 use moka::sync::Cache;
 use std::time::Duration;
 
@@ -27,13 +31,13 @@ pub struct SecurityContext {
 impl SecurityContext {
     pub fn new(api_secret: Option<String>, server_key: String) -> Self {
         let api_key_cache = Cache::builder()
-            .max_capacity(1000)
-            .time_to_live(Duration::from_secs(300))
+            .max_capacity(DEFAULT_API_KEY_CACHE_CAPACITY)
+            .time_to_live(Duration::from_secs(DEFAULT_API_KEY_CACHE_TTL_SECS))
             .build();
 
         let nonce_cache = Cache::builder()
-            .max_capacity(100_000)
-            .time_to_live(Duration::from_secs(600))
+            .max_capacity(DEFAULT_NONCE_CACHE_CAPACITY)
+            .time_to_live(Duration::from_secs(DEFAULT_NONCE_CACHE_TTL_SECS))
             .build();
 
         Self {

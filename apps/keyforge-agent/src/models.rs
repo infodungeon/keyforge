@@ -138,7 +138,7 @@ pub struct AgentConfig {
 impl Default for AgentConfig {
     fn default() -> Self {
         Self {
-            hive_url: "http://localhost:3000".to_string(),
+            hive_url: "https://hive.infodungeon.com:3000".to_string(),
             asset_url: "http://localhost:3001".to_string(),
             node_id: "unknown".to_string(),
             secret: "".to_string(),

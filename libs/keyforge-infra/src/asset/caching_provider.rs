@@ -18,7 +18,10 @@ use bytes::Bytes;
 use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
-use keyforge_model::constants::ASSET_KEYCODES;
+use keyforge_model::constants::{
+    ASSET_KEYCODES, DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY,
+    DEFAULT_KB_CACHE_CAPACITY, DEFAULT_KEYCODE_CACHE_CAPACITY,
+};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use moka::sync::Cache;
@@ -66,11 +69,11 @@ impl CachingProvider {
     /// It also starts a filesystem watcher to invalidate the cache when system assets change.
     pub fn new(data_path: PathBuf) -> Self {
         let provider = FsProvider::new(data_path.clone());
-        let keyboards = Cache::new(100);
-        let corpora = Cache::new(50);
-        let costs = Cache::new(100);
-        let keycodes = Cache::new(10);
-        let file_cache = Cache::new(1000);
+        let keyboards = Cache::new(DEFAULT_KB_CACHE_CAPACITY as u64);
+        let corpora = Cache::new(DEFAULT_CORPUS_CACHE_CAPACITY as u64);
+        let costs = Cache::new(DEFAULT_COST_CACHE_CAPACITY as u64);
+        let keycodes = Cache::new(DEFAULT_KEYCODE_CACHE_CAPACITY as u64);
+        let file_cache = Cache::new(1000); // RAW binary cache
         let manifest = Cache::new(1);
 
         let kb_c = keyboards.clone();
@@ -94,11 +97,10 @@ impl CachingProvider {
                         }
                         info!("♻️ System asset changed: {}", path_str);
                         
-                        // Always invalidate file cache and manifest as they are global/raw
-                        fl_c.invalidate_all();
+                        // Granular Invalidation
+                        fl_c.invalidate(path_str.as_ref());
                         mf_c.invalidate_all();
 
-                        // Granular Invalidation
                         if path_str.contains("keyboards") {
                             if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                                 let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
@@ -146,10 +148,10 @@ impl CachingProvider {
         }
     }
 
-    /// Eagerly loads all system assets into the memory cache.
+    /// Eagerly loads system assets into the memory cache.
     ///
-    /// This is typically called during application startup to ensure that
-    /// core assets are immediately available.
+    /// This is typically called during application startup. A safety limit is enforced
+    /// to prevent excessive memory consumption if the system library is unexpectedly large.
     pub async fn warm_all(&self) -> Result<(), String> {
         info!("🔥 Warming Asset Cache (Full Binary Verification)...");
         let system_root = self.state.provider.root.join("system");
@@ -166,8 +168,11 @@ impl CachingProvider {
         let mut count_corpora = 0;
         let mut count_weights = 0;
 
-        for (rel_path, _) in manifest.files {
-            let full_path = system_root.join(&rel_path);
+        // SAFETY LIMIT: Don't warm more than 1000 files to prevent OOM
+        const MAX_WARM_FILES: usize = 1000;
+
+        for (rel_path, _) in manifest.files.iter().take(MAX_WARM_FILES) {
+            let full_path = system_root.join(rel_path);
             let bytes =
                 tokio::fs::read(&full_path).await.map_err(|e| format!("Read error {}: {}", rel_path, e))?;
             self.state
@@ -176,21 +181,29 @@ impl CachingProvider {
 
             count_files += 1;
 
-            if self.try_ensure_keyboard(&rel_path).await? {
+            if self.try_ensure_keyboard(rel_path).await? {
                 count_keyboards += 1;
                 continue;
             }
-            if self.try_ensure_corpus(&rel_path).await? {
+            if self.try_ensure_corpus(rel_path).await? {
                 count_corpora += 1;
                 continue;
             }
-            if self.try_ensure_weights(&rel_path).await? {
+            if self.try_ensure_weights(rel_path).await? {
                 count_weights += 1;
                 continue;
             }
-            if self.try_ensure_config(&rel_path).await? {
+            if self.try_ensure_config(rel_path).await? {
                 continue;
             }
+        }
+
+        if manifest.files.len() > MAX_WARM_FILES {
+            tracing::warn!(
+                "System library contains {} files, but only {} were warmed. Remaining assets will be loaded lazily.",
+                manifest.files.len(),
+                MAX_WARM_FILES
+            );
         }
 
         if count_files == 0 {

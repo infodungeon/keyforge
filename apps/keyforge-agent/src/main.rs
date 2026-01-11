@@ -64,7 +64,7 @@ enum Commands {
         /// Path to the JobConfig JSON file.
         job_file: PathBuf,
         /// Number of iterations.
-        #[arg(long, default_value_t = 100_000)]
+        #[arg(long, default_value_t = keyforge_model::constants::DEFAULT_BENCHMARK_ITERATIONS)]
         iterations: usize,
     }
 }
@@ -188,7 +188,7 @@ async fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("Failed to init agent: {}", e))?;
 
             let (job_tx, job_rx) = mpsc::channel(1);
-            let (_, stop_rx) = mpsc::channel(1);
+            let (_stop_tx, stop_rx) = mpsc::channel(1);
             
             let agent_handle = tokio::spawn(async move {
                 agent.run(job_rx, stop_rx).await
@@ -216,12 +216,10 @@ async fn main() -> anyhow::Result<()> {
             
             let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
             
-            let assets = keyforge_infra::AssetManager::new(
-                keyforge_infra::HiveClient::new(Default::default())?, 
-                data_dir.clone()
-            );
-            
-            let (cost_file, _) = keyforge_agent::agent::compute::prepare_assets(&assets, &job, &config.compute).await?;
+            // Extract cost filename from job config (no downloading)
+            let cost_file = match &job.cost_matrix {
+                keyforge_model::CostMatrixSource::Predefined(filename) => filename.clone(),
+            };
             
             let mut prepared = keyforge_agent::agent::compute::create_engine_request(
                 loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
@@ -248,12 +246,11 @@ async fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
             
             let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
-            let assets = keyforge_infra::AssetManager::new(
-                keyforge_infra::HiveClient::new(Default::default())?, 
-                data_dir.clone()
-            );
             
-            let (cost_file, _) = keyforge_agent::agent::compute::prepare_assets(&assets, &job, &config.compute).await?;
+            // Extract cost filename from job config (no downloading)
+            let cost_file = match &job.cost_matrix {
+                keyforge_model::CostMatrixSource::Predefined(filename) => filename.clone(),
+            };
             
             let mut prepared = keyforge_agent::agent::compute::create_engine_request(
                 loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
@@ -264,7 +261,18 @@ async fn main() -> anyhow::Result<()> {
             
             if prepared.req.initial_layout.is_none() {
                 use keyforge_model::{Layout, KeyCode};
-                let layout = Layout::new_unchecked((0..prepared.req.keyboard.keys.len() as u16).map(KeyCode).collect());
+                // Improve dummy layout: pick most frequent characters from corpus
+                let mut char_indices: Vec<u16> = (0..65535).collect();
+                // Sort by frequency descending. char_freqs is length 65536.
+                char_indices.sort_by_key(|&i| std::cmp::Reverse(prepared.req.corpus.char_freqs[i as usize]));
+                
+                let keys: Vec<KeyCode> = char_indices
+                    .into_iter()
+                    .take(prepared.req.keyboard.keys.len())
+                    .map(KeyCode)
+                    .collect();
+                
+                let layout = Layout::new_unchecked(keys);
                 prepared.req.initial_layout = Some(layout);
             }
 

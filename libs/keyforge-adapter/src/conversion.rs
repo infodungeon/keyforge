@@ -50,13 +50,18 @@ pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> AdapterResult<key
 
 /// Converts protocol-level scoring weights into a domain-level evaluation rubric.
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
-    let finger_scales = w.get_finger_penalty_scale();
     keyforge_model::Rubric {
-        sfb_base: w.penalty_sfb_base,
-        sfb_lateral: w.penalty_sfb_lateral,
+        finger_effort: w.get_finger_penalty_scale(),
         travel_lat: w.weight_lateral_travel,
         travel_vert: w.weight_vertical_travel,
-        finger_effort: finger_scales,
+        sfb_base: w.penalty_sfb_base,
+        sfb_lateral: w.penalty_sfb_lateral,
+        sfb_lateral_weak: w.penalty_sfb_lateral_weak,
+        sfb_diagonal: w.penalty_sfb_diagonal,
+        sfb_long: w.penalty_sfb_long,
+        threshold_sfb_long_row_diff: w.threshold_sfb_long_row_diff,
+        penalty_scissor: w.penalty_scissor,
+        threshold_scissor_row_diff: w.threshold_scissor_row_diff,
         redirect: w.penalty_redirect,
         roll_bonus: w.bonus_bigram_roll_in,
         trigram_coverage: w.trigram_coverage,

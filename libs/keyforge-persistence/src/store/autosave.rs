@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::error::PersistenceResult;
+use keyforge_model::constants::MAX_SESSION_FILE_SIZE;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Seek, SeekFrom, Write};
@@ -21,9 +22,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tempfile::NamedTempFile;
 use tracing::{error, info, warn};
-
-// 1MB Limit for session file
-const MAX_SESSION_FILE_SIZE: u64 = 1024 * 1024;
 
 /// A snapshot of the current user session.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -207,21 +205,15 @@ impl AutoSaveService {
 
                 // Atomic persist
                 // NamedTempFile::persist tries atomic rename, and errors if it fails (e.g. cross-filesystem).
-                // However, we are creating it in `dir`, which is the same as target, so rename should work.
                 match temp_file.persist(&path) {
                     Ok(_) => Ok(()),
                     Err(e) => {
-                        // Manual fallback if atomic rename fails weirdly
-                        // Note: persist consumes the file, but returns PersistError containing the file on error
+                        warn!("Atomic rename failed, falling back to non-atomic copy: {}", e);
                         let mut source = e.file;
-                        // Seek to start to copy
                         source.seek(SeekFrom::Start(0))?;
                         
-                        // We use a temporary file name for the copy destination to avoid partial writes to the target,
-                        // but ultimately we have to overwrite `path`.
-                        // Best effort here: open `path` with truncation. A partial write here is the risk we are trying to avoid,
-                        // but if atomic rename indicated we are on the same fs, it shouldn't have failed.
-                        // If we truly can't rename, we have to copy.
+                        // Fallback: Create a secondary temp file to ensure the copy is as complete as possible
+                        // before the final move (which might still be cross-fs but we're trying our best).
                         let mut dest = std::fs::File::create(&path)?;
                         std::io::copy(&mut source, &mut dest)?;
                         Ok(())

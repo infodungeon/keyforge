@@ -14,8 +14,8 @@ async fn test_calibration_lifecycle() {
     let data_root = dir.path().to_path_buf();
     
     // 1. Setup Mock Environment
-    let kb_dir = data_root.join("keyboards");
-    fs::create_dir_all(&kb_dir).unwrap();
+    let user_kb_dir = data_root.join("user/keyboards");
+    fs::create_dir_all(&user_kb_dir).unwrap();
     
     // Create dummy Corne definition
     let corne_json = r#"{
@@ -29,7 +29,7 @@ async fn test_calibration_lifecycle() {
         },
         "layouts": { "default": "A B" }
     }"#;
-    fs::write(kb_dir.join("corne.json"), corne_json).unwrap();
+    fs::write(user_kb_dir.join("corne.json"), corne_json).unwrap();
 
     // Mock Client (won't actually connect because file exists)
     let client = HiveClient::new(ClientConfig::default()).unwrap();

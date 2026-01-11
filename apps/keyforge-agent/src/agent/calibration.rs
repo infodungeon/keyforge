@@ -38,7 +38,7 @@ struct CalibrationData {
 /// 2. If missing, ensures the "corne" keyboard asset is available.
 /// 3. Runs a physics benchmark.
 /// 4. Persists the result.
-pub async fn calibrate(assets: &AssetManager, data_root: &Path) -> Result<f64, AgentError> {
+pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let cal_path = data_root.join("user/calibration.json");
 
     // 1. Check Cache
@@ -69,7 +69,7 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path) -> Result<f64, A
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     // 4. Run Benchmark
-    let ips = run_benchmark(keyboard)?;
+    let ips = run_benchmark(keyboard, config)?;
 
     // 5. Persist
     let data = CalibrationData {
@@ -89,7 +89,7 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path) -> Result<f64, A
     Ok(ips)
 }
 
-fn run_benchmark(keyboard: Keyboard) -> Result<f64, AgentError> {
+fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
@@ -109,14 +109,71 @@ fn run_benchmark(keyboard: Keyboard) -> Result<f64, AgentError> {
     };
 
     // Warmup
-    for _ in 0..100 {
+    for _ in 0..config.warmup_iterations {
         let _ = keyforge_core::score(&req);
     }
 
     let start = Instant::now();
-    let duration = Duration::from_millis(1000);
+    let duration = Duration::from_millis(config.duration_ms);
     let mut iterations: u64 = 0;
-    let batch = 100;
+    let batch = config.batch_size;
+
+    while start.elapsed() < duration {
+        for _ in 0..batch {
+            let _ = keyforge_core::score(&req);
+        }
+        iterations += batch as u64;
+    }
+
+    let elapsed = start.elapsed().as_secs_f64();
+    if elapsed == 0.0 {
+        return Ok(0.0);
+    }
+    
+    Ok(iterations as f64 / elapsed)
+}
+
+/// Measures approximate scoring throughput using the provided calibration configuration.
+/// 
+/// This is used for standalone performance testing without requiring keyboard assets.
+pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
+    let mut keys = Vec::with_capacity(config.key_count);
+    for i in 0..config.key_count {
+        keys.push(keyforge_model::geometry::KeyNode {
+            index: i,
+            x: i as f32,
+            y: 0.0,
+            ..Default::default()
+        });
+    }
+    let keyboard = Keyboard::new(keys, 0).map_err(|e| AgentError::Calibration(e.to_string()))?;
+    
+    let key_count = keyboard.keys.len();
+    let corpus = Corpus::default();
+    let rubric = Rubric::default();
+    let search_config = SearchConfig::default();
+    
+    let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
+
+    let req = EngineRequest {
+        keyboard: Arc::new(keyboard),
+        corpus: Arc::new(corpus),
+        rubric: Arc::new(rubric),
+        config: search_config,
+        initial_layout: Some(layout),
+        pinned_keys: vec![],
+        cost_overrides: vec![],
+    };
+
+    // Warmup
+    for _ in 0..config.warmup_iterations {
+        let _ = keyforge_core::score(&req);
+    }
+
+    let start = Instant::now();
+    let duration = Duration::from_millis(config.duration_ms);
+    let mut iterations: u64 = 0;
+    let batch = config.batch_size;
 
     while start.elapsed() < duration {
         for _ in 0..batch {
