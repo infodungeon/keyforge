@@ -3,9 +3,13 @@ use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-// Removed unused import: WorkspaceError
-use keyforge_compute::Runtime;
-use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_infra::RawCostData;
+use keyforge_infra::AssetManager;
+use keyforge_infra::AssetLoader; // FsProvider still implements it, need trait to call load_* methods on provider?
+// Actually FsProvider implements AssetLoader, so we need the trait in scope to call its methods.
+// But we won't implement it for AssetCache.
+
+use keyforge_protocol::JobConfig;
 use keyforge_model::constants::{
     DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY, DEFAULT_KB_CACHE_CAPACITY,
     DEFAULT_KEYCODE_CACHE_CAPACITY,
@@ -40,11 +44,14 @@ pub struct SearchState {
 
 /// In-memory cache for frequently accessed assets, backed by the filesystem.
 ///
-/// This provides a thread-safe implementation of `AssetLoader` with LRU eviction.
+/// This provides a thread-safe implementation of `AssetLoader` with LRU eviction,
+/// and can optionally download missing assets via an `AssetManager`.
 #[derive(Clone, Debug)]
 pub struct AssetCache {
     /// The underlying filesystem provider for loading assets.
     provider: FsProvider,
+    /// Optional manager for downloading missing assets from a remote server.
+    pub manager: Arc<RwLock<Option<AssetManager>>>,
     /// Cache for keyboard geometry definitions.
     keyboards: Cache<String, Arc<KeyboardDefinition>>,
     /// Cache for processed corpora.
@@ -78,49 +85,97 @@ impl AssetCache {
 
         Self {
             provider: FsProvider::new(root),
+            manager: Arc::new(RwLock::new(None)),
             keyboards: Cache::builder().max_capacity(kb_size as u64).build(),
             corpora: Cache::builder().max_capacity(cp_size as u64).build(),
             costs: Cache::builder().max_capacity(cost_size as u64).build(),
             keycodes: Cache::builder().max_capacity(kc_size as u64).build(),
         }
     }
-}
 
-#[async_trait::async_trait]
-impl AssetLoader for AssetCache {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
+    pub async fn load_keyboard(&self, name: &str) -> anyhow::Result<Arc<KeyboardDefinition>> {
         if let Some(cached) = self.keyboards.get(name) {
-            tracing::info!("Loaded keyboard '{}' from cache. Keys: {}", name, cached.geometry.keys.len());
             return Ok(cached);
         }
-        let item = self.provider.load_keyboard(name).await?;
-        tracing::info!("Loaded keyboard '{}' from disk. Keys: {}", name, item.geometry.keys.len());
-        self.keyboards.insert(name.to_string(), item.clone());
-        Ok(item)
+
+        // Try local load
+        match self.provider.load_keyboard(name).await {
+            Ok(item) => {
+                self.keyboards.insert(name.to_string(), item.clone());
+                Ok(item)
+            }
+            Err(e) => {
+                // Try remote download if manager is available
+                let manager_guard = self.manager.read().await;
+                if let Some(mgr) = &*manager_guard {
+                    tracing::info!("Asset '{}' not found locally, attempting remote download...", name);
+                    if mgr.ensure_keyboard(name).await.is_ok() {
+                        // Retry local load after download
+                        if let Ok(item) = self.provider.load_keyboard(name).await {
+                            self.keyboards.insert(name.to_string(), item.clone());
+                            return Ok(item);
+                        }
+                    }
+                }
+                Err(e.into())
+            }
+        }
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-        // Use deterministic fingerprint for caching
+    pub async fn load_corpus(&self, sources: &[CorpusSource]) -> anyhow::Result<Arc<Corpus>> {
         let key = keyforge_infra::util::common::calculate_fingerprint(sources);
 
         if let Some(cached) = self.corpora.get(&key) {
             return Ok(cached);
         }
-        let item = self.provider.load_corpus(sources).await?;
-        self.corpora.insert(key, item.clone());
-        Ok(item)
+
+        match self.provider.load_corpus(sources).await {
+            Ok(item) => {
+                self.corpora.insert(key, item.clone());
+                Ok(item)
+            }
+            Err(e) => {
+                let manager_guard = self.manager.read().await;
+                if let Some(mgr) = &*manager_guard {
+                    for source in sources {
+                        let _ = mgr.ensure_corpus(&source.id, source.hash.as_deref()).await;
+                    }
+                    if let Ok(item) = self.provider.load_corpus(sources).await {
+                        self.corpora.insert(key, item.clone());
+                        return Ok(item);
+                    }
+                }
+                Err(e.into())
+            }
+        }
     }
 
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
+    pub async fn load_cost_matrix(&self, filename: &str) -> anyhow::Result<Arc<RawCostData>> {
         if let Some(cached) = self.costs.get(filename) {
             return Ok(cached);
         }
-        let item = self.provider.load_cost_matrix(filename).await?;
-        self.costs.insert(filename.to_string(), item.clone());
-        Ok(item)
+
+        match self.provider.load_cost_matrix(filename).await {
+            Ok(item) => {
+                self.costs.insert(filename.to_string(), item.clone());
+                Ok(item)
+            }
+            Err(e) => {
+                let manager_guard = self.manager.read().await;
+                if let Some(mgr) = &*manager_guard {
+                    if mgr.ensure_cost_matrix(filename).await.is_ok() {
+                        if let Ok(item) = self.provider.load_cost_matrix(filename).await {
+                            self.costs.insert(filename.to_string(), item.clone());
+                            return Ok(item);
+                        }
+                    }
+                }
+                Err(e.into())
+            }
+        }
     }
 
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
+    pub async fn load_keycodes(&self, filename: &str) -> anyhow::Result<Arc<KeycodeRegistry>> {
         if let Some(cached) = self.keycodes.get(filename) {
             return Ok(cached);
         }
@@ -133,8 +188,10 @@ impl AssetLoader for AssetCache {
 /// Central application state for the current user session.
 #[derive(Debug)]
 pub struct SessionState {
-    /// The active search runtime, if one is currently engaged.
-    pub active: Arc<RwLock<Option<Runtime>>>,
+    /// The active job configuration.
+    pub active_job: Arc<RwLock<Option<JobConfig>>>,
     /// Global asset cache for the session.
     pub assets: Arc<AssetCache>,
+    /// Optional client for interacting with the remote Hive.
+    pub client: Arc<RwLock<Option<keyforge_infra::HiveClient>>>,
 }

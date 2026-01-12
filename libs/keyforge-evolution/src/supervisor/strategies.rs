@@ -13,11 +13,17 @@
 // limitations under the License.
 
 use super::traits::{AcceptanceCriteria, MutationAction, MutationOperator, MutationProposal};
-use keyforge_model::Layout;
+use keyforge_model::{Layout, KeyCode};
 use keyforge_physics::ScoringEngine;
 use keyforge_model::constants::{SCORE_SCALE, ANNEALING_MIN_TEMP};
 use rand::Rng;
 use rand::seq::index::sample;
+use std::cell::RefCell;
+
+thread_local! {
+    static POS_MAP_SCRATCH: RefCell<Vec<u16>> = RefCell::new(vec![0u16; 65536]);
+    static KEYS_SCRATCH: RefCell<Vec<KeyCode>> = RefCell::new(Vec::with_capacity(128));
+}
 
 #[allow(dead_code)]
 pub struct SwapMutation {
@@ -31,6 +37,7 @@ impl MutationOperator for SwapMutation {
         layout: &Layout,
         pos_map: &[u16],
         rng: &mut impl Rng,
+        _temperature: f32,
     ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError> {
         let len = self.unlocked_indices.len();
         if len < 2 {
@@ -58,6 +65,8 @@ impl MutationOperator for SwapMutation {
 
 pub struct GroupMutation {
     pub unlocked_indices: Vec<usize>,
+    pub start_temp: f32,
+    pub end_temp: f32,
 }
 
 impl MutationOperator for GroupMutation {
@@ -67,6 +76,7 @@ impl MutationOperator for GroupMutation {
         layout: &Layout,
         pos_map: &[u16],
         rng: &mut impl Rng,
+        temperature: f32,
     ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError> {
         let len = self.unlocked_indices.len();
         if len < 2 {
@@ -74,10 +84,19 @@ impl MutationOperator for GroupMutation {
         }
 
         // Adaptive Strategy:
-        // If < 3 keys, must use 2-way swap.
-        // If >= 3 keys, 50% chance of 2-way, 50% chance of 3-way.
-        // TODO: Make this probability configurable in SearchConfig
-        let use_swap = len < 3 || rng.random_bool(0.5);
+        // High temp -> High chaos (more group swaps/3-way)
+        // Low temp -> Low chaos (more single swaps)
+        // ratio 1.0 = start (high), ratio 0.0 = end (low)
+        let p_swap = if (self.start_temp - self.end_temp).abs() < f32::EPSILON {
+             0.5
+        } else {
+             let ratio = ((temperature - self.end_temp) / (self.start_temp - self.end_temp)).clamp(0.0, 1.0);
+             // At ratio 1.0 (start): p_swap = 0.2 (20% swap, 80% 3-way)
+             // At ratio 0.0 (end): p_swap = 0.8 (80% swap, 20% 3-way)
+             0.8 - 0.6 * ratio
+        };
+
+        let use_swap = len < 3 || rng.random_bool(p_swap.into());
         let sample_size = if use_swap { 2 } else { 3 };
 
         let indices = sample(rng, len, sample_size);
@@ -101,25 +120,36 @@ impl MutationOperator for GroupMutation {
         let d1 = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
 
         // 2. Simulate virtual state after first swap without cloning
-        let mut patched_pos_map = pos_map.to_vec(); // TODO: Use scratch buffer in future refactor
-        let code_a = layout.keys[idx_a];
-        let code_b = layout.keys[idx_b];
-        
-        // Update virtual pos_map
-        if (code_a.0 as usize) < patched_pos_map.len() { patched_pos_map[code_a.0 as usize] = idx_b as u16; }
-        if (code_b.0 as usize) < patched_pos_map.len() { patched_pos_map[code_b.0 as usize] = idx_a as u16; }
+        let delta = POS_MAP_SCRATCH.with(|scratch| {
+            let mut patched_vec = scratch.borrow_mut();
+            // Ensure size matches pos_map
+            if patched_vec.len() < pos_map.len() {
+                patched_vec.resize(pos_map.len(), 65535);
+            }
+            
+            let patched_pos_map = &mut patched_vec[..pos_map.len()];
+            patched_pos_map.copy_from_slice(pos_map);
+            
+            let code_a = layout.keys[idx_a];
+            let code_b = layout.keys[idx_b];
+            
+            // Update virtual pos_map
+            if (code_a.0 as usize) < patched_pos_map.len() { patched_pos_map[code_a.0 as usize] = idx_b as u16; }
+            if (code_b.0 as usize) < patched_pos_map.len() { patched_pos_map[code_b.0 as usize] = idx_a as u16; }
 
-        // Swap A (now at idx_b) with C (at idx_c)
-        // We need a temporary layout that doesn't own its keys to avoid allocation
-        // But ValidatedLayout requires ownership of a Vec.
-        // For now, let's just clone the keys which is small compared to the 132KB pos_map.
-        let mut temp_keys = layout.keys.clone();
-        temp_keys.swap(idx_a, idx_b);
+            // Swap A (now at idx_b) with C (at idx_c)
+            KEYS_SCRATCH.with(|k_scratch| {
+                let mut temp_keys = k_scratch.borrow_mut();
+                temp_keys.clear();
+                temp_keys.extend_from_slice(&layout.keys);
+                temp_keys.swap(idx_a, idx_b);
 
-        let d2 = engine.calculate_swap_delta(&temp_keys, &patched_pos_map, idx_a, idx_c)?;
+                engine.calculate_swap_delta(&temp_keys, patched_pos_map, idx_a, idx_c)
+            })
+        })?;
 
         Ok(Some(MutationProposal {
-            delta: d1 + d2,
+            delta: d1 + delta,
             action: MutationAction::GroupSwap(idx_a.into(), idx_b.into(), idx_c.into()),
         }))
     }
@@ -200,9 +230,10 @@ mod tests {
             let layout = Layout::new_unchecked(keys);
             let mut state = SearchState::new(layout, 0, 1.0).unwrap();
             let score_before = engine.score_raw(&state.layout().keys).unwrap();
-            let mutation = GroupMutation { unlocked_indices: (0..size).collect() };
+            let mutation = GroupMutation { unlocked_indices: (0..size).collect(), start_temp: 100.0, end_temp: 0.1 };
             let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
-            if let Ok(Some(proposal)) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation) {
+            // Pass temp=1.0
+            if let Ok(Some(proposal)) = mutation.propose(&engine, state.layout(), state.pos_map(), &mut rng_mutation, 1.0) {
                 state.apply_mutation(proposal.action);
                 let score_after = engine.score_raw(&state.layout().keys).unwrap();
                 let actual_delta = score_after - score_before;

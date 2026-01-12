@@ -1,5 +1,6 @@
 site_name: Keyforge
-site_dir: keyforge.infodungeon.com
+site_url: https://keyforge.infodungeon.com
+site_dir: hosts/sites/keyforge
 
 theme:
   name: material
@@ -22,9 +23,47 @@ theme:
         icon: material/weather-night
         name: Switch to dark mode
 
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
+
 nav:
-  - Planning: planning/index.md
-  - Programming Guide: programmingguide/index.md
+  - Welcome: index.md
   - User Guide:
-      - Keyforge CLI: userguide/keyforgecli/index.md
-      - Keyforge Client: userguide/keyforgeclient/index.md
+      - Getting Started: user_guide/getting_started.md
+      - CLI Reference: user_guide/cli.md
+      - Glossary: user_guide/glossary.md
+  - Architecture:
+      - Overview: architecture/README.md
+      - Manifesto: architecture/00_MANIFESTO.md
+      - Domain Dictionary: architecture/01_DOMAIN_DICTIONARY.md
+      - Entity Relationships: architecture/02_ENTITY_RELATIONSHIPS.md
+      - System Context: architecture/03_SYSTEM_CONTEXT.md
+      - Design Patterns: architecture/05_DESIGN_PATTERNS.md
+      - Data Flow: architecture/04_DATA_FLOW.md
+      - API Surface: architecture/06_API_SURFACE.md
+      - Security Model: architecture/08_SECURITY_MODEL.md
+      - Decision Records: architecture/09_DECISION_RECORDS.md
+  - Design:
+      - Map: design/ARCHITECTURE_MAP.md
+      - Core: design/keyforge-core/README.md
+      - Physics: design/keyforge-physics/README.md
+      - Hive: design/keyforge-hive/README.md
+      - UI: design/keyforge-ui/README.md
+  - Development:
+      - Setup: development/01_SETUP_ARCH.md
+      - Automation: development/03_JUSTFILE_AUTOMATION.md
+      - Sandbox: development/05_SANDBOX_MECHANISM.md
+      - Docker Strategy: development/04_DOCKER_STRATEGY.md
+  - Engineering:
+      - Context: engineering/KEYFORGE_CONTEXT.md
+      - LLM Reliability: engineering/doctrine_llm_reliability.md
+  - Planning:
+      - Backlog: planning/index.md
+      - Redis Strategy: planning/redis.md

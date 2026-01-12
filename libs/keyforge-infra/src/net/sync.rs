@@ -10,7 +10,7 @@ use std::path::{Component, Path};
 use tracing::info;
 use walkdir::WalkDir;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ServerManifest {
     pub files: HashMap<String, String>,
 }

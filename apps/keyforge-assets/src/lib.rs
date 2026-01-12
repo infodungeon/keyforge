@@ -7,18 +7,18 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use keyforge_infra::ValkeyProvider;
+use keyforge_infra::asset::AssetServerProvider;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 #[derive(Debug)]
 pub struct AppState {
-    pub provider: ValkeyProvider,
+    pub provider: Arc<dyn AssetServerProvider + Send + Sync>,
 }
 
-pub fn create_app(provider: Arc<ValkeyProvider>) -> Router {
-    let state = Arc::new(AppState { provider: provider.as_ref().clone() });
+pub fn create_app(provider: Arc<dyn AssetServerProvider + Send + Sync>) -> Router {
+    let state = Arc::new(AppState { provider });
 
     Router::new()
         .route("/health", get(health_check))

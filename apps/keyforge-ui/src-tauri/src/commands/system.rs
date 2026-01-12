@@ -50,3 +50,13 @@ pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandEr
         Err(CommandError::Network(format!("Health check failed: {}", resp.status())))
     }
 }
+
+#[tauri::command]
+pub async fn cmd_set_hive_config(
+    _app: AppHandle,
+    _hive_url: String,
+    _hive_secret: Option<String>,
+) -> Result<(), CommandError> {
+    // Stub: Config persistence not yet implemented
+    Ok(())
+}

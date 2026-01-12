@@ -3,7 +3,6 @@ use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_model::config::Config;
 // use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
-use keyforge_infra::AssetLoader;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
 use tauri::AppHandle;
@@ -19,16 +18,11 @@ pub fn cmd_get_default_config() -> Config {
 pub async fn cmd_get_keycodes(
     state: tauri::State<'_, SessionState>,
 ) -> Result<KeycodeRegistry, CommandError> {
-    let guard = state.active.read().await;
-    if let Some(runtime) = guard.as_ref() {
-        Ok(runtime.registry.as_ref().clone())
-    } else {
-        match state.assets.load_keycodes(ASSET_KEYCODES).await {
-            Ok(reg) => Ok(reg.as_ref().clone()),
-            Err(e) => {
-                tracing::error!("Failed to load keycodes from disk: {}", e);
-                Err(CommandError::Config(format!("Keycodes load failed: {}", e)))
-            }
+    match state.assets.load_keycodes(ASSET_KEYCODES).await {
+        Ok(reg) => Ok(reg.as_ref().clone()),
+        Err(e) => {
+            tracing::error!("Failed to load keycodes from disk: {}", e);
+            Err(CommandError::Config(format!("Keycodes load failed: {}", e)))
         }
     }
 }

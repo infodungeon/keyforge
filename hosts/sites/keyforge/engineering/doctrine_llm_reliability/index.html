@@ -1,0 +1,2089 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://keyforge.infodungeon.com/engineering/doctrine_llm_reliability/">
+      
+      
+        <link rel="prev" href="../KEYFORGE_CONTEXT/">
+      
+      
+        <link rel="next" href="../../planning/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>LLM Reliability - Keyforge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#keyforge-engineering-doctrine-llm-assisted-reliability" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Keyforge" class="md-header__button md-logo" aria-label="Keyforge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Keyforge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              LLM Reliability
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Keyforge" class="md-nav__button md-logo" aria-label="Keyforge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Keyforge
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Welcome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user_guide/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user_guide/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user_guide/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/00_MANIFESTO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifesto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/01_DOMAIN_DICTIONARY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain Dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/02_ENTITY_RELATIONSHIPS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Relationships
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/03_SYSTEM_CONTEXT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/05_DESIGN_PATTERNS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/04_DATA_FLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/06_API_SURFACE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Surface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/08_SECURITY_MODEL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/09_DECISION_RECORDS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decision Records
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/ARCHITECTURE_MAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/keyforge-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/keyforge-physics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Physics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/keyforge-hive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/keyforge-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/01_SETUP_ARCH/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/03_JUSTFILE_AUTOMATION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/05_SANDBOX_MECHANISM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sandbox
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/04_DOCKER_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Docker Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engineering
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Engineering
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../KEYFORGE_CONTEXT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Reliability
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Reliability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-core-philosophy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Core Philosophy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-strategy-coverage-driven-verification-cdv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Strategy: Coverage-Driven Verification (CDV)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Strategy: Coverage-Driven Verification (CDV)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#criticality-tiering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Criticality Tiering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-architectural-guardrails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Architectural Guardrails
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Architectural Guardrails">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-type-driven-development-the-compiler-guardrail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Type-Driven Development (The Compiler Guardrail)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-the-validator-trait-the-runtime-guardrail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. The Validator Trait (The Runtime Guardrail)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-property-based-testing-the-logic-guardrail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Property-Based Testing (The Logic Guardrail)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-research-backed-protocols-v11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Research-Backed Protocols (v1.1)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Research-Backed Protocols (v1.1)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-the-reflexion-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. The Reflexion Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-chain-of-verification-cove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Chain-of-Verification (CoVe)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-invariant-documentation-formal-verification-lite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Invariant Documentation (Formal Verification Lite)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-structural-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Structural Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Structural Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-functional-core-imperative-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Functional Core, Imperative Shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-parse-dont-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. "Parse, Don't Validate"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-shadow-execution-the-oracle-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Shadow Execution (The Oracle Pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-execution-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Execution Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planning
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Planning
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backlog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planning/redis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redis Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-core-philosophy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Core Philosophy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-strategy-coverage-driven-verification-cdv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Strategy: Coverage-Driven Verification (CDV)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Strategy: Coverage-Driven Verification (CDV)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#criticality-tiering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Criticality Tiering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-architectural-guardrails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Architectural Guardrails
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Architectural Guardrails">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-type-driven-development-the-compiler-guardrail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Type-Driven Development (The Compiler Guardrail)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-the-validator-trait-the-runtime-guardrail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. The Validator Trait (The Runtime Guardrail)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-property-based-testing-the-logic-guardrail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Property-Based Testing (The Logic Guardrail)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-research-backed-protocols-v11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Research-Backed Protocols (v1.1)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Research-Backed Protocols (v1.1)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-the-reflexion-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. The Reflexion Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-chain-of-verification-cove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Chain-of-Verification (CoVe)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-invariant-documentation-formal-verification-lite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Invariant Documentation (Formal Verification Lite)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-structural-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Structural Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Structural Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-functional-core-imperative-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Functional Core, Imperative Shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-parse-dont-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. "Parse, Don't Validate"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-shadow-execution-the-oracle-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Shadow Execution (The Oracle Pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-execution-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Execution Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="keyforge-engineering-doctrine-llm-assisted-reliability">KeyForge Engineering Doctrine: LLM-Assisted Reliability</h1>
+<p><strong>Version:</strong> 1.1
+<strong>Date:</strong> 2025-12-27
+<strong>Context:</strong> Mitigating the "High-Level Genius / Low-Level Hallucination" gap in AI-generated code.</p>
+<hr />
+<h2 id="1-the-problem-statement">1. The Problem Statement</h2>
+<p>Large Language Models (LLMs) excel at architectural synthesis but suffer from <strong>Happy Path Bias</strong> and <strong>Semantic Blindness</strong> at the implementation level.</p>
+<ul>
+<li><strong>The Gap:</strong> Code often compiles and passes basic tests but fails under boundary conditions or violates domain invariants (e.g., negative distances, infinite loops).</li>
+<li><strong>The Risk:</strong> "Silent Failure." The system produces plausible but mathematically incorrect optimization results, degrading the core value proposition without crashing.</li>
+</ul>
+<h2 id="2-core-philosophy">2. Core Philosophy</h2>
+<blockquote>
+<p><em>"You cannot test quality into a product."</em> — W. Edwards Deming</p>
+</blockquote>
+<p>Testing is a measurement activity, not a construction activity. To ensure reliability in an LLM-generated codebase, we must move from <strong>Detection</strong> (catching bugs after they exist) to <strong>Prevention</strong> (making bugs unrepresentable).</p>
+<h2 id="3-strategy-coverage-driven-verification-cdv">3. Strategy: Coverage-Driven Verification (CDV)</h2>
+<p>We use code coverage tools (<code>tarpaulin</code>) not to gamify metrics, but to identify <strong>Logic Dark Matter</strong>—code branches generated by the LLM that have never been executed or verified.</p>
+<h3 id="criticality-tiering">Criticality Tiering</h3>
+<ol>
+<li><strong>Tier 1 (The Nucleus):</strong> <code>keyforge-physics</code>, <code>keyforge-evolution</code>.</li>
+<li><em>Risk:</em> Mathematical hallucination.</li>
+<li>
+<p><em>Requirement:</em> 95%+ Branch Coverage + Property Testing.</p>
+</li>
+<li>
+<p><strong>Tier 2 (The Contract):</strong> <code>keyforge-protocol</code>, <code>keyforge-model</code>.</p>
+</li>
+<li><em>Risk:</em> Data corruption.</li>
+<li>
+<p><em>Requirement:</em> 100% Validation Coverage.</p>
+</li>
+<li>
+<p><strong>Tier 3 (The Shell):</strong> <code>keyforge-infra</code>, <code>keyforge-hive</code>.</p>
+</li>
+<li><em>Risk:</em> IO/State failure.</li>
+<li><em>Requirement:</em> Error Path Verification.</li>
+</ol>
+<h2 id="4-architectural-guardrails">4. Architectural Guardrails</h2>
+<p>To constrain the LLM, we define a strict "grammar" of Types and Traits. The LLM acts as a translator; if the translation violates the grammar, the compiler rejects it.</p>
+<h3 id="a-type-driven-development-the-compiler-guardrail">A. Type-Driven Development (The Compiler Guardrail)</h3>
+<p>Replace primitives (<code>usize</code>, <code>f32</code>) with Semantic Newtypes to prevent logic errors (e.g., swapping rows/cols).</p>
+<ul>
+<li><em>Before:</em> <code>fn dist(x1: f32, y1: f32, x2: f32, y2: f32)</code></li>
+<li><em>After:</em> <code>fn dist(a: Point, b: Point) -&gt; Distance</code></li>
+</ul>
+<h3 id="b-the-validator-trait-the-runtime-guardrail">B. The Validator Trait (The Runtime Guardrail)</h3>
+<p>Enforce validity at the constructor level. An object cannot exist in an invalid state.</p>
+<ul>
+<li><em>Pattern:</em> <code>impl TryFrom&lt;RawData&gt; for ValidatedData</code></li>
+<li><em>Effect:</em> The LLM cannot write tests using broken mock data because the constructors will panic.</li>
+</ul>
+<h3 id="c-property-based-testing-the-logic-guardrail">C. Property-Based Testing (The Logic Guardrail)</h3>
+<p>Test <strong>Invariants</strong> (Rules) instead of <strong>Instances</strong> (Values).</p>
+<ul>
+<li><em>Instead of:</em> <code>assert_eq!(add(2,2), 4)</code></li>
+<li><em>Use:</em> <code>proptest! { fn addition_is_commutative(a, b) { assert_eq!(add(a,b), add(b,a)) } }</code></li>
+</ul>
+<h2 id="5-research-backed-protocols-v11">5. Research-Backed Protocols (v1.1)</h2>
+<p>Incorporating findings from Shinn et al. (2023) and Dhuliawala et al. (2023).</p>
+<h3 id="a-the-reflexion-loop">A. The Reflexion Loop</h3>
+<p>When a property test fails, we do not simply ask for a fix. We enforce a reflection step:</p>
+<ol>
+<li><strong>Input:</strong> Failing test case + Code.</li>
+<li><strong>Task:</strong> "Explain the logic error in natural language."</li>
+<li><strong>Action:</strong> "Generate the fix based on that explanation."</li>
+</ol>
+<p><em>Goal: Break the loop of blind retries.</em></p>
+<h3 id="b-chain-of-verification-cove">B. Chain-of-Verification (CoVe)</h3>
+<p>For critical Tier 1 logic, the generation process is split:</p>
+<ol>
+<li><strong>Draft:</strong> Generate the function.</li>
+<li><strong>Verify:</strong> Generate 3 edge cases and manually calculate the expected result.</li>
+<li><strong>Final:</strong> Refine the code to satisfy the verification cases.</li>
+</ol>
+<h3 id="c-invariant-documentation-formal-verification-lite">C. Invariant Documentation (Formal Verification Lite)</h3>
+<p>We explicitly document invariants using Kani-style assertions in comments, forcing the LLM to "think" in formal proofs.</p>
+<ul>
+<li><em>Example:</em> <code>// INVARIANT: kani::assume(score &gt;= 0.0);</code></li>
+</ul>
+<h2 id="6-structural-patterns">6. Structural Patterns</h2>
+<h3 id="a-functional-core-imperative-shell">A. Functional Core, Imperative Shell</h3>
+<p>Isolate pure logic from the messy real world.</p>
+<ul>
+<li><strong>The Core:</strong> (<code>physics</code>) Pure functions only. Deterministic. No IO.</li>
+<li><strong>The Shell:</strong> (<code>infra</code>) Handles Files, Network, Time.</li>
+<li><em>Benefit:</em> If the Core fails, it is a logic bug (reproducible). If the Shell fails, it is an environment issue.</li>
+</ul>
+<h3 id="b-parse-dont-validate">B. "Parse, Don't Validate"</h3>
+<p>Do not check for validity deep in the call stack. Parse data into a valid type at the boundary.</p>
+<ul>
+<li><em>Weak:</em> Checking <code>if list.is_empty()</code> inside a math loop.</li>
+<li><em>Strong:</em> Accepting <code>NonEmptyVec&lt;T&gt;</code> as the argument.</li>
+</ul>
+<h3 id="c-shadow-execution-the-oracle-pattern">C. Shadow Execution (The Oracle Pattern)</h3>
+<p>Maintain a "Simple, Slow, Correct" reference implementation (<code>DeterministicScorer</code>) alongside the "Fast, Complex" optimized version (<code>ScoringEngine</code>).</p>
+<ul>
+<li><em>Verification:</em> Run both in tests. If <code>Fast != Slow</code>, the optimization is flawed.</li>
+</ul>
+<h2 id="7-execution-plan">7. Execution Plan</h2>
+<ol>
+<li><strong>Baseline:</strong> Generate Tarpaulin coverage report to map "Ignorance."</li>
+<li><strong>Target:</strong> <code>keyforge-physics</code> (Highest Risk).</li>
+<li><strong>Action:</strong> Apply Type Guardrails, Property Tests, and Reflexion Loops to uncovered regions.</li>
+</ol>
+<p>. The Typestate Pattern (The "Compiler State Machine")
+The Problem: LLMs struggle with temporal coupling (e.g., "You must call init() before process()"). They frequently write code that accesses data before it is ready.
+The Fix: Encode the state in the Type System, not in boolean flags.
+The Work Product:
+Instead of a single Job struct with an Option<StartedAt>, define distinct types for each state.
+code
+Rust
+// Bad (LLM Trap):
+struct Job {
+    id: String,
+    status: String, // "pending", "running"
+    result: Option<f32>, // LLM forgets to check if this is None
+}</p>
+<p>// Good (LLM Railing):
+struct PendingJob { id: String, config: Config }
+struct RunningJob { id: String, start_time: Instant }
+struct CompletedJob { id: String, score: f32 }</p>
+<p>// The Transition (The only way to move forward)
+impl PendingJob {
+    fn start(self) -&gt; RunningJob { ... }
+}
+impl RunningJob {
+    fn finish(self, score: f32) -&gt; CompletedJob { ... }
+}
+Why it works: The LLM cannot write code that accesses the score of a pending job. The compiler prevents the hallucination. It forces the LLM to follow the linear flow of the system.
+2. The "Parameter Object" Pattern (Context Structs)
+The Problem: "Argument Swapping." In physics, you have functions taking multiple u16 or f32 arguments. Even with Newtypes, LLMs struggle with functions that take 5+ arguments.
+The Fix: Group cohesive arguments into a Context Struct.
+The Work Product:
+code
+Rust
+// libs/keyforge-physics/src/kernel/types.rs</p>
+<p>// Instead of passing (layout, corpus, rubric, weights) everywhere:
+pub struct ScoringContext&lt;'a&gt; {
+    pub layout: &amp;'a Layout,
+    pub corpus: &amp;'a Corpus,
+    pub rubric: &amp;'a Rubric,
+}</p>
+<p>// Function signature becomes simple:
+fn calculate_score(ctx: ScoringContext) -&gt; Score { ... }
+Why it works:
+Token Efficiency: Reduces repetition in function signatures.
+Safety: You construct the Context once (validated). The LLM just passes it around. It cannot accidentally pass corpus where rubric is expected because they are fields, not positional arguments.
+3. The Command Pattern (Reified Actions)
+The Problem: In keyforge-hive, business logic often gets mixed into HTTP handlers (axum). This makes it hard to test and hard for the LLM to reason about "what happens" vs "how it is served."
+The Fix: Decouple the Intent from the Execution.
+The Work Product:
+Define actions as data structures (Commands), not functions.
+code
+Rust
+// libs/keyforge-core/src/commands.rs</p>
+<p>pub enum HiveCommand {
+    RegisterJob(JobRequest),
+    CancelJob(String),
+    SubmitResult(ResultSubmission),
+}</p>
+<p>// The Handler (Pure Logic)
+pub fn handle_command(cmd: HiveCommand, state: &amp;mut AppState) -&gt; Result<Event, Error> {
+    match cmd {
+        HiveCommand::RegisterJob(req) =&gt; {
+            // Pure logic: Update state, return event
+        }
+        // ...
+    }
+}
+Why it works:
+Isolation: You can ask the LLM to "Implement the handler for RegisterJob" without pasting any Axum/HTTP code.
+Testability: You can test the logic by constructing a HiveCommand struct, without spinning up a server.
+4. The Centralized Error Registry (The "Failure Catalog")
+The Problem: LLMs are lazy with errors. They default to anyhow::anyhow!("error") or unwrap(). This makes production debugging a nightmare.
+The Fix: A strict, enumerated catalog of every possible failure state.
+The Work Product:
+A dedicated errors.rs in keyforge-model or keyforge-protocol.
+code
+Rust
+// libs/keyforge-protocol/src/errors.rs
+use thiserror::Error;</p>
+<h1 id="deriveerror-debug">[derive(Error, Debug)]</h1>
+<p>pub enum ForgeError {
+    #[error("Physics Violation: Score {0} is negative")]
+    PhysicsViolation(f32),</p>
+<pre><code>#[error("Invalid Layout: Key count {0} != Geometry {1}")]
+LayoutMismatch(usize, usize),
+
+#[error("Stale Job: Job {0} was cancelled")]
+StaleJob(String),
+</code></pre>
+<p>}
+The Protocol:
+Constraint: "You are forbidden from using anyhow! or unwrap(). You must return a Result<T, ForgeError>. If a specific error variant does not exist, ask me to add it to the Registry."
+Why it works: It forces the LLM to categorize the error. It cannot just "bail out"; it has to think about what went wrong, which often helps it realize the logic is flawed.
+Summary of the "Robust" Architecture
+Typestate: Make invalid sequences impossible (Pending -&gt; Running).
+Parameter Objects: Make argument swapping impossible (ScoringContext).
+Command Pattern: Make logic independent of the web server (HiveCommand).
+Error Registry: Make lazy error handling impossible (ForgeError).
+These elements reduce the Cognitive Load on the LLM. It doesn't have to remember "is this job running?" or "which argument is the corpus?" because the Types tell it.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

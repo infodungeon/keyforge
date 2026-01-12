@@ -28,6 +28,9 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::net::sync::ServerManifest;
+use crate::asset::AssetServerProvider;
+
 /// An asset provider that loads data directly from the local filesystem.
 ///
 /// It supports loading both system-level assets (stored in zstd-compressed MessagePack)
@@ -236,5 +239,29 @@ impl AssetLoader for FsProvider {
         let reg = KeycodeRegistry::new(defs);
         reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid user keycodes: {}", e)))?;
         Ok(Arc::new(reg))
+    }
+}
+
+#[async_trait::async_trait]
+impl AssetServerProvider for FsProvider {
+    async fn get_manifest(&self) -> ServerManifest {
+        let root = self.root.clone();
+        tokio::task::spawn_blocking(move || {
+            crate::net::sync::generate_manifest(&root.join("system")).unwrap_or(ServerManifest { files: Default::default() })
+        }).await.unwrap_or(ServerManifest { files: Default::default() })
+    }
+
+    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
+        let p = self.root.join(path);
+        // Security check
+        if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+            return None;
+        }
+        
+        if p.exists() {
+             tokio::fs::read(p).await.ok().map(bytes::Bytes::from)
+        } else {
+            None
+        }
     }
 }

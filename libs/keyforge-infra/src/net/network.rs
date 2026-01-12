@@ -34,18 +34,58 @@ pub async fn ensure_file(
     local_path: &Path,
     expected_hash: Option<&str>,
 ) -> InfraResult<()> {
-    // 1. Check existing file integrity
+    // 1. Check existing file integrity with Metadata Optimization
     if local_path.exists() {
         if let Some(hash) = expected_hash {
-            // For existing files, we still have to read them to verify.
-            // Optimization: We could store a .sha256 sidecar file to avoid re-hashing large files on every startup.
-            // For now, we read.
-            let content = tokio::fs::read(local_path).await.map_err(InfraError::Io)?;
+            // Check for sidecar hash file to avoid re-reading large files
+            let sidecar_path = local_path.with_extension(format!(
+                "{}.sha256",
+                local_path.extension().and_then(|s| s.to_str()).unwrap_or("")
+            ));
+
+            let mut trusted = false;
+            if sidecar_path.exists() {
+                if let (Ok(meta_data), Ok(meta_side)) = (
+                    tokio::fs::metadata(local_path).await,
+                    tokio::fs::metadata(&sidecar_path).await,
+                ) {
+                    if let (Ok(mtime_data), Ok(mtime_side)) = (meta_data.modified(), meta_side.modified()) {
+                        // If sidecar is newer than data, and contains the expected hash, we trust it.
+                        if mtime_side > mtime_data {
+                            if let Ok(content) = tokio::fs::read_to_string(&sidecar_path).await {
+                                if content.trim() == hash {
+                                    trusted = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if trusted {
+                return Ok(());
+            }
+
+            // Fallback: Full content verification
+            let file = tokio::fs::File::open(local_path).await.map_err(InfraError::Io)?;
+            let mut reader = tokio::io::BufReader::new(file);
             let mut hasher = Sha256::new();
-            hasher.update(&content);
+            let mut buffer = [0u8; 8192];
+
+            use tokio::io::AsyncReadExt;
+            loop {
+                let n = reader.read(&mut buffer).await.map_err(InfraError::Io)?;
+                if n == 0 { break; }
+                hasher.update(&buffer[..n]);
+            }
+
             let calculated = hex::encode(hasher.finalize());
 
             if calculated == hash {
+                // Update sidecar for next time
+                if let Err(e) = tokio::fs::write(&sidecar_path, hash).await {
+                    warn!("Failed to write sidecar hash: {}", e);
+                }
                 return Ok(());
             }
             warn!(
@@ -141,8 +181,8 @@ pub async fn ensure_file(
     }
 
     // Verify Hash of Downloaded Content
+    let calculated = hex::encode(hasher.finalize());
     if let Some(expected) = expected_hash {
-        let calculated = hex::encode(hasher.finalize());
         if calculated != expected {
             return Err(InfraError::HashMismatch {
                 expected: expected.to_string(),
@@ -155,6 +195,17 @@ pub async fn ensure_file(
     temp_file
         .persist(local_path)
         .map_err(|e| InfraError::Io(e.error))?;
+
+    // Write sidecar
+    if expected_hash.is_some() {
+        let sidecar_path = local_path.with_extension(format!(
+            "{}.sha256",
+            local_path.extension().and_then(|s| s.to_str()).unwrap_or("")
+        ));
+        if let Err(e) = tokio::fs::write(&sidecar_path, calculated).await {
+             warn!("Failed to write sidecar hash: {}", e);
+        }
+    }
 
     Ok(())
 }

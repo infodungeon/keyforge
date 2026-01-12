@@ -149,6 +149,32 @@ mutate-physics:
 doc:
     cargo doc --workspace --no-deps --open
 
+# --- DOCUMENTATION ---
+
+MKDOCS := "./.venv/bin/python3 -m mkdocs"
+
+# One-step build and publish (builds static site and ensures web server is up)
+docs: docs-build
+    @just web-up
+    @echo "🚀 Documentation published to https://keyforge.infodungeon.com"
+
+# Build static documentation site using mkdocs
+docs-build:
+    {{MKDOCS}} build --clean
+
+# Serve documentation locally for development
+docs-serve:
+    {{MKDOCS}} serve
+
+# Build and publish documentation to the local web server
+docs-publish: docs-build
+    @echo "Documentation built and placed in hosts/sites/keyforge"
+    @if [ "$$(docker ps -q -f name=keyforge_web)" ]; then \
+        echo "Web server is running. Docs are live at https://keyforge.infodungeon.com (or localhost if mapped)"; \
+    else \
+        echo "Web server is not running. Start it with 'just web-up'"; \
+    fi
+
 # --- Asset Management ---
 
 # Build the Asset Server container

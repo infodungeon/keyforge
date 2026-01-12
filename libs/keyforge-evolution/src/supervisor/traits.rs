@@ -59,6 +59,7 @@ pub trait MutationOperator {
         layout: &Layout,
         pos_map: &[u16],
         rng: &mut impl Rng,
+        temperature: f32,
     ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError>;
 }
 

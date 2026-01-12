@@ -122,14 +122,14 @@
 * **Date:** 2026-01-07
 * **Context:**
   1. **Process Isolation:** The Hive WebSocket event loop was process-local (`tokio::broadcast`). If we scaled Hive to multiple instances, users connected to Instance A could not see events from Instance B.
-  2. **Database Load:** High-frequency ephemeral data (Agent Heartbeats at 1Hz, Real-time Score updates) was being written to PostgreSQL, causing write amplification and WAL bloat for data that has no long-term value.
+  2. **Database Load:** High-frequency ephemeral data (Agent Heartbeats at 1Hz, Real-time Score updates) was being written to PostgreSQL, causing write amplification and WAL bloat for data that has no long-term value.oo
   3. **Consistency:** Asset caches were managed locally. If an admin updated a file on one server, others would serve stale data.
 * **Decision:** Introduce **Valkey** (an open-source Redis fork) as the **Coordination Layer**.
   * **Role:** Acts as the "Nervous System" for the cluster.
   * **Mechanism:**
-    *   **Heartbeats:** `SETEX` keys with TTL (Auto-expiry for dead nodes).
-    *   **Chatter:** `PUBLISH/SUBSCRIBE` for real-time score updates across the cluster.
-    *   **Manifest:** Stores the authoritative hash of system assets to ensure consistency.
+    * **Heartbeats:** `SETEX` keys with TTL (Auto-expiry for dead nodes).
+    * **Chatter:** `PUBLISH/SUBSCRIBE` for real-time score updates across the cluster.
+    * **Manifest:** Stores the authoritative hash of system assets to ensure consistency.
 * **Consequences:**
   * (+) **Scalability:** Hive is now stateless and can scale horizontally.
   * (+) **Observability:** Real-time visibility into Agent temperature/IPS without SQL polling.
@@ -155,8 +155,8 @@
 * **Date:** 2026-01-12
 * **Context:** Hive currently handles both "Logic" (Jobs, Auth) and "Content" (Serving 50MB corpus files). High download traffic from agents/CLIs competes with the API's CPU resources.
 * **Decision:** Split the architecture into two distinct services:
-  1.  **Hive (Control Plane):** Handles orchestration, auth, and state.
-  2.  **Assets (Data Plane):** A dedicated, stateless HTTP service that streams assets directly from Valkey.
+  1. **Hive (Control Plane):** Handles orchestration, auth, and state.
+  2. **Assets (Data Plane):** A dedicated, stateless HTTP service that streams assets directly from Valkey.
 * **Consequences:**
   * (+) **Scalability:** Asset Server can be cached via CDN or scaled independently.
   * (+) **Security:** Asset Server can be public (read-only), while Hive remains private/authenticated.

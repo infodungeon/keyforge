@@ -1,3 +1,5 @@
+// apps/keyforge-ui/src-tauri/src/lib.rs
+
 //! # KeyForge UI Backend
 //!
 //! Rust backend for the KeyForge Tauri application. This crate handles 
@@ -20,6 +22,8 @@ pub mod models;
 pub mod state;
 /// Internal utility functions.
 pub mod utils;
+/// Agent Runner
+pub mod runner;
 
 /// The main entry point for the KeyForge UI application.
 ///
@@ -41,17 +45,37 @@ pub fn run() {
             tracing::info!("Initializing workspace at: {:?}", data_dir);
             
             // Self-Healing Initialization
-            // We allow the app to continue even if this returns an error, 
-            // so the user can see the UI and potential error toasts.
             if let Err(e) = initialize_workspace(&data_dir, InitMode::Create) {
                 tracing::error!("Workspace initialization error: {}", e);
             }
 
+            // Start Embedded Asset Server
+            // This allows the frontend (and potentially local agents) to fetch assets via HTTP/3001
+            // mirroring the Hive architecture locally.
+            let provider = Arc::new(keyforge_infra::FsProvider::new(data_dir.clone()));
+            let asset_app = keyforge_assets::create_app(provider);
+            
+            tauri::async_runtime::spawn(async move {
+                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 3001));
+                match tokio::net::TcpListener::bind(addr).await {
+                    Ok(listener) => {
+                         tracing::info!("🚀 Embedded Asset Server listening on http://{}", addr);
+                         if let Err(e) = axum::serve(listener, asset_app).await {
+                             tracing::error!("Asset server error: {}", e);
+                         }
+                    }
+                    Err(e) => {
+                         tracing::warn!("Failed to bind asset server to 3001: {}. Is another instance running?", e);
+                    }
+                }
+            });
+
             let asset_cache = AssetCache::new(data_dir);
 
             app.manage(SessionState {
-                active: Arc::new(RwLock::new(None)),
+                active_job: Arc::new(RwLock::new(None)),
                 assets: Arc::new(asset_cache),
+                client: Arc::new(RwLock::new(None)),
             });
 
             Ok(())
@@ -110,7 +134,8 @@ pub fn run() {
             commands::arena::cmd_get_corpus_bigrams,
             // System
             commands::system::cmd_get_system_health,
-            commands::system::cmd_check_hive_health
+            commands::system::cmd_check_hive_health,
+            commands::system::cmd_set_hive_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

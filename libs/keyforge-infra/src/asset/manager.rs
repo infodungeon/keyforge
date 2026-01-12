@@ -9,7 +9,7 @@ use keyforge_model::constants::{
 };
 use keyforge_model::CostMatrixSource;
 use keyforge_protocol::JobConfig;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 #[derive(Debug)]
@@ -23,18 +23,30 @@ impl AssetManager {
         Self { client, root }
     }
 
+    fn check_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
+        let sub = match category {
+            "keyboards" => "keyboards/models",
+            "weights" => "weights",
+            "config" => "config",
+            _ => category,
+        };
+        let p = self.root.join("system").join(sub).join(format!("{}.mpk.zst", stem));
+        if p.exists() { Some(p) } else { None }
+    }
+
+    fn check_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
+        let p = self.root.join("user").join(category).join(format!("{}.json", stem));
+        if p.exists() { Some(p) } else { None }
+    }
+
     pub async fn ensure_keyboard(&self, name: &str) -> InfraResult<PathBuf> {
-        let safe_name = crate::util::common::sanitize_filename(name);
-        let filename = format!("{}.json", safe_name);
-        let local_path = self.root.join("user/keyboards").join(&filename);
+        let stem = name.strip_suffix(".json").unwrap_or(name);
         
-        // Check if file already exists locally
-        if local_path.exists() {
-            return Ok(local_path);
-        }
+        if let Some(p) = self.check_user_path("keyboards", stem) { return Ok(p); }
+        if let Some(p) = self.check_system_path("keyboards", stem) { return Ok(p); }
         
-        // Using Asset URL
-        let remote_path = format!("data/keyboards/{}", filename);
+        let local_path = self.root.join("user/keyboards").join(format!("{}.json", stem));
+        let remote_path = format!("data/keyboards/{}.json", stem);
         let url = self.client.asset_url(&remote_path);
 
         ensure_file(&self.client, &url, &local_path, None).await?;
@@ -42,14 +54,13 @@ impl AssetManager {
     }
 
     pub async fn ensure_cost_matrix(&self, filename: &str) -> InfraResult<PathBuf> {
-        let local_path = self.root.join("user/weights").join(filename);
+        let stem = filename.strip_suffix(".json").unwrap_or(filename);
+
+        if let Some(p) = self.check_user_path("weights", stem) { return Ok(p); }
+        if let Some(p) = self.check_system_path("weights", stem) { return Ok(p); }
         
-        // Check if file already exists locally
-        if local_path.exists() {
-            return Ok(local_path);
-        }
-        
-        let remote_path = format!("data/{}", filename);
+        let local_path = self.root.join("user/weights").join(format!("{}.json", stem));
+        let remote_path = format!("data/{}.json", stem);
         let url = self.client.asset_url(&remote_path);
 
         ensure_file(&self.client, &url, &local_path, None).await?;
@@ -61,13 +72,21 @@ impl AssetManager {
         corpus_id: &str,
         expected_hash: Option<&str>,
     ) -> InfraResult<PathBuf> {
-        let bundle_name = if corpus_id.is_empty() || corpus_id == "default" {
+        let bundle_id = if corpus_id.is_empty() || corpus_id == "default" {
             DEFAULT_CORPUS_ID
         } else {
             corpus_id
         };
 
-        let bundle_dir = self.root.join("user/corpora").join(bundle_name);
+        // 1. Check System (Binary)
+        let sys_dir = self.root.join("system/corpora").join(bundle_id);
+        if sys_dir.join("1grams.mpk.zst").exists() {
+            // We could verify hash here too, but for simplicity let's assume system is stable
+            return Ok(sys_dir);
+        }
+
+        // 2. Check User (JSON)
+        let user_dir = self.root.join("user/corpora").join(bundle_id);
         let files = [
             ASSET_1GRAMS_FILENAME,
             ASSET_2GRAMS_FILENAME,
@@ -75,44 +94,39 @@ impl AssetManager {
             ASSET_WORDS_FILENAME,
         ];
 
-        // Check if all required files already exist locally
-        let all_exist = files.iter().all(|f| bundle_dir.join(f).exists());
+        let all_user_exist = files.iter().all(|f| user_dir.join(f).exists());
         
-        if all_exist {
-            // If hash is provided, verify it
+        if all_user_exist {
             if let Some(hash) = expected_hash {
-                let root = self.root.clone();
-                let provider = crate::FsProvider::new(root);
-                if let Ok(h) = provider.get_corpus_hash(bundle_name).await {
+                let provider = crate::FsProvider::new(self.root.clone());
+                if let Ok(h) = provider.get_corpus_hash(bundle_id).await {
                     if h == hash {
-                        return Ok(bundle_dir);
+                        return Ok(user_dir);
                     }
-                    // Hash mismatch, need to re-download
                 }
             } else {
-                // No hash to verify, files exist, we're good
-                return Ok(bundle_dir);
+                return Ok(user_dir);
             }
         }
 
-        // Download missing or mismatched files
+        // Download missing or mismatched files to USER directory
         for f in files {
-            let local_path = bundle_dir.join(f);
-            let remote_path = format!("data/corpora/{}/{}", bundle_name, f);
+            let local_path = user_dir.join(f);
+            let remote_path = format!("data/corpora/{}/{}", bundle_id, f);
             let url = self.client.asset_url(&remote_path);
 
             ensure_file(&self.client, &url, &local_path, None).await?;
         }
 
-        Ok(bundle_dir)
+        Ok(user_dir)
     }
 
     pub async fn sync_job_assets(&self, config: &JobConfig) -> InfraResult<(String, String)> {
         info!("📦 Syncing assets for job...");
         let cost_path = match &config.cost_matrix {
             CostMatrixSource::Predefined(filename) => {
-                self.ensure_cost_matrix(filename).await?;
-                filename.clone()
+                let p = self.ensure_cost_matrix(filename).await?;
+                p.file_name().unwrap().to_string_lossy().to_string()
             }
         };
         for source in &config.corpora {

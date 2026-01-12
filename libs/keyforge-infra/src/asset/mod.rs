@@ -23,6 +23,15 @@ pub mod valkey_provider;
 
 pub use valkey_provider::ValkeyProvider;
 
+use crate::net::sync::ServerManifest;
+use keyforge_core::loader::AssetLoader;
+
+#[async_trait::async_trait]
+pub trait AssetServerProvider: AssetLoader + std::fmt::Debug {
+    async fn get_manifest(&self) -> ServerManifest;
+    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes>;
+}
+
 /// Path prefix for keyboard definition files.
 pub const ASSET_PATH_KEYBOARDS: &str = "keyboards/models/";
 /// Path prefix for corpus files.

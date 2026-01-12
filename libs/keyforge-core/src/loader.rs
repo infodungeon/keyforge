@@ -62,12 +62,24 @@ impl RawCostData {
 
 impl keyforge_model::validator::Validator for RawCostData {
     fn validate(&self) -> Result<(), String> {
+        if self.entries.len() > 100_000 {
+            return Err("Too many cost entries (limit 100,000)".to_string());
+        }
         for entry in &self.entries {
             if entry.from.is_empty() || entry.to.is_empty() {
                 return Err("Cost entry labels cannot be empty".to_string());
             }
+            if entry.from.len() > 32 || entry.to.len() > 32 {
+                return Err("Cost entry label too long".to_string());
+            }
+            if !entry.cost.is_finite() {
+                return Err(format!("Invalid cost (NaN or Inf) found for {} -> {}", entry.from, entry.to));
+            }
             if entry.cost < 0.0 {
                 return Err(format!("Negative cost found for {} -> {}", entry.from, entry.to));
+            }
+            if entry.cost > 1000.0 {
+                return Err(format!("Cost too high for {} -> {} (limit 1000.0)", entry.from, entry.to));
             }
         }
         Ok(())

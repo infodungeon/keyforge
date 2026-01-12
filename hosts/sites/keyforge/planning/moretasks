@@ -1,7 +1,0 @@
-5.9	Global Session Auto-Save	Implement AutoSaveService in keyforge-workspace. Serialize SessionState to session.json on change. Load on boot. Prevents data loss during crashes.
-5.10	Layout Diff View	Implement a "Comparator" view. Select Layout A and Layout B. Render a heatmap showing the delta (e.g., keys that moved, fingers that work harder).
-5.11	Interactive Tutorial (Walkthrough)	Implement a library like react-joyride. Guide new users: "Select Keyboard" -> "Pick Corpus" -> "Run Optimize".
-6.6	QMK/ZMK Exporter	Create crates/keyforge-export. Map internal KeyCode enums to QMK C macros and ZMK DeviceTree syntax. Add "Export Firmware" button to UI.
-6.7	Clipboard Integration	Add "Copy as KLE" (Keyboard Layout Editor) JSON string. Allows users to paste results directly into http://www.keyboard-layout-editor.com/.
-7.1	Biometric replay	In the Arena, record timestamped keystrokes. Allow replay visualization to see where the user hesitated (high latency bigrams).
-7.2	Custom Corpus UI	Add a "Quick Paste" modal in Settings. User pastes text -> Rust generates 1grams.csv/2grams.csv in memory -> Saves to data/corpora/custom.

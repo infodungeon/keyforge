@@ -48,6 +48,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     "connected" | "disconnected" | "checking"
   >("checking");
 
+  const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+
   // Persistence
   useEffect(
     () => localStorage.setItem("keyforge_hive_url", hiveUrl),
@@ -78,12 +81,14 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       setConnectionStatus("connected");
     } catch (e) {
       setConnectionStatus("disconnected");
-      addToast("error", `Connection Failed: ${e}`);
+      // Don't toast on auto-check failure to avoid annoyance if offline
     }
   };
+
   useEffect(() => {
     checkConnection();
   }, [hiveUrl]);
+
   const syncData = async () => {
     setIsSyncing(true);
     try {
@@ -105,6 +110,23 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       addToast("error", `Sync Failed: ${e}`);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const retryBootstrap = async () => {
+    setIsBootstrapping(true);
+    setBootstrapError(null);
+    try {
+      await backend.bootstrapAssets(hiveUrl);
+      addToast("success", "Workspace initialized successfully.");
+      // Force page reload or trigger a library refresh would be ideal here
+      window.location.reload();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setBootstrapError(`Bootstrap Failed: ${msg}`);
+      addToast("error", `Bootstrap Failed: ${msg}`);
+    } finally {
+      setIsBootstrapping(false);
     }
   };
 
@@ -132,9 +154,9 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         syncData,
         connectionStatus,
         checkConnection,
-        isBootstrapping: false,
-        bootstrapError: null,
-        retryBootstrap: async () => {},
+        isBootstrapping,
+        bootstrapError,
+        retryBootstrap,
       }}
     >
       {children}

@@ -401,6 +401,44 @@ fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> 
     Score::ZERO
 }
 
+#[inline(always)]
+fn get_p_effective(p: usize, idx_a: usize, idx_b: usize) -> usize {
+    if p == idx_a {
+        idx_b
+    } else if p == idx_b {
+        idx_a
+    } else {
+        p
+    }
+}
+
+#[inline(always)]
+fn get_flow_delta(
+    ctx: &EngineContext,
+    pos_map: &[u16],
+    c1: KeyCode,
+    c2: KeyCode,
+    c3: KeyCode,
+    idx_a: usize,
+    idx_b: usize,
+) -> i64 {
+    let p1 = pos_map[c1.0 as usize] as usize;
+    let p2 = pos_map[c2.0 as usize] as usize;
+    let p3 = pos_map[c3.0 as usize] as usize;
+    if p1 == 65535 || p2 == 65535 || p3 == 65535 {
+        return 0;
+    }
+
+    let cost_old = calculate_flow_cost(ctx, p1, p2, p3).0;
+
+    let p1_new = get_p_effective(p1, idx_a, idx_b);
+    let p2_new = get_p_effective(p2, idx_a, idx_b);
+    let p3_new = get_p_effective(p3, idx_a, idx_b);
+
+    let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new).0;
+    cost_new - cost_old
+}
+
 pub fn calculate_swap_delta(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
@@ -409,10 +447,14 @@ pub fn calculate_swap_delta(
     idx_b: usize,
 ) -> i64 {
     let layout_slice = layout.as_slice();
-    if idx_a >= layout_slice.len() || idx_b >= layout_slice.len() { return 0; }
+    if idx_a >= layout_slice.len() || idx_b >= layout_slice.len() {
+        return 0;
+    }
     let code_a = layout_slice[idx_a];
     let code_b = layout_slice[idx_b];
-    if code_a == code_b { return 0; }
+    if code_a == code_b {
+        return 0;
+    }
 
     let mut delta = 0i64;
     let n = ctx.key_count;
@@ -429,16 +471,19 @@ pub fn calculate_swap_delta(
     for k in start_a..end_a {
         let c2 = ctx.bigram_others[k];
         let p2 = pos_map[c2.0 as usize] as usize;
-        if p2 == 65535 { continue; }
+        if p2 == 65535 {
+            continue;
+        }
         let freq = ctx.bigram_freqs[k] as i64;
-        let p2_effective = if p2 == idx_b { 
-            idx_a 
+        let p2_effective = if p2 == idx_b {
+            idx_a
         } else if p2 == idx_a {
             idx_b
-        } else { 
-            p2 
+        } else {
+            p2
         };
-        delta += (ctx.cost_matrix[idx_b * n + p2_effective].0 - ctx.cost_matrix[idx_a * n + p2].0) * freq;
+        delta += (ctx.cost_matrix[idx_b * n + p2_effective].0 - ctx.cost_matrix[idx_a * n + p2].0)
+            * freq;
     }
 
     let start_b = ctx.bigram_starts[code_b.0 as usize];
@@ -446,25 +491,32 @@ pub fn calculate_swap_delta(
     for k in start_b..end_b {
         let c2 = ctx.bigram_others[k];
         let p2 = pos_map[c2.0 as usize] as usize;
-        if p2 == 65535 { continue; }
+        if p2 == 65535 {
+            continue;
+        }
         let freq = ctx.bigram_freqs[k] as i64;
-        let p2_effective = if p2 == idx_a { 
-            idx_b 
+        let p2_effective = if p2 == idx_a {
+            idx_b
         } else if p2 == idx_b {
             idx_a
-        } else { 
-            p2 
+        } else {
+            p2
         };
-        delta += (ctx.cost_matrix[idx_a * n + p2_effective].0 - ctx.cost_matrix[idx_b * n + p2].0) * freq;
+        delta += (ctx.cost_matrix[idx_a * n + p2_effective].0 - ctx.cost_matrix[idx_b * n + p2].0)
+            * freq;
     }
 
     let start_rev_a = ctx.bigram_rev_starts[code_a.0 as usize];
     let end_rev_a = ctx.bigram_rev_starts[code_a.0 as usize + 1];
     for k in start_rev_a..end_rev_a {
         let c1 = ctx.bigram_rev_others[k];
-        if c1 == code_a || c1 == code_b { continue; } 
+        if c1 == code_a || c1 == code_b {
+            continue;
+        }
         let p1 = pos_map[c1.0 as usize] as usize;
-        if p1 == 65535 { continue; }
+        if p1 == 65535 {
+            continue;
+        }
         let freq = ctx.bigram_rev_freqs[k] as i64;
         delta += (ctx.cost_matrix[p1 * n + idx_b].0 - ctx.cost_matrix[p1 * n + idx_a].0) * freq;
     }
@@ -473,21 +525,93 @@ pub fn calculate_swap_delta(
     let end_rev_b = ctx.bigram_rev_starts[code_b.0 as usize + 1];
     for k in start_rev_b..end_rev_b {
         let c1 = ctx.bigram_rev_others[k];
-        if c1 == code_a || c1 == code_b { continue; } 
+        if c1 == code_a || c1 == code_b {
+            continue;
+        }
         let p1 = pos_map[c1.0 as usize] as usize;
-        if p1 == 65535 { continue; }
+        if p1 == 65535 {
+            continue;
+        }
         let freq = ctx.bigram_rev_freqs[k] as i64;
         delta += (ctx.cost_matrix[p1 * n + idx_a].0 - ctx.cost_matrix[p1 * n + idx_b].0) * freq;
     }
 
+    // 3. Trigrams (Incremental)
     if !ctx.trigram_freqs.is_empty() {
-        let mut sc = PhysicsScratch::new();
-        let score_before = score_layout(ctx, layout, &mut sc);
-        let mut keys = layout_slice.to_vec();
-        keys.swap(idx_a, idx_b);
-        let validated_after = ValidatedLayout::new(&keys, ctx.key_count).unwrap();
-        let score_after = score_layout(ctx, &validated_after, &mut sc);
-        return score_after - score_before;
+        let ca = code_a.0 as usize;
+        let cb = code_b.0 as usize;
+
+        // Starts(a)
+        let s_a = ctx.trigram_starts[ca];
+        let e_a = ctx.trigram_starts[ca + 1];
+        for k in s_a..e_a {
+            let c2 = ctx.trigram_others1[k];
+            let c3 = ctx.trigram_others2[k];
+            let freq = ctx.trigram_freqs[k] as i64;
+            delta += get_flow_delta(ctx, pos_map, code_a, c2, c3, idx_a, idx_b) * freq;
+        }
+
+        // Starts(b)
+        let s_b = ctx.trigram_starts[cb];
+        let e_b = ctx.trigram_starts[cb + 1];
+        for k in s_b..e_b {
+            let c2 = ctx.trigram_others1[k];
+            let c3 = ctx.trigram_others2[k];
+            let freq = ctx.trigram_freqs[k] as i64;
+            delta += get_flow_delta(ctx, pos_map, code_b, c2, c3, idx_a, idx_b) * freq;
+        }
+
+        // Mid(a) where c1 != a and c1 != b
+        let s_ma = ctx.trigram_mid_starts[ca];
+        let e_ma = ctx.trigram_mid_starts[ca + 1];
+        for k in s_ma..e_ma {
+            let c1 = ctx.trigram_mid_others1[k];
+            if c1 == code_a || c1 == code_b {
+                continue;
+            }
+            let c3 = ctx.trigram_mid_others2[k];
+            let freq = ctx.trigram_mid_freqs[k] as i64;
+            delta += get_flow_delta(ctx, pos_map, c1, code_a, c3, idx_a, idx_b) * freq;
+        }
+
+        // Mid(b) where c1 != a and c1 != b
+        let s_mb = ctx.trigram_mid_starts[cb];
+        let e_mb = ctx.trigram_mid_starts[cb + 1];
+        for k in s_mb..e_mb {
+            let c1 = ctx.trigram_mid_others1[k];
+            if c1 == code_a || c1 == code_b {
+                continue;
+            }
+            let c3 = ctx.trigram_mid_others2[k];
+            let freq = ctx.trigram_mid_freqs[k] as i64;
+            delta += get_flow_delta(ctx, pos_map, c1, code_b, c3, idx_a, idx_b) * freq;
+        }
+
+        // Ends(a) where c1 != a, c1 != b, c2 != a, c2 != b
+        let s_ea = ctx.trigram_end_starts[ca];
+        let e_ea = ctx.trigram_end_starts[ca + 1];
+        for k in s_ea..e_ea {
+            let c1 = ctx.trigram_end_others1[k];
+            let c2 = ctx.trigram_end_others2[k];
+            if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b {
+                continue;
+            }
+            let freq = ctx.trigram_end_freqs[k] as i64;
+            delta += get_flow_delta(ctx, pos_map, c1, c2, code_a, idx_a, idx_b) * freq;
+        }
+
+        // Ends(b) where c1 != a, c1 != b, c2 != a, c2 != b
+        let s_eb = ctx.trigram_end_starts[cb];
+        let e_eb = ctx.trigram_end_starts[cb + 1];
+        for k in s_eb..e_eb {
+            let c1 = ctx.trigram_end_others1[k];
+            let c2 = ctx.trigram_end_others2[k];
+            if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b {
+                continue;
+            }
+            let freq = ctx.trigram_end_freqs[k] as i64;
+            delta += get_flow_delta(ctx, pos_map, c1, c2, code_b, idx_a, idx_b) * freq;
+        }
     }
 
     delta

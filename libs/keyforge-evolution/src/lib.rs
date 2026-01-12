@@ -146,7 +146,11 @@ fn evolve_internal<CB: ProgressCallback>(
             reheats,
             reheat_factor,
         } => {
-            let mutation = GroupMutation { unlocked_indices };
+            let mutation = GroupMutation {
+                unlocked_indices,
+                start_temp: *start_temp,
+                end_temp: *end_temp,
+            };
             let acceptance = CoolingAnnealing;
 
             let annealing_config = AnnealingConfig::new(

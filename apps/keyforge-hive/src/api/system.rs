@@ -138,6 +138,4 @@ pub fn system_routes() -> Router<Arc<AppState>> {
         .route("/api/corpora", get(list_corpora))
         .route("/api/costs", get(list_costs))
         .route("/api/keymap_extras", get(list_keymap_extras))
-        .route("/api/manifest", get(crate::api::sync::get_manifest))
-        .route("/api/data/system/{*path}", get(crate::api::sync::get_asset))
 }

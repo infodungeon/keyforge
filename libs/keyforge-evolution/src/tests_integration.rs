@@ -64,7 +64,8 @@ fn setup_test_engine(size: usize) -> ScoringEngine {
 #[test]
 fn test_monotonicity_zero_temp() {
     let engine = setup_test_engine(30);
-    let mutation = GroupMutation { unlocked_indices: (0..30).collect() };
+    // Updated GroupMutation initialization
+    let mutation = GroupMutation { unlocked_indices: (0..30).collect(), start_temp: 0.0, end_temp: 0.0 };
     let acceptance = CoolingAnnealing;
 
     struct ScoreCheckCallback {
@@ -115,7 +116,7 @@ fn test_annealing_edge_cases() {
     let mut opt_entropy = Optimizer::new(
         &engine,
         config_entropy,
-        GroupMutation { unlocked_indices: vec![0, 1] },
+        GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1.0, end_temp: 0.1 },
         CoolingAnnealing,
         crate::supervisor::traits::RealTimeKeeper,
     );
@@ -129,7 +130,7 @@ fn test_annealing_edge_cases() {
     let mut opt_fast = Optimizer::new(
         &engine,
         config_fast,
-        GroupMutation { unlocked_indices: vec![0, 1] },
+        GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1e-9, end_temp: 1e-20 },
         CoolingAnnealing,
         crate::supervisor::traits::RealTimeKeeper,
     );
@@ -246,7 +247,7 @@ fn test_singularity_zero_temp_execution() {
     let mut optimizer = Optimizer::new(
         &engine,
         config,
-        GroupMutation { unlocked_indices: vec![0, 1] },
+        GroupMutation { unlocked_indices: vec![0, 1], start_temp: 0.0, end_temp: 0.0 },
         CoolingAnnealing,
         crate::supervisor::traits::RealTimeKeeper,
     );
@@ -301,6 +302,7 @@ impl MutationOperator for StagnantMutation {
         _layout: &Layout,
         _pos_map: &[u16],
         _rng: &mut impl rand::Rng,
+        _temperature: f32, // Added
     ) -> Result<Option<MutationProposal>, EvolutionError> {
         Ok(Some(MutationProposal {
             delta: 1000,

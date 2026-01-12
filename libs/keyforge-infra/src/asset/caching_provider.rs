@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::asset::fs_provider::FsProvider;
+use crate::asset::AssetServerProvider;
 use crate::net::sync::ServerManifest;
 use bytes::Bytes;
 use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
@@ -153,7 +154,7 @@ impl CachingProvider {
     /// This is typically called during application startup. A safety limit is enforced
     /// to prevent excessive memory consumption if the system library is unexpectedly large.
     pub async fn warm_all(&self) -> Result<(), String> {
-        info!("🔥 Warming Asset Cache (Full Binary Verification)...");
+        info!("🔥 Warming Asset Cache (Parsed Objects Only)...");
         let system_root = self.state.provider.root.join("system");
 
         let manifest = crate::net::sync::generate_manifest(&system_root)
@@ -172,13 +173,8 @@ impl CachingProvider {
         const MAX_WARM_FILES: usize = 1000;
 
         for (rel_path, _) in manifest.files.iter().take(MAX_WARM_FILES) {
-            let full_path = system_root.join(rel_path);
-            let bytes =
-                tokio::fs::read(&full_path).await.map_err(|e| format!("Read error {}: {}", rel_path, e))?;
-            self.state
-                .file_cache
-                .insert(rel_path.clone(), Bytes::from(bytes));
-
+            // OPTIMIZATION: Do NOT load file content into file_cache eagerly.
+            // Only warm high-cost parsed objects.
             count_files += 1;
 
             if self.try_ensure_keyboard(rel_path).await? {
@@ -212,15 +208,33 @@ impl CachingProvider {
         }
 
         info!(
-            "✅ Cache Warmed: {} assets ({} kb, {} corp, {} wgt).",
+            "✅ Cache Warmed: {} assets scanned ({} kb, {} corp, {} wgt).",
             count_files, count_keyboards, count_corpora, count_weights
         );
         Ok(())
     }
 
     /// Retrieves the raw byte content of a cached file by its relative path.
-    pub fn get_file_content(&self, path: &str) -> Option<Bytes> {
-        self.state.file_cache.get(path)
+    /// Lazily loads from disk if not in cache.
+    pub async fn get_file_content(&self, path: &str) -> Option<Bytes> {
+        if let Some(bytes) = self.state.file_cache.get(path) {
+            return Some(bytes);
+        }
+
+        let system_root = self.state.provider.root.join("system");
+        let full_path = system_root.join(path);
+
+        match tokio::fs::read(&full_path).await {
+            Ok(data) => {
+                let bytes = Bytes::from(data);
+                self.state.file_cache.insert(path.to_string(), bytes.clone());
+                Some(bytes)
+            }
+            Err(e) => {
+                tracing::debug!("Cache miss & Disk read failed for {}: {}", path, e);
+                None
+            }
+        }
     }
 
     /// Returns the current system asset manifest.
@@ -304,6 +318,24 @@ impl CachingProvider {
             return Ok(true);
         }
         Ok(false)
+    }
+}
+
+#[async_trait::async_trait]
+impl AssetServerProvider for CachingProvider {
+    async fn get_manifest(&self) -> ServerManifest {
+        // If manifest is missing, regenerate it.
+        // We assume warm_all has been called, but for robustness:
+        if let Some(m) = self.get_manifest() {
+            return (*m).clone();
+        }
+        // Fallback: Generate on fly (expensive)
+        let system_root = self.state.provider.root.join("system");
+        crate::net::sync::generate_manifest(&system_root).unwrap_or_default()
+    }
+
+    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
+        self.get_file_content(path).await
     }
 }
 

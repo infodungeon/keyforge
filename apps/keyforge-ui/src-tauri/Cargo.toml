@@ -34,15 +34,19 @@ rmp-serde = "1.3"
 keyforge-protocol = { path = "../../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../../libs/keyforge-adapter" }
 keyforge-persistence = { path = "../../../libs/keyforge-persistence" }
-keyforge-compute = { path = "../../../libs/keyforge-compute" }
 keyforge-export = { path = "../../../libs/keyforge-export" }
 keyforge-model = { path = "../../../libs/keyforge-model" }
 keyforge-infra = { path = "../../../libs/keyforge-infra" }
-keyforge-core = { path = "../../../libs/keyforge-core" }
+keyforge-evolution = { path = "../../../libs/keyforge-evolution" }
+keyforge-physics = { path = "../../../libs/keyforge-physics" }
+keyforge-assets = { path = "../../keyforge-assets" }
+axum = { version = "0.8.8", features = ["http1", "http2", "tokio"] }
 async-trait = "0.1"
 tempfile = "3.24.0"
 thiserror = "2.0"
 dirs = "6.0"
+which = "6.0"
+anyhow = "1.0"
 
 [dev-dependencies]
 reqwest = { version = "0.13.1", features = ["json"] }

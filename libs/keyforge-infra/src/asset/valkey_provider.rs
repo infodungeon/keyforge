@@ -223,3 +223,14 @@ impl AssetLoader for ValkeyProvider {
         Ok(Arc::new(corpus))
     }
 }
+
+#[async_trait::async_trait]
+impl crate::asset::AssetServerProvider for ValkeyProvider {
+    async fn get_manifest(&self) -> ServerManifest {
+        self.get_manifest().await
+    }
+
+    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
+        self.get_file_content(path).await
+    }
+}

@@ -1,15 +1,12 @@
 use crate::error::CommandError;
-use keyforge_infra::AssetLoader;
 use crate::models::{DerivedStats, ValidationResult};
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
-use keyforge_adapter::conversion;
+use crate::runner::AgentRunner;
 use keyforge_infra::listing;
 use keyforge_model::SwapSuggestion;
-use keyforge_persistence::{Compiler, Project, ProjectMeta};
-use keyforge_model::config::{CorpusSource, ScoringWeights};
-use keyforge_model::constants::{MAX_PLAUSIBLE_SCORE, MAX_PLAUSIBLE_SFB_RATIO};
-use keyforge_model::geometry::KeyboardGeometry;
+use keyforge_model::config::ScoringWeights;
+use keyforge_protocol::JobConfig;
 use serde::Serialize;
 use tauri::AppHandle;
 
@@ -77,100 +74,68 @@ pub async fn cmd_load_dataset(
     cost_filename: String,
     _extras: Vec<String>,
 ) -> Result<String, CommandError> {
-    let project = Project {
-        meta: ProjectMeta {
-            name: "UI Session".into(),
-            ..Default::default()
-        },
-        keyboard: keyboard_name,
-        corpora: vec![CorpusSource {
+    let assets = &state.assets;
+    
+    // Load definition to ensure it exists and to put in config
+    let definition = assets.load_keyboard(&keyboard_name).await
+        .map_err(|e| CommandError::Config(format!("Failed to load keyboard: {}", e)))?;
+    
+    let job_config = JobConfig {
+        definition: definition.as_ref().clone(),
+        weights: keyforge_model::config::ScoringWeights::default(),
+        params: keyforge_model::config::SearchParams::default(),
+        pinned_keys: vec![],
+        corpora: vec![keyforge_model::config::CorpusSource {
             id: corpus_filename,
             weight: 1.0,
             hash: None,
         }],
         cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_filename),
-        ..Default::default()
+        biometrics: vec![],
+        parent_job_id: None,
+        baseline_score: None,
+        parents: vec![],
     };
 
-    let assets = state.assets.clone();
+    *state.active_job.write().await = Some(job_config);
 
-    let compiler = Compiler::new(assets.as_ref());
-    let runtime = compiler
-        .compile(&project)
-        .await
-        .map_err(|e| CommandError::Config(format!("Failed to compile session: {}", e)))?;
-
-    *state.active.write().await = Some(runtime);
-
-    Ok("Runtime Compiled".to_string())
+    Ok("Dataset Loaded".to_string())
 }
 
 /// Validates a layout string against the currently active search runtime.
 #[tauri::command]
 pub async fn cmd_validate_layout(
-    _app: AppHandle,
+    app: AppHandle,
     state: tauri::State<'_, SessionState>,
     layout_str: String,
     _weights: Option<ScoringWeights>,
-    keyboard_name: Option<String>,
+    _keyboard_name: Option<String>,
 ) -> Result<ValidationResult, CommandError> {
-    let runtime = {
-        let guard = state.active.read().await;
-        guard
-            .as_ref()
-            .ok_or_else(|| CommandError::Config("No runtime loaded".into()))?
-            .clone()
+    let job_config = {
+        let guard = state.active_job.read().await;
+        guard.as_ref().ok_or(CommandError::Config("No dataset loaded".into()))?.clone()
     };
+    
+    // Create Runner
+    let data_dir = crate::utils::get_data_dir(&app).map_err(CommandError::Internal)?;
+    let runner = AgentRunner::new(app.clone(), data_dir);
 
-    // FIX: Propagate loading errors instead of defaulting to empty geometry
-    let geometry = if let Some(name) = keyboard_name {
-        state.assets
-            .load_keyboard(&name)
-            .await
-            .map(|def| def.geometry.clone())
-            .map_err(|e| CommandError::Config(format!("Failed to load keyboard '{}': {}", name, e)))?
-    } else {
-        KeyboardGeometry::default()
-    };
-
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        let key_count = runtime.engine.key_count();
-        let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
-            .map_err(|e| {
-                tracing::error!("Layout parsing failed: {}", e);
-                CommandError::Validation(e.to_string())
-            })?;
-
-        let report = runtime.analyze(&layout)?;
-        let heatmap = report.heatmap.clone();
-        let penalty_map = report.penalty_map.clone();
-        tracing::info!("Analysis complete. Score: {}, SFB: {}", report.score, report.sfb_total);
+    // Run
+    let json_output = runner.run_validation(&job_config, &layout_str).await?;
+    
+    // Deserialize report
+    // We assume the agent returns a JSON that matches keyforge_model::AnalysisReport
+    let report: keyforge_model::AnalysisReport = serde_json::from_str(&json_output)
+        .map_err(|e| CommandError::Internal(format!("Failed to parse agent output: {}. Output was: {}", e, json_output)))?;
         
-        // SANITY CHECK: Fail if stats are garbage
-        if report.score > MAX_PLAUSIBLE_SCORE || report.sfb_ratio > MAX_PLAUSIBLE_SFB_RATIO {
-            let msg = format!("Implausible Physics Result: Score={}, SFB={:.2}%", report.score, report.sfb_ratio * 100.0);
-            tracing::warn!("{}", msg);
-        }
-
-        let proto_geometry: KeyboardGeometry = 
-            serde_json::from_value(serde_json::to_value(&geometry).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-
-        Ok::<ValidationResult, CommandError>(ValidationResult {
-            layout_name: "Custom".to_string(),
-            score: report,
-            geometry: proto_geometry,
-            heatmap,
-            penalty_map,
-        })
+    // Construct ValidationResult
+    Ok(ValidationResult {
+        layout_name: "Custom".to_string(),
+        score: report.clone(),
+        geometry: job_config.definition.geometry.clone(),
+        heatmap: report.heatmap,
+        penalty_map: report.penalty_map,
     })
-    .await
-    .map_err(|e| {
-        tracing::error!("Analysis thread panicked or failed: {}", e);
-        CommandError::Internal(e.to_string())
-    })??;
-
-    Ok(result)
 }
 
 /// Returns derived statistics for a layout, such as hand balance.
@@ -185,26 +150,9 @@ pub async fn cmd_get_layout_stats(
 /// Suggests a set of character swaps to improve the current layout.
 #[tauri::command]
 pub async fn cmd_get_smart_swaps(
-    state: tauri::State<'_, SessionState>,
-    layout_str: String,
+    _state: tauri::State<'_, SessionState>,
+    _layout_str: String,
 ) -> Result<Vec<SwapSuggestion>, CommandError> {
-    let runtime = {
-        let guard = state.active.read().await;
-        guard
-            .as_ref()
-            .ok_or_else(|| CommandError::Config("No runtime loaded".into()))?
-            .clone()
-    };
-
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        let key_count = runtime.engine.key_count();
-        let layout = conversion::parse_layout_string(&layout_str, key_count, &runtime.registry)
-            .map_err(|e| CommandError::Validation(e.to_string()))?;
-
-        Ok::<Vec<SwapSuggestion>, CommandError>(runtime.suggest_improvements(&layout)?)
-    })
-    .await
-    .map_err(|e| CommandError::Internal(e.to_string()))??;
-
-    Ok(result)
+    // Stubbed: Agent does not yet support swapping
+    Ok(vec![])
 }

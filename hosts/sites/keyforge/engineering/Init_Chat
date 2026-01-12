@@ -1,0 +1,52 @@
+# KEYFORGE SESSION BOOTSTRAP (v4.0)
+
+**[SYSTEM INJECTION]**
+
+## 1. ARCHITECTURAL CONTEXT
+
+**Architecture:** Hexagonal (Ports & Adapters).
+
+- **Core (Pure Logic):** `keyforge-physics`, `keyforge-evolution`.
+  - *Constraint:* NO `std::fs`, `tokio`, or `sqlx`. Pure math only.
+- **Ports (Contracts):** `keyforge-protocol` (DTOs).
+- **Adapters:** `keyforge-infra` (IO, DB).
+- **Drivers:** `keyforge-hive` (Server), `keyforge-agent` (Worker), `keyforge-cli`.
+
+**Critical Invariants:**
+
+1. **Physics Kernel:** Uses fixed-point `Score` type. Never `f32` for accumulation.
+2. **Determinism:** `DeterministicScorer` (Oracle) must match `ScoringEngine`.
+3. **Newtypes:** Use `KeyIndex(usize)` and `FingerIndex(u8)` to prevent argument swapping.
+
+**Dependency Rules:**
+
+- `keyforge-hive` CANNOT import `keyforge-physics` directly. Use `keyforge-core`.
+- `keyforge-protocol` must remain lightweight (no heavy dependencies).
+
+**Operational Doctrine:**
+
+1. **SAGA Protocol:** Tests First -> Verify Failure -> Implement -> Verify Success.
+2. **Isolation:** Debug complex logic in `repro.rs`, not the main crate.
+3. **Signature Freeze:** Do not change `pub` signatures during debugging.
+
+---
+
+## 2. WORKSPACE MAP
+
+*(Paste the output of `tree -L 6 -I "target|node_modules|.git|data"` here)*
+
+---
+
+## 3. CURRENT OBJECTIVE
+
+*(Describe the specific task, bug, or feature here. Example: "Refactor `compute.rs` to use `KeyIndex` newtype.")*
+
+---
+
+## 4. IMMEDIATE INSTRUCTION
+
+**DO NOT GENERATE CODE YET.**
+
+1. **Analyze:** Review the objective against the Architecture rules.
+2. **Context Check:** List exactly which dependency files (or minified headers) you need to see to complete this task.
+3. **Strategy:** Propose a `repro.rs` or `test` strategy to verify the work *before* implementation.

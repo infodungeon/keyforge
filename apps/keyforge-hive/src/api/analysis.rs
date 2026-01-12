@@ -18,9 +18,9 @@ use crate::error::{AppError, AppResult};
 use crate::models::ValidationResult;
 use crate::state::AppState;
 use axum::{extract::State, Json};
-use keyforge_adapter::conversion;
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::ScoringWeights;
+use keyforge_protocol::JobConfig;
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -39,7 +39,8 @@ pub struct ValidateRequest {
     pub cost_overrides: Option<Vec<(usize, usize, f32)>>,
 }
 
-use keyforge_model::constants::{DEFAULT_KEYBOARD_ID, DEFAULT_CORPUS_ID, ASSET_KEYCODES_FILENAME, DEFAULT_CORPUS_WEIGHT};
+use keyforge_model::constants::{DEFAULT_KEYBOARD_ID, DEFAULT_CORPUS_ID, DEFAULT_CORPUS_WEIGHT};
+use crate::services::runner::AgentRunner;
 
 /// Performs a quick scoring analysis of a layout against a standard corpus.
 /// This endpoint does not register a job or persist results.
@@ -56,66 +57,45 @@ pub async fn validate_layout(
         hash: None,
     }]);
 
-    // Load assets from the server’s global cache (implements AssetLoader)
+    // Load definitions to ensure they exist, but we will pass config to Runner
     let definition = state
         .assets
         .load_keyboard(keyboard_name)
         .await
         .map_err(|e| AppError::Validation(format!("Keyboard load failed: {}", e)))?;
 
-    let registry = state
-        .assets
-        .load_keycodes(ASSET_KEYCODES_FILENAME)
-        .await
-        .map_err(|e| AppError::Validation(format!("Keycodes load failed: {}", e)))?;
-
-    let corpus = state
-        .assets
-        .load_corpus(&corpus_sources)
-        .await
-        .map_err(|e| AppError::Validation(format!("Corpus load failed: {}", e)))?;
-
     // Determine scoring weights (defaults if not provided)
     let weights = payload.weights.unwrap_or_default();
-
-    // definition.geometry is MODEL.
-    // engine needs MODEL.
-    // So we can use it directly via Keyboard::new.
-    let domain_keyboard = keyforge_model::Keyboard::new(
-        definition.geometry.keys.clone(),
-        definition.geometry.home_row,
-    ).map_err(|e| AppError::Validation(format!("Invalid keyboard: {}", e)))?;
-
-    let domain_rubric = conversion::to_domain_rubric(&weights);
-
-    let cost_overrides = payload.cost_overrides.unwrap_or_default();
-
-    let engine = keyforge_core::build_engine(&keyforge_core::EngineRequest {
-        keyboard: Arc::new(domain_keyboard),
-        corpus: corpus,
-        rubric: Arc::new(domain_rubric),
-        config: keyforge_model::SearchConfig::default(),
-        initial_layout: None,
+    
+    // Construct JobConfig for Runner
+    let job_config = JobConfig {
+        definition: definition.as_ref().clone(),
+        weights: weights,
+        params: keyforge_model::config::SearchParams::default(),
         pinned_keys: vec![],
-        cost_overrides,
-    })
-    .map_err(|e| AppError::Validation(format!("Failed to build physics engine: {}", e)))?;
+        corpora: corpus_sources,
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined("cost_matrix.json".into()), // Simplified default
+        biometrics: vec![],
+        parent_job_id: None,
+        baseline_score: None,
+        parents: vec![],
+    };
 
-    let key_count = engine.key_count();
-    let layout = conversion::parse_layout_string(&payload.layout_str, key_count, &registry)
-        .map_err(|e| AppError::Validation(e.to_string()))?;
-
-    let report = engine.analyze(&layout)
-        .map_err(|e| AppError::Validation(format!("Analysis failed: {}", e)))?;
-
-    // Model geometry is now standard
-    let proto_geometry = definition.geometry.clone();
+    // Initialize Runner
+    let runner = AgentRunner::new(state.data_path.clone());
+    
+    // Delegate to Agent Sidecar
+    let json_output = runner.run_validation(&job_config, &payload.layout_str).await?;
+    
+    // Deserialize report
+    let report: keyforge_model::AnalysisReport = serde_json::from_str(&json_output)
+        .map_err(|e| AppError::Any(anyhow::anyhow!("Failed to parse agent output: {}", e)))?;
 
     Ok(Json(ValidationResult {
         layout_name: "Custom".to_string(),
-        score: report,
-        geometry: proto_geometry,
-        heatmap: vec![0.0; key_count],
-        penalty_map: vec![],
+        score: report.clone(),
+        geometry: definition.geometry.clone(),
+        heatmap: report.heatmap,
+        penalty_map: report.penalty_map,
     }))
 }

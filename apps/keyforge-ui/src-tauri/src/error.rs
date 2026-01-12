@@ -30,10 +30,6 @@ pub enum CommandError {
     #[error("Internal Error: {0}")]
     Internal(String),
     
-    /// Errors propagated from the core physics engine.
-    #[error("Physics Error: {0}")]
-    Physics(#[from] keyforge_core::PhysicsError),
-
     /// Error indicating that a requested resource was not found.
     #[error("Not Found")]
     NotFound, // ADDED
@@ -60,7 +56,6 @@ impl Serialize for CommandError {
             CommandError::Validation(s) => (ErrorCode::JobValidationFailed, s.clone()),
             CommandError::Network(s) => (ErrorCode::UpstreamTimeout, s.clone()),
             CommandError::Internal(s) => (ErrorCode::InternalError, s.clone()),
-            CommandError::Physics(e) => (ErrorCode::InternalError, e.to_string()),
             CommandError::NotFound => (ErrorCode::NotFound, "Resource not found".to_string()),
         };
 

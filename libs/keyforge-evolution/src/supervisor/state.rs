@@ -35,10 +35,16 @@ impl SearchState {
             return Err(EvolutionError::Config("Key count exceeds u16 limit".into()));
         }
 
-        // Initialize for full u16 range
-        let mut pos_map = vec![65535u16; 65536];
+        // Optimize pos_map size to actual key range
+        let max_code = layout.keys.iter().map(|k| k.0).max().unwrap_or(0);
+        let map_size = (max_code as usize) + 1;
+
+        // Initialize for required range
+        let mut pos_map = vec![65535u16; map_size];
         for (i, &code) in layout.keys.iter().enumerate() {
-            pos_map[code.0 as usize] = i as u16;
+            if (code.0 as usize) < map_size {
+                pos_map[code.0 as usize] = i as u16;
+            }
         }
 
         Ok(Self {

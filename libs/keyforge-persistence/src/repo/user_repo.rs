@@ -14,7 +14,7 @@
 
 use keyforge_infra::error::{InfraError, InfraResult};
 use keyforge_infra::fs::io::atomic_write;
-use keyforge_infra::util::common::{generate_cost_profile, sanitize_filename};
+use keyforge_infra::util::common::{sanitize_filename, StreamingProfileBuilder};
 use keyforge_model::constants::MIN_BIOMETRIC_SAMPLES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
@@ -100,23 +100,35 @@ impl UserRepo {
     // --- BIOMETRICS (JSONL) ---
 
     fn load_stats_store(&self) -> UserStatsStore {
-        let path = self.root.join("user/user_stats.jsonl");
         let mut store = UserStatsStore::default();
-
-        if path.exists() {
-            if let Ok(file) = fs::File::open(&path) {
-                let reader = BufReader::new(file);
-                // Limit to last 100k samples to prevent OOM
-                for line in reader.lines().map_while(Result::ok).take(100_000) {
-                    if let Ok(sample) = serde_json::from_str::<BiometricSample>(&line) {
-                        store.biometrics.push(sample);
-                    }
-                }
+        let _ = self.load_stats_streaming(|sample| {
+            if store.biometrics.len() < 100_000 {
+                store.biometrics.push(sample);
             }
-        }
+        });
         store.total_keystrokes = store.biometrics.len() as u64;
         store.sessions = 1;
         store
+    }
+
+    fn load_stats_streaming<F>(&self, mut f: F) -> InfraResult<usize>
+    where
+        F: FnMut(BiometricSample),
+    {
+        let path = self.root.join("user/user_stats.jsonl");
+        let mut count = 0;
+        if path.exists() {
+            let file = fs::File::open(&path).map_err(InfraError::Io)?;
+            let reader = BufReader::new(file);
+            for line in reader.lines() {
+                let line = line.map_err(InfraError::Io)?;
+                if let Ok(sample) = serde_json::from_str::<BiometricSample>(&line) {
+                    f(sample);
+                    count += 1;
+                }
+            }
+        }
+        Ok(count)
     }
 
     /// Appends biometric samples to the local audit log for future profile generation.
@@ -176,22 +188,26 @@ impl UserRepo {
     /// # Errors
     /// Returns an error if there are fewer than `MIN_BIOMETRIC_SAMPLES` collected.
     pub fn generate_profile(&self) -> InfraResult<String> {
-        let store = self.load_stats_store();
-        if store.biometrics.len() < MIN_BIOMETRIC_SAMPLES {
+        let mut builder = StreamingProfileBuilder::new();
+        let count = self.load_stats_streaming(|sample| {
+            builder.add_sample(&sample);
+        })?;
+
+        if count < MIN_BIOMETRIC_SAMPLES {
             return Err(InfraError::Config(format!(
                 "Insufficient data. {}/{} samples collected.",
-                store.biometrics.len(),
+                count,
                 MIN_BIOMETRIC_SAMPLES
             )));
         }
 
-        let profile_content = generate_cost_profile(&store);
+        let profile_content = builder.generate();
         let output_path = self.root.join("user/personal_cost.json");
         atomic_write(output_path, profile_content)?;
 
         Ok(format!(
             "Profile generated from {} samples.",
-            store.biometrics.len()
+            count
         ))
     }
 
