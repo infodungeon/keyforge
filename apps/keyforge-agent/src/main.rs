@@ -15,12 +15,11 @@
 
 //! # KeyForge Agent Binary
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::rngs::OsRng;
 use std::path::PathBuf;
-use std::sync::Arc;
-use keyforge_core::loader::AssetLoader;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, error};
 use keyforge_agent::agent::errors::AgentError;
@@ -43,6 +42,9 @@ struct Args {
 
     #[arg(long, env = "KEYFORGE_CONFIG")]
     config: Option<PathBuf>,
+
+    #[arg(long, default_value_t = false)]
+    skip_calibration: bool,
 }
 
 #[derive(Subcommand, Clone)]
@@ -53,6 +55,9 @@ enum Commands {
     Run {
         /// Path to the JobConfig JSON file.
         job_file: PathBuf,
+        /// Maximum time in seconds.
+        #[arg(long)]
+        timeout: Option<u64>,
     },
     /// Score a specific layout string against a JobConfig.
     Score {
@@ -60,6 +65,9 @@ enum Commands {
         job_file: PathBuf,
         /// The layout string to score.
         layout: String,
+        /// Maximum time in seconds.
+        #[arg(long)]
+        timeout: Option<u64>,
     },
     /// Run a physics benchmark using the environment from a JobConfig.
     Bench {
@@ -111,6 +119,19 @@ fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Optio
     None
 }
 
+async fn read_job_config(path: &PathBuf) -> anyhow::Result<JobConfig> {
+    let content = if path.to_str() == Some("-") {
+        use std::io::Read;
+        let mut buf = String::new();
+        std::io::stdin().read_to_string(&mut buf).context("Failed to read from stdin")?;
+        buf
+    } else {
+        tokio::fs::read_to_string(path).await
+            .context(format!("Failed to read job file {:?}", path))?
+    };
+    serde_json::from_str(&content).context("Invalid Job JSON")
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -131,6 +152,7 @@ async fn main() -> anyhow::Result<()> {
     if let Some(h) = args.hive { config.hive_url = h; }
     if let Some(c) = args.cores { config.cores = c; }
     if let Some(d) = args.data_dir { config.data_dir = d; }
+    if args.skip_calibration { config.calibration.duration_ms = 0; }
 
     let command = args.command.unwrap_or(Commands::Worker);
     let log_mode = match command {
@@ -179,13 +201,20 @@ async fn main() -> anyhow::Result<()> {
 
             keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
         }
-        Commands::Run { job_file } => {
-            let content = tokio::fs::read_to_string(&job_file).await
-                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
-            let job: JobConfig = serde_json::from_str(&content)
-                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+        Commands::Run { job_file, timeout } => {
+            let job = read_job_config(&job_file).await?;
+
+            if let Some(t) = timeout {
+                config.compute.job_timeout_sec = t;
+            }
 
             let (result_tx, mut result_rx) = mpsc::channel(1);
+            
+            // We need to inject the timeout into the agent runner logic
+            // Since Agent::run spawns tasks that call compute::run_optimization,
+            // we should ensure compute::run_optimization uses the timeout from JobConfig if present.
+            // Actually, the current Agent::run uses config.compute.job_timeout_sec.
+            
             let agent = keyforge_agent::agent::Agent::new(config.clone(), result_tx).await
                 .map_err(|e| anyhow::anyhow!("Failed to init agent: {}", e))?;
 
@@ -210,12 +239,13 @@ async fn main() -> anyhow::Result<()> {
             drop(job_tx);
             let _ = agent_handle.await;
         }
-        Commands::Score { job_file, layout } => {
-            let content = tokio::fs::read_to_string(&job_file).await
-                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
-            let job: JobConfig = serde_json::from_str(&content)
-                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+        Commands::Score { job_file, layout, timeout } => {
+            let job = read_job_config(&job_file).await?;
             
+            if let Some(t) = timeout {
+                config.compute.job_timeout_sec = t;
+            }
+
             let loader = keyforge_infra::FsProvider::new(data_dir.clone());
             let options = keyforge_runner::RunnerOptions {
                 keycodes_file: config.compute.keycodes_file.clone(),
@@ -226,11 +256,20 @@ async fn main() -> anyhow::Result<()> {
                 &loader, &job, &options
             ).await?;
 
-            let layout_parsed = keyforge_adapter::conversion::parse_layout_string(
-                &layout, 
-                session.engine.key_count(), 
-                &session.registry
-            ).map_err(|e| anyhow::anyhow!("Invalid layout: {}", e))?;
+            // Try to resolve as layout name from definition first, then parse as raw string
+            let layout_parsed = if let Some(layout_str) = job.definition.layouts.get(&layout) {
+                keyforge_adapter::conversion::parse_layout_string(
+                    layout_str, 
+                    session.engine.key_count(), 
+                    &session.registry
+                ).map_err(|e| anyhow::anyhow!("Invalid layout in definition: {}", e))?
+            } else {
+                keyforge_adapter::conversion::parse_layout_string(
+                    &layout, 
+                    session.engine.key_count(), 
+                    &session.registry
+                ).map_err(|e| anyhow::anyhow!("Invalid layout string: {}", e))?
+            };
             
             let report = session.engine.analyze(&layout_parsed);
             match report {
@@ -239,10 +278,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Bench { job_file, iterations } => {
-            let content = tokio::fs::read_to_string(&job_file).await
-                .map_err(|e| anyhow::anyhow!("Failed to read job file: {}", e))?;
-            let job: JobConfig = serde_json::from_str(&content)
-                .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
+            let job = read_job_config(&job_file).await?;
             
             let loader = keyforge_infra::FsProvider::new(data_dir.clone());
             let options = keyforge_runner::RunnerOptions {

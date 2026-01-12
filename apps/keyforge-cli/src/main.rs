@@ -5,6 +5,7 @@ use keyforge_infra::resolve_root;
 use keyforge_protocol::JobConfig;
 use std::error::Error;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tracing::{error, info, instrument};
 
 mod cli_args;
@@ -12,7 +13,6 @@ mod cli_parsers;
 mod cmd;
 mod error;
 pub mod constants;
-mod runner;
 use error::CliError;
 mod logging;
 mod reports;
@@ -104,21 +104,90 @@ async fn run_app() -> Result<(), CliError> {
         _ => {} 
     }
 
-    info!("🚀 Initializing Agent Runner...");
-    let runner = runner::AgentRunner::new(root.clone())?;
+    info!("🚀 Initializing Optimization Runner...");
+
+    let loader = keyforge_infra::FsProvider::new(root.clone());
 
     match cli.command {
         Commands::Search(args) => {
+            let options = keyforge_runner::RunnerOptions {
+                timeout_sec: args.time.unwrap_or(3600),
+                seed: args.seed,
+                threads: args.threads,
+                keycodes_file: "keycodes.json".into(),
+                ..Default::default()
+            };
             let job = build_job_config(&root, &args.shared, args.config.clone())?;
-            cmd::search::run(args, runner, job)?;
+            let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
+            
+            let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            
+            struct StopFlagCallback {
+                stop_flag: Arc<std::sync::atomic::AtomicBool>,
+            }
+
+            impl keyforge_evolution::ProgressCallback for StopFlagCallback {
+                fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[keyforge_model::KeyCode], _ips: f32) -> bool {
+                    !self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
+                }
+            }
+
+            let callback = StopFlagCallback { stop_flag: stop_flag.clone() };
+            
+            let result = keyforge_runner::OptimizationRunner::run(
+                session, 
+                "local-cli".into(), 
+                stop_flag, 
+                callback, 
+                options, 
+                &job
+            ).await?;
+            
+            println!("{}", serde_json::to_string_pretty(&result)?);
         }
         Commands::Validate(args) => {
+            let options = keyforge_runner::RunnerOptions {
+                keycodes_file: "keycodes.json".into(),
+                ..Default::default()
+            };
             let job = build_job_config(&root, &args.shared, args.config.clone())?;
-            cmd::validate::run(args, runner, job)?;
+            let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
+            
+            let layout_name = args.layout.as_deref().unwrap_or("default");
+            let layout_parsed = if let Some(l_str) = job.definition.layouts.get(layout_name) {
+                keyforge_adapter::conversion::parse_layout_string(l_str, session.engine.key_count(), &session.registry)?
+            } else {
+                keyforge_adapter::conversion::parse_layout_string(layout_name, session.engine.key_count(), &session.registry)?
+            };
+
+            let report = session.engine.analyze(&layout_parsed)?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
         }
         Commands::Benchmark(args) => {
+            let options = keyforge_runner::RunnerOptions {
+                keycodes_file: "keycodes.json".into(),
+                ..Default::default()
+            };
             let job = build_job_config(&root, &args.shared, args.config.clone())?;
-            cmd::benchmark::run(args, runner, job)?;
+            let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
+            
+            let start = std::time::Instant::now();
+            let mut score_sum = 0.0;
+            let default_layout = keyforge_model::Layout::new_unchecked(vec![keyforge_model::KeyCode(0); session.engine.key_count()]);
+
+            for _ in 0..args.iterations {
+                score_sum += session.engine.score(&default_layout)?;
+            }
+            
+            let duration = start.elapsed();
+            let kops = (args.iterations as f64 / duration.as_secs_f64()) / 1000.0;
+            
+            println!("{}", serde_json::json!({
+                "iterations": args.iterations,
+                "duration_ms": duration.as_millis(),
+                "kops": kops,
+                "checksum": score_sum
+            }));
         }
         _ => unreachable!("Stateless commands handled above"),
     }

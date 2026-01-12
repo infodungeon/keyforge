@@ -155,11 +155,14 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                 }
             });
 
+            let mut result = Ok(());
+
             for step in 0..self.config.steps {
                 // Check abort periodically. 
                 if step % report_interval == 0 {
                     if abort_flag.load(Ordering::Relaxed) {
-                        return Err(EvolutionError::Aborted);
+                        result = Err(EvolutionError::Aborted);
+                        break;
                     }
                 }
 
@@ -168,7 +171,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                     state.layout(),
                     state.pos_map(),
                     &mut self.rng,
-                    state.temperature, // Pass current temperature
+                    state.temperature,
                 )? {
                     if self.acceptance.should_accept(
                         proposal.delta,
@@ -222,8 +225,6 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
                     let score_f32 = state.best_score as f32 / SCORE_SCALE;
                     
-                    // Non-blocking send. If channel is full, we skip this report (frame skip).
-                    // This ensures the optimization loop never blocks on slow callbacks.
                     let layout_snapshot = state.best_layout().keys.clone();
                     let _ = tx.try_send((step, score_f32, layout_snapshot, ips));
 
@@ -236,6 +237,8 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
             
             // DROP the sender so the receiver thread can exit!
             drop(tx);
+
+            result?;
 
             // Final check for abort
             if abort_flag.load(Ordering::Relaxed) {

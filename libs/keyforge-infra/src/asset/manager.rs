@@ -9,7 +9,7 @@ use keyforge_model::constants::{
 };
 use keyforge_model::CostMatrixSource;
 use keyforge_protocol::JobConfig;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::info;
 
 #[derive(Debug)]
@@ -81,8 +81,18 @@ impl AssetManager {
         // 1. Check System (Binary)
         let sys_dir = self.root.join("system/corpora").join(bundle_id);
         if sys_dir.join("1grams.mpk.zst").exists() {
-            // We could verify hash here too, but for simplicity let's assume system is stable
-            return Ok(sys_dir);
+            if let Some(hash) = expected_hash {
+                let provider = crate::FsProvider::new(self.root.clone());
+                if let Ok(h) = provider.get_corpus_hash(bundle_id).await {
+                    if h == hash {
+                        return Ok(sys_dir);
+                    } else {
+                        info!("System corpus '{}' hash mismatch. Falling back to User/Remote.", bundle_id);
+                    }
+                }
+            } else {
+                return Ok(sys_dir);
+            }
         }
 
         // 2. Check User (JSON)

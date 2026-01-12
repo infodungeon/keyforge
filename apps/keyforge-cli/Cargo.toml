@@ -4,57 +4,51 @@ version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Feature-rich command-line interface for local keyboard layout analysis and optimization."
+description = "Command-line interface for keyboard layout analysis and local optimization."
 repository.workspace = true
 [lints]
 workspace = true
 
-[[bin]]
-name = "keyforge"
-path = "src/main.rs"
-
 [dependencies]
-dirs = "6.0"
-indicatif = "0.18"
-tokio = { version = "1.48", features = ["full"] }
-sysinfo = "0.37"
-keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-runner = { path = "../../libs/keyforge-runner" }
+keyforge-evolution = { path = "../../libs/keyforge-evolution" }
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
-# keyforge-compute removed
-keyforge-export = { path = "../../libs/keyforge-export" }
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-model = { path = "../../libs/keyforge-model" }
-keyforge-infra = { path = "../../libs/keyforge-infra" }
-# keyforge-core removed
-clap = { version = "4.5.53", features = ["derive", "env"] }
-clap_complete = "4.5"
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
+keyforge-core = { path = "../../libs/keyforge-core" }
+keyforge-export = { path = "../../libs/keyforge-export" }
+keyforge-physics = { path = "../../libs/keyforge-physics" }
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive", "env"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.48", features = ["full"] }
 tracing-opentelemetry = "0.32.0"
 opentelemetry = { version = "0.31.0", features = ["trace"] }
 opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
-comfy-table = "7.2.1"
-serde_json = { version = "1.0.148", features = ["unbounded_depth"] }
-serde = { version = "1.0.228", features = ["derive"] }
-rayon = "1.11.0"
-fastrand = "2.3"
-reqwest = { version = "0.13.1", features = ["blocking", "json"] }
-hex = "0.4"
-num_cpus = "1.17"
-thiserror = "2.0"
-ctrlc = "3.5"
-sqlx = { version = "0.8.6", features = [
-    "runtime-tokio",
-    "tls-rustls",
-    "postgres",
-] }
-self_update = "0.42"
-tempfile = "3.24"
+uuid = { version = "1.19", features = ["v4"] }
+url = "2.5"
+reqwest = { version = "0.12", features = [
+    "json",
+    "rustls-tls",
+], default-features = false }
+ctrlc = { version = "3.4", features = ["termination"] }
+indicatif = "0.18"
+comfy-table = "7.1"
 which = "6.0"
+tempfile = "3.10"
+clap_complete = "4.5"
+thiserror = "2.0"
+sysinfo = "0.33"
+self_update = "0.41"
+num_cpus = "1.16"
+dirs = "6.0"
 
 [dev-dependencies]
 keyforge-testing = { path = "../../libs/keyforge-testing" }
-keyforge-hive = { path = "../keyforge-hive" }
-futures = "0.3"
-axum = "0.8"
+fastrand = "2.0"

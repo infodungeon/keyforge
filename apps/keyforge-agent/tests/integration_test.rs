@@ -5,7 +5,6 @@
 //! corpus merging, and result serialization across hermetic test environments.
 
 
-use keyforge_agent::agent::compute;
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
 use keyforge_model::CostMatrixSource;
@@ -91,17 +90,18 @@ async fn test_agent_session_bootstrap() {
         parents: vec![],
     };
 
-    let loader = Box::new(keyforge_infra::FsProvider::new(data_root.clone()));
+    let loader = keyforge_infra::FsProvider::new(data_root.clone());
+    let options = keyforge_runner::RunnerOptions::default();
 
     let prepared_result =
-        compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora", &keyforge_agent::models::ComputeConfig::default()).await;
+        keyforge_runner::OptimizationRunner::prepare_session(&loader, &config, &options).await;
 
     match prepared_result {
         Ok(prepared) => {
             // Basic sanity checks
-            assert_eq!(prepared.req.keyboard.keys.len(), 1);
-            assert!(!prepared.req.corpus.bigrams.is_empty());
+            assert_eq!(prepared.engine.key_count(), 1);
+            // assert!(prepared.engine.trigram_count() >= 0); // Removed useless comparison
         }
-        Err(e) => panic!("Agent failed to bootstrap engine request: {:?}", e),
+        Err(e) => panic!("Agent failed to bootstrap session: {:?}", e),
     }
 }

@@ -15,14 +15,6 @@
 use crate::errors::PhysicsError;
 pub use keyforge_model::types::{KeyCode, ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, Score};
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct DistanceSquared(f32);
-
-impl DistanceSquared {
-    pub fn new(val: f32) -> Self { Self(val.max(0.0)) }
-    pub fn as_f32(&self) -> f32 { self.0 }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct ValidatedLayout<'a> {
     slice: &'a [KeyCode],

@@ -14,18 +14,18 @@ pub fn get_binary_path() -> PathBuf {
     path.push("target");
 
     // Check debug first (faster for tests), then release
-    let debug_path = path.join("debug").join("keyforge");
+    let debug_path = path.join("debug").join("keyforge-cli");
     if debug_path.exists() {
         return debug_path;
     }
     
-    let release_path = path.join("release").join("keyforge");
+    let release_path = path.join("release").join("keyforge-cli");
     if release_path.exists() {
         return release_path;
     }
     
     // Windows fallback
-    path.join("debug").join("keyforge.exe")
+    path.join("debug").join("keyforge-cli.exe")
 }
 
 /// Helper to extract the score from CLI stderr output.
@@ -43,11 +43,18 @@ pub fn extract_score(output: &str) -> String {
 #[allow(dead_code)]
 pub fn setup_calibration_assets(data_root: &std::path::Path) {
     let corne_json = r#"{
+        "meta": { "name": "corne", "author": "foostan", "version": "1", "notes": "", "type": "split" },
         "geometry": {
-            "keys": [{"x":0, "y":0}],
-            "home_row": [0]
+            "keys": [
+                {"index":0, "id":"k0", "x":0, "y":0, "w":1, "h":1, "hand":0, "finger":1, "row":0, "col":0},
+                {"index":1, "id":"k1", "x":1, "y":0, "w":1, "h":1, "hand":0, "finger":2, "row":0, "col":1}
+            ],
+            "prime_slots": [0, 1],
+            "med_slots": [],
+            "low_slots": [],
+            "home_row": 0
         },
-        "layouts": {}
+        "layouts": { "default": "A B" }
     }"#;
     let user_kb_dir = data_root.join("user/keyboards");
     std::fs::create_dir_all(&user_kb_dir).expect("failed to create kb dir");

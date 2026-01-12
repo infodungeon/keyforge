@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_core::EngineRequest;
+use keyforge_core::ScoringEngine;
 use keyforge_infra::AssetManager;
-use keyforge_model::{Corpus, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
+use keyforge_model::{Corpus, Keyboard, Layout, Rubric, KeyCode};
 use keyforge_model::geometry::KeyboardDefinition;
 use std::path::Path;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 use serde::{Deserialize, Serialize};
@@ -69,7 +68,12 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     // 4. Run Benchmark
-    let ips = run_benchmark(keyboard, config)?;
+    let ips = if config.duration_ms == 0 {
+        info!("Skipping hardware calibration (duration_ms=0)");
+        1_000_000.0 // Default 1M OPS
+    } else {
+        run_benchmark(keyboard, config)?
+    };
 
     // 5. Persist
     let data = CalibrationData {
@@ -93,24 +97,17 @@ fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) 
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
-    let search_config = SearchConfig::default();
     
     // Create a dummy layout matching the key count
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let req = EngineRequest {
-        keyboard: Arc::new(keyboard),
-        corpus: Arc::new(corpus),
-        rubric: Arc::new(rubric),
-        config: search_config,
-        initial_layout: Some(layout),
-        pinned_keys: vec![],
-        cost_overrides: vec![],
-    };
+    // Compile engine ONCE
+    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &[])
+        .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     // Warmup
     for _ in 0..config.warmup_iterations {
-        let _ = keyforge_core::score(&req);
+        let _ = engine.score(&layout);
     }
 
     let start = Instant::now();
@@ -120,7 +117,7 @@ fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) 
 
     while start.elapsed() < duration {
         for _ in 0..batch {
-            let _ = keyforge_core::score(&req);
+            let _ = engine.score(&layout);
         }
         iterations += batch as u64;
     }
@@ -151,23 +148,15 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
-    let search_config = SearchConfig::default();
     
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let req = EngineRequest {
-        keyboard: Arc::new(keyboard),
-        corpus: Arc::new(corpus),
-        rubric: Arc::new(rubric),
-        config: search_config,
-        initial_layout: Some(layout),
-        pinned_keys: vec![],
-        cost_overrides: vec![],
-    };
+    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &[])
+        .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     // Warmup
     for _ in 0..config.warmup_iterations {
-        let _ = keyforge_core::score(&req);
+        let _ = engine.score(&layout);
     }
 
     let start = Instant::now();
@@ -177,7 +166,7 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
 
     while start.elapsed() < duration {
         for _ in 0..batch {
-            let _ = keyforge_core::score(&req);
+            let _ = engine.score(&layout);
         }
         iterations += batch as u64;
     }

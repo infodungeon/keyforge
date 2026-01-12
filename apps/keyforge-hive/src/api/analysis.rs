@@ -35,8 +35,6 @@ pub struct ValidateRequest {
     pub keyboard_name: Option<String>,
     /// Optional list of corpus sources. Defaults to "text/en_std" if omitted.
     pub corpus_sources: Option<Vec<keyforge_model::CorpusSource>>,
-    /// Optional cost overrides. Defaults to empty if omitted.
-    pub cost_overrides: Option<Vec<(usize, usize, f32)>>,
 }
 
 use keyforge_model::constants::{DEFAULT_KEYBOARD_ID, DEFAULT_CORPUS_ID, DEFAULT_CORPUS_WEIGHT};

@@ -5,7 +5,7 @@
 use keyforge_hive::cache::CompiledEngineCache;
 use keyforge_hive::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_hive::VerificationService;
-use keyforge_protocol::ResultSubmission;
+use keyforge_protocol::{ResultSubmission, PROTOCOL_VERSION};
 use keyforge_security as crypto;
 use keyforge_infra::{ValkeyProvider, DistributedCoordinator};
 use std::sync::Arc;
@@ -46,28 +46,28 @@ async fn test_signature_enforcement() {
     
     // Case 1: Bad Signature
     let sub_bad = ResultSubmission {
-        version: 1,
+        version: PROTOCOL_VERSION,
         job_id: job_id.clone(),
         layout: layout.clone(),
         score: 100.0,
         node_id: node_id.clone(),
         timestamp,
         nonce: 123,
-        signature: Some("bad_sig".into()),
+        signature: "bad_sig".into(),
     };
     assert!(service.verify_submission(&sub_bad).await.is_err());
 
     // Case 2: Valid Signature
     let sig = crypto::sign_result(&sk_hex, &job_id, &layout, 100.0, timestamp, 123).unwrap();
     let sub_good = ResultSubmission {
-        version: 1,
+        version: PROTOCOL_VERSION,
         job_id: job_id.clone(),
         layout: layout.clone(),
         score: 100.0,
         node_id: node_id.clone(),
         timestamp,
         nonce: 123,
-        signature: Some(sig),
+        signature: sig,
     };
     
     // This should fail at the DB lookup step (job not found), proving signature passed

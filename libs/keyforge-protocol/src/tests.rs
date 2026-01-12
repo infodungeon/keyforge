@@ -27,16 +27,18 @@ fn test_version_compatibility() {
 fn test_job_request_serialization() {
     let req = JobRequest {
         version: PROTOCOL_VERSION,
-        definition: KeyboardDefinition::default(),
-        weights: ScoringWeights::default(),
-        params: SearchParams::default(),
-        pinned_keys: vec![],
-        corpora: vec![],
-        cost_matrix: keyforge_model::CostMatrixSource::default(),
-        biometrics: vec![],
-        parent_job_id: None,
-        baseline_score: None,
-        parents: vec![],
+        config: JobConfig {
+            definition: KeyboardDefinition::default(),
+            weights: ScoringWeights::default(),
+            params: SearchParams::default(),
+            pinned_keys: vec![],
+            corpora: vec![],
+            cost_matrix: keyforge_model::CostMatrixSource::default(),
+            biometrics: vec![],
+            parent_job_id: None,
+            baseline_score: None,
+            parents: vec![],
+        },
     };
 
     let json = serde_json::to_string(&req).expect("Failed to serialize");
@@ -47,16 +49,6 @@ fn test_job_request_serialization() {
 
 #[test]
 fn test_transport_security_policy() {
-    // Construct a malicious JSON payload with 100,001 biometric samples
-    let _oversized_vec: Vec<BiometricSample> = (0..100_001).map(|i| BiometricSample {
-        bigram: "th".to_string(),
-        ms: 100.0,
-        timestamp: i as u64
-    }).collect();
-
-    // Serialize just the biometrics part to simulate an injection
-    // Note: We can't easily serialize just the field, so we'll test the helper directly via a wrapper
-    // or create a dummy struct for testing.
     #[derive(serde::Deserialize, Debug)]
     struct Wrapper {
         #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
@@ -81,22 +73,24 @@ fn test_transport_security_policy() {
 fn test_biometric_limit_validation() {
     let mut req = JobRequest {
         version: PROTOCOL_VERSION,
-        definition: KeyboardDefinition::default(),
-        weights: ScoringWeights::default(),
-        params: SearchParams::default(),
-        pinned_keys: vec![],
-        corpora: vec![],
-        cost_matrix: keyforge_model::CostMatrixSource::default(),
-        biometrics: vec![],
-        parent_job_id: None,
-        baseline_score: None,
-        parents: vec![],
+        config: JobConfig {
+            definition: KeyboardDefinition::default(),
+            weights: ScoringWeights::default(),
+            params: SearchParams::default(),
+            pinned_keys: vec![],
+            corpora: vec![],
+            cost_matrix: keyforge_model::CostMatrixSource::default(),
+            biometrics: vec![],
+            parent_job_id: None,
+            baseline_score: None,
+            parents: vec![],
+        },
     };
-    req.definition.geometry.keys.push(KeyNode::default());
-    req.definition.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
+    req.config.definition.geometry.keys.push(KeyNode::default());
+    req.config.definition.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
 
     // Valid number of biometrics
-    req.biometrics = (0..MAX_BIOMETRIC_SAMPLES).map(|i| BiometricSample {
+    req.config.biometrics = (0..MAX_BIOMETRIC_SAMPLES).map(|i| BiometricSample {
         bigram: "th".to_string(),
         ms: 100.0,
         timestamp: i as u64
@@ -104,41 +98,22 @@ fn test_biometric_limit_validation() {
     assert!(req.validate().is_ok());
 
     // One too many
-    req.biometrics.push(BiometricSample { bigram: "xx".to_string(), ms: 0.0, timestamp: 0 });
+    req.config.biometrics.push(BiometricSample { bigram: "xx".to_string(), ms: 0.0, timestamp: 0 });
     assert!(req.validate().is_err());
 }
-
-
 
 #[test]
 fn test_timestamp_validation() {
     let _result = ResultSubmission {
         version: PROTOCOL_VERSION,
         job_id: "test".into(),
-        layout: "test".into(), // Will fail layout strict validation if we don't mock it, but we can check the time logic
+        layout: "test".into(),
         score: 100.0,
         timestamp: 0,
         nonce: 0,
         node_id: "node".into(),
-        signature: None,
+        signature: "dummy_sig".into(),
     };
-    
-    // We can't easily test validate() fully without a valid layout string, 
-    // but we can test the logic if we had a valid layout.
-    // However, since LayoutValidator is involved, it's checking structure.
-    // Let's rely on the fact that 0 timestamp is definitely "too old" (EPOCH).
-    
-    // Assuming validate() reaches the timestamp usage before layout usage? 
-    // No, layout usage is checked first (L351).
-    // So we need a valid layout string to reach the timestamp check.
-    // A minimal valid layout JSON string is needed.
-    // Since we don't want to depend on complex json, we'll construct a ResultSubmission 
-    // and manually check against the logic or mock the validator? 
-    // Actually, LayoutValidator check is internal.
-    
-    // Let's just trust that the validation logic logic exists. 
-    // Or we could implement a small unit test for the logic alone if we extracted it, 
-    // but for now let's just assert the constants allow us to reason about it.
     
     let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

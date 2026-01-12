@@ -14,6 +14,8 @@
 
 
 use thiserror::Error;
+use keyforge_adapter::AdapterError;
+use keyforge_physics::PhysicsError;
 
 /// CLI-specific error types with consistent formatting
 #[derive(Error, Debug)]
@@ -36,7 +38,15 @@ pub enum CliError {
 
     /// JSON serialization/deserialization error.
     #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
+    Json(#[from] serde_json::error::Error),
+
+    /// Adapter error.
+    #[error("Adapter error: {0}")]
+    Adapter(#[from] AdapterError),
+
+    /// Physics error.
+    #[error("Physics error: {0}")]
+    Physics(#[from] PhysicsError),
 
     /// Generic or miscellaneous error.
     #[error("{0}")]
@@ -48,6 +58,12 @@ pub type Result<T> = std::result::Result<T, CliError>;
 
 impl From<Box<dyn std::error::Error>> for CliError {
     fn from(e: Box<dyn std::error::Error>) -> Self {
+        CliError::Other(e.to_string())
+    }
+}
+
+impl From<anyhow::Error> for CliError {
+    fn from(e: anyhow::Error) -> Self {
         CliError::Other(e.to_string())
     }
 }

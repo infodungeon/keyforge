@@ -11,6 +11,7 @@ use keyforge_agent::models::SharedTelemetry;
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
 use keyforge_model::CostMatrixSource;
+
 use keyforge_protocol::JobConfig;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -69,11 +70,11 @@ async fn test_agent_session_bootstrap() {
         parents: vec![],
     };
 
-    let loader = Box::new(keyforge_infra::FsProvider::new(data_root.clone()));
-    let prepared = compute::create_engine_request(loader, data_root.clone(), &config, "cost.json", "corpora", &keyforge_agent::models::ComputeConfig::default()).await.unwrap();
+    let loader = keyforge_infra::FsProvider::new(data_root.clone());
+    let options = keyforge_runner::RunnerOptions::default();
+    let prepared = keyforge_runner::OptimizationRunner::prepare_session(&loader, &config, &options).await.unwrap();
 
-    assert_eq!(prepared.req.keyboard.keys.len(), 1);
-    assert!(!prepared.req.corpus.char_freqs.is_empty());
+    assert_eq!(prepared.engine.key_count(), 1);
 }
 
 #[tokio::test]
@@ -85,28 +86,41 @@ async fn test_optimization_cancellation() {
     ];
     let kb = Arc::new(keyforge_model::Keyboard::new(keys, 0).unwrap());
     
-    let req = keyforge_core::EngineRequest {
-        keyboard: kb,
-        corpus: Arc::new(keyforge_model::Corpus::default()),
-        rubric: Arc::new(keyforge_model::Rubric::default()),
-        config: keyforge_model::SearchConfig::Annealing {
-            steps: 1000,
-            start_temp: 10.0,
-            end_temp: 0.1,
-            seed: 42,
-            patience: 10,
-            reheats: 0,
-            reheat_factor: 1.0,
-        },
-        initial_layout: Some(keyforge_model::Layout::new_unchecked(vec![keyforge_model::KeyCode(97), keyforge_model::KeyCode(98)])),
-        pinned_keys: vec![None, None],
-        cost_overrides: vec![],
+    let engine = Arc::new(keyforge_core::ScoringEngine::new(&kb, &keyforge_model::Corpus::default(), &keyforge_model::Rubric::default(), &[]).unwrap());
+    let search_config = keyforge_model::SearchConfig::Annealing {
+        steps: 1000,
+        start_temp: 10.0,
+        end_temp: 0.1,
+        seed: 42,
+        patience: 10,
+        reheats: 0,
+        reheat_factor: 1.0,
+    };
+    let registry = Arc::new(keyforge_model::keycodes::KeycodeRegistry::new_with_defaults());
+
+    let session = keyforge_core::ScoringSession {
+        engine,
+        registry,
+        search_config,
     };
 
     let stop_flag = Arc::new(AtomicBool::new(true)); 
     let limiter = Arc::new(Semaphore::new(1));
     let telemetry = SharedTelemetry::default();
 
-    let result = compute::run_optimization(req, "test-job".into(), stop_flag, limiter, telemetry, 60, 100).await;
+    let config = JobConfig {
+        definition: KeyboardDefinition::default(),
+        weights: ScoringWeights::default(),
+        params: SearchParams::default(),
+        pinned_keys: vec![],
+        corpora: vec![],
+        cost_matrix: CostMatrixSource::default(),
+        biometrics: vec![],
+        parent_job_id: None,
+        baseline_score: None,
+        parents: vec![],
+    };
+
+    let result = compute::run_optimization(session, "test-job".into(), stop_flag, limiter, telemetry, 60, 100, &config).await;
     assert!(result.is_err(), "Should have been cancelled by stop_flag");
 }

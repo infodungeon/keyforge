@@ -24,6 +24,7 @@ fn test_search_happy_path() {
             "--keycodes", "keycodes.json",
             "--search-epochs", "1",
             "--search-steps", "10",
+            "--time", "5",
         ])
         .output()
         .expect("Failed to run search");

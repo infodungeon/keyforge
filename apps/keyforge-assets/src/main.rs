@@ -1,26 +1,17 @@
 // apps/keyforge-assets/src/main.rs
 
-use axum::{
-    extract::{Path, State},
-    http::{header, StatusCode},
-    response::{IntoResponse, Response},
-    routing::get,
-    Json, Router,
-};
 use clap::Parser;
 use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
-use tower_http::trace::TraceLayer;
 use tracing::info;
 
 #[derive(Parser)]
 struct Args {
     #[arg(long, env = "PORT", default_value_t = 3001)]
-    port: u16,
+    pub port: u16,
 
     #[arg(long, env = "KEYFORGE_VALKEY_URL", default_value = "redis://127.0.0.1:6379")]
-    valkey_url: String,
+    pub valkey_url: String,
 }
 
 #[tokio::main]
@@ -47,8 +38,4 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-async fn health_check() -> impl IntoResponse {
-    "OK"
 }

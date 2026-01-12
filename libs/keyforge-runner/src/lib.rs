@@ -1,9 +1,9 @@
 // libs/keyforge-runner/src/lib.rs
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use keyforge_core::{ProgressCallback, ScoringSession};
 use keyforge_core::loader::AssetLoader;
-use keyforge_model::{OptimizationResult, Layout, KeyCode};
+use keyforge_model::OptimizationResult;
 use keyforge_protocol::JobConfig;
 use keyforge_compute::SessionBuilder;
 use std::panic::{catch_unwind, AssertUnwindSafe};

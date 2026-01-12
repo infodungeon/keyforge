@@ -29,6 +29,10 @@ pub struct Keyboard {
     /// Pre-calculated centers for fingers [hand][finger] -> (x, y).
     /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<(f32, f32)>>,
+    /// Pre-calculated squared distances between every pair of physical keys.
+    /// Index: [i * key_count + j] -> (dx^2, dy^2).
+    #[serde(skip)]
+    pub spatial_cache: Vec<(f32, f32)>,
 }
 
 impl Keyboard {
@@ -42,9 +46,24 @@ impl Keyboard {
             keys,
             home_row,
             finger_origins: Vec::new(),
+            spatial_cache: Vec::new(),
         };
         kb.calculate_origins();
+        kb.precompute_spatial_cache();
         Ok(kb)
+    }
+
+    fn precompute_spatial_cache(&mut self) {
+        let n = self.keys.len();
+        let mut cache = vec![(0.0, 0.0); n * n];
+        for i in 0..n {
+            for j in 0..n {
+                let dx = self.keys[i].x - self.keys[j].x;
+                let dy = self.keys[i].y - self.keys[j].y;
+                cache[i * n + j] = (dx * dx, dy * dy);
+            }
+        }
+        self.spatial_cache = cache;
     }
 
     fn calculate_origins(&mut self) {

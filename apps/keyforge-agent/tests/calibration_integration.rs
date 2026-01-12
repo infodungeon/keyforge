@@ -36,7 +36,8 @@ async fn test_calibration_lifecycle() {
     let assets = AssetManager::new(client, data_root.clone());
 
     // 2. Run Calibration (First Run)
-    let ips = calibration::calibrate(&assets, &data_root).await.expect("Calibration failed");
+    let cal_config = keyforge_agent::models::CalibrationConfig::default();
+    let ips = calibration::calibrate(&assets, &data_root, &cal_config).await.expect("Calibration failed");
     assert!(ips > 0.0, "IPS should be positive");
 
     // 3. Verify Persistence
@@ -48,7 +49,7 @@ async fn test_calibration_lifecycle() {
 
     // 4. Run Calibration (Second Run - Should be fast/cached)
     let start = std::time::Instant::now();
-    let ips2 = calibration::calibrate(&assets, &data_root).await.expect("Calibration 2 failed");
+    let ips2 = calibration::calibrate(&assets, &data_root, &cal_config).await.expect("Calibration 2 failed");
     assert!(start.elapsed().as_millis() < 100, "Should have used cached value");
-    assert_eq!(ips, ips2, "Cached value mismatch");
+    assert!((ips - ips2).abs() < 1e-6, "Cached value mismatch: {} vs {}", ips, ips2);
 }

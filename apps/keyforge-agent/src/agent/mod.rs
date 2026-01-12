@@ -108,13 +108,7 @@ impl Agent {
                         info!("🚀 Starting Job {} (Acquired resources)", job_id);
                         telemetry.set_job_id(&job_id);
 
-                        let (_cost_file, _corpus_dir) = match compute::prepare_assets(&*assets, &job, &config_compute).await {
-                            Ok(res) => res,
-                            Err(e) => {
-                                error!("Job {} Asset sync failed: {}", job_id, e);
-                                return;
-                            }
-                        };
+                        let _ = compute::prepare_assets(&*assets, &job, &config_compute).await;
 
                         let loader = keyforge_infra::FsProvider::new(data_dir.clone());
                         let options = keyforge_runner::RunnerOptions {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::types::{DistanceSquared, KeyIndex};
+use super::types::KeyIndex;
 use keyforge_model::{Keyboard, Rubric};
 
 pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIndex) -> f32 {
@@ -29,11 +29,9 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     let f1 = k1.finger;
     let f2 = k2.finger;
 
-    let dx = (k1.x - k2.x).abs();
-    let dy = (k1.y - k2.y).abs();
-    let dist_raw = (dx * dx * rubric.travel_lat) + (dy * dy * rubric.travel_vert);
-    let dist_sq = DistanceSquared::new(dist_raw);
-    let mut cost = dist_sq.as_f32();
+    let (dx2, dy2) = kb.spatial_cache[i_idx * kb.keys.len() + j_idx];
+    let dist_raw = (dx2 * rubric.travel_lat) + (dy2 * rubric.travel_vert);
+    let mut cost = dist_raw;
 
     if h1 != h2 { return cost; }
 
@@ -65,8 +63,16 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     let row_diff = (k1.row - k2.row).abs();
 
     // Scissor detection (Adjacent fingers, large row difference)
-    if finger_diff == 1 && row_diff >= rubric.threshold_scissor_row_diff {
-        cost += rubric.penalty_scissor;
+    if finger_diff == 1 {
+        if row_diff >= rubric.threshold_scissor_row_diff {
+            cost += rubric.penalty_scissor;
+        } else if row_diff == 0 {
+            // Lateral Stretch (Adjacent fingers, same row, spread out)
+            let col_diff = (k1.col - k2.col).abs();
+            if col_diff > 1 {
+                cost += rubric.sfb_lateral;
+            }
+        }
     }
 
     cost

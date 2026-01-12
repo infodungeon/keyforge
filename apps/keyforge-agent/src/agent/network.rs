@@ -2,7 +2,6 @@
 
 use crate::agent::errors::AgentResult;
 use crate::models::{AgentConfig, SharedTelemetry};
-use crate::agent::crypto;
 use futures::{SinkExt, StreamExt};
 use keyforge_protocol::{JobConfig, NodeTelemetry, ResultSubmission};
 use reqwest::Client;
