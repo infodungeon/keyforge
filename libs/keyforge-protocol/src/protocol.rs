@@ -135,6 +135,26 @@ pub struct JobConfig {
     pub parents: Vec<String>,
 }
 
+impl JobConfig {
+    /// Generates a unique Job ID by hashing the configuration.
+    pub fn id(&self) -> Result<String, String> {
+        let primary_corpus = self.corpora.first()
+            .map(|c| c.id.as_str())
+            .unwrap_or(keyforge_model::constants::DEFAULT_CORPUS_ID);
+
+        keyforge_model::job::JobIdentifier::from_parts(
+            &self.definition.geometry,
+            &self.weights,
+            &self.params,
+            &self.pinned_keys,
+            primary_corpus,
+            &self.cost_matrix,
+        )
+        .map(|ident| ident.hash)
+        .map_err(|e| e.to_string())
+    }
+}
+
 impl Validator for JobConfig {
     fn validate(&self) -> Result<(), String> {
         self.weights.validate()?;
@@ -259,9 +279,8 @@ pub struct ResultSubmission {
     pub nonce: u64,
     /// The Node ID of the worker.
     pub node_id: String,
-    /// Cryptographic signature.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub signature: Option<String>,
+    /// Cryptographic signature (Mandatory for server-side acceptance).
+    pub signature: String,
 }
 
 /// Request from a node to register or heartbeat.

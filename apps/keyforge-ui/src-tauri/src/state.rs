@@ -35,11 +35,13 @@ impl std::fmt::Debug for LocalWorkerState {
     }
 }
 
+use std::sync::atomic::AtomicBool;
+
 /// Shared flag used to signal stop to asynchronous search operations.
 #[derive(Debug)]
 pub struct SearchState {
     /// Thread-safe flag indicating if the search should terminate.
-    pub stop_flag: Arc<Mutex<bool>>,
+    pub stop_flag: Arc<AtomicBool>,
 }
 
 /// In-memory cache for frequently accessed assets, backed by the filesystem.
@@ -60,6 +62,25 @@ pub struct AssetCache {
     costs: Cache<String, Arc<RawCostData>>,
     /// Cache for keycode registries.
     keycodes: Cache<String, Arc<KeycodeRegistry>>,
+}
+
+#[async_trait::async_trait]
+impl AssetLoader for AssetCache {
+    async fn load_keyboard(&self, name: &str) -> keyforge_core::loader::LoaderResult<Arc<KeyboardDefinition>> {
+        self.load_keyboard_internal(name).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
+    }
+
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> keyforge_core::loader::LoaderResult<Arc<Corpus>> {
+        self.load_corpus_internal(sources).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
+    }
+
+    async fn load_cost_matrix(&self, filename: &str) -> keyforge_core::loader::LoaderResult<Arc<RawCostData>> {
+        self.load_cost_matrix_internal(filename).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
+    }
+
+    async fn load_keycodes(&self, filename: &str) -> keyforge_core::loader::LoaderResult<Arc<KeycodeRegistry>> {
+        self.load_keycodes_internal(filename).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
+    }
 }
 
 impl AssetCache {
@@ -93,7 +114,7 @@ impl AssetCache {
         }
     }
 
-    pub async fn load_keyboard(&self, name: &str) -> anyhow::Result<Arc<KeyboardDefinition>> {
+    async fn load_keyboard_internal(&self, name: &str) -> anyhow::Result<Arc<KeyboardDefinition>> {
         if let Some(cached) = self.keyboards.get(name) {
             return Ok(cached);
         }
@@ -122,7 +143,7 @@ impl AssetCache {
         }
     }
 
-    pub async fn load_corpus(&self, sources: &[CorpusSource]) -> anyhow::Result<Arc<Corpus>> {
+    async fn load_corpus_internal(&self, sources: &[CorpusSource]) -> anyhow::Result<Arc<Corpus>> {
         let key = keyforge_infra::util::common::calculate_fingerprint(sources);
 
         if let Some(cached) = self.corpora.get(&key) {
@@ -150,7 +171,7 @@ impl AssetCache {
         }
     }
 
-    pub async fn load_cost_matrix(&self, filename: &str) -> anyhow::Result<Arc<RawCostData>> {
+    async fn load_cost_matrix_internal(&self, filename: &str) -> anyhow::Result<Arc<RawCostData>> {
         if let Some(cached) = self.costs.get(filename) {
             return Ok(cached);
         }
@@ -175,7 +196,7 @@ impl AssetCache {
         }
     }
 
-    pub async fn load_keycodes(&self, filename: &str) -> anyhow::Result<Arc<KeycodeRegistry>> {
+    async fn load_keycodes_internal(&self, filename: &str) -> anyhow::Result<Arc<KeycodeRegistry>> {
         if let Some(cached) = self.keycodes.get(filename) {
             return Ok(cached);
         }

@@ -130,6 +130,31 @@ impl FsProvider {
         }
         Ok(hex::encode(hasher.finalize()))
     }
+
+    fn safe_join(&self, user_path: &str) -> Result<PathBuf, String> {
+        let base = std::fs::canonicalize(&self.root)
+            .map_err(|e| format!("Failed to canonicalize root: {}", e))?;
+        
+        // Join and then canonicalize to resolve ..
+        let full = self.root.join(user_path);
+        let canonical = match std::fs::canonicalize(&full) {
+            Ok(p) => p,
+            Err(_) => {
+                // If file doesn't exist, we can't canonicalize it easily to check prefix.
+                // But we can check for .. components manually.
+                if full.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+                    return Err("Path traversal detected (manual check)".into());
+                }
+                return Ok(full);
+            }
+        };
+
+        if canonical.starts_with(&base) {
+            Ok(canonical)
+        } else {
+            Err("Path traversal detected (prefix check)".into())
+        }
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -252,14 +277,13 @@ impl AssetServerProvider for FsProvider {
     }
 
     async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
-        let p = self.root.join(path);
-        // Security check
-        if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
-            return None;
-        }
+        let safe_path = match self.safe_join(path) {
+            Ok(p) => p,
+            Err(_) => return None,
+        };
         
-        if p.exists() {
-             tokio::fs::read(p).await.ok().map(bytes::Bytes::from)
+        if safe_path.exists() {
+             tokio::fs::read(safe_path).await.ok().map(bytes::Bytes::from)
         } else {
             None
         }

@@ -19,6 +19,8 @@ use clap::{Parser, Subcommand};
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::rngs::OsRng;
 use std::path::PathBuf;
+use std::sync::Arc;
+use keyforge_core::loader::AssetLoader;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, error};
 use keyforge_agent::agent::errors::AgentError;
@@ -214,26 +216,23 @@ async fn main() -> anyhow::Result<()> {
             let job: JobConfig = serde_json::from_str(&content)
                 .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
             
-            let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
-            
-            // Extract cost filename from job config (no downloading)
-            let cost_file = match &job.cost_matrix {
-                keyforge_model::CostMatrixSource::Predefined(filename) => filename.clone(),
+            let loader = keyforge_infra::FsProvider::new(data_dir.clone());
+            let options = keyforge_runner::RunnerOptions {
+                keycodes_file: config.compute.keycodes_file.clone(),
+                ..Default::default()
             };
-            
-            let mut prepared = keyforge_agent::agent::compute::create_engine_request(
-                loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
+
+            let session = keyforge_runner::OptimizationRunner::prepare_session(
+                &loader, &job, &options
             ).await?;
 
             let layout_parsed = keyforge_adapter::conversion::parse_layout_string(
                 &layout, 
-                prepared.req.keyboard.keys.len(), 
-                &prepared.registry
+                session.engine.key_count(), 
+                &session.registry
             ).map_err(|e| anyhow::anyhow!("Invalid layout: {}", e))?;
             
-            prepared.req.initial_layout = Some(layout_parsed);
-
-            let report = keyforge_core::analyze(&prepared.req);
+            let report = session.engine.analyze(&layout_parsed);
             match report {
                 Ok(r) => println!("{}", serde_json::to_string_pretty(&r)?),
                 Err(e) => return Err(anyhow::anyhow!("Analysis failed: {:?}", e)),
@@ -245,44 +244,24 @@ async fn main() -> anyhow::Result<()> {
             let job: JobConfig = serde_json::from_str(&content)
                 .map_err(|e| anyhow::anyhow!("Invalid Job JSON: {}", e))?;
             
-            let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
-            
-            // Extract cost filename from job config (no downloading)
-            let cost_file = match &job.cost_matrix {
-                keyforge_model::CostMatrixSource::Predefined(filename) => filename.clone(),
+            let loader = keyforge_infra::FsProvider::new(data_dir.clone());
+            let options = keyforge_runner::RunnerOptions {
+                keycodes_file: config.compute.keycodes_file.clone(),
+                ..Default::default()
             };
-            
-            let mut prepared = keyforge_agent::agent::compute::create_engine_request(
-                loader, data_dir, &job, &cost_file, &config.system.corpora_dir_name, &config.compute
+
+            let session = keyforge_runner::OptimizationRunner::prepare_session(
+                &loader, &job, &options
             ).await?;
 
             let start = std::time::Instant::now();
             let mut score_sum = 0.0;
             
-            if prepared.req.initial_layout.is_none() {
-                use keyforge_model::{Layout, KeyCode};
-                // Improve dummy layout: pick most frequent characters from corpus
-                let mut char_indices: Vec<u16> = (0..65535).collect();
-                // Sort by frequency descending. char_freqs is length 65536.
-                char_indices.sort_by_key(|&i| std::cmp::Reverse(prepared.req.corpus.char_freqs[i as usize]));
-                
-                let keys: Vec<KeyCode> = char_indices
-                    .into_iter()
-                    .take(prepared.req.keyboard.keys.len())
-                    .map(KeyCode)
-                    .collect();
-                
-                let layout = Layout::new_unchecked(keys);
-                prepared.req.initial_layout = Some(layout);
-            }
+            let engine = session.engine;
+            let default_layout = keyforge_model::Layout::new_unchecked(vec![keyforge_model::KeyCode(0); engine.key_count()]);
 
             for _ in 0..iterations {
-                // [Fixed] Extract score from Result
-                let res = keyforge_core::score(&prepared.req);
-                score_sum += match res {
-                    Ok(opt) => opt.score,
-                    Err(_) => 0.0,
-                };
+                score_sum += engine.score(&default_layout)?;
             }
             
             let duration = start.elapsed();

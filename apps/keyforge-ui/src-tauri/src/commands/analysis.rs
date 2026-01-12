@@ -3,6 +3,7 @@ use crate::models::{DerivedStats, ValidationResult};
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use crate::runner::AgentRunner;
+use keyforge_infra::AssetLoader;
 use keyforge_infra::listing;
 use keyforge_model::SwapSuggestion;
 use keyforge_model::config::ScoringWeights;

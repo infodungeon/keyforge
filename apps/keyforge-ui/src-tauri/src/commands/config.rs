@@ -1,3 +1,4 @@
+use keyforge_infra::AssetLoader;
 use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;

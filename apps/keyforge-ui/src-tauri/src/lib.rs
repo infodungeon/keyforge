@@ -84,7 +84,7 @@ pub fn run() {
             child: Arc::new(Mutex::new(None)),
         })
         .manage(SearchState {
-            stop_flag: Arc::new(Mutex::new(false)),
+            stop_flag: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

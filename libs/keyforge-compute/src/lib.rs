@@ -65,11 +65,13 @@ impl Runtime {
 
     /// Runs the evolution optimizer on the current runtime context.
     #[instrument(skip(self, callback))]
-    pub fn optimize(&self, callback: impl ProgressCallback) -> Result<OptimizationResult, EvolutionError> {
+    pub fn optimize(&self, callback: impl ProgressCallback, initial_layout: Option<Layout>, pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>) -> Result<OptimizationResult, EvolutionError> {
         keyforge_core::optimize_with_engine(
             self.engine.clone(),
             &self.search_config,
-            callback
+            callback,
+            initial_layout,
+            pinned_keys,
         )
     }
 }

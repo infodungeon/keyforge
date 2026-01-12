@@ -95,6 +95,7 @@ impl Agent {
                     let result_tx = self.result_tx.clone();
                     let telemetry = self.telemetry.clone();
                     let node_id = self.config.node_id.clone();
+                    let private_key = self.config.private_key.clone();
                     let semaphore = global_semaphore.clone();
                     let permits_needed = 1; 
 
@@ -107,7 +108,7 @@ impl Agent {
                         info!("🚀 Starting Job {} (Acquired resources)", job_id);
                         telemetry.set_job_id(&job_id);
 
-                        let (cost_file, _corpus_dir) = match compute::prepare_assets(&*assets, &job, &config_compute).await {
+                        let (_cost_file, _corpus_dir) = match compute::prepare_assets(&*assets, &job, &config_compute).await {
                             Ok(res) => res,
                             Err(e) => {
                                 error!("Job {} Asset sync failed: {}", job_id, e);
@@ -115,14 +116,18 @@ impl Agent {
                             }
                         };
 
-                        let loader = Box::new(keyforge_infra::FsProvider::new(data_dir.clone()));
-                        let prepared_job = match compute::create_engine_request(
-                            loader, 
-                            data_dir, 
+                        let loader = keyforge_infra::FsProvider::new(data_dir.clone());
+                        let options = keyforge_runner::RunnerOptions {
+                            timeout_sec: config_compute.job_timeout_sec,
+                            log_sampling_rate: config_telemetry.progress_log_sampling_rate,
+                            keycodes_file: config_compute.keycodes_file.clone(),
+                            ..Default::default()
+                        };
+
+                        let prepared_session = match keyforge_runner::OptimizationRunner::prepare_session(
+                            &loader, 
                             &job, 
-                            &cost_file, 
-                            &config_system.corpora_dir_name, 
-                            &config_compute
+                            &options
                         ).await {
                             Ok(pj) => pj,
                             Err(e) => {
@@ -134,26 +139,47 @@ impl Agent {
                         let inner_limiter = Arc::new(Semaphore::new(1));
 
                         match compute::run_optimization(
-                            prepared_job.req,
+                            prepared_session,
                             job_id.clone(),
                             stop_flag,
                             inner_limiter,
                             telemetry.clone(),
                             config_compute.job_timeout_sec,
-                            config_telemetry.progress_log_sampling_rate
+                            config_telemetry.progress_log_sampling_rate,
+                            &job
                         ).await {
                             Ok(opt_res) => {
                                 info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
                                 let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
+                                
+                                let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+                                let nonce = rand::random();
+
+                                // Sign immediately (Secure by Construction)
+                                let signature = match crypto::sign_result_direct(
+                                    &private_key,
+                                    &job_id,
+                                    &layout_str,
+                                    opt_res.score,
+                                    timestamp,
+                                    nonce
+                                ) {
+                                    Ok(sig) => sig,
+                                    Err(e) => {
+                                        error!("Failed to sign result for {}: {}", job_id, e);
+                                        return;
+                                    }
+                                };
+
                                 let submission = ResultSubmission {
                                     version: 1,
                                     job_id: job_id.clone(),
                                     layout: layout_str,
                                     score: opt_res.score,
                                     node_id,
-                                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
-                                    nonce: rand::random(),
-                                    signature: None, 
+                                    timestamp,
+                                    nonce,
+                                    signature, 
                                 };
                                 if let Err(e) = result_tx.send(submission).await {
                                     error!("Failed to queue result for {}: {}", job_id, e);

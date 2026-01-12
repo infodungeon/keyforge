@@ -88,10 +88,20 @@ pub fn evolve<CB: ProgressCallback>(
     engine: Arc<ScoringEngine>,
     config: &SearchConfig,
     callback: CB,
+    initial_layout: Option<Layout>,
+    pinned_keys: Option<&[Option<KeyCode>]>,
 ) -> Result<OptimizationResult, EvolutionError> {
-    // Default: All keys unlocked, default initial layout
-    let unlocked_indices = (0..engine.key_count()).collect();
-    evolve_internal(engine, config, unlocked_indices, None, callback, None)
+    // Determine unlocked indices
+    let unlocked_indices: Vec<usize> = (0..engine.key_count())
+        .filter(|&i| {
+            match pinned_keys {
+                Some(pins) => i >= pins.len() || pins[i].is_none(),
+                None => true,
+            }
+        })
+        .collect();
+
+    evolve_internal(engine, config, unlocked_indices, initial_layout, callback, pinned_keys)
 }
 
 /// Internal helper to share logic between legacy and new entry points.
@@ -253,7 +263,7 @@ mod tests {
         let (kb, cp, rb) = setup_env();
         let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap());
         let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 };
-        let result = evolve(engine, &config, NoOpCallback).unwrap();
+        let result = evolve(engine, &config, NoOpCallback, None, None).unwrap();
         assert!(result.score >= 0.0);
     }
 

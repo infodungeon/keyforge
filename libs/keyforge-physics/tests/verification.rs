@@ -37,6 +37,7 @@ fn rubric_strategy() -> impl Strategy<Value = Rubric> {
         roll_bonus: roll,
         trigram_coverage: 1.0, // Full coverage for deterministic check
         trigram_limit: 100_000,
+        ..Default::default()
     })
 }
 

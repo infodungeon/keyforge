@@ -20,7 +20,7 @@ members = [
     "libs/keyforge-compute",
     "libs/keyforge-wasm",
     "libs/keyforge-export"
-]
+, "libs/keyforge-runner"]
 
 [workspace.package]
 version = "0.9.0"

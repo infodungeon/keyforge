@@ -97,17 +97,12 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
 }
 
 /// Optimize using a precompiled engine.
-///
-/// This is the most efficient path for environments that repeatedly optimize against
-/// the same keyboard/corpus/rubric.
-/// Optimize using a precompiled engine.
-///
-/// This is the most efficient path for environments that repeatedly optimize against
-/// the same keyboard/corpus/rubric.
 pub fn optimize_with_engine<CB: ProgressCallback>(
     engine: Arc<ScoringEngine>,
     config: &keyforge_model::SearchConfig,
     callback: CB,
+    initial_layout: Option<Layout>,
+    pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>,
 ) -> Result<OptimizationResult, EvolutionError> {
-    keyforge_evolution::evolve(engine, config, callback)
+    keyforge_evolution::evolve(engine, config, callback, initial_layout, pinned_keys)
 }

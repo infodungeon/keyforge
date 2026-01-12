@@ -73,22 +73,18 @@ impl VerificationService {
             AppError::Validation("Unregistered Node Identity: Public Key Required".into())
         })?;
 
-        if let Some(sig) = &sub.signature {
-            let valid = crypto::verify_result(
-                &pk,
-                &sub.job_id,
-                &sub.layout,
-                sub.score,
-                sub.timestamp,
-                sub.nonce,
-                sig,
-            ).map_err(|e| AppError::Validation(format!("Crypto Error: {}", e)))?;
+        let valid = crypto::verify_result(
+            &pk,
+            &sub.job_id,
+            &sub.layout,
+            sub.score,
+            sub.timestamp,
+            sub.nonce,
+            &sub.signature,
+        ).map_err(|e| AppError::Validation(format!("Crypto Error: {}", e)))?;
 
-            if !valid {
-                return Err(AppError::Validation("Invalid Signature".into()));
-            }
-        } else {
-            return Err(AppError::Validation("Missing Signature".into()));
+        if !valid {
+            return Err(AppError::Validation("Invalid Signature".into()));
         }
         Ok(())
     }

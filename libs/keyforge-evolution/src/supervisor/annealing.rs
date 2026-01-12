@@ -234,6 +234,9 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                 }
             }
             
+            // DROP the sender so the receiver thread can exit!
+            drop(tx);
+
             // Final check for abort
             if abort_flag.load(Ordering::Relaxed) {
                 return Err(EvolutionError::Aborted);

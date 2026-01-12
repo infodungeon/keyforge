@@ -61,6 +61,7 @@ fn minimal_rubric() -> Rubric {
         roll_bonus: 10.0,
         trigram_coverage: 0.5,
         trigram_limit: 1000,
+        ..Default::default()
     }
 }
 
@@ -71,7 +72,7 @@ fn minimal_request() -> EngineRequest {
         rubric: Arc::new(minimal_rubric()),
         cost_overrides: vec![],
         config: SearchConfig::Annealing {
-            steps: 100,
+            steps: 5,
             start_temp: 10.0,
             end_temp: 0.1,
             seed: 42,
@@ -208,6 +209,6 @@ fn test_optimize_with_engine() {
         reheat_factor: 0.5,
     };
 
-    let result = optimize_with_engine(engine_arc, &config, TestCallback).unwrap();
+    let result = optimize_with_engine(engine_arc, &config, TestCallback, None, None).unwrap();
     assert!(result.score.is_finite());
 }

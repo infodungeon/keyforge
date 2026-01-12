@@ -3645,6 +3645,7 @@ dependencies = [
  "keyforge-model",
  "keyforge-persistence",
  "keyforge-protocol",
+ "keyforge-runner",
  "keyforge-security",
  "libc",
  "machine-uid",
@@ -3991,6 +3992,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyforge-runner"
+version = "0.9.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "keyforge-adapter",
+ "keyforge-compute",
+ "keyforge-core",
+ "keyforge-infra",
+ "keyforge-model",
+ "keyforge-physics",
+ "keyforge-protocol",
+ "rand 0.9.2",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "keyforge-security"
 version = "0.9.0"
 dependencies = [
@@ -4025,6 +4046,7 @@ dependencies = [
  "fastrand",
  "keyforge-adapter",
  "keyforge-assets",
+ "keyforge-core",
  "keyforge-evolution",
  "keyforge-export",
  "keyforge-infra",
@@ -4032,6 +4054,7 @@ dependencies = [
  "keyforge-persistence",
  "keyforge-physics",
  "keyforge-protocol",
+ "keyforge-runner",
  "moka",
  "reqwest 0.13.1",
  "rmp-serde",

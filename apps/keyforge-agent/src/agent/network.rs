@@ -260,23 +260,10 @@ impl NetworkManager {
 
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
-        let mut signed_result = result.clone();
-
-        if signed_result.signature.is_none() {
-            let signature = crypto::sign_result_direct(
-                &self.config.private_key,
-                &result.job_id,
-                &result.layout,
-                result.score,
-                result.timestamp,
-                result.nonce
-            )?;
-            signed_result.signature = Some(signature);
-        }
 
         let resp = self.client.post(&url)
             .header("X-Keyforge-Secret", &self.config.secret)
-            .json(&signed_result)
+            .json(&result)
             .send()
             .await;
 
@@ -287,7 +274,7 @@ impl NetworkManager {
                     let txt = r.text().await.unwrap_or_default();
                     error!("❌ Submission Rejected: {}", txt);
                     if status.is_server_error() {
-                        self.outbox.save_to_wal(&signed_result)?;
+                        self.outbox.save_to_wal(&result)?;
                     }
                     return Err(crate::agent::errors::AgentError::Network(format!("Submission rejected: {}", txt)));
                 }
@@ -295,7 +282,7 @@ impl NetworkManager {
             }
             Err(e) => {
                 error!("❌ Network Error during submission: {}", e);
-                self.outbox.save_to_wal(&signed_result)?;
+                self.outbox.save_to_wal(&result)?;
                 Err(crate::agent::errors::AgentError::Network(e.to_string()))
             }
         }

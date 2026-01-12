@@ -37,6 +37,8 @@ keyforge-persistence = { path = "../../../libs/keyforge-persistence" }
 keyforge-export = { path = "../../../libs/keyforge-export" }
 keyforge-model = { path = "../../../libs/keyforge-model" }
 keyforge-infra = { path = "../../../libs/keyforge-infra" }
+keyforge-core = { path = "../../../libs/keyforge-core" }
+keyforge-runner = { path = "../../../libs/keyforge-runner" }
 keyforge-evolution = { path = "../../../libs/keyforge-evolution" }
 keyforge-physics = { path = "../../../libs/keyforge-physics" }
 keyforge-assets = { path = "../../keyforge-assets" }
