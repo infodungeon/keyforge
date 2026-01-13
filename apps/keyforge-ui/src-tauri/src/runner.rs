@@ -1,6 +1,5 @@
 use crate::error::CommandError;
 use keyforge_protocol::JobConfig;
-use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
@@ -9,12 +8,11 @@ use tracing::warn;
 #[derive(Debug)]
 pub struct AgentRunner {
     app: AppHandle,
-    data_dir: PathBuf,
 }
 
 impl AgentRunner {
-    pub fn new(app: AppHandle, data_dir: PathBuf) -> Self {
-        Self { app, data_dir }
+    pub fn new(app: AppHandle) -> Self {
+        Self { app }
     }
 
     pub async fn run_validation(&self, config: &JobConfig, layout: &str) -> Result<String, CommandError> {
@@ -30,12 +28,8 @@ impl AgentRunner {
             .map_err(|e| CommandError::Internal(e.to_string()))?
             .args([
                 "score",
-                "--job-file",
                 &temp_path.to_string_lossy(),
-                "--layout",
                 layout,
-                "--data-dir",
-                &self.data_dir.to_string_lossy()
             ]);
 
         let (mut rx, _child) = sidecar_command
@@ -59,8 +53,12 @@ impl AgentRunner {
                     return Err(CommandError::Internal(format!("Agent error: {}", e)));
                 }
                 CommandEvent::Terminated(status) => {
-                    if !status.code.unwrap_or(0) == 0 {
-                         return Err(CommandError::Internal(format!("Agent exited with status: {:?}", status)));
+                    if let Some(code) = status.code {
+                        if code != 0 {
+                             return Err(CommandError::Internal(format!("Agent exited with status: {}", code)));
+                        }
+                    } else {
+                         return Err(CommandError::Internal("Agent terminated by signal".to_string()));
                     }
                 }
                 _ => {}

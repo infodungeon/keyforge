@@ -37,7 +37,7 @@ build-ui-backend:
 
 # --- RUN (SANDBOXED) ---
 
-serve:
+serve: db-up
     SANDBOX_CONTEXT=server ./ops/scripts/run_sandbox.sh cargo run -p keyforge-hive -- --port 3000
 
 worker:
@@ -107,7 +107,7 @@ lint:
     cargo clippy --workspace -- -D warnings
 
 db-up:
-    docker-compose up -d db
+    docker-compose up -d db valkey
 
 db-down:
     docker-compose down

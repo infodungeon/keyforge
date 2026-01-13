@@ -61,8 +61,7 @@ services:
         condition: service_completed_successfully
       valkey:
         condition: service_healthy
-    ports:
-      - "3001:3001"
+    # Ports removed: Handled by Web Proxy
     environment:
       KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
       PORT: 3001
@@ -79,8 +78,7 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
-    ports:
-      - "3000:3000"
+    # Ports removed: Handled by Web Proxy
     environment:
       DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
       HIVE_SECRET: ${HIVE_SECRET:-}
@@ -99,6 +97,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "3000:3000"
+      - "3001:3001"
     volumes:
       - ../hosts/sites:/usr/local/apache2/htdocs:ro
       - ../hosts/certs:/etc/apache2/ssl:ro
@@ -113,6 +113,41 @@ FROM rust:slim-bookworm AS chef
 WORKDIR /app
 RUN cargo install cargo-chef
 COPY . .
+
+# ISOLATION: Exclude UI
+RUN cat > Cargo.toml <<TOML
+[workspace]
+resolver = "2"
+members = [
+    "apps/keyforge-assetmgr",
+    "libs/keyforge-adapter",
+    "libs/keyforge-core",
+    "libs/keyforge-infra",
+    "libs/keyforge-model",
+    "libs/keyforge-physics",
+    "libs/keyforge-protocol"
+]
+
+[workspace.package]
+version = "0.9.0"
+authors = ["KeyForge Team"]
+license = "Apache-2.0"
+repository = "https://github.com/keyforge-project/keyforge"
+edition = "2021"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+expect_used = "deny"
+unwrap_used = "warn"
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
+TOML
+
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Builder
@@ -125,16 +160,47 @@ RUN cargo chef cook --release --recipe-path recipe.json
 
 # Stage 3: Compiler
 COPY . .
+# Re-apply isolation
+RUN cat > Cargo.toml <<TOML
+[workspace]
+resolver = "2"
+members = [
+    "apps/keyforge-assetmgr",
+    "libs/keyforge-adapter",
+    "libs/keyforge-core",
+    "libs/keyforge-infra",
+    "libs/keyforge-model",
+    "libs/keyforge-physics",
+    "libs/keyforge-protocol"
+]
+
+[workspace.package]
+version = "0.9.0"
+authors = ["KeyForge Team"]
+license = "Apache-2.0"
+repository = "https://github.com/keyforge-project/keyforge"
+edition = "2021"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+expect_used = "deny"
+unwrap_used = "warn"
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
+TOML
+
 RUN cargo build --release --bin keyforge-assetmgr
 
-# Stage 4: Runtime (Distroless)
-# Using cc-debian12 includes libssl, libc, libgcc
+# Stage 4: Runtime
 FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
 COPY --from=builder /app/target/release/keyforge-assetmgr /app/keyforge-assetmgr
-# Asset Manager needs a volume mount for data
 ENV RUST_LOG=info
-# Runs in daemon mode by default
 ENTRYPOINT ["/app/keyforge-assetmgr", "daemon"]
 
 >>>>>>>> END FILE: ops/Dockerfile.assetmgr <<<<<<<<
@@ -144,6 +210,41 @@ FROM rust:slim-bookworm AS chef
 WORKDIR /app
 RUN cargo install cargo-chef
 COPY . .
+
+# ISOLATION: Exclude UI
+RUN cat > Cargo.toml <<TOML
+[workspace]
+resolver = "2"
+members = [
+    "apps/keyforge-assets",
+    "libs/keyforge-adapter",
+    "libs/keyforge-core",
+    "libs/keyforge-infra",
+    "libs/keyforge-model",
+    "libs/keyforge-physics",
+    "libs/keyforge-protocol"
+]
+
+[workspace.package]
+version = "0.9.0"
+authors = ["KeyForge Team"]
+license = "Apache-2.0"
+repository = "https://github.com/keyforge-project/keyforge"
+edition = "2021"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+expect_used = "deny"
+unwrap_used = "warn"
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
+TOML
+
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Builder
@@ -152,15 +253,47 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make && rm -rf /var/lib/apt/lists/*
 RUN cargo install cargo-chef
 COPY --from=chef /app/recipe.json recipe.json
-# Build dependencies - this layer is cached until Cargo.lock changes
 RUN cargo chef cook --release --recipe-path recipe.json
 
 # Stage 3: Compiler
 COPY . .
+# Re-apply isolation
+RUN cat > Cargo.toml <<TOML
+[workspace]
+resolver = "2"
+members = [
+    "apps/keyforge-assets",
+    "libs/keyforge-adapter",
+    "libs/keyforge-core",
+    "libs/keyforge-infra",
+    "libs/keyforge-model",
+    "libs/keyforge-physics",
+    "libs/keyforge-protocol"
+]
+
+[workspace.package]
+version = "0.9.0"
+authors = ["KeyForge Team"]
+license = "Apache-2.0"
+repository = "https://github.com/keyforge-project/keyforge"
+edition = "2021"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+expect_used = "deny"
+unwrap_used = "warn"
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
+TOML
+
 RUN cargo build --release --bin keyforge-assets
 
-# Stage 4: Runtime (Distroless)
-# Using cc-debian12 includes libssl, libc, libgcc
+# Stage 4: Runtime
 FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
 COPY --from=builder /app/target/release/keyforge-assets /app/keyforge-assets
@@ -170,38 +303,107 @@ ENTRYPOINT ["/app/keyforge-assets"]
 
 >>>>>>>> END FILE: ops/Dockerfile.assets <<<<<<<<
 >>>>>>>> START FILE: ops/Dockerfile.hive <<<<<<<<
-# Stage 1: Chef (Compute Recipe)
+# Stage 1: Chef
 FROM rust:slim-bookworm AS chef
 WORKDIR /app
 RUN cargo install cargo-chef
 COPY . .
+
+# ISOLATION: Overwrite workspace definition to exclude UI
+# Must include [workspace.lints] to satisfy inheritance
+RUN cat > Cargo.toml <<TOML
+[workspace]
+resolver = "2"
+members = [
+    "apps/keyforge-hive",
+    "libs/keyforge-adapter",
+    "libs/keyforge-compute",
+    "libs/keyforge-core",
+    "libs/keyforge-infra",
+    "libs/keyforge-model",
+    "libs/keyforge-persistence",
+    "libs/keyforge-physics",
+    "libs/keyforge-protocol",
+    "libs/keyforge-security"
+]
+
+[workspace.package]
+version = "0.9.0"
+authors = ["KeyForge Team"]
+license = "Apache-2.0"
+repository = "https://github.com/keyforge-project/keyforge"
+edition = "2021"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+expect_used = "deny"
+unwrap_used = "warn"
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
+TOML
+
 RUN cargo chef prepare --recipe-path recipe.json
 
-# Stage 2: Builder (Cache Dependencies)
+# Stage 2: Builder
 FROM rust:slim-bookworm AS builder
 WORKDIR /app
-# CHANGED: Added pkg-config
 RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make unzip && rm -rf /var/lib/apt/lists/*
 RUN cargo install cargo-chef
 COPY --from=chef /app/recipe.json recipe.json
-# Build dependencies - this layer is cached until Cargo.lock changes
 RUN cargo chef cook --release --recipe-path recipe.json
 
-# Stage 3: Compiler (Build Source)
+# Stage 3: Compiler
 COPY . .
-# SQLx Offline support
+# Re-apply isolation
+RUN cat > Cargo.toml <<TOML
+[workspace]
+resolver = "2"
+members = [
+    "apps/keyforge-hive",
+    "libs/keyforge-adapter",
+    "libs/keyforge-compute",
+    "libs/keyforge-core",
+    "libs/keyforge-infra",
+    "libs/keyforge-model",
+    "libs/keyforge-persistence",
+    "libs/keyforge-physics",
+    "libs/keyforge-protocol",
+    "libs/keyforge-security"
+]
+
+[workspace.package]
+version = "0.9.0"
+authors = ["KeyForge Team"]
+license = "Apache-2.0"
+repository = "https://github.com/keyforge-project/keyforge"
+edition = "2021"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+expect_used = "deny"
+unwrap_used = "warn"
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
+TOML
+
 ENV SQLX_OFFLINE=true
 COPY .sqlx .sqlx
 RUN cargo build --release --bin keyforge-hive
 
-# Stage 4: Runtime (Distroless)
-# Using cc-debian12 includes libssl, libc, libgcc
+# Stage 4: Runtime
 FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
 COPY --from=builder /app/target/release/keyforge-hive /app/keyforge-hive
-# Create data dir in workdir (though distroless has limited fs ops, app creates subdirs in volume)
-# Note: Distroless has no mkdir. The app must handle creating dirs in the volume, 
-# OR we rely on Docker to create the mount point.
 ENV RUST_LOG=info
 ENV KEYFORGE_DATA_DIR=/app/data
 EXPOSE 3000
@@ -211,8 +413,8 @@ ENTRYPOINT ["/app/keyforge-hive"]
 >>>>>>>> START FILE: ops/Dockerfile.web <<<<<<<<
 FROM httpd:alpine
 
-# Expose HTTP and HTTPS
-EXPOSE 80 443
+# Expose HTTP, HTTPS, Hive API, Asset API
+EXPOSE 80 443 3000 3001
 
 # Ensure SSL, Rewrite, AND PROXY modules are loaded
 RUN sed -i \
@@ -1578,7 +1780,6 @@ DOMAINS=(
     "infodungeon.com"
     "www.infodungeon.com"
     "keyforge.infodungeon.com"
-    "hive.infodungeon.com"
 )
 
 # === LOGGING HELPER ===
@@ -2486,6 +2687,10 @@ done
 # 4. Set Environment
 export KEYFORGE_DATA_DIR="$SANDBOX"
 export RUST_LOG="info,keyforge_hive=debug"
+# Default secrets for sandbox development
+export HIVE_SECRET="${HIVE_SECRET:-dev_secret_insecure_sandbox}"
+export HIVE_SERVER_KEY="${HIVE_SERVER_KEY:-sandbox_server_identity_key}"
+export DATABASE_URL="${DATABASE_URL:-postgres://keyforge:forge_password@localhost:5432/keyforge_hive}"
 
 # 5. Execute Command
 if [ "$1" == "true" ]; then

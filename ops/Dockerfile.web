@@ -1,7 +1,7 @@
 FROM httpd:alpine
 
-# Expose HTTP and HTTPS
-EXPOSE 80 443
+# Expose HTTP, HTTPS, Hive API, Asset API
+EXPOSE 80 443 3000 3001
 
 # Ensure SSL, Rewrite, AND PROXY modules are loaded
 RUN sed -i \

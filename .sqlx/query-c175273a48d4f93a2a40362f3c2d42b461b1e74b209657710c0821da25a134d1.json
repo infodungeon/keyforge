@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM results ORDER BY created_at DESC LIMIT 100",
+  "query": "SELECT * FROM results ORDER BY created_at DESC LIMIT $1",
   "describe": {
     "columns": [
       {
@@ -40,7 +40,9 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int8"
+      ]
     },
     "nullable": [
       false,
@@ -52,5 +54,5 @@
       true
     ]
   },
-  "hash": "ca6676ccfaf09e397ba9e005e534ddf3f60cebe724617b87ac985dbb4a57ba47"
+  "hash": "c175273a48d4f93a2a40362f3c2d42b461b1e74b209657710c0821da25a134d1"
 }

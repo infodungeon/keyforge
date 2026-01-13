@@ -12,7 +12,6 @@ DOMAINS=(
     "infodungeon.com"
     "www.infodungeon.com"
     "keyforge.infodungeon.com"
-    "hive.infodungeon.com"
 )
 
 # === LOGGING HELPER ===

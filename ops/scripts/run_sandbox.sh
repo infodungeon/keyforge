@@ -41,6 +41,10 @@ done
 # 4. Set Environment
 export KEYFORGE_DATA_DIR="$SANDBOX"
 export RUST_LOG="info,keyforge_hive=debug"
+# Default secrets for sandbox development
+export HIVE_SECRET="${HIVE_SECRET:-dev_secret_insecure_sandbox}"
+export HIVE_SERVER_KEY="${HIVE_SERVER_KEY:-sandbox_server_identity_key}"
+export DATABASE_URL="${DATABASE_URL:-postgres://keyforge:forge_password@localhost:5432/keyforge_hive}"
 
 # 5. Execute Command
 if [ "$1" == "true" ]; then

@@ -80,6 +80,11 @@
       },
       {
         "ordinal": 15,
+        "name": "node_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 16,
         "name": "is_pinned",
         "type_info": "Bool"
       }
@@ -95,6 +100,7 @@
       false,
       false,
       false,
+      true,
       true,
       true,
       true,

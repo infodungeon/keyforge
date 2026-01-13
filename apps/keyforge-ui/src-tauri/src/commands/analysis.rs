@@ -118,8 +118,7 @@ pub async fn cmd_validate_layout(
     };
     
     // Create Runner
-    let data_dir = crate::utils::get_data_dir(&app).map_err(CommandError::Internal)?;
-    let runner = AgentRunner::new(app.clone(), data_dir);
+    let runner = AgentRunner::new(app.clone());
 
     // Run
     let json_output = runner.run_validation(&job_config, &layout_str).await?;
