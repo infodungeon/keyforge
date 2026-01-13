@@ -59,6 +59,10 @@ struct Args {
     #[arg(long, env = "PORT", default_value_t = DEFAULT_HIVE_PORT)]
     port: u16,
 
+    /// Port for the embedded asset server.
+    #[arg(long, env = "ASSET_PORT", default_value_t = 3001)]
+    asset_port: u16,
+
     #[arg(long, env = "TLS_CERT")]
     tls_cert: Option<PathBuf>,
 
@@ -183,19 +187,19 @@ async fn main() {
                 result_repo_arc,
             ));
 
-            // Start Embedded Asset Server (Port 3001)
+            // Start Embedded Asset Server (Configurable Port)
             let asset_provider = state.assets.clone();
-            // Use generic provider wrapper if needed, but ValkeyProvider implements AssetServerProvider
             let asset_app = keyforge_assets::create_app(asset_provider);
+            let asset_port = args.asset_port;
             
             tokio::spawn(async move {
-                let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
+                let addr = SocketAddr::from(([0, 0, 0, 0], asset_port));
                 info!("🚀 Embedded Asset Server listening on http://{}", addr);
                 let listener = match tokio::net::TcpListener::bind(addr).await {
                     Ok(l) => l,
                     Err(e) => {
-                        error!("FATAL: Failed to bind Asset Server port 3001: {}", e);
-                        return; // or process::exit(1)
+                        error!("FATAL: Failed to bind Asset Server port {}: {}", asset_port, e);
+                        return; 
                     }
                 };
                 if let Err(e) = axum::serve(listener, asset_app).await {

@@ -45,6 +45,8 @@ export RUST_LOG="info,keyforge_hive=debug"
 export HIVE_SECRET="${HIVE_SECRET:-dev_secret_insecure_sandbox}"
 export HIVE_SERVER_KEY="${HIVE_SERVER_KEY:-sandbox_server_identity_key}"
 export DATABASE_URL="${DATABASE_URL:-postgres://keyforge:forge_password@localhost:5432/keyforge_hive}"
+# FIXED: Export VALKEY_URL (used by AppConfig) instead of KEYFORGE_VALKEY_URL
+export VALKEY_URL="${VALKEY_URL:-redis://:dev_valkey_secret@localhost:6379}"
 
 # 5. Execute Command
 if [ "$1" == "true" ]; then

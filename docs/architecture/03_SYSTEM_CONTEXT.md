@@ -1,6 +1,6 @@
 # System Context (Ports & Adapters)
 
-**Version:** 4.4
+**Version:** 5.0
 **Context:** Crate Boundaries and Interface Definitions.
 
 ## The Ports (Application Contracts)
@@ -94,4 +94,33 @@ graph TD
     Phys --> Model
     Agent --> Infra
     Agent --> Proto
+```
+
+## The Deployment Topology (Subdomains)
+
+```mermaid
+graph TD
+    User((User))
+    CF[Cloudflare Proxy]
+    
+    subgraph "Production Cluster"
+        Gateway[Apache Gateway]
+        Hive[Hive API]
+        Assets[Asset Server]
+        DB[(Postgres)]
+        Valkey[(Valkey)]
+    end
+
+    User -->|HTTPS:443| CF
+    
+    CF -->|api.keyforge...| Gateway
+    CF -->|assets.keyforge...| Gateway
+    CF -->|keyforge...| Gateway
+
+    Gateway -->|Proxy| Hive
+    Gateway -->|Proxy| Assets
+    
+    Hive --> DB
+    Hive --> Valkey
+    Assets --> Valkey
 ```

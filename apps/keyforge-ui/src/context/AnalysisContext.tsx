@@ -27,7 +27,7 @@ const AnalysisContext = createContext<AnalysisContextType | undefined>(
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const { layoutString, layoutName, activeJobId, isDatasetLoaded } = useSession();
-  const { weights, availableLayouts, selectedKeyboard } = useLibrary();
+  const { weights, selectedKeyboard } = useLibrary();
   const { hiveUrl } = useSystem();
   const backend = useBackend();
   const { addToast } = useToast();
@@ -35,8 +35,8 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [activeResult, setActiveResult] = useState<ValidationResult | null>(
     null,
   );
-  const [referenceResult, setReferenceResult] =
-    useState<ValidationResult | null>(null);
+  // Reference result is now null by default as per user request to remove auto-calculation
+  const [referenceResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
   const validationReqId = useRef(0);
@@ -79,46 +79,6 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, [layoutString, layoutName, weights, activeJobId, selectedKeyboard, isDatasetLoaded]);
-
-  // Load Reference (Prefer Colemak-DH, then Qwerty, then Default)
-  useEffect(() => {
-    if (!isDatasetLoaded) return; // Prevent "No runtime loaded" race condition
-
-    const runRef = async () => {
-      let targetName = "Colemak-DH";
-      let targetLayout = availableLayouts["Colemak-DH"];
-
-      if (!targetLayout) {
-        targetName = "Qwerty";
-        targetLayout = availableLayouts["Qwerty"];
-      }
-
-      if (!targetLayout) {
-        targetName = "default";
-        targetLayout = availableLayouts["default"];
-      }
-      
-      if (!targetLayout && Object.keys(availableLayouts).length > 0) {
-         targetName = Object.keys(availableLayouts)[0];
-         targetLayout = availableLayouts[targetName];
-      }
-
-      if (targetLayout) {
-        try {
-          const ref = await backend.validateLayout(
-            targetLayout,
-            undefined,
-            hiveUrl,
-            selectedKeyboard,
-          );
-          setReferenceResult({ ...ref, layout_name: targetName });
-        } catch (e) {
-          console.warn(`Failed to load reference '${targetName}':`, JSON.stringify(e));
-        }
-      }
-    };
-    runRef();
-  }, [availableLayouts, selectedKeyboard, isDatasetLoaded]);
 
   return (
     <AnalysisContext.Provider

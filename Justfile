@@ -2,11 +2,15 @@
 default:
     @just --list
 
+# Global Compose File Variable
+COMPOSE := "docker-compose -f ops/docker-compose.yml"
+COMPOSE_DEV := "docker-compose -f ops/docker-compose.yml -f ops/docker-compose.dev.yml"
+
 # --- BUILD ---
 
-build: db-up
+build: infra-up
     @echo "Checking database readiness..."
-    @until docker-compose exec -T db pg_isready -U keyforge -d keyforge_hive > /dev/null 2>&1; do \
+    @until {{COMPOSE}} exec -T db pg_isready -U keyforge -d keyforge_hive > /dev/null 2>&1; do \
         echo "Waiting for PostgreSQL to boot..."; \
         sleep 1; \
     done
@@ -37,11 +41,14 @@ build-ui-backend:
 
 # --- RUN (SANDBOXED) ---
 
-serve: db-up
-    SANDBOX_CONTEXT=server ./ops/scripts/run_sandbox.sh cargo run -p keyforge-hive -- --port 3000
+# Dev Mode: Runs Web Proxy (HTTPS) -> Socat -> Local Binary (HTTP :3002, Assets :3003)
+serve: infra-up
+    @echo "🚀 Starting Web Proxy (HTTPS :3000 -> Local :3002)..."
+    {{COMPOSE_DEV}} up -d web hive_proxy assets_proxy
+    SANDBOX_CONTEXT=server ./ops/scripts/run_sandbox.sh cargo run -p keyforge-hive -- --port 3002 --asset-port 3003
 
-worker:
-    SANDBOX_CONTEXT=worker ./ops/scripts/run_sandbox.sh cargo run -p keyforge-agent -- --hive http://localhost:3000
+worker: infra-up
+    SANDBOX_CONTEXT=worker ./ops/scripts/run_sandbox.sh cargo run -p keyforge-agent -- --hive http://localhost:3002
 
 cli +args:
     SANDBOX_CONTEXT=client ./ops/scripts/run_sandbox.sh cargo run --manifest-path apps/keyforge-cli/Cargo.toml -- {{args}}
@@ -71,7 +78,7 @@ build-image-hive:
     just docker-build keyforge-hive ops/Dockerfile.hive keyforge-hive:latest
 
 up: prepare-offline build-image-hive
-    docker-compose up -d
+    {{COMPOSE}} up -d
 
 serve-monitor url="http://localhost:3000":
     cargo run -p keyforge-hive -- monitor --url {{url}}
@@ -79,10 +86,10 @@ serve-monitor url="http://localhost:3000":
 # --- OPS ---
 
 web-up:
-    docker-compose up -d --build web
+    {{COMPOSE}} up -d --build web
 
 web-down:
-    docker-compose stop web
+    {{COMPOSE}} stop web
 
 # --- TEST ---
 
@@ -106,11 +113,19 @@ fmt:
 lint:
     cargo clippy --workspace -- -D warnings
 
-db-up:
-    docker-compose up -d db valkey
+# Starts only the infrastructure needed for local development (DB, Valkey, AssetMgr)
+infra-up:
+    {{COMPOSE}} up -d db valkey assetmgr
 
-db-down:
-    docker-compose down
+# Starts the full Docker stack (DB, Valkey, Hive, Assets, Web)
+docker-up:
+    {{COMPOSE}} up -d --remove-orphans
+
+docker-down:
+    {{COMPOSE}} down --remove-orphans
+    @# Force kill known containers in case compose file is out of sync
+    -docker stop keyforge_valkey keyforge_db keyforge_hive keyforge_assets keyforge_assetmgr keyforge_web keyforge_hive_proxy keyforge_assets_proxy 2>/dev/null || true
+    -docker rm keyforge_valkey keyforge_db keyforge_hive keyforge_assets keyforge_assetmgr keyforge_web keyforge_hive_proxy keyforge_assets_proxy 2>/dev/null || true
 
 DATABASE_URL := "postgres://keyforge:forge_password@localhost:5432/keyforge_hive"
 
@@ -187,7 +202,7 @@ build-assetmgr:
 
 # Hydrate Valkey with local assets (useful for dev iteration)
 hydrate:
-    docker-compose run --rm assetmgr hydrate
+    {{COMPOSE}} run --rm assetmgr hydrate
 
 # Check Asset Server Health
 check-assets:

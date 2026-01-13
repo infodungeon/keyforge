@@ -50,22 +50,23 @@ pub fn run() {
             }
 
             // Start Embedded Asset Server
-            // This allows the frontend (and potentially local agents) to fetch assets via HTTP/3001
-            // mirroring the Hive architecture locally.
+            // Try to bind to 3004 (avoiding 3000-3003 used by Dev Mode stack)
             let provider = Arc::new(keyforge_infra::FsProvider::new(data_dir.clone()));
             let asset_app = keyforge_assets::create_app(provider);
             
             tauri::async_runtime::spawn(async move {
-                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 3001));
+                // Try a range of ports or specific one
+                let port = 3004;
+                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
                 match tokio::net::TcpListener::bind(addr).await {
                     Ok(listener) => {
-                         tracing::info!("🚀 Embedded Asset Server listening on http://{}", addr);
+                         tracing::info!("🚀 UI Embedded Asset Server listening on http://{}", addr);
                          if let Err(e) = axum::serve(listener, asset_app).await {
                              tracing::error!("Asset server error: {}", e);
                          }
                     }
                     Err(e) => {
-                         tracing::warn!("Failed to bind asset server to 3001: {}. Is another instance running?", e);
+                         tracing::warn!("Failed to bind UI asset server to {}: {}. Is another instance running?", port, e);
                     }
                 }
             });

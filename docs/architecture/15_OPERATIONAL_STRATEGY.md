@@ -1,6 +1,6 @@
 # Operational Strategy (Day-2 Operations)
 
-**Version:** 4.6
+**Version:** 5.0
 **Context:** Maintenance, Scaling, Reliability, and Containerization.
 
 ## 1. Database Migrations
@@ -51,7 +51,23 @@ The Asset Architecture follows a strict **Writer/Reader separation**.
 *   **Lifecycle:** Stateless request handler.
 *   **Behavior:** Serves HTTP requests by streaming data directly from Valkey memory.
 
-## 4. Containerization Strategy
+## 4. Ingress Architecture (Subdomains)
+
+To leverage Cloudflare's DDoS protection and caching, all services are exposed via Port 443 using distinct subdomains.
+
+| Service | Subdomain | Internal Target |
+| :--- | :--- | :--- |
+| **Frontend** | `keyforge.infodungeon.com` | `web` (Static Files) |
+| **Hive API** | `api.keyforge.infodungeon.com` | `hive:3000` |
+| **Assets** | `assets.keyforge.infodungeon.com` | `assets:3001` |
+
+**The Gateway (Apache):**
+A single `web` container runs Apache httpd. It handles:
+1.  **SSL Termination:** Manages certificates for all subdomains.
+2.  **Reverse Proxy:** Routes traffic to internal containers (`hive`, `assets`) based on the `Host` header.
+3.  **Security Headers:** Enforces HSTS, X-Frame-Options, etc.
+
+## 5. Containerization Strategy
 
 We adhere to the **Minimal Attack Surface** doctrine.
 
@@ -65,16 +81,16 @@ We adhere to the **Minimal Attack Surface** doctrine.
 *   **Database:** `postgres:16-alpine`. Standard minimal image based on Alpine Linux.
 *   **Web Proxy:** `httpd:alpine`. Minimal Apache build based on Alpine Linux.
 
-## 5. Secret Management
+## 6. Secret Management
 
-* **Storage:** Environment Variables (`HIVE_SECRET`, `DATABASE_URL`, `KEYFORGE_VALKEY_URL`).
-* **Rotation:**
-  1. Update the Secret in the Orchestrator.
-  2. Trigger a Rolling Restart.
-  3. Nodes re-authenticate with the new secret.
+*   **Storage:** Environment Variables (`HIVE_SECRET`, `DATABASE_URL`, `KEYFORGE_VALKEY_URL`).
+*   **Rotation:**
+    1.  Update the Secret in the Orchestrator.
+    2.  Trigger a Rolling Restart.
+    3.  Nodes re-authenticate with the new secret.
 
-## 6. Disaster Recovery
+## 7. Disaster Recovery
 
-* **RPO:** 24 Hours (Daily Backups).
-* **RTO:** 1 Hour (Redeploy Stack).
-* **Strategy:** Postgres Dump for persistent state. Assets re-hydrated automatically by `assetmgr` from the mounted volume or container image.
+*   **RPO:** 24 Hours (Daily Backups).
+*   **RTO:** 1 Hour (Redeploy Stack).
+*   **Strategy:** Postgres Dump for persistent state. Assets re-hydrated automatically by `assetmgr` from the mounted volume or container image.

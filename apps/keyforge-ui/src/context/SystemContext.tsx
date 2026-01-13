@@ -31,13 +31,16 @@ interface SystemContextType {
 
 const SystemContext = createContext<SystemContextType | undefined>(undefined);
 
+// Load default from build-time environment variable
+const DEFAULT_HIVE_URL = import.meta.env.VITE_DEFAULT_HIVE_URL || "https://keyforge.infodungeon.com:3000";
+
 export function SystemProvider({ children }: { children: ReactNode }) {
   const { addToast } = useToast();
   const backend = useBackend();
 
   // --- STATE ---
   const [hiveUrl, setHiveUrl] = useState(
-    () => localStorage.getItem("keyforge_hive_url") || "https://hive.infodungeon.com:3000",
+    () => localStorage.getItem("keyforge_hive_url") || DEFAULT_HIVE_URL,
   );
   const [hiveSecret, setHiveSecret] = useState(
     () => localStorage.getItem("keyforge_hive_secret") || "",

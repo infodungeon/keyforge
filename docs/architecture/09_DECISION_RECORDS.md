@@ -162,3 +162,31 @@
   * (+) **Security:** Asset Server can be public (read-only), while Hive remains private/authenticated.
   * (+) **Architecture:** Explicit separation of concerns.
   * (-) **Complexity:** Clients must manage two base URLs (`KEYFORGE_API_URL` and `KEYFORGE_ASSET_URL`).
+
+## ADR-013: Hybrid Development Environment
+
+* **Status:** Accepted
+* **Date:** 2026-01-13
+* **Context:** Developing against a full Docker stack is slow (rebuild times). Developing purely locally misses infrastructure issues (HTTPS, CORS, Proxy rules).
+* **Decision:** Implement a **Hybrid Mode** (`just serve`).
+  * **Infrastructure:** DB, Valkey, and Web Proxy run in Docker.
+  * **Logic:** `keyforge-hive` runs natively on the host (Port 3002).
+  * **Bridge:** `socat` containers proxy traffic from the Web Container (Port 3000/3001) to the Host (Port 3002/3003).
+* **Consequences:**
+  * (+) **Speed:** Instant compilation/restart for Rust code.
+  * (+) **Parity:** Frontend talks to "Production-like" HTTPS endpoints (`https://localhost:3000`).
+  * (-) **Complexity:** Requires `extra_hosts` configuration for Linux support.
+
+## ADR-014: Subdomain Architecture
+
+* **Status:** Accepted
+* **Date:** 2026-01-13
+* **Context:** Cloudflare Proxy (Orange Cloud) only supports specific ports (80, 443, etc.). Our previous architecture used ports 3000/3001 for API/Assets, which exposed the origin IP and bypassed DDoS protection.
+* **Decision:** Move to a **Subdomain-based Architecture** on Port 443.
+  * `keyforge.infodungeon.com` -> Frontend (Static).
+  * `api.keyforge.infodungeon.com` -> Hive API.
+  * `assets.keyforge.infodungeon.com` -> Asset Server.
+* **Consequences:**
+  * (+) **Security:** All traffic flows through Cloudflare WAF on Port 443.
+  * (+) **Standards:** No non-standard ports required for clients.
+  * (-) **DNS:** Requires managing multiple A records.

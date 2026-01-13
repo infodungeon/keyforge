@@ -12,6 +12,8 @@ DOMAINS=(
     "infodungeon.com"
     "www.infodungeon.com"
     "keyforge.infodungeon.com"
+    "api.keyforge.infodungeon.com"
+    "assets.keyforge.infodungeon.com"
 )
 
 # === LOGGING HELPER ===

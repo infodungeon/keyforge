@@ -3,7 +3,7 @@ use keyforge_protocol::JobConfig;
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
-use tracing::warn;
+use tracing::{info, warn, error, debug};
 
 #[derive(Debug)]
 pub struct AgentRunner {
@@ -45,8 +45,26 @@ impl AgentRunner {
                 }
                 CommandEvent::Stderr(line) => {
                     let s = String::from_utf8_lossy(&line);
-                    if !s.trim().is_empty() {
-                         warn!("Agent stderr: {}", s.trim());
+                    let trimmed = s.trim();
+                    if !trimmed.is_empty() {
+                        // Try to parse structured log
+                        if let Ok(log) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                            if let Some(level) = log.get("level").and_then(|v| v.as_str()) {
+                                match level {
+                                    "ERROR" => error!("Agent: {}", trimmed),
+                                    "WARN" => warn!("Agent: {}", trimmed),
+                                    "INFO" => info!("Agent: {}", trimmed),
+                                    _ => debug!("Agent: {}", trimmed),
+                                }
+                                continue;
+                            }
+                        }
+                        // Fallback for unstructured text
+                        if trimmed.contains("error") || trimmed.contains("Error") {
+                            warn!("Agent stderr: {}", trimmed);
+                        } else {
+                            debug!("Agent stderr: {}", trimmed);
+                        }
                     }
                 }
                 CommandEvent::Error(e) => {

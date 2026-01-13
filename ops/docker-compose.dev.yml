@@ -1,0 +1,23 @@
+services:
+  # In Dev Mode, we don't run hive/assets containers.
+  # We map the aliases to the host gateway so Apache talks to localhost.
+  
+  hive_proxy:
+    image: alpine/socat
+    command: tcp-listen:3000,fork,reuseaddr tcp:host.docker.internal:3002
+    networks:
+      default:
+        aliases:
+          - hive_upstream
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  assets_proxy:
+    image: alpine/socat
+    command: tcp-listen:3001,fork,reuseaddr tcp:host.docker.internal:3003
+    networks:
+      default:
+        aliases:
+          - assets_upstream
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

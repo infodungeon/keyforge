@@ -33,12 +33,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # Asset Manager (Init Job)
+  # Asset Manager
   assetmgr:
     build:
       context: ..
       dockerfile: ops/Dockerfile.assetmgr
     container_name: keyforge_assetmgr
+    restart: always
     depends_on:
       valkey:
         condition: service_healthy
@@ -47,9 +48,8 @@ services:
       KEYFORGE_DATA_DIR: /app/data
     volumes:
       - ../data:/app/data
-    command: ["keyforge-assetmgr", "hydrate"]
 
-  # Asset Server (Data Plane)
+  # Asset Server
   assets:
     build:
       context: ..
@@ -58,15 +58,18 @@ services:
     restart: always
     depends_on:
       assetmgr:
-        condition: service_completed_successfully
+        condition: service_started
       valkey:
         condition: service_healthy
-    # Ports removed: Handled by Web Proxy
     environment:
       KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
       PORT: 3001
+    networks:
+      default:
+        aliases:
+          - assets_upstream
 
-  # Hive (Control Plane)
+  # Hive
   hive:
     build:
       context: ..
@@ -78,7 +81,6 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
-    # Ports removed: Handled by Web Proxy
     environment:
       DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
       HIVE_SECRET: ${HIVE_SECRET:-}
@@ -86,8 +88,12 @@ services:
       KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
     volumes:
       - ../data:/app/data
+    networks:
+      default:
+        aliases:
+          - hive_upstream
 
-  # The Web server
+  # The Web server (Gateway)
   web:
     build:
       context: ..
@@ -97,11 +103,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "3000:3000"
-      - "3001:3001"
     volumes:
       - ../hosts/sites:/usr/local/apache2/htdocs:ro
       - ../hosts/certs:/etc/apache2/ssl:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:
@@ -2691,6 +2697,8 @@ export RUST_LOG="info,keyforge_hive=debug"
 export HIVE_SECRET="${HIVE_SECRET:-dev_secret_insecure_sandbox}"
 export HIVE_SERVER_KEY="${HIVE_SERVER_KEY:-sandbox_server_identity_key}"
 export DATABASE_URL="${DATABASE_URL:-postgres://keyforge:forge_password@localhost:5432/keyforge_hive}"
+# FIXED: Export VALKEY_URL (used by AppConfig) instead of KEYFORGE_VALKEY_URL
+export VALKEY_URL="${VALKEY_URL:-redis://:dev_valkey_secret@localhost:6379}"
 
 # 5. Execute Command
 if [ "$1" == "true" ]; then

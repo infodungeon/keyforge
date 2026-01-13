@@ -35,17 +35,20 @@ pub struct ClientConfig {
     pub connect_timeout: Duration,
     /// Custom User-Agent string.
     pub user_agent: String,
+    /// Allow invalid/self-signed certificates (Dev Mode).
+    pub accept_invalid_certs: bool,
 }
 
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
             api_url: DEFAULT_HIVE_URL.to_string(),
-            asset_url: "http://localhost:3001".to_string(), // Keep specific local default
+            asset_url: "http://localhost:3001".to_string(),
             secret: None,
             timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
             connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),
             user_agent: DEFAULT_USER_AGENT.to_string(),
+            accept_invalid_certs: false,
         }
     }
 }
@@ -80,6 +83,7 @@ impl HiveClient {
             .default_headers(headers)
             .timeout(config.timeout)
             .connect_timeout(config.connect_timeout)
+            .danger_accept_invalid_certs(config.accept_invalid_certs)
             .build()?;
 
         Ok(Self {
