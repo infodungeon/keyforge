@@ -19,9 +19,34 @@ import {
 export class WebClient implements BackendClient {
   private hiveUrl: string;
   private cache: Map<string, Promise<any>> = new Map();
+  private worker: Worker | null = null;
+  private workerReady = false;
+  private lastKeyboardData: any = null;
 
-  constructor(hiveUrl: string = "https://hive.infodungeon.com:3000") {
+  constructor(hiveUrl: string = "https://api.keyforge.infodungeon.com") {
     this.hiveUrl = hiveUrl;
+    this.initWorker();
+  }
+
+  private initWorker() {
+    if (typeof Worker !== "undefined") {
+      this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
+        type: "module",
+      });
+      this.worker.onmessage = (e) => {
+        const { type, payload } = e.data;
+        if (type === "READY") {
+          this.workerReady = true;
+          if (this.lastKeyboardData) {
+            this.worker?.postMessage({
+              type: "LOAD_DATA",
+              payload: this.lastKeyboardData,
+            });
+          }
+        }
+      };
+      this.worker.postMessage({ type: "INIT" });
+    }
   }
 
   private async fetchJson<T>(
@@ -217,10 +242,6 @@ export class WebClient implements BackendClient {
     return [];
   }
 
-  private worker: Worker | null = null;
-  private workerReady = false;
-  private lastKeyboardData: any = null;
-
   async loadDataset(
     keyboardName: string,
     corpusFilename: string,
@@ -268,25 +289,26 @@ export class WebClient implements BackendClient {
 
   async validateLayout(
     layoutStr: string,
-    weights?: ScoringWeights,
-    hiveUrl?: string,
-    keyboardName?: string,
+    _weights?: ScoringWeights,
+    _hiveUrl?: string,
+    _keyboardName?: string,
   ): Promise<ValidationResult> {
-    const url = hiveUrl || this.hiveUrl;
-    const res = await fetch(`${url}/analysis/validate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        layout_str: layoutStr,
-        weights,
-        keyboard_name: keyboardName,
-      }),
+    if (!this.worker) throw new Error("Worker not initialized");
+    
+    return new Promise((resolve, reject) => {
+      const handler = (e: MessageEvent) => {
+        const { type, payload } = e.data;
+        if (type === "VALIDATION_RESULT") {
+          this.worker?.removeEventListener("message", handler);
+          resolve(payload);
+        } else if (type === "ERROR") {
+          this.worker?.removeEventListener("message", handler);
+          reject(new Error(payload));
+        }
+      };
+      this.worker.addEventListener("message", handler);
+      this.worker.postMessage({ type: "VALIDATE", payload: { layoutStr } });
     });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Validation failed: ${text}`);
-    }
-    return res.json();
   }
 
   async getSmartSwaps(_layoutStr: string): Promise<SwapSuggestion[]> {
@@ -333,31 +355,7 @@ export class WebClient implements BackendClient {
     _secret: string,
   ): Promise<string> {
     if (enabled) {
-      if (!this.worker) {
-        this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
-          type: "module",
-        });
-
-        this.worker.onmessage = (e) => {
-          const { type, payload } = e.data;
-          if (type === "UPDATE") {
-            const event = new CustomEvent("search-update", {
-              detail: payload,
-            });
-            window.dispatchEvent(event);
-          } else if (type === "READY") {
-            this.workerReady = true;
-            if (this.lastKeyboardData) {
-              this.worker?.postMessage({
-                type: "LOAD_DATA",
-                payload: this.lastKeyboardData,
-              });
-            }
-          }
-        };
-
-        this.worker.postMessage({ type: "INIT" });
-      }
+      if (!this.worker) this.initWorker();
       return "Web Worker Started";
     } else {
       if (this.worker) {

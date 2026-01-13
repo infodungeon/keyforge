@@ -25,9 +25,6 @@ use keyforge_model::error::ForgeError;
 use serde_json::Value;
 
 /// Populates a corpus structure from raw n-gram segments with weighted frequencies.
-/// 
-/// This function handles 1-grams, 2-grams, 3-grams, and words, applying the provided
-/// segment weight and performing strict validation to prevent silent data corruption.
 pub fn populate_corpus_from_segments(
     corpus: &mut Corpus,
     weight: f32,
@@ -107,12 +104,29 @@ pub fn populate_corpus_from_segments(
 }
 
 /// Resolves a corpus token string to a character.
+/// Handles:
+/// 1. Named tokens ("SPACE", "ENTER")
+/// 2. Hex strings ("65", "20")
+/// 3. Literal characters ("a", "b")
 pub fn resolve_corpus_char(token: &str) -> Option<char> {
+    // 1. Named Tokens
     for (key, val) in CORPUS_TOKEN_MAP {
         if token == *key {
             return Some(*val);
         }
     }
+
+    // 2. Hex Strings (2 chars, valid hex)
+    if token.len() == 2 {
+        if let Ok(byte) = u8::from_str_radix(token, 16) {
+            // Only treat as hex if it's a valid ASCII printable or common control
+            // This avoids ambiguity with 2-letter words like "at" or "in" if they appear here (unlikely for 1grams)
+            // But for 1grams.json, the format is strictly hex for non-named chars.
+            return Some(byte as char);
+        }
+    }
+    
+    // 3. Literal Characters (Fallback)
     if token.chars().count() == 1 {
         token.chars().next().map(|c| c.to_ascii_lowercase())
     } else {
