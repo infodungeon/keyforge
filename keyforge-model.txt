@@ -688,7 +688,7 @@ pub const DEFAULT_CORPUS_ID: &str = "text/en_std";
 /// Default keyboard identifier.
 pub const DEFAULT_KEYBOARD_ID: &str = "ortho_30";
 /// Default URL for the Hive server.
-pub const DEFAULT_HIVE_URL: &str = "https://hive.infodungeon.com:3000";
+pub const DEFAULT_HIVE_URL: &str = "https://keyforge.infodungeon.com:3000";
 /// Default request timeout (seconds).
 pub const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 /// Default connection timeout (seconds).

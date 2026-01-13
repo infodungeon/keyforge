@@ -1,118 +1,3 @@
->>>>>>>> START FILE: ops/docker-compose.yml <<<<<<<<
-services:
-  # The Database
-  db:
-    image: postgres:16-alpine
-    container_name: keyforge_db
-    restart: always
-    environment:
-      POSTGRES_USER: keyforge
-      POSTGRES_PASSWORD: forge_password
-      POSTGRES_DB: keyforge_hive
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keyforge"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # The Coordination Layer (Valkey)
-  valkey:
-    image: valkey/valkey:8
-    container_name: keyforge_valkey
-    restart: always
-    ports:
-      - "6379:6379"
-    command: valkey-server --requirepass "dev_valkey_secret" --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
-    healthcheck:
-      test: ["CMD", "valkey-cli", "-a", "dev_valkey_secret", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # Asset Manager
-  assetmgr:
-    build:
-      context: ..
-      dockerfile: ops/Dockerfile.assetmgr
-    container_name: keyforge_assetmgr
-    restart: always
-    depends_on:
-      valkey:
-        condition: service_healthy
-    environment:
-      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
-      KEYFORGE_DATA_DIR: /app/data
-    volumes:
-      - ../data:/app/data
-
-  # Asset Server
-  assets:
-    build:
-      context: ..
-      dockerfile: ops/Dockerfile.assets
-    container_name: keyforge_assets
-    restart: always
-    depends_on:
-      assetmgr:
-        condition: service_started
-      valkey:
-        condition: service_healthy
-    environment:
-      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
-      PORT: 3001
-    networks:
-      default:
-        aliases:
-          - assets_upstream
-
-  # Hive
-  hive:
-    build:
-      context: ..
-      dockerfile: ops/Dockerfile.hive
-    container_name: keyforge_hive
-    restart: always
-    depends_on:
-      db:
-        condition: service_healthy
-      valkey:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
-      HIVE_SECRET: ${HIVE_SECRET:-}
-      RUST_LOG: info,keyforge_hive=debug
-      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
-    volumes:
-      - ../data:/app/data
-    networks:
-      default:
-        aliases:
-          - hive_upstream
-
-  # The Web server (Gateway)
-  web:
-    build:
-      context: ..
-      dockerfile: ops/Dockerfile.web
-    container_name: keyforge_web
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ../hosts/sites:/usr/local/apache2/htdocs:ro
-      - ../hosts/certs:/etc/apache2/ssl:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-volumes:
-  postgres_data:
-
->>>>>>>> END FILE: ops/docker-compose.yml <<<<<<<<
 >>>>>>>> START FILE: ops/Dockerfile.assetmgr <<<<<<<<
 # Stage 1: Chef
 FROM rust:slim-bookworm AS chef
@@ -453,6 +338,151 @@ VOLUME /etc/apache2/ssl/
 CMD ["httpd-foreground"]
 
 >>>>>>>> END FILE: ops/Dockerfile.web <<<<<<<<
+>>>>>>>> START FILE: ops/docker-compose.dev.yml <<<<<<<<
+services:
+  # In Dev Mode, we don't run hive/assets containers.
+  # We map the aliases to the host gateway so Apache talks to localhost.
+  
+  hive_proxy:
+    image: alpine/socat
+    command: tcp-listen:3000,fork,reuseaddr tcp:host.docker.internal:3002
+    ports:
+      - "3000:3000"
+    networks:
+      default:
+        aliases:
+          - hive_upstream
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  assets_proxy:
+    image: alpine/socat
+    command: tcp-listen:3001,fork,reuseaddr tcp:host.docker.internal:3003
+    ports:
+      - "3001:3001"
+    networks:
+      default:
+        aliases:
+          - assets_upstream
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+>>>>>>>> END FILE: ops/docker-compose.dev.yml <<<<<<<<
+>>>>>>>> START FILE: ops/docker-compose.yml <<<<<<<<
+services:
+  # The Database
+  db:
+    image: postgres:16-alpine
+    container_name: keyforge_db
+    restart: always
+    environment:
+      POSTGRES_USER: keyforge
+      POSTGRES_PASSWORD: forge_password
+      POSTGRES_DB: keyforge_hive
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keyforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # The Coordination Layer (Valkey)
+  valkey:
+    image: valkey/valkey:8
+    container_name: keyforge_valkey
+    restart: always
+    ports:
+      - "6379:6379"
+    command: valkey-server --requirepass "dev_valkey_secret" --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "dev_valkey_secret", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Asset Manager
+  assetmgr:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.assetmgr
+    container_name: keyforge_assetmgr
+    restart: always
+    depends_on:
+      valkey:
+        condition: service_healthy
+    environment:
+      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+      KEYFORGE_DATA_DIR: /app/data
+    volumes:
+      - ../data:/app/data
+
+  # Asset Server
+  assets:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.assets
+    container_name: keyforge_assets
+    restart: always
+    depends_on:
+      assetmgr:
+        condition: service_started
+      valkey:
+        condition: service_healthy
+    environment:
+      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+      PORT: 3001
+    networks:
+      default:
+        aliases:
+          - assets_upstream
+
+  # Hive
+  hive:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.hive
+    container_name: keyforge_hive
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
+      HIVE_SECRET: ${HIVE_SECRET:-}
+      RUST_LOG: info,keyforge_hive=debug
+      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+    volumes:
+      - ../data:/app/data
+    networks:
+      default:
+        aliases:
+          - hive_upstream
+
+  # The Web server (Gateway)
+  web:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.web
+    container_name: keyforge_web
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../hosts/sites:/usr/local/apache2/htdocs:ro
+      - ../hosts/certs:/etc/apache2/ssl:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_data:
+
+>>>>>>>> END FILE: ops/docker-compose.yml <<<<<<<<
 >>>>>>>> START FILE: ops/scripts/analyze_coverage.py <<<<<<<<
 #!/usr/bin/env python3
 import json
@@ -1606,155 +1636,12 @@ if __name__ == "__main__":
     print("\n✨ Data Pipeline Complete.")
 >>>>>>>> END FILE: ops/scripts/corpora_generation/process_smol.py <<<<<<<<
 >>>>>>>> START FILE: ops/scripts/csv_scripts/fix_remaining_csv.py <<<<<<<<
-#!/usr/bin/env python3
-"""
-Final cleanup: Find and fix all remaining CSV data in test files
-"""
-import re
-import sys
-from pathlib import Path
-
-def fix_test_file(filepath):
-    """Fix CSV data patterns in a single test file"""
-    with open(filepath, 'r') as f:
-        content = f.read()
-    
-    original = content
-    
-    # Pattern 1: writeln!(f, "header,header")
-    content = re.sub(
-        r'writeln!\s*\(\s*f\s*,\s*"From,To,Cost"\s*\)\s*\.unwrap\(\);\s*writeln!\s*\(\s*f\s*,\s*"KC_A,KC_B,10\.0"\s*\)',
-        r'writeln!(f, r#"[{\"from_key\":\"KC_A\",\"to_key\":\"KC_B\",\"cost_ms\":10.0,\"confidence_samples\":10}]"#)',
-        content
-    )
-    
-    # Pattern 2: Multi-line CSV writes
-    content = re.sub(
-        r'writeln!\s*\(\s*f\s*,\s*"char,freq\\na,100\\nb,100"\s*\)',
-        r'writeln!(f, r#"[{\"char\":\"a\",\"freq\":100},{\"char\":\"b\",\"freq\":100}]"#)',
-        content
-    )
-    
-    content = re.sub(
-        r'writeln!\s*\(\s*f\s*,\s*"char1,char2,freq\\na,b,50"\s*\)',
-        r'writeln!(f, r#"[{\"char1\":\"a\",\"char2\":\"b\",\"freq\":50}]"#)',
-        content
-    )
-    
-    content = re.sub(
-        r'writeln!\s*\(\s*f\s*,\s*"char,freq\\na,100"\s*\)',
-        r'writeln!(f, r#"[{\"char\":\"a\",\"freq\":100}]"#)',
-        content
-    )
-    
-    content = re.sub(
-        r'writeln!\s*\(\s*f\s*,\s*"char1,char2,char3,freq"\s*\)',
-        r'writeln!(f, r#"[]"#)',
-        content
-    )
-    
-    content = re.sub(
-        r'writeln!\s*\(\s*f\s*,\s*"word,freq"\s*\)',
-        r'writeln!(f, r#"[]"#)',
-       content
-    )
-    
-    # Pattern 3: Cost matrix patterns
-    content = re.sub(
-        r'writeln!\s*\(\s*f\s*,\s*"From_Key,To_Key,Cost_MS\\nLeftPinky,LeftRing,80\.0"\s*\)',
-        r'writeln!(f, r#"[{\"from_key\":\"LeftPinky\",\"to_key\":\"LeftRing\",\"cost_ms\":80.0,\"confidence_samples\":10}]"#)',
-        content
-    )
-    
-    if content != original:
-        with open(filepath, 'w') as f:
-            f.write(content)
-        return True
-    return False
-
-def main():
-    root = Path("crates")
-    test_files = list(root.glob("*/tests/*.rs"))
-    
-    fixed_count = 0
-    for test_file in test_files:
-        if fix_test_file(test_file):
-            print(f"Fixed: {test_file}")
-            fixed_count += 1
-    
-    print(f"\nFixed {fixed_count} files")
-
-if __name__ == "__main__":
-    main()
 
 >>>>>>>> END FILE: ops/scripts/csv_scripts/fix_remaining_csv.py <<<<<<<<
 >>>>>>>> START FILE: ops/scripts/csv_scripts/update_test_data_format.sh <<<<<<<<
-#!/usr/bin/env bash
-# Update CSV fixture data to JSON format in all test files
-
-set -e
-
-echo "Updating test fixture data formats..."
-
-# Find all Rust test files
-find crates/*/tests -name "*.rs" -type f | while read -r file; do
-    # Skip if file doesn't contain CSV data creation patterns
-    if ! grep -q 'writeln.*".*,.*"' "$file" && ! grep -q 'write_all.*".*,.*"' "$file"; then
-        continue
-    fi
-    
-    echo "Processing: $file"
-    
-    # Use perl for multi-line replacements
-    perl -i -p0e '
-        # Cost matrix CSV to JSON  
-        s/writeln!\s*\(\s*f\s*,\s*"From,To,Cost\\nKC_A,KC_B,10\.0"\s*\)/writeln!(f, r#"[{\\"from_key\\":\\"KC_A\\",\\"to_key\\":\\"KC_B\\",\\"cost_ms\\":10.0,\\"confidence_samples\\":10}]"#)/gs;
-        s/writeln!\s*\(\s*f\s*,\s*"From,To,Cost\\nKA,KB,10\.0"\s*\)/writeln!(f, r#"[{\\"from_key\\":\\"KA\\",\\"to_key\\":\\"KB\\",\\"cost_ms\\":10.0,\\"confidence_samples\\":10}]"#)/gs;
-        s/writeln!\s*\(\s*f\s*,\s*"From_Key,To_Key,Cost_MS\\nLeftPinky,LeftRing,80\.0"\s*\)/writeln!(f, r#"[{\\"from_key\\":\\"LeftPinky\\",\\"to_key\\":\\"LeftRing\\",\\"cost_ms\\":80.0,\\"confidence_samples\\":10}]"#)/gs;
-        
-        # 1grams CSV to JSON
-        s/writeln!\s*\(\s*f\s*,\s*"char,freq\\\\na,100"\s*\)/writeln!(f, r#"[{\\"char\\":\\"a\\",\\"freq\\":100}]"#)/gs;
-        
-        # Empty corpus files to minimal JSON arrays
-        s/\.write_all\s*\(\s*b"c1,c2,f\\\\n"\s*\)/\.write_all(br#"[{\\"char1\\":\\"a\\",\\"char2\\":\\"b\\",\\"freq\\":10}]"#)/gs;
-        s/\.write_all\s*\(\s*b"c1,c2,c3,f\\\\n"\s*\)/\.write_all(br#"[{\\"char1\\":\\"a\\",\\"char2\\":\\"b\\",\\"char3\\":\\"c\\",\\"freq\\":5}]"#)/gs;
-        s/\.write_all\s*\(\s*b"word,f\\\\n"\s*\)/\.write_all(br#"[{\\"word\\":\\"test\\",\\"freq\\":20}]"#)/gs;
-        s/\.write_all\s*\(\s*b"char,freq\\\\na,100"\s*\)/\.write_all(br#"[{\\"char\\":\\"a\\",\\"freq\\":100}]"#)/gs;
-    ' "$file"
-done
-
-echo "All test fixture data formats updated!"
 
 >>>>>>>> END FILE: ops/scripts/csv_scripts/update_test_data_format.sh <<<<<<<<
 >>>>>>>> START FILE: ops/scripts/csv_scripts/update_test_extensions.sh <<<<<<<<
-#!/usr/bin/env bash
-# Update all test files to use JSON instead of CSV
-
-set -e
-
-# Function to update a file
-update_test_file() {
-    local file="$1"
-    echo "Updating $file..."
-    
-    # Replace file extensions
-    sed -i 's/cost\.csv/cost.json/g' "$file"
-    sed -i 's/1grams\.csv/1grams.json/g' "$file"
-    sed -i 's/2grams\.csv/2grams.json/g' "$file"
-    sed -i 's/3grams\.csv/3grams.json/g' "$file"
-    sed -i 's/words\.csv/words.json/g' "$file"
-    sed -i 's/_cost\.csv/_cost.json/g' "$file"
-    sed -i 's/matrix\.csv/matrix.json/g' "$file"
-}
-
-# Find all test files and update them
-find crates/*/tests -name "*.rs" -type f | while read -r file; do
-    if grep -q "\.csv" "$file"; then
-        update_test_file "$file"
-    fi
-done
-
-echo "All test files updated!"
 
 >>>>>>>> END FILE: ops/scripts/csv_scripts/update_test_extensions.sh <<<<<<<<
 >>>>>>>> START FILE: ops/scripts/daily_cleanup.sh <<<<<<<<
@@ -1786,6 +1673,8 @@ DOMAINS=(
     "infodungeon.com"
     "www.infodungeon.com"
     "keyforge.infodungeon.com"
+    "api.keyforge.infodungeon.com"
+    "assets.keyforge.infodungeon.com"
 )
 
 # === LOGGING HELPER ===

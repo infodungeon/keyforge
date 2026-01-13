@@ -1679,11 +1679,6 @@ async fn main() -> anyhow::Result<()> {
 
             let (result_tx, mut result_rx) = mpsc::channel(1);
             
-            // We need to inject the timeout into the agent runner logic
-            // Since Agent::run spawns tasks that call compute::run_optimization,
-            // we should ensure compute::run_optimization uses the timeout from JobConfig if present.
-            // Actually, the current Agent::run uses config.compute.job_timeout_sec.
-            
             let agent = keyforge_agent::agent::Agent::new(config.clone(), result_tx).await
                 .map_err(|e| anyhow::anyhow!("Failed to init agent: {}", e))?;
 
@@ -1709,6 +1704,9 @@ async fn main() -> anyhow::Result<()> {
             let _ = agent_handle.await;
         }
         Commands::Score { job_file, layout, timeout } => {
+            // USE TRACING ERROR TO FORCE VISIBILITY
+            error!("DEBUG_TRACE_ID_999: Scoring layout: '{}'", layout);
+
             let job = read_job_config(&job_file).await?;
             
             if let Some(t) = timeout {

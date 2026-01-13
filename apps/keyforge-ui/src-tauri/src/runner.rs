@@ -4,6 +4,7 @@ use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
 use tracing::{info, warn, error, debug};
+use crate::utils::get_data_dir;
 
 #[derive(Debug)]
 pub struct AgentRunner {
@@ -22,6 +23,8 @@ impl AgentRunner {
         let json = serde_json::to_string(config).map_err(|e| CommandError::Internal(e.to_string()))?;
         tokio::fs::write(&temp_path, json).await.map_err(|e| CommandError::Internal(e.to_string()))?;
 
+        let data_dir = get_data_dir(&self.app).map_err(|e| CommandError::Internal(e))?;
+
         // Spawn sidecar
         // args: ["score", temp_path, layout, "--data-dir", data_dir]
         let sidecar_command = self.app.shell().sidecar("keyforge-agent")
@@ -29,7 +32,32 @@ impl AgentRunner {
             .args([
                 "score",
                 &temp_path.to_string_lossy(),
+                "--layout", // Explicit flag if needed, but main.rs uses positional or flag?
+                layout,     // main.rs: Score { job_file, layout } -> positional? No, clap derive.
+                "--data-dir",
+                &data_dir.to_string_lossy()
+            ]);
+            
+        // Wait, let's check main.rs args again.
+        // Commands::Score { job_file, layout, timeout }
+        // Clap default for named fields is --flag unless #[arg(positional)]?
+        // No, Subcommand fields are positional by default unless #[arg(long/short)].
+        // In main.rs:
+        // Score {
+        //    job_file: PathBuf,
+        //    layout: String,
+        //    #[arg(long)] timeout: Option<u64>,
+        // }
+        // So: keyforge-agent score <JOB_FILE> <LAYOUT> --data-dir <DIR>
+        
+        let sidecar_command = self.app.shell().sidecar("keyforge-agent")
+            .map_err(|e| CommandError::Internal(e.to_string()))?
+            .args([
+                "score",
+                &temp_path.to_string_lossy(),
                 layout,
+                "--data-dir",
+                &data_dir.to_string_lossy()
             ]);
 
         let (mut rx, _child) = sidecar_command

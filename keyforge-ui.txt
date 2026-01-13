@@ -983,6 +983,8 @@ pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandEr
         api_url: hive_url,
         asset_url,
         secret: None,
+        // Enable insecure certs for dev mode
+        accept_invalid_certs: true,
         ..Default::default()
     };
     let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
@@ -1352,7 +1354,7 @@ use keyforge_protocol::JobConfig;
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
-use tracing::warn;
+use tracing::{info, warn, error, debug};
 
 #[derive(Debug)]
 pub struct AgentRunner {
@@ -1394,8 +1396,26 @@ impl AgentRunner {
                 }
                 CommandEvent::Stderr(line) => {
                     let s = String::from_utf8_lossy(&line);
-                    if !s.trim().is_empty() {
-                         warn!("Agent stderr: {}", s.trim());
+                    let trimmed = s.trim();
+                    if !trimmed.is_empty() {
+                        // Try to parse structured log
+                        if let Ok(log) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                            if let Some(level) = log.get("level").and_then(|v| v.as_str()) {
+                                match level {
+                                    "ERROR" => error!("Agent: {}", trimmed),
+                                    "WARN" => warn!("Agent: {}", trimmed),
+                                    "INFO" => info!("Agent: {}", trimmed),
+                                    _ => debug!("Agent: {}", trimmed),
+                                }
+                                continue;
+                            }
+                        }
+                        // Fallback for unstructured text
+                        if trimmed.contains("error") || trimmed.contains("Error") {
+                            warn!("Agent stderr: {}", trimmed);
+                        } else {
+                            debug!("Agent stderr: {}", trimmed);
+                        }
                     }
                 }
                 CommandEvent::Error(e) => {
@@ -2417,9 +2437,34 @@ import {
 export class WebClient implements BackendClient {
   private hiveUrl: string;
   private cache: Map<string, Promise<any>> = new Map();
+  private worker: Worker | null = null;
+  private workerReady = false;
+  private lastKeyboardData: any = null;
 
-  constructor(hiveUrl: string = "https://hive.infodungeon.com:3000") {
+  constructor(hiveUrl: string = "https://api.keyforge.infodungeon.com") {
     this.hiveUrl = hiveUrl;
+    this.initWorker();
+  }
+
+  private initWorker() {
+    if (typeof Worker !== "undefined") {
+      this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
+        type: "module",
+      });
+      this.worker.onmessage = (e) => {
+        const { type, payload } = e.data;
+        if (type === "READY") {
+          this.workerReady = true;
+          if (this.lastKeyboardData) {
+            this.worker?.postMessage({
+              type: "LOAD_DATA",
+              payload: this.lastKeyboardData,
+            });
+          }
+        }
+      };
+      this.worker.postMessage({ type: "INIT" });
+    }
   }
 
   private async fetchJson<T>(
@@ -2615,10 +2660,6 @@ export class WebClient implements BackendClient {
     return [];
   }
 
-  private worker: Worker | null = null;
-  private workerReady = false;
-  private lastKeyboardData: any = null;
-
   async loadDataset(
     keyboardName: string,
     corpusFilename: string,
@@ -2666,25 +2707,26 @@ export class WebClient implements BackendClient {
 
   async validateLayout(
     layoutStr: string,
-    weights?: ScoringWeights,
-    hiveUrl?: string,
-    keyboardName?: string,
+    _weights?: ScoringWeights,
+    _hiveUrl?: string,
+    _keyboardName?: string,
   ): Promise<ValidationResult> {
-    const url = hiveUrl || this.hiveUrl;
-    const res = await fetch(`${url}/analysis/validate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        layout_str: layoutStr,
-        weights,
-        keyboard_name: keyboardName,
-      }),
+    if (!this.worker) throw new Error("Worker not initialized");
+    
+    return new Promise((resolve, reject) => {
+      const handler = (e: MessageEvent) => {
+        const { type, payload } = e.data;
+        if (type === "VALIDATION_RESULT") {
+          this.worker?.removeEventListener("message", handler);
+          resolve(payload);
+        } else if (type === "ERROR") {
+          this.worker?.removeEventListener("message", handler);
+          reject(new Error(payload));
+        }
+      };
+      this.worker.addEventListener("message", handler);
+      this.worker.postMessage({ type: "VALIDATE", payload: { layoutStr } });
     });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Validation failed: ${text}`);
-    }
-    return res.json();
   }
 
   async getSmartSwaps(_layoutStr: string): Promise<SwapSuggestion[]> {
@@ -2731,31 +2773,7 @@ export class WebClient implements BackendClient {
     _secret: string,
   ): Promise<string> {
     if (enabled) {
-      if (!this.worker) {
-        this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
-          type: "module",
-        });
-
-        this.worker.onmessage = (e) => {
-          const { type, payload } = e.data;
-          if (type === "UPDATE") {
-            const event = new CustomEvent("search-update", {
-              detail: payload,
-            });
-            window.dispatchEvent(event);
-          } else if (type === "READY") {
-            this.workerReady = true;
-            if (this.lastKeyboardData) {
-              this.worker?.postMessage({
-                type: "LOAD_DATA",
-                payload: this.lastKeyboardData,
-              });
-            }
-          }
-        };
-
-        this.worker.postMessage({ type: "INIT" });
-      }
+      if (!this.worker) this.initWorker();
       return "Web Worker Started";
     } else {
       if (this.worker) {
@@ -8172,13 +8190,16 @@ interface SystemContextType {
 
 const SystemContext = createContext<SystemContextType | undefined>(undefined);
 
+// Load default from build-time environment variable
+const DEFAULT_HIVE_URL = import.meta.env.VITE_DEFAULT_HIVE_URL || "https://keyforge.infodungeon.com:3000";
+
 export function SystemProvider({ children }: { children: ReactNode }) {
   const { addToast } = useToast();
   const backend = useBackend();
 
   // --- STATE ---
   const [hiveUrl, setHiveUrl] = useState(
-    () => localStorage.getItem("keyforge_hive_url") || "https://hive.infodungeon.com:3000",
+    () => localStorage.getItem("keyforge_hive_url") || DEFAULT_HIVE_URL,
   );
   const [hiveSecret, setHiveSecret] = useState(
     () => localStorage.getItem("keyforge_hive_secret") || "",

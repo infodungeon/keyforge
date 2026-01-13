@@ -1,26 +1,29 @@
 [workspace]
 resolver = "2"
 members = [
-    "apps/keyforge-hive",
     "apps/keyforge-agent",
-    "apps/keyforge-cli",
     "apps/keyforge-assetmgr",
     "apps/keyforge-assets",
+    "apps/keyforge-cli",
+    "apps/keyforge-hive",
     "apps/keyforge-ui/src-tauri",
-    "libs/keyforge-core",
-    "libs/keyforge-model",
-    "libs/keyforge-infra",
-    "libs/keyforge-physics",
-    "libs/keyforge-evolution",
-    "libs/keyforge-protocol",
+    "corpora/openbookcorpus",
     "libs/keyforge-adapter",
+    "libs/keyforge-compute",
+    "libs/keyforge-core",
+    "libs/keyforge-evolution",
+    "libs/keyforge-export",
+    "libs/keyforge-infra",
+    "libs/keyforge-model",
+    "libs/keyforge-persistence",
+    "libs/keyforge-physics",
+    "libs/keyforge-protocol",
+    "libs/keyforge-runner",
     "libs/keyforge-security",
     "libs/keyforge-testing",
-    "libs/keyforge-persistence",
-    "libs/keyforge-compute",
     "libs/keyforge-wasm",
-    "libs/keyforge-export"
-, "libs/keyforge-runner"]
+    "ops/repros"
+]
 
 [workspace.package]
 version = "0.9.0"
@@ -40,12 +43,3 @@ unwrap_used = "warn"
 panic = "warn"
 pedantic = { level = "warn", priority = -1 }
 too_many_arguments = "allow"
-
-[profile.release]
-lto = true
-codegen-units = 1
-panic = "abort"
-strip = true
-
-[profile.dev.package."*"]
-opt-level = 3

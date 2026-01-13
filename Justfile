@@ -56,7 +56,9 @@ cli +args:
 # UI Dev Loop: Builds WASM -> Builds Backend -> Starts Frontend
 ui: build-wasm build-ui-backend
     SANDBOX_CONTEXT=client ./ops/scripts/run_sandbox.sh true
-    export KEYFORGE_DATA_DIR=$(pwd)/sandbox/client && cd apps/keyforge-ui && npm run tauri dev
+    export KEYFORGE_DATA_DIR=$(pwd)/sandbox/client && \
+    export VITE_DEFAULT_HIVE_URL="http://localhost:3000" && \
+    cd apps/keyforge-ui && npm run tauri dev
 
 # --- RUN (PRODUCTION / REAL DATA) ---
 

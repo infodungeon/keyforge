@@ -292,7 +292,7 @@ sequenceDiagram
 >>>>>>>> START FILE: docs/architecture/03_SYSTEM_CONTEXT.md <<<<<<<<
 # System Context (Ports & Adapters)
 
-**Version:** 4.4
+**Version:** 5.0
 **Context:** Crate Boundaries and Interface Definitions.
 
 ## The Ports (Application Contracts)
@@ -386,6 +386,35 @@ graph TD
     Phys --> Model
     Agent --> Infra
     Agent --> Proto
+```
+
+## The Deployment Topology (Subdomains)
+
+```mermaid
+graph TD
+    User((User))
+    CF[Cloudflare Proxy]
+    
+    subgraph "Production Cluster"
+        Gateway[Apache Gateway]
+        Hive[Hive API]
+        Assets[Asset Server]
+        DB[(Postgres)]
+        Valkey[(Valkey)]
+    end
+
+    User -->|HTTPS:443| CF
+    
+    CF -->|api.keyforge...| Gateway
+    CF -->|assets.keyforge...| Gateway
+    CF -->|keyforge...| Gateway
+
+    Gateway -->|Proxy| Hive
+    Gateway -->|Proxy| Assets
+    
+    Hive --> DB
+    Hive --> Valkey
+    Assets --> Valkey
 ```
 
 >>>>>>>> END FILE: docs/architecture/03_SYSTEM_CONTEXT.md <<<<<<<<
@@ -881,6 +910,34 @@ Implemented via `governor` (Token Bucket).
   * (+) **Architecture:** Explicit separation of concerns.
   * (-) **Complexity:** Clients must manage two base URLs (`KEYFORGE_API_URL` and `KEYFORGE_ASSET_URL`).
 
+## ADR-013: Hybrid Development Environment
+
+* **Status:** Accepted
+* **Date:** 2026-01-13
+* **Context:** Developing against a full Docker stack is slow (rebuild times). Developing purely locally misses infrastructure issues (HTTPS, CORS, Proxy rules).
+* **Decision:** Implement a **Hybrid Mode** (`just serve`).
+  * **Infrastructure:** DB, Valkey, and Web Proxy run in Docker.
+  * **Logic:** `keyforge-hive` runs natively on the host (Port 3002).
+  * **Bridge:** `socat` containers proxy traffic from the Web Container (Port 3000/3001) to the Host (Port 3002/3003).
+* **Consequences:**
+  * (+) **Speed:** Instant compilation/restart for Rust code.
+  * (+) **Parity:** Frontend talks to "Production-like" HTTPS endpoints (`https://localhost:3000`).
+  * (-) **Complexity:** Requires `extra_hosts` configuration for Linux support.
+
+## ADR-014: Subdomain Architecture
+
+* **Status:** Accepted
+* **Date:** 2026-01-13
+* **Context:** Cloudflare Proxy (Orange Cloud) only supports specific ports (80, 443, etc.). Our previous architecture used ports 3000/3001 for API/Assets, which exposed the origin IP and bypassed DDoS protection.
+* **Decision:** Move to a **Subdomain-based Architecture** on Port 443.
+  * `keyforge.infodungeon.com` -> Frontend (Static).
+  * `api.keyforge.infodungeon.com` -> Hive API.
+  * `assets.keyforge.infodungeon.com` -> Asset Server.
+* **Consequences:**
+  * (+) **Security:** All traffic flows through Cloudflare WAF on Port 443.
+  * (+) **Standards:** No non-standard ports required for clients.
+  * (-) **DNS:** Requires managing multiple A records.
+
 >>>>>>>> END FILE: docs/architecture/09_DECISION_RECORDS.md <<<<<<<<
 >>>>>>>> START FILE: docs/architecture/12_STATE_MODELS.md <<<<<<<<
 # State Models & Lifecycles
@@ -1059,7 +1116,7 @@ The `Rubric` defines the "Personality" of the layout (e.g., Comfort vs Speed).
 >>>>>>>> START FILE: docs/architecture/15_OPERATIONAL_STRATEGY.md <<<<<<<<
 # Operational Strategy (Day-2 Operations)
 
-**Version:** 4.6
+**Version:** 5.0
 **Context:** Maintenance, Scaling, Reliability, and Containerization.
 
 ## 1. Database Migrations
@@ -1110,7 +1167,23 @@ The Asset Architecture follows a strict **Writer/Reader separation**.
 *   **Lifecycle:** Stateless request handler.
 *   **Behavior:** Serves HTTP requests by streaming data directly from Valkey memory.
 
-## 4. Containerization Strategy
+## 4. Ingress Architecture (Subdomains)
+
+To leverage Cloudflare's DDoS protection and caching, all services are exposed via Port 443 using distinct subdomains.
+
+| Service | Subdomain | Internal Target |
+| :--- | :--- | :--- |
+| **Frontend** | `keyforge.infodungeon.com` | `web` (Static Files) |
+| **Hive API** | `api.keyforge.infodungeon.com` | `hive:3000` |
+| **Assets** | `assets.keyforge.infodungeon.com` | `assets:3001` |
+
+**The Gateway (Apache):**
+A single `web` container runs Apache httpd. It handles:
+1.  **SSL Termination:** Manages certificates for all subdomains.
+2.  **Reverse Proxy:** Routes traffic to internal containers (`hive`, `assets`) based on the `Host` header.
+3.  **Security Headers:** Enforces HSTS, X-Frame-Options, etc.
+
+## 5. Containerization Strategy
 
 We adhere to the **Minimal Attack Surface** doctrine.
 
@@ -1124,19 +1197,19 @@ We adhere to the **Minimal Attack Surface** doctrine.
 *   **Database:** `postgres:16-alpine`. Standard minimal image based on Alpine Linux.
 *   **Web Proxy:** `httpd:alpine`. Minimal Apache build based on Alpine Linux.
 
-## 5. Secret Management
+## 6. Secret Management
 
-* **Storage:** Environment Variables (`HIVE_SECRET`, `DATABASE_URL`, `KEYFORGE_VALKEY_URL`).
-* **Rotation:**
-  1. Update the Secret in the Orchestrator.
-  2. Trigger a Rolling Restart.
-  3. Nodes re-authenticate with the new secret.
+*   **Storage:** Environment Variables (`HIVE_SECRET`, `DATABASE_URL`, `KEYFORGE_VALKEY_URL`).
+*   **Rotation:**
+    1.  Update the Secret in the Orchestrator.
+    2.  Trigger a Rolling Restart.
+    3.  Nodes re-authenticate with the new secret.
 
-## 6. Disaster Recovery
+## 7. Disaster Recovery
 
-* **RPO:** 24 Hours (Daily Backups).
-* **RTO:** 1 Hour (Redeploy Stack).
-* **Strategy:** Postgres Dump for persistent state. Assets re-hydrated automatically by `assetmgr` from the mounted volume or container image.
+*   **RPO:** 24 Hours (Daily Backups).
+*   **RTO:** 1 Hour (Redeploy Stack).
+*   **Strategy:** Postgres Dump for persistent state. Assets re-hydrated automatically by `assetmgr` from the mounted volume or container image.
 
 >>>>>>>> END FILE: docs/architecture/15_OPERATIONAL_STRATEGY.md <<<<<<<<
 >>>>>>>> START FILE: docs/architecture/16_TESTING_STANDARDS.md <<<<<<<<

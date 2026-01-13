@@ -32,7 +32,8 @@ interface SystemContextType {
 const SystemContext = createContext<SystemContextType | undefined>(undefined);
 
 // Load default from build-time environment variable
-const DEFAULT_HIVE_URL = import.meta.env.VITE_DEFAULT_HIVE_URL || "https://keyforge.infodungeon.com:3000";
+// Default to http://localhost:3000 for local development if not specified
+const DEFAULT_HIVE_URL = import.meta.env.VITE_DEFAULT_HIVE_URL || "http://localhost:3000";
 
 export function SystemProvider({ children }: { children: ReactNode }) {
   const { addToast } = useToast();
