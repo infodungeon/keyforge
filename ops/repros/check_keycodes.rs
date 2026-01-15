@@ -1,4 +1,4 @@
-use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::keycodes::{KeycodeRegistry, KeycodeDefinition};
 use std::fs::File;
 use std::path::Path;
 
@@ -11,16 +11,43 @@ fn main() {
 
     let file = File::open(path).unwrap();
     let decoder = zstd::Decoder::new(file).unwrap();
-    let reg: KeycodeRegistry = rmp_serde::from_read(decoder).unwrap();
-
-    println!("Definitions: {}", reg.definitions.len());
+    // Fix: The file contains Vec<KeycodeDefinition>, not KeycodeRegistry struct
+    let defs: Vec<KeycodeDefinition> = rmp_serde::from_read(decoder).unwrap();
     
-    if let Some(code) = reg.get_code("KC_ESC") {
-        println!("KC_ESC found: {}", code);
-    } else {
-        println!("KC_ESC NOT found!");
-        for def in reg.definitions.iter().take(10) {
-            println!("  ID: {}, Code: {}", def.id, def.code);
+    // KeycodeRegistry::new() performs the QMK -> ASCII remapping
+    let reg = KeycodeRegistry::new(defs);
+
+    println!("--- Verifying Fixed Keys ---");
+    let targets = ["KC_ESCAPE", "KC_ESC", "KC_BACKSPACE", "KC_BSPC", "KC_SPACE", "KC_SPC", "KC_ENTER", "KC_ENT"];
+    for t in targets {
+        if let Some(code) = reg.get_code(t) {
+            let label = reg.get_label(code);
+            println!("Target: {:<15} Code: {:<5} Label: '{}'", t, code, label);
+        } else {
+            println!("Target: {:<15} NOT FOUND", t);
         }
+    }
+
+    println!("\n--- Scanning for Suspicious Labels ---");
+    let mut suspicious_count = 0;
+    for def in &reg.definitions {
+        // ID is long (e.g. KC_SOMETHING) but label is short (e.g. 'a')
+        if def.id.len() > 3 && def.label.len() == 1 {
+            // Filter out expected ones like KC_1 -> 1, KC_A -> a
+            let char_code = def.label.chars().next().unwrap();
+            if char_code.is_alphanumeric() {
+                 // Check if ID ends with the char (KC_A ends with A)
+                 if !def.id.ends_with(&def.label.to_uppercase()) {
+                     println!("Suspicious: ID={:<15} Label='{}' Code={}", def.id, def.label, def.code);
+                     suspicious_count += 1;
+                 }
+            }
+        }
+    }
+
+    if suspicious_count == 0 {
+        println!("No other suspicious labels found.");
+    } else {
+        println!("Found {} suspicious labels.", suspicious_count);
     }
 }
