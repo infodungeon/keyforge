@@ -354,7 +354,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         penalty_map[idx1] += min_cost * freq_f * 0.5;
         penalty_map[idx2] += min_cost * freq_f * 0.5;
 
-        if ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
+        if idx1 != idx2 && ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
             report.sfb_total += freq_f;
             let home_to_k2 = ctx.key_home_distances[idx2];
             let k1_to_k2 = ctx.dist_matrix[idx1 * ctx.key_count + idx2];

@@ -25,8 +25,8 @@ export function AnalyzeView({
   pinnedKeys,
   setPinnedKeys,
 }: Props) {
-  const { 
-    activeResult, 
+  const {
+    activeResult,
     referenceResult,
     includeThumbs,
     setIncludeThumbs,
@@ -36,7 +36,7 @@ export function AnalyzeView({
   const { layoutName, layoutString, selectedKeyboard, availableLayouts } =
     useKeyboard();
 
-  const [mapMode, setMapMode] = useState<MapMode>("frequency");
+  const [mapMode, setMapMode] = useState<MapMode>("penalty");
   const [showDiff, setShowDiff] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(
@@ -65,16 +65,16 @@ export function AnalyzeView({
 
   // 2. Calculate Stats based on Engine result
   const derivedStats = useMemo(() => {
-      if (!activeResult?.geometry || !activeResult.heatmap) return null;
+    if (!activeResult?.geometry || !activeResult.heatmap) return null;
 
-      const sourceMap = mapMode === "penalty" ? activeResult.penalty_map : activeResult.heatmap;
-      if (!sourceMap || sourceMap.length === 0) return null;
+    const sourceMap = mapMode === "penalty" ? activeResult.penalty_map : activeResult.heatmap;
+    if (!sourceMap || sourceMap.length === 0) return null;
 
-      return calculateStats(
-        activeResult.geometry, 
-        sourceMap, 
-        includeThumbs
-      );
+    return calculateStats(
+      activeResult.geometry,
+      sourceMap,
+      includeThumbs
+    );
   }, [activeResult, mapMode, includeThumbs]);
 
   const handleSuggestionHover = (indices: number[] | null) => {
@@ -93,12 +93,12 @@ export function AnalyzeView({
 
   const displayLayoutString = useMemo(() => {
     if (includeThumbs) return layoutString;
-    
+
     const tokens = layoutString.trim().split(/\s+/);
     const masked = tokens.map((token, idx) => {
-        const keyDef = activeResult?.geometry?.keys[idx];
-        if (keyDef?.finger === 0) return "KC_NO";
-        return token;
+      const keyDef = activeResult?.geometry?.keys[idx];
+      if (keyDef?.finger === 0) return "KC_NO";
+      return token;
     });
     return masked.join(" ");
   }, [layoutString, includeThumbs, activeResult]);
@@ -117,16 +117,16 @@ export function AnalyzeView({
 
             <div className="flex bg-slate-900 rounded-lg p-0.5 border border-slate-800">
               <button
-                onClick={() => setMapMode("frequency")}
-                className={`flex items-center gap-1 px-3 py-1 rounded text-[10px] font-bold transition-all ${mapMode === "frequency" ? "bg-slate-700 text-red-400 shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                <Activity size={12} /> Usage
-              </button>
-              <button
                 onClick={() => setMapMode("penalty")}
                 className={`flex items-center gap-1 px-3 py-1 rounded text-[10px] font-bold transition-all ${mapMode === "penalty" ? "bg-slate-700 text-red-400 shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
               >
                 <Flame size={12} /> Effort
+              </button>
+              <button
+                onClick={() => setMapMode("frequency")}
+                className={`flex items-center gap-1 px-3 py-1 rounded text-[10px] font-bold transition-all ${mapMode === "frequency" ? "bg-slate-700 text-red-400 shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                <Activity size={12} /> Usage
               </button>
             </div>
 

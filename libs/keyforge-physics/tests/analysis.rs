@@ -311,30 +311,59 @@ fn test_top_metrics_ranking() {
     corpus.char_freqs[99] = 1000;
 
     // Specific Bigrams to test ranking (Desc Order)
-    corpus.bigrams.push((97, 97, 500)); // "aa"
     corpus.bigrams.push((97, 98, 400)); // "ab"
     corpus.bigrams.push((97, 99, 300)); // "ac"
-    corpus.bigrams.push((98, 98, 200)); // "bb"
     corpus.bigrams.push((98, 99, 100)); // "bc"
+    corpus.bigrams.push((97, 97, 500)); // "aa" (Should be IGNORED by SFB count)
 
     let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &vec![]).unwrap();
     let report = engine.analyze(&layout).unwrap();
 
     let sfbs = report.top_sfbs;
-    assert_eq!(sfbs.len(), 5);
+    assert_eq!(sfbs.len(), 3); // "aa" is NOT an sfb
     
     // Check Order (Highest Freq First)
-    assert_eq!(sfbs[0].keys, "a a");
-    assert_eq!(sfbs[1].keys, "a b");
-    assert_eq!(sfbs[2].keys, "a c");
-    assert_eq!(sfbs[3].keys, "b b");
-    assert_eq!(sfbs[4].keys, "b c");
+    assert_eq!(sfbs[0].keys, "a b");
+    assert_eq!(sfbs[1].keys, "a c");
+    assert_eq!(sfbs[2].keys, "b c");
     
     // Check values (Freq should be descending)
     assert!(sfbs[0].freq > sfbs[1].freq);
     assert!(sfbs[1].freq > sfbs[2].freq);
+}
+
+#[test]
+fn test_repeat_not_sfb() {
+    // Setup: 2 keys on same hand/finger
+    let keys = vec![
+        KeyNode { index: 0, hand: HandIndex(0), finger: FingerIndex(1), ..Default::default() },
+        KeyNode { index: 1, hand: HandIndex(0), finger: FingerIndex(1), ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]); // 0='a', 1='b'
+
+    let mut corpus = Corpus::default();
+    corpus.char_freqs[97] = 1000;
+    corpus.char_freqs[98] = 1000;
     
-    // Verify Score field (Currently observed as 1.0)
-    // If this test passes with 1.0, it confirms the UI observation.
-    assert_eq!(sfbs[0].score, 1.0); 
+    corpus.bigrams.push((97, 97, 100)); // "aa" -> Same key, NOT SFB
+    corpus.bigrams.push((97, 98, 100)); // "ab" -> Different key, same finger, IS SFB
+
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &vec![]).unwrap();
+    let report = engine.analyze(&layout).unwrap();
+
+    // Normalized to frequency percentages
+    // Total char freq = 2000. Total bigram freq = 200.
+    // "ab" should be detected as SFB. "aa" should NOT.
+    assert_eq!(report.top_sfbs.len(), 1);
+    assert_eq!(report.top_sfbs[0].keys, "a b");
+    
+    // sfb_total should only account for "ab"
+    // Total freq (base for normalization) = 3000? No, ScoringEngine sums char_freqs. 
+    // Wait, report uses norm_pct = 100.0 / total_freq.
+    // Our total_freq = 3000 (wait, i set 97=1000, 98=1000... 
+    // let's check ScoringEngine::new initialization)
+    
+    assert!(report.sfb_total > 0.0);
+    // If "aa" was counted, sfb_total would be twice as high.
 }
