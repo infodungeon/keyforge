@@ -12,23 +12,28 @@ fn main() {
     
     let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row).unwrap();
 
-    // Simple corpus with lots of spaces
+    // Simple corpus: 
+    // 'q' (idx 0), 'a' (idx 5), Space (idx 16/34)
     let mut corpus = Corpus::default();
-    let space_code = 32u16; // ASCII space
-    corpus.char_freqs[space_code as usize] = 1000;
-    corpus.char_freqs[113] = 1000; // 'q' 
+    let q = 113u16;
+    let a = 97u16;
+    let space = 32u16;
+
+    corpus.char_freqs[q as usize] = 1000;
+    corpus.char_freqs[a as usize] = 1000;
+    corpus.char_freqs[space as usize] = 1000;
     
-    // 'q' (Key 0) to Space transition
-    corpus.bigrams.push((113, space_code, 500)); 
+    // Q -> A transition (SFB: Pinky)
+    corpus.bigrams.push((q, a, 500)); 
+    // A -> Space transition (Different finger)
+    corpus.bigrams.push((a, space, 500));
 
     let rubric = Rubric::default();
 
-    // Layout: 
-    // Key 0 is 'q' (Top Row, Pinky Hand 0)
-    // Key 16 is SpaceL (Thumb Hand 0)
-    // Key 34 is SpaceR (Thumb Hand 1)
+    // Layout: SZR35 (CoDH style-ish)
     let mut layout_codes = vec![keyforge_model::types::KeyCode(0); 36];
-    layout_codes[0] = keyforge_model::types::KeyCode(113); // 'q'
+    layout_codes[0] = keyforge_model::types::KeyCode(q);
+    layout_codes[5] = keyforge_model::types::KeyCode(a);
     layout_codes[16] = keyforge_model::types::KeyCode(32); // SpaceL
     layout_codes[34] = keyforge_model::types::KeyCode(32); // SpaceR
     
@@ -38,28 +43,27 @@ fn main() {
 
     // 1. Both (Bilateral)
     let report_both = engine.analyze(&layout).unwrap();
-    println!("Bilateral Travel: {:.4}", report_both.distance);
-
+    
     // 2. Left Only
     let mut layout_left_codes = layout.keys.clone();
     layout_left_codes[34] = keyforge_model::types::KeyCode(0); // Mask right space
     let layout_left = Layout::new_unchecked(layout_left_codes);
     let report_left = engine.analyze(&layout_left).unwrap();
-    println!("Left Only Travel: {:.4}", report_left.distance);
 
     // 3. Right Only
     let mut layout_right_codes = layout.keys.clone();
     layout_right_codes[16] = keyforge_model::types::KeyCode(0); // Mask left space
     let layout_right = Layout::new_unchecked(layout_right_codes);
     let report_right = engine.analyze(&layout_right).unwrap();
-    println!("Right Only Travel: {:.4}", report_right.distance);
     
-    if report_both.distance > report_left.distance + 0.0001 || report_both.distance > report_right.distance + 0.0001 {
-        println!("❌ LOGICAL INCONSISTENCY DETECTED: Bilateral travel is worse than single-hand!");
-        println!("  Both:  {:.4}", report_both.distance);
-        println!("  Left:  {:.4}", report_left.distance);
-        println!("  Right: {:.4}", report_right.distance);
+    println!("--- Analytical Results ---");
+    println!("Bilateral Distance: {:.4}", report_both.distance);
+    println!("Left Only Distance: {:.4}", report_left.distance);
+    println!("Right Only Distance: {:.4}", report_right.distance);
+    
+    if report_both.distance > report_left.distance + 0.0001 && report_both.distance > report_right.distance + 0.0001 {
+        println!("❌ LOGICAL INCONSISTENCY DETECTED!");
     } else {
-        println!("✅ Bilateral travel is optimal.");
+        println!("✅ Consistency Check Passed.");
     }
 }

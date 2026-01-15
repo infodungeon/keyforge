@@ -279,8 +279,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             heatmap[idx2] += freq_f;
             heatmap[idx3] += freq_f;
             
-            report.distance += ctx.key_home_distances[idx2] * freq_f;
-            report.distance += ctx.key_home_distances[idx3] * freq_f;
+            // NOTE: Distance is now handled EXCLUSIVELY in the Bigram pass for consistency.
 
             scratch.char_usage[c2 as usize] += freq_f;
             scratch.char_usage[c3 as usize] += freq_f;
@@ -316,7 +315,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         }
     }
 
-    // 2. Pass 2: Bigrams (Rigorous Physical Metrics & Missing Usage)
+    // 2. Pass 2: Bigrams (Physical Metrics & Distance)
     for &(c1, c2, freq) in &ctx.all_bigrams {
         let candidates1 = pm.get(c1 as usize);
         let candidates2 = pm.get(c2 as usize);
@@ -339,35 +338,38 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
         let (idx1, idx2) = best_pair;
         
-        // Calculate remaining usage not covered by Trigrams
+        // Calculate remaining usage not covered by Trigrams (for heatmap/usage only)
         let consumed = *bigram_usage.get(&(c1, c2)).unwrap_or(&0.0);
         let remaining = (freq_f - consumed).max(0.0);
 
         if remaining > 0.0 {
             // Attribute remaining usage to the target key (p2)
             heatmap[idx2] += remaining;
-            report.distance += ctx.key_home_distances[idx2] * remaining;
             scratch.char_usage[c2 as usize] += remaining;
+        }
+
+        // --- UNIFIED DISTANCE CALCULATION ---
+        // Every bigram represents one keypress. We measure the movement required.
+        if idx1 != idx2 && ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
+            // Same Finger Bigram: Actual movement between keys
+            report.distance += ctx.dist_matrix[idx1 * ctx.key_count + idx2] * freq_f;
+            
+            // Registry SFB load
+            report.sfb_total += freq_f;
+            sfbs.push(MetricViolation {
+                keys: format!("{} {}", c1 as u8 as char, c2 as u8 as char),
+                score: 1.0,
+                freq: freq_f,
+            });
+        } else {
+            // Different finger: Assume start from Home Position
+            report.distance += ctx.key_home_distances[idx2] * freq_f;
         }
         
         // Bigram Effort (Travel) - Applied to full frequency to capture SFBs/Scissors accurately
         penalty_map[idx1] += min_cost * freq_f * 0.5;
         penalty_map[idx2] += min_cost * freq_f * 0.5;
 
-        if idx1 != idx2 && ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
-            report.sfb_total += freq_f;
-            let home_to_k2 = ctx.key_home_distances[idx2];
-            let k1_to_k2 = ctx.dist_matrix[idx1 * ctx.key_count + idx2];
-            report.distance -= home_to_k2 * freq_f; 
-            report.distance += k1_to_k2 * freq_f;   
-            
-            sfbs.push(MetricViolation {
-                keys: format!("{} {}", c1 as u8 as char, c2 as u8 as char),
-                score: 1.0,
-                freq: freq_f,
-            });
-        }
-        
         let r1 = ctx.rows[idx1];
         let r2 = ctx.rows[idx2];
         if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
@@ -381,7 +383,6 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     }
 
     // 3. Pass 3: Monograms (Base Cost & Cleanup)
-    // Pass 3 (Revised): Finalize Usage and attribute Base Effort proportional to Heatmap
     for &code in pm.used_keys.iter() {
         let c_val = code as usize;
         let freq = ctx.char_freqs[c_val] as f32;
@@ -398,7 +399,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                 if c < min_c { min_c = c; bp = p as usize; }
             }
             heatmap[bp] += remaining;
-            report.distance += ctx.key_home_distances[bp] * remaining;
+            // NOTE: Initial distance (static start) is already statistically captured by Bigram pass.
         }
 
         // Now attribute Base Effort (Monogram Cost) for this character 
