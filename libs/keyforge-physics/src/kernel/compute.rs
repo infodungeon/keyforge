@@ -248,6 +248,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         heatmap[best_p] += freq;
         if ctx.hands[best_p].is_left() { left_hand_load += freq; }
         penalty_map[best_p] += freq * min_cost;
+        
+        // Accumulate physical reach distance (from home row)
+        report.distance += ctx.key_home_distances[best_p] * freq;
     }
 
     let mut total_bigrams = 0.0;
@@ -282,12 +285,22 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             }
 
             let (idx1, idx2) = best_pair;
-            report.distance += min_cost * freq;
+            // Distance is now calculated in Monograms (Reach). 
+            // We only use Bigrams for penalties (SFB, etc).
             penalty_map[idx1] += min_cost * freq * 0.5;
             penalty_map[idx2] += min_cost * freq * 0.5;
 
             if ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
                 report.sfb_total += freq;
+                
+                // Finger Flow Distance Correction:
+                // If it's a Same Finger Bigram, the finger moves from Key1 to Key2
+                // instead of moving from Home to Key2.
+                let home_to_k2 = ctx.key_home_distances[idx2];
+                let k1_to_k2 = ctx.dist_matrix[idx1 * ctx.key_count + idx2];
+                report.distance -= home_to_k2 * freq; // Undo the reach-from-home assumption
+                report.distance += k1_to_k2 * freq;   // Add the actual finger movement
+                
                 sfbs.push(MetricViolation {
                     keys: format!("{} {}", c1_val as u8 as char, c2.0 as u8 as char),
                     score: 1.0,
@@ -371,16 +384,38 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     sort_violations(&mut scissors);
     sort_violations(&mut redirs);
     
+    // Normalization: Scale scores to 100k baseline, and counts to Percentages (0-100)
+    let total_freq: u64 = ctx.char_freqs.iter().sum();
+    let norm_100k = if total_freq > 0 { 100_000.0 / total_freq as f32 } else { 1.0 };
+    let norm_pct = if total_freq > 0 { 100.0 / total_freq as f32 } else { 1.0 };
+
+    if total_bigrams > 0.0 { report.sfb_ratio = report.sfb_total / total_bigrams; }
+    if total_load > 0.0 { report.hand_balance = ((left_hand_load / total_load) - 0.5) * -2.0; }
+
+    for h in &mut heatmap { *h *= norm_pct; }
+    for p in &mut penalty_map { *p *= norm_100k; }
+    for v in &mut sfbs { v.freq *= norm_pct; }
+    for v in &mut scissors { v.freq *= norm_pct; }
+    for v in &mut redirs { v.freq *= norm_pct; }
+
     report.top_sfbs = sfbs;
     report.top_scissors = scissors;
     report.top_redirs = redirs;
     report.heatmap = heatmap;
     report.penalty_map = penalty_map;
     
-    report.score = score_layout(ctx, layout, &mut scratch) as f32 / SCORE_SCALE;
-    report.distance /= SCORE_SCALE;
-    if total_bigrams > 0.0 { report.sfb_ratio = report.sfb_total / total_bigrams; }
-    if total_load > 0.0 { report.hand_balance = ((left_hand_load / total_load) - 0.5) * -2.0; }
+    // Clear scratch before reuse in score_layout
+    scratch.clear_used();
+    let raw_score = score_layout(ctx, layout, &mut scratch) as f32 / SCORE_SCALE;
+    report.score = raw_score * norm_100k;
+    
+    // Normalized metrics
+    report.distance *= norm_100k;
+    report.sfb_total *= norm_pct;
+    report.scissors *= norm_pct;
+    report.redirects *= norm_pct;
+    report.rolls *= norm_pct;
+
     report
 }
 

@@ -101,8 +101,9 @@ fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) 
     // Create a dummy layout matching the key count
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
+    let cost_matrix = vec![];
     // Compile engine ONCE
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &[])
+    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_matrix)
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     // Warmup
@@ -151,7 +152,8 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
     
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &[])
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_matrix)
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     // Warmup

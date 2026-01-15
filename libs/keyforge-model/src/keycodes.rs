@@ -59,7 +59,9 @@ impl Validator for KeycodeDefinition {
 pub struct KeycodeRegistry {
     /// List of all definitions.
     pub definitions: Vec<KeycodeDefinition>,
+    #[serde(skip)]
     name_to_code: HashMap<String, KeyCode>,
+    #[serde(skip)]
     code_to_label: HashMap<KeyCode, String>,
 }
 
@@ -84,10 +86,15 @@ impl Validator for KeycodeRegistry {
 impl KeycodeRegistry {
     /// Creates a new registry from a list of definitions.
     pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
-        // 1. NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
-        // This ensures consistence between corpus text (which is lowercased for heatmaps) 
-        // and key definitions.
         for def in &mut definitions {
+            // 0. QMK to ASCII Remapping (Heuristic fix for physics scoring)
+            if let Some(ascii) = qmk_to_ascii(def.code.0) {
+                def.code = KeyCode(ascii);
+            }
+
+            // 1. NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
+            // This ensures consistence between corpus text (which is lowercased for heatmaps) 
+            // and key definitions.
             let val = def.code.0;
             if (b'A'..=b'Z').contains(&(val as u8)) {
                 def.code = KeyCode((val as u8).to_ascii_lowercase() as u16);
@@ -149,5 +156,30 @@ impl KeycodeRegistry {
     /// Gets the display label for a KeyCode.
     pub fn get_label(&self, code: KeyCode) -> String {
         self.code_to_label.get(&code).cloned().unwrap_or_else(|| format!("[{}]", code))
+    }
+}
+
+fn qmk_to_ascii(qmk: u16) -> Option<u16> {
+    match qmk {
+        4..=29 => Some(qmk - 4 + 97),   // a-z
+        30..=38 => Some(qmk - 30 + 49), // 1-9
+        39 => Some(48),                 // 0
+        40 => Some(10),                 // Enter
+        41 => Some(27),                 // Escape
+        42 => Some(8),                  // Backspace
+        43 => Some(9),                  // Tab
+        44 => Some(32),                 // Space
+        45 => Some(45),                 // -
+        46 => Some(61),                 // =
+        47 => Some(91),                 // [
+        48 => Some(93),                 // ]
+        49 => Some(92),                 // \
+        51 => Some(59),                 // ;
+        52 => Some(39),                 // '
+        53 => Some(96),                 // `
+        54 => Some(44),                 // ,
+        55 => Some(46),                 // .
+        56 => Some(47),                 // /
+        _ => None,
     }
 }

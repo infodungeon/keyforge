@@ -271,12 +271,13 @@ export function AnalyzePanel({
 
         <div className="grid grid-cols-3 gap-2">
           <StatBox
-            label="Travel"
-            val={activeResult.score.distance}
-            refVal={referenceResult?.score.distance}
+            label="Travel/Key"
+            val={(activeResult.score.distance / 100000) * 100}
+            refVal={referenceResult ? (referenceResult.score.distance / 100000) * 100 : undefined}
             showDiff={showDiff}
             color="text-slate-200"
-            suffix=""
+            suffix="%"
+            precision={2}
           />
           <StatBox
             label="Imbal"
@@ -292,24 +293,32 @@ export function AnalyzePanel({
             val={activeResult.score.sfb_total}
             showDiff={showDiff}
             color="text-red-400"
+            suffix="%"
+            precision={2}
           />
           <StatBox
             label="Scissor"
             val={activeResult.score.scissors}
             showDiff={showDiff}
             color="text-yellow-400"
+            suffix="%"
+            precision={2}
           />
           <StatBox
             label="Redir"
             val={activeResult.score.redirects}
             showDiff={showDiff}
             color="text-blue-400"
+            suffix="%"
+            precision={2}
           />
           <StatBox
             label="Rolls"
             val={activeResult.score.rolls}
             showDiff={showDiff}
             color="text-green-400"
+            suffix="%"
+            precision={2}
             invertGood={true}
           />
         </div>

@@ -37,7 +37,7 @@ struct Args {
     #[arg(long, env = "KEYFORGE_CORES")]
     cores: Option<usize>,
 
-    #[arg(long, env = "KEYFORGE_DATA_DIR")]
+    #[arg(long, env = "KEYFORGE_DATA_DIR", global = true)]
     data_dir: Option<PathBuf>,
 
     #[arg(long, env = "KEYFORGE_CONFIG")]
@@ -235,8 +235,7 @@ async fn main() -> anyhow::Result<()> {
             let _ = agent_handle.await;
         }
         Commands::Score { job_file, layout, timeout } => {
-            // USE TRACING ERROR TO FORCE VISIBILITY
-            error!("DEBUG_TRACE_ID_999: Scoring layout: '{}'", layout);
+            info!("Scoring layout: '{}'", layout);
 
             let job = read_job_config(&job_file).await?;
             

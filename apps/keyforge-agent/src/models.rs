@@ -61,7 +61,7 @@ pub struct ComputeConfig {
 
 impl Default for ComputeConfig {
     fn default() -> Self {
-        Self { max_corpora_sources: 50, job_timeout_sec: 3600, keycodes_file: "keycodes.json".to_string(), default_search_seed: 42 }
+        Self { max_corpora_sources: 50, job_timeout_sec: 3600, keycodes_file: "keycodes".to_string(), default_search_seed: 42 }
     }
 }
 

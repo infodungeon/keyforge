@@ -7,7 +7,7 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { ScoringWeights, SearchParams } from "../types";
+import { ScoringWeights, SearchParams, KeyboardGeometry } from "../types";
 import { keycodeService } from "../utils";
 import { useToast } from "./ToastContext";
 import { useBackend } from "./BackendContext";
@@ -22,6 +22,7 @@ interface LibraryContextType {
   keyboards: string[];
   selectedKeyboard: string;
   selectKeyboard: (name: string) => void;
+  keyboardGeometry: KeyboardGeometry | null;
 
   corpora: string[];
   selectedCorpus: string;
@@ -93,6 +94,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [standardLayouts, setStandardLayouts] = useState<string[]>([]);
 
   const [libraryVersion, setLibraryVersion] = useState(0);
+  const [keyboardGeometry, setKeyboardGeometry] = useState<KeyboardGeometry | null>(null);
 
   // Bootstrap State
   const [isBootstrapping, setIsBootstrapping] = useState(false);
@@ -201,11 +203,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     if (!selectedKeyboard) return;
     const loadKb = async () => {
       try {
-        const all = await backend.getAllLayoutsScoped(
-          selectedKeyboard,
-          hiveUrl,
-        );
+        const [all, geo] = await Promise.all([
+          backend.getAllLayoutsScoped(selectedKeyboard, hiveUrl),
+          backend.getKeyboardGeometry(selectedKeyboard, hiveUrl),
+        ]);
         setAvailableLayouts(all);
+        setKeyboardGeometry(geo);
         setStandardLayouts(Object.keys(all).filter((k) => k !== "Custom"));
       } catch (e) {
         console.error("Keyboard Load Error:", e);
@@ -275,6 +278,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         keyboards,
         selectedKeyboard,
         selectKeyboard,
+        keyboardGeometry,
         corpora,
         selectedCorpus,
         selectCorpus,

@@ -324,7 +324,8 @@ mod tests {
                 corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
             }
         }
-        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+        let cost_matrix = vec![];
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap()
     }
 
     #[test]

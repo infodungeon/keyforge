@@ -86,7 +86,8 @@ async fn test_optimization_cancellation() {
     ];
     let kb = Arc::new(keyforge_model::Keyboard::new(keys, 0).unwrap());
     
-    let engine = Arc::new(keyforge_core::ScoringEngine::new(&kb, &keyforge_model::Corpus::default(), &keyforge_model::Rubric::default(), &[]).unwrap());
+    let cost_matrix = vec![];
+    let engine = Arc::new(keyforge_core::ScoringEngine::new(&kb, &keyforge_model::Corpus::default(), &keyforge_model::Rubric::default(), &cost_matrix).unwrap());
     let search_config = keyforge_model::SearchConfig::Annealing {
         steps: 1000,
         start_temp: 10.0,

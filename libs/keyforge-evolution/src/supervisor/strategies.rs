@@ -212,7 +212,8 @@ mod tests {
                 }
             }
         }
-        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+        let cost_matrix = vec![];
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap()
     }
 
     proptest! {

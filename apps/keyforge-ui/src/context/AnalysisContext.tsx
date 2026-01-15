@@ -14,11 +14,18 @@ import { useBackend } from "./BackendContext";
 import { useSystem } from "./SystemContext";
 import { fromDisplayString } from "../utils";
 
+import { SpaceHandPreference } from "../services/stats";
+
 interface AnalysisContextType {
   activeResult: ValidationResult | null;
   referenceResult: ValidationResult | null;
   heatmap: number[] | undefined;
   isValidating: boolean;
+  
+  includeThumbs: boolean;
+  setIncludeThumbs: (b: boolean) => void;
+  spaceHand: SpaceHandPreference;
+  setSpaceHand: (p: SpaceHandPreference) => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(
@@ -27,7 +34,7 @@ const AnalysisContext = createContext<AnalysisContextType | undefined>(
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const { layoutString, layoutName, activeJobId, isDatasetLoaded } = useSession();
-  const { weights, selectedKeyboard } = useLibrary();
+  const { weights, selectedKeyboard, keyboardGeometry } = useLibrary();
   const { hiveUrl } = useSystem();
   const backend = useBackend();
   const { addToast } = useToast();
@@ -39,10 +46,13 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [referenceResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
+  const [includeThumbs, setIncludeThumbs] = useState(true);
+  const [spaceHand, setSpaceHand] = useState<SpaceHandPreference>("bilateral");
+
   const validationReqId = useRef(0);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Run Validation when layout changes
+  // Run Validation when layout changes or physics settings change
   useEffect(() => {
     if (!isDatasetLoaded) return;
     if (!layoutString) {
@@ -55,7 +65,32 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       const currentId = ++validationReqId.current;
       setIsValidating(true);
       try {
-        const qmkStr = fromDisplayString(layoutString);
+        const tokens = layoutString.trim().split(/\s+/);
+        
+        // --- Dynamic Masking Logic ---
+        const maskedTokens = tokens.map((token, idx) => {
+            const keyDef = keyboardGeometry?.keys[idx];
+            if (!keyDef) return token;
+
+            // 1. Filter Thumbs (Finger 0)
+            if (!includeThumbs && keyDef.finger === 0) {
+                return "KC_NO";
+            }
+
+            // 2. Filter Space Hand Preference
+            const isSpace = ["KC_SPC", "SPACE", "SPC", "KC_SPACE"].includes(token.toUpperCase());
+            if (isSpace && spaceHand !== "bilateral") {
+                const targetHand = spaceHand === "left" ? 0 : 1;
+                if (keyDef.hand !== targetHand) {
+                    return "KC_NO";
+                }
+            }
+
+            return token;
+        });
+
+        const qmkStr = fromDisplayString(maskedTokens.join(" "));
+        
         const res = await backend.validateLayout(
           qmkStr,
           weights || undefined,
@@ -78,7 +113,17 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [layoutString, layoutName, weights, activeJobId, selectedKeyboard, isDatasetLoaded]);
+  }, [
+    layoutString, 
+    layoutName, 
+    weights, 
+    activeJobId, 
+    selectedKeyboard, 
+    isDatasetLoaded, 
+    includeThumbs, 
+    spaceHand,
+    keyboardGeometry
+  ]);
 
   return (
     <AnalysisContext.Provider
@@ -87,6 +132,10 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         referenceResult,
         heatmap: activeResult?.heatmap,
         isValidating,
+        includeThumbs,
+        setIncludeThumbs,
+        spaceHand,
+        setSpaceHand,
       }}
     >
       {children}

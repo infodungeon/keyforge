@@ -13,7 +13,7 @@ use std::fs::File;
 fn main() {
     println!("🔍 Investigating Score 0...");
 
-    let root = PathBuf::from("sandbox/client");
+    let root = PathBuf::from("../../sandbox/client");
     
     // 1. Load Keyboard
     let kb_path = root.join("system/keyboards/models/ortho_30.mpk.zst"); // Assuming default

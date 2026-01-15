@@ -62,7 +62,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_overrides)?;
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_matrix)?;
     let engine_arc = Arc::new(engine);
 
     // Determine pinned keys for legacy request
@@ -215,7 +215,7 @@ mod tests {
         let req = EngineRequest {
             keyboard: kb, corpus: cp, rubric: rb,
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
-            initial_layout: None, pinned_keys: vec![], cost_overrides: vec![],
+            initial_layout: None, pinned_keys: vec![], cost_matrix: vec![],
         };
         let result = optimize(&req).unwrap();
         assert!(result.score >= 0.0);
@@ -229,7 +229,7 @@ mod tests {
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
             initial_layout: Some(Layout::new_unchecked(vec![KeyCode(1), KeyCode(0), KeyCode(2)])),
             pinned_keys: vec![Some(KeyCode(1)), None],
-            cost_overrides: vec![],
+            cost_matrix: vec![],
         };
         let result = optimize(&req).unwrap();
         assert_eq!(result.layout.keys[0], KeyCode(1));
@@ -241,7 +241,7 @@ mod tests {
         let req = EngineRequest {
             keyboard: kb, corpus: cp, rubric: rb,
             config: SearchConfig::Annealing { steps: 5000, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
-            initial_layout: None, pinned_keys: vec![], cost_overrides: vec![],
+            initial_layout: None, pinned_keys: vec![], cost_matrix: vec![],
         };
         let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         #[derive(Debug)]
@@ -274,7 +274,7 @@ mod tests {
         let req = EngineRequest {
             keyboard: kb, corpus: cp, rubric: rb,
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
-            initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
+            initial_layout: None, pinned_keys: pinned, cost_matrix: vec![],
         };
         let result = optimize(&req).unwrap();
         assert_eq!(result.layout.keys[0], KeyCode(2));
@@ -294,7 +294,7 @@ mod tests {
         let pinned = vec![Some(KeyCode(99)), None];
         let req = EngineRequest {
             keyboard: kb, corpus, rubric, config,
-            initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
+            initial_layout: None, pinned_keys: pinned, cost_matrix: vec![],
         };
         let result = optimize(&req);
         assert!(result.is_err());

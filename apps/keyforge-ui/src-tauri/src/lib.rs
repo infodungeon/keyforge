@@ -32,11 +32,6 @@ pub mod runner;
 /// asset cache and worker coordination.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_target(false)
-        .init();
-
     tauri::Builder::default()
         .setup(|app| {
             let data_dir = utils::get_data_dir(app.handle())
@@ -87,6 +82,10 @@ pub fn run() {
         .manage(SearchState {
             stop_flag: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         })
+        .plugin(tauri_plugin_log::Builder::default().targets([
+            tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+            tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: None }),
+        ]).build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())

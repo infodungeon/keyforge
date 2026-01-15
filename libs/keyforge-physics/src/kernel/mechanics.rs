@@ -31,11 +31,26 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
 
     let (dx2, dy2) = kb.spatial_cache[i_idx * kb.keys.len() + j_idx];
     let dist_raw = (dx2 * rubric.travel_lat) + (dy2 * rubric.travel_vert);
+    
+    if h1 != h2 { return 0.0; }
+    
     let mut cost = dist_raw;
 
-    if h1 != h2 { return cost; }
-
     if f1 == f2 {
+        // SFB Correction: 
+        // We counted Reach(K1) + Reach(K2) in Monograms.
+        // We want Reach(K1) + Dist(K1, K2).
+        // So we subtract Reach(K2).
+        
+        let mut reach_k2 = 0.0;
+        if let Some(origin) = kb.finger_origins.get(k2.hand.as_usize()).and_then(|h| h.get(k2.finger.as_usize())) {
+            let odx = (k2.x - origin.0).abs();
+            let ody = (k2.y - origin.1).abs();
+            reach_k2 = (odx * odx * rubric.travel_lat) + (ody * ody * rubric.travel_vert);
+        }
+        
+        cost -= reach_k2;
+
         let row_diff = (k1.row - k2.row).abs();
         let col_diff = (k1.col - k2.col).abs();
 

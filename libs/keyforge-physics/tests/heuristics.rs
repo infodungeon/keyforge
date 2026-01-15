@@ -52,7 +52,8 @@ fn test_heuristics_swap_suggestion_success() {
     // Char 0 is at x=0. Char 2 is at x=2. Distance = 2.
     // Swapping 0 and 1 puts Char 0 at x=1. Distance = 1. (Improvement)
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
 
     let suggestions = engine.suggest_improvements(&layout);
     assert!(!suggestions.is_empty(), "Should suggest swapping 0 closer to 2");
@@ -64,7 +65,8 @@ fn test_heuristics_zero_score_early_return() {
     let kb = setup_kb();
     let corpus = Corpus::default(); // Empty corpus = 0 score
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap();
 
     let suggestions = engine.suggest_improvements(&layout);
     assert!(suggestions.is_empty(), "Zero score should return empty suggestions");
@@ -85,7 +87,7 @@ fn test_public_api_wrappers() {
         config: SearchConfig::default(),
         initial_layout: Some(layout),
         pinned_keys: vec![],
-        cost_overrides: vec![],
+        cost_matrix: vec![],
     };
 
     let suggestions = suggest_improvements(&req).unwrap();
@@ -102,7 +104,8 @@ fn test_swap_degradation() {
     let mut rubric = Rubric::default();
     rubric.travel_lat = 10.0;
     
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
     
     // Optimal Layout: 0, 1, 2. (0 and 1 are adjacent)
     let layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];

@@ -32,6 +32,8 @@ pub struct EngineContext {
     pub(crate) rows: Vec<RowIndex>,
     pub(crate) cols: Vec<ColIndex>,
     pub(crate) cost_matrix: Vec<Score>,
+    pub(crate) dist_matrix: Vec<f32>,
+    pub(crate) key_home_distances: Vec<f32>,
     pub(crate) key_costs: Vec<Score>, 
     pub(crate) char_freqs: Vec<u64>,
     pub(crate) bigram_starts: Vec<usize>,

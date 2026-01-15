@@ -110,7 +110,8 @@ proptest! {
         rubric in rubric_strategy()
     ) {
         let layout = Layout::new_unchecked(layout_keys);
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+        let cost_matrix = vec![];
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
 
         let fast_score = engine.score(&layout).unwrap();
         let slow_score = DeterministicScorer::score(&kb, &corpus, &rubric, &layout, &[]);
@@ -147,7 +148,8 @@ proptest! {
         layout_keys.shuffle(&mut rng);
 
         let rubric = Rubric::default();
-        let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &[]).unwrap();
+        let cost_matrix = vec![];
+        let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cost_matrix).unwrap();
 
         let score_before = engine.score_raw(&layout_keys).unwrap();
         
@@ -190,7 +192,8 @@ fn test_delta_internals_manual() {
     let mut rubric = Rubric::default();
     rubric.travel_lat = 1.0;
     
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
     
     // Layout: A=K0, B=K1, C=K2
     let mut layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
@@ -229,7 +232,8 @@ fn test_delta_self_loop() {
     // Explicitly empty trigrams to force incremental path
     rubric.trigram_limit = 0; 
     
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
     
     // Layout: A=K0, B=K1
     let mut layout_keys = vec![KeyCode(0), KeyCode(1)];

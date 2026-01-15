@@ -33,7 +33,7 @@ impl Default for RunnerOptions {
             threads: 0,
             seed: None,
             log_sampling_rate: 1000,
-            keycodes_file: "default".to_string(),
+            keycodes_file: "keycodes".to_string(),
         }
     }
 }

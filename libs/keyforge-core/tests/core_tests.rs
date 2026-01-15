@@ -70,7 +70,7 @@ fn minimal_request() -> EngineRequest {
         keyboard: Arc::new(minimal_keyboard()),
         corpus: Arc::new(minimal_corpus()),
         rubric: Arc::new(minimal_rubric()),
-        cost_overrides: vec![],
+        cost_matrix: vec![],
         config: SearchConfig::Annealing {
             steps: 5,
             start_temp: 10.0,

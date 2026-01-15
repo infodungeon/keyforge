@@ -25,15 +25,31 @@ pub struct DeterministicScorer;
 
 impl DeterministicScorer {
     /// Calculates a ground-truth score using the reference implementation.
-    ///
-    /// This is significantly slower than the optimized engine but provides 
-    /// a baseline for verifying the correctness of the physics kernel.
     pub fn score(
         keyboard: &Keyboard,
         corpus: &Corpus,
         rubric: &Rubric,
         layout: &Layout,
-        overrides: &[(usize, usize, f32)],
+        cost_matrix: &[(usize, usize, f32)],
+    ) -> f32 {
+        let raw_score = Self::score_raw(keyboard, corpus, rubric, layout, cost_matrix);
+        let total_freq: u64 = corpus.char_freqs.iter().sum();
+        let norm_factor = if total_freq > 0 {
+            100_000.0 / total_freq as f32
+        } else {
+            1.0
+        };
+
+        raw_score * norm_factor
+    }
+
+    /// Calculates the raw, un-normalized score.
+    pub fn score_raw(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        layout: &Layout,
+        cost_matrix: &[(usize, usize, f32)],
     ) -> f32 {
         let mut total_score: i64 = 0;
         let mut pos_map: Vec<Vec<u16>> = vec![Vec::new(); 65536];
@@ -47,15 +63,14 @@ impl DeterministicScorer {
             travel_vert: to_fixed(rubric.travel_vert),
             sfb_base: to_fixed(rubric.sfb_base),
             sfb_lateral: to_fixed(rubric.sfb_lateral),
-            finger_effort: [
-                to_fixed(rubric.finger_effort[0]),
-                to_fixed(rubric.finger_effort[1]),
-                to_fixed(rubric.finger_effort[2]),
-                to_fixed(rubric.finger_effort[3]),
-                to_fixed(rubric.finger_effort[4]),
-            ],
+            sfb_lateral_weak: to_fixed(rubric.sfb_lateral_weak),
+            sfb_diagonal: to_fixed(rubric.sfb_diagonal),
+            sfb_long: to_fixed(rubric.sfb_long),
+            threshold_sfb_long_row_diff: rubric.threshold_sfb_long_row_diff,
             redirect: to_fixed(rubric.redirect),
             roll_bonus: to_fixed(rubric.roll_bonus),
+            penalty_scissor: to_fixed(rubric.penalty_scissor),
+            threshold_scissor_row_diff: rubric.threshold_scissor_row_diff,
         };
 
         let fp_keys: Vec<FixedPointKey> = keyboard.keys.iter().map(|k| FixedPointKey {
@@ -99,8 +114,8 @@ impl DeterministicScorer {
                 for &p2 in candidates2 {
                     let k1 = &fp_keys[p1 as usize];
                     let k2 = &fp_keys[p2 as usize];
-                    let mut cost = calculate_pair_cost_int(k1, k2, &fp_rubric);
-                    for &(o_i, o_j, o_cost) in overrides {
+                    let mut cost = calculate_pair_cost_int(keyboard, k1, k2, &fp_rubric, p1 as usize, p2 as usize);
+                    for &(o_i, o_j, o_cost) in cost_matrix {
                         if o_i == p1 as usize && o_j == p2 as usize { cost = to_fixed(o_cost); break; }
                     }
                     if cost < min_cost { min_cost = cost; }
@@ -132,6 +147,7 @@ impl DeterministicScorer {
                 total_score = total_score.saturating_add(min_cost.saturating_mul(freq as i64));
             }
         }
+
         total_score as f32 / SCORE_SCALE
     }
 }
@@ -159,35 +175,68 @@ struct FixedPointRubric {
     travel_vert: i64,
     sfb_base: i64,
     sfb_lateral: i64,
-    finger_effort: [i64; 5],
+    sfb_lateral_weak: i64,
+    sfb_diagonal: i64,
+    sfb_long: i64,
+    threshold_sfb_long_row_diff: i8,
     redirect: i64,
     roll_bonus: i64,
+    penalty_scissor: i64,
+    threshold_scissor_row_diff: i8,
 }
 
-fn calculate_pair_cost_int(k1: &FixedPointKey, k2: &FixedPointKey, rubric: &FixedPointRubric) -> i64 {
-    if k1.x == k2.x && k1.y == k2.y { return 0; }
+fn calculate_pair_cost_int(kb: &Keyboard, k1: &FixedPointKey, k2: &FixedPointKey, rubric: &FixedPointRubric, idx1: usize, idx2: usize) -> i64 {
+    if idx1 == idx2 { return 0; }
     let dx = (k1.x - k2.x).abs();
     let dy = (k1.y - k2.y).abs();
     let scale_val = SCORE_SCALE as i128;
     let scale_sq = scale_val * scale_val;
     let term_x = (dx as i128).saturating_mul(dx as i128).saturating_mul(rubric.travel_lat as i128) / scale_sq;
     let term_y = (dy as i128).saturating_mul(dy as i128).saturating_mul(rubric.travel_vert as i128) / scale_sq;
-    let dist_cost = term_x.saturating_add(term_y);
-    let mut cost = if dist_cost > i64::MAX as i128 { i64::MAX } else if dist_cost < i64::MIN as i128 { i64::MIN } else { dist_cost as i64 };
+    let dist_cost = (term_x.saturating_add(term_y)) as i64;
+    
+    if k1.hand != k2.hand { return 0; }
+    
+    let mut cost = dist_cost; // Match mechanics.rs: starts with dist_raw
 
-    if k1.hand != k2.hand { return cost; }
     if k1.finger == k2.finger {
-        let col_diff = (k1.col - k2.col).abs();
-        if col_diff == 1 { cost = cost.saturating_add(rubric.sfb_lateral); } else { cost = cost.saturating_add(rubric.sfb_base); }
+        // SFB Correction: Subtract monogram reach of K2
+        let mut reach_k2 = 0i64;
+        if let Some(origin) = kb.finger_origins.get(k2.hand.as_usize()).and_then(|h| h.get(k2.finger.as_usize())) {
+            let rdx = to_fixed((kb.keys[idx2].x - origin.0).abs());
+            let rdy = to_fixed((kb.keys[idx2].y - origin.1).abs());
+            let r_term_x = (rdx as i128).saturating_mul(rdx as i128).saturating_mul(rubric.travel_lat as i128) / scale_sq;
+            let r_term_y = (rdy as i128).saturating_mul(rdy as i128).saturating_mul(rubric.travel_vert as i128) / scale_sq;
+            reach_k2 = (r_term_x.saturating_add(r_term_y)) as i64;
+        }
+        
+        cost = dist_cost.saturating_sub(reach_k2);
+
+        let row_diff = (k1.row.0 - k2.row.0).abs();
+        let col_diff = (k1.col.0 - k2.col.0).abs();
+
+        if col_diff == 1 {
+            if k1.finger.is_weak() { cost = cost.saturating_add(rubric.sfb_lateral_weak); }
+            else { cost = cost.saturating_add(rubric.sfb_lateral); }
+        } else if col_diff > 1 {
+            cost = cost.saturating_add(rubric.sfb_diagonal);
+        } else if row_diff >= rubric.threshold_sfb_long_row_diff {
+            cost = cost.saturating_add(rubric.sfb_long);
+        } else {
+            cost = cost.saturating_add(rubric.sfb_base);
+        }
         return cost;
     }
 
     let finger_diff = k1.finger.distance(k2.finger);
-    let row_diff = (k1.row - k2.row).abs();
-    if finger_diff == 1 && row_diff >= 2 { cost = cost.saturating_add(rubric.finger_effort[k1.finger.as_usize()]); }
-    if row_diff == 0 && finger_diff == 1 {
-        let col_dist = (k1.col - k2.col).abs();
-        if col_dist > 1 { cost = cost.saturating_add(rubric.sfb_lateral); }
+    let row_diff = (k1.row.0 - k2.row.0).abs();
+    if finger_diff == 1 {
+        if row_diff >= rubric.threshold_scissor_row_diff {
+            cost = cost.saturating_add(rubric.penalty_scissor);
+        } else if row_diff == 0 {
+            let col_dist = (k1.col.0 - k2.col.0).abs();
+            if col_dist > 1 { cost = cost.saturating_add(rubric.sfb_lateral); }
+        }
     }
     cost
 }

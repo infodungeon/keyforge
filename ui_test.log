@@ -1,0 +1,104 @@
+cd libs/keyforge-wasm && wasm-pack build --target web --out-dir ../../apps/keyforge-ui/src/api/wasm-pkg
+[INFO]: 🎯  Checking for the Wasm target...
+[INFO]: 🌀  Compiling to Wasm...
+    Finished `release` profile [optimized] target(s) in 0.36s
+[INFO]: ⬇️  Installing wasm-bindgen...
+[INFO]: ✨   Done in 0.73s
+[INFO]: 📦   Your wasm pkg is ready to publish at /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src/api/wasm-pkg.
+cargo build -p keyforge-ui
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+   Compiling keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+   Compiling keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+   Compiling keyforge-runner v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-runner)
+   Compiling keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.49s
+cargo build -p keyforge-agent
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+   Compiling keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+   Compiling keyforge-runner v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-runner)
+   Compiling keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.94s
+SANDBOX_CONTEXT=client ./ops/scripts/run_sandbox.sh true
+✅ Sandbox (client) Setup Complete at /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/sandbox/client
+export KEYFORGE_DATA_DIR=$(pwd)/sandbox/client && export VITE_DEFAULT_HIVE_URL="http://localhost:3000" && cd apps/keyforge-ui && npm run tauri dev
+
+> keyforge-ui@0.8.0 tauri
+> tauri dev
+
+     Running BeforeDevCommand (`npm run dev`)
+
+> keyforge-ui@0.8.0 dev
+> vite
+
+
+  VITE v6.4.1  ready in 326 ms
+
+  ➜  Local:   http://localhost:1420/
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/corpora/openbookcorpus for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-core for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-runner for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm for changes...
+        Info Watching /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/repros for changes...
+[1m[92m   Compiling[0m keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+[1m[96m    Building[0m [=======================> ] 714/721: keyforge-infra(build)       [1m[96m    Building[0m [=======================> ] 715/721: keyforge-infra              [K[1m[92m   Compiling[0m keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+[1m[92m   Compiling[0m keyforge-runner v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-runner)
+[1m[92m   Compiling[0m keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+[1m[96m    Building[0m [=======================> ] 715/721: keyforge-persistence, key...[1m[96m    Building[0m [=======================> ] 716/721: keyforge-persistence, key...[1m[96m    Building[0m [=======================> ] 717/721: keyforge-persistence, key...[1m[96m    Building[0m [=======================> ] 718/721: keyforge-persistence        [K[1m[92m   Compiling[0m keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+[1m[96m    Building[0m [=======================> ] 718/721: keyforge-persistence, key...[1m[96m    Building[0m [=======================> ] 719/721: keyforge-ui                 [1m[96m    Building[0m [=======================> ] 720/721: keyforge-ui(bin)            [K[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 6.09s
+[1m[92m     Running[0m `/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/debug/keyforge-ui`
+[2026-01-14][22:32:13][ui_lib][INFO] Initializing workspace at: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/sandbox/client"
+[2026-01-14][22:32:13][keyforge_infra::fs::init][INFO] Initializing workspace at: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/sandbox/client"
+[2026-01-14][22:32:13][keyforge_infra::fs::init][INFO] Workspace validation successful.
+[2026-01-14][22:32:13][mio::poll][TRACE] registering event source with poller: token=Token(1), interests=READABLE
+[2026-01-14][22:32:13][mio::poll][TRACE] registering event source with poller: token=Token(140401474276864), interests=READABLE | WRITABLE
+[2026-01-14][22:32:13][ui_lib][INFO] 🚀 UI Embedded Asset Server listening on http://127.0.0.1:3004
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] checkout waiting for idle connection: ("http", localhost:3000)
+[2026-01-14][22:32:15][reqwest::connect][DEBUG] starting new connection: http://localhost:3000/
+[2026-01-14][22:32:15][hyper_util::client::legacy::connect::http][TRACE] Http::connect; scheme=Some("http"), host=Some("localhost"), port=Some(Port(3000))
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] checkout waiting for idle connection: ("http", localhost:3000)
+[2026-01-14][22:32:15][reqwest::connect][DEBUG] starting new connection: http://localhost:3000/
+[2026-01-14][22:32:15][hyper_util::client::legacy::connect::http][TRACE] Http::connect; scheme=Some("http"), host=Some("localhost"), port=Some(Port(3000))
+[2026-01-14][22:32:15][hyper_util::client::legacy::connect::http][DEBUG] connecting to [::1]:3000
+[2026-01-14][22:32:15][hyper_util::client::legacy::connect::http][DEBUG] connecting to [::1]:3000
+[2026-01-14][22:32:15][mio::poll][TRACE] registering event source with poller: token=Token(140401407183104), interests=READABLE | WRITABLE
+[2026-01-14][22:32:15][mio::poll][TRACE] registering event source with poller: token=Token(140401474305280), interests=READABLE | WRITABLE
+[2026-01-14][22:32:15][hyper_util::client::legacy::connect::http][DEBUG] connected to [::1]:3000
+[2026-01-14][22:32:15][hyper_util::client::legacy::connect::http][DEBUG] connected to [::1]:3000
+[2026-01-14][22:32:15][hyper_util::client::legacy::client][TRACE] http1 handshake complete, spawning background dispatcher task
+[2026-01-14][22:32:15][hyper_util::client::legacy::client][TRACE] waiting for connection to be ready
+[2026-01-14][22:32:15][hyper_util::client::legacy::client][TRACE] http1 handshake complete, spawning background dispatcher task
+[2026-01-14][22:32:15][hyper_util::client::legacy::client][TRACE] connection is ready
+[2026-01-14][22:32:15][hyper_util::client::legacy::client][TRACE] waiting for connection to be ready
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] checkout dropped for ("http", localhost:3000)
+[2026-01-14][22:32:15][hyper_util::client::legacy::client][TRACE] connection is ready
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] checkout dropped for ("http", localhost:3000)
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] put; add idle connection for ("http", localhost:3000)
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] put; add idle connection for ("http", localhost:3000)
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][DEBUG] pooling idle connection for ("http", localhost:3000)
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][DEBUG] pooling idle connection for ("http", localhost:3000)
+[2026-01-14][22:32:15][reqwest::retry][TRACE] shouldn't retry!
+[2026-01-14][22:32:15][reqwest::retry][TRACE] shouldn't retry!
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] pool closed, canceling idle interval
+[2026-01-14][22:32:15][mio::poll][TRACE] deregistering event source from poller
+[2026-01-14][22:32:15][hyper_util::client::legacy::pool][TRACE] pool closed, canceling idle interval
+[2026-01-14][22:32:15][mio::poll][TRACE] deregistering event source from poller
+error: Recipe `ui` was terminated on line 62 by signal 15

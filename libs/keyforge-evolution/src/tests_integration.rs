@@ -56,7 +56,8 @@ fn setup_test_engine(size: usize) -> ScoringEngine {
             corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
         }
     }
-    ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+    let cost_matrix = vec![];
+    ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap()
 }
 
 // --- Supervisor Logic Tests ---
@@ -143,17 +144,18 @@ struct OracleCallback {
     keyboard: Arc<Keyboard>,
     corpus: Arc<Corpus>,
     rubric: Arc<Rubric>,
+    cost_matrix: Vec<(usize, usize, f32)>,
 }
 
 impl ProgressCallback for OracleCallback {
     fn on_progress(&self, step: usize, score: f32, layout_keys: &[KeyCode], _ips: f32) -> bool {
         let layout = Layout::new_unchecked(layout_keys.to_vec());
-        let reference_score = keyforge_physics::verify::DeterministicScorer::score(
+        let reference_score = keyforge_physics::verify::DeterministicScorer::score_raw(
             &self.keyboard, 
             &self.corpus, 
             &self.rubric, 
             &layout, 
-            &[]
+            &self.cost_matrix
         );
         let epsilon = 1e-4;
         if (score - reference_score).abs() > epsilon {
@@ -203,13 +205,14 @@ fn test_oracle_pattern_match() {
         config,
         initial_layout: None,
         pinned_keys: vec![],
-        cost_overrides: vec![],
+        cost_matrix: vec![],
     };
 
     let callback = OracleCallback {
         keyboard: keyboard.clone(),
         corpus: corpus.clone(),
         rubric: rubric.clone(),
+        cost_matrix: vec![],
     };
 
     // This should now unwrap safely
@@ -241,7 +244,8 @@ fn test_singularity_zero_temp_execution() {
         })
         .collect();
     let kb = Keyboard::new(keys, 0).unwrap();
-    let engine = ScoringEngine::new(&kb, &Corpus::default(), &Rubric::default(), &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &Corpus::default(), &Rubric::default(), &cost_matrix).unwrap();
     
     let config = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 0, 1.0).unwrap();
     let mut optimizer = Optimizer::new(
@@ -280,8 +284,8 @@ fn test_error_on_missing_pin() {
     let pinned = vec![Some(KeyCode(99)), None];
 
     let req = EngineRequest {
-        keyboard: kb, corpus, rubric, config,
-        initial_layout: None, pinned_keys: pinned, cost_overrides: vec![],
+        keyboard: kb, corpus: corpus, rubric: rubric, config,
+        initial_layout: None, pinned_keys: pinned, cost_matrix: vec![],
     };
 
     let result = crate::optimize(&req);
@@ -314,7 +318,8 @@ impl MutationOperator for StagnantMutation {
 #[test]
 fn test_reheat_exhaustion() {
     let (kb, cp, rb) = setup_env_integrated();
-    let engine = ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &cp, &rb, &cost_matrix).unwrap();
     let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 2, 2, 2.0).unwrap();
     let mut optimizer = Optimizer::new(
         &engine, config, StagnantMutation, CoolingAnnealing, crate::supervisor::traits::RealTimeKeeper,

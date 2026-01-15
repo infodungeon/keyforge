@@ -7,6 +7,7 @@ interface StatProps {
   suffix?: string;
   showDiff?: boolean;
   invertGood?: boolean;
+  precision?: number;
 }
 
 export const StatBox = ({
@@ -18,6 +19,7 @@ export const StatBox = ({
   suffix,
   showDiff,
   invertGood,
+  precision = 0,
 }: StatProps) => {
   let display = "--";
   let activeColor = color;
@@ -32,20 +34,20 @@ export const StatBox = ({
       const isBetter = invertGood ? diffAbs > 0 : diffAbs < 0;
       activeColor = isBetter ? "text-green-400" : "text-red-400";
       const sign = diffAbs > 0 ? "+" : "";
-      display = `${sign}${total ? diffPct.toFixed(2) + "%" : diffAbs.toFixed(0)}`;
+      display = `${sign}${total ? diffPct.toFixed(2) + "%" : diffAbs.toFixed(precision)}`;
     } else {
       if (isImbalance) {
         if (val === 0) {
           display = "Perfect";
           activeColor = "text-green-400";
         } else {
-          display = val.toFixed(0) + (suffix || "");
+          display = val.toFixed(precision) + (suffix || "");
           activeColor = "text-orange-400";
         }
       } else if (total) {
         display = ((val / total) * 100).toFixed(2) + "%";
       } else {
-        display = val.toFixed(0) + (suffix || "");
+        display = val.toFixed(precision) + (suffix || "");
       }
     }
   }

@@ -112,17 +112,22 @@ pub fn resolve_corpus_char(token: &str) -> Option<char> {
     // 1. Named Tokens
     for (key, val) in CORPUS_TOKEN_MAP {
         if token == *key {
-            return Some(*val);
+            return Some((*val).to_ascii_lowercase());
         }
     }
 
-    // 2. Hex Strings (2 chars, valid hex)
-    if token.len() == 2 {
-        if let Ok(byte) = u8::from_str_radix(token, 16) {
-            // Only treat as hex if it's a valid ASCII printable or common control
-            // This avoids ambiguity with 2-letter words like "at" or "in" if they appear here (unlikely for 1grams)
-            // But for 1grams.json, the format is strictly hex for non-named chars.
-            return Some(byte as char);
+    // 2. Hex Strings (2, 4, 6, 8 chars) - Multi-byte UTF-8 as used in corpus
+    if token.len() >= 2 && token.len() % 2 == 0 && token.chars().all(|c| c.is_ascii_hexdigit()) {
+        let mut bytes = Vec::with_capacity(token.len() / 2);
+        for i in (0..token.len()).step_by(2) {
+            if let Ok(byte) = u8::from_str_radix(&token[i..i+2], 16) {
+                bytes.push(byte);
+            } else {
+                return None;
+            }
+        }
+        if let Ok(s) = String::from_utf8(bytes) {
+            return s.chars().next().map(|c| c.to_ascii_lowercase());
         }
     }
     

@@ -121,7 +121,13 @@ pub async fn cmd_validate_layout(
     let runner = AgentRunner::new(app.clone());
 
     // Run
-    let json_output = runner.run_validation(&job_config, &layout_str).await?;
+    let json_output = match runner.run_validation(&job_config, &layout_str).await {
+        Ok(out) => out,
+        Err(e) => {
+            tracing::error!("cmd_validate_layout failed: {}", e);
+            return Err(e);
+        }
+    };
     
     // Deserialize report
     // We assume the agent returns a JSON that matches keyforge_model::AnalysisReport

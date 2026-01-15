@@ -38,6 +38,7 @@ build-wasm:
 
 build-ui-backend:
     cargo build -p keyforge-ui
+    cargo build -p keyforge-agent
 
 # --- RUN (SANDBOXED) ---
 

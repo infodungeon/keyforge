@@ -4,7 +4,6 @@ import { Inspector } from "../components/Inspector";
 import { KeyboardMap, MapMode } from "../components/KeyboardMap";
 import { ExportModal } from "../components/modals/ExportModal";
 import { toDisplayString, fromDisplayString, calculateStats } from "../utils";
-import { adjustHeatmap, SpaceHandPreference } from "../services/stats";
 import { RefreshCw, Activity, Flame, ArrowRightLeft } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { useState, useMemo } from "react";
@@ -26,17 +25,20 @@ export function AnalyzeView({
   pinnedKeys,
   setPinnedKeys,
 }: Props) {
-  const { activeResult, referenceResult } = useAnalysis();
+  const { 
+    activeResult, 
+    referenceResult,
+    includeThumbs,
+    setIncludeThumbs,
+    spaceHand,
+    setSpaceHand
+  } = useAnalysis();
   const { layoutName, layoutString, selectedKeyboard, availableLayouts } =
     useKeyboard();
 
   const [mapMode, setMapMode] = useState<MapMode>("frequency");
   const [showDiff, setShowDiff] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [includeThumbs, setIncludeThumbs] = useState(true);
-  const [spaceHand, setSpaceHand] = useState<SpaceHandPreference>("bilateral");
-
-  // State for keys highlighted by Smart Assist
   const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(
     new Set(),
   );
@@ -44,77 +46,36 @@ export function AnalyzeView({
   const ghostString =
     showDiff && referenceResult ? availableLayouts["Qwerty"] || "" : "";
 
-  // 1. Calculate Adjusted Heatmaps (Redistribute Space)
-  const adjustedActiveMap = useMemo(() => {
-    if (!activeResult?.heatmap || !activeResult.geometry) return [];
-    return adjustHeatmap(
-        activeResult.geometry, 
-        activeResult.heatmap, 
-        layoutString.trim().split(/\s+/), 
-        spaceHand
-    );
-  }, [activeResult, layoutString, spaceHand]);
-
-  const adjustedPenaltyMap = useMemo(() => {
-    if (!activeResult?.penalty_map || !activeResult.geometry) return [];
-    return adjustHeatmap(
-        activeResult.geometry,
-        activeResult.penalty_map,
-        layoutString.trim().split(/\s+/),
-        spaceHand
-    );
-  }, [activeResult, layoutString, spaceHand]);
-
-  const adjustedRefMap = useMemo(() => {
-    if (!referenceResult?.heatmap || !referenceResult.geometry) return [];
-    // For reference, we assume bilateral for now
-    return referenceResult.heatmap; 
-  }, [referenceResult]);
-
-  // 2. Calculate Display Heatmap (Diff or Single)
+  // 1. Heatmaps from Backend (Engine results already reflect masking/preference)
   const displayHeatmap = useMemo(() => {
-    // Helper to filter thumbs if needed
-    const filterValue = (val: number, idx: number, geometry: any) => {
-      if (includeThumbs) return val;
-      if (!geometry || !geometry.keys[idx]) return val;
-      // Finger 0 is thumb
-      const finger = geometry.keys[idx].finger;
-      return finger === 0 ? 0 : val;
-    };
-
     if (showDiff && activeResult && referenceResult) {
-      const activeMap = mapMode === "frequency" ? adjustedActiveMap : adjustedPenaltyMap;
-      const refMap = mapMode === "frequency" ? adjustedRefMap : referenceResult.penalty_map;
+      const activeMap = mapMode === "frequency" ? activeResult.heatmap : activeResult.penalty_map;
+      const refMap = mapMode === "frequency" ? referenceResult.heatmap : referenceResult.penalty_map;
 
       if (!activeMap || !refMap) return [];
 
       return activeMap.map((val, i) => {
-        const v1 = filterValue(val, i, activeResult.geometry);
-        const v2 = filterValue(refMap[i] || 0, i, referenceResult.geometry);
-        return v1 - v2;
+        return val - (refMap[i] || 0);
       });
     } else {
-      const sourceMap = mapMode === "frequency" ? adjustedActiveMap : adjustedPenaltyMap;
-      if (!sourceMap) return undefined;
-      return sourceMap.map((val, i) => filterValue(val, i, activeResult?.geometry));
+      const sourceMap = mapMode === "frequency" ? activeResult?.heatmap : activeResult?.penalty_map;
+      return sourceMap;
     }
-  }, [activeResult, referenceResult, mapMode, showDiff, includeThumbs, adjustedActiveMap, adjustedPenaltyMap, adjustedRefMap]);
+  }, [activeResult, referenceResult, mapMode, showDiff]);
 
-  // 3. Calculate Stats based on Adjusted Heatmap
+  // 2. Calculate Stats based on Engine result
   const derivedStats = useMemo(() => {
-      if (!activeResult?.geometry) return null;
+      if (!activeResult?.geometry || !activeResult.heatmap) return null;
 
-      const sourceMap = mapMode === "penalty" ? adjustedPenaltyMap : adjustedActiveMap;
-      if (sourceMap.length === 0) return null;
+      const sourceMap = mapMode === "penalty" ? activeResult.penalty_map : activeResult.heatmap;
+      if (!sourceMap || sourceMap.length === 0) return null;
 
       return calculateStats(
         activeResult.geometry, 
         sourceMap, 
-        layoutString.trim().split(/\s+/), 
-        spaceHand, 
         includeThumbs
       );
-  }, [activeResult, adjustedActiveMap, adjustedPenaltyMap, mapMode, layoutString, spaceHand, includeThumbs]);
+  }, [activeResult, mapMode, includeThumbs]);
 
   const handleSuggestionHover = (indices: number[] | null) => {
     if (!indices || !activeResult) {

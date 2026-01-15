@@ -7,6 +7,14 @@ edition = "2021"
 name = "repro_score"
 path = "repro_score.rs"
 
+[[bin]]
+name = "check_keycodes"
+path = "check_keycodes.rs"
+
+[[bin]]
+name = "compile_keycodes"
+path = "compile_keycodes.rs"
+
 [dependencies]
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-core = { path = "../../libs/keyforge-core" }

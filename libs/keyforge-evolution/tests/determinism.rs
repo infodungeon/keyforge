@@ -15,17 +15,18 @@ struct OracleCallback {
     keyboard: Arc<Keyboard>,
     corpus: Arc<Corpus>,
     rubric: Arc<Rubric>,
+    cost_matrix: Vec<(usize, usize, f32)>,
 }
 
 impl ProgressCallback for OracleCallback {
     fn on_progress(&self, step: usize, score: f32, layout_keys: &[KeyCode], _ips: f32) -> bool {
         let layout = Layout::new_unchecked(layout_keys.to_vec());
-        let reference_score = keyforge_physics::verify::DeterministicScorer::score(
+        let reference_score = keyforge_physics::verify::DeterministicScorer::score_raw(
             &self.keyboard, 
             &self.corpus, 
             &self.rubric, 
             &layout, 
-            &[]
+            &self.cost_matrix
         );
         let epsilon = 1e-4;
         if (score - reference_score).abs() > epsilon {
@@ -75,19 +76,20 @@ fn test_oracle_pattern_match() {
         config,
         initial_layout: None,
         pinned_keys: vec![],
-        cost_overrides: vec![],
+        cost_matrix: vec![],
     };
 
     let callback = OracleCallback {
         keyboard: keyboard.clone(),
         corpus: corpus.clone(),
         rubric: rubric.clone(),
+        cost_matrix: vec![],
     };
 
     let result = optimize_with_callback(&req, callback).unwrap();
 
     let final_reference = keyforge_physics::verify::DeterministicScorer::score(
-        &req.keyboard, &req.corpus, &req.rubric, &result.layout, &[]
+        &req.keyboard, &req.corpus, &req.rubric, &result.layout, &req.cost_matrix
     );
     
     assert!((result.score - final_reference).abs() < 1e-4);

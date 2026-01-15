@@ -27,7 +27,7 @@ impl Compiler {
         kb: &Keyboard,
         corpus: &Corpus,
         rubric: &Rubric,
-        overrides: &[(usize, usize, f32)],
+        cost_matrix_entries: &[(usize, usize, f32)],
     ) -> Result<EngineContext, PhysicsError> {
         let key_count = kb.count();
         info!(key_count = key_count, "Compiling scoring engine...");
@@ -37,6 +37,7 @@ impl Compiler {
         let mut rows = Vec::with_capacity(key_count);
         let mut cols = Vec::with_capacity(key_count);
         let mut key_costs = Vec::with_capacity(key_count);
+        let mut key_home_distances = Vec::with_capacity(key_count);
 
         for k in &kb.keys {
             hands.push(k.hand);
@@ -45,28 +46,45 @@ impl Compiler {
             cols.push(k.col);
 
             let mut cost = rubric.finger_effort[k.finger.as_usize()];
+            let mut dist_from_home = 0.0;
             
             if let Some(origin) = kb.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
-                let dx2 = (k.x - origin.0).powi(2);
-                let dy2 = (k.y - origin.1).powi(2);
+                let dx = (k.x - origin.0).abs();
+                let dy = (k.y - origin.1).abs();
+                let dx2 = dx * dx;
+                let dy2 = dy * dy;
+                dist_from_home = (dx2 + dy2).sqrt();
                 cost += (dx2 * rubric.travel_lat) + (dy2 * rubric.travel_vert);
             }
 
             key_costs.push(Score::from_f32(cost));
+            key_home_distances.push(dist_from_home);
         }
 
-        let mut cost_matrix = vec![Score::ZERO; key_count * key_count];
+        let mut internal_cost_matrix = vec![Score::ZERO; key_count * key_count];
+        let mut dist_matrix = vec![0.0f32; key_count * key_count];
 
         for i in 0..key_count {
             for j in 0..key_count {
                 let cost = calculate_pair_cost(kb, rubric, KeyIndex::from(i), KeyIndex::from(j));
-                cost_matrix[i * key_count + j] = Score::from_f32(cost);
+                internal_cost_matrix[i * key_count + j] = Score::from_f32(cost);
+
+                if i == j {
+                    dist_matrix[i * key_count + j] = 0.0;
+                } else {
+                    let k1 = &kb.keys[i];
+                    let k2 = &kb.keys[j];
+                    let dx = (k1.x - k2.x).abs();
+                    let dy = (k1.y - k2.y).abs();
+                    dist_matrix[i * key_count + j] = (dx * dx + dy * dy).sqrt();
+                }
             }
         }
 
-        for &(i, j, cost) in overrides {
+        // Apply manual cost matrix entries
+        for &(i, j, cost) in cost_matrix_entries {
             if i < key_count && j < key_count {
-                cost_matrix[i * key_count + j] = Score::from_f32(cost);
+                internal_cost_matrix[i * key_count + j] = Score::from_f32(cost);
             }
         }
 
@@ -84,7 +102,7 @@ impl Compiler {
         info!("Engine compilation complete.");
 
         Ok(EngineContext {
-            key_count, hands, fingers, rows, cols, cost_matrix, key_costs, char_freqs,
+            key_count, hands, fingers, rows, cols, cost_matrix: internal_cost_matrix, dist_matrix, key_home_distances, key_costs, char_freqs,
             bigram_starts, bigram_others, bigram_freqs,
             bigram_rev_starts, bigram_rev_others, bigram_rev_freqs,
             trigram_starts, trigram_others1, trigram_others2, trigram_freqs,

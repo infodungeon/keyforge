@@ -19,7 +19,6 @@ use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::CostMatrixSource;
 use keyforge_protocol::JobRequest;
 use keyforge_physics::ScoringEngine;
-use keyforge_model::keycodes::KeycodeRegistry;
 use std::sync::Arc;
 use tracing::info;
 
@@ -69,8 +68,7 @@ impl<'a> SessionBuilder<'a> {
             .collect();
             
         let corpus = self.loader.load_corpus(&domain_corpora).await?;
-        let registry = self.loader.load_keycodes(keycodes_filename).await
-            .unwrap_or_else(|_| Arc::new(KeycodeRegistry::new_with_defaults()));
+        let registry = self.loader.load_keycodes(keycodes_filename).await?;
 
         let raw_costs = match cost_matrix {
             CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,
@@ -145,8 +143,7 @@ impl<'a> SessionBuilder<'a> {
             .collect();
 
         let corpus = self.loader.load_corpus(&domain_corpora).await?;
-        let registry = self.loader.load_keycodes(keycodes_filename).await
-            .unwrap_or_else(|_| Arc::new(KeycodeRegistry::new_with_defaults()));
+        let registry = self.loader.load_keycodes(keycodes_filename).await?;
 
         let raw_costs = match cost_matrix {
             CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,

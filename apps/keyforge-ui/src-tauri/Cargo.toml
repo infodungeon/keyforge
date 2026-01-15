@@ -22,6 +22,7 @@ sysinfo = "0.37"
 tauri-plugin-opener = "2.5.2"
 tauri-plugin-shell = "2.3.3"
 tauri-plugin-dialog = "2.4.2"
+tauri-plugin-log = "2.2.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.148"
 tracing = "0.1.44"

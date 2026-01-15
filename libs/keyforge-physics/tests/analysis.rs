@@ -48,7 +48,8 @@ fn test_metric_detection_sfb_scissors() {
     corpus_manual.bigrams.push((0, 1, 100)); // SFB
     corpus_manual.bigrams.push((0, 2, 100)); // Scissor
 
-    let engine = ScoringEngine::new(&kb_manual, &corpus_manual, &Rubric::default(), &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb_manual, &corpus_manual, &Rubric::default(), &cost_matrix).unwrap();
     // Layout maps char 0->Key0, char 1->Key1, char 2->Key2
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
     
@@ -88,7 +89,8 @@ fn test_metric_detection_rolls_redirects() {
         ..Rubric::default()
     };
 
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
     let report = engine.analyze(&layout).unwrap();
 
     assert!(report.rolls > 0.0, "Expected rolls");
@@ -105,7 +107,8 @@ fn test_heatmap_and_penalty_map() {
     corpus.char_freqs[98] = 1000;
     corpus.bigrams.push((97, 98, 500));
 
-    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
     
     let report = engine.analyze(&layout).unwrap();
@@ -136,7 +139,8 @@ fn test_lateral_sfb_mechanics() {
     rubric.sfb_base = 100.0;
     rubric.sfb_lateral = 200.0; // Distinct value
 
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
     
     let score = engine.score(&layout).unwrap();
@@ -163,7 +167,8 @@ fn test_lateral_stretch() {
     let mut rubric = Rubric::default();
     rubric.sfb_lateral = 500.0; // Used for lateral stretch penalty too
 
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
     
     let score = engine.score(&layout).unwrap();
