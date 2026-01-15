@@ -18,7 +18,7 @@ fn main() {
     let reg = KeycodeRegistry::new(defs);
 
     println!("--- Verifying Fixed Keys ---");
-    let targets = ["KC_ESCAPE", "KC_ESC", "KC_BACKSPACE", "KC_BSPC", "KC_SPACE", "KC_SPC", "KC_ENTER", "KC_ENT"];
+    let targets = ["KC_ESCAPE", "KC_ESC", "KC_BACKSPACE", "KC_BSPC", "KC_SPACE", "KC_SPC", "KC_ENTER", "KC_ENT", "KC_NO"];
     for t in targets {
         if let Some(code) = reg.get_code(t) {
             let label = reg.get_label(code);
