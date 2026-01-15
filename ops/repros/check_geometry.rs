@@ -15,8 +15,11 @@ fn main() {
 
     println!("Keyboard: {}", kb.meta.name);
     println!("Keys: {}", kb.geometry.keys.len());
+    println!("Home Row: {}", kb.geometry.home_row);
+    println!("{:<3} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}", "Idx", "Label", "Finger", "Hand", "Row", "Col", "Home", "Pos");
 
     for (i, key) in kb.geometry.keys.iter().enumerate() {
-        println!("Key {:<2}: Label='{:<8}' Finger={:?} Hand={:?}", i, key.label, key.finger, key.hand);
+        println!("{:<3} {:<8} {:<8?} {:<8?} {:<8} {:<8} {:<8} ({:.1}, {:.1})", 
+            i, key.label, key.finger, key.hand, key.row.0, key.col.0, key.is_home, key.x, key.y);
     }
 }
