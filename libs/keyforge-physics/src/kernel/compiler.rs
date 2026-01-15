@@ -108,6 +108,8 @@ impl Compiler {
             trigram_starts, trigram_others1, trigram_others2, trigram_freqs,
             trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs,
             trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs,
+            all_bigrams: corpus.bigrams.clone(),
+            all_trigrams: corpus.trigrams.clone(),
             penalty_redirect: Score::from_f32(rubric.redirect),
             penalty_skip: Score::ZERO,
             bonus_roll: Score::from_f32(rubric.roll_bonus),

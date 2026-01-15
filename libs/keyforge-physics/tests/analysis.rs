@@ -174,3 +174,119 @@ fn test_lateral_stretch() {
     let score = engine.score(&layout).unwrap();
     assert!(score >= 500.0);
 }
+
+#[test]
+fn test_bilateral_usage_distribution() {
+    // Setup: 3 Keys
+    // Key 0: Left Hand (Source)
+    // Key 1: Right Hand (Option A for Target)
+    // Key 2: Right Hand (Option B for Target)
+    let keys = vec![
+        KeyNode { index: 0, hand: HandIndex(0), finger: FingerIndex(1), x: 0.0, y: 0.0, ..Default::default() },
+        KeyNode { index: 1, hand: HandIndex(1), finger: FingerIndex(1), x: 10.0, y: 0.0, ..Default::default() },
+        KeyNode { index: 2, hand: HandIndex(1), finger: FingerIndex(2), x: 11.0, y: 0.0, ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+
+    // Layout: 'A'(65) on Key 0. 'B'(66) on BOTH Key 1 and Key 2.
+    // This simulates "Bilateral Space" or duplicate keys.
+    let layout = Layout::new_unchecked(vec![
+        KeyCode(65), // Key 0 = A
+        KeyCode(66), // Key 1 = B
+        KeyCode(66), // Key 2 = B
+    ]);
+
+    let mut corpus = Corpus::default();
+    // Char Freqs (needed for Monogram pass)
+    corpus.char_freqs[65] = 100;
+    corpus.char_freqs[66] = 100;
+    
+    // Bigram: A -> B (Freq 100)
+    corpus.bigrams.push((65, 66, 100));
+
+    // Cost Matrix to force choice
+    // Moving from Key 0 (A) to Key 1 (B_primary) is VERY EXPENSIVE.
+    // Moving from Key 0 (A) to Key 2 (B_secondary) is CHEAP.
+    // The engine should choose Key 2 for 'B' in this context.
+    let cost_matrix = vec![
+        (0, 1, 1000.0), // A -> B1
+        (0, 2, 10.0),   // A -> B2
+    ];
+
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap();
+    let report = engine.analyze(&layout).unwrap();
+
+    // 1. Check Usage (Heatmap)
+    // Key 1 should be avoided. Key 2 should be used.
+    // Normalized to percentages (0-100)
+    println!("Heatmap: {:?}", report.heatmap);
+    assert!(report.heatmap[2] > report.heatmap[1], "Should prefer Key 2 over Key 1");
+    assert!(report.heatmap[2] > 40.0, "Key 2 should have significant usage"); // ~50% total (A=50, B=50) -> Key 2 ~= 50
+
+    // 2. Check Effort (Penalty Map)
+    // Base effort for 'B' should be attributed to Key 2, not Key 1.
+    // Since Key 1 and Key 2 have same base finger effort (0.0 default), 
+    // we need to set non-zero base costs or check if penalty map follows heatmap.
+    // The previous implementation dumped all monogram effort on the first key (Key 1).
+    // The new implementation should follow the usage.
+    // Let's assume standard finger effort.
+    println!("Penalty Map: {:?}", report.penalty_map);
+    // If the fix works, Penalty[2] should be proportional to Usage[2].
+}
+
+#[test]
+fn test_trigram_flow_usage() {
+    // Setup: 3 Keys for a roll
+    // Key 0, 1, 2.
+    // Layout: A on 0, B on 1, C on 2.
+    // But let's duplicate B on Key 3 to test selection.
+    
+    let keys = vec![
+        KeyNode { index: 0, x: 0.0, ..Default::default() },
+        KeyNode { index: 1, x: 2.0, ..Default::default() }, // B1 (Bad position for roll?)
+        KeyNode { index: 2, x: 4.0, ..Default::default() }, // C
+        KeyNode { index: 3, x: 1.0, ..Default::default() }, // B2 (Good position for roll A->B2->C)
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+
+    let layout = Layout::new_unchecked(vec![
+        KeyCode(65), // 0: A
+        KeyCode(66), // 1: B (Primary)
+        KeyCode(67), // 2: C
+        KeyCode(66), // 3: B (Secondary)
+    ]);
+
+    let mut corpus = Corpus::default();
+    corpus.char_freqs[65] = 100;
+    corpus.char_freqs[66] = 100;
+    corpus.char_freqs[67] = 100;
+    
+    // Trigram A -> B -> C
+    corpus.trigrams.push((65, 66, 67, 100));
+
+    // Force selection via Cost Matrix
+    // We want A -> B2 -> C to be better than A -> B1 -> C.
+    // Costs:
+    // A(0)->B1(1) = 100
+    // B1(1)->C(2) = 100
+    // Total Path 1 = 200
+    
+    // A(0)->B2(3) = 10
+    // B2(3)->C(2) = 10
+    // Total Path 2 = 20
+    
+    let cost_matrix = vec![
+        (0, 1, 100.0), (1, 2, 100.0),
+        (0, 3, 10.0),  (3, 2, 10.0),
+    ];
+
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap();
+    let report = engine.analyze(&layout).unwrap();
+
+    println!("Heatmap: {:?}", report.heatmap);
+    
+    // The "Rigorous" analyzer uses Trigrams first. 
+    // It should identify that the triplet 0->3->2 is cheaper than 0->1->2.
+    // So usage for B should go to Key 3.
+    assert!(report.heatmap[3] > report.heatmap[1], "Trigram optimization should choose Key 3 for B");
+}

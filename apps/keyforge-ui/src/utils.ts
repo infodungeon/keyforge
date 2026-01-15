@@ -1,7 +1,7 @@
 import { keycodeService } from "./services/keycode";
-import { calculateStats, DerivedStats } from "./services/stats";
+import { calculateStats, adjustHeatmap, DerivedStats } from "./services/stats";
 
-export { keycodeService, calculateStats };
+export { keycodeService, calculateStats, adjustHeatmap };
 export type { DerivedStats };
 
 // Convenience exports for older components

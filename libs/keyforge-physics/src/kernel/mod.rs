@@ -54,6 +54,8 @@ pub struct EngineContext {
     pub(crate) trigram_end_others1: Vec<KeyCode>,
     pub(crate) trigram_end_others2: Vec<KeyCode>,
     pub(crate) trigram_end_freqs: Vec<u32>,
+    pub(crate) all_bigrams: Vec<(u16, u16, u32)>,
+    pub(crate) all_trigrams: Vec<(u16, u16, u16, u32)>,
     pub(crate) penalty_redirect: Score,
     pub(crate) penalty_skip: Score,
     pub(crate) bonus_roll: Score,
