@@ -34,7 +34,7 @@ export class WebClient implements BackendClient {
         type: "module",
       });
       this.worker.onmessage = (e) => {
-        const { type, payload } = e.data;
+        const { type } = e.data;
         if (type === "READY") {
           this.workerReady = true;
           if (this.lastKeyboardData) {
@@ -306,8 +306,12 @@ export class WebClient implements BackendClient {
           reject(new Error(payload));
         }
       };
-      this.worker.addEventListener("message", handler);
-      this.worker.postMessage({ type: "VALIDATE", payload: { layoutStr } });
+      if (this.worker) {
+        this.worker.addEventListener("message", handler);
+        this.worker.postMessage({ type: "VALIDATE", payload: { layoutStr } });
+      } else {
+        reject(new Error("Worker lost during validation"));
+      }
     });
   }
 

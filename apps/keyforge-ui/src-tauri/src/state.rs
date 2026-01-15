@@ -215,4 +215,6 @@ pub struct SessionState {
     pub assets: Arc<AssetCache>,
     /// Optional client for interacting with the remote Hive.
     pub client: Arc<RwLock<Option<keyforge_infra::HiveClient>>>,
+    /// Cached scoring session (compiled engine) for fast validation.
+    pub scoring_session: Arc<RwLock<Option<keyforge_core::ScoringSession>>>,
 }

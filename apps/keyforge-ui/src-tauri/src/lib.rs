@@ -72,6 +72,7 @@ pub fn run() {
                 active_job: Arc::new(RwLock::new(None)),
                 assets: Arc::new(asset_cache),
                 client: Arc::new(RwLock::new(None)),
+                scoring_session: Arc::new(RwLock::new(None)),
             });
 
             Ok(())

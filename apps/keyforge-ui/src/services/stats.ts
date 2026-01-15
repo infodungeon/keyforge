@@ -19,6 +19,7 @@ export interface DerivedStats {
     right: number[];
   };
   colUsage: { val: number; color: string }[];
+  totalUsage: number;
 }
 
 export function adjustHeatmap(
@@ -33,7 +34,7 @@ export function adjustHeatmap(
   const spaceIndices: number[] = [];
   let totalSpaceVal = 0;
 
-  geo.keys.forEach((k, i) => {
+  geo.keys.forEach((_k, i) => {
     const token = (layoutTokens[i] || "").toUpperCase();
     if (["KC_SPC", "SPACE", "SPC", "KC_SPACE"].includes(token)) {
       spaceIndices.push(i);
@@ -62,7 +63,7 @@ export function adjustHeatmap(
     leftSpaces.forEach(i => newMap[i] = 0);
     if (rightSpaces.length > 0) {
       const val = totalSpaceVal / rightSpaces.length;
-      rightSpaces.forEach(i => newMap[i] = val);
+      leftSpaces.forEach(i => newMap[i] = val);
     }
   }
 
@@ -73,7 +74,7 @@ export function calculateStats(
   geo: KeyboardGeometry,
   heatmap: number[],
   layoutTokens: string[] | boolean = [],
-  spaceHand: SpaceHandPreference = "bilateral",
+  _spaceHand: SpaceHandPreference = "bilateral",
   includeThumbsArg: boolean = true,
 ): DerivedStats {
   // Handle argument shifting for legacy calls (geo, heatmap, includeThumbs)
@@ -162,5 +163,6 @@ export function calculateStats(
       right: stats.fingerUsageRight.map(norm),
     },
     colUsage,
+    totalUsage: total,
   };
 }

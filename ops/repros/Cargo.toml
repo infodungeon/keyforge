@@ -15,6 +15,14 @@ path = "check_keycodes.rs"
 name = "compile_keycodes"
 path = "compile_keycodes.rs"
 
+[[bin]]
+name = "fix_keycodes"
+path = "fix_keycodes.rs"
+
+[[bin]]
+name = "check_geometry"
+path = "check_geometry.rs"
+
 [dependencies]
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-core = { path = "../../libs/keyforge-core" }

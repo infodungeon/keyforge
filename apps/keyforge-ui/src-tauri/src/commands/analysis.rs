@@ -99,14 +99,17 @@ pub async fn cmd_load_dataset(
     };
 
     *state.active_job.write().await = Some(job_config);
+    *state.scoring_session.write().await = None;
 
     Ok("Dataset Loaded".to_string())
 }
 
+use keyforge_runner::{OptimizationRunner, RunnerOptions};
+
 /// Validates a layout string against the currently active search runtime.
 #[tauri::command]
 pub async fn cmd_validate_layout(
-    app: AppHandle,
+    _app: AppHandle,
     state: tauri::State<'_, SessionState>,
     layout_str: String,
     _weights: Option<ScoringWeights>,
@@ -117,24 +120,44 @@ pub async fn cmd_validate_layout(
         guard.as_ref().ok_or(CommandError::Config("No dataset loaded".into()))?.clone()
     };
     
-    // Create Runner
-    let runner = AgentRunner::new(app.clone());
+    // 1. Ensure Session is Cached (Double-Checked Locking)
+    {
+        let session_guard = state.scoring_session.read().await;
+        if session_guard.is_none() {
+            drop(session_guard);
+            let mut write_guard = state.scoring_session.write().await;
+            if write_guard.is_none() {
+                let options = RunnerOptions {
+                    keycodes_file: "keycodes.json".to_string(),
+                     ..Default::default()
+                };
 
-    // Run
-    let json_output = match runner.run_validation(&job_config, &layout_str).await {
-        Ok(out) => out,
-        Err(e) => {
-            tracing::error!("cmd_validate_layout failed: {}", e);
-            return Err(e);
+                let session = OptimizationRunner::prepare_session(
+                    state.assets.as_ref(),
+                    &job_config,
+                    &options
+                ).await.map_err(|e| CommandError::Internal(format!("Failed to compile engine: {}", e)))?;
+                
+                *write_guard = Some(session);
+            }
         }
-    };
+    }
+
+    // 2. Use Session
+    let session_guard = state.scoring_session.read().await;
+    let session = session_guard.as_ref().ok_or(CommandError::Internal("Session lost".into()))?;
+
+    // 3. Parse Layout
+    let layout_parsed = keyforge_adapter::conversion::parse_layout_string(
+        &layout_str,
+        session.engine.key_count(),
+        &session.registry
+    ).map_err(|e| CommandError::Internal(format!("Invalid layout string: {}", e)))?;
+
+    // 4. Analyze
+    let report = session.engine.analyze(&layout_parsed)
+        .map_err(|e| CommandError::Internal(format!("Analysis failed: {:?}", e)))?;
     
-    // Deserialize report
-    // We assume the agent returns a JSON that matches keyforge_model::AnalysisReport
-    let report: keyforge_model::AnalysisReport = serde_json::from_str(&json_output)
-        .map_err(|e| CommandError::Internal(format!("Failed to parse agent output: {}. Output was: {}", e, json_output)))?;
-        
-    // Construct ValidationResult
     Ok(ValidationResult {
         layout_name: "Custom".to_string(),
         score: report.clone(),

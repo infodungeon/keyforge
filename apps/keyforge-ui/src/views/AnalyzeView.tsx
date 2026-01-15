@@ -91,6 +91,18 @@ export function AnalyzeView({
     setHighlightedKeys(newSet);
   };
 
+  const displayLayoutString = useMemo(() => {
+    if (includeThumbs) return layoutString;
+    
+    const tokens = layoutString.trim().split(/\s+/);
+    const masked = tokens.map((token, idx) => {
+        const keyDef = activeResult?.geometry?.keys[idx];
+        if (keyDef?.finger === 0) return "KC_NO";
+        return token;
+    });
+    return masked.join(" ");
+  }, [layoutString, includeThumbs, activeResult]);
+
   return (
     <>
       <div className="flex-1 flex flex-col min-w-0 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900/50 to-[#0B0F19]">
@@ -138,7 +150,7 @@ export function AnalyzeView({
         <div className="flex-1 p-8 flex flex-col items-center justify-center">
           <KeyboardMap
             geometry={activeResult?.geometry}
-            layoutString={toDisplayString(fromDisplayString(layoutString))}
+            layoutString={toDisplayString(fromDisplayString(displayLayoutString))}
             ghostLayoutString={
               ghostString
                 ? toDisplayString(fromDisplayString(ghostString))

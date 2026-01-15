@@ -68,13 +68,14 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         const tokens = layoutString.trim().split(/\s+/);
         
         // --- Dynamic Masking Logic ---
+        console.log(`[Analysis] Running validation. IncludeThumbs=${includeThumbs} SpaceHand=${spaceHand}`);
         const maskedTokens = tokens.map((token, idx) => {
             const keyDef = keyboardGeometry?.keys[idx];
             if (!keyDef) return token;
 
             // 1. Filter Thumbs (Finger 0)
-            if (!includeThumbs && keyDef.finger === 0) {
-                return "KC_NO";
+            if (!includeThumbs) {
+               if (keyDef.finger === 0) return "KC_NO";
             }
 
             // 2. Filter Space Hand Preference
@@ -90,6 +91,8 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         });
 
         const qmkStr = fromDisplayString(maskedTokens.join(" "));
+        console.log("[Analysis] Masked tokens count:", maskedTokens.filter(t => t === "KC_NO").length);
+        console.log("[Analysis] Validating Layout (QMK):", qmkStr);
         
         const res = await backend.validateLayout(
           qmkStr,

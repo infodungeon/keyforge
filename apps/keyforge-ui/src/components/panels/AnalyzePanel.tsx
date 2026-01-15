@@ -291,6 +291,7 @@ export function AnalyzePanel({
           <StatBox
             label="SFB"
             val={activeResult.score.sfb_total}
+            total={includeThumbs ? 100 : derivedStats.totalUsage}
             showDiff={showDiff}
             color="text-red-400"
             suffix="%"
@@ -299,6 +300,7 @@ export function AnalyzePanel({
           <StatBox
             label="Scissor"
             val={activeResult.score.scissors}
+            total={includeThumbs ? 100 : derivedStats.totalUsage}
             showDiff={showDiff}
             color="text-yellow-400"
             suffix="%"
@@ -307,6 +309,7 @@ export function AnalyzePanel({
           <StatBox
             label="Redir"
             val={activeResult.score.redirects}
+            total={includeThumbs ? 100 : derivedStats.totalUsage}
             showDiff={showDiff}
             color="text-blue-400"
             suffix="%"
@@ -315,6 +318,7 @@ export function AnalyzePanel({
           <StatBox
             label="Rolls"
             val={activeResult.score.rolls}
+            total={includeThumbs ? 100 : derivedStats.totalUsage}
             showDiff={showDiff}
             color="text-green-400"
             suffix="%"
