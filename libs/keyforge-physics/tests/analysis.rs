@@ -290,3 +290,51 @@ fn test_trigram_flow_usage() {
     // So usage for B should go to Key 3.
     assert!(report.heatmap[3] > report.heatmap[1], "Trigram optimization should choose Key 3 for B");
 }
+
+#[test]
+fn test_top_metrics_ranking() {
+    // Setup: All keys on same finger to force SFBs.
+    let keys = vec![
+        KeyNode { index: 0, hand: HandIndex(0), finger: FingerIndex(1), ..Default::default() },
+        KeyNode { index: 1, hand: HandIndex(0), finger: FingerIndex(1), ..Default::default() },
+        KeyNode { index: 2, hand: HandIndex(0), finger: FingerIndex(1), ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+
+    // Layout: 0='a'(97), 1='b'(98), 2='c'(99)
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]); 
+
+    let mut corpus = Corpus::default();
+    // Char freqs needed for normalization base
+    corpus.char_freqs[97] = 1000;
+    corpus.char_freqs[98] = 1000;
+    corpus.char_freqs[99] = 1000;
+
+    // Specific Bigrams to test ranking (Desc Order)
+    corpus.bigrams.push((97, 97, 500)); // "aa"
+    corpus.bigrams.push((97, 98, 400)); // "ab"
+    corpus.bigrams.push((97, 99, 300)); // "ac"
+    corpus.bigrams.push((98, 98, 200)); // "bb"
+    corpus.bigrams.push((98, 99, 100)); // "bc"
+
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &vec![]).unwrap();
+    let report = engine.analyze(&layout).unwrap();
+
+    let sfbs = report.top_sfbs;
+    assert_eq!(sfbs.len(), 5);
+    
+    // Check Order (Highest Freq First)
+    assert_eq!(sfbs[0].keys, "a a");
+    assert_eq!(sfbs[1].keys, "a b");
+    assert_eq!(sfbs[2].keys, "a c");
+    assert_eq!(sfbs[3].keys, "b b");
+    assert_eq!(sfbs[4].keys, "b c");
+    
+    // Check values (Freq should be descending)
+    assert!(sfbs[0].freq > sfbs[1].freq);
+    assert!(sfbs[1].freq > sfbs[2].freq);
+    
+    // Verify Score field (Currently observed as 1.0)
+    // If this test passes with 1.0, it confirms the UI observation.
+    assert_eq!(sfbs[0].score, 1.0); 
+}

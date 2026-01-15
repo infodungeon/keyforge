@@ -47,9 +47,8 @@ const ViolationTable = ({
           >
             <span className="font-mono text-slate-300">{v.keys}</span>
             <div className="flex gap-3">
-              <span className="text-slate-500">{v.freq.toFixed(0)}</span>
               <span className={`${color.replace("text-", "text-")}`}>
-                {v.score.toFixed(0)}
+                {v.freq.toFixed(2)}%
               </span>
             </div>
           </div>

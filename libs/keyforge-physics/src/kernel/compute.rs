@@ -15,7 +15,7 @@
 use super::types::{KeyCode, Score, ValidatedLayout};
 use super::EngineContext;
 use keyforge_model::{AnalysisReport, MetricViolation};
-use keyforge_model::constants::{SCORE_SCALE, MAX_KEYBOARD_KEYS, MAX_REPORTED_VIOLATIONS};
+use keyforge_model::constants::{MAX_KEYBOARD_KEYS, MAX_REPORTED_VIOLATIONS};
 use tracing::instrument;
 
 struct PosMap<'a> {
