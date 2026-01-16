@@ -1,0 +1,208 @@
+{
+    "meta": {
+        "version": "2.0",
+        "description": "KeyForge Physics Cost Matrix",
+        "unit": "Effort Points (100 = Index Home)"
+    },
+    "models": {
+        "model_a_row_staggered": {
+            "description": "Standard ANSI/ISO Geometry",
+            "static_costs": {
+                "left_hand": {
+                    "pinky": {
+                        "base": {
+                            "r0": 244,
+                            "r1": 196,
+                            "r2": 145,
+                            "r3": 207
+                        },
+                        "outer": {
+                            "r0": 244,
+                            "r1": 210,
+                            "r2": 154,
+                            "r3": 207
+                        },
+                        "ext": {
+                            "r0": 281,
+                            "r1": 210,
+                            "r2": 182,
+                            "r3": 215,
+                            "r4": 239
+                        }
+                    },
+                    "ring": {
+                        "base": {
+                            "r0": 219,
+                            "r1": 171,
+                            "r2": 120,
+                            "r3": 182
+                        }
+                    },
+                    "middle": {
+                        "base": {
+                            "r0": 204,
+                            "r1": 156,
+                            "r2": 105,
+                            "r3": 167
+                        }
+                    },
+                    "index": {
+                        "base": {
+                            "r0": 199,
+                            "r1": 151,
+                            "r2": 100,
+                            "r3": 162
+                        },
+                        "inner": {
+                            "r0": 198,
+                            "r1": 155,
+                            "r2": 150,
+                            "r3": 195
+                        }
+                    },
+                    "thumb": {
+                        "pos_1": 105,
+                        "pos_2": 125,
+                        "pos_3": 145
+                    }
+                },
+                "right_hand": {
+                    "thumb": {
+                        "pos_1": 105,
+                        "pos_2": 125,
+                        "pos_3": 145,
+                        "pos_4": 165
+                    },
+                    "index": {
+                        "inner": {
+                            "r0": 226,
+                            "r1": 181,
+                            "r2": 150,
+                            "r3": 172
+                        },
+                        "base": {
+                            "r0": 199,
+                            "r1": 151,
+                            "r2": 100,
+                            "r3": 172
+                        }
+                    },
+                    "middle": {
+                        "base": {
+                            "r0": 204,
+                            "r1": 156,
+                            "r2": 105,
+                            "r3": 177
+                        }
+                    },
+                    "ring": {
+                        "base": {
+                            "r0": 219,
+                            "r1": 171,
+                            "r2": 120,
+                            "r3": 192
+                        }
+                    },
+                    "pinky": {
+                        "base": {
+                            "r0": 244,
+                            "r1": 196,
+                            "r2": 145,
+                            "r3": 217
+                        },
+                        "outer": {
+                            "r0": 243,
+                            "r1": 200,
+                            "r2": 175,
+                            "r3": 260
+                        },
+                        "ext": {
+                            "r0": 247,
+                            "r1": 243,
+                            "r2": 199,
+                            "r4": 239
+                        }
+                    }
+                }
+            }
+        },
+        "model_b_columnar": {
+            "description": "Ortholinear & Columnar Staggered Geometry",
+            "static_costs": {
+                "universal_hand": {
+                    "pinky": {
+                        "outer": {
+                            "r0": 244,
+                            "r1": 210,
+                            "r2": 154,
+                            "r3": 207
+                        },
+                        "base": {
+                            "r0": 243,
+                            "r1": 195,
+                            "r2": 145,
+                            "r3": 205
+                        }
+                    },
+                    "ring": {
+                        "base": {
+                            "r0": 218,
+                            "r1": 170,
+                            "r2": 120,
+                            "r3": 180
+                        }
+                    },
+                    "middle": {
+                        "base": {
+                            "r0": 203,
+                            "r1": 155,
+                            "r2": 105,
+                            "r3": 165
+                        }
+                    },
+                    "index": {
+                        "base": {
+                            "r0": 198,
+                            "r1": 150,
+                            "r2": 100,
+                            "r3": 160
+                        },
+                        "inner": {
+                            "r0": 241,
+                            "r1": 198,
+                            "r2": 150,
+                            "r3": 208
+                        }
+                    },
+                    "thumb": {
+                        "home": 100,
+                        "ext": 152,
+                        "curl": 162
+                    }
+                }
+            }
+        }
+    },
+    "dynamic_rules": {
+        "sequence_modifiers": {
+            "roll_inward": -0.30,
+            "roll_outward": 0.0,
+            "roll_disjoint": -0.15,
+            "redirect": 0.50,
+            "double_tap_ratio": 0.80
+        },
+        "penalties": {
+            "sfb_multiplier": 2.5,
+            "scissor_standard": 1.0,
+            "scissor_sympathetic": 1.5,
+            "lateral_bigram": 0.50,
+            "row_trill": 0.50,
+            "chord_overhead": 50
+        },
+        "constraints": {
+            "hand_balance_tolerance": 0.05,
+            "max_pinky_load": 0.10,
+            "max_ring_load": 0.18
+        }
+    }
+}
