@@ -32,8 +32,12 @@ name = "audit_geometry"
 path = "audit_geometry.rs"
 
 [[bin]]
-name = "repro_travel"
-path = "repro_travel.rs"
+name = "space_optimality"
+path = "space_optimality.rs"
+
+[[bin]]
+name = "dump_layout"
+path = "dump_layout.rs"
 
 [dependencies]
 keyforge-model = { path = "../../libs/keyforge-model" }

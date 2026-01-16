@@ -8,14 +8,14 @@ import type { SearchParams } from "./SearchParams";
  */
 export type Config = { 
 /**
- * Parameters controlling the annealing search process.
+ * Search parameters for the optimization engine.
  */
 search: SearchParams, 
 /**
- * Weights and penalties for the scoring engine.
+ * Weights for the physics scoring engine.
  */
 weights: ScoringWeights, 
 /**
- * Definitions for layout generation (character tiers, etc.).
+ * Definitions for layout tiers and critical bigrams.
  */
 defs: LayoutDefinitions, };

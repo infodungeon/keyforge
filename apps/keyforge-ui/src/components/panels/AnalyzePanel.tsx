@@ -211,9 +211,8 @@ export function AnalyzePanel({
                     <button
                       key={opt}
                       onClick={() => setSpaceHand(opt)}
-                      className={`px-2 py-0.5 text-[8px] uppercase font-bold rounded transition-colors ${
-                        spaceHand === opt ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-300"
-                      }`}
+                      className={`px-2 py-0.5 text-[8px] uppercase font-bold rounded transition-colors ${spaceHand === opt ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-300"
+                        }`}
                     >
                       {opt === "bilateral" ? "Both" : opt}
                     </button>
@@ -271,8 +270,8 @@ export function AnalyzePanel({
         <div className="grid grid-cols-3 gap-2">
           <StatBox
             label="Travel/Key"
-            val={(activeResult.score.distance / 100000) * 100}
-            refVal={referenceResult ? (referenceResult.score.distance / 100000) * 100 : undefined}
+            val={activeResult.score.travel_per_key * 100}
+            refVal={referenceResult ? referenceResult.score.travel_per_key * 100 : undefined}
             showDiff={showDiff}
             color="text-slate-200"
             suffix="%"

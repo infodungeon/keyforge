@@ -5,7 +5,7 @@
  */
 export type LayoutDefinitions = { 
 /**
- * Characters considered high priority.
+ * Characters considered high priority (Home row candidates).
  */
 tier_high_chars: string, 
 /**
@@ -23,4 +23,4 @@ critical_bigrams: string,
 /**
  * Scale factors for finger repeat penalties.
  */
-finger_repeat_scale: string, };
+finger_repeat_scale: [number, number, number, number, number], };

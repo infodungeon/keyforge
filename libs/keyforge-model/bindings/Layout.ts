@@ -7,6 +7,6 @@
 export type Layout = { 
 /**
  * The list of keys.
- * Optimization: Store up to 64 keys inline on the stack.
+ * The index corresponds to the KeyIndex.
  */
 keys: Vec<KeyCode>, };

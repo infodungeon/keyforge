@@ -189,15 +189,22 @@ pub struct PhysicsScratch {
     char_usage: [f32; 65536],
 }
 
-impl PhysicsScratch {
-    pub fn new() -> Self {
+impl Default for PhysicsScratch {
+    fn default() -> Self {
         Self {
             starts: [0; 65536],
             counts: [0; 65536],
             indices: [0; MAX_KEYBOARD_KEYS],
-            used_keys: Vec::with_capacity(128),
+            used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
             char_usage: [0.0; 65536],
         }
+    }
+}
+
+impl PhysicsScratch {
+    /// Creates a new scratch instance.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     fn clear_used(&mut self) {
@@ -233,11 +240,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     let mut scissors = Vec::new();
     let mut redirs = Vec::new();
 
-    // Track how much of each bigram's frequency has been handled by Trigrams
-    // Key: (char1, char2), Value: consumed_frequency
-    let mut bigram_usage: std::collections::HashMap<(u16, u16), f32> = std::collections::HashMap::new();
-
-    // 1. Pass 1: Trigrams (Rigorous Flow & Usage)
+    // 1. Pass 1: Trigrams (Flow ONLY)
     for &(c1, c2, c3, freq) in &ctx.all_trigrams {
         let candidates1 = pm.get(c1 as usize);
         let candidates2 = pm.get(c2 as usize);
@@ -251,18 +254,12 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         for &p1 in candidates1 {
             for &p2 in candidates2 {
                 for &p3 in candidates3 {
+                    // Score includes flow penalty and travel costs
                     let mut cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
-                    
-                    // Add Travel Costs (Bigram Components)
                     let idx12 = (p1 as usize) * ctx.key_count + (p2 as usize);
                     let idx23 = (p2 as usize) * ctx.key_count + (p3 as usize);
                     cost = cost.saturating_add(ctx.cost_matrix[idx12])
                                .saturating_add(ctx.cost_matrix[idx23]);
-
-                    // Add Base Key Costs (Monogram Components)
-                    cost = cost.saturating_add(ctx.key_costs[p1 as usize])
-                               .saturating_add(ctx.key_costs[p2 as usize])
-                               .saturating_add(ctx.key_costs[p3 as usize]);
 
                     if cost < min_cost_val {
                         min_cost_val = cost;
@@ -275,29 +272,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         if min_cost_val.0 != i64::MAX {
             let (idx1, idx2, idx3) = best_triplet;
             
-            // Attribute Usage to Target Keys (p2 and p3) based on this Trigram context
-            heatmap[idx2] += freq_f;
-            heatmap[idx3] += freq_f;
-            
-            // NOTE: Distance is now handled EXCLUSIVELY in the Bigram pass for consistency.
-
-            scratch.char_usage[c2 as usize] += freq_f;
-            scratch.char_usage[c3 as usize] += freq_f;
-
-            // Mark these transitions as accounted for in the Bigram layer
-            *bigram_usage.entry((c1, c2)).or_insert(0.0) += freq_f;
-            *bigram_usage.entry((c2, c3)).or_insert(0.0) += freq_f;
-
-            // Flow Effort (We attribute the Full Cost including travel here? No, let Bigrams handle Travel Effort)
-            // Ideally: Penalty Map = Sum(Base Cost) + Sum(Travel Cost) + Sum(Flow Cost).
-            // Base Cost -> Monogram/Bigram loop.
-            // Travel Cost -> Bigram Loop.
-            // Flow Cost -> Trigram Loop.
-            
-            // So we should ONLY add the Flow Cost component here.
+            // Flow Effort (Redirects/Rolls) - distributed across triplet
             let flow_cost = calculate_flow_cost(ctx, idx1, idx2, idx3);
             let flow_cost_f32 = flow_cost.to_f32();
-            
             penalty_map[idx1] += flow_cost_f32 * freq_f * 0.33;
             penalty_map[idx2] += flow_cost_f32 * freq_f * 0.33;
             penalty_map[idx3] += flow_cost_f32 * freq_f * 0.33;
@@ -315,7 +292,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         }
     }
 
-    // 2. Pass 2: Bigrams (Physical Metrics & Distance)
+    // 2. Pass 2: Bigrams (ALL TRANSITIONS, DISTANCE, USAGE)
     for &(c1, c2, freq) in &ctx.all_bigrams {
         let candidates1 = pm.get(c1 as usize);
         let candidates2 = pm.get(c2 as usize);
@@ -324,94 +301,100 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         let freq_f = freq as f32;
         total_bigrams += freq_f;
 
-        let mut min_cost = f32::MAX;
+        // Choose OPTIMAL key pair by evaluating candidate costs
+        let mut min_score = Score(i64::MAX);
         let mut best_pair = (0, 0);
-        for &p1 in candidates1 {
-            for &p2 in candidates2 {
-                let cost = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)].to_f32();
-                if cost < min_cost {
-                    min_cost = cost;
-                    best_pair = (p1 as usize, p2 as usize);
+
+        if candidates1.len() == 1 && candidates2.len() == 1 {
+            // Case 1: Single Key - Irrelevant to evaluate choice
+            best_pair = (candidates1[0] as usize, candidates2[0] as usize);
+        } else {
+            // Case 2: Multiple Selection (Duplicated Keys like Space)
+            // Pick pair resulting in best score contribution
+            for &p1 in candidates1 {
+                for &p2 in candidates2 {
+                    let cost = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                    if cost < min_score {
+                        min_score = cost;
+                        best_pair = (p1 as usize, p2 as usize);
+                    }
                 }
             }
         }
 
         let (idx1, idx2) = best_pair;
         
-        // Calculate remaining usage not covered by Trigrams (for heatmap/usage only)
-        let consumed = *bigram_usage.get(&(c1, c2)).unwrap_or(&0.0);
-        let remaining = (freq_f - consumed).max(0.0);
+        // --- TRANSITION ACCOUNTING ---
+        // Usage (Heatmap) attributed to target character c2
+        heatmap[idx2] += freq_f;
+        scratch.char_usage[c2 as usize] += freq_f;
 
-        if remaining > 0.0 {
-            // Attribute remaining usage to the target key (p2)
-            heatmap[idx2] += remaining;
-            scratch.char_usage[c2 as usize] += remaining;
-        }
-
-        // --- UNIFIED DISTANCE CALCULATION ---
-        // Every bigram represents one keypress. We measure the movement required.
-        if idx1 != idx2 && ctx.fingers[idx1] == ctx.fingers[idx2] && ctx.hands[idx1] == ctx.hands[idx2] {
-            // Same Finger Bigram: Actual movement between keys
+        // Distance Calculation
+        if idx1 == idx2 {
+            // Same key: No movement
+        } else if ctx.hands[idx1] == ctx.hands[idx2] {
+            // Same Hand: Euclidean Distance
             report.distance += ctx.dist_matrix[idx1 * ctx.key_count + idx2] * freq_f;
             
-            // Registry SFB load
-            report.sfb_total += freq_f;
-            sfbs.push(MetricViolation {
-                keys: format!("{} {}", c1 as u8 as char, c2 as u8 as char),
-                score: 1.0,
-                freq: freq_f,
-            });
+            // SFB Check (Specific to same-finger move)
+            if ctx.fingers[idx1] == ctx.fingers[idx2] {
+                report.sfb_total += freq_f;
+                sfbs.push(MetricViolation {
+                    keys: format!("{}{}", c1 as u8 as char, c2 as u8 as char),
+                    score: 1.0,
+                    freq: freq_f,
+                });
+            }
         } else {
-            // Different finger: Assume start from Home Position
+            // Different Hand: Movement from home position
             report.distance += ctx.key_home_distances[idx2] * freq_f;
         }
-        
-        // Bigram Effort (Travel) - Applied to full frequency to capture SFBs/Scissors accurately
-        penalty_map[idx1] += min_cost * freq_f * 0.5;
-        penalty_map[idx2] += min_cost * freq_f * 0.5;
 
+        // Scissor Detection
         let r1 = ctx.rows[idx1];
         let r2 = ctx.rows[idx2];
         if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
             report.scissors += freq_f;
             scissors.push(MetricViolation {
-                keys: format!("{} {}", c1 as u8 as char, c2 as u8 as char),
+                keys: format!("{}{}", c1 as u8 as char, c2 as u8 as char),
                 score: 1.0,
                 freq: freq_f,
             });
         }
+
+        // Effort Attribution
+        let trans_cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
+        penalty_map[idx1] += trans_cost * freq_f * 0.5;
+        penalty_map[idx2] += trans_cost * freq_f * 0.5;
     }
 
-    // 3. Pass 3: Monograms (Base Cost & Cleanup)
+    // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
     for &code in pm.used_keys.iter() {
         let c_val = code as usize;
         let freq = ctx.char_freqs[c_val] as f32;
         if freq <= 0.0 { continue; }
 
-        let remaining = freq - scratch.char_usage[c_val];
-        if remaining > 0.0 {
-            // Find static best for the remainder
-            let candidates = pm.get(c_val);
+        let candidates = pm.get(c_val);
+        
+        // Monogram Effort (Base Key Cost)
+        // Attribute to keys based on their usage heatmap or unique position
+        let total_key_usage: f32 = candidates.iter().map(|&p| heatmap[p as usize]).sum();
+        if total_key_usage > 0.0 {
+            for &p in candidates {
+                let p_idx = p as usize;
+                let share = heatmap[p_idx] / total_key_usage;
+                penalty_map[p_idx] += freq * share * ctx.key_costs[p_idx].to_f32();
+            }
+        } else {
+            // Unused in transitions (e.g. monogram only): use best static key
             let mut min_c = f32::MAX;
             let mut bp = 0;
             for &p in candidates {
                 let c = ctx.key_costs[p as usize].to_f32();
                 if c < min_c { min_c = c; bp = p as usize; }
             }
-            heatmap[bp] += remaining;
-            // NOTE: Initial distance (static start) is already statistically captured by Bigram pass.
-        }
-
-        // Now attribute Base Effort (Monogram Cost) for this character 
-        // distributed across all its keys based on the final heatmap distribution.
-        let candidates = pm.get(c_val);
-        let char_total_usage: f32 = candidates.iter().map(|&p| heatmap[p as usize]).sum();
-        if char_total_usage > 0.0 {
-            for &p in candidates {
-                let p_idx = p as usize;
-                let share = heatmap[p_idx] / char_total_usage;
-                penalty_map[p_idx] += freq * share * ctx.key_costs[p_idx].to_f32();
-            }
+            heatmap[bp] += freq;
+            penalty_map[bp] += freq * ctx.key_costs[bp].to_f32();
         }
     }
 
@@ -431,6 +414,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     
     // Normalization
     let total_freq: u64 = ctx.char_freqs.iter().sum();
+    if total_freq > 0 {
+        report.travel_per_key = report.distance / total_freq as f32;
+    }
     let norm_100k = if total_freq > 0 { 100_000.0 / total_freq as f32 } else { 1.0 };
     let norm_pct = if total_freq > 0 { 100.0 / total_freq as f32 } else { 1.0 };
 

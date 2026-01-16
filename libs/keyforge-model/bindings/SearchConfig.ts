@@ -29,6 +29,6 @@ patience: number,
  */
 reheats: number, 
 /**
- * Multiplier for start_temp when reheating.
+ * Multiplier for `start_temp` when reheating.
  */
 reheat_factor: number, } };

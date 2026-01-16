@@ -5,7 +5,7 @@
  */
 export type SearchParams = { 
 /**
- * Number of epochs (independent runs) to perform.
+ * Number of independent search epochs to run.
  */
 search_epochs: number, 
 /**
@@ -13,7 +13,7 @@ search_epochs: number,
  */
 search_steps: number, 
 /**
- * Number of steps without improvement before triggering a reheat.
+ * Steps without improvement before triggering a reheat.
  */
 search_patience: number, 
 /**
@@ -37,10 +37,14 @@ opt_limit_fast: number,
  */
 opt_limit_slow: number, 
 /**
- * Number of times to reheat the system if stuck in a local minimum.
+ * Number of times to reheat the system if stuck.
  */
 reheats: number, 
 /**
  * Factor to multiply temperature by when reheating.
  */
-reheat_factor: number, };
+reheat_factor: number, 
+/**
+ * Random seed for deterministic replay (Optional).
+ */
+seed?: bigint | null, };

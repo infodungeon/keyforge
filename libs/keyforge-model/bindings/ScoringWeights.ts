@@ -157,10 +157,10 @@ loader_trigram_limit: number,
  */
 trigram_coverage: number, 
 /**
- * Comma-separated string of finger penalty multipliers.
+ * Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
  */
-finger_penalty_scale: string, 
+finger_penalty_scale: [number, number, number, number, number], 
 /**
- * Comma-separated string of comfortable scissor pairs.
+ * Comma-separated list of comfortable scissor pairs.
  */
 comfortable_scissors: string, };

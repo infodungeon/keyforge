@@ -168,6 +168,8 @@ pub struct AnalysisReport {
     pub score: f32,
     /// Total finger travel distance.
     pub distance: f32,
+    /// Average travel distance per keypress.
+    pub travel_per_key: f32,
     /// Total Same Finger Bigram cost.
     pub sfb_total: f32,
     /// Ratio of SFBs to total bigrams.

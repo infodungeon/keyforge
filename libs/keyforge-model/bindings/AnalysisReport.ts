@@ -14,6 +14,10 @@ score: number,
  */
 distance: number, 
 /**
+ * Average travel distance per keypress.
+ */
+travel_per_key: number, 
+/**
  * Total Same Finger Bigram cost.
  */
 sfb_total: number, 
@@ -41,6 +45,10 @@ rolls: number,
  * Per-key usage heatmap.
  */
 heatmap: Array<number>, 
+/**
+ * Per-key penalty heatmap (Effort).
+ */
+penalty_map: Array<number>, 
 /**
  * Top SFB offenders.
  */
