@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::types::{KeyCode, Score, ValidatedLayout};
+use super::types::{KeyCode, Score, ValidatedLayout, FingerIndex};
 use super::EngineContext;
 use keyforge_model::{AnalysisReport, MetricViolation};
 use keyforge_model::constants::{MAX_KEYBOARD_KEYS, MAX_REPORTED_VIOLATIONS};
@@ -217,6 +217,29 @@ impl PhysicsScratch {
     }
 }
 
+/// Safely converts a u16 character code to a displayable character.
+/// Handles invalid Unicode surrogate pairs and control characters.
+#[inline]
+fn u16_to_char(code: u16) -> String {
+    // Try direct conversion (for ASCII and most Unicode)
+    if let Some(c) = char::from_u32(code as u32) {
+        // Filter out control characters that aren't printable
+        if !c.is_control() {
+            return c.to_string();
+        }
+        // Special handling for common control characters
+        match code {
+            8 => return "⌫".to_string(),   // Backspace
+            9 => return "⇥".to_string(),   // Tab
+            10 => return "↵".to_string(),  // Newline
+            32 => return "␣".to_string(),  // Space
+            _ => return format!("[0x{:02X}]", code),
+        }
+    }
+    // Fallback for invalid Unicode (like surrogate pairs)
+    format!("[0x{:04X}]", code)
+}
+
 #[instrument(skip_all)]
 pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> AnalysisReport {
     let mut report = AnalysisReport::default();
@@ -286,7 +309,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                 report.redir_penalty += flow_cost_f32 * freq_f;
                 
                 redirs.push(MetricViolation {
-                    keys: format!("{}{}{}", c1 as u8 as char, c2 as u8 as char, c3 as u8 as char),
+                    keys: format!("{}{}{}", u16_to_char(c1), u16_to_char(c2), u16_to_char(c3)),
                     score: 1.0,
                     freq: freq_f,
                 });
@@ -352,7 +375,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                 report.sfb_penalty += sfb_cost * freq_f;
                 
                 sfbs.push(MetricViolation {
-                    keys: format!("{}{}", c1 as u8 as char, c2 as u8 as char),
+                    keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
                     score: 1.0,
                     freq: freq_f,
                 });
@@ -365,7 +388,14 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         // Scissor Detection
         let r1 = ctx.rows[idx1];
         let r2 = ctx.rows[idx2];
-        if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
+        let f1 = ctx.fingers[idx1];
+        let f2 = ctx.fingers[idx2];
+        if ctx.hands[idx1] == ctx.hands[idx2] 
+            && f1.distance(f2) == 1 
+            && (r1 - r2).abs() >= 2
+            && f1 != FingerIndex::THUMB
+            && f2 != FingerIndex::THUMB 
+        {
             report.scissors += freq_f;
             
             // Accumulate scissor penalty contribution
@@ -373,7 +403,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             report.scissor_penalty += scissor_cost * freq_f;
             
             scissors.push(MetricViolation {
-                keys: format!("{}{}", c1 as u8 as char, c2 as u8 as char),
+                keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
                 score: 1.0,
                 freq: freq_f,
             });

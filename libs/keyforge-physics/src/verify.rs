@@ -230,7 +230,7 @@ fn calculate_pair_cost_int(kb: &Keyboard, k1: &FixedPointKey, k2: &FixedPointKey
 
     let finger_diff = k1.finger.distance(k2.finger);
     let row_diff = (k1.row.0 - k2.row.0).abs();
-    if finger_diff == 1 {
+    if finger_diff == 1 && k1.finger != FingerIndex::THUMB && k2.finger != FingerIndex::THUMB {
         if row_diff >= rubric.threshold_scissor_row_diff {
             cost = cost.saturating_add(rubric.penalty_scissor);
         } else if row_diff == 0 {

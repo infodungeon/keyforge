@@ -103,7 +103,6 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
 
     #[test]
-    #[ignore] // TODO: Investigate divergence between Fast Engine and Oracle (Diff > 1%).
     fn test_oracle_parity(
         (kb, layout_keys) in kb_and_layout_strategy(),
         corpus in corpus_strategy(0..255),

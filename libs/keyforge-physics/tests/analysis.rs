@@ -323,9 +323,9 @@ fn test_top_metrics_ranking() {
     assert_eq!(sfbs.len(), 3); // "aa" is NOT an sfb
     
     // Check Order (Highest Freq First)
-    assert_eq!(sfbs[0].keys, "a b");
-    assert_eq!(sfbs[1].keys, "a c");
-    assert_eq!(sfbs[2].keys, "b c");
+    assert_eq!(sfbs[0].keys, "ab");
+    assert_eq!(sfbs[1].keys, "ac");
+    assert_eq!(sfbs[2].keys, "bc");
     
     // Check values (Freq should be descending)
     assert!(sfbs[0].freq > sfbs[1].freq);
@@ -356,7 +356,7 @@ fn test_repeat_not_sfb() {
     // Total char freq = 2000. Total bigram freq = 200.
     // "ab" should be detected as SFB. "aa" should NOT.
     assert_eq!(report.top_sfbs.len(), 1);
-    assert_eq!(report.top_sfbs[0].keys, "a b");
+    assert_eq!(report.top_sfbs[0].keys, "ab");
     
     // sfb_total should only account for "ab"
     // Total freq (base for normalization) = 3000? No, ScoringEngine sums char_freqs. 
@@ -366,4 +366,51 @@ fn test_repeat_not_sfb() {
     
     assert!(report.sfb_total > 0.0);
     // If "aa" was counted, sfb_total would be twice as high.
+}
+
+#[test]
+fn test_thumb_exclusion_from_scissors_and_stretch() {
+    // Setup: 3 keys
+    // Key 0: Thumb (FingerIndex 0), Row 0, Col 0
+    // Key 1: Index (FingerIndex 1), Row 2, Col 0 (Potential Scissor with Key 0)
+    // Key 2: Index (FingerIndex 1), Row 0, Col 2 (Potential Stretch with Key 0)
+    let keys = vec![
+        KeyNode { index: 0, hand: HandIndex(0), finger: FingerIndex(0), row: RowIndex(0), col: ColIndex(0), ..Default::default() },
+        KeyNode { index: 1, hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(2), col: ColIndex(0), ..Default::default() },
+        KeyNode { index: 2, hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), col: ColIndex(2), ..Default::default() },
+    ];
+    let kb = Keyboard::new(keys, 0).unwrap();
+    
+    // Layout: 0='t', 1='i', 2='s'
+    let layout = Layout::new_unchecked(vec![KeyCode(116), KeyCode(105), KeyCode(115)]);
+    
+    let mut corpus = Corpus::default();
+    corpus.char_freqs[116] = 1000;
+    corpus.char_freqs[105] = 1000;
+    corpus.char_freqs[115] = 1000;
+    
+    // Bigram 't'-'i' (Thumb-Index, row diff 2)
+    corpus.bigrams.push((116, 105, 500));
+    // Bigram 't'-'s' (Thumb-Index, same row, col diff 2)
+    corpus.bigrams.push((116, 115, 500));
+
+    let mut rubric = Rubric::default();
+    rubric.penalty_scissor = 1000.0;
+    rubric.sfb_lateral = 1000.0;
+    rubric.threshold_scissor_row_diff = 2;
+
+    let cost_matrix = vec![];
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
+    
+    // 1. Check Score (should NOT include scissor/stretch penalties)
+    let score = engine.score(&layout).unwrap();
+    // Normalized freq = 100,000 usage units. 
+    // Each char has finger_effort 1.0 and 0 travel cost (all at 0,0).
+    // So total normalized score should be exactly 100,000.
+    assert!((score - 100000.0).abs() < 0.1, "Score {} should be approximately 100,000 (only monogram effort)", score);
+
+    // 2. Check Analysis Report
+    let report = engine.analyze(&layout).unwrap();
+    assert_eq!(report.scissors, 0.0, "Should detect 0 scissors for thumb interactions");
+    assert!(report.top_scissors.is_empty(), "Top scissors should be empty");
 }

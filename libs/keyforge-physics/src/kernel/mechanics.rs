@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::types::KeyIndex;
+use super::types::{KeyIndex, FingerIndex};
 use keyforge_model::{Keyboard, Rubric};
 
 pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIndex) -> f32 {
@@ -78,7 +78,8 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     let row_diff = (k1.row - k2.row).abs();
 
     // Scissor detection (Adjacent fingers, large row difference)
-    if finger_diff == 1 {
+    // Thumbs (0) are excluded from scissor/stretch detection
+    if finger_diff == 1 && f1 != FingerIndex::THUMB && f2 != FingerIndex::THUMB {
         if row_diff >= rubric.threshold_scissor_row_diff {
             cost += rubric.penalty_scissor;
         } else if row_diff == 0 {
