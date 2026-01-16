@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use keyforge_adapter::conversion;
-use keyforge_core::loader::{AssetLoader, LoaderResult};
+use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
 use keyforge_core::ScoringSession;
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::CostMatrixSource;

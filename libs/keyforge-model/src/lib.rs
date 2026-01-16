@@ -98,6 +98,9 @@ pub enum SearchConfig {
         reheats: usize,
         /// Multiplier for `start_temp` when reheating.
         reheat_factor: f32,
+        /// Whether to include thumb keys in swap suggestions.
+        #[serde(default)]
+        include_thumbs: bool,
     },
 }
 
@@ -111,6 +114,7 @@ impl Default for SearchConfig {
             patience: 500,
             reheats: 3,
             reheat_factor: 0.5,
+            include_thumbs: false,
         }
     }
 }
@@ -145,6 +149,13 @@ impl SearchConfig {
             }
         }
         Ok(())
+    }
+
+    /// Returns whether thumb keys should be included in swap suggestions.
+    pub fn include_thumbs(&self) -> bool {
+        match self {
+            SearchConfig::Annealing { include_thumbs, .. } => *include_thumbs,
+        }
     }
 }
 

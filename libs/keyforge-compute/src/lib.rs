@@ -60,7 +60,7 @@ impl Runtime {
     /// Suggests layout improvements based on the current scoring model.
     #[instrument(skip(self, layout))]
     pub fn suggest_improvements(&self, layout: &Layout) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
-        Ok(self.engine.suggest_improvements(layout))
+        Ok(self.engine.suggest_improvements(layout, self.search_config.include_thumbs()))
     }
 
     /// Runs the evolution optimizer on the current runtime context.

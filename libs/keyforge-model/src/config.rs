@@ -170,10 +170,14 @@ pub struct SearchParams {
     /// Random seed for deterministic replay (Optional).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
+    /// Whether to include thumb keys in swap suggestions.
+    #[serde(default = "default_false")]
+    pub include_thumbs: bool,
 }
 
 fn default_reheats() -> usize { DEFAULT_REHEATS }
 fn default_reheat_factor() -> f32 { DEFAULT_REHEAT_FACTOR }
+fn default_false() -> bool { false }
 
 impl Default for SearchParams {
     fn default() -> Self {
@@ -189,6 +193,7 @@ impl Default for SearchParams {
             reheats: default_reheats(),
             reheat_factor: default_reheat_factor(),
             seed: None,
+            include_thumbs: false,
         }
     }
 }

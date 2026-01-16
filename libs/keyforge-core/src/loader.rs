@@ -44,19 +44,117 @@ pub struct RawCostData {
 impl RawCostData {
     /// Resolves the raw cost entries against a specific keyboard geometry.
     ///
-    /// This translates label-based lookups into high-performance index-based lookups.
+    /// This uses generic key selectors (e.g., "hand:left finger:index") to apply costs
+    /// to all matching keys, ensuring transposability across different layouts.
     pub fn resolve(&self, geo: &keyforge_model::geometry::KeyboardGeometry) -> Vec<(usize, usize, f32)> {
         let mut overrides = Vec::new();
-        let mut id_map = std::collections::HashMap::new();
-        for (i, k) in geo.keys.iter().enumerate() {
-            id_map.insert(k.label.clone(), i);
-        }
+        let mut applied_count = 0;
+
         for entry in &self.entries {
-            if let (Some(&idx1), Some(&idx2)) = (id_map.get(&entry.from), id_map.get(&entry.to)) {
-                overrides.push((idx1, idx2, entry.cost));
+            // 1. Parse selectors
+            let from_criteria = SelectorCriteria::parse(&entry.from);
+            let to_criteria = SelectorCriteria::parse(&entry.to);
+
+            // 2. Find matching keys
+            let from_indices: Vec<usize> = geo.keys.iter()
+                .enumerate()
+                .filter(|(_, k)| from_criteria.matches(k, geo))
+                .map(|(i, _)| i)
+                .collect();
+
+            let to_indices: Vec<usize> = geo.keys.iter()
+                .enumerate()
+                .filter(|(_, k)| to_criteria.matches(k, geo))
+                .map(|(i, _)| i)
+                .collect();
+
+            // 3. Apply costs to all combinations
+            for &src in &from_indices {
+                for &dst in &to_indices {
+                    overrides.push((src, dst, entry.cost));
+                    applied_count += 1;
+                }
             }
         }
+
+        tracing::info!(
+            "Applied {} cost matrix rules resulting in {} resolved overrides", 
+            self.entries.len(), 
+            applied_count
+        );
+        
         overrides
+    }
+}
+
+/// Criteria for selecting keys based on their physical attributes.
+struct SelectorCriteria {
+    hand: Option<keyforge_model::types::HandIndex>,
+    finger: Option<keyforge_model::types::FingerIndex>,
+    row: Option<keyforge_model::types::RowIndex>,
+    col: Option<keyforge_model::types::ColIndex>,
+    is_home: Option<bool>,
+    is_stretch: Option<bool>,
+}
+
+impl SelectorCriteria {
+    fn parse(input: &str) -> Self {
+        let mut criteria = Self {
+            hand: None,
+            finger: None,
+            row: None,
+            col: None,
+            is_home: None,
+            is_stretch: None,
+        };
+
+        for part in input.split_whitespace() {
+            if let Some((key, val)) = part.split_once(':') {
+                match key.to_lowercase().as_str() {
+                    "hand" | "h" => {
+                        criteria.hand = match val.to_lowercase().as_str() {
+                            "left" | "l" | "0" => Some(keyforge_model::types::HandIndex::LEFT),
+                            "right" | "r" | "1" => Some(keyforge_model::types::HandIndex::RIGHT),
+                            _ => None,
+                        };
+                    },
+                    "finger" | "f" => {
+                        criteria.finger = match val.to_lowercase().as_str() {
+                            "thumb" | "t" | "0" => Some(keyforge_model::types::FingerIndex::THUMB),
+                            "index" | "i" | "1" => Some(keyforge_model::types::FingerIndex::INDEX),
+                            "middle" | "m" | "2" => Some(keyforge_model::types::FingerIndex::MIDDLE),
+                            "ring" | "r" | "3" => Some(keyforge_model::types::FingerIndex::RING),
+                            "pinky" | "p" | "4" => Some(keyforge_model::types::FingerIndex::PINKY),
+                            v => v.parse::<u8>().ok().and_then(|n| n.try_into().ok()),
+                        };
+                    },
+                    "row" | "r" => {
+                        if let Ok(n) = val.parse::<i8>() {
+                            criteria.row = Some(keyforge_model::types::RowIndex(n));
+                        }
+                    },
+                    "col" | "c" => {
+                        if let Ok(n) = val.parse::<i8>() {
+                            criteria.col = Some(keyforge_model::types::ColIndex(n));
+                        }
+                    },
+                    "home" => criteria.is_home = val.parse().ok(),
+                    "stretch" => criteria.is_stretch = val.parse().ok(),
+                    _ => {}
+                }
+            }
+        }
+        criteria
+    }
+
+    fn matches(&self, key: &keyforge_model::geometry::KeyNode, _geo: &keyforge_model::geometry::KeyboardGeometry) -> bool {
+        if let Some(h) = self.hand { if key.hand != h { return false; } }
+        if let Some(f) = self.finger { if key.finger != f { return false; } }
+        if let Some(r) = self.row { if key.row != r { return false; } }
+        if let Some(c) = self.col { if key.col != c { return false; } }
+        if let Some(home) = self.is_home { if key.is_home != home { return false; } }
+        if let Some(stretch) = self.is_stretch { if key.is_stretch != stretch { return false; } }
+        true
     }
 }
 

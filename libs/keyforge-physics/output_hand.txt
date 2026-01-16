@@ -1,0 +1,68 @@
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+   Compiling keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.01s
+     Running tests/debug_smart_assist.rs (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/debug/deps/debug_smart_assist-d34c7877e333894c)
+
+running 1 test
+=== SZR35 Key Map (Detailed) ===
+Idx  0: KeyQ   F:FingerIndex(4) (FingerIndex(4)) Hnd:HandIndex(0) Home:false X:0.00 Y:0.50
+Idx  1: KeyW   F:FingerIndex(3) (FingerIndex(3)) Hnd:HandIndex(0) Home:false X:1.00 Y:0.25
+Idx  2: KeyE   F:FingerIndex(2) (FingerIndex(2)) Hnd:HandIndex(0) Home:false X:2.00 Y:0.00
+Idx  3: KeyR   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(0) Home:false X:3.00 Y:0.10
+Idx  4: KeyT   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(0) Home:false X:4.00 Y:0.20
+Idx  5: KeyA   F:FingerIndex(4) (FingerIndex(4)) Hnd:HandIndex(0) Home:true X:0.00 Y:1.50
+Idx  6: KeyS   F:FingerIndex(3) (FingerIndex(3)) Hnd:HandIndex(0) Home:true X:1.00 Y:1.25
+Idx  7: KeyD   F:FingerIndex(2) (FingerIndex(2)) Hnd:HandIndex(0) Home:true X:2.00 Y:1.00
+Idx  8: KeyF   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(0) Home:true X:3.00 Y:1.10
+Idx  9: KeyG   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(0) Home:false X:4.00 Y:1.20
+Idx 10: KeyZ   F:FingerIndex(4) (FingerIndex(4)) Hnd:HandIndex(0) Home:false X:0.00 Y:2.50
+Idx 11: KeyX   F:FingerIndex(3) (FingerIndex(3)) Hnd:HandIndex(0) Home:false X:1.00 Y:2.25
+Idx 12: KeyC   F:FingerIndex(2) (FingerIndex(2)) Hnd:HandIndex(0) Home:false X:2.00 Y:2.00
+Idx 13: KeyV   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(0) Home:false X:3.00 Y:2.10
+Idx 14: KeyB   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(0) Home:false X:4.00 Y:2.20
+Idx 15: Esc    F:FingerIndex(0) (FingerIndex(0)) Hnd:HandIndex(0) Home:false X:2.50 Y:3.25
+Idx 16: SpaceL F:FingerIndex(0) (FingerIndex(0)) Hnd:HandIndex(0) Home:true X:3.50 Y:3.25
+Idx 17: Bksp   F:FingerIndex(0) (FingerIndex(0)) Hnd:HandIndex(0) Home:false X:4.50 Y:3.25
+Idx 18: KeyY   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(1) Home:false X:7.00 Y:0.20
+Idx 19: KeyU   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(1) Home:false X:8.00 Y:0.10
+Idx 20: KeyI   F:FingerIndex(2) (FingerIndex(2)) Hnd:HandIndex(1) Home:false X:9.00 Y:0.00
+Idx 21: KeyO   F:FingerIndex(3) (FingerIndex(3)) Hnd:HandIndex(1) Home:false X:10.00 Y:0.25
+Idx 22: KeyP   F:FingerIndex(4) (FingerIndex(4)) Hnd:HandIndex(1) Home:false X:11.00 Y:0.50
+Idx 23: KeyH   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(1) Home:false X:7.00 Y:1.20
+Idx 24: KeyJ   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(1) Home:true X:8.00 Y:1.10
+Idx 25: KeyK   F:FingerIndex(2) (FingerIndex(2)) Hnd:HandIndex(1) Home:true X:9.00 Y:1.00
+Idx 26: KeyL   F:FingerIndex(3) (FingerIndex(3)) Hnd:HandIndex(1) Home:true X:10.00 Y:1.25
+Idx 27: Scln   F:FingerIndex(4) (FingerIndex(4)) Hnd:HandIndex(1) Home:true X:11.00 Y:1.50
+Idx 28: KeyN   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(1) Home:false X:7.00 Y:2.20
+Idx 29: KeyM   F:FingerIndex(1) (FingerIndex(1)) Hnd:HandIndex(1) Home:false X:8.00 Y:2.10
+Idx 30: Comm   F:FingerIndex(2) (FingerIndex(2)) Hnd:HandIndex(1) Home:false X:9.00 Y:2.00
+Idx 31: Dot    F:FingerIndex(3) (FingerIndex(3)) Hnd:HandIndex(1) Home:false X:10.00 Y:2.25
+Idx 32: Slsh   F:FingerIndex(4) (FingerIndex(4)) Hnd:HandIndex(1) Home:false X:11.00 Y:2.50
+Idx 33: Ent    F:FingerIndex(0) (FingerIndex(0)) Hnd:HandIndex(1) Home:false X:6.50 Y:3.25
+Idx 34: SpaceR F:FingerIndex(0) (FingerIndex(0)) Hnd:HandIndex(1) Home:true X:7.50 Y:3.25
+Idx 35: Layer2 F:FingerIndex(0) (FingerIndex(0)) Hnd:HandIndex(1) Home:false X:8.50 Y:3.25
+
+Rubric Finger Effort: [1.0, 1.0, 1.1, 1.3, 1.6]
+=== Initial Analysis (SZR35 Colemak-DH) ===
+Total Score: 811.39
+Idx 25 (E): OK
+Idx 30 (Comm): OK
+Idx 31 (Dot): OK
+
+=== Suggestions (Include Thumbs: TRUE) ===
+Swap 84 (8) <-> 46 (31): Improvement 22.81%
+Swap 32 (16) <-> 46 (31): Improvement 22.81%
+Swap 78 (24) <-> 46 (31): Improvement 22.81%
+Swap 46 (31) <-> 32 (34): Improvement 22.81%
+Swap 83 (7) <-> 46 (31): Improvement 21.05%
+
+=== Suggestions (Include Thumbs: FALSE) ===
+Swap 84 (8) <-> 46 (31): Improvement 22.81%
+Swap 78 (24) <-> 46 (31): Improvement 22.81%
+Swap 83 (7) <-> 46 (31): Improvement 21.05%
+Swap 69 (25) <-> 46 (31): Improvement 21.05%
+Swap 84 (8) <-> 44 (30): Improvement 19.30%
+test tests::repro_bad_swaps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

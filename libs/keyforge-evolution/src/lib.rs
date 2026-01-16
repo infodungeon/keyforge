@@ -147,15 +147,7 @@ fn evolve_internal<CB: ProgressCallback>(
     }
 
     match config {
-        SearchConfig::Annealing {
-            steps,
-            start_temp,
-            end_temp,
-            seed,
-            patience,
-            reheats,
-            reheat_factor,
-        } => {
+        keyforge_model::SearchConfig::Annealing { steps, start_temp, end_temp, seed, patience, reheats, reheat_factor, .. } => {
             let mutation = GroupMutation {
                 unlocked_indices,
                 start_temp: *start_temp,
@@ -214,7 +206,7 @@ mod tests {
         let (kb, cp, rb) = setup_env();
         let req = EngineRequest {
             keyboard: kb, corpus: cp, rubric: rb,
-            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
             initial_layout: None, pinned_keys: vec![], cost_matrix: vec![],
         };
         let result = optimize(&req).unwrap();
@@ -226,7 +218,7 @@ mod tests {
         let (kb, cp, rb) = setup_env();
         let req = EngineRequest {
             keyboard: kb, corpus: cp, rubric: rb,
-            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
             initial_layout: Some(Layout::new_unchecked(vec![KeyCode(1), KeyCode(0), KeyCode(2)])),
             pinned_keys: vec![Some(KeyCode(1)), None],
             cost_matrix: vec![],
@@ -240,7 +232,7 @@ mod tests {
         let (kb, cp, rb) = setup_env();
         let req = EngineRequest {
             keyboard: kb, corpus: cp, rubric: rb,
-            config: SearchConfig::Annealing { steps: 5000, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            config: SearchConfig::Annealing { steps: 5000, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
             initial_layout: None, pinned_keys: vec![], cost_matrix: vec![],
         };
         let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -262,7 +254,7 @@ mod tests {
     fn test_evolve_api_direct() {
         let (kb, cp, rb) = setup_env();
         let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap());
-        let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 };
+        let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false };
         let result = evolve(engine, &config, NoOpCallback, None, None).unwrap();
         assert!(result.score >= 0.0);
     }
@@ -273,7 +265,7 @@ mod tests {
         let pinned = vec![Some(KeyCode(2)), None, None];
         let req = EngineRequest {
             keyboard: kb, corpus: cp, rubric: rb,
-            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0 },
+            config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
             initial_layout: None, pinned_keys: pinned, cost_matrix: vec![],
         };
         let result = optimize(&req).unwrap();
@@ -290,7 +282,7 @@ mod tests {
         let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
-        let config = SearchConfig::Annealing { steps: 10, start_temp: 1.0, end_temp: 0.1, seed: 42, patience: 10, reheats: 0, reheat_factor: 1.0 };
+        let config = SearchConfig::Annealing { steps: 10, start_temp: 1.0, end_temp: 0.1, seed: 42, patience: 10, reheats: 0, reheat_factor: 1.0, include_thumbs: false };
         let pinned = vec![Some(KeyCode(99)), None];
         let req = EngineRequest {
             keyboard: kb, corpus, rubric, config,

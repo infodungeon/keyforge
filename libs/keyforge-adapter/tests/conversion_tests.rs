@@ -300,7 +300,7 @@ fn test_to_domain_config_conversion() {
     let domain_config = conversion::to_domain_config(&proto_params, seed);
 
     match domain_config {
-        keyforge_model::SearchConfig::Annealing { steps, start_temp, end_temp, seed: s, patience, reheats, reheat_factor } => {
+        keyforge_model::SearchConfig::Annealing { steps, start_temp, end_temp, seed: s, patience, reheats, reheat_factor, .. } => {
             assert_eq!(steps, 100_000);
             assert_eq!(start_temp, 20.0);
             assert_eq!(end_temp, 0.005);

@@ -21,3 +21,7 @@ thiserror = "2.0"
 proptest = "1.9"
 rand = "0.9"
 rand_chacha = "0.9"
+keyforge-infra = { path = "../keyforge-infra" }
+keyforge-core = { path = "../keyforge-core" }
+keyforge-adapter = { path = "../keyforge-adapter" }
+tokio = { version = "1.48", features = ["full"] }

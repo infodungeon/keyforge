@@ -4,8 +4,10 @@ use keyforge_model::{Layout, Corpus, Rubric};
 
 fn main() {
     // Load SZR35 keyboard
-    let kb_bytes = std::fs::read("data/system/keyboards/szr35.mpk.zst").unwrap();
-    let kb = keyforge_model::Keyboard::decode(&kb_bytes).expect("Failed to decode keyboard");
+    // Load SZR35 keyboard
+    let f = std::fs::File::open("data/system/keyboards/szr35.mpk.zst").expect("Failed to open szr35 file");
+    let def: keyforge_model::KeyboardDefinition = rmp_serde::from_read(zstd::Decoder::new(f).unwrap()).expect("Failed to decode keyboard definition");
+    let kb = keyforge_model::Keyboard::new(def.geometry.keys, def.geometry.home_row).expect("Failed to create keyboard");
     
     // Create a corpus that forces a choice for Space
     // Transition: A - Space - B

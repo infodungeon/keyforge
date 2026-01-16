@@ -1,0 +1,64 @@
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+   Compiling keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.94s
+     Running tests/debug_smart_assist.rs (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/debug/deps/debug_smart_assist-d34c7877e333894c)
+
+running 1 test
+=== SZR35 Key Map ===
+Idx  0: KeyQ   Finger: FingerIndex(4) (FingerIndex(4))
+Idx  1: KeyW   Finger: FingerIndex(3) (FingerIndex(3))
+Idx  2: KeyE   Finger: FingerIndex(2) (FingerIndex(2))
+Idx  3: KeyR   Finger: FingerIndex(1) (FingerIndex(1))
+Idx  4: KeyT   Finger: FingerIndex(1) (FingerIndex(1))
+Idx  5: KeyA   Finger: FingerIndex(4) (FingerIndex(4))
+Idx  6: KeyS   Finger: FingerIndex(3) (FingerIndex(3))
+Idx  7: KeyD   Finger: FingerIndex(2) (FingerIndex(2))
+Idx  8: KeyF   Finger: FingerIndex(1) (FingerIndex(1))
+Idx  9: KeyG   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 10: KeyZ   Finger: FingerIndex(4) (FingerIndex(4))
+Idx 11: KeyX   Finger: FingerIndex(3) (FingerIndex(3))
+Idx 12: KeyC   Finger: FingerIndex(2) (FingerIndex(2))
+Idx 13: KeyV   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 14: KeyB   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 15: Esc    Finger: FingerIndex(0) (FingerIndex(0))
+Idx 16: SpaceL Finger: FingerIndex(0) (FingerIndex(0))
+Idx 17: Bksp   Finger: FingerIndex(0) (FingerIndex(0))
+Idx 18: KeyY   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 19: KeyU   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 20: KeyI   Finger: FingerIndex(2) (FingerIndex(2))
+Idx 21: KeyO   Finger: FingerIndex(3) (FingerIndex(3))
+Idx 22: KeyP   Finger: FingerIndex(4) (FingerIndex(4))
+Idx 23: KeyH   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 24: KeyJ   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 25: KeyK   Finger: FingerIndex(2) (FingerIndex(2))
+Idx 26: KeyL   Finger: FingerIndex(3) (FingerIndex(3))
+Idx 27: Scln   Finger: FingerIndex(4) (FingerIndex(4))
+Idx 28: KeyN   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 29: KeyM   Finger: FingerIndex(1) (FingerIndex(1))
+Idx 30: Comm   Finger: FingerIndex(2) (FingerIndex(2))
+Idx 31: Dot    Finger: FingerIndex(3) (FingerIndex(3))
+Idx 32: Slsh   Finger: FingerIndex(4) (FingerIndex(4))
+Idx 33: Ent    Finger: FingerIndex(0) (FingerIndex(0))
+Idx 34: SpaceR Finger: FingerIndex(0) (FingerIndex(0))
+Idx 35: Layer2 Finger: FingerIndex(0) (FingerIndex(0))
+=== Initial Analysis (Colemak-DH approx) ===
+Total Score: 274022.75
+E index: 17 (Assumed). Key at 17: Bksp
+
+=== Suggestions (Include Thumbs: TRUE) ===
+Swap 121 (8) <-> 101 (17): Improvement 23.64%
+Swap 101 (17) <-> 118 (24): Improvement 23.64%
+Swap 101 (17) <-> 0 (34): Improvement 23.64%
+Swap 117 (7) <-> 101 (17): Improvement 22.96%
+Swap 101 (17) <-> 107 (25): Improvement 22.96%
+
+=== Suggestions (Include Thumbs: FALSE) ===
+Swap 121 (8) <-> 105 (18): Improvement 15.67%
+Swap 105 (18) <-> 118 (24): Improvement 15.67%
+Swap 117 (7) <-> 105 (18): Improvement 15.31%
+Swap 105 (18) <-> 107 (25): Improvement 15.31%
+Swap 108 (6) <-> 105 (18): Improvement 14.58%
+test tests::repro_bad_swaps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

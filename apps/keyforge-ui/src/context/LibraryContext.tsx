@@ -166,7 +166,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
         const reg = await backend.getKeycodes(hiveUrl);
         if (!reg.definitions || reg.definitions.length === 0) {
-            throw new Error("Keycode Registry is empty.");
+          throw new Error("Keycode Registry is empty.");
         }
         keycodeService.loadDefinitions(reg.definitions);
 

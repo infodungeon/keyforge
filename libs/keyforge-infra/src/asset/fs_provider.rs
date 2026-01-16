@@ -227,10 +227,34 @@ impl AssetLoader for FsProvider {
 
     async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
+        
+        // 1. Try System Binary (legacy/performance)
         if let Some(p) = self.resolve_system_path("weights", stem) {
             let data: RawCostData = self.load_binary(&p).await?;
             return Ok(Arc::new(data));
         }
+
+        // 2. Try System JSON (new generic standard)
+        let system_json = self.root.join("system/weights").join(format!("{}.json", stem));
+        if system_json.exists() {
+            let format: CostFormat = self.load_json(&system_json).await?;
+            let entries = match format {
+                CostFormat::Wrapped { entries } => entries,
+                CostFormat::Direct(v) => v,
+            };
+            return Ok(Arc::new(RawCostData {
+                entries: entries
+                    .into_iter()
+                    .map(|e| keyforge_core::loader::CostEntry {
+                        from: e.from_key,
+                        to: e.to_key,
+                        cost: e.cost_ms,
+                    })
+                    .collect(),
+            }));
+        }
+
+        // 3. Try User JSON
         if let Some(p) = self.resolve_user_path("weights", stem) {
             let format: CostFormat = self.load_json(&p).await?;
             let entries = match format {

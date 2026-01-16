@@ -13,16 +13,15 @@
 // limitations under the License.
 
 
-use crate::cli_parsers::resolve_path;
 use clap::{Args, Subcommand};
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::Table;
-use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_infra::listing::{
     list_corpora as ws_list_corpora, list_keyboards as ws_list_keyboards,
 };
+use keyforge_infra::FsProvider;
+use keyforge_core::loader::AssetLoader;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_model::geometry::KeyboardDefinition; // Full parse fallback if needed
 use std::fs;
 use std::path::Path;
 use crate::constants::DEFAULT_LIST_LIMIT;
@@ -57,11 +56,11 @@ struct KeyboardHeader {
     // Ignore geometry for list speed
 }
 
-pub fn run(args: ListArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(args: ListArgs, loader: &FsProvider) -> Result<(), Box<dyn std::error::Error>> {
     match args.command {
-        ListCommands::Keyboards { limit } => list_keyboards(root, limit),
-        ListCommands::Corpora { limit } => list_corpora(root, limit),
-        ListCommands::Layouts { keyboard } => list_layouts(root, &keyboard),
+        ListCommands::Keyboards { limit } => list_keyboards(loader, limit).await,
+        ListCommands::Corpora { limit } => list_corpora(loader, limit).await,
+        ListCommands::Layouts { keyboard } => list_layouts(loader, &keyboard).await,
     }
 }
 
@@ -69,30 +68,21 @@ fn apply_style(table: &mut Table) {
     table.load_preset(ASCII_FULL);
 }
 
-fn list_keyboards(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
+async fn list_keyboards(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
     let mut table = Table::new();
     apply_style(&mut table);
     table.set_header(vec!["File", "Name", "Type", "Author"]);
 
-    let names = ws_list_keyboards(root).map_err(|e| format!("Failed to list keyboards: {}", e))?;
+    let names = ws_list_keyboards(&loader.root).map_err(|e| format!("Failed to list keyboards: {}", e))?;
     let count = names.len();
     for name in names.into_iter().take(limit) {
-        let p = match resolve_path(&name, Some("keyboards"), root) {
-            Ok(path) => path,
-            Err(_) => continue,
-        };
-
-        // Still read file (I/O bound), but optimize parsing
-        if let Ok(content) = read_to_string_limited(&p, MAX_INPUT_FILE_SIZE) {
-            // [Fixed] Deserialize only metadata
-            if let Ok(header) = serde_json::from_str::<KeyboardHeader>(&content) {
-                table.add_row(vec![
-                    name,
-                    header.meta.name,
-                    header.meta.kb_type,
-                    header.meta.author,
-                ]);
-            }
+        if let Ok(def) = loader.load_keyboard(&name).await {
+            table.add_row(vec![
+                name,
+                def.meta.name.clone(),
+                def.meta.kb_type.clone(),
+                def.meta.author.clone(),
+            ]);
         }
     }
     println!("{table}");
@@ -102,12 +92,12 @@ fn list_keyboards(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-fn list_corpora(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
+async fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
     let mut table = Table::new();
     apply_style(&mut table);
     table.set_header(vec!["Category", "ID", "Size (1-grams)"]);
 
-    let ids = ws_list_corpora(root).map_err(|e| format!("Failed to list corpora: {}", e))?;
+    let ids = ws_list_corpora(&loader.root).map_err(|e| format!("Failed to list corpora: {}", e))?;
     let count = ids.len();
     for id in ids.into_iter().take(limit) {
         let parts: Vec<&str> = id.split('/').collect();
@@ -117,12 +107,14 @@ fn list_corpora(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::Err
             ("root", parts[0])
         };
 
-        let system_path = root.join("system/corpora").join(&id);
-        let user_path = root.join("user/corpora").join(&id);
+        let system_path = loader.root.join("system/corpora").join(&id);
+        let user_path = loader.root.join("user/corpora").join(&id);
         
         let path = if user_path.exists() { user_path } else { system_path };
+        let is_system = path.starts_with(loader.root.join("system"));
+        let ext = if is_system { "mpk.zst" } else { "json" };
 
-        let size = fs::metadata(path.join("1grams.json"))
+        let size = fs::metadata(path.join(format!("1grams.{}", ext)))
             .map(|m| m.len())
             .unwrap_or(0);
 
@@ -139,23 +131,17 @@ fn list_corpora(root: &Path, limit: usize) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-fn list_layouts(root: &Path, kb_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let path = resolve_path(kb_name, Some("keyboards"), root)?;
-
-    let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
-        .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
-
-    // Full parse required here for layouts map
-    let def = serde_json::from_str::<KeyboardDefinition>(&content)
-        .map_err(|e| format!("Failed to parse keyboard definition: {}", e))?;
+async fn list_layouts(loader: &FsProvider, kb_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let def = loader.load_keyboard(kb_name).await
+        .map_err(|e| format!("Failed to load keyboard '{}': {}", kb_name, e))?;
 
     println!("Layouts for {}:", def.meta.name);
     let mut table = Table::new();
     apply_style(&mut table);
     table.set_header(vec!["Layout Name", "Length"]);
 
-    for (name, layout) in def.layouts {
-        table.add_row(vec![name, layout.len().to_string()]);
+    for (name, layout) in &def.layouts {
+        table.add_row(vec![name.clone(), layout.len().to_string()]);
     }
     println!("{table}");
     Ok(())

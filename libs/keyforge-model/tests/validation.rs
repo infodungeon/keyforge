@@ -36,6 +36,7 @@ fn test_search_config_validation() {
         patience: 500,
         reheats: 3,
         reheat_factor: 0.5,
+        include_thumbs: false,
     };
     assert!(invalid_steps.validate().is_err());
 
@@ -48,6 +49,7 @@ fn test_search_config_validation() {
         patience: 500,
         reheats: 3,
         reheat_factor: 0.5,
+        include_thumbs: false,
     };
     assert!(invalid_temp.validate().is_err());
 }

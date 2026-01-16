@@ -91,22 +91,23 @@ async fn run_app() -> Result<(), CliError> {
     let root = resolve_root(config.data_dir)
         .map_err(|e| CliError::Workspace(format!("Workspace Error: {}", e)))?;
 
+    info!("🚀 Initializing Asset Loader...");
+    let loader = keyforge_infra::FsProvider::new(root.clone());
+
     match &cli.command {
         Commands::Doctor(args) => { cmd::doctor::run(args.clone(), &root).await?; return Ok(()); }
         Commands::Fmt(args) => { cmd::fmt::run(args.clone(), &root)?; return Ok(()); }
-        Commands::List(args) => { cmd::list::run(args.clone(), &root)?; return Ok(()); }
+        Commands::List(args) => { cmd::list::run(args.clone(), &loader).await?; return Ok(()); }
         Commands::Query(args) => { cmd::query::run(args.clone(), &root).await?; return Ok(()); }
         Commands::Profile(args) => { cmd::profile::run(args.clone())?; return Ok(()); }
         Commands::Export(args) => { cmd::export::run(args.clone(), &root)?; return Ok(()); }
         Commands::Fetch(args) => { cmd::fetch::run(args.clone(), &root).await?; return Ok(()); }
-        Commands::Debug(args) => { cmd::debug::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Debug(args) => { cmd::debug::run(args.clone(), &loader).await?; return Ok(()); }
         Commands::Update(args) => { cmd::update::run(args.clone()).await?; return Ok(()); }
         _ => {} 
     }
 
     info!("🚀 Initializing Optimization Runner...");
-
-    let loader = keyforge_infra::FsProvider::new(root.clone());
 
     match cli.command {
         Commands::Search(args) => {
@@ -117,7 +118,7 @@ async fn run_app() -> Result<(), CliError> {
                 keycodes_file: "keycodes.json".into(),
                 ..Default::default()
             };
-            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            let job = build_job_config(&loader, &args.shared, args.config.clone()).await?;
             let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
             
             let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -150,7 +151,7 @@ async fn run_app() -> Result<(), CliError> {
                 keycodes_file: "keycodes.json".into(),
                 ..Default::default()
             };
-            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            let job = build_job_config(&loader, &args.shared, args.config.clone()).await?;
             let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
             
             let layout_name = args.layout.as_deref().unwrap_or("default");
@@ -168,7 +169,7 @@ async fn run_app() -> Result<(), CliError> {
                 keycodes_file: "keycodes.json".into(),
                 ..Default::default()
             };
-            let job = build_job_config(&root, &args.shared, args.config.clone())?;
+            let job = build_job_config(&loader, &args.shared, args.config.clone()).await?;
             let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
             
             let start = std::time::Instant::now();
@@ -194,23 +195,19 @@ async fn run_app() -> Result<(), CliError> {
     Ok(())
 }
 
-fn build_job_config(
-    root: &std::path::Path,
+async fn build_job_config(
+    loader: &keyforge_infra::FsProvider,
     shared: &cmd::shared::SharedArgs,
     config_args: cli_args::config::ConfigArgs,
 ) -> Result<JobConfig, Box<dyn Error>> {
+    use keyforge_core::loader::AssetLoader;
     let corpus_list = shared.corpus.clone().unwrap_or_else(|| vec!["text/en_std".to_string()]);
     let corpora = cli_args::parse_corpora(&corpus_list)?;
     let kb_name = shared.keyboard.clone().unwrap_or_else(|| "ortho_30".to_string());
-    let kb_path = cli_parsers::resolve_path(&kb_name, Some("keyboards"), root)?;
-    let kb_content = keyforge_infra::read_to_string_limited(
-        &kb_path,
-        keyforge_model::constants::MAX_INPUT_FILE_SIZE,
-    )?;
-    let definition: keyforge_model::geometry::KeyboardDefinition = serde_json::from_str(&kb_content)?;
+    let definition = loader.load_keyboard(&kb_name).await?;
 
     let weights = if let Some(w_input) = &shared.weights {
-        let w_path = cli_parsers::resolve_path(w_input, None, root)?;
+        let w_path = cli_parsers::resolve_path(w_input, None, &loader.root)?;
         let content = keyforge_infra::read_to_string_limited(
             &w_path,
             keyforge_model::constants::MAX_INPUT_FILE_SIZE,
@@ -226,7 +223,7 @@ fn build_job_config(
     let cost_name = shared.cost.clone().unwrap_or_else(|| "default_costmatrix.json".to_string());
 
     Ok(JobConfig {
-        definition,
+        definition: (*definition).clone(),
         weights,
         params,
         pinned_keys: shared.pinned_keys.clone(),

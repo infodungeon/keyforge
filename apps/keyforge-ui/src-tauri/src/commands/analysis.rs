@@ -176,12 +176,25 @@ pub async fn cmd_get_layout_stats(
     Ok(DerivedStats { hand_balance: 0.0 })
 }
 
-/// Suggests a set of character swaps to improve the current layout.
 #[tauri::command]
 pub async fn cmd_get_smart_swaps(
-    _state: tauri::State<'_, SessionState>,
-    _layout_str: String,
+    state: tauri::State<'_, SessionState>,
+    layout_str: String,
+    include_thumbs: Option<bool>,
 ) -> Result<Vec<SwapSuggestion>, CommandError> {
-    // Stubbed: Agent does not yet support swapping
-    Ok(vec![])
+    // 1. Get Session
+    let session_guard = state.scoring_session.read().await;
+    let session = session_guard.as_ref().ok_or(CommandError::Internal("Session lost".into()))?;
+
+    // 2. Parse Layout
+    let layout_parsed = keyforge_adapter::conversion::parse_layout_string(
+        &layout_str,
+        session.engine.key_count(),
+        &session.registry
+    ).map_err(|e| CommandError::Internal(format!("Invalid layout string: {}", e)))?;
+
+    // 3. Get Suggestions
+    let suggestions = session.engine.suggest_improvements(&layout_parsed, include_thumbs.unwrap_or(false));
+    
+    Ok(suggestions)
 }

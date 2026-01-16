@@ -249,6 +249,7 @@ impl TryFrom<SearchParamsArgs> for SearchParams {
             reheats: args.reheats,
             reheat_factor: args.reheat_factor,
             seed: None, // [Fixed] Added
+            include_thumbs: false,
         };
         p.validate()?;
         Ok(p)

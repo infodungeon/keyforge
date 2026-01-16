@@ -79,6 +79,7 @@ pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::
         patience: p.search_patience,
         reheats: p.reheats,
         reheat_factor: p.reheat_factor,
+        include_thumbs: p.include_thumbs,
     }
 }
 

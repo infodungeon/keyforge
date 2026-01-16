@@ -75,7 +75,7 @@ fn kb_and_layout_strategy() -> impl Strategy<Value = (Keyboard, Vec<KeyCode>)> {
             Keyboard::new(keys, 1).unwrap()
         });
 
-        let layout_strat = prop::collection::hash_set(0u16..255, count)
+        let layout_strat = prop::collection::vec(0u16..255, count)
             .prop_map(|codes| codes.into_iter().map(KeyCode).collect::<Vec<_>>());
 
         (kb_strat, layout_strat)

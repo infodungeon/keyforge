@@ -18,17 +18,17 @@ use keyforge_model::{AnalysisReport, MetricViolation};
 use keyforge_model::constants::{MAX_KEYBOARD_KEYS, MAX_REPORTED_VIOLATIONS};
 use tracing::instrument;
 
-struct PosMap<'a> {
-    starts: &'a [u16],
-    counts: &'a [u8],
-    indices: &'a [u16],
-    used_keys: &'a [u16],
+pub(crate) struct PosMap<'a> {
+    pub(crate) starts: &'a [u16],
+    pub(crate) counts: &'a [u8],
+    pub(crate) indices: &'a [u16],
+    pub(crate) used_keys: &'a [u16],
 }
 
 impl<'a> PosMap<'a> {
     /// Creates a PosMap by manually populating the provided scratch buffers.
     /// This avoids large array initialization on every call.
-    fn from_scratch(
+    pub(crate) fn from_scratch(
         layout: &[KeyCode],
         key_count: usize,
         starts: &'a mut [u16],
@@ -83,7 +83,7 @@ impl<'a> PosMap<'a> {
     }
 
     #[inline(always)]
-    fn get(&self, code: usize) -> &[u16] {
+    pub(crate) fn get(&self, code: usize) -> &[u16] {
         if code >= 65536 { return &[]; }
         let start = self.starts[code] as usize;
         let count = self.counts[code] as usize;
@@ -182,11 +182,11 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: 
 
 /// Scratch space for physics operations to avoid re-allocating large arrays.
 pub struct PhysicsScratch {
-    starts: [u16; 65536],
-    counts: [u8; 65536],
-    indices: [u16; MAX_KEYBOARD_KEYS],
-    used_keys: Vec<u16>,
-    char_usage: [f32; 65536],
+    pub(crate) starts: [u16; 65536],
+    pub(crate) counts: [u8; 65536],
+    pub(crate) indices: [u16; MAX_KEYBOARD_KEYS],
+    pub(crate) used_keys: Vec<u16>,
+    pub(crate) char_usage: [f32; 65536],
 }
 
 impl Default for PhysicsScratch {
@@ -532,34 +532,50 @@ fn get_p_effective(p: usize, idx_a: usize, idx_b: usize) -> usize {
 #[inline(always)]
 fn get_flow_delta(
     ctx: &EngineContext,
-    pos_map: &[u16],
+    pos_map: &PosMap<'_>,
     c1: KeyCode,
     c2: KeyCode,
     c3: KeyCode,
     idx_a: usize,
     idx_b: usize,
 ) -> i64 {
-    let p1 = pos_map[c1.0 as usize] as usize;
-    let p2 = pos_map[c2.0 as usize] as usize;
-    let p3 = pos_map[c3.0 as usize] as usize;
-    if p1 == 65535 || p2 == 65535 || p3 == 65535 {
+    let candidates1 = pos_map.get(c1.0 as usize);
+    let candidates2 = pos_map.get(c2.0 as usize);
+    let candidates3 = pos_map.get(c3.0 as usize);
+    if candidates1.is_empty() || candidates2.is_empty() || candidates3.is_empty() {
         return 0;
     }
 
-    let cost_old = calculate_flow_cost(ctx, p1, p2, p3).0;
+    let mut min_old = Score(i64::MAX);
+    for &p1 in candidates1 {
+        for &p2 in candidates2 {
+            for &p3 in candidates3 {
+                let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
+                if cost < min_old { min_old = cost; }
+            }
+        }
+    }
 
-    let p1_new = get_p_effective(p1, idx_a, idx_b);
-    let p2_new = get_p_effective(p2, idx_a, idx_b);
-    let p3_new = get_p_effective(p3, idx_a, idx_b);
+    let mut min_new = Score(i64::MAX);
+    for &p1 in candidates1 {
+        for &p2 in candidates2 {
+            for &p3 in candidates3 {
+                let p1_new = get_p_effective(p1 as usize, idx_a, idx_b);
+                let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
+                let p3_new = get_p_effective(p3 as usize, idx_a, idx_b);
+                let cost = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
+                if cost < min_new { min_new = cost; }
+            }
+        }
+    }
 
-    let cost_new = calculate_flow_cost(ctx, p1_new, p2_new, p3_new).0;
-    cost_new - cost_old
+    min_new.0 - min_old.0
 }
 
-pub fn calculate_swap_delta(
+pub(crate) fn calculate_swap_delta(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
-    pos_map: &[u16],
+    pos_map: &PosMap<'_>,
     idx_a: usize,
     idx_b: usize,
 ) -> i64 {
@@ -574,83 +590,143 @@ pub fn calculate_swap_delta(
     }
 
     let mut delta = 0i64;
-    let n = ctx.key_count;
 
     // 1. Monograms
     let freq_a = ctx.char_freqs[code_a.0 as usize] as i64;
     let freq_b = ctx.char_freqs[code_b.0 as usize] as i64;
-    delta += (ctx.key_costs[idx_b].0 - ctx.key_costs[idx_a].0) * freq_a;
-    delta += (ctx.key_costs[idx_a].0 - ctx.key_costs[idx_b].0) * freq_b;
+
+    let candidates_a = pos_map.get(code_a.0 as usize);
+    let candidates_b = pos_map.get(code_b.0 as usize);
+
+    // code_a delta
+    let mut min_old_a = Score(i64::MAX);
+    let mut min_new_a = Score(i64::MAX);
+    for &p in candidates_a {
+        let p_idx = p as usize;
+        let c_old = ctx.key_costs[p_idx];
+        if c_old < min_old_a { min_old_a = c_old; }
+        
+        let p_new = get_p_effective(p_idx, idx_a, idx_b);
+        let c_new = ctx.key_costs[p_new];
+        if c_new < min_new_a { min_new_a = c_new; }
+    }
+    delta += (min_new_a.0 - min_old_a.0) * freq_a;
+
+    // code_b delta
+    let mut min_old_b = Score(i64::MAX);
+    let mut min_new_b = Score(i64::MAX);
+    for &p in candidates_b {
+        let p_idx = p as usize;
+        let c_old = ctx.key_costs[p_idx];
+        if c_old < min_old_b { min_old_b = c_old; }
+
+        let p_new = get_p_effective(p_idx, idx_a, idx_b);
+        let c_new = ctx.key_costs[p_new];
+        if c_new < min_new_b { min_new_b = c_new; }
+    }
+    delta += (min_new_b.0 - min_old_b.0) * freq_b;
 
     // 2. Bigrams
+    // Bigrams(a, x)
     let start_a = ctx.bigram_starts[code_a.0 as usize];
     let end_a = ctx.bigram_starts[code_a.0 as usize + 1];
     for k in start_a..end_a {
         let c2 = ctx.bigram_others[k];
-        let p2 = pos_map[c2.0 as usize] as usize;
-        if p2 == 65535 {
-            continue;
+        let candidates2 = pos_map.get(c2.0 as usize);
+        if candidates2.is_empty() { continue; }
+
+        let mut min_old = Score(i64::MAX);
+        let mut min_new = Score(i64::MAX);
+        for &p1 in candidates_a {
+            let p1_new = get_p_effective(p1 as usize, idx_a, idx_b);
+            for &p2 in candidates2 {
+                let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
+                
+                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                if cost_old < min_old { min_old = cost_old; }
+                
+                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+                if cost_new < min_new { min_new = cost_new; }
+            }
         }
-        let freq = ctx.bigram_freqs[k] as i64;
-        let p2_effective = if p2 == idx_b {
-            idx_a
-        } else if p2 == idx_a {
-            idx_b
-        } else {
-            p2
-        };
-        delta += (ctx.cost_matrix[idx_b * n + p2_effective].0 - ctx.cost_matrix[idx_a * n + p2].0)
-            * freq;
+        delta += (min_new.0 - min_old.0) * ctx.bigram_freqs[k] as i64;
     }
 
+    // Bigrams(b, x)
     let start_b = ctx.bigram_starts[code_b.0 as usize];
     let end_b = ctx.bigram_starts[code_b.0 as usize + 1];
     for k in start_b..end_b {
         let c2 = ctx.bigram_others[k];
-        let p2 = pos_map[c2.0 as usize] as usize;
-        if p2 == 65535 {
-            continue;
+        let candidates2 = pos_map.get(c2.0 as usize);
+        if candidates2.is_empty() { continue; }
+
+        let mut min_old = Score(i64::MAX);
+        let mut min_new = Score(i64::MAX);
+        for &p1 in candidates_b {
+            let p1_new = get_p_effective(p1 as usize, idx_a, idx_b);
+            for &p2 in candidates2 {
+                let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
+                
+                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                if cost_old < min_old { min_old = cost_old; }
+                
+                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+                if cost_new < min_new { min_new = cost_new; }
+            }
         }
-        let freq = ctx.bigram_freqs[k] as i64;
-        let p2_effective = if p2 == idx_a {
-            idx_b
-        } else if p2 == idx_b {
-            idx_a
-        } else {
-            p2
-        };
-        delta += (ctx.cost_matrix[idx_a * n + p2_effective].0 - ctx.cost_matrix[idx_b * n + p2].0)
-            * freq;
+        delta += (min_new.0 - min_old.0) * ctx.bigram_freqs[k] as i64;
     }
 
+    // Bigrams(x, a) where x != a, x != b
     let start_rev_a = ctx.bigram_rev_starts[code_a.0 as usize];
     let end_rev_a = ctx.bigram_rev_starts[code_a.0 as usize + 1];
     for k in start_rev_a..end_rev_a {
         let c1 = ctx.bigram_rev_others[k];
-        if c1 == code_a || c1 == code_b {
-            continue;
+        if c1 == code_a || c1 == code_b { continue; }
+        let candidates1 = pos_map.get(c1.0 as usize);
+        if candidates1.is_empty() { continue; }
+
+        let mut min_old = Score(i64::MAX);
+        let mut min_new = Score(i64::MAX);
+        for &p1 in candidates1 {
+            let p1_new = get_p_effective(p1 as usize, idx_a, idx_b);
+            for &p2 in candidates_a {
+                let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
+                
+                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                if cost_old < min_old { min_old = cost_old; }
+                
+                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+                if cost_new < min_new { min_new = cost_new; }
+            }
         }
-        let p1 = pos_map[c1.0 as usize] as usize;
-        if p1 == 65535 {
-            continue;
-        }
-        let freq = ctx.bigram_rev_freqs[k] as i64;
-        delta += (ctx.cost_matrix[p1 * n + idx_b].0 - ctx.cost_matrix[p1 * n + idx_a].0) * freq;
+        delta += (min_new.0 - min_old.0) * ctx.bigram_rev_freqs[k] as i64;
     }
 
+    // Bigrams(x, b) where x != a, x != b
     let start_rev_b = ctx.bigram_rev_starts[code_b.0 as usize];
     let end_rev_b = ctx.bigram_rev_starts[code_b.0 as usize + 1];
     for k in start_rev_b..end_rev_b {
         let c1 = ctx.bigram_rev_others[k];
-        if c1 == code_a || c1 == code_b {
-            continue;
+        if c1 == code_a || c1 == code_b { continue; }
+        let candidates1 = pos_map.get(c1.0 as usize);
+        if candidates1.is_empty() { continue; }
+
+        let mut min_old = Score(i64::MAX);
+        let mut min_new = Score(i64::MAX);
+        for &p1 in candidates1 {
+            let p1_new = get_p_effective(p1 as usize, idx_a, idx_b);
+            for &p2 in candidates_b {
+                let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
+                
+                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                if cost_old < min_old { min_old = cost_old; }
+                
+                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+                if cost_new < min_new { min_new = cost_new; }
+            }
         }
-        let p1 = pos_map[c1.0 as usize] as usize;
-        if p1 == 65535 {
-            continue;
-        }
-        let freq = ctx.bigram_rev_freqs[k] as i64;
-        delta += (ctx.cost_matrix[p1 * n + idx_a].0 - ctx.cost_matrix[p1 * n + idx_b].0) * freq;
+        delta += (min_new.0 - min_old.0) * ctx.bigram_rev_freqs[k] as i64;
     }
 
     // 3. Trigrams (Incremental)
@@ -683,9 +759,7 @@ pub fn calculate_swap_delta(
         let e_ma = ctx.trigram_mid_starts[ca + 1];
         for k in s_ma..e_ma {
             let c1 = ctx.trigram_mid_others1[k];
-            if c1 == code_a || c1 == code_b {
-                continue;
-            }
+            if c1 == code_a || c1 == code_b { continue; }
             let c3 = ctx.trigram_mid_others2[k];
             let freq = ctx.trigram_mid_freqs[k] as i64;
             delta += get_flow_delta(ctx, pos_map, c1, code_a, c3, idx_a, idx_b) * freq;
@@ -696,9 +770,7 @@ pub fn calculate_swap_delta(
         let e_mb = ctx.trigram_mid_starts[cb + 1];
         for k in s_mb..e_mb {
             let c1 = ctx.trigram_mid_others1[k];
-            if c1 == code_a || c1 == code_b {
-                continue;
-            }
+            if c1 == code_a || c1 == code_b { continue; }
             let c3 = ctx.trigram_mid_others2[k];
             let freq = ctx.trigram_mid_freqs[k] as i64;
             delta += get_flow_delta(ctx, pos_map, c1, code_b, c3, idx_a, idx_b) * freq;
@@ -710,9 +782,7 @@ pub fn calculate_swap_delta(
         for k in s_ea..e_ea {
             let c1 = ctx.trigram_end_others1[k];
             let c2 = ctx.trigram_end_others2[k];
-            if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b {
-                continue;
-            }
+            if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b { continue; }
             let freq = ctx.trigram_end_freqs[k] as i64;
             delta += get_flow_delta(ctx, pos_map, c1, c2, code_a, idx_a, idx_b) * freq;
         }
@@ -723,9 +793,7 @@ pub fn calculate_swap_delta(
         for k in s_eb..e_eb {
             let c1 = ctx.trigram_end_others1[k];
             let c2 = ctx.trigram_end_others2[k];
-            if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b {
-                continue;
-            }
+            if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b { continue; }
             let freq = ctx.trigram_end_freqs[k] as i64;
             delta += get_flow_delta(ctx, pos_map, c1, c2, code_b, idx_a, idx_b) * freq;
         }

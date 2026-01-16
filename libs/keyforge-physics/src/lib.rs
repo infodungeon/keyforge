@@ -93,8 +93,8 @@ impl ScoringEngine {
 
     /// Suggests ergonomic improvements for a layout by evaluating potential key swaps.
     #[instrument(skip(self, layout))]
-    pub fn suggest_improvements(&self, layout: &Layout) -> Vec<SwapSuggestion> {
-        suggest_swaps(&self.ctx, layout)
+    pub fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
+        suggest_swaps(&self.ctx, layout, include_thumbs)
     }
 
     /// Calculates the change in score resulting from swapping two keys.
@@ -103,12 +103,26 @@ impl ScoringEngine {
     pub fn calculate_swap_delta(
         &self,
         layout: &[KeyCode],
-        pos_map: &[u16],
+        _pos_map: &[u16],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
-        Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, pos_map, idx_a, idx_b))
+        let mut starts = [0u16; 65536];
+        let mut counts = [0u8; 65536];
+        let mut indices = [0u16; 512];
+        let mut used_keys = Vec::with_capacity(64);
+        
+        let pm = kernel::compute::PosMap::from_scratch(
+            layout,
+            self.ctx.key_count,
+            &mut starts,
+            &mut counts,
+            &mut indices,
+            &mut used_keys,
+        );
+        
+        Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b))
     }
 
     /// Returns the raw, unweighted physics score for a layout.
@@ -196,5 +210,5 @@ pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, 
         .initial_layout
         .clone()
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode(0); engine.context().key_count]));
-    Ok(engine.suggest_improvements(&layout))
+    Ok(engine.suggest_improvements(&layout, req.config.include_thumbs()))
 }

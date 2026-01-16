@@ -28,7 +28,7 @@ use self::types::{KeyCode, FingerIndex, HandIndex, RowIndex, ColIndex, Score};
 pub struct EngineContext {
     pub(crate) key_count: usize,
     pub(crate) hands: Vec<HandIndex>,
-    pub(crate) fingers: Vec<FingerIndex>,
+    pub fingers: Vec<FingerIndex>,
     pub(crate) rows: Vec<RowIndex>,
     pub(crate) cols: Vec<ColIndex>,
     pub(crate) cost_matrix: Vec<Score>,

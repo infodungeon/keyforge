@@ -56,7 +56,7 @@ pub fn score_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<f32,
 
 /// Suggest swaps using a compiled engine.
 pub fn suggest_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<Vec<SwapSuggestion>, PhysicsError> {
-    Ok(engine.suggest_improvements(layout))
+    Ok(engine.suggest_improvements(layout, false))
 }
 
 /// Legacy-style analysis: compiles an engine from the request and analyzes the request layout.

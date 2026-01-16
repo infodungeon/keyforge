@@ -15,9 +15,8 @@
 
 use clap::{Args, Subcommand};
 use keyforge_export::viz::physics::generate_physics_svg;
-use keyforge_infra::fs::io::read_to_string_limited;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_infra::FsProvider;
+use keyforge_core::loader::AssetLoader;
 use std::fs;
 use std::path::{Path, PathBuf};
 use crate::constants::DEFAULT_DEBUG_OUTPUT;
@@ -39,7 +38,7 @@ pub enum DebugCommands {
     },
 }
 
-pub fn run(args: DebugArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(args: DebugArgs, loader: &FsProvider) -> Result<(), Box<dyn std::error::Error>> {
     match args.command {
         DebugCommands::Physics { keyboard, output } => {
             eprintln!("🔬 Analyzing Physics Model for '{}'...", keyboard);
@@ -50,13 +49,8 @@ pub fn run(args: DebugArgs, root: &Path) -> Result<(), Box<dyn std::error::Error
                 }
             }
 
-            let path = crate::cli_parsers::resolve_path(&keyboard, Some("keyboards"), root)?;
-
-            let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
-                .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
-
-            let def = KeyboardDefinition::parse(&content, None)
-                .map_err(|e| format!("Failed to parse keyboard JSON: {}", e))?;
+            let def = loader.load_keyboard(&keyboard).await
+                .map_err(|e| format!("Failed to load keyboard '{}': {}", keyboard, e))?;
 
             
             let svg_content = generate_physics_svg(&def.geometry);
