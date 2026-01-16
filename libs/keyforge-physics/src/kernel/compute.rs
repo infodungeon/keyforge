@@ -310,7 +310,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                 
                 redirs.push(MetricViolation {
                     keys: format!("{}{}{}", u16_to_char(c1), u16_to_char(c2), u16_to_char(c3)),
-                    score: 1.0,
+                    score: flow_cost_f32 * freq_f,
                     freq: freq_f,
                 });
             } else if flow_cost < Score::ZERO {
@@ -376,7 +376,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                 
                 sfbs.push(MetricViolation {
                     keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
-                    score: 1.0,
+                    score: sfb_cost * freq_f,
                     freq: freq_f,
                 });
             }
@@ -404,7 +404,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             
             scissors.push(MetricViolation {
                 keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
-                score: 1.0,
+                score: scissor_cost * freq_f,
                 freq: freq_f,
             });
         }
@@ -472,9 +472,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
     for h in &mut heatmap { *h *= norm_pct; }
     for p in &mut penalty_map { *p *= norm_100k; }
-    for v in &mut sfbs { v.freq *= norm_pct; }
-    for v in &mut scissors { v.freq *= norm_pct; }
-    for v in &mut redirs { v.freq *= norm_pct; }
+    for v in &mut sfbs { v.freq *= norm_pct; v.score *= norm_100k; }
+    for v in &mut scissors { v.freq *= norm_pct; v.score *= norm_100k; }
+    for v in &mut redirs { v.freq *= norm_pct; v.score *= norm_100k; }
 
     report.top_sfbs = sfbs;
     report.top_scissors = scissors;

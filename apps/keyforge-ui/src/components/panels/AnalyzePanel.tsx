@@ -27,10 +27,14 @@ const ViolationTable = ({
   title,
   items,
   color,
+  mapMode,
+  totalScore,
 }: {
   title: string;
   items: MetricViolation[];
   color: string;
+  mapMode: "frequency" | "penalty";
+  totalScore: number;
 }) => {
   if (!items || items.length === 0) return null;
   return (
@@ -41,19 +45,24 @@ const ViolationTable = ({
         <AlertTriangle size={10} /> {title}
       </h5>
       <div className="bg-slate-900/50 rounded border border-slate-800 text-[10px]">
-        {items.slice(0, 5).map((v, i) => (
-          <div
-            key={i}
-            className="flex justify-between p-1.5 border-b border-slate-800/50 last:border-0"
-          >
-            <span className="font-mono text-slate-300">{v.keys}</span>
-            <div className="flex gap-3">
-              <span className={`${color.replace("text-", "text-")}`}>
-                {v.freq.toFixed(2)}%
-              </span>
+        {items.slice(0, 5).map((v, i) => {
+          const displayPct = mapMode === "penalty"
+            ? (v.score / totalScore) * 100
+            : v.freq;
+          return (
+            <div
+              key={i}
+              className="flex justify-between p-1.5 border-b border-slate-800/50 last:border-0"
+            >
+              <span className="font-mono text-slate-300">{v.keys}</span>
+              <div className="flex gap-3">
+                <span className={`${color}`}>
+                  {displayPct.toFixed(2)}%
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -334,16 +343,22 @@ export function AnalyzePanel({
               title="Top SFBs"
               items={activeResult.score.top_sfbs}
               color="text-red-400"
+              mapMode={mapMode}
+              totalScore={activeResult.score.score}
             />
             <ViolationTable
               title="Top Scissors"
               items={activeResult.score.top_scissors}
               color="text-yellow-400"
+              mapMode={mapMode}
+              totalScore={activeResult.score.score}
             />
             <ViolationTable
               title="Top Redirects"
               items={activeResult.score.top_redirs}
               color="text-blue-400"
+              mapMode={mapMode}
+              totalScore={activeResult.score.score}
             />
           </div>
         )}
