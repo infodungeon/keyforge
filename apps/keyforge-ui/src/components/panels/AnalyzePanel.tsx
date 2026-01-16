@@ -20,6 +20,7 @@ interface Props {
   setIncludeThumbs: (b: boolean) => void;
   spaceHand: SpaceHandPreference;
   setSpaceHand: (p: SpaceHandPreference) => void;
+  mapMode?: "frequency" | "penalty";
 }
 
 const ViolationTable = ({
@@ -145,6 +146,7 @@ export function AnalyzePanel({
   setIncludeThumbs,
   spaceHand,
   setSpaceHand,
+  mapMode = "penalty",
 }: Props) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -288,8 +290,8 @@ export function AnalyzePanel({
 
           <StatBox
             label="SFB"
-            val={activeResult.score.sfb_total}
-            total={includeThumbs ? 100 : derivedStats.totalUsage}
+            val={mapMode === "penalty" ? activeResult.score.sfb_penalty : activeResult.score.sfb_total}
+            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
             showDiff={showDiff}
             color="text-red-400"
             suffix="%"
@@ -297,8 +299,8 @@ export function AnalyzePanel({
           />
           <StatBox
             label="Scissor"
-            val={activeResult.score.scissors}
-            total={includeThumbs ? 100 : derivedStats.totalUsage}
+            val={mapMode === "penalty" ? activeResult.score.scissor_penalty : activeResult.score.scissors}
+            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
             showDiff={showDiff}
             color="text-yellow-400"
             suffix="%"
@@ -306,8 +308,8 @@ export function AnalyzePanel({
           />
           <StatBox
             label="Redir"
-            val={activeResult.score.redirects}
-            total={includeThumbs ? 100 : derivedStats.totalUsage}
+            val={mapMode === "penalty" ? activeResult.score.redir_penalty : activeResult.score.redirects}
+            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
             showDiff={showDiff}
             color="text-blue-400"
             suffix="%"
@@ -315,8 +317,8 @@ export function AnalyzePanel({
           />
           <StatBox
             label="Rolls"
-            val={activeResult.score.rolls}
-            total={includeThumbs ? 100 : derivedStats.totalUsage}
+            val={mapMode === "penalty" ? Math.abs(activeResult.score.roll_penalty) : activeResult.score.rolls}
+            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
             showDiff={showDiff}
             color="text-green-400"
             suffix="%"

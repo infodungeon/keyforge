@@ -179,6 +179,7 @@ export function AnalyzeView({
         spaceHand={spaceHand}
         setSpaceHand={setSpaceHand}
         derivedStats={derivedStats}
+        mapMode={mapMode}
       />
 
       <ExportModal

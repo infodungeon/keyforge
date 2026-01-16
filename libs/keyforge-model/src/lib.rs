@@ -182,6 +182,18 @@ pub struct AnalysisReport {
     pub redirects: f32,
     /// Inward roll score.
     pub rolls: f32,
+    /// Total penalty contribution from SFBs.
+    #[serde(default)]
+    pub sfb_penalty: f32,
+    /// Total penalty contribution from scissors.
+    #[serde(default)]
+    pub scissor_penalty: f32,
+    /// Total penalty contribution from redirects.
+    #[serde(default)]
+    pub redir_penalty: f32,
+    /// Total penalty contribution from rolls.
+    #[serde(default)]
+    pub roll_penalty: f32,
     /// Per-key usage heatmap.
     #[serde(default)]
     pub heatmap: Vec<f32>,

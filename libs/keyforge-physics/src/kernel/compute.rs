@@ -281,6 +281,10 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
             if flow_cost == ctx.penalty_redirect {
                 report.redirects += freq_f;
+                
+                // Accumulate redirect penalty contribution
+                report.redir_penalty += flow_cost_f32 * freq_f;
+                
                 redirs.push(MetricViolation {
                     keys: format!("{}{}{}", c1 as u8 as char, c2 as u8 as char, c3 as u8 as char),
                     score: 1.0,
@@ -288,6 +292,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                 });
             } else if flow_cost < Score::ZERO {
                 report.rolls += freq_f;
+                
+                // Accumulate roll penalty contribution (negative, so it's a bonus)
+                report.roll_penalty += flow_cost_f32 * freq_f;
             }
         }
     }
@@ -339,6 +346,11 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             // SFB Check (Specific to same-finger move)
             if ctx.fingers[idx1] == ctx.fingers[idx2] {
                 report.sfb_total += freq_f;
+                
+                // Accumulate SFB penalty contribution
+                let sfb_cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
+                report.sfb_penalty += sfb_cost * freq_f;
+                
                 sfbs.push(MetricViolation {
                     keys: format!("{}{}", c1 as u8 as char, c2 as u8 as char),
                     score: 1.0,
@@ -355,6 +367,11 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         let r2 = ctx.rows[idx2];
         if ctx.hands[idx1] == ctx.hands[idx2] && ctx.fingers[idx1].distance(ctx.fingers[idx2]) == 1 && (r1 - r2).abs() >= 2 {
             report.scissors += freq_f;
+            
+            // Accumulate scissor penalty contribution
+            let scissor_cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
+            report.scissor_penalty += scissor_cost * freq_f;
+            
             scissors.push(MetricViolation {
                 keys: format!("{}{}", c1 as u8 as char, c2 as u8 as char),
                 score: 1.0,
@@ -444,6 +461,12 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     report.scissors *= norm_pct;
     report.redirects *= norm_pct;
     report.rolls *= norm_pct;
+    
+    // Normalize penalty contributions to match score scale
+    report.sfb_penalty *= norm_100k;
+    report.scissor_penalty *= norm_100k;
+    report.redir_penalty *= norm_100k;
+    report.roll_penalty *= norm_100k;
 
     report
 }

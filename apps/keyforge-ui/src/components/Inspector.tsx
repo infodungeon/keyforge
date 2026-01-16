@@ -44,6 +44,7 @@ interface Props {
   spaceHand?: SpaceHandPreference;
   setSpaceHand?: (p: SpaceHandPreference) => void;
   derivedStats?: DerivedStats | null; // Accept from parent
+  mapMode?: "frequency" | "penalty";
 }
 
 export function Inspector({
@@ -59,10 +60,11 @@ export function Inspector({
   setShowDiff: controlledSetShowDiff,
   onSuggestionHover,
   includeThumbs = true,
-  setIncludeThumbs = () => {},
+  setIncludeThumbs = () => { },
   spaceHand = "bilateral",
-  setSpaceHand = () => {},
+  setSpaceHand = () => { },
   derivedStats,
+  mapMode = "penalty",
 }: Props) {
   const { activeResult, referenceResult } = useAnalysis();
   const {
@@ -165,7 +167,7 @@ export function Inspector({
 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {mode === "analyze" && (
-          <SmartSuggestions onHover={onSuggestionHover || (() => {})} />
+          <SmartSuggestions onHover={onSuggestionHover || (() => { })} />
         )}
 
         {mode === "analyze" && (
@@ -179,6 +181,7 @@ export function Inspector({
             setIncludeThumbs={setIncludeThumbs}
             spaceHand={spaceHand}
             setSpaceHand={setSpaceHand}
+            mapMode={mapMode}
           />
         )}
 
