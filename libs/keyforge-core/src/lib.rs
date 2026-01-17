@@ -41,7 +41,7 @@ use std::sync::Arc;
 ///
 /// This is a convenience wrapper around `ScoringEngine::new`.
 pub fn build_engine(req: &EngineRequest) -> Result<ScoringEngine, PhysicsError> {
-    ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_matrix)
+    ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
 }
 
 /// Analyze a layout using a compiled engine.

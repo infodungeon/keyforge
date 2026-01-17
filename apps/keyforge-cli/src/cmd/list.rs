@@ -21,11 +21,8 @@ use keyforge_infra::listing::{
 };
 use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use std::fs;
-use std::path::Path;
 use crate::constants::DEFAULT_LIST_LIMIT;
-use serde::Deserialize;
 
 #[derive(Args, Debug, Clone)]
 pub struct ListArgs {
@@ -47,13 +44,6 @@ pub enum ListCommands {
         #[arg(help = "Name of the keyboard file")]
         keyboard: String,
     },
-}
-
-// [Fixed] Partial struct for fast metadata extraction
-#[derive(Deserialize)]
-struct KeyboardHeader {
-    meta: keyforge_model::geometry::KeyboardMeta,
-    // Ignore geometry for list speed
 }
 
 pub async fn run(args: ListArgs, loader: &FsProvider) -> Result<(), Box<dyn std::error::Error>> {

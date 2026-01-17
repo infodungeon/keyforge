@@ -32,6 +32,8 @@ use supervisor::AnnealingConfig;
 use supervisor::strategies::{CoolingAnnealing, GroupMutation};
 use supervisor::traits::RealTimeKeeper;
 use supervisor::Optimizer;
+#[cfg(test)]
+use serde_json;
 
 /// Trait for receiving progress updates during optimization.
 pub trait ProgressCallback: Send + Sync {
@@ -62,7 +64,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_matrix)?;
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
     let engine_arc = Arc::new(engine);
 
     // Determine pinned keys for legacy request
@@ -187,27 +189,49 @@ fn evolve_internal<CB: ProgressCallback>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, CostModel};
     use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
     use keyforge_physics::{EngineRequest, ScoringEngine};
     use std::sync::Arc;
 
-    fn setup_env() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>) {
+    fn mock_cost_model() -> CostModel {
+        let json = r#"{
+            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+            "models": {
+                "model_a_row_staggered": {
+                    "description": "Test Model",
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": { "pos_1": 100.0 },
+                            "index": { "base": { "r0": 100.0 } },
+                            "middle": { "base": { "r0": 100.0 } },
+                            "ring": { "base": { "r0": 100.0 } },
+                            "pinky": { "base": { "r0": 100.0 } }
+                        }
+                    }
+                }
+            },
+            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+        }"#;
+        serde_json::from_str(json).unwrap()
+    }
+
+    fn setup_env() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>) {
         let keys = vec![
             KeyNode { index: 0, label: "k0".to_string(), hand: HandIndex(0), finger: FingerIndex(1), row: RowIndex(0), col: ColIndex(0), x: 0.0, y: 0.0, is_home: true, ..Default::default() },
             KeyNode { index: 1, label: "k1".to_string(), hand: HandIndex(0), finger: FingerIndex(2), row: RowIndex(0), col: ColIndex(1), x: 1.0, y: 0.0, is_home: true, ..Default::default() },
             KeyNode { index: 2, label: "k2".to_string(), hand: HandIndex(0), finger: FingerIndex(3), row: RowIndex(0), col: ColIndex(2), x: 2.0, y: 0.0, is_home: true, ..Default::default() },
         ];
-        (Arc::new(Keyboard::new(keys, 0).unwrap()), Arc::new(Corpus::default()), Arc::new(Rubric::default()))
+        (Arc::new(Keyboard::new(keys, 0).unwrap()), Arc::new(Corpus::default()), Arc::new(Rubric::default()), Arc::new(mock_cost_model()))
     }
 
     #[test]
     fn test_legacy_optimize_entry_point() {
-        let (kb, cp, rb) = setup_env();
+        let (kb, cp, rb, cm) = setup_env();
         let req = EngineRequest {
-            keyboard: kb, corpus: cp, rubric: rb,
+            keyboard: kb, corpus: cp, rubric: rb, cost_model: cm,
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
-            initial_layout: None, pinned_keys: vec![], cost_matrix: vec![],
+            initial_layout: None, pinned_keys: vec![],
         };
         let result = optimize(&req).unwrap();
         assert!(result.score >= 0.0);
@@ -215,13 +239,12 @@ mod tests {
 
     #[test]
     fn test_legacy_optimize_full_options() {
-        let (kb, cp, rb) = setup_env();
+        let (kb, cp, rb, cm) = setup_env();
         let req = EngineRequest {
-            keyboard: kb, corpus: cp, rubric: rb,
+            keyboard: kb, corpus: cp, rubric: rb, cost_model: cm,
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
             initial_layout: Some(Layout::new_unchecked(vec![KeyCode(1), KeyCode(0), KeyCode(2)])),
             pinned_keys: vec![Some(KeyCode(1)), None],
-            cost_matrix: vec![],
         };
         let result = optimize(&req).unwrap();
         assert_eq!(result.layout.keys[0], KeyCode(1));
@@ -229,11 +252,11 @@ mod tests {
 
     #[test]
     fn test_optimize_with_callback_termination() {
-        let (kb, cp, rb) = setup_env();
+        let (kb, cp, rb, cm) = setup_env();
         let req = EngineRequest {
-            keyboard: kb, corpus: cp, rubric: rb,
+            keyboard: kb, corpus: cp, rubric: rb, cost_model: cm,
             config: SearchConfig::Annealing { steps: 5000, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
-            initial_layout: None, pinned_keys: vec![], cost_matrix: vec![],
+            initial_layout: None, pinned_keys: vec![],
         };
         let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         #[derive(Debug)]
@@ -252,8 +275,8 @@ mod tests {
 
     #[test]
     fn test_evolve_api_direct() {
-        let (kb, cp, rb) = setup_env();
-        let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &[]).unwrap());
+        let (kb, cp, rb, cm) = setup_env();
+        let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &cm).unwrap());
         let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false };
         let result = evolve(engine, &config, NoOpCallback, None, None).unwrap();
         assert!(result.score >= 0.0);
@@ -261,12 +284,12 @@ mod tests {
 
     #[test]
     fn test_pinned_key_swap() {
-        let (kb, cp, rb) = setup_env();
+        let (kb, cp, rb, cm) = setup_env();
         let pinned = vec![Some(KeyCode(2)), None, None];
         let req = EngineRequest {
-            keyboard: kb, corpus: cp, rubric: rb,
+            keyboard: kb, corpus: cp, rubric: rb, cost_model: cm,
             config: SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false },
-            initial_layout: None, pinned_keys: pinned, cost_matrix: vec![],
+            initial_layout: None, pinned_keys: pinned,
         };
         let result = optimize(&req).unwrap();
         assert_eq!(result.layout.keys[0], KeyCode(2));
@@ -282,11 +305,12 @@ mod tests {
         let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
+        let cm = Arc::new(mock_cost_model());
         let config = SearchConfig::Annealing { steps: 10, start_temp: 1.0, end_temp: 0.1, seed: 42, patience: 10, reheats: 0, reheat_factor: 1.0, include_thumbs: false };
         let pinned = vec![Some(KeyCode(99)), None];
         let req = EngineRequest {
-            keyboard: kb, corpus, rubric, config,
-            initial_layout: None, pinned_keys: pinned, cost_matrix: vec![],
+            keyboard: kb, corpus, rubric, cost_model: cm, config,
+            initial_layout: None, pinned_keys: pinned,
         };
         let result = optimize(&req);
         assert!(result.is_err());

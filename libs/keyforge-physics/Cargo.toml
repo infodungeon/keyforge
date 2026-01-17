@@ -25,3 +25,4 @@ keyforge-infra = { path = "../keyforge-infra" }
 keyforge-core = { path = "../keyforge-core" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 tokio = { version = "1.48", features = ["full"] }
+serde_json = "1.0"

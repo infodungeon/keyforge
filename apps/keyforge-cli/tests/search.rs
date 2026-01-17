@@ -108,7 +108,11 @@ fn test_search_constraints() {
         .output()
         .expect("Failed to run search");
 
-    let json_str = String::from_utf8_lossy(&output.stdout);  
+    let json_str = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() || json_str.trim().is_empty() {
+        eprintln!("STDOUT:\n{}", json_str);
+        eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+    }
     let json: serde_json::Value = serde_json::from_str(&json_str).expect("Failed to parse JSON output");
     let score = json["score"].as_f64().unwrap_or(0.0);
 

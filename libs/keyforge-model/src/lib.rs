@@ -38,6 +38,8 @@ pub mod config;
 pub mod constants;
 /// Text corpus data structures (N-grams, frequencies).
 pub mod corpus;
+/// Data structures for the external Cost Matrix (Physics Model).
+pub mod cost_model;
 /// Centralized error types for the domain.
 pub mod error;
 /// Physical keyboard geometry and spatial definitions.
@@ -64,6 +66,7 @@ pub mod validator;
 
 pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
 pub use corpus::Corpus;
+pub use cost_model::CostModel;
 pub use error::ForgeError;
 pub use geometry::{KeyboardDefinition, KeyboardGeometry, KeyNode};
 pub use job::JobIdentifier;

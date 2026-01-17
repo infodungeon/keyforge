@@ -14,7 +14,7 @@
 
 use keyforge_core::ScoringEngine;
 use keyforge_infra::AssetManager;
-use keyforge_model::{Corpus, Keyboard, Layout, Rubric, KeyCode};
+use keyforge_model::{Corpus, Keyboard, Layout, Rubric, KeyCode, CostModel};
 use keyforge_model::geometry::KeyboardDefinition;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -30,17 +30,32 @@ struct CalibrationData {
     version: String,
 }
 
-/// Measures approximate scoring throughput (iterations per second).
-///
-/// This function:
-/// 1. Checks for a cached `calibration.json`.
-/// 2. If missing, ensures the "corne" keyboard asset is available.
-/// 3. Runs a physics benchmark.
-/// 4. Persists the result.
+fn default_cost_model() -> CostModel {
+    // Minimal valid cost model for calibration
+    let json = r#"{
+        "meta": { "version": "2.0", "description": "Calibration", "unit": "pts" },
+        "models": {
+            "model_a_row_staggered": {
+                "description": "Calibration Model",
+                "static_costs": {
+                    "universal_hand": {
+                        "thumb": { "pos_1": 100.0 },
+                        "index": { "base": { "r0": 100.0 } },
+                        "middle": { "base": { "r0": 100.0 } },
+                        "ring": { "base": { "r0": 100.0 } },
+                        "pinky": { "base": { "r0": 100.0 } }
+                    }
+                }
+            }
+        },
+        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+    }"#;
+    serde_json::from_str(json).unwrap()
+}
+
 pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let cal_path = data_root.join("user/calibration.json");
 
-    // 1. Check Cache
     if cal_path.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&cal_path).await {
             if let Ok(data) = serde_json::from_str::<CalibrationData>(&content) {
@@ -53,11 +68,9 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
 
     info!("Starting hardware calibration...");
 
-    // 2. Ensure Asset (Corne)
     let kb_path = assets.ensure_keyboard("corne").await
         .map_err(|e| AgentError::Calibration(format!("Failed to fetch reference keyboard: {}", e)))?;
 
-    // 3. Load & Parse
     let content = tokio::fs::read_to_string(&kb_path).await
         .map_err(|e| AgentError::Calibration(format!("Failed to read keyboard: {}", e)))?;
     
@@ -67,15 +80,13 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
     let keyboard = Keyboard::new(def.geometry.keys, def.geometry.home_row)
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
-    // 4. Run Benchmark
     let ips = if config.duration_ms == 0 {
         info!("Skipping hardware calibration (duration_ms=0)");
-        1_000_000.0 // Default 1M OPS
+        1_000_000.0
     } else {
         run_benchmark(keyboard, config)?
     };
 
-    // 5. Persist
     let data = CalibrationData {
         ips,
         timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
@@ -97,16 +108,13 @@ fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) 
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
+    let cost_model = default_cost_model();
     
-    // Create a dummy layout matching the key count
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let cost_matrix = vec![];
-    // Compile engine ONCE
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_matrix)
+    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
-    // Warmup
     for _ in 0..config.warmup_iterations {
         let _ = engine.score(&layout);
     }
@@ -131,9 +139,6 @@ fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) 
     Ok(iterations as f64 / elapsed)
 }
 
-/// Measures approximate scoring throughput using the provided calibration configuration.
-/// 
-/// This is used for standalone performance testing without requiring keyboard assets.
 pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let mut keys = Vec::with_capacity(config.key_count);
     for i in 0..config.key_count {
@@ -149,14 +154,13 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
+    let cost_model = default_cost_model();
     
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_matrix)
+    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
-    // Warmup
     for _ in 0..config.warmup_iterations {
         let _ = engine.score(&layout);
     }

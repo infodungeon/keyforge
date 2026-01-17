@@ -74,5 +74,7 @@ pub async fn run_optimization(
         ..Default::default()
     };
 
-    OptimizationRunner::run(session, job_id, stop_flag, logger, options, config).await
+    OptimizationRunner::run(session, job_id, stop_flag, logger, options, config)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))
 }

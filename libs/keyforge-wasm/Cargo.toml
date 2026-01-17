@@ -22,6 +22,7 @@ console_error_panic_hook = "0.1"
 
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-model = { path = "../../libs/keyforge-model" }
+keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-compute = { path = "../../libs/keyforge-compute", default-features = false, features = [
     "single_threaded",
 ] }

@@ -1,0 +1,3168 @@
+>>>>>>>> START FILE: libs/keyforge-model/Cargo.toml <<<<<<<<
+[package]
+name = "keyforge-model"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+description = "Shared domain models, data structures, and types for keyboard layouts and linguistic corpora."
+repository.workspace = true
+readme = "../../docs/design/keyforge-model/README.md"
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-big-array = "0.5"
+smallvec = { version = "1.15", features = ["serde", "union", "const_generics"] }
+regex = "1.12"
+strum = { version = "0.27", features = ["derive"] }
+kle-serial = "0.3"
+sha2 = "0.10"
+hex = "0.4"
+postcard = { version = "1.1", features = ["use-std"] }
+utoipa = { version = "5.4", features = [
+    "preserve_order",
+    "preserve_path_order",
+] }
+ts-rs = { version = "11.1", features = ["serde-compat"], optional = true }
+tracing = "0.1.44"
+
+[dev-dependencies]
+proptest = "1.9"
+
+[features]
+default = []
+ts_bindings = ["dep:ts-rs"]
+
+>>>>>>>> END FILE: libs/keyforge-model/Cargo.toml <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/config.rs <<<<<<<<
+// libs/keyforge-model/src/config.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+use crate::constants::{
+    MAX_LOADER_TRIGRAM_LIMIT, MAX_OPT_LIMIT_FAST, MAX_SAFE_WEIGHT, MAX_SEARCH_EPOCHS,
+    MAX_SEARCH_STEPS, MAX_TEMP, ASSET_COST_MATRIX,
+    DEFAULT_SEARCH_EPOCHS, DEFAULT_SEARCH_STEPS, DEFAULT_SEARCH_PATIENCE,
+    DEFAULT_SEARCH_PATIENCE_THRESHOLD, DEFAULT_TEMP_MIN, DEFAULT_TEMP_MAX,
+    DEFAULT_OPT_LIMIT_FAST, DEFAULT_OPT_LIMIT_SLOW, DEFAULT_REHEATS, DEFAULT_REHEAT_FACTOR,
+    DEFAULT_PENALTY_SFR_WEAK_FINGER, DEFAULT_PENALTY_SFR_BAD_ROW, DEFAULT_PENALTY_SFR_LAT,
+    DEFAULT_PENALTY_SFB_LATERAL, DEFAULT_PENALTY_SFB_LATERAL_WEAK, DEFAULT_PENALTY_SFB_BASE,
+    DEFAULT_PENALTY_SFB_OUTWARD_ADDER, DEFAULT_PENALTY_SFB_DIAGONAL, DEFAULT_PENALTY_SFB_LONG,
+    DEFAULT_PENALTY_SFB_BOTTOM, DEFAULT_WEIGHT_WEAK_FINGER_SFB,
+    DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF, DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF, DEFAULT_THRESHOLD_REACH_STRETCH,
+    DEFAULT_PENALTY_SCISSOR, DEFAULT_PENALTY_RING_PINKY, DEFAULT_PENALTY_LATERAL,
+    DEFAULT_PENALTY_MONOGRAM_STRETCH, DEFAULT_PENALTY_SKIP, DEFAULT_PENALTY_REDIRECT,
+    DEFAULT_PENALTY_HAND_RUN, DEFAULT_BONUS_INWARD_ROLL, DEFAULT_BONUS_BIGRAM_ROLL_IN,
+    DEFAULT_BONUS_BIGRAM_ROLL_OUT, DEFAULT_PENALTY_HIGH_IN_MED, DEFAULT_PENALTY_HIGH_IN_LOW,
+    DEFAULT_PENALTY_MED_IN_PRIME, DEFAULT_PENALTY_MED_IN_LOW, DEFAULT_PENALTY_LOW_IN_PRIME,
+    DEFAULT_PENALTY_LOW_IN_MED, DEFAULT_PENALTY_IMBALANCE, DEFAULT_MAX_HAND_IMBALANCE,
+    DEFAULT_WEIGHT_VERTICAL_TRAVEL, DEFAULT_WEIGHT_LATERAL_TRAVEL, DEFAULT_WEIGHT_FINGER_EFFORT,
+    DEFAULT_COST_MS, DEFAULT_LOADER_TRIGRAM_LIMIT, DEFAULT_TRIGRAM_COVERAGE,
+    DEFAULT_TIER_HIGH, DEFAULT_TIER_MED, DEFAULT_TIER_LOW, DEFAULT_CRITICAL_BIGRAMS,
+    DEFAULT_FINGER_REPEAT_SCALE_ARRAY, DEFAULT_FINGER_PENALTY_SCALE_ARRAY, DEFAULT_COMFORTABLE_SCISSORS,
+};
+use crate::types::KeyIndex;
+use crate::validator::Validator;
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::str::FromStr;
+use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+/// The root configuration aggregate for a KeyForge session.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct Config {
+    /// Search parameters for the optimization engine.
+    pub search: SearchParams,
+    /// Weights for the physics scoring engine.
+    pub weights: ScoringWeights,
+    /// Definitions for layout tiers and critical bigrams.
+    pub defs: LayoutDefinitions,
+}
+
+impl Validator for Config {
+    fn validate(&self) -> Result<(), String> {
+        self.search.validate()?;
+        self.weights.validate()?;
+        self.defs.validate()?;
+        Ok(())
+    }
+}
+
+/// Defines a source for text corpus data.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct CorpusSource {
+    /// The identifier or path of the corpus.
+    pub id: String,
+    /// The weight multiplier for this corpus.
+    pub weight: f32,
+    /// Optional hash for integrity verification.
+    #[serde(default, skip_serializing_if = "crate::utils::is_none")]
+    #[cfg_attr(feature = "ts_bindings", ts(optional))]
+    pub hash: Option<String>,
+}
+
+impl Validator for CorpusSource {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.trim().is_empty() {
+            return Err("Corpus ID cannot be empty".to_string());
+        }
+        if self.weight <= 0.0 || !self.weight.is_finite() {
+            return Err(format!("Invalid weight for corpus '{}': {}", self.id, self.weight));
+        }
+        Ok(())
+    }
+}
+
+impl Hash for CorpusSource {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.weight.to_bits().hash(state);
+        self.hash.hash(state);
+    }
+}
+
+impl Default for CorpusSource {
+    fn default() -> Self {
+        Self {
+            id: "text/en_std".to_string(),
+            weight: 1.0,
+            hash: None,
+        }
+    }
+}
+
+impl FromStr for CorpusSource {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((id, weight_str)) = s.split_once(':') {
+            let weight = weight_str
+                .parse::<f32>()
+                .map_err(|_| format!("invalid weight '{}' for corpus '{}'", weight_str, id))?;
+
+            if weight.is_nan() || weight <= f32::EPSILON {
+                return Err(format!(
+                    "weight for corpus '{}' must be positive (got {})",
+                    id, weight
+                ));
+            }
+
+            Ok(CorpusSource {
+                id: id.trim().to_string(),
+                weight,
+                hash: None,
+            })
+        } else {
+            Ok(CorpusSource {
+                id: s.trim().to_string(),
+                weight: 1.0,
+                hash: None,
+            })
+        }
+    }
+}
+
+/// Parameters controlling the Simulated Annealing algorithm.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct SearchParams {
+    /// Number of independent search epochs to run.
+    pub search_epochs: usize,
+    /// Maximum number of mutation steps per epoch.
+    pub search_steps: usize,
+    /// Steps without improvement before triggering a reheat.
+    pub search_patience: usize,
+    /// Threshold for patience reset (improvement must be > this).
+    pub search_patience_threshold: f32,
+    /// Minimum temperature (stop condition).
+    pub temp_min: f32,
+    /// Maximum temperature (start condition).
+    pub temp_max: f32,
+    /// Optimization limit for fast path.
+    pub opt_limit_fast: usize,
+    /// Optimization limit for slow path.
+    pub opt_limit_slow: usize,
+    /// Number of times to reheat the system if stuck.
+    #[serde(default = "default_reheats")]
+    pub reheats: usize,
+    /// Factor to multiply temperature by when reheating.
+    #[serde(default = "default_reheat_factor")]
+    pub reheat_factor: f32,
+    /// Random seed for deterministic replay (Optional).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed: Option<u64>,
+    /// Whether to include thumb keys in swap suggestions.
+    #[serde(default = "default_false")]
+    pub include_thumbs: bool,
+}
+
+fn default_reheats() -> usize { DEFAULT_REHEATS }
+fn default_reheat_factor() -> f32 { DEFAULT_REHEAT_FACTOR }
+fn default_false() -> bool { false }
+
+impl Default for SearchParams {
+    fn default() -> Self {
+        Self {
+            search_epochs: DEFAULT_SEARCH_EPOCHS,
+            search_steps: DEFAULT_SEARCH_STEPS,
+            search_patience: DEFAULT_SEARCH_PATIENCE,
+            search_patience_threshold: DEFAULT_SEARCH_PATIENCE_THRESHOLD,
+            temp_min: DEFAULT_TEMP_MIN,
+            temp_max: DEFAULT_TEMP_MAX,
+            opt_limit_fast: DEFAULT_OPT_LIMIT_FAST,
+            opt_limit_slow: DEFAULT_OPT_LIMIT_SLOW,
+            reheats: default_reheats(),
+            reheat_factor: default_reheat_factor(),
+            seed: None,
+            include_thumbs: false,
+        }
+    }
+}
+
+impl Validator for SearchParams {
+    fn validate(&self) -> Result<(), String> {
+        if self.search_epochs == 0 { return Err("search_epochs must be > 0".into()); }
+        if self.search_epochs > MAX_SEARCH_EPOCHS {
+            return Err(format!("search_epochs exceeds limit ({})", MAX_SEARCH_EPOCHS));
+        }
+        if self.search_steps == 0 { return Err("search_steps must be > 0".into()); }
+        if self.search_steps > MAX_SEARCH_STEPS {
+            return Err(format!("search_steps exceeds limit ({})", MAX_SEARCH_STEPS));
+        }
+        if self.opt_limit_fast == 0 { return Err("opt_limit_fast must be > 0".into()); }
+        if self.opt_limit_fast > MAX_OPT_LIMIT_FAST {
+            return Err(format!("opt_limit_fast exceeds limit ({})", MAX_OPT_LIMIT_FAST));
+        }
+        if self.opt_limit_slow < self.opt_limit_fast {
+            return Err("opt_limit_slow must be >= opt_limit_fast".into());
+        }
+        if self.temp_min < 0.0 || self.temp_max < 0.0 {
+            return Err("Temperature cannot be negative".into());
+        }
+        if self.temp_max > MAX_TEMP {
+            return Err(format!("temp_max exceeds limit ({})", MAX_TEMP));
+        }
+        if self.temp_min < 0.0001 {
+            return Err("temp_min too low (underflow risk)".into());
+        }
+        if self.temp_min >= self.temp_max {
+            return Err("temp_min must be < temp_max".into());
+        }
+        if self.search_patience_threshold < 0.0 || self.search_patience_threshold > 1.0 {
+            return Err("search_patience_threshold must be between 0.0 and 1.0".into());
+        }
+        Ok(())
+    }
+}
+
+/// Weights and penalties defining the "personality" of the scoring engine.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct ScoringWeights {
+    /// Penalty for Same Finger Repeat on a weak finger.
+    pub penalty_sfr_weak_finger: f32,
+    /// Penalty for Same Finger Repeat involving a bad row jump.
+    pub penalty_sfr_bad_row: f32,
+    /// Penalty for lateral Same Finger Repeat.
+    pub penalty_sfr_lat: f32,
+    /// Penalty for lateral Same Finger Bigram.
+    pub penalty_sfb_lateral: f32,
+    /// Penalty for lateral SFB on a weak finger.
+    pub penalty_sfb_lateral_weak: f32,
+    /// Base penalty for any Same Finger Bigram.
+    pub penalty_sfb_base: f32,
+    /// Additional penalty for outward rolling SFBs.
+    pub penalty_sfb_outward_adder: f32,
+    /// Penalty for diagonal SFBs.
+    pub penalty_sfb_diagonal: f32,
+    /// Penalty for long-distance SFBs.
+    pub penalty_sfb_long: f32,
+    /// Penalty for bottom-row SFBs.
+    pub penalty_sfb_bottom: f32,
+    /// Multiplier for SFBs on weak fingers.
+    pub weight_weak_finger_sfb: f32,
+    /// Row difference threshold for "long" SFBs.
+    pub threshold_sfb_long_row_diff: i8,
+    /// Row difference threshold for scissors.
+    pub threshold_scissor_row_diff: i8,
+    /// Distance threshold for reach stretches.
+    pub threshold_reach_stretch: f32,
+    /// Penalty for scissor (adjacent finger stretch) movements.
+    pub penalty_scissor: f32,
+    /// Penalty for ring-pinky interactions.
+    pub penalty_ring_pinky: f32,
+    /// Penalty for lateral movement.
+    pub penalty_lateral: f32,
+    /// Penalty for single-key stretches.
+    pub penalty_monogram_stretch: f32,
+    /// Penalty for skipping a key (hurdle).
+    pub penalty_skip: f32,
+    /// Penalty for redirecting flow (e.g., Left -> Right -> Left).
+    pub penalty_redirect: f32,
+    /// Penalty for excessive hand alternation runs.
+    pub penalty_hand_run: f32,
+    /// Bonus (negative cost) for inward rolls.
+    pub bonus_inward_roll: f32,
+    /// Bonus for specific bigram inward rolls.
+    pub bonus_bigram_roll_in: f32,
+    /// Bonus for specific bigram outward rolls.
+    pub bonus_bigram_roll_out: f32,
+    /// Penalty for high-frequency keys in medium slots.
+    pub penalty_high_in_med: f32,
+    /// Penalty for high-frequency keys in low slots.
+    pub penalty_high_in_low: f32,
+    /// Penalty for medium-frequency keys in prime slots.
+    pub penalty_med_in_prime: f32,
+    /// Penalty for medium-frequency keys in low slots.
+    pub penalty_med_in_low: f32,
+    /// Penalty for low-frequency keys in prime slots.
+    pub penalty_low_in_prime: f32,
+    /// Penalty for low-frequency keys in medium slots.
+    pub penalty_low_in_med: f32,
+    /// Penalty for hand imbalance.
+    pub penalty_imbalance: f32,
+    /// Maximum allowed hand imbalance ratio.
+    pub max_hand_imbalance: f32,
+    /// Weight multiplier for vertical travel distance.
+    pub weight_vertical_travel: f32,
+    /// Weight multiplier for lateral travel distance.
+    pub weight_lateral_travel: f32,
+    /// Weight multiplier for finger effort.
+    pub weight_finger_effort: f32,
+    /// Default cost in milliseconds (if using time-based scoring).
+    pub default_cost_ms: f32,
+    /// Limit on the number of trigrams to load.
+    pub loader_trigram_limit: usize,
+    /// Required trigram coverage (0.0 - 1.0).
+    pub trigram_coverage: f32,
+    /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
+    pub finger_penalty_scale: [f32; 5],
+    /// Comma-separated list of comfortable scissor pairs.
+    pub comfortable_scissors: String,
+}
+
+impl Default for ScoringWeights {
+    fn default() -> Self {
+        Self {
+            penalty_sfr_weak_finger: DEFAULT_PENALTY_SFR_WEAK_FINGER,
+            penalty_sfr_bad_row: DEFAULT_PENALTY_SFR_BAD_ROW,
+            penalty_sfr_lat: DEFAULT_PENALTY_SFR_LAT,
+            penalty_sfb_lateral: DEFAULT_PENALTY_SFB_LATERAL,
+            penalty_sfb_lateral_weak: DEFAULT_PENALTY_SFB_LATERAL_WEAK,
+            penalty_sfb_base: DEFAULT_PENALTY_SFB_BASE,
+            penalty_sfb_outward_adder: DEFAULT_PENALTY_SFB_OUTWARD_ADDER,
+            penalty_sfb_diagonal: DEFAULT_PENALTY_SFB_DIAGONAL,
+            penalty_sfb_long: DEFAULT_PENALTY_SFB_LONG,
+            penalty_sfb_bottom: DEFAULT_PENALTY_SFB_BOTTOM,
+            weight_weak_finger_sfb: DEFAULT_WEIGHT_WEAK_FINGER_SFB,
+            threshold_sfb_long_row_diff: DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF,
+            threshold_scissor_row_diff: DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF,
+            threshold_reach_stretch: DEFAULT_THRESHOLD_REACH_STRETCH,
+            penalty_scissor: DEFAULT_PENALTY_SCISSOR,
+            penalty_ring_pinky: DEFAULT_PENALTY_RING_PINKY,
+            penalty_lateral: DEFAULT_PENALTY_LATERAL,
+            penalty_monogram_stretch: DEFAULT_PENALTY_MONOGRAM_STRETCH,
+            penalty_skip: DEFAULT_PENALTY_SKIP,
+            penalty_redirect: DEFAULT_PENALTY_REDIRECT,
+            penalty_hand_run: DEFAULT_PENALTY_HAND_RUN,
+            bonus_inward_roll: DEFAULT_BONUS_INWARD_ROLL,
+            bonus_bigram_roll_in: DEFAULT_BONUS_BIGRAM_ROLL_IN,
+            bonus_bigram_roll_out: DEFAULT_BONUS_BIGRAM_ROLL_OUT,
+            penalty_high_in_med: DEFAULT_PENALTY_HIGH_IN_MED,
+            penalty_high_in_low: DEFAULT_PENALTY_HIGH_IN_LOW,
+            penalty_med_in_prime: DEFAULT_PENALTY_MED_IN_PRIME,
+            penalty_med_in_low: DEFAULT_PENALTY_MED_IN_LOW,
+            penalty_low_in_prime: DEFAULT_PENALTY_LOW_IN_PRIME,
+            penalty_low_in_med: DEFAULT_PENALTY_LOW_IN_MED,
+            penalty_imbalance: DEFAULT_PENALTY_IMBALANCE,
+            max_hand_imbalance: DEFAULT_MAX_HAND_IMBALANCE,
+            weight_vertical_travel: DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+            weight_lateral_travel: DEFAULT_WEIGHT_LATERAL_TRAVEL,
+            weight_finger_effort: DEFAULT_WEIGHT_FINGER_EFFORT,
+            default_cost_ms: DEFAULT_COST_MS,
+            loader_trigram_limit: DEFAULT_LOADER_TRIGRAM_LIMIT,
+            trigram_coverage: DEFAULT_TRIGRAM_COVERAGE,
+            finger_penalty_scale: DEFAULT_FINGER_PENALTY_SCALE_ARRAY,
+            comfortable_scissors: DEFAULT_COMFORTABLE_SCISSORS.to_string(),
+        }
+    }
+}
+
+impl Validator for ScoringWeights {
+    fn validate(&self) -> Result<(), String> {
+        if self.loader_trigram_limit > MAX_LOADER_TRIGRAM_LIMIT {
+            return Err(format!("loader_trigram_limit exceeds safety maximum ({})", MAX_LOADER_TRIGRAM_LIMIT));
+        }
+        if self.penalty_sfb_base < 0.0 || self.penalty_scissor < 0.0 {
+            return Err("Penalties cannot be negative".to_string());
+        }
+        if self.penalty_sfb_base > MAX_SAFE_WEIGHT || self.penalty_scissor > MAX_SAFE_WEIGHT {
+            return Err(format!("Weights cannot exceed {:.0}", MAX_SAFE_WEIGHT));
+        }
+        for (i, &w) in self.finger_penalty_scale.iter().enumerate() {
+            if w < 0.0 { return Err(format!("finger_penalty_scale[{}] cannot be negative", i)); }
+        }
+        Ok(())
+    }
+}
+
+impl ScoringWeights {
+    /// Returns the finger penalty scale array.
+    pub fn get_finger_penalty_scale(&self) -> [f32; 5] {
+        self.finger_penalty_scale
+    }
+    /// Calculates the allowed deviation from perfect hand balance.
+    pub fn allowed_hand_balance_deviation(&self) -> f32 {
+        (self.max_hand_imbalance - 0.5).max(0.0)
+    }
+    /// Parses the comfortable scissors string into a list of pairs.
+    pub fn get_comfortable_scissors(&self) -> Vec<(u8, u8)> {
+        let mut pairs = Vec::new();
+        for s in self.comfortable_scissors.split(',') {
+            let s = s.trim();
+            if s.len() == 2 {
+                let bytes = s.as_bytes();
+                if bytes[0] >= b'0' && bytes[1] >= b'0' {
+                    pairs.push((bytes[0] - b'0', bytes[1] - b'0'));
+                }
+            }
+        }
+        pairs
+    }
+}
+
+/// Definitions for character tiers and critical bigrams.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct LayoutDefinitions {
+    /// Characters considered high priority (Home row candidates).
+    pub tier_high_chars: String,
+    /// Characters considered medium priority.
+    pub tier_med_chars: String,
+    /// Characters considered low priority.
+    pub tier_low_chars: String,
+    /// Bigrams that must be optimized for.
+    pub critical_bigrams: String,
+    /// Scale factors for finger repeat penalties.
+    pub finger_repeat_scale: [f32; 5],
+}
+
+impl Default for LayoutDefinitions {
+    fn default() -> Self {
+        Self {
+            tier_high_chars: DEFAULT_TIER_HIGH.to_string(),
+            tier_med_chars: DEFAULT_TIER_MED.to_string(),
+            tier_low_chars: DEFAULT_TIER_LOW.to_string(),
+            critical_bigrams: DEFAULT_CRITICAL_BIGRAMS.to_string(),
+            finger_repeat_scale: DEFAULT_FINGER_REPEAT_SCALE_ARRAY,
+        }
+    }
+}
+
+impl Validator for LayoutDefinitions {
+    fn validate(&self) -> Result<(), String> {
+        if self.tier_high_chars.is_empty() { return Err("tier_high_chars cannot be empty".to_string()); }
+        
+        for (i, &v) in self.finger_repeat_scale.iter().enumerate() {
+            if v < 0.0 { return Err(format!("finger_repeat_scale[{}] cannot be negative", i)); }
+        }
+        
+        Ok(())
+    }
+}
+
+impl LayoutDefinitions {
+    /// Parses the critical bigrams string into a list of byte pairs.
+    pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
+        self.critical_bigrams.split(',').filter_map(|s| {
+            let b = s.trim().as_bytes();
+            if b.len() == 2 { Some([b[0], b[1]]) } else { None }
+        }).collect()
+    }
+}
+
+/// Source for the cost matrix data.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
+#[serde(tag = "type", content = "data")]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub enum CostMatrixSource {
+    /// A predefined cost matrix file (e.g. "default_costmatrix.json").
+    Predefined(String),
+}
+
+impl Default for CostMatrixSource {
+    fn default() -> Self { CostMatrixSource::Predefined(ASSET_COST_MATRIX.to_string()) }
+}
+
+impl fmt::Display for CostMatrixSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CostMatrixSource::Predefined(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+/// Constraint forcing a key to a specific physical index.
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeyConstraint {
+    /// The physical index of the key.
+    pub index: KeyIndex,
+    /// The logical key label/ID to pin.
+    pub key: String,
+}
+
+impl Validator for KeyConstraint {
+    fn validate(&self) -> Result<(), String> {
+        if self.key.trim().is_empty() {
+            return Err(format!("Constraint for index {} has empty key", self.index));
+        }
+        Ok(())
+    }
+}
+
+impl FromStr for KeyConstraint {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.trim().is_empty() { return Err("Empty constraint".to_string()); }
+        let (idx_str, key_str) = s.split_once(':').ok_or_else(|| format!("invalid format '{}': expected INDEX:KEY", s))?;
+        let index_val = idx_str.trim().parse::<u16>().map_err(|_| format!("invalid index '{}': must be 0-65535", idx_str))?;
+        let key_clean = key_str.trim();
+        if key_clean.is_empty() { return Err(format!("Empty key in constraint '{}'", s)); }
+        Ok(KeyConstraint { index: KeyIndex(index_val), key: key_clean.to_string() })
+    }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/config.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/constants.rs <<<<<<<<
+// libs/keyforge-model/src/constants.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Global constants and limits for the KeyForge system.
+
+// --- Validation Limits ---
+
+/// Maximum number of keys allowed in a keyboard definition.
+pub const MAX_KEYBOARD_KEYS: usize = 200;
+/// Maximum number of pinned keys allowed.
+pub const MAX_PINNED_KEYS_COUNT: usize = 200;
+/// Maximum length of the pinned keys string representation.
+pub const MAX_PINNED_KEYS_LEN: usize = 10_000;
+/// Maximum length of a layout name.
+pub const MAX_LAYOUT_NAME_LEN: usize = 64;
+/// Maximum length of a keyboard definition name.
+pub const MAX_KEYBOARD_NAME_LEN: usize = 100;
+/// Maximum length of a filename (e.g. cost matrix).
+pub const MAX_FILENAME_LEN: usize = 255;
+/// Maximum length of an author name.
+pub const MAX_AUTHOR_NAME_LEN: usize = 64;
+/// Maximum length of layout data string.
+pub const MAX_LAYOUT_DATA_LEN: usize = 5000;
+/// Maximum length of a generic identifier.
+pub const MAX_ID_LEN: usize = 64;
+/// Name of the configuration directory (e.g. for OS app data).
+pub const CONFIG_DIR_NAME: &str = "keyforge";
+/// Minimum length of layout data string.
+pub const MIN_LAYOUT_DATA_LEN: usize = 10;
+/// Minimum length of a layout name.
+pub const MIN_LAYOUT_NAME_LEN: usize = 2;
+/// Default weight for a corpus source.
+pub const DEFAULT_CORPUS_WEIGHT: f32 = 1.0;
+
+/// Maximum number of search epochs.
+pub const MAX_SEARCH_EPOCHS: usize = 1_000_000;
+/// Maximum number of search steps per epoch.
+pub const MAX_SEARCH_STEPS: usize = 5_000_000;
+/// Maximum optimization limit for fast path.
+pub const MAX_OPT_LIMIT_FAST: usize = 10_000;
+/// Maximum safe weight value to prevent overflow.
+pub const MAX_SAFE_WEIGHT: f32 = 100_000_000.0;
+/// Maximum number of trigrams to load from corpus.
+pub const MAX_LOADER_TRIGRAM_LIMIT: usize = 50_000;
+/// Maximum allowed temperature for annealing.
+pub const MAX_TEMP: f32 = 1_000.0;
+
+// --- Physics Constants ---
+
+/// Scaling factor for fixed-point score arithmetic.
+pub const SCORE_SCALE: f32 = 1_000_000.0;
+/// Tolerance ratio for score verification.
+pub const VERIFICATION_TOLERANCE_RATIO: f32 = 0.0001;
+/// Minimum absolute tolerance for score verification.
+pub const VERIFICATION_TOLERANCE_ABS_MIN: f32 = 1.0;
+
+/// Maximum score considered plausible for a standard layout (sanity check).
+pub const MAX_PLAUSIBLE_SCORE: f32 = 10_000_000.0;
+/// Maximum SFB ratio considered plausible (sanity check, 20%).
+pub const MAX_PLAUSIBLE_SFB_RATIO: f32 = 0.20;
+
+/// Number of top frequent words to consider for Arena typing practice.
+pub const ARENA_TOP_WORDS_LIMIT: usize = 2000;
+
+// --- Security Limits ---
+
+
+
+/// Maximum size of uploaded files (bytes).
+pub const MAX_INPUT_FILE_SIZE: u64 = 100 * 1024 * 1024;
+/// Maximum recursion depth for JSON parsing.
+pub const MAX_JSON_DEPTH: usize = 50;
+/// Maximum number of items in a deserialized vector (Transport Security Policy).
+pub const MAX_TRANSPORT_VECTOR_ITEMS: usize = 100_000;
+/// Maximum size of a session file (bytes).
+pub const MAX_SESSION_FILE_SIZE: u64 = 1024 * 1024;
+
+
+// --- Corpus Parsing ---
+
+/// Mapping of special token strings to their character values.
+pub const CORPUS_TOKEN_MAP: &[(&str, char)] = &[
+    ("SPACE", ' '),
+    ("ENTER", '\n'),
+    ("TAB", '\t'),
+    ("BACKSPACE", '\x08'),
+    ("ESCAPE", '\x1b'),
+];
+
+// --- System Assets ---
+
+/// Filename for the Agent configuration asset.
+pub const ASSET_AGENT_CONFIG: &str = "agent";
+/// Filename for the System configuration asset.
+pub const ASSET_SYSTEM_CONFIG: &str = "config";
+/// Filename for the Hive configuration asset.
+pub const ASSET_HIVE_CONFIG: &str = "hive";
+/// Filename for the Keycodes definition asset.
+pub const ASSET_KEYCODES: &str = "keycodes";
+/// Filename for the Keycodes definition filename.
+pub const ASSET_KEYCODES_FILENAME: &str = "keycodes.json";
+/// Filename for the UI Categories asset.
+pub const ASSET_UI_CATEGORIES: &str = "ui_categories";
+/// Filename for the default Cost Matrix asset.
+pub const ASSET_COST_MATRIX: &str = "cost_matrix";
+/// Filename for the default Cost Matrix JSON file.
+pub const ASSET_DEFAULT_COST_MATRIX: &str = "default_costmatrix.json";
+
+/// Filename for monogram frequencies.
+pub const ASSET_1GRAMS_FILENAME: &str = "1grams.json";
+/// Filename for bigram frequencies.
+pub const ASSET_2GRAMS_FILENAME: &str = "2grams.json";
+/// Filename for trigram frequencies.
+pub const ASSET_3GRAMS_FILENAME: &str = "3grams.json";
+/// Filename for common word frequencies.
+pub const ASSET_WORDS_FILENAME: &str = "words.json";
+
+/// Default corpus identifier.
+pub const DEFAULT_CORPUS_ID: &str = "text/en_std";
+/// Default keyboard identifier.
+pub const DEFAULT_KEYBOARD_ID: &str = "ortho_30";
+/// Default URL for the Hive server.
+pub const DEFAULT_HIVE_URL: &str = "https://keyforge.infodungeon.com:3000";
+/// Default request timeout (seconds).
+pub const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
+/// Default connection timeout (seconds).
+pub const DEFAULT_CONNECT_TIMEOUT_SECS: u64 = 10;
+
+/// Current version prefix for distributed state keys.
+pub const DISTRIBUTED_KEY_VERSION: &str = "v4";
+/// Time-to-live for hardware profile locks (seconds, 24 hours).
+pub const PROFILE_LOCK_TTL_SECS: i64 = 86400;
+/// Time-to-live for node heartbeats (seconds).
+pub const HEARTBEAT_TTL_SECS: i64 = 30;
+
+/// Default User-Agent string for the KeyForge client.
+
+pub const DEFAULT_USER_AGENT: &str = "KeyForge-Client/0.9";
+
+/// Default path for user statistics.
+pub const DEFAULT_USER_STATS_PATH: &str = "data/user_stats.jsonl";
+/// Default path for personal cost profile.
+pub const DEFAULT_PERSONAL_COST_PATH: &str = "data/personal_cost.json";
+/// Default number of iterations for benchmarks.
+pub const DEFAULT_BENCHMARK_ITERATIONS: usize = 100_000;
+/// Default column width for grid views.
+pub const DEFAULT_GRID_WIDTH: usize = 10;
+
+
+// --- Corpus Injection Constants ---
+
+/// Assumed error rate for standard prose (3%).
+pub const STD_CORPUS_ERROR_RATE: f32 = 0.03;
+/// Correction factor for backspace usage (1.25x error rate).
+pub const STD_CORPUS_BACKSPACE_FACTOR: f32 = 1.25;
+/// Average sentences per paragraph for standard prose.
+pub const STD_CORPUS_SENTENCE_RATIO: f32 = 3.0;
+
+// --- Default Metadata ---
+
+/// Default name for newly imported or created keyboards.
+pub const DEFAULT_KEYBOARD_NAME: &str = "Untitled Board";
+/// Default author name.
+pub const DEFAULT_AUTHOR_NAME: &str = "Unknown";
+/// Default keyboard version.
+pub const DEFAULT_VERSION: &str = "1.0";
+/// Default notes for KLE-imported keyboards.
+pub const DEFAULT_KLE_NOTES: &str = "Imported from KLE";
+
+// --- Cache Capacities ---
+
+/// Default capacity for keyboard definition cache.
+pub const DEFAULT_KB_CACHE_CAPACITY: usize = 100;
+/// Default capacity for corpus cache.
+pub const DEFAULT_CORPUS_CACHE_CAPACITY: usize = 50;
+/// Default capacity for cost matrix cache.
+pub const DEFAULT_COST_CACHE_CAPACITY: usize = 50;
+/// Default capacity for keycode registry cache.
+pub const DEFAULT_KEYCODE_CACHE_CAPACITY: usize = 10;
+
+/// Minimum biometric samples required to generate a personalized profile.
+pub const MIN_BIOMETRIC_SAMPLES: usize = 300;
+
+/// Default capacity for compiled engine cache.
+pub const DEFAULT_ENGINE_CACHE_CAPACITY: usize = 500;
+/// Default TTL for compiled engine cache (30 minutes).
+pub const DEFAULT_ENGINE_CACHE_TTL_SECS: u64 = 1800;
+
+/// Prefix for assets stored in Valkey/Redis.
+pub const VALKEY_ASSET_PREFIX: &str = "asset:blob";
+
+/// Maximum number of attempts to acquire a file lock.
+pub const LOCK_MAX_ATTEMPTS: usize = 10;
+/// Initial delay between lock acquisition attempts (milliseconds).
+pub const LOCK_INITIAL_DELAY_MS: u64 = 50;
+
+/// Default fallback directory path.
+pub const DEFAULT_FALLBACK_PATH: &str = ".";
+
+/// Standard candidate paths for locating the data directory.
+pub const DATA_DIR_CANDIDATES: &[&str] = &[
+    "data",
+    "../data",
+    "../../data",
+    "/app/data", // Docker convention
+];
+
+// --- Evolution Constants ---
+
+/// Minimum temperature threshold before clipping to zero.
+pub const TEMP_UNDERFLOW_THRESHOLD: f32 = 1e-10;
+/// Default divisor for determining reporting interval (steps / divisor).
+pub const DEFAULT_REPORT_DIVISOR: usize = 100;
+/// Minimum number of steps between progress reports.
+pub const MIN_REPORT_INTERVAL: usize = 1000;
+/// Default random seed for search determinism.
+pub const DEFAULT_SEARCH_SEED: u64 = 42;
+/// Maximum number of violations of a single type to include in reports.
+pub const MAX_REPORTED_VIOLATIONS: usize = 10;
+/// Minimum temperature threshold for accepting worsening moves.
+pub const ANNEALING_MIN_TEMP: f32 = 1e-6;
+
+// --- Default Values (Strings) ---
+
+/// Default characters considered high priority (Home row candidates).
+pub const DEFAULT_TIER_HIGH: &str = "etaoinshr";
+/// Default characters considered medium priority.
+pub const DEFAULT_TIER_MED: &str = "ldcumwfgypb.,";
+/// Default characters considered low priority.
+pub const DEFAULT_TIER_LOW: &str = "vkjxqz/;";
+
+/// Default bigrams that must be optimized for.
+pub const DEFAULT_CRITICAL_BIGRAMS: &str = "th,he,in,er,an,re,nd,ou";
+/// Default scale factors for finger penalties (Thumb, Index, Middle, Ring, Pinky).
+pub const DEFAULT_FINGER_PENALTY_SCALE: &str = "0.0,1.0,1.1,1.3,1.6";
+/// Default scale factors for finger repeat penalties.
+pub const DEFAULT_FINGER_REPEAT_SCALE: &str = "1.0,1.0,1.0,1.2,1.5";
+
+/// Default scale factors for finger penalties as an array.
+pub const DEFAULT_FINGER_PENALTY_SCALE_ARRAY: [f32; 5] = [0.0, 1.0, 1.1, 1.3, 1.6];
+/// Default scale factors for finger repeat penalties as an array.
+pub const DEFAULT_FINGER_REPEAT_SCALE_ARRAY: [f32; 5] = [1.0, 1.0, 1.0, 1.2, 1.5];
+/// Default comfortable scissor pairs (Indices).
+pub const DEFAULT_COMFORTABLE_SCISSORS: &str = "21,23,34";
+
+// --- Default Values (Search) ---
+
+/// Default number of search epochs.
+pub const DEFAULT_SEARCH_EPOCHS: usize = 10_000;
+/// Default number of search steps per epoch.
+pub const DEFAULT_SEARCH_STEPS: usize = 100_000;
+/// Default search patience.
+pub const DEFAULT_SEARCH_PATIENCE: usize = 500;
+/// Default search patience threshold.
+pub const DEFAULT_SEARCH_PATIENCE_THRESHOLD: f32 = 0.1;
+/// Default minimum temperature.
+pub const DEFAULT_TEMP_MIN: f32 = 0.005;
+/// Default maximum temperature.
+pub const DEFAULT_TEMP_MAX: f32 = 20.0;
+/// Default fast-path optimization limit.
+pub const DEFAULT_OPT_LIMIT_FAST: usize = 100;
+/// Default slow-path optimization limit.
+pub const DEFAULT_OPT_LIMIT_SLOW: usize = 1500;
+/// Default number of reheats.
+pub const DEFAULT_REHEATS: usize = 3;
+/// Default reheat factor.
+pub const DEFAULT_REHEAT_FACTOR: f32 = 0.5;
+
+// --- Default Values (Scoring) ---
+
+/// Default penalty for Same Finger Repeat on a weak finger.
+pub const DEFAULT_PENALTY_SFR_WEAK_FINGER: f32 = 20.0;
+/// Default penalty for Same Finger Repeat involving a bad row jump.
+pub const DEFAULT_PENALTY_SFR_BAD_ROW: f32 = 25.0;
+/// Default penalty for lateral Same Finger Repeat.
+pub const DEFAULT_PENALTY_SFR_LAT: f32 = 40.0;
+/// Default penalty for lateral Same Finger Bigram.
+pub const DEFAULT_PENALTY_SFB_LATERAL: f32 = 65.0;
+/// Default penalty for lateral SFB on a weak finger.
+pub const DEFAULT_PENALTY_SFB_LATERAL_WEAK: f32 = 160.0;
+/// Default base penalty for any Same Finger Bigram.
+pub const DEFAULT_PENALTY_SFB_BASE: f32 = 400.0;
+/// Default additional penalty for outward rolling SFBs.
+pub const DEFAULT_PENALTY_SFB_OUTWARD_ADDER: f32 = 10.0;
+/// Default penalty for diagonal SFBs.
+pub const DEFAULT_PENALTY_SFB_DIAGONAL: f32 = 240.0;
+/// Default penalty for long-distance SFBs.
+pub const DEFAULT_PENALTY_SFB_LONG: f32 = 280.0;
+/// Default penalty for bottom-row SFBs.
+pub const DEFAULT_PENALTY_SFB_BOTTOM: f32 = 45.0;
+/// Default multiplier for SFBs on weak fingers.
+pub const DEFAULT_WEIGHT_WEAK_FINGER_SFB: f32 = 2.7;
+
+/// Default row difference threshold for "long" SFBs.
+pub const DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF: i8 = 2;
+/// Default row difference threshold for scissors.
+pub const DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF: i8 = 2;
+/// Default distance threshold for reach stretches.
+pub const DEFAULT_THRESHOLD_REACH_STRETCH: f32 = 1.2;
+
+/// Default penalty for scissor (adjacent finger stretch) movements.
+pub const DEFAULT_PENALTY_SCISSOR: f32 = 25.0;
+/// Default penalty for ring-pinky interactions.
+pub const DEFAULT_PENALTY_RING_PINKY: f32 = 1.3;
+/// Default penalty for lateral movement.
+pub const DEFAULT_PENALTY_LATERAL: f32 = 50.0;
+/// Default penalty for single-key stretches.
+pub const DEFAULT_PENALTY_MONOGRAM_STRETCH: f32 = 20.0;
+/// Default penalty for skipping a key (hurdle).
+pub const DEFAULT_PENALTY_SKIP: f32 = 20.0;
+/// Default penalty for redirecting flow (e.g., Left -> Right -> Left).
+pub const DEFAULT_PENALTY_REDIRECT: f32 = 65.0;
+/// Default penalty for excessive hand alternation runs.
+pub const DEFAULT_PENALTY_HAND_RUN: f32 = 5.0;
+/// Default bonus (negative cost) for inward rolls.
+pub const DEFAULT_BONUS_INWARD_ROLL: f32 = 40.0;
+/// Default bonus for specific bigram inward rolls.
+pub const DEFAULT_BONUS_BIGRAM_ROLL_IN: f32 = 35.0;
+/// Default bonus for specific bigram outward rolls.
+pub const DEFAULT_BONUS_BIGRAM_ROLL_OUT: f32 = 25.0;
+/// Default penalty for high-frequency keys in medium slots.
+pub const DEFAULT_PENALTY_HIGH_IN_MED: f32 = 12.0;
+/// Default penalty for high-frequency keys in low slots.
+pub const DEFAULT_PENALTY_HIGH_IN_LOW: f32 = 20.0;
+/// Default penalty for medium-frequency keys in prime slots.
+pub const DEFAULT_PENALTY_MED_IN_PRIME: f32 = 2.0;
+/// Default penalty for medium-frequency keys in low slots.
+pub const DEFAULT_PENALTY_MED_IN_LOW: f32 = 2.0;
+/// Default penalty for low-frequency keys in prime slots.
+pub const DEFAULT_PENALTY_LOW_IN_PRIME: f32 = 15.0;
+/// Default penalty for low-frequency keys in medium slots.
+pub const DEFAULT_PENALTY_LOW_IN_MED: f32 = 2.0;
+/// Default penalty for hand imbalance.
+pub const DEFAULT_PENALTY_IMBALANCE: f32 = 200.0;
+/// Default maximum allowed hand imbalance ratio.
+pub const DEFAULT_MAX_HAND_IMBALANCE: f32 = 0.55;
+/// Default weight multiplier for vertical travel distance.
+pub const DEFAULT_WEIGHT_VERTICAL_TRAVEL: f32 = 1.0;
+/// Default weight multiplier for lateral travel distance.
+pub const DEFAULT_WEIGHT_LATERAL_TRAVEL: f32 = 3.5;
+/// Default weight multiplier for finger effort.
+pub const DEFAULT_WEIGHT_FINGER_EFFORT: f32 = 2.2;
+
+/// Default cost in milliseconds (if using time-based scoring).
+pub const DEFAULT_COST_MS: f32 = 120.0;
+/// Default limit on the number of trigrams to load.
+pub const DEFAULT_LOADER_TRIGRAM_LIMIT: usize = 3000;
+/// Default required trigram coverage.
+pub const DEFAULT_TRIGRAM_COVERAGE: f32 = 0.99;
+
+>>>>>>>> END FILE: libs/keyforge-model/src/constants.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/corpus.rs <<<<<<<<
+// libs/keyforge-model/src/corpus.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Text corpus data structures and validation.
+//!
+//! A `Corpus` provides the statistical foundation for layout optimization,
+//! including character, bigram, and trigram frequencies.
+
+use crate::error::ForgeError;
+use serde::{Deserialize, Serialize};
+use crate::validator::Validator;
+
+/// Represents the statistical data of a language or text source.
+/// Contains frequency data for characters, bigrams, and trigrams.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Corpus {
+    /// Frequency of each character (index = char code).
+    /// Must be exactly 65536 elements long to cover all u16 values.
+    /// Changed to u64 to support large corpora (>4B chars).
+    pub char_freqs: Vec<u64>,
+    /// List of bigrams (char1, char2, frequency).
+    pub bigrams: Vec<(u16, u16, u32)>,
+    /// List of trigrams (char1, char2, char3, frequency).
+    pub trigrams: Vec<(u16, u16, u16, u32)>,
+    /// List of common words and their frequencies.
+    pub words: Vec<(String, u32)>,
+}
+
+impl Default for Corpus {
+    fn default() -> Self {
+        Self {
+            char_freqs: vec![0; 65536],
+            bigrams: Vec::new(),
+            trigrams: Vec::new(),
+            words: Vec::new(),
+        }
+    }
+}
+
+impl Validator for Corpus {
+    fn validate(&self) -> Result<(), String> {
+        self.validate_internal().map_err(|e| e.to_string())
+    }
+}
+
+impl Corpus {
+    /// Validates the integrity of the Corpus.
+    /// Ensures that frequency maps are sized correctly to prevent panics in the Physics engine.
+    pub fn validate(&self) -> Result<(), ForgeError> {
+        // 1. Char Freqs must cover full u16 range (0..65535)
+        // The physics engine uses direct indexing: ctx.char_freqs[code as usize]
+        if self.char_freqs.len() != 65536 {
+            return Err(ForgeError::InvalidData(format!(
+                "Corpus char_freqs length must be 65536, found {}",
+                self.char_freqs.len()
+            )));
+        }
+
+        // 2. Bigrams/Trigrams
+        // Since u16 indices are always < 65536, they are safe indices into char_freqs.
+        
+        Ok(())
+    }
+
+    /// Merges another corpus into this one with a specific weight.
+    pub fn merge(&mut self, other: &Self, weight: f32) {
+        // 1. Merge character frequencies
+        for (i, &freq) in other.char_freqs.iter().enumerate() {
+            if i < self.char_freqs.len() {
+                self.char_freqs[i] += (freq as f32 * weight).round() as u64;
+            }
+        }
+
+        // 2. Merge bigrams
+        for &(c1, c2, freq) in &other.bigrams {
+            self.bigrams.push((c1, c2, (freq as f32 * weight).round() as u32));
+        }
+
+        // 3. Merge trigrams
+        for &(c1, c2, c3, freq) in &other.trigrams {
+            self.trigrams.push((c1, c2, c3, (freq as f32 * weight).round() as u32));
+        }
+
+        // 4. Merge words
+        for (word, freq) in &other.words {
+            self.words.push((word.clone(), (*freq as f32 * weight).round() as u32));
+        }
+
+        // Keep bigrams/trigrams sorted for the engine
+        self.bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        self.trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    }
+
+    // Internal helper to keep the ForgeError return type for existing callers
+    fn validate_internal(&self) -> Result<(), ForgeError> {
+        self.validate()
+    }
+}
+>>>>>>>> END FILE: libs/keyforge-model/src/corpus.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/error.rs <<<<<<<<
+// libs/keyforge-model/src/error.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Centralized error types for the domain.
+
+use thiserror::Error;
+use serde::{Serialize, Deserialize};
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+/// The central error type for the KeyForge domain.
+#[derive(Error, Debug)]
+pub enum ForgeError {
+    /// Input/Output error.
+    #[error("IO Error: {0}")]
+    Io(#[from] std::io::Error),
+
+    /// Serialization/Deserialization error.
+    #[error("Serialization Error: {0}")]
+    Serde(#[from] serde_json::Error),
+
+    /// Error originating from the Physics engine.
+    #[error("Physics Violation: {0}")]
+    Physics(#[from] PhysicsError),
+
+    /// Error originating from the Evolution engine.
+    #[error("Evolution Error: {0}")]
+    Evolution(String),
+
+    /// Error originating from the Persistence layer.
+    #[error("Persistence Error: {0}")]
+    Persistence(String),
+
+    /// Data validation error.
+    #[error("Validation Error: {0}")]
+    Validation(String),
+
+    /// Resource not found.
+    #[error("Asset Not Found: {0}")]
+    NotFound(String),
+
+    /// Internal system error.
+    #[error("Internal Error: {0}")]
+    Internal(String),
+
+    /// Invalid data format or content.
+    #[error("Invalid Data: {0}")]
+    InvalidData(String),
+
+    /// Configuration error.
+    #[error("Configuration Error: {0}")]
+    Config(String),
+
+    /// Error originating from the Model logic itself.
+    #[error("Model Error: {0}")]
+    Model(#[from] ModelError),
+}
+
+/// Errors related to core model logic and integrity.
+#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub enum ModelError {
+    /// Failed to serialize a component.
+    #[error("Serialization Failed: {0}")]
+    Serialization(String),
+}
+
+/// Specific errors related to physical constraints and scoring.
+#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub enum PhysicsError {
+    /// Hand index out of bounds (must be 0 or 1).
+    #[error("Hand index {0} is invalid (must be 0 or 1)")]
+    InvalidHandIndex(u8),
+
+    /// Finger index out of bounds (must be 0-4).
+    #[error("Finger index {0} is invalid (must be 0-4)")]
+    InvalidFingerIndex(u8),
+
+    /// Matrix dimensions do not match expected values.
+    #[error("Matrix dimension mismatch: expected {expected}, found {found}")]
+    DimensionMismatch { 
+        /// Expected dimension size.
+        expected: usize, 
+        /// Actual dimension size found.
+        found: usize 
+    },
+    
+    /// Layout has more keys than the keyboard.
+    #[error("Layout size {0} exceeds physical key count {1}")]
+    LayoutOverflow(usize, usize),
+
+    /// Layout has fewer keys than the keyboard.
+    #[error("Layout size {0} is insufficient for physical key count {1}")]
+    LayoutUnderflow(usize, usize),
+
+    /// Configuration error in the physics engine.
+    #[error("Physics Config Error: {0}")]
+    Config(String),
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/error.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/geometry/kle.rs <<<<<<<<
+// libs/keyforge-model/src/geometry/kle.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Keyboard Layout Editor (KLE) integration.
+//!
+//! This module provides functions for importing and exporting 
+//! keyboard geometries in the KLE JSON format.
+
+use super::{KeyNode, KeyboardGeometry};
+use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
+use kle_serial::Keyboard as KleKeyboard;
+use serde_json::json;
+use std::error::Error;
+
+/// Parses a Keyboard Layout Editor (KLE) JSON string into a `KeyboardGeometry`.
+pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
+    let keyboard: KleKeyboard = serde_json::from_str(content)?;
+    let mut keys = Vec::new();
+
+    for (current_id, key) in keyboard.keys.into_iter().enumerate() {
+        let center_x = key.x + (key.width / 2.0);
+        let hand = if center_x > 10.0 { HandIndex::RIGHT } else { HandIndex::LEFT };
+        let finger = FingerIndex::INDEX;
+
+        let label = key.legends.iter().flatten().find(|l| !l.text.is_empty())
+            .map(|l| l.text.as_str()).unwrap_or("").to_string();
+
+        let node = KeyNode {
+            index: current_id,
+            label: if label.is_empty() { format!("k{}", current_id) } else { label },
+            hand,
+            finger,
+            row: RowIndex(key.y.round() as i8),
+            col: ColIndex(key.x.round() as i8),
+            x: key.x as f32,
+            y: key.y as f32,
+            w: key.width as f32,
+            h: key.height as f32,
+            r: key.rotation as f32,
+            rx: key.rx as f32,
+            ry: key.ry as f32,
+            is_home: false,
+            is_stretch: false,
+        };
+        keys.push(node);
+    }
+
+    let total = keys.len();
+    let prime_slots = (0..std::cmp::min(8, total)).map(|i| KeyIndex(i as u16)).collect();
+    let med_slots = (8..std::cmp::min(20, total)).map(|i| KeyIndex(i as u16)).collect();
+    let low_slots = (20..total).map(|i| KeyIndex(i as u16)).collect();
+
+    let geom = KeyboardGeometry {
+        keys,
+        prime_slots,
+        med_slots,
+        low_slots,
+        home_row: 1,
+    };
+    Ok(geom)
+}
+
+/// Converts a `KeyboardGeometry` back into a KLE JSON string.
+pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
+    let mut json_rows = Vec::new();
+    json_rows.push(json!({ "meta": { "name": "KeyForge Export", "author": "KeyForge" } }));
+
+    for k in &geom.keys {
+        let props = json!({
+            "x": k.x, "y": k.y, "w": k.w, "h": k.h,
+            "r": k.r, "rx": k.rx, "ry": k.ry,
+            "c": if k.hand == HandIndex::LEFT { "#cccccc" } else { "#aaaaaa" },
+            "a": 7
+        });
+        let row = json!([props, k.label]);
+        json_rows.push(row);
+    }
+    let json_str = serde_json::to_string_pretty(&json_rows)?;
+    Ok(json_str)
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/geometry/kle.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/geometry/mod.rs <<<<<<<<
+// libs/keyforge-model/src/geometry/mod.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Physical keyboard geometry and spatial definitions.
+//!
+//! This module defines the physical properties of a keyboard, including
+//! key positions, dimensions, and finger assignments.
+
+use crate::constants::MAX_KEYBOARD_KEYS;
+use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
+use crate::validator::Validator;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+/// Keyboard Layout Editor (KLE) integration.
+pub mod kle;
+
+/// Metadata describing a keyboard definition.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeyboardMeta {
+    /// Display name of the keyboard.
+    pub name: String,
+    /// Author of the definition.
+    #[serde(default)]
+    pub author: String,
+    /// Version string.
+    #[serde(default)]
+    pub version: String,
+    /// Additional notes or description.
+    #[serde(default)]
+    pub notes: String,
+    /// Type of keyboard (e.g., "split", "ortho").
+    #[serde(default, rename = "type")]
+    pub kb_type: String,
+}
+
+/// Complete definition of a keyboard, including metadata and geometry.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeyboardDefinition {
+    /// Metadata about the keyboard.
+    #[serde(default)]
+    pub meta: KeyboardMeta,
+    /// Physical geometry of the keys.
+    pub geometry: KeyboardGeometry,
+    /// Pre-defined layouts available for this keyboard.
+    #[serde(default)]
+    pub layouts: HashMap<String, String>,
+}
+
+impl Validator for KeyboardDefinition {
+    fn validate(&self) -> Result<(), String> {
+        self.geometry.validate()?;
+        Ok(())
+    }
+}
+
+/// Represents a single physical key on the keyboard.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeyNode {
+    /// Internal numeric ID (0..N) - Runtime optimization.
+    #[serde(default)]
+    pub index: usize,
+    /// Display label / String ID.
+    #[serde(default)]
+    #[serde(alias = "id")]
+    pub label: String,
+    /// X coordinate (physical units).
+    pub x: f32,
+    /// Y coordinate (physical units).
+    pub y: f32,
+    /// Width (physical units).
+    #[serde(default = "default_size")]
+    pub w: f32,
+    /// Height (physical units).
+    #[serde(default = "default_size")]
+    pub h: f32,
+    /// Rotation angle (degrees).
+    #[serde(default)]
+    pub r: f32,
+    /// Rotation origin X.
+    #[serde(default)]
+    pub rx: f32,
+    /// Rotation origin Y.
+    #[serde(default)]
+    pub ry: f32,
+    /// Hand assignment (Left/Right).
+    pub hand: HandIndex,
+    /// Finger assignment (Thumb..Pinky).
+    pub finger: FingerIndex,
+    /// Logical row index.
+    #[serde(default)]
+    pub row: RowIndex,
+    /// Logical column index.
+    #[serde(default)]
+    pub col: ColIndex,
+    /// Whether this is a home row key.
+    #[serde(default)]
+    pub is_home: bool,
+    /// Whether this key requires a stretch to reach.
+    #[serde(default)]
+    pub is_stretch: bool,
+}
+
+impl Default for KeyNode {
+    fn default() -> Self {
+        Self {
+            index: 0,
+            label: String::new(),
+            x: 0.0,
+            y: 0.0,
+            w: 1.0,
+            h: 1.0,
+            r: 0.0,
+            rx: 0.0,
+            ry: 0.0,
+            hand: HandIndex::default(),
+            finger: FingerIndex::default(),
+            row: RowIndex::default(),
+            col: ColIndex::default(),
+            is_home: false,
+            is_stretch: false,
+        }
+    }
+}
+
+fn default_size() -> f32 { 1.0 }
+fn default_home_row() -> i8 { 1 }
+
+/// Collection of keys and slot definitions defining the keyboard geometry.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeyboardGeometry {
+    /// List of all physical keys.
+    pub keys: Vec<KeyNode>,
+    /// Indices of keys considered "Prime" (best positions).
+    pub prime_slots: Vec<KeyIndex>,
+    /// Indices of keys considered "Medium" quality.
+    pub med_slots: Vec<KeyIndex>,
+    /// Indices of keys considered "Low" quality.
+    pub low_slots: Vec<KeyIndex>,
+    /// The logical row index considered the "Home Row".
+    #[serde(default = "default_home_row")]
+    pub home_row: i8,
+}
+
+impl Validator for KeyboardGeometry {
+    fn validate(&self) -> Result<(), String> {
+        if self.keys.is_empty() {
+            return Err("Keyboard geometry must have at least one key".to_string());
+        }
+        if self.keys.len() > MAX_KEYBOARD_KEYS {
+            return Err(format!("Too many keys: {} (Max: {})", self.keys.len(), MAX_KEYBOARD_KEYS));
+        }
+
+        let prime: HashSet<_> = self.prime_slots.iter().collect();
+        let med: HashSet<_> = self.med_slots.iter().collect();
+        let low: HashSet<_> = self.low_slots.iter().collect();
+
+        if !prime.is_disjoint(&med) { return Err("Prime and Med slots overlap".to_string()); }
+        if !prime.is_disjoint(&low) { return Err("Prime and Low slots overlap".to_string()); }
+        if !med.is_disjoint(&low) { return Err("Med and Low slots overlap".to_string()); }
+
+        let total_slots = prime.len() + med.len() + low.len();
+        if total_slots != self.keys.len() {
+            return Err(format!("Slot definition incomplete. Covered {}/{} keys.", total_slots, self.keys.len()));
+        }
+
+        let max_idx = self.keys.len();
+        for &idx in self.prime_slots.iter().chain(&self.med_slots).chain(&self.low_slots) {
+            if (idx.0 as usize) >= max_idx {
+                return Err(format!("Slot index {} out of bounds (keys: {})", idx, max_idx));
+            }
+        }
+
+        for (i, key) in self.keys.iter().enumerate() {
+            if key.w <= 0.0 || key.h <= 0.0 { return Err(format!("Key #{} has invalid dimensions", i)); }
+            if key.hand.as_u8() > 1 { return Err(format!("Key #{} has invalid hand index {}", i, key.hand.as_u8())); }
+            if key.finger.as_u8() > 4 { return Err(format!("Key #{} has invalid finger index {}", i, key.finger.as_u8())); }
+        }
+        Ok(())
+    }
+}
+
+impl KeyboardDefinition {
+    /// Parses a keyboard definition from JSON, supporting both KeyForge format and KLE format.
+    pub fn parse(content: &str, name_hint: Option<&str>) -> Result<Self, String> {
+        if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(content) {
+            return Ok(def);
+        }
+        if let Ok(geom) = kle::parse_kle_json(content) {
+            let name = name_hint.unwrap_or("Imported Board").to_string();
+            return Ok(KeyboardDefinition {
+                meta: KeyboardMeta {
+                    name,
+                    author: "Imported from KLE".to_string(),
+                    kb_type: "imported".to_string(),
+                    ..Default::default()
+                },
+                geometry: geom,
+                layouts: HashMap::new(),
+            });
+        }
+        Err("Failed to parse keyboard JSON".to_string())
+    }
+}
+
+impl Default for KeyboardGeometry {
+    fn default() -> Self {
+        Self {
+            keys: Vec::new(),
+            prime_slots: Vec::new(),
+            med_slots: Vec::new(),
+            low_slots: Vec::new(),
+            home_row: 1,
+        }
+    }
+}
+
+impl KeyboardGeometry {
+    /// Returns the total number of keys.
+    pub fn key_count(&self) -> usize { self.keys.len() }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/geometry/mod.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/job.rs <<<<<<<<
+// libs/keyforge-model/src/job.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Job identification and hashing logic.
+//!
+//! This module provides the `JobIdentifier` used to uniquely identify 
+//! a specific optimization task based on its configuration.
+
+use crate::config::{CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
+use crate::geometry::KeyboardGeometry;
+use sha2::{Digest, Sha256};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+/// Unique identifier for a specific optimization job configuration.
+/// Generated by hashing the canonical representation of all inputs.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct JobIdentifier {
+    /// The hex-encoded SHA-256 hash.
+    pub hash: String,
+}
+
+use crate::error::ModelError;
+
+impl JobIdentifier {
+    /// Attempts to generate a Job ID from the constituent parts.
+    pub fn try_from_parts(
+        geometry: &KeyboardGeometry,
+        weights: &ScoringWeights,
+        params: &SearchParams,
+        pinned_keys: &[KeyConstraint],
+        corpus_name: &str,
+        cost_matrix: &CostMatrixSource,
+    ) -> Result<Self, ModelError> {
+        let mut hasher = Sha256::new();
+
+        fn feed<T: Serialize>(hasher: &mut Sha256, value: &T) -> Result<(), ModelError> {
+            // Use postcard for deterministic binary serialization
+            let bytes = postcard::to_stdvec(value)
+                .map_err(|e| ModelError::Serialization(e.to_string()))?;
+            hasher.update((bytes.len() as u64).to_le_bytes());
+            hasher.update(&bytes);
+            Ok(())
+        }
+
+        feed(&mut hasher, geometry)?;
+        feed(&mut hasher, weights)?;
+        feed(&mut hasher, params)?;
+
+        // Sort pins for canonicalization
+        let mut sorted_pins = pinned_keys.to_vec();
+        sorted_pins.sort_by(|a, b| a.index.cmp(&b.index));
+        feed(&mut hasher, &sorted_pins)?;
+
+        hasher.update((corpus_name.len() as u64).to_le_bytes());
+        hasher.update(corpus_name.as_bytes());
+
+        match cost_matrix {
+            CostMatrixSource::Predefined(s) => {
+                hasher.update(b"PRE");
+                hasher.update(s.as_bytes());
+            }
+        }
+
+        let result = hasher.finalize();
+        Ok(Self {
+            hash: hex::encode(result),
+        })
+    }
+
+    /// Generates a Job ID, returning a Result.
+    /// This replaces the panicking `from_parts` method.
+    pub fn from_parts(
+        geometry: &KeyboardGeometry,
+        weights: &ScoringWeights,
+        params: &SearchParams,
+        pinned_keys: &[KeyConstraint],
+        corpus_name: &str,
+        cost_matrix: &CostMatrixSource,
+    ) -> Result<Self, ModelError> {
+        Self::try_from_parts(
+            geometry,
+            weights,
+            params,
+            pinned_keys,
+            corpus_name,
+            cost_matrix,
+        )
+    }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/job.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/keyboard.rs <<<<<<<<
+// libs/keyforge-model/src/keyboard.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Keyboard aggregate and spatial logic.
+
+use serde::{Deserialize, Serialize};
+use crate::error::ForgeError;
+use crate::geometry::KeyNode;
+
+/// The physical reality of the device.
+/// Contains the set of keys and pre-calculated spatial data for scoring.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Keyboard {
+    /// The list of physical keys.
+    pub keys: Vec<KeyNode>,
+    /// The logical row index considered the "Home Row".
+    pub home_row: i8,
+    /// Pre-calculated centers for fingers [hand][finger] -> (x, y).
+    /// Used for distance calculations relative to the resting position.
+    pub finger_origins: Vec<Vec<(f32, f32)>>,
+    /// Pre-calculated squared distances between every pair of physical keys.
+    /// Index: [i * key_count + j] -> (dx^2, dy^2).
+    #[serde(skip)]
+    pub spatial_cache: Vec<(f32, f32)>,
+}
+
+impl Keyboard {
+    /// Creates a new Keyboard and pre-calculates finger origins.
+    pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Result<Self, ForgeError> {
+        if keys.is_empty() {
+            return Err(ForgeError::InvalidData("Keyboard must have at least one key".into()));
+        }
+
+        let mut kb = Self {
+            keys,
+            home_row,
+            finger_origins: Vec::new(),
+            spatial_cache: Vec::new(),
+        };
+        kb.calculate_origins();
+        kb.precompute_spatial_cache();
+        Ok(kb)
+    }
+
+    fn precompute_spatial_cache(&mut self) {
+        let n = self.keys.len();
+        let mut cache = vec![(0.0, 0.0); n * n];
+        for i in 0..n {
+            for j in 0..n {
+                let dx = self.keys[i].x - self.keys[j].x;
+                let dy = self.keys[i].y - self.keys[j].y;
+                cache[i * n + j] = (dx * dx, dy * dy);
+            }
+        }
+        self.spatial_cache = cache;
+    }
+
+    fn calculate_origins(&mut self) {
+        // 1. Determine dimensions
+        let max_hand = self.keys.iter().map(|k| k.hand.as_usize()).max().unwrap_or(0);
+        let max_finger = self.keys.iter().map(|k| k.finger.as_usize()).max().unwrap_or(0);
+
+        // 2. Initialize with (0,0)
+        self.finger_origins = vec![vec![(0.0, 0.0); max_finger + 1]; max_hand + 1];
+
+        // 3. Populate
+        for hand in 0..=max_hand {
+            for finger in 0..=max_finger {
+                // Find Home Row key for this finger
+                // Priority 1: Explicit is_home flag
+                let origin = self.keys.iter().find(|k| {
+                    k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.is_home
+                })
+                // Priority 2: Match home_row index
+                .or_else(|| self.keys.iter().find(|k| {
+                    k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.row.0 == self.home_row
+                }))
+                // Priority 3: Fallback to any key
+                .or_else(|| self.keys.iter().find(|k| {
+                    k.hand.as_usize() == hand && k.finger.as_usize() == finger
+                }));
+
+                if let Some(k) = origin {
+                    self.finger_origins[hand][finger] = (k.x, k.y);
+                }
+            }
+        }
+    }
+
+    /// Returns the number of keys on the keyboard.
+    pub fn count(&self) -> usize {
+        self.keys.len()
+    }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/keyboard.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/keycodes.rs <<<<<<<<
+// libs/keyforge-model/src/keycodes.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Key code definitions and registry.
+//!
+//! This module defines how logical key codes (like 'A' or 'Shift') are represented,
+//! named, and mapped to display labels.
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+use crate::validator::Validator;
+use crate::types::KeyCode;
+
+/// Definition of a logical key code (e.g., "KC_A").
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeycodeDefinition {
+    /// The numeric code.
+    pub code: KeyCode,
+    /// The canonical ID (e.g., "KC_A").
+    pub id: String,
+    /// The display label (e.g., "A").
+    pub label: String,
+    /// Alternative names (e.g., ["KC_1", "1"]).
+    pub aliases: Vec<String>,
+}
+
+impl Validator for KeycodeDefinition {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.trim().is_empty() {
+            return Err(format!("Keycode {} has empty ID", self.code));
+        }
+
+        if self.label.is_empty() {
+            return Err(format!("Keycode {} ({}) has empty label", self.code, self.id));
+        }
+        Ok(())
+    }
+}
+
+/// Registry for looking up key codes by name or ID.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeycodeRegistry {
+    /// List of all definitions.
+    pub definitions: Vec<KeycodeDefinition>,
+    #[serde(skip)]
+    name_to_code: HashMap<String, KeyCode>,
+    #[serde(skip)]
+    code_to_label: HashMap<KeyCode, String>,
+}
+
+impl Validator for KeycodeRegistry {
+    fn validate(&self) -> Result<(), String> {
+        let mut seen_codes = std::collections::HashSet::new();
+        let mut seen_ids = std::collections::HashSet::new();
+
+        for def in &self.definitions {
+            def.validate()?;
+            if !seen_codes.insert(def.code) {
+                return Err(format!("Duplicate KeyCode: {}", def.code));
+            }
+            if !seen_ids.insert(def.id.to_uppercase()) {
+                return Err(format!("Duplicate Key ID: {}", def.id));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl KeycodeRegistry {
+    /// Creates a new registry from a list of definitions.
+    pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
+        for def in &mut definitions {
+            // 0. QMK to ASCII Remapping (Heuristic fix for physics scoring)
+            if let Some(ascii) = qmk_to_ascii(def.code.0) {
+                def.code = KeyCode(ascii);
+            }
+
+            // 1. NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
+            // This ensures consistence between corpus text (which is lowercased for heatmaps) 
+            // and key definitions.
+            let val = def.code.0;
+            if (b'A'..=b'Z').contains(&(val as u8)) {
+                def.code = KeyCode((val as u8).to_ascii_lowercase() as u16);
+            }
+        }
+
+        // 2. DEDUPLICATE: If multiple definitions now have the same code (e.g. 'A' and 'a'), 
+        // keep the one with the lowercase code or the first one encountered.
+        let mut seen = std::collections::HashSet::new();
+        definitions.retain(|def| seen.insert(def.code));
+
+        let mut reg = Self {
+            definitions,
+            name_to_code: HashMap::new(),
+            code_to_label: HashMap::new(),
+        };
+        reg.rebuild_maps();
+        reg
+    }
+
+    /// Creates a registry with minimal defaults (KC_NO, KC_TRNS).
+    pub fn new_with_defaults() -> Self {
+        let defs = vec![
+            KeycodeDefinition {
+                code: KeyCode(0),
+                id: "KC_NO".into(),
+                label: " ".into(),
+                aliases: vec!["XXXXXXX".into()],
+            },
+            KeycodeDefinition {
+                code: KeyCode(1),
+                id: "KC_TRANSPARENT".into(),
+                label: "▽".into(),
+                aliases: vec!["KC_TRNS".into(), "_______".into()],
+            },
+        ];
+        Self::new(defs)
+    }
+
+    /// Rebuilds the internal lookup maps.
+    pub fn rebuild_maps(&mut self) {
+        self.name_to_code.clear();
+        self.code_to_label.clear();
+        for def in &self.definitions {
+            self.code_to_label.insert(def.code, def.label.clone());
+            self.name_to_code.insert(def.id.to_uppercase(), def.code);
+            self.name_to_code.insert(def.label.to_uppercase(), def.code);
+            for alias in &def.aliases {
+                self.name_to_code.insert(alias.to_uppercase(), def.code);
+            }
+        }
+    }
+
+    /// Looks up a KeyCode by name (case-insensitive).
+    pub fn get_code(&self, name: &str) -> Option<KeyCode> {
+        self.name_to_code.get(&name.to_uppercase()).copied()
+    }
+
+    /// Gets the display label for a KeyCode.
+    pub fn get_label(&self, code: KeyCode) -> String {
+        self.code_to_label.get(&code).cloned().unwrap_or_else(|| format!("[{}]", code))
+    }
+}
+
+fn qmk_to_ascii(qmk: u16) -> Option<u16> {
+    match qmk {
+        4..=29 => Some(qmk - 4 + 97),   // a-z
+        30..=38 => Some(qmk - 30 + 49), // 1-9
+        39 => Some(48),                 // 0
+        40 => Some(10),                 // Enter
+        41 => Some(27),                 // Escape
+        42 => Some(8),                  // Backspace
+        43 => Some(9),                  // Tab
+        44 => Some(32),                 // Space
+        45 => Some(45),                 // -
+        46 => Some(61),                 // =
+        47 => Some(91),                 // [
+        48 => Some(93),                 // ]
+        49 => Some(92),                 // \
+        51 => Some(59),                 // ;
+        52 => Some(39),                 // '
+        53 => Some(96),                 // `
+        54 => Some(44),                 // ,
+        55 => Some(46),                 // .
+        56 => Some(47),                 // /
+        _ => None,
+    }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/keycodes.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/layout.rs <<<<<<<<
+// libs/keyforge-model/src/layout.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Layout entity and related logic.
+//!
+//! A `Layout` represents a complete mapping of logical `KeyCode`s to physical 
+//! `KeyIndex` positions on a keyboard.
+
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+pub use crate::types::{KeyCode, KeyIndex};
+
+/// Errors related to Layout construction and validation.
+#[derive(Error, Debug)]
+pub enum LayoutError {
+    /// Layout contains the same key code multiple times.
+    #[error("Layout contains duplicate keys")]
+    DuplicateKeys,
+}
+
+/// A specific mapping of KeyCodes to physical positions.
+/// The index in the vector corresponds to the `KeyIndex`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct Layout {
+    /// The list of keys.
+    /// The index corresponds to the KeyIndex.
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Vec<KeyCode>"))]
+    pub keys: Vec<KeyCode>,
+}
+
+impl Layout {
+    /// Creates a layout without validation.
+    /// Use `try_from` for safe construction.
+    pub fn new_unchecked(keys: Vec<KeyCode>) -> Self {
+        Self {
+            keys,
+        }
+    }
+
+    /// Returns the number of keys in the layout.
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    /// Returns true if the layout has no keys.
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+}
+
+impl TryFrom<Vec<KeyCode>> for Layout {
+    type Error = LayoutError;
+
+    fn try_from(keys: Vec<KeyCode>) -> Result<Self, Self::Error> {
+        // Validation Logic: Check for duplicates
+        for i in 0..keys.len() {
+            for j in (i + 1)..keys.len() {
+                if keys[i] == keys[j] {
+                    return Err(LayoutError::DuplicateKeys);
+                }
+            }
+        }
+
+        Ok(Self {
+            keys,
+        })
+    }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/layout.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/lib.rs <<<<<<<<
+// libs/keyforge-model/src/lib.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! # KeyForge Model
+//!
+//! The Domain Nucleus of the KeyForge system. This crate defines the "Ubiquitous Language"
+//! (Entities, Value Objects, Aggregates) used throughout the application.
+//!
+//! ## Core Concepts
+//!
+//! * **Physical Domain:** [`Keyboard`], [`KeyNode`], [`KeyIndex`].
+//! * **Logical Domain:** [`Layout`], [`KeyCode`].
+//! * **Analysis Domain:** [`Corpus`], [`Rubric`], [`Score`].
+//! * **Optimization Domain:** [`SearchConfig`], [`OptimizationResult`].
+//!
+//! ## Invariants
+//!
+//! This crate enforces validity through the Type System (Newtypes) and `TryFrom` implementations.
+//! It adheres to the "Parse, Don't Validate" philosophy.
+
+#![warn(missing_docs)]
+
+/// Configuration aggregates and parameter definitions.
+pub mod config;
+/// Global constants and safety limits.
+pub mod constants;
+/// Text corpus data structures (N-grams, frequencies).
+pub mod corpus;
+/// Data structures for the external Cost Matrix (Physics Model).
+pub mod cost_model;
+/// Centralized error types for the domain.
+pub mod error;
+/// Physical keyboard geometry and spatial definitions.
+pub mod geometry;
+/// Job identification and hashing logic.
+pub mod job;
+/// The `Keyboard` aggregate root.
+pub mod keyboard;
+/// Key code definitions and registry.
+pub mod keycodes;
+/// The `Layout` entity (logical mapping).
+pub mod layout;
+/// Parsing logic for keymap formats (QMK/ZMK).
+pub mod parsing;
+/// Scoring configuration and weights.
+pub mod rubric;
+/// Core newtypes (`KeyIndex`, `Score`, etc.).
+pub mod types;
+/// Internal utilities (private).
+pub mod utils;
+/// Validation traits and helpers.
+pub mod validator;
+
+
+pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
+pub use corpus::Corpus;
+pub use cost_model::CostModel;
+pub use error::ForgeError;
+pub use geometry::{KeyboardDefinition, KeyboardGeometry, KeyNode};
+pub use job::JobIdentifier;
+pub use keyboard::Keyboard;
+pub use keycodes::KeycodeRegistry;
+pub use layout::Layout;
+pub use rubric::Rubric;
+pub use types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, Score};
+pub use validator::{LayoutValidator, Validator};
+
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+/// Configuration for the optimization search strategy.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub enum SearchConfig {
+    /// Simulated Annealing strategy.
+    Annealing {
+        /// Total number of mutation steps.
+        steps: usize,
+        /// Initial temperature (higher = more chaotic).
+        start_temp: f32,
+        /// Final temperature (lower = more greedy).
+        end_temp: f32,
+        /// PRNG seed for deterministic replay.
+        seed: u64,
+        /// Steps without improvement before reheating.
+        patience: usize,
+        /// Number of times to reheat.
+        reheats: usize,
+        /// Multiplier for `start_temp` when reheating.
+        reheat_factor: f32,
+        /// Whether to include thumb keys in swap suggestions.
+        #[serde(default)]
+        include_thumbs: bool,
+    },
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self::Annealing {
+            steps: 100_000,
+            start_temp: 100.0,
+            end_temp: 0.01,
+            seed: 42,
+            patience: 500,
+            reheats: 3,
+            reheat_factor: 0.5,
+            include_thumbs: false,
+        }
+    }
+}
+
+impl SearchConfig {
+    /// Validates that configuration parameters are within safe bounds.
+    /// Validates the search parameters.
+    ///
+    /// # Errors
+    /// Returns a `ForgeError` if the parameters are out of reasonable bounds.
+    pub fn validate(&self) -> Result<(), ForgeError> {
+        match self {
+            SearchConfig::Annealing {
+                steps,
+                start_temp,
+                end_temp,
+                reheat_factor,
+                ..
+            } => {
+                if *steps == 0 {
+                    return Err(ForgeError::InvalidData("Steps must be > 0".into()));
+                }
+                if *start_temp < 0.0 {
+                    return Err(ForgeError::InvalidData("Start temp must be >= 0".into()));
+                }
+                if *end_temp < 0.0 {
+                    return Err(ForgeError::InvalidData("End temp must be >= 0".into()));
+                }
+                if *reheat_factor <= 0.0 {
+                    return Err(ForgeError::InvalidData("Reheat factor must be > 0".into()));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Returns whether thumb keys should be included in swap suggestions.
+    pub fn include_thumbs(&self) -> bool {
+        match self {
+            SearchConfig::Annealing { include_thumbs, .. } => *include_thumbs,
+        }
+    }
+}
+
+/// Represents a specific N-gram that violates a metric threshold.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct MetricViolation {
+    /// The keys involved (e.g., "TH").
+    pub keys: String,
+    /// The cost contribution of this violation.
+    pub score: f32,
+    /// The frequency of this N-gram.
+    pub freq: f32,
+}
+
+/// Detailed breakdown of a layout's performance.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct AnalysisReport {
+    /// Total weighted score (lower is better).
+    pub score: f32,
+    /// Total finger travel distance.
+    pub distance: f32,
+    /// Average travel distance per keypress.
+    pub travel_per_key: f32,
+    /// Total Same Finger Bigram cost.
+    pub sfb_total: f32,
+    /// Ratio of SFBs to total bigrams.
+    pub sfb_ratio: f32,
+    /// Hand balance (-1.0 Left, +1.0 Right, 0.0 Balanced).
+    pub hand_balance: f32,
+    /// Scissor (adjacent finger stretch) score.
+    pub scissors: f32,
+    /// Redirect (direction change) score.
+    pub redirects: f32,
+    /// Inward roll score.
+    pub rolls: f32,
+    /// Total penalty contribution from SFBs.
+    #[serde(default)]
+    pub sfb_penalty: f32,
+    /// Total penalty contribution from scissors.
+    #[serde(default)]
+    pub scissor_penalty: f32,
+    /// Total penalty contribution from redirects.
+    #[serde(default)]
+    pub redir_penalty: f32,
+    /// Total penalty contribution from rolls.
+    #[serde(default)]
+    pub roll_penalty: f32,
+    /// Per-key usage heatmap.
+    #[serde(default)]
+    pub heatmap: Vec<f32>,
+    /// Per-key penalty heatmap (Effort).
+    #[serde(default)]
+    pub penalty_map: Vec<f32>,
+    /// Top SFB offenders.
+    #[serde(default)]
+    pub top_sfbs: Vec<MetricViolation>,
+    /// Top Scissor offenders.
+    #[serde(default)]
+    pub top_scissors: Vec<MetricViolation>,
+    /// Top Redirect offenders.
+    #[serde(default)]
+    pub top_redirs: Vec<MetricViolation>,
+}
+
+/// The final output of an optimization run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct OptimizationResult {
+    /// The final score achieved.
+    pub score: f32,
+    /// The optimized layout.
+    pub layout: Layout,
+}
+
+/// A proposed change to the layout during optimization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct SwapSuggestion {
+    /// Index of the first key.
+    pub index_a: usize,
+    /// Index of the second key.
+    pub index_b: usize,
+    /// Label of the first key.
+    pub key_a: String,
+    /// Label of the second key.
+    pub key_b: String,
+    /// Change in score (negative is improvement).
+    pub score_delta: f32,
+    /// Percentage improvement.
+    pub improvement_pct: f32,
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/lib.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/parsing.rs <<<<<<<<
+// libs/keyforge-model/src/parsing.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Parsing logic for keymap formats.
+//!
+//! This module provides utilities for parsing external keymap formats 
+//! (like QMK or ZMK) into internal domain representations.
+
+
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+/// A parsable key action from an external format.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub enum KeyAction {
+    /// A simple keycode (e.g., "KC_A").
+    Simple(String),
+    /// Transparent (pass-through).
+    Transparent,
+    /// No Operation.
+    NoOp,
+    /// Momentary layer switch (MO).
+    LayerMomentary(u8),
+    /// Toggle layer (TG).
+    LayerToggle(u8),
+    /// Turn on layer (TO).
+    LayerOn(u8),
+    /// Modifier Tap (Hold for Mod, Tap for Key).
+    ModTap { 
+        /// The modifier (e.g., "LSHIFT").
+        mod_name: String, 
+        /// The tap key (recursive).
+        key: Box<KeyAction> 
+    },
+    /// Layer Tap (Hold for Layer, Tap for Key).
+    LayerTap { 
+        /// The layer index.
+        layer: u8, 
+        /// The tap key (recursive).
+        key: Box<KeyAction> 
+    },
+    /// Sticky Modifier (One-Shot Mod).
+    StickyMod(String),
+    /// Caps Word behavior.
+    CapsWord,
+    /// Unparsed raw string.
+    Raw(String),
+}
+
+/// Parses a string token into a `KeyAction` using a recursive descent approach.
+pub fn parse_key(token: &str) -> KeyAction {
+    let t = token.trim();
+    if t.len() > 100 { // Safety check for recursion depth/exploit
+        return KeyAction::Raw(t.to_string());
+    }
+    let upper = t.to_uppercase();
+
+    // 1. Simple Keywords
+    match upper.as_str() {
+        "TRNS" | "_______" | "_" => return KeyAction::Transparent,
+        "NO" | "XXXXXXX" | "XXX" => return KeyAction::NoOp,
+        "CAPS_WORD" | "CW" => return KeyAction::CapsWord,
+        _ => {}
+    }
+
+    // 2. Function Call Parsing (NAME(ARG, ...))
+    if let Some((name, args_str)) = parse_function_call(&upper) {
+        match name {
+            "MO" => {
+                if let Ok(l) = args_str.parse::<u8>() { return KeyAction::LayerMomentary(l); }
+            },
+            "TG" => {
+                if let Ok(l) = args_str.parse::<u8>() { return KeyAction::LayerToggle(l); }
+            },
+            "TO" => {
+                if let Ok(l) = args_str.parse::<u8>() { return KeyAction::LayerOn(l); }
+            },
+            "LT" => {
+                if let Some((layer_str, key_str)) = split_args_safe(&args_str) {
+                    if let Ok(layer) = layer_str.trim().parse::<u8>() {
+                        // RECURSIVE CALL
+                        let key_action = parse_key(&key_str); 
+                        return KeyAction::LayerTap { layer, key: Box::new(key_action) };
+                    }
+                }
+            },
+            "MT" => {
+                if let Some((mod_str, key_str)) = split_args_safe(&args_str) {
+                    let key_action = parse_key(&key_str);
+                    return KeyAction::ModTap { 
+                        mod_name: mod_str.trim().to_string(), 
+                        key: Box::new(key_action) 
+                    };
+                }
+            },
+            "SK" | "OSM" => {
+                return KeyAction::StickyMod(args_str.trim().to_string());
+            },
+            _ if name.ends_with("_T") => {
+                // MOD_T(KEY) or LSHIFT_T(KEY)
+                // Extract mod name from function name
+                let mod_name = name.trim_end_matches("_T").to_string();
+                let key_action = parse_key(&args_str);
+                return KeyAction::ModTap { mod_name, key: Box::new(key_action) };
+            }
+            _ => {}
+        }
+    }
+
+    // 3. Fallback to Simple
+    if t.contains('(') || t.contains(')') { return KeyAction::Raw(t.to_string()); }
+    
+    // Normalize simple keys
+    if !upper.starts_with("KC_") && upper.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        // Avoid adding KC_ to numbers if they are just raw numbers? 
+        // QMK usually likes KC_1. 
+        // But let's stick to existing behavior: alphanumeric -> KC_
+        return KeyAction::Simple(format!("KC_{}", upper));
+    }
+
+    KeyAction::Simple(t.to_string())
+}
+
+/// Helper: Extracts `NAME` and `ARGS` from `NAME(ARGS)`.
+fn parse_function_call(s: &str) -> Option<(&str, String)> {
+    if let Some(idx) = s.find('(') {
+        if s.ends_with(')') {
+            let name = &s[..idx];
+            let args = &s[idx+1..s.len()-1];
+            return Some((name.trim(), args.to_string()));
+        }
+    }
+    None
+}
+
+/// Helper: Splits arguments by comma, respecting nested parentheses.
+fn split_args_safe(s: &str) -> Option<(String, String)> {
+    let mut depth = 0;
+    for (i, c) in s.chars().enumerate() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            ',' if depth == 0 => {
+                let first = s[..i].to_string();
+                let second = s[i+1..].to_string();
+                return Some((first, second));
+            },
+            _ => {}
+        }
+    }
+    None
+}
+
+
+>>>>>>>> END FILE: libs/keyforge-model/src/parsing.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/rubric.rs <<<<<<<<
+// libs/keyforge-model/src/rubric.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Scoring configuration and weights.
+//!
+//! A `Rubric` defines the cost parameters used by the physics engine 
+//! to evaluate the efficiency of a layout.
+
+use serde::{Deserialize, Serialize};
+use crate::error::ForgeError;
+// use crate::constants::*; // No longer needed
+
+/// Configuration for the Physics Engine.
+/// Defines "What is expensive?" by assigning weights to physical movements.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Rubric {
+    // --- Monograms ---
+    /// Effort multipliers for each finger (0=Thumb, 4=Pinky).
+    pub finger_effort: [f32; 5],
+    /// Weight for lateral finger travel.
+    pub travel_lat: f32,
+    /// Weight for vertical finger travel.
+    pub travel_vert: f32,
+
+    // --- Bigrams (Same Finger) ---
+    /// Base penalty for Same Finger Bigrams.
+    pub sfb_base: f32,
+    /// Penalty for lateral SFBs.
+    pub sfb_lateral: f32,
+    /// Penalty for lateral SFB on a weak finger.
+    pub sfb_lateral_weak: f32,
+    /// Penalty for diagonal SFBs.
+    pub sfb_diagonal: f32,
+    /// Penalty for long-distance SFBs.
+    pub sfb_long: f32,
+    /// Row difference threshold for "long" SFBs.
+    pub threshold_sfb_long_row_diff: i8,
+
+    // --- Bigrams (Adjacent Finger) ---
+    /// Penalty for scissor (adjacent finger stretch) movements.
+    pub penalty_scissor: f32,
+    /// Row difference threshold for scissors.
+    pub threshold_scissor_row_diff: i8,
+
+    // --- Flow & Trigrams ---
+    /// Penalty for redirects (direction changes).
+    pub redirect: f32,
+    /// Bonus for inward rolls.
+    pub roll_bonus: f32,
+    /// Required trigram coverage ratio.
+    pub trigram_coverage: f32,
+    /// Maximum number of trigrams to consider.
+    pub trigram_limit: usize,
+}
+
+impl Default for Rubric {
+    fn default() -> Self {
+        Self {
+            finger_effort: [1.0, 1.0, 1.1, 1.3, 1.6],
+            travel_lat: 3.5,
+            travel_vert: 1.0,
+            sfb_base: 400.0,
+            sfb_lateral: 65.0,
+            sfb_lateral_weak: 160.0,
+            sfb_diagonal: 240.0,
+            sfb_long: 280.0,
+            threshold_sfb_long_row_diff: 2,
+            penalty_scissor: 25.0,
+            threshold_scissor_row_diff: 2,
+            redirect: 65.0,
+            roll_bonus: 35.0,
+            trigram_coverage: 0.99,
+            trigram_limit: 50_000,
+        }
+    }
+}
+
+impl Rubric {
+    /// Validates the rubric configuration.
+    pub fn validate(&self) -> Result<(), ForgeError> {
+        if self.trigram_coverage < 0.0 || self.trigram_coverage > 1.0 {
+            return Err(ForgeError::InvalidData(format!(
+                "Trigram coverage must be between 0.0 and 1.0, found {}",
+                self.trigram_coverage
+            )));
+        }
+        if self.trigram_limit == 0 {
+            return Err(ForgeError::InvalidData(
+                "Trigram limit must be greater than 0".into(),
+            ));
+        }
+        // Basic sanity checks for weights (optional, but good practice)
+        if self.sfb_base < 0.0 || self.sfb_lateral < 0.0 {
+             return Err(ForgeError::InvalidData(
+                "SFB penalties cannot be negative".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/rubric.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/types.rs <<<<<<<<
+// libs/keyforge-model/src/types.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+use crate::constants::SCORE_SCALE;
+
+/// Unique identifier for a physical key position on the keyboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct KeyIndex(pub u16);
+
+impl fmt::Display for KeyIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
+}
+impl From<usize> for KeyIndex { fn from(idx: usize) -> Self { KeyIndex(idx as u16) } }
+impl From<KeyIndex> for usize { fn from(idx: KeyIndex) -> Self { idx.0 as usize } }
+
+/// Logical identifier for a character or action (e.g., 'A', 'Shift').
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct KeyCode(pub u16);
+
+impl From<u16> for KeyCode { fn from(val: u16) -> Self { Self(val) } }
+impl From<KeyCode> for u16 { fn from(val: KeyCode) -> u16 { val.0 } }
+impl fmt::Display for KeyCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
+}
+
+/// Identifier for a hand (Left=0, Right=1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct HandIndex(pub u8);
+
+impl HandIndex {
+    /// Left hand index (0).
+    pub const LEFT: Self = Self(0);
+    /// Right hand index (1).
+    pub const RIGHT: Self = Self(1);
+    
+    /// Returns the raw `u8` value.
+    pub fn as_u8(&self) -> u8 { self.0 }
+    /// Returns the value as `usize`.
+    pub fn as_usize(&self) -> usize { self.0 as usize }
+    /// Returns true if this is the left hand.
+    pub fn is_left(&self) -> bool { self.0 == 0 }
+    /// Returns true if this is the right hand.
+    pub fn is_right(&self) -> bool { self.0 == 1 }
+}
+impl Default for HandIndex { fn default() -> Self { Self::LEFT } }
+impl TryFrom<u8> for HandIndex {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value > 1 { Err(format!("Invalid HandIndex: {}", value)) } else { Ok(Self(value)) }
+    }
+}
+
+/// Identifier for a finger (Thumb=0 to Pinky=4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct FingerIndex(pub u8);
+
+impl FingerIndex {
+    /// Thumb index (0).
+    pub const THUMB: Self = Self(0);
+    /// Index finger index (1).
+    pub const INDEX: Self = Self(1);
+    /// Middle finger index (2).
+    pub const MIDDLE: Self = Self(2);
+    /// Ring finger index (3).
+    pub const RING: Self = Self(3);
+    /// Pinky finger index (4).
+    pub const PINKY: Self = Self(4);
+    
+    /// Returns the raw `u8` value.
+    pub fn as_u8(&self) -> u8 { self.0 }
+    /// Returns the value as `usize`.
+    pub fn as_usize(&self) -> usize { self.0 as usize }
+    
+    /// Calculates the absolute distance between two fingers.
+    pub fn distance(&self, other: Self) -> u8 {
+        (self.0 as i8 - other.0 as i8).abs() as u8
+    }
+    
+    /// Calculates the signed difference between two fingers.
+    pub fn diff(&self, other: Self) -> i8 {
+        self.0 as i8 - other.0 as i8
+    }
+    
+    /// Returns true if this is considered a "weak" finger (Ring or Pinky).
+    pub fn is_weak(&self) -> bool {
+        self.0 == 3 || self.0 == 4
+    }
+}
+impl Default for FingerIndex { fn default() -> Self { Self::INDEX } }
+impl TryFrom<u8> for FingerIndex {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value > 4 { Err(format!("Invalid FingerIndex: {}", value)) } else { Ok(Self(value)) }
+    }
+}
+
+/// Row index.
+///
+/// Typically: Home=0, Top<0, Bottom>0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct RowIndex(pub i8);
+
+impl std::ops::Sub for RowIndex {
+    type Output = i8;
+    fn sub(self, rhs: Self) -> Self::Output { self.0 - rhs.0 }
+}
+
+/// Column index.
+///
+/// Positive values are typically to the right, negative to the left, 
+/// with 0 being a reference column (e.g., center or pinky column).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct ColIndex(pub i8);
+
+impl std::ops::Sub for ColIndex {
+    type Output = i8;
+    fn sub(self, rhs: Self) -> Self::Output { self.0 - rhs.0 }
+}
+
+/// Fixed-point score value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct Score(pub i64);
+
+impl Score {
+    /// Maximum possible score.
+    pub const MAX: Score = Score(i64::MAX);
+    /// Minimum possible score.
+    pub const MIN: Score = Score(i64::MIN);
+    /// Zero score.
+    pub const ZERO: Score = Score(0);
+
+    /// Creates a Score from a float value, applying scaling.
+    pub fn from_f32(val: f32) -> Self {
+        Score((val * SCORE_SCALE) as i64)
+    }
+
+    /// Creates a Score from a raw i64 that is already scaled.
+    /// Use this when deserializing or loading pre-calculated values.
+    pub fn from_scaled_i64(val: i64) -> Self {
+        Score(val)
+    }
+
+    /// Converts the Score back to a float, removing scaling.
+    pub fn to_f32(self) -> f32 {
+        self.0 as f32 / SCORE_SCALE
+    }
+
+    /// Saturating addition.
+    pub fn saturating_add(self, other: Score) -> Score {
+        Score(self.0.saturating_add(other.0))
+    }
+    
+    /// Saturating subtraction.
+    pub fn saturating_sub(self, other: Score) -> Score {
+        Score(self.0.saturating_sub(other.0))
+    }
+    
+    /// Saturating multiplication by an integer factor.
+    pub fn saturating_mul(self, factor: i64) -> Score {
+        Score(self.0.saturating_mul(factor))
+    }
+}
+
+impl std::ops::Add for Score {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output { 
+        match self.0.checked_add(rhs.0) {
+            Some(val) => Score(val),
+            None => {
+                tracing::error!(
+                    lhs = self.0, 
+                    rhs = rhs.0, 
+                    "CRITICAL BUG: Score Overflow in Addition! Saturating."
+                );
+                // Saturate based on direction of addition
+                if rhs.0 >= 0 { Score::MAX } else { Score::MIN }
+            }
+        }
+    }
+}
+
+impl std::ops::Sub for Score {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output { 
+        match self.0.checked_sub(rhs.0) {
+            Some(val) => Score(val),
+            None => {
+                tracing::error!(
+                    lhs = self.0, 
+                    rhs = rhs.0, 
+                    "CRITICAL BUG: Score Overflow in Subtraction! Saturating."
+                );
+                // Saturate based on direction of subtraction
+                if rhs.0 >= 0 { Score::MIN } else { Score::MAX }
+            }
+        }
+    }
+}
+
+/// Preference for which hand should handle Space keys.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(rename_all = "lowercase")]
+pub enum SpaceHandPreference {
+    /// Only use left hand for space.
+    Left,
+    /// Only use right hand for space.
+    Right,
+    /// Use both hands (load balanced).
+    #[default]
+    Bilateral,
+}
+>>>>>>>> END FILE: libs/keyforge-model/src/types.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/utils/mod.rs <<<<<<<<
+// libs/keyforge-model/src/utils/mod.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Internal utilities for the keyforge-model crate.
+//!
+//! These helpers are `pub(crate)` and are not exposed to the public API.
+
+/// Helper for serde `skip_serializing_if` to satisfy `ts-rs` parser.
+///
+/// This is required because `ts-rs` sometimes struggles to infer optionality
+/// from `Option<T>` alone when generating interaction definitions.
+pub(crate) fn is_none<T>(option: &Option<T>) -> bool {
+    option.is_none()
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/utils/mod.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/src/validator.rs <<<<<<<<
+// libs/keyforge-model/src/validator.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+//! Validation traits and helpers.
+
+/// Trait for types that require complex validation logic beyond type checking.
+pub trait Validator {
+    /// Validates the internal state of the object.
+    /// Returns `Ok(())` if valid, or an error message if invalid.
+    fn validate(&self) -> Result<(), String>;
+}
+
+/// Helper for validating layout strings.
+#[derive(Debug)]
+pub struct LayoutValidator;
+impl LayoutValidator {
+    /// Checks if a layout string has basic structural integrity.
+    pub fn validate_structure(layout: &str) -> Result<(), String> {
+        if layout.trim().is_empty() {
+            return Err("Layout is empty".to_string());
+        }
+        if layout.split_whitespace().count() < 10 {
+            return Err("Layout has too few keys".to_string());
+        }
+        Ok(())
+    }
+}
+
+>>>>>>>> END FILE: libs/keyforge-model/src/validator.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/tests/lifecycle.rs <<<<<<<<
+// libs/keyforge-model/tests/lifecycle.rs
+
+//! Integration tests for the end-to-end lifecycle of domain entities. Verifies the
+//! successful transition of Corpora, Rubrics, and KeyboardDefinitions through default
+//! construction, manual mutation, and JSON serialization/deserialization cycles, ensuring
+//! state parity and data integrity.
+
+
+use keyforge_model::{Corpus, Rubric, Score, KeyboardDefinition};
+use serde_json;
+
+#[test]
+fn test_corpus_lifecycle() {
+    // 1. Default Construction
+    let mut c = Corpus::default();
+    assert_eq!(
+        c.char_freqs.len(),
+        65536,
+        "Corpus should initialize full unicode frequency map"
+    );
+    assert!(c.bigrams.is_empty());
+    assert!(c.trigrams.is_empty());
+    assert!(c.words.is_empty());
+
+    // 2. Mutation
+    c.char_freqs['a' as usize] = 100;
+    c.bigrams.push(('a' as u16, 'b' as u16, 50));
+    c.trigrams.push(('a' as u16, 'b' as u16, 'c' as u16, 10));
+    c.words.push(("test".to_string(), 5));
+
+    // 3. Serialization Round-trip
+    let json = serde_json::to_string(&c).expect("Failed to serialize Corpus");
+    let recovered: Corpus = serde_json::from_str(&json).expect("Failed to deserialize Corpus");
+
+    // 4. Verification
+    assert_eq!(recovered.char_freqs['a' as usize], 100);
+    assert_eq!(recovered.bigrams.len(), 1);
+    assert_eq!(recovered.bigrams[0], ('a' as u16, 'b' as u16, 50));
+    assert_eq!(recovered.trigrams.len(), 1);
+    assert_eq!(recovered.words.len(), 1);
+    assert_eq!(recovered.words[0].0, "test");
+}
+
+#[test]
+fn test_rubric_lifecycle() {
+    // 1. Default Construction
+    let r = Rubric::default();
+
+    // Check key defaults to ensure physics engine gets sensible start values
+    assert!(r.sfb_base > 0.0);
+    assert!(r.travel_lat > 0.0);
+    assert!(r.travel_vert > 0.0);
+    assert_eq!(r.finger_effort.len(), 5);
+
+    // 2. Serialization Round-trip
+    let json = serde_json::to_string(&r).expect("Failed to serialize Rubric");
+    let recovered: Rubric = serde_json::from_str(&json).expect("Failed to deserialize Rubric");
+
+    // 3. Verification
+    assert_eq!(r.sfb_base, recovered.sfb_base);
+    assert_eq!(r.finger_effort, recovered.finger_effort);
+}
+
+#[test]
+fn test_rubric_modification() {
+    let mut r = Rubric::default();
+    r.sfb_base = 1000.0;
+    r.finger_effort[4] = 5.0; // Pinky penalty
+
+    assert_eq!(r.sfb_base, 1000.0);
+    assert_eq!(r.finger_effort[4], 5.0);
+}
+
+#[test]
+fn test_score_overflow_logging() {
+    let max = Score::MAX;
+    
+    // This will trigger a tracing::error! log but should NOT crash.
+    // It should saturate to MAX.
+    let added = max + Score(100);
+    assert_eq!(added, Score::MAX);
+
+    let min = Score::MIN;
+    
+    // This will trigger a tracing::error! log but should NOT crash.
+    // It should saturate to MIN.
+    let subbed = min - Score(100);
+    assert_eq!(subbed, Score::MIN);
+}
+
+#[test]
+fn test_keyboard_definition_deserialization() {
+    // Tests deserialization of a known complex geometry (SZR35)
+    let json = r#"{
+      "meta": {
+        "name": "SZR35",
+        "author": "KeyForge",
+        "version": "1.0",
+        "notes": "36-key Split Column-Staggered (3x5+3).",
+        "type": "split_column_staggered"
+      },
+      "geometry": {
+        "keys": [
+          {"id": "KeyQ", "x": 0, "y": 0.5, "hand": 0, "finger": 4, "row": 0, "col": 0},
+          {"id": "KeyW", "x": 1, "y": 0.25, "hand": 0, "finger": 3, "row": 0, "col": 1}
+        ],
+        "prime_slots": [0, 1],
+        "med_slots": [],
+        "low_slots": [],
+        "home_row": 1
+      },
+      "layouts": {}
+    }"#;
+
+    let def: KeyboardDefinition = serde_json::from_str(json).expect("Failed to deserialize KeyboardDefinition");
+    assert_eq!(def.geometry.keys.len(), 2, "Should have 2 keys");
+    assert_eq!(def.geometry.keys[0].label, "KeyQ", "Label should be KeyQ");
+}
+>>>>>>>> END FILE: libs/keyforge-model/tests/lifecycle.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/tests/parsing.rs <<<<<<<<
+// libs/keyforge-model/tests/parsing.rs
+
+//! Integration tests for QMK/ZMK-style keycode parsing and Keyboard Layout Editor (KLE) JSON ingestion.
+//! Verifies that complex key actions like Layer Tap (LT) and Momentary (MO) are correctly serialized
+//! from string definitions.
+
+
+use keyforge_model::parsing::{parse_key, KeyAction};
+use keyforge_model::geometry::KeyboardDefinition;
+
+#[test]
+fn test_key_action_parsing() {
+    assert_eq!(parse_key("KC_A"), KeyAction::Simple("KC_A".to_string()));
+    assert_eq!(parse_key("TRNS"), KeyAction::Transparent);
+    
+    match parse_key("MO(1)") {
+        KeyAction::LayerMomentary(1) => {},
+        _ => panic!("Failed to parse MO(1)"),
+    }
+
+    match parse_key("LT(2, KC_SPC)") {
+        KeyAction::LayerTap { layer: 2, key } => assert_eq!(*key, KeyAction::Simple("KC_SPC".to_string())),
+        _ => panic!("Failed to parse LT"),
+    }
+
+    // Verify recurisve parsing
+    match parse_key("MT(MOD_LCTL, LT(1, A))") {
+        KeyAction::ModTap { mod_name, key } => {
+            assert_eq!(mod_name, "MOD_LCTL");
+            match *key {
+                KeyAction::LayerTap { layer: 1, key: inner_key } => {
+                    assert_eq!(*inner_key, KeyAction::Simple("KC_A".to_string()));
+                },
+                _ => panic!("Failed to parse nested LT"),
+            }
+        },
+        _ => panic!("Failed to parse nested ModTap"),
+    }
+}
+
+#[test]
+fn test_kle_import() {
+    // Minimal KLE JSON
+    let json = r#"[
+        {"meta": {"name": "Test"}},
+        [{"x":0},"A",{"x":1},"B"]
+    ]"#;
+    
+    // Note: KeyboardDefinition::parse handles KLE detection
+    let def = KeyboardDefinition::parse(json, Some("Test Board"));
+    
+    if let Ok(kb) = def {
+        assert_eq!(kb.meta.name, "Test Board");
+        assert_eq!(kb.geometry.keys.len(), 2);
+    }
+}
+>>>>>>>> END FILE: libs/keyforge-model/tests/parsing.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/tests/properties.rs <<<<<<<<
+// libs/keyforge-model/tests/properties.rs
+
+//! Property-based integration tests for the KeyForge model. Uses `proptest` to verify that
+//! the `Layout` entity's uniqueness invariant (enforced via `HashSet` insertion) holds true
+//! across thousands of random key sequence permutations.
+
+
+use keyforge_model::{Layout, KeyCode};
+use proptest::prelude::*;
+use std::collections::HashSet;
+
+proptest! {
+    #[test]
+    fn test_layout_uniqueness_invariant(keys in prop::collection::vec(0u16..100, 0..50)) {
+        let mut set = HashSet::new();
+        let has_dupes = keys.iter().any(|&k| !set.insert(k));
+
+        let key_codes: Vec<KeyCode> = keys.into_iter().map(KeyCode).collect();
+        let result = Layout::try_from(key_codes);
+
+        if has_dupes {
+            prop_assert!(result.is_err());
+        } else {
+            prop_assert!(result.is_ok());
+        }
+    }
+}
+>>>>>>>> END FILE: libs/keyforge-model/tests/properties.rs <<<<<<<<
+>>>>>>>> START FILE: libs/keyforge-model/tests/validation.rs <<<<<<<<
+// libs/keyforge-model/tests/validation.rs
+
+//! Integration tests for the domain validation framework. Verifies that core entities like
+//! Layout, SearchConfig, Rubric, and KeyboardGeometry correctly enforce their business
+//! invariants (e.g., unique key mappings, positive scoring weights, and safe search parameters).
+
+
+use keyforge_model::{
+    Corpus, Rubric, SearchConfig, Layout, KeyCode, Validator,
+    KeyboardGeometry, KeyNode, HandIndex
+};
+
+#[test]
+fn test_layout_validation() {
+    // Duplicates
+    let keys = vec![KeyCode(65), KeyCode(66), KeyCode(65)];
+    assert!(Layout::try_from(keys).is_err());
+
+    // Valid
+    let keys = vec![KeyCode(65), KeyCode(66), KeyCode(67)];
+    assert!(Layout::try_from(keys).is_ok());
+}
+
+#[test]
+fn test_search_config_validation() {
+    // Valid default
+    let c = SearchConfig::default();
+    assert!(c.validate().is_ok());
+
+    // Invalid Steps
+    let invalid_steps = SearchConfig::Annealing {
+        steps: 0,
+        start_temp: 100.0,
+        end_temp: 0.01,
+        seed: 42,
+        patience: 500,
+        reheats: 3,
+        reheat_factor: 0.5,
+        include_thumbs: false,
+    };
+    assert!(invalid_steps.validate().is_err());
+
+    // Invalid Temp
+    let invalid_temp = SearchConfig::Annealing {
+        steps: 100,
+        start_temp: -1.0,
+        end_temp: 0.01,
+        seed: 42,
+        patience: 500,
+        reheats: 3,
+        reheat_factor: 0.5,
+        include_thumbs: false,
+    };
+    assert!(invalid_temp.validate().is_err());
+}
+
+#[test]
+fn test_rubric_validation() {
+    let mut r = Rubric::default();
+    assert!(r.validate().is_ok());
+
+    // Coverage bounds
+    r.trigram_coverage = 1.5; // > 1.0
+    assert!(r.validate().is_err());
+    r.trigram_coverage = -0.1;
+    assert!(r.validate().is_err());
+
+    // Reset to valid
+    r.trigram_coverage = 0.99;
+
+    // Limits
+    r.trigram_limit = 0;
+    assert!(r.validate().is_err());
+    r.trigram_limit = 100;
+
+    // Weights
+    r.sfb_base = -10.0; // Negative penalty
+    assert!(r.validate().is_err());
+}
+
+#[test]
+fn test_corpus_validation() {
+    let mut c = Corpus::default();
+    assert!(c.validate().is_ok());
+
+    // Too short
+    c.char_freqs = vec![0; 10]; 
+    assert!(c.validate().is_err());
+
+    // Too long
+    c.char_freqs = vec![0; 70000];
+    assert!(c.validate().is_err());
+
+    // Valid mutation
+    let mut c2 = Corpus::default();
+    c2.char_freqs['a' as usize] = 100;
+    c2.bigrams.push(('a' as u16, 'b' as u16, 50));
+    assert!(c2.validate().is_ok());
+}
+
+#[test]
+fn test_keyboard_geometry_validation() {
+    let mut geom = KeyboardGeometry::default();
+    // Empty keys
+    assert!(geom.validate().is_err());
+
+    // Invalid Key (Hand > 1) - forcing invalid state manually
+    // Note: HandIndex::try_from prevents this usually, but we test the geometry validator's check
+    geom.keys.push(KeyNode {
+        hand: HandIndex(0), 
+        w: 0.0, // Invalid dimension
+        ..Default::default()
+    });
+    
+    assert!(geom.validate().is_err());
+}
+>>>>>>>> END FILE: libs/keyforge-model/tests/validation.rs <<<<<<<<

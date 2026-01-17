@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,7 @@
 use thiserror::Error;
 use keyforge_adapter::AdapterError;
 use keyforge_physics::PhysicsError;
+use keyforge_evolution::EvolutionError;
 
 /// CLI-specific error types with consistent formatting
 #[derive(Error, Debug)]
@@ -47,6 +48,10 @@ pub enum CliError {
     /// Physics error.
     #[error("Physics error: {0}")]
     Physics(#[from] PhysicsError),
+
+    /// Evolution error.
+    #[error("Evolution error: {0}")]
+    Evolution(#[from] EvolutionError),
 
     /// Generic or miscellaneous error.
     #[error("{0}")]

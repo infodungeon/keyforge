@@ -18,7 +18,7 @@ use keyforge_export::viz::physics::generate_physics_svg;
 use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use crate::constants::DEFAULT_DEBUG_OUTPUT;
 
 #[derive(Args, Debug, Clone)]

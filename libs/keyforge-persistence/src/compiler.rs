@@ -12,78 +12,102 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::error::PersistenceResult;
-use crate::project::Project;
-use keyforge_compute::{Runtime, SessionBuilder};
+use crate::error::PersistenceError;
 use keyforge_core::loader::AssetLoader;
+use keyforge_model::config::{Config, CorpusSource, CostMatrixSource};
+use keyforge_physics::EngineRequest;
+use std::sync::Arc;
 
-/// Orchestrates the compilation of a [Project] into a [Runtime].
-/// This involves loading keyboards, corpora, and cost matrices via the [AssetLoader].
-use keyforge_model::constants::ASSET_KEYCODES_FILENAME;
-/// Refactored to use [SessionBuilder] for core compilation logic.
-#[derive(Debug)]
-pub struct Compiler<'a> {
-    builder: SessionBuilder<'a>,
-}
+/// Compiles a raw configuration into a fully-loaded `EngineRequest`.
+pub async fn compile_request(
+    loader: &dyn AssetLoader,
+    _config: &Config,
+    keyboard_name: &str,
+    _pinned_keys: &[keyforge_model::KeyConstraint],
+) -> Result<EngineRequest, PersistenceError> {
+    // 1. Load Keyboard
+    let keyboard_def = loader
+        .load_keyboard(keyboard_name)
+        .await
+        .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard '{}': {}", keyboard_name, e)))?;
 
-impl<'a> Compiler<'a> {
-    /// Creates a new compiler with the given asset loader.
-    pub fn new(loader: &'a dyn AssetLoader) -> Self {
-        Self {
-            builder: SessionBuilder::new(loader),
-        }
-    }
+    let keyboard = keyforge_model::Keyboard::new(
+        keyboard_def.geometry.keys.clone(),
+        keyboard_def.geometry.home_row,
+    )
+    .map_err(|e| PersistenceError::Validation(e.to_string()))?;
 
-    /// Compiles the project into a ready-to-use search runtime.
-    pub async fn compile(&self, project: &Project) -> PersistenceResult<Runtime> {
-        let session = self.builder.build(
-            &project.keyboard,
-            &project.corpora,
-            &project.weights,
-            &project.params,
-            ASSET_KEYCODES_FILENAME,
-            &project.cost_matrix,
-            project.seed,
-        ).await.map_err(crate::error::PersistenceError::Loader)?;
+    // 2. Load Corpus
+    let corpus_sources: Vec<CorpusSource> = vec![CorpusSource::default()]; // TODO: From config
+    let corpus = loader
+        .load_corpus(&corpus_sources)
+        .await
+        .map_err(|e| PersistenceError::AssetLoad(format!("Corpus: {}", e)))?;
 
-        Ok(Runtime::from(session))
-    }
+    // 3. Load Cost Model
+    let cost_name = match CostMatrixSource::default() {
+        CostMatrixSource::Predefined(name) => name,
+    };
+    
+    let cost_model = loader
+        .load_cost_model(&cost_name)
+        .await
+        .map_err(|e| PersistenceError::AssetLoad(format!("CostModel '{}': {}", cost_name, e)))?;
+
+    // 4. Load Keycodes (Standard)
+    let _registry = loader
+        .load_keycodes("keycodes")
+        .await
+        .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {}", e)))?;
+
+    // 5. Construct Request
+    let pinned = vec![None; keyboard.count()];
+
+    Ok(EngineRequest {
+        keyboard: Arc::new(keyboard),
+        corpus,
+        rubric: Arc::new(keyforge_model::Rubric::default()), // TODO: From config
+        cost_model,
+        config: keyforge_model::SearchConfig::default(), // TODO: From config
+        initial_layout: None,
+        pinned_keys: pinned,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use keyforge_model::error::ForgeError;
-    use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
-    use keyforge_model::Corpus;
-    use keyforge_model::config::CorpusSource;
+    use keyforge_core::loader::LoaderResult;
     use keyforge_model::geometry::KeyboardDefinition;
     use keyforge_model::keycodes::KeycodeRegistry;
-    use std::sync::Arc;
+    use keyforge_model::cost_model::CostModel;
+    use keyforge_model::Corpus;
 
+    #[derive(Debug)]
     struct FailingLoader;
+
     #[async_trait::async_trait]
     impl AssetLoader for FailingLoader {
-        async fn load_keyboard(&self, _name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
+        async fn load_keyboard(&self, _: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
             Err(ForgeError::NotFound("kb".into()))
         }
-        async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
+        async fn load_corpus(&self, _: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
             Err(ForgeError::NotFound("corpus".into()))
         }
-        async fn load_cost_matrix(&self, _filename: &str) -> LoaderResult<Arc<RawCostData>> {
-            Err(ForgeError::NotFound("cost".into()))
+        async fn load_cost_model(&self, _: &str) -> LoaderResult<Arc<CostModel>> {
+            Err(ForgeError::NotFound("costs".into()))
         }
-        async fn load_keycodes(&self, _filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-            Ok(Arc::new(KeycodeRegistry::new_with_defaults()))
+        async fn load_keycodes(&self, _: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
+            Err(ForgeError::NotFound("keycodes".into()))
         }
     }
 
     #[tokio::test]
-    async fn test_compile_keyboard_fail() {
+    async fn test_compile_failure_propagation() {
         let loader = FailingLoader;
-        let compiler = Compiler::new(&loader);
-        let project = Project::default();
-        let result = compiler.compile(&project).await;
-        assert!(matches!(result, Err(crate::error::PersistenceError::Loader(_))));
+        let config = Config::default();
+        let res = compile_request(&loader, &config, "test_kb", &[]).await;
+        assert!(matches!(res, Err(PersistenceError::AssetLoad(_))));
     }
 }

@@ -1,13 +1,7 @@
 // libs/keyforge-physics/tests/robustness.rs
 
-//! Numerical stress tests and robustness checks for the physics engine. Verifies the
-//! engine's stability against edge-case inputs—including infinite or NaN rubric weights,
-//! frequency saturation, and out-of-bounds swap indices—and ensures the compiler correctly
-//! enforces trigram pruning limits and coordinate fallbacks.
-
-
 use keyforge_model::{
-    Corpus, KeyNode, Keyboard, Layout, Rubric, 
+    Corpus, KeyNode, Keyboard, Layout, Rubric, CostModel,
     types::{HandIndex, FingerIndex, KeyCode}
 };
 use keyforge_physics::ScoringEngine;
@@ -23,6 +17,28 @@ fn setup_kb() -> Keyboard {
     Keyboard::new(keys, 0).unwrap()
 }
 
+fn mock_cost_model() -> CostModel {
+    let json = r#"{
+        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "models": {
+            "model_a_row_staggered": {
+                "description": "Test Model",
+                "static_costs": {
+                    "universal_hand": {
+                        "thumb": { "pos_1": 100.0 },
+                        "index": { "base": { "r0": 100.0 } },
+                        "middle": { "base": { "r0": 100.0 } },
+                        "ring": { "base": { "r0": 100.0 } },
+                        "pinky": { "base": { "r0": 100.0 } }
+                    }
+                }
+            }
+        },
+        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+    }"#;
+    serde_json::from_str(json).unwrap()
+}
+
 #[test]
 fn test_math_boundaries_infinity() {
     let kb = setup_kb();
@@ -35,11 +51,9 @@ fn test_math_boundaries_infinity() {
         ..Rubric::default()
     };
 
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
     let score = engine.score(&layout).unwrap();
 
-    // Should be clamped to MAX but finite
     assert!(score > 1_000_000.0);
     assert!(score.is_finite());
 }
@@ -56,8 +70,7 @@ fn test_math_boundaries_nan() {
         ..Rubric::default()
     };
 
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
     let score = engine.score(&layout).unwrap();
 
     assert!(score >= 0.0);
@@ -69,15 +82,14 @@ fn test_saturation_protection() {
     let kb = setup_kb();
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)]);
     let mut corpus = Corpus::default();
-    corpus.bigrams.push((97, 98, u32::MAX)); // Massive frequency
+    corpus.bigrams.push((97, 98, u32::MAX));
 
     let rubric = Rubric {
         travel_lat: 1_000_000.0,
         ..Rubric::default()
     };
 
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
     let score = engine.score(&layout).unwrap();
     assert!(score.is_finite());
 }
@@ -85,15 +97,13 @@ fn test_saturation_protection() {
 #[test]
 fn test_missing_keys_in_layout() {
     let kb = setup_kb();
-    // Layout missing key 98 ('b')
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(0), KeyCode(99), KeyCode(100), KeyCode(101)]);
     let mut corpus = Corpus::default();
     corpus.bigrams.push((97, 98, 100)); 
 
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap();
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
     let score = engine.score(&layout).unwrap();
-    assert_eq!(score, 0.0); // Should ignore missing pair
+    assert_eq!(score, 0.0);
 }
 
 #[test]
@@ -103,14 +113,12 @@ fn test_swap_delta_bounds() {
     let mut corpus = Corpus::default();
     corpus.bigrams.push((97, 98, 100));
 
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap();
+    let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
     let mut pos_map = vec![65535u16; 65536];
     for (i, &code) in layout.keys.iter().enumerate() {
         pos_map[code.0 as usize] = i as u16;
     }
 
-    // Test out of bounds indices
     let delta = engine.calculate_swap_delta(&layout.keys, &pos_map, 0, 100).unwrap();
     assert_eq!(delta, 0);
 }
@@ -120,10 +128,8 @@ fn test_analyze_layout_empty() {
     let kb = setup_kb();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
     
-    // Layout size 0 vs key count 5 -> Should return Error, not panic
     let layout = Layout::new_unchecked(vec![]);
     let result = engine.analyze(&layout);
     assert!(result.is_err());
@@ -133,46 +139,20 @@ fn test_analyze_layout_empty() {
 fn test_compiler_trigram_pruning() {
     let kb = setup_kb();
     let mut corpus = Corpus::default();
-    // Add 20 trigrams
     for i in 0..20 {
         corpus.trigrams.push((0, 1, i as u16, 100));
     }
     
     let mut rubric = Rubric::default();
-    rubric.trigram_limit = 5; // Strict limit
+    rubric.trigram_limit = 5;
     
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
+    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
     
-    // Verify using public accessor
     assert_eq!(engine.trigram_count(), 5);
 }
 
 #[test]
-fn test_compiler_cost_overrides() {
-    let kb = setup_kb();
-    let mut corpus = Corpus::default();
-    corpus.bigrams.push((0, 1, 1));
-    
-    let rubric = Rubric::default();
-    
-    // Override cost between Key 0 and Key 1 to be massive (1000.0)
-    let _overrides = vec![(0, 1, 1000.0)];
-    
-    let cost_matrix = vec![];
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix).unwrap();
-    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
-    
-    let score = engine.score(&layout).unwrap();
-    // Since overrides are disabled in the engine, we expect the normal score here.
-    // We adjust the test to just verify it runs.
-    assert!(score >= 0.0);
-}
-
-#[test]
 fn test_finger_origin_fallback() {
-    // Create a keyboard where Finger 1 has keys, but NONE are is_home=true.
-    // Compiler should not panic.
     let keys = vec![
         KeyNode { index: 0, finger: FingerIndex(1), is_home: false, ..Default::default() }
     ];
@@ -180,7 +160,6 @@ fn test_finger_origin_fallback() {
     let corpus = Corpus::default();
     let rubric = Rubric::default();
     
-    let cost_matrix = vec![];
-    let result = ScoringEngine::new(&kb, &corpus, &rubric, &cost_matrix);
+    let result = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model());
     assert!(result.is_ok());
 }

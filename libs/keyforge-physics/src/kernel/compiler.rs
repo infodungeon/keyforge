@@ -15,9 +15,11 @@
 use super::mechanics::calculate_pair_cost;
 use super::types::{KeyCode, KeyIndex, Score};
 use super::EngineContext;
-use keyforge_model::{Corpus, Keyboard, Rubric};
+use keyforge_model::{Corpus, Keyboard, Rubric, CostModel, KeyNode};
+use keyforge_model::cost_model::{FingerDefinition, HandDefinition};
+use keyforge_model::types::{HandIndex, FingerIndex};
 use crate::errors::PhysicsError;
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 pub struct Compiler;
 
@@ -27,10 +29,16 @@ impl Compiler {
         kb: &Keyboard,
         corpus: &Corpus,
         rubric: &Rubric,
-        cost_matrix_entries: &[(usize, usize, f32)],
+        cost_model: &CostModel,
     ) -> Result<EngineContext, PhysicsError> {
         let key_count = kb.count();
         info!(key_count = key_count, "Compiling scoring engine...");
+
+        // 1. Select the appropriate physical model based on keyboard metadata/type
+        // For now, default to "model_a_row_staggered" if not specified.
+        let model_key = "model_a_row_staggered"; 
+        let phys_model = cost_model.models.get(model_key)
+            .ok_or_else(|| PhysicsError::Config(format!("Missing cost model: {}", model_key)))?;
 
         let mut hands = Vec::with_capacity(key_count);
         let mut fingers = Vec::with_capacity(key_count);
@@ -45,19 +53,16 @@ impl Compiler {
             rows.push(k.row);
             cols.push(k.col);
 
-            let mut cost = rubric.finger_effort[k.finger.as_usize()];
+            // Resolve Static Cost from CostModel
+            let cost_val = resolve_key_cost(k, &phys_model.static_costs);
+            key_costs.push(Score::from_f32(cost_val));
+
             let mut dist_from_home = 0.0;
-            
             if let Some(origin) = kb.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
                 let dx = (k.x - origin.0).abs();
                 let dy = (k.y - origin.1).abs();
-                let dx2 = dx * dx;
-                let dy2 = dy * dy;
-                dist_from_home = (dx2 + dy2).sqrt();
-                cost += (dx2 * rubric.travel_lat) + (dy2 * rubric.travel_vert);
+                dist_from_home = (dx * dx + dy * dy).sqrt();
             }
-
-            key_costs.push(Score::from_f32(cost));
             key_home_distances.push(dist_from_home);
         }
 
@@ -78,13 +83,6 @@ impl Compiler {
                     let dy = (k1.y - k2.y).abs();
                     dist_matrix[i * key_count + j] = (dx * dx + dy * dy).sqrt();
                 }
-            }
-        }
-
-        // Apply manual cost matrix entries
-        for &(i, j, cost) in cost_matrix_entries {
-            if i < key_count && j < key_count {
-                internal_cost_matrix[i * key_count + j] = Score::from_f32(cost);
             }
         }
 
@@ -117,7 +115,50 @@ impl Compiler {
     }
 }
 
-/// Efficiently flattens bigrams into CSR-like structures without massive array allocations.
+fn resolve_key_cost(key: &KeyNode, static_costs: &std::collections::HashMap<String, HandDefinition>) -> f32 {
+    let hand_key = if key.hand == HandIndex::LEFT { "left_hand" } else { "right_hand" };
+    let hand_def = static_costs.get(hand_key).or_else(|| static_costs.get("universal_hand"));
+
+    if let Some(hand) = hand_def {
+        let finger_key = match key.finger {
+            FingerIndex::THUMB => "thumb",
+            FingerIndex::INDEX => "index",
+            FingerIndex::MIDDLE => "middle",
+            FingerIndex::RING => "ring",
+            FingerIndex::PINKY => "pinky",
+            _ => "unknown",
+        };
+
+        if let Some(finger_def) = hand.fingers.get(finger_key) {
+            match finger_def {
+                FingerDefinition::Standard(zones) => {
+                    let zone_key = if key.col.0.abs() > 1 && key.finger == FingerIndex::INDEX {
+                        "inner"
+                    } else if key.col.0.abs() > 1 && key.finger == FingerIndex::PINKY {
+                        "outer"
+                    } else {
+                        "base"
+                    };
+
+                    if let Some(zone) = zones.get(zone_key).or_else(|| zones.get("base")) {
+                        let row_key = format!("r{}", key.row.0);
+                        if let Some(cost) = zone.get(&row_key) {
+                            return *cost;
+                        }
+                    }
+                },
+                FingerDefinition::Thumb(positions) => {
+                    return *positions.values().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&100.0);
+                }
+            }
+        }
+    }
+    
+    warn!("Cost lookup failed for key {:?}, using default 100.0", key);
+    100.0
+}
+
+// ... (Keep existing flatten_* and prune_trigrams functions unchanged) ...
 fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
     sorted.sort_unstable_by_key(|&(c1, _, _)| c1);
@@ -140,7 +181,6 @@ fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec
         current_offset += 1;
     }
 
-    // Fill remaining starts
     while current_char <= 65536 {
         starts[current_char] = current_offset;
         current_char += 1;

@@ -15,12 +15,13 @@
 
 use crate::util::corpus::inject_synthetic_data;
 use keyforge_model::error::ForgeError;
-use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::cost_model::CostModel;
 use sha2::Digest;
 use keyforge_model::validator::Validator;
 use std::fs::File;
@@ -106,6 +107,25 @@ impl FsProvider {
         p.exists().then_some(p)
     }
 
+    fn resolve_direct_path(&self, name: &str) -> Option<PathBuf> {
+        let p = PathBuf::from(name);
+        if p.is_absolute() && p.exists() {
+            return Some(p);
+        }
+        if name.starts_with("./") || name.starts_with("../") {
+            if let Ok(abs) = std::fs::canonicalize(&p) {
+                if abs.exists() {
+                    return Some(abs);
+                }
+            }
+            // Fallback for non-canonicalizable but existing relative paths
+            if p.exists() {
+                return Some(p);
+            }
+        }
+        None
+    }
+
     /// Calculates a stable hash for a corpus by hashing its constituent parts.
     ///
     /// This is used to detect if a corpus has changed locally or if it matches
@@ -157,26 +177,16 @@ impl FsProvider {
     }
 }
 
-#[derive(serde::Deserialize)]
-struct CostEntry {
-    #[serde(alias = "from")]
-    from_key: String,
-    #[serde(alias = "to")]
-    to_key: String,
-    #[serde(alias = "cost")]
-    cost_ms: f32,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(untagged)]
-enum CostFormat {
-    Wrapped { entries: Vec<CostEntry> },
-    Direct(Vec<CostEntry>),
-}
-
 #[async_trait::async_trait]
 impl AssetLoader for FsProvider {
     async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
+        // 1. Try direct path (absolute or ./ relative)
+        if let Some(p) = self.resolve_direct_path(name) {
+            let kb: KeyboardDefinition = self.load_json(&p).await?;
+            kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid keyboard at '{:?}': {}", p, e)))?;
+            return Ok(Arc::new(kb));
+        }
+
         let stem = name.strip_suffix(".json").unwrap_or(name);
         if let Some(p) = self.resolve_system_path("keyboards", stem) {
             let kb: KeyboardDefinition = self.load_binary(&p).await?;
@@ -225,57 +235,45 @@ impl AssetLoader for FsProvider {
         Ok(Arc::new(corpus))
     }
 
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
+    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>> {
+        // 1. Try direct path (absolute or ./ relative)
+        if let Some(p) = self.resolve_direct_path(filename) {
+            let model: CostModel = self.load_json(&p).await?;
+            return Ok(Arc::new(model));
+        }
+
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         
-        // 1. Try System Binary (legacy/performance)
+        // 2. Try System Binary
         if let Some(p) = self.resolve_system_path("weights", stem) {
-            let data: RawCostData = self.load_binary(&p).await?;
-            return Ok(Arc::new(data));
+            let model: CostModel = self.load_binary(&p).await?;
+            return Ok(Arc::new(model));
         }
 
-        // 2. Try System JSON (new generic standard)
+        // 3. Try System JSON
         let system_json = self.root.join("system/weights").join(format!("{}.json", stem));
         if system_json.exists() {
-            let format: CostFormat = self.load_json(&system_json).await?;
-            let entries = match format {
-                CostFormat::Wrapped { entries } => entries,
-                CostFormat::Direct(v) => v,
-            };
-            return Ok(Arc::new(RawCostData {
-                entries: entries
-                    .into_iter()
-                    .map(|e| keyforge_core::loader::CostEntry {
-                        from: e.from_key,
-                        to: e.to_key,
-                        cost: e.cost_ms,
-                    })
-                    .collect(),
-            }));
+            let model: CostModel = self.load_json(&system_json).await?;
+            return Ok(Arc::new(model));
         }
 
-        // 3. Try User JSON
+        // 4. Try User JSON
         if let Some(p) = self.resolve_user_path("weights", stem) {
-            let format: CostFormat = self.load_json(&p).await?;
-            let entries = match format {
-                CostFormat::Wrapped { entries } => entries,
-                CostFormat::Direct(v) => v,
-            };
-            return Ok(Arc::new(RawCostData {
-                entries: entries
-                    .into_iter()
-                    .map(|e| keyforge_core::loader::CostEntry {
-                        from: e.from_key,
-                        to: e.to_key,
-                        cost: e.cost_ms,
-                    })
-                    .collect(),
-            }));
+            let model: CostModel = self.load_json(&p).await?;
+            return Ok(Arc::new(model));
         }
         Err(ForgeError::NotFound(filename.to_string()))
     }
 
     async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
+        // 1. Try direct path (absolute or ./ relative)
+        if let Some(p) = self.resolve_direct_path(filename) {
+            let defs = self.load_json(&p).await?;
+            let reg = KeycodeRegistry::new(defs);
+            reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid direct keycodes: {}", e)))?;
+            return Ok(Arc::new(reg));
+        }
+
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         if let Some(p) = self.resolve_system_path("config", stem) {
             let defs = self.load_binary(&p).await?;

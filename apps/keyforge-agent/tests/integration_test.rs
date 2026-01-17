@@ -29,7 +29,7 @@ async fn test_agent_session_bootstrap() {
     let mut f = File::create(data_root.join("user/weights/cost.json")).unwrap();
     writeln!(
         f,
-        r#"[{{"from_key":"KC_A","to_key":"KC_B","cost_ms":10.0,"confidence_samples":10}}]"#
+        r#"{{"meta":{{"version":"2.0","description":"Test","unit":"pts"}},"models":{{"model_a_row_staggered":{{"description":"Test","static_costs":{{}}}}}},"dynamic_rules":{{"sequence_modifiers":{{}},"penalties":{{}},"constraints":{{}}}}}}"#
     )
     .unwrap();
 
@@ -91,7 +91,8 @@ async fn test_agent_session_bootstrap() {
     };
 
     let loader = keyforge_infra::FsProvider::new(data_root.clone());
-    let options = keyforge_runner::RunnerOptions::default();
+    let mut options = keyforge_runner::RunnerOptions::default();
+    options.keycodes_file = "keycodes.json".to_string();
 
     let prepared_result =
         keyforge_runner::OptimizationRunner::prepare_session(&loader, &config, &options).await;

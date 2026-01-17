@@ -16,12 +16,13 @@
 use crate::net::distributed::DistributedCoordinator;
 use crate::util::corpus::inject_synthetic_data;
 use crate::net::sync::ServerManifest;
-use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::cost_model::CostModel;
 use keyforge_model::Validator;
 use keyforge_model::error::ForgeError;
 use std::sync::Arc;
@@ -176,11 +177,11 @@ impl AssetLoader for ValkeyProvider {
         Ok(Arc::new(kb))
     }
 
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
+    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
         let path = format!("weights/{}.mpk.zst", stem);
-        let data: RawCostData = self.hydrate_mpk(&path).await?;
-        Ok(Arc::new(data))
+        let model: CostModel = self.hydrate_mpk(&path).await?;
+        Ok(Arc::new(model))
     }
 
     async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {

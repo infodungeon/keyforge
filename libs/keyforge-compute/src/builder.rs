@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,168 +12,118 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_adapter::conversion;
-use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_core::ScoringSession;
-use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
-use keyforge_model::CostMatrixSource;
-use keyforge_protocol::JobRequest;
+use keyforge_model::config::{CorpusSource, CostMatrixSource};
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::{Corpus, Rubric, SearchConfig, CostModel};
 use keyforge_physics::ScoringEngine;
 use std::sync::Arc;
-use tracing::info;
+use std::fmt;
 
-const DEFAULT_SEED: u64 = 42;
-// Heuristic constants for telemetry estimation
-const EST_OPS_BASELINE: usize = 10_000_000;
-const EST_OPS_SCALING: usize = 50_000_000;
-
-/// A builder for constructing `ScoringSession` instances from various asset sources.
+/// Builder for constructing a `ScoringSession` (Runtime).
 pub struct SessionBuilder<'a> {
     loader: &'a dyn AssetLoader,
+    keyboard: Option<Arc<KeyboardDefinition>>,
+    corpus: Option<Arc<Corpus>>,
+    rubric: Option<Arc<Rubric>>,
+    cost_model: Option<Arc<CostModel>>,
+    registry: Option<Arc<KeycodeRegistry>>,
+    search_config: Option<SearchConfig>,
 }
 
-impl<'a> std::fmt::Debug for SessionBuilder<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SessionBuilder").finish()
+impl<'a> fmt::Debug for SessionBuilder<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SessionBuilder")
+            .field("keyboard", &self.keyboard)
+            .field("corpus", &self.corpus)
+            .field("rubric", &self.rubric)
+            .field("cost_model", &self.cost_model)
+            .field("registry", &self.registry)
+            .field("search_config", &self.search_config)
+            .finish()
     }
 }
 
 impl<'a> SessionBuilder<'a> {
-    /// Creates a new `SessionBuilder` using the provided asset loader.
     pub fn new(loader: &'a dyn AssetLoader) -> Self {
-        Self { loader }
+        Self {
+            loader,
+            keyboard: None,
+            corpus: None,
+            rubric: None,
+            cost_model: None,
+            registry: None,
+            search_config: None,
+        }
     }
 
-    /// Builds a new scoring session by loading all necessary assets from the loader.
-    ///
-    /// This method is async as it may involve I/O or network requests to fetch 
-    /// keyboards, corpora, or cost matrices.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn build(
-        &self,
-        keyboard_name: &str,
-        corpora: &[CorpusSource],
-        weights: &ScoringWeights,
-        params: &SearchParams,
-        keycodes_filename: &str,
-        cost_matrix: &CostMatrixSource,
-        seed: Option<u64>,
-    ) -> LoaderResult<ScoringSession> {
-        // 1. Load Assets
-        let kb_def = self.loader.load_keyboard(keyboard_name).await?;
-        
-        let domain_corpora: Vec<CorpusSource> = corpora
-            .iter()
-            .map(conversion::to_domain_corpus_source)
-            .collect();
-            
-        let corpus = self.loader.load_corpus(&domain_corpora).await?;
-        let registry = self.loader.load_keycodes(keycodes_filename).await?;
+    pub async fn with_keyboard(mut self, name: &str) -> LoaderResult<Self> {
+        self.keyboard = Some(self.loader.load_keyboard(name).await?);
+        Ok(self)
+    }
+    
+    pub fn with_keyboard_def(mut self, def: Arc<KeyboardDefinition>) -> Self {
+        self.keyboard = Some(def);
+        self
+    }
 
-        let raw_costs = match cost_matrix {
-            CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,
-        };
+    pub async fn with_corpus(mut self, sources: &[CorpusSource]) -> LoaderResult<Self> {
+        self.corpus = Some(self.loader.load_corpus(sources).await?);
+        Ok(self)
+    }
+    
+    pub fn with_corpus_obj(mut self, corpus: Arc<Corpus>) -> Self {
+        self.corpus = Some(corpus);
+        self
+    }
 
-        // 2. Convert to Domain types
-        let domain_kb = keyforge_model::Keyboard::new(
+    pub async fn with_cost_matrix(mut self, source: &CostMatrixSource) -> LoaderResult<Self> {
+        match source {
+            CostMatrixSource::Predefined(name) => {
+                self.cost_model = Some(self.loader.load_cost_model(name).await?);
+            }
+        }
+        Ok(self)
+    }
+    
+    pub fn with_cost_model_obj(mut self, model: Arc<CostModel>) -> Self {
+        self.cost_model = Some(model);
+        self
+    }
+
+    pub async fn with_keycodes(mut self, name: &str) -> LoaderResult<Self> {
+        self.registry = Some(self.loader.load_keycodes(name).await?);
+        Ok(self)
+    }
+
+    pub fn with_rubric(mut self, rubric: Rubric) -> Self {
+        self.rubric = Some(Arc::new(rubric));
+        self
+    }
+
+    pub fn with_config(mut self, config: SearchConfig) -> Self {
+        self.search_config = Some(config);
+        self
+    }
+
+    pub fn build(self) -> LoaderResult<ScoringSession> {
+        let kb_def = self.keyboard.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing keyboard".into()))?;
+        let corpus = self.corpus.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing corpus".into()))?;
+        let rubric = self.rubric.unwrap_or_else(|| Arc::new(Rubric::default()));
+        let cost_model = self.cost_model.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing cost model".into()))?;
+        let registry = self.registry.unwrap_or_else(|| Arc::new(KeycodeRegistry::default()));
+        let config = self.search_config.unwrap_or_default();
+
+        // Create Keyboard from Definition (using home_row from geometry)
+        let keyboard = Arc::new(keyforge_model::Keyboard::new(
             kb_def.geometry.keys.clone(),
-            kb_def.geometry.home_row
-        ).map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Invalid keyboard definition: {}", e)))?;
+            kb_def.geometry.home_row,
+        ).map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?);
 
-        let domain_rubric = conversion::to_domain_rubric(weights);
-        let domain_config = conversion::to_domain_config(params, seed.unwrap_or(DEFAULT_SEED));
-        
-        let overrides = raw_costs.resolve(&kb_def.geometry);
+        let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)?;
 
-        // 3. Compile Engine
-        let engine = ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)?;
-
-        // TELEMETRY: Log engine stats
-        let keys = engine.key_count();
-        let trigrams = engine.trigram_count();
-        // Rough heuristic: 1M ops/sec baseline, scales linearly with trigrams
-        // Base cost ~ 50ns per bigram. Trigrams add ~10ns each.
-        // This is just for log estimation.
-        let est_ops = if trigrams > 0 { EST_OPS_SCALING / trigrams } else { EST_OPS_BASELINE };
-        
-        info!(
-            "compiled_engine keys={} trigrams={} est_ops_per_sec={}", 
-            keys, trigrams, est_ops
-        );
-
-        Ok(ScoringSession {
-            engine: Arc::new(engine),
-            registry,
-            search_config: domain_config,
-        })
-    }
-
-    /// Builds a scoring session directly from a `JobRequest` DTO.
-    pub async fn build_from_job(&self, job: &JobRequest) -> LoaderResult<ScoringSession> {
-        self.build_preloaded(
-            &job.config.definition,
-            &job.config.corpora,
-            &job.config.weights,
-            &job.config.params,
-            keyforge_model::constants::ASSET_KEYCODES_FILENAME,
-            &job.config.cost_matrix,
-            None
-        ).await
-    }
-
-    /// Builds a scoring session using a pre-loaded keyboard definition.
-    ///
-    /// This is useful when the keyboard geometry is already known (e.g., in a 
-    /// distributed compute node after receiving a job).
-    #[allow(clippy::too_many_arguments)]
-    pub async fn build_preloaded(
-        &self,
-        kb_def: &keyforge_model::geometry::KeyboardDefinition,
-        corpora: &[CorpusSource],
-        weights: &ScoringWeights,
-        params: &SearchParams,
-        keycodes_filename: &str,
-        cost_matrix: &CostMatrixSource,
-        seed: Option<u64>,
-    ) -> LoaderResult<ScoringSession> {
-        // 1. Load Assets (Only those not preloaded)
-        let domain_corpora: Vec<CorpusSource> = corpora
-            .iter()
-            .map(conversion::to_domain_corpus_source)
-            .collect();
-
-        let corpus = self.loader.load_corpus(&domain_corpora).await?;
-        let registry = self.loader.load_keycodes(keycodes_filename).await?;
-
-        let raw_costs = match cost_matrix {
-            CostMatrixSource::Predefined(name) => self.loader.load_cost_matrix(name).await?,
-        };
-
-        // 2. Convert to Domain types
-        let domain_kb = conversion::to_domain_keyboard(&kb_def.geometry)
-            .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?;
-        let domain_rubric = conversion::to_domain_rubric(weights);
-        let domain_config = conversion::to_domain_config(params, seed.unwrap_or(DEFAULT_SEED));
-        
-        let overrides = raw_costs.resolve(&kb_def.geometry);
-
-        // 3. Compile Engine
-        let engine = ScoringEngine::new(&domain_kb, &corpus, &domain_rubric, &overrides)?;
-
-        // TELEMETRY: Log engine stats
-        let keys = engine.key_count();
-        let trigrams = engine.trigram_count();
-        let est_ops = if trigrams > 0 { EST_OPS_SCALING / trigrams } else { EST_OPS_BASELINE };
-        
-        info!(
-            "compiled_engine keys={} trigrams={} est_ops_per_sec={}", 
-            keys, trigrams, est_ops
-        );
-
-        Ok(ScoringSession {
-            engine: Arc::new(engine),
-            registry,
-            search_config: domain_config,
-        })
+        Ok(ScoringSession::new(Arc::new(engine), registry, config))
     }
 }

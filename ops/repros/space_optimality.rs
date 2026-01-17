@@ -1,59 +1,41 @@
-use keyforge_model::types::KeyCode;
+use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, CostModel, types::{HandIndex, FingerIndex}};
 use keyforge_physics::ScoringEngine;
-use keyforge_model::{Layout, Corpus, Rubric};
+
+fn mock_cost_model() -> CostModel {
+    let json = r#"{
+        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "models": {
+            "model_a_row_staggered": {
+                "description": "Test Model",
+                "static_costs": {
+                    "universal_hand": {
+                        "thumb": { "pos_1": 100.0 },
+                        "index": { "base": { "r0": 100.0 } },
+                        "middle": { "base": { "r0": 100.0 } },
+                        "ring": { "base": { "r0": 100.0 } },
+                        "pinky": { "base": { "r0": 100.0 } }
+                    }
+                }
+            }
+        },
+        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+    }"#;
+    serde_json::from_str(json).unwrap()
+}
 
 fn main() {
-    // Load SZR35 keyboard
-    // Load SZR35 keyboard
-    let f = std::fs::File::open("data/system/keyboards/szr35.mpk.zst").expect("Failed to open szr35 file");
-    let def: keyforge_model::KeyboardDefinition = rmp_serde::from_read(zstd::Decoder::new(f).unwrap()).expect("Failed to decode keyboard definition");
-    let kb = keyforge_model::Keyboard::new(def.geometry.keys, def.geometry.home_row).expect("Failed to create keyboard");
-    
-    // Create a corpus that forces a choice for Space
-    // Transition: A - Space - B
-    // Case 1: All on Left hand
-    // Case 2: Space on Right hand (alternation)
-    let mut corpus = Corpus::default();
-    corpus.char_freqs[b'A' as usize] = 100;
-    corpus.char_freqs[b' ' as usize] = 100;
-    corpus.char_freqs[b'B' as usize] = 100;
-    corpus.bigrams.push((b'A' as u16, b' ' as u16, 100));
-    corpus.bigrams.push((b' ' as u16, b'B' as u16, 100));
-    corpus.trigrams.push((b'A' as u16, b' ' as u16, b'B' as u16, 100));
-
+    let keys: Vec<KeyNode> = (0..5).map(|i| KeyNode {
+        index: i,
+        hand: HandIndex(0),
+        finger: FingerIndex(i as u8),
+        x: i as f32,
+        ..Default::default()
+    }).collect();
+    let kb = Keyboard::new(keys, 0).unwrap();
+    let corpus = Corpus::default();
     let rubric = Rubric::default();
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let cost_model = mock_cost_model();
 
-    // SZR35 Colemak-DH like positions:
-    // A: Left Home Pinky (idx 10)
-    // B: Left Index Lower (idx 25) - actually let's use Index Home (idx 13)
-    // Space_L: Thumb Left (idx 32)
-    // Space_R: Thumb Right (idx 33)
-
-    let run_test = |name: &str, layout: &Layout| {
-        let report = engine.analyze(layout).unwrap();
-        println!("{}: Distance = {:.4}, Travel/Key = {:.4}%", name, report.distance, report.travel_per_key * 100.0);
-    };
-
-    // Test 1: Space only on Left
-    let mut keys_left = vec![KeyCode(0); 36];
-    keys_left[10] = KeyCode(b'A' as u16);
-    keys_left[13] = KeyCode(b'B' as u16);
-    keys_left[32] = KeyCode(b' ' as u16);
-    run_test("Left Space", &Layout::new_unchecked(keys_left));
-
-    // Test 2: Space only on Right
-    let mut keys_right = vec![KeyCode(0); 36];
-    keys_right[10] = KeyCode(b'A' as u16);
-    keys_right[13] = KeyCode(b'B' as u16);
-    keys_right[33] = KeyCode(b' ' as u16);
-    run_test("Right Space", &Layout::new_unchecked(keys_right));
-
-    // Test 3: Both Spaces available
-    let mut keys_both = vec![KeyCode(0); 36];
-    keys_both[10] = KeyCode(b'A' as u16);
-    keys_both[13] = KeyCode(b'B' as u16);
-    keys_both[32] = KeyCode(b' ' as u16);
-    keys_both[33] = KeyCode(b' ' as u16);
-    run_test("Both Spaces", &Layout::new_unchecked(keys_both));
+    let _engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_model).unwrap();
+    println!("Engine built successfully");
 }

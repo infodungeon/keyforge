@@ -19,7 +19,7 @@ use crate::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_model::{
     CorpusSource,
     constants::{VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO, DEFAULT_CORPUS_WEIGHT},
-    CostMatrixSource, KeyboardDefinition, SearchParams
+    CostMatrixSource, KeyboardDefinition
 };
 use keyforge_protocol::ResultSubmission;
 use keyforge_compute::SessionBuilder;
@@ -29,20 +29,15 @@ use keyforge_core::ScoringEngine;
 use std::sync::Arc;
 use tracing::warn;
 
-/// A service responsible for validating submitted optimization results.
-///
-/// It performs cryptographic signature verification and re-scores the submitted 
-/// layout to ensure the claimed score is within an acceptable tolerance.
 #[derive(Clone, Debug)]
 pub struct VerificationService {
     jobs: JobRepository,
     nodes: NodeRepository,
-    assets: Arc<ValkeyProvider>, // CHANGED
+    assets: Arc<ValkeyProvider>,
     engine_cache: Arc<CompiledEngineCache>,
 }
 
 impl VerificationService {
-    /// Creates a new `VerificationService` with the required repositories and caches.
     pub fn new(
         jobs: JobRepository,
         nodes: NodeRepository,
@@ -57,10 +52,6 @@ impl VerificationService {
         }
     }
 
-    /// Performs a full verification of a result submission.
-    ///
-    /// This includes checking the Ed25519 signature and re-calculating the 
-    /// score using the same physics engine configuration used for the job.
     pub async fn verify_submission(&self, sub: &ResultSubmission) -> AppResult<()> {
         self.verify_signature(sub).await?;
         self.verify_score(sub).await?;
@@ -96,29 +87,22 @@ impl VerificationService {
 
         let (geometry, weights, corpus_name, cost_raw) = self.jobs.get_config(&sub.job_id).await.map_err(AppError::Database)?.ok_or(AppError::NotFound)?;
 
-        // Try to parse as JSON first, fallback to Predefined ID
         let cost_source = serde_json::from_str::<CostMatrixSource>(&cost_raw)
             .unwrap_or_else(|_| CostMatrixSource::Predefined(cost_raw));
 
-        let builder = SessionBuilder::new(self.assets.as_ref());
-        let kb_def = KeyboardDefinition {
-            meta: Default::default(),
-            geometry,
-            layouts: Default::default(),
-        };
+        let builder = SessionBuilder::new(self.assets.as_ref())
+            .with_keyboard_def(Arc::new(KeyboardDefinition {
+                meta: Default::default(),
+                geometry,
+                layouts: Default::default(),
+            }))
+            .with_corpus(&[CorpusSource { id: corpus_name, weight: DEFAULT_CORPUS_WEIGHT, hash: None }]).await.map_err(|e| AppError::Validation(format!("Corpus load failed: {}", e)))?
+            .with_cost_matrix(&cost_source).await.map_err(|e| AppError::Validation(format!("Cost matrix load failed: {}", e)))?
+            .with_keycodes(keyforge_model::constants::ASSET_KEYCODES_FILENAME).await.map_err(|e| AppError::Validation(format!("Keycodes load failed: {}", e)))?
+            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&weights))
+            .with_config(keyforge_model::SearchConfig::default());
 
-        // TODO: Make this configurable per job or system-wide
-        let keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME;
-
-        let session = builder.build_preloaded(
-            &kb_def,
-            &[CorpusSource { id: corpus_name, weight: DEFAULT_CORPUS_WEIGHT, hash: None }],
-            &weights,
-            &SearchParams::default(),
-            keycodes_file,
-            &cost_source,
-            None
-        ).await.map_err(|e| AppError::Validation(format!("Session build failed: {}", e)))?;
+        let session = builder.build().map_err(|e| AppError::Validation(format!("Session build failed: {}", e)))?;
 
         self.engine_cache.insert(&sub.job_id, session.engine.clone());
         self.check_tolerance(session.engine, sub).await

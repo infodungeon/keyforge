@@ -1,13 +1,7 @@
 // libs/keyforge-core/tests/core_tests.rs
 
-//! Integration tests for the core KeyForge API. Verifies the orchestration of layout
-//! optimization results—including engine instantiation, analysis reports, and search
-//! execution—ensuring correct delegation between the foundational physics and evolution
-//! layers.
-
-
 use keyforge_core::*;
-use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, types::KeyCode};
+use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, CostModel, types::KeyCode};
 use keyforge_physics::EngineRequest;
 use std::sync::Arc;
 
@@ -65,12 +59,34 @@ fn minimal_rubric() -> Rubric {
     }
 }
 
+fn minimal_cost_model() -> CostModel {
+    let json = r#"{
+        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "models": {
+            "model_a_row_staggered": {
+                "description": "Test Model",
+                "static_costs": {
+                    "universal_hand": {
+                        "thumb": { "pos_1": 100.0 },
+                        "index": { "base": { "r0": 100.0, "r1": 100.0 } },
+                        "middle": { "base": { "r0": 100.0, "r1": 100.0 } },
+                        "ring": { "base": { "r0": 100.0, "r1": 100.0 } },
+                        "pinky": { "base": { "r0": 100.0, "r1": 100.0 } }
+                    }
+                }
+            }
+        },
+        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+    }"#;
+    serde_json::from_str(json).unwrap()
+}
+
 fn minimal_request() -> EngineRequest {
     EngineRequest {
         keyboard: Arc::new(minimal_keyboard()),
         corpus: Arc::new(minimal_corpus()),
         rubric: Arc::new(minimal_rubric()),
-        cost_matrix: vec![],
+        cost_model: Arc::new(minimal_cost_model()),
         config: SearchConfig::Annealing {
             steps: 5,
             start_temp: 10.0,
@@ -79,6 +95,7 @@ fn minimal_request() -> EngineRequest {
             patience: 10,
             reheats: 0,
             reheat_factor: 0.5,
+            include_thumbs: false,
         },
         initial_layout: Some(Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)])),
         pinned_keys: vec![],
@@ -139,7 +156,6 @@ fn test_analyze_legacy() {
 #[test]
 fn test_score_legacy() {
     let req = minimal_request();
-    // Based on error logs, score() returns Result<OptimizationResult> or similar struct with .score
     let result = score(&req).unwrap();
     assert!(result.score.is_finite());
 }
@@ -169,6 +185,7 @@ fn test_optimize_legacy() {
         patience: 5,
         reheats: 0,
         reheat_factor: 0.5,
+        include_thumbs: false,
     };
 
     let result = optimize(&req).unwrap();
@@ -187,6 +204,7 @@ fn test_optimize_with_callback() {
         patience: 5,
         reheats: 0,
         reheat_factor: 0.5,
+        include_thumbs: false,
     };
 
     let result = optimize_with_callback(&req, TestCallback).unwrap();
@@ -207,6 +225,7 @@ fn test_optimize_with_engine() {
         patience: 5,
         reheats: 0,
         reheat_factor: 0.5,
+        include_thumbs: false,
     };
 
     let result = optimize_with_engine(engine_arc, &config, TestCallback, None, None).unwrap();

@@ -37,7 +37,6 @@ pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-use keyforge_core::loader::RawCostData;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 
 /// Generates a serialized cost matrix based on the user's historical typing statistics.
@@ -46,8 +45,8 @@ use keyforge_protocol::{BiometricSample, UserStatsStore};
 /// TODO: Implement statistical analysis of UserStatsStore to generate specific K/V pairs.
 pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
     tracing::warn!("generate_cost_profile is a STUB - returning empty matrix");
-    let data = RawCostData { entries: vec![] };
-    serde_json::to_string(&data).unwrap_or_else(|_| "{\"entries\":[]}".to_string())
+    // Return empty CostModel JSON
+    r#"{"meta":{"version":2.0,"description":"Stub","unit":"pts"},"models":{},"dynamic_rules":{"sequence_modifiers":{},"penalties":{},"constraints":{}}}"#.to_string()
 }
 
 /// A streaming builder for generating cost profiles from biometric samples.
@@ -69,8 +68,7 @@ impl StreamingProfileBuilder {
 
     pub fn generate(&self) -> String {
         tracing::warn!("StreamingProfileBuilder is a STUB - returning empty matrix (processed {} samples)", self.sample_count);
-        let data = RawCostData { entries: vec![] };
-        serde_json::to_string(&data).unwrap_or_else(|_| "{\"entries\":[]}".to_string())
+        r#"{"meta":{"version":2.0,"description":"Stub","unit":"pts"},"models":{},"dynamic_rules":{"sequence_modifiers":{},"penalties":{},"constraints":{}}}"#.to_string()
     }
 }
 

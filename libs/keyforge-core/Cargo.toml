@@ -21,3 +21,6 @@ async-trait = "0.1"
 [features]
 default = []
 single_threaded = ["keyforge-evolution/single_threaded"]
+
+[dev-dependencies]
+serde_json = "1.0"

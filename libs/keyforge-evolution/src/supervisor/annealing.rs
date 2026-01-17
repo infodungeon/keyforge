@@ -255,7 +255,7 @@ mod tests {
     use super::*;
     use crate::supervisor::strategies::{CoolingAnnealing, GroupMutation};
     use crate::supervisor::traits::{MutationAction, MutationProposal};
-    use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
+    use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, CostModel};
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Arc;
 
@@ -301,6 +301,28 @@ mod tests {
 
     use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
 
+    fn mock_cost_model() -> CostModel {
+        let json = r#"{
+            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+            "models": {
+                "model_a_row_staggered": {
+                    "description": "Test Model",
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": { "pos_1": 100.0 },
+                            "index": { "base": { "r0": 100.0 } },
+                            "middle": { "base": { "r0": 100.0 } },
+                            "ring": { "base": { "r0": 100.0 } },
+                            "pinky": { "base": { "r0": 100.0 } }
+                        }
+                    }
+                }
+            },
+            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+        }"#;
+        serde_json::from_str(json).unwrap()
+    }
+
     fn setup_test_engine(size: usize) -> ScoringEngine {
         let keys: Vec<_> = (0..size)
             .map(|i| KeyNode {
@@ -324,8 +346,8 @@ mod tests {
                 corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
             }
         }
-        let cost_matrix = vec![];
-        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_matrix).unwrap()
+        let cost_model = mock_cost_model();
+        ScoringEngine::new(&kb, &corpus, &Rubric::default(), &cost_model).unwrap()
     }
 
     #[test]

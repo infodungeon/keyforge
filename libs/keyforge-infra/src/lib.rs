@@ -52,7 +52,7 @@ pub use asset::manager::AssetManager;
 pub use asset::caching_provider::CachingProvider;
 pub use asset::ValkeyProvider; // ADDED
 
-pub use keyforge_core::loader::{AssetLoader, RawCostData};
+pub use keyforge_core::loader::AssetLoader;
 
 pub use util::common::{
     calculate_file_hash, generate_cost_profile, load_keycode_registry, sanitize_filename,

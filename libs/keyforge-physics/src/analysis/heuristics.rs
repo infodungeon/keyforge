@@ -92,8 +92,34 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
 mod tests {
     use super::*;
     use crate::kernel::compiler::Compiler;
-    use keyforge_model::{Keyboard, KeyNode, Corpus, Rubric, KeyCode};
+    use keyforge_model::{Keyboard, KeyNode, Corpus, Rubric, KeyCode, CostModel};
     use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+
+    fn mock_cost_model() -> CostModel {
+        // We define distinct costs for rows to create a gradient.
+        // r0 (home row) = 1.0 (Best)
+        // r1 (top row) = 2.0
+        // r2 (bottom row) = 3.0
+        let json = r#"{
+            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+            "models": {
+                "model_a_row_staggered": {
+                    "description": "Test Model",
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": { "pos_1": 1.0 },
+                            "index": { "base": { "r0": 1.0, "r1": 2.0, "r2": 3.0 } },
+                            "middle": { "base": { "r0": 1.0, "r1": 2.0, "r2": 3.0 } },
+                            "ring": { "base": { "r0": 1.0, "r1": 2.0, "r2": 3.0 } },
+                            "pinky": { "base": { "r0": 1.0, "r1": 2.0, "r2": 3.0 } }
+                        }
+                    }
+                }
+            },
+            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+        }"#;
+        serde_json::from_str(json).unwrap()
+    }
 
     fn setup_mock_ctx(size: usize) -> crate::kernel::EngineContext {
         let keys: Vec<_> = (0..size)
@@ -101,8 +127,10 @@ mod tests {
                 index: i,
                 label: format!("k{}", i),
                 hand: HandIndex((i % 2) as u8),
-                finger: FingerIndex((i % 5) as u8),
-                row: RowIndex((i / 10) as i8),
+                // Use FingerIndex::INDEX (1) for all keys to ensure row-based costs are applied.
+                // This is a simplification for testing cost gradients.
+                finger: FingerIndex::INDEX, 
+                row: RowIndex((i / 10) as i8), // 0-9: r0, 10-19: r1, 20-29: r2
                 col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
                 y: (i / 10) as f32,
@@ -116,26 +144,28 @@ mod tests {
         // Character 32 (' ') is also frequent
         corpus.char_freqs[32] = 2000;
         
-        Compiler::compile(&kb, &corpus, &Rubric::default(), &[]).unwrap()
+        let cost_model = mock_cost_model();
+        Compiler::compile(&kb, &corpus, &Rubric::default(), &cost_model).unwrap()
     }
 
     #[test]
     fn test_suggest_swaps_multi_mapped() {
         let ctx = setup_mock_ctx(30);
         
-        // Layout where 'e' (10) is on a very expensive key (index 0)
-        // and 'Space' (32) is on two keys: index 28 and 29.
+        // Layout where 'e' (10) is on a very expensive key (index 20, row 2, cost 3.0)
+        // and 'Space' (32) is on two keys: index 0 (row 0, cost 1.0) and index 1 (row 0, cost 1.0).
+        // We want to swap 'e' to a cheaper spot.
         let mut keys = vec![KeyCode(0); 30];
         for i in 0..30 { keys[i] = KeyCode(i as u16); }
         
-        keys[0] = KeyCode(10); // 'e' at worst position
-        keys[28] = KeyCode(32); // Space at position 28
-        keys[29] = KeyCode(32); // Space at position 29
+        keys[20] = KeyCode(10); // 'e' at expensive position (row 2)
+        keys[0] = KeyCode(32);  // Space at cheap position (row 0)
+        keys[1] = KeyCode(32);  // Space at cheap position (row 0)
         
         let layout = Layout::new_unchecked(keys);
         let suggestions = suggest_swaps(&ctx, &layout, true);
         
-        // We expect at least one suggestion involving 'e' (index 0) 
+        // We expect at least one suggestion involving 'e' (index 20) 
         // to be swapped with one of the 'Space' positions or other good positions.
         assert!(!suggestions.is_empty(), "Should suggest improvements");
         

@@ -36,7 +36,7 @@ use kernel::compute::{analyze_layout, score_layout};
 pub use kernel::EngineContext;
 use kernel::types::{KeyCode, ValidatedLayout};
 use keyforge_model::{
-    AnalysisReport, Corpus, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig,
+    AnalysisReport, Corpus, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig, CostModel
 };
 use keyforge_model::constants::SCORE_SCALE;
 use std::sync::Arc;
@@ -60,9 +60,9 @@ impl ScoringEngine {
         keyboard: &Keyboard,
         corpus: &Corpus,
         rubric: &Rubric,
-        cost_matrix_entries: &[(usize, usize, f32)],
+        cost_model: &CostModel,
     ) -> Result<Self, PhysicsError> {
-        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_matrix_entries)?;
+        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
         Ok(Self { ctx })
     }
 
@@ -160,20 +160,20 @@ pub struct EngineRequest {
     pub corpus: Arc<Corpus>,
     /// The ergonomic weights to apply.
     pub rubric: Arc<Rubric>,
+    /// The cost model to use.
+    pub cost_model: Arc<CostModel>,
     /// Optimization and search parameters.
     pub config: SearchConfig,
     /// The starting layout for the operation.
     pub initial_layout: Option<Layout>,
     /// Keys that must remain in their initial positions.
     pub pinned_keys: Vec<Option<KeyCode>>,
-    /// Manual overrides for key-to-key travel costs.
-    pub cost_matrix: Vec<(usize, usize, f32)>,
 }
 
 /// Performs a one-off scoring operation for the given request.
 #[instrument(skip(req))]
 pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_matrix)?;
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
     let layout = req
         .initial_layout
         .clone()
@@ -187,7 +187,7 @@ pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
 /// Performs a one-off analysis operation for the given request.
 #[instrument(skip(req))]
 pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_matrix)?;
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
     let layout = req
         .initial_layout
         .clone()
@@ -205,7 +205,7 @@ pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
 /// Suggests improvements for the layout described in the request.
 #[instrument(skip(req))]
 pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_matrix)?;
+    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
     let layout = req
         .initial_layout
         .clone()

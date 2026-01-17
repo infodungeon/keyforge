@@ -59,6 +59,10 @@ pub enum ForgeError {
     #[error("Invalid Data: {0}")]
     InvalidData(String),
 
+    /// Configuration error.
+    #[error("Configuration Error: {0}")]
+    Config(String),
+
     /// Error originating from the Model logic itself.
     #[error("Model Error: {0}")]
     Model(#[from] ModelError),
@@ -101,4 +105,8 @@ pub enum PhysicsError {
     /// Layout has fewer keys than the keyboard.
     #[error("Layout size {0} is insufficient for physical key count {1}")]
     LayoutUnderflow(usize, usize),
+
+    /// Configuration error in the physics engine.
+    #[error("Physics Config Error: {0}")]
+    Config(String),
 }

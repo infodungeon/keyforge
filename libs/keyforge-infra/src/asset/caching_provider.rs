@@ -16,7 +16,7 @@ use crate::asset::fs_provider::FsProvider;
 use crate::asset::AssetServerProvider;
 use crate::net::sync::ServerManifest;
 use bytes::Bytes;
-use keyforge_core::loader::{AssetLoader, LoaderResult, RawCostData};
+use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::{
@@ -25,6 +25,7 @@ use keyforge_model::constants::{
 };
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::cost_model::CostModel;
 use moka::sync::Cache;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
@@ -35,7 +36,7 @@ struct CacheState {
     provider: FsProvider,
     keyboards: Cache<String, Arc<KeyboardDefinition>>,
     corpora: Cache<String, Arc<Corpus>>,
-    costs: Cache<String, Arc<RawCostData>>,
+    cost_models: Cache<String, Arc<CostModel>>,
     keycodes: Cache<String, Arc<KeycodeRegistry>>,
     file_cache: Cache<String, Bytes>,
     manifest: Cache<String, Arc<ServerManifest>>,
@@ -48,7 +49,7 @@ impl std::fmt::Debug for CacheState {
             .field("provider", &self.provider)
             .field("keyboards", &"Cache")
             .field("corpora", &"Cache")
-            .field("costs", &"Cache")
+            .field("cost_models", &"Cache")
             .field("keycodes", &"Cache")
             .field("file_cache", &"Cache")
             .field("manifest", &"Cache")
@@ -72,14 +73,14 @@ impl CachingProvider {
         let provider = FsProvider::new(data_path.clone());
         let keyboards = Cache::new(DEFAULT_KB_CACHE_CAPACITY as u64);
         let corpora = Cache::new(DEFAULT_CORPUS_CACHE_CAPACITY as u64);
-        let costs = Cache::new(DEFAULT_COST_CACHE_CAPACITY as u64);
+        let cost_models = Cache::new(DEFAULT_COST_CACHE_CAPACITY as u64);
         let keycodes = Cache::new(DEFAULT_KEYCODE_CACHE_CAPACITY as u64);
         let file_cache = Cache::new(1000); // RAW binary cache
         let manifest = Cache::new(1);
 
         let kb_c = keyboards.clone();
         let cp_c = corpora.clone();
-        let cs_c = costs.clone();
+        let cm_c = cost_models.clone();
         let kc_c = keycodes.clone();
         let fl_c = file_cache.clone();
         let mf_c = manifest.clone();
@@ -116,9 +117,9 @@ impl CachingProvider {
                         } else if path_str.contains("weights") {
                             if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                                 let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
-                                cs_c.invalidate(clean);
+                                cm_c.invalidate(clean);
                             } else {
-                                cs_c.invalidate_all();
+                                cm_c.invalidate_all();
                             }
                         } else if path_str.contains("config") {
                             kc_c.invalidate_all();
@@ -140,7 +141,7 @@ impl CachingProvider {
                 provider,
                 keyboards,
                 corpora,
-                costs,
+                cost_models,
                 keycodes,
                 file_cache,
                 manifest,
@@ -246,7 +247,7 @@ impl CachingProvider {
     pub fn invalidate_all(&self) {
         self.state.keyboards.invalidate_all();
         self.state.corpora.invalidate_all();
-        self.state.costs.invalidate_all();
+        self.state.cost_models.invalidate_all();
         self.state.file_cache.invalidate_all();
         self.state.manifest.invalidate_all();
         self.state.keycodes.invalidate_all();
@@ -301,9 +302,7 @@ impl CachingProvider {
              let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") { s } else { stem };
 
              if !clean_stem.is_empty() {
-                 if let Err(e) = self.load_cost_matrix(clean_stem).await {
-                     tracing::warn!("Eager load failed for weights {}: {}", clean_stem, e);
-                 }
+                 let _ = self.load_cost_model(clean_stem).await;
                  return Ok(true);
              }
         }
@@ -360,15 +359,15 @@ impl AssetLoader for CachingProvider {
         self.state.corpora.insert(key, cp.clone());
         Ok(cp)
     }
-    async fn load_cost_matrix(&self, filename: &str) -> LoaderResult<Arc<RawCostData>> {
-        if let Some(c) = self.state.costs.get(filename) {
+    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>> {
+        if let Some(c) = self.state.cost_models.get(filename) {
             return Ok(c);
         }
-        let mt = self.state.provider.load_cost_matrix(filename).await?;
+        let cm = self.state.provider.load_cost_model(filename).await?;
         self.state
-            .costs
-            .insert(filename.to_string(), mt.clone());
-        Ok(mt)
+            .cost_models
+            .insert(filename.to_string(), cm.clone());
+        Ok(cm)
     }
     async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
         if let Some(c) = self.state.keycodes.get(filename) {
