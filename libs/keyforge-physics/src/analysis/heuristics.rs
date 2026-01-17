@@ -91,6 +91,7 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ScoringEngine;
     use crate::kernel::compiler::Compiler;
     use keyforge_model::{Keyboard, KeyNode, Corpus, Rubric, KeyCode, CostModel};
     use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
@@ -172,5 +173,73 @@ mod tests {
         // Verify that suggestions include swaps with Space (32)
         let has_space_swap = suggestions.iter().any(|s| s.key_a == "32" || s.key_b == "32");
         assert!(has_space_swap, "Should suggest swapping with Space even if it is multi-mapped");
+    }
+
+    fn setup_kb_minimal() -> Keyboard {
+        let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex(0),
+            finger: FingerIndex(i as u8),
+            x: i as f32,
+            ..Default::default()
+        }).collect();
+        Keyboard::new(keys, 0).unwrap()
+    }
+
+    #[test]
+    fn test_heuristics_swap_suggestion_success() {
+        let kb = setup_kb_minimal();
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 2, 1000));
+
+        let mut rubric = Rubric::default();
+        rubric.travel_lat = 10.0;
+
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+
+        let suggestions = suggest_swaps(engine.context(), &layout, false);
+        assert!(!suggestions.is_empty(), "Should suggest swapping 0 closer to 2");
+        assert!(suggestions[0].improvement_pct > 0.0);
+    }
+
+    #[test]
+    fn test_heuristics_zero_score_early_return() {
+        let kb = setup_kb_minimal();
+        let corpus = Corpus::default();
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
+        let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+
+        let suggestions = suggest_swaps(engine.context(), &layout, false);
+        assert!(suggestions.is_empty(), "Zero score should return empty suggestions");
+    }
+
+    #[test]
+    fn test_swap_degradation() {
+        let kb = setup_kb_minimal();
+        let mut corpus = Corpus::default();
+        corpus.bigrams.push((0, 1, 1000));
+        
+        let mut rubric = Rubric::default();
+        rubric.travel_lat = 10.0;
+        
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        
+        let layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
+        let mut pos_map_data = vec![65535u16; 65536];
+        pos_map_data[0] = 0; pos_map_data[1] = 1; pos_map_data[2] = 2;
+        
+        let validated = ValidatedLayout::new(&layout_keys, engine.context().key_count).unwrap();
+        
+        let mut starts = [0u16; 65536];
+        let mut counts = [0u8; 65536];
+        let mut indices = [0u16; 512];
+        let mut used_keys = Vec::new();
+        let pm = PosMap::from_scratch(&layout_keys, engine.context().key_count, &mut starts, &mut counts, &mut indices, &mut used_keys);
+
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2);
+        
+        assert!(delta > 0, "Degrading swap should have positive delta");
     }
 }

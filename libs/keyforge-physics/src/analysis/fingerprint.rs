@@ -90,3 +90,22 @@ impl Fingerprinter {
 fn to_codes(s: &str) -> Vec<KeyCode> {
     s.chars().map(|c| KeyCode(c as u16)).collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fingerprint_identification() {
+        let qwerty_str = "qwertyuiopasdfghjkl;zxcvbnm,./";
+        let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode(c as u16)).collect();
+        let layout = Layout::new_unchecked(keys);
+
+        let fp = Fingerprinter::default();
+        let id = fp.identify(&layout);
+        assert!(id.is_some());
+        let id = id.unwrap();
+        assert_eq!(id.name, "Qwerty");
+        assert!(id.similarity > 0.9);
+    }
+}

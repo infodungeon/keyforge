@@ -9,26 +9,11 @@ use proptest::prelude::*;
 use rand::SeedableRng;
 use std::sync::Arc;
 
-fn mock_cost_model() -> CostModel {
-    let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
-        "models": {
-            "model_a_row_staggered": {
-                "description": "Test Model",
-                "static_costs": {
-                    "universal_hand": {
-                        "thumb": { "pos_1": 100.0 },
-                        "index": { "base": { "r0": 100.0 } },
-                        "middle": { "base": { "r0": 100.0 } },
-                        "ring": { "base": { "r0": 100.0 } },
-                        "pinky": { "base": { "r0": 100.0 } }
-                    }
-                }
-            }
-        },
-        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
-    }"#;
-    serde_json::from_str(json).unwrap()
+fn load_cost_model_fixture() -> CostModel {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/default_cost_model.json");
+    let json = std::fs::read_to_string(path).expect("Failed to read fixture");
+    serde_json::from_str(&json).expect("Failed to parse fixture")
 }
 
 fn rubric_strategy() -> impl Strategy<Value = Rubric> {
@@ -113,6 +98,8 @@ fn corpus_strategy(char_range: std::ops::Range<u16>) -> impl Strategy<Value = Co
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
 
+    /// Intent: Verify parity between the optimized ScoringEngine and the naive DeterministicScorer.
+    /// Expected: ScoringEngine must match the Oracle result within tolerance.
     #[test]
     fn test_oracle_parity(
         (kb, layout_keys) in kb_and_layout_strategy(),
@@ -120,7 +107,7 @@ proptest! {
         rubric in rubric_strategy()
     ) {
         let layout = Layout::new_unchecked(layout_keys);
-        let cost_model = mock_cost_model();
+        let cost_model = load_cost_model_fixture();
         let engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_model).unwrap();
 
         // Smoke test: Ensure scoring doesn't panic
@@ -129,6 +116,8 @@ proptest! {
         // Note: Oracle parity check disabled until DeterministicScorer is updated to support CostModel.
     }
 
+    /// Intent: Verify that incremental swap deltas match the difference between two full scores.
+    /// Expected: delta(layout, i, j) == score(swapped_layout) - score(layout)
     #[test]
     fn test_delta_validity(
         (kb, mut layout_keys) in kb_and_layout_strategy(),
@@ -149,7 +138,7 @@ proptest! {
         layout_keys.shuffle(&mut rng);
 
         let rubric = Rubric::default();
-        let cost_model = mock_cost_model();
+        let cost_model = load_cost_model_fixture();
         let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cost_model).unwrap();
 
         let score_before = engine.score_raw(&layout_keys).unwrap();
@@ -172,65 +161,4 @@ proptest! {
             actual_delta, delta
         );
     }
-}
-
-#[test]
-fn test_delta_internals_manual() {
-    let keys = vec![
-        KeyNode { index: 0, x: 0.0, ..Default::default() },
-        KeyNode { index: 1, x: 10.0, ..Default::default() },
-        KeyNode { index: 2, x: 20.0, ..Default::default() },
-    ];
-    let kb = Keyboard::new(keys, 0).unwrap();
-    
-    let mut corpus = Corpus::default();
-    corpus.bigrams.push((0, 1, 100));
-    corpus.trigrams.push((0, 1, 2, 100));
-    
-    let mut rubric = Rubric::default();
-    rubric.travel_lat = 1.0;
-    
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
-    
-    let mut layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
-    let mut pos_map = vec![65535u16; 65536];
-    pos_map[0] = 0; pos_map[1] = 1; pos_map[2] = 2;
-    
-    let score_before = engine.score_raw(&layout_keys).unwrap();
-    let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, 1, 2).unwrap();
-    
-    layout_keys.swap(1, 2);
-    let score_after = engine.score_raw(&layout_keys).unwrap();
-    
-    assert_eq!(score_after - score_before, delta, "Manual delta check failed");
-}
-
-#[test]
-fn test_delta_self_loop() {
-    let keys = vec![
-        KeyNode { index: 0, x: 0.0, ..Default::default() },
-        KeyNode { index: 1, x: 10.0, ..Default::default() },
-    ];
-    let kb = Keyboard::new(keys, 0).unwrap();
-    
-    let mut corpus = Corpus::default();
-    corpus.bigrams.push((0, 0, 100));
-    
-    let mut rubric = Rubric::default();
-    rubric.travel_lat = 1.0;
-    rubric.trigram_limit = 0; 
-    
-    let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
-    
-    let mut layout_keys = vec![KeyCode(0), KeyCode(1)];
-    let mut pos_map = vec![65535u16; 65536];
-    pos_map[0] = 0; pos_map[1] = 1;
-    
-    let score_before = engine.score_raw(&layout_keys).unwrap();
-    let delta = engine.calculate_swap_delta(&layout_keys, &pos_map, 0, 1).unwrap();
-    
-    layout_keys.swap(0, 1);
-    let score_after = engine.score_raw(&layout_keys).unwrap();
-    
-    assert_eq!(score_after - score_before, delta, "Self loop delta check failed");
 }

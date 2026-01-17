@@ -330,3 +330,74 @@ fn flatten_trigrams_end(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<Key
 
     (starts, o1, o2, freqs)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ScoringEngine;
+    use keyforge_model::{
+        Corpus, KeyNode, Keyboard, Rubric, CostModel,
+        types::{HandIndex, FingerIndex, KeyCode}
+    };
+
+    fn setup_kb_compiler() -> Keyboard {
+        let keys: Vec<KeyNode> = (0..5).map(|i| KeyNode {
+            index: i,
+            hand: HandIndex(0),
+            finger: FingerIndex(i as u8),
+            x: i as f32,
+            ..Default::default()
+        }).collect();
+        Keyboard::new(keys, 0).unwrap()
+    }
+
+    fn mock_cost_model() -> CostModel {
+        let json = r#"{
+            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+            "models": {
+                "model_a_row_staggered": {
+                    "description": "Test Model",
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": { "pos_1": 100.0 },
+                            "index": { "base": { "r0": 100.0 } },
+                            "middle": { "base": { "r0": 100.0 } },
+                            "ring": { "base": { "r0": 100.0 } },
+                            "pinky": { "base": { "r0": 100.0 } }
+                        }
+                    }
+                }
+            },
+            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+        }"#;
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn test_compiler_trigram_pruning() {
+        let kb = setup_kb_compiler();
+        let mut corpus = Corpus::default();
+        for i in 0..20 {
+            corpus.trigrams.push((0, 1, i as u16, 100));
+        }
+        
+        let mut rubric = Rubric::default();
+        rubric.trigram_limit = 5;
+        
+        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        
+        assert_eq!(engine.trigram_count(), 5);
+    }
+
+    #[test]
+    fn test_finger_origin_fallback() {
+        let keys = vec![
+            KeyNode { index: 0, finger: FingerIndex(1), is_home: false, ..Default::default() }
+        ];
+        let kb = Keyboard::new(keys, 0).unwrap();
+        let corpus = Corpus::default();
+        let rubric = Rubric::default();
+        
+        let result = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model());
+        assert!(result.is_ok());
+    }
+}
