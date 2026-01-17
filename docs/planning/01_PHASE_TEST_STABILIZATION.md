@@ -19,10 +19,10 @@
 ### Group B: Evolution Crate (Tier 1 - Critical)
 *Focus: Algorithms and state transitions. Determinism is key.*
 
-- [ ] **Task B.1: Audit & Inventory.** Audit `libs/keyforge-evolution/tests/`.
-- [ ] **Task B.2: Unit Migration.** Move mutation logic and annealing schedules to `src/`.
-- [ ] **Task B.3: De-duplication.** Clean up `tests/`.
-- [ ] **Checkpoint B:** Run `cargo test -p keyforge-evolution`. Verify success. **Commit:** `refactor(evolution): enforce testing mandate`.
+- [x] **Task B.1: Audit & Inventory.** Audit `libs/keyforge-evolution/tests/`.
+- [x] **Task B.2: Unit Migration.** Move mutation logic and annealing schedules to `src/`.
+- [x] **Task B.3: De-duplication.** Clean up `tests/`.
+- [x] **Checkpoint B:** Run `cargo test -p keyforge-evolution`. Verify success. **Commit:** `refactor(evolution): enforce testing mandate`.
 
 ### Group C: Infrastructure & CLI (Tier 3 - Shell)
 *Focus: Wiring and IO. Tests here should verify the "Humble Object" pattern.*

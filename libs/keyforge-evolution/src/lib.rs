@@ -22,9 +22,6 @@ pub use errors::EvolutionError;
 pub mod supervisor;
 pub mod errors;
 
-#[cfg(test)]
-mod tests_integration;
-
 use keyforge_model::{Layout, SearchConfig, KeyCode, OptimizationResult};
 use keyforge_physics::{EngineRequest, ScoringEngine};
 use std::sync::Arc;

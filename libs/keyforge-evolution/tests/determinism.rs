@@ -75,6 +75,8 @@ fn create_mock_keyboard() -> Keyboard {
     Keyboard::new(keys, 0).unwrap()
 }
 
+/// Intent: Verify parity between the optimized ScoringEngine and the naive DeterministicScorer during full evolution.
+/// Expected: Final layout score must match the Oracle result within tolerance.
 #[test]
 #[ignore = "DeterministicScorer in physics crate needs to be updated to support CostModel correctly"]
 fn test_oracle_pattern_match() {
