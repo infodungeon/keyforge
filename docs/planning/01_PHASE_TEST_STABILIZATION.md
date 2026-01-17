@@ -27,9 +27,9 @@
 ### Group C: Infrastructure & CLI (Tier 3 - Shell)
 *Focus: Wiring and IO. Tests here should verify the "Humble Object" pattern.*
 
-- [ ] **Task C.1: CLI Test Affinity.** Check `apps/keyforge-cli/tests/`. If a test verifies physics logic, move it to `libs/keyforge-physics/src`.
-- [ ] **Task C.2: Infra Wiring.** Ensure `keyforge-infra` tests focus on file/db interaction, not business logic.
-- [ ] **Checkpoint C:** Run `just test-cli`. Verify success. **Commit:** `refactor(infra): enforce testing mandate`.
+- [x] **Task C.1: CLI Test Affinity.** Check `apps/keyforge-cli/tests/`. If a test verifies physics logic, move it to `libs/keyforge-physics/src`.
+- [x] **Task C.2: Infra Wiring.** Ensure `keyforge-infra` tests focus on file/db interaction, not business logic.
+- [x] **Checkpoint C:** Run `just test-cli`. Verify success. **Commit:** `refactor(infra): enforce testing mandate`.
 
 ## Verification & Sign-off
 
