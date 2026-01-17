@@ -33,6 +33,6 @@
 
 ## Verification & Sign-off
 
-- [ ] **Final Regression:** Run full workspace test suite `just test`.
-- [ ] **Coverage Check:** Verify unit test coverage is sufficient (aiming for high branch coverage in Tier 1).
-- [ ] **Git Push:** Push the stabilized test suite.
+- [x] **Final Regression:** Run full workspace test suite `just test`.
+- [x] **Coverage Check:** Verify unit test coverage is sufficient (aiming for high branch coverage in Tier 1).
+- [x] **Git Push:** Push the stabilized test suite.

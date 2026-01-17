@@ -97,7 +97,7 @@ describe("Service: Keycodes", () => {
     expect(keycodeService.getVisualLabel("KC_A")).toBe("A");
     expect(keycodeService.getVisualLabel("KC_LSFT")).toBe("Shift");
     expect(keycodeService.getVisualLabel("KC_ENTER")).toBe("Enter");
-    // Unknown keys should be blank
-    expect(keycodeService.getVisualLabel("KC_UNKNOWN")).toBe("");
+    // Unknown keys should fallback to the token itself
+    expect(keycodeService.getVisualLabel("KC_UNKNOWN")).toBe("KC_UNKNOWN");
   });
 });
