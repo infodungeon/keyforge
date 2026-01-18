@@ -58,31 +58,34 @@ impl DeterministicScorer {
             pos_map[code.0 as usize].push(i as u16);
         }
 
-        let fp_rubric = FixedPointRubric {
-            travel_lat: to_fixed(rubric.travel_lat),
-            travel_vert: to_fixed(rubric.travel_vert),
-            sfb_base: to_fixed(rubric.sfb_base),
-            sfb_lateral: to_fixed(rubric.sfb_lateral),
-            sfb_lateral_weak: to_fixed(rubric.sfb_lateral_weak),
-            sfb_diagonal: to_fixed(rubric.sfb_diagonal),
-            sfb_long: to_fixed(rubric.sfb_long),
-            threshold_sfb_long_row_diff: rubric.threshold_sfb_long_row_diff,
-            redirect: to_fixed(rubric.redirect),
-            roll_bonus: to_fixed(rubric.roll_bonus),
-            penalty_scissor: to_fixed(rubric.penalty_scissor),
-            threshold_scissor_row_diff: rubric.threshold_scissor_row_diff,
-        };
+        let fp_rubric = FixedPointRubric::from(rubric);
+        let fp_keys: Vec<FixedPointKey> = keyboard.keys.iter().map(FixedPointKey::from).collect();
 
-        let fp_keys: Vec<FixedPointKey> = keyboard.keys.iter().map(|k| FixedPointKey {
-            x: to_fixed(k.x),
-            y: to_fixed(k.y),
-            hand: k.hand,
-            finger: k.finger,
-            row: k.row,
-            col: k.col,
-        }).collect();
+        // 1. Monograms
+        total_score = total_score.saturating_add(
+            Self::score_monograms(keyboard, corpus, rubric, &pos_map)
+        );
 
-        // 1. Monograms: Optimal Choice
+        // 2. Bigrams
+        total_score = total_score.saturating_add(
+            Self::score_bigrams(keyboard, corpus, &fp_rubric, &fp_keys, &pos_map, cost_matrix)
+        );
+
+        // 3. Trigrams
+        total_score = total_score.saturating_add(
+            Self::score_trigrams(corpus, &fp_rubric, &fp_keys, &pos_map)
+        );
+
+        total_score as f32 / SCORE_SCALE
+    }
+
+    fn score_monograms(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric, // Using raw rubric for f32 precision in monograms matching original
+        pos_map: &[Vec<u16>],
+    ) -> i64 {
+        let mut total_score: i64 = 0;
         for (char_code, &freq) in corpus.char_freqs.iter().enumerate() {
             if freq == 0 { continue; }
             let candidates = &pos_map[char_code];
@@ -102,8 +105,18 @@ impl DeterministicScorer {
             }
             total_score = total_score.saturating_add(min_cost.saturating_mul(freq as i64));
         }
+        total_score
+    }
 
-        // 2. Bigrams: Optimal Choice
+    fn score_bigrams(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        fp_rubric: &FixedPointRubric,
+        fp_keys: &[FixedPointKey],
+        pos_map: &[Vec<u16>],
+        cost_matrix: &[(usize, usize, f32)],
+    ) -> i64 {
+        let mut total_score: i64 = 0;
         for &(c1, c2, freq) in &corpus.bigrams {
             let candidates1 = &pos_map[c1 as usize];
             let candidates2 = &pos_map[c2 as usize];
@@ -114,17 +127,30 @@ impl DeterministicScorer {
                 for &p2 in candidates2 {
                     let k1 = &fp_keys[p1 as usize];
                     let k2 = &fp_keys[p2 as usize];
-                    let mut cost = calculate_pair_cost_int(keyboard, k1, k2, &fp_rubric, p1 as usize, p2 as usize);
+                    let mut cost = fp_rubric.calculate_pair_cost(keyboard, k1, k2, p1 as usize, p2 as usize, fp_keys);
+                    
+                    // Allow cost matrix override
                     for &(o_i, o_j, o_cost) in cost_matrix {
-                        if o_i == p1 as usize && o_j == p2 as usize { cost = to_fixed(o_cost); break; }
+                        if o_i == p1 as usize && o_j == p2 as usize { 
+                            cost = to_fixed(o_cost); 
+                            break; 
+                        }
                     }
                     if cost < min_cost { min_cost = cost; }
                 }
             }
             total_score = total_score.saturating_add(min_cost.saturating_mul(freq as i64));
         }
+        total_score
+    }
 
-        // 3. Trigrams: Optimal Choice
+    fn score_trigrams(
+        corpus: &Corpus,
+        fp_rubric: &FixedPointRubric,
+        fp_keys: &[FixedPointKey],
+        pos_map: &[Vec<u16>],
+    ) -> i64 {
+        let mut total_score: i64 = 0;
         for &(c1, c2, c3, freq) in &corpus.trigrams {
             let candidates1 = &pos_map[c1 as usize];
             let candidates2 = &pos_map[c2 as usize];
@@ -138,7 +164,7 @@ impl DeterministicScorer {
                         let k1 = &fp_keys[p1 as usize];
                         let k2 = &fp_keys[p2 as usize];
                         let k3 = &fp_keys[p3 as usize];
-                        let cost = calculate_flow_cost_int(k1, k2, k3, &fp_rubric);
+                        let cost = fp_rubric.calculate_flow_cost(k1, k2, k3);
                         if cost < min_cost { min_cost = cost; }
                     }
                 }
@@ -147,8 +173,7 @@ impl DeterministicScorer {
                 total_score = total_score.saturating_add(min_cost.saturating_mul(freq as i64));
             }
         }
-
-        total_score as f32 / SCORE_SCALE
+        total_score
     }
 }
 
@@ -159,7 +184,7 @@ fn to_fixed(val: f32) -> i64 {
     if scaled >= i64::MAX as f32 { i64::MAX } else if scaled <= i64::MIN as f32 { i64::MIN } else { scaled as i64 }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct FixedPointKey {
     x: i64,
     y: i64,
@@ -167,6 +192,19 @@ struct FixedPointKey {
     finger: FingerIndex,
     row: RowIndex,
     col: ColIndex,
+}
+
+impl From<&keyforge_model::geometry::KeyNode> for FixedPointKey {
+    fn from(k: &keyforge_model::geometry::KeyNode) -> Self {
+        Self {
+            x: to_fixed(k.x),
+            y: to_fixed(k.y),
+            hand: k.hand,
+            finger: k.finger,
+            row: k.row,
+            col: k.col,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -185,69 +223,105 @@ struct FixedPointRubric {
     threshold_scissor_row_diff: i8,
 }
 
-fn calculate_pair_cost_int(kb: &Keyboard, k1: &FixedPointKey, k2: &FixedPointKey, rubric: &FixedPointRubric, idx1: usize, idx2: usize) -> i64 {
-    if idx1 == idx2 { return 0; }
-    let dx = (k1.x - k2.x).abs();
-    let dy = (k1.y - k2.y).abs();
-    let scale_val = SCORE_SCALE as i128;
-    let scale_sq = scale_val * scale_val;
-    let term_x = (dx as i128).saturating_mul(dx as i128).saturating_mul(rubric.travel_lat as i128) / scale_sq;
-    let term_y = (dy as i128).saturating_mul(dy as i128).saturating_mul(rubric.travel_vert as i128) / scale_sq;
-    let dist_cost = (term_x.saturating_add(term_y)) as i64;
-    
-    if k1.hand != k2.hand { return 0; }
-    
-    let mut cost = dist_cost; // Match mechanics.rs: starts with dist_raw
-
-    if k1.finger == k2.finger {
-        // SFB Correction: Subtract monogram reach of K2
-        let mut reach_k2 = 0i64;
-        if let Some(origin) = kb.finger_origins.get(k2.hand.as_usize()).and_then(|h| h.get(k2.finger.as_usize())) {
-            let rdx = to_fixed((kb.keys[idx2].x - origin.0).abs());
-            let rdy = to_fixed((kb.keys[idx2].y - origin.1).abs());
-            let r_term_x = (rdx as i128).saturating_mul(rdx as i128).saturating_mul(rubric.travel_lat as i128) / scale_sq;
-            let r_term_y = (rdy as i128).saturating_mul(rdy as i128).saturating_mul(rubric.travel_vert as i128) / scale_sq;
-            reach_k2 = (r_term_x.saturating_add(r_term_y)) as i64;
-        }
-        
-        cost = dist_cost.saturating_sub(reach_k2);
-
-        let row_diff = (k1.row.0 - k2.row.0).abs();
-        let col_diff = (k1.col.0 - k2.col.0).abs();
-
-        if col_diff == 1 {
-            if k1.finger.is_weak() { cost = cost.saturating_add(rubric.sfb_lateral_weak); }
-            else { cost = cost.saturating_add(rubric.sfb_lateral); }
-        } else if col_diff > 1 {
-            cost = cost.saturating_add(rubric.sfb_diagonal);
-        } else if row_diff >= rubric.threshold_sfb_long_row_diff {
-            cost = cost.saturating_add(rubric.sfb_long);
-        } else {
-            cost = cost.saturating_add(rubric.sfb_base);
-        }
-        return cost;
-    }
-
-    let finger_diff = k1.finger.distance(k2.finger);
-    let row_diff = (k1.row.0 - k2.row.0).abs();
-    if finger_diff == 1 && k1.finger != FingerIndex::THUMB && k2.finger != FingerIndex::THUMB {
-        if row_diff >= rubric.threshold_scissor_row_diff {
-            cost = cost.saturating_add(rubric.penalty_scissor);
-        } else if row_diff == 0 {
-            let col_dist = (k1.col.0 - k2.col.0).abs();
-            if col_dist > 1 { cost = cost.saturating_add(rubric.sfb_lateral); }
+impl From<&Rubric> for FixedPointRubric {
+    fn from(rubric: &Rubric) -> Self {
+        Self {
+            travel_lat: to_fixed(rubric.travel_lat),
+            travel_vert: to_fixed(rubric.travel_vert),
+            sfb_base: to_fixed(rubric.sfb_base),
+            sfb_lateral: to_fixed(rubric.sfb_lateral),
+            sfb_lateral_weak: to_fixed(rubric.sfb_lateral_weak),
+            sfb_diagonal: to_fixed(rubric.sfb_diagonal),
+            sfb_long: to_fixed(rubric.sfb_long),
+            threshold_sfb_long_row_diff: rubric.threshold_sfb_long_row_diff,
+            redirect: to_fixed(rubric.redirect),
+            roll_bonus: to_fixed(rubric.roll_bonus),
+            penalty_scissor: to_fixed(rubric.penalty_scissor),
+            threshold_scissor_row_diff: rubric.threshold_scissor_row_diff,
         }
     }
-    cost
 }
 
-fn calculate_flow_cost_int(k1: &FixedPointKey, k2: &FixedPointKey, k3: &FixedPointKey, rubric: &FixedPointRubric) -> i64 {
-    if k1.hand != k2.hand || k2.hand != k3.hand { return 0; }
-    if k1.finger == k3.finger && k1.finger != k2.finger { return rubric.redirect; }
-    let dir1 = k2.finger.diff(k1.finger);
-    let dir2 = k3.finger.diff(k2.finger);
-    if dir1 == 0 || dir2 == 0 { return 0; }
-    if dir1.signum() != dir2.signum() { return rubric.redirect; }
-    if dir1 < 0 { return rubric.roll_bonus.saturating_neg(); }
-    0
+impl FixedPointRubric {
+    fn calculate_pair_cost(
+        &self, 
+        kb: &Keyboard, 
+        k1: &FixedPointKey, 
+        k2: &FixedPointKey, 
+        idx1: usize, 
+        idx2: usize,
+        _fp_keys: &[FixedPointKey] // Needed for lookups if necessary, though k1/k2 usually enough
+    ) -> i64 {
+        if idx1 == idx2 { return 0; }
+        
+        // Travel Distance (Bigram common)
+        let dx = (k1.x - k2.x).abs();
+        let dy = (k1.y - k2.y).abs();
+        let scale_val = SCORE_SCALE as i128;
+        let scale_sq = scale_val * scale_val;
+        let term_x = (dx as i128).saturating_mul(dx as i128).saturating_mul(self.travel_lat as i128) / scale_sq;
+        let term_y = (dy as i128).saturating_mul(dy as i128).saturating_mul(self.travel_vert as i128) / scale_sq;
+        let dist_cost = (term_x.saturating_add(term_y)) as i64;
+        
+        if k1.hand != k2.hand { return 0; }
+        
+        let mut cost = dist_cost; 
+
+        if k1.finger == k2.finger {
+            // SFB Correction: Subtract monogram reach of K2
+            let mut reach_k2 = 0i64;
+            if let Some(origin) = kb.finger_origins.get(k2.hand.as_usize()).and_then(|h| h.get(k2.finger.as_usize())) {
+                // Warning: We are mixing f32 origin with fixed keys, essentially recalculating.
+                // Replicating original logic: use raw keyboard keys [idx2] for consistency with mono logic if needed.
+                // But k2.x is to_fixed(kb.keys[idx2].x).
+                // Original: rdx = to_fixed((kb.keys[idx2].x - origin.0).abs())
+                // Let's rely on kb keys to be exact.
+                let rdx = to_fixed((kb.keys[idx2].x - origin.0).abs());
+                let rdy = to_fixed((kb.keys[idx2].y - origin.1).abs());
+                let r_term_x = (rdx as i128).saturating_mul(rdx as i128).saturating_mul(self.travel_lat as i128) / scale_sq;
+                let r_term_y = (rdy as i128).saturating_mul(rdy as i128).saturating_mul(self.travel_vert as i128) / scale_sq;
+                reach_k2 = (r_term_x.saturating_add(r_term_y)) as i64;
+            }
+            
+            cost = dist_cost.saturating_sub(reach_k2);
+
+            let row_diff = (k1.row.0 - k2.row.0).abs();
+            let col_diff = (k1.col.0 - k2.col.0).abs();
+
+            if col_diff == 1 {
+                if k1.finger.is_weak() { cost = cost.saturating_add(self.sfb_lateral_weak); }
+                else { cost = cost.saturating_add(self.sfb_lateral); }
+            } else if col_diff > 1 {
+                cost = cost.saturating_add(self.sfb_diagonal);
+            } else if row_diff >= self.threshold_sfb_long_row_diff {
+                cost = cost.saturating_add(self.sfb_long);
+            } else {
+                cost = cost.saturating_add(self.sfb_base);
+            }
+            return cost;
+        }
+
+        let finger_diff = k1.finger.distance(k2.finger);
+        let row_diff = (k1.row.0 - k2.row.0).abs();
+        if finger_diff == 1 && k1.finger != FingerIndex::THUMB && k2.finger != FingerIndex::THUMB {
+            if row_diff >= self.threshold_scissor_row_diff {
+                cost = cost.saturating_add(self.penalty_scissor);
+            } else if row_diff == 0 {
+                let col_dist = (k1.col.0 - k2.col.0).abs();
+                if col_dist > 1 { cost = cost.saturating_add(self.sfb_lateral); }
+            }
+        }
+        cost
+    }
+
+    fn calculate_flow_cost(&self, k1: &FixedPointKey, k2: &FixedPointKey, k3: &FixedPointKey) -> i64 {
+        if k1.hand != k2.hand || k2.hand != k3.hand { return 0; }
+        if k1.finger == k3.finger && k1.finger != k2.finger { return self.redirect; }
+        let dir1 = k2.finger.diff(k1.finger);
+        let dir2 = k3.finger.diff(k2.finger);
+        if dir1 == 0 || dir2 == 0 { return 0; }
+        if dir1.signum() != dir2.signum() { return self.redirect; }
+        if dir1 < 0 { return self.roll_bonus.saturating_neg(); }
+        0
+    }
 }
