@@ -18,6 +18,8 @@ pub mod fs_provider;
 pub mod resolver;
 /// High-level orchestration for fetching and ensuring asset presence.
 pub mod manager;
+/// Typed cache storage for asset objects.
+pub mod cache;
 /// Tiered caching provider for high-performance asset reads.
 pub mod caching_provider;
 /// Distributed asset provider backed by an external data store (e.g., Valkey).

@@ -17,7 +17,7 @@
 | ~~**1100**~~ | ~~`libs/keyforge-infra/src/asset/fs_provider.rs`~~ | ~~50~~ | ~~21~~ | ~~287~~ | **REMEDIATED:** Extracted path logic to `resolver.rs`. `FsProvider` is now clean IO only. |
 | ~~**1092**~~ | ~~`libs/keyforge-model/src/constants.rs`~~ | ~~91~~ | ~~11~~ | ~~366~~ | **REMEDIATED:** Pruned migrated constants to config modules. |
 | ~~**1005**~~ | ~~`libs/keyforge-physics/src/verify.rs`~~ | ~~67~~ | ~~14~~ | ~~253~~ | **REMEDIATED:** Modularized `DeterministicScorer`. |
-| **966** | `libs/keyforge-infra/src/asset/caching_provider.rs` | 69 | 13 | 396 | **Cache Complexity:** Caching logic is notoriously hard. High complexity here warrants careful review for race conditions. |
+| ~~**966**~~ | ~~`libs/keyforge-infra/src/asset/caching_provider.rs`~~ | ~~69~~ | ~~13~~ | ~~396~~ | **REMEDIATED:** Extracted `AssetCache` module to handle storage. |
 | **800** | `libs/keyforge-protocol/src/protocol.rs` | 50 | 15 | 401 | **API Churn:** The wire protocol is changing frequently (15 revisions). This breaks backward compatibility. |
 | **588** | `apps/keyforge-agent/src/main.rs` | 42 | 13 | 414 | **Entry Point Bloat:** Agent startup logic is accumulating complexity. |
 | **549** | `apps/keyforge-hive/tests/concurrency.rs` | 61 | 8 | 399 | **Test Complexity:** Integration tests are becoming complex applications themselves. |

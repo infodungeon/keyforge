@@ -1,7 +1,7 @@
 // libs/keyforge-infra/src/asset/caching_provider.rs
 
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not userefix except in compliance with the License.
+// you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
@@ -14,56 +14,31 @@
 
 use crate::asset::fs_provider::FsProvider;
 use crate::asset::AssetServerProvider;
+use crate::asset::cache::AssetCache;
 use crate::net::sync::ServerManifest;
 use bytes::Bytes;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Asset, Corpus, ForgeError};
 use keyforge_model::config::CorpusSource;
-use keyforge_model::constants::{
-    ASSET_KEYCODES, DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY,
-    DEFAULT_KB_CACHE_CAPACITY, DEFAULT_KEYCODE_CACHE_CAPACITY,
-};
+use keyforge_model::constants::ASSET_KEYCODES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::cost_model::CostModel;
-use moka::sync::Cache;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::{error, info};
 use std::any::{Any, TypeId};
 
-struct CacheState {
-    provider: FsProvider,
-    keyboards: Cache<String, Arc<KeyboardDefinition>>,
-    corpora: Cache<String, Arc<Corpus>>,
-    cost_models: Cache<String, Arc<CostModel>>,
-    keycodes: Cache<String, Arc<KeycodeRegistry>>,
-    file_cache: Cache<String, Bytes>,
-    manifest: Cache<String, Arc<ServerManifest>>,
-    _watcher: Option<RecommendedWatcher>,
-}
-
-impl std::fmt::Debug for CacheState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CacheState")
-            .field("provider", &self.provider)
-            .field("keyboards", &"Cache")
-            .field("corpora", &"Cache")
-            .field("cost_models", &"Cache")
-            .field("keycodes", &"Cache")
-            .field("file_cache", &"Cache")
-            .field("manifest", &"Cache")
-            .field("_watcher", &self._watcher.as_ref().map(|_| "RecommendedWatcher"))
-            .finish()
-    }
-}
-
 /// A thread-safe, caching asset loader with hot-reloading capabilities.
 /// Wraps FsProvider with memory caching and file-system watching.
 #[derive(Clone, Debug)]
 pub struct CachingProvider {
-    state: Arc<CacheState>,
+    provider: FsProvider,
+    cache: Arc<AssetCache>,
+    // Watcher is held in Arc to keep it alive but we don't need to access it directly often.
+    // It's just for side-effects (invalidation).
+    _watcher: Arc<Option<RecommendedWatcher>>, 
 }
 
 impl CachingProvider {
@@ -72,19 +47,9 @@ impl CachingProvider {
     /// It also starts a filesystem watcher to invalidate the cache when system assets change.
     pub fn new(data_path: PathBuf) -> Self {
         let provider = FsProvider::new(data_path.clone());
-        let keyboards = Cache::new(DEFAULT_KB_CACHE_CAPACITY as u64);
-        let corpora = Cache::new(DEFAULT_CORPUS_CACHE_CAPACITY as u64);
-        let cost_models = Cache::new(DEFAULT_COST_CACHE_CAPACITY as u64);
-        let keycodes = Cache::new(DEFAULT_KEYCODE_CACHE_CAPACITY as u64);
-        let file_cache = Cache::new(1000); // RAW binary cache
-        let manifest = Cache::new(1);
-
-        let kb_c = keyboards.clone();
-        let cp_c = corpora.clone();
-        let cm_c = cost_models.clone();
-        let kc_c = keycodes.clone();
-        let fl_c = file_cache.clone();
-        let mf_c = manifest.clone();
+        let cache = Arc::new(AssetCache::new());
+        
+        let cache_clone = cache.clone();
         let dp_c = data_path.clone();
 
         let watcher_fn = move |res: notify::Result<Event>| match res {
@@ -92,41 +57,7 @@ impl CachingProvider {
                 if event.kind.is_access() {
                     return;
                 }
-                for path in event.paths {
-                    if let Ok(rel) = path.strip_prefix(&dp_c) {
-                        let path_str = rel.to_string_lossy();
-                        if !path_str.contains("system") {
-                            continue;
-                        }
-                        info!("♻️ System asset changed: {}", path_str);
-                        
-                        // Granular Invalidation
-                        fl_c.invalidate(path_str.as_ref());
-                        mf_c.invalidate_all();
-
-                        if path_str.contains("keyboards") {
-                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                                let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
-                                kb_c.invalidate(clean);
-                            } else {
-                                kb_c.invalidate_all();
-                            }
-                        } else if path_str.contains("corpora") {
-                            // Corpora keys are complex JSON strings of sources.
-                            // Hard to map file -> key. Invalidate all for safety.
-                            cp_c.invalidate_all();
-                        } else if path_str.contains("weights") {
-                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                                let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
-                                cm_c.invalidate(clean);
-                            } else {
-                                cm_c.invalidate_all();
-                            }
-                        } else if path_str.contains("config") {
-                            kc_c.invalidate_all();
-                        }
-                    }
-                }
+                Self::handle_fs_event(event, &dp_c, &cache_clone);
             }
             Err(e) => error!("Watcher error: {:?}", e),
         };
@@ -138,33 +69,59 @@ impl CachingProvider {
         }
 
         Self {
-            state: Arc::new(CacheState {
-                provider,
-                keyboards,
-                corpora,
-                cost_models,
-                keycodes,
-                file_cache,
-                manifest,
-                _watcher: watcher,
-            }),
+            provider,
+            cache,
+            _watcher: Arc::new(watcher),
+        }
+    }
+
+    fn handle_fs_event(event: Event, root: &Path, cache: &AssetCache) {
+        for path in event.paths {
+            if let Ok(rel) = path.strip_prefix(root) {
+                let path_str = rel.to_string_lossy();
+                if !path_str.contains("system") {
+                    continue;
+                }
+                info!("♻️ System asset changed: {}", path_str);
+                
+                // Granular Invalidation
+                cache.invalidate_file(path_str.as_ref());
+                cache.invalidate_manifest();
+
+                if path_str.contains("keyboards") {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
+                        cache.invalidate_keyboard(clean);
+                    } else {
+                        cache.invalidate_all_keyboards();
+                    }
+                } else if path_str.contains("corpora") {
+                    // Corpora keys are complex JSON strings of sources.
+                    // Hard to map file -> key. Invalidate all for safety.
+                    cache.invalidate_all_corpora();
+                } else if path_str.contains("weights") {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
+                        cache.invalidate_cost_model(clean);
+                    } else {
+                        cache.invalidate_all_cost_models();
+                    }
+                } else if path_str.contains("config") {
+                    cache.invalidate_all_keycodes();
+                }
+            }
         }
     }
 
     /// Eagerly loads system assets into the memory cache.
-    ///
-    /// This is typically called during application startup. A safety limit is enforced
-    /// to prevent excessive memory consumption if the system library is unexpectedly large.
     pub async fn warm_all(&self) -> Result<(), String> {
         info!("🔥 Warming Asset Cache (Parsed Objects Only)...");
-        let system_root = self.state.provider.root().join("system");
+        let system_root = self.provider.root().join("system");
 
         let manifest = crate::net::sync::generate_manifest(&system_root)
             .map_err(|e| format!("Manifest error: {}", e))?;
 
-        self.state
-            .manifest
-            .insert("default".into(), Arc::new(manifest.clone()));
+        self.cache.insert_manifest(Arc::new(manifest.clone()));
 
         let mut count_files = 0;
         let mut count_keyboards = 0;
@@ -175,8 +132,6 @@ impl CachingProvider {
         const MAX_WARM_FILES: usize = 1000;
 
         for (rel_path, _) in manifest.files.iter().take(MAX_WARM_FILES) {
-            // OPTIMIZATION: Do NOT load file content into file_cache eagerly.
-            // Only warm high-cost parsed objects.
             count_files += 1;
 
             if self.try_ensure_keyboard(rel_path).await? {
@@ -217,19 +172,18 @@ impl CachingProvider {
     }
 
     /// Retrieves the raw byte content of a cached file by its relative path.
-    /// Lazily loads from disk if not in cache.
     pub async fn get_file_content(&self, path: &str) -> Option<Bytes> {
-        if let Some(bytes) = self.state.file_cache.get(path) {
+        if let Some(bytes) = self.cache.get_file(path) {
             return Some(bytes);
         }
 
-        let system_root = self.state.provider.root().join("system");
+        let system_root = self.provider.root().join("system");
         let full_path = system_root.join(path);
 
         match tokio::fs::read(&full_path).await {
             Ok(data) => {
                 let bytes = Bytes::from(data);
-                self.state.file_cache.insert(path.to_string(), bytes.clone());
+                self.cache.insert_file(path.to_string(), bytes.clone());
                 Some(bytes)
             }
             Err(e) => {
@@ -241,22 +195,17 @@ impl CachingProvider {
 
     /// Returns the current system asset manifest.
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
-        self.state.manifest.get("default")
+        self.cache.get_manifest()
     }
 
     /// Purges all cached items from memory.
     pub fn invalidate_all(&self) {
-        self.state.keyboards.invalidate_all();
-        self.state.corpora.invalidate_all();
-        self.state.cost_models.invalidate_all();
-        self.state.file_cache.invalidate_all();
-        self.state.manifest.invalidate_all();
-        self.state.keycodes.invalidate_all();
+        self.cache.invalidate_all();
     }
 
     /// Calculates a stable hash for a corpus, using the underlying `FsProvider`.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
-        self.state.provider.get_corpus_hash(id).await
+        self.provider.get_corpus_hash(id).await
     }
 
     async fn try_ensure_keyboard(&self, rel_path: &str) -> Result<bool, String> {
@@ -285,7 +234,7 @@ impl CachingProvider {
                              id: id.clone(),
                              weight: 1.0,
                              hash: None,
-                         }]).await {
+                             }]).await {
                              tracing::warn!("Eager load failed for corpus {}: {}", id, e);
                          }
                          return Ok(true);
@@ -330,7 +279,7 @@ impl AssetServerProvider for CachingProvider {
             return (*m).clone();
         }
         // Fallback: Generate on fly (expensive)
-        let system_root = self.state.provider.root().join("system");
+        let system_root = self.provider.root().join("system");
         crate::net::sync::generate_manifest(&system_root).unwrap_or_default()
     }
 
@@ -345,11 +294,11 @@ impl AssetLoader for CachingProvider {
         let tid = TypeId::of::<T>();
 
         if tid == TypeId::of::<KeyboardDefinition>() {
-            let kb = if let Some(c) = self.state.keyboards.get(id) {
+            let kb = if let Some(c) = self.cache.get_keyboard(id) {
                 c
             } else {
-                let kb = self.state.provider.load::<KeyboardDefinition>(id).await?;
-                self.state.keyboards.insert(id.to_string(), kb.clone());
+                let kb = self.provider.load::<KeyboardDefinition>(id).await?;
+                self.cache.insert_keyboard(id.to_string(), kb.clone());
                 kb
             };
             let any_kb: Arc<dyn Any + Send + Sync> = kb;
@@ -357,11 +306,11 @@ impl AssetLoader for CachingProvider {
         }
 
         if tid == TypeId::of::<CostModel>() {
-            let cm = if let Some(c) = self.state.cost_models.get(id) {
+            let cm = if let Some(c) = self.cache.get_cost_model(id) {
                 c
             } else {
-                let cm = self.state.provider.load::<CostModel>(id).await?;
-                self.state.cost_models.insert(id.to_string(), cm.clone());
+                let cm = self.provider.load::<CostModel>(id).await?;
+                self.cache.insert_cost_model(id.to_string(), cm.clone());
                 cm
             };
             let any_cm: Arc<dyn Any + Send + Sync> = cm;
@@ -369,11 +318,11 @@ impl AssetLoader for CachingProvider {
         }
 
         if tid == TypeId::of::<KeycodeRegistry>() {
-            let rg = if let Some(c) = self.state.keycodes.get(id) {
+            let rg = if let Some(c) = self.cache.get_keycodes(id) {
                 c
             } else {
-                let rg = self.state.provider.load::<KeycodeRegistry>(id).await?;
-                self.state.keycodes.insert(id.to_string(), rg.clone());
+                let rg = self.provider.load::<KeycodeRegistry>(id).await?;
+                self.cache.insert_keycodes(id.to_string(), rg.clone());
                 rg
             };
             let any_rg: Arc<dyn Any + Send + Sync> = rg;
@@ -381,16 +330,16 @@ impl AssetLoader for CachingProvider {
         }
 
         // Fallback for types without dedicated caches
-        self.state.provider.load::<T>(id).await
+        self.provider.load::<T>(id).await
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let key = serde_json::to_string(sources).unwrap_or_default();
-        if let Some(c) = self.state.corpora.get(&key) {
+        if let Some(c) = self.cache.get_corpus(&key) {
             return Ok(c);
         }
-        let cp = self.state.provider.load_corpus(sources).await?;
-        self.state.corpora.insert(key, cp.clone());
+        let cp = self.provider.load_corpus(sources).await?;
+        self.cache.insert_corpus(key, cp.clone());
         Ok(cp)
     }
 }
