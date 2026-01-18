@@ -152,3 +152,11 @@ impl ResultRepository {
         Ok(result.rows_affected())
     }
 }
+
+use crate::infra::queue::BatchSink;
+#[async_trait::async_trait]
+impl BatchSink for ResultRepository {
+    async fn insert_batch(&self, items: &[(&str, &str, f32, &str)]) -> Result<(), String> {
+        self.insert_batch(items).await.map_err(|e| e.to_string())
+    }
+}

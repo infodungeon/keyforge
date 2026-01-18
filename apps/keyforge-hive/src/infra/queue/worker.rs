@@ -1,48 +1,23 @@
-// apps/keyforge-hive/src/infra/queue.rs
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
-use crate::infra::repositories::ResultRepository;
-
-use serde::{Deserialize, Serialize};
+use crate::infra::queue::wrappers::{DeadLetterQueue, PersistedRecord, WalEntry};
+use crate::config::QueueConfig;
 use std::path::{Path, PathBuf};
-
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use uuid::Uuid;
-use crate::config::QueueConfig;
 
 // --- Constants ---
 pub const QUEUE_MAX_RETRIES: u32 = 3;
 pub const QUEUE_RETRY_DELAY_MS: u64 = 100;
 
-#[derive(Serialize, Deserialize, Clone)]
-struct PersistedRecord {
-    job_id: String,
-    layout: String,
-    score: f32,
-    node_id: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct WalEntry {
-    checksum: u32,
-    record: PersistedRecord,
+/// Trait for a sink that can accept batches of records.
+/// Decouples the queue from the concrete ResultRepository.
+#[async_trait::async_trait]
+pub trait BatchSink: Send + Sync + 'static {
+    async fn insert_batch(&self, items: &[(&str, &str, f32, &str)]) -> Result<(), String>;
 }
 
 /// Events that can be submitted to the background write queue for persistence.
@@ -74,53 +49,20 @@ enum InternalEvent {
     Shutdown(oneshot::Sender<()>),
 }
 
-#[derive(Debug)]
-struct DeadLetterQueue {
-    path: PathBuf,
-}
-
-impl DeadLetterQueue {
-    fn new(data_path: PathBuf) -> Self {
-        Self { path: data_path.join("user/dlq") }
-    }
-
-    async fn push(&self, record: &PersistedRecord, reason: &str) {
-        if let Err(e) = fs::create_dir_all(&self.path).await {
-            error!("Failed to create DLQ dir: {}", e);
-            return;
-        }
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
-        let filename = format!("{}_{}.json", timestamp, Uuid::new_v4());
-        let file_path = self.path.join(filename);
-        let payload = serde_json::json!({ "error": reason, "record": record });
-        if let Err(e) = fs::write(&file_path, payload.to_string()).await {
-            error!("CRITICAL: Failed to write to DLQ: {}", e);
-        } else {
-            warn!("Moved record to DLQ: {:?}", file_path);
-        }
-    }
-}
-
 /// A background worker that manages asynchronous, batched persistence of 
 /// optimization results to the database.
-///
-/// It uses a Write-Ahead Log (WAL) on the local filesystem to ensure data 
-/// durability even if the database is temporarily unavailable or if the 
-/// process crashes before a batch is flushed.
 #[derive(Debug)]
-pub struct WriteQueue {
+pub struct PersistentJobQueue {
     sender: mpsc::Sender<InternalEvent>,
     queue_dir: PathBuf,
     dlq: DeadLetterQueue,
     capacity: usize,
 }
 
-impl WriteQueue {
-    /// Creates and starts a new `WriteQueue`.
-    ///
-    /// It initializes the WAL and DLQ directories and spawns the background 
-    /// processing task.
-    pub fn new(repo: ResultRepository, data_path: PathBuf, config: QueueConfig) -> Self {
+impl PersistentJobQueue {
+    /// Creates and starts a new `PersistentJobQueue`.
+    pub fn new<S>(sink: S, data_path: PathBuf, config: QueueConfig) -> Self 
+    where S: BatchSink {
         let queue_dir = data_path.join("user/queue");
         let dlq = DeadLetterQueue::new(data_path.clone());
         let capacity = config.channel_capacity; 
@@ -150,7 +92,6 @@ impl WriteQueue {
                     }
                 }
                 
-                // Sort by creation time to preserve order
                 wal_files.sort_by_key(|(t, _)| *t);
 
                 for (_, path) in wal_files {
@@ -175,7 +116,6 @@ impl WriteQueue {
             loop {
                 let batch_size = config.batch_size;
                 let flush_interval = config.flush_interval_ms;
-
                 let timeout = sleep(Duration::from_millis(flush_interval));
 
                 tokio::select! {
@@ -184,7 +124,7 @@ impl WriteQueue {
                             Some(InternalEvent::Item { id, data, ack }) => {
                                 buffer.push((id, data, ack));
                                 if buffer.len() >= batch_size {
-                                    flush_buffer(&repo, &queue_dir_clone, &dlq_clone, &mut buffer).await;
+                                    flush_buffer(&sink, &queue_dir_clone, &dlq_clone, &mut buffer).await;
                                 }
                             }
                             Some(InternalEvent::Shutdown(signal)) => {
@@ -192,7 +132,7 @@ impl WriteQueue {
                                 while let Ok(InternalEvent::Item { id, data, ack }) = rx.try_recv() {
                                     buffer.push((id, data, ack));
                                 }
-                                flush_buffer(&repo, &queue_dir_clone, &dlq_clone, &mut buffer).await;
+                                flush_buffer(&sink, &queue_dir_clone, &dlq_clone, &mut buffer).await;
                                 let _ = signal.send(());
                                 break;
                             }
@@ -201,7 +141,7 @@ impl WriteQueue {
                     }
                     _ = timeout => {
                         if !buffer.is_empty() {
-                            flush_buffer(&repo, &queue_dir_clone, &dlq_clone, &mut buffer).await;
+                            flush_buffer(&sink, &queue_dir_clone, &dlq_clone, &mut buffer).await;
                         }
                     }
                 }
@@ -216,9 +156,6 @@ impl WriteQueue {
         }
     }
 
-    /// Pushes a new event onto the queue.
-    ///
-    /// The event is first written to the WAL before being sent to the background task.
     pub async fn push(&self, event: DbEvent) {
         match event {
             DbEvent::Result { job_id, layout, score, node_id, ack } => {
@@ -252,12 +189,10 @@ impl WriteQueue {
         }
     }
 
-    /// Returns the current number of messages waiting in the queue buffer.
     pub async fn current_depth(&self) -> usize {
         self.capacity - self.sender.capacity()
     }
 
-    /// Triggers a graceful shutdown of the queue, ensuring all items are flushed.
     pub async fn shutdown(&self) {
         let (tx, rx) = oneshot::channel();
         if self.sender.send(InternalEvent::Shutdown(tx)).await.is_ok() {
@@ -266,8 +201,8 @@ impl WriteQueue {
     }
 }
 
-async fn flush_buffer(
-    repo: &ResultRepository,
+async fn flush_buffer<S: BatchSink>(
+    sink: &S,
     queue_dir: &Path,
     dlq: &DeadLetterQueue,
     buffer: &mut Vec<(Uuid, PersistedRecord, Option<oneshot::Sender<()>>)>,
@@ -282,7 +217,7 @@ async fn flush_buffer(
     let mut success = false;
 
     while attempts < QUEUE_MAX_RETRIES {
-        if repo.insert_batch(&items).await.is_ok() {
+        if sink.insert_batch(&items).await.is_ok() {
             success = true;
             break;
         }
