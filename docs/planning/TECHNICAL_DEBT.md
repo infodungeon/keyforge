@@ -47,6 +47,7 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 - [x] **Task [task-model-018]:** Move all hardcoded constants ("XXXXXXX", model keys, limits) to `libs/keyforge-model/src/constants.rs`.
 - [x] **Task [task-infra-020]:** Replace `strip_suffix(".json")` with proper `Path` extensions in `FsProvider`.
 - [x] **Task [task-model-025]:** Implement dynamic hand detection in `kle.rs` using X-coordinate clustering.
+- [x] **Task [task-export-019]:** Refactor QMK exporter to support recursive AST traversal.
 
 #### [UX-01] Visibility & Reliability
 - [ ] **Task [task-cli-028]:** Add `indicatif` progress bar to CLI `Search` command.
@@ -59,15 +60,20 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 
 | ID | Title | Priority | Status |
 |---|---|---|---|
-| task-persist-001 | Persistence Compiler Ignores Config | 🔴 Critical | Pending |
-| task-wasm-026 | WASM Engine Ignores Rubric | 🔴 Critical | Pending |
-| task-ui-002 | Pinned Keys Serialization Gap | 🟠 High | Pending |
-| task-ui-024 | Biometrics Ignored in Local Search | 🟠 High | Pending |
-| task-sec-027 | Insecure Secret Key Handling | 🟠 High | Pending |
-| task-sec-029 | Non-Deterministic Signature Payload | 🟠 High | Pending |
-| task-infra-008 | Path Traversal Risk in FsProvider | 🟠 High | Pending |
-| task-phys-011 | Hot-Path Allocation/Sort in PosMap | 🟡 Medium | Pending |
-| task-phys-015 | Trigram Triple Nest Optimization | 🟡 Medium | Pending |
-| task-evo-017 | Full Layout Clone on 3-Way Swap | 🟡 Medium | Pending |
-| task-model-018 | Centralize Magic Values | 🔵 Low | Pending |
-| task-cli-028 | CLI Progress Visibility | 🔵 Low | Pending |
+| task-persist-001 | Persistence Compiler Ignores Config | 🔴 Critical | ✅ Done |
+| task-wasm-026 | WASM Engine Ignores Rubric | 🔴 Critical | ✅ Done |
+| task-ui-002 | Pinned Keys Serialization Gap | 🟠 High | ⏳ Pending |
+| task-ui-024 | Biometrics Ignored in Local Search | 🟠 High | ✅ Done |
+| task-sec-027 | Insecure Secret Key Handling | 🟠 High | ✅ Done |
+| task-sec-029 | Non-Deterministic Signature Payload | 🟠 High | ✅ Done |
+| task-infra-008 | Path Traversal Risk in FsProvider | 🟠 High | ✅ Done |
+| task-infra-020 | Proper Path Extension Handling | 🟠 High | ✅ Done |
+| task-phys-011 | Hot-Path Allocation/Sort in PosMap | 🟡 Medium | ✅ Done |
+| task-phys-015 | Trigram Triple Nest Optimization | 🟡 Medium | ✅ Done |
+| task-phys-022 | Standardize Score Saturation | 🟡 Medium | ✅ Done |
+| task-evo-017 | Full Layout Clone on 3-Way Swap | 🟡 Medium | ⏳ Pending |
+| task-model-018 | Centralize Magic Values | 🔵 Low | ✅ Done |
+| task-model-025 | Dynamic KLE Hand Detection | 🔵 Low | ✅ Done |
+| task-export-019 | Recursive ModTap Exporter Support | 🔵 Low | ✅ Done |
+| task-cli-028 | CLI Progress Visibility | 🔵 Low | ⏳ Pending |
+| task-agent-021 | Machine ID UUID Fallback | 🔵 Low | ⏳ Pending |

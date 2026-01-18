@@ -61,38 +61,7 @@ impl Exporter for QmkExporter {
                 }
 
                 let action = parse_key(key_str);
-                let code = match action {
-                    KeyAction::Simple(s) => util::sanitize_c(&s),
-                    KeyAction::Transparent => DEFAULT_TRANSPARENT.to_string(),
-                    KeyAction::NoOp => DEFAULT_NO_OP.to_string(),
-                    KeyAction::LayerMomentary(l) => format!("MO({})", l),
-                    KeyAction::LayerToggle(l) => format!("TG({})", l),
-                    KeyAction::LayerOn(l) => format!("TO({})", l),
-                    KeyAction::ModTap { mod_name, key } => {
-                        // Recursive sanitization is tricky without a full `to_qmk_code` helper.
-                        // Let's implement a quick match for the inner key.
-                        let key_str = match *key {
-                            KeyAction::Simple(s) => util::sanitize_c(&s), 
-                            KeyAction::Raw(s) => util::sanitize_c(&s),
-                            _ => "TRNS".to_string(), // Fallback
-                        };
-                        format!("{}_T({})", util::sanitize_c(&mod_name), key_str)
-                    }
-                    KeyAction::LayerTap { layer, key } => {
-                        let key_str = match *key {
-                            KeyAction::Simple(s) => util::sanitize_c(&s),
-                            KeyAction::Raw(s) => util::sanitize_c(&s),
-                            _ => "TRNS".to_string(),
-                        };
-                        format!("LT({}, {})", layer, key_str)
-                    },
-                    KeyAction::StickyMod(m) => {
-                        let qmk_mod = util::map_modifier(&m, ModFormat::Qmk);
-                        format!("OSM({})", qmk_mod)
-                    }
-                    KeyAction::CapsWord => "CAPS_WORD".to_string(),
-                    KeyAction::Raw(s) => util::sanitize_c(&s),
-                };
+                let code = action_to_qmk(&action);
 
                 out.push_str(&code);
 
@@ -112,6 +81,31 @@ impl Exporter for QmkExporter {
 
         out.push_str("};\n");
         Ok(out)
+    }
+}
+
+fn action_to_qmk(action: &KeyAction) -> String {
+    match action {
+        KeyAction::Simple(s) => util::sanitize_c(s),
+        KeyAction::Transparent => DEFAULT_TRANSPARENT.to_string(),
+        KeyAction::NoOp => DEFAULT_NO_OP.to_string(),
+        KeyAction::LayerMomentary(l) => format!("MO({})", l),
+        KeyAction::LayerToggle(l) => format!("TG({})", l),
+        KeyAction::LayerOn(l) => format!("TO({})", l),
+        KeyAction::ModTap { mod_name, key } => {
+            let key_str = action_to_qmk(key);
+            format!("{}_T({})", util::sanitize_c(mod_name), key_str)
+        }
+        KeyAction::LayerTap { layer, key } => {
+            let key_str = action_to_qmk(key);
+            format!("LT({}, {})", layer, key_str)
+        },
+        KeyAction::StickyMod(m) => {
+            let qmk_mod = util::map_modifier(m, ModFormat::Qmk);
+            format!("OSM({})", qmk_mod)
+        }
+        KeyAction::CapsWord => "CAPS_WORD".to_string(),
+        KeyAction::Raw(s) => util::sanitize_c(s),
     }
 }
 
