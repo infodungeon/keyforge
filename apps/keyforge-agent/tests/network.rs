@@ -6,7 +6,7 @@
 //! network instability.
 
 
-use keyforge_agent::agent::network::CircuitBreaker;
+use keyforge_agent::agent::network::breaker::CircuitBreaker;
 use std::time::Duration;
 
 #[test]

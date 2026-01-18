@@ -227,7 +227,7 @@ async fn build_job_config(
     let definition = loader.load::<KeyboardDefinition>(&kb_name).await?;
 
     let weights = if let Some(w_input) = &shared.weights {
-        let w_path = cli_parsers::resolve_path(w_input, None, &loader.root)?;
+        let w_path = cli_parsers::resolve_path(w_input, None, &loader.root())?;
         let content = keyforge_infra::read_to_string_limited(
             &w_path,
             keyforge_model::constants::MAX_INPUT_FILE_SIZE,

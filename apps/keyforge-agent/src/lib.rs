@@ -26,6 +26,13 @@ pub mod logging;
 /// Data models for agent-hive communication.
 pub mod models;
 
+/// Identity management and crypto.
+pub mod identity;
+/// Configuration loading and parsing.
+pub mod config_loader;
+/// Command handlers.
+pub mod cmd;
+
 
 // Re-export the main runner
 pub use agent::run_worker;

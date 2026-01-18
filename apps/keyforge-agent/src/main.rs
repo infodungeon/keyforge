@@ -15,16 +15,11 @@
 
 //! # KeyForge Agent Binary
 
-use anyhow::Context;
+use anyhow::Result;
 use clap::{Parser, Subcommand};
-use ed25519_dalek::{SigningKey, VerifyingKey};
-use rand::rngs::OsRng;
 use std::path::PathBuf;
-use tokio::sync::{broadcast, mpsc};
-use tracing::{info, error};
-use keyforge_agent::agent::errors::AgentError;
-use keyforge_agent::models::{AgentConfig, PartialAgentConfig, SystemConfig};
-use keyforge_protocol::JobConfig;
+use keyforge_agent::models::{AgentConfig, PartialAgentConfig};
+use keyforge_agent::config_loader::load_config_from_standard_paths;
 
 #[derive(Parser)]
 struct Args {
@@ -79,61 +74,8 @@ enum Commands {
     }
 }
 
-fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Option<PartialAgentConfig> {
-    let mut candidates = vec![
-        PathBuf::from("agent.mpk.zst"),
-        PathBuf::from("agent.toml"),
-        PathBuf::from("agent.json"),
-        dirs::config_dir().unwrap_or_default().join("keyforge/agent.mpk.zst"),
-        dirs::config_dir().unwrap_or_default().join("keyforge/agent.toml"),
-        dirs::config_dir().unwrap_or_default().join("keyforge/agent.json"),
-        PathBuf::from("/etc/keyforge/agent.mpk.zst"),
-        PathBuf::from("/etc/keyforge/agent.toml"),
-        PathBuf::from("/etc/keyforge/agent.json"),
-    ];
-
-    if let Some(data_dir) = data_dir_override {
-        candidates.insert(0, data_dir.join("user/config/agent.mpk.zst"));
-        candidates.insert(1, data_dir.join("user/config/agent.toml"));
-        candidates.insert(2, data_dir.join("user/config/agent.json"));
-        candidates.insert(3, data_dir.join("system/config/agent.mpk.zst"));
-        candidates.insert(4, data_dir.join("system/config/agent.toml"));
-        candidates.insert(5, data_dir.join("system/config/agent.json"));
-    } else if let Ok(env_dir) = std::env::var("KEYFORGE_DATA_DIR") {
-        let path = PathBuf::from(env_dir);
-        candidates.insert(0, path.join("user/config/agent.mpk.zst"));
-        candidates.insert(1, path.join("user/config/agent.toml"));
-        candidates.insert(2, path.join("user/config/agent.json"));
-        candidates.insert(3, path.join("system/config/agent.mpk.zst"));
-        candidates.insert(4, path.join("system/config/agent.toml"));
-        candidates.insert(5, path.join("system/config/agent.json"));
-    }
-
-    for path in candidates {
-        if path.exists() {
-            if let Ok(cfg) = PartialAgentConfig::from_file(&path) {
-                return Some(cfg);
-            }
-        }
-    }
-    None
-}
-
-async fn read_job_config(path: &PathBuf) -> anyhow::Result<JobConfig> {
-    let content = if path.to_str() == Some("-") {
-        use std::io::Read;
-        let mut buf = String::new();
-        std::io::stdin().read_to_string(&mut buf).context("Failed to read from stdin")?;
-        buf
-    } else {
-        tokio::fs::read_to_string(path).await
-            .context(format!("Failed to read job file {:?}", path))?
-    };
-    serde_json::from_str(&content).context("Invalid Job JSON")
-}
-
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     let args = Args::parse();
     let mut config = AgentConfig::default();
     
@@ -162,253 +104,20 @@ async fn main() -> anyhow::Result<()> {
     
     keyforge_agent::logging::init_tracing(&config.logging.default_filter, log_mode);
 
-    let hive_url = config.hive_url.clone();
-    let data_dir = config.data_dir.clone();
-
     match command {
         Commands::Worker => {
-            let signing_key = load_or_create_identity(&config.system)?;
-            let public_key = VerifyingKey::from(&signing_key);
-            use sha2::{Digest, Sha256};
-            let mut hasher = Sha256::new();
-            hasher.update(public_key.to_bytes());
-            let pk_hash = hex::encode(hasher.finalize());
-            let node_id = format!("{}{}", config.system.node_id_prefix, &pk_hash[0..8]);
-
-            info!("agent starting in WORKER mode");
-            info!(hive_url = %hive_url, "connecting to hive");
-            info!(data_dir = ?data_dir, "data directory configured");
-
-            let (tx, rx) = broadcast::channel(config.system.shutdown_channel_capacity);
-            #[cfg(unix)]
-            let mut sig_usr1 =
-                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
-                    .map_err(|e| anyhow::anyhow!("failed to register SIGUSR1: {}", e))?;
-            #[cfg(not(unix))]
-            let mut sig_usr1 = std::future::pending::<()>();
-
-            let tx_clone = tx.clone();
-            tokio::spawn(async move {
-                tokio::select! {
-                    _ = tokio::signal::ctrl_c() => {
-                        let _ = tx_clone.send(());
-                    }
-                    _ = sig_usr1.recv() => {
-                        let _ = tx_clone.send(());
-                    }
-                }
-            });
-
-            keyforge_agent::run_worker(config, node_id, signing_key, rx).await;
+            keyforge_agent::cmd::worker::run(config).await?;
         }
         Commands::Run { job_file, timeout } => {
-            let job = read_job_config(&job_file).await?;
-
-            if let Some(t) = timeout {
-                config.compute.job_timeout_sec = t;
-            }
-
-            let (result_tx, mut result_rx) = mpsc::channel(1);
-            
-            let agent = keyforge_agent::agent::Agent::new(config.clone(), result_tx).await
-                .map_err(|e| anyhow::anyhow!("Failed to init agent: {}", e))?;
-
-            let (job_tx, job_rx) = mpsc::channel(1);
-            let (_stop_tx, stop_rx) = mpsc::channel(1);
-            
-            let agent_handle = tokio::spawn(async move {
-                agent.run(job_rx, stop_rx).await
-            });
-
-            let job_id = "local-job".to_string(); 
-            job_tx.send((job_id, job)).await.ok();
-            
-            if let Some(result) = result_rx.recv().await {
-                let json = serde_json::to_string(&result).unwrap();
-                println!("{}", json);
-            } else {
-                error!("No result produced!");
-                std::process::exit(1);
-            }
-            
-            drop(job_tx);
-            let _ = agent_handle.await;
+            keyforge_agent::cmd::run::run(config, job_file, timeout).await?;
         }
         Commands::Score { job_file, layout, timeout } => {
-            info!("Scoring layout: '{}'", layout);
-
-            let job = read_job_config(&job_file).await?;
-            
-            if let Some(t) = timeout {
-                config.compute.job_timeout_sec = t;
-            }
-
-            let loader = keyforge_infra::FsProvider::new(data_dir.clone());
-            let options = keyforge_runner::RunnerOptions {
-                keycodes_file: config.compute.keycodes_file.clone(),
-                ..Default::default()
-            };
-
-            let session = keyforge_runner::OptimizationRunner::prepare_session(
-                &loader, &job, &options
-            ).await?;
-
-            // Try to resolve as layout name from definition first, then parse as raw string
-            let layout_parsed = if let Some(layout_str) = job.definition.layouts.get(&layout) {
-                keyforge_adapter::conversion::parse_layout_string(
-                    layout_str, 
-                    session.engine.key_count(), 
-                    &session.registry
-                ).map_err(|e| anyhow::anyhow!("Invalid layout in definition: {}", e))?
-            } else {
-                keyforge_adapter::conversion::parse_layout_string(
-                    &layout, 
-                    session.engine.key_count(), 
-                    &session.registry
-                ).map_err(|e| anyhow::anyhow!("Invalid layout string: {}", e))?
-            };
-            
-            let report = session.engine.analyze(&layout_parsed);
-            match report {
-                Ok(r) => println!("{}", serde_json::to_string_pretty(&r)?),
-                Err(e) => return Err(anyhow::anyhow!("Analysis failed: {:?}", e)),
-            }
+            keyforge_agent::cmd::score::run(config, job_file, layout, timeout).await?;
         }
         Commands::Bench { job_file, iterations } => {
-            let job = read_job_config(&job_file).await?;
-            
-            let loader = keyforge_infra::FsProvider::new(data_dir.clone());
-            let options = keyforge_runner::RunnerOptions {
-                keycodes_file: config.compute.keycodes_file.clone(),
-                ..Default::default()
-            };
-
-            let session = keyforge_runner::OptimizationRunner::prepare_session(
-                &loader, &job, &options
-            ).await?;
-
-            let start = std::time::Instant::now();
-            let mut score_sum = 0.0;
-            
-            let engine = session.engine;
-            let default_layout = keyforge_model::Layout::new_unchecked(vec![keyforge_model::KeyCode(0); engine.key_count()]);
-
-            for _ in 0..iterations {
-                score_sum += engine.score(&default_layout)?;
-            }
-            
-            let duration = start.elapsed();
-            let kops = (iterations as f64 / duration.as_secs_f64()) / 1000.0;
-            
-            println!("{}", serde_json::json!({
-                "iterations": iterations,
-                "duration_ms": duration.as_millis(),
-                "kops": kops,
-                "checksum": score_sum
-            }));
+            keyforge_agent::cmd::bench::run(config, job_file, iterations).await?;
         }
     }
 
     Ok(())
-}
-
-fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentError> {
-    let mut config_dir = dirs::config_dir().ok_or_else(|| AgentError::Identity("could not find config directory".into()))?;
-    config_dir.push(&config.config_dir_name);
-
-    if !config_dir.exists() {
-        std::fs::create_dir_all(&config_dir)
-            .map_err(|e| AgentError::Identity(format!("failed to create config dir: {}", e)))?;
-    }
-
-    let mut key_path = config_dir.clone();
-    key_path.push(&config.key_file_name);
-
-    let passphrase = if let Some(override_id) = &config.machine_id_override {
-        override_id.clone()
-    } else if let Ok(env_id) = std::env::var("KEYFORGE_MACHINE_ID") {
-        env_id
-    } else {
-        // Task-agent-021: Fallback to persistent UUID if system machine ID is unavailable
-        match machine_uid::get() {
-            Ok(id) => id,
-            Err(_) => {
-                let mut uuid_path = config_dir.clone();
-                uuid_path.push("machine_id.uuid");
-                if uuid_path.exists() {
-                    std::fs::read_to_string(&uuid_path)
-                        .map_err(|e| AgentError::Identity(format!("Failed to read fallback UUID: {}", e)))?
-                } else {
-                    let new_id = uuid::Uuid::new_v4().to_string();
-                    std::fs::write(&uuid_path, &new_id)
-                        .map_err(|e| AgentError::Identity(format!("Failed to save fallback UUID: {}", e)))?;
-                    info!(path = ?uuid_path, "Generated new fallback machine UUID");
-                    new_id
-                }
-            }
-        }
-    };
-
-    if key_path.exists() {
-        let file =
-            std::fs::File::open(&key_path).map_err(|e| AgentError::Identity(format!("failed to open key file: {}", e)))?;
-        let decryptor =
-            age::Decryptor::new(file).map_err(|e| AgentError::Identity(format!("age decryptor error: {}", e)))?;
-
-        let identity = age::scrypt::Identity::new(passphrase.clone().into());
-        let mut reader = decryptor
-            .decrypt(std::iter::once(&identity as &dyn age::Identity))
-            .map_err(|e| AgentError::Identity(format!("decryption failed: {}", e)))?;
-
-        let mut decrypted = Vec::new();
-        use std::io::Read;
-        reader
-            .read_to_end(&mut decrypted)
-            .map_err(|e| AgentError::Identity(format!("failed to read decrypted key: {}", e)))?;
-
-        let array: [u8; 32] = decrypted
-            .try_into()
-            .map_err(|_| AgentError::Identity("invalid key file length (expected 32 bytes)".into()))?;
-
-        Ok(SigningKey::from_bytes(&array))
-    } else {
-        let mut csprng = OsRng;
-        let key = SigningKey::generate(&mut csprng);
-
-        let encryptor = age::Encryptor::with_user_passphrase(passphrase.into());
-
-        let mut output = Vec::new();
-        let mut writer = encryptor
-            .wrap_output(&mut output)
-            .map_err(|e| AgentError::Identity(format!("failed to initialize age writer: {}", e)))?;
-        use std::io::Write;
-        writer
-            .write_all(&key.to_bytes())
-            .map_err(|e| AgentError::Identity(format!("failed to write to age writer: {}", e)))?;
-        writer
-            .finish()
-            .map_err(|e| AgentError::Identity(format!("failed to finish age encryption: {}", e)))?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .mode(0o600)
-                .open(&key_path)
-                .map_err(|e| AgentError::Identity(format!("failed to create hardened key file: {}", e)))?;
-            file.write_all(&output)
-                .map_err(|e| AgentError::Identity(format!("failed to save encrypted key: {}", e)))?;
-        }
-        #[cfg(not(unix))]
-        {
-            std::fs::write(&key_path, &output)
-                .map_err(|e| AgentError::Identity(format!("failed to save encrypted key: {}", e)))?;
-        }
-
-        info!(path = ?key_path, "generated new encrypted identity");
-        Ok(key)
-    }
 }

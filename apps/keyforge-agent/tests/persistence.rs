@@ -6,7 +6,7 @@
 //! the Hive when network connectivity is restored.
 
 
-use keyforge_agent::agent::network::ResultOutbox;
+use keyforge_agent::agent::network::outbox::ResultOutbox;
 use keyforge_infra::HiveClient;
 use keyforge_protocol::ResultSubmission;
 use tempfile::tempdir;

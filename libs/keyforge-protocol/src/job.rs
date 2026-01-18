@@ -1,4 +1,4 @@
-// libs/keyforge-protocol/src/protocol.rs
+// libs/keyforge-protocol/src/job.rs
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Data Transfer Objects (DTOs) for the KeyForge protocol.
-//!
-//! This module defines the JSON structure and validation for all API 
-//! requests and responses used by the Hive and Agent.
-
 use crate::PROTOCOL_VERSION;
+use crate::constants;
+use crate::assets::BiometricSample;
 use keyforge_model::{
     CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, ScoringWeights, SearchParams,
     Validator, LayoutValidator,
 };
-use crate::constants;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
@@ -31,76 +27,6 @@ use ts_rs::TS;
 fn default_version() -> u32 { PROTOCOL_VERSION }
 fn default_cost_matrix() -> CostMatrixSource { CostMatrixSource::default() }
 fn default_corpora() -> Vec<CorpusSource> { vec![CorpusSource::default()] }
-
-/// Real-time status report from a Worker Node (Hot Path).
-/// Sent via WebSocket text frames to Hive, then serialized to Valkey.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct NodeTelemetry {
-    /// The Job currently being processed.
-    pub job_id: Option<String>,
-    /// Iterations Per Second (Performance).
-    pub ips: f32,
-    /// Current Annealing Temperature (State).
-    pub temp: f32,
-    /// Best score found in this session (Local Best).
-    pub current_best: Option<f32>,
-    /// Total memory usage in bytes.
-    pub memory_usage: u64,
-    /// Timestamp of this sample.
-    pub timestamp: u64,
-}
-
-/// A manifest entry for the Global Asset Cache.
-/// Stored in Valkey to ensure all nodes agree on asset versions.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-pub struct AssetManifestEntry {
-    /// Unique identifier for the asset (e.g., "keyboard:corne" or "corpus:english").
-    pub id: String,
-    /// BLAKE3 or SHA256 hash of the asset content for integrity verification.
-    pub hash: String,
-    /// Total size of the asset in bytes.
-    pub size_bytes: u64,
-    /// UNIX timestamp of when the asset was last modified or synchronized.
-    pub last_updated: u64,
-}
-
-/// Represents a single timing sample for a bigram.
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct BiometricSample {
-    /// The bigram string (e.g., "th").
-    pub bigram: String,
-    /// The time in milliseconds.
-    pub ms: f64,
-    /// Timestamp of the sample.
-    pub timestamp: u64,
-}
-
-impl Validator for BiometricSample {
-    fn validate(&self) -> Result<(), String> {
-        if self.bigram.len() != 2 {
-            return Err(format!("Invalid bigram length: '{}'", self.bigram));
-        }
-        if self.ms <= 0.0 || self.ms > constants::MAX_BIOMETRIC_MS {
-            return Err(format!("Biometric sample out of realistic range: {}ms", self.ms));
-        }
-        Ok(())
-    }
-}
-
-/// Aggregated statistics for a user.
-#[derive(Serialize, Deserialize, Clone, Default, Debug, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct UserStatsStore {
-    /// Total number of sessions.
-    pub sessions: u64,
-    /// Total keystrokes typed.
-    pub total_keystrokes: u64,
-    /// Collection of biometric samples.
-    #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-    pub biometrics: Vec<BiometricSample>,
-}
 
 /// Full configuration for a running job.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
@@ -251,15 +177,6 @@ pub struct JobQueueResponse {
     pub config: Option<JobConfig>,
 }
 
-/// Response containing available layouts.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct PopulationResponse {
-    /// List of layout strings.
-    #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-    pub layouts: Vec<String>,
-}
-
 /// Submission of a result from a worker.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -281,79 +198,6 @@ pub struct ResultSubmission {
     pub node_id: String,
     /// Cryptographic signature (Mandatory for server-side acceptance).
     pub signature: String,
-}
-
-/// Request from a node to register or heartbeat.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct NodeRequest {
-    /// Protocol version.
-    #[serde(default = "default_version")]
-    pub version: u32,
-    /// The Node ID.
-    pub node_id: String,
-    /// CPU model name.
-    pub cpu_model: String,
-    /// Number of cores.
-    pub cores: i32,
-    /// L2 cache size in KB.
-    pub l2_cache_kb: Option<i32>,
-    /// Operations per second benchmark.
-    pub ops_per_sec: f32,
-    /// Public key for verification.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub public_key: Option<String>,
-}
-
-impl Validator for NodeRequest {
-    fn validate(&self) -> Result<(), String> {
-        if self.node_id.trim().is_empty() { return Err("node_id cannot be empty".into()); }
-        if self.cores <= 0 { return Err("cores must be > 0".into()); }
-        if self.ops_per_sec < 0.0 { return Err("ops_per_sec cannot be negative".into()); }
-        Ok(())
-    }
-}
-
-/// Tuning profile for a worker.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct TuningProfile {
-    /// Strategy name.
-    pub strategy: String,
-    /// Batch size for processing.
-    pub batch_size: usize,
-    /// Number of threads to use.
-    pub thread_count: usize,
-}
-
-/// Response to a node heartbeat.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct NodeResponse {
-    /// Status of the node (e.g., "Active").
-    pub status: String,
-    /// Tuning profile to apply.
-    pub tuning: TuningProfile,
-}
-
-/// System-wide metrics.
-#[derive(Serialize, Deserialize, Debug, Default, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct SystemMetrics {
-    /// Uptime in seconds.
-    pub uptime_secs: u64,
-    /// Number of active jobs.
-    pub active_jobs: i64,
-    /// Total results processed.
-    pub total_results: i64,
-    /// Number of nodes online.
-    pub nodes_online: i64,
-    /// Total operations per second across the cluster.
-    pub total_ops_per_sec: f32,
-    /// Server memory used in bytes.
-    pub server_memory_used: u64,
-    /// Server CPU usage percentage.
-    pub server_cpu_usage: f32,
 }
 
 impl Validator for ResultSubmission {

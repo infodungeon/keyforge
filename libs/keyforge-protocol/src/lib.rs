@@ -28,7 +28,15 @@
 #![warn(missing_docs)]
 
 pub(crate) mod error;
-pub(crate) mod protocol;
+/// Job management DTOs (Config, Request, Response).
+pub mod job;
+/// Worker node orchestration DTOs (Heartbeat, Handshake).
+pub mod node;
+/// System health and performance metrics DTOs.
+pub mod telemetry;
+/// Asset management DTOs (Manifests, Samples).
+pub mod assets;
+
 pub mod constants;
 pub mod serde_utils;
 
@@ -38,11 +46,11 @@ mod tests;
 pub use error::{ErrorCode, ErrorResponse};
 pub use keyforge_model as model;
 
-pub use protocol::{
-    AssetManifestEntry, BiometricSample, JobConfig, JobQueueResponse, JobRequest, JobResponse,
-    JobStatus, NodeRequest, NodeResponse, NodeTelemetry, PopulationResponse, ResultSubmission,
-    SystemMetrics, TuningProfile, UserStatsStore,
-};
+// Re-export EVERYTHING to maintain backward compatibility with crate public API
+pub use job::{JobConfig, JobQueueResponse, JobRequest, JobResponse, JobStatus, ResultSubmission};
+pub use node::{NodeRequest, NodeResponse, NodeTelemetry, TuningProfile};
+pub use telemetry::SystemMetrics;
+pub use assets::{AssetManifestEntry, BiometricSample, PopulationResponse, UserStatsStore};
 
 /// The current protocol version. Incremented on breaking changes.
 pub const PROTOCOL_VERSION: u32 = 2;

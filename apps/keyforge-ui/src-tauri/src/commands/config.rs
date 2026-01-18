@@ -39,7 +39,7 @@ pub fn cmd_get_ui_categories(
 
     let stem = ASSET_UI_CATEGORIES;
     let system_path = provider
-        .root
+        .root()
         .join("system/config")
         .join(format!("{}.mpk.zst", stem));
 
@@ -52,7 +52,7 @@ pub fn cmd_get_ui_categories(
         return Ok(json);
     }
 
-    let user_path = provider.root.join("user/config/ui_categories.json");
+    let user_path = provider.root().join("user/config/ui_categories.json");
     if user_path.exists() {
         let content = std::fs::read_to_string(user_path)?;
         return Ok(serde_json::from_str(&content)?);
