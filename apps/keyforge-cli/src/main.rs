@@ -124,17 +124,35 @@ async fn run_app() -> Result<(), CliError> {
             
             let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
             
-            struct StopFlagCallback {
+            // Task-cli-028: Setup Progress Bar
+            use indicatif::{ProgressBar, ProgressStyle};
+            let pb = ProgressBar::new(options.timeout_sec);
+            pb.set_style(ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len}s ({eta}) {msg}")
+                .unwrap()
+                .progress_chars("#>-"));
+            pb.set_message("Optimizing layout...");
+
+            struct ProgressBarCallback {
                 stop_flag: Arc<std::sync::atomic::AtomicBool>,
+                pb: ProgressBar,
+                start_time: std::time::Instant,
             }
 
-            impl keyforge_evolution::ProgressCallback for StopFlagCallback {
-                fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[keyforge_model::KeyCode], _ips: f32) -> bool {
+            impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
+                fn on_progress(&self, epoch: usize, score: f32, _layout: &[keyforge_model::KeyCode], ips: f32) -> bool {
+                    let elapsed = self.start_time.elapsed().as_secs();
+                    self.pb.set_position(elapsed);
+                    self.pb.set_message(format!("Epoch {} | Best: {:.4} | {:.0} ips", epoch, score, ips));
                     !self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
                 }
             }
 
-            let callback = StopFlagCallback { stop_flag: stop_flag.clone() };
+            let callback = ProgressBarCallback { 
+                stop_flag: stop_flag.clone(), 
+                pb: pb.clone(),
+                start_time: std::time::Instant::now()
+            };
             
             let result: keyforge_model::OptimizationResult = keyforge_runner::OptimizationRunner::run(
                 session, 
@@ -145,6 +163,7 @@ async fn run_app() -> Result<(), CliError> {
                 &job
             ).await?;
             
+            pb.finish_with_message("Optimization complete.");
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
         Commands::Validate(args) => {
