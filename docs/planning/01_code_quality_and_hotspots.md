@@ -22,7 +22,7 @@
 | ~~**588**~~ | ~~`apps/keyforge-agent/src/main.rs`~~ | ~~42~~ | ~~13~~ | ~~414~~ | **REMEDIATED:** Refactored into `cmd/`, `identity.rs`, `config_loader.rs`. `main` is now a thin orchestrator. |
 | ~~**549**~~ | ~~`apps/keyforge-hive/tests/concurrency.rs`~~ | ~~61~~ | ~~8~~ | ~~180~~ | **REMEDIATED:** Extracted shared setup to `common/mod.rs`. Test is now focused on logic. |
 | ~~**544**~~ | ~~`libs/keyforge-evolution/src/supervisor/strategies.rs`~~ | ~~34~~ | ~~15~~ | ~~276~~ | **REMEDIATED:** Decomposed into `strategies/` modules (swap, group, annealing). |
-| **528** | `apps/keyforge-cli/src/cli_args/config.rs` | 48 | 10 | 335 | **CLI Config:** Duplication of config logic found in `model`. |
+| ~~**528**~~ | ~~`apps/keyforge-cli/src/cli_args/config.rs`~~ | ~~48~~ | ~~10~~ | ~~335~~ | **REMEDIATED:** Duplication removed. CLI args now defined in `keyforge-model` with `clap` feature. |
 | **525** | `libs/keyforge-adapter/src/conversion.rs` | 35 | 14 | 266 | **Format War:** Converters are high maintenance. |
 | **480** | `apps/keyforge-hive/src/infra/queue.rs` | 40 | 11 | 307 | **Concurrency:** Core queue logic. Critical for Hive stability. |
 | **455** | `apps/keyforge-hive/src/infra/repositories/jobs.rs` | 35 | 12 | 599 | **DB Coupling:** Large repository file handling massive SQL queries. |

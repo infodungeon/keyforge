@@ -202,3 +202,36 @@ impl SearchParams {
     /// Factor to multiply temperature by when reheating.
     pub fn get_reheat_factor(&self) -> f32 { self.get_param("reheat_factor", DEFAULT_REHEAT_FACTOR) }
 }
+
+/// CLI arguments mirroring SearchParams.
+#[cfg(feature = "cli")]
+#[derive(clap::Args, Debug, Clone)]
+pub struct SearchParamsConfig {
+    /// Generic search parameters in KEY=VALUE format.
+    /// Example: --search temp_max=5.0 --search search_epochs=50000
+    #[arg(long = "search", value_parser = crate::config::utils::parse_key_val)]
+    pub params: Vec<(String, f32)>,
+
+    /// Whether to include thumb keys in swap suggestions.
+    #[arg(long)]
+    pub include_thumbs: bool,
+}
+
+#[cfg(feature = "cli")]
+impl TryFrom<SearchParamsConfig> for SearchParams {
+    type Error = String;
+    fn try_from(args: SearchParamsConfig) -> Result<Self, Self::Error> {
+        let mut p = SearchParams::default();
+        
+        // Dynamic overrides from CLI
+        for (key, value) in args.params {
+            p.params.insert(key, value);
+        }
+        
+        p.seed = None; // Seed handled by runner options
+        p.include_thumbs = args.include_thumbs;
+        
+        p.validate()?;
+        Ok(p)
+    }
+}

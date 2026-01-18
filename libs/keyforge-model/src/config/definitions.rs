@@ -71,3 +71,50 @@ impl LayoutDefinitions {
         }).collect()
     }
 }
+
+/// CLI arguments mirroring LayoutDefinitions.
+#[cfg(feature = "cli")]
+#[derive(clap::Args, Debug, Clone)]
+pub struct LayoutDefinitionsConfig {
+    /// Characters considered high priority.
+    #[arg(long, default_value = DEFAULT_TIER_HIGH)]
+    pub tier_high_chars: String,
+    /// Characters considered medium priority.
+    #[arg(long, default_value = DEFAULT_TIER_MED)]
+    pub tier_med_chars: String,
+    /// Characters considered low priority.
+    #[arg(long, default_value = DEFAULT_TIER_LOW)]
+    pub tier_low_chars: String,
+    /// Bigrams that must be optimized for.
+    #[arg(long, default_value = DEFAULT_CRITICAL_BIGRAMS)]
+    pub critical_bigrams: String,
+    /// Scale factors for finger repeat penalties.
+    #[arg(long, value_delimiter = ',', num_args = 5, default_values_t = DEFAULT_FINGER_REPEAT_SCALE_ARRAY)]
+    pub finger_repeat_scale: Vec<f32>,
+}
+
+#[cfg(feature = "cli")]
+impl TryFrom<LayoutDefinitionsConfig> for LayoutDefinitions {
+    type Error = String;
+    fn try_from(args: LayoutDefinitionsConfig) -> Result<Self, Self::Error> {
+        Ok(Self {
+            tier_high_chars: args.tier_high_chars,
+            tier_med_chars: args.tier_med_chars,
+            tier_low_chars: args.tier_low_chars,
+            critical_bigrams: args.critical_bigrams,
+            finger_repeat_scale: vec_to_array_5(args.finger_repeat_scale)?,
+        })
+    }
+}
+
+#[cfg(feature = "cli")]
+fn vec_to_array_5(v: Vec<f32>) -> Result<[f32; 5], String> {
+    if v.len() != 5 {
+        return Err(format!("Expected 5 values, got {}", v.len()));
+    }
+    let mut arr = [0.0; 5];
+    for (i, &val) in v.iter().enumerate() {
+        arr[i] = val;
+    }
+    Ok(arr)
+}

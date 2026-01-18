@@ -29,6 +29,7 @@ utoipa = { version = "5.4", features = [
 ] }
 ts-rs = { version = "11.1", features = ["serde-compat"], optional = true }
 tracing = "0.1.44"
+clap = { version = "4.5", features = ["derive"], optional = true }
 
 [dev-dependencies]
 proptest = "1.9"
@@ -36,3 +37,4 @@ proptest = "1.9"
 [features]
 default = []
 ts_bindings = ["dep:ts-rs"]
+cli = ["dep:clap"]

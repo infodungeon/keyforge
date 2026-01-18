@@ -22,8 +22,8 @@ fn test_search_happy_path() {
             "--corpus", "test_corpus",
             "--keyboard", "test_kb",
             "--keycodes", "keycodes.json",
-            "--search-epochs", "1",
-            "--search-steps", "10",
+            "--search", "search_epochs=1",
+            "--search", "search_steps=10",
             "--time", "5",
         ])
         .output()
@@ -44,8 +44,8 @@ fn test_search_determinism() {
     let args = [
         "search",
         "--seed", "12345",
-        "--search-epochs", "5",
-        "--search-steps", "10", // Reduced for test speed
+        "--search", "search_epochs=5",
+        "--search", "search_steps=10", // Reduced for test speed
         "--attempts", "1",
         "--threads", "1",
         "--cost", "cost.json",
@@ -97,8 +97,8 @@ fn test_search_constraints() {
             "--keyboard", "poison_keyboard",
             "--weights", ctx.weights_path("poison_weights").to_str().unwrap(),
             "--keycodes", "keycodes.json",
-            "--search-epochs", "20",
-            "--search-steps", "50",
+            "--search", "search_epochs=20",
+            "--search", "search_steps=50",
             "--attempts", "1",
             "--seed", "999",
             "--tier-high-chars", "etaoinshrdlu",

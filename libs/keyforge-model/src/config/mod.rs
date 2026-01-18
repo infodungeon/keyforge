@@ -10,6 +10,8 @@ pub mod metadata;
 pub mod search;
 /// Data source definitions.
 pub mod source;
+/// Utility configuration helpers.
+pub mod utils;
 /// Scoring weights and penalties.
 pub mod weights;
 
