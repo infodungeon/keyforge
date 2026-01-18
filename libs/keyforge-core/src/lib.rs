@@ -40,37 +40,72 @@ use std::sync::Arc;
 /// Build a compiled `ScoringEngine` from an `EngineRequest`.
 ///
 /// This is a convenience wrapper around `ScoringEngine::new`.
+/// Builds a scoring engine.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if the engine building fails.
 pub fn build_engine(req: &EngineRequest) -> Result<ScoringEngine, PhysicsError> {
     ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
 }
 
 /// Analyze a layout using a compiled engine.
+/// Analyzes a layout with a pre-built engine.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if analysis fails.
 pub fn analyze_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
     engine.analyze(layout)
 }
 
 /// Score a layout using a compiled engine.
+/// Scores a layout with a pre-built engine.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if scoring fails.
 pub fn score_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<f32, PhysicsError> {
     engine.score(layout)
 }
 
 /// Suggest swaps using a compiled engine.
+/// Suggests swaps for a layout.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if suggestion logic fails.
 pub fn suggest_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<Vec<SwapSuggestion>, PhysicsError> {
     Ok(engine.suggest_improvements(layout, false))
 }
 
 /// Legacy-style analysis: compiles an engine from the request and analyzes the request layout.
 /// If no layout is provided, uses a default 0-filled layout.
+/// Analyzes a request.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if analysis fails.
 pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
     keyforge_physics::analyze(req)
 }
 
 /// Legacy-style score: compiles an engine from the request and scores the request layout.
+/// Scores a request.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if scoring fails.
 pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
     keyforge_physics::score(req)
 }
 
 /// Legacy-style swap suggestions: compiles an engine from the request and suggests improvements.
+/// Suggests swaps for a request.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if suggestion fails.
 pub fn suggest(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
     keyforge_physics::suggest_improvements(req)
 }
@@ -84,12 +119,22 @@ pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
 /// Optimize using the legacy request style (engine compiled internally).
 ///
 /// Prefer `optimize_with_engine` when you already have a compiled engine.
+/// Optimizes a layout.
+///
+/// # Errors
+///
+/// Returns `EvolutionError` if optimization fails.
 pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
     keyforge_evolution::optimize(req)
 }
 
 /// Optimize using the legacy request style, reporting progress via callback.
 /// Optimize using the legacy request style, reporting progress via callback.
+/// Optimizes with a callback.
+///
+/// # Errors
+///
+/// Returns `EvolutionError` if optimization fails.
 pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
@@ -98,8 +143,13 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
 }
 
 /// Optimize using a precompiled engine.
+/// Optimizes with a pre-built engine.
+///
+/// # Errors
+///
+/// Returns `EvolutionError` if optimization fails.
 pub fn optimize_with_engine<CB: ProgressCallback>(
-    engine: Arc<ScoringEngine>,
+    engine: &Arc<ScoringEngine>,
     config: &keyforge_model::SearchConfig,
     callback: CB,
     initial_layout: Option<Layout>,

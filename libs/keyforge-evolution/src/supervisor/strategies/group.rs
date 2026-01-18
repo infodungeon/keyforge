@@ -12,6 +12,7 @@ pub struct GroupMutation {
 }
 
 impl MutationOperator for GroupMutation {
+    #[allow(clippy::cast_possible_truncation)]
     fn propose(
         &self,
         engine: &ScoringEngine,
@@ -93,10 +94,10 @@ impl MutationOperator for GroupMutation {
                 let code_a = layout.keys[idx_a];
                 let code_b = layout.keys[idx_b];
                 if (code_a.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_a.0 as usize] = idx_b as u64 as u16;
+                    patched_pos_map[code_a.0 as usize] = idx_b as u16;
                 }
                 if (code_b.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_b.0 as usize] = idx_a as u64 as u16;
+                    patched_pos_map[code_b.0 as usize] = idx_a as u16;
                 }
 
                 // Calculate second swap delta (A which is at B, with C)

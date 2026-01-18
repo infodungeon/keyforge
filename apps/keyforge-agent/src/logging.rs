@@ -28,7 +28,7 @@ pub enum LogMode {
 }
 
 /// Initializes the tracing system for the agent.
-pub fn init_tracing(default_filter: &str, mode: LogMode) {
+pub fn init_tracing(default_filter: &str, mode: &LogMode) {
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
     let filter = EnvFilter::try_from_default_env()

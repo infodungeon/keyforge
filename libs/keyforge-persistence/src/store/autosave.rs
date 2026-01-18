@@ -89,6 +89,7 @@ pub struct AutoSaveService {
 impl AutoSaveService {
     /// Creates a new `AutoSaveService` instance with a session file located in the provided root path.
     #[must_use] 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(root_path: PathBuf) -> Self {
         let path = root_path.join("session.json");
 

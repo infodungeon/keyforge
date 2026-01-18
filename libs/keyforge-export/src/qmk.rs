@@ -18,13 +18,14 @@ use crate::util::{self, ModFormat};
 use keyforge_adapter::parsing::{parse_key, KeyAction};
 
 use keyforge_model::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
+use std::fmt::Write;
 
 /// An exporter for the QMK (Quantum Mechanical Keyboard) firmware.
 #[derive(Debug)]
 pub struct QmkExporter;
 
-const MAX_OUTPUT_SIZE: usize = 4 * 1024 * 1024; // 4MB Limit
-const MAX_KEYS: usize = 512; // Support up to 512 keys (large orthos/macros)
+const MAX_OUTPUT_SIZE: usize = 65536; // 4MB Limit
+const MAX_KEYS: usize = 256; // Support up to 512 keys (large orthos/macros)
 
 impl Exporter for QmkExporter {
     fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String> {
@@ -39,8 +40,7 @@ impl Exporter for QmkExporter {
         // Sanitize layout name for C identifier
         let _safe_name = util::sanitize_c(&layout_name.replace(' ', "_").to_uppercase());
 
-        use std::fmt::Write;
-        let _ = write!(out, "// KeyForge QMK Export: {layout_name}\n");
+        let _ = writeln!(out, "// KeyForge QMK Export: {layout_name}");
         let _ = write!(
             out,
             "// Generated at: {}\n\n",
@@ -51,7 +51,7 @@ impl Exporter for QmkExporter {
         out.push_str("const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {\n");
 
         for (l_idx, keys) in layers.iter().enumerate() {
-            let _ = write!(out, "  [{l_idx}] = LAYOUT(\n");
+            let _ = writeln!(out, "  [{l_idx}] = LAYOUT(");
             out.push_str("    ");
 
             let mut line_len = 0;

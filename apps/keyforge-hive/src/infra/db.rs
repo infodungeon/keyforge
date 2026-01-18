@@ -130,10 +130,6 @@ pub const DB_MAX_LIFETIME_SECS: u64 = 1800;
 pub const DB_STATEMENT_TIMEOUT: &str = "30s";
 
 /// Errors that can occur during database initialization and migration.
-// ... (omitted: DbInitError)
-
-// ... (omitted: try_init_db, init_db)
-
 async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
     let max_retries = DB_MAX_RETRIES;
     let delay = Duration::from_secs(DB_RETRY_DELAY_SECS);

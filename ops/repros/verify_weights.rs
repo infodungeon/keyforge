@@ -47,8 +47,10 @@ fn main() {
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)
-    let mut rubric_custom = Rubric::default();
-    rubric_custom.sfb_base = 5000.0;
+    let rubric_custom = Rubric {
+        sfb_base: 5000.0,
+        ..Rubric::default()
+    };
     let engine_custom = ScoringEngine::new(&keyboard, &corpus, &rubric_custom, &cost_model).unwrap();
     let score_custom = engine_custom.score(&layout).unwrap();
 

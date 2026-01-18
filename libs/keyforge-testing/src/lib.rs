@@ -34,7 +34,12 @@ pub struct HermeticWorkspace {
 
 impl HermeticWorkspace {
     /// Creates a new hermetic workspace with standard directory structure.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the temporary directory cannot be created or initial assets cannot be written.
     #[must_use] 
+    #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         let temp = tempfile::tempdir().expect("Failed to create temp dir");
         let root = temp.path().to_path_buf();
@@ -194,6 +199,11 @@ impl HermeticWorkspace {
     }
 
     /// Writes a file to the workspace relative to the root.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the directory cannot be created or the file cannot be written.
+    #[allow(clippy::unwrap_used)]
     pub fn write_file(&self, path: &str, content: &str) {
         let target = self.root.join(path);
         if let Some(parent) = target.parent() {

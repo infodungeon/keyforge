@@ -32,9 +32,16 @@ pub struct KeyforgeEngine {
     loader: Arc<InMemoryLoader>,
 }
 
+impl Default for KeyforgeEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl KeyforgeEngine {
     #[wasm_bindgen(constructor)]
+    #[must_use] 
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
         Self {
@@ -43,15 +50,23 @@ impl KeyforgeEngine {
     }
 
     /// Injects a keyboard definition into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeyboard)]
     pub fn inject_keyboard(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let kb: KeyboardDefinition = from_value(json_val)?;
-        kb.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
+        kb.validate().map_err(|e| JsValue::from_str(&e))?;
         self.loader.inject_keyboard(name, kb);
         Ok(())
     }
 
     /// Injects a corpus into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectCorpus)]
     pub fn inject_corpus(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let corpus: Corpus = from_value(json_val)?;
@@ -61,6 +76,10 @@ impl KeyforgeEngine {
     }
 
     /// Injects a cost model into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON is invalid.
     #[wasm_bindgen(js_name = injectCostModel)]
     pub fn inject_cost_model(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let model: CostModel = from_value(json_val)?;
@@ -70,15 +89,23 @@ impl KeyforgeEngine {
     }
 
     /// Injects a keycode registry into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeycodes)]
     pub fn inject_keycodes(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let reg: KeycodeRegistry = from_value(json_val)?;
-        reg.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
+        reg.validate().map_err(|e| JsValue::from_str(&e))?;
         self.loader.inject_keycodes(name, reg);
         Ok(())
     }
 
     /// Analyzes a layout using the injected assets and an optional rubric.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any assets are missing or scoring fails.
     #[wasm_bindgen(js_name = analyzeLayout)]
     pub async fn analyze_layout(
         &self,

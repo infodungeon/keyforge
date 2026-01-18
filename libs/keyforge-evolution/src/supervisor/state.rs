@@ -29,6 +29,7 @@ pub struct SearchState {
 }
 
 impl SearchState {
+    #[allow(clippy::cast_possible_truncation)]
     pub fn new(layout: Layout, score: i64, start_temp: f32) -> Result<Self, EvolutionError> {
         // INVARIANT: Key count must fit in u16 to use 65535 as sentinel
         if layout.keys.len() >= 65535 {
@@ -43,7 +44,6 @@ impl SearchState {
         let mut pos_map = vec![65535u16; map_size];
         for (i, &code) in layout.keys.iter().enumerate() {
             if (code.0 as usize) < map_size {
-                #[allow(clippy::cast_possible_truncation)]
                 pos_map[code.0 as usize] = i as u16;
             }
         }
@@ -108,6 +108,7 @@ impl SearchState {
         }
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     pub fn reheat_from_best(&mut self, start_temp: f32, reheat_factor: f32) {
         self.temperature = start_temp * reheat_factor;
         self.current_layout = self.best_layout.clone();
@@ -117,7 +118,6 @@ impl SearchState {
         self.pos_map.fill(65535);
         for (i, &code) in self.current_layout.keys.iter().enumerate() {
             if (code.0 as usize) < self.pos_map.len() {
-                #[allow(clippy::cast_possible_truncation)]
                 self.pos_map[code.0 as usize] = i as u16;
             }
         }

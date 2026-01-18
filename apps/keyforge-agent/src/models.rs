@@ -145,13 +145,13 @@ impl Default for AgentConfig {
             private_key: String::new(),
             data_dir: PathBuf::from("data"),
             cores: 1,
-            calibration: Default::default(),
-            network: Default::default(),
-            maintenance: Default::default(),
-            compute: Default::default(),
-            telemetry: Default::default(),
-            logging: Default::default(),
-            system: Default::default(),
+            calibration: CalibrationConfig::default(),
+            network: NetworkConfig::default(),
+            maintenance: MaintenanceConfig::default(),
+            compute: ComputeConfig::default(),
+            telemetry: TelemetryConfig::default(),
+            logging: LoggingConfig::default(),
+            system: SystemConfig::default(),
         }
     }
 }

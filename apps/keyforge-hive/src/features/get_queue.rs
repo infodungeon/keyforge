@@ -76,7 +76,6 @@ async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
         tokio::select! {
             () = state.jobs.signal.notified() => {
                 // Return to start of loop to re-check DB
-                continue;
             }
             () = sleep(remaining) => {
                 return Ok(JobQueueResponse {

@@ -4,6 +4,7 @@ use tracing::info;
 use crate::agent::errors::AgentError;
 use crate::models::SystemConfig;
 use std::convert::TryInto;
+use std::io::{Read, Write};
 
 pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentError> {
     let mut config_dir = dirs::config_dir().ok_or_else(|| AgentError::Identity("could not find config directory".into()))?;
@@ -51,7 +52,6 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
             .map_err(|e| AgentError::Identity(format!("decryption failed: {e}")))?;
 
         let mut decrypted = Vec::new();
-        use std::io::Read;
         reader
             .read_to_end(&mut decrypted)
             .map_err(|e| AgentError::Identity(format!("failed to read decrypted key: {e}")))?;
@@ -71,7 +71,6 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
         let mut writer = encryptor
             .wrap_output(&mut output)
             .map_err(|e| AgentError::Identity(format!("failed to initialize age writer: {e}")))?;
-        use std::io::Write;
         writer
             .write_all(&key.to_bytes())
             .map_err(|e| AgentError::Identity(format!("failed to write to age writer: {e}")))?;

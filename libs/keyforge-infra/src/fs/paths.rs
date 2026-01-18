@@ -16,13 +16,17 @@ use keyforge_model::constants::DATA_DIR_CANDIDATES;
 use std::env;
 use std::path::PathBuf;
 
-/// Attempts to locate the 'data' directory.
+/// Resolves the absolute path to the data root.
+///
+/// # Errors
+///
+/// Returns an error if the explicit path is provided but does not exist.
 pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
     if let Some(p) = explicit {
-        if p.exists() {
-            return Ok(p);
+        if !p.exists() {
+            return Err(format!("Explicit data path not found: {}", p.display()));
         }
-        return Err(format!("Explicit data path not found: {p:?}"));
+        return Ok(p);
     }
 
     if let Ok(env_path) = env::var("KEYFORGE_DATA_DIR") {
@@ -47,7 +51,7 @@ pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
 }
 
 /// Resolves the absolute paths for a Job's assets (Cost Matrix and Corpus).
-#[must_use] 
+#[must_use]
 pub fn resolve_job_paths(
     root: &std::path::Path,
     corpus_name: &str,

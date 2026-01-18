@@ -19,6 +19,10 @@ use std::io::Read;
 use std::path::Path;
 
 /// Calculates the SHA-256 hash of a file on disk.
+///
+/// # Errors
+///
+/// Returns `InfraError` if the file cannot be read.
 pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
     let mut file = File::open(path).map_err(InfraError::Io)?;
     let mut hasher = Sha256::new();
@@ -78,14 +82,15 @@ use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::keycodes::{KeycodeDefinition, KeycodeRegistry};
 
 /// Loads a keycode registry from a JSON file.
+///
+/// # Errors
+///
+/// Returns `InfraError` if the file cannot be read or parsed.
 pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
     let content = crate::fs::io::read_to_string_limited(path, MAX_INPUT_FILE_SIZE)?;
 
-    let mut deserializer = serde_json::Deserializer::from_str(&content);
-
-    use serde::Deserialize;
     let defs: Vec<KeycodeDefinition> =
-        Vec::deserialize(&mut deserializer).map_err(InfraError::Serde)?;
+        serde_json::from_str(&content).map_err(InfraError::Serde)?;
     Ok(KeycodeRegistry::new(defs))
 }
 

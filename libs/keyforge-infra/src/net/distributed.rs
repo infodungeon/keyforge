@@ -46,6 +46,10 @@ pub struct DistributedCoordinator {
 
 impl DistributedCoordinator {
     /// Connects to the coordination layer using the provided Valkey/Redis URL.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the URL is invalid or the connection fails.
     pub async fn new(url: &str) -> InfraResult<Self> {
         let config = RedisConfig::from_url(url).map_err(|e| {
             InfraError::Config(format!("Invalid Valkey URL: {e}"))
@@ -76,6 +80,10 @@ impl DistributedCoordinator {
     // --- BLOB STORAGE ---
 
     /// Retrieves binary data from the store by key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn get_bin(&self, key: &str) -> InfraResult<Option<bytes::Bytes>> {
         self.client.get(key).await.map_err(|e| {
              InfraError::Io(std::io::Error::other(e))
@@ -83,6 +91,10 @@ impl DistributedCoordinator {
     }
 
     /// Stores binary data in the store with the specified key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn set_bin(&self, key: &str, data: &[u8]) -> InfraResult<()> {
         self.client.set(key, data, None, None, false).await.map_err(|e| {
              InfraError::Io(std::io::Error::other(e))
@@ -90,6 +102,10 @@ impl DistributedCoordinator {
     }
 
     /// Scans for keys matching the given glob-style pattern.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn scan_keys(&self, pattern: &str) -> InfraResult<Vec<String>> {
         let mut stream = self.client.scan(pattern, Some(1000), None);
         let mut results = Vec::new();
@@ -116,6 +132,10 @@ impl DistributedCoordinator {
     ///
     /// This uses an atomic SET NX with a 24-hour expiration to ensure that
     /// calibration only happens once per day per hardware signature in a cluster.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool> {
         let key = format!("{KEY_PREFIX_V4}:hw_profile:{cpu_signature}");
         let result: Option<()> = self.client.set(
@@ -139,6 +159,10 @@ impl DistributedCoordinator {
     ///
     /// The entry will automatically expire if not refreshed within 30 seconds,
     /// indicating that the node is offline.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()> {
         let key = format!("{KEY_PREFIX_V4}:node:{node_id}:telemetry");
         let json = serde_json::to_string(telemetry).map_err(InfraError::Serde)?;
@@ -150,13 +174,19 @@ impl DistributedCoordinator {
         // 2. Update Active Set (Task-infra-016: O(1) counting)
         let zset_key = format!("{KEY_PREFIX_V4}:cluster:active_nodes");
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-        self.client.zadd::<(), _, _>(zset_key, None, None, false, false, (now as f64, node_id.to_string()))
+        #[allow(clippy::cast_precision_loss)]
+        let score = now as f64;
+        self.client.zadd::<(), _, _>(zset_key, None, None, false, false, (score, node_id.to_string()))
             .await.map_err(|e| InfraError::Io(std::io::Error::other(e)))?;
 
         Ok(())
     }
 
     /// Retrieves the latest telemetry for a specific node.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation or parsing fails.
     pub async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>> {
         let key = format!("{KEY_PREFIX_V4}:node:{node_id}:telemetry");
         let data: Option<String> = self.client.get(key).await.map_err(|e| {
@@ -173,6 +203,10 @@ impl DistributedCoordinator {
     /// Aggregates statistics across all heartbeating nodes in the cluster.
     ///
     /// Returns a tuple of `(active_node_count, aggregate_throughput_ips)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)> {
         let zset_key = format!("{KEY_PREFIX_V4}:cluster:active_nodes");
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
@@ -214,6 +248,10 @@ impl DistributedCoordinator {
     }
 
     /// Publishes a job update event to a dedicated Pub/Sub channel.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn publish_update(&self, job_id: &str, event: &str) -> InfraResult<()> {
         let channel = format!("job:{job_id}:updates");
         self.client.publish::<(), _, _>(channel, event).await.map_err(|e| {
@@ -222,6 +260,10 @@ impl DistributedCoordinator {
     }
 
     /// Sets an entry in the distributed asset manifest.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn set_manifest_entry(&self, entry: &AssetManifestEntry) -> InfraResult<()> {
         let key = format!("{}:manifest:{}", KEY_PREFIX_V4, entry.id);
         self.client.hset::<(), _, _>(
@@ -237,6 +279,10 @@ impl DistributedCoordinator {
     }
 
     /// Retrieves the hash of a specific asset from the distributed manifest.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn get_manifest_hash(&self, asset_id: &str) -> InfraResult<Option<String>> {
         let key = format!("{KEY_PREFIX_V4}:manifest:{asset_id}");
         let hash: Option<String> = self.client.hget(key, "hash").await.map_err(|e| {
@@ -246,6 +292,10 @@ impl DistributedCoordinator {
     }
 
     /// Fetches the entire distributed asset manifest as a map of ID to SHA-256 hash.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn get_all_manifest_entries(&self) -> InfraResult<HashMap<String, String>> {
         let keys = self.scan_keys(&format!("{KEY_PREFIX_V4}:manifest:*")).await?;
         let mut map = HashMap::new();
@@ -265,6 +315,10 @@ impl DistributedCoordinator {
     }
 
     /// Returns the number of currently active nodes in the cluster.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn count_active_nodes(&self) -> InfraResult<usize> {
         let (count, _) = self.get_cluster_stats().await?;
         Ok(count)
@@ -274,6 +328,10 @@ impl DistributedCoordinator {
     ///
     /// This provides distributed replay protection with a specified TTL.
     /// Returns true if the nonce is NEW (not seen before), false if it's a REPLAY.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn check_and_set_nonce(&self, node_id: &str, nonce: u64, ttl_secs: i64) -> InfraResult<bool> {
         let key = format!("{KEY_PREFIX_V4}:nonce:{node_id}:{nonce}");
         let result: Option<()> = self.client.set(

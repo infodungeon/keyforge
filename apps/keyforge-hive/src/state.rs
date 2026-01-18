@@ -73,6 +73,11 @@ pub struct AppState {
 impl AppState {
     /// Initializes the `AppState` by connecting to the database and Valkey,
     /// and starting background monitors.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the connection to the Coordination Layer (Valkey) fails.
+    #[allow(clippy::expect_used)]
     pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String, config: AppConfig) -> Self {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());

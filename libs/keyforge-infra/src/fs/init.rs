@@ -54,6 +54,10 @@ pub const USER_WORKSPACE_DIRS: &[&str] = &[
 pub const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
 
 /// Orchestrates the setup of the `KeyForge` workspace.
+///
+/// # Errors
+///
+/// Returns `InfraError` if directory creation or asset validation fails.
 pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<()> {
     info!("Initializing workspace at: {:?}", root);
 
@@ -82,6 +86,10 @@ fn check_asset_exists(system_root: &Path, rel_path: &str) -> bool {
 }
 
 /// Ensures a directory exists relative to the root, creating it if necessary.
+///
+/// # Errors
+///
+/// Returns `InfraError` if directory creation fails.
 pub fn ensure_dir(root: &Path, rel_path: &str) -> InfraResult<PathBuf> {
     let p = root.join(rel_path);
     if !p.exists() {

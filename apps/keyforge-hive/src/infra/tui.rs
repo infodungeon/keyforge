@@ -24,6 +24,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
 };
+use keyforge_infra::net::client::ClientConfig;
 use serde::Deserialize;
 use std::io;
 use std::process::Command;
@@ -160,6 +161,9 @@ impl DockerMonitor {
 ///
 /// This function takes over the terminal, connects to the Hive API,
 /// and displays real-time metrics, logs, and Docker container status.
+/// # Errors
+///
+/// Returns an error if terminal setup fails, connection fails, or API requests are rejected.
 pub async fn run_monitor(
     url: String,
     secret: Option<String>,
@@ -171,7 +175,6 @@ pub async fn run_monitor(
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    use keyforge_infra::net::client::ClientConfig;
     // Assume assets are on port 3001 if hive is 3000, or just use same base if proxied
     let asset_url = url.replace("3000", "3001");
     
@@ -229,6 +232,7 @@ pub async fn run_monitor(
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 fn ui(f: &mut Frame<'_>, status: &SystemStatusResponse, containers: &[ContainerMetrics], err: &str) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)

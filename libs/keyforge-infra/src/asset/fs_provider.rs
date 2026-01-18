@@ -56,7 +56,8 @@ impl FsProvider {
         let meta = tokio::fs::metadata(path).await?;
         if meta.len() > MAX_INPUT_FILE_SIZE {
             return Err(ForgeError::InvalidData(format!(
-                "File {path:?} exceeds size limit of {MAX_INPUT_FILE_SIZE} bytes"
+                "File {} exceeds size limit of {MAX_INPUT_FILE_SIZE} bytes",
+                path.display()
             )));
         }
         Ok(())
@@ -87,6 +88,10 @@ impl FsProvider {
     }
 
     /// Calculates a stable hash for a corpus by hashing its constituent parts.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LoaderResult` if any constituent file cannot be read.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         // Task-infra-008: Security check
         let _ = self.resolver.safe_join(id).map_err(ForgeError::InvalidData)?;
@@ -206,14 +211,13 @@ impl AssetServerProvider for FsProvider {
     async fn get_manifest(&self) -> ServerManifest {
         let root = self.resolver.root.clone();
         tokio::task::spawn_blocking(move || {
-            crate::net::sync::generate_manifest(&root.join("system")).unwrap_or(ServerManifest { files: Default::default() })
-        }).await.unwrap_or(ServerManifest { files: Default::default() })
+            crate::net::sync::generate_manifest(&root.join("system")).unwrap_or(ServerManifest { files: std::collections::HashMap::default() })
+        }).await.unwrap_or(ServerManifest { files: std::collections::HashMap::default() })
     }
 
     async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
-        let safe_path = match self.resolver.safe_join(path) {
-            Ok(p) => p,
-            Err(_) => return None,
+        let Ok(safe_path) = self.resolver.safe_join(path) else {
+            return None;
         };
         
         if safe_path.exists() {

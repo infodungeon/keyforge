@@ -6,6 +6,7 @@
 //! state management, background search workers, and bridges frontend 
 //! requests to core `KeyForge` libraries via Tauri commands.
 
+#![allow(clippy::missing_errors_doc)]
 pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
@@ -30,7 +31,12 @@ pub mod runner;
 /// This function initializes logging, sets up the Tauri builder, configures
 /// plugins, and establishes the global application state including the 
 /// asset cache and worker coordination.
+///
+/// # Panics
+///
+/// Panics if the Tauri application cannot be started or if data directory resolution fails critically.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[allow(clippy::expect_used, clippy::missing_panics_doc)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {

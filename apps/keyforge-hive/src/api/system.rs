@@ -64,7 +64,7 @@ pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<Status
         }
     };
 
-    let queue_depth = state.queue.current_depth().await;
+    let queue_depth = state.queue.current_depth();
     let assets = if state.assets_healthy.load(std::sync::atomic::Ordering::Relaxed) {
         "ok".to_string()
     } else {

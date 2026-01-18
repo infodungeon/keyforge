@@ -17,6 +17,7 @@
 //!
 //! The central coordination server for `KeyForge`. This crate implements the 
 //! API server, job queue, and result aggregation logic.
+#![allow(clippy::missing_errors_doc)]
 
 use axum::{
     extract::{ConnectInfo, Request, State},
@@ -82,6 +83,7 @@ pub struct RateLimitState {
 }
 
 /// Constructs the main Axum application router.
+#[allow(clippy::too_many_lines)]
 pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: PathBuf) -> Router {
     // --- CORS ---
     let cors_origins = &config.cors_origins;

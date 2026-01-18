@@ -75,6 +75,10 @@ impl UserRepo {
     /// * `kb_id` - The unique identifier for the keyboard (e.g., "corne").
     /// * `name` - The descriptive name for the layout (e.g., "My Dvorak").
     /// * `layout` - The string representation of the layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if saving fails.
     pub fn save_layout(&self, kb_id: &str, name: &str, layout: &str) -> InfraResult<()> {
         let mut store = self.load_layout_store();
         let kb_entry = store.layouts.entry(kb_id.to_string()).or_default();
@@ -83,6 +87,10 @@ impl UserRepo {
     }
 
     /// Deletes a previously saved user layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the layout cannot be deleted.
     pub fn delete_layout(&self, kb_id: &str, name: &str) -> InfraResult<()> {
         let mut store = self.load_layout_store();
         if let Some(kb_layouts) = store.layouts.get_mut(kb_id) {
@@ -136,6 +144,10 @@ impl UserRepo {
     /// Appends biometric samples to the local audit log for future profile generation.
     ///
     /// Returns a message indicating the number of samples recorded.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the audit log cannot be updated or locked.
     pub fn record_biometrics(&self, samples: Vec<BiometricSample>) -> InfraResult<String> {
         let path = self.root.join("user/user_stats.jsonl");
 
@@ -178,6 +190,10 @@ impl UserRepo {
     }
 
     /// Deletes all accumulated biometric samples from disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError::Io` if the file cannot be removed.
     pub fn reset_biometrics(&self) -> InfraResult<()> {
         let path = self.root.join("user/user_stats.jsonl");
         if path.exists() {
@@ -214,6 +230,10 @@ impl UserRepo {
     // --- KEYBOARDS ---
 
     /// Saves a custom keyboard definition to the user's local inventory.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if saving fails.
     pub fn save_keyboard_definition(
         &self,
         filename: &str,

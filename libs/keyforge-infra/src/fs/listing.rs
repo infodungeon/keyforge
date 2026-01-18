@@ -40,9 +40,8 @@ fn scan_dir(
             continue;
         }
 
-        let filename = match p.file_name().and_then(|s| s.to_str()) {
-            Some(f) => f,
-            None => continue,
+        let Some(filename) = p.file_name().and_then(|s| s.to_str()) else {
+            continue;
         };
 
         if filename.ends_with(extension) {
@@ -64,6 +63,10 @@ fn scan_dir(
 /// Discovers all available keyboard definitions in both the system library and user workspace.
 ///
 /// Returns a sorted list of unique keyboard identifiers (file stems).
+///
+/// # Errors
+///
+/// Returns `InfraError` if directory reading fails.
 pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Binary Only - Updated to new structure
@@ -80,6 +83,10 @@ pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
 ///
 /// A corpus is considered present if it contains a `1grams` anchor file.
 /// Returns a sorted list of unique corpus identifiers.
+///
+/// # Errors
+///
+/// Returns `InfraError` if directory scanning fails.
 pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     let mut ids = HashSet::new();
 
@@ -119,6 +126,10 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     Ok(sorted)
 }
 /// Lists all available cost matrices (effort models).
+///
+/// # Errors
+///
+/// Returns `InfraError` if directory scanning fails.
 pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Weights are now in system/weights
@@ -132,6 +143,10 @@ pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
 
 
 /// Lists available keymap extras (e.g., custom symbols or macros).
+///
+/// # Errors
+///
+/// Returns `InfraError` if directory scanning fails.
 pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     scan_dir(root, &format!("system/{ASSET_PATH_KEYMAP_EXTRAS}"), "mpk.zst", &mut names)?;

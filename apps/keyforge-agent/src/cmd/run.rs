@@ -6,6 +6,15 @@ use tracing::error;
 use crate::models::AgentConfig;
 use crate::config_loader::read_job_config;
 
+/// Executes a local optimization job.
+///
+/// # Errors
+///
+/// Returns an error if the job configuration cannot be read or optimization fails.
+///
+/// # Panics
+///
+/// Panics if result serialization fails.
 pub async fn run(mut config: AgentConfig, job_file: PathBuf, timeout: Option<u64>) -> Result<()> {
     let job = read_job_config(&job_file).await?;
 
@@ -29,6 +38,7 @@ pub async fn run(mut config: AgentConfig, job_file: PathBuf, timeout: Option<u64
     job_tx.send((job_id, job)).await.ok();
     
     if let Some(result) = result_rx.recv().await {
+        #[allow(clippy::unwrap_used)]
         let json = serde_json::to_string(&result).unwrap();
         println!("{json}");
     } else {

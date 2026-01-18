@@ -17,6 +17,11 @@ impl AgentRunner {
         Self { app }
     }
 
+    /// Runs the validation sidecar for a given layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CommandError` if the sidecar fails to spawn, execute, or returns a non-zero exit code.
     pub async fn run_validation(&self, config: &JobConfig, layout: &str) -> Result<String, CommandError> {
         // Create temp file for JobConfig
         let temp_file = tempfile::NamedTempFile::new().map_err(|e| CommandError::Internal(e.to_string()))?;

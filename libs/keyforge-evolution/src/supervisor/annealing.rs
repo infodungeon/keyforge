@@ -51,6 +51,7 @@ impl ProgressReporter {
 
 
 
+    #[allow(clippy::cast_precision_loss)]
     fn report(&mut self, step: usize, state: &SearchState, time_keeper: &impl TimeKeeper) {
         if step.is_multiple_of(self.report_interval) {
             let now = time_keeper.now();

@@ -16,6 +16,7 @@ use crate::Exporter;
 use anyhow::Result;
 use crate::util::{self, ModFormat};
 use keyforge_adapter::parsing::{parse_key, KeyAction};
+use std::fmt::Write;
 
 /// An exporter for the ZMK (Zephyr Mechanical Keyboard) firmware.
 ///
@@ -27,8 +28,7 @@ impl Exporter for ZmkExporter {
     fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String> {
         let mut out = String::new();
 
-        use std::fmt::Write;
-        let _ = write!(out, "// KeyForge ZMK Export: {layout_name}\n");
+        let _ = writeln!(out, "// KeyForge ZMK Export: {layout_name}");
         let _ = write!(
             out,
             "// Generated at: {}\n\n",
@@ -46,7 +46,7 @@ impl Exporter for ZmkExporter {
                 format!("layer_{l_idx}")
             };
 
-            let _ = write!(out, "        {layer_name} {{\n");
+            let _ = writeln!(out, "        {layer_name} {{");
             out.push_str("            bindings = <\n");
             out.push_str("                ");
 

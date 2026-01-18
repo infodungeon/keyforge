@@ -8,6 +8,10 @@ use std::env;
 /// Priority:
 /// 1. `KEYFORGE_DATA_DIR` environment variable.
 /// 2. XDG/System data directory (e.g., `~/.local/share/keyforge` on Linux, `AppData` on Windows).
+///
+/// # Errors
+///
+/// Returns an error string if the data directory cannot be determined.
 pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
     // Priority 1: Environment Variable (Dev/Sandbox)
     if let Ok(dir) = env::var("KEYFORGE_DATA_DIR") {

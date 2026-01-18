@@ -64,6 +64,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         }
     }
 
+    /// Adds a keyboard definition to the session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LoaderResult` if the keyboard fails to load.
     pub async fn with_keyboard(mut self, name: &str) -> LoaderResult<Self> {
         self.keyboard = Some(self.loader.load::<KeyboardDefinition>(name).await?);
         Ok(self)
@@ -75,6 +80,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         self
     }
 
+    /// Adds a corpus to the session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LoaderResult` if the corpus fails to load.
     pub async fn with_corpus(mut self, sources: &[CorpusSource]) -> LoaderResult<Self> {
         self.corpus = Some(self.loader.load_corpus(sources).await?);
         Ok(self)
@@ -86,6 +96,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         self
     }
 
+    /// Adds a cost matrix to the session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LoaderResult` if the cost matrix fails to load.
     pub async fn with_cost_matrix(mut self, source: &CostMatrixSource) -> LoaderResult<Self> {
         match source {
             CostMatrixSource::Predefined(name) => {
@@ -101,6 +116,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         self
     }
 
+    /// Adds keycode registry to the session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LoaderResult` if the registry fails to load.
     pub async fn with_keycodes(mut self, name: &str) -> LoaderResult<Self> {
         self.registry = Some(self.loader.load::<KeycodeRegistry>(name).await?);
         Ok(self)
@@ -124,6 +144,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         self
     }
 
+    /// Builds the final session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LoaderResult` if some required assets are missing or invalid.
     pub fn build(self) -> LoaderResult<ScoringSession> {
         let kb_def = self.keyboard.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing keyboard".into()))?;
         let corpus = self.corpus.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing corpus".into()))?;

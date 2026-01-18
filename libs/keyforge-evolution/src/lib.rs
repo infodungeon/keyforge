@@ -74,7 +74,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
         .collect();
 
     evolve_internal(
-        engine_arc,
+        &engine_arc,
         &req.config,
         unlocked_indices,
         req.initial_layout.clone(),
@@ -92,7 +92,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
 ///
 /// Returns `EvolutionError::Config` if the search parameters are inconsistent.
 pub fn evolve<CB: ProgressCallback>(
-    engine: Arc<ScoringEngine>,
+    engine: &Arc<ScoringEngine>,
     config: &SearchConfig,
     callback: CB,
     initial_layout: Option<Layout>,
@@ -108,7 +108,7 @@ pub fn evolve<CB: ProgressCallback>(
         })
         .collect();
 
-    evolve_internal(&engine, config, unlocked_indices, initial_layout, callback, pinned_keys)
+    evolve_internal(engine, config, unlocked_indices, initial_layout, callback, pinned_keys)
 }
 
 /// Internal helper to share logic between legacy and new entry points.
@@ -173,9 +173,9 @@ fn evolve_internal<CB: ProgressCallback>(
                 *reheat_factor,
             )?;
 
-            // We pass &*engine to dereference the Arc to a reference
+            // We pass engine to dereference the Arc to a reference
             let mut optimizer = Optimizer::new(
-                &engine,
+                engine,
                 annealing_config,
                 mutation,
                 acceptance,

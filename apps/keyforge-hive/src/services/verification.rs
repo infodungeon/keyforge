@@ -19,7 +19,7 @@ use crate::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_model::{
     CorpusSource,
     constants::{VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO, DEFAULT_CORPUS_WEIGHT},
-    CostMatrixSource, KeyboardDefinition, KeycodeRegistry
+    CostMatrixSource, KeyboardDefinition, KeycodeRegistry, KeyboardMeta
 };
 use keyforge_protocol::ResultSubmission;
 use keyforge_compute::SessionBuilder;
@@ -53,6 +53,11 @@ impl VerificationService {
         }
     }
 
+    /// Verifies a result submission by checking its signature and score.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppResult` if signature verification or score tolerance check fails.
     pub async fn verify_submission(&self, sub: &ResultSubmission) -> AppResult<()> {
         self.verify_signature(sub).await?;
         self.verify_score(sub).await?;
@@ -93,9 +98,9 @@ impl VerificationService {
 
         let builder = SessionBuilder::new(self.assets.as_ref())
             .with_keyboard_def(Arc::new(KeyboardDefinition {
-                meta: Default::default(),
+                meta: KeyboardMeta::default(),
                 geometry,
-                layouts: Default::default(),
+                layouts: std::collections::HashMap::default(),
             }))
             .with_corpus(&[CorpusSource { id: corpus_name, weight: DEFAULT_CORPUS_WEIGHT, hash: None }]).await.map_err(|e| AppError::Validation(format!("Corpus load failed: {e}")))?
             .with_cost_matrix(&cost_source).await.map_err(|e| AppError::Validation(format!("Cost matrix load failed: {e}")))?

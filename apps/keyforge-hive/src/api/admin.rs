@@ -70,7 +70,7 @@ pub async fn get_admin_stats(
         .await
         .unwrap_or((0, 0.0));
 
-    let queue_depth = state.queue.current_depth().await;
+    let queue_depth = state.queue.current_depth();
 
     Ok(Json(AdminStatsResponse {
         active_jobs,

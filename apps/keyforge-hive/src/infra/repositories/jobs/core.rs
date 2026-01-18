@@ -218,6 +218,7 @@ impl JobRepository {
         row.try_get("id")
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     async fn ensure_search_config(
         &self, 
         tx: &mut sqlx::Transaction<'_, Postgres>, 
@@ -278,6 +279,7 @@ impl JobRepository {
 
             // Lineage Logic
             let (baseline_score, parents) = if let Some(pid) = &parent_job_id {
+                #[allow(clippy::cast_possible_truncation)]
                 let best_score: Option<f32> =
                     sqlx::query_scalar("SELECT min(score) FROM results WHERE job_id = $1")
                         .bind(pid)

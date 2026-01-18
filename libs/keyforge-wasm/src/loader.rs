@@ -36,22 +36,27 @@ pub struct InMemoryLoader {
 }
 
 impl InMemoryLoader {
+    #[must_use] 
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn inject_keyboard(&self, name: String, kb: KeyboardDefinition) {
         self.keyboards.write().unwrap().insert(name, Arc::new(kb));
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn inject_corpus(&self, name: String, corpus: Corpus) {
         self.corpora.write().unwrap().insert(name, Arc::new(corpus));
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn inject_cost_model(&self, name: String, model: CostModel) {
         self.cost_models.write().unwrap().insert(name, Arc::new(model));
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn inject_keycodes(&self, name: String, registry: KeycodeRegistry) {
         self.keycodes.write().unwrap().insert(name, Arc::new(registry));
     }
@@ -65,7 +70,7 @@ impl AssetLoader for InMemoryLoader {
         if tid == TypeId::of::<KeyboardDefinition>() {
             let kb = self.keyboards
                 .read()
-                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
+                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
                 .get(id)
                 .cloned()
                 .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
@@ -76,7 +81,7 @@ impl AssetLoader for InMemoryLoader {
         if tid == TypeId::of::<CostModel>() {
             let cm = self.cost_models
                 .read()
-                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
+                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
                 .get(id)
                 .cloned()
                 .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
@@ -87,7 +92,7 @@ impl AssetLoader for InMemoryLoader {
         if tid == TypeId::of::<KeycodeRegistry>() {
             let rg = self.keycodes
                 .read()
-                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
+                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
                 .get(id)
                 .cloned()
                 .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
@@ -95,7 +100,7 @@ impl AssetLoader for InMemoryLoader {
             return any_rg.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
         }
 
-        Err(ForgeError::NotFound(format!("Asset type not supported in WASM loader: {}", id)))
+        Err(ForgeError::NotFound(format!("Asset type not supported in WASM loader: {id}")))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
@@ -104,7 +109,7 @@ impl AssetLoader for InMemoryLoader {
         if let Some(src) = sources.first() {
             self.corpora
                 .read()
-                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
+                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
                 .get(&src.id)
                 .cloned()
                 .ok_or_else(|| ForgeError::NotFound(src.id.clone()))

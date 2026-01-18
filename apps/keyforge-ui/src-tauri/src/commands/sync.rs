@@ -3,6 +3,7 @@ use crate::utils::get_data_dir;
 use keyforge_infra::HiveClient;
 use keyforge_infra::SyncStats;
 use keyforge_infra::{bootstrap_essentials, run_sync};
+use keyforge_infra::net::client::ClientConfig;
 use tauri::AppHandle;
 
 /// Synchronizes local application data.
@@ -16,7 +17,6 @@ pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats
     
     let asset_url = hive_url.replace("3000", "3001");
 
-    use keyforge_infra::net::client::ClientConfig;
     let config = ClientConfig {
         api_url: hive_url,
         asset_url,
@@ -33,7 +33,6 @@ pub async fn cmd_bootstrap_assets(app: AppHandle, hive_url: String) -> Result<Ve
     let local_data_dir = get_data_dir(&app)?;
     let asset_url = hive_url.replace("3000", "3001");
 
-    use keyforge_infra::net::client::ClientConfig;
     let config = ClientConfig {
         api_url: hive_url,
         asset_url,

@@ -40,6 +40,11 @@ impl AssetManager {
         if p.exists() { Some(p) } else { None }
     }
 
+    /// Ensures the specified keyboard file is present in the workspace.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the file cannot be downloaded or verified.
     pub async fn ensure_keyboard(&self, name: &str) -> InfraResult<PathBuf> {
         let stem = name.strip_suffix(".json").unwrap_or(name);
         
@@ -54,6 +59,11 @@ impl AssetManager {
         Ok(local_path)
     }
 
+    /// Ensures the specified cost matrix file is present in the workspace.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the file cannot be downloaded or verified.
     pub async fn ensure_cost_matrix(&self, filename: &str) -> InfraResult<PathBuf> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
 
@@ -68,6 +78,11 @@ impl AssetManager {
         Ok(local_path)
     }
 
+    /// Ensures the specified corpus bundle is present in the workspace.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if any file in the bundle cannot be downloaded or verified.
     pub async fn ensure_corpus(
         &self,
         corpus_id: &str,
@@ -131,12 +146,23 @@ impl AssetManager {
         Ok(user_dir)
     }
 
+    /// Synchronizes all assets required for a specific job.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if any asset fails to sync.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the cost matrix path does not have a filename.
     pub async fn sync_job_assets(&self, config: &JobConfig) -> InfraResult<(String, String)> {
         info!("📦 Syncing assets for job...");
         let cost_path = match &config.cost_matrix {
             CostMatrixSource::Predefined(filename) => {
                 let p = self.ensure_cost_matrix(filename).await?;
-                p.file_name().unwrap().to_string_lossy().to_string()
+                p.file_name()
+                    .ok_or_else(|| crate::error::InfraError::Io(std::io::Error::other("Invalid cost matrix path")))
+                    .map(|s| s.to_string_lossy().to_string())?
             }
         };
         for source in &config.corpora {

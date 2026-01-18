@@ -44,6 +44,11 @@ pub fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> O
     None
 }
 
+/// Reads a job configuration from the specified path or from standard input.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or contains invalid JSON.
 pub async fn read_job_config(path: &PathBuf) -> anyhow::Result<JobConfig> {
     let content = if path.to_str() == Some("-") {
         use std::io::Read;
@@ -52,7 +57,7 @@ pub async fn read_job_config(path: &PathBuf) -> anyhow::Result<JobConfig> {
         buf
     } else {
         tokio::fs::read_to_string(path).await
-            .context(format!("Failed to read job file {path:?}"))?
+            .context(format!("Failed to read job file {}", path.display()))?
     };
     serde_json::from_str(&content).context("Invalid Job JSON")
 }

@@ -41,6 +41,10 @@ pub struct CommonConfig {
 
 impl CommonConfig {
     /// Loads configuration from a TOML file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error string if the file cannot be read or parsed.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read config file: {e}"))?;

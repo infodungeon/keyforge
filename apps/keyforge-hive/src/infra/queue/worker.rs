@@ -189,7 +189,7 @@ impl PersistentJobQueue {
         }
     }
 
-    pub async fn current_depth(&self) -> usize {
+    pub fn current_depth(&self) -> usize {
         self.capacity - self.sender.capacity()
     }
 

@@ -3,6 +3,7 @@
 //! Distributed compute worker for `KeyForge`. This crate implements the 
 //! logic for remote job processing, hardware capability detection, 
 //! and secure communication with the Hive.
+#![allow(clippy::missing_errors_doc)]
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

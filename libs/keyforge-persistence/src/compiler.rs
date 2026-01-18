@@ -21,6 +21,10 @@ use std::sync::Arc;
 use keyforge_adapter::conversion::{to_domain_rubric, to_domain_config, resolve_constraints};
 
 /// Compiles a raw configuration into a fully-loaded `EngineRequest`.
+///
+/// # Errors
+///
+/// Returns `PersistenceError` if any assets (keyboard, corpus, cost model) fail to load or validate.
 pub async fn compile_request<L: AssetLoader>(
     loader: &L,
     config: &Config,

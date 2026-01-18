@@ -7,6 +7,11 @@ use keyforge_runner::{RunnerOptions, OptimizationRunner};
 use crate::models::AgentConfig;
 use crate::config_loader::read_job_config;
 
+/// Scores a specific layout configuration.
+///
+/// # Errors
+///
+/// Returns an error if the job or layout is invalid, or if scoring fails.
 pub async fn run(mut config: AgentConfig, job_file: PathBuf, layout: String, timeout: Option<u64>) -> Result<()> {
     info!("Scoring layout: '{}'", layout);
 

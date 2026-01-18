@@ -36,9 +36,9 @@ impl BiometricProfiler {
             if count < 5 { continue; } // Statistical Significance Threshold
             
             let avg = total_ms / f64::from(count);
-            let effort = (avg / 150.0) * 100.0;
-            
-            model.dynamic_rules.sequence_modifiers.insert(bigram, effort as f32);
+            #[allow(clippy::cast_possible_truncation)]
+            let effort_f32 = (avg / 150.0 * 100.0) as f32;
+            model.dynamic_rules.sequence_modifiers.insert(bigram, effort_f32);
         }
 
         model

@@ -71,7 +71,7 @@ pub use corpus::Corpus;
 pub use cost_model::CostModel;
 pub use asset::{Asset, AssetCategory};
 pub use error::ForgeError;
-pub use geometry::{KeyboardDefinition, KeyboardGeometry, KeyNode};
+pub use geometry::{KeyboardDefinition, KeyboardGeometry, KeyNode, KeyboardMeta};
 pub use job::JobIdentifier;
 pub use keyboard::Keyboard;
 pub use keycodes::KeycodeRegistry;

@@ -68,6 +68,7 @@ impl SystemMonitor {
                     let current_ops = monitor.total_ops.load(Ordering::Relaxed);
                     let prev_ops = monitor.last_ops.swap(current_ops, Ordering::Relaxed);
                     let delta = current_ops.saturating_sub(prev_ops);
+                    #[allow(clippy::cast_precision_loss)]
                     let rate = (delta as f64) / elapsed;
                     
                     monitor.ops_per_sec.store(rate.to_bits(), Ordering::Relaxed);

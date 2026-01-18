@@ -31,6 +31,7 @@ impl ResultRepository {
     }
 
     /// Retrieves the top 50 layouts for a given job ID.
+    #[allow(clippy::cast_possible_wrap)]
     pub async fn get_population(&self, job_id: &str) -> Result<Vec<String>, sqlx::Error> {
         let rows = sqlx::query(
             r"
@@ -53,6 +54,7 @@ impl ResultRepository {
     }
 
     /// Retrieves the best (lowest) score for a given job ID.
+    #[allow(clippy::cast_possible_truncation)]
     pub async fn get_best_score(&self, job_id: &str) -> Result<Option<f32>, sqlx::Error> {
         let row = sqlx::query("SELECT min(score) as min_score FROM results WHERE job_id = $1")
             .bind(job_id)
@@ -100,6 +102,7 @@ impl ResultRepository {
 
     /// Retrieves summary statistics for a given job.
     /// Returns (`unique_nodes`, `total_samples`, `best_score`, `best_layout`).
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub async fn get_stats(
         &self,
         job_id: &str,

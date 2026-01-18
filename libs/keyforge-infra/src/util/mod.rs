@@ -14,7 +14,5 @@
 
 /// Common helper functions for hashing and string manipulation.
 pub mod common;
-/// Specialized parser for raw layout strings and keymap definitions.
-
 /// Utilities for processing and injecting synthetic data into corpora.
 pub mod corpus;

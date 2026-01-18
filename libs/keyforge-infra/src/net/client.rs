@@ -62,6 +62,11 @@ pub struct HiveClient {
 }
 
 impl HiveClient {
+    /// Creates a new `HiveClient` from the provided configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the configuration is invalid (e.g., malformed URLs or keys).
     pub fn new(config: ClientConfig) -> InfraResult<Self> {
         let mut headers = header::HeaderMap::new();
         if let Some(s) = config.secret {
@@ -123,11 +128,7 @@ impl HiveClient {
 }
 
 fn normalize_url(url: &str) -> String {
-    if url.ends_with('/') {
-        url[..url.len() - 1].to_string()
-    } else {
-        url.to_string()
-    }
+    url.strip_suffix('/').unwrap_or(url).to_string()
 }
 
 fn format_url(base: &str, path: &str) -> String {

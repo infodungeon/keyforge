@@ -52,6 +52,11 @@ impl PathResolver {
         None
     }
 
+    /// Joins a user-provided path with the root, ensuring it stays within the root directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the root cannot be canonicalized or if path traversal is detected.
     pub fn safe_join(&self, user_path: &str) -> Result<PathBuf, String> {
         let base = std::fs::canonicalize(&self.root)
             .map_err(|e| format!("Failed to canonicalize root: {e}"))?;
@@ -62,7 +67,7 @@ impl PathResolver {
             self.root.join(user_path)
         };
 
-        let canonical = if let Ok(p) = std::fs::canonicalize(&full) { p } else {
+        let Ok(canonical) = std::fs::canonicalize(&full) else {
             if full.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
                 return Err("Path traversal detected (manual check)".into());
             }

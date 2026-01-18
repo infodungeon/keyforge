@@ -14,6 +14,7 @@
 
 
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use serde::Serialize;
 use std::collections::VecDeque;
@@ -193,7 +194,6 @@ where
                     .with_batch_exporter(exporter)
                     .build();
 
-                use opentelemetry::trace::TracerProvider;
                 let tracer = provider.tracer("keyforge-hive");
                 let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 

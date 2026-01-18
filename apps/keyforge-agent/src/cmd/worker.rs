@@ -7,6 +7,11 @@ use tracing::info;
 use crate::models::AgentConfig;
 use crate::identity::load_or_create_identity;
 
+/// Starts the agent in worker mode, connecting to the Hive.
+///
+/// # Errors
+///
+/// Returns an error if identity loading or signal registration fails.
 pub async fn run(config: AgentConfig) -> Result<()> {
     let signing_key = load_or_create_identity(&config.system)?;
     let public_key = VerifyingKey::from(&signing_key);

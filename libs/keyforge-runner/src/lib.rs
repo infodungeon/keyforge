@@ -34,6 +34,11 @@ pub struct RunnerOptions {
 pub struct OptimizationRunner;
 
 impl OptimizationRunner {
+    /// Prepares a scoring session with all required assets.
+    ///
+    /// # Errors
+    ///
+    /// Returns `anyhow::Error` if any assets (corpus, cost matrix, keycodes) fail to load.
     pub async fn prepare_session<L: AssetLoader>(
         loader: &L,
         config: &JobConfig,
@@ -61,6 +66,11 @@ impl OptimizationRunner {
         Ok(session)
     }
 
+    /// Runs the optimization process.
+    ///
+    /// # Errors
+    ///
+    /// Returns `EvolutionError` if optimization fails.
     pub async fn run<CB: ProgressCallback + 'static>(
         session: ScoringSession,
         _job_id: String,
@@ -91,11 +101,11 @@ impl OptimizationRunner {
         
         tokio::task::spawn_blocking(move || {
             keyforge_core::optimize_with_engine(
-                engine,
+                &engine,
                 &search_config,
                 callback,
-                None, // Initial layout (random)
-                Some(&pinned),
+                None, // initial_layout
+                Some(pinned.as_slice()),
             )
         }).await.map_err(|e| EvolutionError::Config(format!("Task join error: {e}")))?
     }
@@ -111,6 +121,11 @@ impl<'a, L: AssetLoader> Runner<'a, L> {
         Self { loader }
     }
 
+    /// Prepares a job runtime.
+    ///
+    /// # Errors
+    ///
+    /// Returns `anyhow::Error` if any assets fail to load.
     pub async fn prepare_job(&self, config: &JobConfig) -> anyhow::Result<Runtime> {
         let builder = SessionBuilder::new(self.loader)
             .with_keyboard_def(Arc::new(config.definition.clone()))

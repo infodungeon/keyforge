@@ -25,9 +25,15 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tempfile::NamedTempFile;
+use tokio::io::AsyncReadExt;
 use tracing::{info, warn};
 
 /// Downloads a file securely with exponential backoff and streaming hash verification.
+///
+/// # Errors
+///
+/// Returns `InfraError` if the download, hashing, or persistence fails.
+#[allow(clippy::too_many_lines)]
 pub async fn ensure_file(
     client: &HiveClient,
     url: &str,
@@ -72,7 +78,6 @@ pub async fn ensure_file(
             let mut hasher = Sha256::new();
             let mut buffer = [0u8; 8192];
 
-            use tokio::io::AsyncReadExt;
             loop {
                 let n = reader.read(&mut buffer).await.map_err(InfraError::Io)?;
                 if n == 0 { break; }
@@ -114,11 +119,18 @@ pub async fn ensure_file(
 
         if !res.status().is_success() {
             let status = res.status();
-            let err = res.error_for_status().unwrap_err();
-            if status.is_server_error() {
-                return Err(backoff::Error::transient(InfraError::Network(err)));
+            match res.error_for_status() {
+                Ok(_) => {
+                    // This shouldn't happen because we checked is_success
+                    return Err(backoff::Error::permanent(InfraError::Config("Unknown status error".into())));
+                }
+                Err(err) => {
+                    if status.is_server_error() {
+                        return Err(backoff::Error::transient(InfraError::Network(err)));
+                    }
+                    return Err(backoff::Error::permanent(InfraError::Network(err)));
+                }
             }
-            return Err(backoff::Error::permanent(InfraError::Network(err)));
         }
 
         // Security: Check Content-Length
@@ -208,6 +220,10 @@ pub async fn ensure_file(
 }
 
 /// Ensures that all files in a corpus bundle are downloaded and present locally.
+///
+/// # Errors
+///
+/// Returns `InfraError` if any file in the bundle fails to download or verify.
 pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> InfraResult<String> {
     let bundle_dir = if corpus_name == "default" {
         format!("data/corpora/{DEFAULT_CORPUS_ID}")
@@ -234,6 +250,10 @@ pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> Inf
 }
 
 /// Ensures the specified cost matrix file is downloaded and present in the workspace.
+///
+/// # Errors
+///
+/// Returns `InfraError` if the file fails to download or verify.
 pub async fn ensure_cost_matrix(
     client: &HiveClient,
     workspace_root: &Path,

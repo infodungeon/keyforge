@@ -25,6 +25,11 @@ use keyforge_model::error::ForgeError;
 use serde_json::Value;
 
 /// Populates a corpus structure from raw n-gram segments with weighted frequencies.
+///
+/// # Errors
+///
+/// Returns `LoaderResult` if the input data is invalid.
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn populate_corpus_from_segments(
     corpus: &mut Corpus,
     weight: f32,
@@ -141,6 +146,7 @@ pub fn resolve_corpus_char(token: &str) -> Option<char> {
 }
 
 /// Injects synthetic data (Enter, Backspace) for standard prose corpora.
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     if !is_std { return; }
 

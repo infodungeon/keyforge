@@ -27,6 +27,7 @@ pub struct LocalWorkerState {
 
 impl std::fmt::Debug for LocalWorkerState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[allow(clippy::unwrap_used)]
         let guard = self.child.lock().unwrap();
         f.debug_struct("LocalWorkerState")
             .field("active", &guard.is_some())

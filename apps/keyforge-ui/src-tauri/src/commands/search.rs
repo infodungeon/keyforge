@@ -11,7 +11,13 @@ use keyforge_model::KeyCode;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+/// Dispatches a job to the Hive API.
+///
+/// # Errors
+///
+/// Returns `CommandError` if the network request fails or the configuration is invalid.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub async fn cmd_dispatch_job(
     _state: tauri::State<'_, SessionState>,
     hive_url: String,
@@ -46,7 +52,13 @@ pub async fn cmd_dispatch_job(
     Ok(body.job_id)
 }
 
+/// Polls the server for the current status of a job.
+///
+/// # Errors
+///
+/// Returns `CommandError` if the network request fails.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub async fn cmd_poll_hive_status(
     hive_url: String,
     hive_secret: String,
@@ -77,7 +89,17 @@ pub async fn cmd_poll_hive_status(
     })
 }
 
+/// Starts or stops the local background worker process.
+///
+/// # Errors
+///
+/// Returns `CommandError` if the agent process fails to spawn or terminate.
+///
+/// # Panics
+///
+/// Panics if the worker child lock is poisoned.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value, clippy::unwrap_used, clippy::missing_panics_doc)]
 pub fn cmd_toggle_local_worker(
     app: AppHandle,
     state: tauri::State<'_, LocalWorkerState>,
@@ -128,6 +150,7 @@ impl ProgressCallback for TauriProgressCallback {
             return false;
         }
         
+        #[allow(clippy::unwrap_used)]
         let mut last = self.last_emit.lock().unwrap();
         if last.elapsed().as_millis() > 100 {
             *last = std::time::Instant::now();
@@ -146,13 +169,20 @@ impl ProgressCallback for TauriProgressCallback {
                 layout: layout_str.trim().to_string(),
                 ips,
             };
+            #[allow(clippy::unwrap_used)]
             let _ = self.window.emit("search_update", update);
         }
         true
     }
 }
 
+/// Starts a local optimization search.
+///
+/// # Errors
+///
+/// Returns `CommandError` if the session preparation fails.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub async fn cmd_start_search(
     window: Window,
     state: tauri::State<'_, SessionState>,
@@ -219,6 +249,6 @@ pub async fn cmd_start_search(
 }
 
 #[tauri::command]
-pub fn cmd_stop_search(search_state: tauri::State<'_, SearchState>) {
+pub fn cmd_stop_search(search_state: &tauri::State<'_, SearchState>) {
     search_state.stop_flag.store(true, Ordering::SeqCst);
 }

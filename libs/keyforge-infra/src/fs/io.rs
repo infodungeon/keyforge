@@ -21,6 +21,10 @@ use tempfile::NamedTempFile;
 ///
 /// This ensures that the target file is never in a partially written state, even if the
 /// process crashes or power is lost during the write.
+///
+/// # Errors
+///
+/// Returns `InfraError` if directory creation, writing, or file persistence fails.
 pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> InfraResult<()> {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -41,6 +45,10 @@ pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> Infr
 /// Reads a file's content into a string, but only if its size is below the specified limit.
 ///
 /// This is a security measure to prevent memory exhaustion when reading untrusted input files.
+///
+/// # Errors
+///
+/// Returns `InfraError` if the file cannot be opened, read, or if it exceeds the size limit.
 pub fn read_to_string_limited<P: AsRef<Path>>(path: P, limit_bytes: u64) -> InfraResult<String> {
     let path = path.as_ref();
     let file = std::fs::File::open(path).map_err(InfraError::Io)?;

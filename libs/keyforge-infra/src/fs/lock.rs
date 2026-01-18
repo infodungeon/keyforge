@@ -46,7 +46,8 @@ impl WorkspaceLock {
                     attempts += 1;
                     if attempts >= LOCK_MAX_ATTEMPTS {
                         return Err(InfraError::LockError(format!(
-                            "Failed to acquire lock on {path:?} after {attempts} attempts: {e}"
+                            "Failed to acquire lock on {} after {attempts} attempts: {e}",
+                            path.display()
                         )));
                     }
                     std::thread::sleep(delay);
@@ -59,6 +60,10 @@ impl WorkspaceLock {
     /// Explicitly releases the lock.
     ///
     /// The lock is also automatically released when the `WorkspaceLock` instance is dropped.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError::Io` if the file cannot be unlocked.
     pub fn release(&self) -> InfraResult<()> {
         self.file.unlock().map_err(InfraError::Io)?;
         Ok(())

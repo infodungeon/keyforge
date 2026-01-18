@@ -45,6 +45,7 @@ impl CachingProvider {
     /// Creates a new `CachingProvider` that caches assets from the specified data path.
     ///
     /// It also starts a filesystem watcher to invalidate the cache when system assets change.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(data_path: PathBuf) -> Self {
         let provider = FsProvider::new(data_path.clone());
         let cache = Arc::new(AssetCache::new());
@@ -79,42 +80,48 @@ impl CachingProvider {
         for path in event.paths {
             if let Ok(rel) = path.strip_prefix(root) {
                 let path_str = rel.to_string_lossy();
-                if !path_str.contains("system") {
-                    continue;
-                }
-                info!("♻️ System asset changed: {}", path_str);
-                
-                // Granular Invalidation
-                cache.invalidate_file(path_str.as_ref());
-                cache.invalidate_manifest();
+                if path_str.contains("system") {
+                    info!("♻️ System asset changed: {}", path_str);
+                    
+                    // Granular Invalidation
+                    cache.invalidate_file(path_str.as_ref());
+                    cache.invalidate_manifest();
 
-                if path_str.contains("keyboards") {
-                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                        let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
-                        cache.invalidate_keyboard(clean);
-                    } else {
-                        cache.invalidate_all_keyboards();
+                    if path_str.contains("keyboards") {
+                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                            let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
+                            cache.invalidate_keyboard(clean);
+                        } else {
+                            cache.invalidate_all_keyboards();
+                        }
+                    } else if path_str.contains("corpora") {
+                        // Corpora keys are complex JSON strings of sources.
+                        // Hard to map file -> key. Invalidate all for safety.
+                        cache.invalidate_all_corpora();
+                    } else if path_str.contains("weights") {
+                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                            let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
+                            cache.invalidate_cost_model(clean);
+                        } else {
+                            cache.invalidate_all_cost_models();
+                        }
+                    } else if path_str.contains("config") {
+                        cache.invalidate_all_keycodes();
                     }
-                } else if path_str.contains("corpora") {
-                    // Corpora keys are complex JSON strings of sources.
-                    // Hard to map file -> key. Invalidate all for safety.
-                    cache.invalidate_all_corpora();
-                } else if path_str.contains("weights") {
-                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                        let clean = stem.strip_suffix(".mpk").unwrap_or(stem);
-                        cache.invalidate_cost_model(clean);
-                    } else {
-                        cache.invalidate_all_cost_models();
-                    }
-                } else if path_str.contains("config") {
-                    cache.invalidate_all_keycodes();
                 }
             }
         }
     }
 
     /// Eagerly loads system assets into the memory cache.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error string if the manifest cannot be generated or assets cannot be loaded.
     pub async fn warm_all(&self) -> Result<(), String> {
+        // SAFETY LIMIT: Don't warm more than 1000 files to prevent OOM
+        const MAX_WARM_FILES: usize = 1000;
+
         info!("🔥 Warming Asset Cache (Parsed Objects Only)...");
         let system_root = self.provider.root().join("system");
 
@@ -128,26 +135,17 @@ impl CachingProvider {
         let mut count_corpora = 0;
         let mut count_weights = 0;
 
-        // SAFETY LIMIT: Don't warm more than 1000 files to prevent OOM
-        const MAX_WARM_FILES: usize = 1000;
-
         for (rel_path, _) in manifest.files.iter().take(MAX_WARM_FILES) {
             count_files += 1;
 
             if self.try_ensure_keyboard(rel_path).await? {
                 count_keyboards += 1;
-                continue;
-            }
-            if self.try_ensure_corpus(rel_path).await? {
+            } else if self.try_ensure_corpus(rel_path).await? {
                 count_corpora += 1;
-                continue;
-            }
-            if self.try_ensure_weights(rel_path).await? {
+            } else if self.try_ensure_weights(rel_path).await? {
                 count_weights += 1;
-                continue;
-            }
-            if self.try_ensure_config(rel_path).await? {
-                continue;
+            } else if self.try_ensure_config(rel_path).await? {
+                // Handled
             }
         }
 
@@ -205,6 +203,11 @@ impl CachingProvider {
     }
 
     /// Calculates a stable hash for a corpus, using the underlying `FsProvider`.
+    /// Retrieves the hash of a corpus by its identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the hash cannot be retrieved.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         self.provider.get_corpus_hash(id).await
     }

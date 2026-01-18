@@ -23,6 +23,11 @@ pub struct SyncStats {
     pub errors: Vec<String>,
 }
 
+/// Orchestrates the synchronization of system assets between Hive and Local Data.
+///
+/// # Errors
+///
+/// Returns an error string if metadata fetching or file downloading fails.
 pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<SyncStats, String> {
     info!("🔄 Starting Sync...");
     // Manifest is served from Asset Server
@@ -49,9 +54,8 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     let jail = fs::canonicalize(&system_root).map_err(|e| e.to_string())?;
 
     for (rel_path, server_hash) in server_manifest.files {
-        let normalized = match crate::util::common::normalize_path(&rel_path) {
-            Some(p) => p,
-            None => continue,
+        let Some(normalized) = crate::util::common::normalize_path(&rel_path) else {
+            continue;
         };
 
         let target_path = jail.join(normalized);
@@ -72,6 +76,11 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     Ok(stats)
 }
 
+/// Bootstraps essential assets (Config/Keycodes) required for basic operation.
+///
+/// # Errors
+///
+/// Returns an error string if essential assets fail to download.
 pub async fn bootstrap_essentials(client: &HiveClient, local_root: &Path) -> Result<Vec<String>, String> {
     info!("🚀 Bootstrapping essential assets...");
     let url = client.asset_url("manifest");
@@ -96,6 +105,11 @@ pub async fn bootstrap_essentials(client: &HiveClient, local_root: &Path) -> Res
     Ok(downloaded)
 }
 
+/// Generates a manifest of local assets for comparison with Hive.
+///
+/// # Errors
+///
+/// Returns `InfraError` if file scanning or hashing fails.
 pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerManifest> {
     let mut files = HashMap::new();
     let walker = WalkDir::new(data_root).follow_links(true);

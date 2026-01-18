@@ -49,28 +49,44 @@ impl Runtime {
     }
 
     /// Evaluates the physical cost of a layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns `keyforge_physics::PhysicsError` if evaluation fails.
     #[instrument(skip(self, layout))]
     pub fn score(&self, layout: &Layout) -> Result<f32, keyforge_physics::PhysicsError> {
         self.engine.score(layout)
     }
 
     /// Generates a comprehensive ergonomics analysis for a layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns `keyforge_physics::PhysicsError` if analysis fails.
     #[instrument(skip(self, layout))]
     pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
         self.engine.analyze(layout)
     }
 
     /// Suggests layout improvements based on the current scoring model.
+    ///
+    /// # Errors
+    ///
+    /// Returns `keyforge_physics::PhysicsError` if suggestion logic fails.
     #[instrument(skip(self, layout))]
     pub fn suggest_improvements(&self, layout: &Layout) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
         Ok(self.engine.suggest_improvements(layout, self.search_config.include_thumbs()))
     }
 
     /// Runs the evolution optimizer on the current runtime context.
+    ///
+    /// # Errors
+    ///
+    /// Returns `EvolutionError` if optimization fails.
     #[instrument(skip(self, callback))]
     pub fn optimize(&self, callback: impl ProgressCallback, initial_layout: Option<Layout>, pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>) -> Result<OptimizationResult, EvolutionError> {
         keyforge_core::optimize_with_engine(
-            self.engine.clone(),
+            &self.engine,
             &self.search_config,
             callback,
             initial_layout,

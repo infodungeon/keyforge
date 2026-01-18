@@ -14,10 +14,17 @@ impl AcceptanceCriteria for CoolingAnnealing {
             return false;
         }
 
-        // FIX: Use SCORE_SCALE instead of hardcoded 1,000,000.0
-        let delta_f = delta as f64 as f32 / SCORE_SCALE;
         // INVARIANT: kani::assume(temperature > 0.0);
-        let probability = (-delta_f / temperature).exp();
+        let probability = Self::get_acceptance_prob(delta, temperature);
         rng.random::<f32>() < probability
+    }
+}
+
+impl CoolingAnnealing {
+    #[allow(clippy::cast_precision_loss)]
+    fn get_acceptance_prob(delta: i64, temp: f32) -> f32 {
+        // FIX: Use SCORE_SCALE instead of hardcoded 1,000,000.0
+        let delta_f = delta as f32 / SCORE_SCALE;
+        (-delta_f / temp).exp()
     }
 }

@@ -57,6 +57,11 @@ impl ValkeyProvider {
     pub fn invalidate_all(&self) {}
 
     /// Retrieves the hash of a corpus from the distributed store.
+    /// Retrieves the hash of a corpus from Valkey.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the hash cannot be retrieved from the store.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         let key = format!("corpora/{id}/1grams.mpk.zst");
         match self.coordinator.get_manifest_hash(&key).await {

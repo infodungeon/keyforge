@@ -83,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
 fn ensure_system_root(data_dir: &Path) -> anyhow::Result<PathBuf> {
     let root = data_dir.join("system");
     if !root.exists() {
-        return Err(anyhow::anyhow!("System root not found at {root:?}"));
+        return Err(anyhow::anyhow!("System root not found at {}", root.display()));
     }
     Ok(root)
 }
@@ -244,6 +244,7 @@ async fn upload_file(coordinator: &DistributedCoordinator, root: &Path, path: &P
         id: key_path.clone(),
         hash,
         size_bytes: size,
+        #[allow(clippy::cast_sign_loss)]
         last_updated: chrono::Utc::now().timestamp() as u64,
     };
     coordinator.set_manifest_entry(&entry).await.map_err(|e| anyhow::anyhow!(e))?;
