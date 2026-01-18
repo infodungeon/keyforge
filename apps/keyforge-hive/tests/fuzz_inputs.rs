@@ -13,12 +13,13 @@ use proptest::prelude::*;
 /// Generates randomized `ScoringWeights` for validation fuzzing.
 fn weights_strategy() -> impl Strategy<Value = ScoringWeights> {
     (any::<f32>(), any::<f32>(), any::<f32>(), any::<usize>())
-        .prop_map(|(sfb, scis, redir, limit)| ScoringWeights {
-            penalty_sfb_base: sfb,
-            penalty_scissor: scis,
-            penalty_redirect: redir,
-            loader_trigram_limit: limit,
-            ..Default::default()
+        .prop_map(|(sfb, scis, redir, limit)| {
+            let mut w = ScoringWeights::default();
+            w.weights.insert("penalty_sfb_base".to_string(), sfb);
+            w.weights.insert("penalty_scissor".to_string(), scis);
+            w.weights.insert("penalty_redirect".to_string(), redir);
+            w.weights.insert("loader_trigram_limit".to_string(), limit as f32);
+            w
         })
 }
 

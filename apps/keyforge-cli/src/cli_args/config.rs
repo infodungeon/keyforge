@@ -259,48 +259,50 @@ impl TryFrom<SearchParamsArgs> for SearchParams {
 impl TryFrom<ScoringWeightsArgs> for ScoringWeights {
     type Error = String;
     fn try_from(args: ScoringWeightsArgs) -> Result<Self, Self::Error> {
-        let w = Self {
-            penalty_sfr_weak_finger: args.penalty_sfr_weak_finger,
-            penalty_sfr_bad_row: args.penalty_sfr_bad_row,
-            penalty_sfr_lat: args.penalty_sfr_lat,
-            penalty_sfb_lateral: args.penalty_sfb_lateral,
-            penalty_sfb_lateral_weak: args.penalty_sfb_lateral_weak,
-            penalty_sfb_base: args.penalty_sfb_base,
-            penalty_sfb_outward_adder: args.penalty_sfb_outward_adder,
-            penalty_sfb_diagonal: args.penalty_sfb_diagonal,
-            penalty_sfb_long: args.penalty_sfb_long,
-            penalty_sfb_bottom: args.penalty_sfb_bottom,
-            weight_weak_finger_sfb: args.weight_weak_finger_sfb,
-            threshold_sfb_long_row_diff: args.threshold_sfb_long_row_diff,
-            threshold_scissor_row_diff: args.threshold_scissor_row_diff,
-            threshold_reach_stretch: args.threshold_reach_stretch,
-            penalty_scissor: args.penalty_scissor,
-            penalty_ring_pinky: args.penalty_ring_pinky,
-            penalty_lateral: args.penalty_lateral,
-            penalty_monogram_stretch: args.penalty_monogram_stretch,
-            penalty_skip: args.penalty_skip,
-            penalty_redirect: args.penalty_redirect,
-            penalty_hand_run: args.penalty_hand_run,
-            bonus_inward_roll: args.bonus_inward_roll,
-            bonus_bigram_roll_in: args.bonus_bigram_roll_in,
-            bonus_bigram_roll_out: args.bonus_bigram_roll_out,
-            penalty_high_in_med: args.penalty_high_in_med,
-            penalty_high_in_low: args.penalty_high_in_low,
-            penalty_med_in_prime: args.penalty_med_in_prime,
-            penalty_med_in_low: args.penalty_med_in_low,
-            penalty_low_in_prime: args.penalty_low_in_prime,
-            penalty_low_in_med: args.penalty_low_in_med,
-            penalty_imbalance: args.penalty_imbalance,
-            max_hand_imbalance: args.max_hand_imbalance,
-            weight_vertical_travel: args.weight_vertical_travel,
-            weight_lateral_travel: args.weight_lateral_travel,
-            weight_finger_effort: args.weight_finger_effort,
-            default_cost_ms: args.default_cost_ms,
-            loader_trigram_limit: args.loader_trigram_limit,
-            trigram_coverage: args.trigram_coverage,
-            finger_penalty_scale: vec_to_array_5(args.finger_penalty_scale)?,
-            comfortable_scissors: args.comfortable_scissors,
-        };
+        let mut w = ScoringWeights::default();
+        
+        w.weights.insert("penalty_sfr_weak_finger".to_string(), args.penalty_sfr_weak_finger);
+        w.weights.insert("penalty_sfr_bad_row".to_string(), args.penalty_sfr_bad_row);
+        w.weights.insert("penalty_sfr_lat".to_string(), args.penalty_sfr_lat);
+        w.weights.insert("penalty_sfb_lateral".to_string(), args.penalty_sfb_lateral);
+        w.weights.insert("penalty_sfb_lateral_weak".to_string(), args.penalty_sfb_lateral_weak);
+        w.weights.insert("penalty_sfb_base".to_string(), args.penalty_sfb_base);
+        w.weights.insert("penalty_sfb_outward_adder".to_string(), args.penalty_sfb_outward_adder);
+        w.weights.insert("penalty_sfb_diagonal".to_string(), args.penalty_sfb_diagonal);
+        w.weights.insert("penalty_sfb_long".to_string(), args.penalty_sfb_long);
+        w.weights.insert("penalty_sfb_bottom".to_string(), args.penalty_sfb_bottom);
+        w.weights.insert("weight_weak_finger_sfb".to_string(), args.weight_weak_finger_sfb);
+        w.weights.insert("threshold_sfb_long_row_diff".to_string(), args.threshold_sfb_long_row_diff as f32);
+        w.weights.insert("threshold_scissor_row_diff".to_string(), args.threshold_scissor_row_diff as f32);
+        w.weights.insert("threshold_reach_stretch".to_string(), args.threshold_reach_stretch);
+        w.weights.insert("penalty_scissor".to_string(), args.penalty_scissor);
+        w.weights.insert("penalty_ring_pinky".to_string(), args.penalty_ring_pinky);
+        w.weights.insert("penalty_lateral".to_string(), args.penalty_lateral);
+        w.weights.insert("penalty_monogram_stretch".to_string(), args.penalty_monogram_stretch);
+        w.weights.insert("penalty_skip".to_string(), args.penalty_skip);
+        w.weights.insert("penalty_redirect".to_string(), args.penalty_redirect);
+        w.weights.insert("penalty_hand_run".to_string(), args.penalty_hand_run);
+        w.weights.insert("bonus_inward_roll".to_string(), args.bonus_inward_roll);
+        w.weights.insert("bonus_bigram_roll_in".to_string(), args.bonus_bigram_roll_in);
+        w.weights.insert("bonus_bigram_roll_out".to_string(), args.bonus_bigram_roll_out);
+        w.weights.insert("penalty_high_in_med".to_string(), args.penalty_high_in_med);
+        w.weights.insert("penalty_high_in_low".to_string(), args.penalty_high_in_low);
+        w.weights.insert("penalty_med_in_prime".to_string(), args.penalty_med_in_prime);
+        w.weights.insert("penalty_med_in_low".to_string(), args.penalty_med_in_low);
+        w.weights.insert("penalty_low_in_prime".to_string(), args.penalty_low_in_prime);
+        w.weights.insert("penalty_low_in_med".to_string(), args.penalty_low_in_med);
+        w.weights.insert("penalty_imbalance".to_string(), args.penalty_imbalance);
+        w.weights.insert("max_hand_imbalance".to_string(), args.max_hand_imbalance);
+        w.weights.insert("weight_vertical_travel".to_string(), args.weight_vertical_travel);
+        w.weights.insert("weight_lateral_travel".to_string(), args.weight_lateral_travel);
+        w.weights.insert("weight_finger_effort".to_string(), args.weight_finger_effort);
+        w.weights.insert("default_cost_ms".to_string(), args.default_cost_ms);
+        w.weights.insert("loader_trigram_limit".to_string(), args.loader_trigram_limit as f32);
+        w.weights.insert("trigram_coverage".to_string(), args.trigram_coverage);
+        
+        w.finger_penalty_scale = vec_to_array_5(args.finger_penalty_scale)?;
+        w.comfortable_scissors = args.comfortable_scissors;
+        
         w.validate()?;
         Ok(w)
     }

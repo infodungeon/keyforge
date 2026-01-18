@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-**Version:** 4.6
+**Version:** 4.7
 **Context:** Log of significant architectural decisions.
 
 ## Index
@@ -17,6 +17,9 @@
 * [ADR-010: Distributed Coordination via Valkey](#adr-010-distributed-coordination-via-valkey)
 * [ADR-011: The Thin Client CLI (Agent Runner)](#adr-011-the-thin-client-cli-agent-runner)
 * [ADR-012: The Control/Asset Plane Split](#adr-012-the-controlasset-plane-split)
+* [ADR-013: Hybrid Development Environment](#adr-013-hybrid-development-environment)
+* [ADR-014: Subdomain Architecture](#adr-014-subdomain-architecture)
+* [ADR-015: Data Decoupling and Testing Strategy](#adr-015-data-decoupling-and-testing-strategy)
 
 ---
 
@@ -190,3 +193,25 @@
   * (+) **Security:** All traffic flows through Cloudflare WAF on Port 443.
   * (+) **Standards:** No non-standard ports required for clients.
   * (-) **DNS:** Requires managing multiple A records.
+
+## ADR-015: Data Decoupling and Testing Strategy
+
+* **Status:** Accepted
+* **Date:** 2026-01-17
+* **Context:**
+  1. **Coupling:** High rigidity in data models (`CostModel`, `SearchParams`) meant that adding experimental parameters required full-stack refactors.
+  2. **Testing:** The test suite was brittle ("Inverted Pyramid"), with unit logic tested in integration scopes and a lack of clear intent documentation.
+* **Decision:**
+  1. **Data-Driven Configuration:** Use the **Parameter Map** pattern (e.g., `HashMap<String, f32>` via `serde(flatten)`) for volatile configuration data. Consuming crates own the semantics; the structure is generic.
+  2. **Testing Hierarchy:** Enforce a strict separation:
+      * **Unit Tests (`src/`)**: Rigorous, exhaustive verification of logic and math.
+      * **Integration Tests (`tests/`)**: Contract/Wiring verification only.
+      * **Zero Duplication**: Unit logic MUST NOT be re-verified in the integration layer.
+      * **Crate Affinity**: Tests must reside in the crate that owns the integration point.
+  3. **Documentation Standard**: All tests must define Intent and Expected Result.
+  4. **Fixture-Based Testing**: Use external JSON "Golden Files" instead of code-constructed test data.
+* **Consequences:**
+  * (+) **Flexibility:** New physics parameters can be added without binary updates or breaking schema changes.
+  * (+) **Stability:** Tests are decoupled from internal implementation details.
+  * (+) **Maintainability:** Clearer ownership of logic vs. wiring.
+  * (-) **Safety:** Loss of compile-time type checking for configuration fields (mitigated by Runtime Schema Validation).

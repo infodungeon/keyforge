@@ -67,17 +67,15 @@ fn test_to_domain_keyboard_conversion() {
 
 #[test]
 fn test_to_domain_rubric_conversion() {
-    let proto_weights = ScoringWeights {
-        penalty_sfb_base: 100.0,
-        penalty_sfb_lateral: 50.0,
-        weight_lateral_travel: 2.0,
-        weight_vertical_travel: 1.0,
-        finger_penalty_scale: [1.0, 1.0, 1.0, 1.2, 1.5],
-        penalty_redirect: 30.0,
-        bonus_bigram_roll_in: 20.0,
-        loader_trigram_limit: 5000,
-        ..Default::default()
-    };
+    let mut proto_weights = ScoringWeights::default();
+    proto_weights.weights.insert("penalty_sfb_base".to_string(), 100.0);
+    proto_weights.weights.insert("penalty_sfb_lateral".to_string(), 50.0);
+    proto_weights.weights.insert("weight_lateral_travel".to_string(), 2.0);
+    proto_weights.weights.insert("weight_vertical_travel".to_string(), 1.0);
+    proto_weights.finger_penalty_scale = [0.0, 1.0, 1.0, 1.0, 1.0];
+    proto_weights.weights.insert("penalty_redirect".to_string(), 30.0);
+    proto_weights.weights.insert("bonus_bigram_roll_in".to_string(), 20.0);
+    proto_weights.weights.insert("loader_trigram_limit".to_string(), 5000.0);
 
     let domain_rubric = conversion::to_domain_rubric(&proto_weights);
 

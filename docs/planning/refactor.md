@@ -1,216 +1,125 @@
-# Architecture Decision Record: Decoupling Data Models and System Architecture
+# Architecture Decision Record: Decoupling Data Models, System Architecture, and Testing Strategy
 
 **Date:** January 17, 2026
 **Status:** Proposed
-**Context:** The current architecture suffers from high coupling and rigidity across multiple domains (`CostModel`, `SearchParams`, `AnalysisReport`, `KeyNode`, `AssetLoader`, `Protocol`, `UI`). Modifications to data structures trigger cascading recompilations and refactors across the entire stack (`persistence`, `infra`, `physics`, `evolution`, `ui`).
+**Context:** The current architecture suffers from high coupling and rigidity across data models (`CostModel`, `SearchParams`) and the testing infrastructure. Modifications trigger cascading recompilations, massive test rework, and confusion regarding system stability.
 
-## 1. The Problem: Strong Typing of Volatile Data
+## 1. The Problem: Data & Schema Rigidity
 
 Currently, volatile configuration data is defined as explicit fields in Rust structs.
 
 **Examples of Rigidity:**
-
 1. **Physics (`CostModel`):** `pub sfb_penalty: f32`. Adding "lateral_stretch" breaks the schema.
 2. **Optimization (`SearchParams`):** `pub temp_min: f32`. Adding "genetic_mutation_rate" breaks the schema.
-3. **Reporting (`AnalysisReport`):** `pub sfb_ratio: f32`. Adding "pinky_stagger" breaks the schema.
-4. **Geometry (`KeyNode`):** `pub hand: HandIndex`. Adding "switch_type" breaks the schema.
 
 **Consequences:**
-
 1. **High Coupling:** The UI and DB layers must know about specific physics parameters they don't use.
 2. **Fragility:** Experimental changes require full stack refactors.
-3. **Rigidity:** Users cannot define custom parameters or metrics without binary updates.
 
-## 2. The Solution: Data-Driven Configuration (The "Parameter Map" Pattern)
+## 2. The Testing Mandate (Requirements)
 
-We will transition from **Explicit Structs** to a **Parameter Map** pattern for volatile data. The `keyforge-model` crate will define the *container* structure, while the consuming crates (`physics`, `evolution`) will hold the *semantic* logic.
+We acknowledge five critical failures in the current testing approach. The new strategy must satisfy these explicit requirements:
 
-### A. Redefining the Data Models
+1.  **Rigorous Unit Testing:** All logic, edge cases, and mathematical invariants must be tested in the units (`src/`). "Rigorous" means 95%+ branch coverage and exhaustive property-based testing where applicable.
+2.  **Zero Duplication:** Unit logic must **not** be re-tested in the integration layer. Integration tests should assume units are correct and focus solely on the "wiring" (IO, orchestration, and crate boundaries).
+3.  **Crate Affinity:** Integration tests must reside in the correct crate (the crate that owns the integration point).
+4.  **Documentation:** Tests must be well-documented. Intent and desired result must be obvious.
+5.  **Strategy Statement:** We must define a strategy that prioritizes **Maintainability, Extensibility, and Robustness to Change** over raw coverage.
 
-We will introduce generic maps to capture dynamic data.
+## 3. The Solution: Data-Driven Configuration
 
-#### 1. Cost Model (Physics)
+We will transition from **Explicit Structs** to a **Parameter Map** pattern for volatile data.
+
+### A. Redefining the Data Models (`keyforge-model`)
 
 ```rust
 pub struct ScoringWeights {
-    // Keep common fields for backward compatibility/autocomplete if desired
+    // Common fields for backward compatibility
     pub sfb_penalty: f32,
-    
-    // Capture all new/experimental weights here
+    // Capture all new/experimental weights
     #[serde(flatten)]
     pub dynamic_weights: HashMap<String, f32>,
 }
 ```
 
-#### 2. Search Configuration (Evolution)
-
-```rust
-pub struct SearchParams {
-    // Universal parameters
-    pub epochs: usize,
-    pub seed: Option<u64>,
-    
-    // Algorithm-specific parameters (Annealing, Genetic, etc.)
-    #[serde(flatten)]
-    pub algo_params: HashMap<String, serde_json::Value>,
-}
-```
-
-#### 3. Analysis Report (Reporting)
-
-```rust
-pub struct AnalysisReport {
-    pub score: f32,
-    
-    // Generic map of metric names to values
-    pub metrics: HashMap<String, f32>,
-    
-    // Detailed breakdowns (heatmaps, etc.)
-    pub details: HashMap<String, serde_json::Value>,
-}
-```
-
-#### 4. Geometry (Hardware)
-
-```rust
-pub struct KeyNode {
-    // Physical reality (Immutable)
-    pub x: f32,
-    pub y: f32,
-    
-    // Metadata bag (Switch type, LED index, etc.)
-    #[serde(flatten)]
-    pub props: HashMap<String, serde_json::Value>,
-}
-```
-
 ### B. The Consumer as Gatekeeper
 
-The consuming crates (`keyforge-physics`, `keyforge-evolution`) become the sole owners of parameter semantics. They define defaults internally and query the generic maps.
+The consuming crates (`keyforge-physics`, `keyforge-evolution`) become the sole owners of parameter semantics, querying the map for values they recognize.
 
-**Old Way (Fragile):**
+## 4. The Solution: Restructured Testing Strategy
+
+We will adopt a strict **Testing Hierarchy** to satisfy the Mandate.
+
+### A. Unit Tests (`src/**/mod.rs`) -> Satisfies Mandate #1
+*   **Scope:** Pure logic, algorithms, math, and private state transitions.
+*   **Location:** Inside the `src/` directory of the defining crate (e.g., `libs/keyforge-physics/src/kernel/compute.rs`).
+*   **Constraint:** Must **not** use `std::fs` or complex setups.
+*   **Goal:** Exhaustive verification of *logic* (e.g., "Does the SFB penalty calculate correctly given these inputs?").
+
+### B. Integration Tests (`tests/*.rs`) -> Satisfies Mandate #2
+*   **Scope:** Public API surface, module wiring, and cross-crate interactions.
+*   **De-duplication Rule:** **Strictly Forbidden** to test internal logic already covered by Unit Tests. If a test is checking a math result, it is a Unit Test. If it is checking if a file was read and passed to the engine, it is an Integration Test.
+*   **Goal:** Verify *contract* adherence (e.g., "Does the Loader correctly populate the Physics engine?").
+
+### C. Crate Affinity Audit -> Satisfies Mandate #3
+*   **Action:** We will audit every integration test file.
+*   **Rule:** If a test in `keyforge-cli` tests `keyforge-physics` logic, it must move to `keyforge-physics`.
+*   **Rule:** If a test checks the interaction between `hive` and `postgres`, it belongs in `keyforge-infra` or `keyforge-hive`, not `keyforge-core`.
+
+### D. Documentation Standard (The "Why") -> Satisfies Mandate #4
+Every non-trivial test must include a doc comment explaining the **Intent**.
 
 ```rust
-let penalty = weights.sfb_penalty; // Compile error if field removed
+/// Intent: Verify that the annealing supervisor aborts early if the score stagnates.
+/// Expected: The optimizer returns the best result found before the step limit.
+#[test]
+fn test_annealing_stagnation() { ... }
 ```
 
-**New Way (Robust):**
+### E. Strategic Robustness (Fixtures) -> Satisfies Mandate #5
+Instead of constructing complex structs in code (brittle), load "Golden Data" from `tests/fixtures/`.
+*   **Action:** Refactor tests to `load_fixture("scenario_a.json")`.
+*   **Benefit:** Changing internal struct fields doesn't break compilation of test files (Robustness).
+*   **Benefit:** New scenarios can be added by adding JSON files, not writing code (Extensibility).
 
-```rust
-const DEFAULT_SFB: f32 = 100.0;
-let penalty = weights.get("sfb_penalty").unwrap_or(DEFAULT_SFB);
-```
-
-## 3. Additional Architectural Flaws & Resolutions
+## 5. Additional Architectural Flaws & Resolutions
 
 ### 1. The "Asset Loader" Tight Coupling
-
-**Issue:** `AssetLoader` has specific methods for every asset type (`load_keyboard`, `load_corpus`). Adding a new type requires updating the trait and all implementations.
 **Resolution: Generic Loader Pattern**
-Use a generic method constrained by a marker trait.
+`fn load<T: Asset>(&self, id: &str) -> Result<T>;`
 
-```rust
-trait Asset: DeserializeOwned + Serialize {
-    const CATEGORY: &'static str;
-}
-trait AssetLoader {
-    fn load<T: Asset>(&self, id: &str) -> Result<T>;
-}
-```
-
-### 2. The "Explicit Protocol" Mirroring
-
-**Issue:** `keyforge-protocol` mirrors `keyforge-model` structs. Changes in the model break the protocol and server.
-**Resolution: Shared Kernel & Opaque Payloads**
-
-1. Use `keyforge-model` types directly in the protocol where appropriate.
-2. Use `serde_json::Value` for payloads that the intermediary (Hive) does not need to validate (e.g., job configuration details).
-
-### 3. The "Hardcoded Test Data" Fragility
-
-**Issue:** Integration tests construct complex mock objects in code. Changes to internal logic (e.g., thumb cost resolution) break these mocks.
-**Resolution: Fixture-Based Testing**
-Load test data from real JSON files ("Golden Files") instead of constructing them in code.
-
-```rust
-let kb: Keyboard = load_fixture("szr35");
-```
-
-### 4. The "UI-Backend" Contract Rigidity
-
-**Issue:** Tauri commands are strongly typed to specific configuration structs. Adding a parameter requires updating Rust, TypeScript, and React.
+### 2. The "UI-Backend" Contract Rigidity
 **Resolution: Schema-Driven UI**
+Backend exposes a schema; Frontend generates forms dynamically.
 
-1. Backend exposes a schema endpoint (`GET /api/schema`).
-2. Frontend generates forms dynamically based on the schema.
-3. Commands accept generic `HashMap` or `Value` objects.
+## 6. Implementation Strategy (The Five Waves)
 
-### 5. The "Compiler" Monolith
+### Wave 1: The Cost Model (Data Decoupling)
+*   **Goal:** Allow adding new physics weights without breaking the build.
+*   **Action:** Refactor `ScoringWeights` to use `HashMap`.
 
-**Issue:** `keyforge-physics::Compiler` is a monolithic function handling geometry, costs, and n-grams.
-**Resolution: Pipeline Architecture**
-Break compilation into distinct, testable stages (`GeometryStage`, `CostStage`, `NgramStage`). This allows unit testing specific logic (like cost resolution) in isolation.
-
-## 4. Runtime Safety & Performance
-
-To mitigate the risks of dynamic typing, we must enforce strict boundaries.
-
-### 1. Compilation Phase (Performance)
-
-The `ScoringEngine` must **never** access the `HashMap` during the hot loop (`score()`).
-
-* **Action:** The `Compiler` reads the dynamic map *once* at startup and bakes the values into a static, optimized `EngineContext` (using arrays or specific fields).
-* **Benefit:** Zero runtime overhead for dynamic parameters.
-
-### 2. Schema Validation (Safety)
-
-We lose compile-time type checking, so we must add runtime validation.
-
-* **Action:** Implement a `SchemaValidator` that checks the `HashMap` against a defined schema (types, ranges, required fields) *before* compilation starts.
-* **Benefit:** Prevents silent failures or bad defaults (e.g., string passed for float).
-
-### 3. Determinism
-
-HashMaps have non-deterministic iteration order.
-
-* **Action:** Use `BTreeMap` or sort keys before iterating when order matters (e.g., generating Job IDs, applying sequential penalties).
-* **Benefit:** Ensures reproducible builds and consistent hashing across machines.
-
-## 5. Implementation Strategy
-
-We will execute this refactor in **Five Waves** to maintain system stability.
-
-### Wave 1: The Cost Model (Immediate Priority)
-
-* **Goal:** Allow adding new physics weights without breaking the build.
-* **Action:** Refactor `ScoringWeights` to use `HashMap` (via `serde(flatten)`).
-* **Impact:** `keyforge-physics` updates to read from map. `keyforge-ui` updates to render dynamic list.
-
-### Wave 2: Test Stability
-
-* **Goal:** Stop tests from breaking when internal logic changes.
-* **Action:** Refactor integration tests to use `load_fixture` and real JSON files.
+### Wave 2: Test Architecture & Stability (The Great Migration)
+*   **Goal:** Restore trust in the test suite and satisfy the Testing Mandate.
+*   **Action A (Audit & Move):** Analyze every file in `tests/`. Move logic tests to `src/`. Ensure crate affinity.
+*   **Action B (Fixtures):** Convert code-defined test data to JSON fixtures.
+*   **Action C (Docs):** Annotate remaining integration tests with *Intent* and *Expected Result*.
+*   **Action D (De-duplicate):** Purge logic checks from the `tests/` directory.
 
 ### Wave 3: Loader Cleanup
-
-* **Goal:** Make adding new asset types easy.
-* **Action:** Refactor `AssetLoader` to use the Generic pattern.
+*   **Goal:** Make adding new asset types easy.
+*   **Action:** Refactor `AssetLoader` to use the Generic pattern.
 
 ### Wave 4: Search Config & UI Flexibility
-
-* **Goal:** Support multiple optimization algorithms and dynamic UI.
-* **Action:** Refactor `SearchParams` to use `HashMap`. Implement Schema-Driven UI.
+*   **Goal:** Support multiple optimization algorithms.
+*   **Action:** Refactor `SearchParams` to use `HashMap` and implement Schema-Driven UI.
 
 ### Wave 5: Compiler Refactor
+*   **Goal:** Improve testability of the physics engine.
+*   **Action:** Break `Compiler` into a pipeline (`GeometryStage`, `CostStage`) to allow unit testing of compilation steps.
 
-* **Goal:** Improve testability and maintainability of the physics engine.
-* **Action:** Break `Compiler` into a pipeline architecture.
+## 7. Benefits
 
-## 6. Benefits
-
-1. **Zero-Code Config Changes:** Adding `"new_metric": 50.0` to JSON works immediately.
-2. **Isolation:** Infrastructure layers no longer break when domain logic changes.
-3. **Extensibility:** Users can share custom models with experimental parameters.
-4. **UI Flexibility:** The frontend can render "Advanced Settings" dynamically based on the data provided.
-5. **Test Robustness:** Tests rely on stable data fixtures rather than fragile code constructs.
-6. **Performance:** Dynamic configuration is compiled into static speed at runtime.
+1.  **Robustness:** Tests verify behavior, not implementation details.
+2.  **Velocity:** Changing logic requires updating one Unit Test, not 50 Integration Tests.
+3.  **Clarity:** Developers understand *what* a test does before fixing it.
+4.  **Flexibility:** Data structures and UI can evolve without breaking the world.

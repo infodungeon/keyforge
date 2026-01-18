@@ -50,9 +50,14 @@ impl JobIdentifier {
         let mut hasher = Sha256::new();
 
         fn feed<T: Serialize>(hasher: &mut Sha256, value: &T) -> Result<(), ModelError> {
-            // Use postcard for deterministic binary serialization
-            let bytes = postcard::to_stdvec(value)
+            // Use serde_json::to_value -> to_vec for deterministic canonicalization.
+            // to_value converts structs/maps to a BTreeMap-backed Value, ensuring sorted keys.
+            let canonical = serde_json::to_value(value)
                 .map_err(|e| ModelError::Serialization(e.to_string()))?;
+            
+            let bytes = serde_json::to_vec(&canonical)
+                .map_err(|e| ModelError::Serialization(e.to_string()))?;
+                
             hasher.update((bytes.len() as u64).to_le_bytes());
             hasher.update(&bytes);
             Ok(())

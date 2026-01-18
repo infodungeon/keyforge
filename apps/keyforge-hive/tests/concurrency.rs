@@ -245,10 +245,8 @@ async fn test_heterogeneous_thundering_herd() {
     let kb_szr = load_keyboard(data_root, "szr35");
 
     let weights_std = ScoringWeights::default();
-    let weights_alt = ScoringWeights {
-        penalty_scissor: 500.0,
-        ..Default::default()
-    };
+    let mut weights_alt = ScoringWeights::default();
+    weights_alt.weights.insert("penalty_scissor".to_string(), 500.0);
 
     let jobs_config = vec![
         (kb_corne.clone(), weights_std.clone(), "Corne-Std"),

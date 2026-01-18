@@ -336,7 +336,7 @@ mod tests {
     use crate::ScoringEngine;
     use keyforge_model::{
         Corpus, KeyNode, Keyboard, Rubric, CostModel,
-        types::{HandIndex, FingerIndex, KeyCode}
+        types::{HandIndex, FingerIndex}
     };
 
     fn setup_kb_compiler() -> Keyboard {

@@ -169,7 +169,8 @@ impl JobRepository {
         }
 
         let mut w = req.config.weights.clone();
-        w.penalty_sfb_base = norm(w.penalty_sfb_base);
+        let sfb_base = w.get_penalty_sfb_base();
+        w.weights.insert("penalty_sfb_base".to_string(), norm(sfb_base));
         
         let w_json = serde_json::to_value(&w).map_err(|e| e.to_string())?;
         let w_str = serde_json::to_string(&w).map_err(|e| e.to_string())?;
