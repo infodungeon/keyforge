@@ -59,7 +59,7 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 
 #### [DIST-01] Cluster-Safe State
 - [x] **Task [task-hive-009]:** Move nonce tracking from memory to Valkey (SET NX with TTL).
-- [ ] **Task [task-infra-016]:** Implement efficient $O(1)$ cluster stats using Redis counters.
+- [x] **Task [task-infra-016]:** Implement efficient $O(1)$ cluster stats using Redis counters.
 - [ ] **Task [task-hive-014]:** Refactor `SystemMonitor` to refresh metrics in background.
 
 #### [COMPAT-01] Protocol Resilience

@@ -23,7 +23,7 @@ use keyforge_model::constants::{
     DEFAULT_CONNECT_TIMEOUT_SECS, DISTRIBUTED_KEY_VERSION, HEARTBEAT_TTL_SECS, PROFILE_LOCK_TTL_SECS,
 };
 use keyforge_protocol::{AssetManifestEntry, NodeTelemetry};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{info, debug};
 use futures::stream::StreamExt;
 use std::collections::HashMap;
@@ -143,8 +143,18 @@ impl DistributedCoordinator {
     pub async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()> {
         let key = format!("{}:node:{}:telemetry", KEY_PREFIX_V4, node_id);
         let json = serde_json::to_string(telemetry).map_err(InfraError::Serde)?;
+        
+        // 1. Update Detail Key (TTL-based)
         self.client.set::<(), _, _>(key, json, Some(Expiration::EX(HEARTBEAT_TTL_SEC)), None, false)
-            .await.map_err(|e| InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))
+            .await.map_err(|e| InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+
+        // 2. Update Active Set (Task-infra-016: O(1) counting)
+        let zset_key = format!("{}:cluster:active_nodes", KEY_PREFIX_V4);
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        self.client.zadd::<(), _, _>(zset_key, None, None, false, false, (now as f64, node_id.to_string()))
+            .await.map_err(|e| InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+
+        Ok(())
     }
 
     /// Retrieves the latest telemetry for a specific node.
@@ -165,18 +175,39 @@ impl DistributedCoordinator {
     ///
     /// Returns a tuple of `(active_node_count, aggregate_throughput_ips)`.
     pub async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)> {
-        let keys = self.scan_keys(&format!("{}:node:*:telemetry", KEY_PREFIX_V4)).await?;
-        if keys.is_empty() { return Ok((0, 0.0)); }
+        let zset_key = format!("{}:cluster:active_nodes", KEY_PREFIX_V4);
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        let threshold = now.saturating_sub(HEARTBEAT_TTL_SEC as u64);
+
+        // 1. Prune stale nodes from ZSET
+        self.client.zremrangebyscore::<(), _, _, _>(zset_key.clone(), "-inf", threshold.to_string())
+            .await.ok(); // Ignore errors in pruning, next call will catch it
+
+        // 2. O(1) Count
+        let count: usize = self.client.zcard(zset_key.clone()).await.map_err(|e| {
+             InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
+        })?;
+
+        if count == 0 { return Ok((0, 0.0)); }
+
+        // 3. Throughput
+        let node_ids: Vec<String> = self.client.zrange(zset_key, 0, -1, None, false, None, false).await.map_err(|e| {
+             InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
+        })?;
+
+        if node_ids.is_empty() { return Ok((0, 0.0)); }
+
+        let keys: Vec<String> = node_ids.into_iter()
+            .map(|id| format!("{}:node:{}:telemetry", KEY_PREFIX_V4, id))
+            .collect();
 
         let values: Vec<Option<String>> = self.client.mget(keys).await.map_err(|e| {
              InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
         })?;
         
-        let mut count = 0;
         let mut total_ops = 0.0;
         for val in values.into_iter().flatten() {
             if let Ok(telemetry) = serde_json::from_str::<NodeTelemetry>(&val) {
-                count += 1;
                 total_ops += telemetry.ips;
             }
         }
