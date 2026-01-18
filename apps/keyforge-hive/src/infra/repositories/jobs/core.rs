@@ -1,24 +1,10 @@
-// apps/keyforge-hive/src/infra/repositories/jobs.rs
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
+use super::queries;
+use super::identity;
 use keyforge_model::{CorpusSource, ScoringWeights, SearchParams, KeyIndex};
 use keyforge_model::constants::{MAX_PINNED_KEYS_COUNT, DEFAULT_CORPUS_ID, DEFAULT_CORPUS_WEIGHT};
-use crate::constants::{JOB_IDENTITY_PRECISION};
 use keyforge_model::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::{CostMatrixSource, KeyConstraint, Validator};
 use keyforge_protocol::JobRequest;
-use sha2::{Digest, Sha256};
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
@@ -68,7 +54,7 @@ impl JobRepository {
         // 1. Calculate deterministic component hashes (CPU-bound)
         let req_clone = req.clone();
         let (unique_hash, w_json, w_hash, p_hash) = tokio::task::spawn_blocking(move || {
-            Self::calculate_job_identity(&req_clone)
+            identity::calculate_job_identity(&req_clone)
         })
         .await
         .map_err(|e| sqlx::Error::Protocol(format!("Hashing task failed: {}", e)))?
@@ -76,10 +62,10 @@ impl JobRepository {
 
         let mut tx = self.pool.begin().await?;
 
-        // 2. Advisory Lock to prevent concurrent registration of the same geometry
+        // 2. Advisory Lock
         self.acquire_advisory_lock(&mut tx, &unique_hash).await?;
 
-        // 3. Ensure Components Exist (Idempotent)
+        // 3. Ensure Components Exist
         let kb_id = self.ensure_keyboard(&mut tx, &req.config.definition, &unique_hash).await?;
         let score_id = self.ensure_scoring_profile(&mut tx, &w_json, &w_hash).await?;
         let search_id = self.ensure_search_config(&mut tx, &req.config.params, &p_hash).await?;
@@ -126,17 +112,7 @@ impl JobRepository {
             .map(|c| c.id.clone())
             .unwrap_or_else(|| DEFAULT_CORPUS_ID.to_string());
         
-        let result = sqlx::query(
-            r#"
-            INSERT INTO jobs (
-                id, keyboard_id, scoring_profile_id, search_config_id, 
-                pinned_keys, corpus_name, cost_matrix, owner_id, 
-                parent_job_id, priority
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            ON CONFLICT (id) DO NOTHING
-            "#,
-        )
+        let result = sqlx::query(queries::INSERT_JOB_QUERY)
         .bind(job_id)
         .bind(kb_id)
         .bind(score_id)
@@ -151,44 +127,6 @@ impl JobRepository {
         .await?;
 
         Ok(result.rows_affected() > 0)
-    }
-
-    /// Calculates deterministic hashes for job components.
-    fn calculate_job_identity(req: &JobRequest) -> Result<(String, serde_json::Value, String, String), String> {
-        let kb_meta = &req.config.definition.meta;
-        let lock_key = format!("{}{}{}", kb_meta.name, kb_meta.author, kb_meta.version);
-        
-        // Unique Hash (for Lock/Geometry)
-        let mut hasher = Sha256::new();
-        hasher.update(lock_key.as_bytes());
-        let unique_hash = hex::encode(hasher.finalize());
-
-        // Weights
-        fn norm(v: f32) -> f32 {
-            if v == 0.0 { 0.0 } else { (v * JOB_IDENTITY_PRECISION).round() / JOB_IDENTITY_PRECISION }
-        }
-
-        let mut w = req.config.weights.clone();
-        let sfb_base = w.get_penalty_sfb_base();
-        w.weights.insert("penalty_sfb_base".to_string(), norm(sfb_base));
-        
-        let w_json = serde_json::to_value(&w).map_err(|e| e.to_string())?;
-        let w_str = serde_json::to_string(&w).map_err(|e| e.to_string())?;
-        let mut hasher = Sha256::new();
-        hasher.update(w_str.as_bytes());
-        let w_hash = hex::encode(hasher.finalize());
-
-        // Search Params
-        let mut p = req.config.params.clone();
-        let temp_min = p.get_temp_min();
-        p.params.insert("temp_min".to_string(), norm(temp_min));
-        
-        let p_json = serde_json::to_string(&p).map_err(|e| e.to_string())?;
-        let mut hasher = Sha256::new();
-        hasher.update(p_json.as_bytes());
-        let p_hash = hex::encode(hasher.finalize());
-
-        Ok((unique_hash, w_json, w_hash, p_hash))
     }
 
     async fn acquire_advisory_lock(&self, tx: &mut sqlx::Transaction<'_, Postgres>, unique_hash: &str) -> Result<(), sqlx::Error> {
@@ -213,14 +151,7 @@ impl JobRepository {
         unique_hash: &str
     ) -> Result<i32, sqlx::Error> {
         let kb_meta = &def.meta;
-        let row = sqlx::query(
-            r#"
-            INSERT INTO keyboards (name, author, version, notes, kb_type, unique_hash)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (unique_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
-            RETURNING id
-            "#,
-        )
+        let row = sqlx::query(queries::INSERT_KEYBOARD_QUERY)
         .bind(&kb_meta.name)
         .bind(&kb_meta.author)
         .bind(&kb_meta.version)
@@ -244,13 +175,7 @@ impl JobRepository {
                 let is_med = def.geometry.med_slots.contains(&kidx);
                 let is_low = def.geometry.low_slots.contains(&kidx);
 
-                sqlx::query(
-                    r#"
-                    INSERT INTO keyboard_keys 
-                    (keyboard_id, idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                    "#
-                )
+                sqlx::query(queries::INSERT_KEY_QUERY)
                 .bind(kb_id)
                 .bind(idx as i32)
                 .bind(key.x)
@@ -325,53 +250,8 @@ impl JobRepository {
     }
 
     /// Attempts to claim an 'active' job for a worker node.
-    ///
-    /// It uses `SKIP LOCKED` to safely handle concurrent workers, transitioning 
-    /// the job to 'processing' and returning its configuration.
     pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
-        let row = sqlx::query(
-            r#"
-            WITH locked_job AS (
-                SELECT id 
-                FROM jobs 
-                WHERE status = 'active' 
-                ORDER BY priority DESC, created_at ASC 
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-            ),
-            updated_job AS (
-                UPDATE jobs
-                SET status = 'processing',
-                    started_at = CURRENT_TIMESTAMP
-                FROM locked_job
-                WHERE jobs.id = locked_job.id
-                RETURNING jobs.*
-            )
-            SELECT 
-                u.id,
-                jsonb_build_object(
-                    'meta', jsonb_build_object('name', k.name, 'author', k.author, 'version', k.version, 'notes', k.notes, 'type', k.kb_type),
-                    'geometry', jsonb_build_object(
-                        'keys', (SELECT jsonb_agg(jsonb_build_object('id', 'k'||kk.idx, 'hand', kk.hand, 'finger', kk.finger, 'row', kk.row_idx, 'col', kk.col_idx, 'x', kk.x, 'y', kk.y, 'w', kk.w, 'h', kk.h, 'is_stretch', kk.is_stretch, 'r', kk.r) ORDER BY kk.idx) FROM keyboard_keys kk WHERE kk.keyboard_id = k.id),
-                        'prime_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
-                        'med_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
-                        'low_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
-                        'home_row', 1
-                    )
-                ) as geometry_json,
-                sp.weights as weights_json,
-                (to_jsonb(sc) - 'id' - 'config_hash') as params_json,
-                u.pinned_keys, 
-                u.corpus_name, 
-                u.cost_matrix,
-                u.parent_job_id,
-                u.priority
-            FROM updated_job u
-            JOIN keyboards k ON u.keyboard_id = k.id
-            JOIN scoring_profiles sp ON u.scoring_profile_id = sp.id
-            JOIN search_configs sc ON u.search_config_id = sc.id
-            "#
-        )
+        let row = sqlx::query(queries::CLAIM_JOB_QUERY)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -390,7 +270,6 @@ impl JobRepository {
                 .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
 
             let cost_raw: String = r.try_get("cost_matrix")?;
-            // Backward Compatibility: Try JSON, fallback to Predefined(string)
             let cost_matrix = match serde_json::from_str(&cost_raw) {
                 Ok(cm) => cm,
                 Err(_) => CostMatrixSource::Predefined(cost_raw),
@@ -398,7 +277,7 @@ impl JobRepository {
 
             let parent_job_id: Option<String> = r.try_get("parent_job_id")?;
 
-            // Lineage Logic: Fetch baseline and parents if parent exists
+            // Lineage Logic
             let (baseline_score, parents) = if let Some(pid) = &parent_job_id {
                 let best_score: Option<f32> =
                     sqlx::query_scalar("SELECT min(score) FROM results WHERE job_id = $1")
@@ -447,79 +326,18 @@ impl JobRepository {
     }
 
     /// Resets jobs that have been processing for too long.
-    /// 
-    /// If the `node_id` column is missing (legacy schema), it uses a 6x longer timeout
-    /// to avoid prematurely resetting jobs that might still be active but untracked.
-    ///
-    /// Returns the number of jobs reset or failed.
     pub async fn prune_stale_jobs(
         &self,
         timeout_minutes: i32,
         max_retries: i32,
     ) -> Result<u64, sqlx::Error> {
-        // Newer schemas track the currently assigned worker on `jobs.node_id`.
-        // Some dev/prod deployments may be missing this column (e.g. partially applied migrations).
-        // We degrade gracefully by retrying without touching `node_id` when Postgres reports
-        // `undefined_column` (SQLSTATE 42703).
-        let query_with_node = r#"
-            UPDATE jobs
-            SET 
-                status = CASE 
-                    WHEN retry_count >= $2 THEN 'failed' 
-                    ELSE 'active' 
-                END,
-                node_id = NULL,
-                started_at = NULL,
-                retry_count = retry_count + 1
-            WHERE 
-                status = 'processing' 
-                AND (
-                    (node_id IS NULL AND started_at < NOW() - make_interval(mins => $1))
-                    OR node_id IN (SELECT id FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1))
-                )
-        "#;
-
-        match sqlx::query(query_with_node)
+        let result = sqlx::query(queries::PRUNE_STALE_JOBS_WITH_NODE)
             .bind(timeout_minutes)
             .bind(max_retries)
             .execute(&self.pool)
-            .await
-        {
-            Ok(result) => Ok(result.rows_affected()),
-            Err(e) if Self::is_undefined_column(&e) => {
-                let query_without_node = r#"
-                    UPDATE jobs
-                    SET 
-                        status = CASE 
-                            WHEN retry_count >= $2 THEN 'failed' 
-                            ELSE 'active' 
-                        END,
-                        started_at = NULL,
-                        retry_count = retry_count + 1
-                    WHERE 
-                        status = 'processing' 
-                        AND started_at < NOW() - make_interval(mins => $1 * 6) -- 6x longer fallback
-                "#;
-
-                let result = sqlx::query(query_without_node)
-                    .bind(timeout_minutes)
-                    .bind(max_retries)
-                    .execute(&self.pool)
-                    .await?;
-
-                Ok(result.rows_affected())
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    fn _private_module_guard() {}
-
-    fn is_undefined_column(e: &sqlx::Error) -> bool {
-        match e {
-            sqlx::Error::Database(db_err) => db_err.code().as_deref() == Some("42703"),
-            _ => false,
-        }
+            .await?;
+        
+        Ok(result.rows_affected())
     }
 
     /// Retrieves the configuration required to verify or re-run a job.
@@ -527,25 +345,7 @@ impl JobRepository {
         &self,
         job_id: &str,
     ) -> Result<Option<(KeyboardGeometry, ScoringWeights, String, String)>, sqlx::Error> {
-        let row = sqlx::query(
-            r#"
-            SELECT 
-                jsonb_build_object(
-                    'keys', (SELECT COALESCE(jsonb_agg(jsonb_build_object('x', kk.x, 'y', kk.y, 'w', kk.w, 'h', kk.h, 'row', kk.row_idx, 'col', kk.col_idx, 'hand', kk.hand, 'finger', kk.finger, 'is_stretch', kk.is_stretch, 'id', 'k' || kk.idx, 'r', kk.r) ORDER BY kk.idx), '[]'::jsonb) FROM keyboard_keys kk WHERE kk.keyboard_id = k.id),
-                    'prime_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
-                    'med_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
-                    'low_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
-                    'home_row', 1
-                ) as geometry_json,
-                sp.weights as weights_json,
-                j.corpus_name,
-                j.cost_matrix
-            FROM jobs j
-            JOIN keyboards k ON j.keyboard_id = k.id
-            JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
-            WHERE j.id = $1
-            "#
-        )
+        let row = sqlx::query(queries::GET_JOB_CONFIG_QUERY)
         .bind(job_id)
         .fetch_optional(&self.pool)
         .await?;
@@ -556,13 +356,6 @@ impl JobRepository {
                 .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
             let w: ScoringWeights = serde_json::from_value(r.try_get("weights_json")?)
                 .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
-
-            // Note: VerificationService likely expects a filename for caching.
-            // If it's a JSON blob (Custom), we need to handle that or let it bubble up.
-            // But verification service uses GlobalAssetCache which handles CostMatrixSource?
-            // Actually GlobalAssetCache currently takes `&str` filename.
-            // We need to upgrade GlobalAssetCache too, or here return the filename if Predefined, or Hash if Custom.
-            // For now, return raw string, let caller handle.
             let cost_raw: String = r.try_get("cost_matrix")?;
 
             Ok(Some((geo, w, r.try_get("corpus_name")?, cost_raw)))

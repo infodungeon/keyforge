@@ -8,7 +8,7 @@ use keyforge_infra::FsProvider;
 use keyforge_infra::AssetLoader;
 use keyforge_model::config::{CorpusSource, ScoringWeights};
 use keyforge_model::constants::{ASSET_COST_MATRIX, ASSET_KEYCODES};
-use keyforge_model::Keyboard;
+use keyforge_model::{Keyboard, KeyboardDefinition, CostModel, KeycodeRegistry};
 use std::env;
 use std::path::PathBuf;
 
@@ -36,12 +36,12 @@ async fn test_scorer_determinism_production_data() {
     let corpus_a = provider_a.load_corpus(&sources).await.expect("Failed to load corpus");
     let corpus_b = provider_b.load_corpus(&sources).await.expect("Failed to load corpus");
 
-    let cost_data_a = provider_a.load_cost_model(ASSET_COST_MATRIX).await.expect("Failed to load cost matrix");
-    let cost_data_b = provider_b.load_cost_model(ASSET_COST_MATRIX).await.expect("Failed to load cost matrix");
+    let cost_data_a = provider_a.load::<CostModel>(ASSET_COST_MATRIX).await.expect("Failed to load cost matrix");
+    let cost_data_b = provider_b.load::<CostModel>(ASSET_COST_MATRIX).await.expect("Failed to load cost matrix");
 
     // Load Keyboard (using system path resolver internally)
-    let def_a = provider_a.load_keyboard("corne").await.expect("Failed to load keyboard");
-    let def_b = provider_b.load_keyboard("corne").await.expect("Failed to load keyboard");
+    let def_a = provider_a.load::<KeyboardDefinition>("corne").await.expect("Failed to load keyboard");
+    let def_b = provider_b.load::<KeyboardDefinition>("corne").await.expect("Failed to load keyboard");
 
     let weights = ScoringWeights::default();
     
@@ -54,7 +54,7 @@ async fn test_scorer_determinism_production_data() {
     let engine_a = ScoringEngine::new(&keyboard_a, &corpus_a, &rubric_a, &cost_data_a).expect("Failed to create engine A");
     let engine_b = ScoringEngine::new(&keyboard_b, &corpus_b, &rubric_b, &cost_data_b).expect("Failed to create engine B");
 
-    let registry = provider_a.load_keycodes(ASSET_KEYCODES).await.expect("Failed to load keycodes");
+    let registry = provider_a.load::<KeycodeRegistry>(ASSET_KEYCODES).await.expect("Failed to load keycodes");
     let qwerty = "Q W E R T Y U I O P A S D F G H J K L Z X C V B N M";
     let layout = conversion::parse_layout_string(qwerty, engine_a.key_count(), &registry).unwrap();
 

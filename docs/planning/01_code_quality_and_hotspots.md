@@ -25,7 +25,7 @@
 | ~~**528**~~ | ~~`apps/keyforge-cli/src/cli_args/config.rs`~~ | ~~48~~ | ~~10~~ | ~~335~~ | **REMEDIATED:** Duplication removed. CLI args now defined in `keyforge-model` with `clap` feature. |
 | ~~**525**~~ | ~~`libs/keyforge-adapter/src/conversion.rs`~~ | ~~35~~ | ~~14~~ | ~~266~~ | **REMEDIATED:** Split into `conversion/{config,geometry,layout}.rs`. |
 | ~~**480**~~ | ~~`apps/keyforge-hive/src/infra/queue.rs`~~ | ~~40~~ | ~~11~~ | ~~307~~ | **REMEDIATED:** Decoupled into `infra/queue/{worker,wrappers}.rs`. Injected `BatchSink`. |
-| **455** | `apps/keyforge-hive/src/infra/repositories/jobs.rs` | 35 | 12 | 599 | **DB Coupling:** Large repository file handling massive SQL queries. |
+| ~~**455**~~ | ~~`apps/keyforge-hive/src/infra/repositories/jobs.rs`~~ | ~~35~~ | ~~12~~ | ~~599~~ | **REMEDIATED:** Split into `queries.rs`, `identity.rs`, and `core.rs`. SQL bloat extracted. |
 | **448** | `libs/keyforge-infra/src/cache.rs` | 64 | 6 | 413 | **Legacy Cache:** Separate from `caching_provider.rs`? Potential duplication. |
 | **396** | `apps/keyforge-ui/src/components/panels/AnalyzePanel.tsx` | 44 | 8 | 368 | **UI Hotspot:** The most complex React component (excluding VisualBuilder). |
 | **385** | `apps/keyforge-ui/src/api/web.ts` | 55 | 6 | 461 | **API Client:** Frontend API layer is large. Check for auto-generation opportunities. |
