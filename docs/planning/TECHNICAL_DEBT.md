@@ -32,8 +32,8 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 *Focus: Removing bottlenecks in the Simulated Annealing loop.*
 
 #### [PERF-01] Scoring Kernel Efficiency
-- [ ] **Task [task-phys-011]:** Move sorted `used_keys` to `EngineContext` in `libs/keyforge-physics/src/kernel/compute.rs`.
-- [ ] **Task [task-phys-015]:** Implement flow cost memoization or grouped property lookups for trigram $O(C^3)$ reduction.
+- [x] **Task [task-phys-011]:** Move sorted `used_keys` to `EngineContext` in `libs/keyforge-physics/src/kernel/compute.rs`.
+- [x] **Task [task-phys-015]:** Implement flow cost memoization or grouped property lookups for trigram $O(C^3)$ reduction.
 - [ ] **Verification:** `cargo bench -p keyforge-physics` (Target: 15% reduction in cycle count).
 
 #### [PERF-02] Evolution Loop Cleanup

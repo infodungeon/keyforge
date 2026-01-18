@@ -191,6 +191,10 @@ impl<'a> CompilationStage for CorpusStage<'a> {
     }
 }
 
+use std::collections::HashMap;
+
+// ... (existing imports)
+
 impl Compiler {
     #[instrument(skip_all)]
     pub fn compile(
@@ -213,6 +217,21 @@ impl Compiler {
         // Stage 3: Corpus
         let corpus_stage = CorpusStage { corpus, rubric };
         let corpus_out = corpus_stage.execute(())?;
+
+        // Stage 4: Key Pre-computation (New for task-phys-011)
+        let mut sorted_unique_keys = Vec::new();
+        // Collect all keys present in the corpus (monograms)
+        for (i, &freq) in corpus_out.char_freqs.iter().enumerate() {
+            if freq > 0 {
+                sorted_unique_keys.push(i as u16);
+            }
+        }
+        sorted_unique_keys.sort_unstable();
+        
+        let mut key_rank_map = HashMap::with_capacity(sorted_unique_keys.len());
+        for (rank, &key) in sorted_unique_keys.iter().enumerate() {
+            key_rank_map.insert(key, rank);
+        }
 
         info!("Engine compilation complete.");
 
@@ -250,6 +269,8 @@ impl Compiler {
             penalty_redirect: Score::from_f32(rubric.redirect),
             penalty_skip: Score::ZERO,
             bonus_roll: Score::from_f32(rubric.roll_bonus),
+            sorted_unique_keys,
+            key_rank_map,
         })
     }
 }

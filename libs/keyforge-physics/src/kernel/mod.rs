@@ -19,6 +19,8 @@ pub mod types;
 
 use self::types::{KeyCode, FingerIndex, HandIndex, RowIndex, ColIndex, Score};
 
+use std::collections::HashMap;
+
 /// Compiled, high-performance context used by the physics engine for scoring.
 ///
 /// This structure holds flattened, cache-friendly representations of 
@@ -59,4 +61,8 @@ pub struct EngineContext {
     pub(crate) penalty_redirect: Score,
     pub(crate) penalty_skip: Score,
     pub(crate) bonus_roll: Score,
+    /// Pre-sorted list of all unique keycodes present in the corpus.
+    pub(crate) sorted_unique_keys: Vec<u16>,
+    /// Map of keycode to its index in sorted_unique_keys.
+    pub(crate) key_rank_map: HashMap<u16, usize>,
 }

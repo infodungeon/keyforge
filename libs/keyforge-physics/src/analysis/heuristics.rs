@@ -43,7 +43,8 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
         &mut scratch.starts,
         &mut scratch.counts,
         &mut scratch.indices,
-        &mut scratch.used_keys,
+        &ctx.sorted_unique_keys,
+        &ctx.key_rank_map,
     );
 
     for i in 0..len {
@@ -235,8 +236,16 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
-        let mut used_keys = Vec::new();
-        let pm = PosMap::from_scratch(&layout_keys, engine.context().key_count, &mut starts, &mut counts, &mut indices, &mut used_keys);
+        let mut used_keys = Vec::new(); 
+        let pm = PosMap::from_scratch(
+            &layout_keys, 
+            engine.context().key_count, 
+            &mut starts, 
+            &mut counts, 
+            &mut indices, 
+            &engine.context().sorted_unique_keys,
+            &engine.context().key_rank_map
+        );
 
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2);
         
