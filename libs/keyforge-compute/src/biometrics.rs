@@ -5,6 +5,7 @@ use keyforge_protocol::BiometricSample;
 use std::collections::HashMap;
 
 /// Aggregates raw biometric timing data into a personalized Physics Cost Model.
+#[derive(Debug)]
 pub struct BiometricProfiler;
 
 impl BiometricProfiler {

@@ -233,6 +233,15 @@ impl Compiler {
             key_rank_map.insert(key, rank);
         }
 
+        let mut sequence_modifiers = HashMap::new();
+        for (bigram, &val) in &cost_model.dynamic_rules.sequence_modifiers {
+            if bigram.len() == 2 {
+                let bytes = bigram.as_bytes();
+                let key = (bytes[0] as u16, bytes[1] as u16);
+                sequence_modifiers.insert(key, Score::from_f32(val));
+            }
+        }
+
         info!("Engine compilation complete.");
 
         Ok(EngineContext {
@@ -269,6 +278,7 @@ impl Compiler {
             penalty_redirect: Score::from_f32(rubric.redirect),
             penalty_skip: Score::ZERO,
             bonus_roll: Score::from_f32(rubric.roll_bonus),
+            sequence_modifiers,
             sorted_unique_keys,
             key_rank_map,
         })

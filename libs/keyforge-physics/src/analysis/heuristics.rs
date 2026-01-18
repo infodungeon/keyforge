@@ -236,7 +236,6 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
-        let mut used_keys = Vec::new(); 
         let pm = PosMap::from_scratch(
             &layout_keys, 
             engine.context().key_count, 

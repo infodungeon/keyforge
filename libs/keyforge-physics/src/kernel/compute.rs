@@ -129,7 +129,13 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: 
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
                     let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
-                    let cost = ctx.cost_matrix[idx];
+                    let mut cost = ctx.cost_matrix[idx];
+                    
+                    // Apply sequence-specific modifiers (e.g. from biometrics)
+                    if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
+                        cost = cost.saturating_add(mod_val);
+                    }
+
                     if cost < min_cost { min_cost = cost; }
                 }
             }
@@ -365,7 +371,12 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             // Pick pair resulting in best score contribution
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
-                    let cost = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                    let mut cost = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                    
+                    if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1, c2)) {
+                        cost = cost.saturating_add(mod_val);
+                    }
+
                     if cost < min_score {
                         min_score = cost;
                         best_pair = (p1 as usize, p2 as usize);
@@ -664,10 +675,15 @@ pub(crate) fn calculate_swap_delta(
             for &p2 in candidates2 {
                 let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
                 
-                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+
+                if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code_a.0, c2.0)) {
+                    cost_old = cost_old.saturating_add(mod_val);
+                    cost_new = cost_new.saturating_add(mod_val);
+                }
+
                 if cost_old < min_old { min_old = cost_old; }
-                
-                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
@@ -689,10 +705,15 @@ pub(crate) fn calculate_swap_delta(
             for &p2 in candidates2 {
                 let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
                 
-                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+
+                if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code_b.0, c2.0)) {
+                    cost_old = cost_old.saturating_add(mod_val);
+                    cost_new = cost_new.saturating_add(mod_val);
+                }
+
                 if cost_old < min_old { min_old = cost_old; }
-                
-                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
@@ -715,10 +736,15 @@ pub(crate) fn calculate_swap_delta(
             for &p2 in candidates_a {
                 let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
                 
-                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+
+                if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1.0, code_a.0)) {
+                    cost_old = cost_old.saturating_add(mod_val);
+                    cost_new = cost_new.saturating_add(mod_val);
+                }
+
                 if cost_old < min_old { min_old = cost_old; }
-                
-                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
@@ -741,10 +767,15 @@ pub(crate) fn calculate_swap_delta(
             for &p2 in candidates_b {
                 let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
                 
-                let cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_old = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
+
+                if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1.0, code_b.0)) {
+                    cost_old = cost_old.saturating_add(mod_val);
+                    cost_new = cost_new.saturating_add(mod_val);
+                }
+
                 if cost_old < min_old { min_old = cost_old; }
-                
-                let cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
@@ -950,8 +981,15 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
-        let mut used_keys = Vec::new();
-        let pm = PosMap::from_scratch(&layout.keys, engine.key_count(), &mut starts, &mut counts, &mut indices, &mut used_keys);
+        let pm = PosMap::from_scratch(
+            &layout.keys, 
+            engine.key_count(), 
+            &mut starts, 
+            &mut counts, 
+            &mut indices, 
+            &engine.context().sorted_unique_keys,
+            &engine.context().key_rank_map
+        );
 
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 100);
         assert_eq!(delta, 0);
@@ -995,8 +1033,15 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
-        let mut used_keys = Vec::new();
-        let pm = PosMap::from_scratch(&layout_keys, engine.key_count(), &mut starts, &mut counts, &mut indices, &mut used_keys);
+        let pm = PosMap::from_scratch(
+            &layout_keys, 
+            engine.key_count(), 
+            &mut starts, 
+            &mut counts, 
+            &mut indices, 
+            &engine.context().sorted_unique_keys,
+            &engine.context().key_rank_map
+        );
 
         let score_before = engine.score_raw(&layout_keys).unwrap();
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2);
@@ -1033,8 +1078,15 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
-        let mut used_keys = Vec::new();
-        let pm = PosMap::from_scratch(&layout_keys, engine.key_count(), &mut starts, &mut counts, &mut indices, &mut used_keys);
+        let pm = PosMap::from_scratch(
+            &layout_keys, 
+            engine.key_count(), 
+            &mut starts, 
+            &mut counts, 
+            &mut indices, 
+            &engine.context().sorted_unique_keys,
+            &engine.context().key_rank_map
+        );
 
         let score_before = engine.score_raw(&layout_keys).unwrap();
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1);

@@ -4300,11 +4300,15 @@ dependencies = [
 name = "keyforge-repros"
 version = "0.1.0"
 dependencies = [
+ "keyforge-compute",
  "keyforge-core",
+ "keyforge-infra",
  "keyforge-model",
  "keyforge-physics",
+ "keyforge-protocol",
  "rmp-serde",
  "serde_json",
+ "tokio",
  "zstd",
 ]
 
