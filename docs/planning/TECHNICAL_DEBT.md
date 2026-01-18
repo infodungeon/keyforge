@@ -54,6 +54,18 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 - [x] **Task [task-agent-021]:** Implement UUID fallback for machine ID in `keyforge-agent`.
 - [x] **Task [task-ui-002]:** Finalize regex parser for `pinned_keys` in the React frontend.
 
+### 🌐 Wave 4: Distributed Reliability & Edge Cases
+*Focus: Robustness in multi-node clusters and cross-version compatibility.*
+
+#### [DIST-01] Cluster-Safe State
+- [x] **Task [task-hive-009]:** Move nonce tracking from memory to Valkey (SET NX with TTL).
+- [ ] **Task [task-infra-016]:** Implement efficient $O(1)$ cluster stats using Redis counters.
+- [ ] **Task [task-hive-014]:** Refactor `SystemMonitor` to refresh metrics in background.
+
+#### [COMPAT-01] Protocol Resilience
+- [ ] **Task [task-agent-010]:** Implement "Dead Letter" storage for results rejected due to validation errors.
+- [ ] **Verification:** Confirm Hive accepts nonces correctly across two server instances.
+
 ---
 
 ## 📋 Full Deficiency Catalog (Reference)

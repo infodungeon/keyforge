@@ -49,7 +49,7 @@ pub async fn handle(
 async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppResult<String> {
     // Stage 1: Validation
     payload.validate().map_err(AppError::Validation)?;
-    validate_submission(&state, &payload)?;
+    validate_submission(&state, &payload).await?;
 
     // Stage 2: Verification (Domain Logic)
     state.verification.verify_submission(&payload).await?;
@@ -66,7 +66,7 @@ async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppR
 }
 
 /// Performs technical validation of the submission, including protocol consistency and replay protection.
-fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResult<()> {
+async fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResult<()> {
     // Protocol Check
     if payload.version != PROTOCOL_VERSION {
         return Err(AppError::Validation("Protocol Mismatch".into()));
@@ -81,12 +81,16 @@ fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResul
         return Err(AppError::Validation("Submission expired".into()));
     }
 
-    // Replay Protection
-    let nonce_key = format!("{}:{}", payload.node_id, payload.nonce);
-    if state.security.nonce_cache.contains_key(&nonce_key) {
+    // Replay Protection (Task-hive-009: Use Valkey for distributed safety)
+    let is_new = state.coordinator.check_and_set_nonce(
+        &payload.node_id, 
+        payload.nonce, 
+        DEFAULT_SUBMISSION_EXPIRATION_SECS as i64
+    ).await.map_err(|e| AppError::Any(anyhow::anyhow!("Valkey Error: {}", e)))?;
+
+    if !is_new {
         return Err(AppError::Validation("Replay detected".into()));
     }
-    state.security.nonce_cache.insert(nonce_key, true);
 
     Ok(())
 }

@@ -239,4 +239,23 @@ impl DistributedCoordinator {
         let (count, _) = self.get_cluster_stats().await?;
         Ok(count)
     }
+
+    /// Checks if a nonce has already been used by a node, and sets it if not.
+    ///
+    /// This provides distributed replay protection with a specified TTL.
+    /// Returns true if the nonce is NEW (not seen before), false if it's a REPLAY.
+    pub async fn check_and_set_nonce(&self, node_id: &str, nonce: u64, ttl_secs: i64) -> InfraResult<bool> {
+        let key = format!("{}:nonce:{}:{}", KEY_PREFIX_V4, node_id, nonce);
+        let result: Option<()> = self.client.set(
+            key,
+            "1",
+            Some(Expiration::EX(ttl_secs)),
+            Some(SetOptions::NX),
+            false
+        ).await.map_err(|e| {
+             InfraError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
+        })?;
+        
+        Ok(result.is_some())
+    }
 }
