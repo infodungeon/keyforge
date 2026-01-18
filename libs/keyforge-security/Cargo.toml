@@ -17,3 +17,4 @@ rand = "0.8.5"
 hex = "0.4"
 sha2 = "0.10"
 thiserror = "2.0"
+keyforge-model = { path = "../keyforge-model" }

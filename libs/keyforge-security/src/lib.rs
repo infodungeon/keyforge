@@ -23,6 +23,7 @@ use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
+use keyforge_model::constants::SCORE_SCALE;
 
 /// Errors that can occur during security operations.
 #[derive(Error, Debug)]
@@ -116,12 +117,15 @@ fn build_payload(job_id: &str, layout: &str, score: f32, timestamp: u64, nonce: 
     hasher.update(layout.as_bytes());
     let layout_hash = hasher.finalize_reset();
 
-// 32 bytes (job_hash) + 32 bytes (layout_hash) + 4 bytes (score) + 8 bytes (timestamp) + 8 bytes (nonce)
-    let capacity = 32 + 32 + size_of::<f32>() + size_of::<u64>() + size_of::<u64>();
+    // Task-sec-029: Use fixed-point representation for deterministic signatures
+    let score_fixed = (score * SCORE_SCALE) as i64;
+
+    // 32 bytes (job_hash) + 32 bytes (layout_hash) + 8 bytes (score) + 8 bytes (timestamp) + 8 bytes (nonce)
+    let capacity = 32 + 32 + 8 + 8 + 8;
     let mut payload = Vec::with_capacity(capacity);
     payload.extend_from_slice(&job_hash);
     payload.extend_from_slice(&layout_hash);
-    payload.extend_from_slice(&score.to_le_bytes());
+    payload.extend_from_slice(&score_fixed.to_le_bytes());
     payload.extend_from_slice(&timestamp.to_le_bytes());
     payload.extend_from_slice(&nonce.to_le_bytes());
 
@@ -145,18 +149,13 @@ pub fn sign_result(
 ) -> SecurityResult<String> {
     let secret_hex = secret_hex.trim();
 
-
-    let secret_bytes = SecretBytes::new(
-        hex::decode(secret_hex)
-            .map_err(|_| SecurityError::Encoding("Invalid secret key hex".into()))?,
-    );
-
-    let signing_key = SigningKey::from_bytes(
-        secret_bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_| SecurityError::Key("Invalid key length".into()))?,
-    );
+    // Task-sec-027: Use direct decoding into a zeroized buffer to avoid leakage
+    let mut key_buf = [0u8; 32];
+    hex::decode_to_slice(secret_hex, &mut key_buf)
+        .map_err(|_| SecurityError::Encoding("Invalid secret key hex".into()))?;
+    
+    let signing_key = SigningKey::from_bytes(&key_buf);
+    key_buf.zeroize();
 
     sign_result_direct(&signing_key, job_id, layout, score, timestamp, nonce)
 }

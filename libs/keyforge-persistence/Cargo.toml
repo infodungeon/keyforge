@@ -19,6 +19,7 @@ async-trait = "0.1"
 keyforge-model = { path = "../keyforge-model" }
 keyforge-core = { path = "../keyforge-core" }
 keyforge-physics = { path = "../keyforge-physics" }
+keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 fs2 = "0.4"

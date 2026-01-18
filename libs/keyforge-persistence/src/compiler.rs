@@ -18,13 +18,14 @@ use keyforge_model::config::{Config, CorpusSource, CostMatrixSource};
 use keyforge_model::{KeyboardDefinition, CostModel, KeycodeRegistry};
 use keyforge_physics::EngineRequest;
 use std::sync::Arc;
+use keyforge_adapter::conversion::{to_domain_rubric, to_domain_config, resolve_constraints};
 
 /// Compiles a raw configuration into a fully-loaded `EngineRequest`.
 pub async fn compile_request<L: AssetLoader>(
     loader: &L,
-    _config: &Config,
+    config: &Config,
     keyboard_name: &str,
-    _pinned_keys: &[keyforge_model::KeyConstraint],
+    pinned_keys: &[keyforge_model::KeyConstraint],
 ) -> Result<EngineRequest, PersistenceError> {
     // 1. Load Keyboard
     let keyboard_def = loader
@@ -39,7 +40,8 @@ pub async fn compile_request<L: AssetLoader>(
     .map_err(|e| PersistenceError::Validation(e.to_string()))?;
 
     // 2. Load Corpus
-    let corpus_sources: Vec<CorpusSource> = vec![CorpusSource::default()]; // TODO: From config
+    // Use default if no corpora specified (Config currently doesn't hold corpora list)
+    let corpus_sources: Vec<CorpusSource> = vec![CorpusSource::default()]; 
     let corpus = loader
         .load_corpus(&corpus_sources)
         .await
@@ -56,20 +58,23 @@ pub async fn compile_request<L: AssetLoader>(
         .map_err(|e| PersistenceError::AssetLoad(format!("CostModel '{}': {}", cost_name, e)))?;
 
     // 4. Load Keycodes (Standard)
-    let _registry = loader
+    let registry = loader
         .load::<KeycodeRegistry>("keycodes")
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {}", e)))?;
 
     // 5. Construct Request
-    let pinned = vec![None; keyboard.count()];
+    let pinned = resolve_constraints(pinned_keys, keyboard.count(), &registry)
+        .map_err(|e| PersistenceError::Validation(e.to_string()))?;
+
+    let seed = config.search.seed.unwrap_or(0);
 
     Ok(EngineRequest {
         keyboard: Arc::new(keyboard),
         corpus,
-        rubric: Arc::new(keyforge_model::Rubric::default()), // TODO: From config
+        rubric: Arc::new(to_domain_rubric(&config.weights)),
         cost_model,
-        config: keyforge_model::SearchConfig::default(), // TODO: From config
+        config: to_domain_config(&config.search, seed),
         initial_layout: None,
         pinned_keys: pinned,
     })

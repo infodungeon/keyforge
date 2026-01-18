@@ -21,6 +21,8 @@
 use keyforge_core::{ProgressCallback, EvolutionError, ScoringSession};
 /// Builder for constructing computation sessions.
 pub mod builder;
+/// Biometric profiling logic.
+pub mod biometrics;
 pub use builder::SessionBuilder;
 use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SwapSuggestion, SearchConfig};
 use keyforge_model::keycodes::KeycodeRegistry;

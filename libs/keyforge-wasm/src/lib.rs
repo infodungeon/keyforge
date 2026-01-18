@@ -78,7 +78,7 @@ impl KeyforgeEngine {
         Ok(())
     }
 
-    /// Analyzes a layout using the injected assets.
+    /// Analyzes a layout using the injected assets and an optional rubric.
     #[wasm_bindgen(js_name = analyzeLayout)]
     pub async fn analyze_layout(
         &self,
@@ -86,8 +86,14 @@ impl KeyforgeEngine {
         corpus_name: String,
         cost_model_name: String,
         layout_val: JsValue,
+        rubric_val: JsValue,
     ) -> Result<JsValue, JsValue> {
         let layout: Layout = from_value(layout_val)?;
+        let rubric: Rubric = if rubric_val.is_null() || rubric_val.is_undefined() {
+            Rubric::default()
+        } else {
+            from_value(rubric_val)?
+        };
         
         let kb = self.loader.load::<KeyboardDefinition>(&keyboard_name).await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
@@ -104,7 +110,7 @@ impl KeyforgeEngine {
             kb.geometry.home_row,
         ).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-        let engine = ScoringEngine::new(&keyboard, &corpus, &Rubric::default(), &cost_model)
+        let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let report = engine.analyze(&layout)

@@ -4247,6 +4247,7 @@ dependencies = [
  "async-trait",
  "fs2",
  "hex",
+ "keyforge-adapter",
  "keyforge-core",
  "keyforge-infra",
  "keyforge-model",
@@ -4333,6 +4334,7 @@ version = "0.9.0"
 dependencies = [
  "ed25519-dalek",
  "hex",
+ "keyforge-model",
  "rand 0.8.5",
  "sha2",
  "subtle",

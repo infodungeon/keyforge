@@ -109,19 +109,11 @@ impl FsProvider {
 
     fn resolve_direct_path(&self, name: &str) -> Option<PathBuf> {
         let p = PathBuf::from(name);
-        if p.is_absolute() && p.exists() {
-            return Some(p);
+        if p.is_absolute() {
+            return self.safe_join(name).ok().filter(|p| p.exists());
         }
         if name.starts_with("./") || name.starts_with("../") {
-            if let Ok(abs) = std::fs::canonicalize(&p) {
-                if abs.exists() {
-                    return Some(abs);
-                }
-            }
-            // Fallback for non-canonicalizable but existing relative paths
-            if p.exists() {
-                return Some(p);
-            }
+            return self.safe_join(name).ok().filter(|p| p.exists());
         }
         None
     }
@@ -131,6 +123,9 @@ impl FsProvider {
     /// This is used to detect if a corpus has changed locally or if it matches
     /// the version expected by the Hive.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
+        // Task-infra-008: Security check
+        let _ = self.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
+
         let files = ["1grams", "2grams", "3grams", "words"];
         let is_system = self.root.join("system/corpora").join(id).exists();
         let base = if is_system {
@@ -155,13 +150,15 @@ impl FsProvider {
         let base = std::fs::canonicalize(&self.root)
             .map_err(|e| format!("Failed to canonicalize root: {}", e))?;
         
-        // Join and then canonicalize to resolve ..
-        let full = self.root.join(user_path);
+        let full = if Path::new(user_path).is_absolute() {
+            PathBuf::from(user_path)
+        } else {
+            self.root.join(user_path)
+        };
+
         let canonical = match std::fs::canonicalize(&full) {
             Ok(p) => p,
             Err(_) => {
-                // If file doesn't exist, we can't canonicalize it easily to check prefix.
-                // But we can check for .. components manually.
                 if full.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
                     return Err("Path traversal detected (manual check)".into());
                 }
@@ -183,6 +180,11 @@ impl AssetLoader for FsProvider {
         let category = T::category();
         let cat_str = category.as_str();
 
+        // Task-infra-008: Ensure ID is safe
+        if id.contains("..") {
+             self.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
+        }
+
         // 1. Try direct path (absolute or ./ relative)
         if let Some(p) = self.resolve_direct_path(id) {
             let mut asset: T = self.load_json(&p).await?;
@@ -190,7 +192,13 @@ impl AssetLoader for FsProvider {
             return Ok(Arc::new(asset));
         }
 
-        let stem = id.strip_suffix(".json").unwrap_or(id);
+        // Task-infra-020: Use Path for extension handling
+        let path_id = Path::new(id);
+        let stem = if path_id.extension().and_then(|s| s.to_str()) == Some("json") {
+            path_id.file_stem().and_then(|s| s.to_str()).unwrap_or(id)
+        } else {
+            id
+        };
 
         // 2. Try System Binary
         if let Some(p) = self.resolve_system_path(cat_str, stem) {
@@ -220,6 +228,9 @@ impl AssetLoader for FsProvider {
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let mut corpus = Corpus::default();
         for src in sources {
+            // Task-infra-008: Security check
+            let _ = self.safe_join(&src.id).map_err(|e| ForgeError::InvalidData(e))?;
+
             let is_system = self.root.join("system/corpora").join(&src.id).exists();
             let base = if is_system {
                 self.root.join("system/corpora").join(&src.id)

@@ -45,6 +45,7 @@ impl OptimizationRunner {
             .with_cost_matrix(&config.cost_matrix).await.map_err(|e| anyhow::anyhow!(e))?
             .with_keycodes(&options.keycodes_file).await.map_err(|e| anyhow::anyhow!(e))?
             .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&config.weights))
+            .with_biometrics(config.biometrics.clone())
             .with_config(keyforge_model::SearchConfig::Annealing {
                 steps: config.params.get_search_steps(),
                 start_temp: config.params.get_temp_max(),
@@ -115,6 +116,7 @@ impl<'a, L: AssetLoader> Runner<'a, L> {
             .with_keyboard_def(Arc::new(config.definition.clone()))
             .with_corpus(&config.corpora).await.map_err(|e| anyhow::anyhow!(e))?
             .with_cost_matrix(&config.cost_matrix).await.map_err(|e| anyhow::anyhow!(e))?
+            .with_biometrics(config.biometrics.clone())
             .with_keycodes(ASSET_KEYCODES_FILENAME).await.map_err(|e| anyhow::anyhow!(e))?;
             
         let session = builder.build().map_err(|e| anyhow::anyhow!(e))?;

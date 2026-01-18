@@ -18,9 +18,11 @@ use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::{Corpus, Rubric, SearchConfig, CostModel};
+use keyforge_protocol::BiometricSample;
 use keyforge_physics::ScoringEngine;
 use std::sync::Arc;
 use std::fmt;
+use crate::biometrics::BiometricProfiler;
 
 /// Builder for constructing a `ScoringSession` (Runtime).
 pub struct SessionBuilder<'a, L: AssetLoader> {
@@ -31,6 +33,7 @@ pub struct SessionBuilder<'a, L: AssetLoader> {
     cost_model: Option<Arc<CostModel>>,
     registry: Option<Arc<KeycodeRegistry>>,
     search_config: Option<SearchConfig>,
+    biometrics: Vec<BiometricSample>,
 }
 
 impl<'a, L: AssetLoader> fmt::Debug for SessionBuilder<'a, L> {
@@ -42,6 +45,7 @@ impl<'a, L: AssetLoader> fmt::Debug for SessionBuilder<'a, L> {
             .field("cost_model", &self.cost_model)
             .field("registry", &self.registry)
             .field("search_config", &self.search_config)
+            .field("biometrics_count", &self.biometrics.len())
             .finish()
     }
 }
@@ -56,6 +60,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             cost_model: None,
             registry: None,
             search_config: None,
+            biometrics: Vec::new(),
         }
     }
 
@@ -108,13 +113,23 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         self
     }
 
+    pub fn with_biometrics(mut self, samples: Vec<BiometricSample>) -> Self {
+        self.biometrics = samples;
+        self
+    }
+
     pub fn build(self) -> LoaderResult<ScoringSession> {
         let kb_def = self.keyboard.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing keyboard".into()))?;
         let corpus = self.corpus.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing corpus".into()))?;
         let rubric = self.rubric.unwrap_or_else(|| Arc::new(Rubric::default()));
-        let cost_model = self.cost_model.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing cost model".into()))?;
+        let mut cost_model = (*self.cost_model.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing cost model".into()))?).clone();
         let registry = self.registry.unwrap_or_else(|| Arc::new(KeycodeRegistry::default()));
         let config = self.search_config.unwrap_or_default();
+
+        // Task-ui-024: Apply biometric profiling if available
+        if !self.biometrics.is_empty() {
+            cost_model = BiometricProfiler::profile(&self.biometrics, &cost_model);
+        }
 
         // Create Keyboard from Definition (using home_row from geometry)
         let keyboard = Arc::new(keyforge_model::Keyboard::new(

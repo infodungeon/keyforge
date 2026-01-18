@@ -6,7 +6,7 @@ use keyforge_infra::AssetLoader;
 use keyforge_infra::listing;
 use keyforge_model::SwapSuggestion;
 use keyforge_model::config::ScoringWeights;
-use keyforge_protocol::JobConfig;
+use keyforge_protocol::{JobConfig, BiometricSample};
 use serde::Serialize;
 use tauri::AppHandle;
 
@@ -72,6 +72,7 @@ pub async fn cmd_load_dataset(
     keyboard_name: String,
     corpus_filename: String,
     cost_filename: String,
+    biometrics: Vec<BiometricSample>,
     _extras: Vec<String>,
 ) -> Result<String, CommandError> {
     let assets = &state.assets;
@@ -91,7 +92,7 @@ pub async fn cmd_load_dataset(
             hash: None,
         }],
         cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_filename),
-        biometrics: vec![],
+        biometrics,
         parent_job_id: None,
         baseline_score: None,
         parents: vec![],
