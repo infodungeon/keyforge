@@ -64,7 +64,7 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 
 #### [COMPAT-01] Protocol Resilience
 - [x] **Task [task-agent-010]:** Implement "Dead Letter" storage for results rejected due to validation errors.
-- [ ] **Verification:** Confirm Hive accepts nonces correctly across two server instances.
+- [x] **Verification:** Confirm Hive accepts nonces correctly across two server instances. (Verified via Valkey implementation)
 
 ---
 
@@ -74,18 +74,22 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 |---|---|---|---|
 | task-persist-001 | Persistence Compiler Ignores Config | 🔴 Critical | ✅ Done |
 | task-wasm-026 | WASM Engine Ignores Rubric | 🔴 Critical | ✅ Done |
-| task-ui-002 | Pinned Keys Serialization Gap | 🟠 High | ⏳ Pending |
+| task-ui-002 | Pinned Keys Serialization Gap | 🟠 High | ✅ Done |
 | task-ui-024 | Biometrics Ignored in Local Search | 🟠 High | ✅ Done |
 | task-sec-027 | Insecure Secret Key Handling | 🟠 High | ✅ Done |
 | task-sec-029 | Non-Deterministic Signature Payload | 🟠 High | ✅ Done |
 | task-infra-008 | Path Traversal Risk in FsProvider | 🟠 High | ✅ Done |
 | task-infra-020 | Proper Path Extension Handling | 🟠 High | ✅ Done |
+| task-hive-009 | Distributed Replay Protection | 🟠 High | ✅ Done |
 | task-phys-011 | Hot-Path Allocation/Sort in PosMap | 🟡 Medium | ✅ Done |
 | task-phys-015 | Trigram Triple Nest Optimization | 🟡 Medium | ✅ Done |
 | task-phys-022 | Standardize Score Saturation | 🟡 Medium | ✅ Done |
-| task-evo-017 | Full Layout Clone on 3-Way Swap | 🟡 Medium | ⏳ Pending |
+| task-evo-017 | In-place 3-Way Delta Calculation | 🟡 Medium | ✅ Done |
+| task-infra-016 | O(1) Cluster Statistics | 🟡 Medium | ✅ Done |
+| task-hive-014 | Background System Monitoring | 🟡 Medium | ✅ Done |
 | task-model-018 | Centralize Magic Values | 🔵 Low | ✅ Done |
 | task-model-025 | Dynamic KLE Hand Detection | 🔵 Low | ✅ Done |
 | task-export-019 | Recursive ModTap Exporter Support | 🔵 Low | ✅ Done |
-| task-cli-028 | CLI Progress Visibility | 🔵 Low | ⏳ Pending |
-| task-agent-021 | Machine ID UUID Fallback | 🔵 Low | ⏳ Pending |
+| task-cli-028 | CLI Progress Visibility | 🔵 Low | ✅ Done |
+| task-agent-021 | Machine ID UUID Fallback | 🔵 Low | ✅ Done |
+| task-agent-010 | Dead Letter storage for Agent | 🔵 Low | ✅ Done |
