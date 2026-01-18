@@ -63,7 +63,7 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 - [x] **Task [task-hive-014]:** Refactor `SystemMonitor` to refresh metrics in background.
 
 #### [COMPAT-01] Protocol Resilience
-- [ ] **Task [task-agent-010]:** Implement "Dead Letter" storage for results rejected due to validation errors.
+- [x] **Task [task-agent-010]:** Implement "Dead Letter" storage for results rejected due to validation errors.
 - [ ] **Verification:** Confirm Hive accepts nonces correctly across two server instances.
 
 ---

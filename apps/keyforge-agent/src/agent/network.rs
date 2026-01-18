@@ -59,14 +59,17 @@ impl CircuitBreaker {
 pub struct ResultOutbox {
     _client: HiveClient,
     wal_dir: PathBuf,
+    dead_letter_dir: PathBuf,
     _breaker: CircuitBreaker,
 }
 
 impl ResultOutbox {
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32, cooldown_secs: u64) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
+        let dead_letter_dir = data_root.join("user/dead_letter");
         std::fs::create_dir_all(&wal_dir).ok();
-        Self { _client: client, wal_dir, _breaker: CircuitBreaker::new(threshold, cooldown_secs) }
+        std::fs::create_dir_all(&dead_letter_dir).ok();
+        Self { _client: client, wal_dir, dead_letter_dir, _breaker: CircuitBreaker::new(threshold, cooldown_secs) }
     }
     pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
         let path = self.wal_dir.join(format!("{}.json", submission.nonce));
@@ -76,6 +79,18 @@ impl ResultOutbox {
                  return Err(crate::agent::errors::AgentError::Resource(e.to_string()));
              }
              info!("Buffered result {} to WAL", submission.job_id);
+        }
+        Ok(())
+    }
+    pub fn save_to_dead_letter(&self, submission: &ResultSubmission, reason: &str) -> AgentResult<()> {
+        let path = self.dead_letter_dir.join(format!("{}.json", submission.nonce));
+        let mut map = serde_json::to_value(submission).unwrap_or_default();
+        if let Some(obj) = map.as_object_mut() {
+            obj.insert("rejection_reason".to_string(), serde_json::Value::String(reason.to_string()));
+        }
+        if let Ok(json) = serde_json::to_string_pretty(&map) {
+             std::fs::write(&path, json).ok();
+             warn!("Saved rejected result to Dead Letter: {:?}", path);
         }
         Ok(())
     }
@@ -274,6 +289,9 @@ impl NetworkManager {
                     error!("❌ Submission Rejected: {}", txt);
                     if status.is_server_error() {
                         self.outbox.save_to_wal(&result)?;
+                    } else if status.is_client_error() {
+                        // Task-agent-010: Save to Dead Letter instead of discarding
+                        self.outbox.save_to_dead_letter(&result, &txt)?;
                     }
                     return Err(crate::agent::errors::AgentError::Network(format!("Submission rejected: {}", txt)));
                 }
