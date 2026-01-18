@@ -28,6 +28,8 @@ use crate::types::KeyCode;
 use crate::asset::{Asset, AssetCategory};
 use crate::error::ForgeError;
 
+use crate::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
+
 /// Definition of a logical key code (e.g., "KC_A").
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -148,13 +150,13 @@ impl KeycodeRegistry {
                 code: KeyCode(0),
                 id: "KC_NO".into(),
                 label: " ".into(),
-                aliases: vec!["XXXXXXX".into()],
+                aliases: vec![DEFAULT_NO_OP.into()],
             },
             KeycodeDefinition {
                 code: KeyCode(1),
                 id: "KC_TRANSPARENT".into(),
                 label: "▽".into(),
-                aliases: vec!["KC_TRNS".into(), "_______".into()],
+                aliases: vec!["KC_TRNS".into(), DEFAULT_TRANSPARENT.into()],
             },
         ];
         Self::new(defs)

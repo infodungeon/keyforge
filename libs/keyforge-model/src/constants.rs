@@ -255,6 +255,11 @@ pub const DEFAULT_FINGER_REPEAT_SCALE_ARRAY: [f32; 5] = [1.0, 1.0, 1.0, 1.2, 1.5
 /// Default comfortable scissor pairs (Indices).
 pub const DEFAULT_COMFORTABLE_SCISSORS: &str = "21,23,34";
 
+/// Label for No-Op keys (XXXXXXX).
+pub const DEFAULT_NO_OP: &str = "XXXXXXX";
+/// Label for Transparent keys (_______).
+pub const DEFAULT_TRANSPARENT: &str = "_______";
+
 // --- Default Values (Search) ---
 
 /// Default number of search epochs.

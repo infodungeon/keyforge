@@ -44,7 +44,7 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 *Focus: Removing magic strings and improving UX/CLI consistency.*
 
 #### [QLTY-01] Code Standardization
-- [ ] **Task [task-model-018]:** Move all hardcoded constants ("XXXXXXX", model keys, limits) to `libs/keyforge-model/src/constants.rs`.
+- [x] **Task [task-model-018]:** Move all hardcoded constants ("XXXXXXX", model keys, limits) to `libs/keyforge-model/src/constants.rs`.
 - [ ] **Task [task-infra-020]:** Replace `strip_suffix(".json")` with proper `Path` extensions in `FsProvider`.
 - [ ] **Task [task-model-025]:** Implement dynamic hand detection in `kle.rs` using X-coordinate clustering.
 

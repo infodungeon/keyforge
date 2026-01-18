@@ -17,9 +17,9 @@ use anyhow::Result;
 use crate::util::{self, ModFormat};
 use keyforge_adapter::parsing::{parse_key, KeyAction};
 
+use keyforge_model::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
+
 /// An exporter for the QMK (Quantum Mechanical Keyboard) firmware.
-///
-/// This generates a standard C keymap file compatible with `keymap.c`.
 #[derive(Debug)]
 pub struct QmkExporter;
 
@@ -63,8 +63,8 @@ impl Exporter for QmkExporter {
                 let action = parse_key(key_str);
                 let code = match action {
                     KeyAction::Simple(s) => util::sanitize_c(&s),
-                    KeyAction::Transparent => "_______".to_string(),
-                    KeyAction::NoOp => "XXXXXXX".to_string(),
+                    KeyAction::Transparent => DEFAULT_TRANSPARENT.to_string(),
+                    KeyAction::NoOp => DEFAULT_NO_OP.to_string(),
                     KeyAction::LayerMomentary(l) => format!("MO({})", l),
                     KeyAction::LayerToggle(l) => format!("TG({})", l),
                     KeyAction::LayerOn(l) => format!("TO({})", l),
