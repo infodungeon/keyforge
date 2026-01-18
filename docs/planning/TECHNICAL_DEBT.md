@@ -45,8 +45,8 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 
 #### [QLTY-01] Code Standardization
 - [x] **Task [task-model-018]:** Move all hardcoded constants ("XXXXXXX", model keys, limits) to `libs/keyforge-model/src/constants.rs`.
-- [ ] **Task [task-infra-020]:** Replace `strip_suffix(".json")` with proper `Path` extensions in `FsProvider`.
-- [ ] **Task [task-model-025]:** Implement dynamic hand detection in `kle.rs` using X-coordinate clustering.
+- [x] **Task [task-infra-020]:** Replace `strip_suffix(".json")` with proper `Path` extensions in `FsProvider`.
+- [x] **Task [task-model-025]:** Implement dynamic hand detection in `kle.rs` using X-coordinate clustering.
 
 #### [UX-01] Visibility & Reliability
 - [ ] **Task [task-cli-028]:** Add `indicatif` progress bar to CLI `Search` command.

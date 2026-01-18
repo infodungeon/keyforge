@@ -27,11 +27,38 @@ use std::error::Error;
 /// Parses a Keyboard Layout Editor (KLE) JSON string into a `KeyboardGeometry`.
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
     let keyboard: KleKeyboard = serde_json::from_str(content)?;
+    
+    // Pass 1: Collect X coordinates for clustering
+    let mut x_coords: Vec<f32> = keyboard.keys.iter().map(|k| k.x as f32 + (k.width as f32 / 2.0)).collect();
+    x_coords.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    
+    // Determine split point using largest gap if enough keys exist
+    let split_x = if x_coords.len() > 2 {
+        let mut max_gap = 0.0;
+        let mut split = 10.0; // Fallback
+        for i in 0..x_coords.len()-1 {
+            let gap = x_coords[i+1] - x_coords[i];
+            if gap > max_gap {
+                max_gap = gap;
+                split = x_coords[i] + (gap / 2.0);
+            }
+        }
+        // Heuristic: If max gap is small (ortho/compact), fall back to median
+        if max_gap < 1.5 {
+            x_coords[x_coords.len() / 2]
+        } else {
+            split
+        }
+    } else {
+        10.0
+    };
+
     let mut keys = Vec::new();
 
     for (current_id, key) in keyboard.keys.into_iter().enumerate() {
         let center_x = key.x + (key.width / 2.0);
-        let hand = if center_x > 10.0 { HandIndex::RIGHT } else { HandIndex::LEFT };
+        // Dynamic hand assignment
+        let hand = if center_x as f32 > split_x { HandIndex::RIGHT } else { HandIndex::LEFT };
         let finger = FingerIndex::INDEX;
 
         let label = key.legends.iter().flatten().find(|l| !l.text.is_empty())
