@@ -20,15 +20,15 @@ pub struct CostStage<'a> {
     pub cost_model: &'a CostModel,
 }
 
-impl<'a> CompilationStage for CostStage<'a> {
+impl CompilationStage for CostStage<'_> {
     type Input = ();
     type Output = CostOutput;
 
-    fn execute(&self, _: Self::Input) -> Result<Self::Output, PhysicsError> {
+    fn execute(&self, (): Self::Input) -> Result<Self::Output, PhysicsError> {
         let key_count = self.kb.count();
         let model_key = "model_a_row_staggered";
         let phys_model = self.cost_model.models.get(model_key)
-            .ok_or_else(|| PhysicsError::Config(format!("Missing cost model: {}", model_key)))?;
+            .ok_or_else(|| PhysicsError::Config(format!("Missing cost model: {model_key}")))?;
 
         let mut key_costs = Vec::with_capacity(key_count);
         for k in &self.kb.keys {
@@ -83,7 +83,7 @@ fn resolve_key_cost(key: &KeyNode, static_costs: &std::collections::HashMap<Stri
                     }
                 },
                 FingerDefinition::Thumb(positions) => {
-                    return *positions.values().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&100.0);
+                    return *positions.values().min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).unwrap_or(&100.0);
                 }
             }
         }

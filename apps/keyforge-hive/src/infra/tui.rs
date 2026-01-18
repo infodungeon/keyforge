@@ -156,7 +156,7 @@ impl DockerMonitor {
     }
 }
 
-/// Starts the interactive TUI monitor for the KeyForge Hive.
+/// Starts the interactive TUI monitor for the `KeyForge` Hive.
 ///
 /// This function takes over the terminal, connects to the Hive API,
 /// and displays real-time metrics, logs, and Docker container status.
@@ -178,7 +178,7 @@ pub async fn run_monitor(
     let config = ClientConfig {
         api_url: url,
         asset_url,
-        secret: secret,
+        secret,
         ..Default::default()
     };
     let client = HiveClient::new(config).map_err(io::Error::other)?;
@@ -202,7 +202,7 @@ pub async fn run_monitor(
                     error_msg = format!("API Error: {}", resp.status());
                 }
             }
-            Err(e) => error_msg = format!("Connection Failed: {}", e),
+            Err(e) => error_msg = format!("Connection Failed: {e}"),
         }
 
         // 2. Fetch Docker Data (Non-blocking via thread)
@@ -252,18 +252,18 @@ fn ui(f: &mut Frame<'_>, status: &SystemStatusResponse, containers: &[ContainerM
     f.render_widget(title, chunks[0]);
 
     // Error Bar
-    if !err.is_empty() {
-        let err_widget = Paragraph::new(err)
-            .style(Style::default().fg(Color::Red))
-            .block(Block::default().borders(Borders::ALL).title("Status"));
-        f.render_widget(err_widget, chunks[1]);
-    } else {
+    if err.is_empty() {
         let uptime = status.metrics.uptime_secs;
-        let status_text = format!("Host Uptime: {}s | Online", uptime);
+        let status_text = format!("Host Uptime: {uptime}s | Online");
         let status_widget = Paragraph::new(status_text)
             .style(Style::default().fg(Color::Green))
             .block(Block::default().borders(Borders::ALL).title("Status"));
         f.render_widget(status_widget, chunks[1]);
+    } else {
+        let err_widget = Paragraph::new(err)
+            .style(Style::default().fg(Color::Red))
+            .block(Block::default().borders(Borders::ALL).title("Status"));
+        f.render_widget(err_widget, chunks[1]);
     }
 
     // Main Grid

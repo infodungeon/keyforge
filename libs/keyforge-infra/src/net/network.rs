@@ -117,9 +117,8 @@ pub async fn ensure_file(
             let err = res.error_for_status().unwrap_err();
             if status.is_server_error() {
                 return Err(backoff::Error::transient(InfraError::Network(err)));
-            } else {
-                return Err(backoff::Error::permanent(InfraError::Network(err)));
             }
+            return Err(backoff::Error::permanent(InfraError::Network(err)));
         }
 
         // Security: Check Content-Length
@@ -131,8 +130,7 @@ pub async fn ensure_file(
                             std::io::Error::new(
                                 std::io::ErrorKind::InvalidData,
                                 format!(
-                                    "Remote file exceeds size limit ({} > {})",
-                                    len, MAX_INPUT_FILE_SIZE
+                                    "Remote file exceeds size limit ({len} > {MAX_INPUT_FILE_SIZE})"
                                 ),
                             ),
                         )));
@@ -170,8 +168,7 @@ pub async fn ensure_file(
             return Err(InfraError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!(
-                    "Download exceeded size limit of {} bytes",
-                    MAX_INPUT_FILE_SIZE
+                    "Download exceeded size limit of {MAX_INPUT_FILE_SIZE} bytes"
                 ),
             )));
         }
@@ -213,9 +210,9 @@ pub async fn ensure_file(
 /// Ensures that all files in a corpus bundle are downloaded and present locally.
 pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> InfraResult<String> {
     let bundle_dir = if corpus_name == "default" {
-        format!("data/corpora/{}", DEFAULT_CORPUS_ID)
+        format!("data/corpora/{DEFAULT_CORPUS_ID}")
     } else {
-        format!("data/corpora/{}", corpus_name)
+        format!("data/corpora/{corpus_name}")
     };
 
     let files = [
@@ -226,7 +223,7 @@ pub async fn ensure_corpus_bundle(client: &HiveClient, corpus_name: &str) -> Inf
     ];
 
     for f in files {
-        let local_str = format!("{}/{}", bundle_dir, f);
+        let local_str = format!("{bundle_dir}/{f}");
         let local_path = Path::new(&local_str);
         let remote = client.url(&local_str);
 
@@ -243,7 +240,7 @@ pub async fn ensure_cost_matrix(
     filename: &str,
 ) -> InfraResult<PathBuf> {
     let local_path = workspace_root.join(filename);
-    let remote_path = format!("data/{}", filename);
+    let remote_path = format!("data/{filename}");
     let url = client.url(&remote_path);
 
     ensure_file(client, &url, &local_path, None).await?;

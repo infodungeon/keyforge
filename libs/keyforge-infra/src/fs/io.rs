@@ -51,7 +51,7 @@ pub fn read_to_string_limited<P: AsRef<Path>>(path: P, limit_bytes: u64) -> Infr
     if buffer.len() as u64 > limit_bytes {
         return Err(InfraError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("File exceeds size limit of {} bytes", limit_bytes),
+            format!("File exceeds size limit of {limit_bytes} bytes"),
         )));
     }
     Ok(buffer)

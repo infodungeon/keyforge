@@ -27,7 +27,7 @@ use crate::constants::NUKE_CONFIRMATION_KEY;
 pub struct NukeRequest {
     /// The username of the account to be deleted.
     pub username: String,
-    /// Confirmation string. Must be exactly "DELETE_EVERYTHING".
+    /// Confirmation string. Must be exactly "`DELETE_EVERYTHING`".
     #[schema(example = "DELETE_EVERYTHING")]
     pub confirmation: String,
 }

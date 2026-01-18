@@ -67,12 +67,11 @@ impl FromStr for CorpusSource {
         if let Some((id, weight_str)) = s.split_once(':') {
             let weight = weight_str
                 .parse::<f32>()
-                .map_err(|_| format!("invalid weight '{}' for corpus '{}'", weight_str, id))?;
+                .map_err(|_| format!("invalid weight '{weight_str}' for corpus '{id}'"))?;
 
             if weight.is_nan() || weight <= f32::EPSILON {
                 return Err(format!(
-                    "weight for corpus '{}' must be positive (got {})",
-                    id, weight
+                    "weight for corpus '{id}' must be positive (got {weight})"
                 ));
             }
 
@@ -96,7 +95,7 @@ impl FromStr for CorpusSource {
 #[serde(tag = "type", content = "data")]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum CostMatrixSource {
-    /// A predefined cost matrix file (e.g. "default_costmatrix.json").
+    /// A predefined cost matrix file (e.g. "`default_costmatrix.json`").
     Predefined(String),
 }
 
@@ -107,7 +106,7 @@ impl Default for CostMatrixSource {
 impl fmt::Display for CostMatrixSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CostMatrixSource::Predefined(s) => write!(f, "{}", s),
+            CostMatrixSource::Predefined(s) => write!(f, "{s}"),
         }
     }
 }

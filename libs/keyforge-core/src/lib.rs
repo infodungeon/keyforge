@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Core
+//! # `KeyForge` Core
 //!
 //! Pure orchestration and domain-agnostic helpers. This crate provides 
 //! the glue between physics and evolution without being tied to IO or 
@@ -76,6 +76,7 @@ pub fn suggest(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError>
 }
 
 /// Identify a layout fingerprint.
+#[must_use] 
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
     keyforge_physics::identify(layout)
 }

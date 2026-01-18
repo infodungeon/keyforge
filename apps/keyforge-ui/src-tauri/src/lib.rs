@@ -1,10 +1,10 @@
 // apps/keyforge-ui/src-tauri/src/lib.rs
 
-//! # KeyForge UI Backend
+//! # `KeyForge` UI Backend
 //!
-//! Rust backend for the KeyForge Tauri application. This crate handles 
+//! Rust backend for the `KeyForge` Tauri application. This crate handles 
 //! state management, background search workers, and bridges frontend 
-//! requests to core KeyForge libraries via Tauri commands.
+//! requests to core `KeyForge` libraries via Tauri commands.
 
 pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
 use std::sync::{Arc, Mutex};
@@ -25,7 +25,7 @@ pub mod utils;
 /// Agent Runner
 pub mod runner;
 
-/// The main entry point for the KeyForge UI application.
+/// The main entry point for the `KeyForge` UI application.
 ///
 /// This function initializes logging, sets up the Tauri builder, configures
 /// plugins, and establishes the global application state including the 

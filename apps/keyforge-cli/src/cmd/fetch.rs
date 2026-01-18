@@ -32,7 +32,7 @@ pub async fn run(args: FetchArgs, root: &Path) -> Result<(), CliError> {
         ..Default::default()
     };
     let client = keyforge_infra::HiveClient::new(config)
-        .map_err(|e| CliError::Other(format!("Failed to create client: {}", e)))?;
+        .map_err(|e| CliError::Other(format!("Failed to create client: {e}")))?;
 
     let manager = keyforge_infra::AssetManager::new(client, root.to_path_buf());
     match args.command {
@@ -40,7 +40,7 @@ pub async fn run(args: FetchArgs, root: &Path) -> Result<(), CliError> {
         FetchCommands::Corpus { name } => manager.ensure_corpus(&name, None).await.map(|_| ()),
         FetchCommands::Cost { name } => manager.ensure_cost_matrix(&name).await.map(|_| ()),
     }
-    .map_err(|e| CliError::Other(format!("Fetch failed: {}", e)))?;
+    .map_err(|e| CliError::Other(format!("Fetch failed: {e}")))?;
 
     eprintln!("✅ Fetch successful.");
     Ok(())

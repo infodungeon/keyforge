@@ -14,7 +14,6 @@
 
 
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
-use once_cell::sync::Lazy;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use serde::Serialize;
 use std::collections::VecDeque;
@@ -41,8 +40,8 @@ pub struct LogEntry {
 }
 
 /// Global in-memory log buffer for recent WARN/ERROR events.
-pub static LOG_BUFFER: Lazy<Mutex<VecDeque<LogEntry>>> =
-    Lazy::new(|| Mutex::new(VecDeque::with_capacity(LOG_BUFFER_CAPACITY)));
+pub static LOG_BUFFER: std::sync::LazyLock<Mutex<VecDeque<LogEntry>>> =
+    std::sync::LazyLock::new(|| Mutex::new(VecDeque::with_capacity(LOG_BUFFER_CAPACITY)));
 
 /// Returns a copy of the most recent logs from the capture buffer.
 pub fn get_recent_logs() -> Vec<LogEntry> {
@@ -103,7 +102,7 @@ impl MessageVisitor {
 impl tracing::field::Visit for MessageVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         if field.name() == "message" {
-            self.message = format!("{:?}", value);
+            self.message = format!("{value:?}");
         }
     }
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
@@ -116,8 +115,8 @@ impl tracing::field::Visit for MessageVisitor {
 // --- Initialization ---
 
 /// Global handle to the Prometheus metrics recorder.
-pub static PROMETHEUS_HANDLE: Lazy<Option<PrometheusHandle>> =
-    Lazy::new(|| match PrometheusBuilder::new().install_recorder() {
+pub static PROMETHEUS_HANDLE: std::sync::LazyLock<Option<PrometheusHandle>> =
+    std::sync::LazyLock::new(|| match PrometheusBuilder::new().install_recorder() {
         Ok(h) => Some(h),
         Err(e) => {
             tracing::warn!("Prometheus recorder not installed: {}", e);
@@ -134,7 +133,7 @@ pub fn init_tracing() {
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| DEFAULT_ENV_FILTER.into());
 
-    let _ = Lazy::force(&PROMETHEUS_HANDLE);
+    let _ = std::sync::LazyLock::force(&PROMETHEUS_HANDLE);
 
     let use_json = env::var("LOG_FORMAT").unwrap_or_default().to_lowercase() == "json";
 

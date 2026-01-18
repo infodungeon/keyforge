@@ -15,7 +15,7 @@
 
 use thiserror::Error;
 
-/// The primary error type for operations within the KeyForge Agent.
+/// The primary error type for operations within the `KeyForge` Agent.
 #[derive(Error, Debug)]
 pub enum AgentError {
     /// Error related to node identity or cryptographic keys.

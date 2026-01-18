@@ -44,7 +44,7 @@ impl Agent {
         };
         
         let client = keyforge_infra::HiveClient::new(client_config)
-            .map_err(|e| errors::AgentError::Internal(format!("Failed to create hive client: {}", e)))?;
+            .map_err(|e| errors::AgentError::Internal(format!("Failed to create hive client: {e}")))?;
             
         let assets = keyforge_infra::AssetManager::new(client, config.data_dir.clone());
 
@@ -75,12 +75,9 @@ impl Agent {
         loop {
             tokio::select! {
                 msg = job_rx.recv() => {
-                    let (job_id, job) = match msg {
-                        Some(j) => j,
-                        None => {
-                            info!("Job queue closed. Exiting agent loop.");
-                            break Ok(());
-                        }
+                    let (job_id, job) = if let Some(j) = msg { j } else {
+                        info!("Job queue closed. Exiting agent loop.");
+                        break Ok(());
                     };
                     info!("⚙️  Queued Job (ID: {})...", job_id);
                     
@@ -187,19 +184,16 @@ impl Agent {
                     });
                 }
                 msg = stop_rx.recv() => {
-                    match msg {
-                        Some(_) => {
-                            info!("🛑 Global Stop Signal Received. Cancelling {} jobs...", running_jobs.len());
-                            for (jid, flag) in running_jobs.iter() {
-                                info!("   Cancelling {}", jid);
-                                flag.store(true, std::sync::atomic::Ordering::SeqCst);
-                            }
-                            running_jobs.clear();
+                    if let Some(()) = msg {
+                        info!("🛑 Global Stop Signal Received. Cancelling {} jobs...", running_jobs.len());
+                        for (jid, flag) in &running_jobs {
+                            info!("   Cancelling {}", jid);
+                            flag.store(true, std::sync::atomic::Ordering::SeqCst);
                         }
-                        None => {
-                            info!("Example: Stop channel closed. Exiting agent loop.");
-                            break Ok(());
-                        }
+                        running_jobs.clear();
+                    } else {
+                        info!("Example: Stop channel closed. Exiting agent loop.");
+                        break Ok(());
                     }
                 }
             }

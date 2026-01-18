@@ -199,12 +199,12 @@ impl Validator for KeyboardGeometry {
         let max_idx = self.keys.len();
         for &idx in self.prime_slots.iter().chain(&self.med_slots).chain(&self.low_slots) {
             if (idx.0 as usize) >= max_idx {
-                return Err(format!("Slot index {} out of bounds (keys: {})", idx, max_idx));
+                return Err(format!("Slot index {idx} out of bounds (keys: {max_idx})"));
             }
         }
 
         for (i, key) in self.keys.iter().enumerate() {
-            if key.w <= 0.0 || key.h <= 0.0 { return Err(format!("Key #{} has invalid dimensions", i)); }
+            if key.w <= 0.0 || key.h <= 0.0 { return Err(format!("Key #{i} has invalid dimensions")); }
             if key.hand.as_u8() > 1 { return Err(format!("Key #{} has invalid hand index {}", i, key.hand.as_u8())); }
             if key.finger.as_u8() > 4 { return Err(format!("Key #{} has invalid finger index {}", i, key.finger.as_u8())); }
         }
@@ -213,7 +213,11 @@ impl Validator for KeyboardGeometry {
 }
 
 impl KeyboardDefinition {
-    /// Parses a keyboard definition from JSON, supporting both KeyForge format and KLE format.
+    /// Parses a keyboard definition from JSON, supporting both `KeyForge` format and KLE format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the content is not valid JSON or KLE format.
     pub fn parse(content: &str, name_hint: Option<&str>) -> Result<Self, String> {
         if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(content) {
             return Ok(def);
@@ -249,5 +253,6 @@ impl Default for KeyboardGeometry {
 
 impl KeyboardGeometry {
     /// Returns the total number of keys.
+    #[must_use] 
     pub fn key_count(&self) -> usize { self.keys.len() }
 }

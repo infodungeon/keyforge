@@ -14,7 +14,7 @@
 
 use thiserror::Error;
 
-/// The primary error type for infrastructure-related operations in KeyForge.
+/// The primary error type for infrastructure-related operations in `KeyForge`.
 #[derive(Error, Debug)]
 pub enum InfraError {
     /// An error occurred during file I/O or directory management.

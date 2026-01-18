@@ -42,7 +42,7 @@ use keyforge_protocol::{BiometricSample, UserStatsStore};
 /// Generates a serialized cost matrix based on the user's historical typing statistics.
 ///
 /// **Note**: This is currently a placeholder that returns an empty cost matrix.
-/// TODO: Implement statistical analysis of UserStatsStore to generate specific K/V pairs.
+/// TODO: Implement statistical analysis of `UserStatsStore` to generate specific K/V pairs.
 pub fn generate_cost_profile(_store: &UserStatsStore) -> String {
     tracing::warn!("generate_cost_profile is a STUB - returning empty matrix");
     // Return empty CostModel JSON
@@ -57,6 +57,7 @@ pub struct StreamingProfileBuilder {
 }
 
 impl StreamingProfileBuilder {
+    #[must_use] 
     pub fn new() -> Self {
         Self::default()
     }
@@ -91,6 +92,7 @@ pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
 use keyforge_model::config::CorpusSource;
 
 /// Generates a deterministic fingerprint for a set of corpora sources.
+#[must_use] 
 pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
     // 1. Sort by ID for canonicalization
     let mut sorted = sources.to_vec();
@@ -112,6 +114,7 @@ pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
 /// Aggressively sanitizes filenames to prevent traversal or shell issues.
 /// Allowlist: Alphanumeric, dot, underscore, hyphen.
 /// Replaces everything else with underscore.
+#[must_use] 
 pub fn sanitize_filename(name: &str) -> String {
     name.chars()
         .map(|c| {
@@ -126,6 +129,7 @@ pub fn sanitize_filename(name: &str) -> String {
 
 /// Normalizes a path to prevent traversal and ensure consistent format (forward slashes).
 /// Returns None if the path attempts to step above its root.
+#[must_use] 
 pub fn normalize_path(raw: &str) -> Option<String> {
     let p = Path::new(raw);
     let mut stack = Vec::new();

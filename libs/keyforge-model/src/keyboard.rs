@@ -30,13 +30,17 @@ pub struct Keyboard {
     /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<(f32, f32)>>,
     /// Pre-calculated squared distances between every pair of physical keys.
-    /// Index: [i * key_count + j] -> (dx^2, dy^2).
+    /// Index: [i * `key_count` + j] -> (dx^2, dy^2).
     #[serde(skip)]
     pub spatial_cache: Vec<(f32, f32)>,
 }
 
 impl Keyboard {
     /// Creates a new Keyboard and pre-calculates finger origins.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ForgeError` if the key list is empty.
     pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Result<Self, ForgeError> {
         if keys.is_empty() {
             return Err(ForgeError::InvalidData("Keyboard must have at least one key".into()));
@@ -99,6 +103,7 @@ impl Keyboard {
     }
 
     /// Returns the number of keys on the keyboard.
+    #[must_use] 
     pub fn count(&self) -> usize {
         self.keys.len()
     }

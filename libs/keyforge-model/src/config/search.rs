@@ -58,6 +58,7 @@ pub struct SearchParams {
 fn default_false() -> bool { false }
 
 impl Default for SearchParams {
+    #[allow(clippy::cast_precision_loss)]
     fn default() -> Self {
         let mut params = std::collections::HashMap::new();
         params.insert("search_epochs".to_string(), DEFAULT_SEARCH_EPOCHS as f32);
@@ -83,15 +84,15 @@ impl Validator for SearchParams {
     fn validate(&self) -> Result<(), String> {
         if self.get_search_epochs() == 0 { return Err("search_epochs must be > 0".into()); }
         if self.get_search_epochs() > MAX_SEARCH_EPOCHS {
-            return Err(format!("search_epochs exceeds limit ({})", MAX_SEARCH_EPOCHS));
+            return Err(format!("search_epochs exceeds limit ({MAX_SEARCH_EPOCHS})"));
         }
         if self.get_search_steps() == 0 { return Err("search_steps must be > 0".into()); }
         if self.get_search_steps() > MAX_SEARCH_STEPS {
-            return Err(format!("search_steps exceeds limit ({})", MAX_SEARCH_STEPS));
+            return Err(format!("search_steps exceeds limit ({MAX_SEARCH_STEPS})"));
         }
         if self.get_opt_limit_fast() == 0 { return Err("opt_limit_fast must be > 0".into()); }
         if self.get_opt_limit_fast() > MAX_OPT_LIMIT_FAST {
-            return Err(format!("opt_limit_fast exceeds limit ({})", MAX_OPT_LIMIT_FAST));
+            return Err(format!("opt_limit_fast exceeds limit ({MAX_OPT_LIMIT_FAST})"));
         }
         if self.get_opt_limit_slow() < self.get_opt_limit_fast() {
             return Err("opt_limit_slow must be >= opt_limit_fast".into());
@@ -100,7 +101,7 @@ impl Validator for SearchParams {
             return Err("Temperature cannot be negative".into());
         }
         if self.get_temp_max() > MAX_TEMP {
-            return Err(format!("temp_max exceeds limit ({})", MAX_TEMP));
+            return Err(format!("temp_max exceeds limit ({MAX_TEMP})"));
         }
         if self.get_temp_min() < 0.0001 {
             return Err("temp_min too low (underflow risk)".into());
@@ -117,6 +118,7 @@ impl Validator for SearchParams {
 
 impl SearchParams {
     /// Returns the schema for search parameters.
+    #[must_use] 
     pub fn schema() -> Vec<ParameterMetadata> {
         vec![
             ParameterMetadata {
@@ -125,7 +127,9 @@ impl SearchParams {
                 description: "Number of independent search runs to perform.".to_string(),
                 param_type: ParamType::Integer,
                 min: Some(1.0),
+                #[allow(clippy::cast_precision_loss)]
                 max: Some(MAX_SEARCH_EPOCHS as f32),
+                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_SEARCH_EPOCHS as f32,
             },
             ParameterMetadata {
@@ -134,7 +138,9 @@ impl SearchParams {
                 description: "Maximum mutations to attempt per epoch.".to_string(),
                 param_type: ParamType::Integer,
                 min: Some(1000.0),
+                #[allow(clippy::cast_precision_loss)]
                 max: Some(MAX_SEARCH_STEPS as f32),
+                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_SEARCH_STEPS as f32,
             },
             ParameterMetadata {
@@ -162,6 +168,7 @@ impl SearchParams {
                 param_type: ParamType::Integer,
                 min: Some(10.0),
                 max: Some(10000.0),
+                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_SEARCH_PATIENCE as f32,
             },
             ParameterMetadata {
@@ -171,44 +178,62 @@ impl SearchParams {
                 param_type: ParamType::Integer,
                 min: Some(0.0),
                 max: Some(10.0),
+                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_REHEATS as f32,
             },
         ]
     }
 
     /// Retrieves a parameter by key, falling back to a default value if not found.
+    #[must_use] 
     pub fn get_param(&self, key: &str, default: f32) -> f32 {
         self.params.get(key).copied().unwrap_or(default)
     }
 
     /// Number of independent search epochs to run.
+    #[must_use] 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn get_search_epochs(&self) -> usize { self.get_param("search_epochs", DEFAULT_SEARCH_EPOCHS as f32) as usize }
     /// Maximum number of mutation steps per epoch.
+    #[must_use] 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn get_search_steps(&self) -> usize { self.get_param("search_steps", DEFAULT_SEARCH_STEPS as f32) as usize }
     /// Steps without improvement before triggering a reheat.
+    #[must_use] 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn get_search_patience(&self) -> usize { self.get_param("search_patience", DEFAULT_SEARCH_PATIENCE as f32) as usize }
     /// Threshold for patience reset.
+    #[must_use] 
     pub fn get_search_patience_threshold(&self) -> f32 { self.get_param("search_patience_threshold", DEFAULT_SEARCH_PATIENCE_THRESHOLD) }
     /// Minimum temperature.
+    #[must_use] 
     pub fn get_temp_min(&self) -> f32 { self.get_param("temp_min", DEFAULT_TEMP_MIN) }
     /// Maximum temperature.
+    #[must_use] 
     pub fn get_temp_max(&self) -> f32 { self.get_param("temp_max", DEFAULT_TEMP_MAX) }
     /// Optimization limit for fast path.
+    #[must_use] 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn get_opt_limit_fast(&self) -> usize { self.get_param("opt_limit_fast", DEFAULT_OPT_LIMIT_FAST as f32) as usize }
     /// Optimization limit for slow path.
+    #[must_use] 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn get_opt_limit_slow(&self) -> usize { self.get_param("opt_limit_slow", DEFAULT_OPT_LIMIT_SLOW as f32) as usize }
     /// Number of times to reheat.
+    #[must_use] 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn get_reheats(&self) -> usize { self.get_param("reheats", DEFAULT_REHEATS as f32) as usize }
     /// Factor to multiply temperature by when reheating.
+    #[must_use] 
     pub fn get_reheat_factor(&self) -> f32 { self.get_param("reheat_factor", DEFAULT_REHEAT_FACTOR) }
 }
 
-/// CLI arguments mirroring SearchParams.
+/// CLI arguments mirroring `SearchParams`.
 #[cfg(feature = "cli")]
 #[derive(clap::Args, Debug, Clone)]
 pub struct SearchParamsConfig {
     /// Generic search parameters in KEY=VALUE format.
-    /// Example: --search temp_max=5.0 --search search_epochs=50000
+    /// Example: --search `temp_max=5.0` --search `search_epochs=50000`
     #[arg(long = "search", value_parser = crate::config::utils::parse_key_val)]
     pub params: Vec<(String, f32)>,
 

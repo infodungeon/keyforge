@@ -76,7 +76,7 @@ fn save_key(key: &str) -> Result<()> {
             let mut perms = metadata.permissions();
             perms.set_mode(0o600); // User Read/Write ONLY
             if let Err(e) = std::fs::set_permissions(&path, perms) {
-                eprintln!("⚠️  Warning: Failed to set secure permissions on config file: {}", e);
+                eprintln!("⚠️  Warning: Failed to set secure permissions on config file: {e}");
             }
         }
     }
@@ -120,18 +120,16 @@ pub async fn run(args: AuthArgs) -> Result<()> {
                 if let Some(key) = body.get("api_key").and_then(|s| s.as_str()) {
                     save_key(key)?;
                     println!("✅ Registration successful!");
-                    println!("🔑 API Key: {}", key);
+                    println!("🔑 API Key: {key}");
                     println!(
-                        "   (Saved to config. You can now run searches as '{}')",
-                        username
+                        "   (Saved to config. You can now run searches as '{username}')"
                     );
                 } else {
                     return Err(CliError::Other("Invalid server response".into()));
                 }
             } else if res.status() == 409 {
                 return Err(CliError::Other(format!(
-                    "Username '{}' is already taken.",
-                    username
+                    "Username '{username}' is already taken."
                 )));
             } else {
                 return Err(CliError::Other(format!(
@@ -152,7 +150,7 @@ pub async fn run(args: AuthArgs) -> Result<()> {
                     "********".to_string()
                 };
                 println!("👤 Authenticated");
-                println!("🔑 Key: {}", masked);
+                println!("🔑 Key: {masked}");
             } else {
                 println!("👤 Not logged in.");
             }

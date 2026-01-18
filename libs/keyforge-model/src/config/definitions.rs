@@ -55,7 +55,7 @@ impl Validator for LayoutDefinitions {
         if self.tier_high_chars.is_empty() { return Err("tier_high_chars cannot be empty".to_string()); }
         
         for (i, &v) in self.finger_repeat_scale.iter().enumerate() {
-            if v < 0.0 { return Err(format!("finger_repeat_scale[{}] cannot be negative", i)); }
+            if v < 0.0 { return Err(format!("finger_repeat_scale[{i}] cannot be negative")); }
         }
         
         Ok(())
@@ -64,6 +64,7 @@ impl Validator for LayoutDefinitions {
 
 impl LayoutDefinitions {
     /// Parses the critical bigrams string into a list of byte pairs.
+    #[must_use] 
     pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
         self.critical_bigrams.split(',').filter_map(|s| {
             let b = s.trim().as_bytes();
@@ -72,7 +73,7 @@ impl LayoutDefinitions {
     }
 }
 
-/// CLI arguments mirroring LayoutDefinitions.
+/// CLI arguments mirroring `LayoutDefinitions`.
 #[cfg(feature = "cli")]
 #[derive(clap::Args, Debug, Clone)]
 pub struct LayoutDefinitionsConfig {
@@ -102,13 +103,13 @@ impl TryFrom<LayoutDefinitionsConfig> for LayoutDefinitions {
             tier_med_chars: args.tier_med_chars,
             tier_low_chars: args.tier_low_chars,
             critical_bigrams: args.critical_bigrams,
-            finger_repeat_scale: vec_to_array_5(args.finger_repeat_scale)?,
+            finger_repeat_scale: vec_to_array_5(&args.finger_repeat_scale)?,
         })
     }
 }
 
 #[cfg(feature = "cli")]
-fn vec_to_array_5(v: Vec<f32>) -> Result<[f32; 5], String> {
+fn vec_to_array_5(v: &[f32]) -> Result<[f32; 5], String> {
     if v.len() != 5 {
         return Err(format!("Expected 5 values, got {}", v.len()));
     }

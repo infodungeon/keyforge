@@ -18,14 +18,14 @@ async fn test_load_real_assets() {
     let provider = FsProvider::new(root);
 
     // 1. Load Keyboard (ID "szr35" -> system/keyboards/models/szr35.mpk.zst)
-    let kb = provider.load_keyboard("szr35").await.expect("Failed to load szr35");
-    assert!(kb.geometry.keys.len() > 0);
+    let kb: std::sync::Arc<keyforge_model::geometry::KeyboardGeometry> = provider.load("szr35").await.expect("Failed to load szr35");
+    assert!(kb.keys.len() > 0);
 
     // 2. Load Cost Model
-    let costs = provider.load_cost_model("cost_matrix").await.expect("Failed to load costs");
+    let costs: std::sync::Arc<keyforge_model::CostModel> = provider.load("cost_matrix").await.expect("Failed to load costs");
     assert!(costs.models.contains_key("model_a_row_staggered"));
 
     // 3. Load Keycodes
-    let keycodes = provider.load_keycodes("keycodes").await.expect("Failed to load keycodes");
+    let keycodes: std::sync::Arc<keyforge_model::keycodes::KeycodeRegistry> = provider.load("keycodes").await.expect("Failed to load keycodes");
     assert!(keycodes.get_code("A").is_some());
 }

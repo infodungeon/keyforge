@@ -2,6 +2,7 @@ use crate::kernel::{EngineContext, types::{Score, ValidatedLayout}};
 use super::state::PosMap;
 use super::flow::{get_p_effective, get_flow_delta};
 
+#[allow(clippy::similar_names, clippy::cast_possible_wrap, clippy::too_many_lines)]
 pub(crate) fn calculate_swap_delta(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
@@ -84,7 +85,7 @@ pub(crate) fn calculate_swap_delta(
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
-        delta += (min_new.0 - min_old.0) * ctx.bigram_freqs[k] as i64;
+        delta += (min_new.0 - min_old.0) * i64::from(ctx.bigram_freqs[k]);
     }
 
     // Bigrams(b, x)
@@ -114,7 +115,7 @@ pub(crate) fn calculate_swap_delta(
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
-        delta += (min_new.0 - min_old.0) * ctx.bigram_freqs[k] as i64;
+        delta += (min_new.0 - min_old.0) * i64::from(ctx.bigram_freqs[k]);
     }
 
     // Bigrams(x, a) where x != a, x != b
@@ -145,7 +146,7 @@ pub(crate) fn calculate_swap_delta(
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
-        delta += (min_new.0 - min_old.0) * ctx.bigram_rev_freqs[k] as i64;
+        delta += (min_new.0 - min_old.0) * i64::from(ctx.bigram_rev_freqs[k]);
     }
 
     // Bigrams(x, b) where x != a, x != b
@@ -176,7 +177,7 @@ pub(crate) fn calculate_swap_delta(
                 if cost_new < min_new { min_new = cost_new; }
             }
         }
-        delta += (min_new.0 - min_old.0) * ctx.bigram_rev_freqs[k] as i64;
+        delta += (min_new.0 - min_old.0) * i64::from(ctx.bigram_rev_freqs[k]);
     }
 
     // 3. Trigrams (Incremental)
@@ -190,7 +191,7 @@ pub(crate) fn calculate_swap_delta(
         for k in s_a..e_a {
             let c2 = ctx.trigram_others1[k];
             let c3 = ctx.trigram_others2[k];
-            let freq = ctx.trigram_freqs[k] as i64;
+            let freq = i64::from(ctx.trigram_freqs[k]);
             delta += get_flow_delta(ctx, pos_map, code_a, c2, c3, idx_a, idx_b) * freq;
         }
 
@@ -200,7 +201,7 @@ pub(crate) fn calculate_swap_delta(
         for k in s_b..e_b {
             let c2 = ctx.trigram_others1[k];
             let c3 = ctx.trigram_others2[k];
-            let freq = ctx.trigram_freqs[k] as i64;
+            let freq = i64::from(ctx.trigram_freqs[k]);
             delta += get_flow_delta(ctx, pos_map, code_b, c2, c3, idx_a, idx_b) * freq;
         }
 
@@ -211,7 +212,7 @@ pub(crate) fn calculate_swap_delta(
             let c1 = ctx.trigram_mid_others1[k];
             if c1 == code_a || c1 == code_b { continue; }
             let c3 = ctx.trigram_mid_others2[k];
-            let freq = ctx.trigram_mid_freqs[k] as i64;
+            let freq = i64::from(ctx.trigram_mid_freqs[k]);
             delta += get_flow_delta(ctx, pos_map, c1, code_a, c3, idx_a, idx_b) * freq;
         }
 
@@ -222,7 +223,7 @@ pub(crate) fn calculate_swap_delta(
             let c1 = ctx.trigram_mid_others1[k];
             if c1 == code_a || c1 == code_b { continue; }
             let c3 = ctx.trigram_mid_others2[k];
-            let freq = ctx.trigram_mid_freqs[k] as i64;
+            let freq = i64::from(ctx.trigram_mid_freqs[k]);
             delta += get_flow_delta(ctx, pos_map, c1, code_b, c3, idx_a, idx_b) * freq;
         }
 
@@ -233,7 +234,7 @@ pub(crate) fn calculate_swap_delta(
             let c1 = ctx.trigram_end_others1[k];
             let c2 = ctx.trigram_end_others2[k];
             if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b { continue; }
-            let freq = ctx.trigram_end_freqs[k] as i64;
+            let freq = i64::from(ctx.trigram_end_freqs[k]);
             delta += get_flow_delta(ctx, pos_map, c1, c2, code_a, idx_a, idx_b) * freq;
         }
 
@@ -244,7 +245,7 @@ pub(crate) fn calculate_swap_delta(
             let c1 = ctx.trigram_end_others1[k];
             let c2 = ctx.trigram_end_others2[k];
             if c1 == code_a || c1 == code_b || c2 == code_a || c2 == code_b { continue; }
-            let freq = ctx.trigram_end_freqs[k] as i64;
+            let freq = i64::from(ctx.trigram_end_freqs[k]);
             delta += get_flow_delta(ctx, pos_map, c1, c2, code_b, idx_a, idx_b) * freq;
         }
     }

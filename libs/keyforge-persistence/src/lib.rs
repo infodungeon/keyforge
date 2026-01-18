@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Persistence
+//! # `KeyForge` Persistence
 //!
 //! Handles state management, project files, and user data storage.
 //! This crate is responsible for saving/loading optimization sessions

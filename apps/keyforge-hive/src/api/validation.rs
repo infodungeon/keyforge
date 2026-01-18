@@ -45,8 +45,7 @@ pub fn validate_filename(name: &str) -> AppResult<()> {
     for c in name.chars() {
         if !is_valid_char(c, true) {
             return Err(AppError::Validation(format!(
-                "Invalid char in filename: {}",
-                c
+                "Invalid char in filename: {c}"
             )));
         }
     }
@@ -65,7 +64,7 @@ pub fn validate_id(id: &str) -> AppResult<()> {
 
     for c in id.chars() {
         if !is_valid_char(c, false) {
-            return Err(AppError::Validation(format!("Invalid char in ID: {}", c)));
+            return Err(AppError::Validation(format!("Invalid char in ID: {c}")));
         }
     }
     Ok(())

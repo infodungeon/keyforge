@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Export
+//! # `KeyForge` Export
 //!
 //! Provides functionality for exporting keyboard layouts to various 
 //! firmware and configuration formats.
@@ -32,9 +32,9 @@ use anyhow::Result;
 
 /// A trait for types that can export keymaps to varied keyboard firmware formats.
 pub trait Exporter {
-    /// Generates the source code or configuration for a specific firmware format.
     ///
-    /// - `layout_name`: The human-readable name of the layout.
-    /// - `layers`: A slice of layers, where each layer is a vector of key labels/tokens.
+    /// # Errors
+    ///
+    /// Returns an error if the generation fails (e.g., too many keys, output size limit exceeded).
     fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String>;
 }

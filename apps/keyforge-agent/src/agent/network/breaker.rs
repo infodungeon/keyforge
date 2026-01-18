@@ -9,6 +9,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
+    #[must_use] 
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
         Self { 
             failures: 0, 
@@ -18,6 +19,7 @@ impl CircuitBreaker {
         }
     }
 
+    #[must_use] 
     pub fn can_attempt(&self) -> bool {
         if self.failures < self.threshold { 
             return true; 

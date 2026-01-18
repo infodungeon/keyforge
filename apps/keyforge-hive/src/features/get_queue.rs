@@ -74,11 +74,11 @@ async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
         let remaining = timeout.saturating_sub(start.elapsed());
 
         tokio::select! {
-            _ = state.jobs.signal.notified() => {
+            () = state.jobs.signal.notified() => {
                 // Return to start of loop to re-check DB
                 continue;
             }
-            _ = sleep(remaining) => {
+            () = sleep(remaining) => {
                 return Ok(JobQueueResponse {
                     job_id: None,
                     config: None,

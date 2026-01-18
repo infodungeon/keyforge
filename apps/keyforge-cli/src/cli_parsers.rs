@@ -45,7 +45,7 @@ pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<Pa
     // 1. Absolute paths
     if input_path.is_absolute() {
         return check_path(input_path)
-            .ok_or_else(|| format!("Absolute path does not exist: {}", input));
+            .ok_or_else(|| format!("Absolute path does not exist: {input}"));
     }
 
     // 2. Explicit CWD-relative paths
@@ -72,14 +72,13 @@ pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<Pa
     }
     
     Err(format!(
-        "Could not resolve path '{}'. Checked absolute, CWD, and workspace '{:?}' overlays.",
-        input, subdir
+        "Could not resolve path '{input}'. Checked absolute, CWD, and workspace '{subdir:?}' overlays."
     ))
 }
 
 pub fn parse_keyboard(s: &str) -> Result<String, String> {
     if s.len() > MAX_KEYBOARD_NAME_LEN {
-        return Err(format!("keyboard name must be <= {} chars", MAX_KEYBOARD_NAME_LEN));
+        return Err(format!("keyboard name must be <= {MAX_KEYBOARD_NAME_LEN} chars"));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -90,7 +89,7 @@ pub fn parse_keyboard(s: &str) -> Result<String, String> {
 
 pub fn parse_cost(s: &str) -> Result<String, String> {
     if s.len() > MAX_FILENAME_LEN {
-        return Err(format!("cost matrix filename must be <= {} chars", MAX_FILENAME_LEN));
+        return Err(format!("cost matrix filename must be <= {MAX_FILENAME_LEN} chars"));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -101,7 +100,7 @@ pub fn parse_cost(s: &str) -> Result<String, String> {
 
 pub fn parse_corpora(args: &[String]) -> Result<Vec<CorpusSource>, String> {
     if args.len() > MAX_CLI_CORPORA {
-        return Err(format!("Too many corpora sources (limit {})", MAX_CLI_CORPORA));
+        return Err(format!("Too many corpora sources (limit {MAX_CLI_CORPORA})"));
     }
     args.iter().map(|s| CorpusSource::from_str(s)).collect()
 }

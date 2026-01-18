@@ -43,6 +43,7 @@ impl SearchState {
         let mut pos_map = vec![65535u16; map_size];
         for (i, &code) in layout.keys.iter().enumerate() {
             if (code.0 as usize) < map_size {
+                #[allow(clippy::cast_possible_truncation)]
                 pos_map[code.0 as usize] = i as u16;
             }
         }
@@ -116,6 +117,7 @@ impl SearchState {
         self.pos_map.fill(65535);
         for (i, &code) in self.current_layout.keys.iter().enumerate() {
             if (code.0 as usize) < self.pos_map.len() {
+                #[allow(clippy::cast_possible_truncation)]
                 self.pos_map[code.0 as usize] = i as u16;
             }
         }

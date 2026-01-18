@@ -50,7 +50,7 @@ impl ProgressCallback for WorkerLogger {
         step.hash(&mut hasher);
         let hash = hasher.finish();
 
-        if hash % (self.sample_rate as u64).max(1) == 0 {
+        if hash.is_multiple_of((self.sample_rate as u64).max(1)) {
             info!(
                 job_id = %self.job_id,
                 step = step,

@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { ValidationResult, MetricViolation } from "../../types";
+import { ValidationResult } from "../../types";
 import { DerivedStats } from "../../utils";
-import { StatBox } from "../Charts";
 import { SpaceHandPreference } from "../../services/stats";
 import {
   ChevronDown,
   ChevronRight,
   ArrowRightLeft,
-  AlertTriangle,
 } from "lucide-react";
+import { ButterflyChart } from "./analyze/ButterflyChart";
+import { ViolationSection } from "./analyze/ViolationSection";
+import { MetricGrid } from "./analyze/MetricGrid";
+
+import { MapMode } from "../KeyboardMap";
 
 interface Props {
   activeResult: ValidationResult | null;
@@ -20,130 +23,8 @@ interface Props {
   setIncludeThumbs: (b: boolean) => void;
   spaceHand: SpaceHandPreference;
   setSpaceHand: (p: SpaceHandPreference) => void;
-  mapMode?: "frequency" | "penalty";
+  mapMode?: MapMode;
 }
-
-const ViolationTable = ({
-  title,
-  items,
-  color,
-  mapMode,
-  totalScore,
-}: {
-  title: string;
-  items: MetricViolation[];
-  color: string;
-  mapMode: "frequency" | "penalty";
-  totalScore: number;
-}) => {
-  if (!items || items.length === 0) return null;
-  return (
-    <div className="mb-4">
-      <h5
-        className={`text-[10px] font-bold uppercase mb-2 ${color} flex items-center gap-1`}
-      >
-        <AlertTriangle size={10} /> {title}
-      </h5>
-      <div className="bg-slate-900/50 rounded border border-slate-800 text-[10px]">
-        {items.slice(0, 5).map((v, i) => {
-          const displayPct = mapMode === "penalty"
-            ? (v.score / totalScore) * 100
-            : v.freq;
-          return (
-            <div
-              key={i}
-              className="flex justify-between p-1.5 border-b border-slate-800/50 last:border-0"
-            >
-              <span className="font-mono text-slate-300">{v.keys}</span>
-              <div className="flex gap-3">
-                <span className={`${color}`}>
-                  {displayPct.toFixed(2)}%
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const ButterflyChart = ({
-  left,
-  right,
-}: {
-  left: number[];
-  right: number[];
-}) => {
-  // Finger indices: 0=Thumb, 1=Index, 2=Mid, 3=Ring, 4=Pinky
-  // Labels for the rows
-  const labels = ["Pinky", "Ring", "Mid", "Index", "Thumb"];
-
-  // We map the display rows (0..4) to the actual finger indices
-  // Top row (0) = Pinky (index 4)
-  // Bottom row (4) = Thumb (index 0)
-  const mapRowToFingerIdx = (row: number) => 4 - row;
-
-  const Row = ({ rowIdx }: { rowIdx: number }) => {
-    const fingerIdx = mapRowToFingerIdx(rowIdx);
-    const lVal = left[fingerIdx] || 0;
-    const rVal = right[fingerIdx] || 0;
-    const label = labels[rowIdx];
-
-    // Colors per finger index (0..4)
-    const colors = [
-      "bg-slate-500", // Thumb
-      "bg-green-500", // Index
-      "bg-blue-500", // Mid
-      "bg-purple-500", // Ring
-      "bg-pink-500", // Pinky
-    ];
-    const color = colors[fingerIdx];
-
-    return (
-      <div className="flex items-center gap-2 text-[9px] mb-1.5">
-        {/* Left Side (Right Aligned) */}
-        <div className="flex-1 flex justify-end items-center gap-2">
-          <span className="text-slate-500 font-mono w-8 text-right">
-            {lVal.toFixed(1)}%
-          </span>
-          <div className="h-1.5 w-24 bg-slate-800/50 rounded-l-full overflow-hidden flex justify-end">
-            <div
-              className={`h-full ${color} opacity-80`}
-              style={{ width: `${Math.min(100, lVal * 4)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Center Label */}
-        <div className="w-10 text-center text-slate-600 font-bold uppercase text-[8px]">
-          {label}
-        </div>
-
-        {/* Right Side (Left Aligned) */}
-        <div className="flex-1 flex justify-start items-center gap-2">
-          <div className="h-1.5 w-24 bg-slate-800/50 rounded-r-full overflow-hidden flex justify-start">
-            <div
-              className={`h-full ${color} opacity-80`}
-              style={{ width: `${Math.min(100, rVal * 4)}%` }}
-            />
-          </div>
-          <span className="text-slate-500 font-mono w-8 text-left">
-            {rVal.toFixed(1)}%
-          </span>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="flex flex-col w-full">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <Row key={i} rowIdx={i} />
-      ))}
-    </div>
-  );
-};
 
 export function AnalyzePanel({
   activeResult,
@@ -188,7 +69,10 @@ export function AnalyzePanel({
             </span>
             <button
               onClick={() => setShowDiff(!showDiff)}
-              className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded transition-colors ${showDiff ? "bg-blue-500 text-white" : "bg-slate-700/50 text-slate-400"}`}
+              className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded transition-colors ${showDiff
+                ? "bg-blue-500 text-white"
+                : "bg-slate-700/50 text-slate-400"
+                }`}
             >
               <ArrowRightLeft size={10} /> {showDiff ? "Active" : "Compare"}
             </button>
@@ -210,19 +94,26 @@ export function AnalyzePanel({
                 onChange={(e) => setIncludeThumbs(e.target.checked)}
                 className="accent-blue-500 h-3 w-3 rounded border-slate-700 bg-slate-900"
               />
-              <label htmlFor="include-thumbs" className="text-[9px] text-slate-400 cursor-pointer select-none">
+              <label
+                htmlFor="include-thumbs"
+                className="text-[9px] text-slate-400 cursor-pointer select-none"
+              >
                 Include Thumbs
               </label>
             </div>
             {includeThumbs && (
               <div className="flex flex-col gap-1 items-end">
-                <span className="text-[8px] text-slate-500 uppercase font-bold">Space Hand Preference</span>
+                <span className="text-[8px] text-slate-500 uppercase font-bold">
+                  Space Hand Preference
+                </span>
                 <div className="flex bg-slate-800 rounded p-0.5 border border-slate-700">
                   {(["left", "bilateral", "right"] as const).map((opt) => (
                     <button
                       key={opt}
                       onClick={() => setSpaceHand(opt)}
-                      className={`px-2 py-0.5 text-[8px] uppercase font-bold rounded transition-colors ${spaceHand === opt ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-300"
+                      className={`px-2 py-0.5 text-[8px] uppercase font-bold rounded transition-colors ${spaceHand === opt
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-500 hover:text-slate-300"
                         }`}
                     >
                       {opt === "bilateral" ? "Both" : opt}
@@ -278,89 +169,17 @@ export function AnalyzePanel({
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <StatBox
-            label="Travel/Key"
-            val={activeResult.score.travel_per_key * 100}
-            refVal={referenceResult ? referenceResult.score.travel_per_key * 100 : undefined}
-            showDiff={showDiff}
-            color="text-slate-200"
-            suffix="%"
-            precision={2}
-          />
-          <StatBox
-            label="Imbal"
-            val={activeResult.score.hand_balance}
-            refVal={referenceResult?.score.hand_balance}
-            showDiff={showDiff}
-            color="text-slate-400"
-            suffix=""
-          />
-
-          <StatBox
-            label="SFB"
-            val={mapMode === "penalty" ? activeResult.score.sfb_penalty : activeResult.score.sfb_total}
-            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
-            showDiff={showDiff}
-            color="text-red-400"
-            suffix="%"
-            precision={2}
-          />
-          <StatBox
-            label="Scissor"
-            val={mapMode === "penalty" ? activeResult.score.scissor_penalty : activeResult.score.scissors}
-            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
-            showDiff={showDiff}
-            color="text-yellow-400"
-            suffix="%"
-            precision={2}
-          />
-          <StatBox
-            label="Redir"
-            val={mapMode === "penalty" ? activeResult.score.redir_penalty : activeResult.score.redirects}
-            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
-            showDiff={showDiff}
-            color="text-blue-400"
-            suffix="%"
-            precision={2}
-          />
-          <StatBox
-            label="Rolls"
-            val={mapMode === "penalty" ? Math.abs(activeResult.score.roll_penalty) : activeResult.score.rolls}
-            total={mapMode === "penalty" ? activeResult.score.score : (includeThumbs ? 100 : derivedStats.totalUsage)}
-            showDiff={showDiff}
-            color="text-green-400"
-            suffix="%"
-            precision={2}
-            invertGood={true}
-          />
-        </div>
+        <MetricGrid
+          activeResult={activeResult}
+          referenceResult={referenceResult}
+          mapMode={mapMode}
+          includeThumbs={includeThumbs}
+          derivedStats={derivedStats}
+          showDiff={showDiff}
+        />
 
         {showAdvanced && (
-          <div className="mt-4 pt-4 border-t border-slate-800 animate-in fade-in slide-in-from-top-2">
-            {/* New Violation Tables */}
-            <ViolationTable
-              title="Top SFBs"
-              items={activeResult.score.top_sfbs}
-              color="text-red-400"
-              mapMode={mapMode}
-              totalScore={activeResult.score.score}
-            />
-            <ViolationTable
-              title="Top Scissors"
-              items={activeResult.score.top_scissors}
-              color="text-yellow-400"
-              mapMode={mapMode}
-              totalScore={activeResult.score.score}
-            />
-            <ViolationTable
-              title="Top Redirects"
-              items={activeResult.score.top_redirs}
-              color="text-blue-400"
-              mapMode={mapMode}
-              totalScore={activeResult.score.score}
-            />
-          </div>
+          <ViolationSection activeResult={activeResult} mapMode={mapMode} />
         )}
       </div>
     </div>

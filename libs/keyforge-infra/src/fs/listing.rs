@@ -47,7 +47,7 @@ fn scan_dir(
 
         if filename.ends_with(extension) {
             let stem = filename
-                .strip_suffix(&format!(".{}", extension))
+                .strip_suffix(&format!(".{extension}"))
                 .unwrap_or(filename);
             
             // NOTE: Previous logic arbitrarily stripped ".mpk" here. 
@@ -67,7 +67,7 @@ fn scan_dir(
 pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Binary Only - Updated to new structure
-    scan_dir(root, &format!("system/{}", ASSET_PATH_KEYBOARDS), "mpk.zst", &mut names)?;
+    scan_dir(root, &format!("system/{ASSET_PATH_KEYBOARDS}"), "mpk.zst", &mut names)?;
     // User: Support JSON for development/customization
     scan_dir(root, "user/keyboards", "json", &mut names)?;
 
@@ -94,14 +94,14 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
             .max_depth(3) // Extra depth for category/id
             .follow_links(true); // Follow symlinks
 
-        for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        for entry in walker.into_iter().filter_map(std::result::Result::ok) {
             if entry.path_is_symlink() {
                 continue;
             }
             let p = entry.path();
 
             // Check for the anchor file (1grams) in either binary or json format
-            if p.file_name().and_then(|s| s.to_str()) == Some(&format!("1grams.{}", ext)) {
+            if p.file_name().and_then(|s| s.to_str()) == Some(&format!("1grams.{ext}")) {
                 if let Some(parent) = p.parent() {
                     if let Ok(relative) = parent.strip_prefix(&base) {
                         let id = relative.to_string_lossy().replace('\\', "/");
@@ -122,7 +122,7 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
 pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     // System: Weights are now in system/weights
-    scan_dir(root, &format!("system/{}", ASSET_PATH_WEIGHTS), "mpk.zst", &mut names)?;
+    scan_dir(root, &format!("system/{ASSET_PATH_WEIGHTS}"), "mpk.zst", &mut names)?;
     scan_dir(root, "user/weights", "json", &mut names)?;
 
     let mut sorted: Vec<String> = names.into_iter().collect();
@@ -134,7 +134,7 @@ pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
 /// Lists available keymap extras (e.g., custom symbols or macros).
 pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
-    scan_dir(root, &format!("system/{}", ASSET_PATH_KEYMAP_EXTRAS), "mpk.zst", &mut names)?;
+    scan_dir(root, &format!("system/{ASSET_PATH_KEYMAP_EXTRAS}"), "mpk.zst", &mut names)?;
     scan_dir(root, "user/keymap_extras", "json", &mut names)?;
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();

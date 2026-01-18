@@ -38,7 +38,7 @@ pub fn run(args: FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>>
     };
 
     let layout = keyforge_adapter::conversion::parse_layout_string(&args.layout, MAX_KEYBOARD_KEYS, &registry)
-        .map_err(|e| format!("Failed to parse layout: {}", e))?;
+        .map_err(|e| format!("Failed to parse layout: {e}"))?;
 
     let valid_codes: Vec<KeyCode> = layout.keys.into_iter().filter(|&c| c != KeyCode(0)).collect();
 
@@ -50,7 +50,7 @@ pub fn run(args: FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>>
     let mut output = String::with_capacity(valid_codes.len() * 7);
     for (i, code) in valid_codes.iter().enumerate() {
         let label = registry.get_label(*code);
-        let _ = write!(output, "{:<6}", label);
+        let _ = write!(output, "{label:<6}");
         if (i + 1) % args.width == 0 {
             output.push('\n');
         } else {

@@ -1,7 +1,7 @@
 use crate::kernel::{EngineContext, types::{Score, KeyCode}};
 use super::state::PosMap;
 
-#[inline(always)]
+#[inline]
 pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> Score {
     let h1 = ctx.hands[p1];
     let h2 = ctx.hands[p2];
@@ -18,7 +18,7 @@ pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3:
     Score::ZERO
 }
 
-#[inline(always)]
+#[inline]
 pub(crate) fn get_p_effective(p: usize, idx_a: usize, idx_b: usize) -> usize {
     if p == idx_a {
         idx_b
@@ -29,7 +29,7 @@ pub(crate) fn get_p_effective(p: usize, idx_a: usize, idx_b: usize) -> usize {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub(crate) fn get_flow_delta(
     ctx: &EngineContext,
     pos_map: &PosMap<'_>,

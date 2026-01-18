@@ -24,7 +24,7 @@ pub async fn run(config: AgentConfig) -> Result<()> {
     #[cfg(unix)]
     let mut sig_usr1 =
         tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())
-            .map_err(|e| anyhow::anyhow!("failed to register SIGUSR1: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("failed to register SIGUSR1: {e}"))?;
     #[cfg(not(unix))]
     let mut sig_usr1 = std::future::pending::<()>();
 

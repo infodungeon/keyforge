@@ -14,6 +14,7 @@ pub struct SystemHealth {
 }
 
 #[tauri::command]
+#[must_use] 
 pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
     let mut sys = System::new_with_specifics(
         RefreshKind::nothing()

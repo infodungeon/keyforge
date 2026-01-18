@@ -45,7 +45,7 @@ pub async fn handle(
         .await
         .map_err(crate::error::AppError::Database)?;
 
-    let _ = state.tx.send(format!("CANCEL:{}", job_id));
+    let _ = state.tx.send(format!("CANCEL:{job_id}"));
 
     info!("🛑 Cancelled Job: {}", &job_id[0..LOG_JOB_ID_TRUNCATION]);
     Ok("Job cancelled".to_string())

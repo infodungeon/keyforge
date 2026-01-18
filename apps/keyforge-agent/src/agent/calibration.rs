@@ -69,13 +69,13 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
     info!("Starting hardware calibration...");
 
     let kb_path = assets.ensure_keyboard("corne").await
-        .map_err(|e| AgentError::Calibration(format!("Failed to fetch reference keyboard: {}", e)))?;
+        .map_err(|e| AgentError::Calibration(format!("Failed to fetch reference keyboard: {e}")))?;
 
     let content = tokio::fs::read_to_string(&kb_path).await
-        .map_err(|e| AgentError::Calibration(format!("Failed to read keyboard: {}", e)))?;
+        .map_err(|e| AgentError::Calibration(format!("Failed to read keyboard: {e}")))?;
     
     let def: KeyboardDefinition = serde_json::from_str(&content)
-        .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {}", e)))?;
+        .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
 
     let keyboard = Keyboard::new(def.geometry.keys, def.geometry.home_row)
         .map_err(|e| AgentError::Calibration(e.to_string()))?;

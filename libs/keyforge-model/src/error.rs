@@ -20,7 +20,7 @@ use serde::{Serialize, Deserialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
-/// The central error type for the KeyForge domain.
+/// The central error type for the `KeyForge` domain.
 #[derive(Error, Debug)]
 pub enum ForgeError {
     /// Input/Output error.

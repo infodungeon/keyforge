@@ -70,15 +70,15 @@ pub async fn handle(
 
     // 1. Validation Logic
     if clean_name.len() < MIN_LAYOUT_NAME_LEN || clean_name.len() > MAX_ID_LEN {
-        return Err(AppError::Validation(format!("Name must be {}-{} chars", MIN_LAYOUT_NAME_LEN, MAX_ID_LEN)));
+        return Err(AppError::Validation(format!("Name must be {MIN_LAYOUT_NAME_LEN}-{MAX_ID_LEN} chars")));
     }
     if clean_author.len() > MAX_ID_LEN {
-        return Err(AppError::Validation(format!("Author name too long (max {})", MAX_ID_LEN)));
+        return Err(AppError::Validation(format!("Author name too long (max {MAX_ID_LEN})")));
     }
     
     // Check structure before size for better error messages
     LayoutValidator::validate_structure(clean_layout)
-        .map_err(|e| AppError::Validation(e.to_string()))?;
+        .map_err(|e| AppError::Validation(e.clone()))?;
 
     if clean_layout.len() < MIN_LAYOUT_DATA_LEN || clean_layout.len() > MAX_LAYOUT_DATA_LEN {
         return Err(AppError::Validation("Invalid layout data size".into()));

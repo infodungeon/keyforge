@@ -12,6 +12,7 @@ pub struct AgentRunner {
 }
 
 impl AgentRunner {
+    #[must_use] 
     pub fn new(app: AppHandle) -> Self {
         Self { app }
     }
@@ -23,7 +24,7 @@ impl AgentRunner {
         let json = serde_json::to_string(config).map_err(|e| CommandError::Internal(e.to_string()))?;
         tokio::fs::write(&temp_path, json).await.map_err(|e| CommandError::Internal(e.to_string()))?;
 
-        let data_dir = get_data_dir(&self.app).map_err(|e| CommandError::Internal(e))?;
+        let data_dir = get_data_dir(&self.app).map_err(CommandError::Internal)?;
 
         // Spawn sidecar
         // args: ["--data-dir", data_dir, "score", temp_path, layout]
@@ -40,7 +41,7 @@ impl AgentRunner {
 
         let (mut rx, _child) = sidecar_command
             .spawn()
-            .map_err(|e| CommandError::Internal(format!("Failed to spawn agent: {}", e)))?;
+            .map_err(|e| CommandError::Internal(format!("Failed to spawn agent: {e}")))?;
 
         let mut output = String::new();
         while let Some(event) = rx.recv().await {
@@ -74,12 +75,12 @@ impl AgentRunner {
                     }
                 }
                 CommandEvent::Error(e) => {
-                    return Err(CommandError::Internal(format!("Agent error: {}", e)));
+                    return Err(CommandError::Internal(format!("Agent error: {e}")));
                 }
                 CommandEvent::Terminated(status) => {
                     if let Some(code) = status.code {
                         if code != 0 {
-                             return Err(CommandError::Internal(format!("Agent exited with status: {}", code)));
+                             return Err(CommandError::Internal(format!("Agent exited with status: {code}")));
                         }
                     } else {
                          return Err(CommandError::Internal("Agent terminated by signal".to_string()));

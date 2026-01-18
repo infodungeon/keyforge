@@ -88,6 +88,7 @@ pub struct AutoSaveService {
 
 impl AutoSaveService {
     /// Creates a new `AutoSaveService` instance with a session file located in the provided root path.
+    #[must_use] 
     pub fn new(root_path: PathBuf) -> Self {
         let path = root_path.join("session.json");
 
@@ -103,8 +104,8 @@ impl AutoSaveService {
     /// Loads the last saved session snapshot from disk.
     ///
     /// # Errors
-    /// Returns [PersistenceError::Io] if reading the file fails.
-    /// Returns [PersistenceError::Serde] if parsing JSON fails.
+    /// Returns [`PersistenceError::Io`] if reading the file fails.
+    /// Returns [`PersistenceError::Serde`] if parsing JSON fails.
     pub async fn load(&self) -> PersistenceResult<Option<SessionSnapshot>> {
         if !self.path.exists() {
             return Ok(None);
@@ -124,10 +125,9 @@ impl AutoSaveService {
             if persisted.verify() {
                 info!("Session loaded and verified successfully.");
                 return Ok(Some(persisted.snapshot));
-            } else {
-                warn!("Session file corrupted (checksum mismatch). Ignoring.");
-                return Ok(None);
             }
+            warn!("Session file corrupted (checksum mismatch). Ignoring.");
+            return Ok(None);
         }
 
         // Fallback: Try loading raw SessionSnapshot (legacy format)
@@ -223,7 +223,7 @@ impl AutoSaveService {
             .await;
 
             match result {
-                Ok(Ok(_)) => {}
+                Ok(Ok(())) => {}
                 Ok(Err(e)) => error!("Failed to save session: {}", e),
                 Err(e) => error!("Join error during save: {}", e),
             }

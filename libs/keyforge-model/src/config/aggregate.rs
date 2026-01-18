@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 use ts_rs::TS;
 
 
-/// The root configuration aggregate for a KeyForge session.
+/// The root configuration aggregate for a `KeyForge` session.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Config {

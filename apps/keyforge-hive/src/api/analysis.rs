@@ -31,9 +31,9 @@ pub struct ValidateRequest {
     pub layout_str: String,
     /// Optional scoring weights to use. Defaults to standard weights if omitted.
     pub weights: Option<ScoringWeights>,
-    /// Optional name of the keyboard geometry to use. Defaults to "ortho_30".
+    /// Optional name of the keyboard geometry to use. Defaults to "`ortho_30`".
     pub keyboard_name: Option<String>,
-    /// Optional list of corpus sources. Defaults to "text/en_std" if omitted.
+    /// Optional list of corpus sources. Defaults to "`text/en_std`" if omitted.
     pub corpus_sources: Option<Vec<keyforge_model::CorpusSource>>,
 }
 
@@ -60,7 +60,7 @@ pub async fn validate_layout(
         .assets
         .load::<KeyboardDefinition>(keyboard_name)
         .await
-        .map_err(|e| AppError::Validation(format!("Keyboard load failed: {}", e)))?;
+        .map_err(|e| AppError::Validation(format!("Keyboard load failed: {e}")))?;
 
     // Determine scoring weights (defaults if not provided)
     let weights = payload.weights.unwrap_or_default();
@@ -68,7 +68,7 @@ pub async fn validate_layout(
     // Construct JobConfig for Runner
     let job_config = JobConfig {
         definition: definition.as_ref().clone(),
-        weights: weights,
+        weights,
         params: keyforge_model::config::SearchParams::default(),
         pinned_keys: vec![],
         corpora: corpus_sources,
@@ -87,7 +87,7 @@ pub async fn validate_layout(
     
     // Deserialize report
     let report: keyforge_model::AnalysisReport = serde_json::from_str(&json_output)
-        .map_err(|e| AppError::Any(anyhow::anyhow!("Failed to parse agent output: {}", e)))?;
+        .map_err(|e| AppError::Any(anyhow::anyhow!("Failed to parse agent output: {e}")))?;
 
     Ok(Json(ValidationResult {
         layout_name: "Custom".to_string(),

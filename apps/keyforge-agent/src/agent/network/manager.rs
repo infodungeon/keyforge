@@ -43,14 +43,14 @@ impl NetworkManager {
         let client = Client::builder()
             .timeout(Duration::from_secs(config.network.timeout_seconds))
             .build()
-            .map_err(|e| AgentError::Internal(format!("Failed to build HTTP client: {}", e)))?;
+            .map_err(|e| AgentError::Internal(format!("Failed to build HTTP client: {e}")))?;
 
         let hive_client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
             api_url: config.hive_url.clone(),
             asset_url: config.asset_url.clone(), // Passthrough
             secret: Some(config.secret.clone()),
             ..Default::default()
-        }).map_err(|e| AgentError::Internal(format!("Failed to init outbox client: {}", e)))?;
+        }).map_err(|e| AgentError::Internal(format!("Failed to init outbox client: {e}")))?;
 
         let outbox = ResultOutbox::new(
             hive_client, 
@@ -203,7 +203,7 @@ impl NetworkManager {
                         // Task-agent-010: Save to Dead Letter instead of discarding
                         self.outbox.save_to_dead_letter(&result, &txt)?;
                     }
-                    return Err(AgentError::Network(format!("Submission rejected: {}", txt)));
+                    return Err(AgentError::Network(format!("Submission rejected: {txt}")));
                 }
                 Ok(())
             }
@@ -221,7 +221,7 @@ impl NetworkManager {
         info!("🔄 WAL Flush: Attempting to resend {} pending submissions...", pending.len());
         for (path, submission) in pending {
             match self.submit_result(submission).await {
-                Ok(_) => {
+                Ok(()) => {
                     info!("✅ Resent successfully: {:?}", path.file_name());
                     self.outbox.delete(&path);
                 }

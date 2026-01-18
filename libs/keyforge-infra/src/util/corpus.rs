@@ -36,11 +36,11 @@ pub fn populate_corpus_from_segments(
                 for e in part {
                     if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
                         if (c as u32) > 0xFFFF {
-                            return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {}", c)));
+                            return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c}")));
                         }
                         let c_u16 = c as u16;
                         let freq = e["freq"].as_u64().ok_or_else(|| {
-                            ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {:?}", e))
+                            ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {e:?}"))
                         })?;
                         corpus.char_freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
                     }
@@ -49,17 +49,17 @@ pub fn populate_corpus_from_segments(
             "2grams" => {
                 for e in part {
                     let freq = e["freq"].as_u64().ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {e:?}"))
                     })?;
                     let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char1 in 2gram entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing or invalid char1 in 2gram entry: {e:?}"))
                     })?;
                     let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char2 in 2gram entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing or invalid char2 in 2gram entry: {e:?}"))
                     })?;
                     
                     if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF {
-                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {} or {}", c1_char, c2_char)));
+                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char} or {c2_char}")));
                     }
                     
                     corpus.bigrams.push((c1_char as u16, c2_char as u16, (freq as f32 * weight).round() as u32));
@@ -68,20 +68,20 @@ pub fn populate_corpus_from_segments(
             "3grams" => {
                 for e in part {
                     let freq = e["freq"].as_u64().ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {e:?}"))
                     })?;
                     let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char1 in 3gram entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing or invalid char1 in 3gram entry: {e:?}"))
                     })?;
                     let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char2 in 3gram entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing or invalid char2 in 3gram entry: {e:?}"))
                     })?;
                     let c3_char = e["char3"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char3 in 3gram entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing or invalid char3 in 3gram entry: {e:?}"))
                     })?;
 
                     if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF || (c3_char as u32) > 0xFFFF {
-                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {}, {}, or {}", c1_char, c2_char, c3_char)));
+                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char}, {c2_char}, or {c3_char}")));
                     }
 
                     corpus.trigrams.push((c1_char as u16, c2_char as u16, c3_char as u16, (freq as f32 * weight).round() as u32));
@@ -90,7 +90,7 @@ pub fn populate_corpus_from_segments(
             "words" => {
                 for e in part {
                     let freq = e["freq"].as_u64().ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing frequency in word entry: {:?}", e))
+                        ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}"))
                     })?;
                     if let Some(w) = e["word"].as_str() {
                         corpus.words.push((w.to_string(), (freq as f32 * weight).round() as u32));
@@ -108,6 +108,7 @@ pub fn populate_corpus_from_segments(
 /// 1. Named tokens ("SPACE", "ENTER")
 /// 2. Hex strings ("65", "20")
 /// 3. Literal characters ("a", "b")
+#[must_use] 
 pub fn resolve_corpus_char(token: &str) -> Option<char> {
     // 1. Named Tokens
     for (key, val) in CORPUS_TOKEN_MAP {
@@ -117,7 +118,7 @@ pub fn resolve_corpus_char(token: &str) -> Option<char> {
     }
 
     // 2. Hex Strings (2, 4, 6, 8 chars) - Multi-byte UTF-8 as used in corpus
-    if token.len() >= 2 && token.len() % 2 == 0 && token.chars().all(|c| c.is_ascii_hexdigit()) {
+    if token.len() >= 2 && token.len().is_multiple_of(2) && token.chars().all(|c| c.is_ascii_hexdigit()) {
         let mut bytes = Vec::with_capacity(token.len() / 2);
         for i in (0..token.len()).step_by(2) {
             if let Ok(byte) = u8::from_str_radix(&token[i..i+2], 16) {
@@ -189,7 +190,7 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     }
 
     if bksp_count > 0 {
-        let total_bigrams: u64 = corpus.bigrams.iter().map(|(_, _, f)| *f as u64).sum();
+        let total_bigrams: u64 = corpus.bigrams.iter().map(|(_, _, f)| u64::from(*f)).sum();
         if total_bigrams > 0 {
             let mut new_trigrams = Vec::new();
             for (a, b, freq) in &corpus.bigrams {
@@ -216,7 +217,7 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
             .filter(|(_, b, _)| puncts.contains(&(*b as u8 as char)))
             .collect();
             
-        let total_punct_bigrams: u64 = punct_bigrams.iter().map(|(_, _, f)| *f as u64).sum();
+        let total_punct_bigrams: u64 = punct_bigrams.iter().map(|(_, _, f)| u64::from(*f)).sum();
         
         if total_punct_bigrams > 0 {
             for (a, b, freq) in punct_bigrams {

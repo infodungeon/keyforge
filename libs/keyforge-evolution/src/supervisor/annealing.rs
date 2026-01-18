@@ -52,7 +52,7 @@ impl ProgressReporter {
 
 
     fn report(&mut self, step: usize, state: &SearchState, time_keeper: &impl TimeKeeper) {
-        if step % self.report_interval == 0 {
+        if step.is_multiple_of(self.report_interval) {
             let now = time_keeper.now();
             let elapsed = time_keeper.elapsed(self.last_report_time).as_secs_f32();
             let steps_done = if step == 0 { 0 } else { step - self.last_report_step };
@@ -219,7 +219,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                 }
 
                 // 4. Cooling
-                self.update_temperature(&mut state, cooling_rate);
+                Self::update_temperature(&mut state, cooling_rate);
 
                 // 5. Reporting
                 reporter.report(step, &state, &self.time_keeper);
@@ -241,6 +241,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
     fn initialize_state(&mut self, initial_layout: Option<Layout>) -> Result<SearchState, EvolutionError> {
         let layout = initial_layout.unwrap_or_else(|| {
+            #[allow(clippy::cast_possible_truncation)]
             let keys: Vec<KeyCode> = (0..self.engine.key_count()).map(|i| KeyCode(i as u16)).collect();
             Layout::new_unchecked(keys)
         });
@@ -251,7 +252,9 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
     fn calculate_cooling_rate(&self) -> f32 {
         if self.config.steps > 0 && self.config.start_temp > f32::EPSILON {
-            (self.config.end_temp / self.config.start_temp).powf(1.0 / self.config.steps as f32)
+            #[allow(clippy::cast_precision_loss)]
+            let steps_f32 = self.config.steps as f32;
+            (self.config.end_temp / self.config.start_temp).powf(1.0 / steps_f32)
         } else {
             0.0
         }
@@ -285,7 +288,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         Ok(false) // No improvement
     }
 
-    fn update_temperature(&self, state: &mut SearchState, cooling_rate: f32) {
+    fn update_temperature(state: &mut SearchState, cooling_rate: f32) {
         state.temperature *= cooling_rate;
         if state.temperature < TEMP_UNDERFLOW_THRESHOLD {
             state.temperature = 0.0;

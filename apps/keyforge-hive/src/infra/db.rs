@@ -50,7 +50,7 @@ pub enum DbInitError {
 /// Attempts to initialize the database pool and run migrations with a retry policy.
 ///
 /// # Errors
-/// Returns [DbInitError] if the URL is invalid, connection times out, or migrations fail.
+/// Returns [`DbInitError`] if the URL is invalid, connection times out, or migrations fail.
 pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
     info!("🔌 Connecting to PostgreSQL...");
 
@@ -62,7 +62,7 @@ pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
         attempts += 1;
 
         match sqlx::migrate!().run(&pool).await {
-            Ok(_) => break,
+            Ok(()) => break,
             Err(e) => {
                 if attempts >= 10 {
                     return Err(DbInitError::MigrationFailed {
@@ -116,7 +116,7 @@ pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
 pub async fn init_db(db_url: &str) -> PgPool {
     match try_init_db(db_url).await {
         Ok(p) => p,
-        Err(e) => panic!("DB init failed: {}", e),
+        Err(e) => panic!("DB init failed: {e}"),
     }
 }
 
@@ -172,7 +172,7 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
                         // REPEATABLE READ is safer for consistency but can cause serialization failures.
                         // We stick to REPEATABLE READ as per design, but ensure retries handle 40001.
                         conn.execute("SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ").await?;
-                        let stmt_timeout = format!("SET statement_timeout = '{}'", DB_STATEMENT_TIMEOUT);
+                        let stmt_timeout = format!("SET statement_timeout = '{DB_STATEMENT_TIMEOUT}'");
                         conn.execute(stmt_timeout.as_str()).await?;
                         Ok(())
                     }))

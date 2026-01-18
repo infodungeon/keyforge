@@ -25,6 +25,7 @@ pub struct UserRepository {
 
 impl UserRepository {
     /// Creates a new `UserRepository` with the given database pool.
+    #[must_use] 
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -119,7 +120,7 @@ impl UserRepository {
             .fetch_one(&self.pool)
             .await?;
 
-            if active_count >= max_active.unwrap_or(DEFAULT_MAX_ACTIVE_JOBS) as i64 {
+            if active_count >= i64::from(max_active.unwrap_or(DEFAULT_MAX_ACTIVE_JOBS)) {
                 return Ok(false);
             }
 
@@ -130,7 +131,7 @@ impl UserRepository {
             .fetch_one(&self.pool)
             .await?;
 
-            if daily_count >= max_daily.unwrap_or(DEFAULT_MAX_DAILY_JOBS) as i64 {
+            if daily_count >= i64::from(max_daily.unwrap_or(DEFAULT_MAX_DAILY_JOBS)) {
                 return Ok(false);
             }
         }

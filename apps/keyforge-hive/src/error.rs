@@ -66,7 +66,7 @@ impl IntoResponse for AppError {
             AppError::Serde(e) => (
                 StatusCode::BAD_REQUEST,
                 ErrorCode::BadRequest,
-                format!("Serialization error: {}", e),
+                format!("Serialization error: {e}"),
             ),
             AppError::Loader(e) => {
                 let status = match &e {

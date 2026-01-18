@@ -118,6 +118,7 @@ fn build_payload(job_id: &str, layout: &str, score: f32, timestamp: u64, nonce: 
     let layout_hash = hasher.finalize_reset();
 
     // Task-sec-029: Use fixed-point representation for deterministic signatures
+    #[allow(clippy::cast_possible_truncation)]
     let score_fixed = (score * SCORE_SCALE) as i64;
 
     // 32 bytes (job_hash) + 32 bytes (layout_hash) + 8 bytes (score) + 8 bytes (timestamp) + 8 bytes (nonce)

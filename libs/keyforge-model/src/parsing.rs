@@ -27,7 +27,7 @@ use ts_rs::TS;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum KeyAction {
-    /// A simple keycode (e.g., "KC_A").
+    /// A simple keycode (e.g., "`KC_A`").
     Simple(String),
     /// Transparent (pass-through).
     Transparent,
@@ -62,6 +62,7 @@ pub enum KeyAction {
 }
 
 /// Parses a string token into a `KeyAction` using a recursive descent approach.
+#[must_use] 
 pub fn parse_key(token: &str) -> KeyAction {
     let t = token.trim();
     if t.len() > 100 { // Safety check for recursion depth/exploit
@@ -129,7 +130,7 @@ pub fn parse_key(token: &str) -> KeyAction {
         // Avoid adding KC_ to numbers if they are just raw numbers? 
         // QMK usually likes KC_1. 
         // But let's stick to existing behavior: alphanumeric -> KC_
-        return KeyAction::Simple(format!("KC_{}", upper));
+        return KeyAction::Simple(format!("KC_{upper}"));
     }
 
     KeyAction::Simple(t.to_string())
@@ -150,7 +151,7 @@ fn parse_function_call(s: &str) -> Option<(&str, String)> {
 /// Helper: Splits arguments by comma, respecting nested parentheses.
 fn split_args_safe(s: &str) -> Option<(String, String)> {
     let mut depth = 0;
-    for (i, c) in s.chars().enumerate() {
+    for (i, c) in s.char_indices() {
         match c {
             '(' => depth += 1,
             ')' => depth -= 1,

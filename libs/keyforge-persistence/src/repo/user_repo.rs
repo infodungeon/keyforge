@@ -43,6 +43,7 @@ pub struct UserRepo {
 
 impl UserRepo {
     /// Creates a new `UserRepo` instance using the specified root directory as the data store.
+    #[must_use] 
     pub fn new(root: PathBuf) -> Self {
         Self { root }
     }
@@ -92,6 +93,7 @@ impl UserRepo {
     }
 
     /// Returns all saved layouts for a specific keyboard.
+    #[must_use] 
     pub fn get_layouts(&self, kb_id: &str) -> HashMap<String, String> {
         let store = self.load_layout_store();
         store.layouts.get(kb_id).cloned().unwrap_or_default()
@@ -162,14 +164,15 @@ impl UserRepo {
                 s.timestamp = now;
             }
             let json = serde_json::to_string(&s).map_err(InfraError::Serde)?;
-            writeln!(file, "{}", json).map_err(InfraError::Io)?;
+            writeln!(file, "{json}").map_err(InfraError::Io)?;
             count += 1;
         }
 
-        Ok(format!("Appended {} samples to log.", count))
+        Ok(format!("Appended {count} samples to log."))
     }
 
     /// Retrieves all accumulated biometric samples.
+    #[must_use] 
     pub fn get_biometrics(&self) -> Vec<BiometricSample> {
         self.load_stats_store().biometrics
     }
@@ -195,9 +198,7 @@ impl UserRepo {
 
         if count < MIN_BIOMETRIC_SAMPLES {
             return Err(InfraError::Config(format!(
-                "Insufficient data. {}/{} samples collected.",
-                count,
-                MIN_BIOMETRIC_SAMPLES
+                "Insufficient data. {count}/{MIN_BIOMETRIC_SAMPLES} samples collected."
             )));
         }
 
@@ -206,8 +207,7 @@ impl UserRepo {
         atomic_write(output_path, profile_content)?;
 
         Ok(format!(
-            "Profile generated from {} samples.",
-            count
+            "Profile generated from {count} samples."
         ))
     }
 
@@ -225,7 +225,7 @@ impl UserRepo {
         }
 
         let safe_name = sanitize_filename(filename);
-        let path = kb_dir.join(format!("{}.json", safe_name));
+        let path = kb_dir.join(format!("{safe_name}.json"));
         let json = serde_json::to_string_pretty(def).map_err(InfraError::Serde)?;
 
         atomic_write(path, json)?;

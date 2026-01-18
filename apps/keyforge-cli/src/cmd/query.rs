@@ -48,10 +48,10 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     let kb_path = resolve_path(&kb_input, Some("keyboards"), root)?;
 
     let kb_content = read_to_string_limited(&kb_path, MAX_INPUT_FILE_SIZE)
-        .map_err(|e| format!("Failed to read keyboard file: {}", e))?;
+        .map_err(|e| format!("Failed to read keyboard file: {e}"))?;
 
     let kb_def = KeyboardDefinition::parse(&kb_content, None)
-        .map_err(|e| format!("Failed to parse keyboard definition: {}", e))?;
+        .map_err(|e| format!("Failed to parse keyboard definition: {e}"))?;
 
     let corpora_input = args.shared.corpus.unwrap_or_else(|| vec!["text/en_std".to_string()]);
     let mut domain_corpora = Vec::new();
@@ -79,10 +79,10 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
         &corpora_fingerprint,
         &cost_source,
     )
-    .map_err(|e| format!("Failed to compute job id: {}", e))?
+    .map_err(|e| format!("Failed to compute job id: {e}"))?
     .hash;
 
-    eprintln!("   Job ID: {}", job_id);
+    eprintln!("   Job ID: {job_id}");
     eprintln!("   Hive:   {}", args.hive);
 
     let url = format!("{}/jobs/{}/population", args.hive, job_id);
@@ -93,11 +93,11 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
                 let pop = resp
                     .json::<keyforge_protocol::PopulationResponse>()
                     .await
-                    .map_err(|e| format!("Failed to parse Hive response: {}", e))?;
+                    .map_err(|e| format!("Failed to parse Hive response: {e}"))?;
 
                 eprintln!("\n✅ Job Found!");
                 if let Some(best) = pop.layouts.first() {
-                    println!("{}", best);
+                    println!("{best}");
                 } else {
                     eprintln!("   Job exists but has no results yet.");
                 }
@@ -105,7 +105,7 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
                 return Err(format!("Hive Error: {}", resp.status()).into());
             }
         }
-        Err(e) => return Err(format!("Connection Failed: {}", e).into()),
+        Err(e) => return Err(format!("Connection Failed: {e}").into()),
     }
     Ok(())
 }

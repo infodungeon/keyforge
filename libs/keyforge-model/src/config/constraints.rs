@@ -32,10 +32,10 @@ impl FromStr for KeyConstraint {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.trim().is_empty() { return Err("Empty constraint".to_string()); }
-        let (idx_str, key_str) = s.split_once(':').ok_or_else(|| format!("invalid format '{}': expected INDEX:KEY", s))?;
-        let index_val = idx_str.trim().parse::<u16>().map_err(|_| format!("invalid index '{}': must be 0-65535", idx_str))?;
+        let (idx_str, key_str) = s.split_once(':').ok_or_else(|| format!("invalid format '{s}': expected INDEX:KEY"))?;
+        let index_val = idx_str.trim().parse::<u16>().map_err(|_| format!("invalid index '{idx_str}': must be 0-65535"))?;
         let key_clean = key_str.trim();
-        if key_clean.is_empty() { return Err(format!("Empty key in constraint '{}'", s)); }
+        if key_clean.is_empty() { return Err(format!("Empty key in constraint '{s}'")); }
         Ok(KeyConstraint { index: KeyIndex(index_val), key: key_clean.to_string() })
     }
 }

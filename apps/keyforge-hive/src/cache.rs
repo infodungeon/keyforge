@@ -40,6 +40,7 @@ pub const DEFAULT_ENGINE_CACHE_TTL_SECS: u64 = 1800;
 
 impl CompiledEngineCache {
     /// Creates a new `CompiledEngineCache` with default capacity and TTL.
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             cache: Cache::builder()
@@ -50,6 +51,7 @@ impl CompiledEngineCache {
     }
 
     /// Retrieves a cached engine by job ID.
+    #[must_use] 
     pub fn get(&self, job_id: &str) -> Option<Arc<keyforge_core::ScoringEngine>> {
         self.cache.get(job_id)
     }

@@ -45,7 +45,7 @@ impl Exporter for ViaExporter {
                                 && !upper.contains('(')
                                 && upper.chars().all(|c| c.is_alphanumeric() || c == '_')
                             {
-                                format!("KC_{}", upper)
+                                format!("KC_{upper}")
                             } else {
                                 upper
                             }

@@ -9,10 +9,11 @@ use std::collections::HashMap;
 pub struct BiometricProfiler;
 
 impl BiometricProfiler {
-    /// Transforms a set of biometric samples into a CostModel.
+    /// Transforms a set of biometric samples into a `CostModel`.
     /// 
     /// This implementation calculates average latencies per bigram and uses them
     /// to build sequence-specific modifiers in the dynamic rules of the cost model.
+    #[must_use] 
     pub fn profile(samples: &[BiometricSample], base_model: &CostModel) -> CostModel {
         let mut model = base_model.clone();
         
@@ -34,7 +35,7 @@ impl BiometricProfiler {
         for (bigram, (total_ms, count)) in totals {
             if count < 5 { continue; } // Statistical Significance Threshold
             
-            let avg = total_ms / (count as f64);
+            let avg = total_ms / f64::from(count);
             let effort = (avg / 150.0) * 100.0;
             
             model.dynamic_rules.sequence_modifiers.insert(bigram, effort as f32);

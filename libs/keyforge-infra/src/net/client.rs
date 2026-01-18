@@ -20,7 +20,7 @@ use keyforge_model::constants::{
 use reqwest::{header, Client, RequestBuilder};
 use std::time::Duration;
 
-/// Configuration for the HiveClient.
+/// Configuration for the `HiveClient`.
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
     /// The base URL of the Hive API (Control Plane).
@@ -53,7 +53,7 @@ impl Default for ClientConfig {
     }
 }
 
-/// A specialized HTTP client for interacting with the KeyForge ecosystem.
+/// A specialized HTTP client for interacting with the `KeyForge` ecosystem.
 #[derive(Clone, Debug)]
 pub struct HiveClient {
     api_url: String,
@@ -94,16 +94,19 @@ impl HiveClient {
     }
 
     /// Expose inner client for low-level operations.
+    #[must_use] 
     pub fn inner(&self) -> &Client {
         &self.inner
     }
 
     /// Construct a URL for the Control Plane (API).
+    #[must_use] 
     pub fn url(&self, path: &str) -> String {
         format_url(&self.api_url, path)
     }
 
     /// Construct a URL for the Data Plane (Assets).
+    #[must_use] 
     pub fn asset_url(&self, path: &str) -> String {
         format_url(&self.asset_url, path)
     }

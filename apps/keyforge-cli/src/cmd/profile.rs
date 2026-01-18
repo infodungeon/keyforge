@@ -40,7 +40,7 @@ pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
         return Err(format!("Input file not found: {:?}", args.input).into());
     }
 
-    let file = File::open(&args.input).map_err(|e| format!("Failed to open input file: {}", e))?;
+    let file = File::open(&args.input).map_err(|e| format!("Failed to open input file: {e}"))?;
 
     let reader = BufReader::new(file);
     let mut samples = Vec::new();
@@ -50,25 +50,22 @@ pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
         if l.trim().is_empty() {
             continue;
         }
-        match serde_json::from_str::<BiometricSample>(&l) {
-            Ok(s) => samples.push(s),
-            Err(_) => {
-                // If it looks like it might be a JSON array, or if it just failed to parse as a single sample,
-                // try parsing the whole file as a legacy UserStatsStore.
-                if error_count == 0 {
-                    let content = std::fs::read_to_string(&args.input).unwrap_or_default();
-                    if let Ok(legacy_store) =
-                        serde_json::from_str::<keyforge_protocol::UserStatsStore>(&content)
-                    {
-                        eprintln!(
-                            "⚠️  Legacy JSON array format detected. Loading entire file into memory."
-                        );
-                        samples = legacy_store.biometrics;
-                        break;
-                    }
+        if let Ok(s) = serde_json::from_str::<BiometricSample>(&l) { samples.push(s) } else {
+            // If it looks like it might be a JSON array, or if it just failed to parse as a single sample,
+            // try parsing the whole file as a legacy UserStatsStore.
+            if error_count == 0 {
+                let content = std::fs::read_to_string(&args.input).unwrap_or_default();
+                if let Ok(legacy_store) =
+                    serde_json::from_str::<keyforge_protocol::UserStatsStore>(&content)
+                {
+                    eprintln!(
+                        "⚠️  Legacy JSON array format detected. Loading entire file into memory."
+                    );
+                    samples = legacy_store.biometrics;
+                    break;
                 }
-                error_count += 1;
             }
+            error_count += 1;
         }
     }
 
@@ -91,7 +88,7 @@ pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
     let profile_content = keyforge_infra::util::common::generate_cost_profile(&store);
 
     std::fs::write(&args.output, profile_content)
-        .map_err(|e| format!("Failed to write output file: {}", e))?;
+        .map_err(|e| format!("Failed to write output file: {e}"))?;
 
     eprintln!("✅ Profile generated successfully.");
     Ok(())

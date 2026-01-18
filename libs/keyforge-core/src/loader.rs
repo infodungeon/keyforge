@@ -21,7 +21,7 @@ use std::fmt::Debug;
 /// A specialized result type for asset loading operations.
 pub type LoaderResult<T> = Result<T, ForgeError>;
 
-/// A trait for types that can load KeyForge assets from an external source.
+/// A trait for types that can load `KeyForge` assets from an external source.
 ///
 /// This is the primary abstraction for IO, allowing core logic to remain 
 /// agnostic to the filesystem, network, or embedded storage.

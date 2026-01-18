@@ -48,7 +48,7 @@ pub struct Project {
     #[serde(default)]
     pub meta: ProjectMeta,
 
-    /// Name or Path of the keyboard definition (e.g. "corne", "ansi_104")
+    /// Name or Path of the keyboard definition (e.g. "corne", "`ansi_104`")
     pub keyboard: String,
 
     /// List of corpora to blend

@@ -17,6 +17,7 @@ pub struct JobRepository {
 
 impl JobRepository {
     /// Creates a new `JobRepository` with the given connection pool.
+    #[must_use] 
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -57,7 +58,7 @@ impl JobRepository {
             identity::calculate_job_identity(&req_clone)
         })
         .await
-        .map_err(|e| sqlx::Error::Protocol(format!("Hashing task failed: {}", e)))?
+        .map_err(|e| sqlx::Error::Protocol(format!("Hashing task failed: {e}")))?
         .map_err(sqlx::Error::Protocol)?;
 
         let mut tx = self.pool.begin().await?;
@@ -83,10 +84,10 @@ impl JobRepository {
     fn validate_registration_request(&self, req: &JobRequest) -> Result<(), sqlx::Error> {
         req.config.params
             .validate()
-            .map_err(|e| sqlx::Error::Protocol(format!("Invalid search parameters: {}", e)))?;
+            .map_err(|e| sqlx::Error::Protocol(format!("Invalid search parameters: {e}")))?;
         req.config.weights
             .validate()
-            .map_err(|e| sqlx::Error::Protocol(format!("Invalid scoring weights: {}", e)))?;
+            .map_err(|e| sqlx::Error::Protocol(format!("Invalid scoring weights: {e}")))?;
 
         if req.config.pinned_keys.len() > MAX_PINNED_KEYS_COUNT {
             return Err(sqlx::Error::Protocol("Pinned keys too large".into()));
@@ -108,9 +109,7 @@ impl JobRepository {
     ) -> Result<bool, sqlx::Error> {
         let primary_corpus = req
             .config.corpora
-            .first()
-            .map(|c| c.id.clone())
-            .unwrap_or_else(|| DEFAULT_CORPUS_ID.to_string());
+            .first().map_or_else(|| DEFAULT_CORPUS_ID.to_string(), |c| c.id.clone());
         
         let result = sqlx::query(queries::INSERT_JOB_QUERY)
         .bind(job_id)
@@ -182,10 +181,10 @@ impl JobRepository {
                 .bind(key.y)
                 .bind(key.w)
                 .bind(key.h)
-                .bind(key.hand.0 as i32)
-                .bind(key.finger.0 as i32)
-                .bind(key.row.0 as i32)
-                .bind(key.col.0 as i32)
+                .bind(i32::from(key.hand.0))
+                .bind(i32::from(key.finger.0))
+                .bind(i32::from(key.row.0))
+                .bind(i32::from(key.col.0))
                 .bind(key.is_stretch)
                 .bind(is_prime)
                 .bind(is_med)
@@ -205,18 +204,18 @@ impl JobRepository {
         w_hash: &str
     ) -> Result<i32, sqlx::Error> {
         let row = sqlx::query(
-            r#"
+            r"
             INSERT INTO scoring_profiles (weights, config_hash) 
             VALUES ($1, $2)
             ON CONFLICT (config_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
             RETURNING id
-            "#,
+            ",
         )
         .bind(w_json)
         .bind(w_hash)
         .fetch_one(&mut **tx)
         .await?;
-        Ok(row.try_get("id")?)
+        row.try_get("id")
     }
 
     async fn ensure_search_config(
@@ -226,14 +225,14 @@ impl JobRepository {
         p_hash: &str
     ) -> Result<i32, sqlx::Error> {
         let row = sqlx::query(
-            r#"
+            r"
             INSERT INTO search_configs (
                 search_epochs, search_steps, search_patience, search_patience_threshold,
                 temp_min, temp_max, opt_limit_fast, opt_limit_slow, config_hash
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (config_hash) DO UPDATE SET id = search_configs.id
             RETURNING id
-            "#,
+            ",
         )
         .bind(params.get_search_epochs() as i32)
         .bind(params.get_search_steps() as i32)
@@ -246,7 +245,7 @@ impl JobRepository {
         .bind(p_hash)
         .fetch_one(&mut **tx)
         .await?;
-        Ok(row.try_get("id")?)
+        row.try_get("id")
     }
 
     /// Attempts to claim an 'active' job for a worker node.

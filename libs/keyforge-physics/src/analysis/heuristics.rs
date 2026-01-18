@@ -21,9 +21,8 @@ use keyforge_model::constants::SCORE_SCALE;
 
 pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
     // Guardrail: Validate layout before processing
-    let validated = match ValidatedLayout::new(&layout.keys, ctx.key_count) {
-        Ok(v) => v,
-        Err(_) => return vec![], // Invalid layout yields no suggestions
+    let Ok(validated) = ValidatedLayout::new(&layout.keys, ctx.key_count) else {
+        return vec![]; // Invalid layout yields no suggestions
     };
 
     let mut scratch = PhysicsScratch::new();
@@ -40,10 +39,10 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
     let pos_map = PosMap::from_scratch(
         &layout.keys,
         ctx.key_count,
-        &mut scratch.starts,
-        &mut scratch.counts,
-        &mut scratch.indices,
-        &mut scratch.current_offsets,
+        scratch.starts.as_mut_slice(),
+        scratch.counts.as_mut_slice(),
+        scratch.indices.as_mut_slice(),
+        scratch.current_offsets.as_mut_slice(),
         &mut scratch.used_keys,
     );
 
@@ -61,7 +60,9 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
             let delta = calculate_swap_delta(ctx, &validated, &pos_map, i, j);
 
             if delta < 0 {
+                #[allow(clippy::cast_precision_loss)]
                 let improvement = delta.abs() as f32 / SCORE_SCALE;
+                #[allow(clippy::cast_precision_loss)]
                 let current_f32 = current_score as f32 / SCORE_SCALE;
 
                 let pct = if current_f32 > f32::EPSILON {

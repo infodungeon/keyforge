@@ -10,7 +10,7 @@ use super::flow::calculate_flow_cost;
 #[inline]
 pub(crate) fn u16_to_char(code: u16) -> String {
     // Try direct conversion (for ASCII and most Unicode)
-    if let Some(c) = char::from_u32(code as u32) {
+    if let Some(c) = char::from_u32(u32::from(code)) {
         // Filter out control characters that aren't printable
         if !c.is_control() {
             return c.to_string();
@@ -21,13 +21,14 @@ pub(crate) fn u16_to_char(code: u16) -> String {
             9 => return "⇥".to_string(),   // Tab
             10 => return "↵".to_string(),  // Newline
             32 => return "␣".to_string(),  // Space
-            _ => return format!("[0x{:02X}]", code),
+            _ => return format!("[0x{code:02X}]"),
         }
     }
     // Fallback for invalid Unicode (like surrogate pairs)
-    format!("[0x{:04X}]", code)
+    format!("[0x{code:04X}]")
 }
 
+#[allow(clippy::too_many_lines, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_lossless)]
 #[instrument(skip_all)]
 pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> AnalysisReport {
     let mut report = AnalysisReport::default();
@@ -35,10 +36,10 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     let pm = PosMap::from_scratch(
         layout.as_slice(),
         ctx.key_count,
-        &mut scratch.starts,
-        &mut scratch.counts,
-        &mut scratch.indices,
-        &mut scratch.current_offsets,
+        scratch.starts.as_mut_slice(),
+        scratch.counts.as_mut_slice(),
+        scratch.indices.as_mut_slice(),
+        scratch.current_offsets.as_mut_slice(),
         &mut scratch.used_keys,
     );
     
@@ -210,8 +211,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     }
 
     // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
-    for &code in pm.used_keys.iter() {
+    for &code in pm.used_keys {
         let c_val = code as usize;
+        #[allow(clippy::cast_precision_loss)]
         let freq = ctx.char_freqs[c_val] as f32;
         if freq <= 0.0 { continue; }
 
@@ -255,11 +257,16 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     
     // Normalization
     let total_freq: u64 = ctx.char_freqs.iter().sum();
+    let mut norm_100k = 1.0;
+    let mut norm_pct = 1.0;
+
     if total_freq > 0 {
-        report.travel_per_key = report.distance / total_freq as f32;
+        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_lossless)]
+        let total_freq_f = total_freq as f64;
+        report.travel_per_key = (f64::from(report.distance) / total_freq_f) as f32;
+        norm_100k = (100_000.0 / total_freq_f) as f32;
+        norm_pct = (100.0 / total_freq_f) as f32;
     }
-    let norm_100k = if total_freq > 0 { 100_000.0 / total_freq as f32 } else { 1.0 };
-    let norm_pct = if total_freq > 0 { 100.0 / total_freq as f32 } else { 1.0 };
 
     if total_bigrams > 0.0 { report.sfb_ratio = report.sfb_total / total_bigrams; }
     if total_load > 0.0 { report.hand_balance = ((left_hand_load / total_load) - 0.5) * -2.0; }

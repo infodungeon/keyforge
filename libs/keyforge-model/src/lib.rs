@@ -13,9 +13,9 @@
 // limitations under the License.
 
 
-//! # KeyForge Model
+//! # `KeyForge` Model
 //!
-//! The Domain Nucleus of the KeyForge system. This crate defines the "Ubiquitous Language"
+//! The Domain Nucleus of the `KeyForge` system. This crate defines the "Ubiquitous Language"
 //! (Entities, Value Objects, Aggregates) used throughout the application.
 //!
 //! ## Core Concepts
@@ -158,6 +158,7 @@ impl SearchConfig {
     }
 
     /// Returns whether thumb keys should be included in swap suggestions.
+    #[must_use]
     pub fn include_thumbs(&self) -> bool {
         match self {
             SearchConfig::Annealing { include_thumbs, .. } => *include_thumbs,

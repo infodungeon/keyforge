@@ -73,7 +73,7 @@ fn validate_request(payload: &JobRequest) -> AppResult<()> {
 
     payload
         .validate()
-        .map_err(|e| AppError::Validation(format!("Invalid Job Request: {}", e)))?;
+        .map_err(|e| AppError::Validation(format!("Invalid Job Request: {e}")))?;
 
     validate_input_safety(payload)?;
     Ok(())
@@ -88,7 +88,7 @@ async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult
                 .assets
                 .get_corpus_hash(&corpus.id)
                 .await
-                .map_err(|e| AppError::Validation(format!("Corpus error: {}", e)))?;
+                .map_err(|e| AppError::Validation(format!("Corpus error: {e}")))?;
             corpus.hash = Some(hash);
         }
     }
@@ -107,14 +107,14 @@ fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
         &corpora_fingerprint,
         &payload.config.cost_matrix,
     )
-    .map_err(|e| AppError::Validation(format!("job id generation failed: {}", e)))?;
+    .map_err(|e| AppError::Validation(format!("job id generation failed: {e}")))?;
     
     Ok(id.hash)
 }
 
 /// Notifies waiters and logs the registration of a new job.
 fn emit_registration_events(state: &AppState, job_id: &str) {
-    let _ = state.tx.send(format!("JOB:{}", job_id));
+    let _ = state.tx.send(format!("JOB:{job_id}"));
     state.jobs.signal.notify_waiters();
     info!("🆕 (VSA/Humble/ROP) Registered Job: {}", &job_id[0..LOG_JOB_ID_TRUNCATION]);
 }
@@ -123,7 +123,7 @@ fn emit_registration_events(state: &AppState, job_id: &str) {
 fn validate_input_safety(req: &JobRequest) -> AppResult<()> {
     match &req.config.cost_matrix {
         CostMatrixSource::Predefined(name) => {
-            crate::api::validation::validate_filename(&name).map_err(|e| {
+            crate::api::validation::validate_filename(name).map_err(|e| {
                 warn!("Security Alert: Invalid cost_matrix path: {} ({})", name, e);
                 e
             })?;

@@ -89,6 +89,11 @@ impl Default for Rubric {
 
 impl Rubric {
     /// Validates the rubric configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ForgeError` if the trigram coverage is out of range, or if
+    /// trigram limits/penalties are invalid.
     pub fn validate(&self) -> Result<(), ForgeError> {
         if self.trigram_coverage < 0.0 || self.trigram_coverage > 1.0 {
             return Err(ForgeError::InvalidData(format!(

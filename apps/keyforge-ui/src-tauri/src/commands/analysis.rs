@@ -79,7 +79,7 @@ pub async fn cmd_load_dataset(
     
     // Load definition to ensure it exists and to put in config
     let definition = assets.load::<keyforge_model::KeyboardDefinition>(&keyboard_name).await
-        .map_err(|e| CommandError::Config(format!("Failed to load keyboard: {}", e)))?;
+        .map_err(|e| CommandError::Config(format!("Failed to load keyboard: {e}")))?;
     
     let job_config = JobConfig {
         definition: definition.as_ref().clone(),
@@ -136,7 +136,7 @@ pub async fn cmd_validate_layout(
                     state.assets.as_ref(),
                     &job_config,
                     &options
-                ).await.map_err(|e| CommandError::Internal(format!("Failed to compile engine: {}", e)))?;
+                ).await.map_err(|e| CommandError::Internal(format!("Failed to compile engine: {e}")))?;
                 
                 *write_guard = Some(session);
             }
@@ -152,11 +152,11 @@ pub async fn cmd_validate_layout(
         &layout_str,
         session.engine.key_count(),
         &session.registry
-    ).map_err(|e| CommandError::Internal(format!("Invalid layout string: {}", e)))?;
+    ).map_err(|e| CommandError::Internal(format!("Invalid layout string: {e}")))?;
 
     // 4. Analyze
     let report = session.engine.analyze(&layout_parsed)
-        .map_err(|e| CommandError::Internal(format!("Analysis failed: {:?}", e)))?;
+        .map_err(|e| CommandError::Internal(format!("Analysis failed: {e:?}")))?;
     
     Ok(ValidationResult {
         layout_name: "Custom".to_string(),
@@ -191,7 +191,7 @@ pub async fn cmd_get_smart_swaps(
         &layout_str,
         session.engine.key_count(),
         &session.registry
-    ).map_err(|e| CommandError::Internal(format!("Invalid layout string: {}", e)))?;
+    ).map_err(|e| CommandError::Internal(format!("Invalid layout string: {e}")))?;
 
     // 3. Get Suggestions
     let suggestions = session.engine.suggest_improvements(&layout_parsed, include_thumbs.unwrap_or(false));

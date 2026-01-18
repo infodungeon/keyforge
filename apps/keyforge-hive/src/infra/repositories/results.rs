@@ -25,6 +25,7 @@ pub struct ResultRepository {
 
 impl ResultRepository {
     /// Creates a new `ResultRepository` with the given database pool.
+    #[must_use] 
     pub fn new(pool: Pool<Postgres>, max_population: usize) -> Self {
         Self { pool, max_population }
     }
@@ -32,13 +33,13 @@ impl ResultRepository {
     /// Retrieves the top 50 layouts for a given job ID.
     pub async fn get_population(&self, job_id: &str) -> Result<Vec<String>, sqlx::Error> {
         let rows = sqlx::query(
-            r#"
+            r"
             SELECT layout 
             FROM results 
             WHERE job_id = $1 
             ORDER BY score ASC 
             LIMIT $2
-            "#,
+            ",
         )
         .bind(job_id)
         .bind(self.max_population as i64)
@@ -78,7 +79,7 @@ impl ResultRepository {
         query_builder.push_values(items, |mut b, (job, layout, score, node)| {
             b.push_bind(job)
                 .push_bind(layout)
-                .push_bind(*score as f64)
+                .push_bind(f64::from(*score))
                 .push_bind(node);
         });
 
@@ -98,7 +99,7 @@ impl ResultRepository {
     }
 
     /// Retrieves summary statistics for a given job.
-    /// Returns (unique_nodes, total_samples, best_score, best_layout).
+    /// Returns (`unique_nodes`, `total_samples`, `best_score`, `best_layout`).
     pub async fn get_stats(
         &self,
         job_id: &str,
@@ -130,7 +131,7 @@ impl ResultRepository {
 
     /// Prunes results older than a certain age, keeping the top N per job.
     pub async fn prune_old_results(&self, days: i32, keep_top: i32) -> Result<u64, sqlx::Error> {
-        let query = r#"
+        let query = r"
             DELETE FROM results
             WHERE id IN (
                 SELECT id FROM (
@@ -141,7 +142,7 @@ impl ResultRepository {
                 ) ranked
                 WHERE rank > $2
             )
-        "#;
+        ";
 
         let result = sqlx::query(query)
             .bind(days)

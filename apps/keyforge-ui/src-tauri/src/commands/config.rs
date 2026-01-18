@@ -10,6 +10,7 @@ use tauri::AppHandle;
 
 /// Returns the default global application configuration.
 #[tauri::command]
+#[must_use] 
 pub fn cmd_get_default_config() -> Config {
     Config::default()
 }
@@ -23,7 +24,7 @@ pub async fn cmd_get_keycodes(
         Ok(reg) => Ok(reg.as_ref().clone()),
         Err(e) => {
             tracing::error!("Failed to load keycodes from disk: {}", e);
-            Err(CommandError::Config(format!("Keycodes load failed: {}", e)))
+            Err(CommandError::Config(format!("Keycodes load failed: {e}")))
         }
     }
 }
@@ -41,7 +42,7 @@ pub fn cmd_get_ui_categories(
     let system_path = provider
         .root()
         .join("system/config")
-        .join(format!("{}.mpk.zst", stem));
+        .join(format!("{stem}.mpk.zst"));
 
     if system_path.exists() {
         let file = std::fs::File::open(system_path)?;

@@ -31,9 +31,9 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     let op = || async {
         client.inner().get(&url)
             .send().await
-            .map_err(|e| backoff::Error::transient(format!("Failed to fetch manifest: {}", e)))?
+            .map_err(|e| backoff::Error::transient(format!("Failed to fetch manifest: {e}")))?
             .json::<ServerManifest>().await
-            .map_err(|e| backoff::Error::permanent(format!("Invalid manifest JSON: {}", e)))
+            .map_err(|e| backoff::Error::permanent(format!("Invalid manifest JSON: {e}")))
     };
 
     let backoff_conf = backoff::ExponentialBackoff {
@@ -60,10 +60,10 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
         } else { true };
 
         if needs_update {
-            let remote_url = client.asset_url(&format!("data/system/{}", rel_path));
+            let remote_url = client.asset_url(&format!("data/system/{rel_path}"));
             match ensure_file(client, &remote_url, &target_path, Some(&server_hash)).await {
-                Ok(_) => stats.downloaded += 1,
-                Err(e) => stats.errors.push(format!("{}: {}", rel_path, e)),
+                Ok(()) => stats.downloaded += 1,
+                Err(e) => stats.errors.push(format!("{rel_path}: {e}")),
             }
         } else {
             stats.skipped += 1;
@@ -86,7 +86,7 @@ pub async fn bootstrap_essentials(client: &HiveClient, local_root: &Path) -> Res
         let is_cats = rel_path.contains("ui_categories.mpk.zst");
 
         if is_keyboard || is_keycodes || is_cats {
-            let remote = client.asset_url(&format!("data/system/{}", rel_path));
+            let remote = client.asset_url(&format!("data/system/{rel_path}"));
             let local = local_root.join("system").join(&rel_path);
             if ensure_file(client, &remote, &local, Some(&server_hash)).await.is_ok() {
                 downloaded.push(rel_path);
@@ -100,7 +100,7 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
     let mut files = HashMap::new();
     let walker = WalkDir::new(data_root).follow_links(true);
 
-    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+    for entry in walker.into_iter().filter_map(std::result::Result::ok) {
         if entry.file_type().is_file() {
             let path = entry.path();
             if path.components().any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.'))) { continue; }

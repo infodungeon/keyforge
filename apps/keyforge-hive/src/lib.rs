@@ -13,9 +13,9 @@
 // limitations under the License.
 
 
-//! # KeyForge Hive
+//! # `KeyForge` Hive
 //!
-//! The central coordination server for KeyForge. This crate implements the 
+//! The central coordination server for `KeyForge`. This crate implements the 
 //! API server, job queue, and result aggregation logic.
 
 use axum::{

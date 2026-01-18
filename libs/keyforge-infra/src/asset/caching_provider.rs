@@ -31,7 +31,7 @@ use tracing::{error, info};
 use std::any::{Any, TypeId};
 
 /// A thread-safe, caching asset loader with hot-reloading capabilities.
-/// Wraps FsProvider with memory caching and file-system watching.
+/// Wraps `FsProvider` with memory caching and file-system watching.
 #[derive(Clone, Debug)]
 pub struct CachingProvider {
     provider: FsProvider,
@@ -119,7 +119,7 @@ impl CachingProvider {
         let system_root = self.provider.root().join("system");
 
         let manifest = crate::net::sync::generate_manifest(&system_root)
-            .map_err(|e| format!("Manifest error: {}", e))?;
+            .map_err(|e| format!("Manifest error: {e}"))?;
 
         self.cache.insert_manifest(Arc::new(manifest.clone()));
 
@@ -194,6 +194,7 @@ impl CachingProvider {
     }
 
     /// Returns the current system asset manifest.
+    #[must_use] 
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
         self.cache.get_manifest()
     }
@@ -260,7 +261,7 @@ impl CachingProvider {
     }
 
     async fn try_ensure_config(&self, rel_path: &str) -> Result<bool, String> {
-        if rel_path == format!("config/{}.mpk.zst", ASSET_KEYCODES) {
+        if rel_path == format!("config/{ASSET_KEYCODES}.mpk.zst") {
             if let Err(e) = self.load::<KeycodeRegistry>(ASSET_KEYCODES).await {
                  tracing::warn!("Eager load failed for keycodes: {}", e);
             }

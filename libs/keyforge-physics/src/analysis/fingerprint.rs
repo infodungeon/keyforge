@@ -49,7 +49,7 @@ impl Fingerprinter {
         })
     }
 
-    pub fn identify(&self, layout: &Layout) -> Option<LayoutIdentity> {
+    pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
         let standards = Self::get_standards();
         let mut best: Option<LayoutIdentity> = None;
 
@@ -66,6 +66,7 @@ impl Fingerprinter {
                 }
             }
 
+            #[allow(clippy::cast_precision_loss)]
             let similarity = matches as f32 / len as f32;
             let distance = len - matches;
 
@@ -101,8 +102,7 @@ mod tests {
         let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode(c as u16)).collect();
         let layout = Layout::new_unchecked(keys);
 
-        let fp = Fingerprinter::default();
-        let id = fp.identify(&layout);
+        let id = Fingerprinter::identify(&layout);
         assert!(id.is_some());
         let id = id.unwrap();
         assert_eq!(id.name, "Qwerty");

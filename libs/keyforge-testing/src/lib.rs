@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Testing
+//! # `KeyForge` Testing
 //!
 //! Hermetic test harness and fixtures for integration testing.
 //! This crate provides a `HermeticWorkspace` that creates a temporary
@@ -34,6 +34,7 @@ pub struct HermeticWorkspace {
 
 impl HermeticWorkspace {
     /// Creates a new hermetic workspace with standard directory structure.
+    #[must_use] 
     pub fn new() -> Self {
         let temp = tempfile::tempdir().expect("Failed to create temp dir");
         let root = temp.path().to_path_buf();
@@ -75,6 +76,7 @@ impl HermeticWorkspace {
     }
 
     /// Populates the workspace with standard test assets.
+    #[must_use] 
     pub fn with_default_assets(self) -> Self {
         // 1. Keycodes
         let keycodes_json = r#"[
@@ -133,6 +135,7 @@ impl HermeticWorkspace {
     }
 
     /// Populates the workspace with "poison pill" assets designed to fail if constraints are ignored.
+    #[must_use] 
     pub fn with_poison_pill(self) -> Self {
         // Poison Keyboard: 2 keys.
         // Key 0: Cost 0.
@@ -201,18 +204,22 @@ impl HermeticWorkspace {
 
     // --- Path Helpers ---
 
+    #[must_use] 
     pub fn keyboard_path(&self, name: &str) -> PathBuf {
-        self.root.join("user/keyboards").join(format!("{}.json", name))
+        self.root.join("user/keyboards").join(format!("{name}.json"))
     }
 
+    #[must_use] 
     pub fn cost_path(&self, name: &str) -> PathBuf {
         self.root.join("user/weights").join(name)
     }
 
+    #[must_use] 
     pub fn weights_path(&self, name: &str) -> PathBuf {
-        self.root.join("user/weights").join(format!("{}.json", name))
+        self.root.join("user/weights").join(format!("{name}.json"))
     }
 
+    #[must_use] 
     pub fn keycodes_path(&self) -> PathBuf {
         self.root.join("user/config/keycodes.json")
     }

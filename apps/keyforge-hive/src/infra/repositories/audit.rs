@@ -24,7 +24,7 @@ pub struct AuditRepository {
 /// Represents a single audit log entry.
 #[derive(Debug)]
 pub struct AuditLog<'a> {
-    /// The action performed (e.g., "create_job", "delete_user").
+    /// The action performed (e.g., "`create_job`", "`delete_user`").
     pub action: &'a str,
     /// The ID of the user or system component performing the action.
     pub actor_id: Option<Uuid>,
@@ -44,6 +44,7 @@ pub struct AuditLog<'a> {
 
 impl AuditRepository {
     /// Creates a new `AuditRepository` with the given database pool.
+    #[must_use] 
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -51,11 +52,11 @@ impl AuditRepository {
     /// Persists an audit log entry to the database.
     pub async fn log(&self, entry: AuditLog<'_>) -> Result<(), sqlx::Error> {
         sqlx::query(
-            r#"
+            r"
             INSERT INTO audit_logs 
             (action, actor_id, target_resource, details, ip_address, status_code, request_id, user_agent)
             VALUES ($1, $2, $3, $4, $5::inet, $6, $7, $8)
-            "#,
+            ",
         )
         .bind(entry.action)
         .bind(entry.actor_id)

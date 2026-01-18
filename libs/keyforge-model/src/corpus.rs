@@ -65,6 +65,10 @@ impl Validator for Corpus {
 impl Corpus {
     /// Validates the integrity of the Corpus.
     /// Ensures that frequency maps are sized correctly to prevent panics in the Physics engine.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ForgeError` if the character frequency map is not exactly 65536 elements.
     pub fn validate(&self) -> Result<(), ForgeError> {
         // 1. Char Freqs must cover full u16 range (0..65535)
         // The physics engine uses direct indexing: ctx.char_freqs[code as usize]
@@ -86,23 +90,31 @@ impl Corpus {
         // 1. Merge character frequencies
         for (i, &freq) in other.char_freqs.iter().enumerate() {
             if i < self.char_freqs.len() {
-                self.char_freqs[i] += (freq as f32 * weight).round() as u64;
+                #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let merged_freq = (freq as f32 * weight).round() as u64;
+                self.char_freqs[i] += merged_freq;
             }
         }
 
         // 2. Merge bigrams
         for &(c1, c2, freq) in &other.bigrams {
-            self.bigrams.push((c1, c2, (freq as f32 * weight).round() as u32));
+            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let merged_freq = (freq as f32 * weight).round() as u32;
+            self.bigrams.push((c1, c2, merged_freq));
         }
 
         // 3. Merge trigrams
         for &(c1, c2, c3, freq) in &other.trigrams {
-            self.trigrams.push((c1, c2, c3, (freq as f32 * weight).round() as u32));
+            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let merged_freq = (freq as f32 * weight).round() as u32;
+            self.trigrams.push((c1, c2, c3, merged_freq));
         }
 
         // 4. Merge words
         for (word, freq) in &other.words {
-            self.words.push((word.clone(), (*freq as f32 * weight).round() as u32));
+            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let merged_freq = (*freq as f32 * weight).round() as u32;
+            self.words.push((word.clone(), merged_freq));
         }
 
         // Keep bigrams/trigrams sorted for the engine
@@ -111,6 +123,10 @@ impl Corpus {
     }
 
     // Internal helper to keep the ForgeError return type for existing callers
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ForgeError` if the corpus state is invalid.
     fn validate_internal(&self) -> Result<(), ForgeError> {
         self.validate()
     }

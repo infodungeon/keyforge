@@ -55,7 +55,7 @@ pub fn load() -> Option<Vec<BenchmarkEntry>> {
     let path = crate::constants::DEFAULT_BENCHMARK_PATH;
 
     if !Path::new(path).exists() {
-        eprintln!("⚠️  Notice: Benchmark file '{}' not found.", path);
+        eprintln!("⚠️  Notice: Benchmark file '{path}' not found.");
         eprintln!("    (The 'Reality Check' table will be skipped.)");
         return None;
     }
@@ -64,12 +64,12 @@ pub fn load() -> Option<Vec<BenchmarkEntry>> {
         Ok(content) => match serde_json::from_str(&content) {
             Ok(data) => Some(data),
             Err(e) => {
-                eprintln!("❌ Error parsing benchmark JSON: {}", e);
+                eprintln!("❌ Error parsing benchmark JSON: {e}");
                 None
             }
         },
         Err(e) => {
-            eprintln!("❌ Error reading benchmark file: {}", e);
+            eprintln!("❌ Error reading benchmark file: {e}");
             None
         }
     }

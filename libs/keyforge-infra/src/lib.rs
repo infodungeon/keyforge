@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Infrastructure
+//! # `KeyForge` Infrastructure
 //!
-//! Infrastructure and cross-cutting concerns for KeyForge. This crate 
+//! Infrastructure and cross-cutting concerns for `KeyForge`. This crate 
 //! provides utilities for networking, filesystem operations, and asset 
 //! management.
 
@@ -62,6 +62,7 @@ pub use util::common::{
 include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
 
 /// Returns the build information (Git hash and build date) injected during compilation.
+#[must_use] 
 pub fn get_build_info() -> (&'static str, &'static str) {
     (GIT_HASH, BUILD_DATE)
 }

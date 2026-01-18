@@ -285,15 +285,14 @@ fn test_to_domain_rubric_conversion_defaults() {
 
 #[test]
 fn test_to_domain_config_conversion() {
-    let proto_params = SearchParams {
-        search_steps: 100_000,
-        temp_max: 20.0,
-        temp_min: 0.005,
-        search_patience: 500,
-        reheats: 3,
-        reheat_factor: 0.5,
-        ..Default::default()
-    };
+    let mut proto_params = SearchParams::default();
+    proto_params.params.insert("search_steps".to_string(), 100_000.0);
+    proto_params.params.insert("temp_max".to_string(), 20.0);
+    proto_params.params.insert("temp_min".to_string(), 0.005);
+    proto_params.params.insert("search_patience".to_string(), 500.0);
+    proto_params.params.insert("reheats".to_string(), 3.0);
+    proto_params.params.insert("reheat_factor".to_string(), 0.5);
+    
     let seed = 42;
     let domain_config = conversion::to_domain_config(&proto_params, seed);
 

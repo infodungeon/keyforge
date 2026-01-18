@@ -32,11 +32,11 @@ pub struct CorpusStage<'a> {
     pub rubric: &'a Rubric,
 }
 
-impl<'a> CompilationStage for CorpusStage<'a> {
+impl CompilationStage for CorpusStage<'_> {
     type Input = ();
     type Output = CorpusOutput;
 
-    fn execute(&self, _: Self::Input) -> Result<Self::Output, PhysicsError> {
+    fn execute(&self, (): Self::Input) -> Result<Self::Output, PhysicsError> {
         let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&self.corpus.bigrams);
         let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) = flatten_bigrams_rev(&self.corpus.bigrams);
         
@@ -119,15 +119,17 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
     (starts, others, freqs)
 }
 
+#[allow(clippy::cast_sign_loss, clippy::cast_precision_loss)]
 fn prune_trigrams(mut source: Vec<(u16, u16, u16, u32)>, coverage: f32, limit: usize) -> Vec<(u16, u16, u16, u32)> {
     if source.is_empty() { return source; }
     source.sort_unstable_by(|a, b| b.3.cmp(&a.3).then_with(|| a.0.cmp(&b.0)).then_with(|| a.1.cmp(&b.1)).then_with(|| a.2.cmp(&b.2)));
-    let total_freq: u64 = source.iter().map(|x| x.3 as u64).sum();
-    let target = (total_freq as f64 * coverage as f64) as u64;
+    let total_freq: u64 = source.iter().map(|x| u64::from(x.3)).sum();
+    #[allow(clippy::cast_possible_truncation)]
+    let target = (total_freq as f64 * f64::from(coverage)) as u64;
     let mut acc = 0;
     let mut cutoff = source.len();
     for (i, item) in source.iter().enumerate() {
-        acc += item.3 as u64;
+        acc += u64::from(item.3);
         if acc >= target { cutoff = i + 1; break; }
     }
     if cutoff > limit { cutoff = limit; }

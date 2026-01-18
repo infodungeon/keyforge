@@ -1,6 +1,6 @@
-//! # KeyForge Agent
+//! # `KeyForge` Agent
 //!
-//! Distributed compute worker for KeyForge. This crate implements the 
+//! Distributed compute worker for `KeyForge`. This crate implements the 
 //! logic for remote job processing, hardware capability detection, 
 //! and secure communication with the Hive.
 

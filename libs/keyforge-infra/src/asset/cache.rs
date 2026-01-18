@@ -25,7 +25,7 @@ use keyforge_model::constants::{
     DEFAULT_KB_CACHE_CAPACITY, DEFAULT_KEYCODE_CACHE_CAPACITY,
 };
 
-/// specialized cache container for KeyForge assets.
+/// specialized cache container for `KeyForge` assets.
 #[derive(Debug, Clone)]
 pub struct AssetCache {
     keyboards: Cache<String, Arc<KeyboardDefinition>>,
@@ -44,6 +44,7 @@ impl Default for AssetCache {
 
 impl AssetCache {
     /// Creates a new, empty asset cache with default capacities.
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             keyboards: Cache::new(DEFAULT_KB_CACHE_CAPACITY as u64),
@@ -67,6 +68,7 @@ impl AssetCache {
 
     // -- Typed Accessors --
 
+    #[must_use] 
     pub fn get_keyboard(&self, id: &str) -> Option<Arc<KeyboardDefinition>> {
         self.keyboards.get(id)
     }
@@ -83,6 +85,7 @@ impl AssetCache {
         self.keyboards.invalidate_all();
     }
 
+    #[must_use] 
     pub fn get_corpus(&self, key: &str) -> Option<Arc<Corpus>> {
         self.corpora.get(key)
     }
@@ -95,6 +98,7 @@ impl AssetCache {
         self.corpora.invalidate_all();
     }
 
+    #[must_use] 
     pub fn get_cost_model(&self, id: &str) -> Option<Arc<CostModel>> {
         self.cost_models.get(id)
     }
@@ -111,6 +115,7 @@ impl AssetCache {
         self.cost_models.invalidate_all();
     }
 
+    #[must_use] 
     pub fn get_keycodes(&self, id: &str) -> Option<Arc<KeycodeRegistry>> {
         self.keycodes.get(id)
     }
@@ -123,6 +128,7 @@ impl AssetCache {
         self.keycodes.invalidate_all();
     }
 
+    #[must_use] 
     pub fn get_file(&self, path: &str) -> Option<Bytes> {
         self.file_cache.get(path)
     }
@@ -135,6 +141,7 @@ impl AssetCache {
         self.file_cache.invalidate(path);
     }
 
+    #[must_use] 
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
         self.manifest.get("default")
     }

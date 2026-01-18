@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-//! # KeyForge Agent Binary
+//! # `KeyForge` Agent Binary
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -48,15 +48,15 @@ enum Commands {
     Worker,
     /// Run a single optimization job defined in a file.
     Run {
-        /// Path to the JobConfig JSON file.
+        /// Path to the `JobConfig` JSON file.
         job_file: PathBuf,
         /// Maximum time in seconds.
         #[arg(long)]
         timeout: Option<u64>,
     },
-    /// Score a specific layout string against a JobConfig.
+    /// Score a specific layout string against a `JobConfig`.
     Score {
-        /// Path to the JobConfig JSON file.
+        /// Path to the `JobConfig` JSON file.
         job_file: PathBuf,
         /// The layout string to score.
         layout: String,
@@ -64,9 +64,9 @@ enum Commands {
         #[arg(long)]
         timeout: Option<u64>,
     },
-    /// Run a physics benchmark using the environment from a JobConfig.
+    /// Run a physics benchmark using the environment from a `JobConfig`.
     Bench {
-        /// Path to the JobConfig JSON file.
+        /// Path to the `JobConfig` JSON file.
         job_file: PathBuf,
         /// Number of iterations.
         #[arg(long, default_value_t = keyforge_model::constants::DEFAULT_BENCHMARK_ITERATIONS)]
@@ -83,7 +83,7 @@ async fn main() -> Result<()> {
         match PartialAgentConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
-                eprintln!("Failed to load config file {:?}: {}", config_path, e);
+                eprintln!("Failed to load config file {config_path:?}: {e}");
                 std::process::exit(1);
             }
         }

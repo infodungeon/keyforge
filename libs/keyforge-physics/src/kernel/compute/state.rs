@@ -9,8 +9,9 @@ pub(crate) struct PosMap<'a> {
     pub(crate) used_keys: &'a [u16],
 }
 
+#[allow(clippy::cast_possible_truncation)]
 impl<'a> PosMap<'a> {
-    /// Creates a PosMap by manually populating the provided scratch buffers.
+    /// Creates a `PosMap` by manually populating the provided scratch buffers.
     /// This avoids large array initialization on every call.
     pub(crate) fn from_scratch(
         layout: &[KeyCode],
@@ -66,7 +67,7 @@ impl<'a> PosMap<'a> {
         Self { starts, counts, indices, used_keys: used_keys_scratch }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn get(&self, code: usize) -> &[u16] {
         if code >= 65536 { return &[]; }
         let start = self.starts[code] as usize;
@@ -78,29 +79,31 @@ impl<'a> PosMap<'a> {
 
 /// Scratch space for physics operations to avoid re-allocating large arrays.
 pub struct PhysicsScratch {
-    pub(crate) starts: [u16; 65536],
-    pub(crate) counts: [u8; 65536],
-    pub(crate) indices: [u16; MAX_KEYBOARD_KEYS],
-    pub(crate) current_offsets: [u8; 65536], // Helper buffer
+    pub(crate) starts: Box<[u16; 65536]>,
+    pub(crate) counts: Box<[u8; 65536]>,
+    pub(crate) indices: Box<[u16; MAX_KEYBOARD_KEYS]>,
+    pub(crate) current_offsets: Box<[u8; 65536]>, // Helper buffer
     pub(crate) used_keys: Vec<u16>,
-    pub(crate) char_usage: [f32; 65536],
+    pub(crate) char_usage: Box<[f32; 65536]>,
 }
 
 impl Default for PhysicsScratch {
+    #[allow(clippy::unwrap_used)]
     fn default() -> Self {
         Self {
-            starts: [0; 65536],
-            counts: [0; 65536],
-            indices: [0; MAX_KEYBOARD_KEYS],
-            current_offsets: [0; 65536],
+            starts: vec![0u16; 65536].into_boxed_slice().try_into().unwrap(),
+            counts: vec![0u8; 65536].into_boxed_slice().try_into().unwrap(),
+            indices: vec![0u16; MAX_KEYBOARD_KEYS].into_boxed_slice().try_into().unwrap(),
+            current_offsets: vec![0u8; 65536].into_boxed_slice().try_into().unwrap(),
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
-            char_usage: [0.0; 65536],
+            char_usage: vec![0.0f32; 65536].into_boxed_slice().try_into().unwrap(),
         }
     }
 }
 
 impl PhysicsScratch {
     /// Creates a new scratch instance.
+    #[must_use] 
     pub fn new() -> Self {
         Self::default()
     }

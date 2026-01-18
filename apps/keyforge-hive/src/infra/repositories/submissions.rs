@@ -24,6 +24,7 @@ pub struct SubmissionRepository {
 
 impl SubmissionRepository {
     /// Creates a new `SubmissionRepository` with the given database pool.
+    #[must_use] 
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -40,18 +41,18 @@ impl SubmissionRepository {
         .await?;
 
         let id: i32 = rec.try_get("id")?;
-        Ok(id as i64)
+        Ok(i64::from(id))
     }
 
     /// Retrieves a list of recent submissions, up to the specified limit.
     pub async fn get_recent(&self, limit: i64) -> Result<Vec<SubmissionEntry>, sqlx::Error> {
         let rows = sqlx::query(
-            r#"
+            r"
             SELECT id, name, layout_str, author, submitted_at 
             FROM submissions 
             ORDER BY submitted_at DESC 
             LIMIT $1
-            "#,
+            ",
         )
         .bind(limit)
         .fetch_all(&self.pool)
@@ -60,7 +61,7 @@ impl SubmissionRepository {
         Ok(rows
             .into_iter()
             .map(|r| SubmissionEntry {
-                id: r.try_get::<i32, _>("id").unwrap_or(0) as i64,
+                id: i64::from(r.try_get::<i32, _>("id").unwrap_or(0)),
                 name: r.try_get("name").unwrap_or_default(),
                 layout: r.try_get("layout_str").unwrap_or_default(),
                 author: r.try_get("author").unwrap_or_default(),

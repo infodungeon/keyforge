@@ -20,7 +20,7 @@ impl AgentRunner {
         // Create temp file for JobConfig
         let temp_file = tempfile::NamedTempFile::new().map_err(|e| AppError::Any(e.into()))?;
         let temp_path = temp_file.path().to_path_buf();
-        let json = serde_json::to_string(config).map_err(|e| AppError::Serde(e))?;
+        let json = serde_json::to_string(config).map_err(AppError::Serde)?;
         tokio::fs::write(&temp_path, json).await.map_err(|e| AppError::Any(e.into()))?;
 
         info!("Agent Runner spawning sidecar for validation...");
@@ -39,12 +39,12 @@ impl AgentRunner {
             ])
             .output()
             .await
-            .map_err(|e| AppError::Any(anyhow::anyhow!("Failed to spawn agent: {}", e)))?;
+            .map_err(|e| AppError::Any(anyhow::anyhow!("Failed to spawn agent: {e}")))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             warn!("Agent Runner failed: {}", stderr);
-            return Err(AppError::Validation(format!("Agent validation failed: {}", stderr)));
+            return Err(AppError::Validation(format!("Agent validation failed: {stderr}")));
         }
 
         let stdout = String::from_utf8(output.stdout).map_err(|e| AppError::Any(e.into()))?;

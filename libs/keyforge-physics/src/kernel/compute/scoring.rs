@@ -2,21 +2,22 @@ use crate::kernel::{EngineContext, types::{Score, ValidatedLayout}};
 use super::state::{PosMap, PhysicsScratch};
 use super::flow::calculate_flow_cost;
 
+#[allow(clippy::cast_possible_wrap)]
 pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: &mut PhysicsScratch) -> i64 {
     let mut total_score = Score::ZERO;
     let layout_slice = layout.as_slice();
     let pm = PosMap::from_scratch(
         layout_slice,
         ctx.key_count,
-        &mut scratch.starts,
-        &mut scratch.counts,
-        &mut scratch.indices,
-        &mut scratch.current_offsets,
+        scratch.starts.as_mut_slice(),
+        scratch.counts.as_mut_slice(),
+        scratch.indices.as_mut_slice(),
+        scratch.current_offsets.as_mut_slice(),
         &mut scratch.used_keys,
     );
 
     // 1. Monograms: Optimal Choice
-    for &code in pm.used_keys.iter() {
+    for &code in pm.used_keys {
         let c_val = code as usize;
         let freq = ctx.char_freqs[c_val];
         if freq == 0 { continue; }
@@ -31,7 +32,7 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: 
     }
 
     // 2. Bigrams: Optimal Choice
-    for &code1 in pm.used_keys.iter() {
+    for &code1 in pm.used_keys {
         let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
         let start = ctx.bigram_starts[c1_val];
@@ -56,13 +57,13 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: 
                     if cost < min_cost { min_cost = cost; }
                 }
             }
-            let freq = ctx.bigram_freqs[k] as i64;
+            let freq = i64::from(ctx.bigram_freqs[k]);
             total_score = total_score.saturating_add(min_cost.saturating_mul(freq));
         }
     }
 
     // 3. Trigrams: Optimal Choice
-    for &code1 in pm.used_keys.iter() {
+    for &code1 in pm.used_keys {
         let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
         let start = ctx.trigram_starts[c1_val];
@@ -101,7 +102,7 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: 
             }
 
             if min_cost.0 != i64::MAX && min_cost.0 != 0 {
-                let freq = ctx.trigram_freqs[k] as i64;
+                let freq = i64::from(ctx.trigram_freqs[k]);
                 total_score = total_score.saturating_add(min_cost.saturating_mul(freq));
             }
         }

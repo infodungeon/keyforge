@@ -3,6 +3,7 @@ use anyhow::Context;
 use keyforge_protocol::JobConfig;
 use crate::models::PartialAgentConfig;
 
+#[must_use] 
 pub fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Option<PartialAgentConfig> {
     let mut candidates = vec![
         PathBuf::from("agent.mpk.zst"),
@@ -51,7 +52,7 @@ pub async fn read_job_config(path: &PathBuf) -> anyhow::Result<JobConfig> {
         buf
     } else {
         tokio::fs::read_to_string(path).await
-            .context(format!("Failed to read job file {:?}", path))?
+            .context(format!("Failed to read job file {path:?}"))?
     };
     serde_json::from_str(&content).context("Invalid Job JSON")
 }

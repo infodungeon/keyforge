@@ -1,14 +1,14 @@
-//! # OpenBookCorpus Processor
+//! # `OpenBookCorpus` Processor
 //!
 //! A high-performance utility for downloading and processing the 
 //! [OpenBookCorpus](https://huggingface.co/datasets/lucadiliello/bookcorpusopen) 
-//! dataset into N-gram statistics for KeyForge.
+//! dataset into N-gram statistics for `KeyForge`.
 //!
 //! Features:
 //! - Parallel processing using `rayon` and `parquet`.
 //! - Concurrent shard downloads.
 //! - Strict character normalization and validation for keyboard optimization.
-//! - Optimized FastMap (FxHash) aggregation.
+//! - Optimized `FastMap` (`FxHash`) aggregation.
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use parquet::file::reader::{FileReader, SerializedFileReader};
@@ -29,6 +29,7 @@ const DATASET_NAME: &str = "lucadiliello/bookcorpusopen";
 const CONCURRENT_DOWNLOADS: usize = 4;
 
 // --- Dynamic Path Logic ---
+#[allow(clippy::expect_used)]
 fn get_data_dir() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     manifest_dir
@@ -92,7 +93,7 @@ impl NgramTracker {
         Self { p1: None, p2: None }
     }
 
-    #[inline(always)]
+    #[inline]
     fn feed(&mut self, c: char, stats: &mut CorpusStats) {
         *stats.c1.entry(c).or_insert(0) += 1;
         if let Some(last) = self.p1 {
@@ -105,7 +106,7 @@ impl NgramTracker {
         self.p1 = Some(c);
     }
 
-    #[inline(always)]
+    #[inline]
     fn reset(&mut self) {
         self.p1 = None;
         self.p2 = None;
@@ -144,12 +145,12 @@ impl Formatter for StrictEscapeFormatter {
             for c in fragment.chars() {
                 let c_u32 = c as u32;
                 if c_u32 <= 0xFFFF {
-                    write!(writer, "\\u{:04x}", c_u32)?;
+                    write!(writer, "\\u{c_u32:04x}")?;
                 } else {
                     let c_u32 = c_u32 - 0x10000;
                     let high = 0xD800 + (c_u32 >> 10);
                     let low = 0xDC00 + (c_u32 & 0x3FF);
-                    write!(writer, "\\u{:04x}\\u{:04x}", high, low)?;
+                    write!(writer, "\\u{high:04x}\\u{low:04x}")?;
                 }
             }
         }
@@ -159,24 +160,20 @@ impl Formatter for StrictEscapeFormatter {
 
 // --- Validation Helpers ---
 
-#[inline(always)]
+#[inline]
 fn is_keyboard_char(c: char) -> bool {
-    match c {
-        'a'..='z' | '0'..='9' => true,
-        '.' | ',' | '!' | '?' | ';' | ':' | '\'' | '"' |
+    matches!(c, 'a'..='z' | '0'..='9' | '.' | ',' | '!' | '?' | ';' | ':' | '\'' | '"' |
         '-' | '_' | '+' | '=' | '*' | '/' | '\\' | '|' |
         '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' |
-        '@' | '#' | '$' | '%' | '^' | '&' | '`' | '~' => true,
-        _ => false,
-    }
+        '@' | '#' | '$' | '%' | '^' | '&' | '`' | '~')
 }
 
-#[inline(always)]
+#[inline]
 fn has_vowel(s: &str) -> bool {
     s.chars().any(|c| matches!(c, 'a'|'e'|'i'|'o'|'u'|'y'))
 }
 
-#[inline(always)]
+#[inline]
 fn has_repeated_chars_3(s: &str) -> bool {
     let mut chars = s.chars();
     if let Some(mut p2) = chars.next() {
@@ -193,7 +190,7 @@ fn has_repeated_chars_3(s: &str) -> bool {
     false
 }
 
-#[inline(always)]
+#[inline]
 fn has_consonant_cluster_7(s: &str) -> bool {
     let mut count = 0;
     for c in s.chars() {
@@ -209,7 +206,7 @@ fn has_consonant_cluster_7(s: &str) -> bool {
     false
 }
 
-#[inline(always)]
+#[inline]
 fn is_valid_word(s: &str) -> bool {
     if s.is_empty() || s.len() > 25 { return false; }
     if !s.chars().all(|c| c.is_ascii_alphabetic() || c == '\'' || c == '-') { return false; }
@@ -219,16 +216,17 @@ fn is_valid_word(s: &str) -> bool {
     true
 }
 
+#[allow(clippy::expect_used)]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data_dir = get_data_dir();
     if !data_dir.exists() { fs::create_dir_all(&data_dir)?; }
     
-    println!("Using data directory: {:?}", data_dir);
+    println!("Using data directory: {}", data_dir.display());
 
     // Fetch File List
     let client = Client::new();
-    let api_url = format!("https://datasets-server.huggingface.co/parquet?dataset={}", DATASET_NAME);
+    let api_url = format!("https://datasets-server.huggingface.co/parquet?dataset={DATASET_NAME}");
     let resp = client.get(&api_url).send().await?;
     let json: Value = resp.json().await?;
     let files = json["parquet_files"].as_array().ok_or("Invalid API response")?;
@@ -239,7 +237,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut download_tasks = Vec::new();
     for (i, file_info) in train_files.iter().enumerate() {
         let url = file_info["url"].as_str().ok_or("Missing URL")?.to_string();
-        let filename = data_dir.join(format!("shard_{}.parquet", i));
+        let filename = data_dir.join(format!("shard_{i}.parquet"));
         let path_str = filename.to_string_lossy().to_string();
         local_file_paths.push(path_str.clone());
         if !filename.exists() || fs::metadata(&filename)?.len() < 1024 {
@@ -336,84 +334,82 @@ fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dy
                         // Buffer reuse across rows (outside loop)
                         let mut word_buffer = String::with_capacity(64);
 
-                        for row_result in row_iter {
-                            if let Ok(row) = row_result {
-                                stats.book_count += 1;
-                                
-                                // Reset / Init per-document state (inside loop)
-                                word_buffer.clear();
-                                let mut tracker = NgramTracker::new();
-                                let mut last_emitted_was_space = true;
-                                let mut word_is_tainted = false;
+                        for row in row_iter.flatten() {
+                            stats.book_count += 1;
+                            
+                            // Reset / Init per-document state (inside loop)
+                            word_buffer.clear();
+                            let mut tracker = NgramTracker::new();
+                            let mut last_emitted_was_space = true;
+                            let mut word_is_tainted = false;
 
-                                if let Ok(text) = row.get_string(0) {
-                                    for c_raw in text.chars() {
-                                        // 1. Normalization
-                                        let normalized_c = match c_raw {
-                                            '“' | '”' | '„' => '"',
-                                            '‘' | '’' | '`' | '´' => '\'',
-                                            '–' | '—' | '―' => '-', 
-                                            'ﬁ' => 'f', 'ﬂ' => 'f', 
-                                            '\u{00ad}' | '\u{009d}' | '\\' | '_' => ' ',
-                                            _ => c_raw.to_ascii_lowercase(),
-                                        };
+                            if let Ok(text) = row.get_string(0) {
+                                for c_raw in text.chars() {
+                                    // 1. Normalization
+                                    let normalized_c = match c_raw {
+                                        '“' | '”' | '„' => '"',
+                                        '‘' | '’' | '`' | '´' => '\'',
+                                        '–' | '—' | '―' => '-', 
+                                        'ﬁ' | 'ﬂ' => 'f', 
+                                        '\u{00ad}' | '\u{009d}' | '\\' | '_' => ' ',
+                                        _ => c_raw.to_ascii_lowercase(),
+                                    };
 
-                                        // 2. Whitelist Check
-                                        if is_keyboard_char(normalized_c) {
-                                            if normalized_c.is_alphanumeric() || normalized_c == '\'' || normalized_c == '-' {
-                                                if !word_is_tainted {
-                                                    word_buffer.push(normalized_c);
-                                                }
-                                            } else {
-                                                // Punctuation (Separator)
-                                                if !word_buffer.is_empty() {
-                                                    if !word_is_tainted {
-                                                        process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
-                                                    } else {
-                                                        tracker.reset();
-                                                    }
-                                                    word_buffer.clear();
-                                                }
-                                                // Clear taint on separator
-                                                word_is_tainted = false;
-
-                                                tracker.feed(normalized_c, &mut stats);
-                                                last_emitted_was_space = false;
+                                    // 2. Whitelist Check
+                                    if is_keyboard_char(normalized_c) {
+                                        if normalized_c.is_alphanumeric() || normalized_c == '\'' || normalized_c == '-' {
+                                            if !word_is_tainted {
+                                                word_buffer.push(normalized_c);
                                             }
-                                        } else if normalized_c == ' ' || normalized_c == '\n' || normalized_c == '\t' || normalized_c == '\r' {
-                                            // 3. Separator Handling
+                                        } else {
+                                            // Punctuation (Separator)
                                             if !word_buffer.is_empty() {
-                                                if !word_is_tainted {
-                                                    process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
-                                                } else {
+                                                if word_is_tainted {
                                                     tracker.reset();
-                                                    last_emitted_was_space = true;
+                                                } else {
+                                                    process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
                                                 }
                                                 word_buffer.clear();
                                             }
                                             // Clear taint on separator
                                             word_is_tainted = false;
 
-                                            if !last_emitted_was_space {
-                                                tracker.feed(' ', &mut stats);
-                                                last_emitted_was_space = true;
-                                            }
-                                            if normalized_c == '\n' {
+                                            tracker.feed(normalized_c, &mut stats);
+                                            last_emitted_was_space = false;
+                                        }
+                                    } else if normalized_c == ' ' || normalized_c == '\n' || normalized_c == '\t' || normalized_c == '\r' {
+                                        // 3. Separator Handling
+                                        if !word_buffer.is_empty() {
+                                            if word_is_tainted {
                                                 tracker.reset();
+                                                last_emitted_was_space = true;
+                                            } else {
+                                                process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
                                             }
-                                        } else {
-                                            // 4. Invalid Char -> Taint
-                                            word_is_tainted = true;
+                                            word_buffer.clear();
                                         }
-                                    }
+                                        // Clear taint on separator
+                                        word_is_tainted = false;
 
-                                    // EOL Flush
-                                    if !word_buffer.is_empty() {
-                                        if !word_is_tainted {
-                                            process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
+                                        if !last_emitted_was_space {
+                                            tracker.feed(' ', &mut stats);
+                                            last_emitted_was_space = true;
                                         }
-                                        word_buffer.clear();
+                                        if normalized_c == '\n' {
+                                            tracker.reset();
+                                        }
+                                    } else {
+                                        // 4. Invalid Char -> Taint
+                                        word_is_tainted = true;
                                     }
+                                }
+
+                                // EOL Flush
+                                if !word_buffer.is_empty() {
+                                    if !word_is_tainted {
+                                        process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
+                                    }
+                                    word_buffer.clear();
                                 }
                             }
                         }

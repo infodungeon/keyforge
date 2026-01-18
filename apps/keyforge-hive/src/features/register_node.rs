@@ -65,7 +65,7 @@ pub async fn handle(
             payload.l2_cache_kb,
             payload.ops_per_sec,
             payload.public_key.as_deref(),
-        ).await.map_err(|e| map_db_error(e))?;
+        ).await.map_err(map_db_error)?;
     } else {
         // LITE PATH: Updates Nodes Only (Optimistic)
         // If this fails (e.g. FK violation because Valkey was wrong), fallback to Full.
@@ -86,7 +86,7 @@ pub async fn handle(
                 payload.l2_cache_kb,
                 payload.ops_per_sec,
                 payload.public_key.as_deref(),
-            ).await.map_err(|e| map_db_error(e))?;
+            ).await.map_err(map_db_error)?;
         }
     }
 

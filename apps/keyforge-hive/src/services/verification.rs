@@ -38,6 +38,7 @@ pub struct VerificationService {
 }
 
 impl VerificationService {
+    #[must_use] 
     pub fn new(
         jobs: JobRepository,
         nodes: NodeRepository,
@@ -72,7 +73,7 @@ impl VerificationService {
             sub.timestamp,
             sub.nonce,
             &sub.signature,
-        ).map_err(|e| AppError::Validation(format!("Crypto Error: {}", e)))?;
+        ).map_err(|e| AppError::Validation(format!("Crypto Error: {e}")))?;
 
         if !valid {
             return Err(AppError::Validation("Invalid Signature".into()));
@@ -88,7 +89,7 @@ impl VerificationService {
         let (geometry, weights, corpus_name, cost_raw) = self.jobs.get_config(&sub.job_id).await.map_err(AppError::Database)?.ok_or(AppError::NotFound)?;
 
         let cost_source = serde_json::from_str::<CostMatrixSource>(&cost_raw)
-            .unwrap_or_else(|_| CostMatrixSource::Predefined(cost_raw));
+            .unwrap_or(CostMatrixSource::Predefined(cost_raw));
 
         let builder = SessionBuilder::new(self.assets.as_ref())
             .with_keyboard_def(Arc::new(KeyboardDefinition {
@@ -96,13 +97,13 @@ impl VerificationService {
                 geometry,
                 layouts: Default::default(),
             }))
-            .with_corpus(&[CorpusSource { id: corpus_name, weight: DEFAULT_CORPUS_WEIGHT, hash: None }]).await.map_err(|e| AppError::Validation(format!("Corpus load failed: {}", e)))?
-            .with_cost_matrix(&cost_source).await.map_err(|e| AppError::Validation(format!("Cost matrix load failed: {}", e)))?
-            .with_keycodes(keyforge_model::constants::ASSET_KEYCODES_FILENAME).await.map_err(|e| AppError::Validation(format!("Keycodes load failed: {}", e)))?
+            .with_corpus(&[CorpusSource { id: corpus_name, weight: DEFAULT_CORPUS_WEIGHT, hash: None }]).await.map_err(|e| AppError::Validation(format!("Corpus load failed: {e}")))?
+            .with_cost_matrix(&cost_source).await.map_err(|e| AppError::Validation(format!("Cost matrix load failed: {e}")))?
+            .with_keycodes(keyforge_model::constants::ASSET_KEYCODES_FILENAME).await.map_err(|e| AppError::Validation(format!("Keycodes load failed: {e}")))?
             .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&weights))
             .with_config(keyforge_model::SearchConfig::default());
 
-        let session = builder.build().map_err(|e| AppError::Validation(format!("Session build failed: {}", e)))?;
+        let session = builder.build().map_err(|e| AppError::Validation(format!("Session build failed: {e}")))?;
 
         self.engine_cache.insert(&sub.job_id, session.engine.clone());
         self.check_tolerance(session.engine, sub).await
@@ -112,15 +113,15 @@ impl VerificationService {
         let keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME;
         
         let registry = self.assets.load::<KeycodeRegistry>(keycodes_file).await
-            .map_err(|e| AppError::Validation(format!("Failed to load keycodes for verification: {}", e)))?;
+            .map_err(|e| AppError::Validation(format!("Failed to load keycodes for verification: {e}")))?;
 
         let layout_struct = keyforge_adapter::conversion::parse_layout_string_strict(
             &sub.layout,
             engine.key_count(),
             &registry,
-        ).map_err(|e| AppError::Validation(format!("Layout parse error: {}", e)))?;
+        ).map_err(|e| AppError::Validation(format!("Layout parse error: {e}")))?;
 
-        let calculated_score = engine.score(&layout_struct).map_err(|e| AppError::Validation(format!("Scoring error: {}", e)))?;
+        let calculated_score = engine.score(&layout_struct).map_err(|e| AppError::Validation(format!("Scoring error: {e}")))?;
 
         let diff = (calculated_score - sub.score).abs();
         let tolerance = (sub.score * VERIFICATION_TOLERANCE_RATIO).max(VERIFICATION_TOLERANCE_ABS_MIN);

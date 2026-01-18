@@ -17,13 +17,14 @@
 /// Formats for modifier name translation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModFormat {
-    /// QMK-style modifiers (e.g. MOD_LSFT).
+    /// QMK-style modifiers (e.g. `MOD_LSFT`).
     Qmk,
     /// ZMK-style modifiers (e.g. LSHIFT).
     Zmk,
 }
 
 /// Maps a modifier name to a firmware-specific representation.
+#[must_use] 
 pub fn map_modifier(name: &str, format: ModFormat) -> String {
     let upper = name.to_uppercase();
     let base = match upper.as_str() {
@@ -65,6 +66,7 @@ pub fn map_modifier(name: &str, format: ModFormat) -> String {
 }
 
 /// Sanitizes a string for use as a C identifier.
+#[must_use] 
 pub fn sanitize_c(s: &str) -> String {
     s.chars()
         .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
@@ -74,6 +76,7 @@ pub fn sanitize_c(s: &str) -> String {
 }
 
 /// Sanitizes a string for use in a ZMK devicetree (more restrictive).
+#[must_use] 
 pub fn sanitize_zmk(s: &str) -> String {
     s.chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '_')

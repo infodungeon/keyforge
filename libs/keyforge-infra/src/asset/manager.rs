@@ -19,6 +19,7 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
+    #[must_use] 
     pub fn new(client: HiveClient, root: PathBuf) -> Self {
         Self { client, root }
     }
@@ -30,12 +31,12 @@ impl AssetManager {
             "config" => "config",
             _ => category,
         };
-        let p = self.root.join("system").join(sub).join(format!("{}.mpk.zst", stem));
+        let p = self.root.join("system").join(sub).join(format!("{stem}.mpk.zst"));
         if p.exists() { Some(p) } else { None }
     }
 
     fn check_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let p = self.root.join("user").join(category).join(format!("{}.json", stem));
+        let p = self.root.join("user").join(category).join(format!("{stem}.json"));
         if p.exists() { Some(p) } else { None }
     }
 
@@ -45,8 +46,8 @@ impl AssetManager {
         if let Some(p) = self.check_user_path("keyboards", stem) { return Ok(p); }
         if let Some(p) = self.check_system_path("keyboards", stem) { return Ok(p); }
         
-        let local_path = self.root.join("user/keyboards").join(format!("{}.json", stem));
-        let remote_path = format!("data/keyboards/{}.json", stem);
+        let local_path = self.root.join("user/keyboards").join(format!("{stem}.json"));
+        let remote_path = format!("data/keyboards/{stem}.json");
         let url = self.client.asset_url(&remote_path);
 
         ensure_file(&self.client, &url, &local_path, None).await?;
@@ -59,8 +60,8 @@ impl AssetManager {
         if let Some(p) = self.check_user_path("weights", stem) { return Ok(p); }
         if let Some(p) = self.check_system_path("weights", stem) { return Ok(p); }
         
-        let local_path = self.root.join("user/weights").join(format!("{}.json", stem));
-        let remote_path = format!("data/{}.json", stem);
+        let local_path = self.root.join("user/weights").join(format!("{stem}.json"));
+        let remote_path = format!("data/{stem}.json");
         let url = self.client.asset_url(&remote_path);
 
         ensure_file(&self.client, &url, &local_path, None).await?;
@@ -86,9 +87,8 @@ impl AssetManager {
                 if let Ok(h) = provider.get_corpus_hash(bundle_id).await {
                     if h == hash {
                         return Ok(sys_dir);
-                    } else {
-                        info!("System corpus '{}' hash mismatch. Falling back to User/Remote.", bundle_id);
                     }
+                    info!("System corpus '{}' hash mismatch. Falling back to User/Remote.", bundle_id);
                 }
             } else {
                 return Ok(sys_dir);
@@ -122,7 +122,7 @@ impl AssetManager {
         // Download missing or mismatched files to USER directory
         for f in files {
             let local_path = user_dir.join(f);
-            let remote_path = format!("data/corpora/{}/{}", bundle_id, f);
+            let remote_path = format!("data/corpora/{bundle_id}/{f}");
             let url = self.client.asset_url(&remote_path);
 
             ensure_file(&self.client, &url, &local_path, None).await?;

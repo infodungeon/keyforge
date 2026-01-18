@@ -17,26 +17,24 @@ use std::process::Command;
 use std::fs;
 use std::path::Path;
 
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 fn main() {
-    let out_dir = std::env::var_os("OUT_DIR").unwrap();
+    let out_dir = std::env::var_os("OUT_DIR").expect("OUT_DIR not set; this script must be run via cargo");
     let dest_path = Path::new(&out_dir).join("build_info.rs");
 
     let git_hash = Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
         .output()
         .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown".to_string());
+        .and_then(|o| String::from_utf8(o.stdout).ok()).map_or_else(|| "unknown".to_string(), |s| s.trim().to_string());
 
     let build_date = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     
     let content = format!(
-        "/// The short Git commit hash identifying the source code used for this build.\npub const GIT_HASH: &str = \"{}\";\n/// The date and time when this workspace was compiled.\npub const BUILD_DATE: &str = \"{}\";\n",
-        git_hash, build_date
+        "/// The short Git commit hash identifying the source code used for this build.\npub const GIT_HASH: &str = \"{git_hash}\";\n/// The date and time when this workspace was compiled.\npub const BUILD_DATE: &str = \"{build_date}\";\n"
     );
 
-    fs::write(&dest_path, content).unwrap();
+    fs::write(&dest_path, content).expect("Failed to write build_info.rs");
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=build.rs");
 }

@@ -25,10 +25,15 @@ use serde_json::json;
 use std::error::Error;
 
 /// Parses a Keyboard Layout Editor (KLE) JSON string into a `KeyboardGeometry`.
+///
+/// # Errors
+///
+/// Returns an error if the JSON is malformed or doesn't match the expected schema.
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
     let keyboard: KleKeyboard = serde_json::from_str(content)?;
     
     // Pass 1: Collect X coordinates for clustering
+    #[allow(clippy::cast_possible_truncation)]
     let mut x_coords: Vec<f32> = keyboard.keys.iter().map(|k| k.x as f32 + (k.width as f32 / 2.0)).collect();
     x_coords.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     
@@ -58,15 +63,17 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
     for (current_id, key) in keyboard.keys.into_iter().enumerate() {
         let center_x = key.x + (key.width / 2.0);
         // Dynamic hand assignment
+        #[allow(clippy::cast_possible_truncation)]
         let hand = if center_x as f32 > split_x { HandIndex::RIGHT } else { HandIndex::LEFT };
         let finger = FingerIndex::INDEX;
 
         let label = key.legends.iter().flatten().find(|l| !l.text.is_empty())
-            .map(|l| l.text.as_str()).unwrap_or("").to_string();
+            .map_or("", |l| l.text.as_str()).to_string();
 
+        #[allow(clippy::cast_possible_truncation)]
         let node = KeyNode {
             index: current_id,
-            label: if label.is_empty() { format!("k{}", current_id) } else { label },
+            label: if label.is_empty() { format!("k{current_id}") } else { label },
             hand,
             finger,
             row: RowIndex(key.y.round() as i8),
@@ -85,8 +92,11 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
     }
 
     let total = keys.len();
+    #[allow(clippy::cast_possible_truncation)]
     let prime_slots = (0..std::cmp::min(8, total)).map(|i| KeyIndex(i as u16)).collect();
+    #[allow(clippy::cast_possible_truncation)]
     let med_slots = (8..std::cmp::min(20, total)).map(|i| KeyIndex(i as u16)).collect();
+    #[allow(clippy::cast_possible_truncation)]
     let low_slots = (20..total).map(|i| KeyIndex(i as u16)).collect();
 
     let geom = KeyboardGeometry {
@@ -100,6 +110,10 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
 }
 
 /// Converts a `KeyboardGeometry` back into a KLE JSON string.
+///
+/// # Errors
+///
+/// Returns an error if serialization fails.
 pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
     let mut json_rows = Vec::new();
     json_rows.push(json!({ "meta": { "name": "KeyForge Export", "author": "KeyForge" } }));

@@ -53,7 +53,7 @@ pub const USER_WORKSPACE_DIRS: &[&str] = &[
 /// Directories for volatile or transient data (e.g., queues, WALs).
 pub const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
 
-/// Orchestrates the setup of the KeyForge workspace.
+/// Orchestrates the setup of the `KeyForge` workspace.
 pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<()> {
     info!("Initializing workspace at: {:?}", root);
 
@@ -76,8 +76,8 @@ pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<()> {
 }
 
 fn check_asset_exists(system_root: &Path, rel_path: &str) -> bool {
-    let bin_path = system_root.join(format!("{}.mpk.zst", rel_path));
-    let json_path = system_root.join(format!("{}.json", rel_path));
+    let bin_path = system_root.join(format!("{rel_path}.mpk.zst"));
+    let json_path = system_root.join(format!("{rel_path}.json"));
     bin_path.exists() || json_path.exists()
 }
 
@@ -99,7 +99,7 @@ pub fn validate_system_assets(root: &Path) -> InfraResult<()> {
     let system_root = root.join("system");
     for asset in REQUIRED_ASSETS {
         if !check_asset_exists(&system_root, asset) {
-            let msg = format!("FATAL: Required system asset missing: {}", asset);
+            let msg = format!("FATAL: Required system asset missing: {asset}");
             error!("{}", msg);
             return Err(InfraError::Config(msg));
         }

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Physics
+//! # `KeyForge` Physics
 //!
-//! The "Physics Engine" of KeyForge. This crate implements the core 
+//! The "Physics Engine" of `KeyForge`. This crate implements the core 
 //! scoring logic, evaluating layouts based on physical constraints 
 //! and language statistics.
 
@@ -42,7 +42,7 @@ use keyforge_model::constants::SCORE_SCALE;
 use std::sync::Arc;
 use tracing::instrument;
 
-/// The core evaluation engine for KeyForge layouts.
+/// The core evaluation engine for `KeyForge` layouts.
 ///
 /// `ScoringEngine` encapsulates the compiled physics kernel, including 
 /// pre-calculated travel costs and frequency-weighted optimization targets.
@@ -56,6 +56,10 @@ impl ScoringEngine {
     ///
     /// This performs expensive pre-computations and returns an engine ready 
     /// for high-performance evaluations.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PhysicsError::Config` if the compilation of the physics kernel fails.
     pub fn new(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -70,6 +74,11 @@ impl ScoringEngine {
     ///
     /// Lower scores indicate better ergonomic performance. The result is 
     /// normalized for comparison across different corpora and rubrics.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PhysicsError` if the scoring calculation fails (e.g., invalid layout length).
+    #[allow(clippy::cast_precision_loss)]
     pub fn score(&self, layout: &Layout) -> Result<f32, PhysicsError> {
         let raw_score_scaled = self.score_raw(&layout.keys)?;
         let raw_score = raw_score_scaled as f32 / SCORE_SCALE;
@@ -85,14 +94,18 @@ impl ScoringEngine {
     }
 
     /// Analyzes a layout and returns a detailed report of its performance.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PhysicsError` if the analysis fails.
     #[instrument(skip(self, layout))]
     pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         Ok(analyze_layout(&self.ctx, &validated))
     }
 
-    /// Suggests ergonomic improvements for a layout by evaluating potential key swaps.
     #[instrument(skip(self, layout))]
+    #[must_use] 
     pub fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
         suggest_swaps(&self.ctx, layout, include_thumbs)
     }
@@ -100,6 +113,10 @@ impl ScoringEngine {
     /// Calculates the change in score resulting from swapping two keys.
     ///
     /// This is an optimized operation used during local search.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PhysicsError::Config` if the layout is invalid for the current engine context.
     pub fn calculate_swap_delta(
         &self,
         layout: &[KeyCode],
@@ -108,43 +125,47 @@ impl ScoringEngine {
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
-        let mut starts = [0u16; 65536];
-        let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
-        let mut current_offsets = [0u8; 65536];
-        let mut used_keys = Vec::new();
+        let mut scratch = Box::new(kernel::compute::PhysicsScratch::new());
         
         let pm = kernel::compute::PosMap::from_scratch(
             layout,
             self.ctx.key_count,
-            &mut starts,
-            &mut counts,
-            &mut indices,
-            &mut current_offsets,
-            &mut used_keys,
+            scratch.starts.as_mut_slice(),
+            scratch.counts.as_mut_slice(),
+            scratch.indices.as_mut_slice(),
+            scratch.current_offsets.as_mut_slice(),
+            &mut scratch.used_keys,
         );
         
         Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b))
     }
 
     /// Returns the raw, unweighted physics score for a layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PhysicsError` if the scoring calculation fails.
+    #[allow(clippy::cast_precision_loss)]
     pub fn score_raw(&self, layout: &[KeyCode]) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
-        let mut scratch = kernel::compute::PhysicsScratch::new();
+        let mut scratch = Box::new(kernel::compute::PhysicsScratch::new());
         Ok(score_layout(&self.ctx, &validated, &mut scratch))
     }
 
     /// Returns the total number of keys supported by this engine.
+    #[must_use] 
     pub fn key_count(&self) -> usize {
         self.ctx.key_count
     }
 
     /// Returns the total number of trigrams used for scoring.
+    #[must_use] 
     pub fn trigram_count(&self) -> usize {
         self.ctx.trigram_freqs.len()
     }
 
     /// Returns a reference to the internal engine context.
+    #[must_use] 
     pub fn context(&self) -> &EngineContext {
         &self.ctx
     }
@@ -173,6 +194,10 @@ pub struct EngineRequest {
 }
 
 /// Performs a one-off scoring operation for the given request.
+///
+/// # Errors
+///
+/// Returns a `PhysicsError` if the engine initialization or scoring fails.
 #[instrument(skip(req))]
 pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
     let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
@@ -187,6 +212,10 @@ pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
 }
 
 /// Performs a one-off analysis operation for the given request.
+///
+/// # Errors
+///
+/// Returns a `PhysicsError` if the engine initialization or analysis fails.
 #[instrument(skip(req))]
 pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
     let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
@@ -200,11 +229,14 @@ pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
 /// Identifies a layout by comparing it to known standards.
 #[instrument]
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
-    let fp = Fingerprinter;
-    fp.identify(layout)
+    Fingerprinter::identify(layout)
 }
 
 /// Suggests improvements for the layout described in the request.
+///
+/// # Errors
+///
+/// Returns a `PhysicsError` if the engine initialization fails.
 #[instrument(skip(req))]
 pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
     let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;

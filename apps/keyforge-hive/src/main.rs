@@ -13,9 +13,9 @@
 // limitations under the License.
 
 
-//! # KeyForge Hive Binary
+//! # `KeyForge` Hive Binary
 //!
-//! The main entry point for the KeyForge Hive server. This executable 
+//! The main entry point for the `KeyForge` Hive server. This executable 
 //! initializes the application state, starts the Axum HTTP server, 
 //! and begins background maintenance tasks.
 
@@ -110,7 +110,7 @@ async fn main() {
         Commands::Monitor { url } => {
             let secret = std::env::var("HIVE_SECRET").ok();
             if let Err(e) = tui::run_monitor(url, secret).await {
-                eprintln!("TUI Error: {}", e);
+                eprintln!("TUI Error: {e}");
             }
         }
         Commands::Serve => {

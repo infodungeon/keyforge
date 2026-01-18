@@ -20,6 +20,7 @@
 ///
 /// This is required because `ts-rs` sometimes struggles to infer optionality
 /// from `Option<T>` alone when generating interaction definitions.
+#[allow(clippy::ref_option)]
 pub(crate) fn is_none<T>(option: &Option<T>) -> bool {
     option.is_none()
 }

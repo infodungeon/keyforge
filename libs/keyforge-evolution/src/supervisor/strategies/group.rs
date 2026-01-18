@@ -69,14 +69,14 @@ impl MutationOperator for GroupMutation {
 
             // Sync with current layout only if size changed or we want a fresh base
             // Optimization: Only copy if needed, but since we revert, it should be fine.
-            if temp_keys.len() != layout.keys.len() {
-                temp_keys.clear();
-                temp_keys.extend_from_slice(&layout.keys);
-            } else {
+            if temp_keys.len() == layout.keys.len() {
                 // Just patch the indices that might have changed from a PREVIOUS failed mutation
                 // Actually, safer to just copy since acceptance happens elsewhere.
                 // But we can use copy_from_slice which is very fast.
                 temp_keys.copy_from_slice(&layout.keys);
+            } else {
+                temp_keys.clear();
+                temp_keys.extend_from_slice(&layout.keys);
             }
 
             // Apply virtual swap A <-> B in scratch
@@ -93,10 +93,10 @@ impl MutationOperator for GroupMutation {
                 let code_a = layout.keys[idx_a];
                 let code_b = layout.keys[idx_b];
                 if (code_a.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_a.0 as usize] = idx_b as u16;
+                    patched_pos_map[code_a.0 as usize] = idx_b as u64 as u16;
                 }
                 if (code_b.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_b.0 as usize] = idx_a as u16;
+                    patched_pos_map[code_b.0 as usize] = idx_a as u64 as u16;
                 }
 
                 // Calculate second swap delta (A which is at B, with C)

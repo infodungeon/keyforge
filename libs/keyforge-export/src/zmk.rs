@@ -27,11 +27,13 @@ impl Exporter for ZmkExporter {
     fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String> {
         let mut out = String::new();
 
-        out.push_str(&format!("// KeyForge ZMK Export: {}\n", layout_name));
-        out.push_str(&format!(
+        use std::fmt::Write;
+        let _ = write!(out, "// KeyForge ZMK Export: {layout_name}\n");
+        let _ = write!(
+            out,
             "// Generated at: {}\n\n",
             chrono::Local::now().to_rfc3339()
-        ));
+        );
 
         out.push_str("/ {\n");
         out.push_str("    keymap {\n");
@@ -41,10 +43,10 @@ impl Exporter for ZmkExporter {
             let layer_name = if l_idx == 0 {
                 "default_layer".to_string()
             } else {
-                format!("layer_{}", l_idx)
+                format!("layer_{l_idx}")
             };
 
-            out.push_str(&format!("        {} {{\n", layer_name));
+            let _ = write!(out, "        {layer_name} {{\n");
             out.push_str("            bindings = <\n");
             out.push_str("                ");
 
@@ -58,14 +60,13 @@ impl Exporter for ZmkExporter {
                     }
                     KeyAction::Transparent => "&trans".to_string(),
                     KeyAction::NoOp => "&none".to_string(),
-                    KeyAction::LayerMomentary(l) => format!("&mo {}", l),
-                    KeyAction::LayerToggle(l) => format!("&tog {}", l),
-                    KeyAction::LayerOn(l) => format!("&to {}", l),
+                    KeyAction::LayerMomentary(l) => format!("&mo {l}"),
+                    KeyAction::LayerToggle(l) => format!("&tog {l}"),
+                    KeyAction::LayerOn(l) => format!("&to {l}"),
                     KeyAction::ModTap { mod_name, key } => {
                         let zmk_mod = util::map_modifier(&mod_name, ModFormat::Zmk);
-                        let key_str = match *key {
-                            KeyAction::Simple(s) => s,
-                            KeyAction::Raw(s) => s,
+                        let key_str = match key.as_ref() {
+                            KeyAction::Simple(s) | KeyAction::Raw(s) => s.clone(),
                             _ => "failed_recursion".to_string(),
                         };
                         let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);
@@ -76,9 +77,8 @@ impl Exporter for ZmkExporter {
                         )
                     }
                     KeyAction::LayerTap { layer, key } => {
-                        let key_str = match *key {
-                            KeyAction::Simple(s) => s,
-                            KeyAction::Raw(s) => s,
+                        let key_str = match key.as_ref() {
+                            KeyAction::Simple(s) | KeyAction::Raw(s) => s.clone(),
                             _ => "failed_recursion".to_string(),
                         };
                         let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);

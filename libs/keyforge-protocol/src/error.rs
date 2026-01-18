@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
-/// Standardized error codes for the KeyForge API.
+/// Standardized error codes for the `KeyForge` API.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, Display, EnumString,
 )]
@@ -73,7 +73,7 @@ pub struct ErrorResponse {
 }
 
 impl ErrorResponse {
-    /// Creates a new ErrorResponse.
+    /// Creates a new `ErrorResponse`.
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,
@@ -82,7 +82,8 @@ impl ErrorResponse {
         }
     }
 
-    /// Adds details to the ErrorResponse.
+    /// Adds details to the `ErrorResponse`.
+    #[must_use] 
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self

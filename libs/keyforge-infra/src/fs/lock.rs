@@ -19,7 +19,7 @@ use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
 
-/// A process-level lock that ensures only one instance of KeyForge is accessing the workspace.
+/// A process-level lock that ensures only one instance of `KeyForge` is accessing the workspace.
 ///
 /// This uses mandatory file locking (via `fs2`) on a lockfile within the workspace root.
 #[derive(Debug)]
@@ -41,13 +41,12 @@ impl WorkspaceLock {
         
         loop {
             match file.try_lock_exclusive() {
-                Ok(_) => return Ok(Self { file }),
+                Ok(()) => return Ok(Self { file }),
                 Err(e) => {
                     attempts += 1;
                     if attempts >= LOCK_MAX_ATTEMPTS {
                         return Err(InfraError::LockError(format!(
-                            "Failed to acquire lock on {:?} after {} attempts: {}",
-                            path, attempts, e
+                            "Failed to acquire lock on {path:?} after {attempts} attempts: {e}"
                         )));
                     }
                     std::thread::sleep(delay);

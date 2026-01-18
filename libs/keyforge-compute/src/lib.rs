@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Compute
+//! # `KeyForge` Compute
 //!
-//! High-level computation runtime for KeyForge. This crate orchestrates the 
+//! High-level computation runtime for `KeyForge`. This crate orchestrates the 
 //! physics and evolution engines to provide a unified runtime for 
 //! applications.
 
@@ -43,6 +43,7 @@ pub struct Runtime {
 
 impl Runtime {
     /// Creates a new `Runtime` from initialized components.
+    #[must_use] 
     pub fn new(engine: Arc<ScoringEngine>, registry: Arc<KeycodeRegistry>, search_config: SearchConfig) -> Self {
         Self { engine, registry, search_config }
     }

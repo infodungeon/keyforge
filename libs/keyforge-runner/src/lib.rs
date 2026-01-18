@@ -97,7 +97,7 @@ impl OptimizationRunner {
                 None, // Initial layout (random)
                 Some(&pinned),
             )
-        }).await.map_err(|e| EvolutionError::Config(format!("Task join error: {}", e)))?
+        }).await.map_err(|e| EvolutionError::Config(format!("Task join error: {e}")))?
     }
 }
 

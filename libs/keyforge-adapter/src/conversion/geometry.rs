@@ -6,6 +6,11 @@ use keyforge_model::keycodes::KeycodeRegistry;
 ///
 /// This resolves physical properties like home row positions and calculates 
 /// internal indices for high-performance scoring.
+/// Converts a domain geometry to a model keyboard.
+///
+/// # Errors
+///
+/// Returns an `AdapterError::Validation` if the geometry is invalid or the key set is empty.
 pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> AdapterResult<keyforge_model::Keyboard> {
     let keys = geo
         .keys
@@ -20,10 +25,11 @@ pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> AdapterResult<key
         .collect();
 
     keyforge_model::Keyboard::new(keys, geo.home_row)
-        .map_err(|e| AdapterError::Validation(format!("Failed to create keyboard: {}", e)))
+        .map_err(|e| AdapterError::Validation(format!("Failed to create keyboard: {e}")))
 }
 
 /// Converts a protocol-level key node into a domain-level node.
+#[must_use] 
 pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
     keyforge_model::KeyNode {
         index: k.index,
@@ -48,6 +54,12 @@ pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
 ///
 /// Returns a vector of optional keycodes where each `Some(code)` represents 
 /// a pinned key at that index.
+/// Resolves constraints into keycodes.
+///
+/// # Errors
+///
+/// Returns an `AdapterError::UnknownToken` if a constraint refers to a keycode not in the registry,
+/// or `AdapterError::Validation` if a constraint index is out of bounds.
 pub fn resolve_constraints(
     proto_constraints: &[KeyConstraint],
     key_count: usize,
@@ -65,8 +77,7 @@ pub fn resolve_constraints(
             }
         } else {
             return Err(AdapterError::Validation(format!(
-                "Constraint index {} out of bounds (max {})",
-                idx, key_count
+                "Constraint index {idx} out of bounds (max {key_count})"
             )));
         }
     }
@@ -74,6 +85,7 @@ pub fn resolve_constraints(
 }
 
 /// Resolves a label-based cost matrix into an index-based override list.
+#[must_use] 
 pub fn resolve_cost_matrix(
     raw: &[(String, String, f32)],
     geo: &geometry::KeyboardGeometry,

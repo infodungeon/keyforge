@@ -16,7 +16,7 @@ use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 use crate::error::ForgeError;
 
-/// Categories of assets supported by the KeyForge system.
+/// Categories of assets supported by the `KeyForge` system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssetCategory {
     /// Physical keyboard geometry and metadata.
@@ -31,6 +31,7 @@ pub enum AssetCategory {
 
 impl AssetCategory {
     /// Returns the standard subdirectory name for this asset category.
+    #[must_use] 
     pub fn as_str(&self) -> &'static str {
         match self {
             AssetCategory::Keyboard => "keyboards",
@@ -47,12 +48,17 @@ pub trait Asset: DeserializeOwned + Send + Sync + 'static + Debug {
     fn category() -> AssetCategory;
 
     /// Default extension for this asset type (e.g., "json", "toml")
+    #[must_use] 
     fn default_extension() -> &'static str {
         "json"
     }
 
     /// Hook called after the asset is successfully deserialized.
     /// Used for validation or rebuilding internal lookups.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ForgeError` if post-processing or validation fails.
     fn post_load(&mut self) -> Result<(), ForgeError> {
         Ok(())
     }

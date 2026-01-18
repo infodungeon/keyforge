@@ -32,7 +32,7 @@ use crate::asset::resolver::PathResolver;
 
 /// An asset provider that loads data directly from the local filesystem.
 ///
-/// It supports loading both system-level assets (stored in zstd-compressed MessagePack)
+/// It supports loading both system-level assets (stored in zstd-compressed `MessagePack`)
 /// and user-level assets (stored as plain JSON).
 #[derive(Clone, Debug)]
 pub struct FsProvider {
@@ -41,11 +41,13 @@ pub struct FsProvider {
 
 impl FsProvider {
     /// Creates a new `FsProvider` with the specified root path.
+    #[must_use] 
     pub fn new(root: PathBuf) -> Self {
         Self { resolver: PathResolver::new(root) }
     }
 
     /// Returns the root directory of this provider.
+    #[must_use] 
     pub fn root(&self) -> &PathBuf {
         &self.resolver.root
     }
@@ -54,8 +56,7 @@ impl FsProvider {
         let meta = tokio::fs::metadata(path).await?;
         if meta.len() > MAX_INPUT_FILE_SIZE {
             return Err(ForgeError::InvalidData(format!(
-                "File {:?} exceeds size limit of {} bytes",
-                path, MAX_INPUT_FILE_SIZE
+                "File {path:?} exceeds size limit of {MAX_INPUT_FILE_SIZE} bytes"
             )));
         }
         Ok(())
@@ -88,7 +89,7 @@ impl FsProvider {
     /// Calculates a stable hash for a corpus by hashing its constituent parts.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         // Task-infra-008: Security check
-        let _ = self.resolver.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
+        let _ = self.resolver.safe_join(id).map_err(ForgeError::InvalidData)?;
 
         let files = ["1grams", "2grams", "3grams", "words"];
         let is_system = self.resolver.root.join("system/corpora").join(id).exists();
@@ -101,7 +102,7 @@ impl FsProvider {
         
         let mut hasher = sha2::Sha256::new();
         for f in files {
-            let path = base.join(format!("{}.{}", f, ext));
+            let path = base.join(format!("{f}.{ext}"));
             if path.exists() {
                 let content = tokio::fs::read(&path).await?;
                 hasher.update(&content);
@@ -119,7 +120,7 @@ impl AssetLoader for FsProvider {
 
         // Task-infra-008: Ensure ID is safe
         if id.contains("..") {
-             self.resolver.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
+             self.resolver.safe_join(id).map_err(ForgeError::InvalidData)?;
         }
 
         // 1. Try direct path (absolute or ./ relative)
@@ -145,7 +146,7 @@ impl AssetLoader for FsProvider {
         }
 
         // 3. Try System JSON
-        let system_json = self.resolver.root.join("system").join(cat_str).join(format!("{}.json", stem));
+        let system_json = self.resolver.root.join("system").join(cat_str).join(format!("{stem}.json"));
         if system_json.exists() {
             let mut asset: T = self.load_json(&system_json).await?;
             asset.post_load()?;
@@ -166,7 +167,7 @@ impl AssetLoader for FsProvider {
         let mut corpus = Corpus::default();
         for src in sources {
             // Task-infra-008: Security check
-            let _ = self.resolver.safe_join(&src.id).map_err(|e| ForgeError::InvalidData(e))?;
+            let _ = self.resolver.safe_join(&src.id).map_err(ForgeError::InvalidData)?;
 
             let is_system = self.resolver.root.join("system/corpora").join(&src.id).exists();
             let base = if is_system {
@@ -178,7 +179,7 @@ impl AssetLoader for FsProvider {
 
             let mut segments = Vec::new();
             for stem in ["1grams", "2grams", "3grams", "words"] {
-                let p = base.join(format!("{}.{}", stem, ext));
+                let p = base.join(format!("{stem}.{ext}"));
                 if p.exists() {
                     let part: Vec<serde_json::Value> = if is_system {
                         self.load_binary(&p).await?

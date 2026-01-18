@@ -60,19 +60,19 @@ impl AssetLoader for AssetCache {
              let res = self.load_keyboard_internal(id).await
                 .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
              // SAFETY: We verified TypeId matches KeyboardDefinition.
-             let ptr = Arc::into_raw(res) as *const T;
+             let ptr = Arc::into_raw(res).cast::<T>();
              return Ok(unsafe { Arc::from_raw(ptr) });
         }
         if TypeId::of::<T>() == TypeId::of::<CostModel>() {
              let res = self.load_cost_model_internal(id).await
                 .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
-             let ptr = Arc::into_raw(res) as *const T;
+             let ptr = Arc::into_raw(res).cast::<T>();
              return Ok(unsafe { Arc::from_raw(ptr) });
         }
         if TypeId::of::<T>() == TypeId::of::<KeycodeRegistry>() {
              let res = self.load_keycodes_internal(id).await
                 .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
-             let ptr = Arc::into_raw(res) as *const T;
+             let ptr = Arc::into_raw(res).cast::<T>();
              return Ok(unsafe { Arc::from_raw(ptr) });
         }
         
@@ -88,6 +88,7 @@ impl AssetLoader for AssetCache {
 }
 
 impl AssetCache {
+    #[must_use] 
     pub fn new(root: PathBuf) -> Self {
         let kb_size = std::env::var("CACHE_KB_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_KB_CACHE_CAPACITY);
         let cp_size = std::env::var("CACHE_CORPUS_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_CORPUS_CACHE_CAPACITY);

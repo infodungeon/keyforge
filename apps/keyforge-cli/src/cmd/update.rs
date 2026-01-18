@@ -55,7 +55,7 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
         eprintln!("🔍 Checking for updates...");
         match check_for_update(&config).await? {
             Some(version) => {
-                eprintln!("✨ Update available: v{}", version);
+                eprintln!("✨ Update available: v{version}");
                 eprintln!("Run 'keyforge update' to install");
             }
             None => {
@@ -69,14 +69,14 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
     eprintln!("📦 Checking for updates...");
     match check_for_update(&config).await? {
         Some(version) => {
-            eprintln!("✨ Update available: v{}", version);
+            eprintln!("✨ Update available: v{version}");
             eprintln!("⬇️  Downloading and installing...");
 
             let new_version = tokio::task::spawn_blocking(move || perform_update(&config))
                 .await
-                .map_err(|e| CliError::Update(format!("Update task failed: {}", e)))??;
+                .map_err(|e| CliError::Update(format!("Update task failed: {e}")))??;
 
-            eprintln!("✅ Successfully updated to v{}", new_version);
+            eprintln!("✅ Successfully updated to v{new_version}");
             eprintln!("🔄 Please restart the CLI to use the new version");
         }
         None => {
@@ -84,8 +84,8 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
                 eprintln!("🔄 Force updating...");
                 let new_version = tokio::task::spawn_blocking(move || perform_update(&config))
                     .await
-                    .map_err(|e| CliError::Update(format!("Update task failed: {}", e)))??;
-                eprintln!("✅ Reinstalled v{}", new_version);
+                    .map_err(|e| CliError::Update(format!("Update task failed: {e}")))??;
+                eprintln!("✅ Reinstalled v{new_version}");
             } else {
                 eprintln!("✅ Already on the latest version");
             }
@@ -102,7 +102,7 @@ pub async fn check_for_update(config: &UpdateConfig) -> Result<Option<String>> {
     // Query server for latest version
     let response = reqwest::get(&config.server_url)
         .await
-        .map_err(|e| CliError::Update(format!("Failed to check for updates: {}", e)))?;
+        .map_err(|e| CliError::Update(format!("Failed to check for updates: {e}")))?;
 
     if !response.status().is_success() {
         return Err(CliError::Update(format!(
@@ -114,7 +114,7 @@ pub async fn check_for_update(config: &UpdateConfig) -> Result<Option<String>> {
     let update_info: UpdateInfo = response
         .json()
         .await
-        .map_err(|e| CliError::Update(format!("Invalid response from update server: {}", e)))?;
+        .map_err(|e| CliError::Update(format!("Invalid response from update server: {e}")))?;
 
     if version_greater_than(&update_info.version, current_version) {
         Ok(Some(update_info.version))
@@ -132,9 +132,9 @@ pub fn perform_update(config: &UpdateConfig) -> Result<String> {
         .current_version(cargo_crate_version!())
         .no_confirm(config.auto_install)
         .build()
-        .map_err(|e| CliError::Update(format!("Update configuration failed: {}", e)))?
+        .map_err(|e| CliError::Update(format!("Update configuration failed: {e}")))?
         .update()
-        .map_err(|e| CliError::Update(format!("Update failed: {}", e)))?;
+        .map_err(|e| CliError::Update(format!("Update failed: {e}")))?;
 
     Ok(status.version().to_string())
 }

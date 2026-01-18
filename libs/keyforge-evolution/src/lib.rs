@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # KeyForge Evolution
+//! # `KeyForge` Evolution
 //!
-//! The optimization engine for KeyForge. This crate implements meta-heuristic 
+//! The optimization engine for `KeyForge`. This crate implements meta-heuristic 
 //! search algorithms (like Simulated Annealing) to evolve keyboard layouts 
 //! toward a minimum score.
 
@@ -48,15 +48,19 @@ impl ProgressCallback for NoOpCallback {
     }
 }
 
-/// Optimizes a keyboard layout based on an `EngineRequest`.
 ///
-/// This function is a convenience wrapper that creates a `ScoringEngine` internally.
-/// For repeated optimizations, consider using `evolve` with a pre-compiled engine.
+/// # Errors
+///
+/// Returns `EvolutionError::Config` if the request is invalid.
 pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
     optimize_with_callback(req, NoOpCallback)
 }
 
 /// Optimizes a keyboard layout with a progress callback.
+///
+/// # Errors
+///
+/// Returns `EvolutionError::Config` if the request is invalid.
 pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
@@ -83,6 +87,10 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
 ///
 /// This is the recommended entry point for performance-sensitive applications
 /// that need to run multiple optimizations against the same parameters.
+///
+/// # Errors
+///
+/// Returns `EvolutionError::Config` if the search parameters are inconsistent.
 pub fn evolve<CB: ProgressCallback>(
     engine: Arc<ScoringEngine>,
     config: &SearchConfig,
@@ -100,12 +108,12 @@ pub fn evolve<CB: ProgressCallback>(
         })
         .collect();
 
-    evolve_internal(engine, config, unlocked_indices, initial_layout, callback, pinned_keys)
+    evolve_internal(&engine, config, unlocked_indices, initial_layout, callback, pinned_keys)
 }
 
 /// Internal helper to share logic between legacy and new entry points.
 fn evolve_internal<CB: ProgressCallback>(
-    engine: Arc<ScoringEngine>,
+    engine: &Arc<ScoringEngine>,
     config: &SearchConfig,
     unlocked_indices: Vec<usize>,
     initial_layout: Option<Layout>,
@@ -113,6 +121,7 @@ fn evolve_internal<CB: ProgressCallback>(
     pinned_keys: Option<&[Option<KeyCode>]>,
 ) -> Result<OptimizationResult, EvolutionError> {
     let mut layout = initial_layout.unwrap_or_else(|| {
+        #[allow(clippy::cast_possible_truncation)]
         let keys: Vec<KeyCode> = (0..engine.key_count()).map(|i| KeyCode(i as u16)).collect();
         Layout::new_unchecked(keys)
     });
@@ -138,7 +147,7 @@ fn evolve_internal<CB: ProgressCallback>(
                     } else {
                         // If the key is missing from the initial layout, we cannot proceed safely
                         // without violating the permutation invariant.
-                        return Err(EvolutionError::Config(format!("Pinned key {} not found in initial layout", code)));
+                        return Err(EvolutionError::Config(format!("Pinned key {code} not found in initial layout")));
                     }
                 }
             }

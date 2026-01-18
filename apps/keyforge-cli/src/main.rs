@@ -83,14 +83,14 @@ async fn run_app() -> Result<(), CliError> {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
                 error!("Failed to load config file {:?}: {}", config_path, e);
-                return Err(CliError::Other(format!("Failed to load config: {}", e)));
+                return Err(CliError::Other(format!("Failed to load config: {e}")));
             }
         }
     }
     if let Some(d) = cli.data_dir { config.data_dir = Some(d); }
 
     let root = resolve_root(config.data_dir)
-        .map_err(|e| CliError::Workspace(format!("Workspace Error: {}", e)))?;
+        .map_err(|e| CliError::Workspace(format!("Workspace Error: {e}")))?;
 
     info!("🚀 Initializing Asset Loader...");
     let loader = keyforge_infra::FsProvider::new(root.clone());
@@ -143,7 +143,7 @@ async fn run_app() -> Result<(), CliError> {
                 fn on_progress(&self, epoch: usize, score: f32, _layout: &[keyforge_model::KeyCode], ips: f32) -> bool {
                     let elapsed = self.start_time.elapsed().as_secs();
                     self.pb.set_position(elapsed);
-                    self.pb.set_message(format!("Epoch {} | Best: {:.4} | {:.0} ips", epoch, score, ips));
+                    self.pb.set_message(format!("Epoch {epoch} | Best: {score:.4} | {ips:.0} ips"));
                     !self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
                 }
             }
@@ -227,7 +227,7 @@ async fn build_job_config(
     let definition = loader.load::<KeyboardDefinition>(&kb_name).await?;
 
     let weights = if let Some(w_input) = &shared.weights {
-        let w_path = cli_parsers::resolve_path(w_input, None, &loader.root())?;
+        let w_path = cli_parsers::resolve_path(w_input, None, loader.root())?;
         let content = keyforge_infra::read_to_string_limited(
             &w_path,
             keyforge_model::constants::MAX_INPUT_FILE_SIZE,

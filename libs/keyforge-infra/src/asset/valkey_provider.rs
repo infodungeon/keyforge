@@ -37,6 +37,7 @@ pub struct ValkeyProvider {
 
 impl ValkeyProvider {
     /// Creates a new `ValkeyProvider` using the provided distributed coordinator.
+    #[must_use] 
     pub fn new(coordinator: Arc<DistributedCoordinator>) -> Self {
         Self { coordinator }
     }
@@ -57,7 +58,7 @@ impl ValkeyProvider {
 
     /// Retrieves the hash of a corpus from the distributed store.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
-        let key = format!("corpora/{}/1grams.mpk.zst", id);
+        let key = format!("corpora/{id}/1grams.mpk.zst");
         match self.coordinator.get_manifest_hash(&key).await {
             Ok(Some(h)) => Ok(h),
             _ => Err(ForgeError::NotFound(id.to_string()))
@@ -65,9 +66,9 @@ impl ValkeyProvider {
     }
 
     async fn fetch_blob(&self, subpath: &str) -> LoaderResult<bytes::Bytes> {
-        let key = format!("{}:{}", ASSET_PREFIX, subpath);
+        let key = format!("{ASSET_PREFIX}:{subpath}");
         let data = self.coordinator.get_bin(&key).await.map_err(|e| {
-            ForgeError::Internal(format!("Valkey Fetch Error: {}", e))
+            ForgeError::Internal(format!("Valkey Fetch Error: {e}"))
         })?;
 
         data.ok_or_else(|| {
@@ -80,9 +81,9 @@ impl ValkeyProvider {
         
         tokio::task::spawn_blocking(move || {
             let decoder = zstd::Decoder::new(&compressed[..])
-                .map_err(|e| ForgeError::Internal(format!("Zstd Init Error: {}", e)))?;
+                .map_err(|e| ForgeError::Internal(format!("Zstd Init Error: {e}")))?;
             rmp_serde::from_read(decoder)
-                .map_err(|e| ForgeError::Internal(format!("Deserialization Error: {}", e)))
+                .map_err(|e| ForgeError::Internal(format!("Deserialization Error: {e}")))
         }).await.map_err(|e| ForgeError::Internal(e.to_string()))?
     }
 
@@ -90,18 +91,18 @@ impl ValkeyProvider {
 
     /// Retrieves the raw byte content of a file from the distributed store.
     pub async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
-        let key = format!("{}:{}", ASSET_PREFIX, path);
+        let key = format!("{ASSET_PREFIX}:{path}");
         self.coordinator.get_bin(&key).await.unwrap_or(None)
     }
 
     /// Lists all available keyboard definitions in the distributed store.
     pub async fn list_keyboards(&self) -> Vec<String> {
-        let pattern = format!("{}:keyboards/models/*.mpk.zst", ASSET_PREFIX);
+        let pattern = format!("{ASSET_PREFIX}:keyboards/models/*.mpk.zst");
         let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
         
         let mut names = Vec::new();
         for k in keys {
-            if let Some(stem) = k.split('/').last() {
+            if let Some(stem) = k.split('/').next_back() {
                 if let Some(name) = stem.strip_suffix(".mpk.zst") {
                     names.push(name.to_string());
                 }
@@ -113,7 +114,7 @@ impl ValkeyProvider {
 
     /// Lists all available corpora IDs in the distributed store.
     pub async fn list_corpora(&self) -> Vec<String> {
-        let pattern = format!("{}:corpora/*", ASSET_PREFIX);
+        let pattern = format!("{ASSET_PREFIX}:corpora/*");
         let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
         
         let mut ids = Vec::new();
@@ -134,11 +135,11 @@ impl ValkeyProvider {
 
     /// Lists all available cost matrices in the distributed store.
     pub async fn list_cost_matrices(&self) -> Vec<String> {
-        let pattern = format!("{}:weights/*.mpk.zst", ASSET_PREFIX);
+        let pattern = format!("{ASSET_PREFIX}:weights/*.mpk.zst");
         let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
         let mut names = Vec::new();
         for k in keys {
-            if let Some(stem) = k.split('/').last() {
+            if let Some(stem) = k.split('/').next_back() {
                 if let Some(name) = stem.strip_suffix(".mpk.zst") {
                     names.push(name.to_string());
                 }
@@ -148,13 +149,13 @@ impl ValkeyProvider {
         names
     }
 
-    /// Loads a configuration asset from the distributed store, with an optional fallback to JSON if compressed MsgPack is missing.
+    /// Loads a configuration asset from the distributed store, with an optional fallback to JSON if compressed `MsgPack` is missing.
     pub async fn load_config_asset<T: serde::de::DeserializeOwned + Send + 'static + Default>(&self, name: &str) -> Arc<T> {
-        let mpk_path = format!("config/{}.mpk.zst", name);
+        let mpk_path = format!("config/{name}.mpk.zst");
         if let Ok(cfg) = self.hydrate_mpk::<T>(&mpk_path).await {
             return Arc::new(cfg);
         }
-        let json_key = format!("{}:config/{}.json", ASSET_PREFIX, name);
+        let json_key = format!("{ASSET_PREFIX}:config/{name}.json");
         if let Ok(Some(bytes)) = self.coordinator.get_bin(&json_key).await {
              if let Ok(cfg) = serde_json::from_slice(&bytes) {
                  return Arc::new(cfg);
@@ -171,10 +172,10 @@ impl AssetLoader for ValkeyProvider {
         let stem = id.strip_suffix(".json").unwrap_or(id);
 
         let subpath = match category {
-            AssetCategory::Keyboard => format!("keyboards/models/{}.mpk.zst", stem),
-            AssetCategory::CostModel => format!("weights/{}.mpk.zst", stem),
-            AssetCategory::Keycodes => format!("config/{}.mpk.zst", stem),
-            AssetCategory::Corpus => format!("corpora/{}/bundle.mpk.zst", stem),
+            AssetCategory::Keyboard => format!("keyboards/models/{stem}.mpk.zst"),
+            AssetCategory::CostModel => format!("weights/{stem}.mpk.zst"),
+            AssetCategory::Keycodes => format!("config/{stem}.mpk.zst"),
+            AssetCategory::Corpus => format!("corpora/{stem}/bundle.mpk.zst"),
         };
 
         let mut asset: T = self.hydrate_mpk(&subpath).await?;
@@ -192,7 +193,7 @@ impl AssetLoader for ValkeyProvider {
             let mut segments = Vec::new();
 
             for part_name in parts {
-                let path = format!("{}/{}.mpk.zst", base, part_name);
+                let path = format!("{base}/{part_name}.mpk.zst");
                 if let Ok(bytes) = self.fetch_blob(&path).await {
                     let part_res = tokio::task::spawn_blocking(move || {
                         let decoder = zstd::Decoder::new(&bytes[..]).map_err(|e| ForgeError::Internal(e.to_string()))?;

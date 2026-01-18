@@ -44,12 +44,9 @@ pub async fn require_secret(
         .get("X-Keyforge-Secret")
         .and_then(|h| h.to_str().ok());
 
-    let token = match auth_header {
-        Some(t) => t,
-        None => {
-            warn!("⛔ Auth Failed: Missing Header from {:?}", req.uri());
-            return Err(StatusCode::UNAUTHORIZED);
-        }
+    let token = if let Some(t) = auth_header { t } else {
+        warn!("⛔ Auth Failed: Missing Header from {:?}", req.uri());
+        return Err(StatusCode::UNAUTHORIZED);
     };
 
     // 2. Check Master Key (HIVE_SECRET)
@@ -67,9 +64,8 @@ pub async fn require_secret(
     if let Some(valid) = state.security.api_key_cache.get(&hash) {
         if valid {
             return Ok(next.run(req).await);
-        } else {
-            return Err(StatusCode::UNAUTHORIZED);
         }
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
     // Use Repository

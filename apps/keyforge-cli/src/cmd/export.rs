@@ -60,28 +60,28 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
             format,
             output,
         } => {
-            eprintln!("💾 Exporting '{}' to {:?}...", layout, format);
+            eprintln!("💾 Exporting '{layout}' to {format:?}...");
 
             let path = resolve_path(&keyboard, Some("keyboards"), root)?;
 
             let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
-                .map_err(|e| format!("Failed to read keyboard file {:?}: {}", path, e))?;
+                .map_err(|e| format!("Failed to read keyboard file {path:?}: {e}"))?;
 
             let def: KeyboardDefinition = serde_json::from_str(&content)
-                .map_err(|e| format!("Failed to parse keyboard JSON: {}", e))?;
+                .map_err(|e| format!("Failed to parse keyboard JSON: {e}"))?;
 
             let layout_str = match def.layouts.get(&layout) {
                 Some(s) => s,
                 None => {
                     return Err(
-                        format!("Layout '{}' not found in keyboard definition.", layout).into(),
+                        format!("Layout '{layout}' not found in keyboard definition.").into(),
                     )
                 }
             };
 
             let keys: Vec<String> = layout_str
                 .split_whitespace()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect();
 
             let code = if let FirmwareFormat::Kle = format {
@@ -113,15 +113,14 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
             if let Some(out_path) = output {
                 if out_path.exists() {
                     eprintln!(
-                        "⚠️  Warning: Output file {:?} already exists. Overwriting...",
-                        out_path
+                        "⚠️  Warning: Output file {out_path:?} already exists. Overwriting..."
                     );
                 }
                 fs::write(&out_path, code)
-                    .map_err(|e| format!("Failed to write export to {:?}: {}", out_path, e))?;
-                eprintln!("✅ Exported to {:?}", out_path);
+                    .map_err(|e| format!("Failed to write export to {out_path:?}: {e}"))?;
+                eprintln!("✅ Exported to {out_path:?}");
             } else {
-                println!("{}", code);
+                println!("{code}");
             }
             Ok(())
         }

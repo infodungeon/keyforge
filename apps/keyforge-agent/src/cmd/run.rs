@@ -16,7 +16,7 @@ pub async fn run(mut config: AgentConfig, job_file: PathBuf, timeout: Option<u64
     let (result_tx, mut result_rx) = mpsc::channel(1);
     
     let agent = crate::agent::Agent::new(config.clone(), result_tx).await
-        .map_err(|e| anyhow::anyhow!("Failed to init agent: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to init agent: {e}"))?;
 
     let (job_tx, job_rx) = mpsc::channel(1);
     let (_stop_tx, stop_rx) = mpsc::channel(1);
@@ -30,7 +30,7 @@ pub async fn run(mut config: AgentConfig, job_file: PathBuf, timeout: Option<u64
     
     if let Some(result) = result_rx.recv().await {
         let json = serde_json::to_string(&result).unwrap();
-        println!("{}", json);
+        println!("{json}");
     } else {
         error!("No result produced!");
         std::process::exit(1);

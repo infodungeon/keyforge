@@ -23,6 +23,7 @@ pub struct NodeRepository {
 
 impl NodeRepository {
     /// Creates a new `NodeRepository` with the given database pool.
+    #[must_use] 
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -66,7 +67,7 @@ impl NodeRepository {
         self.verify_key(node_id, public_key).await?;
 
         sqlx::query(
-            r#"
+            r"
             INSERT INTO nodes (
                 id, cpu_signature, cpu_cores, performance_rating, 
                 last_seen, public_key
@@ -77,7 +78,7 @@ impl NodeRepository {
                 performance_rating = EXCLUDED.performance_rating,
                 cpu_cores = EXCLUDED.cpu_cores,
                 public_key = COALESCE(nodes.public_key, EXCLUDED.public_key)
-            "#
+            "
         )
         .bind(node_id)
         .bind(cpu_model)

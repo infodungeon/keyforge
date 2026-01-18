@@ -25,6 +25,8 @@ pub struct DeterministicScorer;
 
 impl DeterministicScorer {
     /// Calculates a ground-truth score using the reference implementation.
+    #[must_use] 
+    #[allow(clippy::cast_precision_loss)]
     pub fn score(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -44,6 +46,7 @@ impl DeterministicScorer {
     }
 
     /// Calculates the raw, un-normalized score.
+    #[allow(clippy::cast_precision_loss)]
     pub fn score_raw(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -55,6 +58,7 @@ impl DeterministicScorer {
         let mut pos_map: Vec<Vec<u16>> = vec![Vec::new(); 65536];
         let limit = layout.keys.len().min(keyboard.keys.len());
         for (i, &code) in layout.keys.iter().enumerate().take(limit) {
+            #[allow(clippy::cast_possible_truncation)]
             pos_map[code.0 as usize].push(i as u16);
         }
 
@@ -76,9 +80,10 @@ impl DeterministicScorer {
             Self::score_trigrams(corpus, &fp_rubric, &fp_keys, &pos_map)
         );
 
-        total_score as f32 / SCORE_SCALE
+        (total_score as f32) / SCORE_SCALE
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     fn score_monograms(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -108,6 +113,7 @@ impl DeterministicScorer {
         total_score
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     fn score_bigrams(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -139,11 +145,12 @@ impl DeterministicScorer {
                     if cost < min_cost { min_cost = cost; }
                 }
             }
-            total_score = total_score.saturating_add(min_cost.saturating_mul(freq as i64));
+            total_score = total_score.saturating_add(min_cost.saturating_mul(i64::from(freq)));
         }
         total_score
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     fn score_trigrams(
         corpus: &Corpus,
         fp_rubric: &FixedPointRubric,
@@ -170,18 +177,26 @@ impl DeterministicScorer {
                 }
             }
             if min_cost != i64::MAX && min_cost != 0 {
-                total_score = total_score.saturating_add(min_cost.saturating_mul(freq as i64));
+                total_score = total_score.saturating_add(min_cost.saturating_mul(i64::from(freq)));
             }
         }
         total_score
     }
 }
 
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 fn to_fixed(val: f32) -> i64 {
     if val.is_nan() { return 0; }
     if val.is_infinite() { return if val.is_sign_positive() { i64::MAX } else { i64::MIN }; }
-    let scaled = val * SCORE_SCALE;
-    if scaled >= i64::MAX as f32 { i64::MAX } else if scaled <= i64::MIN as f32 { i64::MIN } else { scaled as i64 }
+    let scaled = f64::from(val) * f64::from(SCORE_SCALE);
+    // Boundary check using f64 (more precise than f32 at 10^18)
+    if scaled >= i64::MAX as f64 { 
+        i64::MAX 
+    } else if scaled <= i64::MIN as f64 { 
+        i64::MIN 
+    } else { 
+        scaled as i64 
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -243,6 +258,7 @@ impl From<&Rubric> for FixedPointRubric {
 }
 
 impl FixedPointRubric {
+    #[allow(clippy::cast_possible_truncation)]
     fn calculate_pair_cost(
         &self, 
         kb: &Keyboard, 
@@ -259,8 +275,8 @@ impl FixedPointRubric {
         let dy = (k1.y - k2.y).abs();
         let scale_val = SCORE_SCALE as i128;
         let scale_sq = scale_val * scale_val;
-        let term_x = (dx as i128).saturating_mul(dx as i128).saturating_mul(self.travel_lat as i128) / scale_sq;
-        let term_y = (dy as i128).saturating_mul(dy as i128).saturating_mul(self.travel_vert as i128) / scale_sq;
+        let term_x = i128::from(dx).saturating_mul(i128::from(dx)).saturating_mul(i128::from(self.travel_lat)) / scale_sq;
+        let term_y = i128::from(dy).saturating_mul(i128::from(dy)).saturating_mul(i128::from(self.travel_vert)) / scale_sq;
         let dist_cost = (term_x.saturating_add(term_y)) as i64;
         
         if k1.hand != k2.hand { return 0; }
@@ -278,8 +294,8 @@ impl FixedPointRubric {
                 // Let's rely on kb keys to be exact.
                 let rdx = to_fixed((kb.keys[idx2].x - origin.0).abs());
                 let rdy = to_fixed((kb.keys[idx2].y - origin.1).abs());
-                let r_term_x = (rdx as i128).saturating_mul(rdx as i128).saturating_mul(self.travel_lat as i128) / scale_sq;
-                let r_term_y = (rdy as i128).saturating_mul(rdy as i128).saturating_mul(self.travel_vert as i128) / scale_sq;
+                let r_term_x = i128::from(rdx).saturating_mul(i128::from(rdx)).saturating_mul(i128::from(self.travel_lat)) / scale_sq;
+                let r_term_y = i128::from(rdy).saturating_mul(i128::from(rdy)).saturating_mul(i128::from(self.travel_vert)) / scale_sq;
                 reach_k2 = (r_term_x.saturating_add(r_term_y)) as i64;
             }
             

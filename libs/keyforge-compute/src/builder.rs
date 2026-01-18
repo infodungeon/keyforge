@@ -36,7 +36,7 @@ pub struct SessionBuilder<'a, L: AssetLoader> {
     biometrics: Vec<BiometricSample>,
 }
 
-impl<'a, L: AssetLoader> fmt::Debug for SessionBuilder<'a, L> {
+impl<L: AssetLoader> fmt::Debug for SessionBuilder<'_, L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SessionBuilder")
             .field("keyboard", &self.keyboard)
@@ -69,6 +69,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         Ok(self)
     }
     
+    #[must_use] 
     pub fn with_keyboard_def(mut self, def: Arc<KeyboardDefinition>) -> Self {
         self.keyboard = Some(def);
         self
@@ -79,6 +80,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         Ok(self)
     }
     
+    #[must_use] 
     pub fn with_corpus_obj(mut self, corpus: Arc<Corpus>) -> Self {
         self.corpus = Some(corpus);
         self
@@ -93,6 +95,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         Ok(self)
     }
     
+    #[must_use] 
     pub fn with_cost_model_obj(mut self, model: Arc<CostModel>) -> Self {
         self.cost_model = Some(model);
         self
@@ -103,16 +106,19 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         Ok(self)
     }
 
+    #[must_use] 
     pub fn with_rubric(mut self, rubric: Rubric) -> Self {
         self.rubric = Some(Arc::new(rubric));
         self
     }
 
+    #[must_use] 
     pub fn with_config(mut self, config: SearchConfig) -> Self {
         self.search_config = Some(config);
         self
     }
 
+    #[must_use] 
     pub fn with_biometrics(mut self, samples: Vec<BiometricSample>) -> Self {
         self.biometrics = samples;
         self

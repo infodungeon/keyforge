@@ -25,11 +25,11 @@ fn main() {
     for (i, key) in kb_def.geometry.keys.iter_mut().enumerate() {
         let should_be_home = match i {
             // Left Hand Home Row (A S D F)
-            5 | 6 | 7 | 8 => true,
+            5..=8 => true,
             // Left Thumb (SpaceL)
             16 => true,
             // Right Hand Home Row (J K L ;)
-            24 | 25 | 26 | 27 => true,
+            24..=27 => true,
             // Right Thumb (SpaceR)
             34 => true,
             _ => false,

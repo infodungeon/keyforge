@@ -31,13 +31,13 @@ pub enum LayoutError {
     DuplicateKeys,
 }
 
-/// A specific mapping of KeyCodes to physical positions.
+/// A specific mapping of `KeyCodes` to physical positions.
 /// The index in the vector corresponds to the `KeyIndex`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Layout {
     /// The list of keys.
-    /// The index corresponds to the KeyIndex.
+    /// The index corresponds to the `KeyIndex`.
     #[cfg_attr(feature = "ts_bindings", ts(type = "Vec<KeyCode>"))]
     pub keys: Vec<KeyCode>,
 }
@@ -45,6 +45,7 @@ pub struct Layout {
 impl Layout {
     /// Creates a layout without validation.
     /// Use `try_from` for safe construction.
+    #[must_use] 
     pub fn new_unchecked(keys: Vec<KeyCode>) -> Self {
         Self {
             keys,
@@ -52,11 +53,13 @@ impl Layout {
     }
 
     /// Returns the number of keys in the layout.
+    #[must_use] 
     pub fn len(&self) -> usize {
         self.keys.len()
     }
 
     /// Returns true if the layout has no keys.
+    #[must_use] 
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }

@@ -47,7 +47,7 @@ pub async fn cmd_get_keyboard_geometry(
         .load::<KeyboardDefinition>(&name)
         .await
         .map(|def| def.geometry.clone())
-        .map_err(|e| CommandError::Config(format!("Failed to load geometry: {}", e)))
+        .map_err(|e| CommandError::Config(format!("Failed to load geometry: {e}")))
 }
 
 #[tauri::command]
@@ -131,7 +131,7 @@ pub async fn cmd_submit_user_layout(
 }
 
 #[tauri::command]
-/// Parses a Keyboard Layout Editor (KLE) JSON string into a KeyForge geometry.
+/// Parses a Keyboard Layout Editor (KLE) JSON string into a `KeyForge` geometry.
 pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
     let geometry = parse_kle_json(&json).map_err(|e| CommandError::Validation(e.to_string()))?;
     Ok(KeyboardDefinition {
@@ -148,7 +148,7 @@ pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
 }
 
 #[tauri::command]
-/// Exports a KeyForge geometry definition to a KLE JSON string.
+/// Exports a `KeyForge` geometry definition to a KLE JSON string.
 pub fn cmd_export_to_kle(def: KeyboardDefinition) -> Result<String, CommandError> {
     to_kle_json(&def.geometry).map_err(|e| CommandError::Validation(e.to_string()))
 }
@@ -175,7 +175,7 @@ pub fn cmd_export_firmware(
 ) -> Result<String, CommandError> {
     let keys: Vec<String> = layout_str
         .split_whitespace()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
     let exporter: Box<dyn Exporter> = match format.to_lowercase().as_str() {
         "qmk" => Box::new(QmkExporter),
@@ -200,8 +200,7 @@ pub fn cmd_safe_write_file(path: String, content: String, overwrite: bool) -> Re
     let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("");
     if !allowed_exts.contains(&ext) {
         return Err(CommandError::Validation(format!(
-            "File extension '{}' is not allowed.",
-            ext
+            "File extension '{ext}' is not allowed."
         )));
     }
     if path.contains("..") {

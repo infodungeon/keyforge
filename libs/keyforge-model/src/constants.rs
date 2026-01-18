@@ -136,8 +136,7 @@ pub const PROFILE_LOCK_TTL_SECS: i64 = 86400;
 /// Time-to-live for node heartbeats (seconds).
 pub const HEARTBEAT_TTL_SECS: i64 = 30;
 
-/// Default User-Agent string for the KeyForge client.
-
+/// Default User-Agent string for the `KeyForge` client.
 pub const DEFAULT_USER_AGENT: &str = "KeyForge-Client/0.9";
 
 /// Default path for user statistics.

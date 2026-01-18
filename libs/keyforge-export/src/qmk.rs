@@ -28,29 +28,30 @@ const MAX_KEYS: usize = 512; // Support up to 512 keys (large orthos/macros)
 
 impl Exporter for QmkExporter {
     fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String> {
-        let total_keys: usize = layers.iter().map(|l| l.len()).sum();
+        let total_keys: usize = layers.iter().map(std::vec::Vec::len).sum();
         if total_keys > MAX_KEYS {
             return Err(anyhow::anyhow!(
-                "Too many keys for QMK export (Limit: {})",
-                MAX_KEYS
+                "Too many keys for QMK export (Limit: {MAX_KEYS})"
             ));
         }
 
         let mut out = String::with_capacity(4096 * layers.len());
         // Sanitize layout name for C identifier
-        let _safe_name = util::sanitize_c(&layout_name.replace(" ", "_").to_uppercase());
+        let _safe_name = util::sanitize_c(&layout_name.replace(' ', "_").to_uppercase());
 
-        out.push_str(&format!("// KeyForge QMK Export: {}\n", layout_name));
-        out.push_str(&format!(
+        use std::fmt::Write;
+        let _ = write!(out, "// KeyForge QMK Export: {layout_name}\n");
+        let _ = write!(
+            out,
             "// Generated at: {}\n\n",
             chrono::Local::now().to_rfc3339()
-        ));
+        );
 
         out.push_str("#include QMK_KEYBOARD_H\n\n");
         out.push_str("const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {\n");
 
         for (l_idx, keys) in layers.iter().enumerate() {
-            out.push_str(&format!("  [{}] = LAYOUT(\n", l_idx));
+            let _ = write!(out, "  [{l_idx}] = LAYOUT(\n");
             out.push_str("    ");
 
             let mut line_len = 0;
@@ -86,26 +87,25 @@ impl Exporter for QmkExporter {
 
 fn action_to_qmk(action: &KeyAction) -> String {
     match action {
-        KeyAction::Simple(s) => util::sanitize_c(s),
+        KeyAction::Simple(s) | KeyAction::Raw(s) => util::sanitize_c(s),
         KeyAction::Transparent => DEFAULT_TRANSPARENT.to_string(),
         KeyAction::NoOp => DEFAULT_NO_OP.to_string(),
-        KeyAction::LayerMomentary(l) => format!("MO({})", l),
-        KeyAction::LayerToggle(l) => format!("TG({})", l),
-        KeyAction::LayerOn(l) => format!("TO({})", l),
+        KeyAction::LayerMomentary(l) => format!("MO({l})"),
+        KeyAction::LayerToggle(l) => format!("TG({l})"),
+        KeyAction::LayerOn(l) => format!("TO({l})"),
         KeyAction::ModTap { mod_name, key } => {
             let key_str = action_to_qmk(key);
             format!("{}_T({})", util::sanitize_c(mod_name), key_str)
         }
         KeyAction::LayerTap { layer, key } => {
             let key_str = action_to_qmk(key);
-            format!("LT({}, {})", layer, key_str)
+            format!("LT({layer}, {key_str})")
         },
         KeyAction::StickyMod(m) => {
             let qmk_mod = util::map_modifier(m, ModFormat::Qmk);
-            format!("OSM({})", qmk_mod)
+            format!("OSM({qmk_mod})")
         }
         KeyAction::CapsWord => "CAPS_WORD".to_string(),
-        KeyAction::Raw(s) => util::sanitize_c(s),
     }
 }
 

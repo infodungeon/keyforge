@@ -6,6 +6,12 @@ use keyforge_model::keycodes::KeycodeRegistry;
 ///
 /// - Unknown tokens are treated as errors.
 /// - Intended for server-side verification and other trust boundaries.
+///
+/// Parses a layout string strictly.
+///
+/// # Errors
+///
+/// Returns an error if the layout string has the wrong number of keys or invalid codes.
 pub fn parse_layout_string_strict(
     s: &str,
     size: usize,
@@ -57,8 +63,9 @@ pub fn parse_layout_string_strict(
 
 /// Permissive layout-string parsing.
 ///
-/// - Unknown tokens are replaced with 0 (KC_NO).
+/// - Unknown tokens are replaced with 0 (`KC_NO`).
 /// - Intended for UI/CLI convenience.
+#[must_use] 
 pub fn parse_layout_string_permissive(
     s: &str,
     size: usize,
@@ -104,6 +111,11 @@ pub fn parse_layout_string_permissive(
 /// Backwards-compatible alias.
 ///
 /// Prefer `parse_layout_string_strict` or `parse_layout_string_permissive`.
+/// Parses a layout string.
+///
+/// # Errors
+///
+/// Returns an error if the layout string is invalid.
 pub fn parse_layout_string(
     s: &str,
     size: usize,

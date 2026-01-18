@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Shared constants for the KeyForge Wire Protocol.
+//! Shared constants for the `KeyForge` Wire Protocol.
 
 // Re-export domain constants for convenience
 pub use keyforge_model::constants::{MAX_KEYBOARD_KEYS, MAX_PINNED_KEYS_COUNT};

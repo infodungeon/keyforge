@@ -17,10 +17,9 @@
 use keyforge_model::constants::MAX_TRANSPORT_VECTOR_ITEMS;
 use serde::{Deserialize, Deserializer};
 
-/// Deserializes a vector with a hard limit on size to prevent memory exhaustion attacks.
-/// 
-/// This is a Transport Security Policy. It protects the application from processing
-/// maliciously large arrays that could cause OOM.
+///
+/// # Errors
+/// Returns a deserialization error if the vector length exceeds the transport limit.
 pub fn deserialize_limited_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -29,8 +28,7 @@ where
     let v: Vec<T> = Vec::deserialize(deserializer)?;
     if v.len() > MAX_TRANSPORT_VECTOR_ITEMS {
         return Err(serde::de::Error::custom(format!(
-            "Vector exceeds transport limit of {} items",
-            MAX_TRANSPORT_VECTOR_ITEMS
+            "Vector exceeds transport limit of {MAX_TRANSPORT_VECTOR_ITEMS} items"
         )));
     }
     Ok(v)

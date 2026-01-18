@@ -55,7 +55,7 @@ fn generate_secure_key() -> (String, String) {
         .collect();
 
     let key_prefix = "kf_";
-    let full_key = format!("{}{}", key_prefix, api_key);
+    let full_key = format!("{key_prefix}{api_key}");
     let hash = hash_key(&full_key);
     (full_key, hash)
 }

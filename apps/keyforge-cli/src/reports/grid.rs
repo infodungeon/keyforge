@@ -22,7 +22,7 @@ use keyforge_model::constants::DEFAULT_GRID_WIDTH;
 
 #[allow(dead_code)]
 pub fn print_layout(name: &str, codes: &[KeyCode], registry: &KeycodeRegistry) {
-    println!("\nLayout: {}", name);
+    println!("\nLayout: {name}");
     let mut table = Table::new();
     table.load_preset(ASCII_FULL);
 
@@ -42,5 +42,5 @@ pub fn print_layout(name: &str, codes: &[KeyCode], registry: &KeycodeRegistry) {
             .collect();
         table.add_row(cells);
     }
-    println!("{}", table);
+    println!("{table}");
 }

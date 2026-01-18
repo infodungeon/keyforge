@@ -14,7 +14,7 @@ pub const QUEUE_MAX_RETRIES: u32 = 3;
 pub const QUEUE_RETRY_DELAY_MS: u64 = 100;
 
 /// Trait for a sink that can accept batches of records.
-/// Decouples the queue from the concrete ResultRepository.
+/// Decouples the queue from the concrete `ResultRepository`.
 #[async_trait::async_trait]
 pub trait BatchSink: Send + Sync + 'static {
     async fn insert_batch(&self, items: &[(&str, &str, f32, &str)]) -> Result<(), String>;
@@ -139,7 +139,7 @@ impl PersistentJobQueue {
                             None => break,
                         }
                     }
-                    _ = timeout => {
+                    () = timeout => {
                         if !buffer.is_empty() {
                             flush_buffer(&sink, &queue_dir_clone, &dlq_clone, &mut buffer).await;
                         }
@@ -164,8 +164,8 @@ impl PersistentJobQueue {
                 let record_bytes = postcard::to_stdvec(&record).unwrap_or_default();
                 let checksum = crc32fast::hash(&record_bytes);
                 let entry = WalEntry { checksum, record: record.clone() };
-                let final_path = self.queue_dir.join(format!("{}.bin", id));
-                let temp_path = self.queue_dir.join(format!("{}.tmp", id));
+                let final_path = self.queue_dir.join(format!("{id}.bin"));
+                let temp_path = self.queue_dir.join(format!("{id}.tmp"));
 
                 if let Ok(bytes) = postcard::to_stdvec(&entry) {
                     if let Ok(mut file) = File::create(&temp_path).await {
@@ -222,12 +222,12 @@ async fn flush_buffer<S: BatchSink>(
             break;
         }
         attempts += 1;
-        sleep(Duration::from_millis(QUEUE_RETRY_DELAY_MS * attempts as u64)).await;
+        sleep(Duration::from_millis(QUEUE_RETRY_DELAY_MS * u64::from(attempts))).await;
     }
 
     if success {
         for (id, _, ack) in buffer.drain(..) {
-            let path = queue_dir.join(format!("{}.bin", id));
+            let path = queue_dir.join(format!("{id}.bin"));
             let _ = fs::remove_file(&path).await;
             if let Some(tx) = ack { let _ = tx.send(()); }
         }
@@ -235,7 +235,7 @@ async fn flush_buffer<S: BatchSink>(
         error!("❌ Batch Insert Failed. DLQ.");
         for (id, record, _) in buffer.drain(..) {
             dlq.push(&record, "Batch Insert Failed").await;
-            let path = queue_dir.join(format!("{}.bin", id));
+            let path = queue_dir.join(format!("{id}.bin"));
             let _ = fs::remove_file(&path).await;
         }
     }

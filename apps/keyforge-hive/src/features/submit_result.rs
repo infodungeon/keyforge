@@ -49,7 +49,7 @@ pub async fn handle(
 async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppResult<String> {
     // Stage 1: Validation
     payload.validate().map_err(AppError::Validation)?;
-    validate_submission(&state, &payload).await?;
+    validate_submission(state, &payload).await?;
 
     // Stage 2: Verification (Domain Logic)
     state.verification.verify_submission(&payload).await?;
@@ -86,7 +86,7 @@ async fn validate_submission(state: &AppState, payload: &ResultSubmission) -> Ap
         &payload.node_id, 
         payload.nonce, 
         DEFAULT_SUBMISSION_EXPIRATION_SECS as i64
-    ).await.map_err(|e| AppError::Any(anyhow::anyhow!("Valkey Error: {}", e)))?;
+    ).await.map_err(|e| AppError::Any(anyhow::anyhow!("Valkey Error: {e}")))?;
 
     if !is_new {
         return Err(AppError::Validation("Replay detected".into()));

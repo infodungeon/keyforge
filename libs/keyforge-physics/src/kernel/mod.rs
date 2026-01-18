@@ -66,6 +66,6 @@ pub struct EngineContext {
     pub(crate) sequence_modifiers: HashMap<(u16, u16), Score>,
     /// Pre-sorted list of all unique keycodes present in the corpus.
     pub(crate) sorted_unique_keys: Vec<u16>,
-    /// Map of keycode to its index in sorted_unique_keys.
+    /// Map of keycode to its index in `sorted_unique_keys`.
     pub(crate) key_rank_map: HashMap<u16, usize>,
 }

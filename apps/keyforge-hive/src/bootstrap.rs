@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 /// dependency. Default location: `/etc/keyforge/hive_bootstrap.toml`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct HiveBootstrapConfig {
-    /// Path to the KeyForge data root directory.
+    /// Path to the `KeyForge` data root directory.
     ///
     /// Expected layout:
     /// - `${data_root}/system/...` (read-only system assets)
@@ -34,6 +34,7 @@ impl HiveBootstrapConfig {
     pub const DEFAULT_SYSTEM_PATH: &'static str = "/etc/keyforge/hive.toml";
 
     /// Returns the resolved path for the bootstrap configuration.
+    #[must_use] 
     pub fn resolve_path() -> PathBuf {
         // 1. Env Var Override
         if let Ok(p) = std::env::var("KEYFORGE_HIVE_CONFIG") {
@@ -55,8 +56,8 @@ impl HiveBootstrapConfig {
     /// Loads the bootstrap configuration from the specified TOML file.
     pub fn load(path: &Path) -> Result<Self, String> {
         let raw = std::fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read bootstrap config {:?}: {}", path, e))?;
+            .map_err(|e| format!("Failed to read bootstrap config {path:?}: {e}"))?;
         toml::from_str(&raw)
-            .map_err(|e| format!("Failed to parse bootstrap config {:?}: {}", path, e))
+            .map_err(|e| format!("Failed to parse bootstrap config {path:?}: {e}"))
     }
 }

@@ -25,6 +25,7 @@ pub struct DeadLetterQueue {
 }
 
 impl DeadLetterQueue {
+    #[must_use] 
     pub fn new(data_path: PathBuf) -> Self {
         Self { path: data_path.join("user/dlq") }
     }

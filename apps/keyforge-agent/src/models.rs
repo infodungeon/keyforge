@@ -141,8 +141,8 @@ impl Default for AgentConfig {
             hive_url: "https://hive.infodungeon.com:3000".to_string(),
             asset_url: "http://localhost:3001".to_string(),
             node_id: "unknown".to_string(),
-            secret: "".to_string(),
-            private_key: "".to_string(),
+            secret: String::new(),
+            private_key: String::new(),
             data_dir: PathBuf::from("data"),
             cores: 1,
             calibration: Default::default(),
@@ -246,7 +246,7 @@ impl AgentTelemetry {
         }
     }
     pub fn get_job_id(&self) -> String {
-        self.current_job_id.read().map(|s| s.clone()).unwrap_or_else(|_| "unknown".to_string())
+        self.current_job_id.read().map_or_else(|_| "unknown".to_string(), |s| s.clone())
     }
     pub fn snapshot(&self) -> (f32, f32, f32) {
         (

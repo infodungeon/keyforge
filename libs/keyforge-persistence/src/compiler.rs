@@ -31,7 +31,7 @@ pub async fn compile_request<L: AssetLoader>(
     let keyboard_def = loader
         .load::<KeyboardDefinition>(keyboard_name)
         .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard '{}': {}", keyboard_name, e)))?;
+        .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard '{keyboard_name}': {e}")))?;
 
     let keyboard = keyforge_model::Keyboard::new(
         keyboard_def.geometry.keys.clone(),
@@ -45,23 +45,21 @@ pub async fn compile_request<L: AssetLoader>(
     let corpus = loader
         .load_corpus(&corpus_sources)
         .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("Corpus: {}", e)))?;
+        .map_err(|e| PersistenceError::AssetLoad(format!("Corpus: {e}")))?;
 
     // 3. Load Cost Model
-    let cost_name = match CostMatrixSource::default() {
-        CostMatrixSource::Predefined(name) => name,
-    };
+    let CostMatrixSource::Predefined(cost_name) = CostMatrixSource::default();
     
     let cost_model = loader
         .load::<CostModel>(&cost_name)
         .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("CostModel '{}': {}", cost_name, e)))?;
+        .map_err(|e| PersistenceError::AssetLoad(format!("CostModel '{cost_name}': {e}")))?;
 
     // 4. Load Keycodes (Standard)
     let registry = loader
         .load::<KeycodeRegistry>("keycodes")
         .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {}", e)))?;
+        .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {e}")))?;
 
     // 5. Construct Request
     let pinned = resolve_constraints(pinned_keys, keyboard.count(), &registry)

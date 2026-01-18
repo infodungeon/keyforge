@@ -50,7 +50,7 @@ pub struct Meta {
     pub unit: String,
 }
 
-/// Definition of a specific physical model (e.g., "model_a_row_staggered").
+/// Definition of a specific physical model (e.g., "`model_a_row_staggered`").
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelDefinition {
     /// Description of the hardware geometry this model applies to.
@@ -59,7 +59,7 @@ pub struct ModelDefinition {
     pub static_costs: HashMap<String, HandDefinition>,
 }
 
-/// Costs for a specific hand (e.g., "left_hand", "universal_hand").
+/// Costs for a specific hand (e.g., "`left_hand`", "`universal_hand`").
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HandDefinition {
     /// Map of finger names to their cost definitions.
@@ -76,7 +76,7 @@ pub struct HandDefinition {
 pub enum FingerDefinition {
     /// Standard finger with zones and rows (e.g., Index -> Base -> r0).
     Standard(HashMap<String, HashMap<String, f32>>),
-    /// Thumb with named positions (e.g., Thumb -> pos_1).
+    /// Thumb with named positions (e.g., Thumb -> `pos_1`).
     Thumb(HashMap<String, f32>),
 }
 

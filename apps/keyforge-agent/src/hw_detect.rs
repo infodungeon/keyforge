@@ -23,7 +23,7 @@ use tracing::{info, warn};
 pub struct CpuCacheTopology {
     /// The brand name of the CPU (e.g., "AMD Ryzen 9 5950X").
     pub model: String,
-    /// The target architecture (e.g., "x86_64", "aarch64").
+    /// The target architecture (e.g., "`x86_64`", "aarch64").
     pub architecture: String,
     /// The number of logical cores detected.
     pub cores: usize,

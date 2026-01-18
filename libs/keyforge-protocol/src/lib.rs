@@ -13,9 +13,9 @@
 // limitations under the License.
 
 
-//! # KeyForge Protocol
+//! # `KeyForge` Protocol
 //!
-//! The Wire Contract for the KeyForge system. This crate defines the Data Transfer Objects (DTOs)
+//! The Wire Contract for the `KeyForge` system. This crate defines the Data Transfer Objects (DTOs)
 //! used for communication between the Client, Server (Hive), and Worker (Agent).
 //!
 //! ## Responsibilities
@@ -60,17 +60,18 @@ pub const MIN_CLIENT_VERSION: u32 = 1;
 pub const MIN_SERVER_VERSION: u32 = 1;
 
 /// Checks if the client and server versions are compatible.
+///
+/// # Errors
+/// Returns an error message if the client or server versions are below the minimum supported thresholds.
 pub fn check_version_compatibility(client_version: u32, server_version: u32) -> Result<(), String> {
     if client_version < MIN_CLIENT_VERSION {
         return Err(format!(
-            "Client version {} is too old (min required: {})",
-            client_version, MIN_CLIENT_VERSION
+            "Client version {client_version} is too old (min required: {MIN_CLIENT_VERSION})"
         ));
     }
     if server_version < MIN_SERVER_VERSION {
         return Err(format!(
-            "Server version {} is too old (min required: {})",
-            server_version, MIN_SERVER_VERSION
+            "Server version {server_version} is too old (min required: {MIN_SERVER_VERSION})"
         ));
     }
     Ok(())

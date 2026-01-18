@@ -14,6 +14,7 @@ pub struct ResultOutbox {
 }
 
 impl ResultOutbox {
+    #[must_use] 
     pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32, cooldown_secs: u64) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         let dead_letter_dir = data_root.join("user/dead_letter");

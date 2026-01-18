@@ -1,0 +1,328 @@
+    Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
+error: casting `usize` to `f32` causes a loss of precision (`usize` is 32 or 64 bits wide, but `f32`'s mantissa is only 23 bits wide)
+   --> libs/keyforge-model/src/config/search.rs:130:27
+    |
+130 |                 max: Some(MAX_SEARCH_EPOCHS as f32),
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_precision_loss
+    = note: `-D clippy::cast-precision-loss` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::cast_precision_loss)]`
+
+error: casting `usize` to `f32` causes a loss of precision (`usize` is 32 or 64 bits wide, but `f32`'s mantissa is only 23 bits wide)
+   --> libs/keyforge-model/src/config/search.rs:140:27
+    |
+140 |                 max: Some(MAX_SEARCH_STEPS as f32),
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_precision_loss
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/search.rs:194:48
+    |
+194 |     pub fn get_search_epochs(&self) -> usize { self.get_param("search_epochs", DEFAULT_SEARCH_EPOCHS as f32) as usize }
+    |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+    = note: `-D clippy::cast-sign-loss` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::cast_sign_loss)]`
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/search.rs:198:47
+    |
+198 |     pub fn get_search_steps(&self) -> usize { self.get_param("search_steps", DEFAULT_SEARCH_STEPS as f32) as usize }
+    |                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/search.rs:202:50
+    |
+202 |     pub fn get_search_patience(&self) -> usize { self.get_param("search_patience", DEFAULT_SEARCH_PATIENCE as f32) as usize }
+    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/search.rs:215:49
+    |
+215 |     pub fn get_opt_limit_fast(&self) -> usize { self.get_param("opt_limit_fast", DEFAULT_OPT_LIMIT_FAST as f32) as usize }
+    |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/search.rs:219:49
+    |
+219 |     pub fn get_opt_limit_slow(&self) -> usize { self.get_param("opt_limit_slow", DEFAULT_OPT_LIMIT_SLOW as f32) as usize }
+    |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/search.rs:223:42
+    |
+223 |     pub fn get_reheats(&self) -> usize { self.get_param("reheats", DEFAULT_REHEATS as f32) as usize }
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: docs for function returning `Result` missing `# Errors` section
+ --> libs/keyforge-model/src/config/utils.rs:5:1
+  |
+5 | pub fn parse_key_val(s: &str) -> Result<(String, f32), String> {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#missing_errors_doc
+  = note: `-D clippy::missing-errors-doc` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::missing_errors_doc)]`
+
+error: casting `usize` to `f32` causes a loss of precision (`usize` is 32 or 64 bits wide, but `f32`'s mantissa is only 23 bits wide)
+   --> libs/keyforge-model/src/config/weights.rs:160:60
+    |
+160 |         weights.insert("loader_trigram_limit".to_string(), DEFAULT_LOADER_TRIGRAM_LIMIT as f32);
+    |                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_precision_loss
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/weights.rs:175:17
+    |
+175 |              if limit as usize > MAX_LOADER_TRIGRAM_LIMIT {
+    |                 ^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `usize` may lose the sign of the value
+   --> libs/keyforge-model/src/config/weights.rs:353:55
+    |
+353 | ...limit(&self) -> usize { self.get_weight("loader_trigram_limit", DEFAULT_LOADER_TRIGRAM_LIMIT as f32) as usize }
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: docs for function returning `Result` missing `# Errors` section
+  --> libs/keyforge-model/src/corpus.rs:68:5
+   |
+68 |     pub fn validate(&self) -> Result<(), ForgeError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#missing_errors_doc
+
+error: casting `f32` to `u64` may lose the sign of the value
+  --> libs/keyforge-model/src/corpus.rs:90:35
+   |
+90 |                 let merged_freq = (freq as f32 * weight).round() as u64;
+   |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `u32` may lose the sign of the value
+  --> libs/keyforge-model/src/corpus.rs:98:31
+   |
+98 |             let merged_freq = (freq as f32 * weight).round() as u32;
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `u32` may lose the sign of the value
+   --> libs/keyforge-model/src/corpus.rs:105:31
+    |
+105 |             let merged_freq = (freq as f32 * weight).round() as u32;
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: casting `f32` to `u32` may lose the sign of the value
+   --> libs/keyforge-model/src/corpus.rs:112:31
+    |
+112 |             let merged_freq = (*freq as f32 * weight).round() as u32;
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_sign_loss
+
+error: docs for function returning `Result` missing `# Errors` section
+  --> libs/keyforge-model/src/asset.rs:58:5
+   |
+58 |     fn post_load(&mut self) -> Result<(), ForgeError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#missing_errors_doc
+
+error: docs for function returning `Result` missing `# Errors` section
+  --> libs/keyforge-model/src/geometry/kle.rs:28:1
+   |
+28 | pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#missing_errors_doc
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:32:63
+   |
+32 |     let mut x_coords: Vec<f32> = keyboard.keys.iter().map(|k| k.x as f32 + (k.width as f32 / 2.0)).collect();
+   |                                                               ^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+   = note: `-D clippy::cast-possible-truncation` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::cast_possible_truncation)]`
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:32:77
+   |
+32 |     let mut x_coords: Vec<f32> = keyboard.keys.iter().map(|k| k.x as f32 + (k.width as f32 / 2.0)).collect();
+   |                                                                             ^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:61:23
+   |
+61 |         let hand = if center_x as f32 > split_x { HandIndex::RIGHT } else { HandIndex::LEFT };
+   |                       ^^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `i8` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:72:27
+   |
+72 |             row: RowIndex(key.y.round() as i8),
+   |                           ^^^^^^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `i8` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:73:27
+   |
+73 |             col: ColIndex(key.x.round() as i8),
+   |                           ^^^^^^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:74:16
+   |
+74 |             x: key.x as f32,
+   |                ^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:75:16
+   |
+75 |             y: key.y as f32,
+   |                ^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:76:16
+   |
+76 |             w: key.width as f32,
+   |                ^^^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:77:16
+   |
+77 |             h: key.height as f32,
+   |                ^^^^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:78:16
+   |
+78 |             r: key.rotation as f32,
+   |                ^^^^^^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:79:17
+   |
+79 |             rx: key.rx as f32,
+   |                 ^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `f64` to `f32` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:80:17
+   |
+80 |             ry: key.ry as f32,
+   |                 ^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+
+error: casting `usize` to `u16` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:88:69
+   |
+88 |     let prime_slots = (0..std::cmp::min(8, total)).map(|i| KeyIndex(i as u16)).collect();
+   |                                                                     ^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+help: ... or use `try_from` and handle the error accordingly
+   |
+88 -     let prime_slots = (0..std::cmp::min(8, total)).map(|i| KeyIndex(i as u16)).collect();
+88 +     let prime_slots = (0..std::cmp::min(8, total)).map(|i| KeyIndex(u16::try_from(i))).collect();
+   |
+
+error: casting `usize` to `u16` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:89:68
+   |
+89 |     let med_slots = (8..std::cmp::min(20, total)).map(|i| KeyIndex(i as u16)).collect();
+   |                                                                    ^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+help: ... or use `try_from` and handle the error accordingly
+   |
+89 -     let med_slots = (8..std::cmp::min(20, total)).map(|i| KeyIndex(i as u16)).collect();
+89 +     let med_slots = (8..std::cmp::min(20, total)).map(|i| KeyIndex(u16::try_from(i))).collect();
+   |
+
+error: casting `usize` to `u16` may truncate the value
+  --> libs/keyforge-model/src/geometry/kle.rs:90:50
+   |
+90 |     let low_slots = (20..total).map(|i| KeyIndex(i as u16)).collect();
+   |                                                  ^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#cast_possible_truncation
+help: ... or use `try_from` and handle the error accordingly
+   |
+90 -     let low_slots = (20..total).map(|i| KeyIndex(i as u16)).collect();
+90 +     let low_slots = (20..total).map(|i| KeyIndex(u16::try_from(i))).collect();
+   |
+
+error: docs for function returning `Result` missing `# Errors` section
+   --> libs/keyforge-model/src/geometry/kle.rs:103:1
+    |
+103 | pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#missing_errors_doc
+
+error: docs for function returning `Result` missing `# Errors` section
+   --> libs/keyforge-model/src/geometry/mod.rs:217:5
+    |
+217 |     pub fn parse(content: &str, name_hint: Option<&str>) -> Result<Self, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#missing_errors_doc
+
+error: could not compile `keyforge-model` (lib) due to 36 previous errors

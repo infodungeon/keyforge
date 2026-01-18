@@ -3,7 +3,7 @@ use keyforge_protocol::ErrorCode;
 use serde::Serialize;
 use thiserror::Error;
 
-/// Unified error type for Tauri commands in the KeyForge UI.
+/// Unified error type for Tauri commands in the `KeyForge` UI.
 #[derive(Debug, Error)]
 pub enum CommandError {
     /// Errors occurring during filesystem operations.

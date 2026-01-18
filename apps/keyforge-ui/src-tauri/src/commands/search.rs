@@ -62,7 +62,7 @@ pub async fn cmd_poll_hive_status(
     };
     let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
 
-    let path = format!("jobs/{}/status", job_id);
+    let path = format!("jobs/{job_id}/status");
     let resp = client.get(&path).send().await.map_err(|e| CommandError::Network(e.to_string()))?;
 
     if !resp.status().is_success() {
@@ -92,28 +92,26 @@ pub fn cmd_toggle_local_worker(
             return Ok("Worker already running".into());
         }
 
-        let data_dir = get_data_dir(&app).map_err(|e| CommandError::Internal(e))?;
+        let data_dir = get_data_dir(&app).map_err(CommandError::Internal)?;
         
         // Spawn sidecar
         let (mut _rx, child) = app
             .shell()
             .sidecar("keyforge-agent")
-            .map_err(|e| CommandError::Internal(format!("Failed to find sidecar: {}", e)))?
+            .map_err(|e| CommandError::Internal(format!("Failed to find sidecar: {e}")))?
             .args(["worker", "--hive", &hive_url, "--data-dir", &data_dir.to_string_lossy()])
             .spawn()
-            .map_err(|e| CommandError::Internal(format!("Failed to spawn worker: {}", e)))?;
+            .map_err(|e| CommandError::Internal(format!("Failed to spawn worker: {e}")))?;
 
         *child_guard = Some(child);
         Ok("Worker started".into())
+    } else if let Some(child) = child_guard.take() {
+        child
+            .kill()
+            .map_err(|e| CommandError::Internal(format!("Failed to kill worker: {e}")))?;
+        Ok("Worker stopped".into())
     } else {
-        if let Some(child) = child_guard.take() {
-            child
-                .kill()
-                .map_err(|e| CommandError::Internal(format!("Failed to kill worker: {}", e)))?;
-            Ok("Worker stopped".into())
-        } else {
-            Ok("Worker not running".into())
-        }
+        Ok("Worker not running".into())
     }
 }
 

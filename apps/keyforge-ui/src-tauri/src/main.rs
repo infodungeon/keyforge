@@ -1,6 +1,6 @@
-//! KeyForge UI Application Entry Point
+//! `KeyForge` UI Application Entry Point
 //!
-//! This crate provides the desktop user interface for KeyForge, built with Tauri and React.
+//! This crate provides the desktop user interface for `KeyForge`, built with Tauri and React.
 //! It coordinates between the local search agent, the remote Hive server, and the 
 //! hardware layout editor.
 

@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let coordinator = Arc::new(DistributedCoordinator::new(&args.valkey_url).await
-        .map_err(|e| anyhow::anyhow!("Failed to connect to Valkey: {}", e))?);
+        .map_err(|e| anyhow::anyhow!("Failed to connect to Valkey: {e}"))?);
 
     match args.command {
         Commands::Seed { data_dir } => {
@@ -83,14 +83,14 @@ async fn main() -> anyhow::Result<()> {
 fn ensure_system_root(data_dir: &Path) -> anyhow::Result<PathBuf> {
     let root = data_dir.join("system");
     if !root.exists() {
-        return Err(anyhow::anyhow!("System root not found at {:?}", root));
+        return Err(anyhow::anyhow!("System root not found at {root:?}"));
     }
     Ok(root)
 }
 
 async fn list_assets(coordinator: &DistributedCoordinator) -> anyhow::Result<()> {
     let entries = coordinator.get_all_manifest_entries().await
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     
     println!("{:<60} | {:<15} | {:<20}", "ID", "Size", "Updated");
     println!("{:-<60}-+-{:-<15}-+-{:-<20}", "", "", "");
@@ -110,10 +110,10 @@ async fn hydrate_valkey(coordinator: &DistributedCoordinator, system_root: &Path
     let walker = WalkDir::new(system_root).follow_links(true);
     let mut count = 0;
 
-    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+    for entry in walker.into_iter().filter_map(std::result::Result::ok) {
         if entry.file_type().is_file() {
-            if is_hidden(&entry.path()) { continue; }
-            if let Err(e) = upload_file(coordinator, system_root, &entry.path()).await {
+            if is_hidden(entry.path()) { continue; }
+            if let Err(e) = upload_file(coordinator, system_root, entry.path()).await {
                 warn!("Failed to process {:?}: {}", entry.path(), e);
             } else {
                 count += 1;
@@ -218,13 +218,13 @@ async fn watch_loop(coordinator: Arc<DistributedCoordinator>, system_root: PathB
 // --- Helpers ---
 
 fn is_hidden(path: &Path) -> bool {
-    path.file_name().and_then(|s| s.to_str()).map(|s| s.starts_with('.')).unwrap_or(false)
+    path.file_name().and_then(|s| s.to_str()).is_some_and(|s| s.starts_with('.'))
 }
 
 async fn upload_file(coordinator: &DistributedCoordinator, root: &Path, path: &Path) -> anyhow::Result<()> {
     let rel = path.strip_prefix(root)?;
     let key_path = rel.to_string_lossy().replace('\\', "/");
-    let valkey_key = format!("asset:blob:{}", key_path);
+    let valkey_key = format!("asset:blob:{key_path}");
 
     let content = tokio::fs::read(path).await?;
     let size = content.len() as u64;

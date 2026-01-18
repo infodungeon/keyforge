@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let coordinator = Arc::new(
         DistributedCoordinator::new(&args.valkey_url)
             .await
-            .map_err(|e| anyhow::anyhow!("Valkey connection failed: {}", e))?,
+            .map_err(|e| anyhow::anyhow!("Valkey connection failed: {e}"))?,
     );
 
     let provider = Arc::new(ValkeyProvider::new(coordinator));

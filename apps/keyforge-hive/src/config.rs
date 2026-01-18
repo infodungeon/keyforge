@@ -83,7 +83,7 @@ fn default_valkey() -> String {
 
 impl AppConfig {
     /// Loads the configuration from environment variables.
-    /// Returns an error if critical variables (DATABASE_URL, HIVE_SECRET) are missing.
+    /// Returns an error if critical variables (`DATABASE_URL`, `HIVE_SECRET`) are missing.
     pub fn load_from_env() -> AppResult<Self> {
         // Critical Requirements - Fail Fast
         let database_url = env::var("DATABASE_URL")
@@ -116,6 +116,7 @@ impl AppConfig {
     }
 
     /// Creates a default configuration for testing.
+    #[must_use] 
     pub fn mock() -> Self {
         Self {
             database_url: "postgres://mock".to_string(),

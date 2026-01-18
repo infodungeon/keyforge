@@ -30,7 +30,7 @@ pub mod results;
 pub mod submission;
 /// Input validation helpers.
 pub mod validation;
-/// Real-time communication via WebSockets.
+/// Real-time communication via `WebSockets`.
 pub mod ws;
 
 use crate::state::AppState;

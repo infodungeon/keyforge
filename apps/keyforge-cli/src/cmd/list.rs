@@ -64,7 +64,7 @@ async fn list_keyboards(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn
     apply_style(&mut table);
     table.set_header(vec!["File", "Name", "Type", "Author"]);
 
-    let names = ws_list_keyboards(&loader.root()).map_err(|e| format!("Failed to list keyboards: {}", e))?;
+    let names = ws_list_keyboards(loader.root()).map_err(|e| format!("Failed to list keyboards: {e}"))?;
     let count = names.len();
     for name in names.into_iter().take(limit) {
         if let Ok(def) = loader.load::<KeyboardDefinition>(&name).await {
@@ -88,7 +88,7 @@ async fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn s
     apply_style(&mut table);
     table.set_header(vec!["Category", "ID", "Size (1-grams)"]);
 
-    let ids = ws_list_corpora(&loader.root()).map_err(|e| format!("Failed to list corpora: {}", e))?;
+    let ids = ws_list_corpora(loader.root()).map_err(|e| format!("Failed to list corpora: {e}"))?;
     let count = ids.len();
     for id in ids.into_iter().take(limit) {
         let parts: Vec<&str> = id.split('/').collect();
@@ -105,7 +105,7 @@ async fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn s
         let is_system = path.starts_with(loader.root().join("system"));
         let ext = if is_system { "mpk.zst" } else { "json" };
 
-        let size = fs::metadata(path.join(format!("1grams.{}", ext)))
+        let size = fs::metadata(path.join(format!("1grams.{ext}")))
             .map(|m| m.len())
             .unwrap_or(0);
 
@@ -124,7 +124,7 @@ async fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn s
 
 async fn list_layouts(loader: &FsProvider, kb_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let def = loader.load::<KeyboardDefinition>(kb_name).await
-        .map_err(|e| format!("Failed to load keyboard '{}': {}", kb_name, e))?;
+        .map_err(|e| format!("Failed to load keyboard '{kb_name}': {e}"))?;
 
     println!("Layouts for {}:", def.meta.name);
     let mut table = Table::new();

@@ -22,7 +22,7 @@ pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
         if p.exists() {
             return Ok(p);
         }
-        return Err(format!("Explicit data path not found: {:?}", p));
+        return Err(format!("Explicit data path not found: {p:?}"));
     }
 
     if let Ok(env_path) = env::var("KEYFORGE_DATA_DIR") {
@@ -39,7 +39,7 @@ pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
         // Sanity check: A valid workspace must contain 'keyboards'
         if p.exists() && p.join("keyboards").exists() {
             return std::fs::canonicalize(p)
-                .map_err(|e| format!("Failed to canonicalize path: {}", e));
+                .map_err(|e| format!("Failed to canonicalize path: {e}"));
         }
     }
 
@@ -47,6 +47,7 @@ pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
 }
 
 /// Resolves the absolute paths for a Job's assets (Cost Matrix and Corpus).
+#[must_use] 
 pub fn resolve_job_paths(
     root: &std::path::Path,
     corpus_name: &str,

@@ -47,7 +47,7 @@ pub fn scoring(results: &[(String, AnalysisReport)]) {
             Cell::new(format!("{:.2}", d.hand_balance)),
         ]);
     }
-    println!("\n{}", table);
+    println!("\n{table}");
 }
 
 #[allow(dead_code)]
@@ -97,11 +97,11 @@ pub fn comparisons(
 
             table.add_row(vec![
                 Cell::new(name),
-                Cell::new(format!("{:.0}", score)),
-                Cell::new(format!("{:.0}", delta)),
-                Cell::new(format!("{:.1}%", pct)),
+                Cell::new(format!("{score:.0}")),
+                Cell::new(format!("{delta:.0}")),
+                Cell::new(format!("{pct:.1}%")),
             ]);
         }
-        println!("\n{}", table);
+        println!("\n{table}");
     }
 }

@@ -26,7 +26,7 @@ pub async fn cmd_get_typing_words(
     let bundle = provider
         .load_corpus(&domain_corpora)
         .await
-        .map_err(|e| format!("Failed to load corpora for Arena: {}", e))?;
+        .map_err(|e| format!("Failed to load corpora for Arena: {e}"))?;
 
     if bundle.words.is_empty() {
         return Err("The selected corpora contain no word data.".into());
@@ -37,7 +37,7 @@ pub async fn cmd_get_typing_words(
 
     let top_n = ARENA_TOP_WORDS_LIMIT.min(bundle.words.len());
     let candidates = &bundle.words[0..top_n];
-    let total_freq: f64 = candidates.iter().map(|(_, f)| *f as f64).sum();
+    let total_freq: f64 = candidates.iter().map(|(_, f)| f64::from(*f)).sum();
 
     for _ in 0..count {
         let target = rng.f64() * total_freq;
@@ -45,7 +45,7 @@ pub async fn cmd_get_typing_words(
         let mut picked = &candidates[0].0;
 
         for (w, f) in candidates {
-            current += *f as f64;
+            current += f64::from(*f);
             if current >= target {
                 picked = w;
                 break;
@@ -114,7 +114,7 @@ pub async fn cmd_get_corpus_bigrams(
     let bundle = provider
         .load_corpus(&domain_corpora)
         .await
-        .map_err(|e| format!("Failed to load corpora: {}", e))?;
+        .map_err(|e| format!("Failed to load corpora: {e}"))?;
 
     let mut bigrams = Vec::new();
 
@@ -123,10 +123,10 @@ pub async fn cmd_get_corpus_bigrams(
 
     for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {
         let mut s = String::with_capacity(4);
-        if let Some(c1) = std::char::from_u32(b1 as u32) { s.push(c1); }
-        if let Some(c2) = std::char::from_u32(b2 as u32) { s.push(c2); }
+        if let Some(c1) = std::char::from_u32(u32::from(b1)) { s.push(c1); }
+        if let Some(c2) = std::char::from_u32(u32::from(b2)) { s.push(c2); }
         
-        if !s.is_empty() && s.chars().all(|c| c.is_alphabetic()) {
+        if !s.is_empty() && s.chars().all(char::is_alphabetic) {
             bigrams.push(s);
         }
     }

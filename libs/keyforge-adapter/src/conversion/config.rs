@@ -1,6 +1,7 @@
 use keyforge_model::config;
 
 /// Converts a protocol-level corpus source into a domain-level source.
+#[must_use] 
 pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource {
     config::CorpusSource {
         id: s.id.clone(),
@@ -10,6 +11,7 @@ pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource
 }
 
 /// Converts protocol-level scoring weights into a domain-level evaluation rubric.
+#[must_use] 
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
     keyforge_model::Rubric {
         finger_effort: w.get_finger_penalty_scale(),
@@ -31,6 +33,7 @@ pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
 }
 
 /// Converts protocol-level search parameters into domain-level search configuration.
+#[must_use] 
 pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::SearchConfig {
     keyforge_model::SearchConfig::Annealing {
         steps: p.get_search_steps(),

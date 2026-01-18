@@ -32,19 +32,19 @@ pub async fn run(mut config: AgentConfig, job_file: PathBuf, layout: String, tim
             layout_str, 
             session.engine.key_count(), 
             &session.registry
-        ).map_err(|e| anyhow::anyhow!("Invalid layout in definition: {}", e))?
+        ).map_err(|e| anyhow::anyhow!("Invalid layout in definition: {e}"))?
     } else {
         keyforge_adapter::conversion::parse_layout_string(
             &layout, 
             session.engine.key_count(), 
             &session.registry
-        ).map_err(|e| anyhow::anyhow!("Invalid layout string: {}", e))?
+        ).map_err(|e| anyhow::anyhow!("Invalid layout string: {e}"))?
     };
     
     let report = session.engine.analyze(&layout_parsed);
     match report {
         Ok(r) => println!("{}", serde_json::to_string_pretty(&r)?),
-        Err(e) => return Err(anyhow::anyhow!("Analysis failed: {:?}", e)),
+        Err(e) => return Err(anyhow::anyhow!("Analysis failed: {e:?}")),
     }
     Ok(())
 }

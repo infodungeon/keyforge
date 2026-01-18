@@ -7,6 +7,7 @@ import { useBackend } from "../context/BackendContext";
 import { useSystem } from "../context/SystemContext";
 import { AppMode } from "../types";
 import { DerivedStats, SpaceHandPreference } from "../services/stats"; // Import types
+import { MapMode } from "./KeyboardMap";
 import { ContextControls } from "./ContextControls";
 import { Button } from "./ui/Button";
 import { SmartSuggestions } from "./SmartSuggestions";
@@ -44,7 +45,7 @@ interface Props {
   spaceHand?: SpaceHandPreference;
   setSpaceHand?: (p: SpaceHandPreference) => void;
   derivedStats?: DerivedStats | null; // Accept from parent
-  mapMode?: "frequency" | "penalty";
+  mapMode?: MapMode;
 }
 
 export function Inspector({

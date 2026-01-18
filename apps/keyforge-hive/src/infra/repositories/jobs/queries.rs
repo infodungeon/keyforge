@@ -1,4 +1,4 @@
-pub const CLAIM_JOB_QUERY: &str = r#"
+pub const CLAIM_JOB_QUERY: &str = r"
             WITH locked_job AS (
                 SELECT id 
                 FROM jobs 
@@ -38,9 +38,9 @@ pub const CLAIM_JOB_QUERY: &str = r#"
             JOIN keyboards k ON u.keyboard_id = k.id
             JOIN scoring_profiles sp ON u.scoring_profile_id = sp.id
             JOIN search_configs sc ON u.search_config_id = sc.id
-            "#;
+            ";
 
-pub const GET_JOB_CONFIG_QUERY: &str = r#"
+pub const GET_JOB_CONFIG_QUERY: &str = r"
             SELECT 
                 jsonb_build_object(
                     'keys', (SELECT COALESCE(jsonb_agg(jsonb_build_object('x', kk.x, 'y', kk.y, 'w', kk.w, 'h', kk.h, 'row', kk.row_idx, 'col', kk.col_idx, 'hand', kk.hand, 'finger', kk.finger, 'is_stretch', kk.is_stretch, 'id', 'k' || kk.idx, 'r', kk.r) ORDER BY kk.idx), '[]'::jsonb) FROM keyboard_keys kk WHERE kk.keyboard_id = k.id),
@@ -56,9 +56,9 @@ pub const GET_JOB_CONFIG_QUERY: &str = r#"
             JOIN keyboards k ON j.keyboard_id = k.id
             JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
             WHERE j.id = $1
-            "#;
+            ";
 
-pub const INSERT_JOB_QUERY: &str = r#"
+pub const INSERT_JOB_QUERY: &str = r"
             INSERT INTO jobs (
                 id, keyboard_id, scoring_profile_id, search_config_id, 
                 pinned_keys, corpus_name, cost_matrix, owner_id, 
@@ -66,22 +66,22 @@ pub const INSERT_JOB_QUERY: &str = r#"
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             ON CONFLICT (id) DO NOTHING
-            "#;
+            ";
 
-pub const INSERT_KEYBOARD_QUERY: &str = r#"
+pub const INSERT_KEYBOARD_QUERY: &str = r"
             INSERT INTO keyboards (name, author, version, notes, kb_type, unique_hash)
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (unique_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
             RETURNING id
-            "#;
+            ";
 
-pub const INSERT_KEY_QUERY: &str = r#"
+pub const INSERT_KEY_QUERY: &str = r"
             INSERT INTO keyboard_keys 
             (keyboard_id, idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-            "#;
+            ";
 
-pub const PRUNE_STALE_JOBS_WITH_NODE: &str = r#"
+pub const PRUNE_STALE_JOBS_WITH_NODE: &str = r"
             UPDATE jobs
             SET 
                 status = CASE 
@@ -97,5 +97,5 @@ pub const PRUNE_STALE_JOBS_WITH_NODE: &str = r#"
                     (node_id IS NULL AND started_at < NOW() - make_interval(mins => $1))
                     OR node_id IN (SELECT id FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1))
                 )
-        "#;
+        ";
 

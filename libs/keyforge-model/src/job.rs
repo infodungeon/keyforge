@@ -39,6 +39,11 @@ use crate::error::ModelError;
 
 impl JobIdentifier {
     /// Attempts to generate a Job ID from the constituent parts.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ModelError` if any of the parts cannot be serialized or 
+    /// if the configuration is invalid.
     pub fn try_from_parts(
         geometry: &KeyboardGeometry,
         weights: &ScoringWeights,
@@ -47,8 +52,6 @@ impl JobIdentifier {
         corpus_name: &str,
         cost_matrix: &CostMatrixSource,
     ) -> Result<Self, ModelError> {
-        let mut hasher = Sha256::new();
-
         fn feed<T: Serialize>(hasher: &mut Sha256, value: &T) -> Result<(), ModelError> {
             // Use serde_json::to_value -> to_vec for deterministic canonicalization.
             // to_value converts structs/maps to a BTreeMap-backed Value, ensuring sorted keys.
@@ -62,6 +65,8 @@ impl JobIdentifier {
             hasher.update(&bytes);
             Ok(())
         }
+
+        let mut hasher = Sha256::new();
 
         feed(&mut hasher, geometry)?;
         feed(&mut hasher, weights)?;
@@ -90,6 +95,11 @@ impl JobIdentifier {
 
     /// Generates a Job ID, returning a Result.
     /// This replaces the panicking `from_parts` method.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ModelError` if any of the constituent parts fail validation
+    /// or serialization.
     pub fn from_parts(
         geometry: &KeyboardGeometry,
         weights: &ScoringWeights,

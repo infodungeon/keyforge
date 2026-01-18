@@ -30,8 +30,8 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
     // 0. Build Info
     let (git_hash, build_date) = keyforge_infra::get_build_info();
     eprintln!("🏷️  Version");
-    eprintln!("   Build Hash:  {}", git_hash);
-    eprintln!("   Build Date:  {}", build_date);
+    eprintln!("   Build Hash:  {git_hash}");
+    eprintln!("   Build Date:  {build_date}");
     eprintln!();
 
     // 1. System Check
@@ -44,8 +44,8 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
     let mem_used = sys.used_memory() / 1024 / 1024;
 
     eprintln!("🖥️  System");
-    eprintln!("   OS:       {} {}", os, os_ver);
-    eprintln!("   Memory:   {} / {} MB", mem_used, mem_total);
+    eprintln!("   OS:       {os} {os_ver}");
+    eprintln!("   Memory:   {mem_used} / {mem_total} MB");
 
     // 1b. Toolchain Check
     eprintln!("\n🛠️  Toolchain");
@@ -58,7 +58,7 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
     // 2. CPU Capabilities
     eprintln!("\n⚡ Processor");
     let cpu_count = num_cpus::get();
-    eprintln!("   Cores:    {}", cpu_count);
+    eprintln!("   Cores:    {cpu_count}");
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
@@ -75,7 +75,7 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
 
     // 3. Workspace Integrity
     eprintln!("\n📂 Workspace");
-    eprintln!("   Root:     {:?}", root);
+    eprintln!("   Root:     {root:?}");
 
     let required = [
         ("system/keyboards", true),
@@ -92,7 +92,7 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
         if p.exists() {
             let matches_type = if is_dir { p.is_dir() } else { p.is_file() };
             if matches_type {
-                eprintln!("   ✅ Found: {}", item);
+                eprintln!("   ✅ Found: {item}");
             } else {
                 eprintln!(
                     "   ❌ Wrong type (target is {}): {}",
@@ -102,7 +102,7 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
                 all_good = false;
             }
         } else {
-            eprintln!("   ❌ Missing: {}", item);
+            eprintln!("   ❌ Missing: {item}");
             all_good = false;
         }
     }
@@ -113,12 +113,12 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
         eprintln!("   ⚠️  Warning: .write_test already exists, skipping write check.");
     } else {
         match std::fs::write(&test_file, "test") {
-            Ok(_) => {
+            Ok(()) => {
                 eprintln!("   ✅ Write Access: OK");
                 let _ = std::fs::remove_file(test_file);
             }
             Err(e) => {
-                eprintln!("   ❌ Write Access: FAILED ({})", e);
+                eprintln!("   ❌ Write Access: FAILED ({e})");
                 all_good = false;
             }
         }
@@ -133,17 +133,17 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
         .timeout(Duration::from_secs(5))
         .build()?;
     
-    match client.get(format!("{}/health", hive_url)).send().await {
+    match client.get(format!("{hive_url}/health")).send().await {
         Ok(res) => {
             if res.status().is_success() {
-                eprintln!("   ✅ Reachability: OK ({})", hive_url);
+                eprintln!("   ✅ Reachability: OK ({hive_url})");
             } else {
                 eprintln!("   ❌ Reachability: FAILED (Status: {})", res.status());
                 all_good = false;
             }
         }
         Err(e) => {
-            eprintln!("   ⚠️  Reachability: FAILED ({}) - Is Hive running?", e);
+            eprintln!("   ⚠️  Reachability: FAILED ({e}) - Is Hive running?");
         }
     }
 
@@ -163,15 +163,14 @@ fn check_tool(name: &str) {
     {
         Ok(out) => {
             let ver = String::from_utf8_lossy(&out.stdout)
-                .trim()
                 .split_whitespace()
                 .nth(1)
                 .unwrap_or("?")
                 .to_string();
-            eprintln!("   ✅ {:<15} {}", name, ver);
+            eprintln!("   ✅ {name:<15} {ver}");
         }
         Err(_) => {
-            eprintln!("   ❌ {:<15} Not Found (Sidecar Required)", name);
+            eprintln!("   ❌ {name:<15} Not Found (Sidecar Required)");
         }
     }
 }

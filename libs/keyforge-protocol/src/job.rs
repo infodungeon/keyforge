@@ -63,10 +63,12 @@ pub struct JobConfig {
 
 impl JobConfig {
     /// Generates a unique Job ID by hashing the configuration.
+    ///
+    /// # Errors
+    /// Returns an error if the layout geometry or configuration parts are invalid.
     pub fn id(&self) -> Result<String, String> {
         let primary_corpus = self.corpora.first()
-            .map(|c| c.id.as_str())
-            .unwrap_or(keyforge_model::constants::DEFAULT_CORPUS_ID);
+            .map_or(keyforge_model::constants::DEFAULT_CORPUS_ID, |c| c.id.as_str());
 
         keyforge_model::job::JobIdentifier::from_parts(
             &self.definition.geometry,
@@ -88,7 +90,7 @@ impl Validator for JobConfig {
         self.definition.validate()?;
 
         for (i, corpus) in self.corpora.iter().enumerate() {
-            corpus.validate().map_err(|e| format!("Corpus #{}: {}", i, e))?;
+            corpus.validate().map_err(|e| format!("Corpus #{i}: {e}"))?;
         }
 
         if self.definition.geometry.keys.len() > keyforge_model::constants::MAX_KEYBOARD_KEYS {
@@ -101,7 +103,7 @@ impl Validator for JobConfig {
             return Err(format!("Too many biometric samples (Limit: {})", constants::MAX_BIOMETRIC_SAMPLES));
         }
         for (i, sample) in self.biometrics.iter().enumerate() {
-            sample.validate().map_err(|e| format!("Biometric #{}: {}", i, e))?;
+            sample.validate().map_err(|e| format!("Biometric #{i}: {e}"))?;
         }
 
         match &self.cost_matrix {

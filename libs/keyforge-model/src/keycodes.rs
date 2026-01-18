@@ -30,17 +30,17 @@ use crate::error::ForgeError;
 
 use crate::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
 
-/// Definition of a logical key code (e.g., "KC_A").
+/// Definition of a logical key code (e.g., "`KC_A`").
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeycodeDefinition {
     /// The numeric code.
     pub code: KeyCode,
-    /// The canonical ID (e.g., "KC_A").
+    /// The canonical ID (e.g., "`KC_A`").
     pub id: String,
     /// The display label (e.g., "A").
     pub label: String,
-    /// Alternative names (e.g., ["KC_1", "1"]).
+    /// Alternative names (e.g., [`KC_1`, `1`]).
     pub aliases: Vec<String>,
 }
 
@@ -113,6 +113,7 @@ impl Validator for KeycodeRegistry {
 
 impl KeycodeRegistry {
     /// Creates a new registry from a list of definitions.
+    #[must_use] 
     pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
         for def in &mut definitions {
             // 0. QMK to ASCII Remapping (Heuristic fix for physics scoring)
@@ -124,8 +125,9 @@ impl KeycodeRegistry {
             // This ensures consistence between corpus text (which is lowercased for heatmaps) 
             // and key definitions.
             let val = def.code.0;
-            if (b'A'..=b'Z').contains(&(val as u8)) {
-                def.code = KeyCode((val as u8).to_ascii_lowercase() as u16);
+            #[allow(clippy::cast_possible_truncation)]
+            if (val as u8).is_ascii_uppercase() {
+                def.code = KeyCode(u16::from((val as u8).to_ascii_lowercase()));
             }
         }
 
@@ -143,7 +145,8 @@ impl KeycodeRegistry {
         reg
     }
 
-    /// Creates a registry with minimal defaults (KC_NO, KC_TRNS).
+    /// Creates a registry with minimal defaults (`KC_NO`, `KC_TRNS`).
+    #[must_use] 
     pub fn new_with_defaults() -> Self {
         let defs = vec![
             KeycodeDefinition {
@@ -176,14 +179,16 @@ impl KeycodeRegistry {
         }
     }
 
-    /// Looks up a KeyCode by name (case-insensitive).
+    /// Looks up a `KeyCode` by name (case-insensitive).
+    #[must_use] 
     pub fn get_code(&self, name: &str) -> Option<KeyCode> {
         self.name_to_code.get(&name.to_uppercase()).copied()
     }
 
-    /// Gets the display label for a KeyCode.
+    /// Gets the display label for a `KeyCode`.
+    #[must_use] 
     pub fn get_label(&self, code: KeyCode) -> String {
-        self.code_to_label.get(&code).cloned().unwrap_or_else(|| format!("[{}]", code))
+        self.code_to_label.get(&code).cloned().unwrap_or_else(|| format!("[{code}]"))
     }
 }
 

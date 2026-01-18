@@ -42,21 +42,21 @@ pub enum DebugCommands {
 pub async fn run(args: DebugArgs, loader: &FsProvider) -> Result<(), Box<dyn std::error::Error>> {
     match args.command {
         DebugCommands::Physics { keyboard, output } => {
-            eprintln!("🔬 Analyzing Physics Model for '{}'...", keyboard);
+            eprintln!("🔬 Analyzing Physics Model for '{keyboard}'...");
 
             if let Some(parent) = output.parent() {
                 if !parent.as_os_str().is_empty() && !parent.exists() {
-                    return Err(format!("Output directory does not exist: {:?}", parent).into());
+                    return Err(format!("Output directory does not exist: {parent:?}").into());
                 }
             }
 
             let def = loader.load::<KeyboardDefinition>(&keyboard).await
-                .map_err(|e| format!("Failed to load keyboard '{}': {}", keyboard, e))?;
+                .map_err(|e| format!("Failed to load keyboard '{keyboard}': {e}"))?;
 
             
             let svg_content = generate_physics_svg(&def.geometry);
-            fs::write(&output, svg_content).map_err(|e| format!("Failed to write SVG: {}", e))?;
-            eprintln!("✅ Physics visualization saved to {:?}", output);
+            fs::write(&output, svg_content).map_err(|e| format!("Failed to write SVG: {e}"))?;
+            eprintln!("✅ Physics visualization saved to {output:?}");
             
         }
     }

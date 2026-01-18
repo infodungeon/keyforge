@@ -20,11 +20,11 @@ pub struct InitArgs {
 
 pub async fn run(args: InitArgs) -> Result<(), CliError> {
     let root = args.path.join(DEFAULT_DATA_DIR);
-    eprintln!("🚀 Initializing KeyForge Workspace at {:?}", root);
+    eprintln!("🚀 Initializing KeyForge Workspace at {root:?}");
 
     for d in USER_WORKSPACE_DIRS {
         ensure_dir(&root, d)
-            .map_err(|e| CliError::Workspace(format!("Failed to create {}: {}", d, e)))?;
+            .map_err(|e| CliError::Workspace(format!("Failed to create {d}: {e}")))?;
     }
 
     eprintln!("🌐 Connecting to Hive at {}...", args.hive);
@@ -37,7 +37,7 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
     let client = match keyforge_infra::HiveClient::new(config) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("⚠️  Could not connect to Hive: {}. Skipping downloads.", e);
+            eprintln!("⚠️  Could not connect to Hive: {e}. Skipping downloads.");
             eprintln!("✅ Workspace initialized (offline mode).");
             return Ok(());
         }
@@ -48,7 +48,7 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
             eprintln!("✅ Downloaded {} essential assets.", files.len());
         }
         Err(e) => {
-            eprintln!("⚠️  Bootstrap failed: {}", e);
+            eprintln!("⚠️  Bootstrap failed: {e}");
         }
     }
 

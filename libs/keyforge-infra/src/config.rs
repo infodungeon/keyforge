@@ -26,7 +26,7 @@ pub const ENV_LOG_LEVEL: &str = "KEYFORGE_LOG";
 /// Environment variable key for the number of CPU cores to use.
 pub const ENV_CORES: &str = "KEYFORGE_CORES";
 
-/// Common infrastructure configuration shared across KeyForge applications.
+/// Common infrastructure configuration shared across `KeyForge` applications.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CommonConfig {
     /// Root directory for local application data.
@@ -43,8 +43,8 @@ impl CommonConfig {
     /// Loads configuration from a TOML file.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content = std::fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read config file: {}", e))?;
-        toml::from_str(&content).map_err(|e| format!("Failed to parse config file: {}", e))
+            .map_err(|e| format!("Failed to read config file: {e}"))?;
+        toml::from_str(&content).map_err(|e| format!("Failed to parse config file: {e}"))
     }
 
     /// Loads configuration from environment variables.
@@ -66,6 +66,7 @@ impl CommonConfig {
     }
 
     /// Resolves the final data directory with fallback logic.
+    #[must_use] 
     pub fn resolve_data_dir(&self) -> PathBuf {
         self.data_dir.clone().unwrap_or_else(|| PathBuf::from(DEFAULT_FALLBACK_PATH))
     }

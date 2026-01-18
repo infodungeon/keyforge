@@ -18,7 +18,10 @@
 /// Trait for types that require complex validation logic beyond type checking.
 pub trait Validator {
     /// Validates the internal state of the object.
-    /// Returns `Ok(())` if valid, or an error message if invalid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the internal state is invalid.
     fn validate(&self) -> Result<(), String>;
 }
 
@@ -26,7 +29,10 @@ pub trait Validator {
 #[derive(Debug)]
 pub struct LayoutValidator;
 impl LayoutValidator {
-    /// Checks if a layout string has basic structural integrity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the layout string is empty or has too few keys.
     pub fn validate_structure(layout: &str) -> Result<(), String> {
         if layout.trim().is_empty() {
             return Err("Layout is empty".to_string());

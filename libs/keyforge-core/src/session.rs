@@ -31,6 +31,7 @@ pub struct ScoringSession {
 
 impl ScoringSession {
     /// Creates a new `ScoringSession` from the provided engine, registry, and config.
+    #[must_use] 
     pub fn new(
         engine: Arc<ScoringEngine>,
         registry: Arc<KeycodeRegistry>,

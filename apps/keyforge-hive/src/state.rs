@@ -31,7 +31,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-/// Global application state for the KeyForge Hive.
+/// Global application state for the `KeyForge` Hive.
 #[derive(Clone, Debug)]
 pub struct AppState {
     /// Flag indicating if the required system assets (corpora, etc.) are available.

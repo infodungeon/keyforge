@@ -57,6 +57,7 @@ impl Compiler {
         
         // Collect from monograms
         for (i, &freq) in corpus_out.char_freqs.iter().enumerate() {
+            #[allow(clippy::cast_possible_truncation)]
             if freq > 0 { unique_keys_set.insert(i as u16); }
         }
         
@@ -85,7 +86,7 @@ impl Compiler {
         for (bigram, &val) in &cost_model.dynamic_rules.sequence_modifiers {
             if bigram.len() == 2 {
                 let bytes = bigram.as_bytes();
-                let key = (bytes[0] as u16, bytes[1] as u16);
+                let key = (u16::from(bytes[0]), u16::from(bytes[1]));
                 sequence_modifiers.insert(key, Score::from_f32(val));
             }
         }
