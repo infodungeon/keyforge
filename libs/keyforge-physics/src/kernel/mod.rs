@@ -16,6 +16,7 @@ pub mod compiler;
 pub mod compute;
 pub mod mechanics;
 pub mod types;
+pub mod stages;
 
 use self::types::{KeyCode, FingerIndex, HandIndex, RowIndex, ColIndex, Score};
 

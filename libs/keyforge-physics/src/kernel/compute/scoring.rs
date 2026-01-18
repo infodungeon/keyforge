@@ -12,7 +12,7 @@ pub fn score_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>, scratch: 
         &mut scratch.counts,
         &mut scratch.indices,
         &mut scratch.current_offsets,
-        &ctx.sorted_unique_keys,
+        &mut scratch.used_keys,
     );
 
     // 1. Monograms: Optimal Choice

@@ -1,20 +1,18 @@
-// apps/keyforge-agent/src/agent/network.rs
-
-use crate::agent::errors::AgentResult;
+use crate::agent::errors::{AgentResult, AgentError};
 use crate::models::{AgentConfig, SharedTelemetry};
 use futures::{SinkExt, StreamExt};
-use keyforge_protocol::{JobConfig, NodeTelemetry, ResultSubmission};
+use keyforge_protocol::{JobConfig, NodeTelemetry, ResultSubmission, JobQueueResponse};
 use reqwest::Client;
-use std::time::{Duration, SystemTime, UNIX_EPOCH, Instant};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use tracing::{error, info, warn, debug};
+use tracing::{error, info, warn};
 use url::Url;
 use serde::{Deserialize, Serialize};
 use sysinfo::{System, ProcessesToUpdate};
-use std::path::PathBuf;
 use keyforge_infra::HiveClient;
+use super::outbox::ResultOutbox;
 
 #[derive(Debug)]
 pub struct NetworkManager {
@@ -34,94 +32,6 @@ enum ServerMessage {
     Cancel { #[serde(rename = "id")] id: String },
 }
 
-#[derive(Debug)]
-pub struct CircuitBreaker {
-    failures: u32,
-    threshold: u32,
-    last_failure: Option<Instant>,
-    cooldown: Duration,
-}
-
-impl CircuitBreaker {
-    pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
-        Self { failures: 0, threshold, last_failure: None, cooldown: Duration::from_secs(cooldown_secs) }
-    }
-    pub fn can_attempt(&self) -> bool {
-        if self.failures < self.threshold { return true; }
-        if let Some(last) = self.last_failure { if last.elapsed() > self.cooldown { return true; } }
-        false
-    }
-    pub fn record_failure(&mut self) { self.failures += 1; self.last_failure = Some(Instant::now()); }
-    pub fn record_success(&mut self) { self.failures = 0; self.last_failure = None; }
-}
-
-#[derive(Debug)]
-pub struct ResultOutbox {
-    _client: HiveClient,
-    wal_dir: PathBuf,
-    dead_letter_dir: PathBuf,
-    _breaker: CircuitBreaker,
-}
-
-impl ResultOutbox {
-    pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32, cooldown_secs: u64) -> Self {
-        let wal_dir = data_root.join("user/agent_wal");
-        let dead_letter_dir = data_root.join("user/dead_letter");
-        std::fs::create_dir_all(&wal_dir).ok();
-        std::fs::create_dir_all(&dead_letter_dir).ok();
-        Self { _client: client, wal_dir, dead_letter_dir, _breaker: CircuitBreaker::new(threshold, cooldown_secs) }
-    }
-    pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
-        let path = self.wal_dir.join(format!("{}.json", submission.nonce));
-        if let Ok(json) = serde_json::to_string(submission) {
-             if let Err(e) = std::fs::write(&path, json) {
-                 error!("CRITICAL: Failed to write result to WAL at {:?}: {}", path, e);
-                 return Err(crate::agent::errors::AgentError::Resource(e.to_string()));
-             }
-             info!("Buffered result {} to WAL", submission.job_id);
-        }
-        Ok(())
-    }
-    pub fn save_to_dead_letter(&self, submission: &ResultSubmission, reason: &str) -> AgentResult<()> {
-        let path = self.dead_letter_dir.join(format!("{}.json", submission.nonce));
-        let mut map = serde_json::to_value(submission).unwrap_or_default();
-        if let Some(obj) = map.as_object_mut() {
-            obj.insert("rejection_reason".to_string(), serde_json::Value::String(reason.to_string()));
-        }
-        if let Ok(json) = serde_json::to_string_pretty(&map) {
-             std::fs::write(&path, json).ok();
-             warn!("Saved rejected result to Dead Letter: {:?}", path);
-        }
-        Ok(())
-    }
-    pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
-        let mut pending = Vec::new();
-        if let Ok(entries) = std::fs::read_dir(&self.wal_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(sub) = serde_json::from_str::<ResultSubmission>(&content) {
-                            pending.push((path, sub));
-                        } else {
-                            warn!("Deleting corrupt WAL file: {:?}", path);
-                            let _ = std::fs::remove_file(path);
-                        }
-                    }
-                }
-            }
-        }
-        pending
-    }
-    pub fn delete(&self, path: &PathBuf) {
-        if let Err(e) = std::fs::remove_file(path) {
-            warn!("Failed to delete WAL file {:?}: {}", path, e);
-        } else {
-            debug!("Removed WAL file {:?}", path);
-        }
-    }
-}
-
 impl NetworkManager {
     pub fn new(
         config: AgentConfig,
@@ -133,14 +43,14 @@ impl NetworkManager {
         let client = Client::builder()
             .timeout(Duration::from_secs(config.network.timeout_seconds))
             .build()
-            .map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to build HTTP client: {}", e)))?;
+            .map_err(|e| AgentError::Internal(format!("Failed to build HTTP client: {}", e)))?;
 
         let hive_client = HiveClient::new(keyforge_infra::net::client::ClientConfig {
             api_url: config.hive_url.clone(),
             asset_url: config.asset_url.clone(), // Passthrough
             secret: Some(config.secret.clone()),
             ..Default::default()
-        }).map_err(|e| crate::agent::errors::AgentError::Internal(format!("Failed to init outbox client: {}", e)))?;
+        }).map_err(|e| AgentError::Internal(format!("Failed to init outbox client: {}", e)))?;
 
         let outbox = ResultOutbox::new(
             hive_client, 
@@ -167,7 +77,7 @@ impl NetworkManager {
 
     async fn connect_and_loop(&mut self) -> AgentResult<()> {
         let mut ws_url = Url::parse(&self.config.hive_url)
-            .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
+            .map_err(|e| AgentError::Network(e.to_string()))?;
         
         if ws_url.scheme() == "http" { let _ = ws_url.set_scheme("ws"); } 
         else if ws_url.scheme() == "https" { let _ = ws_url.set_scheme("wss"); }
@@ -179,7 +89,7 @@ impl NetworkManager {
         
         let (ws_stream, _) = connect_async(ws_url.to_string())
             .await
-            .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
+            .map_err(|e| AgentError::Network(e.to_string()))?;
             
         let (mut write, mut read) = ws_stream.split();
         
@@ -189,7 +99,7 @@ impl NetworkManager {
         let telemetry = self.telemetry.clone();
         
         let mut sys = System::new();
-        let pid = sysinfo::get_current_pid().map_err(|e| crate::agent::errors::AgentError::Internal(e.to_string()))?;
+        let pid = sysinfo::get_current_pid().map_err(|e| AgentError::Internal(e.to_string()))?;
 
         loop {
             tokio::select! {
@@ -214,7 +124,7 @@ impl NetworkManager {
                     
                     if let Ok(json) = serde_json::to_string(&payload) {
                         if let Err(e) = write.send(Message::Text(json.into())).await {
-                            return Err(crate::agent::errors::AgentError::Network(e.to_string()));
+                            return Err(AgentError::Network(e.to_string()));
                         }
                     }
                     self.flush_wal().await;
@@ -235,9 +145,9 @@ impl NetworkManager {
                                 }
                             }
                         }
-                        Some(Ok(Message::Close(_))) => return Err(crate::agent::errors::AgentError::Network("Server closed connection".into())),
-                        Some(Err(e)) => return Err(crate::agent::errors::AgentError::Network(e.to_string())),
-                        None => return Err(crate::agent::errors::AgentError::Network("Stream ended".into())),
+                        Some(Ok(Message::Close(_))) => return Err(AgentError::Network("Server closed connection".into())),
+                        Some(Err(e)) => return Err(AgentError::Network(e.to_string())),
+                        None => return Err(AgentError::Network("Stream ended".into())),
                         _ => {}
                     }
                 }
@@ -257,12 +167,12 @@ impl NetworkManager {
             .header("X-Keyforge-Secret", &self.config.secret)
             .send()
             .await
-            .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
+            .map_err(|e| AgentError::Network(e.to_string()))?;
 
         if resp.status().is_success() {
-            let queue_resp: keyforge_protocol::JobQueueResponse = resp.json()
+            let queue_resp: JobQueueResponse = resp.json()
                 .await
-                .map_err(|e| crate::agent::errors::AgentError::Network(e.to_string()))?;
+                .map_err(|e| AgentError::Network(e.to_string()))?;
                 
             if let (Some(jid), Some(config)) = (queue_resp.job_id, queue_resp.config) {
                  info!("📥 Acquired Job {}", jid);
@@ -293,14 +203,14 @@ impl NetworkManager {
                         // Task-agent-010: Save to Dead Letter instead of discarding
                         self.outbox.save_to_dead_letter(&result, &txt)?;
                     }
-                    return Err(crate::agent::errors::AgentError::Network(format!("Submission rejected: {}", txt)));
+                    return Err(AgentError::Network(format!("Submission rejected: {}", txt)));
                 }
                 Ok(())
             }
             Err(e) => {
                 error!("❌ Network Error during submission: {}", e);
                 self.outbox.save_to_wal(&result)?;
-                Err(crate::agent::errors::AgentError::Network(e.to_string()))
+                Err(AgentError::Network(e.to_string()))
             }
         }
     }

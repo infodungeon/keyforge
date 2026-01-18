@@ -24,6 +24,60 @@ use rand_xoshiro::Xoshiro256PlusPlus;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::thread;
+use std::time::Instant;
+
+struct ProgressReporter {
+    tx: mpsc::SyncSender<(usize, f32, Vec<KeyCode>, f32)>,
+    report_interval: usize,
+    last_report_time: Instant,
+    last_report_step: usize,
+}
+
+impl ProgressReporter {
+    fn new(
+        tx: mpsc::SyncSender<(usize, f32, Vec<KeyCode>, f32)>,
+        total_steps: usize,
+        start_time: Instant,
+    ) -> Self {
+        let report_interval = (total_steps / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL);
+
+        Self {
+            tx,
+            report_interval,
+            last_report_time: start_time,
+            last_report_step: 0,
+        }
+    }
+
+
+
+    fn report(&mut self, step: usize, state: &SearchState, time_keeper: &impl TimeKeeper) {
+        if step % self.report_interval == 0 {
+            let now = time_keeper.now();
+            let elapsed = time_keeper.elapsed(self.last_report_time).as_secs_f32();
+            let steps_done = if step == 0 { 0 } else { step - self.last_report_step };
+
+            let ips = if elapsed > 0.0 {
+                (steps_done as f32 / elapsed) / 1_000_000.0
+            } else {
+                0.0
+            };
+
+            let score_f32 = state.best_score as f32 / SCORE_SCALE;
+            // Clone the keys for the channel update
+            let layout_snapshot = state.best_layout().keys.clone();
+            
+            // Non-blocking send (dropping frames if consumer is slow is acceptable)
+            let _ = self.tx.try_send((step, score_f32, layout_snapshot, ips));
+
+            if step > 0 {
+                self.last_report_time = now;
+                self.last_report_step = step;
+            }
+        }
+    }
+}
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnnealingConfig {
@@ -115,128 +169,64 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         initial_layout: Option<Layout>,
         callback: CB,
     ) -> Result<Layout, EvolutionError> {
-        let layout = initial_layout.unwrap_or_else(|| {
-            let keys: Vec<KeyCode> = (0..self.engine.key_count()).map(|i| KeyCode(i as u16)).collect();
-            Layout::new_unchecked(keys)
-        });
-
-        let initial_score = self.engine.score_raw(&layout.keys)?;
-
-        // INVARIANT: kani::assume(initial_score >= 0);
-        let mut state = SearchState::new(layout, initial_score, self.config.start_temp)?;
-
-        let cooling_rate = if self.config.steps > 0 && self.config.start_temp > f32::EPSILON {
-            (self.config.end_temp / self.config.start_temp).powf(1.0 / self.config.steps as f32)
-        } else {
-            0.0
-        };
-
-        let report_interval = (self.config.steps / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL);
+        let mut state = self.initialize_state(initial_layout)?;
+        let cooling_rate = self.calculate_cooling_rate();
+        
         let start_time = self.time_keeper.now();
-        let mut last_report_time = start_time;
-        let mut last_report_step = 0;
-
-        let mut steps_since_improvement = 0;
-        let mut reheats_left = self.config.reheats;
-
+        
         let abort_flag = AtomicBool::new(false);
-        // Use a small buffer to avoid blocking the producer, but drop updates if consumer is slow
         let (tx, rx) = mpsc::sync_channel::<(usize, f32, Vec<KeyCode>, f32)>(1);
         let abort_ref = &abort_flag;
 
+        // Create reporter with the sender
+        let mut reporter = ProgressReporter::new(tx, self.config.steps, start_time);
+
         thread::scope(|s| {
+            // Spawn consumer thread
             s.spawn(move || {
                 while let Ok((step, score, layout, ips)) = rx.recv() {
                     if !callback.on_progress(step, score, &layout, ips) {
                         abort_ref.store(true, Ordering::Relaxed);
-                        // If user wants to abort, we stop processing updates
                         break;
                     }
                 }
             });
 
+            let mut steps_since_improvement = 0;
+            let mut reheats_left = self.config.reheats;
             let mut result = Ok(());
 
             for step in 0..self.config.steps {
-                // Check abort periodically. 
-                if step % report_interval == 0 {
-                    if abort_flag.load(Ordering::Relaxed) {
-                        result = Err(EvolutionError::Aborted);
-                        break;
-                    }
+                // 1. Check Abort
+                if step % reporter.report_interval == 0 && abort_flag.load(Ordering::Relaxed) {
+                    result = Err(EvolutionError::Aborted);
+                    break;
                 }
 
-                if let Some(proposal) = self.mutation.propose(
-                    self.engine,
-                    state.layout(),
-                    state.pos_map(),
-                    &mut self.rng,
-                    state.temperature,
-                )? {
-                    if self.acceptance.should_accept(
-                        proposal.delta,
-                        state.temperature,
-                        &mut self.rng,
-                    ) {
-                        state.apply_mutation(proposal.action);
-
-                        state.current_score = state.current_score.checked_add(proposal.delta).unwrap_or(
-                            if proposal.delta > 0 {
-                                i64::MAX
-                            } else {
-                                i64::MIN
-                            },
-                        );
-
-                        if state.current_score < state.best_score {
-                            state.update_best();
-                            steps_since_improvement = 0;
-                        } else {
-                            steps_since_improvement += 1;
-                        }
-                    } else {
-                        steps_since_improvement += 1;
-                    }
+                // 2. Evolution Step
+                let improved = self.step(&mut state)?;
+                if improved {
+                    steps_since_improvement = 0;
+                } else {
+                    steps_since_improvement += 1;
                 }
 
-                // Reheating Logic
+                // 3. Reheating
                 if steps_since_improvement > self.config.patience && reheats_left > 0 {
                     state.reheat_from_best(self.config.start_temp, self.config.reheat_factor);
-
                     reheats_left -= 1;
                     steps_since_improvement = 0;
                 }
 
-                state.temperature *= cooling_rate;
-                if state.temperature < TEMP_UNDERFLOW_THRESHOLD {
-                    state.temperature = 0.0;
-                }
+                // 4. Cooling
+                self.update_temperature(&mut state, cooling_rate);
 
-                if step % report_interval == 0 {
-                    let now = self.time_keeper.now();
-                    let elapsed = self.time_keeper.elapsed(last_report_time).as_secs_f32();
-                    let steps_done = if step == 0 { 0 } else { step - last_report_step };
-
-                    let ips = if elapsed > 0.0 {
-                        (steps_done as f32 / elapsed) / 1_000_000.0
-                    } else {
-                        0.0
-                    };
-
-                    let score_f32 = state.best_score as f32 / SCORE_SCALE;
-                    
-                    let layout_snapshot = state.best_layout().keys.clone();
-                    let _ = tx.try_send((step, score_f32, layout_snapshot, ips));
-
-                    if step > 0 {
-                        last_report_time = now;
-                        last_report_step = step;
-                    }
-                }
+                // 5. Reporting
+                reporter.report(step, &state, &self.time_keeper);
             }
             
-            // DROP the sender so the receiver thread can exit!
-            drop(tx);
+            // Ensure reporter is dropped so receiver thread terminates
+            drop(reporter);
 
             result?;
 
@@ -247,6 +237,59 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
             Ok(state.best_layout().clone())
         })
+    }
+
+    fn initialize_state(&mut self, initial_layout: Option<Layout>) -> Result<SearchState, EvolutionError> {
+        let layout = initial_layout.unwrap_or_else(|| {
+            let keys: Vec<KeyCode> = (0..self.engine.key_count()).map(|i| KeyCode(i as u16)).collect();
+            Layout::new_unchecked(keys)
+        });
+
+        let initial_score = self.engine.score_raw(&layout.keys)?;
+        SearchState::new(layout, initial_score, self.config.start_temp)
+    }
+
+    fn calculate_cooling_rate(&self) -> f32 {
+        if self.config.steps > 0 && self.config.start_temp > f32::EPSILON {
+            (self.config.end_temp / self.config.start_temp).powf(1.0 / self.config.steps as f32)
+        } else {
+            0.0
+        }
+    }
+
+    fn step(&mut self, state: &mut SearchState) -> Result<bool, EvolutionError> {
+        if let Some(proposal) = self.mutation.propose(
+            self.engine,
+            state.layout(),
+            state.pos_map(),
+            &mut self.rng,
+            state.temperature,
+        )? {
+            if self.acceptance.should_accept(
+                proposal.delta,
+                state.temperature,
+                &mut self.rng,
+            ) {
+                state.apply_mutation(proposal.action);
+
+                state.current_score = state.current_score.checked_add(proposal.delta).unwrap_or(
+                    if proposal.delta > 0 { i64::MAX } else { i64::MIN }
+                );
+
+                if state.current_score < state.best_score {
+                    state.update_best();
+                    return Ok(true); // Improvement
+                }
+            }
+        }
+        Ok(false) // No improvement
+    }
+
+    fn update_temperature(&self, state: &mut SearchState, cooling_rate: f32) {
+        state.temperature *= cooling_rate;
+        if state.temperature < TEMP_UNDERFLOW_THRESHOLD {
+            state.temperature = 0.0;
+        }
     }
 }
 

@@ -125,14 +125,16 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
+        let mut current_offsets = [0u8; 65536];
+        let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
             &layout.keys, 
             engine.key_count(), 
             &mut starts, 
             &mut counts, 
             &mut indices, 
-            &engine.context().sorted_unique_keys,
-            &engine.context().key_rank_map
+            &mut current_offsets,
+            &mut used_keys_scratch
         );
 
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 100);
@@ -177,14 +179,16 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
+        let mut current_offsets = [0u8; 65536];
+        let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
             &layout_keys, 
             engine.key_count(), 
             &mut starts, 
             &mut counts, 
             &mut indices, 
-            &engine.context().sorted_unique_keys,
-            &engine.context().key_rank_map
+            &mut current_offsets,
+            &mut used_keys_scratch
         );
 
         let score_before = engine.score_raw(&layout_keys).unwrap();
@@ -222,14 +226,16 @@ mod tests {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
+        let mut current_offsets = [0u8; 65536];
+        let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
             &layout_keys, 
             engine.key_count(), 
             &mut starts, 
             &mut counts, 
             &mut indices, 
-            &engine.context().sorted_unique_keys,
-            &engine.context().key_rank_map
+            &mut current_offsets,
+            &mut used_keys_scratch
         );
 
         let score_before = engine.score_raw(&layout_keys).unwrap();

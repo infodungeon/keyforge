@@ -39,7 +39,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         &mut scratch.counts,
         &mut scratch.indices,
         &mut scratch.current_offsets,
-        &ctx.sorted_unique_keys,
+        &mut scratch.used_keys,
     );
     
     let mut heatmap = vec![0.0; ctx.key_count];

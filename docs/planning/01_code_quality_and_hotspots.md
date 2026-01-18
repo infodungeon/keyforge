@@ -9,11 +9,11 @@
 
 | Risk Score | File Path | Complexity | Churn | LOC | Primary Issue |
 |---:|:---|---:|---:|---:|:---|
-| **6020** | `libs/keyforge-physics/src/kernel/compute.rs` | 215 | 27 | 1100 | **CRITICAL:** The "God Class" of the engine. Extremely high complexity and churn. Primary source of regression risk. |
+| ~~**6020**~~ | ~~`libs/keyforge-physics/src/kernel/compute.rs`~~ | ~~215~~ | ~~27~~ | ~~1100~~ | **REMEDIATED:** User confirmed complete. Refactored into `compute/` directory structure. |
 | ~~**1890**~~ | ~~`libs/keyforge-model/src/config.rs`~~ | ~~126~~ | ~~14~~ | ~~675~~ | **REMEDIATED:** Split into domain-specific modules (`config/`). |
-| **1386** | `libs/keyforge-evolution/src/supervisor/annealing.rs` | 77 | 17 | 547 | **Algorithm Core:** Complex state machine for Simulated Annealing. High churn suggests unstable optimization logic. |
-| **1260** | `libs/keyforge-physics/src/kernel/compiler.rs` | 70 | 17 | 573 | **Coupling:** High churn suggests the "Compiler" knows too much about other domains. |
-| **1127** | `apps/keyforge-agent/src/agent/network.rs` | 49 | 22 | 325 | **Fragility:** High churn in network logic implies unstable protocol or error handling. |
+| ~~**1386**~~ | ~~`libs/keyforge-evolution/src/supervisor/annealing.rs`~~ | ~~77~~ | ~~17~~ | ~~547~~ | **REMEDIATED:** Extracted `ProgressReporter` and decomposed `run` loop. |
+| ~~**1260**~~ | ~~`libs/keyforge-physics/src/kernel/compiler.rs`~~ | ~~70~~ | ~~17~~ | ~~573~~ | **REMEDIATED:** Decoupled stages into `stages/`. `compiler.rs` is now a 100-line orchestrator. |
+| ~~**1127**~~ | ~~`apps/keyforge-agent/src/agent/network.rs`~~ | ~~49~~ | ~~22~~ | ~~325~~ | **REMEDIATED:** Modularized into `network/` directory (outbox, breaker, manager). |
 | **1100** | `libs/keyforge-infra/src/asset/fs_provider.rs` | 50 | 21 | 287 | **IO Bottleneck:** Core file access logic. High churn indicates frequent changes to asset loading strategy. |
 | ~~**1092**~~ | ~~`libs/keyforge-model/src/constants.rs`~~ | ~~91~~ | ~~11~~ | ~~366~~ | **REMEDIATED:** Pruned migrated constants to config modules. |
 | **1005** | `libs/keyforge-physics/src/verify.rs` | 67 | 14 | 253 | **Test Rigidity:** Verification logic is complex and changing often, suggesting the "definition of correctness" is fluid. |

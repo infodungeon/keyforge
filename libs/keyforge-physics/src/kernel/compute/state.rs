@@ -19,33 +19,40 @@ impl<'a> PosMap<'a> {
         counts: &'a mut [u8],
         indices: &'a mut [u16],
         current_offsets: &mut [u8],
-        sorted_unique_keys: &'a [u16],
-        // key_rank_map: &HashMap<u16, usize>, // Removed
+        used_keys_scratch: &'a mut Vec<u16>,
     ) -> Self {
         let limit = layout.len().min(key_count);
-
-        // Clear counts only for keys present in the layout
+        
+        // 1. Collect unique keys present in the layout
+        used_keys_scratch.clear();
         for &code in layout.iter().take(limit) {
-            counts[code.0 as usize] = 0;
+            used_keys_scratch.push(code.0);
+        }
+        used_keys_scratch.sort_unstable();
+        used_keys_scratch.dedup();
+
+        // 2. Clear counts for used keys
+        for &code in used_keys_scratch.iter() {
+            counts[code as usize] = 0;
         }
 
-        // Pass 1: Count occurrences
+        // 3. Count occurrences
         for &code in layout.iter().take(limit) {
             counts[code.0 as usize] += 1;
         }
 
-        // Pass 2: Calculate starts (prefix sum)
+        // 4. Calculate starts (prefix sum)
         let mut offset = 0;
-        for &code in sorted_unique_keys {
+        for &code in used_keys_scratch.iter() {
             let c = code as usize;
             starts[c] = offset as u16;
             offset += counts[c] as usize;
         }
 
-        // Pass 3: Fill indices
+        // 5. Fill indices
         // Reset current_offsets
-        for &code in layout.iter().take(limit) {
-            current_offsets[code.0 as usize] = 0;
+        for &code in used_keys_scratch.iter() {
+            current_offsets[code as usize] = 0;
         }
 
         for (i, &code) in layout.iter().enumerate().take(limit) {
@@ -56,7 +63,7 @@ impl<'a> PosMap<'a> {
             current_offsets[c] += 1;
         }
 
-        Self { starts, counts, indices, used_keys: sorted_unique_keys }
+        Self { starts, counts, indices, used_keys: used_keys_scratch }
     }
 
     #[inline(always)]
