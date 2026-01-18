@@ -14,6 +14,8 @@
 
 /// Filesystem-based asset provider for local development and testing.
 pub mod fs_provider;
+/// Logic for secure path resolution and asset location.
+pub mod resolver;
 /// High-level orchestration for fetching and ensuring asset presence.
 pub mod manager;
 /// Tiered caching provider for high-performance asset reads.

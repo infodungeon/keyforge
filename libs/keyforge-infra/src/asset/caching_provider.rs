@@ -157,7 +157,7 @@ impl CachingProvider {
     /// to prevent excessive memory consumption if the system library is unexpectedly large.
     pub async fn warm_all(&self) -> Result<(), String> {
         info!("🔥 Warming Asset Cache (Parsed Objects Only)...");
-        let system_root = self.state.provider.root.join("system");
+        let system_root = self.state.provider.root().join("system");
 
         let manifest = crate::net::sync::generate_manifest(&system_root)
             .map_err(|e| format!("Manifest error: {}", e))?;
@@ -223,7 +223,7 @@ impl CachingProvider {
             return Some(bytes);
         }
 
-        let system_root = self.state.provider.root.join("system");
+        let system_root = self.state.provider.root().join("system");
         let full_path = system_root.join(path);
 
         match tokio::fs::read(&full_path).await {
@@ -330,7 +330,7 @@ impl AssetServerProvider for CachingProvider {
             return (*m).clone();
         }
         // Fallback: Generate on fly (expensive)
-        let system_root = self.state.provider.root.join("system");
+        let system_root = self.state.provider.root().join("system");
         crate::net::sync::generate_manifest(&system_root).unwrap_or_default()
     }
 

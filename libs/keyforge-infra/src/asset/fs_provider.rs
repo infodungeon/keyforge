@@ -13,6 +13,7 @@
 // limitations under the License.
 
 
+
 use crate::util::corpus::inject_synthetic_data;
 use keyforge_model::error::ForgeError;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
@@ -27,6 +28,7 @@ use std::sync::Arc;
 
 use crate::net::sync::ServerManifest;
 use crate::asset::AssetServerProvider;
+use crate::asset::resolver::PathResolver;
 
 /// An asset provider that loads data directly from the local filesystem.
 ///
@@ -34,14 +36,18 @@ use crate::asset::AssetServerProvider;
 /// and user-level assets (stored as plain JSON).
 #[derive(Clone, Debug)]
 pub struct FsProvider {
-    /// The root directory where all assets (system and user) are located.
-    pub root: PathBuf,
+    resolver: PathResolver,
 }
 
 impl FsProvider {
     /// Creates a new `FsProvider` with the specified root path.
     pub fn new(root: PathBuf) -> Self {
-        Self { root }
+        Self { resolver: PathResolver::new(root) }
+    }
+
+    /// Returns the root directory of this provider.
+    pub fn root(&self) -> &PathBuf {
+        &self.resolver.root
     }
 
     async fn check_size(&self, path: &Path) -> LoaderResult<()> {
@@ -70,7 +76,6 @@ impl FsProvider {
     async fn load_json<T: serde::de::DeserializeOwned + Send + 'static>(&self, path: &Path) -> LoaderResult<T> {
         self.check_size(path).await?;
         let path = path.to_path_buf();
-        // Streaming Fix: Use File::open + BufReader instead of reading string to memory
         tokio::task::spawn_blocking(move || {
             let file = File::open(&path)?;
             let reader = BufReader::new(file);
@@ -80,58 +85,17 @@ impl FsProvider {
         .map_err(|e| ForgeError::Internal(e.to_string()))?
     }
 
-    fn resolve_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let sub = match category {
-            "keyboards" => "keyboards/models",
-            "weights" => "weights",
-            "config" | "keycodes" => "config",
-            "keymap_extras" => "keymap_extras",
-            _ => category,
-        };
-
-        let p = self.root.join("system").join(sub).join(format!("{}.mpk.zst", stem));
-        if p.exists() { return Some(p); }
-
-        let p_direct = self.root.join("system").join(category).join(format!("{}.mpk.zst", stem));
-        if p_direct.exists() { return Some(p_direct); }
-
-        None
-    }
-
-    fn resolve_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let sub = match category {
-            "keycodes" => "config",
-            _ => category,
-        };
-        let p = self.root.join("user").join(sub).join(format!("{}.json", stem));
-        p.exists().then_some(p)
-    }
-
-    fn resolve_direct_path(&self, name: &str) -> Option<PathBuf> {
-        let p = PathBuf::from(name);
-        if p.is_absolute() {
-            return self.safe_join(name).ok().filter(|p| p.exists());
-        }
-        if name.starts_with("./") || name.starts_with("../") {
-            return self.safe_join(name).ok().filter(|p| p.exists());
-        }
-        None
-    }
-
     /// Calculates a stable hash for a corpus by hashing its constituent parts.
-    ///
-    /// This is used to detect if a corpus has changed locally or if it matches
-    /// the version expected by the Hive.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         // Task-infra-008: Security check
-        let _ = self.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
+        let _ = self.resolver.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
 
         let files = ["1grams", "2grams", "3grams", "words"];
-        let is_system = self.root.join("system/corpora").join(id).exists();
+        let is_system = self.resolver.root.join("system/corpora").join(id).exists();
         let base = if is_system {
-            self.root.join("system/corpora").join(id)
+            self.resolver.root.join("system/corpora").join(id)
         } else {
-            self.root.join("user/corpora").join(id)
+            self.resolver.root.join("user/corpora").join(id)
         };
         let ext = if is_system { "mpk.zst" } else { "json" };
         
@@ -145,33 +109,6 @@ impl FsProvider {
         }
         Ok(hex::encode(hasher.finalize()))
     }
-
-    fn safe_join(&self, user_path: &str) -> Result<PathBuf, String> {
-        let base = std::fs::canonicalize(&self.root)
-            .map_err(|e| format!("Failed to canonicalize root: {}", e))?;
-        
-        let full = if Path::new(user_path).is_absolute() {
-            PathBuf::from(user_path)
-        } else {
-            self.root.join(user_path)
-        };
-
-        let canonical = match std::fs::canonicalize(&full) {
-            Ok(p) => p,
-            Err(_) => {
-                if full.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
-                    return Err("Path traversal detected (manual check)".into());
-                }
-                return Ok(full);
-            }
-        };
-
-        if canonical.starts_with(&base) {
-            Ok(canonical)
-        } else {
-            Err("Path traversal detected (prefix check)".into())
-        }
-    }
 }
 
 #[async_trait::async_trait]
@@ -182,11 +119,11 @@ impl AssetLoader for FsProvider {
 
         // Task-infra-008: Ensure ID is safe
         if id.contains("..") {
-             self.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
+             self.resolver.safe_join(id).map_err(|e| ForgeError::InvalidData(e))?;
         }
 
         // 1. Try direct path (absolute or ./ relative)
-        if let Some(p) = self.resolve_direct_path(id) {
+        if let Some(p) = self.resolver.resolve_direct_path(id) {
             let mut asset: T = self.load_json(&p).await?;
             asset.post_load()?;
             return Ok(Arc::new(asset));
@@ -201,14 +138,14 @@ impl AssetLoader for FsProvider {
         };
 
         // 2. Try System Binary
-        if let Some(p) = self.resolve_system_path(cat_str, stem) {
+        if let Some(p) = self.resolver.resolve_system_path(cat_str, stem) {
             let mut asset: T = self.load_binary(&p).await?;
             asset.post_load()?;
             return Ok(Arc::new(asset));
         }
 
         // 3. Try System JSON
-        let system_json = self.root.join("system").join(cat_str).join(format!("{}.json", stem));
+        let system_json = self.resolver.root.join("system").join(cat_str).join(format!("{}.json", stem));
         if system_json.exists() {
             let mut asset: T = self.load_json(&system_json).await?;
             asset.post_load()?;
@@ -216,7 +153,7 @@ impl AssetLoader for FsProvider {
         }
 
         // 4. Try User JSON
-        if let Some(p) = self.resolve_user_path(cat_str, stem) {
+        if let Some(p) = self.resolver.resolve_user_path(cat_str, stem) {
             let mut asset: T = self.load_json(&p).await?;
             asset.post_load()?;
             return Ok(Arc::new(asset));
@@ -229,13 +166,13 @@ impl AssetLoader for FsProvider {
         let mut corpus = Corpus::default();
         for src in sources {
             // Task-infra-008: Security check
-            let _ = self.safe_join(&src.id).map_err(|e| ForgeError::InvalidData(e))?;
+            let _ = self.resolver.safe_join(&src.id).map_err(|e| ForgeError::InvalidData(e))?;
 
-            let is_system = self.root.join("system/corpora").join(&src.id).exists();
+            let is_system = self.resolver.root.join("system/corpora").join(&src.id).exists();
             let base = if is_system {
-                self.root.join("system/corpora").join(&src.id)
+                self.resolver.root.join("system/corpora").join(&src.id)
             } else {
-                self.root.join("user/corpora").join(&src.id)
+                self.resolver.root.join("user/corpora").join(&src.id)
             };
             let ext = if is_system { "mpk.zst" } else { "json" };
 
@@ -266,14 +203,14 @@ impl AssetLoader for FsProvider {
 #[async_trait::async_trait]
 impl AssetServerProvider for FsProvider {
     async fn get_manifest(&self) -> ServerManifest {
-        let root = self.root.clone();
+        let root = self.resolver.root.clone();
         tokio::task::spawn_blocking(move || {
             crate::net::sync::generate_manifest(&root.join("system")).unwrap_or(ServerManifest { files: Default::default() })
         }).await.unwrap_or(ServerManifest { files: Default::default() })
     }
 
     async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
-        let safe_path = match self.safe_join(path) {
+        let safe_path = match self.resolver.safe_join(path) {
             Ok(p) => p,
             Err(_) => return None,
         };
