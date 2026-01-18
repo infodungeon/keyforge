@@ -52,7 +52,7 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 #### [UX-01] Visibility & Reliability
 - [x] **Task [task-cli-028]:** Add `indicatif` progress bar to CLI `Search` command.
 - [x] **Task [task-agent-021]:** Implement UUID fallback for machine ID in `keyforge-agent`.
-- [ ] **Task [task-ui-002]:** Finalize regex parser for `pinned_keys` in the React frontend.
+- [x] **Task [task-ui-002]:** Finalize regex parser for `pinned_keys` in the React frontend.
 
 ---
 
