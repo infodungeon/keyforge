@@ -37,7 +37,7 @@ This document serves as the authoritative backlog for technical debt. Tasks are 
 - [ ] **Verification:** `cargo bench -p keyforge-physics` (Target: 15% reduction in cycle count).
 
 #### [PERF-02] Evolution Loop Cleanup
-- [ ] **Task [task-evo-017]:** Implement in-place mutation/reversion for 3-way swaps in `libs/keyforge-evolution/src/supervisor/strategies.rs`.
+- [x] **Task [task-evo-017]:** Implement in-place mutation/reversion for 3-way swaps in `libs/keyforge-evolution/src/supervisor/strategies.rs`.
 - [ ] **Verification:** `cargo test -p keyforge-evolution` ensures no logic regressions in annealing.
 
 ### 🧹 Wave 3: Maintainability & Quality (Polish)

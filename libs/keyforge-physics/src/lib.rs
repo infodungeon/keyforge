@@ -111,7 +111,6 @@ impl ScoringEngine {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
-        // used_keys buffer removed, now using context
         
         let pm = kernel::compute::PosMap::from_scratch(
             layout,

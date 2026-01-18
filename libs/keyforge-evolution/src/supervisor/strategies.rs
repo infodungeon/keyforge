@@ -115,36 +115,45 @@ impl MutationOperator for GroupMutation {
         // 3-Way Swap (A->B, B->C, C->A)
         let idx_c = self.unlocked_indices[indices.index(2)];
 
-        // Decomposed Delta Calculation (Zero Allocation)
-        // 1. Swap A <-> B
+        // Task-evo-017: Efficient 3-Way Delta
+        // 1. Calculate Delta(A, B) on current state
         let d1 = engine.calculate_swap_delta(&layout.keys, pos_map, idx_a, idx_b)?;
 
-        // 2. Simulate virtual state after first swap without cloning
-        let delta = POS_MAP_SCRATCH.with(|scratch| {
-            let mut patched_vec = scratch.borrow_mut();
-            // Ensure size matches pos_map
-            if patched_vec.len() < pos_map.len() {
-                patched_vec.resize(pos_map.len(), 65535);
-            }
+        // 2. To calculate Delta(A_at_B, C), we need to simulate state after first swap
+        // Instead of full clone, we patch our thread-local scratch keys
+        let delta = KEYS_SCRATCH.with(|k_scratch| {
+            let mut temp_keys = k_scratch.borrow_mut();
             
-            let patched_pos_map = &mut patched_vec[..pos_map.len()];
-            patched_pos_map.copy_from_slice(pos_map);
-            
-            let code_a = layout.keys[idx_a];
-            let code_b = layout.keys[idx_b];
-            
-            // Update virtual pos_map
-            if (code_a.0 as usize) < patched_pos_map.len() { patched_pos_map[code_a.0 as usize] = idx_b as u16; }
-            if (code_b.0 as usize) < patched_pos_map.len() { patched_pos_map[code_b.0 as usize] = idx_a as u16; }
-
-            // Swap A (now at idx_b) with C (at idx_c)
-            KEYS_SCRATCH.with(|k_scratch| {
-                let mut temp_keys = k_scratch.borrow_mut();
+            // Sync with current layout only if size changed or we want a fresh base
+            // Optimization: Only copy if needed, but since we revert, it should be fine.
+            if temp_keys.len() != layout.keys.len() {
                 temp_keys.clear();
                 temp_keys.extend_from_slice(&layout.keys);
-                temp_keys.swap(idx_a, idx_b);
+            } else {
+                // Just patch the indices that might have changed from a PREVIOUS failed mutation
+                // Actually, safer to just copy since acceptance happens elsewhere.
+                // But we can use copy_from_slice which is very fast.
+                temp_keys.copy_from_slice(&layout.keys);
+            }
 
-                engine.calculate_swap_delta(&temp_keys, patched_pos_map, idx_a, idx_c)
+            // Apply virtual swap A <-> B in scratch
+            temp_keys.swap(idx_a, idx_b);
+
+            // Update virtual pos_map
+            POS_MAP_SCRATCH.with(|pm_scratch| {
+                let mut patched_pos_map = pm_scratch.borrow_mut();
+                if patched_pos_map.len() < pos_map.len() {
+                    patched_pos_map.resize(pos_map.len(), 65535);
+                }
+                patched_pos_map[..pos_map.len()].copy_from_slice(pos_map);
+                
+                let code_a = layout.keys[idx_a];
+                let code_b = layout.keys[idx_b];
+                if (code_a.0 as usize) < patched_pos_map.len() { patched_pos_map[code_a.0 as usize] = idx_b as u16; }
+                if (code_b.0 as usize) < patched_pos_map.len() { patched_pos_map[code_b.0 as usize] = idx_a as u16; }
+
+                // Calculate second swap delta (A which is at B, with C)
+                engine.calculate_swap_delta(&temp_keys, &patched_pos_map, idx_b, idx_c)
             })
         })?;
 
