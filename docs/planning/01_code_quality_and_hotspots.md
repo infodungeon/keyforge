@@ -19,8 +19,8 @@
 | ~~**1005**~~ | ~~`libs/keyforge-physics/src/verify.rs`~~ | ~~67~~ | ~~14~~ | ~~253~~ | **REMEDIATED:** Modularized `DeterministicScorer`. |
 | ~~**966**~~ | ~~`libs/keyforge-infra/src/asset/caching_provider.rs`~~ | ~~69~~ | ~~13~~ | ~~396~~ | **REMEDIATED:** Extracted `AssetCache` module to handle storage. |
 | ~~**800**~~ | ~~`libs/keyforge-protocol/src/protocol.rs`~~ | ~~50~~ | ~~15~~ | ~~401~~ | **REMEDIATED:** Split into `job`, `node`, `assets`, `telemetry` modules. |
-| **588** | `apps/keyforge-agent/src/main.rs` | 42 | 13 | 414 | **Entry Point Bloat:** Agent startup logic is accumulating complexity. |
-| **549** | `apps/keyforge-hive/tests/concurrency.rs` | 61 | 8 | 399 | **Test Complexity:** Integration tests are becoming complex applications themselves. |
+| ~~**588**~~ | ~~`apps/keyforge-agent/src/main.rs`~~ | ~~42~~ | ~~13~~ | ~~414~~ | **REMEDIATED:** Refactored into `cmd/`, `identity.rs`, `config_loader.rs`. `main` is now a thin orchestrator. |
+| ~~**549**~~ | ~~`apps/keyforge-hive/tests/concurrency.rs`~~ | ~~61~~ | ~~8~~ | ~~180~~ | **REMEDIATED:** Extracted shared setup to `common/mod.rs`. Test is now focused on logic. |
 | **544** | `libs/keyforge-evolution/src/supervisor/strategies.rs` | 34 | 15 | 276 | **Strategy Churn:** Mutation strategies are being tweaked often. |
 | **528** | `apps/keyforge-cli/src/cli_args/config.rs` | 48 | 10 | 335 | **CLI Config:** Duplication of config logic found in `model`. |
 | **525** | `libs/keyforge-adapter/src/conversion.rs` | 35 | 14 | 266 | **Format War:** Converters are high maintenance. |
