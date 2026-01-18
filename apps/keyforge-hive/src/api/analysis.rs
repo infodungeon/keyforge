@@ -19,7 +19,7 @@ use crate::models::ValidationResult;
 use crate::state::AppState;
 use axum::{extract::State, Json};
 use keyforge_core::loader::AssetLoader;
-use keyforge_model::ScoringWeights;
+use keyforge_model::{KeyboardDefinition, ScoringWeights};
 use keyforge_protocol::JobConfig;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -58,7 +58,7 @@ pub async fn validate_layout(
     // Load definitions to ensure they exist, but we will pass config to Runner
     let definition = state
         .assets
-        .load_keyboard(keyboard_name)
+        .load::<KeyboardDefinition>(keyboard_name)
         .await
         .map_err(|e| AppError::Validation(format!("Keyboard load failed: {}", e)))?;
 

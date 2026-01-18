@@ -17,6 +17,7 @@ use clap::{Args, Subcommand};
 use keyforge_export::viz::physics::generate_physics_svg;
 use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
+use keyforge_model::KeyboardDefinition;
 use std::fs;
 use std::path::PathBuf;
 use crate::constants::DEFAULT_DEBUG_OUTPUT;
@@ -49,7 +50,7 @@ pub async fn run(args: DebugArgs, loader: &FsProvider) -> Result<(), Box<dyn std
                 }
             }
 
-            let def = loader.load_keyboard(&keyboard).await
+            let def = loader.load::<KeyboardDefinition>(&keyboard).await
                 .map_err(|e| format!("Failed to load keyboard '{}': {}", keyboard, e))?;
 
             

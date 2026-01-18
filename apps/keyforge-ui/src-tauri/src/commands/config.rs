@@ -19,7 +19,7 @@ pub fn cmd_get_default_config() -> Config {
 pub async fn cmd_get_keycodes(
     state: tauri::State<'_, SessionState>,
 ) -> Result<KeycodeRegistry, CommandError> {
-    match state.assets.load_keycodes(ASSET_KEYCODES).await {
+    match state.assets.load::<KeycodeRegistry>(ASSET_KEYCODES).await {
         Ok(reg) => Ok(reg.as_ref().clone()),
         Err(e) => {
             tracing::error!("Failed to load keycodes from disk: {}", e);

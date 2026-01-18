@@ -16,14 +16,10 @@
 use crate::util::corpus::inject_synthetic_data;
 use keyforge_model::error::ForgeError;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_model::Corpus;
+use keyforge_model::{Asset, Corpus};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::cost_model::CostModel;
 use sha2::Digest;
-use keyforge_model::validator::Validator;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -88,7 +84,7 @@ impl FsProvider {
         let sub = match category {
             "keyboards" => "keyboards/models",
             "weights" => "weights",
-            "config" => "config",
+            "config" | "keycodes" => "config",
             "keymap_extras" => "keymap_extras",
             _ => category,
         };
@@ -103,7 +99,11 @@ impl FsProvider {
     }
 
     fn resolve_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let p = self.root.join("user").join(category).join(format!("{}.json", stem));
+        let sub = match category {
+            "keycodes" => "config",
+            _ => category,
+        };
+        let p = self.root.join("user").join(sub).join(format!("{}.json", stem));
         p.exists().then_some(p)
     }
 
@@ -179,26 +179,42 @@ impl FsProvider {
 
 #[async_trait::async_trait]
 impl AssetLoader for FsProvider {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
+    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        let category = T::category();
+        let cat_str = category.as_str();
+
         // 1. Try direct path (absolute or ./ relative)
-        if let Some(p) = self.resolve_direct_path(name) {
-            let kb: KeyboardDefinition = self.load_json(&p).await?;
-            kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid keyboard at '{:?}': {}", p, e)))?;
-            return Ok(Arc::new(kb));
+        if let Some(p) = self.resolve_direct_path(id) {
+            let mut asset: T = self.load_json(&p).await?;
+            asset.post_load()?;
+            return Ok(Arc::new(asset));
         }
 
-        let stem = name.strip_suffix(".json").unwrap_or(name);
-        if let Some(p) = self.resolve_system_path("keyboards", stem) {
-            let kb: KeyboardDefinition = self.load_binary(&p).await?;
-            kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid system keyboard '{}': {}", name, e)))?;
-            return Ok(Arc::new(kb));
+        let stem = id.strip_suffix(".json").unwrap_or(id);
+
+        // 2. Try System Binary
+        if let Some(p) = self.resolve_system_path(cat_str, stem) {
+            let mut asset: T = self.load_binary(&p).await?;
+            asset.post_load()?;
+            return Ok(Arc::new(asset));
         }
-        if let Some(p) = self.resolve_user_path("keyboards", stem) {
-            let kb: KeyboardDefinition = self.load_json(&p).await?;
-            kb.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid user keyboard '{}': {}", name, e)))?;
-            return Ok(Arc::new(kb));
+
+        // 3. Try System JSON
+        let system_json = self.root.join("system").join(cat_str).join(format!("{}.json", stem));
+        if system_json.exists() {
+            let mut asset: T = self.load_json(&system_json).await?;
+            asset.post_load()?;
+            return Ok(Arc::new(asset));
         }
-        Err(ForgeError::NotFound(name.to_string()))
+
+        // 4. Try User JSON
+        if let Some(p) = self.resolve_user_path(cat_str, stem) {
+            let mut asset: T = self.load_json(&p).await?;
+            asset.post_load()?;
+            return Ok(Arc::new(asset));
+        }
+
+        Err(ForgeError::NotFound(id.to_string()))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
@@ -231,61 +247,8 @@ impl AssetLoader for FsProvider {
         let is_std = sources.iter().any(|s| s.id.contains("_std"));
         inject_synthetic_data(&mut corpus, is_std);
 
-        corpus.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid corpus: {}", e)))?;
+        corpus.post_load()?;
         Ok(Arc::new(corpus))
-    }
-
-    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>> {
-        // 1. Try direct path (absolute or ./ relative)
-        if let Some(p) = self.resolve_direct_path(filename) {
-            let model: CostModel = self.load_json(&p).await?;
-            return Ok(Arc::new(model));
-        }
-
-        let stem = filename.strip_suffix(".json").unwrap_or(filename);
-        
-        // 2. Try System Binary
-        if let Some(p) = self.resolve_system_path("weights", stem) {
-            let model: CostModel = self.load_binary(&p).await?;
-            return Ok(Arc::new(model));
-        }
-
-        // 3. Try System JSON
-        let system_json = self.root.join("system/weights").join(format!("{}.json", stem));
-        if system_json.exists() {
-            let model: CostModel = self.load_json(&system_json).await?;
-            return Ok(Arc::new(model));
-        }
-
-        // 4. Try User JSON
-        if let Some(p) = self.resolve_user_path("weights", stem) {
-            let model: CostModel = self.load_json(&p).await?;
-            return Ok(Arc::new(model));
-        }
-        Err(ForgeError::NotFound(filename.to_string()))
-    }
-
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-        // 1. Try direct path (absolute or ./ relative)
-        if let Some(p) = self.resolve_direct_path(filename) {
-            let defs = self.load_json(&p).await?;
-            let reg = KeycodeRegistry::new(defs);
-            reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid direct keycodes: {}", e)))?;
-            return Ok(Arc::new(reg));
-        }
-
-        let stem = filename.strip_suffix(".json").unwrap_or(filename);
-        if let Some(p) = self.resolve_system_path("config", stem) {
-            let defs = self.load_binary(&p).await?;
-            let reg = KeycodeRegistry::new(defs);
-            reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid system keycodes: {}", e)))?;
-            return Ok(Arc::new(reg));
-        }
-        let p = self.resolve_user_path("config", stem).ok_or(ForgeError::NotFound(filename.to_string()))?;
-        let defs = self.load_json(&p).await?;
-        let reg = KeycodeRegistry::new(defs);
-        reg.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid user keycodes: {}", e)))?;
-        Ok(Arc::new(reg))
     }
 }
 

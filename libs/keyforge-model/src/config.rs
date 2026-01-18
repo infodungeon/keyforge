@@ -45,6 +45,39 @@ use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
+/// Metadata describing a configuration parameter.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct ParameterMetadata {
+    /// Internal key name.
+    pub key: String,
+    /// User-friendly label.
+    pub label: String,
+    /// Helpful description.
+    pub description: String,
+    /// Data type.
+    pub param_type: ParamType,
+    /// Minimum value (if numeric).
+    pub min: Option<f32>,
+    /// Maximum value (if numeric).
+    pub max: Option<f32>,
+    /// Default value.
+    pub default: f32,
+}
+
+/// Supported data types for parameters.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(rename_all = "lowercase")]
+pub enum ParamType {
+    /// Floating point number.
+    Float,
+    /// Integer number.
+    Integer,
+    /// Boolean toggle (mapped to 0.0/1.0 in map).
+    Boolean,
+}
+
 /// The root configuration aggregate for a KeyForge session.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -142,31 +175,12 @@ impl FromStr for CorpusSource {
 }
 
 /// Parameters controlling the Simulated Annealing algorithm.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct SearchParams {
-    /// Number of independent search epochs to run.
-    pub search_epochs: usize,
-    /// Maximum number of mutation steps per epoch.
-    pub search_steps: usize,
-    /// Steps without improvement before triggering a reheat.
-    pub search_patience: usize,
-    /// Threshold for patience reset (improvement must be > this).
-    pub search_patience_threshold: f32,
-    /// Minimum temperature (stop condition).
-    pub temp_min: f32,
-    /// Maximum temperature (start condition).
-    pub temp_max: f32,
-    /// Optimization limit for fast path.
-    pub opt_limit_fast: usize,
-    /// Optimization limit for slow path.
-    pub opt_limit_slow: usize,
-    /// Number of times to reheat the system if stuck.
-    #[serde(default = "default_reheats")]
-    pub reheats: usize,
-    /// Factor to multiply temperature by when reheating.
-    #[serde(default = "default_reheat_factor")]
-    pub reheat_factor: f32,
+    /// Dynamic parameters map.
+    #[serde(flatten)]
+    pub params: std::collections::HashMap<String, f32>,
     /// Random seed for deterministic replay (Optional).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
@@ -175,23 +189,24 @@ pub struct SearchParams {
     pub include_thumbs: bool,
 }
 
-fn default_reheats() -> usize { DEFAULT_REHEATS }
-fn default_reheat_factor() -> f32 { DEFAULT_REHEAT_FACTOR }
 fn default_false() -> bool { false }
 
 impl Default for SearchParams {
     fn default() -> Self {
+        let mut params = std::collections::HashMap::new();
+        params.insert("search_epochs".to_string(), DEFAULT_SEARCH_EPOCHS as f32);
+        params.insert("search_steps".to_string(), DEFAULT_SEARCH_STEPS as f32);
+        params.insert("search_patience".to_string(), DEFAULT_SEARCH_PATIENCE as f32);
+        params.insert("search_patience_threshold".to_string(), DEFAULT_SEARCH_PATIENCE_THRESHOLD);
+        params.insert("temp_min".to_string(), DEFAULT_TEMP_MIN);
+        params.insert("temp_max".to_string(), DEFAULT_TEMP_MAX);
+        params.insert("opt_limit_fast".to_string(), DEFAULT_OPT_LIMIT_FAST as f32);
+        params.insert("opt_limit_slow".to_string(), DEFAULT_OPT_LIMIT_SLOW as f32);
+        params.insert("reheats".to_string(), DEFAULT_REHEATS as f32);
+        params.insert("reheat_factor".to_string(), DEFAULT_REHEAT_FACTOR);
+
         Self {
-            search_epochs: DEFAULT_SEARCH_EPOCHS,
-            search_steps: DEFAULT_SEARCH_STEPS,
-            search_patience: DEFAULT_SEARCH_PATIENCE,
-            search_patience_threshold: DEFAULT_SEARCH_PATIENCE_THRESHOLD,
-            temp_min: DEFAULT_TEMP_MIN,
-            temp_max: DEFAULT_TEMP_MAX,
-            opt_limit_fast: DEFAULT_OPT_LIMIT_FAST,
-            opt_limit_slow: DEFAULT_OPT_LIMIT_SLOW,
-            reheats: default_reheats(),
-            reheat_factor: default_reheat_factor(),
+            params,
             seed: None,
             include_thumbs: false,
         }
@@ -200,38 +215,126 @@ impl Default for SearchParams {
 
 impl Validator for SearchParams {
     fn validate(&self) -> Result<(), String> {
-        if self.search_epochs == 0 { return Err("search_epochs must be > 0".into()); }
-        if self.search_epochs > MAX_SEARCH_EPOCHS {
+        if self.get_search_epochs() == 0 { return Err("search_epochs must be > 0".into()); }
+        if self.get_search_epochs() > MAX_SEARCH_EPOCHS {
             return Err(format!("search_epochs exceeds limit ({})", MAX_SEARCH_EPOCHS));
         }
-        if self.search_steps == 0 { return Err("search_steps must be > 0".into()); }
-        if self.search_steps > MAX_SEARCH_STEPS {
+        if self.get_search_steps() == 0 { return Err("search_steps must be > 0".into()); }
+        if self.get_search_steps() > MAX_SEARCH_STEPS {
             return Err(format!("search_steps exceeds limit ({})", MAX_SEARCH_STEPS));
         }
-        if self.opt_limit_fast == 0 { return Err("opt_limit_fast must be > 0".into()); }
-        if self.opt_limit_fast > MAX_OPT_LIMIT_FAST {
+        if self.get_opt_limit_fast() == 0 { return Err("opt_limit_fast must be > 0".into()); }
+        if self.get_opt_limit_fast() > MAX_OPT_LIMIT_FAST {
             return Err(format!("opt_limit_fast exceeds limit ({})", MAX_OPT_LIMIT_FAST));
         }
-        if self.opt_limit_slow < self.opt_limit_fast {
+        if self.get_opt_limit_slow() < self.get_opt_limit_fast() {
             return Err("opt_limit_slow must be >= opt_limit_fast".into());
         }
-        if self.temp_min < 0.0 || self.temp_max < 0.0 {
+        if self.get_temp_min() < 0.0 || self.get_temp_max() < 0.0 {
             return Err("Temperature cannot be negative".into());
         }
-        if self.temp_max > MAX_TEMP {
+        if self.get_temp_max() > MAX_TEMP {
             return Err(format!("temp_max exceeds limit ({})", MAX_TEMP));
         }
-        if self.temp_min < 0.0001 {
+        if self.get_temp_min() < 0.0001 {
             return Err("temp_min too low (underflow risk)".into());
         }
-        if self.temp_min >= self.temp_max {
+        if self.get_temp_min() >= self.get_temp_max() {
             return Err("temp_min must be < temp_max".into());
         }
-        if self.search_patience_threshold < 0.0 || self.search_patience_threshold > 1.0 {
+        if self.get_search_patience_threshold() < 0.0 || self.get_search_patience_threshold() > 1.0 {
             return Err("search_patience_threshold must be between 0.0 and 1.0".into());
         }
         Ok(())
     }
+}
+
+impl SearchParams {
+    /// Returns the schema for search parameters.
+    pub fn schema() -> Vec<ParameterMetadata> {
+        vec![
+            ParameterMetadata {
+                key: "search_epochs".to_string(),
+                label: "Search Epochs".to_string(),
+                description: "Number of independent search runs to perform.".to_string(),
+                param_type: ParamType::Integer,
+                min: Some(1.0),
+                max: Some(MAX_SEARCH_EPOCHS as f32),
+                default: DEFAULT_SEARCH_EPOCHS as f32,
+            },
+            ParameterMetadata {
+                key: "search_steps".to_string(),
+                label: "Steps per Epoch".to_string(),
+                description: "Maximum mutations to attempt per epoch.".to_string(),
+                param_type: ParamType::Integer,
+                min: Some(1000.0),
+                max: Some(MAX_SEARCH_STEPS as f32),
+                default: DEFAULT_SEARCH_STEPS as f32,
+            },
+            ParameterMetadata {
+                key: "temp_max".to_string(),
+                label: "Start Temperature".to_string(),
+                description: "Initial chaos level (higher = more exploration).".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.1),
+                max: Some(MAX_TEMP),
+                default: DEFAULT_TEMP_MAX,
+            },
+            ParameterMetadata {
+                key: "temp_min".to_string(),
+                label: "End Temperature".to_string(),
+                description: "Final greediness level (lower = more exploitation).".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.0001),
+                max: Some(1.0),
+                default: DEFAULT_TEMP_MIN,
+            },
+            ParameterMetadata {
+                key: "search_patience".to_string(),
+                label: "Patience".to_string(),
+                description: "Steps without improvement before reheating.".to_string(),
+                param_type: ParamType::Integer,
+                min: Some(10.0),
+                max: Some(10000.0),
+                default: DEFAULT_SEARCH_PATIENCE as f32,
+            },
+            ParameterMetadata {
+                key: "reheats".to_string(),
+                label: "Reheats".to_string(),
+                description: "Number of times to spike temperature when stuck.".to_string(),
+                param_type: ParamType::Integer,
+                min: Some(0.0),
+                max: Some(10.0),
+                default: DEFAULT_REHEATS as f32,
+            },
+        ]
+    }
+
+    /// Retrieves a parameter by key, falling back to a default value if not found.
+    pub fn get_param(&self, key: &str, default: f32) -> f32 {
+        self.params.get(key).copied().unwrap_or(default)
+    }
+
+    /// Number of independent search epochs to run.
+    pub fn get_search_epochs(&self) -> usize { self.get_param("search_epochs", DEFAULT_SEARCH_EPOCHS as f32) as usize }
+    /// Maximum number of mutation steps per epoch.
+    pub fn get_search_steps(&self) -> usize { self.get_param("search_steps", DEFAULT_SEARCH_STEPS as f32) as usize }
+    /// Steps without improvement before triggering a reheat.
+    pub fn get_search_patience(&self) -> usize { self.get_param("search_patience", DEFAULT_SEARCH_PATIENCE as f32) as usize }
+    /// Threshold for patience reset.
+    pub fn get_search_patience_threshold(&self) -> f32 { self.get_param("search_patience_threshold", DEFAULT_SEARCH_PATIENCE_THRESHOLD) }
+    /// Minimum temperature.
+    pub fn get_temp_min(&self) -> f32 { self.get_param("temp_min", DEFAULT_TEMP_MIN) }
+    /// Maximum temperature.
+    pub fn get_temp_max(&self) -> f32 { self.get_param("temp_max", DEFAULT_TEMP_MAX) }
+    /// Optimization limit for fast path.
+    pub fn get_opt_limit_fast(&self) -> usize { self.get_param("opt_limit_fast", DEFAULT_OPT_LIMIT_FAST as f32) as usize }
+    /// Optimization limit for slow path.
+    pub fn get_opt_limit_slow(&self) -> usize { self.get_param("opt_limit_slow", DEFAULT_OPT_LIMIT_SLOW as f32) as usize }
+    /// Number of times to reheat.
+    pub fn get_reheats(&self) -> usize { self.get_param("reheats", DEFAULT_REHEATS as f32) as usize }
+    /// Factor to multiply temperature by when reheating.
+    pub fn get_reheat_factor(&self) -> f32 { self.get_param("reheat_factor", DEFAULT_REHEAT_FACTOR) }
 }
 
 /// Weights and penalties defining the "personality" of the scoring engine.
@@ -322,6 +425,39 @@ impl Validator for ScoringWeights {
 }
 
 impl ScoringWeights {
+    /// Returns the schema for scoring weights.
+    pub fn schema() -> Vec<ParameterMetadata> {
+        vec![
+            ParameterMetadata {
+                key: "penalty_sfb_base".to_string(),
+                label: "SFB Base Penalty".to_string(),
+                description: "Basic cost for any Same Finger Bigram.".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.0),
+                max: Some(MAX_SAFE_WEIGHT),
+                default: DEFAULT_PENALTY_SFB_BASE,
+            },
+            ParameterMetadata {
+                key: "penalty_scissor".to_string(),
+                label: "Scissor Penalty".to_string(),
+                description: "Penalty for adjacent finger stretches.".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.0),
+                max: Some(MAX_SAFE_WEIGHT),
+                default: DEFAULT_PENALTY_SCISSOR,
+            },
+            ParameterMetadata {
+                key: "weight_vertical_travel".to_string(),
+                label: "Vertical Travel Weight".to_string(),
+                description: "Multiplier for finger movement distance.".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.0),
+                max: Some(10.0),
+                default: DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+            },
+        ]
+    }
+
     /// Retrieves a weight by key, falling back to a default value if not found.
     pub fn get_weight(&self, key: &str, default: f32) -> f32 {
         self.weights.get(key).copied().unwrap_or(default)

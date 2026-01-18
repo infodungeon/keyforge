@@ -169,7 +169,7 @@ pub async fn cmd_start_search(
 
     // 2. Prepare Engine Request via Runner
     let options = keyforge_runner::RunnerOptions {
-        timeout_sec: request.search_params.search_steps as u64 / 100, // Dummy heuristic for now
+        timeout_sec: request.search_params.get_search_steps() as u64 / 100, // Dummy heuristic for now
         seed: request.search_params.seed,
         keycodes_file: "default".to_string(),
         ..Default::default()
@@ -189,7 +189,7 @@ pub async fn cmd_start_search(
     let window_handle = window.clone();
     
     // Resolve keycodes for labeling in the callback
-    let keycodes = state.assets.load_keycodes("default").await
+    let keycodes = state.assets.load::<keyforge_model::KeycodeRegistry>("default").await
         .unwrap_or_else(|_| Arc::new(keyforge_model::KeycodeRegistry::new_with_defaults()));
 
     let callback = TauriProgressCallback {

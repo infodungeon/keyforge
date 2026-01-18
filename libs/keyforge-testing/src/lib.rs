@@ -78,8 +78,8 @@ impl HermeticWorkspace {
     pub fn with_default_assets(self) -> Self {
         // 1. Keycodes
         let keycodes_json = r#"[
-            {"code": 65, "id": "KC_A", "label": "A", "aliases": []},
-            {"code": 66, "id": "KC_B", "label": "B", "aliases": []}
+            {"code": 97, "id": "KC_A", "label": "a", "aliases": []},
+            {"code": 98, "id": "KC_B", "label": "b", "aliases": []}
         ]"#;
         self.write_file("user/config/keycodes.json", keycodes_json);
 
@@ -118,12 +118,12 @@ impl HermeticWorkspace {
                 "low_slots": [],
                 "home_row": 0
             },
-            "layouts": { "default": "KC_A KC_B" }
+            "layouts": { "default": "a b" }
         }"#;
         self.write_file("user/keyboards/test_kb.json", kb_json);
 
         // 4. Corpus
-        let corpus_json = r#"[{"s": "A", "f": 100}, {"s": "B", "f": 50}]"#;
+        let corpus_json = r#"[{"s": "a", "f": 100}, {"s": "b", "f": 50}]"#;
         self.write_file("user/corpora/test_corpus/1grams.json", corpus_json);
         self.write_file("user/corpora/test_corpus/2grams.json", "[]");
         self.write_file("user/corpora/test_corpus/3grams.json", "[]");

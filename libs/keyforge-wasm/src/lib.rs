@@ -89,13 +89,13 @@ impl KeyforgeEngine {
     ) -> Result<JsValue, JsValue> {
         let layout: Layout = from_value(layout_val)?;
         
-        let kb = self.loader.load_keyboard(&keyboard_name).await
+        let kb = self.loader.load::<KeyboardDefinition>(&keyboard_name).await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
             
         let corpus = self.loader.load_corpus(&[CorpusSource { id: corpus_name, weight: 1.0, hash: None }]).await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
             
-        let cost_model = self.loader.load_cost_model(&cost_model_name).await
+        let cost_model = self.loader.load::<CostModel>(&cost_model_name).await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         // Create Keyboard from Definition

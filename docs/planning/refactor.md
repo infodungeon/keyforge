@@ -97,6 +97,7 @@ Backend exposes a schema; Frontend generates forms dynamically.
 ### Wave 1: The Cost Model (Data Decoupling)
 *   **Goal:** Allow adding new physics weights without breaking the build.
 *   **Action:** Refactor `ScoringWeights` to use `HashMap`.
+*   **Status:** [x] Complete.
 
 ### Wave 2: Test Architecture & Stability (The Great Migration)
 *   **Goal:** Restore trust in the test suite and satisfy the Testing Mandate.
@@ -104,18 +105,22 @@ Backend exposes a schema; Frontend generates forms dynamically.
 *   **Action B (Fixtures):** Convert code-defined test data to JSON fixtures.
 *   **Action C (Docs):** Annotate remaining integration tests with *Intent* and *Expected Result*.
 *   **Action D (De-duplicate):** Purge logic checks from the `tests/` directory.
+*   **Status:** [x] Complete.
 
 ### Wave 3: Loader Cleanup
 *   **Goal:** Make adding new asset types easy.
 *   **Action:** Refactor `AssetLoader` to use the Generic pattern.
+*   **Status:** [x] Complete.
 
 ### Wave 4: Search Config & UI Flexibility
 *   **Goal:** Support multiple optimization algorithms.
 *   **Action:** Refactor `SearchParams` to use `HashMap` and implement Schema-Driven UI.
+*   **Status:** [x] Complete.
 
 ### Wave 5: Compiler Refactor
 *   **Goal:** Improve testability of the physics engine.
 *   **Action:** Break `Compiler` into a pipeline (`GeometryStage`, `CostStage`) to allow unit testing of compilation steps.
+*   **Status:** [x] Complete.
 
 ## 7. Benefits
 

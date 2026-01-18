@@ -19,32 +19,41 @@ use keyforge_model::{Corpus, Keyboard, Rubric, CostModel, KeyNode};
 use keyforge_model::cost_model::{FingerDefinition, HandDefinition};
 use keyforge_model::types::{HandIndex, FingerIndex};
 use crate::errors::PhysicsError;
+use std::sync::Arc;
 use tracing::{info, instrument, warn};
 
 pub struct Compiler;
 
-impl Compiler {
-    #[instrument(skip_all)]
-    pub fn compile(
-        kb: &Keyboard,
-        corpus: &Corpus,
-        rubric: &Rubric,
-        cost_model: &CostModel,
-    ) -> Result<EngineContext, PhysicsError> {
+/// Trait for a discrete stage in the engine compilation pipeline.
+pub trait CompilationStage {
+    type Input;
+    type Output;
+    fn execute(&self, input: Self::Input) -> Result<Self::Output, PhysicsError>;
+}
+
+/// Intermediate state containing processed geometry and spatial math.
+pub struct GeometryOutput {
+    pub hands: Vec<HandIndex>,
+    pub fingers: Vec<FingerIndex>,
+    pub rows: Vec<keyforge_model::types::RowIndex>,
+    pub cols: Vec<keyforge_model::types::ColIndex>,
+    pub dist_matrix: Vec<f32>,
+    pub key_home_distances: Vec<f32>,
+}
+
+/// Stage 1: Geometry & Spatial Math.
+pub struct GeometryStage;
+
+impl CompilationStage for GeometryStage {
+    type Input = Arc<Keyboard>;
+    type Output = GeometryOutput;
+
+    fn execute(&self, kb: Self::Input) -> Result<Self::Output, PhysicsError> {
         let key_count = kb.count();
-        info!(key_count = key_count, "Compiling scoring engine...");
-
-        // 1. Select the appropriate physical model based on keyboard metadata/type
-        // For now, default to "model_a_row_staggered" if not specified.
-        let model_key = "model_a_row_staggered"; 
-        let phys_model = cost_model.models.get(model_key)
-            .ok_or_else(|| PhysicsError::Config(format!("Missing cost model: {}", model_key)))?;
-
         let mut hands = Vec::with_capacity(key_count);
         let mut fingers = Vec::with_capacity(key_count);
         let mut rows = Vec::with_capacity(key_count);
         let mut cols = Vec::with_capacity(key_count);
-        let mut key_costs = Vec::with_capacity(key_count);
         let mut key_home_distances = Vec::with_capacity(key_count);
 
         for k in &kb.keys {
@@ -52,10 +61,6 @@ impl Compiler {
             fingers.push(k.finger);
             rows.push(k.row);
             cols.push(k.col);
-
-            // Resolve Static Cost from CostModel
-            let cost_val = resolve_key_cost(k, &phys_model.static_costs);
-            key_costs.push(Score::from_f32(cost_val));
 
             let mut dist_from_home = 0.0;
             if let Some(origin) = kb.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
@@ -66,14 +71,9 @@ impl Compiler {
             key_home_distances.push(dist_from_home);
         }
 
-        let mut internal_cost_matrix = vec![Score::ZERO; key_count * key_count];
         let mut dist_matrix = vec![0.0f32; key_count * key_count];
-
         for i in 0..key_count {
             for j in 0..key_count {
-                let cost = calculate_pair_cost(kb, rubric, KeyIndex::from(i), KeyIndex::from(j));
-                internal_cost_matrix[i * key_count + j] = Score::from_f32(cost);
-
                 if i == j {
                     dist_matrix[i * key_count + j] = 0.0;
                 } else {
@@ -86,26 +86,165 @@ impl Compiler {
             }
         }
 
-        let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&corpus.bigrams);
-        let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) = flatten_bigrams_rev(&corpus.bigrams);
+        Ok(GeometryOutput {
+            hands, fingers, rows, cols, dist_matrix, key_home_distances
+        })
+    }
+}
+
+/// Intermediate state containing key costs mapped from the cost model.
+pub struct CostOutput {
+    pub key_costs: Vec<Score>,
+    pub cost_matrix: Vec<Score>,
+}
+
+/// Stage 2: Static Costs.
+pub struct CostStage<'a> {
+    pub kb: &'a Keyboard,
+    pub rubric: &'a Rubric,
+    pub cost_model: &'a CostModel,
+}
+
+impl<'a> CompilationStage for CostStage<'a> {
+    type Input = ();
+    type Output = CostOutput;
+
+    fn execute(&self, _: Self::Input) -> Result<Self::Output, PhysicsError> {
+        let key_count = self.kb.count();
+        let model_key = "model_a_row_staggered";
+        let phys_model = self.cost_model.models.get(model_key)
+            .ok_or_else(|| PhysicsError::Config(format!("Missing cost model: {}", model_key)))?;
+
+        let mut key_costs = Vec::with_capacity(key_count);
+        for k in &self.kb.keys {
+            let cost_val = resolve_key_cost(k, &phys_model.static_costs);
+            key_costs.push(Score::from_f32(cost_val));
+        }
+
+        let mut internal_cost_matrix = vec![Score::ZERO; key_count * key_count];
+        for i in 0..key_count {
+            for j in 0..key_count {
+                let cost = calculate_pair_cost(self.kb, self.rubric, KeyIndex::from(i), KeyIndex::from(j));
+                internal_cost_matrix[i * key_count + j] = Score::from_f32(cost);
+            }
+        }
+
+        Ok(CostOutput {
+            key_costs, cost_matrix: internal_cost_matrix
+        })
+    }
+}
+
+/// Intermediate state containing flattened and pruned corpus data.
+pub struct CorpusOutput {
+    pub char_freqs: Vec<u64>,
+    pub bigram_starts: Vec<usize>,
+    pub bigram_others: Vec<KeyCode>,
+    pub bigram_freqs: Vec<u32>,
+    pub bigram_rev_starts: Vec<usize>,
+    pub bigram_rev_others: Vec<KeyCode>,
+    pub bigram_rev_freqs: Vec<u32>,
+    pub trigram_starts: Vec<usize>,
+    pub trigram_others1: Vec<KeyCode>,
+    pub trigram_others2: Vec<KeyCode>,
+    pub trigram_freqs: Vec<u32>,
+    pub trigram_mid_starts: Vec<usize>,
+    pub trigram_mid_others1: Vec<KeyCode>,
+    pub trigram_mid_others2: Vec<KeyCode>,
+    pub trigram_mid_freqs: Vec<u32>,
+    pub trigram_end_starts: Vec<usize>,
+    pub trigram_end_others1: Vec<KeyCode>,
+    pub trigram_end_others2: Vec<KeyCode>,
+    pub trigram_end_freqs: Vec<u32>,
+}
+
+/// Stage 3: Corpus Flattening & Pruning.
+pub struct CorpusStage<'a> {
+    pub corpus: &'a Corpus,
+    pub rubric: &'a Rubric,
+}
+
+impl<'a> CompilationStage for CorpusStage<'a> {
+    type Input = ();
+    type Output = CorpusOutput;
+
+    fn execute(&self, _: Self::Input) -> Result<Self::Output, PhysicsError> {
+        let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&self.corpus.bigrams);
+        let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) = flatten_bigrams_rev(&self.corpus.bigrams);
         
-        let pruned_trigrams = prune_trigrams(corpus.trigrams.clone(), rubric.trigram_coverage, rubric.trigram_limit);
+        let pruned_trigrams = prune_trigrams(self.corpus.trigrams.clone(), self.rubric.trigram_coverage, self.rubric.trigram_limit);
         
         let (trigram_starts, trigram_others1, trigram_others2, trigram_freqs) = flatten_trigrams_start(&pruned_trigrams);
         let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) = flatten_trigrams_mid(&pruned_trigrams);
         let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) = flatten_trigrams_end(&pruned_trigrams);
         
-        let char_freqs = corpus.char_freqs.clone();
+        let char_freqs = self.corpus.char_freqs.clone();
 
-        info!("Engine compilation complete.");
-
-        Ok(EngineContext {
-            key_count, hands, fingers, rows, cols, cost_matrix: internal_cost_matrix, dist_matrix, key_home_distances, key_costs, char_freqs,
+        Ok(CorpusOutput {
+            char_freqs,
             bigram_starts, bigram_others, bigram_freqs,
             bigram_rev_starts, bigram_rev_others, bigram_rev_freqs,
             trigram_starts, trigram_others1, trigram_others2, trigram_freqs,
             trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs,
             trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs,
+        })
+    }
+}
+
+impl Compiler {
+    #[instrument(skip_all)]
+    pub fn compile(
+        kb: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        cost_model: &CostModel,
+    ) -> Result<EngineContext, PhysicsError> {
+        let key_count = kb.count();
+        info!(key_count = key_count, "Compiling scoring engine...");
+
+        // Stage 1: Geometry
+        let geo_stage = GeometryStage;
+        let geo_out = geo_stage.execute(Arc::new(kb.clone()))?;
+
+        // Stage 2: Costs
+        let cost_stage = CostStage { kb, rubric, cost_model };
+        let cost_out = cost_stage.execute(())?;
+
+        // Stage 3: Corpus
+        let corpus_stage = CorpusStage { corpus, rubric };
+        let corpus_out = corpus_stage.execute(())?;
+
+        info!("Engine compilation complete.");
+
+        Ok(EngineContext {
+            key_count,
+            hands: geo_out.hands,
+            fingers: geo_out.fingers,
+            rows: geo_out.rows,
+            cols: geo_out.cols,
+            cost_matrix: cost_out.cost_matrix,
+            dist_matrix: geo_out.dist_matrix,
+            key_home_distances: geo_out.key_home_distances,
+            key_costs: cost_out.key_costs,
+            char_freqs: corpus_out.char_freqs,
+            bigram_starts: corpus_out.bigram_starts,
+            bigram_others: corpus_out.bigram_others,
+            bigram_freqs: corpus_out.bigram_freqs,
+            bigram_rev_starts: corpus_out.bigram_rev_starts,
+            bigram_rev_others: corpus_out.bigram_rev_others,
+            bigram_rev_freqs: corpus_out.bigram_rev_freqs,
+            trigram_starts: corpus_out.trigram_starts,
+            trigram_others1: corpus_out.trigram_others1,
+            trigram_others2: corpus_out.trigram_others2,
+            trigram_freqs: corpus_out.trigram_freqs,
+            trigram_mid_starts: corpus_out.trigram_mid_starts,
+            trigram_mid_others1: corpus_out.trigram_mid_others1,
+            trigram_mid_others2: corpus_out.trigram_mid_others2,
+            trigram_mid_freqs: corpus_out.trigram_mid_freqs,
+            trigram_end_starts: corpus_out.trigram_end_starts,
+            trigram_end_others1: corpus_out.trigram_end_others1,
+            trigram_end_others2: corpus_out.trigram_end_others2,
+            trigram_end_freqs: corpus_out.trigram_end_freqs,
             all_bigrams: corpus.bigrams.clone(),
             all_trigrams: corpus.trigrams.clone(),
             penalty_redirect: Score::from_f32(rubric.redirect),

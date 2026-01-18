@@ -179,8 +179,9 @@ impl JobRepository {
         let w_hash = hex::encode(hasher.finalize());
 
         // Search Params
-        let mut p = req.config.params;
-        p.temp_min = norm(p.temp_min);
+        let mut p = req.config.params.clone();
+        let temp_min = p.get_temp_min();
+        p.params.insert("temp_min".to_string(), norm(temp_min));
         
         let p_json = serde_json::to_string(&p).map_err(|e| e.to_string())?;
         let mut hasher = Sha256::new();
@@ -309,14 +310,14 @@ impl JobRepository {
             RETURNING id
             "#,
         )
-        .bind(params.search_epochs as i32)
-        .bind(params.search_steps as i32)
-        .bind(params.search_patience as i32)
-        .bind(params.search_patience_threshold)
-        .bind(params.temp_min)
-        .bind(params.temp_max)
-        .bind(params.opt_limit_fast as i32)
-        .bind(params.opt_limit_slow as i32)
+        .bind(params.get_search_epochs() as i32)
+        .bind(params.get_search_steps() as i32)
+        .bind(params.get_search_patience() as i32)
+        .bind(params.get_search_patience_threshold())
+        .bind(params.get_temp_min())
+        .bind(params.get_temp_max())
+        .bind(params.get_opt_limit_fast() as i32)
+        .bind(params.get_opt_limit_slow() as i32)
         .bind(p_hash)
         .fetch_one(&mut **tx)
         .await?;

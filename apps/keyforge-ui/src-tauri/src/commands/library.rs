@@ -44,7 +44,7 @@ pub async fn cmd_get_keyboard_geometry(
 ) -> Result<KeyboardGeometry, CommandError> {
     state
         .assets
-        .load_keyboard(&name)
+        .load::<KeyboardDefinition>(&name)
         .await
         .map(|def| def.geometry.clone())
         .map_err(|e| CommandError::Config(format!("Failed to load geometry: {}", e)))
@@ -61,7 +61,7 @@ pub async fn cmd_get_all_layouts_scoped(
     let user_data = UserRepo::new(data_dir);
     let mut all_layouts = user_data.get_layouts(&keyboard_id);
 
-    if let Ok(def) = state.assets.load_keyboard(&keyboard_id).await {
+    if let Ok(def) = state.assets.load::<KeyboardDefinition>(&keyboard_id).await {
         all_layouts.extend(def.layouts.clone());
     }
     Ok(all_layouts)

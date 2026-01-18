@@ -15,19 +15,20 @@
 use crate::error::PersistenceError;
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::config::{Config, CorpusSource, CostMatrixSource};
+use keyforge_model::{KeyboardDefinition, CostModel, KeycodeRegistry};
 use keyforge_physics::EngineRequest;
 use std::sync::Arc;
 
 /// Compiles a raw configuration into a fully-loaded `EngineRequest`.
-pub async fn compile_request(
-    loader: &dyn AssetLoader,
+pub async fn compile_request<L: AssetLoader>(
+    loader: &L,
     _config: &Config,
     keyboard_name: &str,
     _pinned_keys: &[keyforge_model::KeyConstraint],
 ) -> Result<EngineRequest, PersistenceError> {
     // 1. Load Keyboard
     let keyboard_def = loader
-        .load_keyboard(keyboard_name)
+        .load::<KeyboardDefinition>(keyboard_name)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard '{}': {}", keyboard_name, e)))?;
 
@@ -50,13 +51,13 @@ pub async fn compile_request(
     };
     
     let cost_model = loader
-        .load_cost_model(&cost_name)
+        .load::<CostModel>(&cost_name)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("CostModel '{}': {}", cost_name, e)))?;
 
     // 4. Load Keycodes (Standard)
     let _registry = loader
-        .load_keycodes("keycodes")
+        .load::<KeycodeRegistry>("keycodes")
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {}", e)))?;
 
@@ -79,27 +80,18 @@ mod tests {
     use super::*;
     use keyforge_model::error::ForgeError;
     use keyforge_core::loader::LoaderResult;
-    use keyforge_model::geometry::KeyboardDefinition;
-    use keyforge_model::keycodes::KeycodeRegistry;
-    use keyforge_model::cost_model::CostModel;
-    use keyforge_model::Corpus;
+    use keyforge_model::{Asset, Corpus};
 
     #[derive(Debug)]
     struct FailingLoader;
 
     #[async_trait::async_trait]
     impl AssetLoader for FailingLoader {
-        async fn load_keyboard(&self, _: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
-            Err(ForgeError::NotFound("kb".into()))
+        async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+            Err(ForgeError::NotFound(id.to_string()))
         }
         async fn load_corpus(&self, _: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
             Err(ForgeError::NotFound("corpus".into()))
-        }
-        async fn load_cost_model(&self, _: &str) -> LoaderResult<Arc<CostModel>> {
-            Err(ForgeError::NotFound("costs".into()))
-        }
-        async fn load_keycodes(&self, _: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-            Err(ForgeError::NotFound("keycodes".into()))
         }
     }
 

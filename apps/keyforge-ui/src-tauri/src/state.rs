@@ -1,5 +1,6 @@
 // apps/keyforge-ui/src-tauri/src/state.rs
 
+#![allow(unsafe_code)]
 use keyforge_infra::FsProvider;
 use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
@@ -50,22 +51,39 @@ pub struct AssetCache {
     keycodes: Cache<String, Arc<KeycodeRegistry>>,
 }
 
+use std::any::TypeId;
+
 #[async_trait::async_trait]
 impl AssetLoader for AssetCache {
-    async fn load_keyboard(&self, name: &str) -> keyforge_core::loader::LoaderResult<Arc<KeyboardDefinition>> {
-        self.load_keyboard_internal(name).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
+    async fn load<T: keyforge_model::Asset>(&self, id: &str) -> keyforge_core::loader::LoaderResult<Arc<T>> {
+        if TypeId::of::<T>() == TypeId::of::<KeyboardDefinition>() {
+             let res = self.load_keyboard_internal(id).await
+                .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
+             // SAFETY: We verified TypeId matches KeyboardDefinition.
+             let ptr = Arc::into_raw(res) as *const T;
+             return Ok(unsafe { Arc::from_raw(ptr) });
+        }
+        if TypeId::of::<T>() == TypeId::of::<CostModel>() {
+             let res = self.load_cost_model_internal(id).await
+                .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
+             let ptr = Arc::into_raw(res) as *const T;
+             return Ok(unsafe { Arc::from_raw(ptr) });
+        }
+        if TypeId::of::<T>() == TypeId::of::<KeycodeRegistry>() {
+             let res = self.load_keycodes_internal(id).await
+                .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
+             let ptr = Arc::into_raw(res) as *const T;
+             return Ok(unsafe { Arc::from_raw(ptr) });
+        }
+        
+        // Fallback or error for unknown types
+        // Ideally we should delegate to provider.load::<T>(id) if not cached, but caching is the point.
+        // If T is not one of the cached types, we can try to load directly from provider.
+        self.provider.load::<T>(id).await
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> keyforge_core::loader::LoaderResult<Arc<Corpus>> {
         self.load_corpus_internal(sources).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
-    }
-
-    async fn load_cost_model(&self, filename: &str) -> keyforge_core::loader::LoaderResult<Arc<CostModel>> {
-        self.load_cost_model_internal(filename).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
-    }
-
-    async fn load_keycodes(&self, filename: &str) -> keyforge_core::loader::LoaderResult<Arc<KeycodeRegistry>> {
-        self.load_keycodes_internal(filename).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
     }
 }
 
@@ -90,7 +108,7 @@ impl AssetCache {
         if let Some(cached) = self.keyboards.get(name) {
             return Ok(cached);
         }
-        match self.provider.load_keyboard(name).await {
+        match self.provider.load::<KeyboardDefinition>(name).await {
             Ok(item) => {
                 self.keyboards.insert(name.to_string(), item.clone());
                 Ok(item)
@@ -99,7 +117,7 @@ impl AssetCache {
                 let manager_guard = self.manager.read().await;
                 if let Some(mgr) = &*manager_guard {
                     if mgr.ensure_keyboard(name).await.is_ok() {
-                        if let Ok(item) = self.provider.load_keyboard(name).await {
+                        if let Ok(item) = self.provider.load::<KeyboardDefinition>(name).await {
                             self.keyboards.insert(name.to_string(), item.clone());
                             return Ok(item);
                         }
@@ -140,7 +158,7 @@ impl AssetCache {
         if let Some(cached) = self.cost_models.get(filename) {
             return Ok(cached);
         }
-        match self.provider.load_cost_model(filename).await {
+        match self.provider.load::<CostModel>(filename).await {
             Ok(item) => {
                 self.cost_models.insert(filename.to_string(), item.clone());
                 Ok(item)
@@ -149,7 +167,7 @@ impl AssetCache {
                 let manager_guard = self.manager.read().await;
                 if let Some(mgr) = &*manager_guard {
                     if mgr.ensure_cost_matrix(filename).await.is_ok() {
-                        if let Ok(item) = self.provider.load_cost_model(filename).await {
+                        if let Ok(item) = self.provider.load::<CostModel>(filename).await {
                             self.cost_models.insert(filename.to_string(), item.clone());
                             return Ok(item);
                         }
@@ -164,7 +182,7 @@ impl AssetCache {
         if let Some(cached) = self.keycodes.get(filename) {
             return Ok(cached);
         }
-        let item = self.provider.load_keycodes(filename).await?;
+        let item = self.provider.load::<KeycodeRegistry>(filename).await?;
         self.keycodes.insert(filename.to_string(), item.clone());
         Ok(item)
     }

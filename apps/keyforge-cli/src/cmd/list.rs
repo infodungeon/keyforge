@@ -21,6 +21,7 @@ use keyforge_infra::listing::{
 };
 use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
+use keyforge_model::KeyboardDefinition;
 use std::fs;
 use crate::constants::DEFAULT_LIST_LIMIT;
 
@@ -66,7 +67,7 @@ async fn list_keyboards(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn
     let names = ws_list_keyboards(&loader.root).map_err(|e| format!("Failed to list keyboards: {}", e))?;
     let count = names.len();
     for name in names.into_iter().take(limit) {
-        if let Ok(def) = loader.load_keyboard(&name).await {
+        if let Ok(def) = loader.load::<KeyboardDefinition>(&name).await {
             table.add_row(vec![
                 name,
                 def.meta.name.clone(),
@@ -122,7 +123,7 @@ async fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn s
 }
 
 async fn list_layouts(loader: &FsProvider, kb_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let def = loader.load_keyboard(kb_name).await
+    let def = loader.load::<KeyboardDefinition>(kb_name).await
         .map_err(|e| format!("Failed to load keyboard '{}': {}", kb_name, e))?;
 
     println!("Layouts for {}:", def.meta.name);

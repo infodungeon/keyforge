@@ -18,6 +18,7 @@
 //! physics engine to load static costs and dynamic rules from data
 //! rather than hardcoded logic.
 
+use crate::asset::{Asset, AssetCategory};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -30,6 +31,12 @@ pub struct CostModel {
     pub models: HashMap<String, ModelDefinition>,
     /// Global dynamic rules and penalties.
     pub dynamic_rules: DynamicRules,
+}
+
+impl Asset for CostModel {
+    fn category() -> AssetCategory {
+        AssetCategory::CostModel
+    }
 }
 
 /// Metadata for the cost model.

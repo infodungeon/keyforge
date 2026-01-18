@@ -23,8 +23,8 @@ use std::sync::Arc;
 use std::fmt;
 
 /// Builder for constructing a `ScoringSession` (Runtime).
-pub struct SessionBuilder<'a> {
-    loader: &'a dyn AssetLoader,
+pub struct SessionBuilder<'a, L: AssetLoader> {
+    loader: &'a L,
     keyboard: Option<Arc<KeyboardDefinition>>,
     corpus: Option<Arc<Corpus>>,
     rubric: Option<Arc<Rubric>>,
@@ -33,7 +33,7 @@ pub struct SessionBuilder<'a> {
     search_config: Option<SearchConfig>,
 }
 
-impl<'a> fmt::Debug for SessionBuilder<'a> {
+impl<'a, L: AssetLoader> fmt::Debug for SessionBuilder<'a, L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SessionBuilder")
             .field("keyboard", &self.keyboard)
@@ -46,8 +46,8 @@ impl<'a> fmt::Debug for SessionBuilder<'a> {
     }
 }
 
-impl<'a> SessionBuilder<'a> {
-    pub fn new(loader: &'a dyn AssetLoader) -> Self {
+impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
+    pub fn new(loader: &'a L) -> Self {
         Self {
             loader,
             keyboard: None,
@@ -60,7 +60,7 @@ impl<'a> SessionBuilder<'a> {
     }
 
     pub async fn with_keyboard(mut self, name: &str) -> LoaderResult<Self> {
-        self.keyboard = Some(self.loader.load_keyboard(name).await?);
+        self.keyboard = Some(self.loader.load::<KeyboardDefinition>(name).await?);
         Ok(self)
     }
     
@@ -82,7 +82,7 @@ impl<'a> SessionBuilder<'a> {
     pub async fn with_cost_matrix(mut self, source: &CostMatrixSource) -> LoaderResult<Self> {
         match source {
             CostMatrixSource::Predefined(name) => {
-                self.cost_model = Some(self.loader.load_cost_model(name).await?);
+                self.cost_model = Some(self.loader.load::<CostModel>(name).await?);
             }
         }
         Ok(self)
@@ -94,7 +94,7 @@ impl<'a> SessionBuilder<'a> {
     }
 
     pub async fn with_keycodes(mut self, name: &str) -> LoaderResult<Self> {
-        self.registry = Some(self.loader.load_keycodes(name).await?);
+        self.registry = Some(self.loader.load::<KeycodeRegistry>(name).await?);
         Ok(self)
     }
 

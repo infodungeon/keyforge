@@ -72,13 +72,13 @@ pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
 /// Converts protocol-level search parameters into domain-level search configuration.
 pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::SearchConfig {
     keyforge_model::SearchConfig::Annealing {
-        steps: p.search_steps,
-        start_temp: p.temp_max,
-        end_temp: p.temp_min,
+        steps: p.get_search_steps(),
+        start_temp: p.get_temp_max(),
+        end_temp: p.get_temp_min(),
         seed,
-        patience: p.search_patience,
-        reheats: p.reheats,
-        reheat_factor: p.reheat_factor,
+        patience: p.get_search_patience(),
+        reheats: p.get_reheats(),
+        reheat_factor: p.get_reheat_factor(),
         include_thumbs: p.include_thumbs,
     }
 }

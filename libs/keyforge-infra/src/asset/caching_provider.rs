@@ -17,7 +17,7 @@ use crate::asset::AssetServerProvider;
 use crate::net::sync::ServerManifest;
 use bytes::Bytes;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_model::Corpus;
+use keyforge_model::{Asset, Corpus, ForgeError};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::{
     ASSET_KEYCODES, DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY,
@@ -31,6 +31,7 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::{error, info};
+use std::any::{Any, TypeId};
 
 struct CacheState {
     provider: FsProvider,
@@ -264,7 +265,7 @@ impl CachingProvider {
             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
              let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") { s } else { stem };
             if !clean_stem.is_empty() {
-                if let Err(e) = self.load_keyboard(clean_stem).await {
+                if let Err(e) = self.load::<KeyboardDefinition>(clean_stem).await {
                     tracing::warn!("Eager load failed for keyboard {}: {}", clean_stem, e);
                 }
                 return Ok(true);
@@ -302,7 +303,7 @@ impl CachingProvider {
              let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") { s } else { stem };
 
              if !clean_stem.is_empty() {
-                 let _ = self.load_cost_model(clean_stem).await;
+                 let _ = self.load::<CostModel>(clean_stem).await;
                  return Ok(true);
              }
         }
@@ -311,7 +312,7 @@ impl CachingProvider {
 
     async fn try_ensure_config(&self, rel_path: &str) -> Result<bool, String> {
         if rel_path == format!("config/{}.mpk.zst", ASSET_KEYCODES) {
-            if let Err(e) = self.load_keycodes(ASSET_KEYCODES).await {
+            if let Err(e) = self.load::<KeycodeRegistry>(ASSET_KEYCODES).await {
                  tracing::warn!("Eager load failed for keycodes: {}", e);
             }
             return Ok(true);
@@ -340,16 +341,49 @@ impl AssetServerProvider for CachingProvider {
 
 #[async_trait::async_trait]
 impl AssetLoader for CachingProvider {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
-        if let Some(c) = self.state.keyboards.get(name) {
-            return Ok(c);
+    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        let tid = TypeId::of::<T>();
+
+        if tid == TypeId::of::<KeyboardDefinition>() {
+            let kb = if let Some(c) = self.state.keyboards.get(id) {
+                c
+            } else {
+                let kb = self.state.provider.load::<KeyboardDefinition>(id).await?;
+                self.state.keyboards.insert(id.to_string(), kb.clone());
+                kb
+            };
+            let any_kb: Arc<dyn Any + Send + Sync> = kb;
+            return any_kb.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
         }
-        let kb = self.state.provider.load_keyboard(name).await?;
-        self.state
-            .keyboards
-            .insert(name.to_string(), kb.clone());
-        Ok(kb)
+
+        if tid == TypeId::of::<CostModel>() {
+            let cm = if let Some(c) = self.state.cost_models.get(id) {
+                c
+            } else {
+                let cm = self.state.provider.load::<CostModel>(id).await?;
+                self.state.cost_models.insert(id.to_string(), cm.clone());
+                cm
+            };
+            let any_cm: Arc<dyn Any + Send + Sync> = cm;
+            return any_cm.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+        }
+
+        if tid == TypeId::of::<KeycodeRegistry>() {
+            let rg = if let Some(c) = self.state.keycodes.get(id) {
+                c
+            } else {
+                let rg = self.state.provider.load::<KeycodeRegistry>(id).await?;
+                self.state.keycodes.insert(id.to_string(), rg.clone());
+                rg
+            };
+            let any_rg: Arc<dyn Any + Send + Sync> = rg;
+            return any_rg.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+        }
+
+        // Fallback for types without dedicated caches
+        self.state.provider.load::<T>(id).await
     }
+
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let key = serde_json::to_string(sources).unwrap_or_default();
         if let Some(c) = self.state.corpora.get(&key) {
@@ -358,25 +392,5 @@ impl AssetLoader for CachingProvider {
         let cp = self.state.provider.load_corpus(sources).await?;
         self.state.corpora.insert(key, cp.clone());
         Ok(cp)
-    }
-    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>> {
-        if let Some(c) = self.state.cost_models.get(filename) {
-            return Ok(c);
-        }
-        let cm = self.state.provider.load_cost_model(filename).await?;
-        self.state
-            .cost_models
-            .insert(filename.to_string(), cm.clone());
-        Ok(cm)
-    }
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-        if let Some(c) = self.state.keycodes.get(filename) {
-            return Ok(c);
-        }
-        let rg = self.state.provider.load_keycodes(filename).await?;
-        self.state
-            .keycodes
-            .insert(filename.to_string(), rg.clone());
-        Ok(rg)
     }
 }

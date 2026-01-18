@@ -14,9 +14,9 @@
 
 
 use axum::{extract::State, routing::get, Json, Router};
-use keyforge_model::Config;
+use keyforge_model::{Config, KeyboardDefinition};
+use keyforge_model::config::ParameterMetadata;
 use keyforge_core::loader::AssetLoader;
-use keyforge_model::KeyboardDefinition;
 use serde::Serialize;
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -93,7 +93,7 @@ pub async fn get_keyboard(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> AppResult<Json<KeyboardDefinition>> {
-    let kb = state.assets.load_keyboard(&name).await.map_err(|e| {
+    let kb = state.assets.load::<KeyboardDefinition>(&name).await.map_err(|e| {
         tracing::error!("Failed to load keyboard {}: {}", name, e);
         AppError::NotFound
     })?;
@@ -118,11 +118,21 @@ pub async fn list_costs(State(state): State<Arc<AppState>>) -> AppResult<Json<Ve
     Ok(Json(list))
 }
 
-/// Lists any additional keymap assets.
+/// Retrieves any additional keymap assets.
 pub async fn list_keymap_extras(
     State(_state): State<Arc<AppState>>,
 ) -> AppResult<Json<Vec<String>>> {
     Ok(Json(vec![]))
+}
+
+/// Returns the schema for search parameters.
+pub async fn get_search_schema() -> Json<Vec<ParameterMetadata>> {
+    Json(keyforge_model::config::SearchParams::schema())
+}
+
+/// Returns the schema for scoring weights.
+pub async fn get_weights_schema() -> Json<Vec<ParameterMetadata>> {
+    Json(keyforge_model::config::ScoringWeights::schema())
 }
 
 /// Builds and returns the Axum router for system-related endpoints.
@@ -138,4 +148,6 @@ pub fn system_routes() -> Router<Arc<AppState>> {
         .route("/api/corpora", get(list_corpora))
         .route("/api/costs", get(list_costs))
         .route("/api/keymap_extras", get(list_keymap_extras))
+        .route("/api/schema/search", get(get_search_schema))
+        .route("/api/schema/weights", get(get_weights_schema))
 }

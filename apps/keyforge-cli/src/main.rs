@@ -3,6 +3,7 @@
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use keyforge_infra::resolve_root;
 use keyforge_protocol::JobConfig;
+use keyforge_model::KeyboardDefinition;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -135,7 +136,7 @@ async fn run_app() -> Result<(), CliError> {
 
             let callback = StopFlagCallback { stop_flag: stop_flag.clone() };
             
-            let result = keyforge_runner::OptimizationRunner::run(
+            let result: keyforge_model::OptimizationResult = keyforge_runner::OptimizationRunner::run(
                 session, 
                 "local-cli".into(), 
                 stop_flag, 
@@ -204,7 +205,7 @@ async fn build_job_config(
     let corpus_list = shared.corpus.clone().unwrap_or_else(|| vec!["text/en_std".to_string()]);
     let corpora = cli_args::parse_corpora(&corpus_list)?;
     let kb_name = shared.keyboard.clone().unwrap_or_else(|| "ortho_30".to_string());
-    let definition = loader.load_keyboard(&kb_name).await?;
+    let definition = loader.load::<KeyboardDefinition>(&kb_name).await?;
 
     let weights = if let Some(w_input) = &shared.weights {
         let w_path = cli_parsers::resolve_path(w_input, None, &loader.root)?;

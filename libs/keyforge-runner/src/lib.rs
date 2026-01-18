@@ -34,8 +34,8 @@ pub struct RunnerOptions {
 pub struct OptimizationRunner;
 
 impl OptimizationRunner {
-    pub async fn prepare_session(
-        loader: &dyn AssetLoader,
+    pub async fn prepare_session<L: AssetLoader>(
+        loader: &L,
         config: &JobConfig,
         options: &RunnerOptions,
     ) -> anyhow::Result<ScoringSession> {
@@ -46,13 +46,13 @@ impl OptimizationRunner {
             .with_keycodes(&options.keycodes_file).await.map_err(|e| anyhow::anyhow!(e))?
             .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&config.weights))
             .with_config(keyforge_model::SearchConfig::Annealing {
-                steps: config.params.search_steps,
-                start_temp: config.params.temp_max,
-                end_temp: config.params.temp_min,
+                steps: config.params.get_search_steps(),
+                start_temp: config.params.get_temp_max(),
+                end_temp: config.params.get_temp_min(),
                 seed: options.seed.unwrap_or(config.params.seed.unwrap_or(42)),
-                patience: config.params.search_patience,
-                reheats: config.params.reheats,
-                reheat_factor: config.params.reheat_factor,
+                patience: config.params.get_search_patience(),
+                reheats: config.params.get_reheats(),
+                reheat_factor: config.params.get_reheat_factor(),
                 include_thumbs: config.params.include_thumbs,
             });
             
@@ -101,12 +101,12 @@ impl OptimizationRunner {
 }
 
 #[derive(Debug)]
-pub struct Runner<'a> {
-    loader: &'a dyn AssetLoader,
+pub struct Runner<'a, L: AssetLoader> {
+    loader: &'a L,
 }
 
-impl<'a> Runner<'a> {
-    pub fn new(loader: &'a dyn AssetLoader) -> Self {
+impl<'a, L: AssetLoader> Runner<'a, L> {
+    pub fn new(loader: &'a L) -> Self {
         Self { loader }
     }
 

@@ -77,7 +77,7 @@ pub async fn cmd_load_dataset(
     let assets = &state.assets;
     
     // Load definition to ensure it exists and to put in config
-    let definition = assets.load_keyboard(&keyboard_name).await
+    let definition = assets.load::<keyforge_model::KeyboardDefinition>(&keyboard_name).await
         .map_err(|e| CommandError::Config(format!("Failed to load keyboard: {}", e)))?;
     
     let job_config = JobConfig {

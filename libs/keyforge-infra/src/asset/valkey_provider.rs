@@ -17,13 +17,9 @@ use crate::net::distributed::DistributedCoordinator;
 use crate::util::corpus::inject_synthetic_data;
 use crate::net::sync::ServerManifest;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_model::Corpus;
+use keyforge_model::{Asset, AssetCategory, Corpus};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
-use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::cost_model::CostModel;
-use keyforge_model::Validator;
 use keyforge_model::error::ForgeError;
 use std::sync::Arc;
 use tracing::warn;
@@ -170,26 +166,20 @@ impl ValkeyProvider {
 
 #[async_trait::async_trait]
 impl AssetLoader for ValkeyProvider {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
-        let path = format!("keyboards/models/{}.mpk.zst", name);
-        let kb: KeyboardDefinition = self.hydrate_mpk(&path).await?;
-        kb.validate().map_err(|e| ForgeError::InvalidData(e))?;
-        Ok(Arc::new(kb))
-    }
+    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        let category = T::category();
+        let stem = id.strip_suffix(".json").unwrap_or(id);
 
-    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>> {
-        let stem = filename.strip_suffix(".json").unwrap_or(filename);
-        let path = format!("weights/{}.mpk.zst", stem);
-        let model: CostModel = self.hydrate_mpk(&path).await?;
-        Ok(Arc::new(model))
-    }
+        let subpath = match category {
+            AssetCategory::Keyboard => format!("keyboards/models/{}.mpk.zst", stem),
+            AssetCategory::CostModel => format!("weights/{}.mpk.zst", stem),
+            AssetCategory::Keycodes => format!("config/{}.mpk.zst", stem),
+            AssetCategory::Corpus => format!("corpora/{}/bundle.mpk.zst", stem),
+        };
 
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-        let stem = filename.strip_suffix(".json").unwrap_or(filename);
-        let path = format!("config/{}.mpk.zst", stem);
-        let reg: KeycodeRegistry = self.hydrate_mpk(&path).await?;
-        reg.validate().map_err(|e| ForgeError::InvalidData(e))?;
-        Ok(Arc::new(reg))
+        let mut asset: T = self.hydrate_mpk(&subpath).await?;
+        asset.post_load()?;
+        Ok(Arc::new(asset))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
@@ -220,7 +210,7 @@ impl AssetLoader for ValkeyProvider {
         let is_std = sources.iter().any(|s| s.id.contains("_std"));
         inject_synthetic_data(&mut corpus, is_std);
 
-        corpus.validate().map_err(|e| ForgeError::InvalidData(format!("Invalid corpus: {}", e)))?;
+        corpus.post_load()?;
         Ok(Arc::new(corpus))
     }
 }

@@ -19,7 +19,7 @@ use crate::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_model::{
     CorpusSource,
     constants::{VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO, DEFAULT_CORPUS_WEIGHT},
-    CostMatrixSource, KeyboardDefinition
+    CostMatrixSource, KeyboardDefinition, KeycodeRegistry
 };
 use keyforge_protocol::ResultSubmission;
 use keyforge_compute::SessionBuilder;
@@ -111,7 +111,7 @@ impl VerificationService {
     async fn check_tolerance(&self, engine: Arc<ScoringEngine>, sub: &ResultSubmission) -> AppResult<()> {
         let keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME;
         
-        let registry = self.assets.load_keycodes(keycodes_file).await
+        let registry = self.assets.load::<KeycodeRegistry>(keycodes_file).await
             .map_err(|e| AppError::Validation(format!("Failed to load keycodes for verification: {}", e)))?;
 
         let layout_struct = keyforge_adapter::conversion::parse_layout_string_strict(

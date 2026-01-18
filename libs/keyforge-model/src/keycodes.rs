@@ -25,6 +25,8 @@ use ts_rs::TS;
 
 use crate::validator::Validator;
 use crate::types::KeyCode;
+use crate::asset::{Asset, AssetCategory};
+use crate::error::ForgeError;
 
 /// Definition of a logical key code (e.g., "KC_A").
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +57,7 @@ impl Validator for KeycodeDefinition {
 
 /// Registry for looking up key codes by name or ID.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(from = "Vec<KeycodeDefinition>", into = "Vec<KeycodeDefinition>")]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeycodeRegistry {
     /// List of all definitions.
@@ -63,6 +66,29 @@ pub struct KeycodeRegistry {
     name_to_code: HashMap<String, KeyCode>,
     #[serde(skip)]
     code_to_label: HashMap<KeyCode, String>,
+}
+
+impl From<Vec<KeycodeDefinition>> for KeycodeRegistry {
+    fn from(defs: Vec<KeycodeDefinition>) -> Self {
+        Self::new(defs)
+    }
+}
+
+impl From<KeycodeRegistry> for Vec<KeycodeDefinition> {
+    fn from(reg: KeycodeRegistry) -> Self {
+        reg.definitions
+    }
+}
+
+impl Asset for KeycodeRegistry {
+    fn category() -> AssetCategory {
+        AssetCategory::Keycodes
+    }
+
+    fn post_load(&mut self) -> Result<(), ForgeError> {
+        self.rebuild_maps();
+        self.validate().map_err(ForgeError::InvalidData)
+    }
 }
 
 impl Validator for KeycodeRegistry {

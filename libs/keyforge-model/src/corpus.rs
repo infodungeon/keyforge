@@ -21,6 +21,7 @@
 use crate::error::ForgeError;
 use serde::{Deserialize, Serialize};
 use crate::validator::Validator;
+use crate::asset::{Asset, AssetCategory};
 
 /// Represents the statistical data of a language or text source.
 /// Contains frequency data for characters, bigrams, and trigrams.
@@ -36,6 +37,12 @@ pub struct Corpus {
     pub trigrams: Vec<(u16, u16, u16, u32)>,
     /// List of common words and their frequencies.
     pub words: Vec<(String, u32)>,
+}
+
+impl Asset for Corpus {
+    fn category() -> AssetCategory {
+        AssetCategory::Corpus
+    }
 }
 
 impl Default for Corpus {

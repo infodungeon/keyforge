@@ -40,6 +40,8 @@ pub mod constants;
 pub mod corpus;
 /// Data structures for the external Cost Matrix (Physics Model).
 pub mod cost_model;
+/// Asset management and loading markers.
+pub mod asset;
 /// Centralized error types for the domain.
 pub mod error;
 /// Physical keyboard geometry and spatial definitions.
@@ -67,6 +69,7 @@ pub mod validator;
 pub use config::{Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchParams};
 pub use corpus::Corpus;
 pub use cost_model::CostModel;
+pub use asset::{Asset, AssetCategory};
 pub use error::ForgeError;
 pub use geometry::{KeyboardDefinition, KeyboardGeometry, KeyNode};
 pub use job::JobIdentifier;

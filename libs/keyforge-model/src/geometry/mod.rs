@@ -21,6 +21,8 @@
 use crate::constants::MAX_KEYBOARD_KEYS;
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use crate::validator::Validator;
+use crate::asset::{Asset, AssetCategory};
+use crate::error::ForgeError;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use utoipa::ToSchema;
@@ -63,6 +65,16 @@ pub struct KeyboardDefinition {
     /// Pre-defined layouts available for this keyboard.
     #[serde(default)]
     pub layouts: HashMap<String, String>,
+}
+
+impl Asset for KeyboardDefinition {
+    fn category() -> AssetCategory {
+        AssetCategory::Keyboard
+    }
+
+    fn post_load(&mut self) -> Result<(), ForgeError> {
+        self.validate().map_err(ForgeError::InvalidData)
+    }
 }
 
 impl Validator for KeyboardDefinition {

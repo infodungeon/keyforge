@@ -15,12 +15,13 @@
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
+use keyforge_model::{Asset, Corpus};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::Corpus;
 use keyforge_model::cost_model::CostModel;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::any::{Any, TypeId};
 
 /// An in-memory asset loader for WASM environments.
 ///
@@ -58,13 +59,43 @@ impl InMemoryLoader {
 
 #[async_trait::async_trait]
 impl AssetLoader for InMemoryLoader {
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
-        self.keyboards
-            .read()
-            .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
-            .get(name)
-            .cloned()
-            .ok_or_else(|| ForgeError::NotFound(name.to_string()))
+    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        let tid = TypeId::of::<T>();
+
+        if tid == TypeId::of::<KeyboardDefinition>() {
+            let kb = self.keyboards
+                .read()
+                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
+                .get(id)
+                .cloned()
+                .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
+            let any_kb: Arc<dyn Any + Send + Sync> = kb;
+            return any_kb.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+        }
+
+        if tid == TypeId::of::<CostModel>() {
+            let cm = self.cost_models
+                .read()
+                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
+                .get(id)
+                .cloned()
+                .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
+            let any_cm: Arc<dyn Any + Send + Sync> = cm;
+            return any_cm.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+        }
+
+        if tid == TypeId::of::<KeycodeRegistry>() {
+            let rg = self.keycodes
+                .read()
+                .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
+                .get(id)
+                .cloned()
+                .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
+            let any_rg: Arc<dyn Any + Send + Sync> = rg;
+            return any_rg.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+        }
+
+        Err(ForgeError::NotFound(format!("Asset type not supported in WASM loader: {}", id)))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
@@ -80,23 +111,5 @@ impl AssetLoader for InMemoryLoader {
         } else {
             Err(ForgeError::Config("No corpus sources provided".into()))
         }
-    }
-
-    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>> {
-        self.cost_models
-            .read()
-            .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
-            .get(filename)
-            .cloned()
-            .ok_or_else(|| ForgeError::NotFound(filename.to_string()))
-    }
-
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-        self.keycodes
-            .read()
-            .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {}", e)))?
-            .get(filename)
-            .cloned()
-            .ok_or_else(|| ForgeError::NotFound(filename.to_string()))
     }
 }

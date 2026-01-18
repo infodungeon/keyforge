@@ -237,20 +237,22 @@ impl TryFrom<ConfigArgs> for Config {
 impl TryFrom<SearchParamsArgs> for SearchParams {
     type Error = String;
     fn try_from(args: SearchParamsArgs) -> Result<Self, Self::Error> {
-        let p = Self {
-            search_epochs: args.search_epochs,
-            search_steps: args.search_steps,
-            search_patience: args.search_patience,
-            search_patience_threshold: args.search_patience_threshold,
-            temp_min: args.temp_min,
-            temp_max: args.temp_max,
-            opt_limit_fast: args.opt_limit_fast,
-            opt_limit_slow: args.opt_limit_slow,
-            reheats: args.reheats,
-            reheat_factor: args.reheat_factor,
-            seed: None, // [Fixed] Added
-            include_thumbs: false,
-        };
+        let mut p = SearchParams::default();
+        
+        p.params.insert("search_epochs".to_string(), args.search_epochs as f32);
+        p.params.insert("search_steps".to_string(), args.search_steps as f32);
+        p.params.insert("search_patience".to_string(), args.search_patience as f32);
+        p.params.insert("search_patience_threshold".to_string(), args.search_patience_threshold);
+        p.params.insert("temp_min".to_string(), args.temp_min);
+        p.params.insert("temp_max".to_string(), args.temp_max);
+        p.params.insert("opt_limit_fast".to_string(), args.opt_limit_fast as f32);
+        p.params.insert("opt_limit_slow".to_string(), args.opt_limit_slow as f32);
+        p.params.insert("reheats".to_string(), args.reheats as f32);
+        p.params.insert("reheat_factor".to_string(), args.reheat_factor);
+        
+        p.seed = None;
+        p.include_thumbs = false;
+        
         p.validate()?;
         Ok(p)
     }

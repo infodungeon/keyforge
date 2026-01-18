@@ -14,10 +14,7 @@
 
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
-use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::Corpus;
-use keyforge_model::cost_model::CostModel;
+use keyforge_model::{Asset, Corpus};
 use std::sync::Arc;
 use std::fmt::Debug;
 
@@ -30,12 +27,13 @@ pub type LoaderResult<T> = Result<T, ForgeError>;
 /// agnostic to the filesystem, network, or embedded storage.
 #[async_trait::async_trait]
 pub trait AssetLoader: Send + Sync + Debug {
-    /// Loads a keyboard definition by name.
-    async fn load_keyboard(&self, name: &str) -> LoaderResult<Arc<KeyboardDefinition>>;
+    /// Generic asset loader.
+    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>>
+    where
+        Self: Sized;
+
     /// Loads one or more corpora and merges them into a single bundle.
+    /// 
+    /// Corpus is currently special as it often requires merging multiple sources.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
-    /// Loads the full physics cost model (New Standard).
-    async fn load_cost_model(&self, filename: &str) -> LoaderResult<Arc<CostModel>>;
-    /// Loads a keycode registry for mapping between labels and codes.
-    async fn load_keycodes(&self, filename: &str) -> LoaderResult<Arc<KeycodeRegistry>>;
 }
