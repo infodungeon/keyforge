@@ -44,18 +44,9 @@ pub const MIN_LAYOUT_NAME_LEN: usize = 2;
 /// Default weight for a corpus source.
 pub const DEFAULT_CORPUS_WEIGHT: f32 = 1.0;
 
-/// Maximum number of search epochs.
-pub const MAX_SEARCH_EPOCHS: usize = 1_000_000;
-/// Maximum number of search steps per epoch.
-pub const MAX_SEARCH_STEPS: usize = 5_000_000;
-/// Maximum optimization limit for fast path.
-pub const MAX_OPT_LIMIT_FAST: usize = 10_000;
-/// Maximum safe weight value to prevent overflow.
-pub const MAX_SAFE_WEIGHT: f32 = 100_000_000.0;
-/// Maximum number of trigrams to load from corpus.
-pub const MAX_LOADER_TRIGRAM_LIMIT: usize = 50_000;
-/// Maximum allowed temperature for annealing.
-pub const MAX_TEMP: f32 = 1_000.0;
+
+// (Search limits moved to config::search)
+
 
 // --- Physics Constants ---
 
@@ -217,7 +208,13 @@ pub const DATA_DIR_CANDIDATES: &[&str] = &[
     "/app/data", // Docker convention
 ];
 
-// --- Evolution Constants ---
+/// Label for No-Op keys (XXXXXXX).
+pub const DEFAULT_NO_OP: &str = "XXXXXXX";
+/// Label for Transparent keys (_______).
+pub const DEFAULT_TRANSPARENT: &str = "_______";
+
+/// Maximum number of violations of a single type to include in reports.
+pub const MAX_REPORTED_VIOLATIONS: usize = 10;
 
 /// Minimum temperature threshold before clipping to zero.
 pub const TEMP_UNDERFLOW_THRESHOLD: f32 = 1e-10;
@@ -225,142 +222,11 @@ pub const TEMP_UNDERFLOW_THRESHOLD: f32 = 1e-10;
 pub const DEFAULT_REPORT_DIVISOR: usize = 100;
 /// Minimum number of steps between progress reports.
 pub const MIN_REPORT_INTERVAL: usize = 1000;
-/// Default random seed for search determinism.
-pub const DEFAULT_SEARCH_SEED: u64 = 42;
-/// Maximum number of violations of a single type to include in reports.
-pub const MAX_REPORTED_VIOLATIONS: usize = 10;
 /// Minimum temperature threshold for accepting worsening moves.
 pub const ANNEALING_MIN_TEMP: f32 = 1e-6;
 
-// --- Default Values (Strings) ---
 
-/// Default characters considered high priority (Home row candidates).
-pub const DEFAULT_TIER_HIGH: &str = "etaoinshr";
-/// Default characters considered medium priority.
-pub const DEFAULT_TIER_MED: &str = "ldcumwfgypb.,";
-/// Default characters considered low priority.
-pub const DEFAULT_TIER_LOW: &str = "vkjxqz/;";
 
-/// Default bigrams that must be optimized for.
-pub const DEFAULT_CRITICAL_BIGRAMS: &str = "th,he,in,er,an,re,nd,ou";
-/// Default scale factors for finger penalties (Thumb, Index, Middle, Ring, Pinky).
-pub const DEFAULT_FINGER_PENALTY_SCALE: &str = "0.0,1.0,1.1,1.3,1.6";
-/// Default scale factors for finger repeat penalties.
-pub const DEFAULT_FINGER_REPEAT_SCALE: &str = "1.0,1.0,1.0,1.2,1.5";
 
-/// Default scale factors for finger penalties as an array.
-pub const DEFAULT_FINGER_PENALTY_SCALE_ARRAY: [f32; 5] = [0.0, 1.0, 1.1, 1.3, 1.6];
-/// Default scale factors for finger repeat penalties as an array.
-pub const DEFAULT_FINGER_REPEAT_SCALE_ARRAY: [f32; 5] = [1.0, 1.0, 1.0, 1.2, 1.5];
-/// Default comfortable scissor pairs (Indices).
-pub const DEFAULT_COMFORTABLE_SCISSORS: &str = "21,23,34";
+// (Defaults moved to config modules)
 
-/// Label for No-Op keys (XXXXXXX).
-pub const DEFAULT_NO_OP: &str = "XXXXXXX";
-/// Label for Transparent keys (_______).
-pub const DEFAULT_TRANSPARENT: &str = "_______";
-
-// --- Default Values (Search) ---
-
-/// Default number of search epochs.
-pub const DEFAULT_SEARCH_EPOCHS: usize = 10_000;
-/// Default number of search steps per epoch.
-pub const DEFAULT_SEARCH_STEPS: usize = 100_000;
-/// Default search patience.
-pub const DEFAULT_SEARCH_PATIENCE: usize = 500;
-/// Default search patience threshold.
-pub const DEFAULT_SEARCH_PATIENCE_THRESHOLD: f32 = 0.1;
-/// Default minimum temperature.
-pub const DEFAULT_TEMP_MIN: f32 = 0.005;
-/// Default maximum temperature.
-pub const DEFAULT_TEMP_MAX: f32 = 20.0;
-/// Default fast-path optimization limit.
-pub const DEFAULT_OPT_LIMIT_FAST: usize = 100;
-/// Default slow-path optimization limit.
-pub const DEFAULT_OPT_LIMIT_SLOW: usize = 1500;
-/// Default number of reheats.
-pub const DEFAULT_REHEATS: usize = 3;
-/// Default reheat factor.
-pub const DEFAULT_REHEAT_FACTOR: f32 = 0.5;
-
-// --- Default Values (Scoring) ---
-
-/// Default penalty for Same Finger Repeat on a weak finger.
-pub const DEFAULT_PENALTY_SFR_WEAK_FINGER: f32 = 20.0;
-/// Default penalty for Same Finger Repeat involving a bad row jump.
-pub const DEFAULT_PENALTY_SFR_BAD_ROW: f32 = 25.0;
-/// Default penalty for lateral Same Finger Repeat.
-pub const DEFAULT_PENALTY_SFR_LAT: f32 = 40.0;
-/// Default penalty for lateral Same Finger Bigram.
-pub const DEFAULT_PENALTY_SFB_LATERAL: f32 = 65.0;
-/// Default penalty for lateral SFB on a weak finger.
-pub const DEFAULT_PENALTY_SFB_LATERAL_WEAK: f32 = 160.0;
-/// Default base penalty for any Same Finger Bigram.
-pub const DEFAULT_PENALTY_SFB_BASE: f32 = 400.0;
-/// Default additional penalty for outward rolling SFBs.
-pub const DEFAULT_PENALTY_SFB_OUTWARD_ADDER: f32 = 10.0;
-/// Default penalty for diagonal SFBs.
-pub const DEFAULT_PENALTY_SFB_DIAGONAL: f32 = 240.0;
-/// Default penalty for long-distance SFBs.
-pub const DEFAULT_PENALTY_SFB_LONG: f32 = 280.0;
-/// Default penalty for bottom-row SFBs.
-pub const DEFAULT_PENALTY_SFB_BOTTOM: f32 = 45.0;
-/// Default multiplier for SFBs on weak fingers.
-pub const DEFAULT_WEIGHT_WEAK_FINGER_SFB: f32 = 2.7;
-
-/// Default row difference threshold for "long" SFBs.
-pub const DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF: i8 = 2;
-/// Default row difference threshold for scissors.
-pub const DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF: i8 = 2;
-/// Default distance threshold for reach stretches.
-pub const DEFAULT_THRESHOLD_REACH_STRETCH: f32 = 1.2;
-
-/// Default penalty for scissor (adjacent finger stretch) movements.
-pub const DEFAULT_PENALTY_SCISSOR: f32 = 25.0;
-/// Default penalty for ring-pinky interactions.
-pub const DEFAULT_PENALTY_RING_PINKY: f32 = 1.3;
-/// Default penalty for lateral movement.
-pub const DEFAULT_PENALTY_LATERAL: f32 = 50.0;
-/// Default penalty for single-key stretches.
-pub const DEFAULT_PENALTY_MONOGRAM_STRETCH: f32 = 20.0;
-/// Default penalty for skipping a key (hurdle).
-pub const DEFAULT_PENALTY_SKIP: f32 = 20.0;
-/// Default penalty for redirecting flow (e.g., Left -> Right -> Left).
-pub const DEFAULT_PENALTY_REDIRECT: f32 = 65.0;
-/// Default penalty for excessive hand alternation runs.
-pub const DEFAULT_PENALTY_HAND_RUN: f32 = 5.0;
-/// Default bonus (negative cost) for inward rolls.
-pub const DEFAULT_BONUS_INWARD_ROLL: f32 = 40.0;
-/// Default bonus for specific bigram inward rolls.
-pub const DEFAULT_BONUS_BIGRAM_ROLL_IN: f32 = 35.0;
-/// Default bonus for specific bigram outward rolls.
-pub const DEFAULT_BONUS_BIGRAM_ROLL_OUT: f32 = 25.0;
-/// Default penalty for high-frequency keys in medium slots.
-pub const DEFAULT_PENALTY_HIGH_IN_MED: f32 = 12.0;
-/// Default penalty for high-frequency keys in low slots.
-pub const DEFAULT_PENALTY_HIGH_IN_LOW: f32 = 20.0;
-/// Default penalty for medium-frequency keys in prime slots.
-pub const DEFAULT_PENALTY_MED_IN_PRIME: f32 = 2.0;
-/// Default penalty for medium-frequency keys in low slots.
-pub const DEFAULT_PENALTY_MED_IN_LOW: f32 = 2.0;
-/// Default penalty for low-frequency keys in prime slots.
-pub const DEFAULT_PENALTY_LOW_IN_PRIME: f32 = 15.0;
-/// Default penalty for low-frequency keys in medium slots.
-pub const DEFAULT_PENALTY_LOW_IN_MED: f32 = 2.0;
-/// Default penalty for hand imbalance.
-pub const DEFAULT_PENALTY_IMBALANCE: f32 = 200.0;
-/// Default maximum allowed hand imbalance ratio.
-pub const DEFAULT_MAX_HAND_IMBALANCE: f32 = 0.55;
-/// Default weight multiplier for vertical travel distance.
-pub const DEFAULT_WEIGHT_VERTICAL_TRAVEL: f32 = 1.0;
-/// Default weight multiplier for lateral travel distance.
-pub const DEFAULT_WEIGHT_LATERAL_TRAVEL: f32 = 3.5;
-/// Default weight multiplier for finger effort.
-pub const DEFAULT_WEIGHT_FINGER_EFFORT: f32 = 2.2;
-
-/// Default cost in milliseconds (if using time-based scoring).
-pub const DEFAULT_COST_MS: f32 = 120.0;
-/// Default limit on the number of trigrams to load.
-pub const DEFAULT_LOADER_TRIGRAM_LIMIT: usize = 3000;
-/// Default required trigram coverage.
-pub const DEFAULT_TRIGRAM_COVERAGE: f32 = 0.99;

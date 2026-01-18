@@ -1,0 +1,336 @@
+// libs/keyforge-model/src/config/weights.rs
+
+use crate::config::metadata::{ParamType, ParameterMetadata};
+use crate::validator::Validator;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
+
+
+// --- Default Values (Scoring) ---
+
+/// Maximum safe weight value to prevent overflow.
+pub const MAX_SAFE_WEIGHT: f32 = 100_000_000.0;
+/// Maximum number of trigrams to load from corpus.
+pub const MAX_LOADER_TRIGRAM_LIMIT: usize = 50_000;
+
+/// Default penalty for Same Finger Repeat on a weak finger.
+pub const DEFAULT_PENALTY_SFR_WEAK_FINGER: f32 = 20.0;
+/// Default penalty for Same Finger Repeat involving a bad row jump.
+pub const DEFAULT_PENALTY_SFR_BAD_ROW: f32 = 25.0;
+/// Default penalty for lateral Same Finger Repeat.
+pub const DEFAULT_PENALTY_SFR_LAT: f32 = 40.0;
+/// Default penalty for lateral Same Finger Bigram.
+pub const DEFAULT_PENALTY_SFB_LATERAL: f32 = 65.0;
+/// Default penalty for lateral SFB on a weak finger.
+pub const DEFAULT_PENALTY_SFB_LATERAL_WEAK: f32 = 160.0;
+/// Default base penalty for any Same Finger Bigram.
+pub const DEFAULT_PENALTY_SFB_BASE: f32 = 400.0;
+/// Default additional penalty for outward rolling SFBs.
+pub const DEFAULT_PENALTY_SFB_OUTWARD_ADDER: f32 = 10.0;
+/// Default penalty for diagonal SFBs.
+pub const DEFAULT_PENALTY_SFB_DIAGONAL: f32 = 240.0;
+/// Default penalty for long-distance SFBs.
+pub const DEFAULT_PENALTY_SFB_LONG: f32 = 280.0;
+/// Default penalty for bottom-row SFBs.
+pub const DEFAULT_PENALTY_SFB_BOTTOM: f32 = 45.0;
+/// Default multiplier for SFBs on weak fingers.
+pub const DEFAULT_WEIGHT_WEAK_FINGER_SFB: f32 = 2.7;
+
+/// Default row difference threshold for "long" SFBs.
+pub const DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF: i8 = 2;
+/// Default row difference threshold for scissors.
+pub const DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF: i8 = 2;
+/// Default distance threshold for reach stretches.
+pub const DEFAULT_THRESHOLD_REACH_STRETCH: f32 = 1.2;
+
+/// Default penalty for scissor (adjacent finger stretch) movements.
+pub const DEFAULT_PENALTY_SCISSOR: f32 = 25.0;
+/// Default penalty for ring-pinky interactions.
+pub const DEFAULT_PENALTY_RING_PINKY: f32 = 1.3;
+/// Default penalty for lateral movement.
+pub const DEFAULT_PENALTY_LATERAL: f32 = 50.0;
+/// Default penalty for single-key stretches.
+pub const DEFAULT_PENALTY_MONOGRAM_STRETCH: f32 = 20.0;
+/// Default penalty for skipping a key (hurdle).
+pub const DEFAULT_PENALTY_SKIP: f32 = 20.0;
+/// Default penalty for redirecting flow (e.g., Left -> Right -> Left).
+pub const DEFAULT_PENALTY_REDIRECT: f32 = 65.0;
+/// Default penalty for excessive hand alternation runs.
+pub const DEFAULT_PENALTY_HAND_RUN: f32 = 5.0;
+/// Default bonus (negative cost) for inward rolls.
+pub const DEFAULT_BONUS_INWARD_ROLL: f32 = 40.0;
+/// Default bonus for specific bigram inward rolls.
+pub const DEFAULT_BONUS_BIGRAM_ROLL_IN: f32 = 35.0;
+/// Default bonus for specific bigram outward rolls.
+pub const DEFAULT_BONUS_BIGRAM_ROLL_OUT: f32 = 25.0;
+/// Default penalty for high-frequency keys in medium slots.
+pub const DEFAULT_PENALTY_HIGH_IN_MED: f32 = 12.0;
+/// Default penalty for high-frequency keys in low slots.
+pub const DEFAULT_PENALTY_HIGH_IN_LOW: f32 = 20.0;
+/// Default penalty for medium-frequency keys in prime slots.
+pub const DEFAULT_PENALTY_MED_IN_PRIME: f32 = 2.0;
+/// Default penalty for medium-frequency keys in low slots.
+pub const DEFAULT_PENALTY_MED_IN_LOW: f32 = 2.0;
+/// Default penalty for low-frequency keys in prime slots.
+pub const DEFAULT_PENALTY_LOW_IN_PRIME: f32 = 15.0;
+/// Default penalty for low-frequency keys in medium slots.
+pub const DEFAULT_PENALTY_LOW_IN_MED: f32 = 2.0;
+
+/// Default penalty for hand imbalance.
+pub const DEFAULT_PENALTY_IMBALANCE: f32 = 200.0;
+/// Default maximum allowed hand imbalance ratio.
+pub const DEFAULT_MAX_HAND_IMBALANCE: f32 = 0.55;
+/// Default weight multiplier for vertical travel distance.
+pub const DEFAULT_WEIGHT_VERTICAL_TRAVEL: f32 = 1.0;
+/// Default weight multiplier for lateral travel distance.
+pub const DEFAULT_WEIGHT_LATERAL_TRAVEL: f32 = 3.5;
+/// Default weight multiplier for finger effort.
+pub const DEFAULT_WEIGHT_FINGER_EFFORT: f32 = 2.2;
+
+/// Default cost in milliseconds (if using time-based scoring).
+pub const DEFAULT_COST_MS: f32 = 120.0;
+/// Default limit on the number of trigrams to load.
+pub const DEFAULT_LOADER_TRIGRAM_LIMIT: usize = 3000;
+/// Default required trigram coverage.
+pub const DEFAULT_TRIGRAM_COVERAGE: f32 = 0.99;
+
+/// Default scale factors for finger penalties as an array.
+pub const DEFAULT_FINGER_PENALTY_SCALE_ARRAY: [f32; 5] = [0.0, 1.0, 1.1, 1.3, 1.6];
+/// Default comfortable scissor pairs (Indices).
+pub const DEFAULT_COMFORTABLE_SCISSORS: &str = "21,23,34";
+
+
+/// Weights and penalties defining the "personality" of the scoring engine.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(default)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct ScoringWeights {
+    /// Dynamic weights map.
+    #[serde(flatten)]
+    pub weights: std::collections::HashMap<String, f32>,
+
+    /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
+    pub finger_penalty_scale: [f32; 5],
+    /// Comma-separated list of comfortable scissor pairs.
+    pub comfortable_scissors: String,
+}
+
+impl Default for ScoringWeights {
+    fn default() -> Self {
+        let mut weights = std::collections::HashMap::new();
+        
+        weights.insert("penalty_sfr_weak_finger".to_string(), DEFAULT_PENALTY_SFR_WEAK_FINGER);
+        weights.insert("penalty_sfr_bad_row".to_string(), DEFAULT_PENALTY_SFR_BAD_ROW);
+        weights.insert("penalty_sfr_lat".to_string(), DEFAULT_PENALTY_SFR_LAT);
+        weights.insert("penalty_sfb_lateral".to_string(), DEFAULT_PENALTY_SFB_LATERAL);
+        weights.insert("penalty_sfb_lateral_weak".to_string(), DEFAULT_PENALTY_SFB_LATERAL_WEAK);
+        weights.insert("penalty_sfb_base".to_string(), DEFAULT_PENALTY_SFB_BASE);
+        weights.insert("penalty_sfb_outward_adder".to_string(), DEFAULT_PENALTY_SFB_OUTWARD_ADDER);
+        weights.insert("penalty_sfb_diagonal".to_string(), DEFAULT_PENALTY_SFB_DIAGONAL);
+        weights.insert("penalty_sfb_long".to_string(), DEFAULT_PENALTY_SFB_LONG);
+        weights.insert("penalty_sfb_bottom".to_string(), DEFAULT_PENALTY_SFB_BOTTOM);
+        weights.insert("weight_weak_finger_sfb".to_string(), DEFAULT_WEIGHT_WEAK_FINGER_SFB);
+        weights.insert("threshold_sfb_long_row_diff".to_string(), DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF as f32);
+        weights.insert("threshold_scissor_row_diff".to_string(), DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF as f32);
+        weights.insert("threshold_reach_stretch".to_string(), DEFAULT_THRESHOLD_REACH_STRETCH);
+        weights.insert("penalty_scissor".to_string(), DEFAULT_PENALTY_SCISSOR);
+        weights.insert("penalty_ring_pinky".to_string(), DEFAULT_PENALTY_RING_PINKY);
+        weights.insert("penalty_lateral".to_string(), DEFAULT_PENALTY_LATERAL);
+        weights.insert("penalty_monogram_stretch".to_string(), DEFAULT_PENALTY_MONOGRAM_STRETCH);
+        weights.insert("penalty_skip".to_string(), DEFAULT_PENALTY_SKIP);
+        weights.insert("penalty_redirect".to_string(), DEFAULT_PENALTY_REDIRECT);
+        weights.insert("penalty_hand_run".to_string(), DEFAULT_PENALTY_HAND_RUN);
+        weights.insert("bonus_inward_roll".to_string(), DEFAULT_BONUS_INWARD_ROLL);
+        weights.insert("bonus_bigram_roll_in".to_string(), DEFAULT_BONUS_BIGRAM_ROLL_IN);
+        weights.insert("bonus_bigram_roll_out".to_string(), DEFAULT_BONUS_BIGRAM_ROLL_OUT);
+        weights.insert("penalty_high_in_med".to_string(), DEFAULT_PENALTY_HIGH_IN_MED);
+        weights.insert("penalty_high_in_low".to_string(), DEFAULT_PENALTY_HIGH_IN_LOW);
+        weights.insert("penalty_med_in_prime".to_string(), DEFAULT_PENALTY_MED_IN_PRIME);
+        weights.insert("penalty_med_in_low".to_string(), DEFAULT_PENALTY_MED_IN_LOW);
+        weights.insert("penalty_low_in_prime".to_string(), DEFAULT_PENALTY_LOW_IN_PRIME);
+        weights.insert("penalty_low_in_med".to_string(), DEFAULT_PENALTY_LOW_IN_MED);
+        weights.insert("penalty_imbalance".to_string(), DEFAULT_PENALTY_IMBALANCE);
+        weights.insert("max_hand_imbalance".to_string(), DEFAULT_MAX_HAND_IMBALANCE);
+        weights.insert("weight_vertical_travel".to_string(), DEFAULT_WEIGHT_VERTICAL_TRAVEL);
+        weights.insert("weight_lateral_travel".to_string(), DEFAULT_WEIGHT_LATERAL_TRAVEL);
+        weights.insert("weight_finger_effort".to_string(), DEFAULT_WEIGHT_FINGER_EFFORT);
+        weights.insert("default_cost_ms".to_string(), DEFAULT_COST_MS);
+        weights.insert("loader_trigram_limit".to_string(), DEFAULT_LOADER_TRIGRAM_LIMIT as f32);
+        weights.insert("trigram_coverage".to_string(), DEFAULT_TRIGRAM_COVERAGE);
+
+        Self {
+            weights,
+            finger_penalty_scale: DEFAULT_FINGER_PENALTY_SCALE_ARRAY,
+            comfortable_scissors: DEFAULT_COMFORTABLE_SCISSORS.to_string(),
+        }
+    }
+}
+
+impl Validator for ScoringWeights {
+    fn validate(&self) -> Result<(), String> {
+        if let Some(&limit) = self.weights.get("loader_trigram_limit") {
+             if limit as usize > MAX_LOADER_TRIGRAM_LIMIT {
+                 return Err(format!("loader_trigram_limit exceeds safety maximum ({})", MAX_LOADER_TRIGRAM_LIMIT));
+             }
+        }
+        
+        if self.get_penalty_sfb_base() < 0.0 || self.get_penalty_scissor() < 0.0 {
+            return Err("Penalties cannot be negative".to_string());
+        }
+        if self.get_penalty_sfb_base() > MAX_SAFE_WEIGHT || self.get_penalty_scissor() > MAX_SAFE_WEIGHT {
+            return Err(format!("Weights cannot exceed {:.0}", MAX_SAFE_WEIGHT));
+        }
+        for (i, &w) in self.finger_penalty_scale.iter().enumerate() {
+            if w < 0.0 { return Err(format!("finger_penalty_scale[{}] cannot be negative", i)); }
+        }
+        Ok(())
+    }
+}
+
+impl ScoringWeights {
+    /// Returns the schema for scoring weights.
+    pub fn schema() -> Vec<ParameterMetadata> {
+        vec![
+            ParameterMetadata {
+                key: "penalty_sfb_base".to_string(),
+                label: "SFB Base Penalty".to_string(),
+                description: "Basic cost for any Same Finger Bigram.".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.0),
+                max: Some(MAX_SAFE_WEIGHT),
+                default: DEFAULT_PENALTY_SFB_BASE,
+            },
+            ParameterMetadata {
+                key: "penalty_scissor".to_string(),
+                label: "Scissor Penalty".to_string(),
+                description: "Penalty for adjacent finger stretches.".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.0),
+                max: Some(MAX_SAFE_WEIGHT),
+                default: DEFAULT_PENALTY_SCISSOR,
+            },
+            ParameterMetadata {
+                key: "weight_vertical_travel".to_string(),
+                label: "Vertical Travel Weight".to_string(),
+                description: "Multiplier for finger movement distance.".to_string(),
+                param_type: ParamType::Float,
+                min: Some(0.0),
+                max: Some(10.0),
+                default: DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+            },
+        ]
+    }
+
+    /// Retrieves a weight by key, falling back to a default value if not found.
+    pub fn get_weight(&self, key: &str, default: f32) -> f32 {
+        self.weights.get(key).copied().unwrap_or(default)
+    }
+
+    /// Gets the penalty for Same Finger Repeat on a weak finger.
+    pub fn get_penalty_sfr_weak_finger(&self) -> f32 { self.get_weight("penalty_sfr_weak_finger", DEFAULT_PENALTY_SFR_WEAK_FINGER) }
+    /// Gets the penalty for Same Finger Repeat involving a bad row jump.
+    pub fn get_penalty_sfr_bad_row(&self) -> f32 { self.get_weight("penalty_sfr_bad_row", DEFAULT_PENALTY_SFR_BAD_ROW) }
+    /// Gets the penalty for lateral Same Finger Repeat.
+    pub fn get_penalty_sfr_lat(&self) -> f32 { self.get_weight("penalty_sfr_lat", DEFAULT_PENALTY_SFR_LAT) }
+    /// Gets the penalty for lateral Same Finger Bigram.
+    pub fn get_penalty_sfb_lateral(&self) -> f32 { self.get_weight("penalty_sfb_lateral", DEFAULT_PENALTY_SFB_LATERAL) }
+    /// Gets the penalty for lateral SFB on a weak finger.
+    pub fn get_penalty_sfb_lateral_weak(&self) -> f32 { self.get_weight("penalty_sfb_lateral_weak", DEFAULT_PENALTY_SFB_LATERAL_WEAK) }
+    /// Gets the base penalty for any Same Finger Bigram.
+    pub fn get_penalty_sfb_base(&self) -> f32 { self.get_weight("penalty_sfb_base", DEFAULT_PENALTY_SFB_BASE) }
+    /// Gets the additional penalty for outward rolling SFBs.
+    pub fn get_penalty_sfb_outward_adder(&self) -> f32 { self.get_weight("penalty_sfb_outward_adder", DEFAULT_PENALTY_SFB_OUTWARD_ADDER) }
+    /// Gets the penalty for diagonal SFBs.
+    pub fn get_penalty_sfb_diagonal(&self) -> f32 { self.get_weight("penalty_sfb_diagonal", DEFAULT_PENALTY_SFB_DIAGONAL) }
+    /// Gets the penalty for long-distance SFBs.
+    pub fn get_penalty_sfb_long(&self) -> f32 { self.get_weight("penalty_sfb_long", DEFAULT_PENALTY_SFB_LONG) }
+    /// Gets the penalty for bottom-row SFBs.
+    pub fn get_penalty_sfb_bottom(&self) -> f32 { self.get_weight("penalty_sfb_bottom", DEFAULT_PENALTY_SFB_BOTTOM) }
+    /// Gets the multiplier for SFBs on weak fingers.
+    pub fn get_weight_weak_finger_sfb(&self) -> f32 { self.get_weight("weight_weak_finger_sfb", DEFAULT_WEIGHT_WEAK_FINGER_SFB) }
+    
+    /// Gets the row difference threshold for "long" SFBs.
+    pub fn get_threshold_sfb_long_row_diff(&self) -> i8 { self.get_weight("threshold_sfb_long_row_diff", DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF as f32) as i8 }
+    /// Gets the row difference threshold for scissors.
+    pub fn get_threshold_scissor_row_diff(&self) -> i8 { self.get_weight("threshold_scissor_row_diff", DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF as f32) as i8 }
+    /// Gets the distance threshold for reach stretches.
+    pub fn get_threshold_reach_stretch(&self) -> f32 { self.get_weight("threshold_reach_stretch", DEFAULT_THRESHOLD_REACH_STRETCH) }
+    
+    /// Gets the penalty for scissor (adjacent finger stretch) movements.
+    pub fn get_penalty_scissor(&self) -> f32 { self.get_weight("penalty_scissor", DEFAULT_PENALTY_SCISSOR) }
+    /// Gets the penalty for ring-pinky interactions.
+    pub fn get_penalty_ring_pinky(&self) -> f32 { self.get_weight("penalty_ring_pinky", DEFAULT_PENALTY_RING_PINKY) }
+    /// Gets the penalty for lateral movement.
+    pub fn get_penalty_lateral(&self) -> f32 { self.get_weight("penalty_lateral", DEFAULT_PENALTY_LATERAL) }
+    /// Gets the penalty for single-key stretches.
+    pub fn get_penalty_monogram_stretch(&self) -> f32 { self.get_weight("penalty_monogram_stretch", DEFAULT_PENALTY_MONOGRAM_STRETCH) }
+    /// Gets the penalty for skipping a key (hurdle).
+    pub fn get_penalty_skip(&self) -> f32 { self.get_weight("penalty_skip", DEFAULT_PENALTY_SKIP) }
+    /// Gets the penalty for redirecting flow (e.g., Left -> Right -> Left).
+    pub fn get_penalty_redirect(&self) -> f32 { self.get_weight("penalty_redirect", DEFAULT_PENALTY_REDIRECT) }
+    /// Gets the penalty for excessive hand alternation runs.
+    pub fn get_penalty_hand_run(&self) -> f32 { self.get_weight("penalty_hand_run", DEFAULT_PENALTY_HAND_RUN) }
+    /// Gets the bonus (negative cost) for inward rolls.
+    pub fn get_bonus_inward_roll(&self) -> f32 { self.get_weight("bonus_inward_roll", DEFAULT_BONUS_INWARD_ROLL) }
+    /// Gets the bonus for specific bigram inward rolls.
+    pub fn get_bonus_bigram_roll_in(&self) -> f32 { self.get_weight("bonus_bigram_roll_in", DEFAULT_BONUS_BIGRAM_ROLL_IN) }
+    /// Gets the bonus for specific bigram outward rolls.
+    pub fn get_bonus_bigram_roll_out(&self) -> f32 { self.get_weight("bonus_bigram_roll_out", DEFAULT_BONUS_BIGRAM_ROLL_OUT) }
+    
+    /// Gets the penalty for high-frequency keys in medium slots.
+    pub fn get_penalty_high_in_med(&self) -> f32 { self.get_weight("penalty_high_in_med", DEFAULT_PENALTY_HIGH_IN_MED) }
+    /// Gets the penalty for high-frequency keys in low slots.
+    pub fn get_penalty_high_in_low(&self) -> f32 { self.get_weight("penalty_high_in_low", DEFAULT_PENALTY_HIGH_IN_LOW) }
+    /// Gets the penalty for medium-frequency keys in prime slots.
+    pub fn get_penalty_med_in_prime(&self) -> f32 { self.get_weight("penalty_med_in_prime", DEFAULT_PENALTY_MED_IN_PRIME) }
+    /// Gets the penalty for medium-frequency keys in low slots.
+    pub fn get_penalty_med_in_low(&self) -> f32 { self.get_weight("penalty_med_in_low", DEFAULT_PENALTY_MED_IN_LOW) }
+    /// Gets the penalty for low-frequency keys in prime slots.
+    pub fn get_penalty_low_in_prime(&self) -> f32 { self.get_weight("penalty_low_in_prime", DEFAULT_PENALTY_LOW_IN_PRIME) }
+    /// Gets the penalty for low-frequency keys in medium slots.
+    pub fn get_penalty_low_in_med(&self) -> f32 { self.get_weight("penalty_low_in_med", DEFAULT_PENALTY_LOW_IN_MED) }
+    
+    /// Gets the penalty for hand imbalance.
+    pub fn get_penalty_imbalance(&self) -> f32 { self.get_weight("penalty_imbalance", DEFAULT_PENALTY_IMBALANCE) }
+    /// Gets the maximum allowed hand imbalance ratio.
+    pub fn get_max_hand_imbalance(&self) -> f32 { self.get_weight("max_hand_imbalance", DEFAULT_MAX_HAND_IMBALANCE) }
+    
+    /// Gets the weight multiplier for vertical travel distance.
+    pub fn get_weight_vertical_travel(&self) -> f32 { self.get_weight("weight_vertical_travel", DEFAULT_WEIGHT_VERTICAL_TRAVEL) }
+    /// Gets the weight multiplier for lateral travel distance.
+    pub fn get_weight_lateral_travel(&self) -> f32 { self.get_weight("weight_lateral_travel", DEFAULT_WEIGHT_LATERAL_TRAVEL) }
+    /// Gets the weight multiplier for finger effort.
+    pub fn get_weight_finger_effort(&self) -> f32 { self.get_weight("weight_finger_effort", DEFAULT_WEIGHT_FINGER_EFFORT) }
+    
+    /// Gets the default cost in milliseconds (if using time-based scoring).
+    pub fn get_default_cost_ms(&self) -> f32 { self.get_weight("default_cost_ms", DEFAULT_COST_MS) }
+    /// Gets the limit on the number of trigrams to load.
+    pub fn get_loader_trigram_limit(&self) -> usize { self.get_weight("loader_trigram_limit", DEFAULT_LOADER_TRIGRAM_LIMIT as f32) as usize }
+    /// Gets the required trigram coverage.
+    pub fn get_trigram_coverage(&self) -> f32 { self.get_weight("trigram_coverage", DEFAULT_TRIGRAM_COVERAGE) }
+
+    /// Returns the finger penalty scale array.
+    pub fn get_finger_penalty_scale(&self) -> [f32; 5] {
+        self.finger_penalty_scale
+    }
+    /// Calculates the allowed deviation from perfect hand balance.
+    pub fn allowed_hand_balance_deviation(&self) -> f32 {
+        (self.get_max_hand_imbalance() - 0.5).max(0.0)
+    }
+    /// Parses the comfortable scissors string into a list of pairs.
+    pub fn get_comfortable_scissors(&self) -> Vec<(u8, u8)> {
+        let mut pairs = Vec::new();
+        for s in self.comfortable_scissors.split(',') {
+            let s = s.trim();
+            if s.len() == 2 {
+                let bytes = s.as_bytes();
+                if bytes[0] >= b'0' && bytes[1] >= b'0' {
+                    pairs.push((bytes[0] - b'0', bytes[1] - b'0'));
+                }
+            }
+        }
+        pairs
+    }
+}

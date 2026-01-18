@@ -15,7 +15,9 @@
 
 use clap::Args;
 use keyforge_model::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
-use keyforge_model::constants::*;
+use keyforge_model::config::definitions::*;
+use keyforge_model::config::search::*;
+use keyforge_model::config::weights::*;
 
 /// Top-level configuration arguments combining search, weights, and definitions.
 #[derive(Args, Debug, Clone)]

@@ -219,13 +219,27 @@ impl Compiler {
         let corpus_out = corpus_stage.execute(())?;
 
         // Stage 4: Key Pre-computation (New for task-phys-011)
-        let mut sorted_unique_keys = Vec::new();
-        // Collect all keys present in the corpus (monograms)
+        let mut unique_keys_set = std::collections::HashSet::new();
+        
+        // Collect from monograms
         for (i, &freq) in corpus_out.char_freqs.iter().enumerate() {
-            if freq > 0 {
-                sorted_unique_keys.push(i as u16);
-            }
+            if freq > 0 { unique_keys_set.insert(i as u16); }
         }
+        
+        // Collect from Bigrams
+        for &(c1, c2, _) in &corpus.bigrams {
+            unique_keys_set.insert(c1);
+            unique_keys_set.insert(c2);
+        }
+
+        // Collect from Trigrams
+        for &(c1, c2, c3, _) in &corpus.trigrams {
+            unique_keys_set.insert(c1);
+            unique_keys_set.insert(c2);
+            unique_keys_set.insert(c3);
+        }
+
+        let mut sorted_unique_keys: Vec<u16> = unique_keys_set.into_iter().collect();
         sorted_unique_keys.sort_unstable();
         
         let mut key_rank_map = HashMap::with_capacity(sorted_unique_keys.len());

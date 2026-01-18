@@ -111,6 +111,7 @@ impl ScoringEngine {
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
+        let mut current_offsets = [0u8; 65536];
         
         let pm = kernel::compute::PosMap::from_scratch(
             layout,
@@ -118,8 +119,8 @@ impl ScoringEngine {
             &mut starts,
             &mut counts,
             &mut indices,
+            &mut current_offsets,
             &self.ctx.sorted_unique_keys,
-            &self.ctx.key_rank_map,
         );
         
         Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b))

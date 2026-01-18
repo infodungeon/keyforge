@@ -43,8 +43,8 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
         &mut scratch.starts,
         &mut scratch.counts,
         &mut scratch.indices,
+        &mut scratch.current_offsets,
         &ctx.sorted_unique_keys,
-        &ctx.key_rank_map,
     );
 
     for i in 0..len {
