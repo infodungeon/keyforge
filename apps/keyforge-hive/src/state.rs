@@ -104,14 +104,8 @@ impl AppState {
         
         let monitor = Arc::new(SystemMonitor::new());
 
-        let monitor_clone = monitor.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(DEFAULT_MONITOR_INTERVAL_SECS));
-            loop {
-                interval.tick().await;
-                monitor_clone.refresh().await;
-            }
-        });
+        // Task-hive-014: Optimized background refresh
+        monitor.clone().start_background_refresh(DEFAULT_MONITOR_INTERVAL_SECS);
 
         let jobs = Arc::new(JobManager::new(job_repo.clone(), queue.clone()));
         let engine_cache = Arc::new(CompiledEngineCache::new());
