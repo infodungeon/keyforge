@@ -43,13 +43,19 @@ impl PathResolver {
     #[must_use] 
     pub fn resolve_direct_path(&self, name: &str) -> Option<PathBuf> {
         let p = PathBuf::from(name);
-        if p.is_absolute() {
-            return self.safe_join(name).ok().filter(|p| p.exists());
+        
+        // 1. Absolute paths: If it exists, trust the caller provided a direct path
+        if p.is_absolute() && p.exists() {
+            return Some(p);
         }
-        if name.starts_with("./") || name.starts_with("../") {
-            return self.safe_join(name).ok().filter(|p| p.exists());
+
+        // 2. Explicit relative paths (./ or ../): Resolve relative to process CWD
+        if (name.starts_with("./") || name.starts_with("../")) && p.exists() {
+            return Some(p);
         }
-        None
+
+        // 3. Fallback: Resolve relative to workspace root (sandboxed via safe_join)
+        self.safe_join(name).ok().filter(|p| p.exists())
     }
 
     /// Joins a user-provided path with the root, ensuring it stays within the root directory.

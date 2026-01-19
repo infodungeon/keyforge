@@ -29,7 +29,7 @@ pub struct FmtArgs {
     pub width: usize,
 }
 
-pub fn run(args: FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(args: &FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let kc_path = root.join(ASSET_KEYCODES_FILENAME);
     let registry = if kc_path.exists() {
         load_keycode_registry(&kc_path).unwrap_or_else(|_| KeycodeRegistry::new_with_defaults())

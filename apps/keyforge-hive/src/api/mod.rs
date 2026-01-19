@@ -60,6 +60,7 @@ pub fn auth_routes() -> Router<Arc<AppState>> {
             .finish()
             .unwrap_or_else(|| {
                 tracing::error!("Failed to initialize auth governor, using fallback");
+                #[allow(clippy::expect_used)]
                 GovernorConfigBuilder::default().finish().expect("fallback governor must be valid")
             }),
     );

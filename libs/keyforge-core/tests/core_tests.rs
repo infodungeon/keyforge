@@ -228,6 +228,6 @@ fn test_optimize_with_engine() {
         include_thumbs: false,
     };
 
-    let result = optimize_with_engine(engine_arc, &config, TestCallback, None, None).unwrap();
+    let result = optimize_with_engine(&engine_arc, &config, TestCallback, None, None).unwrap();
     assert!(result.score.is_finite());
 }

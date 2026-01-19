@@ -17,11 +17,9 @@ use axum::{extract::State, Json};
 use keyforge_model::Validator;
 use keyforge_protocol::{ResultSubmission, PROTOCOL_VERSION};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::oneshot;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-use crate::infra::queue::DbEvent;
+use crate::infra::queue::PersistedRecord;
 use crate::config::DEFAULT_SUBMISSION_EXPIRATION_SECS;
 
 /// VSA Feature: Submit Result
@@ -33,55 +31,34 @@ use crate::config::DEFAULT_SUBMISSION_EXPIRATION_SECS;
     request_body = ResultSubmission,
     responses(
         (status = 200, description = "Result accepted"),
-        (status = 400, description = "Invalid submission")
+        (status = 400, description = "Invalid result signature or score")
     ),
     tag = "results"
 )]
-/// Handles the submission of an optimization result from a compute node.
+/// Handles a result submission from a worker node.
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<ResultSubmission>,
-) -> AppResult<String> {
-    process_submission(&state, payload).await
+) -> AppResult<Json<()>> {
+    validate_submission(&state, &payload).await?;
+    persist_result(&state, payload).await?;
+    Ok(Json(()))
 }
 
-/// Orchestrates the result submission flow: validation, cryptographic verification, and persistent storage.
-async fn process_submission(state: &AppState, payload: ResultSubmission) -> AppResult<String> {
-    // Stage 1: Validation
-    payload.validate().map_err(AppError::Validation)?;
-    validate_submission(state, &payload).await?;
-
-    // Stage 2: Verification (Domain Logic)
-    state.verification.verify_submission(&payload).await?;
-
-    // Stage 3: Persistence (Via Queue)
-    persist_result(state, payload).await?;
-
-    state.jobs.active_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-    state.jobs.completed_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
-    state.monitor.record_op();
-
-    Ok("Accepted".to_string())
-}
-
-/// Performs technical validation of the submission, including protocol consistency and replay protection.
+/// Validates the submission protocol, signature, score, and replay protection.
 async fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResult<()> {
-    // Protocol Check
     if payload.version != PROTOCOL_VERSION {
-        return Err(AppError::Validation("Protocol Mismatch".into()));
+        return Err(AppError::Validation(format!(
+            "Protocol Mismatch. Server: v{}, Client: v{}",
+            PROTOCOL_VERSION, payload.version
+        )));
     }
 
-    // Expiration Check
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    if now.abs_diff(payload.timestamp) > DEFAULT_SUBMISSION_EXPIRATION_SECS {
-        return Err(AppError::Validation("Submission expired".into()));
-    }
+    payload.validate().map_err(AppError::Validation)?;
+    state.verification.verify_submission(payload).await?;
 
     // Replay Protection (Task-hive-009: Use Valkey for distributed safety)
+    #[allow(clippy::cast_possible_wrap)]
     let is_new = state.coordinator.check_and_set_nonce(
         &payload.node_id, 
         payload.nonce, 
@@ -97,18 +74,16 @@ async fn validate_submission(state: &AppState, payload: &ResultSubmission) -> Ap
 
 /// Pushes the verified result to the background write queue for durable persistence.
 async fn persist_result(state: &AppState, payload: ResultSubmission) -> AppResult<()> {
-    let (tx, rx) = oneshot::channel();
     state
         .queue
-        .push(DbEvent::Result {
-            job_id: payload.job_id.clone(),
-            layout: payload.layout.clone(),
+        .push(PersistedRecord {
+            job_id: payload.job_id,
+            layout: payload.layout,
             score: payload.score,
-            node_id: payload.node_id.clone(),
-            ack: Some(tx),
+            node_id: payload.node_id,
         })
-        .await;
+        .await
+        .map_err(|e| AppError::Any(anyhow::anyhow!("Persistence failed: {e}")))?;
 
-    rx.await.map_err(|_| AppError::Any(anyhow::anyhow!("Persistence failed")))?;
     Ok(())
 }

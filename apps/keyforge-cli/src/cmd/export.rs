@@ -13,7 +13,6 @@
 // limitations under the License.
 
 
-use crate::cli_parsers::resolve_path;
 use clap::{Args, Subcommand, ValueEnum};
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::io::read_to_string_limited;
@@ -62,21 +61,18 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
         } => {
             eprintln!("💾 Exporting '{layout}' to {format:?}...");
 
-            let path = resolve_path(&keyboard, Some("keyboards"), root)?;
+            let path = root.join(keyboard);
 
             let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
-                .map_err(|e| format!("Failed to read keyboard file {path:?}: {e}"))?;
+                .map_err(|e| format!("Failed to read keyboard file {}: {e}", path.display()))?;
 
             let def: KeyboardDefinition = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse keyboard JSON: {e}"))?;
 
-            let layout_str = match def.layouts.get(&layout) {
-                Some(s) => s,
-                None => {
-                    return Err(
-                        format!("Layout '{layout}' not found in keyboard definition.").into(),
-                    )
-                }
+            let Some(layout_str) = def.layouts.get(&layout) else {
+                return Err(
+                    format!("Layout '{layout}' not found in keyboard definition.").into(),
+                )
             };
 
             let keys: Vec<String> = layout_str
@@ -96,7 +92,7 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
                 }
                 for (i, key) in geom.keys.iter_mut().enumerate() {
                     if let Some(legend) = keys.get(i) {
-                        key.label = legend.clone();
+                        key.label.clone_from(legend);
                     }
                 }
                 to_kle_json(&geom)?
@@ -113,12 +109,13 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
             if let Some(out_path) = output {
                 if out_path.exists() {
                     eprintln!(
-                        "⚠️  Warning: Output file {out_path:?} already exists. Overwriting..."
+                        "⚠️  Warning: Output file {} already exists. Overwriting...",
+                        out_path.display()
                     );
                 }
                 fs::write(&out_path, code)
-                    .map_err(|e| format!("Failed to write export to {out_path:?}: {e}"))?;
-                eprintln!("✅ Exported to {out_path:?}");
+                    .map_err(|e| format!("Failed to write export to {}: {e}", out_path.display()))?;
+                eprintln!("✅ Exported to {}", out_path.display());
             } else {
                 println!("{code}");
             }

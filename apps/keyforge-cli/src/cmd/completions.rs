@@ -24,7 +24,7 @@ pub struct CompletionsArgs {
     pub shell: Shell,
 }
 
-pub fn run(args: CompletionsArgs) {
+pub fn run(args: &CompletionsArgs) {
     let mut cmd = crate::Cli::command();
     let name = cmd.get_name().to_string();
     generate(args.shell, &mut cmd, name, &mut io::stdout());

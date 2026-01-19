@@ -18,6 +18,7 @@
 //! The central coordination server for `KeyForge`. This crate implements the 
 //! API server, job queue, and result aggregation logic.
 #![allow(clippy::missing_errors_doc)]
+#![allow(clippy::needless_for_each)]
 
 use axum::{
     extract::{ConnectInfo, Request, State},

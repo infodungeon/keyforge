@@ -27,14 +27,33 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
     eprintln!("🩺 KeyForge Doctor");
     eprintln!("========================================");
 
-    // 0. Build Info
+    print_build_info();
+    print_system_info();
+    print_toolchain_info();
+    print_cpu_info();
+    
+    let workspace_ok = check_workspace_integrity(root);
+    let hive_ok = check_hive_connectivity().await;
+
+    eprintln!("\n========================================");
+    if workspace_ok && hive_ok {
+        eprintln!("✅ All systems operational.");
+    } else {
+        eprintln!("⚠️  Issues detected. Please check the output above.");
+    }
+
+    Ok(())
+}
+
+fn print_build_info() {
     let (git_hash, build_date) = keyforge_infra::get_build_info();
     eprintln!("🏷️  Version");
     eprintln!("   Build Hash:  {git_hash}");
     eprintln!("   Build Date:  {build_date}");
     eprintln!();
+}
 
-    // 1. System Check
+fn print_system_info() {
     let mut sys = System::new_all();
     sys.refresh_all();
 
@@ -46,16 +65,18 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
     eprintln!("🖥️  System");
     eprintln!("   OS:       {os} {os_ver}");
     eprintln!("   Memory:   {mem_used} / {mem_total} MB");
+}
 
-    // 1b. Toolchain Check
+fn print_toolchain_info() {
     eprintln!("\n🛠️  Toolchain");
     check_tool("rustc");
     check_tool("cargo");
     check_tool("node");
     check_tool("npm");
     check_tool("keyforge-agent"); // [Fixed] Check for sidecar binary
+}
 
-    // 2. CPU Capabilities
+fn print_cpu_info() {
     eprintln!("\n⚡ Processor");
     let cpu_count = num_cpus::get();
     eprintln!("   Cores:    {cpu_count}");
@@ -72,10 +93,11 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
     {
         eprintln!("   Arch:     Non-x86 (Standard Mode)");
     }
+}
 
-    // 3. Workspace Integrity
+fn check_workspace_integrity(root: &Path) -> bool {
     eprintln!("\n📂 Workspace");
-    eprintln!("   Root:     {root:?}");
+    eprintln!("   Root:     {}", root.display());
 
     let required = [
         ("system/keyboards", true),
@@ -101,76 +123,62 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
                 );
                 all_good = false;
             }
-        } else {
+        } else if !std::path::Path::new(item)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("age")) {
             eprintln!("   ❌ Missing: {item}");
             all_good = false;
+        } else {
+            eprintln!("   ℹ️ Optional: {item} (used for signed remote jobs)");
         }
     }
+    all_good
+}
 
-    // 4. Write Permissions
-    let test_file = root.join(".write_test");
-    if test_file.exists() {
-        eprintln!("   ⚠️  Warning: .write_test already exists, skipping write check.");
-    } else {
-        match std::fs::write(&test_file, "test") {
-            Ok(()) => {
-                eprintln!("   ✅ Write Access: OK");
-                let _ = std::fs::remove_file(test_file);
+async fn check_hive_connectivity() -> bool {
+    eprintln!("\n📡 Network");
+    let hive_url = std::env::var("KEYFORGE_HIVE_URL").unwrap_or_else(|_| DEFAULT_HIVE_URL.to_string());
+    eprintln!("   Hive:     {hive_url}");
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build();
+
+    if let Ok(c) = client {
+        match c.get(format!("{hive_url}/health")).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                eprintln!("   ✅ Connection: OK");
+                true
+            }
+            Ok(resp) => {
+                eprintln!("   ❌ Connection: Failed (HTTP {})", resp.status());
+                false
             }
             Err(e) => {
-                eprintln!("   ❌ Write Access: FAILED ({e})");
-                all_good = false;
+                eprintln!("   ❌ Connection: Error ({e})");
+                false
             }
         }
-    }
-
-    // 5. Hive API Connectivity
-    eprintln!("\n🐝 Hive API");
-    let hive_url = std::env::var("KEYFORGE_HIVE_URL").unwrap_or_else(|_| DEFAULT_HIVE_URL.to_string());
-    
-    // [Fixed] Async Client
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()?;
-    
-    match client.get(format!("{hive_url}/health")).send().await {
-        Ok(res) => {
-            if res.status().is_success() {
-                eprintln!("   ✅ Reachability: OK ({hive_url})");
-            } else {
-                eprintln!("   ❌ Reachability: FAILED (Status: {})", res.status());
-                all_good = false;
-            }
-        }
-        Err(e) => {
-            eprintln!("   ⚠️  Reachability: FAILED ({e}) - Is Hive running?");
-        }
-    }
-
-    eprintln!("\n========================================");
-    if all_good {
-        eprintln!("✨ System Healthy. Ready to Forge.");
-        Ok(())
     } else {
-        Err("Issues detected. Run 'keyforge init' to repair workspace.".into())
+        eprintln!("   ❌ HTTP Client Error");
+        false
     }
 }
 
 fn check_tool(name: &str) {
-    match std::process::Command::new(name)
-        .arg("--version")
-        .output()
-    {
+    let output = std::process::Command::new(name).arg("--version").output();
+
+    match output {
         Ok(out) => {
             let ver = String::from_utf8_lossy(&out.stdout)
-                .split_whitespace()
-                .nth(1)
+                .lines()
+                .next()
                 .unwrap_or("?")
                 .to_string();
-            eprintln!("   ✅ {name:<15} {ver}");
+            eprintln!("   ✅ {name:<12} {ver}");
         }
         Err(_) => {
-            eprintln!("   ❌ {name:<15} Not Found (Sidecar Required)");
+            eprintln!("   ❌ {name:<12} Not found in PATH");
         }
     }
 }

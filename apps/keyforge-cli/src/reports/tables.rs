@@ -62,6 +62,7 @@ pub fn comparisons(
 ) {
     if !results.is_empty() {
         // [Fixed] Safe float comparison
+        #[allow(clippy::expect_used)]
         let best = results
             .iter()
             .min_by(|a, b| {
@@ -76,7 +77,7 @@ pub fn comparisons(
                     }
                 })
             })
-            .unwrap(); // Results checked for !empty above
+            .expect("Results confirmed non-empty"); 
             
         let best_score = best.1.score;
 

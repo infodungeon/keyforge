@@ -249,6 +249,7 @@ pub async fn cmd_start_search(
 }
 
 #[tauri::command]
-pub fn cmd_stop_search(search_state: &tauri::State<'_, SearchState>) {
+#[allow(clippy::needless_pass_by_value)]
+pub fn cmd_stop_search(search_state: tauri::State<'_, SearchState>) {
     search_state.stop_flag.store(true, Ordering::SeqCst);
 }

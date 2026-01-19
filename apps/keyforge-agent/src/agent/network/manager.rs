@@ -54,7 +54,7 @@ impl NetworkManager {
 
         let outbox = ResultOutbox::new(
             hive_client, 
-            config.data_dir.clone(), 
+            &config.data_dir, 
             config.network.circuit_breaker_threshold,
             config.network.circuit_breaker_cooldown
         );
@@ -64,14 +64,10 @@ impl NetworkManager {
 
     pub async fn run(mut self) {
         let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds); 
-        loop {
-            if let Err(e) = self.connect_and_loop().await {
-                error!("🔌 Connection Lost: {}. Retrying in {:?}...", e, backoff);
-                tokio::time::sleep(backoff).await;
-                backoff = (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
-            } else {
-                break;
-            }
+        while let Err(e) = self.connect_and_loop().await {
+            error!("🔌 Connection Lost: {}. Retrying in {:?}...", e, backoff);
+            tokio::time::sleep(backoff).await;
+            backoff = (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
         }
     }
 

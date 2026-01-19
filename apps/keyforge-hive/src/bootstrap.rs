@@ -56,8 +56,8 @@ impl HiveBootstrapConfig {
     /// Loads the bootstrap configuration from the specified TOML file.
     pub fn load(path: &Path) -> Result<Self, String> {
         let raw = std::fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read bootstrap config {path:?}: {e}"))?;
+            .map_err(|e| format!("Failed to read bootstrap config {}: {e}", path.display()))?;
         toml::from_str(&raw)
-            .map_err(|e| format!("Failed to parse bootstrap config {path:?}: {e}"))
+            .map_err(|e| format!("Failed to parse bootstrap config {}: {e}", path.display()))
     }
 }

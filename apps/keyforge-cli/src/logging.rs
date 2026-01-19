@@ -13,8 +13,11 @@
 // limitations under the License.
 
 
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
 
 pub fn init_tracing() {
     // Set global propagator for context propagation
@@ -34,7 +37,6 @@ pub fn init_tracing() {
                 .with_batch_exporter(exporter)
                 .build();
 
-            use opentelemetry::trace::TracerProvider;
             let tracer = provider.tracer("keyforge-cli");
 
             let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);

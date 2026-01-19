@@ -18,7 +18,7 @@ use keyforge_protocol::{JobRequest, ResultSubmission};
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum HiveCommand {
-    RegisterJob(JobRequest),
+    RegisterJob(Box<JobRequest>),
     CancelJob(String),
     SubmitResult(ResultSubmission),
     RegisterNode {

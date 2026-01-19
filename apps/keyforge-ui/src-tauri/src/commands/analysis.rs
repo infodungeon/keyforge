@@ -23,6 +23,7 @@ pub struct CorpusStats {
 
 /// Lists all available corpora in the application's data directory.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))
@@ -30,6 +31,7 @@ pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
 
 /// Returns detailed statistics for all available corpora.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_get_corpus_stats(app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     let ids = listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))?;
@@ -57,8 +59,9 @@ pub fn cmd_get_corpus_stats(app: AppHandle) -> Result<Vec<CorpusStats>, CommandE
     Ok(stats)
 }
 
-/// Lists all available cost matrices in the application's data directory.
+/// Lists all available cost matrices.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_cost_matrices(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     listing::list_cost_matrices(&root).map_err(|e| CommandError::Internal(e.to_string()))

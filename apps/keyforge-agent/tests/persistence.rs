@@ -25,7 +25,7 @@ async fn test_wal_persistence_on_failure() {
         asset_url: "http://localhost:1".into(),
         ..Default::default()
     }).unwrap();
-    let outbox = ResultOutbox::new(client, data_root.clone(), 10, 60);
+    let outbox = ResultOutbox::new(client, &data_root, 10, 60);
 
     let submission = ResultSubmission {
         version: 1,

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 
+use std::convert::TryFrom;
 use crate::cli_parsers::resolve_path;
 use clap::Args;
 use keyforge_infra::fs::io::read_to_string_limited;
@@ -61,7 +62,6 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&domain_corpora);
     let constraints = args.shared.pinned_keys;
 
-    use std::convert::TryFrom;
     let config = keyforge_model::config::Config::try_from(args.config)?;
     config.search.validate()?;
     config.weights.validate()?;

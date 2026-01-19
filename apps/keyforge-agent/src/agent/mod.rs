@@ -60,6 +60,7 @@ impl Agent {
         })
     }
 
+    #[allow(clippy::too_many_lines)]
     pub async fn run(
         &self, 
         mut job_rx: mpsc::Receiver<(String, JobConfig)>,
@@ -75,7 +76,7 @@ impl Agent {
         loop {
             tokio::select! {
                 msg = job_rx.recv() => {
-                    let (job_id, job) = if let Some(j) = msg { j } else {
+                    let Some((job_id, job)) = msg else {
                         info!("Job queue closed. Exiting agent loop.");
                         break Ok(());
                     };
@@ -97,10 +98,7 @@ impl Agent {
                     let permits_needed = 1; 
 
                     tokio::spawn(async move {
-                        let _permit = match semaphore.acquire_many(permits_needed).await {
-                            Ok(p) => p,
-                            Err(_) => return,
-                        };
+                        let Ok(_permit) = semaphore.acquire_many(permits_needed).await else { return };
 
                         info!("🚀 Starting Job {} (Acquired resources)", job_id);
                         telemetry.set_job_id(&job_id);

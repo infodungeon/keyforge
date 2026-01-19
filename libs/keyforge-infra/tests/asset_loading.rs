@@ -10,6 +10,7 @@
 use keyforge_infra::FsProvider;
 use keyforge_core::loader::AssetLoader;
 use keyforge_model::error::ForgeError;
+use keyforge_model::KeyboardDefinition;
 use std::fs;
 
 #[tokio::test]
@@ -32,7 +33,7 @@ async fn test_load_valid_user_keyboard() {
     fs::write(kb_dir.join("test_kb.json"), json).unwrap();
 
     let provider = FsProvider::new(temp.path().to_path_buf());
-    let kb = provider.load_keyboard("test_kb").await.expect("Should load valid json");
+    let kb = provider.load::<KeyboardDefinition>("test_kb").await.expect("Should load valid json");
     
     assert_eq!(kb.meta.name, "Test Board");
     assert_eq!(kb.geometry.keys.len(), 1);
@@ -58,7 +59,7 @@ async fn test_load_invalid_keyboard_fails_validation() {
     fs::write(kb_dir.join("bad.json"), json).unwrap();
 
     let provider = FsProvider::new(temp.path().to_path_buf());
-    let res = provider.load_keyboard("bad").await;
+    let res = provider.load::<KeyboardDefinition>("bad").await;
     
     match res {
         Err(ForgeError::InvalidData(msg)) => assert!(msg.contains("at least one key")),

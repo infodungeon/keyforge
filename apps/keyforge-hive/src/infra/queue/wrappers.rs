@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tracing::{error, warn};
@@ -26,7 +26,7 @@ pub struct DeadLetterQueue {
 
 impl DeadLetterQueue {
     #[must_use] 
-    pub fn new(data_path: PathBuf) -> Self {
+    pub fn new(data_path: &Path) -> Self {
         Self { path: data_path.join("user/dlq") }
     }
 

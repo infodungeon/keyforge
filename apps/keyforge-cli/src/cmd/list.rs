@@ -50,7 +50,7 @@ pub enum ListCommands {
 pub async fn run(args: ListArgs, loader: &FsProvider) -> Result<(), Box<dyn std::error::Error>> {
     match args.command {
         ListCommands::Keyboards { limit } => list_keyboards(loader, limit).await,
-        ListCommands::Corpora { limit } => list_corpora(loader, limit).await,
+        ListCommands::Corpora { limit } => list_corpora(loader, limit),
         ListCommands::Layouts { keyboard } => list_layouts(loader, &keyboard).await,
     }
 }
@@ -83,7 +83,7 @@ async fn list_keyboards(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn
     Ok(())
 }
 
-async fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
+fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
     let mut table = Table::new();
     apply_style(&mut table);
     table.set_header(vec!["Category", "ID", "Size (1-grams)"]);
@@ -109,6 +109,7 @@ async fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn s
             .map(|m| m.len())
             .unwrap_or(0);
 
+        #[allow(clippy::cast_precision_loss)]
         table.add_row(vec![
             cat.to_string(),
             name.to_string(),

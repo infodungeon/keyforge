@@ -31,13 +31,13 @@ pub struct ProfileArgs {
     pub output: PathBuf,
 }
 
-pub fn run(args: ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(args: &ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🧬 Generating Biometric Profile...");
-    eprintln!("   Input:  {:?}", args.input);
-    eprintln!("   Output: {:?}", args.output);
+    eprintln!("   Input:  {}", args.input.display());
+    eprintln!("   Output: {}", args.output.display());
 
     if !args.input.exists() {
-        return Err(format!("Input file not found: {:?}", args.input).into());
+        return Err(format!("Input file not found: {}", args.input.display()).into());
     }
 
     let file = File::open(&args.input).map_err(|e| format!("Failed to open input file: {e}"))?;

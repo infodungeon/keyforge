@@ -71,7 +71,7 @@ pub async fn detect_topology() -> Result<CpuCacheTopology, AgentError> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        detect_x86_caches(&mut topo)?;
+        detect_x86_caches(&mut topo);
     }
 
     #[cfg(target_os = "macos")]
@@ -120,7 +120,7 @@ pub fn get_compile_features() -> &'static [&'static str] {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-fn detect_x86_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
+fn detect_x86_caches(topo: &mut CpuCacheTopology) {
     use raw_cpuid::{CacheType, CpuId};
     let cpuid = CpuId::new();
     if let Some(caches) = cpuid.get_cache_parameters() {
@@ -143,7 +143,6 @@ fn detect_x86_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
             }
         }
     }
-    Ok(())
 }
 
 #[cfg(target_os = "macos")]

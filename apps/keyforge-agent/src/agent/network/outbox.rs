@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{info, warn, error, debug};
 use keyforge_infra::HiveClient;
 use keyforge_protocol::ResultSubmission;
@@ -15,7 +15,7 @@ pub struct ResultOutbox {
 
 impl ResultOutbox {
     #[must_use] 
-    pub fn new(client: HiveClient, data_root: PathBuf, threshold: u32, cooldown_secs: u64) -> Self {
+    pub fn new(client: HiveClient, data_root: &Path, threshold: u32, cooldown_secs: u64) -> Self {
         let wal_dir = data_root.join("user/agent_wal");
         let dead_letter_dir = data_root.join("user/dead_letter");
         std::fs::create_dir_all(&wal_dir).ok();

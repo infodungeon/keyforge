@@ -94,7 +94,7 @@ impl AssetCache {
         let kb_size = std::env::var("CACHE_KB_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_KB_CACHE_CAPACITY);
         let cp_size = std::env::var("CACHE_CORPUS_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_CORPUS_CACHE_CAPACITY);
         let cost_size = std::env::var("CACHE_COST_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_COST_CACHE_CAPACITY);
-        let kc_size = std::env::var("CACHE_KEYCODE_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_KEYCODE_CACHE_CAPACITY);
+        let keycode_cache_size = std::env::var("CACHE_KEYCODE_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_KEYCODE_CACHE_CAPACITY);
 
         Self {
             provider: FsProvider::new(root),
@@ -102,7 +102,7 @@ impl AssetCache {
             keyboards: Cache::builder().max_capacity(kb_size as u64).build(),
             corpora: Cache::builder().max_capacity(cp_size as u64).build(),
             cost_models: Cache::builder().max_capacity(cost_size as u64).build(),
-            keycodes: Cache::builder().max_capacity(kc_size as u64).build(),
+            keycodes: Cache::builder().max_capacity(keycode_cache_size as u64).build(),
         }
     }
 

@@ -20,7 +20,7 @@ pub struct InitArgs {
 
 pub async fn run(args: InitArgs) -> Result<(), CliError> {
     let root = args.path.join(DEFAULT_DATA_DIR);
-    eprintln!("🚀 Initializing KeyForge Workspace at {root:?}");
+    eprintln!("🚀 Initializing KeyForge Workspace at {}", root.display());
 
     for d in USER_WORKSPACE_DIRS {
         ensure_dir(&root, d)

@@ -86,7 +86,7 @@ enum Commands {
 async fn shutdown_signal(state: Arc<AppState>) {
     tokio::signal::ctrl_c().await.ok();
     info!("🛑 Signal received, initiating graceful shutdown...");
-    state.queue.shutdown().await;
+    state.queue.shutdown();
     info!("👋 Shutdown complete.");
 }
 
@@ -98,10 +98,11 @@ async fn shutdown_signal_axum(handle: axum_server::Handle<SocketAddr>, state: Ar
     // Stop accepting new connections, wait up to DEFAULT_SHUTDOWN_TIMEOUT_SECS
     handle.graceful_shutdown(Some(Duration::from_secs(DEFAULT_SHUTDOWN_TIMEOUT_SECS)));
     // Flush the WriteQueue
-    state.queue.shutdown().await;
+    state.queue.shutdown();
     info!("👋 Shutdown complete.");
 }
 
+#[allow(clippy::too_many_lines)]
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
@@ -235,7 +236,13 @@ async fn main() {
                 }
             } else {
                 info!("🚀 Hive listening on {} (HTTP Mode)", addr);
-                let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+                let listener = match tokio::net::TcpListener::bind(addr).await {
+                    Ok(l) => l,
+                    Err(e) => {
+                        error!("FATAL: Failed to bind to {}: {}", addr, e);
+                        std::process::exit(1);
+                    }
+                };
                 
                 if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
                     .with_graceful_shutdown(shutdown_signal(state.clone()))

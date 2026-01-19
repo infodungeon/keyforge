@@ -50,6 +50,7 @@ pub async fn get_system_status(
     // Local OPS (Server-side verification throughput)
     // let ops_per_sec = state.monitor.get_ops_per_sec();
 
+    #[allow(clippy::cast_possible_wrap)]
     let active_jobs = state.jobs.active_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
     
     // FETCH DISTRIBUTED STATS (Valkey)
@@ -59,12 +60,14 @@ pub async fn get_system_status(
         .await
         .unwrap_or((0, 0.0));
     
+    #[allow(clippy::cast_possible_wrap)]
     let total_results = state.jobs.completed_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
 
     let metrics = SystemMetrics {
         uptime_secs: uptime,
         active_jobs,
         total_results,
+        #[allow(clippy::cast_possible_wrap)]
         nodes_online: nodes_online as i64,
         total_ops_per_sec, // Cluster-wide OPS
         server_memory_used: ram,

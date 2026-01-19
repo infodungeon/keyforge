@@ -284,7 +284,7 @@ mod tests {
         let (kb, cp, rb, cm) = setup_env();
         let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &cm).unwrap());
         let config = SearchConfig::Annealing { steps: 10, start_temp: 10.0, end_temp: 1.0, seed: 123, patience: 100, reheats: 0, reheat_factor: 1.0, include_thumbs: false };
-        let result = evolve(engine, &config, NoOpCallback, None, None).unwrap();
+        let result = evolve(&engine, &config, NoOpCallback, None, None).unwrap();
         assert!(result.score >= 0.0);
     }
 

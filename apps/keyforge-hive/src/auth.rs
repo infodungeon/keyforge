@@ -44,7 +44,7 @@ pub async fn require_secret(
         .get("X-Keyforge-Secret")
         .and_then(|h| h.to_str().ok());
 
-    let token = if let Some(t) = auth_header { t } else {
+    let Some(token) = auth_header else {
         warn!("⛔ Auth Failed: Missing Header from {:?}", req.uri());
         return Err(StatusCode::UNAUTHORIZED);
     };

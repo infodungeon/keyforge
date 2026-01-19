@@ -31,6 +31,7 @@ pub async fn cmd_get_keycodes(
 
 /// Retrieves UI category metadata from local configuration files.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_get_ui_categories(
     app: AppHandle,
     _state: tauri::State<'_, SessionState>,

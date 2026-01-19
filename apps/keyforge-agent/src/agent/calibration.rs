@@ -50,9 +50,17 @@ fn default_cost_model() -> CostModel {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
+    #[allow(clippy::unwrap_used)]
     serde_json::from_str(json).unwrap()
 }
 
+/// # Errors
+///
+/// Returns an error if asset loading, keyboard parsing, or benchmarking fails.
+///
+/// # Panics
+///
+/// Panics if JSON serialization of calibration data fails (should never happen with valid data).
 pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let cal_path = data_root.join("user/calibration.json");
 
@@ -84,7 +92,7 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
         info!("Skipping hardware calibration (duration_ms=0)");
         1_000_000.0
     } else {
-        run_benchmark(keyboard, config)?
+        run_benchmark(&keyboard, config)?
     };
 
     let data = CalibrationData {
@@ -97,6 +105,7 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
         tokio::fs::create_dir_all(parent).await.map_err(|e| AgentError::Resource(e.to_string()))?;
     }
 
+    #[allow(clippy::unwrap_used)]
     let json = serde_json::to_string(&data).unwrap();
     tokio::fs::write(&cal_path, json).await.map_err(|e| AgentError::Resource(e.to_string()))?;
 
@@ -104,7 +113,9 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
     Ok(ips)
 }
 
-fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+#[allow(clippy::needless_borrow)]
+fn run_benchmark(keyboard: &Keyboard, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
@@ -139,11 +150,13 @@ fn run_benchmark(keyboard: Keyboard, config: &crate::models::CalibrationConfig) 
     Ok(iterations as f64 / elapsed)
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let mut keys = Vec::with_capacity(config.key_count);
     for i in 0..config.key_count {
         keys.push(keyforge_model::geometry::KeyNode {
             index: i,
+            #[allow(clippy::cast_precision_loss)]
             x: i as f32,
             y: 0.0,
             ..Default::default()

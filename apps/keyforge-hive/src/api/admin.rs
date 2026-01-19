@@ -75,6 +75,7 @@ pub async fn get_admin_stats(
     Ok(Json(AdminStatsResponse {
         active_jobs,
         total_results,
+        #[allow(clippy::cast_possible_wrap)]
         nodes_online: nodes_online as i64,
         total_ops_per_sec,
         queue_depth,

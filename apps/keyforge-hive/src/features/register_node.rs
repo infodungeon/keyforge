@@ -136,6 +136,7 @@ fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
 /// Calculates an optimized tuning profile for a node based on its hardware specs.
 fn calculate_tuning_profile(payload: &NodeRequest) -> TuningProfile {
     let strategy = if let Some(l2) = payload.l2_cache_kb {
+        #[allow(clippy::cast_possible_wrap)]
         if l2 >= TUNING_L2_CACHE_THRESHOLD as i32 { "table" } else { "fly" }
     } else {
         "fly"
@@ -146,6 +147,7 @@ fn calculate_tuning_profile(payload: &NodeRequest) -> TuningProfile {
     } else {
         TUNING_BATCH_SIZE_SMALL
     };
+    #[allow(clippy::cast_sign_loss)]
     let thread_count = (payload.cores - 1).max(1) as usize;
 
     TuningProfile {

@@ -116,6 +116,7 @@ pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
 pub async fn init_db(db_url: &str) -> PgPool {
     match try_init_db(db_url).await {
         Ok(p) => p,
+        #[allow(clippy::panic)]
         Err(e) => panic!("DB init failed: {e}"),
     }
 }

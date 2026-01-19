@@ -83,7 +83,7 @@ async fn main() -> Result<()> {
         match PartialAgentConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
-                eprintln!("Failed to load config file {config_path:?}: {e}");
+                eprintln!("Failed to load config file {}: {e}", config_path.display());
                 std::process::exit(1);
             }
         }
@@ -102,7 +102,7 @@ async fn main() -> Result<()> {
         _ => keyforge_agent::logging::LogMode::JsonStderr,
     };
     
-    keyforge_agent::logging::init_tracing(&config.logging.default_filter, log_mode);
+    keyforge_agent::logging::init_tracing(&config.logging.default_filter, &log_mode);
 
     match command {
         Commands::Worker => {

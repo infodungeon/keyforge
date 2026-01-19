@@ -15,6 +15,7 @@ use tauri::AppHandle;
 
 /// Lists all available keyboard geometries in the workspace.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     listing::list_keyboards(&root).map_err(|e| CommandError::Internal(e.to_string()))
@@ -22,6 +23,7 @@ pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
 
 /// Lists all available keymap extra assets.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_keymap_extras(app: AppHandle) -> Result<Vec<String>, CommandError> {
     let root = get_data_dir(&app).map_err(CommandError::Config)?;
     listing::list_keymap_extras(&root).map_err(|e| CommandError::Internal(e.to_string()))
@@ -37,6 +39,7 @@ pub async fn cmd_get_loaded_layouts(
 
 /// Retrieves the geometry definition for a specific keyboard.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub async fn cmd_get_keyboard_geometry(
     _app: AppHandle,
     state: tauri::State<'_, SessionState>,
@@ -51,6 +54,7 @@ pub async fn cmd_get_keyboard_geometry(
 }
 
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 /// Retrieves all layouts (both system and user) for a specific keyboard.
 pub async fn cmd_get_all_layouts_scoped(
     app: AppHandle,
@@ -69,6 +73,7 @@ pub async fn cmd_get_all_layouts_scoped(
 
 /// Saves a custom user layout to the local repository.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_save_user_layout(
     app: AppHandle,
     keyboard_id: String,
@@ -82,6 +87,7 @@ pub fn cmd_save_user_layout(
 }
 
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 /// Deletes a custom user layout from the local repository.
 pub fn cmd_delete_user_layout(
     app: AppHandle,
@@ -132,8 +138,8 @@ pub async fn cmd_submit_user_layout(
 
 #[tauri::command]
 /// Parses a Keyboard Layout Editor (KLE) JSON string into a `KeyForge` geometry.
-pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
-    let geometry = parse_kle_json(&json).map_err(|e| CommandError::Validation(e.to_string()))?;
+pub fn cmd_parse_kle(json: &str) -> Result<KeyboardDefinition, CommandError> {
+    let geometry = parse_kle_json(json).map_err(|e| CommandError::Validation(e.to_string()))?;
     Ok(KeyboardDefinition {
         meta: KeyboardMeta {
             name: DEFAULT_KEYBOARD_NAME.into(),
@@ -148,12 +154,14 @@ pub fn cmd_parse_kle(json: String) -> Result<KeyboardDefinition, CommandError> {
 }
 
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 /// Exports a `KeyForge` geometry definition to a KLE JSON string.
 pub fn cmd_export_to_kle(def: KeyboardDefinition) -> Result<String, CommandError> {
     to_kle_json(&def.geometry).map_err(|e| CommandError::Validation(e.to_string()))
 }
 
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 /// Saves a keyboard definition file to the application's local keyboard library.
 pub fn cmd_save_keyboard(
     app: AppHandle,
@@ -169,9 +177,9 @@ pub fn cmd_save_keyboard(
 /// Exports a layout to a target firmware format (e.g., QMK, ZMK).
 #[tauri::command]
 pub fn cmd_export_firmware(
-    layout_name: String,
-    layout_str: String,
-    format: String,
+    layout_name: &str,
+    layout_str: &str,
+    format: &str,
 ) -> Result<String, CommandError> {
     let keys: Vec<String> = layout_str
         .split_whitespace()
@@ -186,7 +194,7 @@ pub fn cmd_export_firmware(
     // For now, treat the entire string as a single layer. 
     // Future expansion could involve splitting by a delimiter for multi-layer support.
     exporter
-        .generate(&layout_name, &[keys])
+        .generate(layout_name, &[keys])
         .map_err(|e| CommandError::Internal(e.to_string()))
 }
 
@@ -194,8 +202,8 @@ pub fn cmd_export_firmware(
 /// Writes a file to a specified path after ensuring it resides within a safe directory.
 ///
 /// If `overwrite` is false and the file exists, returns an error.
-pub fn cmd_safe_write_file(path: String, content: String, overwrite: bool) -> Result<(), CommandError> {
-    let p = Path::new(&path);
+pub fn cmd_safe_write_file(path: &str, content: &str, overwrite: bool) -> Result<(), CommandError> {
+    let p = Path::new(path);
     let allowed_exts = ["json", "txt", "c", "h", "keymap", "conf"];
     let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("");
     if !allowed_exts.contains(&ext) {
@@ -211,5 +219,5 @@ pub fn cmd_safe_write_file(path: String, content: String, overwrite: bool) -> Re
         return Err(CommandError::Validation("File already exists".into()));
     }
 
-    std::fs::write(&path, content).map_err(CommandError::Io)
+    std::fs::write(path, content).map_err(CommandError::Io)
 }

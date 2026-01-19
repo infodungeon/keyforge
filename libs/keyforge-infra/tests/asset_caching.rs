@@ -7,6 +7,7 @@
 
 use keyforge_infra::CachingProvider;
 use keyforge_core::loader::AssetLoader;
+use keyforge_model::{KeyboardDefinition, KeycodeRegistry};
 use std::path::PathBuf;
 
 #[tokio::test]
@@ -27,9 +28,9 @@ async fn test_system_warmup() {
     assert!(manifest.unwrap().files.len() > 10, "Manifest too empty");
 
     // 3. Verify Cache Hits (Should be instant/in-memory)
-    let kb = provider.load_keyboard("ansi_104").await;
+    let kb = provider.load::<KeyboardDefinition>("ansi_104").await;
     assert!(kb.is_ok());
     
-    let kc = provider.load_keycodes("keycodes").await;
+    let kc = provider.load::<KeycodeRegistry>("keycodes").await;
     assert!(kc.is_ok(), "Keycodes load failed: {:?}", kc.err());
 }

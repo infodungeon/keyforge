@@ -85,10 +85,13 @@ impl HermeticWorkspace {
     pub fn with_default_assets(self) -> Self {
         // 1. Keycodes
         let keycodes_json = r#"[
-            {"code": 97, "id": "KC_A", "label": "a", "aliases": []},
-            {"code": 98, "id": "KC_B", "label": "b", "aliases": []}
+            {"code": 0, "id": "KC_NO", "label": " ", "aliases": ["NO"]},
+            {"code": 1, "id": "KC_TRNS", "label": "▽", "aliases": ["TRNS"]},
+            {"code": 97, "id": "KC_A", "label": "a", "aliases": ["A"]},
+            {"code": 98, "id": "KC_B", "label": "b", "aliases": ["B"]}
         ]"#;
         self.write_file("user/config/keycodes.json", keycodes_json);
+        self.write_file("system/config/keycodes.json", keycodes_json);
 
         // 2. Cost Matrix
         let cost_json = r#"{

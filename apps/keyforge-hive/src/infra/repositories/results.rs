@@ -157,10 +157,17 @@ impl ResultRepository {
     }
 }
 
-use crate::infra::queue::BatchSink;
+use crate::infra::queue::{BatchSink, PersistedRecord};
 #[async_trait::async_trait]
 impl BatchSink for ResultRepository {
-    async fn insert_batch(&self, items: &[(&str, &str, f32, &str)]) -> Result<(), String> {
-        self.insert_batch(items).await.map_err(|e| e.to_string())
+    async fn save_batch(&self, records: Vec<PersistedRecord>) -> Result<(), String> {
+        let items: Vec<(&str, &str, f32, &str)> = records.iter().map(|r| (
+            r.job_id.as_str(),
+            r.node_id.as_str(),
+            r.score,
+            r.layout.as_str()
+        )).collect();
+        
+        self.insert_batch(&items).await.map_err(|e| e.to_string())
     }
 }

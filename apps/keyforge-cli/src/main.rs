@@ -7,7 +7,24 @@ use keyforge_model::KeyboardDefinition;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::convert::TryFrom;
 use tracing::{error, info, instrument};
+use indicatif::ProgressBar;
+
+struct ProgressBarCallback {
+    stop_flag: Arc<std::sync::atomic::AtomicBool>,
+    pb: ProgressBar,
+    start_time: std::time::Instant,
+}
+
+impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
+    fn on_progress(&self, epoch: usize, score: f32, _layout: &[keyforge_model::KeyCode], ips: f32) -> bool {
+        let elapsed = self.start_time.elapsed().as_secs();
+        self.pb.set_position(elapsed);
+        self.pb.set_message(format!("Epoch {epoch} | Best: {score:.4} | {ips:.0} ips"));
+        !self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
 
 mod cli_args;
 mod cli_parsers;
@@ -72,7 +89,10 @@ async fn run_app() -> Result<(), CliError> {
 
     match &cli.command {
         Commands::Init(args) => { cmd::init::run(args.clone()).await?; return Ok(()); }
-        Commands::Completions(args) => { cmd::completions::run(args.clone()); return Ok(()); }
+        Commands::Completions(args) => {
+            cmd::completions::run(args);
+            return Ok(());
+        }
         Commands::Auth(args) => { cmd::auth::run(args.clone()).await?; return Ok(()); }
         _ => {}
     }
@@ -82,14 +102,14 @@ async fn run_app() -> Result<(), CliError> {
         match keyforge_infra::config::CommonConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
-                error!("Failed to load config file {:?}: {}", config_path, e);
+                error!("Failed to load config file {}: {}", config_path.display(), e);
                 return Err(CliError::Other(format!("Failed to load config: {e}")));
             }
         }
     }
     if let Some(d) = cli.data_dir { config.data_dir = Some(d); }
 
-    let root = resolve_root(config.data_dir)
+    let root = resolve_root(config.data_dir.clone())
         .map_err(|e| CliError::Workspace(format!("Workspace Error: {e}")))?;
 
     info!("🚀 Initializing Asset Loader...");
@@ -97,10 +117,16 @@ async fn run_app() -> Result<(), CliError> {
 
     match &cli.command {
         Commands::Doctor(args) => { cmd::doctor::run(args.clone(), &root).await?; return Ok(()); }
-        Commands::Fmt(args) => { cmd::fmt::run(args.clone(), &root)?; return Ok(()); }
+        Commands::Fmt(args) => {
+            cmd::fmt::run(args, &root)?;
+            return Ok(());
+        }
         Commands::List(args) => { cmd::list::run(args.clone(), &loader).await?; return Ok(()); }
         Commands::Query(args) => { cmd::query::run(args.clone(), &root).await?; return Ok(()); }
-        Commands::Profile(args) => { cmd::profile::run(args.clone())?; return Ok(()); }
+        Commands::Profile(args) => {
+            cmd::profile::run(args)?;
+            return Ok(());
+        }
         Commands::Export(args) => { cmd::export::run(args.clone(), &root)?; return Ok(()); }
         Commands::Fetch(args) => { cmd::fetch::run(args.clone(), &root).await?; return Ok(()); }
         Commands::Debug(args) => { cmd::debug::run(args.clone(), &loader).await?; return Ok(()); }
@@ -112,108 +138,20 @@ async fn run_app() -> Result<(), CliError> {
 
     match cli.command {
         Commands::Search(args) => {
-            let options = keyforge_runner::RunnerOptions {
-                timeout_sec: args.time.unwrap_or(3600),
-                seed: args.seed,
-                threads: args.threads,
-                keycodes_file: "keycodes.json".into(),
-                ..Default::default()
-            };
-            let job = build_job_config(&loader, &args.shared, args.config.clone()).await?;
-            let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
-            
-            let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-            
-            // Task-cli-028: Setup Progress Bar
-            use indicatif::{ProgressBar, ProgressStyle};
-            let pb = ProgressBar::new(options.timeout_sec);
-            pb.set_style(ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len}s ({eta}) {msg}")
-                .unwrap()
-                .progress_chars("#>-"));
-            pb.set_message("Optimizing layout...");
-
-            struct ProgressBarCallback {
-                stop_flag: Arc<std::sync::atomic::AtomicBool>,
-                pb: ProgressBar,
-                start_time: std::time::Instant,
-            }
-
-            impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
-                fn on_progress(&self, epoch: usize, score: f32, _layout: &[keyforge_model::KeyCode], ips: f32) -> bool {
-                    let elapsed = self.start_time.elapsed().as_secs();
-                    self.pb.set_position(elapsed);
-                    self.pb.set_message(format!("Epoch {epoch} | Best: {score:.4} | {ips:.0} ips"));
-                    !self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
-                }
-            }
-
-            let callback = ProgressBarCallback { 
-                stop_flag: stop_flag.clone(), 
-                pb: pb.clone(),
-                start_time: std::time::Instant::now()
-            };
-            
-            let result: keyforge_model::OptimizationResult = keyforge_runner::OptimizationRunner::run(
-                session, 
-                "local-cli".into(), 
-                stop_flag, 
-                callback, 
-                options, 
-                &job
-            ).await?;
-            
-            pb.finish_with_message("Optimization complete.");
-            println!("{}", serde_json::to_string_pretty(&result)?);
+            cmd::search::run(&args, &loader, &config).await?;
+            return Ok(());
         }
         Commands::Validate(args) => {
-            let options = keyforge_runner::RunnerOptions {
-                keycodes_file: "keycodes.json".into(),
-                ..Default::default()
-            };
-            let job = build_job_config(&loader, &args.shared, args.config.clone()).await?;
-            let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
-            
-            let layout_name = args.layout.as_deref().unwrap_or("default");
-            let layout_parsed = if let Some(l_str) = job.definition.layouts.get(layout_name) {
-                keyforge_adapter::conversion::parse_layout_string(l_str, session.engine.key_count(), &session.registry)?
-            } else {
-                keyforge_adapter::conversion::parse_layout_string(layout_name, session.engine.key_count(), &session.registry)?
-            };
-
-            let report = session.engine.analyze(&layout_parsed)?;
-            println!("{}", serde_json::to_string_pretty(&report)?);
+            cmd::validate::run(&args, &loader, &root).await?;
+            return Ok(());
         }
         Commands::Benchmark(args) => {
-            let options = keyforge_runner::RunnerOptions {
-                keycodes_file: "keycodes.json".into(),
-                ..Default::default()
-            };
-            let job = build_job_config(&loader, &args.shared, args.config.clone()).await?;
-            let session = keyforge_runner::OptimizationRunner::prepare_session(&loader, &job, &options).await?;
-            
-            let start = std::time::Instant::now();
-            let mut score_sum = 0.0;
-            let default_layout = keyforge_model::Layout::new_unchecked(vec![keyforge_model::KeyCode(0); session.engine.key_count()]);
-
-            for _ in 0..args.iterations {
-                score_sum += session.engine.score(&default_layout)?;
-            }
-            
-            let duration = start.elapsed();
-            let kops = (args.iterations as f64 / duration.as_secs_f64()) / 1000.0;
-            
-            println!("{}", serde_json::json!({
-                "iterations": args.iterations,
-                "duration_ms": duration.as_millis(),
-                "kops": kops,
-                "checksum": score_sum
-            }));
+            cmd::benchmark::run(&args, &loader).await?;
+            return Ok(());
         }
-        _ => unreachable!("Stateless commands handled above"),
-    }
-    Ok(())
-}
+                _ => unreachable!("Stateless commands handled above"),
+            }
+        }
 
 async fn build_job_config(
     loader: &keyforge_infra::FsProvider,
@@ -234,11 +172,9 @@ async fn build_job_config(
         )?;
         serde_json::from_str(&content)?
     } else {
-        use std::convert::TryFrom;
         keyforge_model::config::Config::try_from(config_args.clone())?.weights
     };
 
-    use std::convert::TryFrom;
     let params = keyforge_model::config::Config::try_from(config_args)?.search;
     let cost_name = shared.cost.clone().unwrap_or_else(|| "default_costmatrix.json".to_string());
 

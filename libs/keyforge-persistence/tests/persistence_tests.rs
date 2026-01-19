@@ -7,15 +7,17 @@ use keyforge_model::cost_model::CostModel;
 use keyforge_model::Corpus;
 use keyforge_persistence::compiler::compile_request;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
+use keyforge_model::Asset;
 use std::sync::Arc;
+use std::any::Any;
 
 #[derive(Debug)]
 struct MockLoader;
 
 #[async_trait::async_trait]
 impl AssetLoader for MockLoader {
-    async fn load_keyboard(&self, _name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
-        Ok(Arc::new(KeyboardDefinition {
+    async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
+        let any_kb = Arc::new(KeyboardDefinition {
             meta: Default::default(),
             geometry: KeyboardGeometry {
                 keys: vec![Default::default()],
@@ -25,26 +27,33 @@ impl AssetLoader for MockLoader {
                 home_row: 0,
             },
             layouts: Default::default(),
-        }))
-    }
+        }) as Arc<dyn Any + Send + Sync>;
 
-    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-        Ok(Arc::new(Corpus::default()))
-    }
+        if let Ok(arc) = any_kb.downcast::<T>() {
+            return Ok(arc);
+        }
 
-    async fn load_cost_model(&self, _filename: &str) -> LoaderResult<Arc<CostModel>> {
-        // Return a minimal valid CostModel
         let json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
             "models": {},
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
         let model: CostModel = serde_json::from_str(json).unwrap();
-        Ok(Arc::new(model))
+        let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
+        if let Ok(arc) = any_model.downcast::<T>() {
+            return Ok(arc);
+        }
+
+        let any_kc = Arc::new(KeycodeRegistry::default()) as Arc<dyn Any + Send + Sync>;
+        if let Ok(arc) = any_kc.downcast::<T>() {
+            return Ok(arc);
+        }
+
+        Err(keyforge_model::error::ForgeError::NotFound(_id.to_string()))
     }
 
-    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-        Ok(Arc::new(KeycodeRegistry::default()))
+    async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
+        Ok(Arc::new(Corpus::default()))
     }
 }
 
@@ -65,11 +74,31 @@ struct FailingLoader {
 
 #[async_trait::async_trait]
 impl AssetLoader for FailingLoader {
-    async fn load_keyboard(&self, _name: &str) -> LoaderResult<Arc<KeyboardDefinition>> {
-        if self.fail_kb {
-            return Err(keyforge_model::error::ForgeError::NotFound("kb".into()));
+    async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
+        let any_kb = Arc::new(KeyboardDefinition::default()) as Arc<dyn Any + Send + Sync>;
+        if let Ok(arc) = any_kb.downcast::<T>() {
+            if self.fail_kb {
+                return Err(keyforge_model::error::ForgeError::NotFound("kb".into()));
+            }
+            return Ok(arc);
         }
-        Ok(Arc::new(KeyboardDefinition::default()))
+
+        let json = r#"{ "meta": { "version": "2.0", "description": "Test", "unit": "pts" }, "models": {}, "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} } }"#;
+        let model: CostModel = serde_json::from_str(json).unwrap();
+        let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
+        if let Ok(arc) = any_model.downcast::<T>() {
+            if self.fail_costs {
+                return Err(keyforge_model::error::ForgeError::NotFound("costs".into()));
+            }
+            return Ok(arc);
+        }
+
+        let any_kc = Arc::new(KeycodeRegistry::default()) as Arc<dyn Any + Send + Sync>;
+        if let Ok(arc) = any_kc.downcast::<T>() {
+            return Ok(arc);
+        }
+
+        Err(keyforge_model::error::ForgeError::NotFound(_id.to_string()))
     }
 
     async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
@@ -77,19 +106,6 @@ impl AssetLoader for FailingLoader {
             return Err(keyforge_model::error::ForgeError::NotFound("corpus".into()));
         }
         Ok(Arc::new(Corpus::default()))
-    }
-
-    async fn load_cost_model(&self, _filename: &str) -> LoaderResult<Arc<CostModel>> {
-        if self.fail_costs {
-            return Err(keyforge_model::error::ForgeError::NotFound("costs".into()));
-        }
-        let json = r#"{ "meta": { "version": "2.0", "description": "Test", "unit": "pts" }, "models": {}, "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} } }"#;
-        let model: CostModel = serde_json::from_str(json).unwrap();
-        Ok(Arc::new(model))
-    }
-
-    async fn load_keycodes(&self, _filename: &str) -> LoaderResult<Arc<KeycodeRegistry>> {
-        Ok(Arc::new(KeycodeRegistry::default()))
     }
 }
 
@@ -99,6 +115,4 @@ async fn test_compile_request_failures() {
 
     let l1 = FailingLoader { fail_kb: true, fail_corpus: false, fail_costs: false };
     assert!(compile_request(&l1, &config, "kb", &[]).await.is_err());
-
-    // Note: compile_request might fail fast, so we test one by one or check error types if needed.
 }

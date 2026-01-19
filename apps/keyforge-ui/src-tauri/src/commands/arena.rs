@@ -59,6 +59,7 @@ pub async fn cmd_get_typing_words(
 
 /// Persists typing session biometric data to the local user repository.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_save_biometrics(
     app: AppHandle,
     samples: Vec<BiometricSample>,
@@ -72,6 +73,7 @@ pub fn cmd_save_biometrics(
 
 /// Loads historical biometric data for the current user.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, String> {
     let data_dir = get_data_dir(&app)?;
     let user_data = UserRepo::new(data_dir);
@@ -80,6 +82,7 @@ pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, Strin
 
 /// Analyzes biometric data to generate a personalized typing profile.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
     let data_dir = get_data_dir(&app)?;
     let user_data = UserRepo::new(data_dir);
@@ -88,6 +91,7 @@ pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
 
 /// Clears all historical biometric data for the current user.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, String> {
     let data_dir = get_data_dir(&app)?;
     let user_data = UserRepo::new(data_dir);
