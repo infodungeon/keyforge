@@ -2,16 +2,16 @@
 
 //! # `KeyForge` UI Backend
 //!
-//! Rust backend for the `KeyForge` Tauri application. This crate handles 
-//! state management, background search workers, and bridges frontend 
+//! Rust backend for the `KeyForge` Tauri application. This crate handles
+//! state management, background search workers, and bridges frontend
 //! requests to core `KeyForge` libraries via Tauri commands.
 
 #![allow(clippy::missing_errors_doc)]
+use keyforge_infra::{initialize_workspace, InitMode};
 pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tokio::sync::RwLock;
-use keyforge_infra::{initialize_workspace, InitMode};
 
 /// Command handlers for Tauri invoke calls.
 pub mod commands;
@@ -19,17 +19,17 @@ pub mod commands;
 pub mod error;
 /// Data models for frontend communication.
 pub mod models;
+/// Agent Runner
+pub mod runner;
 /// Application state management and synchronization.
 pub mod state;
 /// Internal utility functions.
 pub mod utils;
-/// Agent Runner
-pub mod runner;
 
 /// The main entry point for the `KeyForge` UI application.
 ///
 /// This function initializes logging, sets up the Tauri builder, configures
-/// plugins, and establishes the global application state including the 
+/// plugins, and establishes the global application state including the
 /// asset cache and worker coordination.
 ///
 /// # Panics
@@ -44,7 +44,7 @@ pub fn run() {
                 .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, e)))?;
 
             tracing::info!("Initializing workspace at: {:?}", data_dir);
-            
+
             // Self-Healing Initialization
             if let Err(e) = initialize_workspace(&data_dir, InitMode::Create) {
                 tracing::error!("Workspace initialization error: {}", e);
@@ -54,7 +54,7 @@ pub fn run() {
             // Try to bind to 3004 (avoiding 3000-3003 used by Dev Mode stack)
             let provider = Arc::new(keyforge_infra::FsProvider::new(data_dir.clone()));
             let asset_app = keyforge_assets::create_app(provider);
-            
+
             tauri::async_runtime::spawn(async move {
                 // Try a range of ports or specific one
                 let port = 3004;

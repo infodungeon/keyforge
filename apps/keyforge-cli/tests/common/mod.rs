@@ -4,13 +4,13 @@ use std::path::PathBuf;
 pub fn get_binary_path() -> PathBuf {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let mut path = PathBuf::from(manifest_dir);
-    
+
     // Handle running from workspace root vs crate root
     if path.ends_with("keyforge-cli") {
         path.pop();
         path.pop();
     }
-    
+
     path.push("target");
 
     // Check debug first (faster for tests), then release
@@ -18,12 +18,12 @@ pub fn get_binary_path() -> PathBuf {
     if debug_path.exists() {
         return debug_path;
     }
-    
+
     let release_path = path.join("release").join("keyforge-cli");
     if release_path.exists() {
         return release_path;
     }
-    
+
     // Windows fallback
     path.join("debug").join("keyforge-cli.exe")
 }

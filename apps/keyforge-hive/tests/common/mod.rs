@@ -5,11 +5,11 @@ use std::fs;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::{Arc, Once};
-use tokio::net::TcpListener;
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::testcontainers::ContainerAsync;
+use tokio::net::TcpListener;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use walkdir::WalkDir;
 
 pub const TEST_SECRET: &str = "test_secret_123";
@@ -22,8 +22,7 @@ pub fn init_tracing() {
         std::env::set_var("RATE_LIMIT_BURST", "10000");
         std::env::set_var("HIVE_SECRET", TEST_SECRET);
 
-        let filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| "info".into());
+        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
 
         tracing_subscriber::registry()
             .with(fmt::layer().with_test_writer())
@@ -53,7 +52,11 @@ pub fn ensure_test_assets(data_root: &Path) {
     }
 
     if !corpus_dir.join("1grams.json").exists() {
-        fs::write(corpus_dir.join("1grams.json"), r#"[{"char":"a","freq":100}]"#).unwrap();
+        fs::write(
+            corpus_dir.join("1grams.json"),
+            r#"[{"char":"a","freq":100}]"#,
+        )
+        .unwrap();
         fs::write(
             corpus_dir.join("2grams.json"),
             r#"[{"char1":"a","char2":"b","freq":10}]"#,
@@ -95,7 +98,7 @@ pub fn ensure_test_assets(data_root: &Path) {
                     "prime_slots": [0, 1], "med_slots": [], "low_slots": [], "home_row": 0
                 }},
                 "layouts": {{ "default": "KC_A KC_B" }}
-            }}"#, 
+            }}"#,
                 name
             );
             fs::write(path, json).unwrap();
@@ -122,9 +125,13 @@ pub async fn hydrate_test_valkey(state: &Arc<AppState>, root: &Path) {
                 let valkey_key = format!("asset:blob:{}", key_path);
 
                 if let Ok(content) = tokio::fs::read(path).await {
-                    let packed = rmp_serde::to_vec(&serde_json::from_slice::<serde_json::Value>(&content).unwrap()).unwrap();
-                    let compressed = zstd::stream::encode_all(std::io::Cursor::new(packed), 0).unwrap();
-                    
+                    let packed = rmp_serde::to_vec(
+                        &serde_json::from_slice::<serde_json::Value>(&content).unwrap(),
+                    )
+                    .unwrap();
+                    let compressed =
+                        zstd::stream::encode_all(std::io::Cursor::new(packed), 0).unwrap();
+
                     let store_key = if valkey_key.ends_with(".json") {
                         valkey_key.replace(".json", ".mpk.zst")
                     } else {
@@ -138,7 +145,7 @@ pub async fn hydrate_test_valkey(state: &Arc<AppState>, root: &Path) {
                     } else {
                         key_path.clone()
                     };
-                    
+
                     let hash = "test_hash".to_string(); // Mock hash
                     let entry = AssetManifestEntry {
                         id: entry_id,
@@ -154,11 +161,22 @@ pub async fn hydrate_test_valkey(state: &Arc<AppState>, root: &Path) {
 }
 
 /// Sets up the test environment, including a Redis container and a temporary database.
-pub async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, ContainerAsync<Redis>) {
+pub async fn setup_server() -> (
+    String,
+    Arc<AppState>,
+    tempfile::TempDir,
+    ContainerAsync<Redis>,
+) {
     init_tracing();
 
-    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
-    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_node = Redis::default()
+        .start()
+        .await
+        .expect("Failed to start Valkey");
+    let valkey_port = valkey_node
+        .get_host_port_ipv4(6379)
+        .await
+        .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
@@ -179,12 +197,15 @@ pub async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, Contai
     config.valkey_url = valkey_url;
     config.hive_secret = TEST_SECRET.to_string();
 
-    let state = Arc::new(AppState::new(
-        pool.clone(),
-        data_path.clone(),
-        "test-key".to_string(),
-        config.clone()
-    ).await);
+    let state = Arc::new(
+        AppState::new(
+            pool.clone(),
+            data_path.clone(),
+            "test-key".to_string(),
+            config.clone(),
+        )
+        .await,
+    );
 
     hydrate_test_valkey(&state, &data_path).await;
 
@@ -194,9 +215,12 @@ pub async fn setup_server() -> (String, Arc<AppState>, tempfile::TempDir, Contai
     let port = addr.port();
 
     tokio::spawn(async move {
-        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) 
-            .await
-            .unwrap();
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
     });
 
     let base_url = format!("http://127.0.0.1:{}", port);

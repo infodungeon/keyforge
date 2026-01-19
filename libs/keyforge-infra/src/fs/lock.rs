@@ -38,7 +38,7 @@ impl WorkspaceLock {
         // Retry loop with exponential backoff
         let mut attempts = 0;
         let mut delay = Duration::from_millis(LOCK_INITIAL_DELAY_MS);
-        
+
         loop {
             match file.try_lock_exclusive() {
                 Ok(()) => return Ok(Self { file }),
@@ -73,5 +73,29 @@ impl WorkspaceLock {
 impl Drop for WorkspaceLock {
     fn drop(&mut self) {
         let _ = self.file.unlock();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_workspace_lock_exclusivity() {
+        let temp = tempfile::tempdir().unwrap();
+        let lock_path = temp.path().join("workspace.lock");
+        fs::File::create(&lock_path).unwrap();
+
+        let lock_a = WorkspaceLock::acquire(&lock_path);
+        assert!(lock_a.is_ok());
+
+        let lock_b = WorkspaceLock::acquire(&lock_path);
+        assert!(lock_b.is_err());
+
+        drop(lock_a);
+
+        let lock_c = WorkspaceLock::acquire(&lock_path);
+        assert!(lock_c.is_ok());
     }
 }

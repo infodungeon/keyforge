@@ -1,5 +1,5 @@
-use crate::errors::PhysicsError;
 use super::CompilationStage;
+use crate::errors::PhysicsError;
 use crate::kernel::types::KeyCode;
 use keyforge_model::{Corpus, Rubric};
 
@@ -38,23 +38,44 @@ impl CompilationStage for CorpusStage<'_> {
 
     fn execute(&self, (): Self::Input) -> Result<Self::Output, PhysicsError> {
         let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&self.corpus.bigrams);
-        let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) = flatten_bigrams_rev(&self.corpus.bigrams);
-        
-        let pruned_trigrams = prune_trigrams(self.corpus.trigrams.clone(), self.rubric.trigram_coverage, self.rubric.trigram_limit);
-        
-        let (trigram_starts, trigram_others1, trigram_others2, trigram_freqs) = flatten_trigrams_start(&pruned_trigrams);
-        let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) = flatten_trigrams_mid(&pruned_trigrams);
-        let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) = flatten_trigrams_end(&pruned_trigrams);
-        
+        let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) =
+            flatten_bigrams_rev(&self.corpus.bigrams);
+
+        let pruned_trigrams = prune_trigrams(
+            self.corpus.trigrams.clone(),
+            self.rubric.trigram_coverage,
+            self.rubric.trigram_limit,
+        );
+
+        let (trigram_starts, trigram_others1, trigram_others2, trigram_freqs) =
+            flatten_trigrams_start(&pruned_trigrams);
+        let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) =
+            flatten_trigrams_mid(&pruned_trigrams);
+        let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) =
+            flatten_trigrams_end(&pruned_trigrams);
+
         let char_freqs = self.corpus.char_freqs.clone();
 
         Ok(CorpusOutput {
             char_freqs,
-            bigram_starts, bigram_others, bigram_freqs,
-            bigram_rev_starts, bigram_rev_others, bigram_rev_freqs,
-            trigram_starts, trigram_others1, trigram_others2, trigram_freqs,
-            trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs,
-            trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs,
+            bigram_starts,
+            bigram_others,
+            bigram_freqs,
+            bigram_rev_starts,
+            bigram_rev_others,
+            bigram_rev_freqs,
+            trigram_starts,
+            trigram_others1,
+            trigram_others2,
+            trigram_freqs,
+            trigram_mid_starts,
+            trigram_mid_others1,
+            trigram_mid_others2,
+            trigram_mid_freqs,
+            trigram_end_starts,
+            trigram_end_others1,
+            trigram_end_others2,
+            trigram_end_freqs,
         })
     }
 }
@@ -120,9 +141,20 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
 }
 
 #[allow(clippy::cast_sign_loss, clippy::cast_precision_loss)]
-fn prune_trigrams(mut source: Vec<(u16, u16, u16, u32)>, coverage: f32, limit: usize) -> Vec<(u16, u16, u16, u32)> {
-    if source.is_empty() { return source; }
-    source.sort_unstable_by(|a, b| b.3.cmp(&a.3).then_with(|| a.0.cmp(&b.0)).then_with(|| a.1.cmp(&b.1)).then_with(|| a.2.cmp(&b.2)));
+fn prune_trigrams(
+    mut source: Vec<(u16, u16, u16, u32)>,
+    coverage: f32,
+    limit: usize,
+) -> Vec<(u16, u16, u16, u32)> {
+    if source.is_empty() {
+        return source;
+    }
+    source.sort_unstable_by(|a, b| {
+        b.3.cmp(&a.3)
+            .then_with(|| a.0.cmp(&b.0))
+            .then_with(|| a.1.cmp(&b.1))
+            .then_with(|| a.2.cmp(&b.2))
+    });
     let total_freq: u64 = source.iter().map(|x| u64::from(x.3)).sum();
     #[allow(clippy::cast_possible_truncation)]
     let target = (total_freq as f64 * f64::from(coverage)) as u64;
@@ -130,14 +162,21 @@ fn prune_trigrams(mut source: Vec<(u16, u16, u16, u32)>, coverage: f32, limit: u
     let mut cutoff = source.len();
     for (i, item) in source.iter().enumerate() {
         acc += u64::from(item.3);
-        if acc >= target { cutoff = i + 1; break; }
+        if acc >= target {
+            cutoff = i + 1;
+            break;
+        }
     }
-    if cutoff > limit { cutoff = limit; }
+    if cutoff > limit {
+        cutoff = limit;
+    }
     source.truncate(cutoff);
     source
 }
 
-fn flatten_trigrams_start(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+fn flatten_trigrams_start(
+    source: &[(u16, u16, u16, u32)],
+) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
     sorted.sort_unstable_by_key(|&(c1, _, _, _)| c1);
 
@@ -169,7 +208,9 @@ fn flatten_trigrams_start(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<K
     (starts, o1, o2, freqs)
 }
 
-fn flatten_trigrams_mid(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+fn flatten_trigrams_mid(
+    source: &[(u16, u16, u16, u32)],
+) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
     sorted.sort_unstable_by_key(|&(_, c2, _, _)| c2);
 
@@ -201,7 +242,9 @@ fn flatten_trigrams_mid(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<Key
     (starts, o1, o2, freqs)
 }
 
-fn flatten_trigrams_end(source: &[(u16, u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+fn flatten_trigrams_end(
+    source: &[(u16, u16, u16, u32)],
+) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
     sorted.sort_unstable_by_key(|&(_, _, c3, _)| c3);
 

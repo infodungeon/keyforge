@@ -18,8 +18,8 @@ use keyforge_core::loader::AssetLoader;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::{Corpus, Layout, Rubric, CostModel};
 use keyforge_model::validator::Validator;
+use keyforge_model::{Corpus, CostModel, Layout, Rubric};
 use keyforge_physics::ScoringEngine;
 use loader::InMemoryLoader;
 use serde_wasm_bindgen::{from_value, to_value};
@@ -41,7 +41,7 @@ impl Default for KeyforgeEngine {
 #[wasm_bindgen]
 impl KeyforgeEngine {
     #[wasm_bindgen(constructor)]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
         Self {
@@ -70,7 +70,9 @@ impl KeyforgeEngine {
     #[wasm_bindgen(js_name = injectCorpus)]
     pub fn inject_corpus(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let corpus: Corpus = from_value(json_val)?;
-        corpus.validate().map_err(|e| JsValue::from_str(&e.to_string()))?;
+        corpus
+            .validate()
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
         self.loader.inject_corpus(name, corpus);
         Ok(())
     }
@@ -121,28 +123,62 @@ impl KeyforgeEngine {
         } else {
             from_value(rubric_val)?
         };
-        
-        let kb = self.loader.load::<KeyboardDefinition>(&keyboard_name).await
+
+        let kb = self
+            .loader
+            .load::<KeyboardDefinition>(&keyboard_name)
+            .await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
-            
-        let corpus = self.loader.load_corpus(&[CorpusSource { id: corpus_name, weight: 1.0, hash: None }]).await
+
+        let corpus = self
+            .loader
+            .load_corpus(&[CorpusSource {
+                id: corpus_name,
+                weight: 1.0,
+                hash: None,
+            }])
+            .await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
-            
-        let cost_model = self.loader.load::<CostModel>(&cost_model_name).await
+
+        let cost_model = self
+            .loader
+            .load::<CostModel>(&cost_model_name)
+            .await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         // Create Keyboard from Definition
-        let keyboard = keyforge_model::Keyboard::new(
-            kb.geometry.keys.clone(),
-            kb.geometry.home_row,
-        ).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let keyboard =
+            keyforge_model::Keyboard::new(kb.geometry.keys.clone(), kb.geometry.home_row)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-        let report = engine.analyze(&layout)
+        let report = engine
+            .analyze(&layout)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         Ok(to_value(&report)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_inject_keyboard() {
+        let engine = KeyforgeEngine::new();
+        let kb_json = r#"{
+            "meta": { "name": "Test" },
+            "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0 },
+            "layouts": {}
+        }"#;
+        let val = serde_json::from_str(kb_json).unwrap();
+        let js_val = to_value(&val).unwrap();
+
+        // Should fail validation (empty keys)
+        assert!(engine.inject_keyboard("test".into(), js_val).is_err());
     }
 }

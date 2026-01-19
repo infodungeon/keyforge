@@ -1,9 +1,9 @@
 use keyforge_compute::SessionBuilder;
-use keyforge_infra::{FsProvider, AssetLoader};
-use keyforge_model::{KeyboardDefinition, CostModel, Layout, Corpus, types::KeyCode};
+use keyforge_infra::{AssetLoader, FsProvider};
+use keyforge_model::{types::KeyCode, Corpus, CostModel, KeyboardDefinition, Layout};
 use keyforge_protocol::BiometricSample;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
@@ -31,7 +31,7 @@ fn mock_cost_model() -> CostModel {
 async fn main() {
     let data_dir = PathBuf::from("data");
     let loader = FsProvider::new(data_dir);
-    
+
     let kb_name = "ortho_30";
     let kb_def = loader.load::<KeyboardDefinition>(kb_name).await.unwrap();
     let cost_model = Arc::new(mock_cost_model());
@@ -53,11 +53,31 @@ async fn main() {
 
     // 2. With "High Latency" Biometrics for 'th' bigram
     let biometrics = vec![
-        BiometricSample { bigram: "th".to_string(), ms: 500.0, timestamp: 0 },
-        BiometricSample { bigram: "th".to_string(), ms: 500.0, timestamp: 1 },
-        BiometricSample { bigram: "th".to_string(), ms: 500.0, timestamp: 2 },
-        BiometricSample { bigram: "th".to_string(), ms: 500.0, timestamp: 3 },
-        BiometricSample { bigram: "th".to_string(), ms: 500.0, timestamp: 4 },
+        BiometricSample {
+            bigram: "th".to_string(),
+            ms: 500.0,
+            timestamp: 0,
+        },
+        BiometricSample {
+            bigram: "th".to_string(),
+            ms: 500.0,
+            timestamp: 1,
+        },
+        BiometricSample {
+            bigram: "th".to_string(),
+            ms: 500.0,
+            timestamp: 2,
+        },
+        BiometricSample {
+            bigram: "th".to_string(),
+            ms: 500.0,
+            timestamp: 3,
+        },
+        BiometricSample {
+            bigram: "th".to_string(),
+            ms: 500.0,
+            timestamp: 4,
+        },
     ];
 
     let builder_bio = SessionBuilder::new(&loader)
@@ -72,7 +92,7 @@ async fn main() {
     keys[0] = KeyCode(116);
     keys[1] = KeyCode(104);
     let layout = Layout::new_unchecked(keys);
-    
+
     let score_none = engine_none.score(&layout).unwrap();
     let score_bio = engine_bio.score(&layout).unwrap();
 

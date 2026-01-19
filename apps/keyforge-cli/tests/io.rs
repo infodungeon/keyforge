@@ -18,12 +18,18 @@ fn test_resolve_absolute() {
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
         .args([
             "validate",
-            "--keyboard", ctx.keyboard_path("test_kb").to_str().unwrap(),
-            "--cost", ctx.cost_path("cost.json").to_str().unwrap(),
-            "--corpus", "test_corpus",
-            "--weights", ctx.weights_path("default").to_str().unwrap(),
-            "--keycodes", ctx.keycodes_path().to_str().unwrap(),
-            "--layout", "default",
+            "--keyboard",
+            ctx.keyboard_path("test_kb").to_str().unwrap(),
+            "--cost",
+            ctx.cost_path("cost.json").to_str().unwrap(),
+            "--corpus",
+            "test_corpus",
+            "--weights",
+            ctx.weights_path("default").to_str().unwrap(),
+            "--keycodes",
+            ctx.keycodes_path().to_str().unwrap(),
+            "--layout",
+            "default",
         ])
         .output()
         .expect("Failed to execute keyforge");
@@ -49,11 +55,16 @@ fn test_resolve_cwd() {
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
         .args([
             "validate",
-            "--keyboard", "./ext_kb.json",
-            "--cost", "cost.json",
-            "--corpus", "test_corpus",
-            "--keycodes", "keycodes.json",
-            "--layout", "default",
+            "--keyboard",
+            "./ext_kb.json",
+            "--cost",
+            "cost.json",
+            "--corpus",
+            "test_corpus",
+            "--keycodes",
+            "keycodes.json",
+            "--layout",
+            "default",
         ])
         .output()
         .expect("Failed to execute keyforge");
@@ -75,11 +86,16 @@ fn test_resolve_workspace() {
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
         .args([
             "validate",
-            "--keyboard", "test_kb",
-            "--cost", "cost.json",
-            "--corpus", "test_corpus",
-            "--keycodes", "keycodes.json",
-            "--layout", "default",
+            "--keyboard",
+            "test_kb",
+            "--cost",
+            "cost.json",
+            "--corpus",
+            "test_corpus",
+            "--keycodes",
+            "keycodes.json",
+            "--layout",
+            "default",
         ])
         .output()
         .expect("Failed to execute keyforge");
@@ -88,5 +104,8 @@ fn test_resolve_workspace() {
         eprintln!("STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
         eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
     }
-    assert!(output.status.success(), "Workspace-relative resolution failed");
+    assert!(
+        output.status.success(),
+        "Workspace-relative resolution failed"
+    );
 }

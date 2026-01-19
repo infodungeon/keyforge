@@ -83,7 +83,7 @@ impl ErrorResponse {
     }
 
     /// Adds details to the `ErrorResponse`.
-    #[must_use] 
+    #[must_use]
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self

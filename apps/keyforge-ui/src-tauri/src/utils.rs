@@ -1,7 +1,7 @@
 use keyforge_model::constants::CONFIG_DIR_NAME;
+use std::env;
 use std::path::PathBuf;
 use tauri::AppHandle;
-use std::env;
 
 /// Determines the canonical data directory for the application.
 ///

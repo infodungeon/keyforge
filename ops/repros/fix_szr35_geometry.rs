@@ -15,12 +15,13 @@ fn main() {
     // 1. Read and Decompress
     let file = File::open(path).expect("Failed to open file");
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
-    let mut kb_def: KeyboardDefinition = rmp_serde::from_read(decoder).expect("Failed to deserialize");
+    let mut kb_def: KeyboardDefinition =
+        rmp_serde::from_read(decoder).expect("Failed to deserialize");
 
     // 2. Identify and Set Home Keys
     // Based on user request and standard Colemak-DH home row (Row 1)
     // and thumb positions (Row 3, Space keys)
-    
+
     let mut fix_count = 0;
     for (i, key) in kb_def.geometry.keys.iter_mut().enumerate() {
         let should_be_home = match i {
@@ -36,7 +37,10 @@ fn main() {
         };
 
         if key.is_home != should_be_home {
-            println!("Setting Key {} ({}): is_home = {}", i, key.label, should_be_home);
+            println!(
+                "Setting Key {} ({}): is_home = {}",
+                i, key.label, should_be_home
+            );
             key.is_home = should_be_home;
             fix_count += 1;
         }
@@ -58,7 +62,9 @@ fn main() {
 
     // 4. Write back
     let mut out_file = File::create(path).expect("Failed to create output file");
-    out_file.write_all(&compressed).expect("Failed to write output");
+    out_file
+        .write_all(&compressed)
+        .expect("Failed to write output");
 
     println!("✅ Successfully repaired szr35.mpk.zst");
 }

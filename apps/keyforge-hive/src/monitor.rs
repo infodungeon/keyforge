@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
@@ -54,7 +53,7 @@ impl SystemMonitor {
 
             loop {
                 sys.refresh_all();
-                
+
                 let cpu = sys.global_cpu_usage();
                 let mem = sys.used_memory();
                 let up = System::uptime();
@@ -70,7 +69,7 @@ impl SystemMonitor {
                     let delta = current_ops.saturating_sub(prev_ops);
                     #[allow(clippy::cast_precision_loss)]
                     let rate = (delta as f64) / elapsed;
-                    
+
                     monitor.ops_per_sec.store(rate.to_bits(), Ordering::Relaxed);
                     last_refresh = Instant::now();
                 }

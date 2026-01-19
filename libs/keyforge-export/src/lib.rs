@@ -14,19 +14,19 @@
 
 //! # `KeyForge` Export
 //!
-//! Provides functionality for exporting keyboard layouts to various 
+//! Provides functionality for exporting keyboard layouts to various
 //! firmware and configuration formats.
 
 /// QMK firmware configuration exporter.
 pub mod qmk;
-/// VIA firmware (JSON) exporter.
-pub mod via;
-/// ZMK firmware (devicetree) exporter.
-pub mod zmk;
 /// Shared utilities for exporters.
 pub mod util;
+/// VIA firmware (JSON) exporter.
+pub mod via;
 /// Visualization engine for keyboard layouts and physics models.
 pub mod viz;
+/// ZMK firmware (devicetree) exporter.
+pub mod zmk;
 
 use anyhow::Result;
 

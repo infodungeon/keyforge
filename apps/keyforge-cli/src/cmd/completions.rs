@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clap::Args;
 use clap::CommandFactory;
 use clap_complete::{generate, Shell};

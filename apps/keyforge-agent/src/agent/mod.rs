@@ -2,24 +2,24 @@
 
 //! Core logic for the KeyForge Agent.
 
-use crate::models::{AgentConfig, SharedTelemetry};
 use crate::agent::network::NetworkManager;
+use crate::models::{AgentConfig, SharedTelemetry};
+use ed25519_dalek::SigningKey;
 use keyforge_protocol::{JobConfig, ResultSubmission};
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::broadcast;
 use tokio::sync::{mpsc, Semaphore};
 use tracing::{error, info, warn};
-use ed25519_dalek::SigningKey;
-use tokio::sync::broadcast;
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::collections::HashMap;
 
 pub mod calibration;
 pub mod compute;
+pub mod crypto;
 pub mod errors;
 pub mod maintenance;
 pub mod network;
 pub mod telemetry;
-pub mod crypto;
 
 use self::errors::AgentResult;
 use keyforge_infra::net::client::ClientConfig;
@@ -28,43 +28,48 @@ use keyforge_infra::net::client::ClientConfig;
 pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,
-    assets: Arc<keyforge_infra::AssetManager>, 
+    assets: Arc<keyforge_infra::AssetManager>,
     result_tx: mpsc::Sender<ResultSubmission>,
 }
 
 impl Agent {
-    pub async fn new(config: AgentConfig, result_tx: mpsc::Sender<ResultSubmission>) -> AgentResult<Self> {
+    pub async fn new(
+        config: AgentConfig,
+        result_tx: mpsc::Sender<ResultSubmission>,
+    ) -> AgentResult<Self> {
         let telemetry = SharedTelemetry::default();
-        
+
         let client_config = ClientConfig {
             api_url: config.hive_url.clone(),
             asset_url: config.asset_url.clone(), // Pass through
             secret: Some(config.secret.clone()),
             ..Default::default()
         };
-        
-        let client = keyforge_infra::HiveClient::new(client_config)
-            .map_err(|e| errors::AgentError::Internal(format!("Failed to create hive client: {e}")))?;
-            
+
+        let client = keyforge_infra::HiveClient::new(client_config).map_err(|e| {
+            errors::AgentError::Internal(format!("Failed to create hive client: {e}"))
+        })?;
+
         let assets = keyforge_infra::AssetManager::new(client, config.data_dir.clone());
 
-        if let Err(e) = calibration::calibrate(&assets, &config.data_dir, &config.calibration).await {
+        if let Err(e) = calibration::calibrate(&assets, &config.data_dir, &config.calibration).await
+        {
             tracing::error!("Calibration failed: {}. Using safe default.", e);
         }
 
-        Ok(Self { 
-            config, 
-            telemetry, 
-            assets: Arc::new(assets), 
-            result_tx 
+        Ok(Self {
+            config,
+            telemetry,
+            assets: Arc::new(assets),
+            result_tx,
         })
     }
 
     #[allow(clippy::too_many_lines)]
     pub async fn run(
-        &self, 
+        &self,
         mut job_rx: mpsc::Receiver<(String, JobConfig)>,
-        mut stop_rx: mpsc::Receiver<()>
+        mut stop_rx: mpsc::Receiver<()>,
     ) -> AgentResult<()> {
         info!("🤖 KeyForge Agent v0.9.0 Starting...");
         info!("   Node ID: {}", self.config.node_id);
@@ -81,7 +86,7 @@ impl Agent {
                         break Ok(());
                     };
                     info!("⚙️  Queued Job (ID: {})...", job_id);
-                    
+
                     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
                     running_jobs.insert(job_id.clone(), stop_flag.clone());
 
@@ -95,7 +100,7 @@ impl Agent {
                     let node_id = self.config.node_id.clone();
                     let private_key = self.config.private_key.clone();
                     let semaphore = global_semaphore.clone();
-                    let permits_needed = 1; 
+                    let permits_needed = 1;
 
                     tokio::spawn(async move {
                         let Ok(_permit) = semaphore.acquire_many(permits_needed).await else { return };
@@ -114,8 +119,8 @@ impl Agent {
                         };
 
                         let prepared_session = match keyforge_runner::OptimizationRunner::prepare_session(
-                            &loader, 
-                            &job, 
+                            &loader,
+                            &job,
                             &options
                         ).await {
                             Ok(pj) => pj,
@@ -140,7 +145,7 @@ impl Agent {
                             Ok(opt_res) => {
                                 info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
                                 let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
-                                
+
                                 let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
                                 let nonce = rand::random();
 
@@ -168,7 +173,7 @@ impl Agent {
                                     node_id,
                                     timestamp,
                                     nonce,
-                                    signature, 
+                                    signature,
                                 };
                                 if let Err(e) = result_tx.send(submission).await {
                                     error!("Failed to queue result for {}: {}", job_id, e);
@@ -217,24 +222,19 @@ pub async fn run_worker(
             return;
         }
     };
-    
-    let (job_tx, job_rx) = mpsc::channel(100); 
+
+    let (job_tx, job_rx) = mpsc::channel(100);
     let (stop_tx, stop_rx) = mpsc::channel(100);
 
-    let net = match NetworkManager::new(
-        config,
-        agent.telemetry.clone(),
-        job_tx,
-        result_rx,
-        stop_tx,
-    ) {
+    let net = match NetworkManager::new(config, agent.telemetry.clone(), job_tx, result_rx, stop_tx)
+    {
         Ok(n) => n,
         Err(e) => {
             error!("Failed to initialize network manager: {}", e);
             return;
         }
     };
-    
+
     let net_handle = tokio::spawn(net.run());
     let agent_handle = tokio::spawn(async move {
         if let Err(e) = agent.run(job_rx, stop_rx).await {
@@ -247,7 +247,7 @@ pub async fn run_worker(
             info!("Shutdown signal received");
         }
     }
-    
+
     net_handle.abort();
     agent_handle.abort();
 }

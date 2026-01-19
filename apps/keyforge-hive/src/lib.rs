@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! # `KeyForge` Hive
 //!
-//! The central coordination server for `KeyForge`. This crate implements the 
+//! The central coordination server for `KeyForge`. This crate implements the
 //! API server, job queue, and result aggregation logic.
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::needless_for_each)]
@@ -43,9 +42,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 pub(crate) mod api;
 pub(crate) mod api_docs;
-pub(crate) mod features;
 pub(crate) mod auth;
-pub mod constants;
 /// Self-healing and bootstrap logic for system assets.
 pub mod bootstrap;
 /// Global and local caching mechanisms.
@@ -53,9 +50,11 @@ pub mod cache;
 pub(crate) mod commands;
 /// Application configuration and environment variable loading.
 pub mod config;
+pub mod constants;
 /// Background jobs and periodic tasks.
 pub mod cron;
 pub(crate) mod error;
+pub(crate) mod features;
 /// Infrastructure layer including database and message queue.
 pub mod infra;
 pub(crate) mod models;
@@ -66,8 +65,8 @@ pub(crate) mod services;
 /// Global application state and configuration.
 pub mod state;
 
-pub use state::AppState;
 pub use services::verification::VerificationService;
+pub use state::AppState;
 
 /// A keyed rate limiter used for general API traffic management.
 pub type GlobalLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
@@ -135,12 +134,18 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
 
     let rate_limit_state = RateLimitState {
         global: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(limits.limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
-                .allow_burst(NonZeroU32::new(limits.limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
+            Quota::per_second(
+                NonZeroU32::new(limits.limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN),
+            )
+            .allow_burst(NonZeroU32::new(limits.limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
         )),
         strict: Arc::new(RateLimiter::keyed(
-            Quota::per_second(NonZeroU32::new(limits.strict_limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN))
-                .allow_burst(NonZeroU32::new(limits.strict_limit_burst.max(1)).unwrap_or(NonZeroU32::MIN)),
+            Quota::per_second(
+                NonZeroU32::new(limits.strict_limit_per_sec.max(1)).unwrap_or(NonZeroU32::MIN),
+            )
+            .allow_burst(
+                NonZeroU32::new(limits.strict_limit_burst.max(1)).unwrap_or(NonZeroU32::MIN),
+            ),
         )),
     };
 
@@ -148,12 +153,17 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
     let secure_routes = Router::new()
         .route(
             "/jobs",
-            axum::routing::post(features::register_job::handle).layer(middleware::from_fn_with_state(
-                rate_limit_state.clone(),
-                strict_rate_limit_middleware,
-            )),
+            axum::routing::post(features::register_job::handle).layer(
+                middleware::from_fn_with_state(
+                    rate_limit_state.clone(),
+                    strict_rate_limit_middleware,
+                ),
+            ),
         )
-        .route("/jobs/queue", axum::routing::get(features::get_queue::handle))
+        .route(
+            "/jobs/queue",
+            axum::routing::get(features::get_queue::handle),
+        )
         .route(
             "/jobs/{job_id}/population",
             axum::routing::get(features::get_population::handle),
@@ -162,7 +172,10 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
             "/jobs/{job_id}",
             axum::routing::delete(features::cancel_job::handle),
         )
-        .route("/results", axum::routing::post(features::submit_result::handle))
+        .route(
+            "/results",
+            axum::routing::post(features::submit_result::handle),
+        )
         .route(
             "/nodes/register",
             axum::routing::post(features::register_node::handle),
@@ -171,7 +184,10 @@ pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: 
             "/submissions",
             axum::routing::post(features::submit_layout::handle),
         )
-        .route("/user/nuke", axum::routing::post(features::nuke_user::handle))
+        .route(
+            "/user/nuke",
+            axum::routing::post(features::nuke_user::handle),
+        )
         .merge(api::protected_auth_routes())
         .nest("/admin", api::admin_routes())
         .layer(middleware::from_fn_with_state(

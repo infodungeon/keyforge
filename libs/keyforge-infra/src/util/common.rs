@@ -29,9 +29,7 @@ pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
     let mut buffer = [0; 4096];
 
     loop {
-        let n = file
-            .read(&mut buffer)
-            .map_err(InfraError::Io)?;
+        let n = file.read(&mut buffer).map_err(InfraError::Io)?;
         if n == 0 {
             break;
         }
@@ -61,7 +59,7 @@ pub struct StreamingProfileBuilder {
 }
 
 impl StreamingProfileBuilder {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -72,7 +70,10 @@ impl StreamingProfileBuilder {
     }
 
     pub fn generate(&self) -> String {
-        tracing::warn!("StreamingProfileBuilder is a STUB - returning empty matrix (processed {} samples)", self.sample_count);
+        tracing::warn!(
+            "StreamingProfileBuilder is a STUB - returning empty matrix (processed {} samples)",
+            self.sample_count
+        );
         r#"{"meta":{"version":2.0,"description":"Stub","unit":"pts"},"models":{},"dynamic_rules":{"sequence_modifiers":{},"penalties":{},"constraints":{}}}"#.to_string()
     }
 }
@@ -89,15 +90,14 @@ use keyforge_model::keycodes::{KeycodeDefinition, KeycodeRegistry};
 pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
     let content = crate::fs::io::read_to_string_limited(path, MAX_INPUT_FILE_SIZE)?;
 
-    let defs: Vec<KeycodeDefinition> =
-        serde_json::from_str(&content).map_err(InfraError::Serde)?;
+    let defs: Vec<KeycodeDefinition> = serde_json::from_str(&content).map_err(InfraError::Serde)?;
     Ok(KeycodeRegistry::new(defs))
 }
 
 use keyforge_model::config::CorpusSource;
 
 /// Generates a deterministic fingerprint for a set of corpora sources.
-#[must_use] 
+#[must_use]
 pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
     // 1. Sort by ID for canonicalization
     let mut sorted = sources.to_vec();
@@ -119,7 +119,7 @@ pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
 /// Aggressively sanitizes filenames to prevent traversal or shell issues.
 /// Allowlist: Alphanumeric, dot, underscore, hyphen.
 /// Replaces everything else with underscore.
-#[must_use] 
+#[must_use]
 pub fn sanitize_filename(name: &str) -> String {
     name.chars()
         .map(|c| {
@@ -134,7 +134,7 @@ pub fn sanitize_filename(name: &str) -> String {
 
 /// Normalizes a path to prevent traversal and ensure consistent format (forward slashes).
 /// Returns None if the path attempts to step above its root.
-#[must_use] 
+#[must_use]
 pub fn normalize_path(raw: &str) -> Option<String> {
     let p = Path::new(raw);
     let mut stack = Vec::new();

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 /// System-wide metrics.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, ToSchema)]

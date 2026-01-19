@@ -1,16 +1,16 @@
-use keyforge_infra::AssetLoader;
 use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
+use keyforge_infra::AssetLoader;
 use keyforge_model::config::Config;
 // use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
-use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
+use keyforge_model::keycodes::KeycodeRegistry;
 use tauri::AppHandle;
 
 /// Returns the default global application configuration.
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub fn cmd_get_default_config() -> Config {
     Config::default()
 }

@@ -20,7 +20,15 @@ fn test_oversized_file() {
     let bin = common::get_binary_path();
     let output = Command::new(&bin)
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
-        .args(["validate", "--keyboard", "big_kb", "--cost", "cost.json", "--keycodes", "keycodes.json"])
+        .args([
+            "validate",
+            "--keyboard",
+            "big_kb",
+            "--cost",
+            "cost.json",
+            "--keycodes",
+            "keycodes.json",
+        ])
         .output()
         .expect("Failed");
 
@@ -35,10 +43,16 @@ fn test_recursion_bomb() {
     let kb_path = ctx.data_root.join("user/keyboards/bomb.json");
     let mut f = File::create(&kb_path).unwrap();
 
-    let mut s = String::from(r#"{"meta": {"name": "bomb", "type": "ortho"}, "geometry": {"keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0}, "bomb": "#);
-    for _ in 0..500 { s.push_str("{\"a\":"); }
+    let mut s = String::from(
+        r#"{"meta": {"name": "bomb", "type": "ortho"}, "geometry": {"keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0}, "bomb": "#,
+    );
+    for _ in 0..500 {
+        s.push_str("{\"a\":");
+    }
     s.push('1');
-    for _ in 0..500 { s.push('}'); }
+    for _ in 0..500 {
+        s.push('}');
+    }
     s.push('}');
 
     writeln!(f, "{}", s).unwrap();
@@ -46,11 +60,25 @@ fn test_recursion_bomb() {
     let bin = common::get_binary_path();
     let output = Command::new(&bin)
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
-        .args(["validate", "--keyboard", "bomb", "--cost", "cost.json", "--keycodes", "keycodes.json", "--layout", "default"])
+        .args([
+            "validate",
+            "--keyboard",
+            "bomb",
+            "--cost",
+            "cost.json",
+            "--keycodes",
+            "keycodes.json",
+            "--layout",
+            "default",
+        ])
         .output()
         .expect("Failed");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success());
-    assert!(stderr.contains("recursion limit exceeded") || stderr.contains("Loader Error") || stderr.contains("unknown field"));
+    assert!(
+        stderr.contains("recursion limit exceeded")
+            || stderr.contains("Loader Error")
+            || stderr.contains("unknown field")
+    );
 }

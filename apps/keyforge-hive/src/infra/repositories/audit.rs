@@ -44,7 +44,7 @@ pub struct AuditLog<'a> {
 
 impl AuditRepository {
     /// Creates a new `AuditRepository` with the given database pool.
-    #[must_use] 
+    #[must_use]
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }

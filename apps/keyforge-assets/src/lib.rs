@@ -38,10 +38,7 @@ async fn get_manifest(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     Json(manifest)
 }
 
-async fn get_asset(
-    Path(path): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Response {
+async fn get_asset(Path(path): Path<String>, State(state): State<Arc<AppState>>) -> Response {
     if path.contains("..") {
         return StatusCode::BAD_REQUEST.into_response();
     }

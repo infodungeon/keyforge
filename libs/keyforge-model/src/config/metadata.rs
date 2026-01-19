@@ -1,9 +1,9 @@
 // libs/keyforge-model/src/config/metadata.rs
 
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 /// Supported data types for parameters.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]

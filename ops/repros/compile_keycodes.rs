@@ -1,6 +1,6 @@
+use keyforge_model::keycodes::KeycodeDefinition;
 use std::fs::File;
 use std::io::{Read, Write};
-use keyforge_model::keycodes::KeycodeDefinition;
 
 fn main() {
     println!("CWD: {:?}", std::env::current_dir().unwrap());
@@ -12,9 +12,11 @@ fn main() {
     // 1. Read JSON
     let mut file = File::open(json_path).expect("Failed to open JSON file");
     let mut json_data = String::new();
-    file.read_to_string(&mut json_data).expect("Failed to read JSON file");
+    file.read_to_string(&mut json_data)
+        .expect("Failed to read JSON file");
 
-    let defs: Vec<KeycodeDefinition> = serde_json::from_str(&json_data).expect("Failed to parse JSON");
+    let defs: Vec<KeycodeDefinition> =
+        serde_json::from_str(&json_data).expect("Failed to parse JSON");
 
     // 2. Encode to MessagePack
     let mpk_data = rmp_serde::to_vec(&defs).expect("Failed to encode to MessagePack");
@@ -27,7 +29,9 @@ fn main() {
 
     // 4. Write to file
     let mut out_file = File::create(mpk_path).expect("Failed to create output file");
-    out_file.write_all(&compressed).expect("Failed to write output file");
+    out_file
+        .write_all(&compressed)
+        .expect("Failed to write output file");
 
     println!("✅ Successfully compiled and compressed keycodes.");
 }

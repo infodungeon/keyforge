@@ -14,7 +14,7 @@ pub struct SystemHealth {
 }
 
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub fn cmd_get_system_health(_app: AppHandle) -> SystemHealth {
     let mut sys = System::new_with_specifics(
         RefreshKind::nothing()
@@ -45,12 +45,19 @@ pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandEr
     };
     let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
 
-    let resp = client.get("health").send().await.map_err(|e| CommandError::Network(e.to_string()))?;
+    let resp = client
+        .get("health")
+        .send()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
 
     if resp.status().is_success() {
         Ok("OK".to_string())
     } else {
-        Err(CommandError::Network(format!("Health check failed: {}", resp.status())))
+        Err(CommandError::Network(format!(
+            "Health check failed: {}",
+            resp.status()
+        )))
     }
 }
 

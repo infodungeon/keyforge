@@ -1,17 +1,25 @@
-use std::path::PathBuf;
+use crate::models::PartialAgentConfig;
 use anyhow::Context;
 use keyforge_protocol::JobConfig;
-use crate::models::PartialAgentConfig;
+use std::path::PathBuf;
 
-#[must_use] 
-pub fn load_config_from_standard_paths(data_dir_override: Option<&PathBuf>) -> Option<PartialAgentConfig> {
+#[must_use]
+pub fn load_config_from_standard_paths(
+    data_dir_override: Option<&PathBuf>,
+) -> Option<PartialAgentConfig> {
     let mut candidates = vec![
         PathBuf::from("agent.mpk.zst"),
         PathBuf::from("agent.toml"),
         PathBuf::from("agent.json"),
-        dirs::config_dir().unwrap_or_default().join("keyforge/agent.mpk.zst"),
-        dirs::config_dir().unwrap_or_default().join("keyforge/agent.toml"),
-        dirs::config_dir().unwrap_or_default().join("keyforge/agent.json"),
+        dirs::config_dir()
+            .unwrap_or_default()
+            .join("keyforge/agent.mpk.zst"),
+        dirs::config_dir()
+            .unwrap_or_default()
+            .join("keyforge/agent.toml"),
+        dirs::config_dir()
+            .unwrap_or_default()
+            .join("keyforge/agent.json"),
         PathBuf::from("/etc/keyforge/agent.mpk.zst"),
         PathBuf::from("/etc/keyforge/agent.toml"),
         PathBuf::from("/etc/keyforge/agent.json"),
@@ -53,10 +61,13 @@ pub async fn read_job_config(path: &PathBuf) -> anyhow::Result<JobConfig> {
     let content = if path.to_str() == Some("-") {
         use std::io::Read;
         let mut buf = String::new();
-        std::io::stdin().read_to_string(&mut buf).context("Failed to read from stdin")?;
+        std::io::stdin()
+            .read_to_string(&mut buf)
+            .context("Failed to read from stdin")?;
         buf
     } else {
-        tokio::fs::read_to_string(path).await
+        tokio::fs::read_to_string(path)
+            .await
             .context(format!("Failed to read job file {}", path.display()))?
     };
     serde_json::from_str(&content).context("Invalid Job JSON")

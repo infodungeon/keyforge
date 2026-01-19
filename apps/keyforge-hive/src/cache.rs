@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use moka::sync::Cache;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,7 +19,7 @@ use std::time::Duration;
 // Re-export CompiledEngineCache
 /// An LRU cache for pre-hydrated `ScoringEngine` instances.
 ///
-/// This avoids the overhead of reloading and parsing corpora/keyboards for 
+/// This avoids the overhead of reloading and parsing corpora/keyboards for
 /// every verification request on the same job.
 #[derive(Debug)]
 pub struct CompiledEngineCache {
@@ -40,7 +39,7 @@ pub const DEFAULT_ENGINE_CACHE_TTL_SECS: u64 = 1800;
 
 impl CompiledEngineCache {
     /// Creates a new `CompiledEngineCache` with default capacity and TTL.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             cache: Cache::builder()
@@ -51,7 +50,7 @@ impl CompiledEngineCache {
     }
 
     /// Retrieves a cached engine by job ID.
-    #[must_use] 
+    #[must_use]
     pub fn get(&self, job_id: &str) -> Option<Arc<keyforge_core::ScoringEngine>> {
         self.cache.get(job_id)
     }

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::util::{self, ModFormat};
 use crate::Exporter;
 use anyhow::Result;
-use crate::util::{self, ModFormat};
 use keyforge_adapter::parsing::{parse_key, KeyAction};
 use std::fmt::Write;
 

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::ForgeError;
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
-use crate::error::ForgeError;
 
 /// Categories of assets supported by the `KeyForge` system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,7 +31,7 @@ pub enum AssetCategory {
 
 impl AssetCategory {
     /// Returns the standard subdirectory name for this asset category.
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             AssetCategory::Keyboard => "keyboards",
@@ -48,7 +48,7 @@ pub trait Asset: DeserializeOwned + Send + Sync + 'static + Debug {
     fn category() -> AssetCategory;
 
     /// Default extension for this asset type (e.g., "json", "toml")
-    #[must_use] 
+    #[must_use]
     fn default_extension() -> &'static str {
         "json"
     }

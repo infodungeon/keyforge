@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::config::{
-    DEFAULT_API_KEY_CACHE_CAPACITY, DEFAULT_API_KEY_CACHE_TTL_SECS,
-    DEFAULT_NONCE_CACHE_CAPACITY, DEFAULT_NONCE_CACHE_TTL_SECS,
+    DEFAULT_API_KEY_CACHE_CAPACITY, DEFAULT_API_KEY_CACHE_TTL_SECS, DEFAULT_NONCE_CACHE_CAPACITY,
+    DEFAULT_NONCE_CACHE_TTL_SECS,
 };
 use moka::sync::Cache;
 use std::time::Duration;
@@ -62,7 +61,7 @@ impl SecurityContext {
             // If it's None, maybe auth is disabled or we just return true?
             // Let's assume strict: if None, maybe open?
             // Actually, let's just expose the field or a method.
-             true // Default to true if no secret? Need to check existing usage.
+            true // Default to true if no secret? Need to check existing usage.
         }
     }
 }

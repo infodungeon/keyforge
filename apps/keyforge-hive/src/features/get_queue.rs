@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::error::{AppError, AppResult};
+use crate::state::AppState;
 use axum::{extract::State, Json};
 use keyforge_protocol::JobConfig;
 use keyforge_protocol::JobQueueResponse;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration, Instant};
-use crate::error::{AppError, AppResult};
-use crate::state::AppState;
 
 /// VSA Feature: Get Job Queue (Long Polling)
 /// Colocates claiming logic, wait signals, and semaphore management.
@@ -43,7 +42,7 @@ pub async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<JobQue
         .map_err(|_| AppError::Any(anyhow::anyhow!("Semaphore closed")))?;
 
     let result = poll_for_job(&state).await?;
-    
+
     Ok(Json(result))
 }
 
@@ -54,8 +53,17 @@ async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
 
     loop {
         // 1. Attempt to claim a job from the database
-        if let Some((id, req)) = state.jobs.repo.claim_job().await.map_err(AppError::Database)? {
-            state.jobs.active_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if let Some((id, req)) = state
+            .jobs
+            .repo
+            .claim_job()
+            .await
+            .map_err(AppError::Database)?
+        {
+            state
+                .jobs
+                .active_count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return Ok(JobQueueResponse {
                 job_id: Some(id),
                 config: Some(JobConfig::from(req)),

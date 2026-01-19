@@ -29,7 +29,7 @@ pub enum CommandError {
     /// Categorized internal logic failures.
     #[error("Internal Error: {0}")]
     Internal(String),
-    
+
     /// Error indicating that a requested resource was not found.
     #[error("Not Found")]
     NotFound, // ADDED

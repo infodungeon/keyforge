@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use serde::{Deserialize, Serialize};
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
 use tokio;
@@ -30,9 +29,9 @@ pub struct CpuCacheTopology {
     /// L1 Data cache size in kilobytes.
     pub l1_data_kb: Option<u64>, // [Fixed] Changed to u64
     /// L2 cache size in kilobytes.
-    pub l2_kb: Option<u64>,      // [Fixed] Changed to u64
+    pub l2_kb: Option<u64>, // [Fixed] Changed to u64
     /// L3 cache size in kilobytes.
-    pub l3_kb: Option<u64>,      // [Fixed] Changed to u64
+    pub l3_kb: Option<u64>, // [Fixed] Changed to u64
 }
 
 impl Default for CpuCacheTopology {
@@ -129,7 +128,7 @@ fn detect_x86_caches(topo: &mut CpuCacheTopology) {
                 * cache.associativity() as u64
                 * cache.coherency_line_size() as u64)
                 / 1024;
-            
+
             // [Fixed] Direct assignment to u64
             match cache.level() {
                 1 => {
@@ -186,6 +185,7 @@ fn detect_macos_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
 #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
 fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentError> {
     use std::alloc::{alloc, Layout};
+    use std::ptr;
     use windows_sys::Win32::System::SystemInformation::{
         GetLogicalProcessorInformationEx, RelationCache, SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX,
     };
@@ -215,7 +215,7 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentErr
                 let info =
                     &*(ptr.add(offset as usize) as *const SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX);
                 let cache = &info.u.Cache;
-                let size_kb_u64 = (cache.Size as u64 / 1024);
+                let size_kb_u64 = cache.Size as u64 / 1024;
 
                 // [Fixed] Direct assignment
                 match cache.Level {
@@ -230,4 +230,16 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentErr
         std::alloc::dealloc(ptr, layout);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_topology_detection() {
+        let topo = detect_topology().await.unwrap();
+        assert!(!topo.model.is_empty());
+        assert!(topo.cores >= 1);
+    }
 }

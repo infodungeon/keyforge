@@ -1,18 +1,18 @@
-use crate::agent::errors::{AgentResult, AgentError};
+use super::outbox::ResultOutbox;
+use crate::agent::errors::{AgentError, AgentResult};
 use crate::models::{AgentConfig, SharedTelemetry};
 use futures::{SinkExt, StreamExt};
-use keyforge_protocol::{JobConfig, NodeTelemetry, ResultSubmission, JobQueueResponse};
+use keyforge_infra::HiveClient;
+use keyforge_protocol::{JobConfig, JobQueueResponse, NodeTelemetry, ResultSubmission};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use sysinfo::{ProcessesToUpdate, System};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use tracing::{error, info, warn};
 use url::Url;
-use serde::{Deserialize, Serialize};
-use sysinfo::{System, ProcessesToUpdate};
-use keyforge_infra::HiveClient;
-use super::outbox::ResultOutbox;
 
 #[derive(Debug)]
 pub struct NetworkManager {
@@ -28,8 +28,14 @@ pub struct NetworkManager {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "type", content = "payload")]
 enum ServerMessage {
-    Job { #[serde(rename = "id")] id: String },
-    Cancel { #[serde(rename = "id")] id: String },
+    Job {
+        #[serde(rename = "id")]
+        id: String,
+    },
+    Cancel {
+        #[serde(rename = "id")]
+        id: String,
+    },
 }
 
 impl NetworkManager {
@@ -50,50 +56,67 @@ impl NetworkManager {
             asset_url: config.asset_url.clone(), // Passthrough
             secret: Some(config.secret.clone()),
             ..Default::default()
-        }).map_err(|e| AgentError::Internal(format!("Failed to init outbox client: {e}")))?;
+        })
+        .map_err(|e| AgentError::Internal(format!("Failed to init outbox client: {e}")))?;
 
         let outbox = ResultOutbox::new(
-            hive_client, 
-            &config.data_dir, 
+            hive_client,
+            &config.data_dir,
             config.network.circuit_breaker_threshold,
-            config.network.circuit_breaker_cooldown
+            config.network.circuit_breaker_cooldown,
         );
 
-        Ok(Self { client, config, telemetry, job_tx, result_rx, stop_tx, outbox })
+        Ok(Self {
+            client,
+            config,
+            telemetry,
+            job_tx,
+            result_rx,
+            stop_tx,
+            outbox,
+        })
     }
 
     pub async fn run(mut self) {
-        let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds); 
+        let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds);
         while let Err(e) = self.connect_and_loop().await {
             error!("🔌 Connection Lost: {}. Retrying in {:?}...", e, backoff);
             tokio::time::sleep(backoff).await;
-            backoff = (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
+            backoff =
+                (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
         }
     }
 
     async fn connect_and_loop(&mut self) -> AgentResult<()> {
-        let mut ws_url = Url::parse(&self.config.hive_url)
-            .map_err(|e| AgentError::Network(e.to_string()))?;
-        
-        if ws_url.scheme() == "http" { let _ = ws_url.set_scheme("ws"); } 
-        else if ws_url.scheme() == "https" { let _ = ws_url.set_scheme("wss"); }
-        
+        let mut ws_url =
+            Url::parse(&self.config.hive_url).map_err(|e| AgentError::Network(e.to_string()))?;
+
+        if ws_url.scheme() == "http" {
+            let _ = ws_url.set_scheme("ws");
+        } else if ws_url.scheme() == "https" {
+            let _ = ws_url.set_scheme("wss");
+        }
+
         ws_url.set_path("ws");
-        ws_url.query_pairs_mut().append_pair("node_id", &self.config.node_id);
+        ws_url
+            .query_pairs_mut()
+            .append_pair("node_id", &self.config.node_id);
 
         info!("🌐 Connecting to Hive: {}", ws_url);
-        
+
         let (ws_stream, _) = connect_async(ws_url.to_string())
             .await
             .map_err(|e| AgentError::Network(e.to_string()))?;
-            
+
         let (mut write, mut read) = ws_stream.split();
-        
+
         info!("✅ WebSocket Connected");
 
-        let mut heartbeat = interval(Duration::from_secs(self.config.network.heartbeat_interval_seconds));
+        let mut heartbeat = interval(Duration::from_secs(
+            self.config.network.heartbeat_interval_seconds,
+        ));
         let telemetry = self.telemetry.clone();
-        
+
         let mut sys = System::new();
         let pid = sysinfo::get_current_pid().map_err(|e| AgentError::Internal(e.to_string()))?;
 
@@ -105,7 +128,7 @@ impl NetworkManager {
 
                     let (ips, temp, best) = telemetry.snapshot();
                     let job_id = telemetry.get_job_id();
-                    
+
                     let job_id_opt = if job_id == self.config.system.idle_job_id { None } else { Some(job_id) };
                     let best_opt = if best == 0.0 { None } else { Some(best) };
 
@@ -117,7 +140,7 @@ impl NetworkManager {
                         memory_usage,
                         timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
                     };
-                    
+
                     if let Ok(json) = serde_json::to_string(&payload) {
                         if let Err(e) = write.send(Message::Text(json.into())).await {
                             return Err(AgentError::Network(e.to_string()));
@@ -159,20 +182,23 @@ impl NetworkManager {
 
     async fn fetch_and_start_job(&self, _job_id: &str) -> AgentResult<()> {
         let url = format!("{}/jobs/queue", self.config.hive_url);
-        let resp = self.client.get(&url)
+        let resp = self
+            .client
+            .get(&url)
             .header("X-Keyforge-Secret", &self.config.secret)
             .send()
             .await
             .map_err(|e| AgentError::Network(e.to_string()))?;
 
         if resp.status().is_success() {
-            let queue_resp: JobQueueResponse = resp.json()
+            let queue_resp: JobQueueResponse = resp
+                .json()
                 .await
                 .map_err(|e| AgentError::Network(e.to_string()))?;
-                
+
             if let (Some(jid), Some(config)) = (queue_resp.job_id, queue_resp.config) {
-                 info!("📥 Acquired Job {}", jid);
-                 let _ = self.job_tx.send((jid, config)).await;
+                info!("📥 Acquired Job {}", jid);
+                let _ = self.job_tx.send((jid, config)).await;
             }
         }
         Ok(())
@@ -181,7 +207,9 @@ impl NetworkManager {
     pub async fn submit_result(&self, result: ResultSubmission) -> AgentResult<()> {
         let url = format!("{}/results", self.config.hive_url);
 
-        let resp = self.client.post(&url)
+        let resp = self
+            .client
+            .post(&url)
             .header("X-Keyforge-Secret", &self.config.secret)
             .json(&result)
             .send()
@@ -213,8 +241,13 @@ impl NetworkManager {
 
     async fn flush_wal(&self) {
         let pending = self.outbox.get_pending();
-        if pending.is_empty() { return; }
-        info!("🔄 WAL Flush: Attempting to resend {} pending submissions...", pending.len());
+        if pending.is_empty() {
+            return;
+        }
+        info!(
+            "🔄 WAL Flush: Attempting to resend {} pending submissions...",
+            pending.len()
+        );
         for (path, submission) in pending {
             match self.submit_result(submission).await {
                 Ok(()) => {

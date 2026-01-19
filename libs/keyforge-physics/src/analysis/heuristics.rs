@@ -15,11 +15,15 @@
 use crate::kernel::compute::{calculate_swap_delta, score_layout, PhysicsScratch, PosMap};
 use crate::kernel::types::ValidatedLayout;
 use crate::kernel::EngineContext;
-use keyforge_model::{Layout, SwapSuggestion};
-use keyforge_model::types::FingerIndex;
 use keyforge_model::constants::SCORE_SCALE;
+use keyforge_model::types::FingerIndex;
+use keyforge_model::{Layout, SwapSuggestion};
 
-pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
+pub fn suggest_swaps(
+    ctx: &EngineContext,
+    layout: &Layout,
+    include_thumbs: bool,
+) -> Vec<SwapSuggestion> {
     // Guardrail: Validate layout before processing
     let Ok(validated) = ValidatedLayout::new(&layout.keys, ctx.key_count) else {
         return vec![]; // Invalid layout yields no suggestions
@@ -53,7 +57,9 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
             }
 
             // Exclude THUMB keys from swap suggestions if requested
-            if !include_thumbs && (ctx.fingers[i] == FingerIndex::THUMB || ctx.fingers[j] == FingerIndex::THUMB) {
+            if !include_thumbs
+                && (ctx.fingers[i] == FingerIndex::THUMB || ctx.fingers[j] == FingerIndex::THUMB)
+            {
                 continue;
             }
 
@@ -93,10 +99,10 @@ pub fn suggest_swaps(ctx: &EngineContext, layout: &Layout, include_thumbs: bool)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ScoringEngine;
     use crate::kernel::compiler::Compiler;
-    use keyforge_model::{Keyboard, KeyNode, Corpus, Rubric, KeyCode, CostModel};
-    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+    use crate::ScoringEngine;
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
+    use keyforge_model::{Corpus, CostModel, KeyCode, KeyNode, Keyboard, Rubric};
 
     fn mock_cost_model() -> CostModel {
         // We define distinct costs for rows to create a gradient.
@@ -132,7 +138,7 @@ mod tests {
                 hand: HandIndex((i % 2) as u8),
                 // Use FingerIndex::INDEX (1) for all keys to ensure row-based costs are applied.
                 // This is a simplification for testing cost gradients.
-                finger: FingerIndex::INDEX, 
+                finger: FingerIndex::INDEX,
                 row: RowIndex((i / 10) as i8), // 0-9: r0, 10-19: r1, 20-29: r2
                 col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
@@ -146,7 +152,7 @@ mod tests {
         corpus.char_freqs[10] = 1000;
         // Character 32 (' ') is also frequent
         corpus.char_freqs[32] = 2000;
-        
+
         let cost_model = mock_cost_model();
         Compiler::compile(&kb, &corpus, &Rubric::default(), &cost_model).unwrap()
     }
@@ -154,38 +160,47 @@ mod tests {
     #[test]
     fn test_suggest_swaps_multi_mapped() {
         let ctx = setup_mock_ctx(30);
-        
+
         // Layout where 'e' (10) is on a very expensive key (index 20, row 2, cost 3.0)
         // and 'Space' (32) is on two keys: index 0 (row 0, cost 1.0) and index 1 (row 0, cost 1.0).
         // We want to swap 'e' to a cheaper spot.
         let mut keys = vec![KeyCode(0); 30];
-        for i in 0..30 { keys[i] = KeyCode(i as u16); }
-        
+        for i in 0..30 {
+            keys[i] = KeyCode(i as u16);
+        }
+
         keys[20] = KeyCode(10); // 'e' at expensive position (row 2)
-        keys[0] = KeyCode(32);  // Space at cheap position (row 0)
-        keys[1] = KeyCode(32);  // Space at cheap position (row 0)
-        
+        keys[0] = KeyCode(32); // Space at cheap position (row 0)
+        keys[1] = KeyCode(32); // Space at cheap position (row 0)
+
         let layout = Layout::new_unchecked(keys);
         let suggestions = suggest_swaps(&ctx, &layout, true);
-        
-        // We expect at least one suggestion involving 'e' (index 20) 
+
+        // We expect at least one suggestion involving 'e' (index 20)
         // to be swapped with one of the 'Space' positions or other good positions.
         assert!(!suggestions.is_empty(), "Should suggest improvements");
-        
+
         // Verify that suggestions include swaps with Space (32)
-        let has_space_swap = suggestions.iter().any(|s| s.key_a == "32" || s.key_b == "32");
-        assert!(has_space_swap, "Should suggest swapping with Space even if it is multi-mapped");
+        let has_space_swap = suggestions
+            .iter()
+            .any(|s| s.key_a == "32" || s.key_b == "32");
+        assert!(
+            has_space_swap,
+            "Should suggest swapping with Space even if it is multi-mapped"
+        );
     }
 
     fn setup_kb_minimal() -> Keyboard {
-        let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode {
-            index: i,
-            label: format!("k{}", i),
-            hand: HandIndex(0),
-            finger: FingerIndex(i as u8),
-            x: i as f32,
-            ..Default::default()
-        }).collect();
+        let keys: Vec<KeyNode> = (0..3)
+            .map(|i| KeyNode {
+                index: i,
+                label: format!("k{}", i),
+                hand: HandIndex(0),
+                finger: FingerIndex(i as u8),
+                x: i as f32,
+                ..Default::default()
+            })
+            .collect();
         Keyboard::new(keys, 0).unwrap()
     }
 
@@ -202,7 +217,10 @@ mod tests {
         let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
 
         let suggestions = suggest_swaps(engine.context(), &layout, false);
-        assert!(!suggestions.is_empty(), "Should suggest swapping 0 closer to 2");
+        assert!(
+            !suggestions.is_empty(),
+            "Should suggest swapping 0 closer to 2"
+        );
         assert!(suggestions[0].improvement_pct > 0.0);
     }
 
@@ -211,10 +229,14 @@ mod tests {
         let kb = setup_kb_minimal();
         let corpus = Corpus::default();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-        let engine = ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+        let engine =
+            ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
 
         let suggestions = suggest_swaps(engine.context(), &layout, false);
-        assert!(suggestions.is_empty(), "Zero score should return empty suggestions");
+        assert!(
+            suggestions.is_empty(),
+            "Zero score should return empty suggestions"
+        );
     }
 
     #[test]
@@ -222,35 +244,37 @@ mod tests {
         let kb = setup_kb_minimal();
         let mut corpus = Corpus::default();
         corpus.bigrams.push((0, 1, 1000));
-        
+
         let mut rubric = Rubric::default();
         rubric.travel_lat = 10.0;
-        
+
         let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
-        
+
         let layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
         let mut pos_map_data = vec![65535u16; 65536];
-        pos_map_data[0] = 0; pos_map_data[1] = 1; pos_map_data[2] = 2;
-        
+        pos_map_data[0] = 0;
+        pos_map_data[1] = 1;
+        pos_map_data[2] = 2;
+
         let validated = ValidatedLayout::new(&layout_keys, engine.context().key_count).unwrap();
-        
+
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::with_capacity(layout_keys.len());
         let pm = PosMap::from_scratch(
-            &layout_keys, 
-            engine.context().key_count, 
-            &mut starts, 
-            &mut counts, 
-            &mut indices, 
+            &layout_keys,
+            engine.context().key_count,
+            &mut starts,
+            &mut counts,
+            &mut indices,
             &mut current_offsets,
-            &mut used_keys_scratch
+            &mut used_keys_scratch,
         );
 
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2);
-        
+
         assert!(delta > 0, "Degrading swap should have positive delta");
     }
 }

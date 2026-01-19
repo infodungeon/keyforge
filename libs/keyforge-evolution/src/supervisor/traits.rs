@@ -31,7 +31,7 @@ impl TimeKeeper for RealTimeKeeper {
     fn now(&self) -> Instant {
         Instant::now()
     }
-    
+
     fn elapsed(&self, start: Instant) -> Duration {
         start.elapsed()
     }
@@ -44,6 +44,7 @@ pub enum MutationAction {
 }
 
 /// A proposed change to a layout.
+#[derive(Debug)]
 pub struct MutationProposal {
     pub delta: i64,
     /// Enum describing the mutation to apply.
@@ -52,7 +53,11 @@ pub struct MutationProposal {
 }
 
 /// Defines how to generate a potential layout change.
-pub trait MutationOperator {
+pub trait MutationOperator: std::fmt::Debug {
+    /// Proposes a mutation given the current state.
+    ///
+    /// # Errors
+    /// Returns `EvolutionError` if the mutation proposal fails.
     fn propose(
         &self,
         engine: &ScoringEngine,
@@ -64,6 +69,6 @@ pub trait MutationOperator {
 }
 
 /// Defines the criteria for accepting a proposed mutation.
-pub trait AcceptanceCriteria {
+pub trait AcceptanceCriteria: std::fmt::Debug {
     fn should_accept(&mut self, delta: i64, temperature: f32, rng: &mut impl Rng) -> bool;
 }

@@ -98,4 +98,3 @@ pub const PRUNE_STALE_JOBS_WITH_NODE: &str = r"
                     OR node_id IN (SELECT id FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1))
                 )
         ";
-

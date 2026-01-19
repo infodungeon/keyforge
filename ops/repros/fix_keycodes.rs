@@ -15,7 +15,8 @@ fn main() {
     // 1. Read and Decompress
     let file = File::open(path).expect("Failed to open file");
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
-    let mut defs: Vec<KeycodeDefinition> = rmp_serde::from_read(decoder).expect("Failed to deserialize");
+    let mut defs: Vec<KeycodeDefinition> =
+        rmp_serde::from_read(decoder).expect("Failed to deserialize");
 
     // 2. Apply Fixes
     let mut fix_count = 0;
@@ -81,7 +82,9 @@ fn main() {
 
     // 4. Write back
     let mut out_file = File::create(path).expect("Failed to create output file");
-    out_file.write_all(&compressed).expect("Failed to write output");
+    out_file
+        .write_all(&compressed)
+        .expect("Failed to write output");
 
     println!("✅ Successfully repaired keycodes.mpk.zst");
 }

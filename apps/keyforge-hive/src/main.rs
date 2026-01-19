@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! # `KeyForge` Hive Binary
 //!
-//! The main entry point for the `KeyForge` Hive server. This executable 
-//! initializes the application state, starts the Axum HTTP server, 
+//! The main entry point for the `KeyForge` Hive server. This executable
+//! initializes the application state, starts the Axum HTTP server,
 //! and begins background maintenance tasks.
 
-use keyforge_hive::constants::{
-    DEFAULT_DATABASE_URL, DEFAULT_HIVE_PORT, DEFAULT_SHUTDOWN_TIMEOUT_SECS
-};
 use axum_server::tls_rustls::RustlsConfig;
 use clap::{Parser, Subcommand};
+use keyforge_hive::constants::{
+    DEFAULT_DATABASE_URL, DEFAULT_HIVE_PORT, DEFAULT_SHUTDOWN_TIMEOUT_SECS,
+};
 use keyforge_hive::{
     bootstrap::HiveBootstrapConfig,
     create_app, cron,
@@ -126,7 +125,7 @@ async fn main() {
                     std::process::exit(1);
                 }
             };
-            
+
             let pool = match db::try_init_db(&config.database_url).await {
                 Ok(p) => p,
                 Err(e) => {
@@ -136,7 +135,10 @@ async fn main() {
             };
 
             // Use resolve_path logic
-            let bootstrap_path = args.bootstrap.clone().unwrap_or_else(HiveBootstrapConfig::resolve_path);
+            let bootstrap_path = args
+                .bootstrap
+                .clone()
+                .unwrap_or_else(HiveBootstrapConfig::resolve_path);
 
             let file_config = if bootstrap_path.exists() {
                 match HiveBootstrapConfig::load(&bootstrap_path) {
@@ -174,9 +176,10 @@ async fn main() {
                 warn!("⚠️ No HIVE_SERVER_KEY configured. Generating ephemeral identity.");
                 uuid::Uuid::new_v4().to_string()
             });
-            
+
             // Init State
-            let state = Arc::new(AppState::new(pool, data_path.clone(), server_key, config.clone()).await);
+            let state =
+                Arc::new(AppState::new(pool, data_path.clone(), server_key, config.clone()).await);
 
             let job_repo_arc = Arc::new(state.jobs.repo.clone());
             let node_repo_arc = Arc::new(state.nodes.clone());
@@ -192,15 +195,18 @@ async fn main() {
             let asset_provider = state.assets.clone();
             let asset_app = keyforge_assets::create_app(asset_provider);
             let asset_port = args.asset_port;
-            
+
             tokio::spawn(async move {
                 let addr = SocketAddr::from(([0, 0, 0, 0], asset_port));
                 info!("🚀 Embedded Asset Server listening on http://{}", addr);
                 let listener = match tokio::net::TcpListener::bind(addr).await {
                     Ok(l) => l,
                     Err(e) => {
-                        error!("FATAL: Failed to bind Asset Server port {}: {}", asset_port, e);
-                        return; 
+                        error!(
+                            "FATAL: Failed to bind Asset Server port {}: {}",
+                            asset_port, e
+                        );
+                        return;
                     }
                 };
                 if let Err(e) = axum::serve(listener, asset_app).await {
@@ -222,7 +228,7 @@ async fn main() {
                 };
 
                 let handle = axum_server::Handle::new();
-                
+
                 // Spawn the shutdown signal handler
                 tokio::spawn(shutdown_signal_axum(handle.clone(), state.clone()));
 
@@ -243,10 +249,13 @@ async fn main() {
                         std::process::exit(1);
                     }
                 };
-                
-                if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-                    .with_graceful_shutdown(shutdown_signal(state.clone()))
-                    .await 
+
+                if let Err(e) = axum::serve(
+                    listener,
+                    app.into_make_service_with_connect_info::<SocketAddr>(),
+                )
+                .with_graceful_shutdown(shutdown_signal(state.clone()))
+                .await
                 {
                     error!("FATAL: Server error: {}", e);
                     std::process::exit(1);

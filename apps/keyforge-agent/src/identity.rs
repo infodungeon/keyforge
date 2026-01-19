@@ -1,13 +1,14 @@
-use ed25519_dalek::SigningKey;
-use rand::rngs::OsRng;
-use tracing::info;
 use crate::agent::errors::AgentError;
 use crate::models::SystemConfig;
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
 use std::convert::TryInto;
 use std::io::{Read, Write};
+use tracing::info;
 
 pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentError> {
-    let mut config_dir = dirs::config_dir().ok_or_else(|| AgentError::Identity("could not find config directory".into()))?;
+    let mut config_dir = dirs::config_dir()
+        .ok_or_else(|| AgentError::Identity("could not find config directory".into()))?;
     config_dir.push(&config.config_dir_name);
 
     if !config_dir.exists() {
@@ -24,16 +25,20 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
         env_id
     } else {
         // Task-agent-021: Fallback to persistent UUID if system machine ID is unavailable
-        if let Ok(id) = machine_uid::get() { id } else {
+        if let Ok(id) = machine_uid::get() {
+            id
+        } else {
             let mut uuid_path = config_dir.clone();
             uuid_path.push("machine_id.uuid");
             if uuid_path.exists() {
-                std::fs::read_to_string(&uuid_path)
-                    .map_err(|e| AgentError::Identity(format!("Failed to read fallback UUID: {e}")))?
+                std::fs::read_to_string(&uuid_path).map_err(|e| {
+                    AgentError::Identity(format!("Failed to read fallback UUID: {e}"))
+                })?
             } else {
                 let new_id = uuid::Uuid::new_v4().to_string();
-                std::fs::write(&uuid_path, &new_id)
-                    .map_err(|e| AgentError::Identity(format!("Failed to save fallback UUID: {e}")))?;
+                std::fs::write(&uuid_path, &new_id).map_err(|e| {
+                    AgentError::Identity(format!("Failed to save fallback UUID: {e}"))
+                })?;
                 info!(path = ?uuid_path, "Generated new fallback machine UUID");
                 new_id
             }
@@ -41,10 +46,10 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
     };
 
     if key_path.exists() {
-        let file =
-            std::fs::File::open(&key_path).map_err(|e| AgentError::Identity(format!("failed to open key file: {e}")))?;
-        let decryptor =
-            age::Decryptor::new(file).map_err(|e| AgentError::Identity(format!("age decryptor error: {e}")))?;
+        let file = std::fs::File::open(&key_path)
+            .map_err(|e| AgentError::Identity(format!("failed to open key file: {e}")))?;
+        let decryptor = age::Decryptor::new(file)
+            .map_err(|e| AgentError::Identity(format!("age decryptor error: {e}")))?;
 
         let identity = age::scrypt::Identity::new(passphrase.clone().into());
         let mut reader = decryptor
@@ -56,9 +61,9 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
             .read_to_end(&mut decrypted)
             .map_err(|e| AgentError::Identity(format!("failed to read decrypted key: {e}")))?;
 
-        let array: [u8; 32] = decrypted
-            .try_into()
-            .map_err(|_| AgentError::Identity("invalid key file length (expected 32 bytes)".into()))?;
+        let array: [u8; 32] = decrypted.try_into().map_err(|_| {
+            AgentError::Identity("invalid key file length (expected 32 bytes)".into())
+        })?;
 
         Ok(SigningKey::from_bytes(&array))
     } else {
@@ -87,17 +92,50 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
                 .truncate(true)
                 .mode(0o600)
                 .open(&key_path)
-                .map_err(|e| AgentError::Identity(format!("failed to create hardened key file: {e}")))?;
+                .map_err(|e| {
+                    AgentError::Identity(format!("failed to create hardened key file: {e}"))
+                })?;
             file.write_all(&output)
                 .map_err(|e| AgentError::Identity(format!("failed to save encrypted key: {e}")))?;
         }
         #[cfg(not(unix))]
         {
-            std::fs::write(&key_path, &output)
-                .map_err(|e| AgentError::Identity(format!("failed to save encrypted key: {}", e)))?;
+            std::fs::write(&key_path, &output).map_err(|e| {
+                AgentError::Identity(format!("failed to save encrypted key: {}", e))
+            })?;
         }
 
         info!(path = ?key_path, "generated new encrypted identity");
         Ok(key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_identity_file_hardening() {
+        let dir = tempdir().unwrap();
+        let key_path = dir.path().join("agent.key.age");
+
+        fs::write(&key_path, "dummy encrypted data").unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&key_path).unwrap().permissions();
+            perms.set_mode(0o600);
+            fs::set_permissions(&key_path, perms).unwrap();
+
+            let final_perms = fs::metadata(&key_path).unwrap().permissions();
+            assert_eq!(
+                final_perms.mode() & 0o777,
+                0o600,
+                "Identity file must be owner-readable only"
+            );
+        }
     }
 }

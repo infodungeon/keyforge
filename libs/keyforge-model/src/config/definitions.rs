@@ -3,9 +3,9 @@
 // use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 // --- Default Values (Strings) ---
 
@@ -52,24 +52,35 @@ impl Default for LayoutDefinitions {
 
 impl Validator for LayoutDefinitions {
     fn validate(&self) -> Result<(), String> {
-        if self.tier_high_chars.is_empty() { return Err("tier_high_chars cannot be empty".to_string()); }
-        
-        for (i, &v) in self.finger_repeat_scale.iter().enumerate() {
-            if v < 0.0 { return Err(format!("finger_repeat_scale[{i}] cannot be negative")); }
+        if self.tier_high_chars.is_empty() {
+            return Err("tier_high_chars cannot be empty".to_string());
         }
-        
+
+        for (i, &v) in self.finger_repeat_scale.iter().enumerate() {
+            if v < 0.0 {
+                return Err(format!("finger_repeat_scale[{i}] cannot be negative"));
+            }
+        }
+
         Ok(())
     }
 }
 
 impl LayoutDefinitions {
     /// Parses the critical bigrams string into a list of byte pairs.
-    #[must_use] 
+    #[must_use]
     pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
-        self.critical_bigrams.split(',').filter_map(|s| {
-            let b = s.trim().as_bytes();
-            if b.len() == 2 { Some([b[0], b[1]]) } else { None }
-        }).collect()
+        self.critical_bigrams
+            .split(',')
+            .filter_map(|s| {
+                let b = s.trim().as_bytes();
+                if b.len() == 2 {
+                    Some([b[0], b[1]])
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
@@ -118,4 +129,24 @@ fn vec_to_array_5(v: &[f32]) -> Result<[f32; 5], String> {
         arr[i] = val;
     }
     Ok(arr)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_layout_definitions_validation() {
+        let mut def = LayoutDefinitions::default();
+        assert!(def.validate().is_ok());
+
+        // 1. Empty high tier
+        def.tier_high_chars = "".into();
+        assert!(def.validate().is_err());
+
+        // 2. Negative finger repeat scale
+        def.tier_high_chars = "abc".into();
+        def.finger_repeat_scale[0] = -1.0;
+        assert!(def.validate().is_err());
+    }
 }

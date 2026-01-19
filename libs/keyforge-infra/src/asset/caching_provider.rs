@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::asset::cache::AssetCache;
 use crate::asset::fs_provider::FsProvider;
 use crate::asset::AssetServerProvider;
-use crate::asset::cache::AssetCache;
 use crate::net::sync::ServerManifest;
 use bytes::Bytes;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_model::{Asset, Corpus, ForgeError};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::ASSET_KEYCODES;
+use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::cost_model::CostModel;
+use keyforge_model::{Asset, Corpus, ForgeError};
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
+use std::any::{Any, TypeId};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::{error, info};
-use std::any::{Any, TypeId};
 
 /// A thread-safe, caching asset loader with hot-reloading capabilities.
 /// Wraps `FsProvider` with memory caching and file-system watching.
@@ -38,7 +38,7 @@ pub struct CachingProvider {
     cache: Arc<AssetCache>,
     // Watcher is held in Arc to keep it alive but we don't need to access it directly often.
     // It's just for side-effects (invalidation).
-    _watcher: Arc<Option<RecommendedWatcher>>, 
+    _watcher: Arc<Option<RecommendedWatcher>>,
 }
 
 impl CachingProvider {
@@ -49,7 +49,7 @@ impl CachingProvider {
     pub fn new(data_path: PathBuf) -> Self {
         let provider = FsProvider::new(data_path.clone());
         let cache = Arc::new(AssetCache::new());
-        
+
         let cache_clone = cache.clone();
         let dp_c = data_path.clone();
 
@@ -82,7 +82,7 @@ impl CachingProvider {
                 let path_str = rel.to_string_lossy();
                 if path_str.contains("system") {
                     info!("♻️ System asset changed: {}", path_str);
-                    
+
                     // Granular Invalidation
                     cache.invalidate_file(path_str.as_ref());
                     cache.invalidate_manifest();
@@ -192,7 +192,7 @@ impl CachingProvider {
     }
 
     /// Returns the current system asset manifest.
-    #[must_use] 
+    #[must_use]
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
         self.cache.get_manifest()
     }
@@ -216,7 +216,11 @@ impl CachingProvider {
         if rel_path.starts_with(crate::asset::ASSET_PATH_KEYBOARDS) {
             let path = Path::new(rel_path);
             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-             let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") { s } else { stem };
+            let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
+                s
+            } else {
+                stem
+            };
             if !clean_stem.is_empty() {
                 if let Err(e) = self.load::<KeyboardDefinition>(clean_stem).await {
                     tracing::warn!("Eager load failed for keyboard {}: {}", clean_stem, e);
@@ -228,37 +232,46 @@ impl CachingProvider {
     }
 
     async fn try_ensure_corpus(&self, rel_path: &str) -> Result<bool, String> {
-        if rel_path.starts_with(crate::asset::ASSET_PATH_CORPORA) && rel_path.ends_with("1grams.mpk.zst") {
-             let path = Path::new(rel_path);
-             if let Some(parent) = path.parent() {
-                 if let Ok(id_path) = parent.strip_prefix("corpora") {
-                     let id = id_path.to_string_lossy().replace('\\', "/");
-                     if !id.is_empty() {
-                         if let Err(e) = self.load_corpus(&[CorpusSource {
-                             id: id.clone(),
-                             weight: 1.0,
-                             hash: None,
-                             }]).await {
-                             tracing::warn!("Eager load failed for corpus {}: {}", id, e);
-                         }
-                         return Ok(true);
-                     }
-                 }
-             }
+        if rel_path.starts_with(crate::asset::ASSET_PATH_CORPORA)
+            && rel_path.ends_with("1grams.mpk.zst")
+        {
+            let path = Path::new(rel_path);
+            if let Some(parent) = path.parent() {
+                if let Ok(id_path) = parent.strip_prefix("corpora") {
+                    let id = id_path.to_string_lossy().replace('\\', "/");
+                    if !id.is_empty() {
+                        if let Err(e) = self
+                            .load_corpus(&[CorpusSource {
+                                id: id.clone(),
+                                weight: 1.0,
+                                hash: None,
+                            }])
+                            .await
+                        {
+                            tracing::warn!("Eager load failed for corpus {}: {}", id, e);
+                        }
+                        return Ok(true);
+                    }
+                }
+            }
         }
         Ok(false)
     }
 
     async fn try_ensure_weights(&self, rel_path: &str) -> Result<bool, String> {
         if rel_path.starts_with(crate::asset::ASSET_PATH_WEIGHTS) {
-             let path = Path::new(rel_path);
-             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-             let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") { s } else { stem };
+            let path = Path::new(rel_path);
+            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+            let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
+                s
+            } else {
+                stem
+            };
 
-             if !clean_stem.is_empty() {
-                 let _ = self.load::<CostModel>(clean_stem).await;
-                 return Ok(true);
-             }
+            if !clean_stem.is_empty() {
+                let _ = self.load::<CostModel>(clean_stem).await;
+                return Ok(true);
+            }
         }
         Ok(false)
     }
@@ -266,7 +279,7 @@ impl CachingProvider {
     async fn try_ensure_config(&self, rel_path: &str) -> Result<bool, String> {
         if rel_path == format!("config/{ASSET_KEYCODES}.mpk.zst") {
             if let Err(e) = self.load::<KeycodeRegistry>(ASSET_KEYCODES).await {
-                 tracing::warn!("Eager load failed for keycodes: {}", e);
+                tracing::warn!("Eager load failed for keycodes: {}", e);
             }
             return Ok(true);
         }
@@ -306,7 +319,9 @@ impl AssetLoader for CachingProvider {
                 kb
             };
             let any_kb: Arc<dyn Any + Send + Sync> = kb;
-            return any_kb.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+            return any_kb
+                .downcast::<T>()
+                .map_err(|_| ForgeError::Internal("Downcast failed".into()));
         }
 
         if tid == TypeId::of::<CostModel>() {
@@ -318,7 +333,9 @@ impl AssetLoader for CachingProvider {
                 cm
             };
             let any_cm: Arc<dyn Any + Send + Sync> = cm;
-            return any_cm.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+            return any_cm
+                .downcast::<T>()
+                .map_err(|_| ForgeError::Internal("Downcast failed".into()));
         }
 
         if tid == TypeId::of::<KeycodeRegistry>() {
@@ -330,7 +347,9 @@ impl AssetLoader for CachingProvider {
                 rg
             };
             let any_rg: Arc<dyn Any + Send + Sync> = rg;
-            return any_rg.downcast::<T>().map_err(|_| ForgeError::Internal("Downcast failed".into()));
+            return any_rg
+                .downcast::<T>()
+                .map_err(|_| ForgeError::Internal("Downcast failed".into()));
         }
 
         // Fallback for types without dedicated caches

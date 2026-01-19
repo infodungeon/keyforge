@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Parsing logic for keymap formats.
 //!
-//! This module provides utilities for parsing external keymap formats 
+//! This module provides utilities for parsing external keymap formats
 //! (like QMK or ZMK) into internal domain representations.
-
 
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
@@ -40,18 +38,18 @@ pub enum KeyAction {
     /// Turn on layer (TO).
     LayerOn(u8),
     /// Modifier Tap (Hold for Mod, Tap for Key).
-    ModTap { 
+    ModTap {
         /// The modifier (e.g., "LSHIFT").
-        mod_name: String, 
+        mod_name: String,
         /// The tap key (recursive).
-        key: Box<KeyAction> 
+        key: Box<KeyAction>,
     },
     /// Layer Tap (Hold for Layer, Tap for Key).
-    LayerTap { 
+    LayerTap {
         /// The layer index.
-        layer: u8, 
+        layer: u8,
         /// The tap key (recursive).
-        key: Box<KeyAction> 
+        key: Box<KeyAction>,
     },
     /// Sticky Modifier (One-Shot Mod).
     StickyMod(String),
@@ -62,10 +60,11 @@ pub enum KeyAction {
 }
 
 /// Parses a string token into a `KeyAction` using a recursive descent approach.
-#[must_use] 
+#[must_use]
 pub fn parse_key(token: &str) -> KeyAction {
     let t = token.trim();
-    if t.len() > 100 { // Safety check for recursion depth/exploit
+    if t.len() > 100 {
+        // Safety check for recursion depth/exploit
         return KeyAction::Raw(t.to_string());
     }
     let upper = t.to_uppercase();
@@ -82,53 +81,67 @@ pub fn parse_key(token: &str) -> KeyAction {
     if let Some((name, args_str)) = parse_function_call(&upper) {
         match name {
             "MO" => {
-                if let Ok(l) = args_str.parse::<u8>() { return KeyAction::LayerMomentary(l); }
-            },
+                if let Ok(l) = args_str.parse::<u8>() {
+                    return KeyAction::LayerMomentary(l);
+                }
+            }
             "TG" => {
-                if let Ok(l) = args_str.parse::<u8>() { return KeyAction::LayerToggle(l); }
-            },
+                if let Ok(l) = args_str.parse::<u8>() {
+                    return KeyAction::LayerToggle(l);
+                }
+            }
             "TO" => {
-                if let Ok(l) = args_str.parse::<u8>() { return KeyAction::LayerOn(l); }
-            },
+                if let Ok(l) = args_str.parse::<u8>() {
+                    return KeyAction::LayerOn(l);
+                }
+            }
             "LT" => {
                 if let Some((layer_str, key_str)) = split_args_safe(&args_str) {
                     if let Ok(layer) = layer_str.trim().parse::<u8>() {
                         // RECURSIVE CALL
-                        let key_action = parse_key(&key_str); 
-                        return KeyAction::LayerTap { layer, key: Box::new(key_action) };
+                        let key_action = parse_key(&key_str);
+                        return KeyAction::LayerTap {
+                            layer,
+                            key: Box::new(key_action),
+                        };
                     }
                 }
-            },
+            }
             "MT" => {
                 if let Some((mod_str, key_str)) = split_args_safe(&args_str) {
                     let key_action = parse_key(&key_str);
-                    return KeyAction::ModTap { 
-                        mod_name: mod_str.trim().to_string(), 
-                        key: Box::new(key_action) 
+                    return KeyAction::ModTap {
+                        mod_name: mod_str.trim().to_string(),
+                        key: Box::new(key_action),
                     };
                 }
-            },
+            }
             "SK" | "OSM" => {
                 return KeyAction::StickyMod(args_str.trim().to_string());
-            },
+            }
             _ if name.ends_with("_T") => {
                 // MOD_T(KEY) or LSHIFT_T(KEY)
                 // Extract mod name from function name
                 let mod_name = name.trim_end_matches("_T").to_string();
                 let key_action = parse_key(&args_str);
-                return KeyAction::ModTap { mod_name, key: Box::new(key_action) };
+                return KeyAction::ModTap {
+                    mod_name,
+                    key: Box::new(key_action),
+                };
             }
             _ => {}
         }
     }
 
     // 3. Fallback to Simple
-    if t.contains('(') || t.contains(')') { return KeyAction::Raw(t.to_string()); }
-    
+    if t.contains('(') || t.contains(')') {
+        return KeyAction::Raw(t.to_string());
+    }
+
     // Normalize simple keys
     if !upper.starts_with("KC_") && upper.chars().all(|c| c.is_alphanumeric() || c == '_') {
-        // Avoid adding KC_ to numbers if they are just raw numbers? 
-        // QMK usually likes KC_1. 
+        // Avoid adding KC_ to numbers if they are just raw numbers?
+        // QMK usually likes KC_1.
         // But let's stick to existing behavior: alphanumeric -> KC_
         return KeyAction::Simple(format!("KC_{upper}"));
     }
@@ -141,7 +154,7 @@ fn parse_function_call(s: &str) -> Option<(&str, String)> {
     if let Some(idx) = s.find('(') {
         if s.ends_with(')') {
             let name = &s[..idx];
-            let args = &s[idx+1..s.len()-1];
+            let args = &s[idx + 1..s.len() - 1];
             return Some((name.trim(), args.to_string()));
         }
     }
@@ -157,12 +170,69 @@ fn split_args_safe(s: &str) -> Option<(String, String)> {
             ')' => depth -= 1,
             ',' if depth == 0 => {
                 let first = s[..i].to_string();
-                let second = s[i+1..].to_string();
+                let second = s[i + 1..].to_string();
                 return Some((first, second));
-            },
+            }
             _ => {}
         }
     }
     None
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::KeyboardDefinition;
+
+    #[test]
+    fn test_key_action_parsing() {
+        assert_eq!(parse_key("KC_A"), KeyAction::Simple("KC_A".to_string()));
+        assert_eq!(parse_key("TRNS"), KeyAction::Transparent);
+
+        match parse_key("MO(1)") {
+            KeyAction::LayerMomentary(1) => {}
+            _ => panic!("Failed to parse MO(1)"),
+        }
+
+        match parse_key("LT(2, KC_SPC)") {
+            KeyAction::LayerTap { layer: 2, key } => {
+                assert_eq!(*key, KeyAction::Simple("KC_SPC".to_string()))
+            }
+            _ => panic!("Failed to parse LT"),
+        }
+
+        // Verify recursive parsing
+        match parse_key("MT(MOD_LCTL, LT(1, A))") {
+            KeyAction::ModTap { mod_name, key } => {
+                assert_eq!(mod_name, "MOD_LCTL");
+                match *key {
+                    KeyAction::LayerTap {
+                        layer: 1,
+                        key: inner_key,
+                    } => {
+                        assert_eq!(*inner_key, KeyAction::Simple("KC_A".to_string()));
+                    }
+                    _ => panic!("Failed to parse nested LT"),
+                }
+            }
+            _ => panic!("Failed to parse nested ModTap"),
+        }
+    }
+
+    #[test]
+    fn test_kle_import() {
+        // Minimal KLE JSON
+        let json = r#"[
+            {"meta": {"name": "Test"}},
+            [{"x":0},"A",{"x":1},"B"]
+        ]"#;
+
+        // Note: KeyboardDefinition::parse handles KLE detection
+        let def = KeyboardDefinition::parse(json, Some("Test Board"));
+
+        if let Ok(kb) = def {
+            assert_eq!(kb.meta.name, "Test Board");
+            assert_eq!(kb.geometry.keys.len(), 2);
+        }
+    }
+}

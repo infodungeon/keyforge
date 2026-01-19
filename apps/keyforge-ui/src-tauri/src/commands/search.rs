@@ -1,15 +1,15 @@
 use crate::error::CommandError;
-use crate::models::{JobStatusUpdate, RegisterJobRequest, StartSearchRequest, SearchUpdate};
+use crate::models::{JobStatusUpdate, RegisterJobRequest, SearchUpdate, StartSearchRequest};
 use crate::state::{LocalWorkerState, SearchState, SessionState};
 use crate::utils::get_data_dir;
-use keyforge_infra::{HiveClient, AssetLoader};
+use keyforge_evolution::ProgressCallback;
+use keyforge_infra::{AssetLoader, HiveClient};
+use keyforge_model::KeyCode;
 use keyforge_protocol::{JobRequest, JobResponse, JobStatus};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Window};
 use tauri_plugin_shell::ShellExt;
-use keyforge_evolution::ProgressCallback;
-use keyforge_model::KeyCode;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Dispatches a job to the Hive API.
 ///
@@ -33,8 +33,7 @@ pub async fn cmd_dispatch_job(
         secret: Some(hive_secret),
         ..Default::default()
     };
-    let client = HiveClient::new(config)
-        .map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
 
     let job_req: JobRequest = request;
     let resp = client
@@ -45,10 +44,16 @@ pub async fn cmd_dispatch_job(
         .map_err(|e| CommandError::Network(e.to_string()))?;
 
     if !resp.status().is_success() {
-        return Err(CommandError::Network(format!("Server Error: {}", resp.status())));
+        return Err(CommandError::Network(format!(
+            "Server Error: {}",
+            resp.status()
+        )));
     }
 
-    let body: JobResponse = resp.json().await.map_err(|e| CommandError::Network(e.to_string()))?;
+    let body: JobResponse = resp
+        .json()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
     Ok(body.job_id)
 }
 
@@ -75,13 +80,23 @@ pub async fn cmd_poll_hive_status(
     let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
 
     let path = format!("jobs/{job_id}/status");
-    let resp = client.get(&path).send().await.map_err(|e| CommandError::Network(e.to_string()))?;
+    let resp = client
+        .get(&path)
+        .send()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
 
     if !resp.status().is_success() {
-        return Err(CommandError::Network(format!("Server Error: {}", resp.status())));
+        return Err(CommandError::Network(format!(
+            "Server Error: {}",
+            resp.status()
+        )));
     }
 
-    let status: JobStatus = resp.json().await.map_err(|e| CommandError::Network(e.to_string()))?;
+    let status: JobStatus = resp
+        .json()
+        .await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
     Ok(JobStatusUpdate {
         active_nodes: status.active_nodes,
         best_score: status.best_score.unwrap_or(0.0),
@@ -99,7 +114,11 @@ pub async fn cmd_poll_hive_status(
 ///
 /// Panics if the worker child lock is poisoned.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value, clippy::unwrap_used, clippy::missing_panics_doc)]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::unwrap_used,
+    clippy::missing_panics_doc
+)]
 pub fn cmd_toggle_local_worker(
     app: AppHandle,
     state: tauri::State<'_, LocalWorkerState>,
@@ -115,13 +134,19 @@ pub fn cmd_toggle_local_worker(
         }
 
         let data_dir = get_data_dir(&app).map_err(CommandError::Internal)?;
-        
+
         // Spawn sidecar
         let (mut _rx, child) = app
             .shell()
             .sidecar("keyforge-agent")
             .map_err(|e| CommandError::Internal(format!("Failed to find sidecar: {e}")))?
-            .args(["worker", "--hive", &hive_url, "--data-dir", &data_dir.to_string_lossy()])
+            .args([
+                "worker",
+                "--hive",
+                &hive_url,
+                "--data-dir",
+                &data_dir.to_string_lossy(),
+            ])
             .spawn()
             .map_err(|e| CommandError::Internal(format!("Failed to spawn worker: {e}")))?;
 
@@ -149,12 +174,12 @@ impl ProgressCallback for TauriProgressCallback {
         if self.stop_flag.load(Ordering::SeqCst) {
             return false;
         }
-        
+
         #[allow(clippy::unwrap_used)]
         let mut last = self.last_emit.lock().unwrap();
         if last.elapsed().as_millis() > 100 {
             *last = std::time::Instant::now();
-            
+
             // Convert layout codes to string representation
             let mut layout_str = String::new();
             for code in layout {
@@ -162,7 +187,7 @@ impl ProgressCallback for TauriProgressCallback {
                 layout_str.push_str(&label);
                 layout_str.push(' ');
             }
-            
+
             let update = SearchUpdate {
                 epoch,
                 score,
@@ -192,7 +217,10 @@ pub async fn cmd_start_search(
     // 1. Get Active Job Context
     let job = {
         let job_guard = state.active_job.read().await;
-        job_guard.as_ref().ok_or_else(|| CommandError::Internal("No active job found".into()))?.clone()
+        job_guard
+            .as_ref()
+            .ok_or_else(|| CommandError::Internal("No active job found".into()))?
+            .clone()
     };
 
     // 2. Prepare Engine Request via Runner
@@ -203,11 +231,10 @@ pub async fn cmd_start_search(
         ..Default::default()
     };
 
-    let session = keyforge_runner::OptimizationRunner::prepare_session(
-        state.assets.as_ref(),
-        &job,
-        &options
-    ).await.map_err(|e| CommandError::Internal(e.to_string()))?;
+    let session =
+        keyforge_runner::OptimizationRunner::prepare_session(state.assets.as_ref(), &job, &options)
+            .await
+            .map_err(|e| CommandError::Internal(e.to_string()))?;
 
     // Reset stop flag
     search_state.stop_flag.store(false, Ordering::SeqCst);
@@ -215,9 +242,12 @@ pub async fn cmd_start_search(
     // 3. Spawn Optimization Task via Runner
     let stop_flag = search_state.stop_flag.clone();
     let window_handle = window.clone();
-    
+
     // Resolve keycodes for labeling in the callback
-    let keycodes = state.assets.load::<keyforge_model::KeycodeRegistry>("default").await
+    let keycodes = state
+        .assets
+        .load::<keyforge_model::KeycodeRegistry>("default")
+        .await
         .unwrap_or_else(|_| Arc::new(keyforge_model::KeycodeRegistry::new_with_defaults()));
 
     let callback = TauriProgressCallback {
@@ -234,13 +264,15 @@ pub async fn cmd_start_search(
             stop_flag,
             callback,
             options,
-            &job
-        ).await {
+            &job,
+        )
+        .await
+        {
             Ok(result) => {
-                 let _ = window_handle.emit("search_finished", result);
-            },
+                let _ = window_handle.emit("search_finished", result);
+            }
             Err(e) => {
-                 let _ = window_handle.emit("search_error", e.to_string());
+                let _ = window_handle.emit("search_error", e.to_string());
             }
         }
     });

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Key code definitions and registry.
 //!
 //! This module defines how logical key codes (like 'A' or 'Shift') are represented,
@@ -23,10 +22,10 @@ use std::collections::HashMap;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
-use crate::validator::Validator;
-use crate::types::KeyCode;
 use crate::asset::{Asset, AssetCategory};
 use crate::error::ForgeError;
+use crate::types::KeyCode;
+use crate::validator::Validator;
 
 use crate::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
 
@@ -51,7 +50,10 @@ impl Validator for KeycodeDefinition {
         }
 
         if self.label.is_empty() {
-            return Err(format!("Keycode {} ({}) has empty label", self.code, self.id));
+            return Err(format!(
+                "Keycode {} ({}) has empty label",
+                self.code, self.id
+            ));
         }
         Ok(())
     }
@@ -113,7 +115,7 @@ impl Validator for KeycodeRegistry {
 
 impl KeycodeRegistry {
     /// Creates a new registry from a list of definitions.
-    #[must_use] 
+    #[must_use]
     pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
         for def in &mut definitions {
             // 0. QMK to ASCII Remapping (Heuristic fix for physics scoring)
@@ -122,7 +124,7 @@ impl KeycodeRegistry {
             }
 
             // 1. NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
-            // This ensures consistence between corpus text (which is lowercased for heatmaps) 
+            // This ensures consistence between corpus text (which is lowercased for heatmaps)
             // and key definitions.
             let val = def.code.0;
             #[allow(clippy::cast_possible_truncation)]
@@ -131,7 +133,7 @@ impl KeycodeRegistry {
             }
         }
 
-        // 2. DEDUPLICATE: If multiple definitions now have the same code (e.g. 'A' and 'a'), 
+        // 2. DEDUPLICATE: If multiple definitions now have the same code (e.g. 'A' and 'a'),
         // keep the one with the lowercase code or the first one encountered.
         let mut seen = std::collections::HashSet::new();
         definitions.retain(|def| seen.insert(def.code));
@@ -146,7 +148,7 @@ impl KeycodeRegistry {
     }
 
     /// Creates a registry with minimal defaults (`KC_NO`, `KC_TRNS`).
-    #[must_use] 
+    #[must_use]
     pub fn new_with_defaults() -> Self {
         let defs = vec![
             KeycodeDefinition {
@@ -180,15 +182,18 @@ impl KeycodeRegistry {
     }
 
     /// Looks up a `KeyCode` by name (case-insensitive).
-    #[must_use] 
+    #[must_use]
     pub fn get_code(&self, name: &str) -> Option<KeyCode> {
         self.name_to_code.get(&name.to_uppercase()).copied()
     }
 
     /// Gets the display label for a `KeyCode`.
-    #[must_use] 
+    #[must_use]
     pub fn get_label(&self, code: KeyCode) -> String {
-        self.code_to_label.get(&code).cloned().unwrap_or_else(|| format!("[{code}]"))
+        self.code_to_label
+            .get(&code)
+            .cloned()
+            .unwrap_or_else(|| format!("[{code}]"))
     }
 }
 
@@ -214,5 +219,62 @@ fn qmk_to_ascii(qmk: u16) -> Option<u16> {
         55 => Some(46),                 // .
         56 => Some(47),                 // /
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_keycode_definition_validation() {
+        let valid = KeycodeDefinition {
+            code: KeyCode(10),
+            id: "KC_A".into(),
+            label: "A".into(),
+            aliases: vec![],
+        };
+        assert!(valid.validate().is_ok());
+
+        let empty_id = KeycodeDefinition {
+            code: KeyCode(10),
+            id: " ".into(),
+            label: "A".into(),
+            aliases: vec![],
+        };
+        assert!(empty_id.validate().is_err());
+
+        let empty_label = KeycodeDefinition {
+            code: KeyCode(10),
+            id: "KC_A".into(),
+            label: "".into(),
+            aliases: vec![],
+        };
+        assert!(empty_label.validate().is_err());
+    }
+
+    #[test]
+    fn test_keycode_registry_validation() {
+        let mut reg = KeycodeRegistry::new_with_defaults();
+        assert!(reg.validate().is_ok());
+
+        // 1. Duplicate ID
+        reg.definitions.push(KeycodeDefinition {
+            code: KeyCode(10),
+            id: "KC_NO".into(), // Duplicate ID
+            label: "X".into(),
+            aliases: vec![],
+        });
+        assert!(reg.validate().is_err());
+
+        // 2. Duplicate Code
+        reg = KeycodeRegistry::new_with_defaults();
+        reg.definitions.push(KeycodeDefinition {
+            code: KeyCode(0), // Duplicate code
+            id: "KC_X".into(),
+            label: "X".into(),
+            aliases: vec![],
+        });
+        assert!(reg.validate().is_err());
     }
 }

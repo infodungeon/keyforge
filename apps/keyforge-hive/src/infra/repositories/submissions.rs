@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::features::list_submissions::SubmissionEntry;
 use sqlx::{Pool, Postgres, Row};
 
@@ -24,7 +23,7 @@ pub struct SubmissionRepository {
 
 impl SubmissionRepository {
     /// Creates a new `SubmissionRepository` with the given database pool.
-    #[must_use] 
+    #[must_use]
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }

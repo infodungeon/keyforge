@@ -14,9 +14,9 @@
 
 //! Keyboard aggregate and spatial logic.
 
-use serde::{Deserialize, Serialize};
 use crate::error::ForgeError;
 use crate::geometry::KeyNode;
+use serde::{Deserialize, Serialize};
 
 /// The physical reality of the device.
 /// Contains the set of keys and pre-calculated spatial data for scoring.
@@ -43,7 +43,9 @@ impl Keyboard {
     /// Returns a `ForgeError` if the key list is empty.
     pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Result<Self, ForgeError> {
         if keys.is_empty() {
-            return Err(ForgeError::InvalidData("Keyboard must have at least one key".into()));
+            return Err(ForgeError::InvalidData(
+                "Keyboard must have at least one key".into(),
+            ));
         }
 
         let mut kb = Self {
@@ -72,8 +74,18 @@ impl Keyboard {
 
     fn calculate_origins(&mut self) {
         // 1. Determine dimensions
-        let max_hand = self.keys.iter().map(|k| k.hand.as_usize()).max().unwrap_or(0);
-        let max_finger = self.keys.iter().map(|k| k.finger.as_usize()).max().unwrap_or(0);
+        let max_hand = self
+            .keys
+            .iter()
+            .map(|k| k.hand.as_usize())
+            .max()
+            .unwrap_or(0);
+        let max_finger = self
+            .keys
+            .iter()
+            .map(|k| k.finger.as_usize())
+            .max()
+            .unwrap_or(0);
 
         // 2. Initialize with (0,0)
         self.finger_origins = vec![vec![(0.0, 0.0); max_finger + 1]; max_hand + 1];
@@ -83,17 +95,26 @@ impl Keyboard {
             for finger in 0..=max_finger {
                 // Find Home Row key for this finger
                 // Priority 1: Explicit is_home flag
-                let origin = self.keys.iter().find(|k| {
-                    k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.is_home
-                })
-                // Priority 2: Match home_row index
-                .or_else(|| self.keys.iter().find(|k| {
-                    k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.row.0 == self.home_row
-                }))
-                // Priority 3: Fallback to any key
-                .or_else(|| self.keys.iter().find(|k| {
-                    k.hand.as_usize() == hand && k.finger.as_usize() == finger
-                }));
+                let origin = self
+                    .keys
+                    .iter()
+                    .find(|k| {
+                        k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.is_home
+                    })
+                    // Priority 2: Match home_row index
+                    .or_else(|| {
+                        self.keys.iter().find(|k| {
+                            k.hand.as_usize() == hand
+                                && k.finger.as_usize() == finger
+                                && k.row.0 == self.home_row
+                        })
+                    })
+                    // Priority 3: Fallback to any key
+                    .or_else(|| {
+                        self.keys
+                            .iter()
+                            .find(|k| k.hand.as_usize() == hand && k.finger.as_usize() == finger)
+                    });
 
                 if let Some(k) = origin {
                     self.finger_origins[hand][finger] = (k.x, k.y);
@@ -103,8 +124,60 @@ impl Keyboard {
     }
 
     /// Returns the number of keys on the keyboard.
-    #[must_use] 
+    #[must_use]
     pub fn count(&self) -> usize {
         self.keys.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
+
+    #[test]
+    fn test_keyboard_spatial_precomputation() {
+        let keys = vec![
+            KeyNode {
+                index: 0,
+                x: 0.0,
+                y: 0.0,
+                hand: HandIndex(0),
+                finger: FingerIndex(1),
+                ..Default::default()
+            },
+            KeyNode {
+                index: 1,
+                x: 1.0,
+                y: 0.0,
+                hand: HandIndex(0),
+                finger: FingerIndex(2),
+                ..Default::default()
+            },
+        ];
+        let kb = Keyboard::new(keys, 0).unwrap();
+
+        assert_eq!(kb.spatial_cache.len(), 4);
+        // Dist between 0 and 1: dx=1, dy=0 -> (1, 0)
+        assert_eq!(kb.spatial_cache[1], (1.0, 0.0));
+    }
+
+    #[test]
+    fn test_keyboard_origin_calculation() {
+        let keys = vec![KeyNode {
+            index: 0,
+            x: 10.0,
+            y: 20.0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            row: RowIndex(1),
+            col: ColIndex(0),
+            is_home: true,
+            ..Default::default()
+        }];
+        let kb = Keyboard::new(keys, 1).unwrap();
+
+        // Hand 0, Finger 1 origin should be (10, 20)
+        assert_eq!(kb.finger_origins[0][1], (10.0, 20.0));
     }
 }

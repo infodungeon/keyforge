@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crossterm::{
     event::{self, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use keyforge_infra::net::client::ClientConfig;
 use keyforge_infra::HiveClient;
 use keyforge_protocol::SystemMetrics;
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
 };
-use keyforge_infra::net::client::ClientConfig;
 use serde::Deserialize;
 use std::io;
 use std::process::Command;
@@ -177,7 +176,7 @@ pub async fn run_monitor(
 
     // Assume assets are on port 3001 if hive is 3000, or just use same base if proxied
     let asset_url = url.replace("3000", "3001");
-    
+
     let config = ClientConfig {
         api_url: url,
         asset_url,
@@ -233,7 +232,12 @@ pub async fn run_monitor(
 }
 
 #[allow(clippy::too_many_lines)]
-fn ui(f: &mut Frame<'_>, status: &SystemStatusResponse, containers: &[ContainerMetrics], err: &str) {
+fn ui(
+    f: &mut Frame<'_>,
+    status: &SystemStatusResponse,
+    containers: &[ContainerMetrics],
+    err: &str,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

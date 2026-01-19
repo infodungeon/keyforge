@@ -19,7 +19,7 @@
 //! directory structure populated with "Golden Data" for testing the
 //! full asset loading pipeline.
 
-use keyforge_infra::{FsProvider, initialize_workspace, InitMode};
+use keyforge_infra::{initialize_workspace, FsProvider, InitMode};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -38,12 +38,12 @@ impl HermeticWorkspace {
     /// # Panics
     ///
     /// Panics if the temporary directory cannot be created or initial assets cannot be written.
-    #[must_use] 
+    #[must_use]
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         let temp = tempfile::tempdir().expect("Failed to create temp dir");
         let root = temp.path().to_path_buf();
-        
+
         // Pre-create dummy required assets to pass validation in initialize_workspace
         let sys = root.join("system");
         let assets = [
@@ -71,7 +71,7 @@ impl HermeticWorkspace {
         initialize_workspace(&root, InitMode::Create).expect("Failed to init workspace");
 
         let provider = FsProvider::new(root.clone());
-        
+
         Self {
             _temp: temp,
             data_root: root.clone(),
@@ -81,7 +81,7 @@ impl HermeticWorkspace {
     }
 
     /// Populates the workspace with standard test assets.
-    #[must_use] 
+    #[must_use]
     pub fn with_default_assets(self) -> Self {
         // 1. Keycodes
         let keycodes_json = r#"[
@@ -143,7 +143,7 @@ impl HermeticWorkspace {
     }
 
     /// Populates the workspace with "poison pill" assets designed to fail if constraints are ignored.
-    #[must_use] 
+    #[must_use]
     pub fn with_poison_pill(self) -> Self {
         // Poison Keyboard: 2 keys.
         // Key 0: Cost 0.
@@ -176,7 +176,7 @@ impl HermeticWorkspace {
         self.write_file("user/corpora/poison_corpus/2grams.json", "[]");
         self.write_file("user/corpora/poison_corpus/3grams.json", "[]");
         self.write_file("user/corpora/poison_corpus/words.json", "[]");
-        
+
         // Cost Model
         let cost_json = r#"{
             "meta": { "version": "2.0", "description": "Poison", "unit": "pts" },
@@ -217,22 +217,24 @@ impl HermeticWorkspace {
 
     // --- Path Helpers ---
 
-    #[must_use] 
+    #[must_use]
     pub fn keyboard_path(&self, name: &str) -> PathBuf {
-        self.root.join("user/keyboards").join(format!("{name}.json"))
+        self.root
+            .join("user/keyboards")
+            .join(format!("{name}.json"))
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn cost_path(&self, name: &str) -> PathBuf {
         self.root.join("user/weights").join(name)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn weights_path(&self, name: &str) -> PathBuf {
         self.root.join("user/weights").join(format!("{name}.json"))
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn keycodes_path(&self) -> PathBuf {
         self.root.join("user/config/keycodes.json")
     }

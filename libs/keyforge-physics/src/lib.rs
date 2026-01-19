@@ -14,37 +14,37 @@
 
 //! # `KeyForge` Physics
 //!
-//! The "Physics Engine" of `KeyForge`. This crate implements the core 
-//! scoring logic, evaluating layouts based on physical constraints 
+//! The "Physics Engine" of `KeyForge`. This crate implements the core
+//! scoring logic, evaluating layouts based on physical constraints
 //! and language statistics.
 
 mod analysis;
-mod kernel;
-/// Layout verification and validity scoring.
-pub mod verify; 
 /// Physics-specific error types.
 pub mod errors;
+mod kernel;
+/// Layout verification and validity scoring.
+pub mod verify;
 
 pub use analysis::fingerprint::LayoutIdentity;
 pub use keyforge_model::SwapSuggestion;
 
 use analysis::fingerprint::Fingerprinter;
 use analysis::heuristics::suggest_swaps;
-use kernel::compiler::Compiler;
 pub use errors::PhysicsError;
+use kernel::compiler::Compiler;
 use kernel::compute::{analyze_layout, score_layout};
-pub use kernel::EngineContext;
 use kernel::types::{KeyCode, ValidatedLayout};
-use keyforge_model::{
-    AnalysisReport, Corpus, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig, CostModel
-};
+pub use kernel::EngineContext;
 use keyforge_model::constants::SCORE_SCALE;
+use keyforge_model::{
+    AnalysisReport, Corpus, CostModel, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig,
+};
 use std::sync::Arc;
 use tracing::instrument;
 
 /// The core evaluation engine for `KeyForge` layouts.
 ///
-/// `ScoringEngine` encapsulates the compiled physics kernel, including 
+/// `ScoringEngine` encapsulates the compiled physics kernel, including
 /// pre-calculated travel costs and frequency-weighted optimization targets.
 #[derive(Debug)]
 pub struct ScoringEngine {
@@ -54,7 +54,7 @@ pub struct ScoringEngine {
 impl ScoringEngine {
     /// Compiles a new scoring engine from the provided keyboard, corpus, and rubric.
     ///
-    /// This performs expensive pre-computations and returns an engine ready 
+    /// This performs expensive pre-computations and returns an engine ready
     /// for high-performance evaluations.
     ///
     /// # Errors
@@ -72,7 +72,7 @@ impl ScoringEngine {
 
     /// Evaluates the physical cost score for a given layout.
     ///
-    /// Lower scores indicate better ergonomic performance. The result is 
+    /// Lower scores indicate better ergonomic performance. The result is
     /// normalized for comparison across different corpora and rubrics.
     ///
     /// # Errors
@@ -82,14 +82,14 @@ impl ScoringEngine {
     pub fn score(&self, layout: &Layout) -> Result<f32, PhysicsError> {
         let raw_score_scaled = self.score_raw(&layout.keys)?;
         let raw_score = raw_score_scaled as f32 / SCORE_SCALE;
-        
+
         let total_freq: u64 = self.ctx.char_freqs.iter().sum();
         let norm_factor = if total_freq > 0 {
             100_000.0 / total_freq as f32
         } else {
             1.0
         };
-        
+
         Ok(raw_score * norm_factor)
     }
 
@@ -105,8 +105,12 @@ impl ScoringEngine {
     }
 
     #[instrument(skip(self, layout))]
-    #[must_use] 
-    pub fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
+    #[must_use]
+    pub fn suggest_improvements(
+        &self,
+        layout: &Layout,
+        include_thumbs: bool,
+    ) -> Vec<SwapSuggestion> {
         suggest_swaps(&self.ctx, layout, include_thumbs)
     }
 
@@ -126,7 +130,7 @@ impl ScoringEngine {
     ) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(layout, self.ctx.key_count)?;
         let mut scratch = Box::new(kernel::compute::PhysicsScratch::new());
-        
+
         let pm = kernel::compute::PosMap::from_scratch(
             layout,
             self.ctx.key_count,
@@ -136,8 +140,10 @@ impl ScoringEngine {
             scratch.current_offsets.as_mut_slice(),
             &mut scratch.used_keys,
         );
-        
-        Ok(kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b))
+
+        Ok(kernel::compute::calculate_swap_delta(
+            &self.ctx, &validated, &pm, idx_a, idx_b,
+        ))
     }
 
     /// Returns the raw, unweighted physics score for a layout.
@@ -153,19 +159,19 @@ impl ScoringEngine {
     }
 
     /// Returns the total number of keys supported by this engine.
-    #[must_use] 
+    #[must_use]
     pub fn key_count(&self) -> usize {
         self.ctx.key_count
     }
 
     /// Returns the total number of trigrams used for scoring.
-    #[must_use] 
+    #[must_use]
     pub fn trigram_count(&self) -> usize {
         self.ctx.trigram_freqs.len()
     }
 
     /// Returns a reference to the internal engine context.
-    #[must_use] 
+    #[must_use]
     pub fn context(&self) -> &EngineContext {
         &self.ctx
     }
@@ -173,7 +179,7 @@ impl ScoringEngine {
 
 /// A request structure for performing common engine operations.
 ///
-/// This structure bundles all necessary data to instantiate a `ScoringEngine` 
+/// This structure bundles all necessary data to instantiate a `ScoringEngine`
 /// and perform a task like scoring or analysis.
 #[derive(Clone, Debug)]
 pub struct EngineRequest {

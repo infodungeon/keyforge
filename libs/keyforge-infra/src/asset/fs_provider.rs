@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 use crate::util::corpus::inject_synthetic_data;
-use keyforge_model::error::ForgeError;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_model::{Asset, Corpus};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::error::ForgeError;
+use keyforge_model::{Asset, Corpus};
 use sha2::Digest;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::net::sync::ServerManifest;
-use crate::asset::AssetServerProvider;
 use crate::asset::resolver::PathResolver;
+use crate::asset::AssetServerProvider;
+use crate::net::sync::ServerManifest;
 
 /// An asset provider that loads data directly from the local filesystem.
 ///
@@ -41,13 +39,15 @@ pub struct FsProvider {
 
 impl FsProvider {
     /// Creates a new `FsProvider` with the specified root path.
-    #[must_use] 
+    #[must_use]
     pub fn new(root: PathBuf) -> Self {
-        Self { resolver: PathResolver::new(root) }
+        Self {
+            resolver: PathResolver::new(root),
+        }
     }
 
     /// Returns the root directory of this provider.
-    #[must_use] 
+    #[must_use]
     pub fn root(&self) -> &PathBuf {
         &self.resolver.root
     }
@@ -63,19 +63,26 @@ impl FsProvider {
         Ok(())
     }
 
-    async fn load_binary<T: serde::de::DeserializeOwned + Send + 'static>(&self, path: &Path) -> LoaderResult<T> {
+    async fn load_binary<T: serde::de::DeserializeOwned + Send + 'static>(
+        &self,
+        path: &Path,
+    ) -> LoaderResult<T> {
         self.check_size(path).await?;
         let path = path.to_path_buf();
         tokio::task::spawn_blocking(move || {
             let file = File::open(&path)?;
-            let decoder = zstd::Decoder::new(file).map_err(|e| ForgeError::Internal(e.to_string()))?;
+            let decoder =
+                zstd::Decoder::new(file).map_err(|e| ForgeError::Internal(e.to_string()))?;
             rmp_serde::from_read(decoder).map_err(|e| ForgeError::Internal(e.to_string()))
         })
         .await
         .map_err(|e| ForgeError::Internal(e.to_string()))?
     }
 
-    async fn load_json<T: serde::de::DeserializeOwned + Send + 'static>(&self, path: &Path) -> LoaderResult<T> {
+    async fn load_json<T: serde::de::DeserializeOwned + Send + 'static>(
+        &self,
+        path: &Path,
+    ) -> LoaderResult<T> {
         self.check_size(path).await?;
         let path = path.to_path_buf();
         tokio::task::spawn_blocking(move || {
@@ -94,7 +101,10 @@ impl FsProvider {
     /// Returns `LoaderResult` if any constituent file cannot be read.
     pub async fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
         // Task-infra-008: Security check
-        let _ = self.resolver.safe_join(id).map_err(ForgeError::InvalidData)?;
+        let _ = self
+            .resolver
+            .safe_join(id)
+            .map_err(ForgeError::InvalidData)?;
 
         let files = ["1grams", "2grams", "3grams", "words"];
         let is_system = self.resolver.root.join("system/corpora").join(id).exists();
@@ -104,7 +114,7 @@ impl FsProvider {
             self.resolver.root.join("user/corpora").join(id)
         };
         let ext = if is_system { "mpk.zst" } else { "json" };
-        
+
         let mut hasher = sha2::Sha256::new();
         for f in files {
             let path = base.join(format!("{f}.{ext}"));
@@ -125,7 +135,9 @@ impl AssetLoader for FsProvider {
 
         // Task-infra-008: Ensure ID is safe
         if id.contains("..") {
-             self.resolver.safe_join(id).map_err(ForgeError::InvalidData)?;
+            self.resolver
+                .safe_join(id)
+                .map_err(ForgeError::InvalidData)?;
         }
 
         // 1. Try direct path (absolute or ./ relative)
@@ -151,7 +163,12 @@ impl AssetLoader for FsProvider {
         }
 
         // 3. Try System JSON
-        let system_json = self.resolver.root.join("system").join(cat_str).join(format!("{stem}.json"));
+        let system_json = self
+            .resolver
+            .root
+            .join("system")
+            .join(cat_str)
+            .join(format!("{stem}.json"));
         if system_json.exists() {
             let mut asset: T = self.load_json(&system_json).await?;
             asset.post_load()?;
@@ -172,9 +189,17 @@ impl AssetLoader for FsProvider {
         let mut corpus = Corpus::default();
         for src in sources {
             // Task-infra-008: Security check
-            let _ = self.resolver.safe_join(&src.id).map_err(ForgeError::InvalidData)?;
+            let _ = self
+                .resolver
+                .safe_join(&src.id)
+                .map_err(ForgeError::InvalidData)?;
 
-            let is_system = self.resolver.root.join("system/corpora").join(&src.id).exists();
+            let is_system = self
+                .resolver
+                .root
+                .join("system/corpora")
+                .join(&src.id)
+                .exists();
             let base = if is_system {
                 self.resolver.root.join("system/corpora").join(&src.id)
             } else {
@@ -211,17 +236,26 @@ impl AssetServerProvider for FsProvider {
     async fn get_manifest(&self) -> ServerManifest {
         let root = self.resolver.root.clone();
         tokio::task::spawn_blocking(move || {
-            crate::net::sync::generate_manifest(&root.join("system")).unwrap_or(ServerManifest { files: std::collections::HashMap::default() })
-        }).await.unwrap_or(ServerManifest { files: std::collections::HashMap::default() })
+            crate::net::sync::generate_manifest(&root.join("system")).unwrap_or(ServerManifest {
+                files: std::collections::HashMap::default(),
+            })
+        })
+        .await
+        .unwrap_or(ServerManifest {
+            files: std::collections::HashMap::default(),
+        })
     }
 
     async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
         let Ok(safe_path) = self.resolver.safe_join(path) else {
             return None;
         };
-        
+
         if safe_path.exists() {
-             tokio::fs::read(safe_path).await.ok().map(bytes::Bytes::from)
+            tokio::fs::read(safe_path)
+                .await
+                .ok()
+                .map(bytes::Bytes::from)
         } else {
             None
         }

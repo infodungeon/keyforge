@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clap::{Args, Subcommand, ValueEnum};
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::io::read_to_string_limited;
@@ -70,9 +69,7 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
                 .map_err(|e| format!("Failed to parse keyboard JSON: {e}"))?;
 
             let Some(layout_str) = def.layouts.get(&layout) else {
-                return Err(
-                    format!("Layout '{layout}' not found in keyboard definition.").into(),
-                )
+                return Err(format!("Layout '{layout}' not found in keyboard definition.").into());
             };
 
             let keys: Vec<String> = layout_str
@@ -113,8 +110,9 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
                         out_path.display()
                     );
                 }
-                fs::write(&out_path, code)
-                    .map_err(|e| format!("Failed to write export to {}: {e}", out_path.display()))?;
+                fs::write(&out_path, code).map_err(|e| {
+                    format!("Failed to write export to {}: {e}", out_path.display())
+                })?;
                 eprintln!("✅ Exported to {}", out_path.display());
             } else {
                 println!("{code}");

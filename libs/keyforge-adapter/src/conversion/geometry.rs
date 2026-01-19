@@ -1,17 +1,19 @@
 use crate::error::{AdapterError, AdapterResult};
-use keyforge_model::{KeyCode, KeyConstraint, geometry};
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::{geometry, KeyCode, KeyConstraint};
 
 /// Converts protocol-level keyboard geometry into a domain-level keyboard.
 ///
-/// This resolves physical properties like home row positions and calculates 
+/// This resolves physical properties like home row positions and calculates
 /// internal indices for high-performance scoring.
 /// Converts a domain geometry to a model keyboard.
 ///
 /// # Errors
 ///
 /// Returns an `AdapterError::Validation` if the geometry is invalid or the key set is empty.
-pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> AdapterResult<keyforge_model::Keyboard> {
+pub fn to_domain_keyboard(
+    geo: &geometry::KeyboardGeometry,
+) -> AdapterResult<keyforge_model::Keyboard> {
     let keys = geo
         .keys
         .iter()
@@ -29,7 +31,7 @@ pub fn to_domain_keyboard(geo: &geometry::KeyboardGeometry) -> AdapterResult<key
 }
 
 /// Converts a protocol-level key node into a domain-level node.
-#[must_use] 
+#[must_use]
 pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
     keyforge_model::KeyNode {
         index: k.index,
@@ -52,7 +54,7 @@ pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
 
 /// Resolves a list of protocol constraints against a keycount and registry.
 ///
-/// Returns a vector of optional keycodes where each `Some(code)` represents 
+/// Returns a vector of optional keycodes where each `Some(code)` represents
 /// a pinned key at that index.
 /// Resolves constraints into keycodes.
 ///
@@ -85,7 +87,7 @@ pub fn resolve_constraints(
 }
 
 /// Resolves a label-based cost matrix into an index-based override list.
-#[must_use] 
+#[must_use]
 pub fn resolve_cost_matrix(
     raw: &[(String, String, f32)],
     geo: &geometry::KeyboardGeometry,
@@ -101,4 +103,66 @@ pub fn resolve_cost_matrix(
         }
     }
     overrides
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::geometry::{KeyNode, KeyboardGeometry};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
+
+    #[test]
+    fn test_to_domain_keynode_conversion() {
+        let proto_key = KeyNode {
+            index: 0,
+            label: "A".to_string(),
+            x: 10.0,
+            y: 20.0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            row: RowIndex(0),
+            col: ColIndex(0),
+            is_home: true,
+            ..Default::default()
+        };
+
+        let domain_key = to_domain_keynode(proto_key.clone());
+        assert_eq!(domain_key.index, proto_key.index);
+        assert_eq!(domain_key.label, proto_key.label);
+    }
+
+    #[test]
+    fn test_to_domain_keyboard_conversion() {
+        let proto_geo = KeyboardGeometry {
+            keys: vec![
+                KeyNode {
+                    index: 0,
+                    label: "A".to_string(),
+                    hand: HandIndex(0),
+                    finger: FingerIndex(1),
+                    row: RowIndex(0),
+                    col: ColIndex(0),
+                    is_home: true,
+                    ..Default::default()
+                },
+                KeyNode {
+                    index: 1,
+                    label: "B".to_string(),
+                    hand: HandIndex(1),
+                    finger: FingerIndex(2),
+                    row: RowIndex(0),
+                    col: ColIndex(1),
+                    is_home: false,
+                    ..Default::default()
+                },
+            ],
+            prime_slots: vec![KeyIndex(0)],
+            med_slots: vec![KeyIndex(1)],
+            low_slots: vec![],
+            home_row: 0,
+        };
+
+        let domain_keyboard = to_domain_keyboard(&proto_geo).expect("Failed to convert keyboard");
+        assert_eq!(domain_keyboard.count(), 2);
+    }
 }

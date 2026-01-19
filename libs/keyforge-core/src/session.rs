@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_model::SearchConfig;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::SearchConfig;
 use keyforge_physics::ScoringEngine;
 use std::sync::Arc;
 
@@ -31,7 +31,7 @@ pub struct ScoringSession {
 
 impl ScoringSession {
     /// Creates a new `ScoringSession` from the provided engine, registry, and config.
-    #[must_use] 
+    #[must_use]
     pub fn new(
         engine: Arc<ScoringEngine>,
         registry: Arc<KeycodeRegistry>,

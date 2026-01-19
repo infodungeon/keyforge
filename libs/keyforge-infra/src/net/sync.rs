@@ -32,12 +32,16 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     info!("🔄 Starting Sync...");
     // Manifest is served from Asset Server
     let url = client.asset_url("manifest");
-    
+
     let op = || async {
-        client.inner().get(&url)
-            .send().await
+        client
+            .inner()
+            .get(&url)
+            .send()
+            .await
             .map_err(|e| backoff::Error::transient(format!("Failed to fetch manifest: {e}")))?
-            .json::<ServerManifest>().await
+            .json::<ServerManifest>()
+            .await
             .map_err(|e| backoff::Error::permanent(format!("Invalid manifest JSON: {e}")))
     };
 
@@ -48,9 +52,16 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
 
     let server_manifest = backoff::future::retry(backoff_conf, op).await?;
 
-    let mut stats = SyncStats { downloaded: 0, merged: 0, skipped: 0, errors: vec![] };
+    let mut stats = SyncStats {
+        downloaded: 0,
+        merged: 0,
+        skipped: 0,
+        errors: vec![],
+    };
     let system_root = local_data_root.join("system");
-    if !system_root.exists() { fs::create_dir_all(&system_root).map_err(|e| e.to_string())?; }
+    if !system_root.exists() {
+        fs::create_dir_all(&system_root).map_err(|e| e.to_string())?;
+    }
     let jail = fs::canonicalize(&system_root).map_err(|e| e.to_string())?;
 
     for (rel_path, server_hash) in server_manifest.files {
@@ -61,7 +72,9 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
         let target_path = jail.join(normalized);
         let needs_update = if target_path.exists() {
             calculate_file_hash(&target_path).unwrap_or_default() != server_hash
-        } else { true };
+        } else {
+            true
+        };
 
         if needs_update {
             let remote_url = client.asset_url(&format!("data/system/{rel_path}"));
@@ -81,23 +94,36 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
 /// # Errors
 ///
 /// Returns an error string if essential assets fail to download.
-pub async fn bootstrap_essentials(client: &HiveClient, local_root: &Path) -> Result<Vec<String>, String> {
+pub async fn bootstrap_essentials(
+    client: &HiveClient,
+    local_root: &Path,
+) -> Result<Vec<String>, String> {
     info!("🚀 Bootstrapping essential assets...");
     let url = client.asset_url("manifest");
-    let manifest: ServerManifest = client.inner().get(&url)
-        .send().await.map_err(|e| e.to_string())?
-        .json().await.map_err(|e| e.to_string())?;
+    let manifest: ServerManifest = client
+        .inner()
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
 
     let mut downloaded = Vec::new();
     for (rel_path, server_hash) in manifest.files {
-        let is_keyboard = rel_path.starts_with("keyboards/models/") && rel_path.ends_with(".mpk.zst");
+        let is_keyboard =
+            rel_path.starts_with("keyboards/models/") && rel_path.ends_with(".mpk.zst");
         let is_keycodes = rel_path.contains("keycodes.mpk.zst");
         let is_cats = rel_path.contains("ui_categories.mpk.zst");
 
         if is_keyboard || is_keycodes || is_cats {
             let remote = client.asset_url(&format!("data/system/{rel_path}"));
             let local = local_root.join("system").join(&rel_path);
-            if ensure_file(client, &remote, &local, Some(&server_hash)).await.is_ok() {
+            if ensure_file(client, &remote, &local, Some(&server_hash))
+                .await
+                .is_ok()
+            {
                 downloaded.push(rel_path);
             }
         }
@@ -117,8 +143,13 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
     for entry in walker.into_iter().filter_map(std::result::Result::ok) {
         if entry.file_type().is_file() {
             let path = entry.path();
-            if path.components().any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.'))) { continue; }
-            
+            if path
+                .components()
+                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.')))
+            {
+                continue;
+            }
+
             if let Ok(hash) = calculate_file_hash(path) {
                 if let Ok(relative) = path.strip_prefix(data_root) {
                     files.insert(relative.to_string_lossy().replace('\\', "/"), hash);

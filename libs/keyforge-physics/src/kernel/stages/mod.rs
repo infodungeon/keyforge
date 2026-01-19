@@ -1,6 +1,6 @@
-pub mod geometry;
-pub mod costs;
 pub mod corpus;
+pub mod costs;
+pub mod geometry;
 
 use crate::errors::PhysicsError;
 

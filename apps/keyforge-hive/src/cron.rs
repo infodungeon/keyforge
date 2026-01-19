@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::infra::repositories::{JobRepository, NodeRepository, ResultRepository};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
@@ -40,14 +39,20 @@ pub async fn start_cron_jobs(
     let mut interval = interval(Duration::from_secs(DEFAULT_CRON_INTERVAL_SECS));
     let mut hour_ticker = 0;
 
-    info!("⏰ Starting background maintenance (Interval: {}s)...", DEFAULT_CRON_INTERVAL_SECS);
+    info!(
+        "⏰ Starting background maintenance (Interval: {}s)...",
+        DEFAULT_CRON_INTERVAL_SECS
+    );
 
     loop {
         interval.tick().await;
         hour_ticker += 1;
 
         // --- 1. THE REAPER (Runs every minute) ---
-        match job_repo.prune_stale_jobs(DEFAULT_ZOMBIE_TIMEOUT_MINS, DEFAULT_ZOMBIE_MAX_RETRIES).await {
+        match job_repo
+            .prune_stale_jobs(DEFAULT_ZOMBIE_TIMEOUT_MINS, DEFAULT_ZOMBIE_MAX_RETRIES)
+            .await
+        {
             Ok(count) if count > 0 => {
                 tracing::warn!("💀 Zombie Reaper: Reset {} stuck jobs.", count);
             }
@@ -66,12 +71,18 @@ pub async fn start_cron_jobs(
             }
 
             // Cleanup inactive nodes (> 15 mins)
-            if let Err(e) = node_repo.prune_inactive_nodes(DEFAULT_PRUNE_INACTIVE_NODES_MINS).await {
+            if let Err(e) = node_repo
+                .prune_inactive_nodes(DEFAULT_PRUNE_INACTIVE_NODES_MINS)
+                .await
+            {
                 error!("Failed to prune inactive nodes: {}", e);
             }
 
             // Prune Results (Keep top 1000 per job, delete others older than 7 days)
-            match result_repo.prune_old_results(DEFAULT_PRUNE_RESULTS_DAYS, DEFAULT_PRUNE_RESULTS_KEEP_COUNT).await {
+            match result_repo
+                .prune_old_results(DEFAULT_PRUNE_RESULTS_DAYS, DEFAULT_PRUNE_RESULTS_KEEP_COUNT)
+                .await
+            {
                 Ok(count) => {
                     if count > 0 {
                         info!("🧹 Pruned {} old results.", count);

@@ -1,9 +1,9 @@
 // apps/keyforge-ui/src-tauri/src/commands/sync.rs
 use crate::utils::get_data_dir;
+use keyforge_infra::net::client::ClientConfig;
 use keyforge_infra::HiveClient;
 use keyforge_infra::SyncStats;
 use keyforge_infra::{bootstrap_essentials, run_sync};
-use keyforge_infra::net::client::ClientConfig;
 use tauri::AppHandle;
 
 /// Synchronizes local application data.
@@ -11,10 +11,10 @@ use tauri::AppHandle;
 pub async fn cmd_sync_data(app: AppHandle, hive_url: String) -> Result<SyncStats, String> {
     let local_data_dir = get_data_dir(&app)?;
 
-    // NOTE: UI currently passes single URL. We default asset URL to port 3001 if hive is 3000, 
+    // NOTE: UI currently passes single URL. We default asset URL to port 3001 if hive is 3000,
     // or just assume they are split. For now, let's derive it or ask the user.
     // Heuristic: If url contains 3000, assume assets on 3001.
-    
+
     let asset_url = hive_url.replace("3000", "3001");
 
     let config = ClientConfig {

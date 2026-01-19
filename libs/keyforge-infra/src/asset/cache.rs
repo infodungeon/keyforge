@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use bytes::Bytes;
-use moka::sync::Cache;
-use keyforge_model::Corpus;
-use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::cost_model::CostModel;
-use keyforge_model::keycodes::KeycodeRegistry;
 use crate::net::sync::ServerManifest;
+use bytes::Bytes;
 use keyforge_model::constants::{
-    DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY,
-    DEFAULT_KB_CACHE_CAPACITY, DEFAULT_KEYCODE_CACHE_CAPACITY,
+    DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY, DEFAULT_KB_CACHE_CAPACITY,
+    DEFAULT_KEYCODE_CACHE_CAPACITY,
 };
+use keyforge_model::cost_model::CostModel;
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::Corpus;
+use moka::sync::Cache;
+use std::sync::Arc;
 
 /// specialized cache container for `KeyForge` assets.
 #[derive(Debug, Clone)]
@@ -44,7 +44,7 @@ impl Default for AssetCache {
 
 impl AssetCache {
     /// Creates a new, empty asset cache with default capacities.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             keyboards: Cache::new(DEFAULT_KB_CACHE_CAPACITY as u64),
@@ -68,7 +68,7 @@ impl AssetCache {
 
     // -- Typed Accessors --
 
-    #[must_use] 
+    #[must_use]
     pub fn get_keyboard(&self, id: &str) -> Option<Arc<KeyboardDefinition>> {
         self.keyboards.get(id)
     }
@@ -80,12 +80,12 @@ impl AssetCache {
     pub fn invalidate_keyboard(&self, id: &str) {
         self.keyboards.invalidate(id);
     }
-    
+
     pub fn invalidate_all_keyboards(&self) {
         self.keyboards.invalidate_all();
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_corpus(&self, key: &str) -> Option<Arc<Corpus>> {
         self.corpora.get(key)
     }
@@ -93,12 +93,12 @@ impl AssetCache {
     pub fn insert_corpus(&self, key: String, item: Arc<Corpus>) {
         self.corpora.insert(key, item);
     }
-    
+
     pub fn invalidate_all_corpora(&self) {
         self.corpora.invalidate_all();
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_cost_model(&self, id: &str) -> Option<Arc<CostModel>> {
         self.cost_models.get(id)
     }
@@ -110,12 +110,12 @@ impl AssetCache {
     pub fn invalidate_cost_model(&self, id: &str) {
         self.cost_models.invalidate(id);
     }
-    
+
     pub fn invalidate_all_cost_models(&self) {
         self.cost_models.invalidate_all();
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_keycodes(&self, id: &str) -> Option<Arc<KeycodeRegistry>> {
         self.keycodes.get(id)
     }
@@ -123,12 +123,12 @@ impl AssetCache {
     pub fn insert_keycodes(&self, id: String, item: Arc<KeycodeRegistry>) {
         self.keycodes.insert(id, item);
     }
-    
+
     pub fn invalidate_all_keycodes(&self) {
         self.keycodes.invalidate_all();
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_file(&self, path: &str) -> Option<Bytes> {
         self.file_cache.get(path)
     }
@@ -141,7 +141,7 @@ impl AssetCache {
         self.file_cache.invalidate(path);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
         self.manifest.get("default")
     }
@@ -149,7 +149,7 @@ impl AssetCache {
     pub fn insert_manifest(&self, item: Arc<ServerManifest>) {
         self.manifest.insert("default".into(), item);
     }
-    
+
     pub fn invalidate_manifest(&self) {
         self.manifest.invalidate_all();
     }

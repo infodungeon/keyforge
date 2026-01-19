@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 use crate::state::AppState;
 use axum::{
     extract::{Request, State},
@@ -89,4 +87,18 @@ pub fn hash_key(key: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(key.as_bytes());
     hex::encode(hasher.finalize())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_key() {
+        let key = "test-key";
+        let h1 = hash_key(key);
+        let h2 = hash_key(key);
+        assert_eq!(h1, h2);
+        assert_ne!(h1, key);
+    }
 }

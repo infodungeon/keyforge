@@ -15,9 +15,9 @@
 use crate::constants;
 use keyforge_model::Validator;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 /// A manifest entry for the Global Asset Cache.
 /// Stored in Valkey to ensure all nodes agree on asset versions.
@@ -51,7 +51,10 @@ impl Validator for BiometricSample {
             return Err(format!("Invalid bigram length: '{}'", self.bigram));
         }
         if self.ms <= 0.0 || self.ms > constants::MAX_BIOMETRIC_MS {
-            return Err(format!("Biometric sample out of realistic range: {}ms", self.ms));
+            return Err(format!(
+                "Biometric sample out of realistic range: {}ms",
+                self.ms
+            ));
         }
         Ok(())
     }

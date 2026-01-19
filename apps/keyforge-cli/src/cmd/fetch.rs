@@ -1,9 +1,9 @@
 // apps/keyforge-cli/src/cmd/fetch.rs
 
+use crate::constants::DEFAULT_HIVE_URL;
 use crate::error::CliError;
 use clap::{Args, Subcommand};
 use std::path::Path;
-use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchArgs {
@@ -12,7 +12,7 @@ pub struct FetchArgs {
 
     #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
-    
+
     #[arg(long, default_value = "http://localhost:3001")]
     pub asset_url: String,
 }

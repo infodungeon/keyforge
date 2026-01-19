@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::{extract::{Path, State}, Json};
-use keyforge_protocol::JobStatus;
-use std::sync::Arc;
+use crate::constants::DEFAULT_STATUS_UNKNOWN;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-use crate::constants::DEFAULT_STATUS_UNKNOWN;
+use axum::{
+    extract::{Path, State},
+    Json,
+};
+use keyforge_protocol::JobStatus;
+use std::sync::Arc;
 
 /// VSA Feature: Get Job Status
 /// Returns comprehensive status and statistics for a job.
@@ -45,7 +48,9 @@ pub async fn handle(
         .map_err(AppError::Database)?;
 
     let status = match status_row {
-        Some(r) => r.status.unwrap_or_else(|| DEFAULT_STATUS_UNKNOWN.to_string()),
+        Some(r) => r
+            .status
+            .unwrap_or_else(|| DEFAULT_STATUS_UNKNOWN.to_string()),
         None => return Err(AppError::NotFound),
     };
 

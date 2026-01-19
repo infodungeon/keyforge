@@ -2,9 +2,8 @@
 
 //! Integration tests for Python-based corpus validation.
 
-
-use std::process::Command;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn get_data_dir() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -18,18 +17,20 @@ fn get_data_dir() -> PathBuf {
 
 fn run_script(script_name: &str, json_filename: &str) {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let script_path = Path::new(manifest_dir)
-        .join("tests")
-        .join(script_name);
+    let script_path = Path::new(manifest_dir).join("tests").join(script_name);
 
     let data_dir = get_data_dir();
     let json_path = data_dir.join(json_filename);
 
     assert!(script_path.exists(), "Script not found: {:?}", script_path);
-    assert!(json_path.exists(), "JSON output not found: {:?}. Did you run the main program?", json_path);
+    assert!(
+        json_path.exists(),
+        "JSON output not found: {:?}. Did you run the main program?",
+        json_path
+    );
 
     println!("Running {} on {}...", script_name, json_path.display());
-    
+
     let output = Command::new("python3")
         .arg(script_path)
         .arg(json_path)
@@ -56,9 +57,14 @@ fn validate_1grams() {
 fn validate_ngrams() {
     let data_dir = get_data_dir();
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let script_path = Path::new(manifest_dir).join("tests").join("validate_ngrams.py");
+    let script_path = Path::new(manifest_dir)
+        .join("tests")
+        .join("validate_ngrams.py");
 
-    println!("Running validate_ngrams.py on directory {}...", data_dir.display());
+    println!(
+        "Running validate_ngrams.py on directory {}...",
+        data_dir.display()
+    );
 
     let output = Command::new("python3")
         .arg(script_path)

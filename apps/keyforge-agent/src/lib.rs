@@ -1,7 +1,7 @@
 //! # `KeyForge` Agent
 //!
-//! Distributed compute worker for `KeyForge`. This crate implements the 
-//! logic for remote job processing, hardware capability detection, 
+//! Distributed compute worker for `KeyForge`. This crate implements the
+//! logic for remote job processing, hardware capability detection,
 //! and secure communication with the Hive.
 #![allow(clippy::missing_errors_doc)]
 
@@ -17,7 +17,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 /// Core agent logic including the worker loop and job execution.
 pub mod agent; // The Core Agent Logic
 /// Hardware capability detection and benchmarking.
@@ -27,13 +26,12 @@ pub mod logging;
 /// Data models for agent-hive communication.
 pub mod models;
 
-/// Identity management and crypto.
-pub mod identity;
-/// Configuration loading and parsing.
-pub mod config_loader;
 /// Command handlers.
 pub mod cmd;
-
+/// Configuration loading and parsing.
+pub mod config_loader;
+/// Identity management and crypto.
+pub mod identity;
 
 // Re-export the main runner
 pub use agent::run_worker;

@@ -1,0 +1,19 @@
+[package]
+name = "keyforge-system-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+anyhow = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-adapter = { path = "../../libs/keyforge-adapter" }
+keyforge-core = { path = "../../libs/keyforge-core" }
+keyforge-runner = { path = "../../libs/keyforge-runner" }
+keyforge-evolution = { path = "../../libs/keyforge-evolution" }
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+keyforge-model = { path = "../../libs/keyforge-model" }
+keyforge-persistence = { path = "../../libs/keyforge-persistence" }
+keyforge-testing = { path = "../../libs/keyforge-testing" }
+serde_json = "1.0"

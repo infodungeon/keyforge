@@ -10,13 +10,13 @@ pub struct BiometricProfiler;
 
 impl BiometricProfiler {
     /// Transforms a set of biometric samples into a `CostModel`.
-    /// 
+    ///
     /// This implementation calculates average latencies per bigram and uses them
     /// to build sequence-specific modifiers in the dynamic rules of the cost model.
-    #[must_use] 
+    #[must_use]
     pub fn profile(samples: &[BiometricSample], base_model: &CostModel) -> CostModel {
         let mut model = base_model.clone();
-        
+
         if samples.is_empty() {
             return model;
         }
@@ -33,12 +33,17 @@ impl BiometricProfiler {
         // We normalize latencies relative to a "standard" speed (e.g. 150ms)
         // Latency / 150.0 * 100.0 gives us an effort point value.
         for (bigram, (total_ms, count)) in totals {
-            if count < 5 { continue; } // Statistical Significance Threshold
-            
+            if count < 5 {
+                continue;
+            } // Statistical Significance Threshold
+
             let avg = total_ms / f64::from(count);
             #[allow(clippy::cast_possible_truncation)]
             let effort_f32 = (avg / 150.0 * 100.0) as f32;
-            model.dynamic_rules.sequence_modifiers.insert(bigram, effort_f32);
+            model
+                .dynamic_rules
+                .sequence_modifiers
+                .insert(bigram, effort_f32);
         }
 
         model

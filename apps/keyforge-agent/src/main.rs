@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! # `KeyForge` Agent Binary
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
-use keyforge_agent::models::{AgentConfig, PartialAgentConfig};
 use keyforge_agent::config_loader::load_config_from_standard_paths;
+use keyforge_agent::models::{AgentConfig, PartialAgentConfig};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 struct Args {
@@ -71,14 +70,14 @@ enum Commands {
         /// Number of iterations.
         #[arg(long, default_value_t = keyforge_model::constants::DEFAULT_BENCHMARK_ITERATIONS)]
         iterations: usize,
-    }
+    },
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
     let mut config = AgentConfig::default();
-    
+
     if let Some(config_path) = &args.config {
         match PartialAgentConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
@@ -91,17 +90,25 @@ async fn main() -> Result<()> {
         config.merge(file_cfg);
     }
 
-    if let Some(h) = args.hive { config.hive_url = h; }
-    if let Some(c) = args.cores { config.cores = c; }
-    if let Some(d) = args.data_dir { config.data_dir = d; }
-    if args.skip_calibration { config.calibration.duration_ms = 0; }
+    if let Some(h) = args.hive {
+        config.hive_url = h;
+    }
+    if let Some(c) = args.cores {
+        config.cores = c;
+    }
+    if let Some(d) = args.data_dir {
+        config.data_dir = d;
+    }
+    if args.skip_calibration {
+        config.calibration.duration_ms = 0;
+    }
 
     let command = args.command.unwrap_or(Commands::Worker);
     let log_mode = match command {
         Commands::Worker => keyforge_agent::logging::LogMode::Standard,
         _ => keyforge_agent::logging::LogMode::JsonStderr,
     };
-    
+
     keyforge_agent::logging::init_tracing(&config.logging.default_filter, &log_mode);
 
     match command {
@@ -111,10 +118,17 @@ async fn main() -> Result<()> {
         Commands::Run { job_file, timeout } => {
             keyforge_agent::cmd::run::run(config, job_file, timeout).await?;
         }
-        Commands::Score { job_file, layout, timeout } => {
+        Commands::Score {
+            job_file,
+            layout,
+            timeout,
+        } => {
             keyforge_agent::cmd::score::run(config, job_file, layout, timeout).await?;
         }
-        Commands::Bench { job_file, iterations } => {
+        Commands::Bench {
+            job_file,
+            iterations,
+        } => {
             keyforge_agent::cmd::bench::run(config, job_file, iterations).await?;
         }
     }

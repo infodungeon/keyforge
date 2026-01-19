@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use thiserror::Error;
 use keyforge_adapter::AdapterError;
-use keyforge_physics::PhysicsError;
 use keyforge_evolution::EvolutionError;
+use keyforge_physics::PhysicsError;
+use thiserror::Error;
 
 /// CLI-specific error types with consistent formatting
 #[derive(Error, Debug)]

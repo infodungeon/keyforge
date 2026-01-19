@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::{
+    TUNING_BATCH_SIZE_LARGE, TUNING_BATCH_SIZE_SMALL, TUNING_L2_CACHE_THRESHOLD,
+    TUNING_OPS_THRESHOLD,
+};
+use crate::error::{AppError, AppResult};
+use crate::state::AppState;
 use axum::{extract::State, Json};
 use keyforge_model::Validator;
 use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile, PROTOCOL_VERSION};
 use std::sync::Arc;
-use tracing::{info, warn, debug};
-use crate::error::{AppError, AppResult};
-use crate::state::AppState;
-use crate::constants::{
-    TUNING_L2_CACHE_THRESHOLD, TUNING_OPS_THRESHOLD,
-    TUNING_BATCH_SIZE_LARGE, TUNING_BATCH_SIZE_SMALL
-};
+use tracing::{debug, info, warn};
 
 /// VSA Feature: Register Node
 /// Handles node heartbeat, identity verification, and auto-tuning calculations.
@@ -49,8 +48,9 @@ pub async fn handle(
     // We use Valkey to check if the Hardware Profile is already known.
     // If Known: Use "Lite" insert (Nodes table only) -> No contention.
     // If Unknown: Use "Full" insert (Hardware Profiles + Nodes) -> Contention possible but rare.
-    
-    let is_new_profile = state.coordinator
+
+    let is_new_profile = state
+        .coordinator
         .try_reserve_profile_update(&payload.cpu_model)
         .await
         .unwrap_or(true); // Fail-safe: Assume new if Valkey down
@@ -58,35 +58,47 @@ pub async fn handle(
     if is_new_profile {
         // FULL PATH: Updates Hardware Profiles + Nodes
         debug!("📝 Registering NEW Hardware Profile: {}", payload.cpu_model);
-        state.nodes.register_heartbeat(
-            &payload.node_id,
-            &payload.cpu_model,
-            payload.cores,
-            payload.l2_cache_kb,
-            payload.ops_per_sec,
-            payload.public_key.as_deref(),
-        ).await.map_err(map_db_error)?;
-    } else {
-        // LITE PATH: Updates Nodes Only (Optimistic)
-        // If this fails (e.g. FK violation because Valkey was wrong), fallback to Full.
-        if let Err(e) = state.nodes.register_heartbeat_lite(
-            &payload.node_id,
-            &payload.cpu_model,
-            payload.cores,
-            payload.ops_per_sec,
-            payload.public_key.as_deref()
-        ).await {
-            warn!("⚠️ Lite registration failed (Fallback to Full): {}", e);
-            
-            // FALLBACK
-            state.nodes.register_heartbeat(
+        state
+            .nodes
+            .register_heartbeat(
                 &payload.node_id,
                 &payload.cpu_model,
                 payload.cores,
                 payload.l2_cache_kb,
                 payload.ops_per_sec,
                 payload.public_key.as_deref(),
-            ).await.map_err(map_db_error)?;
+            )
+            .await
+            .map_err(map_db_error)?;
+    } else {
+        // LITE PATH: Updates Nodes Only (Optimistic)
+        // If this fails (e.g. FK violation because Valkey was wrong), fallback to Full.
+        if let Err(e) = state
+            .nodes
+            .register_heartbeat_lite(
+                &payload.node_id,
+                &payload.cpu_model,
+                payload.cores,
+                payload.ops_per_sec,
+                payload.public_key.as_deref(),
+            )
+            .await
+        {
+            warn!("⚠️ Lite registration failed (Fallback to Full): {}", e);
+
+            // FALLBACK
+            state
+                .nodes
+                .register_heartbeat(
+                    &payload.node_id,
+                    &payload.cpu_model,
+                    payload.cores,
+                    payload.l2_cache_kb,
+                    payload.ops_per_sec,
+                    payload.public_key.as_deref(),
+                )
+                .await
+                .map_err(map_db_error)?;
         }
     }
 
@@ -137,7 +149,11 @@ fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
 fn calculate_tuning_profile(payload: &NodeRequest) -> TuningProfile {
     let strategy = if let Some(l2) = payload.l2_cache_kb {
         #[allow(clippy::cast_possible_wrap)]
-        if l2 >= TUNING_L2_CACHE_THRESHOLD as i32 { "table" } else { "fly" }
+        if l2 >= TUNING_L2_CACHE_THRESHOLD as i32 {
+            "table"
+        } else {
+            "fly"
+        }
     } else {
         "fly"
     };

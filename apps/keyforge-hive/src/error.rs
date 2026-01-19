@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -47,7 +46,7 @@ pub enum AppError {
 
     #[error("Service Unavailable: {0}")]
     ServiceUnavailable(String),
-    
+
     #[error("Configuration Error: {0}")]
     Config(String),
 }
@@ -91,7 +90,11 @@ impl IntoResponse for AppError {
                 )
             }
             // Startups errors like Config typically panic before HTTP, but if returned:
-            AppError::Config(s) => (StatusCode::INTERNAL_SERVER_ERROR, ErrorCode::InternalError, s),
+            AppError::Config(s) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ErrorCode::InternalError,
+                s,
+            ),
             AppError::ServiceUnavailable(s) => {
                 (StatusCode::SERVICE_UNAVAILABLE, ErrorCode::InternalError, s)
             }

@@ -14,12 +14,12 @@
 
 use keyforge_compute::{Runtime, SessionBuilder};
 use keyforge_core::loader::AssetLoader;
+use keyforge_core::{EvolutionError, ProgressCallback, ScoringSession};
 use keyforge_model::constants::ASSET_KEYCODES_FILENAME;
+use keyforge_model::{KeyCode, OptimizationResult};
 use keyforge_protocol::JobConfig;
-use keyforge_model::{OptimizationResult, KeyCode};
-use keyforge_core::{ScoringSession, ProgressCallback, EvolutionError};
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Default)]
 pub struct RunnerOptions {
@@ -46,10 +46,18 @@ impl OptimizationRunner {
     ) -> anyhow::Result<ScoringSession> {
         let builder = SessionBuilder::new(loader)
             .with_keyboard_def(Arc::new(config.definition.clone()))
-            .with_corpus(&config.corpora).await.map_err(|e| anyhow::anyhow!(e))?
-            .with_cost_matrix(&config.cost_matrix).await.map_err(|e| anyhow::anyhow!(e))?
-            .with_keycodes(&options.keycodes_file).await.map_err(|e| anyhow::anyhow!(e))?
-            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&config.weights))
+            .with_corpus(&config.corpora)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?
+            .with_cost_matrix(&config.cost_matrix)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?
+            .with_keycodes(&options.keycodes_file)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?
+            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+                &config.weights,
+            ))
             .with_biometrics(config.biometrics.clone())
             .with_config(keyforge_model::SearchConfig::Annealing {
                 steps: config.params.get_search_steps(),
@@ -61,7 +69,7 @@ impl OptimizationRunner {
                 reheat_factor: config.params.get_reheat_factor(),
                 include_thumbs: config.params.include_thumbs,
             });
-            
+
         let session = builder.build().map_err(|e| anyhow::anyhow!(e))?;
         Ok(session)
     }
@@ -98,7 +106,7 @@ impl OptimizationRunner {
         // Run optimization in blocking thread
         let engine = session.engine.clone();
         let search_config = session.search_config.clone();
-        
+
         tokio::task::spawn_blocking(move || {
             keyforge_core::optimize_with_engine(
                 &engine,
@@ -107,7 +115,9 @@ impl OptimizationRunner {
                 None, // initial_layout
                 Some(pinned.as_slice()),
             )
-        }).await.map_err(|e| EvolutionError::Config(format!("Task join error: {e}")))?
+        })
+        .await
+        .map_err(|e| EvolutionError::Config(format!("Task join error: {e}")))?
     }
 }
 
@@ -129,11 +139,17 @@ impl<'a, L: AssetLoader> Runner<'a, L> {
     pub async fn prepare_job(&self, config: &JobConfig) -> anyhow::Result<Runtime> {
         let builder = SessionBuilder::new(self.loader)
             .with_keyboard_def(Arc::new(config.definition.clone()))
-            .with_corpus(&config.corpora).await.map_err(|e| anyhow::anyhow!(e))?
-            .with_cost_matrix(&config.cost_matrix).await.map_err(|e| anyhow::anyhow!(e))?
+            .with_corpus(&config.corpora)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?
+            .with_cost_matrix(&config.cost_matrix)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?
             .with_biometrics(config.biometrics.clone())
-            .with_keycodes(ASSET_KEYCODES_FILENAME).await.map_err(|e| anyhow::anyhow!(e))?;
-            
+            .with_keycodes(ASSET_KEYCODES_FILENAME)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+
         let session = builder.build().map_err(|e| anyhow::anyhow!(e))?;
         Ok(Runtime::from(session))
     }

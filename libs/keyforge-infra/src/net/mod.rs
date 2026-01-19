@@ -14,9 +14,9 @@
 
 /// Specialized HTTP client for communicating with the `KeyForge` Hive.
 pub mod client;
+/// Distributed orchestration and coordination (e.g., via Valkey).
+pub mod distributed;
 /// High-level network operations for asset fetching and verification.
 pub mod network;
 /// Workspace synchronization logic for matching local data with the server.
 pub mod sync;
-/// Distributed orchestration and coordination (e.g., via Valkey).
-pub mod distributed; 

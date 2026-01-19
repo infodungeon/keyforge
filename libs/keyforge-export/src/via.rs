@@ -18,7 +18,7 @@ use serde_json::json;
 
 /// An exporter for the VIA keyboard configurator.
 ///
-/// This generates a JSON file that can be imported into the VIA desktop app 
+/// This generates a JSON file that can be imported into the VIA desktop app
 /// or web interface to update a compatible keyboard.
 #[derive(Debug)]
 pub struct ViaExporter;
@@ -78,7 +78,7 @@ mod tests {
         ];
         let result = exporter.generate("Test Layout", &layers).unwrap();
         let json: serde_json::Value = serde_json::from_str(&result).unwrap();
-        
+
         assert_eq!(json["name"], "Test Layout");
         assert_eq!(json["layers"].as_array().unwrap().len(), 2);
         assert_eq!(json["layers"][1][0], "KC_TRNS");

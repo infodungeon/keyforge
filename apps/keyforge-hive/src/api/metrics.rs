@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::error::AppResult;
 use crate::observability::{get_recent_logs, LogEntry};
 use crate::state::AppState;
@@ -46,22 +45,28 @@ pub async fn get_system_status(
     let uptime = state.monitor.get_uptime();
     let ram = state.monitor.get_memory_used();
     let cpu = state.monitor.get_cpu_usage();
-    
+
     // Local OPS (Server-side verification throughput)
     // let ops_per_sec = state.monitor.get_ops_per_sec();
 
     #[allow(clippy::cast_possible_wrap)]
-    let active_jobs = state.jobs.active_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
-    
+    let active_jobs = state
+        .jobs
+        .active_count
+        .load(std::sync::atomic::Ordering::Relaxed) as i64;
+
     // FETCH DISTRIBUTED STATS (Valkey)
     let (nodes_online, total_ops_per_sec) = state
         .coordinator
         .get_cluster_stats()
         .await
         .unwrap_or((0, 0.0));
-    
+
     #[allow(clippy::cast_possible_wrap)]
-    let total_results = state.jobs.completed_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
+    let total_results = state
+        .jobs
+        .completed_count
+        .load(std::sync::atomic::Ordering::Relaxed) as i64;
 
     let metrics = SystemMetrics {
         uptime_secs: uptime,

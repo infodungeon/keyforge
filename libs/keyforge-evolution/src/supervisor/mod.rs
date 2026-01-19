@@ -14,9 +14,11 @@
 
 //! Supervision and management of the optimization process.
 
-pub(crate) mod annealing;
-pub(crate) mod state;
-pub(crate) mod strategies;
-pub(crate) mod traits;
+pub mod annealing;
+pub mod optimizer;
+pub mod state;
+pub mod strategies;
+pub mod traits;
 
-pub(crate) use annealing::{AnnealingConfig, Optimizer};
+pub use annealing::AnnealingConfig;
+pub use optimizer::{evolve, optimize, optimize_with_callback};

@@ -10,15 +10,21 @@ use axum::{
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower::ServiceExt;
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::testcontainers::ContainerAsync;
+use tower::ServiceExt;
 
 async fn setup_test_app() -> (axum::Router, Arc<AppState>, ContainerAsync<Redis>) {
     // 1. Start Valkey (Redis) Container
-    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
-    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_node = Redis::default()
+        .start()
+        .await
+        .expect("Failed to start Valkey");
+    let valkey_port = valkey_node
+        .get_host_port_ipv4(6379)
+        .await
+        .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
@@ -27,7 +33,7 @@ async fn setup_test_app() -> (axum::Router, Arc<AppState>, ContainerAsync<Redis>
         "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
     });
     let pool = init_db(&db_url).await;
-    
+
     // 3. Setup Filesystem
     let temp_dir = tempfile::tempdir().unwrap();
     let data_path = temp_dir.path().to_path_buf();
@@ -35,10 +41,11 @@ async fn setup_test_app() -> (axum::Router, Arc<AppState>, ContainerAsync<Redis>
     // 4. Initialize App State
     let mut config = keyforge_hive::config::AppConfig::mock();
     config.valkey_url = valkey_url;
-    
-    let state = Arc::new(AppState::new(pool, data_path.clone(), "test_key".into(), config.clone()).await);
+
+    let state =
+        Arc::new(AppState::new(pool, data_path.clone(), "test_key".into(), config.clone()).await);
     let app = create_app(state.clone(), &config, data_path);
-    
+
     // Return container guard to keep it alive
     (app, state, valkey_node)
 }

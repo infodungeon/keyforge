@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::{DEFAULT_MAX_ACTIVE_JOBS, DEFAULT_MAX_DAILY_JOBS};
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
-use crate::constants::{DEFAULT_MAX_ACTIVE_JOBS, DEFAULT_MAX_DAILY_JOBS};
 
 /// Repository for managing users and authentication keys.
 #[derive(Clone, Debug)]
@@ -25,7 +24,7 @@ pub struct UserRepository {
 
 impl UserRepository {
     /// Creates a new `UserRepository` with the given database pool.
-    #[must_use] 
+    #[must_use]
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -110,8 +109,12 @@ impl UserRepository {
             .await?;
 
         if let Some(r) = row {
-            let max_active: Option<i32> = r.try_get("max_active_jobs").unwrap_or(Some(DEFAULT_MAX_ACTIVE_JOBS));
-            let max_daily: Option<i32> = r.try_get("max_daily_jobs").unwrap_or(Some(DEFAULT_MAX_DAILY_JOBS));
+            let max_active: Option<i32> = r
+                .try_get("max_active_jobs")
+                .unwrap_or(Some(DEFAULT_MAX_ACTIVE_JOBS));
+            let max_daily: Option<i32> = r
+                .try_get("max_daily_jobs")
+                .unwrap_or(Some(DEFAULT_MAX_DAILY_JOBS));
 
             let active_count: i64 = sqlx::query_scalar(
                 "SELECT count(*) FROM jobs WHERE owner_id = $1 AND status = 'active'",

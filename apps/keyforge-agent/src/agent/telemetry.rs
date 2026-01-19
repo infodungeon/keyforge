@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::models::SharedTelemetry;
 use keyforge_core::ProgressCallback;
 use keyforge_model::KeyCode;
 use std::collections::hash_map::DefaultHasher;
@@ -19,7 +20,6 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::info;
-use crate::models::SharedTelemetry;
 
 /// A logger that tracks optimization progress and reports it back to the system.
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub struct WorkerLogger {
 impl ProgressCallback for WorkerLogger {
     fn on_progress(&self, step: usize, score: f32, _layout: &[KeyCode], ips: f32) -> bool {
         let stopped = self.stop_flag.load(Ordering::SeqCst);
-        
+
         // Update shared telemetry (Lock-free)
         self.telemetry.update(ips, 0.0, score);
 

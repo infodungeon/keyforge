@@ -1,10 +1,10 @@
 // apps/keyforge-cli/src/cmd/init.rs
 
+use crate::constants::{DEFAULT_DATA_DIR, DEFAULT_HIVE_URL};
 use crate::error::CliError;
 use clap::Args;
 use keyforge_infra::init::{ensure_dir, USER_WORKSPACE_DIRS};
 use std::path::PathBuf;
-use crate::constants::{DEFAULT_HIVE_URL, DEFAULT_DATA_DIR};
 
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {

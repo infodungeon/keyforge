@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::{CLI_CONFIG_FILENAME, CONFIG_DIR_NAME};
 use crate::error::{CliError, Result};
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::constants::{CONFIG_DIR_NAME, CLI_CONFIG_FILENAME};
 
 #[derive(Args, Debug, Clone)]
 pub struct AuthArgs {
@@ -64,7 +63,7 @@ fn save_key(key: &str) -> Result<()> {
         api_key: Some(key.to_string()),
     };
     let json = serde_json::to_string_pretty(&config)?;
-    
+
     // Write file
     std::fs::write(&path, json).map_err(CliError::Io)?;
 
@@ -121,9 +120,7 @@ pub async fn run(args: AuthArgs) -> Result<()> {
                     save_key(key)?;
                     println!("✅ Registration successful!");
                     println!("🔑 API Key: {key}");
-                    println!(
-                        "   (Saved to config. You can now run searches as '{username}')"
-                    );
+                    println!("   (Saved to config. You can now run searches as '{username}')");
                 } else {
                     return Err(CliError::Other("Invalid server response".into()));
                 }

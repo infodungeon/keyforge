@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use axum::{extract::State, Json};
-use serde::Serialize;
-use utoipa::ToSchema;
-use std::sync::Arc;
+use crate::constants::DEFAULT_LIST_LIMIT;
 use crate::error::AppResult;
 use crate::state::AppState;
-use crate::constants::DEFAULT_LIST_LIMIT;
+use axum::{extract::State, Json};
+use serde::Serialize;
+use std::sync::Arc;
+use utoipa::ToSchema;
 
 /// A single entry representing a community layout submission.
 #[derive(Serialize, ToSchema, Clone, Debug)]
@@ -48,9 +47,7 @@ pub struct SubmissionEntry {
     tag = "submissions"
 )]
 /// Handles a request to list the most recent community layout submissions.
-pub async fn handle(
-    State(state): State<Arc<AppState>>,
-) -> AppResult<Json<Vec<SubmissionEntry>>> {
+pub async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<Vec<SubmissionEntry>>> {
     let entries = state
         .submissions
         .get_recent(DEFAULT_LIST_LIMIT)

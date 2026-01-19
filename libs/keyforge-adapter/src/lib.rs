@@ -14,7 +14,7 @@
 
 //! # `KeyForge` Adapter
 //!
-//! Translation layer between different domain models and external systems. 
+//! Translation layer between different domain models and external systems.
 //! This crate handles conversions between protocol DTOs and internal domain entities.
 
 /// Conversion logic between protocol/UI types and domain models.

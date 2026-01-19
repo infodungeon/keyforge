@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
-use axum::{extract::State, Json};
-use keyforge_model::LayoutValidator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-use std::sync::Arc;
-use tracing::{info, warn};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+use axum::{extract::State, Json};
 use keyforge_model::constants::{
-    MAX_ID_LEN, MIN_LAYOUT_DATA_LEN, MAX_LAYOUT_DATA_LEN, MIN_LAYOUT_NAME_LEN
+    MAX_ID_LEN, MAX_LAYOUT_DATA_LEN, MIN_LAYOUT_DATA_LEN, MIN_LAYOUT_NAME_LEN,
 };
+use keyforge_model::LayoutValidator;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tracing::{info, warn};
+use utoipa::ToSchema;
 
 /// Request payload for submitting a new keyboard layout to the community.
 #[derive(Deserialize, ToSchema)]
@@ -70,12 +68,16 @@ pub async fn handle(
 
     // 1. Validation Logic
     if clean_name.len() < MIN_LAYOUT_NAME_LEN || clean_name.len() > MAX_ID_LEN {
-        return Err(AppError::Validation(format!("Name must be {MIN_LAYOUT_NAME_LEN}-{MAX_ID_LEN} chars")));
+        return Err(AppError::Validation(format!(
+            "Name must be {MIN_LAYOUT_NAME_LEN}-{MAX_ID_LEN} chars"
+        )));
     }
     if clean_author.len() > MAX_ID_LEN {
-        return Err(AppError::Validation(format!("Author name too long (max {MAX_ID_LEN})")));
+        return Err(AppError::Validation(format!(
+            "Author name too long (max {MAX_ID_LEN})"
+        )));
     }
-    
+
     // Check structure before size for better error messages
     LayoutValidator::validate_structure(clean_layout)
         .map_err(|e| AppError::Validation(e.clone()))?;

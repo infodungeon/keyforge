@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, Json};
@@ -21,7 +20,7 @@ use std::sync::Arc;
 use tracing::info;
 use utoipa::ToSchema;
 
-use crate::constants::{BACKUP_RESULTS_LIMIT};
+use crate::constants::BACKUP_RESULTS_LIMIT;
 
 /// Response payload for administrative system statistics.
 #[derive(Serialize, ToSchema)]
@@ -62,7 +61,7 @@ pub async fn get_admin_stats(
         .count_total()
         .await
         .map_err(AppError::Database)?;
-    
+
     // Use Distributed Coordinator for real-time cluster stats
     let (nodes_online, total_ops_per_sec) = state
         .coordinator
@@ -94,19 +93,19 @@ pub async fn get_admin_stats(
 /// Signals the system to reload its configuration from disk.
 pub async fn reload_config(State(state): State<Arc<AppState>>) -> AppResult<String> {
     info!("⚙️ Admin requested config reload");
-    
+
     // 1. Reload AppConfig from environment
     let _new_config = crate::config::AppConfig::load_from_env()?;
-    
+
     // 2. Invalidate caches to force reload from disk/Valkey
     state.assets.invalidate_all();
     state.engine_cache.invalidate_all();
-    
+
     // Note: AppConfig is currently wrapped in Arc and shared across many services.
-    // Full hot-reloading of networking/database parameters requires a restart or 
+    // Full hot-reloading of networking/database parameters requires a restart or
     // a more complex interior mutability pattern. For now, we update the state handle.
     // (This is a partial fix as existing services still hold the old Arc).
-    
+
     Ok("Assets invalidated. Config reload (Partial) initiated.".to_string())
 }
 
@@ -166,21 +165,27 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
         .collect();
 
     // 3. Recent Results (Sample) - Enforce Limit to prevent OOM
-    let results = sqlx::query!("SELECT * FROM results ORDER BY created_at DESC LIMIT $1", BACKUP_RESULTS_LIMIT)
-        .fetch_all(&state.jobs.repo.pool)
-        .await
-        .map_err(AppError::Database)?
-        .iter()
-        .map(|r| {
-            serde_json::json!({
-                "job_id": r.job_id,
-                "score": r.score,
-                "layout": r.layout
-            })
+    let results = sqlx::query!(
+        "SELECT * FROM results ORDER BY created_at DESC LIMIT $1",
+        BACKUP_RESULTS_LIMIT
+    )
+    .fetch_all(&state.jobs.repo.pool)
+    .await
+    .map_err(AppError::Database)?
+    .iter()
+    .map(|r| {
+        serde_json::json!({
+            "job_id": r.job_id,
+            "score": r.score,
+            "layout": r.layout
         })
-        .collect();
+    })
+    .collect();
 
-    info!("📦 Admin triggered DB backup (Results Sample Limit: {})", BACKUP_RESULTS_LIMIT);
+    info!(
+        "📦 Admin triggered DB backup (Results Sample Limit: {})",
+        BACKUP_RESULTS_LIMIT
+    );
 
     Ok(Json(FullBackup {
         keyboards,

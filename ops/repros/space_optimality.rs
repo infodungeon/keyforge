@@ -1,4 +1,7 @@
-use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, CostModel, types::{HandIndex, FingerIndex}};
+use keyforge_model::{
+    types::{FingerIndex, HandIndex},
+    Corpus, CostModel, KeyNode, Keyboard, Rubric,
+};
 use keyforge_physics::ScoringEngine;
 
 fn mock_cost_model() -> CostModel {
@@ -24,13 +27,15 @@ fn mock_cost_model() -> CostModel {
 }
 
 fn main() {
-    let keys: Vec<KeyNode> = (0..5).map(|i| KeyNode {
-        index: i,
-        hand: HandIndex(0),
-        finger: FingerIndex(i as u8),
-        x: i as f32,
-        ..Default::default()
-    }).collect();
+    let keys: Vec<KeyNode> = (0..5)
+        .map(|i| KeyNode {
+            index: i,
+            hand: HandIndex(0),
+            finger: FingerIndex(i as u8),
+            x: i as f32,
+            ..Default::default()
+        })
+        .collect();
     let kb = Keyboard::new(keys, 0).unwrap();
     let corpus = Corpus::default();
     let rubric = Rubric::default();

@@ -25,9 +25,11 @@ pub struct DeadLetterQueue {
 }
 
 impl DeadLetterQueue {
-    #[must_use] 
+    #[must_use]
     pub fn new(data_path: &Path) -> Self {
-        Self { path: data_path.join("user/dlq") }
+        Self {
+            path: data_path.join("user/dlq"),
+        }
     }
 
     pub async fn push(&self, record: &PersistedRecord, reason: &str) {
@@ -35,7 +37,10 @@ impl DeadLetterQueue {
             error!("Failed to create DLQ dir: {}", e);
             return;
         }
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
         let filename = format!("{}_{}.json", timestamp, Uuid::new_v4());
         let file_path = self.path.join(filename);
         let payload = serde_json::json!({ "error": reason, "record": record });

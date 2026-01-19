@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
@@ -131,8 +130,7 @@ pub static PROMETHEUS_HANDLE: std::sync::LazyLock<Option<PrometheusHandle>> =
 pub fn init_tracing() {
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| DEFAULT_ENV_FILTER.into());
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| DEFAULT_ENV_FILTER.into());
 
     let _ = std::sync::LazyLock::force(&PROMETHEUS_HANDLE);
 

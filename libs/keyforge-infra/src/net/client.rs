@@ -99,19 +99,19 @@ impl HiveClient {
     }
 
     /// Expose inner client for low-level operations.
-    #[must_use] 
+    #[must_use]
     pub fn inner(&self) -> &Client {
         &self.inner
     }
 
     /// Construct a URL for the Control Plane (API).
-    #[must_use] 
+    #[must_use]
     pub fn url(&self, path: &str) -> String {
         format_url(&self.api_url, path)
     }
 
     /// Construct a URL for the Data Plane (Assets).
-    #[must_use] 
+    #[must_use]
     pub fn asset_url(&self, path: &str) -> String {
         format_url(&self.asset_url, path)
     }

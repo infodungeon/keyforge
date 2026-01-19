@@ -19,7 +19,7 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
-    #[must_use] 
+    #[must_use]
     pub fn new(client: HiveClient, root: PathBuf) -> Self {
         Self { client, root }
     }
@@ -31,13 +31,29 @@ impl AssetManager {
             "config" => "config",
             _ => category,
         };
-        let p = self.root.join("system").join(sub).join(format!("{stem}.mpk.zst"));
-        if p.exists() { Some(p) } else { None }
+        let p = self
+            .root
+            .join("system")
+            .join(sub)
+            .join(format!("{stem}.mpk.zst"));
+        if p.exists() {
+            Some(p)
+        } else {
+            None
+        }
     }
 
     fn check_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let p = self.root.join("user").join(category).join(format!("{stem}.json"));
-        if p.exists() { Some(p) } else { None }
+        let p = self
+            .root
+            .join("user")
+            .join(category)
+            .join(format!("{stem}.json"));
+        if p.exists() {
+            Some(p)
+        } else {
+            None
+        }
     }
 
     /// Ensures the specified keyboard file is present in the workspace.
@@ -47,11 +63,18 @@ impl AssetManager {
     /// Returns `InfraError` if the file cannot be downloaded or verified.
     pub async fn ensure_keyboard(&self, name: &str) -> InfraResult<PathBuf> {
         let stem = name.strip_suffix(".json").unwrap_or(name);
-        
-        if let Some(p) = self.check_user_path("keyboards", stem) { return Ok(p); }
-        if let Some(p) = self.check_system_path("keyboards", stem) { return Ok(p); }
-        
-        let local_path = self.root.join("user/keyboards").join(format!("{stem}.json"));
+
+        if let Some(p) = self.check_user_path("keyboards", stem) {
+            return Ok(p);
+        }
+        if let Some(p) = self.check_system_path("keyboards", stem) {
+            return Ok(p);
+        }
+
+        let local_path = self
+            .root
+            .join("user/keyboards")
+            .join(format!("{stem}.json"));
         let remote_path = format!("data/keyboards/{stem}.json");
         let url = self.client.asset_url(&remote_path);
 
@@ -67,9 +90,13 @@ impl AssetManager {
     pub async fn ensure_cost_matrix(&self, filename: &str) -> InfraResult<PathBuf> {
         let stem = filename.strip_suffix(".json").unwrap_or(filename);
 
-        if let Some(p) = self.check_user_path("weights", stem) { return Ok(p); }
-        if let Some(p) = self.check_system_path("weights", stem) { return Ok(p); }
-        
+        if let Some(p) = self.check_user_path("weights", stem) {
+            return Ok(p);
+        }
+        if let Some(p) = self.check_system_path("weights", stem) {
+            return Ok(p);
+        }
+
         let local_path = self.root.join("user/weights").join(format!("{stem}.json"));
         let remote_path = format!("data/{stem}.json");
         let url = self.client.asset_url(&remote_path);
@@ -103,7 +130,10 @@ impl AssetManager {
                     if h == hash {
                         return Ok(sys_dir);
                     }
-                    info!("System corpus '{}' hash mismatch. Falling back to User/Remote.", bundle_id);
+                    info!(
+                        "System corpus '{}' hash mismatch. Falling back to User/Remote.",
+                        bundle_id
+                    );
                 }
             } else {
                 return Ok(sys_dir);
@@ -120,7 +150,7 @@ impl AssetManager {
         ];
 
         let all_user_exist = files.iter().all(|f| user_dir.join(f).exists());
-        
+
         if all_user_exist {
             if let Some(hash) = expected_hash {
                 let provider = crate::FsProvider::new(self.root.clone());
@@ -161,12 +191,17 @@ impl AssetManager {
             CostMatrixSource::Predefined(filename) => {
                 let p = self.ensure_cost_matrix(filename).await?;
                 p.file_name()
-                    .ok_or_else(|| crate::error::InfraError::Io(std::io::Error::other("Invalid cost matrix path")))
+                    .ok_or_else(|| {
+                        crate::error::InfraError::Io(std::io::Error::other(
+                            "Invalid cost matrix path",
+                        ))
+                    })
                     .map(|s| s.to_string_lossy().to_string())?
             }
         };
         for source in &config.corpora {
-            self.ensure_corpus(&source.id, source.hash.as_deref()).await?;
+            self.ensure_corpus(&source.id, source.hash.as_deref())
+                .await?;
         }
         Ok((cost_path, "corpora".to_string()))
     }

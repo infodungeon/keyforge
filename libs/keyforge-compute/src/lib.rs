@@ -14,18 +14,18 @@
 
 //! # `KeyForge` Compute
 //!
-//! High-level computation runtime for `KeyForge`. This crate orchestrates the 
-//! physics and evolution engines to provide a unified runtime for 
+//! High-level computation runtime for `KeyForge`. This crate orchestrates the
+//! physics and evolution engines to provide a unified runtime for
 //! applications.
 
-use keyforge_core::{ProgressCallback, EvolutionError, ScoringSession};
-/// Builder for constructing computation sessions.
-pub mod builder;
+use keyforge_core::{EvolutionError, ProgressCallback, ScoringSession};
 /// Biometric profiling logic.
 pub mod biometrics;
+/// Builder for constructing computation sessions.
+pub mod builder;
 pub use builder::SessionBuilder;
-use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SwapSuggestion, SearchConfig};
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SearchConfig, SwapSuggestion};
 use keyforge_physics::ScoringEngine;
 use std::sync::Arc;
 use tracing::instrument;
@@ -43,9 +43,17 @@ pub struct Runtime {
 
 impl Runtime {
     /// Creates a new `Runtime` from initialized components.
-    #[must_use] 
-    pub fn new(engine: Arc<ScoringEngine>, registry: Arc<KeycodeRegistry>, search_config: SearchConfig) -> Self {
-        Self { engine, registry, search_config }
+    #[must_use]
+    pub fn new(
+        engine: Arc<ScoringEngine>,
+        registry: Arc<KeycodeRegistry>,
+        search_config: SearchConfig,
+    ) -> Self {
+        Self {
+            engine,
+            registry,
+            search_config,
+        }
     }
 
     /// Evaluates the physical cost of a layout.
@@ -64,7 +72,10 @@ impl Runtime {
     ///
     /// Returns `keyforge_physics::PhysicsError` if analysis fails.
     #[instrument(skip(self, layout))]
-    pub fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
+    pub fn analyze(
+        &self,
+        layout: &Layout,
+    ) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
         self.engine.analyze(layout)
     }
 
@@ -74,8 +85,13 @@ impl Runtime {
     ///
     /// Returns `keyforge_physics::PhysicsError` if suggestion logic fails.
     #[instrument(skip(self, layout))]
-    pub fn suggest_improvements(&self, layout: &Layout) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
-        Ok(self.engine.suggest_improvements(layout, self.search_config.include_thumbs()))
+    pub fn suggest_improvements(
+        &self,
+        layout: &Layout,
+    ) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
+        Ok(self
+            .engine
+            .suggest_improvements(layout, self.search_config.include_thumbs()))
     }
 
     /// Runs the evolution optimizer on the current runtime context.
@@ -84,7 +100,12 @@ impl Runtime {
     ///
     /// Returns `EvolutionError` if optimization fails.
     #[instrument(skip(self, callback))]
-    pub fn optimize(&self, callback: impl ProgressCallback, initial_layout: Option<Layout>, pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>) -> Result<OptimizationResult, EvolutionError> {
+    pub fn optimize(
+        &self,
+        callback: impl ProgressCallback,
+        initial_layout: Option<Layout>,
+        pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>,
+    ) -> Result<OptimizationResult, EvolutionError> {
         keyforge_core::optimize_with_engine(
             &self.engine,
             &self.search_config,

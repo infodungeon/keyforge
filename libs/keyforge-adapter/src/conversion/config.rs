@@ -1,7 +1,7 @@
 use keyforge_model::config;
 
 /// Converts a protocol-level corpus source into a domain-level source.
-#[must_use] 
+#[must_use]
 pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource {
     config::CorpusSource {
         id: s.id.clone(),
@@ -11,7 +11,7 @@ pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource
 }
 
 /// Converts protocol-level scoring weights into a domain-level evaluation rubric.
-#[must_use] 
+#[must_use]
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
     keyforge_model::Rubric {
         finger_effort: w.get_finger_penalty_scale(),
@@ -33,7 +33,7 @@ pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
 }
 
 /// Converts protocol-level search parameters into domain-level search configuration.
-#[must_use] 
+#[must_use]
 pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::SearchConfig {
     keyforge_model::SearchConfig::Annealing {
         steps: p.get_search_steps(),
@@ -44,5 +44,38 @@ pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::
         reheats: p.get_reheats(),
         reheat_factor: p.get_reheat_factor(),
         include_thumbs: p.include_thumbs,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::config::{ScoringWeights, SearchParams};
+
+    #[test]
+    fn test_to_domain_rubric_conversion() {
+        let mut proto_weights = ScoringWeights::default();
+        proto_weights
+            .weights
+            .insert("penalty_sfb_base".to_string(), 100.0);
+
+        let domain_rubric = to_domain_rubric(&proto_weights);
+        assert_eq!(domain_rubric.sfb_base, 100.0);
+    }
+
+    #[test]
+    fn test_to_domain_config_conversion() {
+        let mut proto_params = SearchParams::default();
+        proto_params
+            .params
+            .insert("search_steps".to_string(), 100_000.0);
+
+        let domain_config = to_domain_config(&proto_params, 42);
+        match domain_config {
+            keyforge_model::SearchConfig::Annealing { steps, seed, .. } => {
+                assert_eq!(steps, 100_000);
+                assert_eq!(seed, 42);
+            }
+        }
     }
 }

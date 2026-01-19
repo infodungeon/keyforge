@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::util::{self, ModFormat};
 use crate::Exporter;
 use anyhow::Result;
-use crate::util::{self, ModFormat};
 use keyforge_adapter::parsing::{parse_key, KeyAction};
 
 use keyforge_model::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
@@ -100,7 +100,7 @@ fn action_to_qmk(action: &KeyAction) -> String {
         KeyAction::LayerTap { layer, key } => {
             let key_str = action_to_qmk(key);
             format!("LT({layer}, {key_str})")
-        },
+        }
         KeyAction::StickyMod(m) => {
             let qmk_mod = util::map_modifier(m, ModFormat::Qmk);
             format!("OSM({qmk_mod})")
@@ -121,7 +121,7 @@ mod tests {
             vec!["TRNS".to_string(), "NO".to_string()],
         ];
         let result = exporter.generate("Test Layout", &layers).unwrap();
-        
+
         assert!(result.contains("keymaps[][MATRIX_ROWS][MATRIX_COLS]"));
         assert!(result.contains("[0] = LAYOUT("));
         assert!(result.contains("[1] = LAYOUT("));

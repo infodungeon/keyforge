@@ -1,10 +1,10 @@
 use crate::error::CommandError;
+use crate::utils::get_data_dir;
 use keyforge_protocol::JobConfig;
 use tauri::AppHandle;
-use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
-use tracing::{info, warn, error, debug};
-use crate::utils::get_data_dir;
+use tauri_plugin_shell::ShellExt;
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug)]
 pub struct AgentRunner {
@@ -12,7 +12,7 @@ pub struct AgentRunner {
 }
 
 impl AgentRunner {
-    #[must_use] 
+    #[must_use]
     pub fn new(app: AppHandle) -> Self {
         Self { app }
     }
@@ -22,19 +22,30 @@ impl AgentRunner {
     /// # Errors
     ///
     /// Returns `CommandError` if the sidecar fails to spawn, execute, or returns a non-zero exit code.
-    pub async fn run_validation(&self, config: &JobConfig, layout: &str) -> Result<String, CommandError> {
+    pub async fn run_validation(
+        &self,
+        config: &JobConfig,
+        layout: &str,
+    ) -> Result<String, CommandError> {
         // Create temp file for JobConfig
-        let temp_file = tempfile::NamedTempFile::new().map_err(|e| CommandError::Internal(e.to_string()))?;
+        let temp_file =
+            tempfile::NamedTempFile::new().map_err(|e| CommandError::Internal(e.to_string()))?;
         let temp_path = temp_file.path().to_path_buf();
-        let json = serde_json::to_string(config).map_err(|e| CommandError::Internal(e.to_string()))?;
-        tokio::fs::write(&temp_path, json).await.map_err(|e| CommandError::Internal(e.to_string()))?;
+        let json =
+            serde_json::to_string(config).map_err(|e| CommandError::Internal(e.to_string()))?;
+        tokio::fs::write(&temp_path, json)
+            .await
+            .map_err(|e| CommandError::Internal(e.to_string()))?;
 
         let data_dir = get_data_dir(&self.app).map_err(CommandError::Internal)?;
 
         // Spawn sidecar
         // args: ["--data-dir", data_dir, "score", temp_path, layout]
         // Note: Global args must come before the subcommand
-        let sidecar_command = self.app.shell().sidecar("keyforge-agent")
+        let sidecar_command = self
+            .app
+            .shell()
+            .sidecar("keyforge-agent")
             .map_err(|e| CommandError::Internal(e.to_string()))?
             .args([
                 "--data-dir",
@@ -85,16 +96,20 @@ impl AgentRunner {
                 CommandEvent::Terminated(status) => {
                     if let Some(code) = status.code {
                         if code != 0 {
-                             return Err(CommandError::Internal(format!("Agent exited with status: {code}")));
+                            return Err(CommandError::Internal(format!(
+                                "Agent exited with status: {code}"
+                            )));
                         }
                     } else {
-                         return Err(CommandError::Internal("Agent terminated by signal".to_string()));
+                        return Err(CommandError::Internal(
+                            "Agent terminated by signal".to_string(),
+                        ));
                     }
                 }
                 _ => {}
             }
         }
-        
+
         Ok(output)
     }
 }

@@ -1,112 +1,159 @@
-// libs/keyforge-persistence/src/compiler.rs
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use crate::error::PersistenceError;
 use keyforge_core::loader::AssetLoader;
-use keyforge_model::config::{Config, CorpusSource, CostMatrixSource};
-use keyforge_model::{KeyboardDefinition, CostModel, KeycodeRegistry};
+use keyforge_model::config::Config;
+use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_physics::EngineRequest;
 use std::sync::Arc;
-use keyforge_adapter::conversion::{to_domain_rubric, to_domain_config, resolve_constraints};
 
-/// Compiles a raw configuration into a fully-loaded `EngineRequest`.
+/// Compiles a high-level `JobRequest` into a high-performance `EngineRequest`.
 ///
 /// # Errors
-///
-/// Returns `PersistenceError` if any assets (keyboard, corpus, cost model) fail to load or validate.
+/// Returns `PersistenceError` if any assets fail to load or if the domain translation fails.
 pub async fn compile_request<L: AssetLoader>(
     loader: &L,
     config: &Config,
-    keyboard_name: &str,
-    pinned_keys: &[keyforge_model::KeyConstraint],
+    keyboard_id: &str,
+    corpora_ids: &[&str],
 ) -> Result<EngineRequest, PersistenceError> {
-    // 1. Load Keyboard
-    let keyboard_def = loader
-        .load::<KeyboardDefinition>(keyboard_name)
+    // 1. Load Keyboard Definition
+    let kb_def = loader
+        .load::<KeyboardDefinition>(keyboard_id)
         .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard '{keyboard_name}': {e}")))?;
-
-    let keyboard = keyforge_model::Keyboard::new(
-        keyboard_def.geometry.keys.clone(),
-        keyboard_def.geometry.home_row,
-    )
-    .map_err(|e| PersistenceError::Validation(e.to_string()))?;
+        .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard {keyboard_id}: {e}")))?;
 
     // 2. Load Corpus
-    // Use default if no corpora specified (Config currently doesn't hold corpora list)
-    let corpus_sources: Vec<CorpusSource> = vec![CorpusSource::default()]; 
+    let corpus_sources: Vec<_> = corpora_ids
+        .iter()
+        .map(|&id| keyforge_model::config::CorpusSource {
+            id: id.to_string(),
+            weight: 1.0,
+            hash: None,
+        })
+        .collect();
     let corpus = loader
         .load_corpus(&corpus_sources)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Corpus: {e}")))?;
 
-    // 3. Load Cost Model
-    let CostMatrixSource::Predefined(cost_name) = CostMatrixSource::default();
-    
-    let cost_model = loader
-        .load::<CostModel>(&cost_name)
-        .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("CostModel '{cost_name}': {e}")))?;
-
-    // 4. Load Keycodes (Standard)
+    // 3. Load Keycode Registry (Mandatory for resolution)
     let registry = loader
         .load::<KeycodeRegistry>("keycodes")
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {e}")))?;
 
-    // 5. Construct Request
-    let pinned = resolve_constraints(pinned_keys, keyboard.count(), &registry)
-        .map_err(|e| PersistenceError::Validation(e.to_string()))?;
+    // 4. Load Cost Model
+    let cost_model = loader
+        .load::<keyforge_model::cost_model::CostModel>("cost_matrix")
+        .await
+        .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model: {e}")))?;
 
-    let seed = config.search.seed.unwrap_or(0);
+    // 5. Translate to Physics entities using Adapter
+    let keyboard = keyforge_adapter::conversion::to_domain_keyboard(&kb_def.geometry)
+        .map_err(|e| PersistenceError::Adapter(e.to_string()))?;
+
+    let rubric = keyforge_adapter::conversion::to_domain_rubric(&config.weights);
+
+    let adapter_config = keyforge_adapter::conversion::to_domain_config(&config.search, 0);
+
+    // Initial layout: Use first defined layout or default to QWERTY if present
+    let initial_layout = if let Some(layout_str) = kb_def.layouts.get("qwerty") {
+        Some(
+            keyforge_adapter::conversion::parse_layout_string_strict(
+                layout_str,
+                keyboard.count(),
+                &registry,
+            )
+            .map_err(|e| PersistenceError::Adapter(e.to_string()))?,
+        )
+    } else {
+        None
+    };
+
+    let pinned_keys = keyforge_adapter::conversion::resolve_constraints(
+        &config.pinned_keys,
+        keyboard.count(),
+        &registry,
+    )
+    .map_err(|e| PersistenceError::Adapter(e.to_string()))?;
 
     Ok(EngineRequest {
         keyboard: Arc::new(keyboard),
         corpus,
-        rubric: Arc::new(to_domain_rubric(&config.weights)),
+        rubric: Arc::new(rubric),
         cost_model,
-        config: to_domain_config(&config.search, seed),
-        initial_layout: None,
-        pinned_keys: pinned,
+        config: adapter_config,
+        initial_layout,
+        pinned_keys,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keyforge_model::error::ForgeError;
     use keyforge_core::loader::LoaderResult;
-    use keyforge_model::{Asset, Corpus};
+    use keyforge_model::cost_model::CostModel;
+    use keyforge_model::geometry::KeyboardGeometry;
+    use keyforge_model::keycodes::KeycodeRegistry;
+    use keyforge_model::{config::CorpusSource, Asset, Corpus};
+    use std::any::Any;
 
     #[derive(Debug)]
-    struct FailingLoader;
+    struct MockLoader;
 
     #[async_trait::async_trait]
-    impl AssetLoader for FailingLoader {
-        async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
-            Err(ForgeError::NotFound(id.to_string()))
+    impl AssetLoader for MockLoader {
+        async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
+            let any_kb = Arc::new(KeyboardDefinition {
+                meta: Default::default(),
+                geometry: KeyboardGeometry {
+                    keys: vec![Default::default()],
+                    prime_slots: vec![],
+                    med_slots: vec![],
+                    low_slots: vec![],
+                    home_row: 0,
+                },
+                layouts: Default::default(),
+            }) as Arc<dyn Any + Send + Sync>;
+
+            if let Ok(arc) = any_kb.downcast::<T>() {
+                return Ok(arc);
+            }
+
+            let json = r#"{
+                "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+                "models": {
+                    "model_a_row_staggered": {
+                        "description": "test",
+                        "static_costs": {}
+                    }
+                },
+                "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+            }"#;
+            let model: CostModel = serde_json::from_str(json).unwrap();
+            let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
+            if let Ok(arc) = any_model.downcast::<T>() {
+                return Ok(arc);
+            }
+
+            let any_kc = Arc::new(KeycodeRegistry::default()) as Arc<dyn Any + Send + Sync>;
+            if let Ok(arc) = any_kc.downcast::<T>() {
+                return Ok(arc);
+            }
+
+            Err(keyforge_model::error::ForgeError::NotFound(_id.to_string()))
         }
-        async fn load_corpus(&self, _: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-            Err(ForgeError::NotFound("corpus".into()))
+
+        async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
+            Ok(Arc::new(Corpus::default()))
         }
     }
 
     #[tokio::test]
-    async fn test_compile_failure_propagation() {
-        let loader = FailingLoader;
-        let config = Config::default();
+    async fn test_compile_request_success() {
+        let loader = MockLoader;
+        let config = keyforge_model::config::Config::default();
         let res = compile_request(&loader, &config, "test_kb", &[]).await;
-        assert!(matches!(res, Err(PersistenceError::AssetLoad(_))));
+        assert!(res.is_ok());
     }
 }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use fs2::FileExt;
 use keyforge_infra::error::{InfraError, InfraResult};
 use keyforge_infra::fs::io::atomic_write;
 use keyforge_infra::util::common::{sanitize_filename, StreamingProfileBuilder};
@@ -24,7 +25,6 @@ use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
-use fs2::FileExt;
 
 /// A persistent store for user-created layouts, organized by keyboard ID.
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -43,7 +43,7 @@ pub struct UserRepo {
 
 impl UserRepo {
     /// Creates a new `UserRepo` instance using the specified root directory as the data store.
-    #[must_use] 
+    #[must_use]
     pub fn new(root: PathBuf) -> Self {
         Self { root }
     }
@@ -101,7 +101,7 @@ impl UserRepo {
     }
 
     /// Returns all saved layouts for a specific keyboard.
-    #[must_use] 
+    #[must_use]
     pub fn get_layouts(&self, kb_id: &str) -> HashMap<String, String> {
         let store = self.load_layout_store();
         store.layouts.get(kb_id).cloned().unwrap_or_default()
@@ -184,7 +184,7 @@ impl UserRepo {
     }
 
     /// Retrieves all accumulated biometric samples.
-    #[must_use] 
+    #[must_use]
     pub fn get_biometrics(&self) -> Vec<BiometricSample> {
         self.load_stats_store().biometrics
     }
@@ -222,9 +222,7 @@ impl UserRepo {
         let output_path = self.root.join("user/personal_cost.json");
         atomic_write(output_path, profile_content)?;
 
-        Ok(format!(
-            "Profile generated from {count} samples."
-        ))
+        Ok(format!("Profile generated from {count} samples."))
     }
 
     // --- KEYBOARDS ---

@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::models::MaintenanceConfig;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tracing::{info, warn};
-use crate::models::MaintenanceConfig;
 
 const SAFE_EXTENSION: &str = "json";
 
 /// Prunes stale user data.
-pub async fn prune_stale_data(data_root: PathBuf, config: &MaintenanceConfig) -> std::io::Result<()> {
+pub async fn prune_stale_data(
+    data_root: PathBuf,
+    config: &MaintenanceConfig,
+) -> std::io::Result<()> {
     // Target directory from config
     let target_dir = data_root.join(&config.prune_target_dir);
     if !target_dir.exists() {

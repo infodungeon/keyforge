@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::path::{PathBuf};
-use std::sync::Arc;
-use tokio::sync::{mpsc};
-use tracing::{error, info, warn};
-use crate::config::QueueConfig;
 use super::wrappers::{DeadLetterQueue, PersistedRecord, WalEntry};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::fs;
+use crate::config::QueueConfig;
 use async_trait::async_trait;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use tokio::fs;
+use tokio::sync::mpsc;
+use tracing::{error, info, warn};
 
 #[async_trait]
 pub trait BatchSink: Send + Sync + 'static {
@@ -29,7 +28,7 @@ pub trait BatchSink: Send + Sync + 'static {
 }
 
 /// A persistent, asynchronous queue for job results.
-/// 
+///
 /// Records are first written to a Write-Ahead Log (WAL) on disk, then
 /// periodically flushed to the primary database in batches.
 #[derive(Debug)]
@@ -41,18 +40,20 @@ pub struct PersistentJobQueue {
 impl PersistentJobQueue {
     /// Creates and starts a new `PersistentJobQueue`.
     #[allow(clippy::needless_pass_by_value)]
-    pub fn new<S>(sink: S, data_path: PathBuf, config: QueueConfig) -> Self 
-    where S: BatchSink {
+    pub fn new<S>(sink: S, data_path: PathBuf, config: QueueConfig) -> Self
+    where
+        S: BatchSink,
+    {
         let queue_dir = data_path.join("user/queue");
         let _dlq = DeadLetterQueue::new(&data_path);
-        let capacity = config.channel_capacity; 
+        let capacity = config.channel_capacity;
 
         let (tx, mut rx) = mpsc::channel(capacity);
         let active_count = Arc::new(AtomicUsize::new(0));
         let active_count_clone = active_count.clone();
 
         let queue_dir_clone = queue_dir.clone();
-        
+
         tokio::spawn(async move {
             if let Err(e) = fs::create_dir_all(&queue_dir_clone).await {
                 error!("FATAL: Could not create queue directory: {}", e);
@@ -93,7 +94,8 @@ impl PersistentJobQueue {
             }
 
             let mut batch = Vec::with_capacity(config.batch_size);
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(config.flush_interval_ms));
+            let mut interval =
+                tokio::time::interval(tokio::time::Duration::from_millis(config.flush_interval_ms));
 
             loop {
                 tokio::select! {
@@ -116,7 +118,10 @@ impl PersistentJobQueue {
             }
         });
 
-        Self { tx, active_count: active_count_clone }
+        Self {
+            tx,
+            active_count: active_count_clone,
+        }
     }
 
     /// Pushes a record onto the queue.
@@ -125,7 +130,7 @@ impl PersistentJobQueue {
     }
 
     /// Returns the approximate number of jobs currently in flight or queued.
-    #[must_use] 
+    #[must_use]
     pub fn current_depth(&self) -> usize {
         self.active_count.load(Ordering::Relaxed)
     }

@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Physical keyboard geometry and spatial definitions.
 //!
 //! This module defines the physical properties of a keyboard, including
 //! key positions, dimensions, and finger assignments.
 
+use crate::asset::{Asset, AssetCategory};
 use crate::constants::MAX_KEYBOARD_KEYS;
+use crate::error::ForgeError;
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use crate::validator::Validator;
-use crate::asset::{Asset, AssetCategory};
-use crate::error::ForgeError;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 /// Keyboard Layout Editor (KLE) integration.
 pub mod kle;
@@ -154,8 +153,12 @@ impl Default for KeyNode {
     }
 }
 
-fn default_size() -> f32 { 1.0 }
-fn default_home_row() -> i8 { 1 }
+fn default_size() -> f32 {
+    1.0
+}
+fn default_home_row() -> i8 {
+    1
+}
 
 /// Collection of keys and slot definitions defining the keyboard geometry.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -180,33 +183,66 @@ impl Validator for KeyboardGeometry {
             return Err("Keyboard geometry must have at least one key".to_string());
         }
         if self.keys.len() > MAX_KEYBOARD_KEYS {
-            return Err(format!("Too many keys: {} (Max: {})", self.keys.len(), MAX_KEYBOARD_KEYS));
+            return Err(format!(
+                "Too many keys: {} (Max: {})",
+                self.keys.len(),
+                MAX_KEYBOARD_KEYS
+            ));
         }
 
         let prime: HashSet<_> = self.prime_slots.iter().collect();
         let med: HashSet<_> = self.med_slots.iter().collect();
         let low: HashSet<_> = self.low_slots.iter().collect();
 
-        if !prime.is_disjoint(&med) { return Err("Prime and Med slots overlap".to_string()); }
-        if !prime.is_disjoint(&low) { return Err("Prime and Low slots overlap".to_string()); }
-        if !med.is_disjoint(&low) { return Err("Med and Low slots overlap".to_string()); }
+        if !prime.is_disjoint(&med) {
+            return Err("Prime and Med slots overlap".to_string());
+        }
+        if !prime.is_disjoint(&low) {
+            return Err("Prime and Low slots overlap".to_string());
+        }
+        if !med.is_disjoint(&low) {
+            return Err("Med and Low slots overlap".to_string());
+        }
 
         let total_slots = prime.len() + med.len() + low.len();
         if total_slots != self.keys.len() {
-            return Err(format!("Slot definition incomplete. Covered {}/{} keys.", total_slots, self.keys.len()));
+            return Err(format!(
+                "Slot definition incomplete. Covered {}/{} keys.",
+                total_slots,
+                self.keys.len()
+            ));
         }
 
         let max_idx = self.keys.len();
-        for &idx in self.prime_slots.iter().chain(&self.med_slots).chain(&self.low_slots) {
+        for &idx in self
+            .prime_slots
+            .iter()
+            .chain(&self.med_slots)
+            .chain(&self.low_slots)
+        {
             if (idx.0 as usize) >= max_idx {
                 return Err(format!("Slot index {idx} out of bounds (keys: {max_idx})"));
             }
         }
 
         for (i, key) in self.keys.iter().enumerate() {
-            if key.w <= 0.0 || key.h <= 0.0 { return Err(format!("Key #{i} has invalid dimensions")); }
-            if key.hand.as_u8() > 1 { return Err(format!("Key #{} has invalid hand index {}", i, key.hand.as_u8())); }
-            if key.finger.as_u8() > 4 { return Err(format!("Key #{} has invalid finger index {}", i, key.finger.as_u8())); }
+            if key.w <= 0.0 || key.h <= 0.0 {
+                return Err(format!("Key #{i} has invalid dimensions"));
+            }
+            if key.hand.as_u8() > 1 {
+                return Err(format!(
+                    "Key #{} has invalid hand index {}",
+                    i,
+                    key.hand.as_u8()
+                ));
+            }
+            if key.finger.as_u8() > 4 {
+                return Err(format!(
+                    "Key #{} has invalid finger index {}",
+                    i,
+                    key.finger.as_u8()
+                ));
+            }
         }
         Ok(())
     }
@@ -253,6 +289,140 @@ impl Default for KeyboardGeometry {
 
 impl KeyboardGeometry {
     /// Returns the total number of keys.
-    #[must_use] 
-    pub fn key_count(&self) -> usize { self.keys.len() }
+    #[must_use]
+    pub fn key_count(&self) -> usize {
+        self.keys.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_keyboard_geometry_validation() {
+        let mut geom = KeyboardGeometry::default();
+        // 1. Empty keys
+        assert!(geom.validate().is_err());
+
+        // 2. Invalid Key dimensions
+        geom.keys.push(KeyNode {
+            index: 0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            w: 0.0,
+            ..Default::default()
+        });
+        geom.prime_slots.push(KeyIndex(0));
+        assert!(geom.validate().is_err(), "Should fail on w=0");
+
+        // 3. Slot overlaps
+        geom.keys = vec![
+            KeyNode {
+                index: 0,
+                hand: HandIndex(0),
+                finger: FingerIndex(1),
+                w: 1.0,
+                h: 1.0,
+                ..Default::default()
+            },
+            KeyNode {
+                index: 1,
+                hand: HandIndex(1),
+                finger: FingerIndex(1),
+                w: 1.0,
+                h: 1.0,
+                ..Default::default()
+            },
+        ];
+        geom.prime_slots = vec![KeyIndex(0)];
+        geom.med_slots = vec![KeyIndex(0)]; // Overlap with prime
+        geom.low_slots = vec![KeyIndex(1)];
+        assert!(geom.validate().is_err(), "Should fail on slot overlap");
+
+        // 4. Out of bounds slot index
+        geom.prime_slots = vec![KeyIndex(0)];
+        geom.med_slots = vec![KeyIndex(99)]; // Out of bounds
+        geom.low_slots = vec![KeyIndex(1)];
+        assert!(
+            geom.validate().is_err(),
+            "Should fail on out of bounds slot index"
+        );
+
+        // 5. Incomplete slot definition
+        geom.prime_slots = vec![KeyIndex(0)];
+        geom.med_slots = vec![];
+        geom.low_slots = vec![]; // Key 1 is missing
+        assert!(geom.validate().is_err(), "Should fail on incomplete slots");
+
+        // 6. Valid state
+        geom.prime_slots = vec![KeyIndex(0)];
+        geom.med_slots = vec![KeyIndex(1)];
+        geom.low_slots = vec![];
+        assert!(geom.validate().is_ok());
+    }
+
+    #[test]
+    fn test_keyboard_definition_deserialization() {
+        // Tests deserialization of a known complex geometry (SZR35)
+        let json = r#"{
+          "meta": {
+            "name": "SZR35",
+            "author": "KeyForge",
+            "version": "1.0",
+            "notes": "36-key Split Column-Staggered (3x5+3).",
+            "type": "split_column_staggered"
+          },
+          "geometry": {
+            "keys": [
+              {"id": "KeyQ", "x": 0, "y": 0.5, "hand": 0, "finger": 4, "row": 0, "col": 0},
+              {"id": "KeyW", "x": 1, "y": 0.25, "hand": 0, "finger": 3, "row": 0, "col": 1}
+            ],
+            "prime_slots": [0, 1],
+            "med_slots": [],
+            "low_slots": [],
+            "home_row": 1
+          },
+          "layouts": {}
+        }"#;
+
+        let def: KeyboardDefinition =
+            serde_json::from_str(json).expect("Failed to deserialize KeyboardDefinition");
+        assert_eq!(def.geometry.keys.len(), 2, "Should have 2 keys");
+        assert_eq!(def.geometry.keys[0].label, "KeyQ", "Label should be KeyQ");
+    }
+}
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn geometry_strategy() -> impl Strategy<Value = KeyboardGeometry> {
+        proptest::collection::vec((any::<f32>(), any::<f32>(), 0u8..10, 0u8..10), 0..300).prop_map(
+            |keys| {
+                let nodes = keys
+                    .into_iter()
+                    .map(|(w, h, hand, finger)| KeyNode {
+                        w,
+                        h,
+                        hand: HandIndex(hand.min(1)),
+                        finger: FingerIndex(finger.min(4)),
+                        ..Default::default()
+                    })
+                    .collect();
+                KeyboardGeometry {
+                    keys: nodes,
+                    ..Default::default()
+                }
+            },
+        )
+    }
+
+    proptest! {
+        #[test]
+        fn fuzz_geometry_validation(g in geometry_strategy()) {
+            let _ = g.validate();
+        }
+    }
 }

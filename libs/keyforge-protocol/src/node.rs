@@ -15,11 +15,13 @@
 use crate::PROTOCOL_VERSION;
 use keyforge_model::Validator;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
+use utoipa::ToSchema;
 
-fn default_version() -> u32 { PROTOCOL_VERSION }
+fn default_version() -> u32 {
+    PROTOCOL_VERSION
+}
 
 /// Real-time status report from a Worker Node (Hot Path).
 /// Sent via WebSocket text frames to Hive, then serialized to Valkey.
@@ -64,9 +66,15 @@ pub struct NodeRequest {
 
 impl Validator for NodeRequest {
     fn validate(&self) -> Result<(), String> {
-        if self.node_id.trim().is_empty() { return Err("node_id cannot be empty".into()); }
-        if self.cores <= 0 { return Err("cores must be > 0".into()); }
-        if self.ops_per_sec < 0.0 { return Err("ops_per_sec cannot be negative".into()); }
+        if self.node_id.trim().is_empty() {
+            return Err("node_id cannot be empty".into());
+        }
+        if self.cores <= 0 {
+            return Err("cores must be > 0".into());
+        }
+        if self.ops_per_sec < 0.0 {
+            return Err("ops_per_sec cannot be negative".into());
+        }
         Ok(())
     }
 }

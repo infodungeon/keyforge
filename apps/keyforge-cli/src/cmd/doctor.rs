@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::DEFAULT_HIVE_URL;
 use clap::Args;
 use std::path::Path;
-use sysinfo::System;
 use std::time::Duration;
-use crate::constants::DEFAULT_HIVE_URL;
+use sysinfo::System;
 
 #[derive(Args, Debug, Clone)]
 pub struct DoctorArgs {}
@@ -31,7 +30,7 @@ pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::erro
     print_system_info();
     print_toolchain_info();
     print_cpu_info();
-    
+
     let workspace_ok = check_workspace_integrity(root);
     let hive_ok = check_hive_connectivity().await;
 
@@ -125,7 +124,8 @@ fn check_workspace_integrity(root: &Path) -> bool {
             }
         } else if !std::path::Path::new(item)
             .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("age")) {
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("age"))
+        {
             eprintln!("   ❌ Missing: {item}");
             all_good = false;
         } else {
@@ -137,7 +137,8 @@ fn check_workspace_integrity(root: &Path) -> bool {
 
 async fn check_hive_connectivity() -> bool {
     eprintln!("\n📡 Network");
-    let hive_url = std::env::var("KEYFORGE_HIVE_URL").unwrap_or_else(|_| DEFAULT_HIVE_URL.to_string());
+    let hive_url =
+        std::env::var("KEYFORGE_HIVE_URL").unwrap_or_else(|_| DEFAULT_HIVE_URL.to_string());
     eprintln!("   Hive:     {hive_url}");
 
     let client = reqwest::Client::builder()

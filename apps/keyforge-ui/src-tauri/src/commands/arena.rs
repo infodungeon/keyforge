@@ -1,10 +1,10 @@
 use crate::utils::get_data_dir;
 use keyforge_infra::AssetLoader;
 use keyforge_infra::FsProvider;
-use keyforge_persistence::UserRepo;
 use keyforge_model::config::CorpusSource;
-use keyforge_protocol::BiometricSample;
 use keyforge_model::constants::ARENA_TOP_WORDS_LIMIT;
+use keyforge_persistence::UserRepo;
+use keyforge_protocol::BiometricSample;
 use tauri::AppHandle;
 
 /// Generates a list of random words from the selected corpora for typing practice.
@@ -17,7 +17,7 @@ pub async fn cmd_get_typing_words(
     use keyforge_adapter::conversion;
     let data_dir = get_data_dir(&app)?;
     let provider = FsProvider::new(data_dir);
-    
+
     let domain_corpora: Vec<CorpusSource> = corpora
         .iter()
         .map(conversion::to_domain_corpus_source)
@@ -127,9 +127,13 @@ pub async fn cmd_get_corpus_bigrams(
 
     for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {
         let mut s = String::with_capacity(4);
-        if let Some(c1) = std::char::from_u32(u32::from(b1)) { s.push(c1); }
-        if let Some(c2) = std::char::from_u32(u32::from(b2)) { s.push(c2); }
-        
+        if let Some(c1) = std::char::from_u32(u32::from(b1)) {
+            s.push(c1);
+        }
+        if let Some(c2) = std::char::from_u32(u32::from(b2)) {
+            s.push(c2);
+        }
+
         if !s.is_empty() && s.chars().all(char::is_alphabetic) {
             bigrams.push(s);
         }

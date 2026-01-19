@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::error::{AppError, AppResult};
 
 use crate::models::ValidationResult;
@@ -37,8 +36,8 @@ pub struct ValidateRequest {
     pub corpus_sources: Option<Vec<keyforge_model::CorpusSource>>,
 }
 
-use keyforge_model::constants::{DEFAULT_KEYBOARD_ID, DEFAULT_CORPUS_ID, DEFAULT_CORPUS_WEIGHT};
 use crate::services::runner::AgentRunner;
+use keyforge_model::constants::{DEFAULT_CORPUS_ID, DEFAULT_CORPUS_WEIGHT, DEFAULT_KEYBOARD_ID};
 
 /// Performs a quick scoring analysis of a layout against a standard corpus.
 /// This endpoint does not register a job or persist results.
@@ -47,13 +46,18 @@ pub async fn validate_layout(
     Json(payload): Json<ValidateRequest>,
 ) -> AppResult<Json<ValidationResult>> {
     // Use provided keyboard name or fallback
-    let keyboard_name = payload.keyboard_name.as_deref().unwrap_or(DEFAULT_KEYBOARD_ID);
+    let keyboard_name = payload
+        .keyboard_name
+        .as_deref()
+        .unwrap_or(DEFAULT_KEYBOARD_ID);
 
-    let corpus_sources = payload.corpus_sources.clone().unwrap_or_else(|| vec![keyforge_model::CorpusSource {
-        id: DEFAULT_CORPUS_ID.to_string(),
-        weight: DEFAULT_CORPUS_WEIGHT,
-        hash: None,
-    }]);
+    let corpus_sources = payload.corpus_sources.clone().unwrap_or_else(|| {
+        vec![keyforge_model::CorpusSource {
+            id: DEFAULT_CORPUS_ID.to_string(),
+            weight: DEFAULT_CORPUS_WEIGHT,
+            hash: None,
+        }]
+    });
 
     // Load definitions to ensure they exist, but we will pass config to Runner
     let definition = state
@@ -64,7 +68,7 @@ pub async fn validate_layout(
 
     // Determine scoring weights (defaults if not provided)
     let weights = payload.weights.unwrap_or_default();
-    
+
     // Construct JobConfig for Runner
     let job_config = JobConfig {
         definition: definition.as_ref().clone(),
@@ -81,10 +85,12 @@ pub async fn validate_layout(
 
     // Initialize Runner
     let runner = AgentRunner::new(state.data_path.clone());
-    
+
     // Delegate to Agent Sidecar
-    let json_output = runner.run_validation(&job_config, &payload.layout_str).await?;
-    
+    let json_output = runner
+        .run_validation(&job_config, &payload.layout_str)
+        .await?;
+
     // Deserialize report
     let report: keyforge_model::AnalysisReport = serde_json::from_str(&json_output)
         .map_err(|e| AppError::Any(anyhow::anyhow!("Failed to parse agent output: {e}")))?;

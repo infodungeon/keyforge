@@ -88,7 +88,7 @@ pub struct AutoSaveService {
 
 impl AutoSaveService {
     /// Creates a new `AutoSaveService` instance with a session file located in the provided root path.
-    #[must_use] 
+    #[must_use]
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(root_path: PathBuf) -> Self {
         let path = root_path.join("session.json");
@@ -120,7 +120,7 @@ impl AutoSaveService {
         }
 
         let content = tokio::fs::read_to_string(&self.path).await?;
-        
+
         // Try loading as PersistedSession first (new format)
         if let Ok(persisted) = serde_json::from_str::<PersistedSession>(&content) {
             if persisted.verify() {
@@ -209,10 +209,13 @@ impl AutoSaveService {
                 match temp_file.persist(&path) {
                     Ok(_) => Ok(()),
                     Err(e) => {
-                        warn!("Atomic rename failed, falling back to non-atomic copy: {}", e);
+                        warn!(
+                            "Atomic rename failed, falling back to non-atomic copy: {}",
+                            e
+                        );
                         let mut source = e.file;
                         source.seek(SeekFrom::Start(0))?;
-                        
+
                         // Fallback: Create a secondary temp file to ensure the copy is as complete as possible
                         // before the final move (which might still be cross-fs but we're trying our best).
                         let mut dest = std::fs::File::create(&path)?;

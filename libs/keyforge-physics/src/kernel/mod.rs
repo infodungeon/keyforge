@@ -15,16 +15,16 @@
 pub mod compiler;
 pub mod compute;
 pub mod mechanics;
-pub mod types;
 pub mod stages;
+pub mod types;
 
-use self::types::{KeyCode, FingerIndex, HandIndex, RowIndex, ColIndex, Score};
+use self::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, Score};
 
 use std::collections::HashMap;
 
 /// Compiled, high-performance context used by the physics engine for scoring.
 ///
-/// This structure holds flattened, cache-friendly representations of 
+/// This structure holds flattened, cache-friendly representations of
 /// language statistics and physical travel costs.
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -37,7 +37,7 @@ pub struct EngineContext {
     pub(crate) cost_matrix: Vec<Score>,
     pub(crate) dist_matrix: Vec<f32>,
     pub(crate) key_home_distances: Vec<f32>,
-    pub(crate) key_costs: Vec<Score>, 
+    pub(crate) key_costs: Vec<Score>,
     pub(crate) char_freqs: Vec<u64>,
     pub(crate) bigram_starts: Vec<usize>,
     pub(crate) bigram_others: Vec<KeyCode>,

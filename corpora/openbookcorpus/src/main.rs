@@ -1,7 +1,7 @@
 //! # `OpenBookCorpus` Processor
 //!
-//! A high-performance utility for downloading and processing the 
-//! [OpenBookCorpus](https://huggingface.co/datasets/lucadiliello/bookcorpusopen) 
+//! A high-performance utility for downloading and processing the
+//! [OpenBookCorpus](https://huggingface.co/datasets/lucadiliello/bookcorpusopen)
 //! dataset into N-gram statistics for `KeyForge`.
 //!
 //! Features:
@@ -45,13 +45,28 @@ type FastMap<K, V> = FxHashMap<K, V>;
 
 // --- Data Structures for JSON Output ---
 #[derive(Serialize)]
-struct Char1Stats { char: String, freq: usize }
+struct Char1Stats {
+    char: String,
+    freq: usize,
+}
 #[derive(Serialize)]
-struct Char2Stats { char1: String, char2: String, freq: usize }
+struct Char2Stats {
+    char1: String,
+    char2: String,
+    freq: usize,
+}
 #[derive(Serialize)]
-struct Char3Stats { char1: String, char2: String, char3: String, freq: usize }
+struct Char3Stats {
+    char1: String,
+    char2: String,
+    char3: String,
+    freq: usize,
+}
 #[derive(Serialize)]
-struct WordStats { word: String, freq: usize }
+struct WordStats {
+    word: String,
+    freq: usize,
+}
 
 // Container for aggregating stats
 struct CorpusStats {
@@ -74,10 +89,18 @@ impl CorpusStats {
     }
 
     fn merge(&mut self, other: CorpusStats) {
-        for (k, v) in other.c1 { *self.c1.entry(k).or_insert(0) += v; }
-        for (k, v) in other.c2 { *self.c2.entry(k).or_insert(0) += v; }
-        for (k, v) in other.c3 { *self.c3.entry(k).or_insert(0) += v; }
-        for (k, v) in other.words { *self.words.entry(k).or_insert(0) += v; }
+        for (k, v) in other.c1 {
+            *self.c1.entry(k).or_insert(0) += v;
+        }
+        for (k, v) in other.c2 {
+            *self.c2.entry(k).or_insert(0) += v;
+        }
+        for (k, v) in other.c3 {
+            *self.c3.entry(k).or_insert(0) += v;
+        }
+        for (k, v) in other.words {
+            *self.words.entry(k).or_insert(0) += v;
+        }
         self.book_count += other.book_count;
     }
 }
@@ -125,8 +148,14 @@ impl StrictEscapeFormatter {
 }
 
 impl Formatter for StrictEscapeFormatter {
-    fn begin_object_key<W: ?Sized + Write>(&mut self, writer: &mut W, first: bool) -> io::Result<()> {
-        if !first { writer.write_all(b",")?; }
+    fn begin_object_key<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> io::Result<()> {
+        if !first {
+            writer.write_all(b",")?;
+        }
         self.is_key = true;
         Ok(())
     }
@@ -138,7 +167,11 @@ impl Formatter for StrictEscapeFormatter {
         writer.write_all(b":")?;
         Ok(())
     }
-    fn write_string_fragment<W: ?Sized + Write>(&mut self, writer: &mut W, fragment: &str) -> io::Result<()> {
+    fn write_string_fragment<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        fragment: &str,
+    ) -> io::Result<()> {
         if self.is_key {
             writer.write_all(fragment.as_bytes())?;
         } else {
@@ -170,7 +203,8 @@ fn is_keyboard_char(c: char) -> bool {
 
 #[inline]
 fn has_vowel(s: &str) -> bool {
-    s.chars().any(|c| matches!(c, 'a'|'e'|'i'|'o'|'u'|'y'))
+    s.chars()
+        .any(|c| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))
 }
 
 #[inline]
@@ -194,11 +228,13 @@ fn has_repeated_chars_3(s: &str) -> bool {
 fn has_consonant_cluster_7(s: &str) -> bool {
     let mut count = 0;
     for c in s.chars() {
-        if matches!(c, 'a'|'e'|'i'|'o'|'u'|'y') {
+        if matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y') {
             count = 0;
         } else if c.is_ascii_alphabetic() {
             count += 1;
-            if count >= 7 { return true; }
+            if count >= 7 {
+                return true;
+            }
         } else {
             count = 0;
         }
@@ -208,11 +244,24 @@ fn has_consonant_cluster_7(s: &str) -> bool {
 
 #[inline]
 fn is_valid_word(s: &str) -> bool {
-    if s.is_empty() || s.len() > 25 { return false; }
-    if !s.chars().all(|c| c.is_ascii_alphabetic() || c == '\'' || c == '-') { return false; }
-    if !has_vowel(s) { return false; }
-    if has_repeated_chars_3(s) { return false; }
-    if has_consonant_cluster_7(s) { return false; }
+    if s.is_empty() || s.len() > 25 {
+        return false;
+    }
+    if !s
+        .chars()
+        .all(|c| c.is_ascii_alphabetic() || c == '\'' || c == '-')
+    {
+        return false;
+    }
+    if !has_vowel(s) {
+        return false;
+    }
+    if has_repeated_chars_3(s) {
+        return false;
+    }
+    if has_consonant_cluster_7(s) {
+        return false;
+    }
     true
 }
 
@@ -220,8 +269,10 @@ fn is_valid_word(s: &str) -> bool {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data_dir = get_data_dir();
-    if !data_dir.exists() { fs::create_dir_all(&data_dir)?; }
-    
+    if !data_dir.exists() {
+        fs::create_dir_all(&data_dir)?;
+    }
+
     println!("Using data directory: {}", data_dir.display());
 
     // Fetch File List
@@ -229,7 +280,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_url = format!("https://datasets-server.huggingface.co/parquet?dataset={DATASET_NAME}");
     let resp = client.get(&api_url).send().await?;
     let json: Value = resp.json().await?;
-    let files = json["parquet_files"].as_array().ok_or("Invalid API response")?;
+    let files = json["parquet_files"]
+        .as_array()
+        .ok_or("Invalid API response")?;
     let train_files: Vec<&Value> = files.iter().filter(|f| f["split"] == "train").collect();
 
     // Download
@@ -262,19 +315,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nStarting parallel analysis...");
     let final_stats = process_dataset_parallel(&local_file_paths)?;
 
-    println!("\nAnalysis complete. Total books: {}", final_stats.book_count);
+    println!(
+        "\nAnalysis complete. Total books: {}",
+        final_stats.book_count
+    );
     println!("Saving results...");
-    
-    save_json_file(&data_dir, "1grams.json", &final_stats.c1, |k, v| Char1Stats { char: k.to_string(), freq: *v }, true)?;
-    save_json_file(&data_dir, "2grams.json", &final_stats.c2, |k, v| Char2Stats { char1: k.0.to_string(), char2: k.1.to_string(), freq: *v }, true)?;
-    save_json_file(&data_dir, "3grams.json", &final_stats.c3, |k, v| Char3Stats { char1: k.0.to_string(), char2: k.1.to_string(), char3: k.2.to_string(), freq: *v }, true)?;
-    save_json_file(&data_dir, "words.json", &final_stats.words, |k, v| WordStats { word: k.clone(), freq: *v }, false)?;
+
+    save_json_file(
+        &data_dir,
+        "1grams.json",
+        &final_stats.c1,
+        |k, v| Char1Stats {
+            char: k.to_string(),
+            freq: *v,
+        },
+        true,
+    )?;
+    save_json_file(
+        &data_dir,
+        "2grams.json",
+        &final_stats.c2,
+        |k, v| Char2Stats {
+            char1: k.0.to_string(),
+            char2: k.1.to_string(),
+            freq: *v,
+        },
+        true,
+    )?;
+    save_json_file(
+        &data_dir,
+        "3grams.json",
+        &final_stats.c3,
+        |k, v| Char3Stats {
+            char1: k.0.to_string(),
+            char2: k.1.to_string(),
+            char3: k.2.to_string(),
+            freq: *v,
+        },
+        true,
+    )?;
+    save_json_file(
+        &data_dir,
+        "words.json",
+        &final_stats.words,
+        |k, v| WordStats {
+            word: k.clone(),
+            freq: *v,
+        },
+        false,
+    )?;
 
     println!("Done.");
     Ok(())
 }
 
-async fn download_file(client: &Client, url: &str, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn download_file(
+    client: &Client,
+    url: &str,
+    path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let res = client.get(url).send().await?;
     let content = res.bytes().await?;
     let mut file = File::create(path)?;
@@ -283,10 +382,10 @@ async fn download_file(client: &Client, url: &str, path: &str) -> Result<(), Box
 }
 
 fn process_token_buffer(
-    buffer: &str, 
-    stats: &mut CorpusStats, 
+    buffer: &str,
+    stats: &mut CorpusStats,
     tracker: &mut NgramTracker,
-    last_emitted_was_space: &mut bool
+    last_emitted_was_space: &mut bool,
 ) {
     let cleaned = buffer.replace("--", " ");
     for segment in cleaned.split_whitespace() {
@@ -304,7 +403,7 @@ fn validate_and_record(
     raw_word: &str,
     stats: &mut CorpusStats,
     tracker: &mut NgramTracker,
-    last_emitted_was_space: &mut bool
+    last_emitted_was_space: &mut bool,
 ) {
     let word = raw_word.trim_matches(|c: char| !c.is_alphabetic());
     if is_valid_word(word) {
@@ -319,24 +418,26 @@ fn validate_and_record(
     }
 }
 
-fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dyn std::error::Error>> {
+fn process_dataset_parallel(
+    file_paths: &[String],
+) -> Result<CorpusStats, Box<dyn std::error::Error>> {
     let pb = ProgressBar::new(file_paths.len() as u64);
     pb.set_style(ProgressStyle::default_bar()
         .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} Shards ({eta})")?
         .progress_chars("#>-"));
 
-    let aggregated_stats = file_paths.par_iter()
+    let aggregated_stats = file_paths
+        .par_iter()
         .fold(CorpusStats::new, |mut stats, path| {
             if let Ok(file) = File::open(path) {
                 if let Ok(reader) = SerializedFileReader::new(file) {
                     if let Ok(row_iter) = reader.get_row_iter(None) {
-                        
                         // Buffer reuse across rows (outside loop)
                         let mut word_buffer = String::with_capacity(64);
 
                         for row in row_iter.flatten() {
                             stats.book_count += 1;
-                            
+
                             // Reset / Init per-document state (inside loop)
                             word_buffer.clear();
                             let mut tracker = NgramTracker::new();
@@ -349,15 +450,18 @@ fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dy
                                     let normalized_c = match c_raw {
                                         '“' | '”' | '„' => '"',
                                         '‘' | '’' | '`' | '´' => '\'',
-                                        '–' | '—' | '―' => '-', 
-                                        'ﬁ' | 'ﬂ' => 'f', 
+                                        '–' | '—' | '―' => '-',
+                                        'ﬁ' | 'ﬂ' => 'f',
                                         '\u{00ad}' | '\u{009d}' | '\\' | '_' => ' ',
                                         _ => c_raw.to_ascii_lowercase(),
                                     };
 
                                     // 2. Whitelist Check
                                     if is_keyboard_char(normalized_c) {
-                                        if normalized_c.is_alphanumeric() || normalized_c == '\'' || normalized_c == '-' {
+                                        if normalized_c.is_alphanumeric()
+                                            || normalized_c == '\''
+                                            || normalized_c == '-'
+                                        {
                                             if !word_is_tainted {
                                                 word_buffer.push(normalized_c);
                                             }
@@ -367,7 +471,12 @@ fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dy
                                                 if word_is_tainted {
                                                     tracker.reset();
                                                 } else {
-                                                    process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
+                                                    process_token_buffer(
+                                                        &word_buffer,
+                                                        &mut stats,
+                                                        &mut tracker,
+                                                        &mut last_emitted_was_space,
+                                                    );
                                                 }
                                                 word_buffer.clear();
                                             }
@@ -377,14 +486,23 @@ fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dy
                                             tracker.feed(normalized_c, &mut stats);
                                             last_emitted_was_space = false;
                                         }
-                                    } else if normalized_c == ' ' || normalized_c == '\n' || normalized_c == '\t' || normalized_c == '\r' {
+                                    } else if normalized_c == ' '
+                                        || normalized_c == '\n'
+                                        || normalized_c == '\t'
+                                        || normalized_c == '\r'
+                                    {
                                         // 3. Separator Handling
                                         if !word_buffer.is_empty() {
                                             if word_is_tainted {
                                                 tracker.reset();
                                                 last_emitted_was_space = true;
                                             } else {
-                                                process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
+                                                process_token_buffer(
+                                                    &word_buffer,
+                                                    &mut stats,
+                                                    &mut tracker,
+                                                    &mut last_emitted_was_space,
+                                                );
                                             }
                                             word_buffer.clear();
                                         }
@@ -407,7 +525,12 @@ fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dy
                                 // EOL Flush
                                 if !word_buffer.is_empty() {
                                     if !word_is_tainted {
-                                        process_token_buffer(&word_buffer, &mut stats, &mut tracker, &mut last_emitted_was_space);
+                                        process_token_buffer(
+                                            &word_buffer,
+                                            &mut stats,
+                                            &mut tracker,
+                                            &mut last_emitted_was_space,
+                                        );
                                     }
                                     word_buffer.clear();
                                 }
@@ -429,25 +552,25 @@ fn process_dataset_parallel(file_paths: &[String]) -> Result<CorpusStats, Box<dy
 }
 
 fn save_json_file<K, V, F, S>(
-    dir: &Path, 
-    filename: &str, 
-    map: &FastMap<K, V>, 
-    mapper: F, 
-    use_strict_escaping: bool
+    dir: &Path,
+    filename: &str,
+    map: &FastMap<K, V>,
+    mapper: F,
+    use_strict_escaping: bool,
 ) -> Result<(), Box<dyn std::error::Error>>
-where 
+where
     V: Ord + Copy,
     S: Serialize,
-    F: Fn(&K, &V) -> S
+    F: Fn(&K, &V) -> S,
 {
     let mut vec: Vec<_> = map.iter().collect();
-    vec.sort_by(|a, b| b.1.cmp(a.1)); 
+    vec.sort_by(|a, b| b.1.cmp(a.1));
     let json_out: Vec<S> = vec.iter().map(|(k, v)| mapper(k, v)).collect();
-    
+
     let file_path = dir.join(filename);
     let file = File::create(file_path)?;
     let writer = BufWriter::new(file);
-    
+
     if use_strict_escaping {
         let mut serializer = Serializer::with_formatter(writer, StrictEscapeFormatter::new());
         json_out.serialize(&mut serializer)?;
@@ -461,8 +584,12 @@ where
 mod tests {
     use super::*;
 
-    fn get_mock_stats() -> CorpusStats { CorpusStats::new() }
-    fn get_mock_tracker() -> NgramTracker { NgramTracker::new() }
+    fn get_mock_stats() -> CorpusStats {
+        CorpusStats::new()
+    }
+    fn get_mock_tracker() -> NgramTracker {
+        NgramTracker::new()
+    }
 
     #[test]
     fn test_validity() {
@@ -479,14 +606,19 @@ mod tests {
 
         // Test 1: Double dash split (--) AND Multi-hyphen split (word-word-word)
         // "please--state-of-the-art" -> "please" (ok), "state", "of", "the", "art"
-        process_token_buffer("please--state-of-the-art", &mut stats, &mut tracker, &mut last_space);
-        
+        process_token_buffer(
+            "please--state-of-the-art",
+            &mut stats,
+            &mut tracker,
+            &mut last_space,
+        );
+
         assert_eq!(*stats.words.get("please").unwrap(), 1);
         assert_eq!(*stats.words.get("state").unwrap(), 1);
         assert_eq!(*stats.words.get("of").unwrap(), 1);
         assert_eq!(*stats.words.get("the").unwrap(), 1);
         assert_eq!(*stats.words.get("art").unwrap(), 1);
-        
+
         // Ensure the compound wasn't kept
         assert!(stats.words.get("please--state-of-the-art").is_none());
         assert!(stats.words.get("state-of-the-art").is_none());
@@ -495,7 +627,7 @@ mod tests {
         let mut stats2 = get_mock_stats();
         let mut tracker2 = get_mock_tracker();
         let mut last_space2 = true;
-        
+
         process_token_buffer("well-known", &mut stats2, &mut tracker2, &mut last_space2);
         assert_eq!(*stats2.words.get("well-known").unwrap(), 1);
     }

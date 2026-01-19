@@ -1,21 +1,23 @@
-// libs/keyforge-physics/tests/heuristics.rs
+// libs/keyforge-physics/tests/api_integration.rs
 
 use keyforge_model::{
-    Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, CostModel,
-    types::{HandIndex, FingerIndex, KeyCode}
+    types::{FingerIndex, HandIndex, KeyCode},
+    Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
 };
 use keyforge_physics::{suggest_improvements, EngineRequest};
 use std::sync::Arc;
 
 fn setup_kb_wiring() -> Keyboard {
-    let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode {
-        index: i,
-        label: format!("k{}", i),
-        hand: HandIndex(0),
-        finger: FingerIndex(i as u8),
-        x: i as f32,
-        ..Default::default()
-    }).collect();
+    let keys: Vec<KeyNode> = (0..3)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{}", i),
+            hand: HandIndex(0),
+            finger: FingerIndex(i as u8),
+            x: i as f32,
+            ..Default::default()
+        })
+        .collect();
     Keyboard::new(keys, 0).unwrap()
 }
 
@@ -41,8 +43,6 @@ fn mock_cost_model_wiring() -> CostModel {
     serde_json::from_str(json).unwrap()
 }
 
-/// Intent: Verify the public API wrapper for swap suggestions correctly handles an EngineRequest.
-/// Expected: Result contains valid suggestions (up to 5).
 #[test]
 fn test_public_api_wrappers() {
     let kb = Arc::new(setup_kb_wiring());

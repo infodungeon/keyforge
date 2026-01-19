@@ -2,14 +2,16 @@
 
 //! Integration tests for Hive's background cron jobs and WAL recovery.
 
-use keyforge_hive::infra::{db::init_db, repositories::JobRepository, queue::WriteQueue, repositories::ResultRepository};
-use keyforge_infra::{ValkeyProvider, DistributedCoordinator};
-use uuid::Uuid;
-use std::sync::Arc;
+use keyforge_hive::infra::{
+    db::init_db, queue::WriteQueue, repositories::JobRepository, repositories::ResultRepository,
+};
+use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
 use serde::{Deserialize, Serialize};
-use tokio::time::{sleep, Duration};
+use std::sync::Arc;
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use tokio::time::{sleep, Duration};
+use uuid::Uuid;
 
 async fn seed_min_job(pool: &sqlx::PgPool, job_id: &str) {
     let hash = Uuid::new_v4().to_string();
@@ -17,8 +19,13 @@ async fn seed_min_job(pool: &sqlx::PgPool, job_id: &str) {
     let kb_id: i32 = sqlx::query_scalar("INSERT INTO keyboards (name, author, version, unique_hash) VALUES ('dummy', 'tester', $1, $2) RETURNING id")
         .bind(&hash).bind(&hash).fetch_one(pool).await.expect("Failed to seed Keyboard");
 
-    let sp_id: i32 = sqlx::query_scalar("INSERT INTO scoring_profiles (weights, config_hash) VALUES ('{}'::jsonb, $1) RETURNING id")
-        .bind(&hash).fetch_one(pool).await.expect("Failed to seed Profile");
+    let sp_id: i32 = sqlx::query_scalar(
+        "INSERT INTO scoring_profiles (weights, config_hash) VALUES ('{}'::jsonb, $1) RETURNING id",
+    )
+    .bind(&hash)
+    .fetch_one(pool)
+    .await
+    .expect("Failed to seed Profile");
 
     let sc_id: i32 = sqlx::query_scalar("INSERT INTO search_configs (search_epochs, search_steps, search_patience, search_patience_threshold, temp_min, temp_max, opt_limit_fast, opt_limit_slow, config_hash) VALUES (1,1,1,0.1,0.1,0.1,1,1, $1) RETURNING id")
         .bind(&hash).fetch_one(pool).await.expect("Failed to seed SearchConfig");
@@ -30,20 +37,25 @@ async fn seed_min_job(pool: &sqlx::PgPool, job_id: &str) {
 
 #[tokio::test]
 async fn prune_stale_jobs_resets_zombies() {
-    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string());
+    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
+    });
     let pool = init_db(&db_url).await;
     let job_id = Uuid::new_v4().to_string();
     seed_min_job(&pool, &job_id).await;
 
     let repo = JobRepository::new(pool.clone());
     let reset = repo.prune_stale_jobs(10, 3).await.unwrap();
-    
+
     // Legacy schema fallback test (if node_id column is missing, it resets based on time)
     // Note: If schema is fully migrated, this tests normal behavior.
     assert!(reset >= 1);
 
     let status: String = sqlx::query_scalar("SELECT status FROM jobs WHERE id = $1")
-        .bind(&job_id).fetch_one(&pool).await.unwrap();
+        .bind(&job_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
     assert_eq!(status, "active");
 }
 
@@ -63,7 +75,9 @@ struct WalEntry {
 
 #[tokio::test]
 async fn test_wal_recovery_integration() {
-    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string());
+    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://keyforge:forge_password@localhost:5432/keyforge_hive".to_string()
+    });
     let pool = init_db(&db_url).await;
     let repo = ResultRepository::new(pool.clone(), 50);
 
@@ -75,14 +89,19 @@ async fn test_wal_recovery_integration() {
 
     let job_id = Uuid::new_v4().to_string();
     let node_id = Uuid::new_v4().to_string();
-    
+
     // Seed Job dependencies for foreign key constraints
     seed_min_job(&pool, &job_id).await;
     sqlx::query("INSERT INTO nodes (id, cpu_cores, performance_rating) VALUES ($1, 1, 1.0) ON CONFLICT (id) DO NOTHING")
         .bind(&node_id).execute(&pool).await.unwrap();
 
     // Create WAL file
-    let record = PersistedRecord { job_id: job_id.clone(), layout: "A B C".into(), score: 123.45, node_id: node_id.clone() };
+    let record = PersistedRecord {
+        job_id: job_id.clone(),
+        layout: "A B C".into(),
+        score: 123.45,
+        node_id: node_id.clone(),
+    };
     let record_bytes = postcard::to_stdvec(&record).unwrap();
     let checksum = crc32fast::hash(&record_bytes);
     let entry = WalEntry { checksum, record };
@@ -90,10 +109,16 @@ async fn test_wal_recovery_integration() {
     std::fs::write(queue_dir.join(format!("{}.bin", Uuid::new_v4())), bytes).unwrap();
 
     // Start Valkey
-    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
-    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_node = Redis::default()
+        .start()
+        .await
+        .expect("Failed to start Valkey");
+    let valkey_port = valkey_node
+        .get_host_port_ipv4(6379)
+        .await
+        .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
-    
+
     let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
     let _assets = Arc::new(ValkeyProvider::new(coordinator));
 

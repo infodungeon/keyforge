@@ -23,6 +23,7 @@ members = [
     "libs/keyforge-testing",
     "libs/keyforge-wasm",
     "ops/repros",
+    "tests/system",
 ]
 
 [workspace.package]

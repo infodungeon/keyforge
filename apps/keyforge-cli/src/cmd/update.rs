@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::error::{CliError, Result};
-use self_update::cargo_crate_version;
 use crate::constants::{DEFAULT_UPDATE_URL, REPO_OWNER};
+use crate::error::{CliError, Result};
 use clap::Args;
+use self_update::cargo_crate_version;
 
 /// Configuration for auto-update feature
 #[derive(Debug, Clone)]
@@ -126,7 +125,7 @@ pub async fn check_for_update(config: &UpdateConfig) -> Result<Option<String>> {
 /// Perform binary update
 pub fn perform_update(config: &UpdateConfig) -> Result<String> {
     let status = self_update::backends::github::Update::configure()
-        .repo_owner(REPO_OWNER) 
+        .repo_owner(REPO_OWNER)
         .repo_name("keyforge")
         .bin_name("keyforge")
         .current_version(cargo_crate_version!())

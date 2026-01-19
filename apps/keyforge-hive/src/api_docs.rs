@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use keyforge_model::{
     CorpusSource, KeyNode, KeyboardDefinition, KeyboardGeometry, ScoringWeights, SearchParams,
 };

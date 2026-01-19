@@ -1,8 +1,8 @@
-pub mod wrappers;
 pub mod worker;
+pub mod wrappers;
 
-pub use worker::{PersistentJobQueue, BatchSink};
-pub use wrappers::{PersistedRecord, WalEntry, DeadLetterQueue};
+pub use worker::{BatchSink, PersistentJobQueue};
+pub use wrappers::{DeadLetterQueue, PersistedRecord, WalEntry};
 
 // Backward compatibility alias until callers are updated
 pub type WriteQueue = PersistentJobQueue;

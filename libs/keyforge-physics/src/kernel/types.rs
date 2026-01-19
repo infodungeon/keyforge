@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::errors::PhysicsError;
-pub use keyforge_model::types::{KeyCode, ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, Score};
+pub use keyforge_model::types::{
+    ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, Score,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ValidatedLayout<'a> {

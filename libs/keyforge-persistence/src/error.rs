@@ -33,6 +33,10 @@ pub enum PersistenceError {
 
     #[error("Validation Error: {0}")]
     Validation(String),
+
+    /// Errors during domain translation.
+    #[error("Adapter error: {0}")]
+    Adapter(String),
 }
 
 pub type PersistenceResult<T> = Result<T, PersistenceError>;

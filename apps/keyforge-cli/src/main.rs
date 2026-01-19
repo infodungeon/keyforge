@@ -1,15 +1,15 @@
 // apps/keyforge-cli/src/main.rs
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
+use indicatif::ProgressBar;
 use keyforge_infra::resolve_root;
-use keyforge_protocol::JobConfig;
 use keyforge_model::KeyboardDefinition;
+use keyforge_protocol::JobConfig;
+use std::convert::TryFrom;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::convert::TryFrom;
 use tracing::{error, info, instrument};
-use indicatif::ProgressBar;
 
 struct ProgressBarCallback {
     stop_flag: Arc<std::sync::atomic::AtomicBool>,
@@ -18,10 +18,17 @@ struct ProgressBarCallback {
 }
 
 impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
-    fn on_progress(&self, epoch: usize, score: f32, _layout: &[keyforge_model::KeyCode], ips: f32) -> bool {
+    fn on_progress(
+        &self,
+        epoch: usize,
+        score: f32,
+        _layout: &[keyforge_model::KeyCode],
+        ips: f32,
+    ) -> bool {
         let elapsed = self.start_time.elapsed().as_secs();
         self.pb.set_position(elapsed);
-        self.pb.set_message(format!("Epoch {epoch} | Best: {score:.4} | {ips:.0} ips"));
+        self.pb
+            .set_message(format!("Epoch {epoch} | Best: {score:.4} | {ips:.0} ips"));
         !self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
     }
 }
@@ -29,8 +36,8 @@ impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
 mod cli_args;
 mod cli_parsers;
 mod cmd;
-mod error;
 pub mod constants;
+mod error;
 use error::CliError;
 mod logging;
 mod reports;
@@ -88,12 +95,18 @@ async fn run_app() -> Result<(), CliError> {
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
     match &cli.command {
-        Commands::Init(args) => { cmd::init::run(args.clone()).await?; return Ok(()); }
+        Commands::Init(args) => {
+            cmd::init::run(args.clone()).await?;
+            return Ok(());
+        }
         Commands::Completions(args) => {
             cmd::completions::run(args);
             return Ok(());
         }
-        Commands::Auth(args) => { cmd::auth::run(args.clone()).await?; return Ok(()); }
+        Commands::Auth(args) => {
+            cmd::auth::run(args.clone()).await?;
+            return Ok(());
+        }
         _ => {}
     }
 
@@ -102,12 +115,18 @@ async fn run_app() -> Result<(), CliError> {
         match keyforge_infra::config::CommonConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
-                error!("Failed to load config file {}: {}", config_path.display(), e);
+                error!(
+                    "Failed to load config file {}: {}",
+                    config_path.display(),
+                    e
+                );
                 return Err(CliError::Other(format!("Failed to load config: {e}")));
             }
         }
     }
-    if let Some(d) = cli.data_dir { config.data_dir = Some(d); }
+    if let Some(d) = cli.data_dir {
+        config.data_dir = Some(d);
+    }
 
     let root = resolve_root(config.data_dir.clone())
         .map_err(|e| CliError::Workspace(format!("Workspace Error: {e}")))?;
@@ -116,22 +135,43 @@ async fn run_app() -> Result<(), CliError> {
     let loader = keyforge_infra::FsProvider::new(root.clone());
 
     match &cli.command {
-        Commands::Doctor(args) => { cmd::doctor::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::Doctor(args) => {
+            cmd::doctor::run(args.clone(), &root).await?;
+            return Ok(());
+        }
         Commands::Fmt(args) => {
             cmd::fmt::run(args, &root)?;
             return Ok(());
         }
-        Commands::List(args) => { cmd::list::run(args.clone(), &loader).await?; return Ok(()); }
-        Commands::Query(args) => { cmd::query::run(args.clone(), &root).await?; return Ok(()); }
+        Commands::List(args) => {
+            cmd::list::run(args.clone(), &loader).await?;
+            return Ok(());
+        }
+        Commands::Query(args) => {
+            cmd::query::run(args.clone(), &root).await?;
+            return Ok(());
+        }
         Commands::Profile(args) => {
             cmd::profile::run(args)?;
             return Ok(());
         }
-        Commands::Export(args) => { cmd::export::run(args.clone(), &root)?; return Ok(()); }
-        Commands::Fetch(args) => { cmd::fetch::run(args.clone(), &root).await?; return Ok(()); }
-        Commands::Debug(args) => { cmd::debug::run(args.clone(), &loader).await?; return Ok(()); }
-        Commands::Update(args) => { cmd::update::run(args.clone()).await?; return Ok(()); }
-        _ => {} 
+        Commands::Export(args) => {
+            cmd::export::run(args.clone(), &root)?;
+            return Ok(());
+        }
+        Commands::Fetch(args) => {
+            cmd::fetch::run(args.clone(), &root).await?;
+            return Ok(());
+        }
+        Commands::Debug(args) => {
+            cmd::debug::run(args.clone(), &loader).await?;
+            return Ok(());
+        }
+        Commands::Update(args) => {
+            cmd::update::run(args.clone()).await?;
+            return Ok(());
+        }
+        _ => {}
     }
 
     info!("🚀 Initializing Optimization Runner...");
@@ -149,9 +189,9 @@ async fn run_app() -> Result<(), CliError> {
             cmd::benchmark::run(&args, &loader).await?;
             return Ok(());
         }
-                _ => unreachable!("Stateless commands handled above"),
-            }
-        }
+        _ => unreachable!("Stateless commands handled above"),
+    }
+}
 
 async fn build_job_config(
     loader: &keyforge_infra::FsProvider,
@@ -159,9 +199,15 @@ async fn build_job_config(
     config_args: cli_args::config::ConfigArgs,
 ) -> Result<JobConfig, Box<dyn Error>> {
     use keyforge_core::loader::AssetLoader;
-    let corpus_list = shared.corpus.clone().unwrap_or_else(|| vec!["text/en_std".to_string()]);
+    let corpus_list = shared
+        .corpus
+        .clone()
+        .unwrap_or_else(|| vec!["text/en_std".to_string()]);
     let corpora = cli_args::parse_corpora(&corpus_list)?;
-    let kb_name = shared.keyboard.clone().unwrap_or_else(|| "ortho_30".to_string());
+    let kb_name = shared
+        .keyboard
+        .clone()
+        .unwrap_or_else(|| "ortho_30".to_string());
     let definition = loader.load::<KeyboardDefinition>(&kb_name).await?;
 
     let weights = if let Some(w_input) = &shared.weights {
@@ -176,7 +222,10 @@ async fn build_job_config(
     };
 
     let params = keyforge_model::config::Config::try_from(config_args)?.search;
-    let cost_name = shared.cost.clone().unwrap_or_else(|| "default_costmatrix.json".to_string());
+    let cost_name = shared
+        .cost
+        .clone()
+        .unwrap_or_else(|| "default_costmatrix.json".to_string());
 
     Ok(JobConfig {
         definition: (*definition).clone(),
@@ -200,7 +249,8 @@ fn setup_signal_handler() {
     ctrlc::set_handler(|| {
         INTERRUPTED.store(true, std::sync::atomic::Ordering::SeqCst);
         eprintln!("\nShutting down gracefully... (press Ctrl+C again to force quit)");
-    }).unwrap_or_else(|e| {
+    })
+    .unwrap_or_else(|e| {
         tracing::warn!("Failed to set Ctrl-C handler: {}", e);
     });
 }

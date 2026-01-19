@@ -1,7 +1,9 @@
 // libs/keyforge-core/tests/core_tests.rs
 
 use keyforge_core::*;
-use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, SearchConfig, CostModel, types::KeyCode};
+use keyforge_model::{
+    types::KeyCode, Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
+};
 use keyforge_physics::EngineRequest;
 use std::sync::Arc;
 
@@ -34,7 +36,8 @@ fn minimal_keyboard() -> Keyboard {
             },
         ],
         1,
-    ).unwrap()
+    )
+    .unwrap()
 }
 
 fn minimal_corpus() -> Corpus {
@@ -169,7 +172,13 @@ fn test_suggest_legacy() {
 
 #[test]
 fn test_identify() {
-    let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2), KeyCode(3), KeyCode(4)]);
+    let layout = Layout::new_unchecked(vec![
+        KeyCode(0),
+        KeyCode(1),
+        KeyCode(2),
+        KeyCode(3),
+        KeyCode(4),
+    ]);
     let identity = identify(&layout);
     let _id = identity;
 }

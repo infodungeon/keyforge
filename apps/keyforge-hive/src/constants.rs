@@ -41,7 +41,8 @@ pub const DEFAULT_MAX_DAILY_JOBS: i32 = 50;
 pub const TUI_DOCKER_REFRESH_INTERVAL_SECS: u64 = 2;
 
 /// Default database URL for local development.
-pub const DEFAULT_DATABASE_URL: &str = "postgres://keyforge:forge_password@localhost:5432/keyforge_hive";
+pub const DEFAULT_DATABASE_URL: &str =
+    "postgres://keyforge:forge_password@localhost:5432/keyforge_hive";
 /// Default port for the Hive server.
 pub const DEFAULT_HIVE_PORT: u16 = 3000;
 /// Default shutdown timeout (seconds).
@@ -66,7 +67,8 @@ pub const DEFAULT_MAX_JSON_BODY_SIZE: usize = 1024 * 1024;
 pub const BACKUP_RESULTS_LIMIT: i64 = 1000;
 
 /// Reserved usernames that cannot be registered.
-pub const RESERVED_USERNAMES: &[&str] = &["admin", "hive", "system", "root", "keyforge", "anonymous"];
+pub const RESERVED_USERNAMES: &[&str] =
+    &["admin", "hive", "system", "root", "keyforge", "anonymous"];
 
 /// Minimum length for a layout name.
 pub const MIN_LAYOUT_NAME_LEN: usize = 2;

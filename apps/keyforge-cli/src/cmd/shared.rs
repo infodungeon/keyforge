@@ -14,10 +14,7 @@ pub struct SharedArgs {
     pub cost: Option<String>,
 
     /// Corpus identifiers to load for frequency analysis.
-    #[arg(
-        long,
-        help = "Corpus source identifier (e.g. 'text/en_std') or path."
-    )]
+    #[arg(long, help = "Corpus source identifier (e.g. 'text/en_std') or path.")]
     pub corpus: Option<Vec<String>>,
 
     /// Optional path to a custom weights JSON file to override defaults.
@@ -28,10 +25,7 @@ pub struct SharedArgs {
     pub weights: Option<String>,
 
     /// Keycodes definition file.
-    #[arg(
-        long,
-        help = "Path to the keycodes definition file."
-    )]
+    #[arg(long, help = "Path to the keycodes definition file.")]
     pub keycodes: Option<String>,
 
     /// Physical-key constraints.

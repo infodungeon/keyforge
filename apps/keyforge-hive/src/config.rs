@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use std::env;
-use crate::error::{AppError, AppResult};
 
 // --- Defaults ---
 pub const DEFAULT_POPULATION_LIMIT: usize = 50;
@@ -43,7 +43,7 @@ pub struct AppConfig {
     pub database_url: String,
     /// Secret key for internal authentication.
     pub hive_secret: String,
-    
+
     // --- Sub-configs ---
     /// Configuration for the background job processing queue.
     #[serde(default)]
@@ -54,7 +54,7 @@ pub struct AppConfig {
     /// Configuration for API rate limiting policies.
     #[serde(default)]
     pub rate_limits: RateLimitConfig,
-    
+
     /// Connection string for the coordination layer.
     #[serde(default = "default_valkey")]
     pub valkey_url: String,
@@ -97,7 +97,7 @@ impl AppConfig {
         let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
         let server_key = env::var("HIVE_SERVER_KEY").ok();
         let population_limit = parse_env("POPULATION_LIMIT", DEFAULT_POPULATION_LIMIT);
-        
+
         // Rate Limits
         let rate_limits = RateLimitConfig::load();
 
@@ -116,7 +116,7 @@ impl AppConfig {
     }
 
     /// Creates a default configuration for testing.
-    #[must_use] 
+    #[must_use]
     pub fn mock() -> Self {
         Self {
             database_url: "postgres://mock".to_string(),
@@ -201,8 +201,14 @@ impl RateLimitConfig {
         Self {
             limit_per_sec: parse_env("RATE_LIMIT_PER_SEC", DEFAULT_RATE_LIMIT_PER_SEC),
             limit_burst: parse_env("RATE_LIMIT_BURST", DEFAULT_RATE_LIMIT_BURST),
-            strict_limit_per_sec: parse_env("STRICT_RATE_LIMIT_PER_SEC", DEFAULT_STRICT_RATE_LIMIT_PER_SEC),
-            strict_limit_burst: parse_env("STRICT_RATE_LIMIT_BURST", DEFAULT_STRICT_RATE_LIMIT_BURST),
+            strict_limit_per_sec: parse_env(
+                "STRICT_RATE_LIMIT_PER_SEC",
+                DEFAULT_STRICT_RATE_LIMIT_PER_SEC,
+            ),
+            strict_limit_burst: parse_env(
+                "STRICT_RATE_LIMIT_BURST",
+                DEFAULT_STRICT_RATE_LIMIT_BURST,
+            ),
         }
     }
 }

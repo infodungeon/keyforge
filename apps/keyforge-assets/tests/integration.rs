@@ -10,15 +10,21 @@ use axum::{
 use keyforge_assets::create_app;
 use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
 use std::sync::Arc;
-use tower::ServiceExt;
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn test_manifest_endpoint() {
     // 1. Start Valkey
-    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
-    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_node = Redis::default()
+        .start()
+        .await
+        .expect("Failed to start Valkey");
+    let valkey_port = valkey_node
+        .get_host_port_ipv4(6379)
+        .await
+        .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
 
     // 2. Setup Coordinator & Provider

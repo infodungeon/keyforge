@@ -34,7 +34,7 @@ impl HiveBootstrapConfig {
     pub const DEFAULT_SYSTEM_PATH: &'static str = "/etc/keyforge/hive.toml";
 
     /// Returns the resolved path for the bootstrap configuration.
-    #[must_use] 
+    #[must_use]
     pub fn resolve_path() -> PathBuf {
         // 1. Env Var Override
         if let Ok(p) = std::env::var("KEYFORGE_HIVE_CONFIG") {

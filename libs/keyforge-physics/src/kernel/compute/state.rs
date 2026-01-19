@@ -1,5 +1,5 @@
-use keyforge_model::constants::MAX_KEYBOARD_KEYS;
 use crate::kernel::types::KeyCode;
+use keyforge_model::constants::MAX_KEYBOARD_KEYS;
 // use std::collections::HashMap; // Removed unused import
 
 pub(crate) struct PosMap<'a> {
@@ -23,7 +23,7 @@ impl<'a> PosMap<'a> {
         used_keys_scratch: &'a mut Vec<u16>,
     ) -> Self {
         let limit = layout.len().min(key_count);
-        
+
         // 1. Collect unique keys present in the layout
         used_keys_scratch.clear();
         for &code in layout.iter().take(limit) {
@@ -64,15 +64,24 @@ impl<'a> PosMap<'a> {
             current_offsets[c] += 1;
         }
 
-        Self { starts, counts, indices, used_keys: used_keys_scratch }
+        Self {
+            starts,
+            counts,
+            indices,
+            used_keys: used_keys_scratch,
+        }
     }
 
     #[inline]
     pub(crate) fn get(&self, code: usize) -> &[u16] {
-        if code >= 65536 { return &[]; }
+        if code >= 65536 {
+            return &[];
+        }
         let start = self.starts[code] as usize;
         let count = self.counts[code] as usize;
-        if count == 0 { return &[]; }
+        if count == 0 {
+            return &[];
+        }
         &self.indices[start..start + count]
     }
 }
@@ -93,7 +102,10 @@ impl Default for PhysicsScratch {
         Self {
             starts: vec![0u16; 65536].into_boxed_slice().try_into().unwrap(),
             counts: vec![0u8; 65536].into_boxed_slice().try_into().unwrap(),
-            indices: vec![0u16; MAX_KEYBOARD_KEYS].into_boxed_slice().try_into().unwrap(),
+            indices: vec![0u16; MAX_KEYBOARD_KEYS]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
             current_offsets: vec![0u8; 65536].into_boxed_slice().try_into().unwrap(),
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
             char_usage: vec![0.0f32; 65536].into_boxed_slice().try_into().unwrap(),
@@ -103,7 +115,7 @@ impl Default for PhysicsScratch {
 
 impl PhysicsScratch {
     /// Creates a new scratch instance.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }

@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::net::distributed::DistributedCoordinator;
-use crate::util::corpus::inject_synthetic_data;
 use crate::net::sync::ServerManifest;
+use crate::util::corpus::inject_synthetic_data;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_model::{Asset, AssetCategory, Corpus};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
+use keyforge_model::{Asset, AssetCategory, Corpus};
 use std::sync::Arc;
 use tracing::warn;
 
@@ -37,7 +36,7 @@ pub struct ValkeyProvider {
 
 impl ValkeyProvider {
     /// Creates a new `ValkeyProvider` using the provided distributed coordinator.
-    #[must_use] 
+    #[must_use]
     pub fn new(coordinator: Arc<DistributedCoordinator>) -> Self {
         Self { coordinator }
     }
@@ -48,7 +47,9 @@ impl ValkeyProvider {
             Ok(files) => ServerManifest { files },
             Err(e) => {
                 warn!("Failed to fetch manifest from Valkey: {}", e);
-                ServerManifest { files: std::collections::HashMap::new() }
+                ServerManifest {
+                    files: std::collections::HashMap::new(),
+                }
             }
         }
     }
@@ -66,30 +67,35 @@ impl ValkeyProvider {
         let key = format!("corpora/{id}/1grams.mpk.zst");
         match self.coordinator.get_manifest_hash(&key).await {
             Ok(Some(h)) => Ok(h),
-            _ => Err(ForgeError::NotFound(id.to_string()))
+            _ => Err(ForgeError::NotFound(id.to_string())),
         }
     }
 
     async fn fetch_blob(&self, subpath: &str) -> LoaderResult<bytes::Bytes> {
         let key = format!("{ASSET_PREFIX}:{subpath}");
-        let data = self.coordinator.get_bin(&key).await.map_err(|e| {
-            ForgeError::Internal(format!("Valkey Fetch Error: {e}"))
-        })?;
+        let data = self
+            .coordinator
+            .get_bin(&key)
+            .await
+            .map_err(|e| ForgeError::Internal(format!("Valkey Fetch Error: {e}")))?;
 
-        data.ok_or_else(|| {
-            ForgeError::NotFound(subpath.to_string())
-        })
+        data.ok_or_else(|| ForgeError::NotFound(subpath.to_string()))
     }
 
-    async fn hydrate_mpk<T: serde::de::DeserializeOwned + Send + 'static>(&self, subpath: &str) -> LoaderResult<T> {
+    async fn hydrate_mpk<T: serde::de::DeserializeOwned + Send + 'static>(
+        &self,
+        subpath: &str,
+    ) -> LoaderResult<T> {
         let compressed = self.fetch_blob(subpath).await?;
-        
+
         tokio::task::spawn_blocking(move || {
             let decoder = zstd::Decoder::new(&compressed[..])
                 .map_err(|e| ForgeError::Internal(format!("Zstd Init Error: {e}")))?;
             rmp_serde::from_read(decoder)
                 .map_err(|e| ForgeError::Internal(format!("Deserialization Error: {e}")))
-        }).await.map_err(|e| ForgeError::Internal(e.to_string()))?
+        })
+        .await
+        .map_err(|e| ForgeError::Internal(e.to_string()))?
     }
 
     // --- Helper Methods for Hive ---
@@ -103,8 +109,12 @@ impl ValkeyProvider {
     /// Lists all available keyboard definitions in the distributed store.
     pub async fn list_keyboards(&self) -> Vec<String> {
         let pattern = format!("{ASSET_PREFIX}:keyboards/models/*.mpk.zst");
-        let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
-        
+        let keys = self
+            .coordinator
+            .scan_keys(&pattern)
+            .await
+            .unwrap_or_default();
+
         let mut names = Vec::new();
         for k in keys {
             if let Some(stem) = k.split('/').next_back() {
@@ -120,13 +130,17 @@ impl ValkeyProvider {
     /// Lists all available corpora IDs in the distributed store.
     pub async fn list_corpora(&self) -> Vec<String> {
         let pattern = format!("{ASSET_PREFIX}:corpora/*");
-        let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
-        
+        let keys = self
+            .coordinator
+            .scan_keys(&pattern)
+            .await
+            .unwrap_or_default();
+
         let mut ids = Vec::new();
         for k in keys {
             if k.contains("1grams.mpk.zst") {
                 if let Some(start) = k.find("corpora/") {
-                    let sub = &k[start + 8..]; 
+                    let sub = &k[start + 8..];
                     if let Some(end) = sub.find("/1grams") {
                         ids.push(sub[..end].to_string());
                     }
@@ -141,7 +155,11 @@ impl ValkeyProvider {
     /// Lists all available cost matrices in the distributed store.
     pub async fn list_cost_matrices(&self) -> Vec<String> {
         let pattern = format!("{ASSET_PREFIX}:weights/*.mpk.zst");
-        let keys = self.coordinator.scan_keys(&pattern).await.unwrap_or_default();
+        let keys = self
+            .coordinator
+            .scan_keys(&pattern)
+            .await
+            .unwrap_or_default();
         let mut names = Vec::new();
         for k in keys {
             if let Some(stem) = k.split('/').next_back() {
@@ -155,16 +173,19 @@ impl ValkeyProvider {
     }
 
     /// Loads a configuration asset from the distributed store, with an optional fallback to JSON if compressed `MsgPack` is missing.
-    pub async fn load_config_asset<T: serde::de::DeserializeOwned + Send + 'static + Default>(&self, name: &str) -> Arc<T> {
+    pub async fn load_config_asset<T: serde::de::DeserializeOwned + Send + 'static + Default>(
+        &self,
+        name: &str,
+    ) -> Arc<T> {
         let mpk_path = format!("config/{name}.mpk.zst");
         if let Ok(cfg) = self.hydrate_mpk::<T>(&mpk_path).await {
             return Arc::new(cfg);
         }
         let json_key = format!("{ASSET_PREFIX}:config/{name}.json");
         if let Ok(Some(bytes)) = self.coordinator.get_bin(&json_key).await {
-             if let Ok(cfg) = serde_json::from_slice(&bytes) {
-                 return Arc::new(cfg);
-             }
+            if let Ok(cfg) = serde_json::from_slice(&bytes) {
+                return Arc::new(cfg);
+            }
         }
         Arc::new(T::default())
     }
@@ -190,22 +211,26 @@ impl AssetLoader for ValkeyProvider {
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let mut corpus = Corpus::default();
-        
+
         for src in sources {
             let base = format!("corpora/{}", src.id);
             let parts = ["1grams", "2grams", "3grams", "words"];
-            
+
             let mut segments = Vec::new();
 
             for part_name in parts {
                 let path = format!("{base}/{part_name}.mpk.zst");
                 if let Ok(bytes) = self.fetch_blob(&path).await {
                     let part_res = tokio::task::spawn_blocking(move || {
-                        let decoder = zstd::Decoder::new(&bytes[..]).map_err(|e| ForgeError::Internal(e.to_string()))?;
-                        let data: Vec<serde_json::Value> = rmp_serde::from_read(decoder).map_err(|e| ForgeError::Internal(e.to_string()))?;
+                        let decoder = zstd::Decoder::new(&bytes[..])
+                            .map_err(|e| ForgeError::Internal(e.to_string()))?;
+                        let data: Vec<serde_json::Value> = rmp_serde::from_read(decoder)
+                            .map_err(|e| ForgeError::Internal(e.to_string()))?;
                         Ok::<Vec<serde_json::Value>, ForgeError>(data)
-                    }).await.map_err(|e| ForgeError::Internal(e.to_string()))??;
-                    
+                    })
+                    .await
+                    .map_err(|e| ForgeError::Internal(e.to_string()))??;
+
                     segments.push((part_name, part_res));
                 }
             }

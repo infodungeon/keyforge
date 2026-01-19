@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use keyforge_model::Corpus;
-use keyforge_model::constants::{
-    CORPUS_TOKEN_MAP, 
-    STD_CORPUS_ERROR_RATE, 
-    STD_CORPUS_BACKSPACE_FACTOR, 
-    STD_CORPUS_SENTENCE_RATIO
-};
 use keyforge_core::loader::LoaderResult;
+use keyforge_model::constants::{
+    CORPUS_TOKEN_MAP, STD_CORPUS_BACKSPACE_FACTOR, STD_CORPUS_ERROR_RATE, STD_CORPUS_SENTENCE_RATIO,
+};
 use keyforge_model::error::ForgeError;
+use keyforge_model::Corpus;
 use serde_json::Value;
 
 /// Populates a corpus structure from raw n-gram segments with weighted frequencies.
@@ -29,7 +25,11 @@ use serde_json::Value;
 /// # Errors
 ///
 /// Returns `LoaderResult` if the input data is invalid.
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 pub fn populate_corpus_from_segments(
     corpus: &mut Corpus,
     weight: f32,
@@ -41,11 +41,15 @@ pub fn populate_corpus_from_segments(
                 for e in part {
                     if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
                         if (c as u32) > 0xFFFF {
-                            return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c}")));
+                            return Err(ForgeError::InvalidData(format!(
+                                "Character outside BMP not supported: {c}"
+                            )));
                         }
                         let c_u16 = c as u16;
                         let freq = e["freq"].as_u64().ok_or_else(|| {
-                            ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {e:?}"))
+                            ForgeError::InvalidData(format!(
+                                "Missing frequency in 1gram entry: {e:?}"
+                            ))
                         })?;
                         corpus.char_freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
                     }
@@ -56,18 +60,34 @@ pub fn populate_corpus_from_segments(
                     let freq = e["freq"].as_u64().ok_or_else(|| {
                         ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {e:?}"))
                     })?;
-                    let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char1 in 2gram entry: {e:?}"))
-                    })?;
-                    let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char2 in 2gram entry: {e:?}"))
-                    })?;
-                    
+                    let c1_char = e["char1"]
+                        .as_str()
+                        .and_then(resolve_corpus_char)
+                        .ok_or_else(|| {
+                            ForgeError::InvalidData(format!(
+                                "Missing or invalid char1 in 2gram entry: {e:?}"
+                            ))
+                        })?;
+                    let c2_char = e["char2"]
+                        .as_str()
+                        .and_then(resolve_corpus_char)
+                        .ok_or_else(|| {
+                            ForgeError::InvalidData(format!(
+                                "Missing or invalid char2 in 2gram entry: {e:?}"
+                            ))
+                        })?;
+
                     if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF {
-                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char} or {c2_char}")));
+                        return Err(ForgeError::InvalidData(format!(
+                            "Character outside BMP not supported: {c1_char} or {c2_char}"
+                        )));
                     }
-                    
-                    corpus.bigrams.push((c1_char as u16, c2_char as u16, (freq as f32 * weight).round() as u32));
+
+                    corpus.bigrams.push((
+                        c1_char as u16,
+                        c2_char as u16,
+                        (freq as f32 * weight).round() as u32,
+                    ));
                 }
             }
             "3grams" => {
@@ -75,21 +95,44 @@ pub fn populate_corpus_from_segments(
                     let freq = e["freq"].as_u64().ok_or_else(|| {
                         ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {e:?}"))
                     })?;
-                    let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char1 in 3gram entry: {e:?}"))
-                    })?;
-                    let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char2 in 3gram entry: {e:?}"))
-                    })?;
-                    let c3_char = e["char3"].as_str().and_then(resolve_corpus_char).ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing or invalid char3 in 3gram entry: {e:?}"))
-                    })?;
+                    let c1_char = e["char1"]
+                        .as_str()
+                        .and_then(resolve_corpus_char)
+                        .ok_or_else(|| {
+                            ForgeError::InvalidData(format!(
+                                "Missing or invalid char1 in 3gram entry: {e:?}"
+                            ))
+                        })?;
+                    let c2_char = e["char2"]
+                        .as_str()
+                        .and_then(resolve_corpus_char)
+                        .ok_or_else(|| {
+                            ForgeError::InvalidData(format!(
+                                "Missing or invalid char2 in 3gram entry: {e:?}"
+                            ))
+                        })?;
+                    let c3_char = e["char3"]
+                        .as_str()
+                        .and_then(resolve_corpus_char)
+                        .ok_or_else(|| {
+                            ForgeError::InvalidData(format!(
+                                "Missing or invalid char3 in 3gram entry: {e:?}"
+                            ))
+                        })?;
 
-                    if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF || (c3_char as u32) > 0xFFFF {
+                    if (c1_char as u32) > 0xFFFF
+                        || (c2_char as u32) > 0xFFFF
+                        || (c3_char as u32) > 0xFFFF
+                    {
                         return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char}, {c2_char}, or {c3_char}")));
                     }
 
-                    corpus.trigrams.push((c1_char as u16, c2_char as u16, c3_char as u16, (freq as f32 * weight).round() as u32));
+                    corpus.trigrams.push((
+                        c1_char as u16,
+                        c2_char as u16,
+                        c3_char as u16,
+                        (freq as f32 * weight).round() as u32,
+                    ));
                 }
             }
             "words" => {
@@ -98,7 +141,9 @@ pub fn populate_corpus_from_segments(
                         ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}"))
                     })?;
                     if let Some(w) = e["word"].as_str() {
-                        corpus.words.push((w.to_string(), (freq as f32 * weight).round() as u32));
+                        corpus
+                            .words
+                            .push((w.to_string(), (freq as f32 * weight).round() as u32));
                     }
                 }
             }
@@ -113,7 +158,7 @@ pub fn populate_corpus_from_segments(
 /// 1. Named tokens ("SPACE", "ENTER")
 /// 2. Hex strings ("65", "20")
 /// 3. Literal characters ("a", "b")
-#[must_use] 
+#[must_use]
 pub fn resolve_corpus_char(token: &str) -> Option<char> {
     // 1. Named Tokens
     for (key, val) in CORPUS_TOKEN_MAP {
@@ -123,10 +168,13 @@ pub fn resolve_corpus_char(token: &str) -> Option<char> {
     }
 
     // 2. Hex Strings (2, 4, 6, 8 chars) - Multi-byte UTF-8 as used in corpus
-    if token.len() >= 2 && token.len().is_multiple_of(2) && token.chars().all(|c| c.is_ascii_hexdigit()) {
+    if token.len() >= 2
+        && token.len().is_multiple_of(2)
+        && token.chars().all(|c| c.is_ascii_hexdigit())
+    {
         let mut bytes = Vec::with_capacity(token.len() / 2);
         for i in (0..token.len()).step_by(2) {
-            if let Ok(byte) = u8::from_str_radix(&token[i..i+2], 16) {
+            if let Ok(byte) = u8::from_str_radix(&token[i..i + 2], 16) {
                 bytes.push(byte);
             } else {
                 return None;
@@ -136,7 +184,7 @@ pub fn resolve_corpus_char(token: &str) -> Option<char> {
             return s.chars().next().map(|c| c.to_ascii_lowercase());
         }
     }
-    
+
     // 3. Literal Characters (Fallback)
     if token.chars().count() == 1 {
         token.chars().next().map(|c| c.to_ascii_lowercase())
@@ -146,20 +194,28 @@ pub fn resolve_corpus_char(token: &str) -> Option<char> {
 }
 
 /// Injects synthetic data (Enter, Backspace) for standard prose corpora.
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
-    if !is_std { return; }
+    if !is_std {
+        return;
+    }
 
     let total_chars: u64 = corpus.char_freqs.iter().sum();
-    let sentence_count: u64 = 
-        corpus.char_freqs['.' as usize] + 
-        corpus.char_freqs['?' as usize] + 
-        corpus.char_freqs['!' as usize];
+    let sentence_count: u64 = corpus.char_freqs['.' as usize]
+        + corpus.char_freqs['?' as usize]
+        + corpus.char_freqs['!' as usize];
 
-    if total_chars == 0 { return; }
+    if total_chars == 0 {
+        return;
+    }
 
     let enter_count = (sentence_count as f32 / STD_CORPUS_SENTENCE_RATIO).round() as u64;
-    let bksp_count = (total_chars as f32 * STD_CORPUS_ERROR_RATE * STD_CORPUS_BACKSPACE_FACTOR).round() as u64;
+    let bksp_count =
+        (total_chars as f32 * STD_CORPUS_ERROR_RATE * STD_CORPUS_BACKSPACE_FACTOR).round() as u64;
 
     corpus.char_freqs['\n' as usize] += enter_count;
     corpus.char_freqs['\x08' as usize] += bksp_count;
@@ -182,7 +238,7 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     if enter_count > 0 {
         let puncts = ['.', '?', '!'];
         let total_punct = sentence_count.max(1);
-        
+
         for p in puncts {
             let p_freq = corpus.char_freqs[p as usize];
             if p_freq > 0 {
@@ -200,13 +256,17 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
         if total_bigrams > 0 {
             let mut new_trigrams = Vec::new();
             for (a, b, freq) in &corpus.bigrams {
-                if *a == '\x08' as u16 || *b == '\x08' as u16 || *a == '\n' as u16 || *b == '\n' as u16 {
+                if *a == '\x08' as u16
+                    || *b == '\x08' as u16
+                    || *a == '\n' as u16
+                    || *b == '\n' as u16
+                {
                     continue;
                 }
-                
+
                 let ratio = *freq as f32 / total_bigrams as f32;
                 let share = (bksp_count as f32 * ratio).round() as u32;
-                
+
                 if share > 0 {
                     new_trigrams.push((*a, *b, '\x08' as u16, share));
                 }
@@ -218,18 +278,20 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     if enter_count > 0 {
         let puncts = ['.', '?', '!'];
         let mut new_trigrams = Vec::new();
-        
-        let punct_bigrams: Vec<_> = corpus.bigrams.iter()
+
+        let punct_bigrams: Vec<_> = corpus
+            .bigrams
+            .iter()
             .filter(|(_, b, _)| puncts.contains(&(*b as u8 as char)))
             .collect();
-            
+
         let total_punct_bigrams: u64 = punct_bigrams.iter().map(|(_, _, f)| u64::from(*f)).sum();
-        
+
         if total_punct_bigrams > 0 {
             for (a, b, freq) in punct_bigrams {
                 let ratio = *freq as f32 / total_punct_bigrams as f32;
                 let share = (enter_count as f32 * ratio).round() as u32;
-                
+
                 if share > 0 {
                     new_trigrams.push((*a, *b, '\n' as u16, share));
                 }
@@ -238,6 +300,10 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
         }
     }
 
-    corpus.bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-    corpus.trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    corpus
+        .bigrams
+        .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    corpus
+        .trigrams
+        .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
 }

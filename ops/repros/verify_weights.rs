@@ -1,4 +1,7 @@
-use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, CostModel, Layout, types::{HandIndex, FingerIndex, KeyCode}};
+use keyforge_model::{
+    types::{FingerIndex, HandIndex, KeyCode},
+    Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
+};
 use keyforge_physics::ScoringEngine;
 
 fn mock_cost_model() -> CostModel {
@@ -24,14 +27,16 @@ fn mock_cost_model() -> CostModel {
 }
 
 fn main() {
-    let keys: Vec<KeyNode> = (0..2).map(|i| KeyNode {
-        index: i,
-        hand: HandIndex(0),
-        finger: FingerIndex(1), // All index
-        x: i as f32,
-        y: 0.0,
-        ..Default::default()
-    }).collect();
+    let keys: Vec<KeyNode> = (0..2)
+        .map(|i| KeyNode {
+            index: i,
+            hand: HandIndex(0),
+            finger: FingerIndex(1), // All index
+            x: i as f32,
+            y: 0.0,
+            ..Default::default()
+        })
+        .collect();
     let keyboard = Keyboard::new(keys, 0).unwrap();
     let mut corpus = Corpus::default();
     corpus.char_freqs[97] = 1; // 'a'
@@ -51,7 +56,8 @@ fn main() {
         sfb_base: 5000.0,
         ..Rubric::default()
     };
-    let engine_custom = ScoringEngine::new(&keyboard, &corpus, &rubric_custom, &cost_model).unwrap();
+    let engine_custom =
+        ScoringEngine::new(&keyboard, &corpus, &rubric_custom, &cost_model).unwrap();
     let score_custom = engine_custom.score(&layout).unwrap();
 
     println!("Score Default: {:.4}", score_def);

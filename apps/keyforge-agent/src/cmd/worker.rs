@@ -4,8 +4,8 @@ use sha2::{Digest, Sha256};
 use tokio::sync::broadcast;
 use tracing::info;
 
-use crate::models::AgentConfig;
 use crate::identity::load_or_create_identity;
+use crate::models::AgentConfig;
 
 /// Starts the agent in worker mode, connecting to the Hive.
 ///
@@ -15,7 +15,7 @@ use crate::identity::load_or_create_identity;
 pub async fn run(config: AgentConfig) -> Result<()> {
     let signing_key = load_or_create_identity(&config.system)?;
     let public_key = VerifyingKey::from(&signing_key);
-    
+
     let mut hasher = Sha256::new();
     hasher.update(public_key.to_bytes());
     let pk_hash = hex::encode(hasher.finalize());

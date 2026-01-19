@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Global constants and limits for the KeyForge system.
 
 // --- Validation Limits ---
@@ -44,9 +43,7 @@ pub const MIN_LAYOUT_NAME_LEN: usize = 2;
 /// Default weight for a corpus source.
 pub const DEFAULT_CORPUS_WEIGHT: f32 = 1.0;
 
-
 // (Search limits moved to config::search)
-
 
 // --- Physics Constants ---
 
@@ -67,8 +64,6 @@ pub const ARENA_TOP_WORDS_LIMIT: usize = 2000;
 
 // --- Security Limits ---
 
-
-
 /// Maximum size of uploaded files (bytes).
 pub const MAX_INPUT_FILE_SIZE: u64 = 100 * 1024 * 1024;
 /// Maximum recursion depth for JSON parsing.
@@ -77,7 +72,6 @@ pub const MAX_JSON_DEPTH: usize = 50;
 pub const MAX_TRANSPORT_VECTOR_ITEMS: usize = 100_000;
 /// Maximum size of a session file (bytes).
 pub const MAX_SESSION_FILE_SIZE: u64 = 1024 * 1024;
-
 
 // --- Corpus Parsing ---
 
@@ -147,7 +141,6 @@ pub const DEFAULT_PERSONAL_COST_PATH: &str = "data/personal_cost.json";
 pub const DEFAULT_BENCHMARK_ITERATIONS: usize = 100_000;
 /// Default column width for grid views.
 pub const DEFAULT_GRID_WIDTH: usize = 10;
-
 
 // --- Corpus Injection Constants ---
 
@@ -224,8 +217,4 @@ pub const MIN_REPORT_INTERVAL: usize = 1000;
 /// Minimum temperature threshold for accepting worsening moves.
 pub const ANNEALING_MIN_TEMP: f32 = 1e-6;
 
-
-
-
 // (Defaults moved to config modules)
-

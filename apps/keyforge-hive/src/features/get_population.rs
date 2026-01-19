@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::{extract::{Path, State}, Json};
-use keyforge_protocol::PopulationResponse;
-use std::sync::Arc;
 use crate::error::AppResult;
 use crate::state::AppState;
+use axum::{
+    extract::{Path, State},
+    Json,
+};
+use keyforge_protocol::PopulationResponse;
+use std::sync::Arc;
 
 /// VSA Feature: Get Population
 /// Returns the current population of results for a specific job.

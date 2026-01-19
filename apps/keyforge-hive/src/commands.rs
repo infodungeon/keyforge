@@ -23,7 +23,7 @@ pub enum HiveCommand {
     SubmitResult(ResultSubmission),
     RegisterNode {
         public_key: String, // Adjust based on NodeRegistration request
-        // ...
+                            // ...
     },
     // Add other commands as we migrate logic
 }

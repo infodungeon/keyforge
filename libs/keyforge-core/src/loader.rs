@@ -15,15 +15,15 @@
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, Corpus};
-use std::sync::Arc;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 /// A specialized result type for asset loading operations.
 pub type LoaderResult<T> = Result<T, ForgeError>;
 
 /// A trait for types that can load `KeyForge` assets from an external source.
 ///
-/// This is the primary abstraction for IO, allowing core logic to remain 
+/// This is the primary abstraction for IO, allowing core logic to remain
 /// agnostic to the filesystem, network, or embedded storage.
 #[async_trait::async_trait]
 pub trait AssetLoader: Send + Sync + Debug {
@@ -33,7 +33,7 @@ pub trait AssetLoader: Send + Sync + Debug {
         Self: Sized;
 
     /// Loads one or more corpora and merges them into a single bundle.
-    /// 
+    ///
     /// Corpus is currently special as it often requires merging multiple sources.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
 }

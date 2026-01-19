@@ -1,6 +1,6 @@
-use crate::errors::PhysicsError;
 use super::CompilationStage;
-use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+use crate::errors::PhysicsError;
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
 use keyforge_model::Keyboard;
 use std::sync::Arc;
 
@@ -36,7 +36,11 @@ impl CompilationStage for GeometryStage {
             cols.push(k.col);
 
             let mut dist_from_home = 0.0;
-            if let Some(origin) = kb.finger_origins.get(k.hand.as_usize()).and_then(|h| h.get(k.finger.as_usize())) {
+            if let Some(origin) = kb
+                .finger_origins
+                .get(k.hand.as_usize())
+                .and_then(|h| h.get(k.finger.as_usize()))
+            {
                 let dx = (k.x - origin.0).abs();
                 let dy = (k.y - origin.1).abs();
                 dist_from_home = (dx * dx + dy * dy).sqrt();
@@ -60,7 +64,47 @@ impl CompilationStage for GeometryStage {
         }
 
         Ok(GeometryOutput {
-            hands, fingers, rows, cols, dist_matrix, key_home_distances
+            hands,
+            fingers,
+            rows,
+            cols,
+            dist_matrix,
+            key_home_distances,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::KeyNode;
+
+    #[test]
+    fn test_geometry_stage_execution() {
+        let keys = vec![
+            KeyNode {
+                index: 0,
+                x: 0.0,
+                y: 0.0,
+                hand: HandIndex(0),
+                finger: FingerIndex(1),
+                ..Default::default()
+            },
+            KeyNode {
+                index: 1,
+                x: 3.0,
+                y: 4.0,
+                hand: HandIndex(0),
+                finger: FingerIndex(1),
+                ..Default::default()
+            },
+        ];
+        let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
+        let stage = GeometryStage;
+        let out = stage.execute(kb).unwrap();
+
+        assert_eq!(out.hands.len(), 2);
+        // Distance from 0 to 1 should be sqrt(3^2 + 4^2) = 5
+        assert_eq!(out.dist_matrix[1], 5.0);
     }
 }

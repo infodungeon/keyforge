@@ -16,9 +16,11 @@ use super::state::SearchState;
 use super::traits::{AcceptanceCriteria, MutationOperator, TimeKeeper};
 use crate::errors::EvolutionError;
 use crate::ProgressCallback;
-use keyforge_model::{Layout, KeyCode};
+use keyforge_model::constants::{
+    DEFAULT_REPORT_DIVISOR, MIN_REPORT_INTERVAL, SCORE_SCALE, TEMP_UNDERFLOW_THRESHOLD,
+};
+use keyforge_model::{KeyCode, Layout};
 use keyforge_physics::ScoringEngine;
-use keyforge_model::constants::{SCORE_SCALE, TEMP_UNDERFLOW_THRESHOLD, DEFAULT_REPORT_DIVISOR, MIN_REPORT_INTERVAL};
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -49,14 +51,16 @@ impl ProgressReporter {
         }
     }
 
-
-
     #[allow(clippy::cast_precision_loss)]
     fn report(&mut self, step: usize, state: &SearchState, time_keeper: &impl TimeKeeper) {
         if step.is_multiple_of(self.report_interval) {
             let now = time_keeper.now();
             let elapsed = time_keeper.elapsed(self.last_report_time).as_secs_f32();
-            let steps_done = if step == 0 { 0 } else { step - self.last_report_step };
+            let steps_done = if step == 0 {
+                0
+            } else {
+                step - self.last_report_step
+            };
 
             let ips = if elapsed > 0.0 {
                 (steps_done as f32 / elapsed) / 1_000_000.0
@@ -67,7 +71,7 @@ impl ProgressReporter {
             let score_f32 = state.best_score as f32 / SCORE_SCALE;
             // Clone the keys for the channel update
             let layout_snapshot = state.best_layout().keys.clone();
-            
+
             // Non-blocking send (dropping frames if consumer is slow is acceptable)
             let _ = self.tx.try_send((step, score_f32, layout_snapshot, ips));
 
@@ -78,7 +82,6 @@ impl ProgressReporter {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnnealingConfig {
@@ -92,6 +95,10 @@ pub struct AnnealingConfig {
 }
 
 impl AnnealingConfig {
+    /// Creates a new `AnnealingConfig` with the specified search parameters.
+    ///
+    /// # Errors
+    /// Returns `EvolutionError::Config` if any of the parameters are invalid (e.g. steps = 0, negative temperatures).
     pub fn new(
         steps: usize,
         start_temp: f32,
@@ -115,9 +122,7 @@ impl AnnealingConfig {
             ));
         }
         if reheat_factor <= 0.0 {
-            return Err(EvolutionError::Config(
-                "Reheat factor must be > 0.0".into(),
-            ));
+            return Err(EvolutionError::Config("Reheat factor must be > 0.0".into()));
         }
         Ok(Self {
             steps,
@@ -131,6 +136,7 @@ impl AnnealingConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct Optimizer<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> {
     engine: &'a ScoringEngine,
     config: AnnealingConfig,
@@ -165,6 +171,11 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         }
     }
 
+    /// Executes the optimization loop until completion or abortion.
+    ///
+    /// # Errors
+    /// Returns `EvolutionError::Aborted` if the process is cancelled via the callback,
+    /// or other `EvolutionError` variants if the optimization encounters an unrecoverable state.
     pub fn run<CB: ProgressCallback>(
         &mut self,
         initial_layout: Option<Layout>,
@@ -172,9 +183,9 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
     ) -> Result<Layout, EvolutionError> {
         let mut state = self.initialize_state(initial_layout)?;
         let cooling_rate = self.calculate_cooling_rate();
-        
+
         let start_time = self.time_keeper.now();
-        
+
         let abort_flag = AtomicBool::new(false);
         let (tx, rx) = mpsc::sync_channel::<(usize, f32, Vec<KeyCode>, f32)>(1);
         let abort_ref = &abort_flag;
@@ -225,7 +236,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                 // 5. Reporting
                 reporter.report(step, &state, &self.time_keeper);
             }
-            
+
             // Ensure reporter is dropped so receiver thread terminates
             drop(reporter);
 
@@ -240,10 +251,15 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         })
     }
 
-    fn initialize_state(&mut self, initial_layout: Option<Layout>) -> Result<SearchState, EvolutionError> {
+    fn initialize_state(
+        &mut self,
+        initial_layout: Option<Layout>,
+    ) -> Result<SearchState, EvolutionError> {
         let layout = initial_layout.unwrap_or_else(|| {
             #[allow(clippy::cast_possible_truncation)]
-            let keys: Vec<KeyCode> = (0..self.engine.key_count()).map(|i| KeyCode(i as u16)).collect();
+            let keys: Vec<KeyCode> = (0..self.engine.key_count())
+                .map(|i| KeyCode(i as u16))
+                .collect();
             Layout::new_unchecked(keys)
         });
 
@@ -269,15 +285,18 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
             &mut self.rng,
             state.temperature,
         )? {
-            if self.acceptance.should_accept(
-                proposal.delta,
-                state.temperature,
-                &mut self.rng,
-            ) {
+            if self
+                .acceptance
+                .should_accept(proposal.delta, state.temperature, &mut self.rng)
+            {
                 state.apply_mutation(proposal.action);
 
                 state.current_score = state.current_score.checked_add(proposal.delta).unwrap_or(
-                    if proposal.delta > 0 { i64::MAX } else { i64::MIN }
+                    if proposal.delta > 0 {
+                        i64::MAX
+                    } else {
+                        i64::MIN
+                    },
                 );
 
                 if state.current_score < state.best_score {
@@ -302,7 +321,7 @@ mod tests {
     use super::*;
     use crate::supervisor::strategies::{CoolingAnnealing, GroupMutation};
     use crate::supervisor::traits::{MutationAction, MutationProposal};
-    use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, CostModel};
+    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Arc;
 
@@ -319,7 +338,10 @@ mod tests {
         ) -> Result<Option<MutationProposal>, EvolutionError> {
             Ok(Some(MutationProposal {
                 delta: 1000,
-                action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
+                action: MutationAction::Swap(
+                    keyforge_model::KeyIndex(0),
+                    keyforge_model::KeyIndex(1),
+                ),
             }))
         }
     }
@@ -346,7 +368,7 @@ mod tests {
         }
     }
 
-    use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
 
     fn mock_cost_model() -> CostModel {
         let json = r#"{
@@ -419,7 +441,11 @@ mod tests {
         let mut optimizer = Optimizer::new(
             &engine,
             config,
-            GroupMutation { unlocked_indices: vec![0, 1], start_temp: 0.0, end_temp: 0.0 },
+            GroupMutation {
+                unlocked_indices: vec![0, 1],
+                start_temp: 0.0,
+                end_temp: 0.0,
+            },
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
@@ -436,7 +462,11 @@ mod tests {
     #[test]
     fn test_monotonicity_zero_temp() {
         let engine = setup_test_engine(30);
-        let mutation = GroupMutation { unlocked_indices: (0..30).collect(), start_temp: 0.0, end_temp: 0.0 };
+        let mutation = GroupMutation {
+            unlocked_indices: (0..30).collect(),
+            start_temp: 0.0,
+            end_temp: 0.0,
+        };
         let acceptance = CoolingAnnealing;
         let callback = ScoreCheckCallback {
             last_score: std::sync::Mutex::new(f32::MAX),
@@ -451,13 +481,20 @@ mod tests {
             crate::supervisor::traits::RealTimeKeeper,
         );
         optimizer.run(None, &callback).unwrap();
-        assert!(!callback.failed.load(Ordering::SeqCst), "Score increased during zero-temperature annealing!");
+        assert!(
+            !callback.failed.load(Ordering::SeqCst),
+            "Score increased during zero-temperature annealing!"
+        );
     }
 
     #[test]
     fn test_state_integrity_after_reheat() {
         let engine = setup_test_engine(30);
-        let mutation = GroupMutation { unlocked_indices: (0..30).collect(), start_temp: 1.0, end_temp: 0.1 };
+        let mutation = GroupMutation {
+            unlocked_indices: (0..30).collect(),
+            start_temp: 1.0,
+            end_temp: 0.1,
+        };
         let acceptance = CoolingAnnealing;
         let config = AnnealingConfig::new(100, 1.0, 0.1, 42, 5, 1, 10.0).unwrap();
         let mut optimizer = Optimizer::new(
@@ -483,7 +520,11 @@ mod tests {
         let mut opt_entropy = Optimizer::new(
             &engine,
             config_entropy,
-            GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1.0, end_temp: 0.1 },
+            GroupMutation {
+                unlocked_indices: vec![0, 1],
+                start_temp: 1.0,
+                end_temp: 0.1,
+            },
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
@@ -497,7 +538,11 @@ mod tests {
         let mut opt_fast = Optimizer::new(
             &engine,
             config_fast,
-            GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1e-9, end_temp: 1e-20 },
+            GroupMutation {
+                unlocked_indices: vec![0, 1],
+                start_temp: 1e-9,
+                end_temp: 1e-20,
+            },
             CoolingAnnealing,
             crate::supervisor::traits::RealTimeKeeper,
         );
@@ -507,12 +552,22 @@ mod tests {
     #[test]
     fn test_progress_reporting_loop() {
         let engine = setup_test_engine(2);
-        let mutation = GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1.0, end_temp: 0.1 };
+        let mutation = GroupMutation {
+            unlocked_indices: vec![0, 1],
+            start_temp: 1.0,
+            end_temp: 0.1,
+        };
         let acceptance = CoolingAnnealing;
         let calls = Arc::new(AtomicUsize::new(0));
         struct ReportingCallback(Arc<AtomicUsize>);
         impl ProgressCallback for ReportingCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            fn on_progress(
+                &self,
+                _epoch: usize,
+                _score: f32,
+                _layout: &[KeyCode],
+                _ips: f32,
+            ) -> bool {
                 self.0.fetch_add(1, Ordering::SeqCst);
                 true
             }
@@ -526,17 +581,30 @@ mod tests {
             crate::supervisor::traits::RealTimeKeeper,
         );
         opt.run(None, ReportingCallback(calls.clone())).unwrap();
-        assert!(calls.load(Ordering::SeqCst) >= 1, "Progress callback not hit enough times!");
+        assert!(
+            calls.load(Ordering::SeqCst) >= 1,
+            "Progress callback not hit enough times!"
+        );
     }
 
     #[test]
     fn test_optimizer_callback_break() {
         let engine = setup_test_engine(2);
-        let mutation = GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1.0, end_temp: 0.1 };
+        let mutation = GroupMutation {
+            unlocked_indices: vec![0, 1],
+            start_temp: 1.0,
+            end_temp: 0.1,
+        };
         let acceptance = CoolingAnnealing;
         struct BreakCallback;
         impl ProgressCallback for BreakCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            fn on_progress(
+                &self,
+                _epoch: usize,
+                _score: f32,
+                _layout: &[KeyCode],
+                _ips: f32,
+            ) -> bool {
                 false
             }
         }
@@ -549,7 +617,7 @@ mod tests {
             crate::supervisor::traits::RealTimeKeeper,
         );
         let res = opt.run(None, BreakCallback);
-        assert!(matches!(res, Err(EvolutionError::Aborted) | Ok(_))); 
+        assert!(matches!(res, Err(EvolutionError::Aborted) | Ok(_)));
     }
 
     #[test]
@@ -567,7 +635,10 @@ mod tests {
             ) -> Result<Option<MutationProposal>, EvolutionError> {
                 Ok(Some(MutationProposal {
                     delta: i64::MAX - 10,
-                    action: MutationAction::Swap(keyforge_model::KeyIndex(0), keyforge_model::KeyIndex(1)),
+                    action: MutationAction::Swap(
+                        keyforge_model::KeyIndex(0),
+                        keyforge_model::KeyIndex(1),
+                    ),
                 }))
             }
         }
@@ -587,7 +658,11 @@ mod tests {
         let engine = setup_test_engine(2);
         let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 2, 2, 2.0).unwrap();
         let mut optimizer = Optimizer::new(
-            &engine, config, StagnantMutation, CoolingAnnealing, crate::supervisor::traits::RealTimeKeeper,
+            &engine,
+            config,
+            StagnantMutation,
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
         );
         optimizer.run(None, crate::NoOpCallback).unwrap();
     }

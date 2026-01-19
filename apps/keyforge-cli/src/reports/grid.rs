@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Cell, CellAlignment, Table};
 use keyforge_model::keycodes::KeycodeRegistry;

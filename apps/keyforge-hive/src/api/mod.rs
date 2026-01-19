@@ -42,11 +42,10 @@ use tower_governor::{
 
 /// Returns the router for layout analysis.
 pub fn analysis_routes() -> Router<Arc<AppState>> {
-    Router::new()
-        .route(
-            "/analysis/validate",
-            axum::routing::post(analysis::validate_layout),
-        )
+    Router::new().route(
+        "/analysis/validate",
+        axum::routing::post(analysis::validate_layout),
+    )
 }
 
 /// Returns the router for the public user registration endpoint.
@@ -61,7 +60,9 @@ pub fn auth_routes() -> Router<Arc<AppState>> {
             .unwrap_or_else(|| {
                 tracing::error!("Failed to initialize auth governor, using fallback");
                 #[allow(clippy::expect_used)]
-                GovernorConfigBuilder::default().finish().expect("fallback governor must be valid")
+                GovernorConfigBuilder::default()
+                    .finish()
+                    .expect("fallback governor must be valid")
             }),
     );
 

@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Scoring configuration and weights.
 //!
-//! A `Rubric` defines the cost parameters used by the physics engine 
+//! A `Rubric` defines the cost parameters used by the physics engine
 //! to evaluate the efficiency of a layout.
 
-use serde::{Deserialize, Serialize};
 use crate::error::ForgeError;
+use serde::{Deserialize, Serialize};
 // use crate::constants::*; // No longer needed
 
 /// Configuration for the Physics Engine.
@@ -108,10 +107,69 @@ impl Rubric {
         }
         // Basic sanity checks for weights (optional, but good practice)
         if self.sfb_base < 0.0 || self.sfb_lateral < 0.0 {
-             return Err(ForgeError::InvalidData(
+            return Err(ForgeError::InvalidData(
                 "SFB penalties cannot be negative".into(),
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rubric_lifecycle() {
+        // 1. Default Construction
+        let r = Rubric::default();
+
+        // Check key defaults to ensure physics engine gets sensible start values
+        assert!(r.sfb_base > 0.0);
+        assert!(r.travel_lat > 0.0);
+        assert!(r.travel_vert > 0.0);
+        assert_eq!(r.finger_effort.len(), 5);
+
+        // 2. Serialization Round-trip
+        let json = serde_json::to_string(&r).expect("Failed to serialize Rubric");
+        let recovered: Rubric = serde_json::from_str(&json).expect("Failed to deserialize Rubric");
+
+        // 3. Verification
+        assert_eq!(r.sfb_base, recovered.sfb_base);
+        assert_eq!(r.finger_effort, recovered.finger_effort);
+    }
+
+    #[test]
+    fn test_rubric_modification() {
+        let mut r = Rubric::default();
+        r.sfb_base = 1000.0;
+        r.finger_effort[4] = 5.0; // Pinky penalty
+
+        assert_eq!(r.sfb_base, 1000.0);
+        assert_eq!(r.finger_effort[4], 5.0);
+    }
+
+    #[test]
+    fn test_rubric_validation() {
+        let mut r = Rubric::default();
+        assert!(r.validate().is_ok());
+
+        // Coverage bounds
+        r.trigram_coverage = 1.5; // > 1.0
+        assert!(r.validate().is_err());
+        r.trigram_coverage = -0.1;
+        assert!(r.validate().is_err());
+
+        // Reset to valid
+        r.trigram_coverage = 0.99;
+
+        // Limits
+        r.trigram_limit = 0;
+        assert!(r.validate().is_err());
+        r.trigram_limit = 100;
+
+        // Weights
+        r.sfb_base = -10.0; // Negative penalty
+        assert!(r.validate().is_err());
     }
 }

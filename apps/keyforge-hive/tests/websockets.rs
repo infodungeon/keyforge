@@ -4,15 +4,15 @@
 
 use futures::{SinkExt, StreamExt};
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
+use keyforge_protocol::constants::WS_MSG_JOB;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::net::TcpListener;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use url::Url;
-use keyforge_protocol::constants::WS_MSG_JOB;
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::testcontainers::ContainerAsync;
+use tokio::net::TcpListener;
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use url::Url;
 
 // Ensure tracing is initialized only once
 use std::sync::Once;
@@ -29,10 +29,16 @@ fn init_test_tracing() {
 
 async fn start_test_server() -> (String, Arc<AppState>, ContainerAsync<Redis>) {
     init_test_tracing();
-    
+
     // Start Valkey
-    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
-    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_node = Redis::default()
+        .start()
+        .await
+        .expect("Failed to start Valkey");
+    let valkey_port = valkey_node
+        .get_host_port_ipv4(6379)
+        .await
+        .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
@@ -50,28 +56,41 @@ async fn start_test_server() -> (String, Arc<AppState>, ContainerAsync<Redis>) {
     let mut config = keyforge_hive::config::AppConfig::mock();
     config.valkey_url = valkey_url;
 
-    let state = Arc::new(AppState::new(pool, data_path.clone(), "test_key".into(), config.clone()).await);
+    let state =
+        Arc::new(AppState::new(pool, data_path.clone(), "test_key".into(), config.clone()).await);
     let app = create_app(state.clone(), &config, data_path);
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    
+
     tokio::spawn(async move {
-        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
     });
 
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    (format!("ws://{}:{}", "127.0.0.1", addr.port()), state, valkey_node)
+    (
+        format!("ws://{}:{}", "127.0.0.1", addr.port()),
+        state,
+        valkey_node,
+    )
 }
 
 #[tokio::test]
 async fn test_websocket_lifecycle() {
     let (ws_url, state, _valkey) = start_test_server().await;
-    let url = Url::parse(&ws_url).unwrap().join("ws?node_id=test-node").unwrap();
+    let url = Url::parse(&ws_url)
+        .unwrap()
+        .join("ws?node_id=test-node")
+        .unwrap();
 
     let (ws_stream, _) = tokio::time::timeout(
         std::time::Duration::from_secs(2),
-        connect_async(url.to_string())
+        connect_async(url.to_string()),
     )
     .await
     .expect("Connection timed out")
@@ -79,10 +98,16 @@ async fn test_websocket_lifecycle() {
 
     // 1. Connection Verification (Ping/Pong Barrier)
     let (mut sink, mut stream) = ws_stream.split();
-    
+
     let ping_task = tokio::spawn(async move {
         for _ in 0..50 {
-            if sink.send(Message::Ping(vec![1, 2, 3].into())).await.is_err() { break; }
+            if sink
+                .send(Message::Ping(vec![1, 2, 3].into()))
+                .await
+                .is_err()
+            {
+                break;
+            }
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
         sink
@@ -102,7 +127,7 @@ async fn test_websocket_lifecycle() {
             _ = &mut timeout => break,
         }
     }
-    
+
     let sink = ping_task.await.unwrap();
     let mut ws_stream = stream.reunite(sink).unwrap();
     assert!(pong_found, "Server did not respond to Ping");
@@ -110,9 +135,9 @@ async fn test_websocket_lifecycle() {
     // 2. Broadcast Verification (Signal Spam)
     let job_id = "123";
     let state_clone = state.clone();
-    
+
     let signal_task = tokio::spawn(async move {
-        for _ in 0..50 { 
+        for _ in 0..50 {
             let _ = state_clone.tx.send(format!("{}{}", WS_MSG_JOB, job_id));
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
@@ -136,7 +161,7 @@ async fn test_websocket_lifecycle() {
             _ = &mut timeout_job => break,
         }
     }
-    
+
     signal_task.abort();
     assert!(job_found, "Did not receive Job broadcast");
 }

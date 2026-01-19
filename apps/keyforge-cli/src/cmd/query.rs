@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::convert::TryFrom;
 use crate::cli_parsers::resolve_path;
+use crate::constants::DEFAULT_HIVE_URL;
 use clap::Args;
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_model::constants::{
-    MAX_INPUT_FILE_SIZE, DEFAULT_KEYBOARD_ID, ASSET_DEFAULT_COST_MATRIX
+    ASSET_DEFAULT_COST_MATRIX, DEFAULT_KEYBOARD_ID, MAX_INPUT_FILE_SIZE,
 };
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::job::JobIdentifier;
 use keyforge_model::CostMatrixSource;
+use std::convert::TryFrom;
 use std::path::Path;
-use crate::constants::DEFAULT_HIVE_URL;
 
 #[derive(Args, Debug, Clone)]
 pub struct QueryArgs {
@@ -43,8 +42,14 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     eprintln!("🔍 Calculating Job Hash for criteria…");
 
     // Resolve Defaults
-    let kb_input = args.shared.keyboard.unwrap_or_else(|| DEFAULT_KEYBOARD_ID.to_string());
-    let cost_input = args.shared.cost.unwrap_or_else(|| ASSET_DEFAULT_COST_MATRIX.to_string());
+    let kb_input = args
+        .shared
+        .keyboard
+        .unwrap_or_else(|| DEFAULT_KEYBOARD_ID.to_string());
+    let cost_input = args
+        .shared
+        .cost
+        .unwrap_or_else(|| ASSET_DEFAULT_COST_MATRIX.to_string());
 
     let kb_path = resolve_path(&kb_input, Some("keyboards"), root)?;
 
@@ -54,7 +59,10 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     let kb_def = KeyboardDefinition::parse(&kb_content, None)
         .map_err(|e| format!("Failed to parse keyboard definition: {e}"))?;
 
-    let corpora_input = args.shared.corpus.unwrap_or_else(|| vec!["text/en_std".to_string()]);
+    let corpora_input = args
+        .shared
+        .corpus
+        .unwrap_or_else(|| vec!["text/en_std".to_string()]);
     let mut domain_corpora = Vec::new();
     for s in corpora_input {
         domain_corpora.push(s.parse::<keyforge_model::config::CorpusSource>()?);
@@ -68,7 +76,7 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
 
     let cost_source = CostMatrixSource::Predefined(cost_input);
 
-    let proto_geometry: keyforge_model::geometry::KeyboardGeometry = 
+    let proto_geometry: keyforge_model::geometry::KeyboardGeometry =
         serde_json::from_value(serde_json::to_value(&kb_def.geometry)?)?;
 
     let job_id = JobIdentifier::try_from_parts(
@@ -109,4 +117,3 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     }
     Ok(())
 }
-

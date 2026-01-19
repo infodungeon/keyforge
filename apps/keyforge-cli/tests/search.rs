@@ -18,20 +18,30 @@ fn test_search_happy_path() {
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
         .args([
             "search",
-            "--cost", "cost.json",
-            "--corpus", "test_corpus",
-            "--keyboard", "test_kb",
-            "--keycodes", "keycodes.json",
-            "--search", "search_epochs=1",
-            "--search", "search_steps=10",
-            "--time", "5",
+            "--cost",
+            "cost.json",
+            "--corpus",
+            "test_corpus",
+            "--keyboard",
+            "test_kb",
+            "--keycodes",
+            "keycodes.json",
+            "--search",
+            "search_epochs=1",
+            "--search",
+            "search_steps=10",
+            "--time",
+            "5",
         ])
         .output()
         .expect("Failed to run search");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(output.status.success(), "Search failed");
-    assert!(stdout.contains(r#""score":"#), "Output did not contain score");
+    assert!(
+        stdout.contains(r#""score":"#),
+        "Output did not contain score"
+    );
 }
 
 #[test]
@@ -43,16 +53,26 @@ fn test_search_determinism() {
 
     let args = [
         "search",
-        "--seed", "12345",
-        "--search", "search_epochs=5",
-        "--search", "search_steps=10", // Reduced for test speed
-        "--attempts", "1",
-        "--threads", "1",
-        "--cost", "cost.json",
-        "--corpus", "test_corpus",
-        "--keyboard", "test_kb",
-        "--weights", w_path.to_str().unwrap(),
-        "--keycodes", "keycodes.json",
+        "--seed",
+        "12345",
+        "--search",
+        "search_epochs=5",
+        "--search",
+        "search_steps=10", // Reduced for test speed
+        "--attempts",
+        "1",
+        "--threads",
+        "1",
+        "--cost",
+        "cost.json",
+        "--corpus",
+        "test_corpus",
+        "--keyboard",
+        "test_kb",
+        "--weights",
+        w_path.to_str().unwrap(),
+        "--keycodes",
+        "keycodes.json",
     ];
 
     let output_a = Command::new(&bin_path)
@@ -92,18 +112,30 @@ fn test_search_constraints() {
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
         .args([
             "search",
-            "--cost", "poison_cost.json",
-            "--corpus", "poison_corpus",
-            "--keyboard", "poison_keyboard",
-            "--weights", ctx.weights_path("poison_weights").to_str().unwrap(),
-            "--keycodes", "keycodes.json",
-            "--search", "search_epochs=20",
-            "--search", "search_steps=50",
-            "--attempts", "1",
-            "--seed", "999",
-            "--tier-high-chars", "etaoinshrdlu",
-            "--tier-med-chars", "",
-            "--tier-low-chars", "",
+            "--cost",
+            "poison_cost.json",
+            "--corpus",
+            "poison_corpus",
+            "--keyboard",
+            "poison_keyboard",
+            "--weights",
+            ctx.weights_path("poison_weights").to_str().unwrap(),
+            "--keycodes",
+            "keycodes.json",
+            "--search",
+            "search_epochs=20",
+            "--search",
+            "search_steps=50",
+            "--attempts",
+            "1",
+            "--seed",
+            "999",
+            "--tier-high-chars",
+            "etaoinshrdlu",
+            "--tier-med-chars",
+            "",
+            "--tier-low-chars",
+            "",
         ])
         .output()
         .expect("Failed to run search");
@@ -113,7 +145,8 @@ fn test_search_constraints() {
         eprintln!("STDOUT:\n{}", json_str);
         eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
     }
-    let json: serde_json::Value = serde_json::from_str(&json_str).expect("Failed to parse JSON output");
+    let json: serde_json::Value =
+        serde_json::from_str(&json_str).expect("Failed to parse JSON output");
     let score = json["score"].as_f64().unwrap_or(0.0);
 
     // If the poison pill worked (constraint respected), the score should be reasonable.

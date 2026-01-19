@@ -4,11 +4,12 @@
 //!
 //! Stress testing suite for the Hive server under high concurrent loads.
 
-
 use futures::future::join_all;
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::CostMatrixSource;
-use keyforge_protocol::{JobConfig, JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION};
+use keyforge_protocol::{
+    JobConfig, JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION,
+};
 use reqwest::{header, Client};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
@@ -44,7 +45,9 @@ async fn test_heterogeneous_thundering_herd() {
 
     let weights_std = ScoringWeights::default();
     let mut weights_alt = ScoringWeights::default();
-    weights_alt.weights.insert("penalty_scissor".to_string(), 500.0);
+    weights_alt
+        .weights
+        .insert("penalty_scissor".to_string(), 500.0);
 
     let jobs_config = vec![
         (kb_corne.clone(), weights_std.clone(), "Corne-Std"),
@@ -134,7 +137,11 @@ async fn test_heterogeneous_thundering_herd() {
 
                 attempts += 1;
                 if attempts >= 5 {
-                    return Err(format!("Node {} reg failed after 5 attempts: {}", i, reg_resp.status()));
+                    return Err(format!(
+                        "Node {} reg failed after 5 attempts: {}",
+                        i,
+                        reg_resp.status()
+                    ));
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(100 * attempts)).await;
             }

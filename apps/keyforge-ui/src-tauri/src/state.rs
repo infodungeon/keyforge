@@ -1,20 +1,20 @@
 // apps/keyforge-ui/src-tauri/src/state.rs
 
 #![allow(unsafe_code)]
+use keyforge_infra::AssetLoader;
+use keyforge_infra::AssetManager;
 use keyforge_infra::FsProvider;
-use keyforge_model::Corpus;
 use keyforge_model::config::CorpusSource;
+use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::cost_model::CostModel;
-use keyforge_infra::AssetManager;
-use keyforge_infra::AssetLoader;
+use keyforge_model::Corpus;
 
-use keyforge_protocol::JobConfig;
 use keyforge_model::constants::{
     DEFAULT_CORPUS_CACHE_CAPACITY, DEFAULT_COST_CACHE_CAPACITY, DEFAULT_KB_CACHE_CAPACITY,
     DEFAULT_KEYCODE_CACHE_CAPACITY,
 };
+use keyforge_protocol::JobConfig;
 use moka::sync::Cache;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -56,45 +56,71 @@ use std::any::TypeId;
 
 #[async_trait::async_trait]
 impl AssetLoader for AssetCache {
-    async fn load<T: keyforge_model::Asset>(&self, id: &str) -> keyforge_core::loader::LoaderResult<Arc<T>> {
+    async fn load<T: keyforge_model::Asset>(
+        &self,
+        id: &str,
+    ) -> keyforge_core::loader::LoaderResult<Arc<T>> {
         if TypeId::of::<T>() == TypeId::of::<KeyboardDefinition>() {
-             let res = self.load_keyboard_internal(id).await
+            let res = self
+                .load_keyboard_internal(id)
+                .await
                 .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
-             // SAFETY: We verified TypeId matches KeyboardDefinition.
-             let ptr = Arc::into_raw(res).cast::<T>();
-             return Ok(unsafe { Arc::from_raw(ptr) });
+            // SAFETY: We verified TypeId matches KeyboardDefinition.
+            let ptr = Arc::into_raw(res).cast::<T>();
+            return Ok(unsafe { Arc::from_raw(ptr) });
         }
         if TypeId::of::<T>() == TypeId::of::<CostModel>() {
-             let res = self.load_cost_model_internal(id).await
+            let res = self
+                .load_cost_model_internal(id)
+                .await
                 .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
-             let ptr = Arc::into_raw(res).cast::<T>();
-             return Ok(unsafe { Arc::from_raw(ptr) });
+            let ptr = Arc::into_raw(res).cast::<T>();
+            return Ok(unsafe { Arc::from_raw(ptr) });
         }
         if TypeId::of::<T>() == TypeId::of::<KeycodeRegistry>() {
-             let res = self.load_keycodes_internal(id).await
+            let res = self
+                .load_keycodes_internal(id)
+                .await
                 .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))?;
-             let ptr = Arc::into_raw(res).cast::<T>();
-             return Ok(unsafe { Arc::from_raw(ptr) });
+            let ptr = Arc::into_raw(res).cast::<T>();
+            return Ok(unsafe { Arc::from_raw(ptr) });
         }
-        
+
         // Fallback or error for unknown types
         // Ideally we should delegate to provider.load::<T>(id) if not cached, but caching is the point.
         // If T is not one of the cached types, we can try to load directly from provider.
         self.provider.load::<T>(id).await
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> keyforge_core::loader::LoaderResult<Arc<Corpus>> {
-        self.load_corpus_internal(sources).await.map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
+    async fn load_corpus(
+        &self,
+        sources: &[CorpusSource],
+    ) -> keyforge_core::loader::LoaderResult<Arc<Corpus>> {
+        self.load_corpus_internal(sources)
+            .await
+            .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
     }
 }
 
 impl AssetCache {
-    #[must_use] 
+    #[must_use]
     pub fn new(root: PathBuf) -> Self {
-        let kb_size = std::env::var("CACHE_KB_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_KB_CACHE_CAPACITY);
-        let cp_size = std::env::var("CACHE_CORPUS_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_CORPUS_CACHE_CAPACITY);
-        let cost_size = std::env::var("CACHE_COST_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_COST_CACHE_CAPACITY);
-        let keycode_cache_size = std::env::var("CACHE_KEYCODE_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_KEYCODE_CACHE_CAPACITY);
+        let kb_size = std::env::var("CACHE_KB_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_KB_CACHE_CAPACITY);
+        let cp_size = std::env::var("CACHE_CORPUS_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_CORPUS_CACHE_CAPACITY);
+        let cost_size = std::env::var("CACHE_COST_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_COST_CACHE_CAPACITY);
+        let keycode_cache_size = std::env::var("CACHE_KEYCODE_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_KEYCODE_CACHE_CAPACITY);
 
         Self {
             provider: FsProvider::new(root),
@@ -102,7 +128,9 @@ impl AssetCache {
             keyboards: Cache::builder().max_capacity(kb_size as u64).build(),
             corpora: Cache::builder().max_capacity(cp_size as u64).build(),
             cost_models: Cache::builder().max_capacity(cost_size as u64).build(),
-            keycodes: Cache::builder().max_capacity(keycode_cache_size as u64).build(),
+            keycodes: Cache::builder()
+                .max_capacity(keycode_cache_size as u64)
+                .build(),
         }
     }
 

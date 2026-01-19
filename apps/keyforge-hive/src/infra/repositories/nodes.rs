@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use sqlx::{Pool, Postgres};
 
 /// Repository for managing compute nodes and hardware profiles.
@@ -23,7 +22,7 @@ pub struct NodeRepository {
 
 impl NodeRepository {
     /// Creates a new `NodeRepository` with the given database pool.
-    #[must_use] 
+    #[must_use]
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
@@ -78,7 +77,7 @@ impl NodeRepository {
                 performance_rating = EXCLUDED.performance_rating,
                 cpu_cores = EXCLUDED.cpu_cores,
                 public_key = COALESCE(nodes.public_key, EXCLUDED.public_key)
-            "
+            ",
         )
         .bind(node_id)
         .bind(cpu_model)
@@ -107,7 +106,10 @@ impl NodeRepository {
                 }
             }
             (Some(_), None) => {
-                tracing::warn!("🚨 Security Alert: Node {} attempted heartbeat without public key", node_id);
+                tracing::warn!(
+                    "🚨 Security Alert: Node {} attempted heartbeat without public key",
+                    node_id
+                );
                 return Err(sqlx::Error::Protocol(
                     "Identity Required: Public Key must be provided for registered nodes".into(),
                 ));

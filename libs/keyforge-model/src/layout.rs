@@ -14,14 +14,14 @@
 
 //! Layout entity and related logic.
 //!
-//! A `Layout` represents a complete mapping of logical `KeyCode`s to physical 
+//! A `Layout` represents a complete mapping of logical `KeyCode`s to physical
 //! `KeyIndex` positions on a keyboard.
 
+pub use crate::types::{KeyCode, KeyIndex};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
-pub use crate::types::{KeyCode, KeyIndex};
 
 /// Errors related to Layout construction and validation.
 #[derive(Error, Debug)]
@@ -45,21 +45,19 @@ pub struct Layout {
 impl Layout {
     /// Creates a layout without validation.
     /// Use `try_from` for safe construction.
-    #[must_use] 
+    #[must_use]
     pub fn new_unchecked(keys: Vec<KeyCode>) -> Self {
-        Self {
-            keys,
-        }
+        Self { keys }
     }
 
     /// Returns the number of keys in the layout.
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.keys.len()
     }
 
     /// Returns true if the layout has no keys.
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
@@ -78,8 +76,41 @@ impl TryFrom<Vec<KeyCode>> for Layout {
             }
         }
 
-        Ok(Self {
-            keys,
-        })
+        Ok(Self { keys })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_layout_validation() {
+        // Duplicates
+        let keys = vec![KeyCode(65), KeyCode(66), KeyCode(65)];
+        assert!(Layout::try_from(keys).is_err());
+
+        // Valid
+        let keys = vec![KeyCode(65), KeyCode(66), KeyCode(67)];
+        assert!(Layout::try_from(keys).is_ok());
+    }
+
+    proptest! {
+        #[test]
+        fn test_layout_uniqueness_invariant(keys in prop::collection::vec(0u16..100, 0..50)) {
+            let mut set = HashSet::new();
+            let has_dupes = keys.iter().any(|&k| !set.insert(k));
+
+            let key_codes: Vec<KeyCode> = keys.into_iter().map(KeyCode).collect();
+            let result = Layout::try_from(key_codes);
+
+            if has_dupes {
+                prop_assert!(result.is_err());
+            } else {
+                prop_assert!(result.is_ok());
+            }
+        }
     }
 }

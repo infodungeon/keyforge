@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::config::DEFAULT_SUBMISSION_EXPIRATION_SECS;
+use crate::error::{AppError, AppResult};
+use crate::infra::queue::PersistedRecord;
+use crate::state::AppState;
 use axum::{extract::State, Json};
 use keyforge_model::Validator;
 use keyforge_protocol::{ResultSubmission, PROTOCOL_VERSION};
 use std::sync::Arc;
-use crate::error::{AppError, AppResult};
-use crate::state::AppState;
-use crate::infra::queue::PersistedRecord;
-use crate::config::DEFAULT_SUBMISSION_EXPIRATION_SECS;
 
 /// VSA Feature: Submit Result
 /// Handles result verification, replay protection, and persistence.
@@ -59,11 +58,15 @@ async fn validate_submission(state: &AppState, payload: &ResultSubmission) -> Ap
 
     // Replay Protection (Task-hive-009: Use Valkey for distributed safety)
     #[allow(clippy::cast_possible_wrap)]
-    let is_new = state.coordinator.check_and_set_nonce(
-        &payload.node_id, 
-        payload.nonce, 
-        DEFAULT_SUBMISSION_EXPIRATION_SECS as i64
-    ).await.map_err(|e| AppError::Any(anyhow::anyhow!("Valkey Error: {e}")))?;
+    let is_new = state
+        .coordinator
+        .check_and_set_nonce(
+            &payload.node_id,
+            payload.nonce,
+            DEFAULT_SUBMISSION_EXPIRATION_SECS as i64,
+        )
+        .await
+        .map_err(|e| AppError::Any(anyhow::anyhow!("Valkey Error: {e}")))?;
 
     if !is_new {
         return Err(AppError::Validation("Replay detected".into()));

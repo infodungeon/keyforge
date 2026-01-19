@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::infra::queue::WriteQueue;
 use crate::infra::repositories::JobRepository;
 use std::sync::Arc;
@@ -31,10 +30,7 @@ pub struct JobManager {
 use crate::config::DEFAULT_QUEUE_CHANNEL_CAPACITY;
 
 impl JobManager {
-    pub fn new(
-        repo: JobRepository,
-        queue: Arc<WriteQueue>,
-    ) -> Self {
+    pub fn new(repo: JobRepository, queue: Arc<WriteQueue>) -> Self {
         Self {
             repo,
             queue,

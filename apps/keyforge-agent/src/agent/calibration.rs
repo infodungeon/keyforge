@@ -14,12 +14,12 @@
 
 use keyforge_core::ScoringEngine;
 use keyforge_infra::AssetManager;
-use keyforge_model::{Corpus, Keyboard, Layout, Rubric, KeyCode, CostModel};
 use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
-use serde::{Deserialize, Serialize};
 
 use crate::agent::errors::AgentError;
 
@@ -61,7 +61,11 @@ fn default_cost_model() -> CostModel {
 /// # Panics
 ///
 /// Panics if JSON serialization of calibration data fails (should never happen with valid data).
-pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
+pub async fn calibrate(
+    assets: &AssetManager,
+    data_root: &Path,
+    config: &crate::models::CalibrationConfig,
+) -> Result<f64, AgentError> {
     let cal_path = data_root.join("user/calibration.json");
 
     if cal_path.exists() {
@@ -76,12 +80,15 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
 
     info!("Starting hardware calibration...");
 
-    let kb_path = assets.ensure_keyboard("corne").await
+    let kb_path = assets
+        .ensure_keyboard("corne")
+        .await
         .map_err(|e| AgentError::Calibration(format!("Failed to fetch reference keyboard: {e}")))?;
 
-    let content = tokio::fs::read_to_string(&kb_path).await
+    let content = tokio::fs::read_to_string(&kb_path)
+        .await
         .map_err(|e| AgentError::Calibration(format!("Failed to read keyboard: {e}")))?;
-    
+
     let def: KeyboardDefinition = serde_json::from_str(&content)
         .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
 
@@ -97,17 +104,24 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
 
     let data = CalibrationData {
         ips,
-        timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     };
 
     if let Some(parent) = cal_path.parent() {
-        tokio::fs::create_dir_all(parent).await.map_err(|e| AgentError::Resource(e.to_string()))?;
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| AgentError::Resource(e.to_string()))?;
     }
 
     #[allow(clippy::unwrap_used)]
     let json = serde_json::to_string(&data).unwrap();
-    tokio::fs::write(&cal_path, json).await.map_err(|e| AgentError::Resource(e.to_string()))?;
+    tokio::fs::write(&cal_path, json)
+        .await
+        .map_err(|e| AgentError::Resource(e.to_string()))?;
 
     info!("Calibration complete: {:.2} kOPS", ips / 1000.0);
     Ok(ips)
@@ -115,12 +129,15 @@ pub async fn calibrate(assets: &AssetManager, data_root: &Path, config: &crate::
 
 #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 #[allow(clippy::needless_borrow)]
-fn run_benchmark(keyboard: &Keyboard, config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
+fn run_benchmark(
+    keyboard: &Keyboard,
+    config: &crate::models::CalibrationConfig,
+) -> Result<f64, AgentError> {
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
     let cost_model = default_cost_model();
-    
+
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
     let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
@@ -146,7 +163,7 @@ fn run_benchmark(keyboard: &Keyboard, config: &crate::models::CalibrationConfig)
     if elapsed == 0.0 {
         return Ok(0.0);
     }
-    
+
     Ok(iterations as f64 / elapsed)
 }
 
@@ -163,37 +180,23 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
         });
     }
     let keyboard = Keyboard::new(keys, 0).map_err(|e| AgentError::Calibration(e.to_string()))?;
-    
-    let key_count = keyboard.keys.len();
-    let corpus = Corpus::default();
-    let rubric = Rubric::default();
-    let cost_model = default_cost_model();
-    
-    let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
+    run_benchmark(&keyboard, config)
+}
 
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
-        .map_err(|e| AgentError::Calibration(e.to_string()))?;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::CalibrationConfig;
 
-    for _ in 0..config.warmup_iterations {
-        let _ = engine.score(&layout);
+    #[test]
+    fn test_performance_calibration() {
+        let config = CalibrationConfig {
+            key_count: 10,
+            warmup_iterations: 1,
+            duration_ms: 100,
+            batch_size: 10,
+        };
+        let ops = measure_performance(&config).unwrap();
+        assert!(ops > 0.0, "Calibration should report positive throughput");
     }
-
-    let start = Instant::now();
-    let duration = Duration::from_millis(config.duration_ms);
-    let mut iterations: u64 = 0;
-    let batch = config.batch_size;
-
-    while start.elapsed() < duration {
-        for _ in 0..batch {
-            let _ = engine.score(&layout);
-        }
-        iterations += batch as u64;
-    }
-
-    let elapsed = start.elapsed().as_secs_f64();
-    if elapsed == 0.0 {
-        return Ok(0.0);
-    }
-    
-    Ok(iterations as f64 / elapsed)
 }

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use keyforge_model::constants::{DEFAULT_HIVE_URL, DEFAULT_BENCHMARK_ITERATIONS, CONFIG_DIR_NAME};
+pub use keyforge_model::constants::{
+    CONFIG_DIR_NAME, DEFAULT_BENCHMARK_ITERATIONS, DEFAULT_HIVE_URL,
+};
 
 /// Default name for the data directory.
 pub const DEFAULT_DATA_DIR: &str = "data";

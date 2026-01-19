@@ -14,16 +14,16 @@
 
 use super::types::Score;
 use super::EngineContext;
-use keyforge_model::{Corpus, Keyboard, Rubric, CostModel};
 use crate::errors::PhysicsError;
+use keyforge_model::{Corpus, CostModel, Keyboard, Rubric};
 use std::sync::Arc;
 use tracing::{info, instrument};
 
 use super::stages;
-use stages::CompilationStage;
-use stages::geometry::GeometryStage;
-use stages::costs::CostStage;
 use stages::corpus::CorpusStage;
+use stages::costs::CostStage;
+use stages::geometry::GeometryStage;
+use stages::CompilationStage;
 
 pub struct Compiler;
 
@@ -45,7 +45,11 @@ impl Compiler {
         let geo_out = geo_stage.execute(Arc::new(kb.clone()))?;
 
         // Stage 2: Costs
-        let cost_stage = CostStage { kb, rubric, cost_model };
+        let cost_stage = CostStage {
+            kb,
+            rubric,
+            cost_model,
+        };
         let cost_out = cost_stage.execute(())?;
 
         // Stage 3: Corpus
@@ -54,13 +58,15 @@ impl Compiler {
 
         // Stage 4: Key Pre-computation (New for task-phys-011)
         let mut unique_keys_set = std::collections::HashSet::new();
-        
+
         // Collect from monograms
         for (i, &freq) in corpus_out.char_freqs.iter().enumerate() {
             #[allow(clippy::cast_possible_truncation)]
-            if freq > 0 { unique_keys_set.insert(i as u16); }
+            if freq > 0 {
+                unique_keys_set.insert(i as u16);
+            }
         }
-        
+
         // Collect from Bigrams
         for &(c1, c2, _) in &corpus.bigrams {
             unique_keys_set.insert(c1);
@@ -76,7 +82,7 @@ impl Compiler {
 
         let mut sorted_unique_keys: Vec<u16> = unique_keys_set.into_iter().collect();
         sorted_unique_keys.sort_unstable();
-        
+
         let mut key_rank_map = HashMap::with_capacity(sorted_unique_keys.len());
         for (rank, &key) in sorted_unique_keys.iter().enumerate() {
             key_rank_map.insert(key, rank);
@@ -131,5 +137,67 @@ impl Compiler {
             sorted_unique_keys,
             key_rank_map,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::{
+        types::{FingerIndex, HandIndex},
+        KeyNode,
+    };
+
+    #[test]
+    fn test_compiler_empty_corpus() {
+        let keys = vec![KeyNode {
+            index: 0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            ..Default::default()
+        }];
+        let kb = Keyboard::new(keys, 0).unwrap();
+        let corpus = Corpus::default();
+        let rubric = Rubric::default();
+
+        let mut cost_model: CostModel = serde_json::from_str(
+            r#"{
+            "meta": {"version": "1", "description": "test", "unit": "pts"},
+            "models": {},
+            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
+        }"#,
+        )
+        .unwrap();
+
+        cost_model.models.insert(
+            "model_a_row_staggered".into(),
+            keyforge_model::cost_model::ModelDefinition {
+                description: "test".into(),
+                static_costs: HashMap::new(),
+            },
+        );
+
+        let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
+        assert!(res.is_ok());
+        let ctx = res.unwrap();
+        assert_eq!(ctx.key_count, 1);
+        assert!(ctx.char_freqs.iter().all(|&f| f == 0));
+    }
+
+    #[test]
+    fn test_compiler_missing_cost_model() {
+        let kb = Keyboard::new(vec![KeyNode::default()], 0).unwrap();
+        let corpus = Corpus::default();
+        let cost_model: CostModel = serde_json::from_str(
+            r#"{
+            "meta": {"version": "1", "description": "test", "unit": "pts"},
+            "models": {},
+            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
+        }"#,
+        )
+        .unwrap();
+
+        let res = Compiler::compile(&kb, &corpus, &Rubric::default(), &cost_model);
+        assert!(res.is_err());
     }
 }

@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Filesystem-based asset provider for local development and testing.
-pub mod fs_provider;
-/// Logic for secure path resolution and asset location.
-pub mod resolver;
-/// High-level orchestration for fetching and ensuring asset presence.
-pub mod manager;
 /// Typed cache storage for asset objects.
 pub mod cache;
 /// Tiered caching provider for high-performance asset reads.
 pub mod caching_provider;
+/// Filesystem-based asset provider for local development and testing.
+pub mod fs_provider;
+/// High-level orchestration for fetching and ensuring asset presence.
+pub mod manager;
+/// Logic for secure path resolution and asset location.
+pub mod resolver;
 /// Distributed asset provider backed by an external data store (e.g., Valkey).
 pub mod valkey_provider;
 

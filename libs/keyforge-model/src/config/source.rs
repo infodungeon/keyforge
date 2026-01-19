@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use utoipa::ToSchema;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 /// Filename for the default Cost Matrix asset.
 pub const ASSET_COST_MATRIX: &str = "cost_matrix";
@@ -36,7 +36,10 @@ impl Validator for CorpusSource {
             return Err("Corpus ID cannot be empty".to_string());
         }
         if self.weight <= 0.0 || !self.weight.is_finite() {
-            return Err(format!("Invalid weight for corpus '{}': {}", self.id, self.weight));
+            return Err(format!(
+                "Invalid weight for corpus '{}': {}",
+                self.id, self.weight
+            ));
         }
         Ok(())
     }
@@ -100,7 +103,9 @@ pub enum CostMatrixSource {
 }
 
 impl Default for CostMatrixSource {
-    fn default() -> Self { CostMatrixSource::Predefined(ASSET_COST_MATRIX.to_string()) }
+    fn default() -> Self {
+        CostMatrixSource::Predefined(ASSET_COST_MATRIX.to_string())
+    }
 }
 
 impl fmt::Display for CostMatrixSource {
@@ -108,5 +113,45 @@ impl fmt::Display for CostMatrixSource {
         match self {
             CostMatrixSource::Predefined(s) => write!(f, "{s}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_corpus_source_validation() {
+        // 1. Valid
+        let valid = CorpusSource {
+            id: "en".into(),
+            weight: 1.0,
+            hash: None,
+        };
+        assert!(valid.validate().is_ok());
+
+        // 2. Empty ID
+        let empty_id = CorpusSource {
+            id: " ".into(),
+            weight: 1.0,
+            hash: None,
+        };
+        assert!(empty_id.validate().is_err());
+
+        // 3. Zero weight
+        let zero_weight = CorpusSource {
+            id: "en".into(),
+            weight: 0.0,
+            hash: None,
+        };
+        assert!(zero_weight.validate().is_err());
+
+        // 4. Negative weight
+        let neg_weight = CorpusSource {
+            id: "en".into(),
+            weight: -1.0,
+            hash: None,
+        };
+        assert!(neg_weight.validate().is_err());
     }
 }

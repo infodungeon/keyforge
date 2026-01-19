@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::DEFAULT_FMT_WIDTH;
 use clap::Args;
 use keyforge_infra::load_keycode_registry;
+use keyforge_model::constants::{ASSET_KEYCODES_FILENAME, MAX_KEYBOARD_KEYS};
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::KeyCode;
 use std::fmt::Write;
 use std::path::Path;
-use keyforge_model::constants::{ASSET_KEYCODES_FILENAME, MAX_KEYBOARD_KEYS};
-use crate::constants::DEFAULT_FMT_WIDTH;
 
 #[derive(Args, Debug, Clone)]
 pub struct FmtArgs {
@@ -37,10 +36,18 @@ pub fn run(args: &FmtArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>
         KeycodeRegistry::new_with_defaults()
     };
 
-    let layout = keyforge_adapter::conversion::parse_layout_string(&args.layout, MAX_KEYBOARD_KEYS, &registry)
-        .map_err(|e| format!("Failed to parse layout: {e}"))?;
+    let layout = keyforge_adapter::conversion::parse_layout_string(
+        &args.layout,
+        MAX_KEYBOARD_KEYS,
+        &registry,
+    )
+    .map_err(|e| format!("Failed to parse layout: {e}"))?;
 
-    let valid_codes: Vec<KeyCode> = layout.keys.into_iter().filter(|&c| c != KeyCode(0)).collect();
+    let valid_codes: Vec<KeyCode> = layout
+        .keys
+        .into_iter()
+        .filter(|&c| c != KeyCode(0))
+        .collect();
 
     if valid_codes.is_empty() {
         println!();

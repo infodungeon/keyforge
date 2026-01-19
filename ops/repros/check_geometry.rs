@@ -1,5 +1,5 @@
-use std::fs::File;
 use keyforge_model::geometry::KeyboardDefinition;
+use std::fs::File;
 use std::path::Path;
 
 fn main() {
@@ -16,10 +16,15 @@ fn main() {
     println!("Keyboard: {}", kb.meta.name);
     println!("Keys: {}", kb.geometry.keys.len());
     println!("Home Row: {}", kb.geometry.home_row);
-    println!("{:<3} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}", "Idx", "Label", "Finger", "Hand", "Row", "Col", "Home", "Pos");
+    println!(
+        "{:<3} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}",
+        "Idx", "Label", "Finger", "Hand", "Row", "Col", "Home", "Pos"
+    );
 
     for (i, key) in kb.geometry.keys.iter().enumerate() {
-        println!("{:<3} {:<8} {:<8?} {:<8?} {:<8} {:<8} {:<8} ({:.1}, {:.1})", 
-            i, key.label, key.finger, key.hand, key.row.0, key.col.0, key.is_home, key.x, key.y);
+        println!(
+            "{:<3} {:<8} {:<8?} {:<8?} {:<8} {:<8} {:<8} ({:.1}, {:.1})",
+            i, key.label, key.finger, key.hand, key.row.0, key.col.0, key.is_home, key.x, key.y
+        );
     }
 }

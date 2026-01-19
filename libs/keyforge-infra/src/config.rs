@@ -14,8 +14,8 @@
 
 use keyforge_model::constants::DEFAULT_FALLBACK_PATH;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
 use std::env;
+use std::path::{Path, PathBuf};
 
 /// Environment variable key for the data directory path.
 pub const ENV_DATA_DIR: &str = "KEYFORGE_DATA_DIR";
@@ -63,15 +63,25 @@ impl CommonConfig {
 
     /// Merges another config into this one, with the other config taking precedence.
     pub fn merge(&mut self, other: Self) {
-        if let Some(d) = other.data_dir { self.data_dir = Some(d); }
-        if let Some(h) = other.hive_url { self.hive_url = Some(h); }
-        if let Some(l) = other.logging_level { self.logging_level = Some(l); }
-        if let Some(c) = other.cores { self.cores = Some(c); }
+        if let Some(d) = other.data_dir {
+            self.data_dir = Some(d);
+        }
+        if let Some(h) = other.hive_url {
+            self.hive_url = Some(h);
+        }
+        if let Some(l) = other.logging_level {
+            self.logging_level = Some(l);
+        }
+        if let Some(c) = other.cores {
+            self.cores = Some(c);
+        }
     }
 
     /// Resolves the final data directory with fallback logic.
-    #[must_use] 
+    #[must_use]
     pub fn resolve_data_dir(&self) -> PathBuf {
-        self.data_dir.clone().unwrap_or_else(|| PathBuf::from(DEFAULT_FALLBACK_PATH))
+        self.data_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(DEFAULT_FALLBACK_PATH))
     }
 }

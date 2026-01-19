@@ -13,7 +13,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Idx {:2}: {}", i, k);
         }
     } else {
-        println!("colemak-dh not found in szr35. Available: {:?}", kb.layouts.keys());
+        println!(
+            "colemak-dh not found in szr35. Available: {:?}",
+            kb.layouts.keys()
+        );
     }
 
     Ok(())

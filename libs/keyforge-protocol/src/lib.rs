@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! # `KeyForge` Protocol
 //!
 //! The Wire Contract for the `KeyForge` system. This crate defines the Data Transfer Objects (DTOs)
@@ -27,6 +26,8 @@
 
 #![warn(missing_docs)]
 
+/// Asset management DTOs (Manifests, Samples).
+pub mod assets;
 pub(crate) mod error;
 /// Job management DTOs (Config, Request, Response).
 pub mod job;
@@ -34,23 +35,18 @@ pub mod job;
 pub mod node;
 /// System health and performance metrics DTOs.
 pub mod telemetry;
-/// Asset management DTOs (Manifests, Samples).
-pub mod assets;
 
 pub mod constants;
 pub mod serde_utils;
-
-#[cfg(test)]
-mod tests;
 
 pub use error::{ErrorCode, ErrorResponse};
 pub use keyforge_model as model;
 
 // Re-export EVERYTHING to maintain backward compatibility with crate public API
+pub use assets::{AssetManifestEntry, BiometricSample, PopulationResponse, UserStatsStore};
 pub use job::{JobConfig, JobQueueResponse, JobRequest, JobResponse, JobStatus, ResultSubmission};
 pub use node::{NodeRequest, NodeResponse, NodeTelemetry, TuningProfile};
 pub use telemetry::SystemMetrics;
-pub use assets::{AssetManifestEntry, BiometricSample, PopulationResponse, UserStatsStore};
 
 /// The current protocol version. Incremented on breaking changes.
 pub const PROTOCOL_VERSION: u32 = 2;
@@ -75,4 +71,42 @@ pub fn check_version_compatibility(client_version: u32, server_version: u32) -> 
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version_compatibility() {
+        assert!(check_version_compatibility(PROTOCOL_VERSION, PROTOCOL_VERSION).is_ok());
+        assert!(check_version_compatibility(0, PROTOCOL_VERSION).is_err());
+        assert!(check_version_compatibility(PROTOCOL_VERSION, 0).is_err());
+    }
+
+    #[test]
+    fn test_transport_security_policy() {
+        #[derive(serde::Deserialize, Debug)]
+        struct Wrapper {
+            #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
+            #[allow(dead_code)]
+            items: Vec<String>,
+        }
+
+        let malicious_json = format!(
+            "{{ \"items\": [{}] }}",
+            (0..100_001).map(|_| "\"x\"").collect::<Vec<_>>().join(",")
+        );
+        let result: Result<Wrapper, _> = serde_json::from_str(&malicious_json);
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("exceeds transport limit"));
+
+        let good_json = "{ \"items\": [\"a\", \"b\"] }";
+        let good_result: Result<Wrapper, _> = serde_json::from_str(good_json);
+        assert!(good_result.is_ok());
+    }
 }

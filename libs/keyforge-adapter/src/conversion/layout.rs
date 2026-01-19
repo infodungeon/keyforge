@@ -1,6 +1,6 @@
 use crate::error::{AdapterError, AdapterResult};
-use keyforge_model::{KeyCode, constants::MAX_LAYOUT_DATA_LEN};
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::{constants::MAX_LAYOUT_DATA_LEN, KeyCode};
 
 /// Strict layout-string parsing.
 ///
@@ -65,7 +65,7 @@ pub fn parse_layout_string_strict(
 ///
 /// - Unknown tokens are replaced with 0 (`KC_NO`).
 /// - Intended for UI/CLI convenience.
-#[must_use] 
+#[must_use]
 pub fn parse_layout_string_permissive(
     s: &str,
     size: usize,
@@ -122,4 +122,45 @@ pub fn parse_layout_string(
     registry: &KeycodeRegistry,
 ) -> AdapterResult<keyforge_model::Layout> {
     parse_layout_string_strict(s, size, registry)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::keycodes::KeycodeDefinition;
+
+    #[test]
+    fn test_parse_layout_string_strict() {
+        let mut registry = KeycodeRegistry::new_with_defaults();
+        registry.definitions.push(KeycodeDefinition {
+            code: KeyCode(10),
+            id: "KC_A".into(),
+            label: "A".into(),
+            aliases: vec!["A".into()],
+        });
+        registry.rebuild_maps();
+
+        let res = parse_layout_string_strict("A B", 2, &registry);
+        assert!(res.is_err(), "Strict should fail on unknown token 'B'");
+
+        let ok = parse_layout_string_strict("A", 2, &registry).unwrap();
+        assert_eq!(ok.keys[0], KeyCode(10));
+        assert_eq!(ok.keys[1], KeyCode(0)); // Padded
+    }
+
+    #[test]
+    fn test_parse_layout_string_permissive() {
+        let mut registry = KeycodeRegistry::new_with_defaults();
+        registry.definitions.push(KeycodeDefinition {
+            code: KeyCode(10),
+            id: "KC_A".into(),
+            label: "A".into(),
+            aliases: vec!["A".into()],
+        });
+        registry.rebuild_maps();
+
+        let layout = parse_layout_string_permissive("A B", 2, &registry);
+        assert_eq!(layout.keys[0], KeyCode(10));
+        assert_eq!(layout.keys[1], KeyCode(0)); // B unknown -> 0
+    }
 }

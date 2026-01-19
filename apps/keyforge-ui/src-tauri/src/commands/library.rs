@@ -1,14 +1,16 @@
 use crate::error::CommandError;
-use keyforge_infra::AssetLoader;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_export::{qmk::QmkExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::listing;
+use keyforge_infra::AssetLoader;
 use keyforge_infra::HiveClient;
-use keyforge_persistence::UserRepo;
+use keyforge_model::constants::{
+    DEFAULT_AUTHOR_NAME, DEFAULT_KEYBOARD_NAME, DEFAULT_KLE_NOTES, DEFAULT_VERSION,
+};
 use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
-use keyforge_model::constants::{DEFAULT_KEYBOARD_NAME, DEFAULT_AUTHOR_NAME, DEFAULT_VERSION, DEFAULT_KLE_NOTES};
+use keyforge_persistence::UserRepo;
 use std::collections::HashMap;
 use std::path::Path;
 use tauri::AppHandle;
@@ -111,15 +113,14 @@ pub async fn cmd_submit_user_layout(
 ) -> Result<String, CommandError> {
     // Assume assets are on port 3001 if hive is 3000
     let asset_url = hive_url.replace("3000", "3001");
-    
+
     let config = keyforge_infra::net::client::ClientConfig {
         api_url: hive_url,
         asset_url,
         secret: Some(hive_secret),
         ..Default::default()
     };
-    let client = HiveClient::new(config)
-        .map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
     let res = client
         .post("submissions")
         .json(&serde_json::json!({ "name": name, "layout": layout, "author": author }))
@@ -191,7 +192,7 @@ pub fn cmd_export_firmware(
         "via" => Box::new(keyforge_export::via::ViaExporter),
         _ => return Err(CommandError::Validation("Unsupported format.".into())),
     };
-    // For now, treat the entire string as a single layer. 
+    // For now, treat the entire string as a single layer.
     // Future expansion could involve splitting by a delimiter for multi-layer support.
     exporter
         .generate(layout_name, &[keys])
@@ -214,10 +215,37 @@ pub fn cmd_safe_write_file(path: &str, content: &str, overwrite: bool) -> Result
     if path.contains("..") {
         return Err(CommandError::Validation("Path traversal detected.".into()));
     }
-    
+
     if !overwrite && p.exists() {
         return Err(CommandError::Validation("File already exists".into()));
     }
 
     std::fs::write(path, content).map_err(CommandError::Io)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_safe_write_validation() {
+        let temp = tempdir().unwrap();
+        let root = temp.path();
+
+        // 1. Valid Write
+        let valid_path = root.join("layout.json");
+        let res = cmd_safe_write_file(valid_path.to_str().unwrap(), "{}", true);
+        assert!(res.is_ok(), "Valid JSON write should succeed");
+
+        // 2. Invalid Extension
+        let invalid_ext = root.join("script.sh");
+        let res = cmd_safe_write_file(invalid_ext.to_str().unwrap(), "echo hack", true);
+        assert!(res.is_err(), "Shell script write should fail");
+
+        // 3. Path Traversal
+        let traversal = root.join("../outside.json");
+        let res = cmd_safe_write_file(traversal.to_str().unwrap(), "{}", true);
+        assert!(res.is_err(), "Path traversal should fail");
+    }
 }

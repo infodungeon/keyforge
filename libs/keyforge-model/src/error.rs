@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Centralized error types for the domain.
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
@@ -91,13 +90,13 @@ pub enum PhysicsError {
 
     /// Matrix dimensions do not match expected values.
     #[error("Matrix dimension mismatch: expected {expected}, found {found}")]
-    DimensionMismatch { 
+    DimensionMismatch {
         /// Expected dimension size.
-        expected: usize, 
+        expected: usize,
         /// Actual dimension size found.
-        found: usize 
+        found: usize,
     },
-    
+
     /// Layout has more keys than the keyboard.
     #[error("Layout size {0} exceeds physical key count {1}")]
     LayoutOverflow(usize, usize),

@@ -14,8 +14,8 @@
 
 //! # `KeyForge` Core
 //!
-//! Pure orchestration and domain-agnostic helpers. This crate provides 
-//! the glue between physics and evolution without being tied to IO or 
+//! Pure orchestration and domain-agnostic helpers. This crate provides
+//! the glue between physics and evolution without being tied to IO or
 //! specific protocols.
 //!
 //! This crate is intentionally IO-free. It provides pure helper functions for:
@@ -27,11 +27,11 @@
 pub mod loader;
 /// High-level session management for optimization runs.
 pub mod session;
+pub use keyforge_evolution::{EvolutionError, ProgressCallback};
 pub use session::ScoringSession;
-pub use keyforge_evolution::{ProgressCallback, EvolutionError};
 
 pub use keyforge_physics::{
-    verify::DeterministicScorer, EngineRequest, LayoutIdentity, ScoringEngine, PhysicsError,
+    verify::DeterministicScorer, EngineRequest, LayoutIdentity, PhysicsError, ScoringEngine,
 };
 
 use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SwapSuggestion};
@@ -55,7 +55,10 @@ pub fn build_engine(req: &EngineRequest) -> Result<ScoringEngine, PhysicsError> 
 /// # Errors
 ///
 /// Returns `PhysicsError` if analysis fails.
-pub fn analyze_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
+pub fn analyze_with_engine(
+    engine: &ScoringEngine,
+    layout: &Layout,
+) -> Result<AnalysisReport, PhysicsError> {
     engine.analyze(layout)
 }
 
@@ -75,7 +78,10 @@ pub fn score_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<f32,
 /// # Errors
 ///
 /// Returns `PhysicsError` if suggestion logic fails.
-pub fn suggest_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<Vec<SwapSuggestion>, PhysicsError> {
+pub fn suggest_with_engine(
+    engine: &ScoringEngine,
+    layout: &Layout,
+) -> Result<Vec<SwapSuggestion>, PhysicsError> {
     Ok(engine.suggest_improvements(layout, false))
 }
 
@@ -111,7 +117,7 @@ pub fn suggest(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError>
 }
 
 /// Identify a layout fingerprint.
-#[must_use] 
+#[must_use]
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
     keyforge_physics::identify(layout)
 }
@@ -156,4 +162,57 @@ pub fn optimize_with_engine<CB: ProgressCallback>(
     pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>,
 ) -> Result<OptimizationResult, EvolutionError> {
     keyforge_evolution::evolve(engine, config, callback, initial_layout, pinned_keys)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode};
+    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
+
+    fn setup_minimal_req() -> EngineRequest {
+        let keys = vec![KeyNode {
+            index: 0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            ..Default::default()
+        }];
+        let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
+        let cp = Arc::new(Corpus::default());
+        let rb = Arc::new(Rubric::default());
+
+        let mut cost_model: CostModel = serde_json::from_str(
+            r#"{
+            "meta": {"version":"1", "description":"test", "unit":"pts"},
+            "models": {},
+            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
+        }"#,
+        )
+        .unwrap();
+
+        cost_model.models.insert(
+            "model_a_row_staggered".into(),
+            keyforge_model::cost_model::ModelDefinition {
+                description: "test".into(),
+                static_costs: std::collections::HashMap::new(),
+            },
+        );
+
+        EngineRequest {
+            keyboard: kb,
+            corpus: cp,
+            rubric: rb,
+            cost_model: Arc::new(cost_model),
+            config: keyforge_model::SearchConfig::default(),
+            initial_layout: Some(Layout::new_unchecked(vec![KeyCode(0)])),
+            pinned_keys: vec![],
+        }
+    }
+
+    #[test]
+    fn test_build_engine_success() {
+        let req = setup_minimal_req();
+        let engine = build_engine(&req).unwrap();
+        assert_eq!(engine.key_count(), 1);
+    }
 }

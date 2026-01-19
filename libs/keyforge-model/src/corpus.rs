@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Text corpus data structures and validation.
 //!
 //! A `Corpus` provides the statistical foundation for layout optimization,
 //! including character, bigram, and trigram frequencies.
 
-use crate::error::ForgeError;
-use serde::{Deserialize, Serialize};
-use crate::validator::Validator;
 use crate::asset::{Asset, AssetCategory};
+use crate::error::ForgeError;
+use crate::validator::Validator;
+use serde::{Deserialize, Serialize};
 
 /// Represents the statistical data of a language or text source.
 /// Contains frequency data for characters, bigrams, and trigrams.
@@ -81,7 +80,7 @@ impl Corpus {
 
         // 2. Bigrams/Trigrams
         // Since u16 indices are always < 65536, they are safe indices into char_freqs.
-        
+
         Ok(())
     }
 
@@ -90,7 +89,11 @@ impl Corpus {
         // 1. Merge character frequencies
         for (i, &freq) in other.char_freqs.iter().enumerate() {
             if i < self.char_freqs.len() {
-                #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                #[allow(
+                    clippy::cast_precision_loss,
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss
+                )]
                 let merged_freq = (freq as f32 * weight).round() as u64;
                 self.char_freqs[i] += merged_freq;
             }
@@ -98,36 +101,133 @@ impl Corpus {
 
         // 2. Merge bigrams
         for &(c1, c2, freq) in &other.bigrams {
-            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            #[allow(
+                clippy::cast_precision_loss,
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss
+            )]
             let merged_freq = (freq as f32 * weight).round() as u32;
             self.bigrams.push((c1, c2, merged_freq));
         }
 
         // 3. Merge trigrams
         for &(c1, c2, c3, freq) in &other.trigrams {
-            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            #[allow(
+                clippy::cast_precision_loss,
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss
+            )]
             let merged_freq = (freq as f32 * weight).round() as u32;
             self.trigrams.push((c1, c2, c3, merged_freq));
         }
 
         // 4. Merge words
         for (word, freq) in &other.words {
-            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            #[allow(
+                clippy::cast_precision_loss,
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss
+            )]
             let merged_freq = (*freq as f32 * weight).round() as u32;
             self.words.push((word.clone(), merged_freq));
         }
 
         // Keep bigrams/trigrams sorted for the engine
-        self.bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-        self.trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+        self.bigrams
+            .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        self.trigrams
+            .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
     }
 
-    // Internal helper to keep the ForgeError return type for existing callers
-    ///
-    /// # Errors
-    ///
     /// Returns a `ForgeError` if the corpus state is invalid.
     fn validate_internal(&self) -> Result<(), ForgeError> {
         self.validate()
+    }
+}
+
+#[cfg(test)]
+
+mod tests {
+
+    use super::*;
+
+    #[test]
+
+    fn test_corpus_lifecycle() {
+        // 1. Default Construction
+
+        let mut c = Corpus::default();
+
+        assert_eq!(
+            c.char_freqs.len(),
+            65536,
+            "Corpus should initialize full unicode frequency map"
+        );
+
+        assert!(c.bigrams.is_empty());
+
+        assert!(c.trigrams.is_empty());
+
+        assert!(c.words.is_empty());
+
+        // 2. Mutation
+
+        c.char_freqs['a' as usize] = 100;
+
+        c.bigrams.push(('a' as u16, 'b' as u16, 50));
+
+        c.trigrams.push(('a' as u16, 'b' as u16, 'c' as u16, 10));
+
+        c.words.push(("test".to_string(), 5));
+
+        // 3. Serialization Round-trip
+
+        let json = serde_json::to_string(&c).expect("Failed to serialize Corpus");
+
+        let recovered: Corpus = serde_json::from_str(&json).expect("Failed to deserialize Corpus");
+
+        // 4. Verification
+
+        assert_eq!(recovered.char_freqs['a' as usize], 100);
+
+        assert_eq!(recovered.bigrams.len(), 1);
+
+        assert_eq!(recovered.bigrams[0], ('a' as u16, 'b' as u16, 50));
+
+        assert_eq!(recovered.trigrams.len(), 1);
+
+        assert_eq!(recovered.words.len(), 1);
+
+        assert_eq!(recovered.words[0].0, "test");
+    }
+
+    #[test]
+
+    fn test_corpus_validation() {
+        let mut c = Corpus::default();
+
+        assert!(c.validate().is_ok());
+
+        // Too short
+
+        c.char_freqs = vec![0; 10];
+
+        assert!(c.validate().is_err());
+
+        // Too long
+
+        c.char_freqs = vec![0; 70000];
+
+        assert!(c.validate().is_err());
+
+        // Valid mutation
+
+        let mut c2 = Corpus::default();
+
+        c2.char_freqs['a' as usize] = 100;
+
+        c2.bigrams.push(('a' as u16, 'b' as u16, 50));
+
+        assert!(c2.validate().is_ok());
     }
 }

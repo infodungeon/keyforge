@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::asset::{ASSET_PATH_CORPORA, ASSET_PATH_KEYBOARDS, ASSET_PATH_KEYMAP_EXTRAS, ASSET_PATH_WEIGHTS};
+use crate::asset::{
+    ASSET_PATH_CORPORA, ASSET_PATH_KEYBOARDS, ASSET_PATH_KEYMAP_EXTRAS, ASSET_PATH_WEIGHTS,
+};
 use crate::error::{InfraError, InfraResult};
 use std::collections::HashSet;
 use std::fs;
@@ -27,8 +29,6 @@ fn scan_dir(
     results: &mut HashSet<String>,
 ) -> InfraResult<()> {
     let target = root.join(sub_path);
-    // eprintln!("DEBUG: Scanning {:?} for extension '{}'", target, extension);
-    
     if !target.exists() {
         return Ok(());
     }
@@ -48,11 +48,7 @@ fn scan_dir(
             let stem = filename
                 .strip_suffix(&format!(".{extension}"))
                 .unwrap_or(filename);
-            
-            // NOTE: Previous logic arbitrarily stripped ".mpk" here. 
-            // We now rely on consistent naming. If "foo.mpk.zst" is scanned with ext "zst",
-            // stem is "foo.mpk". If scanned with "mpk.zst", stem is "foo".
-            // To maintain compatibility with "mpk" files being the Stem Identity, if the result ends in .mpk, we strip it.
+
             let final_stem = stem.strip_suffix(".mpk").unwrap_or(stem);
             results.insert(final_stem.to_string());
         }
@@ -62,16 +58,16 @@ fn scan_dir(
 
 /// Discovers all available keyboard definitions in both the system library and user workspace.
 ///
-/// Returns a sorted list of unique keyboard identifiers (file stems).
-///
 /// # Errors
-///
-/// Returns `InfraError` if directory reading fails.
+/// Returns `InfraError` if directory scanning fails.
 pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
-    // System: Binary Only - Updated to new structure
-    scan_dir(root, &format!("system/{ASSET_PATH_KEYBOARDS}"), "mpk.zst", &mut names)?;
-    // User: Support JSON for development/customization
+    scan_dir(
+        root,
+        &format!("system/{ASSET_PATH_KEYBOARDS}"),
+        "mpk.zst",
+        &mut names,
+    )?;
     scan_dir(root, "user/keyboards", "json", &mut names)?;
 
     let mut sorted: Vec<String> = names.into_iter().collect();
@@ -81,11 +77,7 @@ pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
 
 /// Discovers all available corpora by searching for directory-based bundles.
 ///
-/// A corpus is considered present if it contains a `1grams` anchor file.
-/// Returns a sorted list of unique corpus identifiers.
-///
 /// # Errors
-///
 /// Returns `InfraError` if directory scanning fails.
 pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     let mut ids = HashSet::new();
@@ -98,8 +90,8 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
 
         let walker = walkdir::WalkDir::new(&base)
             .min_depth(1)
-            .max_depth(3) // Extra depth for category/id
-            .follow_links(true); // Follow symlinks
+            .max_depth(3)
+            .follow_links(true);
 
         for entry in walker.into_iter().filter_map(std::result::Result::ok) {
             if entry.path_is_symlink() {
@@ -107,7 +99,6 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
             }
             let p = entry.path();
 
-            // Check for the anchor file (1grams) in either binary or json format
             if p.file_name().and_then(|s| s.to_str()) == Some(&format!("1grams.{ext}")) {
                 if let Some(parent) = p.parent() {
                     if let Ok(relative) = parent.strip_prefix(&base) {
@@ -125,15 +116,19 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
     sorted.sort();
     Ok(sorted)
 }
+
 /// Lists all available cost matrices (effort models).
 ///
 /// # Errors
-///
 /// Returns `InfraError` if directory scanning fails.
 pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
-    // System: Weights are now in system/weights
-    scan_dir(root, &format!("system/{ASSET_PATH_WEIGHTS}"), "mpk.zst", &mut names)?;
+    scan_dir(
+        root,
+        &format!("system/{ASSET_PATH_WEIGHTS}"),
+        "mpk.zst",
+        &mut names,
+    )?;
     scan_dir(root, "user/weights", "json", &mut names)?;
 
     let mut sorted: Vec<String> = names.into_iter().collect();
@@ -141,17 +136,37 @@ pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     Ok(sorted)
 }
 
-
 /// Lists available keymap extras (e.g., custom symbols or macros).
 ///
 /// # Errors
-///
 /// Returns `InfraError` if directory scanning fails.
 pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
-    scan_dir(root, &format!("system/{ASSET_PATH_KEYMAP_EXTRAS}"), "mpk.zst", &mut names)?;
+    scan_dir(
+        root,
+        &format!("system/{ASSET_PATH_KEYMAP_EXTRAS}"),
+        "mpk.zst",
+        &mut names,
+    )?;
     scan_dir(root, "user/keymap_extras", "json", &mut names)?;
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();
     Ok(sorted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_listing_filters() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        fs::create_dir_all(root.join("system/keyboards/models")).unwrap();
+        fs::write(root.join("system/keyboards/models/test.mpk.zst"), "").unwrap();
+
+        let list = list_keyboards(root).unwrap();
+        assert!(list.contains(&"test".to_string()));
+    }
 }

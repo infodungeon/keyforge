@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::DEFAULT_DEBUG_OUTPUT;
 use clap::{Args, Subcommand};
+use keyforge_core::loader::AssetLoader;
 use keyforge_export::viz::physics::generate_physics_svg;
 use keyforge_infra::FsProvider;
-use keyforge_core::loader::AssetLoader;
 use keyforge_model::KeyboardDefinition;
 use std::fs;
 use std::path::PathBuf;
-use crate::constants::DEFAULT_DEBUG_OUTPUT;
 
 #[derive(Args, Debug, Clone)]
 pub struct DebugArgs {
@@ -46,18 +45,20 @@ pub async fn run(args: DebugArgs, loader: &FsProvider) -> Result<(), Box<dyn std
 
             if let Some(parent) = output.parent() {
                 if !parent.as_os_str().is_empty() && !parent.exists() {
-                    return Err(format!("Output directory does not exist: {}", parent.display()).into());
+                    return Err(
+                        format!("Output directory does not exist: {}", parent.display()).into(),
+                    );
                 }
             }
 
-            let def = loader.load::<KeyboardDefinition>(&keyboard).await
+            let def = loader
+                .load::<KeyboardDefinition>(&keyboard)
+                .await
                 .map_err(|e| format!("Failed to load keyboard '{keyboard}': {e}"))?;
 
-            
             let svg_content = generate_physics_svg(&def.geometry);
             fs::write(&output, svg_content).map_err(|e| format!("Failed to write SVG: {e}"))?;
             eprintln!("✅ Physics visualization saved to {}", output.display());
-            
         }
     }
     Ok(())

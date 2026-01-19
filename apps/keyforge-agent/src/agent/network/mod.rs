@@ -1,5 +1,5 @@
 pub mod breaker;
-pub mod outbox;
 pub mod manager;
+pub mod outbox;
 
 pub use manager::NetworkManager;

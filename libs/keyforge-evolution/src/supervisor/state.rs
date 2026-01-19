@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_model::Layout;
 use super::traits::MutationAction;
 use crate::errors::EvolutionError;
+use keyforge_model::Layout;
 
 #[derive(Debug, Clone)]
 pub struct SearchState {
     current_layout: Layout,
     pub current_score: i64,
-    pos_map: Vec<u16>, 
+    pos_map: Vec<u16>,
 
     best_layout: Layout,
     pub best_score: i64,
@@ -29,6 +29,10 @@ pub struct SearchState {
 }
 
 impl SearchState {
+    /// Creates a new `SearchState` from an initial layout and score.
+    ///
+    /// # Errors
+    /// Returns `EvolutionError::Config` if the layout key count exceeds the internal u16 limit.
     #[allow(clippy::cast_possible_truncation)]
     pub fn new(layout: Layout, score: i64, start_temp: f32) -> Result<Self, EvolutionError> {
         // INVARIANT: Key count must fit in u16 to use 65535 as sentinel
@@ -58,14 +62,20 @@ impl SearchState {
         })
     }
 
+    /// Returns the current layout under evaluation.
+    #[must_use]
     pub fn layout(&self) -> &Layout {
         &self.current_layout
     }
 
+    /// Returns the current position map.
+    #[must_use]
     pub fn pos_map(&self) -> &[u16] {
         &self.pos_map
     }
 
+    /// Returns the best layout found so far in the search.
+    #[must_use]
     pub fn best_layout(&self) -> &Layout {
         &self.best_layout
     }
@@ -83,14 +93,18 @@ impl SearchState {
                 self.current_layout.keys.swap(idx_a, idx_b);
                 let code_a = self.current_layout.keys[idx_a];
                 let code_b = self.current_layout.keys[idx_b];
-                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0; }
-                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0; }
+                if (code_a.0 as usize) < self.pos_map.len() {
+                    self.pos_map[code_a.0 as usize] = a.0;
+                }
+                if (code_b.0 as usize) < self.pos_map.len() {
+                    self.pos_map[code_b.0 as usize] = b.0;
+                }
             }
             MutationAction::GroupSwap(a, b, c) => {
                 let idx_a = usize::from(a);
                 let idx_b = usize::from(b);
                 let idx_c = usize::from(c);
-                
+
                 // A -> B, B -> C, C -> A
                 let temp = self.current_layout.keys[idx_c];
                 self.current_layout.keys[idx_c] = self.current_layout.keys[idx_b];
@@ -101,9 +115,15 @@ impl SearchState {
                 let code_b = self.current_layout.keys[idx_b];
                 let code_c = self.current_layout.keys[idx_c];
 
-                if (code_a.0 as usize) < self.pos_map.len() { self.pos_map[code_a.0 as usize] = a.0; }
-                if (code_b.0 as usize) < self.pos_map.len() { self.pos_map[code_b.0 as usize] = b.0; }
-                if (code_c.0 as usize) < self.pos_map.len() { self.pos_map[code_c.0 as usize] = c.0; }
+                if (code_a.0 as usize) < self.pos_map.len() {
+                    self.pos_map[code_a.0 as usize] = a.0;
+                }
+                if (code_b.0 as usize) < self.pos_map.len() {
+                    self.pos_map[code_b.0 as usize] = b.0;
+                }
+                if (code_c.0 as usize) < self.pos_map.len() {
+                    self.pos_map[code_c.0 as usize] = c.0;
+                }
             }
         }
     }
@@ -121,5 +141,36 @@ impl SearchState {
                 self.pos_map[code.0 as usize] = i as u16;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::types::{KeyCode, KeyIndex};
+
+    #[test]
+    fn test_search_state_mutation_swap() {
+        let layout = Layout::new_unchecked(vec![KeyCode(10), KeyCode(20)]);
+        let mut state = SearchState::new(layout, 100, 1.0).unwrap();
+
+        state.apply_mutation(MutationAction::Swap(KeyIndex(0), KeyIndex(1)));
+
+        assert_eq!(state.layout().keys[0], KeyCode(20));
+        assert_eq!(state.layout().keys[1], KeyCode(10));
+        assert_eq!(state.pos_map()[20], 0);
+        assert_eq!(state.pos_map()[10], 1);
+    }
+
+    #[test]
+    fn test_reheat_logic() {
+        let layout = Layout::new_unchecked(vec![KeyCode(10)]);
+        let mut state = SearchState::new(layout, 100, 0.1).unwrap();
+        state.best_score = 50; // Manual override for test
+
+        state.reheat_from_best(1.0, 0.5);
+
+        assert_eq!(state.temperature, 0.5);
+        assert_eq!(state.current_score, 50);
     }
 }

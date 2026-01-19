@@ -1,9 +1,9 @@
 // apps/keyforge-agent/src/models.rs
 
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
-use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 
 pub use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile};
 
@@ -17,7 +17,12 @@ pub struct CalibrationConfig {
 
 impl Default for CalibrationConfig {
     fn default() -> Self {
-        Self { key_count: 30, warmup_iterations: 100, duration_ms: 1000, batch_size: 100 }
+        Self {
+            key_count: 30,
+            warmup_iterations: 100,
+            duration_ms: 1000,
+            batch_size: 100,
+        }
     }
 }
 
@@ -61,7 +66,12 @@ pub struct ComputeConfig {
 
 impl Default for ComputeConfig {
     fn default() -> Self {
-        Self { max_corpora_sources: 50, job_timeout_sec: 3600, keycodes_file: "keycodes".to_string(), default_search_seed: 42 }
+        Self {
+            max_corpora_sources: 50,
+            job_timeout_sec: 3600,
+            keycodes_file: "keycodes".to_string(),
+            default_search_seed: 42,
+        }
     }
 }
 
@@ -71,7 +81,11 @@ pub struct TelemetryConfig {
 }
 
 impl Default for TelemetryConfig {
-    fn default() -> Self { Self { progress_log_sampling_rate: 100 } }
+    fn default() -> Self {
+        Self {
+            progress_log_sampling_rate: 100,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +94,11 @@ pub struct LoggingConfig {
 }
 
 impl Default for LoggingConfig {
-    fn default() -> Self { Self { default_filter: "info,keyforge_agent=debug".to_string() } }
+    fn default() -> Self {
+        Self {
+            default_filter: "info,keyforge_agent=debug".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,37 +197,92 @@ impl PartialAgentConfig {
     pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, String> {
         let path = path.as_ref();
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-             if ext == "zst" || path.to_string_lossy().ends_with(".mpk.zst") {
-                 let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-                 let decoder = zstd::Decoder::new(file).map_err(|e| e.to_string())?;
-                 return rmp_serde::from_read(decoder).map_err(|e| e.to_string());
-             }
+            if ext == "zst" || path.to_string_lossy().ends_with(".mpk.zst") {
+                let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+                let decoder = zstd::Decoder::new(file).map_err(|e| e.to_string())?;
+                return rmp_serde::from_read(decoder).map_err(|e| e.to_string());
+            }
         }
         let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
         if path.extension().and_then(|s| s.to_str()) == Some("toml") {
-             toml::from_str(&content).map_err(|e| e.to_string())
+            toml::from_str(&content).map_err(|e| e.to_string())
         } else {
-             serde_json::from_str(&content).map_err(|e| e.to_string())
+            serde_json::from_str(&content).map_err(|e| e.to_string())
         }
     }
 }
 
 impl AgentConfig {
     pub fn merge(&mut self, partial: PartialAgentConfig) {
-        if let Some(v) = partial.hive_url { self.hive_url = v; }
-        if let Some(v) = partial.asset_url { self.asset_url = v; }
-        if let Some(v) = partial.node_id { self.node_id = v; }
-        if let Some(v) = partial.secret { self.secret = v; }
-        if let Some(v) = partial.private_key { self.private_key = v; }
-        if let Some(v) = partial.data_dir { self.data_dir = v; }
-        if let Some(v) = partial.cores { self.cores = v; }
-        if let Some(v) = partial.calibration { self.calibration = v; }
-        if let Some(v) = partial.network { self.network = v; }
-        if let Some(v) = partial.maintenance { self.maintenance = v; }
-        if let Some(v) = partial.compute { self.compute = v; }
-        if let Some(v) = partial.telemetry { self.telemetry = v; }
-        if let Some(v) = partial.logging { self.logging = v; }
-        if let Some(v) = partial.system { self.system = v; }
+        if let Some(v) = partial.hive_url {
+            self.hive_url = v;
+        }
+        if let Some(v) = partial.asset_url {
+            self.asset_url = v;
+        }
+        if let Some(v) = partial.node_id {
+            self.node_id = v;
+        }
+        if let Some(v) = partial.secret {
+            self.secret = v;
+        }
+        if let Some(v) = partial.private_key {
+            self.private_key = v;
+        }
+        if let Some(v) = partial.data_dir {
+            self.data_dir = v;
+        }
+        if let Some(v) = partial.cores {
+            self.cores = v;
+        }
+        if let Some(v) = partial.calibration {
+            self.calibration = v;
+        }
+        if let Some(v) = partial.network {
+            self.network = v;
+        }
+        if let Some(v) = partial.maintenance {
+            self.maintenance = v;
+        }
+        if let Some(v) = partial.compute {
+            self.compute = v;
+        }
+        if let Some(v) = partial.telemetry {
+            self.telemetry = v;
+        }
+        if let Some(v) = partial.logging {
+            self.logging = v;
+        }
+        if let Some(v) = partial.system {
+            self.system = v;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_merging() {
+        let mut base = AgentConfig::default();
+
+        let partial = PartialAgentConfig {
+            hive_url: Some("http://file-config.com".to_string()),
+            cores: Some(8),
+            calibration: Some(CalibrationConfig {
+                key_count: 50,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        base.merge(partial);
+
+        assert_eq!(base.hive_url, "http://file-config.com");
+        assert_eq!(base.cores, 8);
+        assert_eq!(base.calibration.key_count, 50);
+        assert_eq!(base.network.timeout_seconds, 30);
     }
 }
 
@@ -238,7 +311,8 @@ impl AgentTelemetry {
     pub fn update(&self, ips: f32, temp: f32, best_score: f32) {
         self.ips.store(ips.to_bits(), Ordering::Relaxed);
         self.temp.store(temp.to_bits(), Ordering::Relaxed);
-        self.best_score.store(best_score.to_bits(), Ordering::Relaxed);
+        self.best_score
+            .store(best_score.to_bits(), Ordering::Relaxed);
     }
     pub fn set_job_id(&self, id: &str) {
         if let Ok(mut lock) = self.current_job_id.write() {
@@ -246,7 +320,9 @@ impl AgentTelemetry {
         }
     }
     pub fn get_job_id(&self) -> String {
-        self.current_job_id.read().map_or_else(|_| "unknown".to_string(), |s| s.clone())
+        self.current_job_id
+            .read()
+            .map_or_else(|_| "unknown".to_string(), |s| s.clone())
     }
     pub fn snapshot(&self) -> (f32, f32, f32) {
         (

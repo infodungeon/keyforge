@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::state::AppState;
 use axum::{
-    extract::{ws::Message, ws::WebSocket, State, WebSocketUpgrade, Query},
+    extract::{ws::Message, ws::WebSocket, Query, State, WebSocketUpgrade},
     response::IntoResponse,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
+use keyforge_protocol::constants::{WS_MSG_CANCEL, WS_MSG_JOB};
+use keyforge_protocol::NodeTelemetry;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::time::interval;
-use tracing::{debug, info, warn, error};
-use keyforge_protocol::constants::{WS_MSG_JOB, WS_MSG_CANCEL};
-use keyforge_protocol::NodeTelemetry;
-use std::collections::HashMap;
+use tracing::{debug, error, info, warn};
 
 use crate::constants::{DEFAULT_NODE_ID, WS_HEARTBEAT_INTERVAL_SECS, WS_LIVENESS_TIMEOUT_SECS};
 
@@ -45,20 +44,28 @@ pub async fn handler(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let node_id = params.get("node_id").cloned().unwrap_or_else(|| DEFAULT_NODE_ID.to_string());
+    let node_id = params
+        .get("node_id")
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_NODE_ID.to_string());
     ws.on_upgrade(move |socket| handle_socket(socket, state, node_id))
 }
 
 /// Orchestrates the WebSocket lifecycle, managing outbound broadcasts and inbound telemetry.
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>, node_id: String) {
     let (mut sender, mut receiver) = socket.split();
-    
+
     // Subscribe to the internal broadcast bus (Process-Local)
     let mut rx = state.tx.subscribe();
     info!(" Worker connected via WebSocket: {}", node_id);
 
     // Task 1: Outbound Loop (Broadcasts & Heartbeats)
-    let config_heartbeat = state.config.network.timeout_seconds.checked_div(2).unwrap_or(WS_HEARTBEAT_INTERVAL_SECS);
+    let config_heartbeat = state
+        .config
+        .network
+        .timeout_seconds
+        .checked_div(2)
+        .unwrap_or(WS_HEARTBEAT_INTERVAL_SECS);
     let send_task = tokio::spawn(async move {
         let mut heartbeat = interval(Duration::from_secs(config_heartbeat));
 
@@ -104,7 +111,12 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, node_id: String)
     });
 
     // Task 2: Inbound Loop (Telemetry & Liveness)
-    let config_timeout = state.config.network.timeout_seconds.checked_mul(2).unwrap_or(WS_LIVENESS_TIMEOUT_SECS);
+    let config_timeout = state
+        .config
+        .network
+        .timeout_seconds
+        .checked_mul(2)
+        .unwrap_or(WS_LIVENESS_TIMEOUT_SECS);
     loop {
         // Enforce a timeout on inbound activity
         match tokio::time::timeout(Duration::from_secs(config_timeout), receiver.next()).await {
@@ -115,11 +127,18 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, node_id: String)
                 Message::Text(text) => {
                     // Process Node Telemetry
                     if let Ok(telemetry) = serde_json::from_str::<NodeTelemetry>(&text) {
-                        debug!("📊 Telemetry [{}]: IPS={:.1}, Temp={:.2}", node_id, telemetry.ips, telemetry.temp);
-                        
+                        debug!(
+                            "📊 Telemetry [{}]: IPS={:.1}, Temp={:.2}",
+                            node_id, telemetry.ips, telemetry.temp
+                        );
+
                         // Persist to Coordination Layer (Valkey)
-                        if let Err(e) = state.coordinator.update_heartbeat(&node_id, &telemetry).await {
-                             warn!("Failed to update heartbeat for {}: {}", node_id, e);
+                        if let Err(e) = state
+                            .coordinator
+                            .update_heartbeat(&node_id, &telemetry)
+                            .await
+                        {
+                            warn!("Failed to update heartbeat for {}: {}", node_id, e);
                         }
                     }
                 }

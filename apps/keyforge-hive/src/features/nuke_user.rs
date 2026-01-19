@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::constants::NUKE_CONFIRMATION_KEY;
+use crate::error::{AppError, AppResult};
+use crate::infra::repositories::audit::AuditLog;
+use crate::state::AppState;
 use axum::{extract::State, Json};
 use serde::Deserialize;
 use std::sync::Arc;
-use utoipa::ToSchema;
 use tracing::warn;
-use crate::error::{AppError, AppResult};
-use crate::state::AppState;
-use crate::infra::repositories::audit::AuditLog;
-use crate::constants::NUKE_CONFIRMATION_KEY;
+use utoipa::ToSchema;
 
 /// Request payload for permanently deleting all user data.
 #[derive(Deserialize, ToSchema)]

@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::biometrics::BiometricProfiler;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_core::ScoringSession;
 use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::{Corpus, Rubric, SearchConfig, CostModel};
-use keyforge_protocol::BiometricSample;
+use keyforge_model::{Corpus, CostModel, Rubric, SearchConfig};
 use keyforge_physics::ScoringEngine;
-use std::sync::Arc;
+use keyforge_protocol::BiometricSample;
 use std::fmt;
-use crate::biometrics::BiometricProfiler;
+use std::sync::Arc;
 
 /// Builder for constructing a `ScoringSession` (Runtime).
 pub struct SessionBuilder<'a, L: AssetLoader> {
@@ -73,8 +73,8 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         self.keyboard = Some(self.loader.load::<KeyboardDefinition>(name).await?);
         Ok(self)
     }
-    
-    #[must_use] 
+
+    #[must_use]
     pub fn with_keyboard_def(mut self, def: Arc<KeyboardDefinition>) -> Self {
         self.keyboard = Some(def);
         self
@@ -89,8 +89,8 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         self.corpus = Some(self.loader.load_corpus(sources).await?);
         Ok(self)
     }
-    
-    #[must_use] 
+
+    #[must_use]
     pub fn with_corpus_obj(mut self, corpus: Arc<Corpus>) -> Self {
         self.corpus = Some(corpus);
         self
@@ -109,8 +109,8 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         }
         Ok(self)
     }
-    
-    #[must_use] 
+
+    #[must_use]
     pub fn with_cost_model_obj(mut self, model: Arc<CostModel>) -> Self {
         self.cost_model = Some(model);
         self
@@ -126,19 +126,19 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         Ok(self)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_rubric(mut self, rubric: Rubric) -> Self {
         self.rubric = Some(Arc::new(rubric));
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_config(mut self, config: SearchConfig) -> Self {
         self.search_config = Some(config);
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_biometrics(mut self, samples: Vec<BiometricSample>) -> Self {
         self.biometrics = samples;
         self
@@ -150,11 +150,20 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
     ///
     /// Returns `LoaderResult` if some required assets are missing or invalid.
     pub fn build(self) -> LoaderResult<ScoringSession> {
-        let kb_def = self.keyboard.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing keyboard".into()))?;
-        let corpus = self.corpus.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing corpus".into()))?;
+        let kb_def = self
+            .keyboard
+            .ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing keyboard".into()))?;
+        let corpus = self
+            .corpus
+            .ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing corpus".into()))?;
         let rubric = self.rubric.unwrap_or_else(|| Arc::new(Rubric::default()));
-        let mut cost_model = (*self.cost_model.ok_or_else(|| keyforge_model::error::ForgeError::Config("Missing cost model".into()))?).clone();
-        let registry = self.registry.unwrap_or_else(|| Arc::new(KeycodeRegistry::default()));
+        let mut cost_model = (*self.cost_model.ok_or_else(|| {
+            keyforge_model::error::ForgeError::Config("Missing cost model".into())
+        })?)
+        .clone();
+        let registry = self
+            .registry
+            .unwrap_or_else(|| Arc::new(KeycodeRegistry::default()));
         let config = self.search_config.unwrap_or_default();
 
         // Task-ui-024: Apply biometric profiling if available
@@ -163,10 +172,10 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         }
 
         // Create Keyboard from Definition (using home_row from geometry)
-        let keyboard = Arc::new(keyforge_model::Keyboard::new(
-            kb_def.geometry.keys.clone(),
-            kb_def.geometry.home_row,
-        ).map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?);
+        let keyboard = Arc::new(
+            keyforge_model::Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row)
+                .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?,
+        );
 
         let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)?;
 

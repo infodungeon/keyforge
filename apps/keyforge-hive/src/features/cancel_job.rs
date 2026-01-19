@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::constants::LOG_JOB_ID_TRUNCATION;
+use crate::error::AppResult;
+use crate::state::AppState;
 use axum::extract::{Path, State};
 use std::sync::Arc;
 use tracing::info;
-use crate::error::AppResult;
-use crate::state::AppState;
-use crate::constants::LOG_JOB_ID_TRUNCATION;
 
 /// VSA Feature: Cancel Job
 /// Terminates a job and notifies active workers.

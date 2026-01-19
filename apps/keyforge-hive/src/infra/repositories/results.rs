@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use sqlx::{Pool, Postgres, QueryBuilder, Row};
 
 /// Repository for managing optimization results and population samples.
 #[derive(Clone, Debug)]
 pub struct ResultRepository {
-
     pool: Pool<Postgres>,
     max_population: usize,
 }
 
 impl ResultRepository {
     /// Creates a new `ResultRepository` with the given database pool.
-    #[must_use] 
+    #[must_use]
     pub fn new(pool: Pool<Postgres>, max_population: usize) -> Self {
-        Self { pool, max_population }
+        Self {
+            pool,
+            max_population,
+        }
     }
 
     /// Retrieves the top 50 layouts for a given job ID.
@@ -161,13 +162,18 @@ use crate::infra::queue::{BatchSink, PersistedRecord};
 #[async_trait::async_trait]
 impl BatchSink for ResultRepository {
     async fn save_batch(&self, records: Vec<PersistedRecord>) -> Result<(), String> {
-        let items: Vec<(&str, &str, f32, &str)> = records.iter().map(|r| (
-            r.job_id.as_str(),
-            r.node_id.as_str(),
-            r.score,
-            r.layout.as_str()
-        )).collect();
-        
+        let items: Vec<(&str, &str, f32, &str)> = records
+            .iter()
+            .map(|r| {
+                (
+                    r.job_id.as_str(),
+                    r.node_id.as_str(),
+                    r.score,
+                    r.layout.as_str(),
+                )
+            })
+            .collect();
+
         self.insert_batch(&items).await.map_err(|e| e.to_string())
     }
 }

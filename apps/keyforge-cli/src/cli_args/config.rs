@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clap::Args;
-use keyforge_model::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
 use keyforge_model::config::definitions::LayoutDefinitionsConfig;
 use keyforge_model::config::search::SearchParamsConfig;
 use keyforge_model::config::weights::ScoringWeightsConfig;
+use keyforge_model::config::{Config, LayoutDefinitions, ScoringWeights, SearchParams};
 
 /// Top-level configuration arguments combining search, weights, and definitions.
 #[derive(Args, Debug, Clone)]
@@ -30,19 +29,17 @@ pub struct ConfigArgs {
     pub defs: LayoutDefinitionsConfig,
 }
 
-use keyforge_model::Validator;
 use std::convert::TryFrom;
 
 impl TryFrom<ConfigArgs> for Config {
     type Error = String;
     fn try_from(args: ConfigArgs) -> Result<Self, Self::Error> {
-        let config = Self {
+        let config = Config {
             search: SearchParams::try_from(args.search)?,
             weights: ScoringWeights::try_from(args.weights)?,
             defs: LayoutDefinitions::try_from(args.defs)?,
+            pinned_keys: vec![], // Handled via CLI shared args
         };
-        config.search.validate()?;
-        config.weights.validate()?;
         Ok(config)
     }
 }

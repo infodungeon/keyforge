@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Security and cryptographic primitives for the `KeyForge` workspace.
 //!
 //! This crate provides wrappers for sensitive data (using zeroization),
 //! utilities for Ed25519 digital signatures, and secure random nonce generation.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use keyforge_model::constants::SCORE_SCALE;
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use keyforge_model::constants::SCORE_SCALE;
 
 /// Errors that can occur during security operations.
 #[derive(Error, Debug)]
@@ -51,18 +50,20 @@ pub struct SecretBytes(Vec<u8>);
 
 impl std::fmt::Debug for SecretBytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("SecretBytes").field(&"***REDACTED***").finish()
+        f.debug_tuple("SecretBytes")
+            .field(&"***REDACTED***")
+            .finish()
     }
 }
 
 impl SecretBytes {
     /// Wraps a vector of bytes in a `SecretBytes` container.
-    #[must_use] 
+    #[must_use]
     pub fn new(data: Vec<u8>) -> Self {
         Self(data)
     }
     /// Returns a reference to the protected byte slice.
-    #[must_use] 
+    #[must_use]
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
@@ -76,18 +77,20 @@ pub struct SecretString(String);
 
 impl std::fmt::Debug for SecretString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("SecretString").field(&"***REDACTED***").finish()
+        f.debug_tuple("SecretString")
+            .field(&"***REDACTED***")
+            .finish()
     }
 }
 
 impl SecretString {
     /// Wraps a string in a `SecretString` container.
-    #[must_use] 
+    #[must_use]
     pub fn new(s: String) -> Self {
         Self(s)
     }
     /// Returns a reference to the protected string slice.
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -96,7 +99,7 @@ impl SecretString {
 /// Generates a new Ed25519 keypair and returns them as hex-encoded strings.
 ///
 /// Returns a tuple of `(signing_key_hex, verifying_key_hex)`.
-#[must_use] 
+#[must_use]
 pub fn generate_keypair() -> (String, String) {
     let mut csprng = OsRng;
     let signing_key = SigningKey::generate(&mut csprng);
@@ -154,7 +157,7 @@ pub fn sign_result(
     let mut key_buf = [0u8; 32];
     hex::decode_to_slice(secret_hex, &mut key_buf)
         .map_err(|_| SecurityError::Encoding("Invalid secret key hex".into()))?;
-    
+
     let signing_key = SigningKey::from_bytes(&key_buf);
     key_buf.zeroize();
 
@@ -234,7 +237,7 @@ pub fn verify_result(
 /// Generates a cryptographically secure random 64-bit nonce.
 ///
 /// Used to prevent replay attacks in signed messages.
-#[must_use] 
+#[must_use]
 pub fn generate_nonce() -> u64 {
     use rand::RngCore;
     OsRng.next_u64()
@@ -279,7 +282,10 @@ mod tests {
         let spaced_sig = format!(" {} ", sig);
 
         let valid = verify_result(&spaced_public, "job", "layout", 1.0, 0, 0, &spaced_sig).unwrap();
-        assert!(valid, "Public key and signature whitespace should be trimmed");
+        assert!(
+            valid,
+            "Public key and signature whitespace should be trimmed"
+        );
     }
 
     #[test]

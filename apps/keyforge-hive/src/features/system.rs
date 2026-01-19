@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::error::{AppError, AppResult};
+use crate::state::AppState;
 use axum::{extract::State, routing::get, Json, Router};
-use keyforge_model::{Config, KeyboardDefinition};
-use keyforge_model::config::ParameterMetadata;
 use keyforge_core::loader::AssetLoader;
+use keyforge_model::config::ParameterMetadata;
+use keyforge_model::{Config, KeyboardDefinition};
 use serde::Serialize;
 use std::sync::Arc;
 use utoipa::ToSchema;
-use crate::error::{AppError, AppResult};
-use crate::state::AppState;
 
 /// Response payload for system health and status checks.
 #[derive(Serialize, ToSchema)]
@@ -66,7 +65,10 @@ pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<Status
     };
 
     let queue_depth = state.queue.current_depth();
-    let assets = if state.assets_healthy.load(std::sync::atomic::Ordering::Relaxed) {
+    let assets = if state
+        .assets_healthy
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         "ok".to_string()
     } else {
         "degraded".to_string()
@@ -93,10 +95,14 @@ pub async fn get_keyboard(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> AppResult<Json<KeyboardDefinition>> {
-    let kb = state.assets.load::<KeyboardDefinition>(&name).await.map_err(|e| {
-        tracing::error!("Failed to load keyboard {}: {}", name, e);
-        AppError::NotFound
-    })?;
+    let kb = state
+        .assets
+        .load::<KeyboardDefinition>(&name)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to load keyboard {}: {}", name, e);
+            AppError::NotFound
+        })?;
     Ok(Json(kb.as_ref().clone()))
 }
 

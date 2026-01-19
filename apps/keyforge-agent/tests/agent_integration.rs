@@ -4,7 +4,6 @@
 //! lifecycle, from workspace bootstrap to job execution, ensuring correct asset loading,
 //! corpus merging, and result serialization across hermetic test environments.
 
-
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
 use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
 use keyforge_model::CostMatrixSource;

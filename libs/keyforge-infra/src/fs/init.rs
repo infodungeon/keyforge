@@ -74,7 +74,7 @@ pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<()> {
     }
 
     validate_system_assets(root)?;
-    
+
     info!("Workspace validation successful.");
     Ok(())
 }
@@ -113,4 +113,30 @@ pub fn validate_system_assets(root: &Path) -> InfraResult<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_init_workspace_creates_dirs() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("new_workspace");
+
+        let sys_root = root.join("system");
+        fs::create_dir_all(sys_root.join("config")).unwrap();
+        fs::create_dir_all(sys_root.join("weights")).unwrap();
+        fs::create_dir_all(sys_root.join("corpora/text/en_std")).unwrap();
+
+        fs::write(sys_root.join("config/keycodes.json"), "").unwrap();
+        fs::write(sys_root.join("weights/cost_matrix.json"), "").unwrap();
+        fs::write(sys_root.join("corpora/text/en_std/1grams.json"), "").unwrap();
+
+        initialize_workspace(&root, InitMode::Create).unwrap();
+
+        assert!(root.join("system/config").exists());
+        assert!(root.join("user/keyboards").exists());
+        assert!(root.join("user/agent_wal").exists());
+    }
 }

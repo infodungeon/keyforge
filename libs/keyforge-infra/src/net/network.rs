@@ -46,7 +46,10 @@ pub async fn ensure_file(
             // Check for sidecar hash file to avoid re-reading large files
             let sidecar_path = local_path.with_extension(format!(
                 "{}.sha256",
-                local_path.extension().and_then(|s| s.to_str()).unwrap_or("")
+                local_path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
             ));
 
             let mut trusted = false;
@@ -55,7 +58,9 @@ pub async fn ensure_file(
                     tokio::fs::metadata(local_path).await,
                     tokio::fs::metadata(&sidecar_path).await,
                 ) {
-                    if let (Ok(mtime_data), Ok(mtime_side)) = (meta_data.modified(), meta_side.modified()) {
+                    if let (Ok(mtime_data), Ok(mtime_side)) =
+                        (meta_data.modified(), meta_side.modified())
+                    {
                         // If sidecar is newer than data, and contains the expected hash, we trust it.
                         if mtime_side > mtime_data {
                             if let Ok(content) = tokio::fs::read_to_string(&sidecar_path).await {
@@ -73,14 +78,18 @@ pub async fn ensure_file(
             }
 
             // Fallback: Full content verification
-            let file = tokio::fs::File::open(local_path).await.map_err(InfraError::Io)?;
+            let file = tokio::fs::File::open(local_path)
+                .await
+                .map_err(InfraError::Io)?;
             let mut reader = tokio::io::BufReader::new(file);
             let mut hasher = Sha256::new();
             let mut buffer = [0u8; 8192];
 
             loop {
                 let n = reader.read(&mut buffer).await.map_err(InfraError::Io)?;
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
                 hasher.update(&buffer[..n]);
             }
 
@@ -122,7 +131,9 @@ pub async fn ensure_file(
             match res.error_for_status() {
                 Ok(_) => {
                     // This shouldn't happen because we checked is_success
-                    return Err(backoff::Error::permanent(InfraError::Config("Unknown status error".into())));
+                    return Err(backoff::Error::permanent(InfraError::Config(
+                        "Unknown status error".into(),
+                    )));
                 }
                 Err(err) => {
                     if status.is_server_error() {
@@ -179,9 +190,7 @@ pub async fn ensure_file(
         if total_bytes > MAX_INPUT_FILE_SIZE {
             return Err(InfraError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!(
-                    "Download exceeded size limit of {MAX_INPUT_FILE_SIZE} bytes"
-                ),
+                format!("Download exceeded size limit of {MAX_INPUT_FILE_SIZE} bytes"),
             )));
         }
 
@@ -209,10 +218,13 @@ pub async fn ensure_file(
     if expected_hash.is_some() {
         let sidecar_path = local_path.with_extension(format!(
             "{}.sha256",
-            local_path.extension().and_then(|s| s.to_str()).unwrap_or("")
+            local_path
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
         ));
         if let Err(e) = tokio::fs::write(&sidecar_path, calculated).await {
-             warn!("Failed to write sidecar hash: {}", e);
+            warn!("Failed to write sidecar hash: {}", e);
         }
     }
 

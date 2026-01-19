@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::{DEFAULT_PERSONAL_COST_PATH, DEFAULT_USER_STATS_PATH};
 use clap::Args;
 use keyforge_protocol::BiometricSample;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use crate::constants::{DEFAULT_USER_STATS_PATH, DEFAULT_PERSONAL_COST_PATH};
 
 #[derive(Args, Debug, Clone)]
 pub struct ProfileArgs {
@@ -50,7 +49,9 @@ pub fn run(args: &ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
         if l.trim().is_empty() {
             continue;
         }
-        if let Ok(s) = serde_json::from_str::<BiometricSample>(&l) { samples.push(s) } else {
+        if let Ok(s) = serde_json::from_str::<BiometricSample>(&l) {
+            samples.push(s)
+        } else {
             // If it looks like it might be a JSON array, or if it just failed to parse as a single sample,
             // try parsing the whole file as a legacy UserStatsStore.
             if error_count == 0 {

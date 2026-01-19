@@ -3,8 +3,8 @@
 // apps/keyforge-agent/tests/calibration_integration.rs
 
 use keyforge_agent::agent::calibration;
-use keyforge_infra::{AssetManager, HiveClient};
 use keyforge_infra::net::client::ClientConfig;
+use keyforge_infra::{AssetManager, HiveClient};
 use std::fs;
 use tempfile::tempdir;
 
@@ -12,11 +12,11 @@ use tempfile::tempdir;
 async fn test_calibration_lifecycle() {
     let dir = tempdir().unwrap();
     let data_root = dir.path().to_path_buf();
-    
+
     // 1. Setup Mock Environment
     let user_kb_dir = data_root.join("user/keyboards");
     fs::create_dir_all(&user_kb_dir).unwrap();
-    
+
     // Create dummy Corne definition
     let corne_json = r#"{
         "meta": { "name": "corne", "author": "foostan", "version": "1", "type": "split" },
@@ -37,19 +37,31 @@ async fn test_calibration_lifecycle() {
 
     // 2. Run Calibration (First Run)
     let cal_config = keyforge_agent::models::CalibrationConfig::default();
-    let ips = calibration::calibrate(&assets, &data_root, &cal_config).await.expect("Calibration failed");
+    let ips = calibration::calibrate(&assets, &data_root, &cal_config)
+        .await
+        .expect("Calibration failed");
     assert!(ips > 0.0, "IPS should be positive");
 
     // 3. Verify Persistence
     let cal_file = data_root.join("user/calibration.json");
     assert!(cal_file.exists(), "Calibration file not created");
-    
+
     let content = fs::read_to_string(&cal_file).unwrap();
     assert!(content.contains("ips"), "Invalid calibration file format");
 
     // 4. Run Calibration (Second Run - Should be fast/cached)
     let start = std::time::Instant::now();
-    let ips2 = calibration::calibrate(&assets, &data_root, &cal_config).await.expect("Calibration 2 failed");
-    assert!(start.elapsed().as_millis() < 100, "Should have used cached value");
-    assert!((ips - ips2).abs() < 1e-6, "Cached value mismatch: {} vs {}", ips, ips2);
+    let ips2 = calibration::calibrate(&assets, &data_root, &cal_config)
+        .await
+        .expect("Calibration 2 failed");
+    assert!(
+        start.elapsed().as_millis() < 100,
+        "Should have used cached value"
+    );
+    assert!(
+        (ips - ips2).abs() < 1e-6,
+        "Cached value mismatch: {} vs {}",
+        ips,
+        ips2
+    );
 }

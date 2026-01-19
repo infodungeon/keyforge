@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::constants::MAX_CLI_CORPORA;
 use keyforge_model::config::CorpusSource;
+use keyforge_model::constants::{MAX_FILENAME_LEN, MAX_KEYBOARD_NAME_LEN};
 use keyforge_model::KeyConstraint;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use keyforge_model::constants::{MAX_KEYBOARD_NAME_LEN, MAX_FILENAME_LEN};
-use crate::constants::MAX_CLI_CORPORA;
 
 pub fn parse_key_constraint(s: &str) -> Result<KeyConstraint, String> {
     KeyConstraint::from_str(s)
@@ -70,7 +69,7 @@ pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<Pa
             return Ok(found);
         }
     }
-    
+
     Err(format!(
         "Could not resolve path '{input}'. Checked absolute, CWD, and workspace '{subdir:?}' overlays."
     ))
@@ -78,7 +77,9 @@ pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<Pa
 
 pub fn parse_keyboard(s: &str) -> Result<String, String> {
     if s.len() > MAX_KEYBOARD_NAME_LEN {
-        return Err(format!("keyboard name must be <= {MAX_KEYBOARD_NAME_LEN} chars"));
+        return Err(format!(
+            "keyboard name must be <= {MAX_KEYBOARD_NAME_LEN} chars"
+        ));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -89,7 +90,9 @@ pub fn parse_keyboard(s: &str) -> Result<String, String> {
 
 pub fn parse_cost(s: &str) -> Result<String, String> {
     if s.len() > MAX_FILENAME_LEN {
-        return Err(format!("cost matrix filename must be <= {MAX_FILENAME_LEN} chars"));
+        return Err(format!(
+            "cost matrix filename must be <= {MAX_FILENAME_LEN} chars"
+        ));
     }
     let s = s.trim();
     if s.is_empty() {
@@ -100,7 +103,26 @@ pub fn parse_cost(s: &str) -> Result<String, String> {
 
 pub fn parse_corpora(args: &[String]) -> Result<Vec<CorpusSource>, String> {
     if args.len() > MAX_CLI_CORPORA {
-        return Err(format!("Too many corpora sources (limit {MAX_CLI_CORPORA})"));
+        return Err(format!(
+            "Too many corpora sources (limit {MAX_CLI_CORPORA})"
+        ));
     }
     args.iter().map(|s| CorpusSource::from_str(s)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_keyboard() {
+        assert_eq!(parse_keyboard("  corne  ").unwrap(), "corne");
+        assert!(parse_keyboard("").is_err());
+    }
+
+    #[test]
+    fn test_parse_cost() {
+        assert_eq!(parse_cost("weights.json").unwrap(), "weights.json");
+        assert!(parse_cost("").is_err());
+    }
 }

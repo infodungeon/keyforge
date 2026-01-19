@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use axum::{extract::State, Json};
 use keyforge_model::{CostMatrixSource, JobIdentifier, Validator};
 use keyforge_protocol::{JobRequest, JobResponse, PROTOCOL_VERSION};
 use std::sync::Arc;
 use tracing::{info, warn};
 
+use crate::constants::{DEFAULT_JOB_PRIORITY, LOG_JOB_ID_TRUNCATION};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-use crate::constants::{DEFAULT_JOB_PRIORITY, LOG_JOB_ID_TRUNCATION};
 
 #[utoipa::path(
     post,
@@ -43,7 +42,10 @@ pub async fn handle(
 }
 
 /// Orchestrates the job registration flow: validation, asset resolution, and database persistence.
-async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> AppResult<JobResponse> {
+async fn process_job_registration(
+    state: &AppState,
+    mut payload: JobRequest,
+) -> AppResult<JobResponse> {
     validate_request(&payload)?;
     resolve_assets(state, &mut payload).await?;
     let job_id = generate_job_id(&payload)?;
@@ -51,7 +53,13 @@ async fn process_job_registration(state: &AppState, mut payload: JobRequest) -> 
     let is_new = state
         .jobs
         .repo
-        .register(&job_id, &payload, None, payload.config.parent_job_id.clone(), DEFAULT_JOB_PRIORITY)
+        .register(
+            &job_id,
+            &payload,
+            None,
+            payload.config.parent_job_id.clone(),
+            DEFAULT_JOB_PRIORITY,
+        )
         .await
         .map_err(AppError::Database)?;
 
@@ -97,7 +105,8 @@ async fn resolve_assets(state: &AppState, payload: &mut JobRequest) -> AppResult
 
 /// Generates a deterministic job ID based on the job configuration.
 fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
-    let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&payload.config.corpora);
+    let corpora_fingerprint =
+        keyforge_infra::util::common::calculate_fingerprint(&payload.config.corpora);
 
     let id = JobIdentifier::try_from_parts(
         &payload.config.definition.geometry,
@@ -108,7 +117,7 @@ fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
         &payload.config.cost_matrix,
     )
     .map_err(|e| AppError::Validation(format!("job id generation failed: {e}")))?;
-    
+
     Ok(id.hash)
 }
 
@@ -116,7 +125,10 @@ fn generate_job_id(payload: &JobRequest) -> AppResult<String> {
 fn emit_registration_events(state: &AppState, job_id: &str) {
     let _ = state.tx.send(format!("JOB:{job_id}"));
     state.jobs.signal.notify_waiters();
-    info!("🆕 (VSA/Humble/ROP) Registered Job: {}", &job_id[0..LOG_JOB_ID_TRUNCATION]);
+    info!(
+        "🆕 (VSA/Humble/ROP) Registered Job: {}",
+        &job_id[0..LOG_JOB_ID_TRUNCATION]
+    );
 }
 
 /// Performs security-related validation on input paths and IDs.

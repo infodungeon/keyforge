@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Keyboard Layout Editor (KLE) integration.
 //!
-//! This module provides functions for importing and exporting 
+//! This module provides functions for importing and exporting
 //! keyboard geometries in the KLE JSON format.
 
 use super::{KeyNode, KeyboardGeometry};
@@ -31,18 +30,22 @@ use std::error::Error;
 /// Returns an error if the JSON is malformed or doesn't match the expected schema.
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
     let keyboard: KleKeyboard = serde_json::from_str(content)?;
-    
+
     // Pass 1: Collect X coordinates for clustering
     #[allow(clippy::cast_possible_truncation)]
-    let mut x_coords: Vec<f32> = keyboard.keys.iter().map(|k| k.x as f32 + (k.width as f32 / 2.0)).collect();
+    let mut x_coords: Vec<f32> = keyboard
+        .keys
+        .iter()
+        .map(|k| k.x as f32 + (k.width as f32 / 2.0))
+        .collect();
     x_coords.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    
+
     // Determine split point using largest gap if enough keys exist
     let split_x = if x_coords.len() > 2 {
         let mut max_gap = 0.0;
         let mut split = 10.0; // Fallback
-        for i in 0..x_coords.len()-1 {
-            let gap = x_coords[i+1] - x_coords[i];
+        for i in 0..x_coords.len() - 1 {
+            let gap = x_coords[i + 1] - x_coords[i];
             if gap > max_gap {
                 max_gap = gap;
                 split = x_coords[i] + (gap / 2.0);
@@ -64,16 +67,29 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
         let center_x = key.x + (key.width / 2.0);
         // Dynamic hand assignment
         #[allow(clippy::cast_possible_truncation)]
-        let hand = if center_x as f32 > split_x { HandIndex::RIGHT } else { HandIndex::LEFT };
+        let hand = if center_x as f32 > split_x {
+            HandIndex::RIGHT
+        } else {
+            HandIndex::LEFT
+        };
         let finger = FingerIndex::INDEX;
 
-        let label = key.legends.iter().flatten().find(|l| !l.text.is_empty())
-            .map_or("", |l| l.text.as_str()).to_string();
+        let label = key
+            .legends
+            .iter()
+            .flatten()
+            .find(|l| !l.text.is_empty())
+            .map_or("", |l| l.text.as_str())
+            .to_string();
 
         #[allow(clippy::cast_possible_truncation)]
         let node = KeyNode {
             index: current_id,
-            label: if label.is_empty() { format!("k{current_id}") } else { label },
+            label: if label.is_empty() {
+                format!("k{current_id}")
+            } else {
+                label
+            },
             hand,
             finger,
             row: RowIndex(key.y.round() as i8),
@@ -93,9 +109,13 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
 
     let total = keys.len();
     #[allow(clippy::cast_possible_truncation)]
-    let prime_slots = (0..std::cmp::min(8, total)).map(|i| KeyIndex(i as u16)).collect();
+    let prime_slots = (0..std::cmp::min(8, total))
+        .map(|i| KeyIndex(i as u16))
+        .collect();
     #[allow(clippy::cast_possible_truncation)]
-    let med_slots = (8..std::cmp::min(20, total)).map(|i| KeyIndex(i as u16)).collect();
+    let med_slots = (8..std::cmp::min(20, total))
+        .map(|i| KeyIndex(i as u16))
+        .collect();
     #[allow(clippy::cast_possible_truncation)]
     let low_slots = (20..total).map(|i| KeyIndex(i as u16)).collect();
 

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::cache::CompiledEngineCache;
 use crate::config::{AppConfig, DEFAULT_BROADCAST_CAPACITY, DEFAULT_MONITOR_INTERVAL_SECS};
 use crate::infra::queue::WriteQueue;
@@ -78,7 +77,12 @@ impl AppState {
     ///
     /// Panics if the connection to the Coordination Layer (Valkey) fails.
     #[allow(clippy::expect_used)]
-    pub async fn new(db: Pool<Postgres>, data_path: PathBuf, server_key: String, config: AppConfig) -> Self {
+    pub async fn new(
+        db: Pool<Postgres>,
+        data_path: PathBuf,
+        server_key: String,
+        config: AppConfig,
+    ) -> Self {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());
         let results = ResultRepository::new(db.clone(), config.population_limit);
@@ -93,7 +97,7 @@ impl AppState {
         );
 
         let assets = Arc::new(ValkeyProvider::new(coordinator.clone()));
-        
+
         let config_arc = Arc::new(config.clone());
 
         let queue = Arc::new(WriteQueue::new(
@@ -103,14 +107,16 @@ impl AppState {
         ));
 
         let (tx, _) = broadcast::channel(DEFAULT_BROADCAST_CAPACITY);
-        
+
         // HIVE_SECRET is now enforced by AppConfig
         let security = Arc::new(SecurityContext::new(Some(config.hive_secret), server_key));
-        
+
         let monitor = Arc::new(SystemMonitor::new());
 
         // Task-hive-014: Optimized background refresh
-        monitor.clone().start_background_refresh(DEFAULT_MONITOR_INTERVAL_SECS);
+        monitor
+            .clone()
+            .start_background_refresh(DEFAULT_MONITOR_INTERVAL_SECS);
 
         let jobs = Arc::new(JobManager::new(job_repo.clone(), queue.clone()));
         let engine_cache = Arc::new(CompiledEngineCache::new());

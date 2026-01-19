@@ -19,6 +19,6 @@ pub use aggregate::Config;
 pub use constraints::KeyConstraint;
 pub use definitions::LayoutDefinitions;
 pub use metadata::{ParamType, ParameterMetadata};
-pub use search::SearchParams;
+pub use search::{SearchConfig, SearchParams};
 pub use source::{CorpusSource, CostMatrixSource};
 pub use weights::ScoringWeights;

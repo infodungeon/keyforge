@@ -11,15 +11,27 @@ use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use serde_json::json;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower::ServiceExt;
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::testcontainers::ContainerAsync;
+use tower::ServiceExt;
 
-async fn setup_test_app() -> (axum::Router, Arc<AppState>, sqlx::PgPool, tempfile::TempDir, ContainerAsync<Redis>) {
+async fn setup_test_app() -> (
+    axum::Router,
+    Arc<AppState>,
+    sqlx::PgPool,
+    tempfile::TempDir,
+    ContainerAsync<Redis>,
+) {
     // 1. Start Valkey (Redis) Container
-    let valkey_node = Redis::default().start().await.expect("Failed to start Valkey");
-    let valkey_port = valkey_node.get_host_port_ipv4(6379).await.expect("Failed to get port");
+    let valkey_node = Redis::default()
+        .start()
+        .await
+        .expect("Failed to start Valkey");
+    let valkey_port = valkey_node
+        .get_host_port_ipv4(6379)
+        .await
+        .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
@@ -37,12 +49,15 @@ async fn setup_test_app() -> (axum::Router, Arc<AppState>, sqlx::PgPool, tempfil
     config.valkey_url = valkey_url;
     config.hive_secret = "test_secret".to_string();
 
-    let state = Arc::new(AppState::new(
-        pool.clone(),
-        data_path.clone(),
-        "test_key".to_string(),
-        config.clone()
-    ).await);
+    let state = Arc::new(
+        AppState::new(
+            pool.clone(),
+            data_path.clone(),
+            "test_key".to_string(),
+            config.clone(),
+        )
+        .await,
+    );
     let app = create_app(state.clone(), &config, data_path);
 
     (app, state, pool, temp_dir, valkey_node)
@@ -63,7 +78,9 @@ async fn test_api_user_nuke_unauthorized() {
                 .uri("/user/nuke")
                 .header("Content-Type", "application/json")
                 .extension(ConnectInfo(test_addr()))
-                .body(Body::from(json!({"username": "foo", "confirmation": "bar"}).to_string()))
+                .body(Body::from(
+                    json!({"username": "foo", "confirmation": "bar"}).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -84,7 +101,9 @@ async fn test_api_user_nuke_invalid_confirmation() {
                 .header("Content-Type", "application/json")
                 .header("X-Keyforge-Secret", "test_secret")
                 .extension(ConnectInfo(test_addr()))
-                .body(Body::from(json!({"username": "foo", "confirmation": "WRONG"}).to_string()))
+                .body(Body::from(
+                    json!({"username": "foo", "confirmation": "WRONG"}).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -108,7 +127,9 @@ async fn test_api_user_nuke_success() {
                 .header("Content-Type", "application/json")
                 .header("X-Keyforge-Secret", "test_secret")
                 .extension(ConnectInfo(test_addr()))
-                .body(Body::from(json!({"username": username, "confirmation": "DELETE_EVERYTHING"}).to_string()))
+                .body(Body::from(
+                    json!({"username": username, "confirmation": "DELETE_EVERYTHING"}).to_string(),
+                ))
                 .unwrap(),
         )
         .await

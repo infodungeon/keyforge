@@ -6,9 +6,9 @@
 
 mod common;
 use keyforge_testing::HermeticWorkspace;
-use std::process::Command;
-use std::fs;
 use serde_json::Value;
+use std::fs;
+use std::process::Command;
 
 #[test]
 fn test_init_workspace() {
@@ -30,10 +30,10 @@ fn test_init_workspace() {
 fn test_list_assets() {
     let ctx = HermeticWorkspace::new();
     let bin = common::get_binary_path();
-    
+
     let kb_dir = ctx.data_root.join("user/keyboards");
     fs::create_dir_all(&kb_dir).unwrap();
-    
+
     let json = r#"{
         "meta": { "name": "Test Board", "author": "Unit Test", "version": "1", "type": "ortho" },
         "geometry": { 
@@ -62,12 +62,15 @@ fn test_list_assets() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     println!("STDOUT:\n{}", stdout);
     println!("STDERR:\n{}", stderr);
 
     assert!(output.status.success(), "Command failed: {}", stderr);
-    assert!(stdout.contains("test_kb"), "Output did not contain 'test_kb'");
+    assert!(
+        stdout.contains("test_kb"),
+        "Output did not contain 'test_kb'"
+    );
 }
 
 #[test]
@@ -79,26 +82,35 @@ fn test_validate_output() {
         .env("KEYFORGE_DATA_DIR", &ctx.data_root)
         .args([
             "validate",
-            "--keyboard", "test_kb",
-            "--cost", "cost.json",
-            "--corpus", "test_corpus",
-            "--keycodes", "keycodes.json",
-            "--layout", "default",
+            "--keyboard",
+            "test_kb",
+            "--cost",
+            "cost.json",
+            "--corpus",
+            "test_corpus",
+            "--keycodes",
+            "keycodes.json",
+            "--layout",
+            "default",
         ])
         .output()
         .expect("Failed to run validate");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     if !output.status.success() {
         eprintln!("STDOUT:\n{}", stdout);
         eprintln!("STDERR:\n{}", stderr);
     }
 
     assert!(output.status.success());
-    
+
     // Verify JSON output
     let json: Value = serde_json::from_str(&stdout).expect("Failed to parse output JSON");
-    assert!(json.get("score").is_some(), "JSON output missing 'score' field: {}", stdout);
+    assert!(
+        json.get("score").is_some(),
+        "JSON output missing 'score' field: {}",
+        stdout
+    );
 }

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #![deny(clippy::expect_used)]
 
 use opentelemetry_sdk::propagation::TraceContextPropagator;
@@ -31,21 +30,25 @@ pub enum LogMode {
 pub fn init_tracing(default_filter: &str, mode: &LogMode) {
     opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(default_filter));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter));
 
     match mode {
         LogMode::Standard => {
             let fmt_layer = tracing_subscriber::fmt::layer();
             // Check for OTLP only in Standard mode
             if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok() {
-                if let Ok(exporter) = opentelemetry_otlp::SpanExporter::builder().with_tonic().build() {
+                if let Ok(exporter) = opentelemetry_otlp::SpanExporter::builder()
+                    .with_tonic()
+                    .build()
+                {
                     let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
                         .with_batch_exporter(exporter)
                         .build();
-                    let tracer = opentelemetry::trace::TracerProvider::tracer(&provider, "keyforge-agent");
+                    let tracer =
+                        opentelemetry::trace::TracerProvider::tracer(&provider, "keyforge-agent");
                     let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-                    
+
                     tracing_subscriber::registry()
                         .with(filter)
                         .with(fmt_layer)
@@ -55,15 +58,21 @@ pub fn init_tracing(default_filter: &str, mode: &LogMode) {
                 }
             }
             // Fallback
-            tracing_subscriber::registry().with(filter).with(fmt_layer).init();
-        },
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(fmt_layer)
+                .init();
+        }
         LogMode::JsonStderr => {
             // Write JSON to stderr to keep stdout clean for results
             let fmt_layer = tracing_subscriber::fmt::layer()
                 .json()
                 .with_writer(std::io::stderr);
-            
-            tracing_subscriber::registry().with(filter).with(fmt_layer).init();
+
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(fmt_layer)
+                .init();
         }
     }
 }

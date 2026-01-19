@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::benchmarks::BenchmarkEntry;
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
-use keyforge_model::AnalysisReport;
 use keyforge_model::config::ScoringWeights;
+use keyforge_model::AnalysisReport;
 
 #[allow(dead_code)]
 pub fn scoring(results: &[(String, AnalysisReport)]) {
@@ -77,8 +76,8 @@ pub fn comparisons(
                     }
                 })
             })
-            .expect("Results confirmed non-empty"); 
-            
+            .expect("Results confirmed non-empty");
+
         let best_score = best.1.score;
 
         let mut table = Table::new();
