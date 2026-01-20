@@ -56,29 +56,49 @@ classDiagram
 
 ## 2. The Scoring Engine (Compiler Pattern)
 
-The `ScoringEngine` compiles the raw data into an optimized `EngineContext` for high-performance scoring.
+The `ScoringEngine` is a trait that abstracts different high-performance implementations. The `EngineFactory` is used to instantiate the appropriate engine based on requirements (Exact vs Optimized).
 
 ```mermaid
 classDiagram
     class ScoringEngine {
-        +score(Layout) f32
-        +analyze(Layout) AnalysisReport
+        <<interface>>
+        +score(Layout) Result~Score~
+        +analyze(Layout) Result~AnalysisReport~
+        +capabilities() EngineCapabilities
+    }
+
+    class GenericScoringEngine {
+        +ctx EngineContext
+    }
+
+    class IntelScoringEngine {
+        +ctx EngineContext
+        +config IntelEngineConfig
+    }
+
+    class ExactScoringEngine {
+        +scorer DeterministicScorer
+    }
+
+    class EngineFactory {
+        +new_generic(Keyboard, Corpus, Rubric) ScoringEngine
+        +new_intel_comet_lake(Keyboard, Corpus, Rubric, Config) ScoringEngine
+        +new_exact(Keyboard, Corpus, Rubric) ScoringEngine
     }
 
     class EngineContext {
         +usize key_count
-        +Vec~f32~ cost_matrix
+        +Vec~Score~ cost_matrix
         +LookupTables tables
     }
 
-    class Compiler {
-        +compile(Keyboard, Corpus, Rubric) EngineContext
-    }
-
-    ScoringEngine *-- EngineContext : Owns
-    Compiler ..> EngineContext : Creates
-    Compiler ..> Keyboard : Reads
-    Compiler ..> Corpus : Reads
+    ScoringEngine <|-- GenericScoringEngine
+    ScoringEngine <|-- IntelScoringEngine
+    ScoringEngine <|-- ExactScoringEngine
+    
+    GenericScoringEngine *-- EngineContext : Owns
+    IntelScoringEngine *-- EngineContext : Owns
+    EngineFactory ..> ScoringEngine : Creates
 ```
 
 ## 3. The Evolution Loop

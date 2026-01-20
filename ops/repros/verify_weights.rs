@@ -2,7 +2,7 @@ use keyforge_model::{
     types::{FingerIndex, HandIndex, KeyCode},
     Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
 };
-use keyforge_physics::ScoringEngine;
+use keyforge_physics::EngineFactory;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
@@ -48,7 +48,7 @@ fn main() {
 
     // 1. Default Rubric
     let rubric_def = Rubric::default();
-    let engine_def = ScoringEngine::new(&keyboard, &corpus, &rubric_def, &cost_model).unwrap();
+    let engine_def = EngineFactory::new_generic(&keyboard, &corpus, &rubric_def, &cost_model).unwrap();
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)
@@ -57,11 +57,11 @@ fn main() {
         ..Rubric::default()
     };
     let engine_custom =
-        ScoringEngine::new(&keyboard, &corpus, &rubric_custom, &cost_model).unwrap();
+        EngineFactory::new_generic(&keyboard, &corpus, &rubric_custom, &cost_model).unwrap();
     let score_custom = engine_custom.score(&layout).unwrap();
 
-    println!("Score Default: {:.4}", score_def);
-    println!("Score Custom (High SFB): {:.4}", score_custom);
+    println!("Score Default: {:.4}", score_def.to_f32());
+    println!("Score Custom (High SFB): {:.4}", score_custom.to_f32());
 
     if score_custom > score_def {
         println!("SUCCESS: Custom weights are honored!");

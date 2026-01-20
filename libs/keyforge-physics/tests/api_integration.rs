@@ -13,7 +13,7 @@ fn setup_kb_wiring() -> Keyboard {
             index: i,
             label: format!("k{}", i),
             hand: HandIndex(0),
-            finger: FingerIndex(i as u8),
+            finger: FingerIndex::new_unchecked(i as u8),
             x: i as f32,
             ..Default::default()
         })
@@ -63,4 +63,16 @@ fn test_public_api_wrappers() {
 
     let suggestions = suggest_improvements(&req).unwrap();
     assert!(suggestions.len() <= 5);
+
+    // Test score wrapper
+    let result = keyforge_physics::score(&req).unwrap();
+    assert!(result.score > 0.0);
+
+    // Test analyze wrapper
+    let report = keyforge_physics::analyze(&req).unwrap();
+    assert!(report.score > 0.0);
+
+    // Test identify
+    let identity = keyforge_physics::identify(&req.initial_layout.clone().unwrap());
+    let _ = identity; // Might be None if not matched, but we call it
 }

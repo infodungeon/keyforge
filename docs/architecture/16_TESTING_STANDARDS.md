@@ -1,6 +1,6 @@
 # Testing Standards & Verification
 
-**Version:** 4.1
+**Version:** 4.2
 **Context:** Verification methodology, CDV, and Mutation Analysis.
 
 ## 1. The Oracle Pattern
@@ -9,14 +9,15 @@ To verify the correctness of our highly optimized, bit-twiddling `ScoringEngine`
 
 ### The Concept
 
-* **Implementation:** A naive, readable, inefficient implementation of the logic.
-* **Usage:** Property Tests generate random inputs and assert `Optimized.result() == Oracle.result()`.
+*   **Implementation:** A naive, readable, inefficient implementation of the logic.
+*   **Usage:** Property Tests generate random inputs and assert `Optimized.result() == Oracle.result()`.
 
 ### Physics Oracle
 
-* **Optimized:** Uses flattened `Vec<f32>`, pre-calculated lookups, and `unsafe` indices (checked at compile time).
-* **Oracle:** Uses `HashMap<(char, char), f32>` and standard iteration.
-* **Invariant:** The score must match exactly (bitwise equality for integers, epsilon for floats).
+*   **Optimized:** Uses flattened `Vec<f32>`, pre-calculated lookups, and `unsafe` indices (checked at compile time).
+*   **Oracle:** Uses `HashMap<(char, char), f32>` and standard iteration.
+*   **Invariant (Exact Tier):** The "Exact" scoring engine must match the Oracle **bit-for-bit**.
+*   **Invariant (Search Tiers):** "Search" engines (Generic/Hardware-Specific) may **drift** within a strict epsilon. The test harness must recognize which engine is being tested and adjust the assertion accordingly.
 
 ## 2. Coverage-Driven Verification (CDV)
 

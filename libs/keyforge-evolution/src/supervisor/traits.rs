@@ -60,7 +60,7 @@ pub trait MutationOperator: std::fmt::Debug {
     /// Returns `EvolutionError` if the mutation proposal fails.
     fn propose(
         &self,
-        engine: &ScoringEngine,
+        engine: &dyn ScoringEngine,
         layout: &Layout,
         pos_map: &[u16],
         rng: &mut impl Rng,

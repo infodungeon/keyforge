@@ -167,9 +167,9 @@ impl BatchSink for ResultRepository {
             .map(|r| {
                 (
                     r.job_id.as_str(),
-                    r.node_id.as_str(),
-                    r.score,
                     r.layout.as_str(),
+                    r.score,
+                    r.node_id.as_str(),
                 )
             })
             .collect();

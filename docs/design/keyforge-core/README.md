@@ -15,7 +15,7 @@
 sequenceDiagram
     participant Client
     participant Core
-    participant Physics as ScoringEngine
+    participant Physics as dyn ScoringEngine
     participant Evo as Evolution
 
     Client->>Core: optimize_with_engine(Engine, Config)

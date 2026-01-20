@@ -139,7 +139,7 @@ impl VerificationService {
 
     async fn check_tolerance(
         &self,
-        engine: Arc<ScoringEngine>,
+        engine: Arc<dyn ScoringEngine>,
         sub: &ResultSubmission,
     ) -> AppResult<()> {
         let keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME;
@@ -161,7 +161,8 @@ impl VerificationService {
 
         let calculated_score = engine
             .score(&layout_struct)
-            .map_err(|e| AppError::Validation(format!("Scoring error: {e}")))?;
+            .map_err(|e| AppError::Validation(format!("Scoring error: {e}")))?
+            .to_f32();
 
         let diff = (calculated_score - sub.score).abs();
         let tolerance =

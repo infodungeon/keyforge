@@ -94,8 +94,8 @@ pub(crate) fn calculate_swap_delta(
                 let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
 
                 if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code_a.0, c2.0)) {
-                    cost_old = cost_old.saturating_add(mod_val);
-                    cost_new = cost_new.saturating_add(mod_val);
+                    cost_old = cost_old + mod_val;
+                    cost_new = cost_new + mod_val;
                 }
 
                 if cost_old < min_old {
@@ -130,8 +130,8 @@ pub(crate) fn calculate_swap_delta(
                 let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
 
                 if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code_b.0, c2.0)) {
-                    cost_old = cost_old.saturating_add(mod_val);
-                    cost_new = cost_new.saturating_add(mod_val);
+                    cost_old = cost_old + mod_val;
+                    cost_new = cost_new + mod_val;
                 }
 
                 if cost_old < min_old {
@@ -169,8 +169,8 @@ pub(crate) fn calculate_swap_delta(
                 let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
 
                 if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1.0, code_a.0)) {
-                    cost_old = cost_old.saturating_add(mod_val);
-                    cost_new = cost_new.saturating_add(mod_val);
+                    cost_old = cost_old + mod_val;
+                    cost_new = cost_new + mod_val;
                 }
 
                 if cost_old < min_old {
@@ -208,8 +208,8 @@ pub(crate) fn calculate_swap_delta(
                 let mut cost_new = ctx.cost_matrix[p1_new * ctx.key_count + p2_new];
 
                 if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1.0, code_b.0)) {
-                    cost_old = cost_old.saturating_add(mod_val);
-                    cost_new = cost_new.saturating_add(mod_val);
+                    cost_old = cost_old + mod_val;
+                    cost_new = cost_new + mod_val;
                 }
 
                 if cost_old < min_old {
@@ -307,8 +307,7 @@ pub(crate) fn calculate_swap_delta(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kernel::compute::{score_layout, PhysicsScratch};
-    use crate::ScoringEngine;
+    use crate::kernel::compute::PhysicsScratch;
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use proptest::prelude::*;
@@ -343,7 +342,7 @@ mod tests {
                         index: i,
                         label: format!("k{}", i),
                         hand: HandIndex(hand),
-                        finger: FingerIndex(finger),
+                        finger: FingerIndex::new_unchecked(finger),
                         row: RowIndex(row),
                         col: ColIndex(col),
                         x,
@@ -409,9 +408,10 @@ mod tests {
 
             let rubric = Rubric::default();
             let cost_model = load_cost_model_fixture();
-            let engine = ScoringEngine::new(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cost_model).unwrap();
+            let engine = crate::EngineFactory::new_generic(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cost_model).unwrap();
 
-            let score_before = engine.score_raw(&layout_keys).unwrap();
+            let layout_for_score = Layout::new_unchecked(layout_keys.clone());
+            let score_before = engine.score(&layout_for_score).unwrap().0;
             if score_before == i64::MAX { return Ok(()); }
 
             let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
@@ -429,7 +429,8 @@ mod tests {
             let delta = calculate_swap_delta(engine.context(), &validated, &pm, i, j);
 
             layout_keys.swap(i, j);
-            let score_after = engine.score_raw(&layout_keys).unwrap();
+            let swapped_layout = Layout::new_unchecked(layout_keys.clone());
+            let score_after = engine.score(&swapped_layout).unwrap().0;
             let actual_delta = score_after - score_before;
 
             prop_assert_eq!(

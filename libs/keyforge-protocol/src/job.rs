@@ -486,28 +486,59 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_deserialize_dos_protection_biometrics() {
-        #[derive(serde::Deserialize, Debug)]
-        struct BiometricsWrapper {
-            #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-            biometrics: Vec<BiometricSample>,
-        }
+        #[test]
 
-        let mut json = String::from(r#"{"biometrics": ["#);
-        for i in 0..100_001 {
-            if i > 0 {
-                json.push(',');
+        fn test_deserialize_dos_protection_biometrics() {
+
+            #[derive(serde::Deserialize, Debug)]
+
+            struct BiometricsWrapper {
+
+                #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
+
+                biometrics: Vec<BiometricSample>,
+
             }
-            json.push_str(r#"{ "bigram": "ab", "ms": 10.0, "timestamp": 0 }"#);
-        }
-        json.push_str("]}");
 
-        let res: Result<BiometricsWrapper, _> = serde_json::from_str(&json);
-        assert!(res.is_err(), "Should reject > 100k items");
-        assert!(res.unwrap_err().to_string().contains("transport limit"));
+    
+
+            // 1. Verify valid small payload is actually read
+
+            let good_json = r#"{"biometrics": [{"bigram": "ab", "ms": 10.0, "timestamp": 0}]}"#;
+
+            let good_res: BiometricsWrapper = serde_json::from_str(good_json).unwrap();
+
+            assert_eq!(good_res.biometrics.len(), 1);
+
+    
+
+            // 2. Verify DoS rejection
+
+            let mut json = String::from(r#"{"biometrics": ["#);
+
+            for i in 0..100_001 {
+
+                if i > 0 { json.push(','); }
+
+                json.push_str(r#"{ "bigram": "ab", "ms": 10.0, "timestamp": 0 }"#);
+
+            }
+
+            json.push_str("]}");
+
+    
+
+            let res: Result<BiometricsWrapper, _> = serde_json::from_str(&json);
+
+            assert!(res.is_err(), "Should reject > 100k items");
+
+            assert!(res.unwrap_err().to_string().contains("transport limit"));
+
+        }
+
     }
-}
+
+    
 
 #[cfg(test)]
 mod fuzz {

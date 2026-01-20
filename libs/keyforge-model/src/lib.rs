@@ -52,6 +52,10 @@ pub mod utils;
 /// Validation traits and helpers.
 pub mod validator;
 
+/// Testing utilities and proptest strategies.
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
+
 pub use asset::{Asset, AssetCategory};
 pub use config::{
     Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchConfig,

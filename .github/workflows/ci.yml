@@ -109,7 +109,9 @@ jobs:
           DATABASE_MAX_CONNECTIONS: 20
           DATABASE_TIMEOUT_SECONDS: 15
           RATE_LIMIT_PER_SEC: 100
-        run: cargo test --release --workspace --exclude keyforge-ui
+        run: |
+          cargo install just
+          just test-all
 
   ui-check:
     name: UI Health

@@ -1,5 +1,5 @@
 use super::CompilationStage;
-use crate::errors::PhysicsError;
+use crate::error::PhysicsError;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
 use keyforge_model::Keyboard;
 use std::sync::Arc;
@@ -87,7 +87,7 @@ mod tests {
                 x: 0.0,
                 y: 0.0,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
@@ -95,7 +95,7 @@ mod tests {
                 x: 3.0,
                 y: 4.0,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
         ];

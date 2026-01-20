@@ -171,5 +171,9 @@ mod tests {
         // Weights
         r.sfb_base = -10.0; // Negative penalty
         assert!(r.validate().is_err());
+        
+        r.sfb_base = 400.0;
+        r.sfb_lateral = -1.0;
+        assert!(r.validate().is_err());
     }
 }

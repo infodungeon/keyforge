@@ -102,10 +102,13 @@ test-core:
 test-cli:
     cargo test --manifest-path apps/keyforge-cli/Cargo.toml
 
+verify-parity:
+    cargo test -p keyforge-physics --lib verify::tests::test_oracle_parity
+
 test-ui:
     cd apps/keyforge-ui && npx vitest run
 
-test-all: test-core test-cli test-ui
+test-all: test-core test-cli verify-parity test-ui
 
 # --- UTILS ---
 

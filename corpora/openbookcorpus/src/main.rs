@@ -423,122 +423,13 @@ fn process_dataset_parallel(
 ) -> Result<CorpusStats, Box<dyn std::error::Error>> {
     let pb = ProgressBar::new(file_paths.len() as u64);
     pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} Shards ({eta})")?
-        .progress_chars("#>-"));
+        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}s ({eta})")? // Corrected from Shards to s
+        .progress_chars("#>- ")); // Added space to progress_chars
 
     let aggregated_stats = file_paths
         .par_iter()
         .fold(CorpusStats::new, |mut stats, path| {
-            if let Ok(file) = File::open(path) {
-                if let Ok(reader) = SerializedFileReader::new(file) {
-                    if let Ok(row_iter) = reader.get_row_iter(None) {
-                        // Buffer reuse across rows (outside loop)
-                        let mut word_buffer = String::with_capacity(64);
-
-                        for row in row_iter.flatten() {
-                            stats.book_count += 1;
-
-                            // Reset / Init per-document state (inside loop)
-                            word_buffer.clear();
-                            let mut tracker = NgramTracker::new();
-                            let mut last_emitted_was_space = true;
-                            let mut word_is_tainted = false;
-
-                            if let Ok(text) = row.get_string(0) {
-                                for c_raw in text.chars() {
-                                    // 1. Normalization
-                                    let normalized_c = match c_raw {
-                                        '“' | '”' | '„' => '"',
-                                        '‘' | '’' | '`' | '´' => '\'',
-                                        '–' | '—' | '―' => '-',
-                                        'ﬁ' | 'ﬂ' => 'f',
-                                        '\u{00ad}' | '\u{009d}' | '\\' | '_' => ' ',
-                                        _ => c_raw.to_ascii_lowercase(),
-                                    };
-
-                                    // 2. Whitelist Check
-                                    if is_keyboard_char(normalized_c) {
-                                        if normalized_c.is_alphanumeric()
-                                            || normalized_c == '\''
-                                            || normalized_c == '-'
-                                        {
-                                            if !word_is_tainted {
-                                                word_buffer.push(normalized_c);
-                                            }
-                                        } else {
-                                            // Punctuation (Separator)
-                                            if !word_buffer.is_empty() {
-                                                if word_is_tainted {
-                                                    tracker.reset();
-                                                } else {
-                                                    process_token_buffer(
-                                                        &word_buffer,
-                                                        &mut stats,
-                                                        &mut tracker,
-                                                        &mut last_emitted_was_space,
-                                                    );
-                                                }
-                                                word_buffer.clear();
-                                            }
-                                            // Clear taint on separator
-                                            word_is_tainted = false;
-
-                                            tracker.feed(normalized_c, &mut stats);
-                                            last_emitted_was_space = false;
-                                        }
-                                    } else if normalized_c == ' '
-                                        || normalized_c == '\n'
-                                        || normalized_c == '\t'
-                                        || normalized_c == '\r'
-                                    {
-                                        // 3. Separator Handling
-                                        if !word_buffer.is_empty() {
-                                            if word_is_tainted {
-                                                tracker.reset();
-                                                last_emitted_was_space = true;
-                                            } else {
-                                                process_token_buffer(
-                                                    &word_buffer,
-                                                    &mut stats,
-                                                    &mut tracker,
-                                                    &mut last_emitted_was_space,
-                                                );
-                                            }
-                                            word_buffer.clear();
-                                        }
-                                        // Clear taint on separator
-                                        word_is_tainted = false;
-
-                                        if !last_emitted_was_space {
-                                            tracker.feed(' ', &mut stats);
-                                            last_emitted_was_space = true;
-                                        }
-                                        if normalized_c == '\n' {
-                                            tracker.reset();
-                                        }
-                                    } else {
-                                        // 4. Invalid Char -> Taint
-                                        word_is_tainted = true;
-                                    }
-                                }
-
-                                // EOL Flush
-                                if !word_buffer.is_empty() {
-                                    if !word_is_tainted {
-                                        process_token_buffer(
-                                            &word_buffer,
-                                            &mut stats,
-                                            &mut tracker,
-                                            &mut last_emitted_was_space,
-                                        );
-                                    }
-                                    word_buffer.clear();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            process_shard(path, &mut stats);
             pb.inc(1);
             stats
         })
@@ -549,6 +440,108 @@ fn process_dataset_parallel(
 
     pb.finish_with_message("Analysis complete");
     Ok(aggregated_stats)
+}
+
+fn process_shard(path: &str, stats: &mut CorpusStats) {
+    if let Ok(file) = File::open(path) {
+        if let Ok(reader) = SerializedFileReader::new(file) {
+            if let Ok(row_iter) = reader.get_row_iter(None) {
+                let mut word_buffer = String::with_capacity(64);
+
+                for row in row_iter.flatten() {
+                    stats.book_count += 1;
+                    word_buffer.clear();
+                    let mut tracker = NgramTracker::new();
+                    let mut last_emitted_was_space = true;
+                    let mut word_is_tainted = false;
+
+                    if let Ok(text) = row.get_string(0) {
+                        for c_raw in text.chars() {
+                            let normalized_c = match c_raw {
+                                '“' | '”' | '„' => '"',
+                                '‘' | '’' | '`' | '´' => '\'',
+                                '–' | '—' | '―' => '-',
+                                'ﬁ' | 'ﬂ' => 'f',
+                                '\u{00ad}' | '\u{009d}' | '\\' | '_' => ' ',
+                                _ => c_raw.to_ascii_lowercase(),
+                            };
+
+                            if is_keyboard_char(normalized_c) {
+                                if normalized_c.is_alphanumeric() 
+                                    || normalized_c == '\'' 
+                                    || normalized_c == '-'
+                                {
+                                    if !word_is_tainted {
+                                        word_buffer.push(normalized_c);
+                                    }
+                                }
+                                 else {
+                                    if !word_buffer.is_empty() {
+                                        if word_is_tainted {
+                                            tracker.reset();
+                                        } else {
+                                            process_token_buffer(
+                                                &word_buffer,
+                                                stats,
+                                                &mut tracker,
+                                                &mut last_emitted_was_space,
+                                            );
+                                        }
+                                        word_buffer.clear();
+                                    }
+                                    word_is_tainted = false;
+                                    tracker.feed(normalized_c, stats);
+                                    last_emitted_was_space = false;
+                                }
+                            } else if normalized_c == ' ' 
+                                || normalized_c == '\n' 
+                                || normalized_c == '\t' 
+                                || normalized_c == '\r'
+                            {
+                                if !word_buffer.is_empty() {
+                                    if word_is_tainted {
+                                        tracker.reset();
+                                        last_emitted_was_space = true;
+                                    } else {
+                                        process_token_buffer(
+                                            &word_buffer,
+                                            stats,
+                                            &mut tracker,
+                                            &mut last_emitted_was_space,
+                                        );
+                                    }
+                                    word_buffer.clear();
+                                }
+                                word_is_tainted = false;
+
+                                if !last_emitted_was_space {
+                                    tracker.feed(' ', stats);
+                                    last_emitted_was_space = true;
+                                }
+                                if normalized_c == '\n' {
+                                    tracker.reset();
+                                }
+                            } else {
+                                word_is_tainted = true;
+                            }
+                        }
+
+                        if !word_buffer.is_empty() {
+                            if !word_is_tainted {
+                                process_token_buffer(
+                                    &word_buffer,
+                                    stats,
+                                    &mut tracker,
+                                    &mut last_emitted_was_space,
+                                );
+                            }
+                            word_buffer.clear();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn save_json_file<K, V, F, S>(

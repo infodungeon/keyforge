@@ -363,33 +363,74 @@ mod tests {
     }
 
     #[test]
-    fn test_keyboard_definition_deserialization() {
-        // Tests deserialization of a known complex geometry (SZR35)
-        let json = r#"{
-          "meta": {
-            "name": "SZR35",
-            "author": "KeyForge",
-            "version": "1.0",
-            "notes": "36-key Split Column-Staggered (3x5+3).",
-            "type": "split_column_staggered"
-          },
-          "geometry": {
-            "keys": [
-              {"id": "KeyQ", "x": 0, "y": 0.5, "hand": 0, "finger": 4, "row": 0, "col": 0},
-              {"id": "KeyW", "x": 1, "y": 0.25, "hand": 0, "finger": 3, "row": 0, "col": 1}
-            ],
-            "prime_slots": [0, 1],
-            "med_slots": [],
-            "low_slots": [],
-            "home_row": 1
-          },
-          "layouts": {}
-        }"#;
+    fn test_keyboard_definition_asset() {
+        let mut def = KeyboardDefinition::default();
+        def.geometry.keys.push(KeyNode::default());
+        def.geometry.prime_slots.push(KeyIndex(0));
+        assert_eq!(KeyboardDefinition::category(), AssetCategory::Keyboard);
+        assert!(def.post_load().is_ok());
+    }
 
-        let def: KeyboardDefinition =
-            serde_json::from_str(json).expect("Failed to deserialize KeyboardDefinition");
-        assert_eq!(def.geometry.keys.len(), 2, "Should have 2 keys");
-        assert_eq!(def.geometry.keys[0].label, "KeyQ", "Label should be KeyQ");
+    #[test]
+    fn test_keyboard_definition_parse() {
+        // Valid Native JSON
+        let native_json = r#"{"geometry": {"keys": [{"x":0, "y":0, "hand":0, "finger":1}], "prime_slots": [0], "med_slots": [], "low_slots": []}}"#;
+        assert!(KeyboardDefinition::parse(native_json, None).is_ok());
+
+        // Valid KLE (Simple list of arrays)
+        let kle_json = r#"[["A"]]"#;
+        assert!(KeyboardDefinition::parse(kle_json, Some("MyBoard")).is_ok());
+
+        // Invalid JSON
+        assert!(KeyboardDefinition::parse("not json", None).is_err());
+    }
+
+    #[test]
+    fn test_keyboard_geometry_validation_extended() {
+        // Too many keys
+        let mut geom = KeyboardGeometry {
+            keys: vec![KeyNode::default(); MAX_KEYBOARD_KEYS + 1],
+            ..Default::default()
+        };
+        assert!(geom.validate().is_err());
+
+        // Prime and Low overlap
+        let mut geom = KeyboardGeometry {
+            keys: vec![KeyNode::default(); 2],
+            prime_slots: vec![KeyIndex(0)],
+            low_slots: vec![KeyIndex(0)],
+            med_slots: vec![KeyIndex(1)],
+            ..Default::default()
+        };
+        assert!(geom.validate().is_err());
+
+        // Med and Low overlap
+        let mut geom = KeyboardGeometry {
+            keys: vec![KeyNode::default(); 2],
+            prime_slots: vec![KeyIndex(1)],
+            med_slots: vec![KeyIndex(0)],
+            low_slots: vec![KeyIndex(0)],
+            ..Default::default()
+        };
+        assert!(geom.validate().is_err());
+
+        // Invalid finger index (using new_unchecked to bypass safety)
+        let mut geom = KeyboardGeometry {
+            keys: vec![KeyNode { finger: FingerIndex::new_unchecked(10), ..Default::default() }],
+            prime_slots: vec![KeyIndex(0)],
+            ..Default::default()
+        };
+        assert!(geom.validate().is_err());
+        
+        assert_eq!(geom.key_count(), 1);
+    }
+
+    #[test]
+    fn test_key_node_defaults() {
+        let node = KeyNode::default();
+        assert_eq!(node.w, 1.0);
+        assert_eq!(node.h, 1.0);
+        assert!(!node.is_home);
     }
 }
 

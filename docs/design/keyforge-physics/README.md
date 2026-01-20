@@ -3,20 +3,22 @@
 **Responsibility:** Pure mathematical scoring of keyboard layouts.
 **Tier:** 1 (The Nucleus)
 
-## 1. The Scoring Engine (Optimized)
+## 1. The Scoring Engine (Multi-Tiered)
 
-The `ScoringEngine` is a compiled, read-only struct optimized for O(1) lookups. It does not store the layout; it calculates the cost of applying a layout to a physical keyboard.
+The `ScoringEngine` is a trait that defines the interface for evaluating keyboard layouts. It is a read-only component optimized for O(1) lookups. It does not store the layout; it calculates the cost of applying a layout to a physical keyboard.
 
 ### Compilation Process
 
 ```mermaid
 sequenceDiagram
     participant User
+    participant Factory as EngineFactory
     participant Compiler
     participant Context as EngineContext
-    participant Engine as ScoringEngine
+    participant Engine as dyn ScoringEngine
 
-    User->>Compiler: compile(Keyboard, Corpus, Rubric)
+    User->>Factory: new_generic(Keyboard, Corpus, Rubric)
+    Factory->>Compiler: compile(Keyboard, Corpus, Rubric)
     
     Compiler->>Compiler: Flatten Corpus (Bigrams -> Vec)
     Compiler->>Compiler: Pre-calculate Key Distances
@@ -24,8 +26,8 @@ sequenceDiagram
     
     Compiler-->>Context: EngineContext (Lookup Tables)
     
-    Compiler->>Engine: new(Context)
-    Engine-->>User: ScoringEngine
+    Factory->>Engine: new(Context)
+    Engine-->>User: Box<dyn ScoringEngine>
 ```
 
 ## 2. The Oracle Pattern (Verification)
@@ -37,14 +39,14 @@ To ensure the optimized engine remains mathematically sound despite aggressive o
 ```mermaid
 sequenceDiagram
     participant T as Test Runner (Proptest)
-    participant C as Compiler
-    participant E as ScoringEngine (Optimized)
+    participant F as EngineFactory
+    participant E as dyn ScoringEngine (Generic)
     participant O as DeterministicScorer (Oracle)
 
     Note over T: Generate Random Inputs<br/>(Keyboard, Corpus, Rubric, Layout)
 
-    T->>C: compile(kb, cp, rb)
-    C->>E: new(EngineContext)
+    T->>F: new_generic(kb, cp, rb)
+    F->>E: Box<dyn ScoringEngine>
     
     par Optimized Path
         T->>E: score(Layout)
@@ -52,7 +54,7 @@ sequenceDiagram
         E-->>T: Result A (i64)
     and Naive Path (Oracle)
         T->>O: score(kb, cp, rb, Layout)
-        O->>O: Naive Iteration<br/>(Direct Entity Access)
+        O->>O: Naive Iteration<br/>(Optimal Choice Search)
         O-->>T: Result B (i64)
     end
 
@@ -62,7 +64,9 @@ sequenceDiagram
 
 ## 3. Detailed Scoring Logic (Optimal Choice)
 
-The engine assumes the user is an "Optimal Typist." If a character exists on multiple physical keys, the engine dynamically selects the key (or combination of keys) that results in the lowest possible cost for that specific monogram, bigram, or trigram.
+The engine assumes the user is an **"Optimal Typist."** For layouts with duplicate keys (e.g., bilateral spacebars or experimental layer mappings), the engine dynamically selects the physical key (or sequence of keys) that minimizes the total cost for every monogram, bigram, and trigram.
+
+This logic ensures that adding redundant keys always improves or maintains the score, never degrades it, by finding the mathematical lower bound of effort for the given layout.
 
 ### Dynamic Search Sequence
 

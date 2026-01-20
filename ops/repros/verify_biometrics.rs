@@ -96,8 +96,8 @@ async fn main() {
     let score_none = engine_none.score(&layout).unwrap();
     let score_bio = engine_bio.score(&layout).unwrap();
 
-    println!("Score without Biometrics: {:.4}", score_none);
-    println!("Score with High Latency 'th': {:.4}", score_bio);
+    println!("Score without Biometrics: {:.4}", score_none.to_f32());
+    println!("Score with High Latency 'th': {:.4}", score_bio.to_f32());
 
     if score_bio > score_none {
         println!("SUCCESS: Biometrics affected the score!");

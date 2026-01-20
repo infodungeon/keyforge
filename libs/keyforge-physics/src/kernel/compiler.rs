@@ -14,7 +14,7 @@
 
 use super::types::Score;
 use super::EngineContext;
-use crate::errors::PhysicsError;
+use crate::error::PhysicsError;
 use keyforge_model::{Corpus, CostModel, Keyboard, Rubric};
 use std::sync::Arc;
 use tracing::{info, instrument};
@@ -93,7 +93,10 @@ impl Compiler {
             if bigram.len() == 2 {
                 let bytes = bigram.as_bytes();
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
-                sequence_modifiers.insert(key, Score::from_f32(val));
+                sequence_modifiers.insert(
+                    key, 
+                    Score::from_f32(val).map_err(|e| PhysicsError::InvalidInput { message: e })?
+                );
             }
         }
 
@@ -130,9 +133,11 @@ impl Compiler {
             trigram_end_freqs: corpus_out.trigram_end_freqs,
             all_bigrams: corpus.bigrams.clone(),
             all_trigrams: corpus.trigrams.clone(),
-            penalty_redirect: Score::from_f32(rubric.redirect),
+            penalty_redirect: Score::from_f32(rubric.redirect)
+                .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             penalty_skip: Score::ZERO,
-            bonus_roll: Score::from_f32(rubric.roll_bonus),
+            bonus_roll: Score::from_f32(rubric.roll_bonus)
+                .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             sequence_modifiers,
             sorted_unique_keys,
             key_rank_map,
@@ -153,7 +158,7 @@ mod tests {
         let keys = vec![KeyNode {
             index: 0,
             hand: HandIndex(0),
-            finger: FingerIndex(1),
+            finger: FingerIndex::new_unchecked(1),
             ..Default::default()
         }];
         let kb = Keyboard::new(keys, 0).unwrap();

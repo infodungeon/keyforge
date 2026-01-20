@@ -1,11 +1,9 @@
 // libs/keyforge-evolution/tests/optimization_integration.rs
 
-use keyforge_evolution::{
-    evolve, optimize, optimize_with_callback, NoOpCallback, ProgressCallback,
-};
-use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
-use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
-use keyforge_physics::{EngineRequest, ScoringEngine};
+use keyforge_evolution::{evolve, optimize, NoOpCallback};
+use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric, SearchConfig};
+use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode};
+use keyforge_physics::{EngineFactory, EngineRequest, ScoringEngine};
 use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
@@ -105,7 +103,8 @@ fn test_legacy_optimize_entry_point() {
 #[test]
 fn test_evolve_api_direct() {
     let (kb, cp, rb, cm) = setup_env();
-    let engine = Arc::new(ScoringEngine::new(&kb, &cp, &rb, &cm).unwrap());
+    let engine = EngineFactory::new_generic(&kb, &cp, &rb, &cm).unwrap();
+    let engine_arc: Arc<dyn ScoringEngine> = engine.into();
     let config = SearchConfig::Annealing {
         steps: 10,
         start_temp: 10.0,
@@ -116,7 +115,7 @@ fn test_evolve_api_direct() {
         reheat_factor: 1.0,
         include_thumbs: false,
     };
-    let result = evolve(&engine, &config, NoOpCallback, None, None).unwrap();
+    let result = evolve(&engine_arc, &config, NoOpCallback, None, None).unwrap();
     assert!(result.score >= 0.0);
 }
 
@@ -174,13 +173,22 @@ fn test_oracle_pattern_match() {
 
     let result = optimize(&req).unwrap();
 
-    let final_reference = keyforge_physics::verify::DeterministicScorer::score(
+    let scorer = keyforge_physics::verify::DeterministicScorer::new(&req.rubric, &req.cost_model);
+    let raw_score = scorer.score(
         &req.keyboard,
         &req.corpus,
-        &req.rubric,
-        &result.layout,
-        &req.cost_model,
-    );
+        result.layout.keys.as_slice(),
+    ).expect("Oracle scoring failed");
+    
+    // Normalize logic from physics/lib.rs
+    let raw_score_f32 = (raw_score as f32) / keyforge_model::constants::SCORE_SCALE;
+    let total_freq: u64 = req.corpus.char_freqs.iter().sum();
+    let norm_factor = if total_freq > 0 {
+        100_000.0 / total_freq as f32
+    } else {
+        1.0
+    };
+    let final_reference = raw_score_f32 * norm_factor;
 
     assert!((result.score - final_reference).abs() < 1e-4);
 }

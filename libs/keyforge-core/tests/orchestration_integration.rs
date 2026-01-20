@@ -1,4 +1,4 @@
-// libs/keyforge-core/tests/core_tests.rs
+// libs/keyforge-core/tests/orchestration_integration.rs
 
 use keyforge_core::*;
 use keyforge_model::{
@@ -125,7 +125,7 @@ fn test_analyze_with_engine() {
     let engine = build_engine(&req).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-    let report = analyze_with_engine(&engine, &layout).unwrap();
+    let report = analyze_with_engine(&*engine, &layout).unwrap();
     assert!(report.score.is_finite());
 }
 
@@ -135,7 +135,7 @@ fn test_score_with_engine() {
     let engine = build_engine(&req).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-    let score = score_with_engine(&engine, &layout).unwrap();
+    let score = score_with_engine(&*engine, &layout).unwrap();
     assert!(score.is_finite());
 }
 
@@ -145,7 +145,7 @@ fn test_suggest_with_engine() {
     let engine = build_engine(&req).unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-    let suggestions = suggest_with_engine(&engine, &layout).unwrap();
+    let suggestions = suggest_with_engine(&*engine, &layout).unwrap();
     let _ = suggestions.len();
 }
 
@@ -224,7 +224,7 @@ fn test_optimize_with_callback() {
 fn test_optimize_with_engine() {
     let req = minimal_request();
     let engine = build_engine(&req).unwrap();
-    let engine_arc = Arc::new(engine);
+    let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     let config = SearchConfig::Annealing {
         steps: 10,

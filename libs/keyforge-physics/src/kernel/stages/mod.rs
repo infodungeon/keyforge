@@ -2,7 +2,7 @@ pub mod corpus;
 pub mod costs;
 pub mod geometry;
 
-use crate::errors::PhysicsError;
+use crate::error::PhysicsError;
 
 /// Trait for a discrete stage in the engine compilation pipeline.
 pub trait CompilationStage {

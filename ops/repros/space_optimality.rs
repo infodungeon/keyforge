@@ -2,7 +2,7 @@ use keyforge_model::{
     types::{FingerIndex, HandIndex},
     Corpus, CostModel, KeyNode, Keyboard, Rubric,
 };
-use keyforge_physics::ScoringEngine;
+use keyforge_physics::EngineFactory;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
@@ -41,6 +41,6 @@ fn main() {
     let rubric = Rubric::default();
     let cost_model = mock_cost_model();
 
-    let _engine = ScoringEngine::new(&kb, &corpus, &rubric, &cost_model).unwrap();
+    let _engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &cost_model).unwrap();
     println!("Engine built successfully");
 }

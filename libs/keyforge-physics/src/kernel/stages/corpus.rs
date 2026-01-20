@@ -1,5 +1,5 @@
 use super::CompilationStage;
-use crate::errors::PhysicsError;
+use crate::error::PhysicsError;
 use crate::kernel::types::KeyCode;
 use keyforge_model::{Corpus, Rubric};
 

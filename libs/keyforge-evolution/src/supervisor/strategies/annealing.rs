@@ -33,21 +33,30 @@ impl CoolingAnnealing {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::mock::StepRng;
+    use rand::RngCore;
+
+    #[derive(Debug)]
+    struct MockRng(u64);
+    impl RngCore for MockRng {
+        fn next_u32(&mut self) -> u32 { self.0 as u32 }
+        fn next_u64(&mut self) -> u64 { self.0 }
+        fn fill_bytes(&mut self, _dest: &mut [u8]) {}
+    }
 
     #[test]
     fn test_annealing_acceptance() {
         let mut criteria = CoolingAnnealing;
-        let mut rng = StepRng::new(0, 0); // Always returns 0 (less than any probability)
-
+        
         // 1. Improvement always accepted
+        let mut rng = MockRng(u64::MAX); // High value (1.0)
         assert!(criteria.should_accept(-100, 1.0, &mut rng));
 
         // 2. High temp accepts degradation
-        assert!(criteria.should_accept(100, 1000.0, &mut rng));
+        let mut rng_low = MockRng(0); // Low value (0.0)
+        assert!(criteria.should_accept(100, 1000.0, &mut rng_low));
 
         // 3. Low temp rejects degradation
-        let mut rng_high = StepRng::new(u64::MAX, 0); // Always returns 1.0
+        let mut rng_high = MockRng(u64::MAX); // High value (1.0)
         assert!(!criteria.should_accept(1000000, 0.000001, &mut rng_high));
     }
 }

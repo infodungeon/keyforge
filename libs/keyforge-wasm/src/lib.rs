@@ -20,7 +20,6 @@ use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::validator::Validator;
 use keyforge_model::{Corpus, CostModel, Layout, Rubric};
-use keyforge_physics::ScoringEngine;
 use loader::InMemoryLoader;
 use serde_wasm_bindgen::{from_value, to_value};
 use std::sync::Arc;
@@ -151,12 +150,11 @@ impl KeyforgeEngine {
             keyforge_model::Keyboard::new(kb.geometry.keys.clone(), kb.geometry.home_row)
                 .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-        let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
+        let engine = keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let report = engine
-            .analyze(&layout)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            .analyze(&layout);
 
         Ok(to_value(&report)?)
     }
@@ -175,7 +173,7 @@ mod tests {
             "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0 },
             "layouts": {}
         }"#;
-        let val = serde_json::from_str(kb_json).unwrap();
+        let val: serde_json::Value = serde_json::from_str(kb_json).unwrap();
         let js_val = to_value(&val).unwrap();
 
         // Should fail validation (empty keys)

@@ -19,7 +19,6 @@ use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::{Corpus, CostModel, Rubric, SearchConfig};
-use keyforge_physics::ScoringEngine;
 use keyforge_protocol::BiometricSample;
 use std::fmt;
 use std::sync::Arc;
@@ -177,8 +176,9 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
                 .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?,
         );
 
-        let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)?;
+        let engine = keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
+            .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
 
-        Ok(ScoringSession::new(Arc::new(engine), registry, config))
+        Ok(ScoringSession::new(Arc::from(engine), registry, config))
     }
 }

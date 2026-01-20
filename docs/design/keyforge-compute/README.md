@@ -10,7 +10,7 @@ The `Runtime` struct is the primary entry point for clients (CLI, GUI) that want
 ```mermaid
 classDiagram
     class Runtime {
-        +Arc~ScoringEngine~ engine
+        +Arc~dyn ScoringEngine~ engine
         +Arc~KeycodeRegistry~ registry
         +SearchConfig search_config
         +score(Layout)
@@ -18,7 +18,9 @@ classDiagram
     }
 
     class ScoringEngine {
-        <<Service>>
+        <<interface>>
+        +score(Layout) Result~Score~
+        +analyze(Layout) Result~AnalysisReport~
     }
 
     Runtime *-- ScoringEngine : Wraps
@@ -41,7 +43,7 @@ sequenceDiagram
     
     Client->>Builder: build()
     Builder->>Core: build_engine(req)
-    Core-->>Builder: ScoringEngine
+    Core-->>Builder: Box<dyn ScoringEngine>
     
     Builder-->>Runtime: Runtime
     Runtime-->>Client: Ready

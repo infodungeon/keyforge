@@ -22,7 +22,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct ScoringSession {
     /// The pre-compiled evaluation engine.
-    pub engine: Arc<ScoringEngine>,
+    pub engine: Arc<dyn ScoringEngine>,
     /// The registry used for resolving key labels.
     pub registry: Arc<KeycodeRegistry>,
     /// The search parameters used for this session.
@@ -33,7 +33,7 @@ impl ScoringSession {
     /// Creates a new `ScoringSession` from the provided engine, registry, and config.
     #[must_use]
     pub fn new(
-        engine: Arc<ScoringEngine>,
+        engine: Arc<dyn ScoringEngine>,
         registry: Arc<KeycodeRegistry>,
         search_config: SearchConfig,
     ) -> Self {

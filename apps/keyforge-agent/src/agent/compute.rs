@@ -143,15 +143,14 @@ mod tests {
         }"#;
         let cost_model: CostModel = serde_json::from_str(cost_json).unwrap();
 
-        let engine = Arc::new(
-            keyforge_core::ScoringEngine::new(
-                &kb,
-                &keyforge_model::Corpus::default(),
-                &keyforge_model::Rubric::default(),
-                &cost_model,
-            )
-            .unwrap(),
-        );
+        let engine: Arc<dyn keyforge_core::ScoringEngine> = keyforge_physics::EngineFactory::new_generic(
+            &kb,
+            &keyforge_model::Corpus::default(),
+            &keyforge_model::Rubric::default(),
+            &cost_model,
+        )
+        .unwrap()
+        .into();
 
         let search_config = SearchConfig::Annealing {
             steps: 10,

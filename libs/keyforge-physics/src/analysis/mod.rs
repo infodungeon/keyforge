@@ -17,7 +17,7 @@ pub mod heuristics;
 
 #[cfg(test)]
 mod tests {
-    use crate::ScoringEngine;
+    use crate::EngineFactory;
     use keyforge_model::{
         types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
@@ -29,7 +29,7 @@ mod tests {
                 index: i,
                 label: format!("k{}", i),
                 hand: HandIndex((i % 2) as u8),
-                finger: FingerIndex((i % 5) as u8),
+                finger: FingerIndex::new_unchecked((i % 5) as u8),
                 row: RowIndex((i / 10) as i8),
                 col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,
@@ -69,21 +69,21 @@ mod tests {
             KeyNode {
                 index: 0,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 row: RowIndex(0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 row: RowIndex(0),
                 ..Default::default()
             },
             KeyNode {
                 index: 2,
                 hand: HandIndex(0),
-                finger: FingerIndex(2),
+                finger: FingerIndex::new_unchecked(2),
                 row: RowIndex(2),
                 ..Default::default()
             },
@@ -94,7 +94,7 @@ mod tests {
         corpus_manual.bigrams.push((0, 1, 100)); // SFB
         corpus_manual.bigrams.push((0, 2, 100)); // Scissor
 
-        let engine = ScoringEngine::new(
+        let engine = EngineFactory::new_generic(
             &kb_manual,
             &corpus_manual,
             &Rubric::default(),
@@ -117,7 +117,7 @@ mod tests {
             .map(|i| KeyNode {
                 index: i,
                 hand: HandIndex(0),
-                finger: FingerIndex(i as u8),
+                finger: FingerIndex::new_unchecked(i as u8),
                 ..Default::default()
             })
             .collect();
@@ -143,7 +143,7 @@ mod tests {
             ..Rubric::default()
         };
 
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         assert!(report.rolls > 0.0, "Expected rolls");
@@ -160,7 +160,7 @@ mod tests {
         corpus.bigrams.push((97, 98, 500));
 
         let engine =
-            ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
         let layout = Layout::new_unchecked(vec![
             KeyCode(97),
             KeyCode(98),
@@ -202,10 +202,10 @@ mod tests {
         rubric.sfb_base = 100.0;
         rubric.sfb_lateral = 200.0;
 
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-        let score = engine.score(&layout).unwrap();
+        let score = engine.score(&layout).unwrap().to_f32();
 
         assert!(score >= 200.0);
         assert!(score > 150.0);
@@ -216,13 +216,13 @@ mod tests {
         let keys = vec![
             KeyNode {
                 index: 0,
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 col: ColIndex(0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
-                finger: FingerIndex(2),
+                finger: FingerIndex::new_unchecked(2),
                 col: ColIndex(2),
                 ..Default::default()
             },
@@ -235,10 +235,10 @@ mod tests {
         let mut rubric = Rubric::default();
         rubric.sfb_lateral = 500.0;
 
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
-        let score = engine.score(&layout).unwrap();
+        let score = engine.score(&layout).unwrap().to_f32();
         assert!(score >= 500.0);
     }
 
@@ -248,19 +248,19 @@ mod tests {
             KeyNode {
                 index: 0,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 2,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
         ];
@@ -279,7 +279,7 @@ mod tests {
         corpus.bigrams.push((97, 97, 500));
 
         let engine =
-            ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         let sfbs = report.top_sfbs;
@@ -299,13 +299,13 @@ mod tests {
             KeyNode {
                 index: 0,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
         ];
@@ -320,7 +320,7 @@ mod tests {
         corpus.bigrams.push((97, 98, 100));
 
         let engine =
-            ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         assert_eq!(report.top_sfbs.len(), 1);
@@ -334,7 +334,7 @@ mod tests {
             KeyNode {
                 index: 0,
                 hand: HandIndex(0),
-                finger: FingerIndex(0),
+                finger: FingerIndex::new_unchecked(0),
                 row: RowIndex(0),
                 col: ColIndex(0),
                 ..Default::default()
@@ -342,7 +342,7 @@ mod tests {
             KeyNode {
                 index: 1,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 row: RowIndex(2),
                 col: ColIndex(0),
                 ..Default::default()
@@ -350,7 +350,7 @@ mod tests {
             KeyNode {
                 index: 2,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 row: RowIndex(0),
                 col: ColIndex(2),
                 ..Default::default()
@@ -373,9 +373,9 @@ mod tests {
         rubric.sfb_lateral = 1000.0;
         rubric.threshold_scissor_row_diff = 2;
 
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
 
-        let score = engine.score(&layout).unwrap();
+        let score = engine.score(&layout).unwrap().to_f32();
         assert!(score.is_finite());
 
         let report = engine.analyze(&layout).unwrap();

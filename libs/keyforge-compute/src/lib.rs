@@ -23,6 +23,8 @@ use keyforge_core::{EvolutionError, ProgressCallback, ScoringSession};
 pub mod biometrics;
 /// Builder for constructing computation sessions.
 pub mod builder;
+/// Hardware detection and engine selection.
+pub mod hardware;
 pub use builder::SessionBuilder;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SearchConfig, SwapSuggestion};
@@ -34,7 +36,7 @@ use tracing::instrument;
 #[derive(Clone, Debug)]
 pub struct Runtime {
     /// The underlying physical scoring engine.
-    pub engine: Arc<ScoringEngine>,
+    pub engine: Arc<dyn ScoringEngine>,
     /// Registry of all valid keycodes.
     pub registry: Arc<KeycodeRegistry>,
     /// Global configuration for search and optimization.
@@ -45,7 +47,7 @@ impl Runtime {
     /// Creates a new `Runtime` from initialized components.
     #[must_use]
     pub fn new(
-        engine: Arc<ScoringEngine>,
+        engine: Arc<dyn ScoringEngine>,
         registry: Arc<KeycodeRegistry>,
         search_config: SearchConfig,
     ) -> Self {
@@ -63,7 +65,7 @@ impl Runtime {
     /// Returns `keyforge_physics::PhysicsError` if evaluation fails.
     #[instrument(skip(self, layout))]
     pub fn score(&self, layout: &Layout) -> Result<f32, keyforge_physics::PhysicsError> {
-        self.engine.score(layout)
+        Ok(self.engine.score(layout)?.to_f32())
     }
 
     /// Generates a comprehensive ergonomics analysis for a layout.
@@ -76,7 +78,7 @@ impl Runtime {
         &self,
         layout: &Layout,
     ) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
-        self.engine.analyze(layout)
+        Ok(self.engine.analyze(layout)?)
     }
 
     /// Suggests layout improvements based on the current scoring model.

@@ -1,67 +1,128 @@
-# KeyForge Project Context & Configuration
+# KeyForge Engineering Manifesto (v6.1)
 
-## 1. Project Identity
-**KeyForge** is a high-performance, data-driven keyboard layout generation and analysis system.
-**Core Philosophy:** Constraint-Based Engineering. We rely on type systems and compiler constraints to prevent errors, rather than hoping for logic to be correct.
+**Goal:** Engineering Truth, Deterministic State, & Operational Efficiency.
+**Enemy:** Context Saturation, Implicit Logic, "Happy Path" Bias.
+**Doctrine:** LLM-Integrated Development (LID).
 
-## 2. Architecture & Design (Hexagonal)
-Adhere strictly to the **Ports & Adapters** architecture:
+## 1. Core Philosophy: Constraint-Based Engineering
 
-*   **Tier 1: Core (Pure Logic)** - `keyforge-physics`, `keyforge-evolution`.
-    *   **Constraints:** NO `std::fs`, `tokio`, or `sqlx`. Pure math/logic only.
-    *   **Math:** Use **Fixed-Point Arithmetic** (`Score` type, `i64`) scaled by `1,000,000.0`. Never use `f32` for accumulation.
-    *   **Types:** Strict usage of newtypes (`KeyIndex(usize)`, `FingerIndex(u8)`).
-*   **Tier 2: Contracts (Ports)** - `keyforge-protocol` (DTOs), `keyforge-core` (traits).
-    *   **Pattern:** Centralized Error Registry (`ForgeError`).
-*   **Tier 3: Adapters (Infrastructure)** - `keyforge-infra`.
-    *   **Pattern:** The Humble Object (keep logic out of IO code).
-*   **Tier 4: Drivers** - `keyforge-hive` (Server), `keyforge-agent` (Worker), `keyforge-cli`.
+We move from **Asking** (hoping the LLM is smart) to **Constraining** (making it impossible for the LLM to be wrong).
 
-## 3. Cognitive Patterns (Code Style)
-*   **Typestate Pattern:** Encode state in types (`PendingJob` -> `RunningJob`).
-*   **Parameter Object:** Group cohesive arguments (`ScoringContext { layout, corpus }`).
-*   **Command Pattern:** Decouple Intent (`HiveCommand`) from Execution (`handle_command`).
+### Criticality Tiering
 
-## 4. Verification Strategy (The Guardrails)
-*   **Rigorous Unit Testing:** All logic, edge cases, and math must be verified in `src/`. Target 95%+ branch coverage.
-*   **Zero Duplication Policy:** Unit logic MUST NOT be re-verified in integration tests. Integration tests focus solely on "wiring" and cross-crate contracts.
-*   **Crate Affinity:** Tests must reside in the crate that owns the integration point.
-*   **The Oracle Pattern:** The optimized `ScoringEngine` MUST match the naive `DeterministicScorer` bit-for-bit.
-*   **Mutation Testing:** `keyforge-physics` must pass `cargo mutants` (zero survived mutants).
-*   **The "Cleanroom":** Debug complex logic in isolated reproduction scripts (`ops/repros/*.rs`), never inside the full app.
+1. **Tier 1 (The Nucleus):** `keyforge-physics`, `keyforge-evolution`.
+   * **Risk:** Mathematical hallucination.
+   * **Requirement:** 95%+ Branch Coverage + Property Testing.
 
-## 5. Worker Orchestration (Flash Protocol)
-To ensure successful delivery by Gemini Flash, high-level plans must be decomposed into an **Atomic TaskList**.
+2. **Tier 2 (The Contract):** `keyforge-protocol`, `keyforge-model`.
+   * **Risk:** Data corruption.
+   * **Requirement:** 100% Validation Coverage.
 
-**Execution Mandate for Flash:**
-1.  **Atomicity:** Tasks must be single-purpose (e.g., "Add field to struct," "Implement one trait method").
-2.  **Explicit Context Recall:** Before each task, state the Tier and Invariants.
-3.  **Reason-First:** Explain the implementation logic in natural language *before* calling the tool.
-4.  **Verification:** Every task must end with a specific verification command.
+3. **Tier 3 (The Shell):** `keyforge-infra`, `keyforge-hive`.
+   * **Risk:** IO/State failure.
+   * **Requirement:** Error Path Verification.
 
-**Tactical Guardrails:**
-*   **Fresh Eyes:** Always `read_file` immediately before editing to ensure line-perfect matching.
-*   **Lift & Shift:** When moving code, copy it *verbatim* first (fixing only imports). Verify compilation. *Then* refactor. Never mix moving and fixing.
-*   **Micro-Verification:** Run `cargo check -p <crate>` immediately after any file modification. Do not wait for the final checkpoint.
+## 2. Architectural Doctrine (Cognitive Ergonomics)
 
-## 6. Operational Doctrine (The "SAGA" Protocol)
-1.  **Isolate:** Create a reproduction case (`just repro <name>`).
-2.  **Verify Failure:** Ensure the repro fails as expected.
-3.  **Implement:** Write the minimal code to fix it (via Atomic TaskList).
-4.  **Verify Success:** Run the repro/unit tests.
-5.  **Reflect:** If a logic error occurred, explain *why* before fixing.
+### A. The Semantic Firewall (Type-Driven Design)
 
-## 7. Automation & Tooling
-*   **Task Runner:** Use `just` for all high-level operations.
-    *   `just repro <name>`: Create a reproduction script template.
-    *   `just context <file>`: Minify code for context window efficiency.
-*   **Testing:**
-    *   Unit: `cargo test -p <crate>`
-    *   Integration: `cargo test --test <integration_test>`
-    *   **Do not** use `cargo run` directly; use `just` commands to ensure environment variables are set.
+1. **The Typestate Pattern (Compiler State Machine)**
+   * **Problem:** Temporal Coupling (LLM accesses data before it is ready).
+   * **Fix:** Encode state in types (`PendingJob` -> `RunningJob` -> `CompletedJob`).
+   * **Rationale:** The compiler prevents accessing `score` on a `PendingJob`.
 
-## 8. Key Documentation References
-*   `docs/architecture/00_MANIFESTO.md` - Engineering Principles.
-*   `docs/architecture/11_SCORING_LOGIC.md` - Physics Math & Scoring Layers.
-*   `docs/architecture/16_TESTING_STANDARDS.md` - Verification Protocols.
-*   `docs/planning/refactor.md` - Active Refactor Roadmap.
+2. **The Parameter Object (Context Structs)**
+   * **Problem:** Argument Swapping (LLM confuses `usize` arguments).
+   * **Fix:** Group cohesive arguments into a Context Struct (`ScoringContext { layout, corpus }`).
+   * **Rationale:** Fields are named; positional arguments are eliminated.
+
+3. **The Centralized Error Registry**
+   * **Problem:** Lazy error handling (`anyhow!`, `unwrap()`).
+   * **Fix:** A strict, enumerated catalog (`ForgeError`) in `keyforge-protocol`.
+   * **Rationale:** Forces the LLM to categorize failure modes (Physics vs Infra).
+
+### B. Structural Patterns (Isolation)
+
+1. **The Command Pattern (Reified Actions)**
+   * **Problem:** Logic coupled to HTTP Handlers is hard to test.
+   * **Fix:** Decouple Intent (`HiveCommand`) from Execution (`handle_command`).
+   * **Rationale:** Enables testing business logic without spinning up a server.
+
+2. **The Humble Object**
+   * **Rule:** Extract logic from IO boundaries into pure structs.
+
+3. **Vertical Slices**
+   * **Rule:** Group code by Feature (`src/features/register_job`), not Layer.
+
+4. **Railway Oriented Programming (ROP)**
+   * **Rule:** Linear `Result` chains. No nested `if/else`.
+
+## 3. Verification Strategy (The Guardrails)
+
+### A. The Oracle Pattern (Multi-Tiered)
+
+* **Exact Engine:** Must match `DeterministicScorer` bit-for-bit.
+* **Search Engine:** May drift within documented bounds.
+* **Protocol:** Tests must select the appropriate comparator based on the engine under test.
+
+### B. Coverage-Driven Verification (CDV)
+
+* **Goal:** Identify "Logic Dark Matter" (unexecuted branches).
+* **Rule:** High coverage is a map of "Unknown Territory".
+
+### C. Advanced Testing Protocols
+
+1. **Mutation Testing (`cargo-mutants`):** Zero "Survived Mutants" allowed in Physics.
+2. **Metamorphic Testing:** Verify properties (`dist(a,b) == dist(b,a)`).
+3. **Golden Data:** Use hardcoded input/output pairs (`tests/fixtures/`) as the Anchor of Truth.
+4. **Formal Verification Lite (`kani`):** Prove invariants for core math.
+5. **Snapshot Testing (`insta`):** Lock regression for complex DTOs/Parsers.
+
+### D. The Ghost Code Strategy
+
+* **Rule:** For complex algorithms, implement a simplified "Ghost Model" first. Prove it, then optimize.
+
+## 4. Operational Protocols (The Workflow)
+
+### A. The SAGA Loop
+
+1. **Isolation:** Debug in `repro.rs`.
+2. **Tests First:** Test -> Fail -> Implement -> Pass.
+3. **Signature Freeze:** No changing `pub` signatures during debugging.
+4. **3-Turn Stop:** If fix fails twice: STOP, REVERT, ISOLATE.
+
+### B. Context Management
+
+1. **The Cleanroom:** Never debug inside the full app context.
+2. **Context Compression:** Use "Header Files" (Signatures only) for dependencies.
+3. **The Soft Reset:** Clear context window if reasoning degrades.
+
+### C. The Reflexion Loop
+
+* **Protocol:** When a test fails:
+    1. **Input:** Failing Test + Code.
+    2. **Task:** "Explain the logic error in natural language."
+    3. **Action:** Generate fix based on explanation.
+
+### D. Chain-of-Verification (CoVe)
+
+* **Protocol:** Draft -> Verify (Manual Calc) -> Finalize.
+
+## 5. Operational Reality (Day-2 Operations)
+
+### A. Database Safety
+
+* **Rule:** **Zero-Touch Migrations.**
+* **Protocol:** Never write SQL migrations directly. Output schema, verify diff. Migrations must be Additive Only.
+
+### B. Human Protocols
+
+1. **The Comprehension Test:** Human must explain logic without reading LLM summary.
+2. **The Two-Man Audit:** Coder != Auditor. Use fresh context for security audit.
+3. **No Magic:** Reject macros/complex generics unless explicitly requested.
+
+### C. Tiered Verification (CI Economics)
+
+1. **Tier 1: The Fast Loop (Local):** `cargo check`, `cargo test` (Unit). Time: < 30s.
+2. **Tier 2: The Logic Loop (PR):** `cargo test --doc`, `cargo mutants` (Diff). Time: < 10m.
+3. **Tier 3: The Deep Freeze (Nightly):** `kani`, Full `cargo mutants`, E2E. Time: Hours.

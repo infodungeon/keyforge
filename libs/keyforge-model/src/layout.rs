@@ -67,15 +67,7 @@ impl TryFrom<Vec<KeyCode>> for Layout {
     type Error = LayoutError;
 
     fn try_from(keys: Vec<KeyCode>) -> Result<Self, Self::Error> {
-        // Validation Logic: Check for duplicates
-        for i in 0..keys.len() {
-            for j in (i + 1)..keys.len() {
-                if keys[i] == keys[j] {
-                    return Err(LayoutError::DuplicateKeys);
-                }
-            }
-        }
-
+        // Validation Logic: Duplicates are now allowed (e.g. for split spacebars).
         Ok(Self { keys })
     }
 }
@@ -87,10 +79,23 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
+    fn test_layout_basic_methods() {
+        let keys = vec![KeyCode(65), KeyCode(66)];
+        let layout = Layout::new_unchecked(keys.clone());
+        assert_eq!(layout.len(), 2);
+        assert!(!layout.is_empty());
+        assert_eq!(layout.keys, keys);
+
+        let empty = Layout::new_unchecked(vec![]);
+        assert!(empty.is_empty());
+        assert_eq!(empty.len(), 0);
+    }
+
+    #[test]
     fn test_layout_validation() {
-        // Duplicates
+        // Duplicates are allowed
         let keys = vec![KeyCode(65), KeyCode(66), KeyCode(65)];
-        assert!(Layout::try_from(keys).is_err());
+        assert!(Layout::try_from(keys).is_ok());
 
         // Valid
         let keys = vec![KeyCode(65), KeyCode(66), KeyCode(67)];
@@ -99,18 +104,10 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_layout_uniqueness_invariant(keys in prop::collection::vec(0u16..100, 0..50)) {
-            let mut set = HashSet::new();
-            let has_dupes = keys.iter().any(|&k| !set.insert(k));
-
+        fn test_layout_validity(keys in prop::collection::vec(0u16..100, 0..50)) {
             let key_codes: Vec<KeyCode> = keys.into_iter().map(KeyCode).collect();
             let result = Layout::try_from(key_codes);
-
-            if has_dupes {
-                prop_assert!(result.is_err());
-            } else {
-                prop_assert!(result.is_ok());
-            }
+            prop_assert!(result.is_ok());
         }
     }
 }

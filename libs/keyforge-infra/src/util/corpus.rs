@@ -25,149 +25,155 @@ use serde_json::Value;
 /// # Errors
 ///
 /// Returns `LoaderResult` if the input data is invalid.
-#[allow(
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
-)]
 pub fn populate_corpus_from_segments(
     corpus: &mut Corpus,
     weight: f32,
-    segments: Vec<(&str, Vec<Value>)>,
+    segments: Vec<(&str, Vec<Value>)>, // This line was changed
 ) -> LoaderResult<()> {
     for (stem, part) in segments {
         match stem {
-            "1grams" => {
-                for e in part {
-                    if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
-                        if (c as u32) > 0xFFFF {
-                            return Err(ForgeError::InvalidData(format!(
-                                "Character outside BMP not supported: {c}"
-                            )));
-                        }
-                        let c_u16 = c as u16;
-                        let freq = e["freq"].as_u64().ok_or_else(|| {
-                            ForgeError::InvalidData(format!(
-                                "Missing frequency in 1gram entry: {e:?}"
-                            ))
-                        })?;
-                        corpus.char_freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
-                    }
-                }
-            }
-            "2grams" => {
-                for e in part {
-                    let freq = e["freq"].as_u64().ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {e:?}"))
-                    })?;
-                    let c1_char = e["char1"]
-                        .as_str()
-                        .and_then(resolve_corpus_char)
-                        .ok_or_else(|| {
-                            ForgeError::InvalidData(format!(
-                                "Missing or invalid char1 in 2gram entry: {e:?}"
-                            ))
-                        })?;
-                    let c2_char = e["char2"]
-                        .as_str()
-                        .and_then(resolve_corpus_char)
-                        .ok_or_else(|| {
-                            ForgeError::InvalidData(format!(
-                                "Missing or invalid char2 in 2gram entry: {e:?}"
-                            ))
-                        })?;
-
-                    if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF {
-                        return Err(ForgeError::InvalidData(format!(
-                            "Character outside BMP not supported: {c1_char} or {c2_char}"
-                        )));
-                    }
-
-                    corpus.bigrams.push((
-                        c1_char as u16,
-                        c2_char as u16,
-                        (freq as f32 * weight).round() as u32,
-                    ));
-                }
-            }
-            "3grams" => {
-                for e in part {
-                    let freq = e["freq"].as_u64().ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {e:?}"))
-                    })?;
-                    let c1_char = e["char1"]
-                        .as_str()
-                        .and_then(resolve_corpus_char)
-                        .ok_or_else(|| {
-                            ForgeError::InvalidData(format!(
-                                "Missing or invalid char1 in 3gram entry: {e:?}"
-                            ))
-                        })?;
-                    let c2_char = e["char2"]
-                        .as_str()
-                        .and_then(resolve_corpus_char)
-                        .ok_or_else(|| {
-                            ForgeError::InvalidData(format!(
-                                "Missing or invalid char2 in 3gram entry: {e:?}"
-                            ))
-                        })?;
-                    let c3_char = e["char3"]
-                        .as_str()
-                        .and_then(resolve_corpus_char)
-                        .ok_or_else(|| {
-                            ForgeError::InvalidData(format!(
-                                "Missing or invalid char3 in 3gram entry: {e:?}"
-                            ))
-                        })?;
-
-                    if (c1_char as u32) > 0xFFFF
-                        || (c2_char as u32) > 0xFFFF
-                        || (c3_char as u32) > 0xFFFF
-                    {
-                        return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char}, {c2_char}, or {c3_char}")));
-                    }
-
-                    corpus.trigrams.push((
-                        c1_char as u16,
-                        c2_char as u16,
-                        c3_char as u16,
-                        (freq as f32 * weight).round() as u32,
-                    ));
-                }
-            }
-            "words" => {
-                for e in part {
-                    let freq = e["freq"].as_u64().ok_or_else(|| {
-                        ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}"))
-                    })?;
-                    if let Some(w) = e["word"].as_str() {
-                        corpus
-                            .words
-                            .push((w.to_string(), (freq as f32 * weight).round() as u32));
-                    }
-                }
-            }
+            "1grams" => parse_monograms(corpus, weight, &part)?,
+            "2grams" => parse_bigrams(corpus, weight, &part)?,
+            "3grams" => parse_trigrams(corpus, weight, &part)?,
+            "words" => parse_words(corpus, weight, &part)?,
             _ => {}
         }
     }
     Ok(())
 }
 
+#[allow(clippy::cast_precision_loss, clippy::cast_sign_loss)]
+fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    for e in part {
+        if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
+            if (c as u32) > 0xFFFF {
+                return Err(ForgeError::InvalidData(format!(
+                    "Character outside BMP not supported: {c}"
+                )));
+            }
+            let c_u16 = c as u16;
+            let freq = e["freq"].as_u64().ok_or_else(|| {
+                ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {e:?}"))
+            })?;
+            #[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+            {
+                corpus.char_freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+fn parse_bigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    for e in part {
+        let freq = e["freq"].as_u64().ok_or_else(|| {
+            ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {e:?}"))
+        })?;
+        let c1_char = e["char1"]
+            .as_str()
+            .and_then(resolve_corpus_char)
+            .ok_or_else(|| {
+                ForgeError::InvalidData(format!(
+                    "Missing or invalid char1 in 2gram entry: {e:?}"
+                ))
+            })?;
+        let c2_char = e["char2"]
+            .as_str()
+            .and_then(resolve_corpus_char)
+            .ok_or_else(|| {
+                ForgeError::InvalidData(format!(
+                    "Missing or invalid char2 in 2gram entry: {e:?}"
+                ))
+            })?;
+
+        if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF {
+            return Err(ForgeError::InvalidData(format!(
+                "Character outside BMP not supported: {c1_char} or {c2_char}"
+            )));
+        }
+
+        corpus.bigrams.push(( 
+            c1_char as u16,
+            c2_char as u16,
+            (freq as f32 * weight).round() as u32,
+        ));
+    }
+    Ok(())
+}
+
+#[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    for e in part {
+        let freq = e["freq"].as_u64().ok_or_else(|| {
+            ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {e:?}"))
+        })?;
+        let c1_char = e["char1"]
+            .as_str()
+            .and_then(resolve_corpus_char)
+            .ok_or_else(|| {
+                ForgeError::InvalidData(format!(
+                    "Missing or invalid char1 in 3gram entry: {e:?}"
+                ))
+            })?;
+        let c2_char = e["char2"]
+            .as_str()
+            .and_then(resolve_corpus_char)
+            .ok_or_else(|| {
+                ForgeError::InvalidData(format!(
+                    "Missing or invalid char2 in 3gram entry: {e:?}"
+                ))
+            })?;
+        let c3_char = e["char3"]
+            .as_str()
+            .and_then(resolve_corpus_char)
+            .ok_or_else(|| {
+                ForgeError::InvalidData(format!(
+                    "Missing or invalid char3 in 3gram entry: {e:?}"
+                ))
+            })?;
+
+        if (c1_char as u32) > 0xFFFF
+            || (c2_char as u32) > 0xFFFF
+            || (c3_char as u32) > 0xFFFF
+        {
+            return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char}, {c2_char}, or {c3_char}")));
+        }
+
+        corpus.trigrams.push(( 
+            c1_char as u16,
+            c2_char as u16,
+            c3_char as u16,
+            (freq as f32 * weight).round() as u32,
+        ));
+    }
+    Ok(())
+}
+
+#[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+fn parse_words(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    for e in part {
+        let freq = e["freq"].as_u64().ok_or_else(|| {
+            ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}"))
+        })?;
+        if let Some(w) = e["word"].as_str() {
+            corpus
+                .words
+                .push((w.to_string(), (freq as f32 * weight).round() as u32));
+        }
+    }
+    Ok(())
+}
+
 /// Resolves a corpus token string to a character.
-/// Handles:
-/// 1. Named tokens ("SPACE", "ENTER")
-/// 2. Hex strings ("65", "20")
-/// 3. Literal characters ("a", "b")
 #[must_use]
 pub fn resolve_corpus_char(token: &str) -> Option<char> {
-    // 1. Named Tokens
     for (key, val) in CORPUS_TOKEN_MAP {
         if token == *key {
             return Some((*val).to_ascii_lowercase());
         }
     }
 
-    // 2. Hex Strings (2, 4, 6, 8 chars) - Multi-byte UTF-8 as used in corpus
     if token.len() >= 2
         && token.len().is_multiple_of(2)
         && token.chars().all(|c| c.is_ascii_hexdigit())
@@ -185,7 +191,6 @@ pub fn resolve_corpus_char(token: &str) -> Option<char> {
         }
     }
 
-    // 3. Literal Characters (Fallback)
     if token.chars().count() == 1 {
         token.chars().next().map(|c| c.to_ascii_lowercase())
     } else {
@@ -227,8 +232,8 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
                 let ratio = freq as f32 / total_chars as f32;
                 let share = (bksp_count as f32 * ratio).round() as u32;
                 if share > 0 {
-                    new_bigrams.push((char_code as u16, '\x08' as u16, share));
                     new_bigrams.push(('\x08' as u16, char_code as u16, share));
+                    new_bigrams.push((char_code as u16, '\x08' as u16, share));
                 }
             }
         }

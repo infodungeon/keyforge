@@ -12,7 +12,7 @@ sequenceDiagram
     participant Opt as Optimizer
     participant State as SearchState
     participant Mut as MutationOperator
-    participant Eng as ScoringEngine
+    participant Eng as dyn ScoringEngine
 
     Opt->>State: new(InitialLayout, Temp)
     

@@ -1,7 +1,7 @@
 // tests/system/tests/physics_scenarios.rs
 
 use keyforge_adapter::conversion;
-use keyforge_core::ScoringEngine;
+use keyforge_physics::EngineFactory;
 use keyforge_infra::{AssetLoader, FsProvider};
 use keyforge_model::config::{CorpusSource, ScoringWeights};
 use keyforge_model::constants::{ASSET_COST_MATRIX, ASSET_KEYCODES};
@@ -56,7 +56,7 @@ async fn test_scorer_determinism_production_data() {
     let keyboard = Keyboard::new(def.geometry.keys.clone(), def.geometry.home_row).unwrap();
     let rubric = conversion::to_domain_rubric(&weights);
 
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_data)
+    let engine = EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_data)
         .expect("Failed to create engine");
 
     let registry = provider
@@ -68,9 +68,12 @@ async fn test_scorer_determinism_production_data() {
 
     let report1 = engine.analyze(&layout).unwrap();
     let report2 = engine.analyze(&layout).unwrap();
+    let score1 = engine.score(&layout).unwrap();
+    let score2 = engine.score(&layout).unwrap();
 
     assert!(
         (report1.score - report2.score).abs() < 0.001,
-        "Scores diverged!"
+        "Report scores diverged!"
     );
+    assert_eq!(score1, score2, "Engine scores diverged!");
 }

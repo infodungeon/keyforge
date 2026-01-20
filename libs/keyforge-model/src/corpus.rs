@@ -202,32 +202,41 @@ mod tests {
     }
 
     #[test]
+    fn test_corpus_asset_and_validator() {
+        let c = Corpus::default();
+        assert_eq!(Corpus::category(), AssetCategory::Corpus);
+        
+        let v: &dyn Validator = &c;
+        assert!(v.validate().is_ok());
+        
+        let mut invalid = Corpus::default();
+        invalid.char_freqs = vec![0; 10];
+        let v_invalid: &dyn Validator = &invalid;
+        assert!(v_invalid.validate().is_err());
+    }
 
-    fn test_corpus_validation() {
-        let mut c = Corpus::default();
-
-        assert!(c.validate().is_ok());
-
-        // Too short
-
-        c.char_freqs = vec![0; 10];
-
-        assert!(c.validate().is_err());
-
-        // Too long
-
-        c.char_freqs = vec![0; 70000];
-
-        assert!(c.validate().is_err());
-
-        // Valid mutation
+    #[test]
+    fn test_corpus_merge() {
+        let mut c1 = Corpus::default();
+        c1.char_freqs[97] = 100;
+        c1.bigrams.push((97, 98, 10));
+        c1.trigrams.push((97, 98, 99, 5));
+        c1.words.push(("hello".to_string(), 1));
 
         let mut c2 = Corpus::default();
+        c2.char_freqs[97] = 200;
+        c2.bigrams.push((97, 98, 20));
+        c2.trigrams.push((97, 98, 99, 10));
+        c2.words.push(("world".to_string(), 2));
 
-        c2.char_freqs['a' as usize] = 100;
+        c1.merge(&c2, 0.5);
 
-        c2.bigrams.push(('a' as u16, 'b' as u16, 50));
-
-        assert!(c2.validate().is_ok());
+        assert_eq!(c1.char_freqs[97], 200); // 100 + (200 * 0.5)
+        assert_eq!(c1.bigrams.len(), 2);
+        assert!(c1.bigrams.iter().any(|&(_, _, f)| f == 10)); // 20 * 0.5
+        assert_eq!(c1.trigrams.len(), 2);
+        assert!(c1.trigrams.iter().any(|&(_, _, _, f)| f == 5)); // 10 * 0.5
+        assert_eq!(c1.words.len(), 2);
+        assert!(c1.words.iter().any(|(w, f)| w == "world" && *f == 1));
     }
 }

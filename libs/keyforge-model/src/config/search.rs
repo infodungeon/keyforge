@@ -467,41 +467,105 @@ mod tests {
     }
 
     #[test]
+    fn test_search_config_validation_extended() {
+        // end_temp < 0
+        let c = SearchConfig::Annealing {
+            steps: 100, start_temp: 10.0, end_temp: -1.0, seed: 0,
+            patience: 10, reheats: 0, reheat_factor: 0.5, include_thumbs: false,
+        };
+        assert!(c.validate().is_err());
 
-    fn test_search_params_validation() {
+        // reheat_factor <= 0
+        let c = SearchConfig::Annealing {
+            steps: 100, start_temp: 10.0, end_temp: 0.1, seed: 0,
+            patience: 10, reheats: 1, reheat_factor: 0.0, include_thumbs: false,
+        };
+        assert!(c.validate().is_err());
+
+        assert!(!SearchConfig::default().include_thumbs());
+        assert!(SearchConfig::Annealing {
+            steps: 100, start_temp: 10.0, end_temp: 0.1, seed: 0,
+            patience: 10, reheats: 1, reheat_factor: 0.5, include_thumbs: true,
+        }.include_thumbs());
+    }
+
+    #[test]
+    fn test_search_params_getters() {
+        let p = SearchParams::default();
+        assert_eq!(p.get_search_epochs(), DEFAULT_SEARCH_EPOCHS);
+        assert_eq!(p.get_search_steps(), DEFAULT_SEARCH_STEPS);
+        assert_eq!(p.get_search_patience(), DEFAULT_SEARCH_PATIENCE);
+        assert_eq!(p.get_search_patience_threshold(), DEFAULT_SEARCH_PATIENCE_THRESHOLD);
+        assert_eq!(p.get_temp_min(), DEFAULT_TEMP_MIN);
+        assert_eq!(p.get_temp_max(), DEFAULT_TEMP_MAX);
+        assert_eq!(p.get_opt_limit_fast(), DEFAULT_OPT_LIMIT_FAST);
+        assert_eq!(p.get_opt_limit_slow(), DEFAULT_OPT_LIMIT_SLOW);
+        assert_eq!(p.get_reheats(), DEFAULT_REHEATS);
+        assert_eq!(p.get_reheat_factor(), DEFAULT_REHEAT_FACTOR);
+    }
+
+    #[test]
+    fn test_search_params_validation_extended() {
         let mut p = SearchParams::default();
-
-        assert!(p.validate().is_ok());
-
-        // 1. Invalid epochs
-
-        p.params.insert("search_epochs".to_string(), 0.0);
-
+        
+        // epochs exceeds limit
+        p.params.insert("search_epochs".into(), (MAX_SEARCH_EPOCHS + 1) as f32);
         assert!(p.validate().is_err());
 
-        // 2. Invalid steps
-
+        // steps exceeds limit
         p = SearchParams::default();
-
-        p.params.insert("search_steps".to_string(), 0.0);
-
+        p.params.insert("search_steps".into(), (MAX_SEARCH_STEPS + 1) as f32);
         assert!(p.validate().is_err());
 
-        // 3. Negative temperature
-
+        // opt_limit_fast 0
         p = SearchParams::default();
-
-        p.params.insert("temp_max".to_string(), -1.0);
-
+        p.params.insert("opt_limit_fast".into(), 0.0);
         assert!(p.validate().is_err());
 
-        // 4. Invalid patience threshold
-
+        // opt_limit_fast exceeds limit
         p = SearchParams::default();
-
-        p.params
-            .insert("search_patience_threshold".to_string(), 1.5);
-
+        p.params.insert("opt_limit_fast".into(), (MAX_OPT_LIMIT_FAST + 1) as f32);
         assert!(p.validate().is_err());
+
+        // opt_limit_slow < fast
+        p = SearchParams::default();
+        p.params.insert("opt_limit_fast".into(), 1000.0);
+        p.params.insert("opt_limit_slow".into(), 500.0);
+        assert!(p.validate().is_err());
+
+        // temp_max exceeds limit
+        p = SearchParams::default();
+        p.params.insert("temp_max".into(), MAX_TEMP + 1.0);
+        assert!(p.validate().is_err());
+
+        // temp_min too low
+        p = SearchParams::default();
+        p.params.insert("temp_min".into(), 0.00001);
+        assert!(p.validate().is_err());
+
+        // temp_min >= temp_max
+        p = SearchParams::default();
+        p.params.insert("temp_min".into(), 10.0);
+        p.params.insert("temp_max".into(), 5.0);
+        assert!(p.validate().is_err());
+    }
+
+    #[test]
+    fn test_search_params_schema() {
+        let schema = SearchParams::schema();
+        assert!(!schema.is_empty());
+        assert!(schema.iter().any(|m| m.key == "search_epochs"));
+    }
+
+    #[cfg(feature = "cli")]
+    #[test]
+    fn test_search_params_config_conversion() {
+        let config = SearchParamsConfig {
+            params: vec![("temp_max".to_string(), 50.0)],
+            include_thumbs: true,
+        };
+        let p = SearchParams::try_from(config).unwrap();
+        assert_eq!(p.get_temp_max(), 50.0);
+        assert!(p.include_thumbs);
     }
 }

@@ -13,7 +13,7 @@ stateDiagram-v2
     
     state Init {
         [*] --> Validate : Check Config
-        Validate --> Compile : Build ScoringEngine
+        Validate --> Compile : Build dyn ScoringEngine
         Compile --> Pin : Apply Pinned Keys
     }
 

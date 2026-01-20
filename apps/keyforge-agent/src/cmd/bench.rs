@@ -30,7 +30,7 @@ pub async fn run(config: AgentConfig, job_file: PathBuf, iterations: usize) -> R
     let default_layout = Layout::new_unchecked(vec![KeyCode(0); engine.key_count()]);
 
     for _ in 0..iterations {
-        score_sum += engine.score(&default_layout)?;
+        score_sum += engine.score(&default_layout)?.to_f32();
     }
 
     let duration = start.elapsed();

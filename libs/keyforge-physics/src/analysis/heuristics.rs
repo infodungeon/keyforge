@@ -30,7 +30,9 @@ pub fn suggest_swaps(
     };
 
     let mut scratch = PhysicsScratch::new();
-    let current_score = score_layout(ctx, &validated, &mut scratch);
+    let Ok(current_score) = score_layout(ctx, &validated, &mut scratch) else {
+        return vec![]; // Scoring failure yields no suggestions
+    };
 
     if current_score <= 0 {
         return vec![];
@@ -67,7 +69,7 @@ pub fn suggest_swaps(
 
             if delta < 0 {
                 #[allow(clippy::cast_precision_loss)]
-                let improvement = delta.abs() as f32 / SCORE_SCALE;
+                let improvement = delta.unsigned_abs() as f32 / SCORE_SCALE;
                 #[allow(clippy::cast_precision_loss)]
                 let current_f32 = current_score as f32 / SCORE_SCALE;
 
@@ -99,10 +101,11 @@ pub fn suggest_swaps(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kernel::compiler::Compiler;
-    use crate::ScoringEngine;
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
-    use keyforge_model::{Corpus, CostModel, KeyCode, KeyNode, Keyboard, Rubric};
+    use crate::{EngineFactory, Compiler};
+    use keyforge_model::{
+        types::{FingerIndex, HandIndex, KeyCode, RowIndex, ColIndex},
+        Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
+    };
 
     fn mock_cost_model() -> CostModel {
         // We define distinct costs for rows to create a gradient.
@@ -196,7 +199,7 @@ mod tests {
                 index: i,
                 label: format!("k{}", i),
                 hand: HandIndex(0),
-                finger: FingerIndex(i as u8),
+                finger: FingerIndex::new_unchecked(i as u8),
                 x: i as f32,
                 ..Default::default()
             })
@@ -214,7 +217,7 @@ mod tests {
         rubric.travel_lat = 10.0;
 
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
 
         let suggestions = suggest_swaps(engine.context(), &layout, false);
         assert!(
@@ -230,7 +233,7 @@ mod tests {
         let corpus = Corpus::default();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
         let engine =
-            ScoringEngine::new(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
 
         let suggestions = suggest_swaps(engine.context(), &layout, false);
         assert!(
@@ -248,7 +251,7 @@ mod tests {
         let mut rubric = Rubric::default();
         rubric.travel_lat = 10.0;
 
-        let engine = ScoringEngine::new(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
 
         let layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
         let mut pos_map_data = vec![65535u16; 65536];
@@ -256,7 +259,7 @@ mod tests {
         pos_map_data[1] = 1;
         pos_map_data[2] = 2;
 
-        let validated = ValidatedLayout::new(&layout_keys, engine.context().key_count).unwrap();
+        let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
 
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
@@ -265,7 +268,7 @@ mod tests {
         let mut used_keys_scratch = Vec::with_capacity(layout_keys.len());
         let pm = PosMap::from_scratch(
             &layout_keys,
-            engine.context().key_count,
+            engine.key_count(),
             &mut starts,
             &mut counts,
             &mut indices,

@@ -28,8 +28,8 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
-    let engine_arc = Arc::new(engine);
+    let engine = keyforge_physics::EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     // Determine unlocked indices
     let unlocked_indices: Vec<usize> = (0..engine_arc.key_count())
@@ -52,7 +52,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
 ///
 /// Returns `EvolutionError::Config` if the search parameters are inconsistent.
 pub fn evolve<CB: ProgressCallback>(
-    engine: &Arc<ScoringEngine>,
+    engine: &Arc<dyn ScoringEngine>,
     config: &SearchConfig,
     callback: CB,
     initial_layout: Option<Layout>,
@@ -78,7 +78,7 @@ pub fn evolve<CB: ProgressCallback>(
 
 /// Internal helper to share logic between legacy and new entry points.
 fn evolve_internal<CB: ProgressCallback>(
-    engine: &Arc<ScoringEngine>,
+    engine: &Arc<dyn ScoringEngine>,
     config: &SearchConfig,
     unlocked_indices: Vec<usize>,
     initial_layout: Option<Layout>,
@@ -146,7 +146,7 @@ fn evolve_internal<CB: ProgressCallback>(
             )?;
 
             let mut optimizer = Optimizer::new(
-                engine,
+                engine.as_ref(),
                 annealing_config,
                 mutation,
                 acceptance,
@@ -155,8 +155,11 @@ fn evolve_internal<CB: ProgressCallback>(
 
             let best_layout = optimizer.run(Some(layout), callback)?;
 
+            // Re-validate using Exact engine for bit-perfect final report
+            let exact_score = engine.score(&best_layout)?;
+
             Ok(OptimizationResult {
-                score: engine.score(&best_layout)?,
+                score: exact_score.to_f32(),
                 layout: best_layout,
             })
         }

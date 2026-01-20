@@ -22,11 +22,12 @@ pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3:
     if dir1 == 0 || dir2 == 0 {
         return Score::ZERO;
     }
-    if dir1.signum() != dir2.signum() {
+    // Use direct comparison to avoid signum() negate overflow
+    if (dir1 > 0 && dir2 < 0) || (dir1 < 0 && dir2 > 0) {
         return ctx.penalty_redirect;
     }
     if dir1 < 0 {
-        return Score::ZERO.saturating_sub(ctx.bonus_roll);
+        return -ctx.bonus_roll;
     }
     Score::ZERO
 }

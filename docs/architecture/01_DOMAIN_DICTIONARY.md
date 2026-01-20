@@ -20,7 +20,7 @@ This document defines the strict terminology used throughout the KeyForge codeba
 
 | Term | Type | Definition | Validation Rule |
 | :--- | :--- | :--- | :--- |
-| **Layout** | `Layout` | A mapping of `KeyCode`s to `KeyIndex`es. The mutable entity evolved by the optimizer. | No duplicate keys. Length matches Keyboard. |
+| **Layout** | `Layout` | A mapping of `KeyCode`s to `KeyIndex`es. The mutable entity evolved by the optimizer. | Duplicates allowed (Optimal Typist model). Length matches Keyboard. |
 | **KeyCode** | `KeyCode(u16)` | A logical character or action. Decoupled from physical position. | ID/Label cannot be empty. |
 | **Pinned Keys** | `Vec<Option<KeyCode>>` | A mask of keys that the optimizer is forbidden from moving (e.g., Spacebar, Enter). | Indices must be in bounds. |
 

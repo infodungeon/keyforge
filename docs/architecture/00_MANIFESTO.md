@@ -1,4 +1,4 @@
-# KeyForge Engineering Manifesto (v6.0)
+# KeyForge Engineering Manifesto (v6.1)
 
 **Goal:** Engineering Truth, Deterministic State, & Operational Efficiency.
 **Enemy:** Context Saturation, Implicit Logic, "Happy Path" Bias.
@@ -13,6 +13,8 @@ We move from **Asking** (hoping the LLM is smart) to **Constraining** (making it
 1. **Tier 1 (The Nucleus):** `keyforge-physics`, `keyforge-evolution`.
    * **Risk:** Mathematical hallucination.
    * **Requirement:** 95%+ Branch Coverage + Property Testing.
+   * **Requirement:** Bit-perfect parity between Exact and Oracle implementations.
+   * **Requirement:** 100% Checked Arithmetic in scoring kernels (No silent overflows).
 
 2. **Tier 2 (The Contract):** `keyforge-protocol`, `keyforge-model`.
    * **Risk:** Data corruption.
@@ -59,10 +61,11 @@ We move from **Asking** (hoping the LLM is smart) to **Constraining** (making it
 
 ## 3. Verification Strategy (The Guardrails)
 
-### A. The Oracle Pattern (Shadow Execution)
+### A. The Oracle Pattern (Multi-Tiered)
 
-* **Rule:** `ScoringEngine` (Optimized) must match `DeterministicScorer` (Simple) bit-for-bit.
-* **Protocol:** Run both in Debug builds. Panic on divergence.
+* **Exact Engine:** Must match `DeterministicScorer` bit-for-bit.
+* **Search Engine:** May drift within documented bounds.
+* **Protocol:** Tests must select the appropriate comparator based on the engine under test.
 
 ### B. Coverage-Driven Verification (CDV)
 

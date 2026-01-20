@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_core::ScoringEngine;
+use keyforge_physics::EngineFactory;
 use keyforge_infra::AssetManager;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
@@ -140,7 +140,7 @@ fn run_benchmark(
 
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let engine = ScoringEngine::new(&keyboard, &corpus, &rubric, &cost_model)
+    let engine = EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     for _ in 0..config.warmup_iterations {

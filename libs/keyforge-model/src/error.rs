@@ -34,6 +34,10 @@ pub enum ForgeError {
     #[error("Physics Violation: {0}")]
     Physics(#[from] PhysicsError),
 
+    /// High-level physics calculation error from the compute kernel.
+    #[error("Physics Compute Error: {0}")]
+    PhysicsCompute(String),
+
     /// Error originating from the Evolution engine.
     #[error("Evolution Error: {0}")]
     Evolution(String),
@@ -108,4 +112,8 @@ pub enum PhysicsError {
     /// Configuration error in the physics engine.
     #[error("Physics Config Error: {0}")]
     Config(String),
+
+    /// Feature not implemented.
+    #[error("Not Implemented: {0}")]
+    Unimplemented(String),
 }

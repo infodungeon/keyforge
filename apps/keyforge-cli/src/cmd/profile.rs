@@ -50,7 +50,7 @@ pub fn run(args: &ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         if let Ok(s) = serde_json::from_str::<BiometricSample>(&l) {
-            samples.push(s)
+            samples.push(s);
         } else {
             // If it looks like it might be a JSON array, or if it just failed to parse as a single sample,
             // try parsing the whole file as a legacy UserStatsStore.

@@ -39,14 +39,13 @@ use std::sync::Arc;
 
 /// Build a compiled `ScoringEngine` from an `EngineRequest`.
 ///
-/// This is a convenience wrapper around `ScoringEngine::new`.
 /// Builds a scoring engine.
 ///
 /// # Errors
 ///
 /// Returns `PhysicsError` if the engine building fails.
-pub fn build_engine(req: &EngineRequest) -> Result<ScoringEngine, PhysicsError> {
-    ScoringEngine::new(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
+pub fn build_engine(req: &EngineRequest) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+    keyforge_physics::EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
 }
 
 /// Analyze a layout using a compiled engine.
@@ -56,7 +55,7 @@ pub fn build_engine(req: &EngineRequest) -> Result<ScoringEngine, PhysicsError> 
 ///
 /// Returns `PhysicsError` if analysis fails.
 pub fn analyze_with_engine(
-    engine: &ScoringEngine,
+    engine: &dyn ScoringEngine,
     layout: &Layout,
 ) -> Result<AnalysisReport, PhysicsError> {
     engine.analyze(layout)
@@ -68,8 +67,8 @@ pub fn analyze_with_engine(
 /// # Errors
 ///
 /// Returns `PhysicsError` if scoring fails.
-pub fn score_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<f32, PhysicsError> {
-    engine.score(layout)
+pub fn score_with_engine(engine: &dyn ScoringEngine, layout: &Layout) -> Result<f32, PhysicsError> {
+    Ok(engine.score(layout)?.to_f32())
 }
 
 /// Suggest swaps using a compiled engine.
@@ -79,10 +78,10 @@ pub fn score_with_engine(engine: &ScoringEngine, layout: &Layout) -> Result<f32,
 ///
 /// Returns `PhysicsError` if suggestion logic fails.
 pub fn suggest_with_engine(
-    engine: &ScoringEngine,
+    engine: &dyn ScoringEngine,
     layout: &Layout,
 ) -> Result<Vec<SwapSuggestion>, PhysicsError> {
-    Ok(engine.suggest_improvements(layout, false))
+    Ok(engine.suggest_improvements(layout, true))
 }
 
 /// Legacy-style analysis: compiles an engine from the request and analyzes the request layout.
@@ -155,7 +154,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
 ///
 /// Returns `EvolutionError` if optimization fails.
 pub fn optimize_with_engine<CB: ProgressCallback>(
-    engine: &Arc<ScoringEngine>,
+    engine: &Arc<dyn ScoringEngine>,
     config: &keyforge_model::SearchConfig,
     callback: CB,
     initial_layout: Option<Layout>,

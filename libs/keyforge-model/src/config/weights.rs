@@ -118,115 +118,69 @@ pub struct ScoringWeights {
 impl Default for ScoringWeights {
     fn default() -> Self {
         let mut weights = std::collections::HashMap::new();
-
-        weights.insert(
-            "penalty_sfr_weak_finger".to_string(),
-            DEFAULT_PENALTY_SFR_WEAK_FINGER,
-        );
-        weights.insert(
-            "penalty_sfr_bad_row".to_string(),
-            DEFAULT_PENALTY_SFR_BAD_ROW,
-        );
-        weights.insert("penalty_sfr_lat".to_string(), DEFAULT_PENALTY_SFR_LAT);
-        weights.insert(
-            "penalty_sfb_lateral".to_string(),
-            DEFAULT_PENALTY_SFB_LATERAL,
-        );
-        weights.insert(
-            "penalty_sfb_lateral_weak".to_string(),
-            DEFAULT_PENALTY_SFB_LATERAL_WEAK,
-        );
-        weights.insert("penalty_sfb_base".to_string(), DEFAULT_PENALTY_SFB_BASE);
-        weights.insert(
-            "penalty_sfb_outward_adder".to_string(),
-            DEFAULT_PENALTY_SFB_OUTWARD_ADDER,
-        );
-        weights.insert(
-            "penalty_sfb_diagonal".to_string(),
-            DEFAULT_PENALTY_SFB_DIAGONAL,
-        );
-        weights.insert("penalty_sfb_long".to_string(), DEFAULT_PENALTY_SFB_LONG);
-        weights.insert("penalty_sfb_bottom".to_string(), DEFAULT_PENALTY_SFB_BOTTOM);
-        weights.insert(
-            "weight_weak_finger_sfb".to_string(),
-            DEFAULT_WEIGHT_WEAK_FINGER_SFB,
-        );
-        weights.insert(
-            "threshold_sfb_long_row_diff".to_string(),
-            f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF),
-        );
-        weights.insert(
-            "threshold_scissor_row_diff".to_string(),
-            f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF),
-        );
-        weights.insert(
-            "threshold_reach_stretch".to_string(),
-            DEFAULT_THRESHOLD_REACH_STRETCH,
-        );
-        weights.insert("penalty_scissor".to_string(), DEFAULT_PENALTY_SCISSOR);
-        weights.insert("penalty_ring_pinky".to_string(), DEFAULT_PENALTY_RING_PINKY);
-        weights.insert("penalty_lateral".to_string(), DEFAULT_PENALTY_LATERAL);
-        weights.insert(
-            "penalty_monogram_stretch".to_string(),
-            DEFAULT_PENALTY_MONOGRAM_STRETCH,
-        );
-        weights.insert("penalty_skip".to_string(), DEFAULT_PENALTY_SKIP);
-        weights.insert("penalty_redirect".to_string(), DEFAULT_PENALTY_REDIRECT);
-        weights.insert("penalty_hand_run".to_string(), DEFAULT_PENALTY_HAND_RUN);
-        weights.insert("bonus_inward_roll".to_string(), DEFAULT_BONUS_INWARD_ROLL);
-        weights.insert(
-            "bonus_bigram_roll_in".to_string(),
-            DEFAULT_BONUS_BIGRAM_ROLL_IN,
-        );
-        weights.insert(
-            "bonus_bigram_roll_out".to_string(),
-            DEFAULT_BONUS_BIGRAM_ROLL_OUT,
-        );
-        weights.insert(
-            "penalty_high_in_med".to_string(),
-            DEFAULT_PENALTY_HIGH_IN_MED,
-        );
-        weights.insert(
-            "penalty_high_in_low".to_string(),
-            DEFAULT_PENALTY_HIGH_IN_LOW,
-        );
-        weights.insert(
-            "penalty_med_in_prime".to_string(),
-            DEFAULT_PENALTY_MED_IN_PRIME,
-        );
-        weights.insert("penalty_med_in_low".to_string(), DEFAULT_PENALTY_MED_IN_LOW);
-        weights.insert(
-            "penalty_low_in_prime".to_string(),
-            DEFAULT_PENALTY_LOW_IN_PRIME,
-        );
-        weights.insert("penalty_low_in_med".to_string(), DEFAULT_PENALTY_LOW_IN_MED);
-        weights.insert("penalty_imbalance".to_string(), DEFAULT_PENALTY_IMBALANCE);
-        weights.insert("max_hand_imbalance".to_string(), DEFAULT_MAX_HAND_IMBALANCE);
-        weights.insert(
-            "weight_vertical_travel".to_string(),
-            DEFAULT_WEIGHT_VERTICAL_TRAVEL,
-        );
-        weights.insert(
-            "weight_lateral_travel".to_string(),
-            DEFAULT_WEIGHT_LATERAL_TRAVEL,
-        );
-        weights.insert(
-            "weight_finger_effort".to_string(),
-            DEFAULT_WEIGHT_FINGER_EFFORT,
-        );
-        weights.insert("default_cost_ms".to_string(), DEFAULT_COST_MS);
-        #[allow(clippy::cast_precision_loss)]
-        weights.insert(
-            "loader_trigram_limit".to_string(),
-            DEFAULT_LOADER_TRIGRAM_LIMIT as f32,
-        );
-        weights.insert("trigram_coverage".to_string(), DEFAULT_TRIGRAM_COVERAGE);
+        Self::insert_sfb_penalties(&mut weights);
+        Self::insert_movement_penalties(&mut weights);
+        Self::insert_dynamic_rules(&mut weights);
+        Self::insert_loader_defaults(&mut weights);
 
         Self {
             weights,
             finger_penalty_scale: DEFAULT_FINGER_PENALTY_SCALE_ARRAY,
             comfortable_scissors: DEFAULT_COMFORTABLE_SCISSORS.to_string(),
         }
+    }
+}
+
+impl ScoringWeights {
+    fn insert_sfb_penalties(weights: &mut std::collections::HashMap<String, f32>) {
+        weights.insert("penalty_sfr_weak_finger".to_string(), DEFAULT_PENALTY_SFR_WEAK_FINGER);
+        weights.insert("penalty_sfr_bad_row".to_string(), DEFAULT_PENALTY_SFR_BAD_ROW);
+        weights.insert("penalty_sfr_lat".to_string(), DEFAULT_PENALTY_SFR_LAT);
+        weights.insert("penalty_sfb_lateral".to_string(), DEFAULT_PENALTY_SFB_LATERAL);
+        weights.insert("penalty_sfb_lateral_weak".to_string(), DEFAULT_PENALTY_SFB_LATERAL_WEAK);
+        weights.insert("penalty_sfb_base".to_string(), DEFAULT_PENALTY_SFB_BASE);
+        weights.insert("penalty_sfb_outward_adder".to_string(), DEFAULT_PENALTY_SFB_OUTWARD_ADDER);
+        weights.insert("penalty_sfb_diagonal".to_string(), DEFAULT_PENALTY_SFB_DIAGONAL);
+        weights.insert("penalty_sfb_long".to_string(), DEFAULT_PENALTY_SFB_LONG);
+        weights.insert("penalty_sfb_bottom".to_string(), DEFAULT_PENALTY_SFB_BOTTOM);
+        weights.insert("weight_weak_finger_sfb".to_string(), DEFAULT_WEIGHT_WEAK_FINGER_SFB);
+        weights.insert("threshold_sfb_long_row_diff".to_string(), f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF));
+    }
+
+    fn insert_movement_penalties(weights: &mut std::collections::HashMap<String, f32>) {
+        weights.insert("threshold_scissor_row_diff".to_string(), f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF));
+        weights.insert("threshold_reach_stretch".to_string(), DEFAULT_THRESHOLD_REACH_STRETCH);
+        weights.insert("penalty_scissor".to_string(), DEFAULT_PENALTY_SCISSOR);
+        weights.insert("penalty_ring_pinky".to_string(), DEFAULT_PENALTY_RING_PINKY);
+        weights.insert("penalty_lateral".to_string(), DEFAULT_PENALTY_LATERAL);
+        weights.insert("penalty_monogram_stretch".to_string(), DEFAULT_PENALTY_MONOGRAM_STRETCH);
+        weights.insert("penalty_skip".to_string(), DEFAULT_PENALTY_SKIP);
+        weights.insert("weight_vertical_travel".to_string(), DEFAULT_WEIGHT_VERTICAL_TRAVEL);
+        weights.insert("weight_lateral_travel".to_string(), DEFAULT_WEIGHT_LATERAL_TRAVEL);
+        weights.insert("weight_finger_effort".to_string(), DEFAULT_WEIGHT_FINGER_EFFORT);
+    }
+
+    fn insert_dynamic_rules(weights: &mut std::collections::HashMap<String, f32>) {
+        weights.insert("penalty_redirect".to_string(), DEFAULT_PENALTY_REDIRECT);
+        weights.insert("penalty_hand_run".to_string(), DEFAULT_PENALTY_HAND_RUN);
+        weights.insert("bonus_inward_roll".to_string(), DEFAULT_BONUS_INWARD_ROLL);
+        weights.insert("bonus_bigram_roll_in".to_string(), DEFAULT_BONUS_BIGRAM_ROLL_IN);
+        weights.insert("bonus_bigram_roll_out".to_string(), DEFAULT_BONUS_BIGRAM_ROLL_OUT);
+        weights.insert("penalty_high_in_med".to_string(), DEFAULT_PENALTY_HIGH_IN_MED);
+        weights.insert("penalty_high_in_low".to_string(), DEFAULT_PENALTY_HIGH_IN_LOW);
+        weights.insert("penalty_med_in_prime".to_string(), DEFAULT_PENALTY_MED_IN_PRIME);
+        weights.insert("penalty_med_in_low".to_string(), DEFAULT_PENALTY_MED_IN_LOW);
+        weights.insert("penalty_low_in_prime".to_string(), DEFAULT_PENALTY_LOW_IN_PRIME);
+        weights.insert("penalty_low_in_med".to_string(), DEFAULT_PENALTY_LOW_IN_MED);
+        weights.insert("penalty_imbalance".to_string(), DEFAULT_PENALTY_IMBALANCE);
+        weights.insert("max_hand_imbalance".to_string(), DEFAULT_MAX_HAND_IMBALANCE);
+    }
+
+    fn insert_loader_defaults(weights: &mut std::collections::HashMap<String, f32>) {
+        weights.insert("default_cost_ms".to_string(), DEFAULT_COST_MS);
+        #[allow(clippy::cast_precision_loss)]
+        weights.insert("loader_trigram_limit".to_string(), DEFAULT_LOADER_TRIGRAM_LIMIT as f32);
+        weights.insert("trigram_coverage".to_string(), DEFAULT_TRIGRAM_COVERAGE);
     }
 }
 
@@ -262,7 +216,7 @@ impl Validator for ScoringWeights {
 }
 
 impl ScoringWeights {
-    /// Returns the schema for scoring weights.
+    /// Returns the metadata schema for all available scoring weights.
     #[must_use]
     pub fn schema() -> Vec<ParameterMetadata> {
         vec![

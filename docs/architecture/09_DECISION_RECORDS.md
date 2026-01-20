@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-**Version:** 4.7
+**Version:** 4.8
 **Context:** Log of significant architectural decisions.
 
 ## Index
@@ -20,6 +20,7 @@
 * [ADR-013: Hybrid Development Environment](#adr-013-hybrid-development-environment)
 * [ADR-014: Subdomain Architecture](#adr-014-subdomain-architecture)
 * [ADR-015: Data Decoupling and Testing Strategy](#adr-015-data-decoupling-and-testing-strategy)
+* [ADR-016: Multi-Tiered Scoring Implementations](#adr-016-multi-tiered-scoring-implementations)
 
 ---
 
@@ -125,7 +126,7 @@
 * **Date:** 2026-01-07
 * **Context:**
   1. **Process Isolation:** The Hive WebSocket event loop was process-local (`tokio::broadcast`). If we scaled Hive to multiple instances, users connected to Instance A could not see events from Instance B.
-  2. **Database Load:** High-frequency ephemeral data (Agent Heartbeats at 1Hz, Real-time Score updates) was being written to PostgreSQL, causing write amplification and WAL bloat for data that has no long-term value.oo
+  2. **Database Load:** High-frequency ephemeral data (Agent Heartbeats at 1Hz, Real-time Score updates) was being written to PostgreSQL, causing write amplification and WAL bloat for data that has no long-term value.
   3. **Consistency:** Asset caches were managed locally. If an admin updated a file on one server, others would serve stale data.
 * **Decision:** Introduce **Valkey** (an open-source Redis fork) as the **Coordination Layer**.
   * **Role:** Acts as the "Nervous System" for the cluster.
@@ -215,3 +216,27 @@
   * (+) **Stability:** Tests are decoupled from internal implementation details.
   * (+) **Maintainability:** Clearer ownership of logic vs. wiring.
   * (-) **Safety:** Loss of compile-time type checking for configuration fields (mitigated by Runtime Schema Validation).
+
+## ADR-016: Multi-Tiered Scoring Implementations
+
+* **Status:** Accepted
+* **Date:** 2026-01-19
+* **Context:**
+  * **The Conflict:** We have two opposing needs:
+      1. **Absolute Truth:** UI analysis and Hive verification require a 100% trustworthy, bit-perfect score.
+      2. **Maximum Throughput:** Search algorithms (Annealing) need to evaluate millions of layouts per second. Optimization techniques (SIMD, Cache Blocking) often introduce minor precision "drift" or are hardware-specific.
+  * **Previous State:** The "Oracle Pattern" enforced that the Optimized Engine match the Naive Oracle bit-for-bit. This capped optimization headroom.
+* **Decision:** Adopt a **Three-Tiered Implementation Strategy**:
+  1.  **Exact (The Oracle):**
+      *   **Role:** Single source of truth. Used for UI analysis, final verification, and "Gold Standard" checks.
+      *   **Constraint:** Must be bit-perfect and simple.
+  2.  **Generic Optimized (The Workhorse):**
+      *   **Role:** High-speed search on unknown hardware.
+      *   **Constraint:** Portable Rust. Allows documented, bounded drift from the Oracle.
+  3.  **Hardware Specific (The F1 Car):**
+      *   **Role:** Extreme optimization for specific CPUs (starting with Intel Family 6/Comet Lake).
+      *   **Constraint:** Uses CPUID/Cache detection. optimization is theoretically unbounded. Allows drift.
+*   **Consequences:**
+  * (+) **Performance:** Unlocks hardware-specific tuning (L1/L2 cache blocking).
+  * (+) **Reliability:** "Exact" tier ensures user-facing numbers are always correct.
+  * (-) **Complexity:** Testing must now account for "allowed drift" rather than strict equality for search tiers.

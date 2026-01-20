@@ -37,7 +37,8 @@ pub async fn run(args: &BenchmarkArgs, loader: &FsProvider) -> Result<(), CliErr
         score_sum += session
             .engine
             .score(&default_layout)
-            .map_err(|e| CliError::Other(format!("Scoring Error: {e}")))?;
+            .map_err(|e| CliError::Other(format!("Scoring Error: {e}")))?
+            .to_f32();
     }
 
     let duration = start.elapsed();

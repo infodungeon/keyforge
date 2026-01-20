@@ -26,7 +26,7 @@ use std::collections::HashMap;
 ///
 /// This structure holds flattened, cache-friendly representations of
 /// language statistics and physical travel costs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct EngineContext {
     pub(crate) key_count: usize,

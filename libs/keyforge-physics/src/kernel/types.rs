@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::errors::PhysicsError;
+use crate::error::PhysicsError;
 pub use keyforge_model::types::{
     ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, Score,
 };

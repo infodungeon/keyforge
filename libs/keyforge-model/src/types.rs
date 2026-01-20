@@ -140,6 +140,15 @@ impl FingerIndex {
     /// Pinky finger index (4).
     pub const PINKY: Self = Self(4);
 
+    /// Creates a new FingerIndex. 
+    /// 
+    /// # Safety
+    /// Calling this with a value > 4 violates domain invariants.
+    #[must_use]
+    pub const fn new_unchecked(val: u8) -> Self {
+        Self(val)
+    }
+
     /// Returns the raw `u8` value.
     #[must_use]
     pub fn as_u8(&self) -> u8 {
@@ -160,9 +169,8 @@ impl FingerIndex {
 
     /// Calculates the signed difference between two fingers.
     #[must_use]
-    #[allow(clippy::cast_possible_wrap)]
-    pub fn diff(&self, other: Self) -> i8 {
-        self.0 as i8 - other.0 as i8
+    pub fn diff(&self, other: Self) -> i16 {
+        self.0 as i16 - other.0 as i16
     }
 
     /// Returns true if this is considered a "weak" finger (Ring or Pinky).
@@ -195,9 +203,9 @@ impl TryFrom<u8> for FingerIndex {
 pub struct RowIndex(pub i8);
 
 impl std::ops::Sub for RowIndex {
-    type Output = i8;
+    type Output = i32;
     fn sub(self, rhs: Self) -> Self::Output {
-        self.0 - rhs.0
+        self.0 as i32 - rhs.0 as i32
     }
 }
 
@@ -209,9 +217,9 @@ impl std::ops::Sub for RowIndex {
 pub struct ColIndex(pub i8);
 
 impl std::ops::Sub for ColIndex {
-    type Output = i8;
+    type Output = i32;
     fn sub(self, rhs: Self) -> Self::Output {
-        self.0 - rhs.0
+        self.0 as i32 - rhs.0 as i32
     }
 }
 
@@ -233,15 +241,23 @@ impl Score {
     pub const ZERO: Score = Score(0);
 
     /// Creates a Score from a float value, applying scaling.
-    #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
-    pub fn from_f32(val: f32) -> Self {
-        Score((val * SCORE_SCALE) as i64)
+    /// 
+    /// # Errors
+    /// Returns an error string if the value overflows or is NaN.
+    pub fn from_f32(val: f32) -> Result<Self, String> {
+        if val.is_nan() {
+            return Err("Cannot create Score from NaN".to_string());
+        }
+        let scaled = f64::from(val) * f64::from(crate::constants::SCORE_SCALE);
+        if scaled > i64::MAX as f64 || scaled < i64::MIN as f64 {
+            return Err(format!("Score overflow: {} exceeds i64 bounds when scaled", val));
+        }
+        Ok(Score(scaled as i64))
     }
 
     /// Creates a Score from a raw i64 that is already scaled.
     #[must_use]
-    pub fn from_scaled_i64(val: i64) -> Self {
+    pub const fn from_scaled_i64(val: i64) -> Self {
         Score(val)
     }
 
@@ -252,36 +268,47 @@ impl Score {
         self.0 as f32 / SCORE_SCALE
     }
 
-    /// Saturating addition.
-    #[must_use]
-    pub fn saturating_add(self, other: Score) -> Score {
-        Score(self.0.saturating_add(other.0))
+    /// Checked addition.
+    pub fn checked_add(self, other: Score) -> Option<Score> {
+        self.0.checked_add(other.0).map(Score)
     }
 
-    /// Saturating subtraction.
-    #[must_use]
-    pub fn saturating_sub(self, other: Score) -> Score {
-        Score(self.0.saturating_sub(other.0))
+    /// Checked subtraction.
+    pub fn checked_sub(self, other: Score) -> Option<Score> {
+        self.0.checked_sub(other.0).map(Score)
     }
 
-    /// Saturating multiplication.
-    #[must_use]
-    pub fn saturating_mul(self, factor: i64) -> Score {
-        Score(self.0.saturating_mul(factor))
+    /// Checked multiplication.
+    pub fn checked_mul(self, factor: i64) -> Option<Score> {
+        self.0.checked_mul(factor).map(Score)
     }
 }
 
 impl std::ops::Add for Score {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        self.saturating_add(rhs)
+        self.checked_add(rhs).expect("Score overflow during addition")
     }
 }
 
 impl std::ops::Sub for Score {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
-        self.saturating_sub(rhs)
+        self.checked_sub(rhs).expect("Score overflow during subtraction")
+    }
+}
+
+impl std::ops::Neg for Score {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Score(self.0.checked_neg().expect("Score overflow during negation"))
+    }
+}
+
+impl std::ops::Mul<i64> for Score {
+    type Output = Self;
+    fn mul(self, rhs: i64) -> Self::Output {
+        self.checked_mul(rhs).expect("Score overflow during multiplication")
     }
 }
 
@@ -395,19 +422,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_score_overflow() {
+    #[should_panic(expected = "Score overflow during addition")]
+    fn test_score_overflow_panic() {
         let max = Score::MAX;
-        let added = max + Score(100);
-        assert_eq!(added, Score::MAX);
+        let _ = max + Score(1);
+    }
 
-        let min = Score::MIN;
-        let subbed = min - Score(100);
-        assert_eq!(subbed, Score::MIN);
+    #[test]
+    fn test_score_checked_ops() {
+        let max = Score::MAX;
+        assert!(max.checked_add(Score(1)).is_none());
+        assert!(Score::MIN.checked_sub(Score(1)).is_none());
     }
 
     #[test]
     fn test_score_scaling() {
-        let s = Score::from_f32(1.0);
+        let s = Score::from_f32(1.0).unwrap();
         assert_eq!(s.to_f32(), 1.0);
         assert_eq!(s.0, SCORE_SCALE as i64);
     }
@@ -420,9 +450,10 @@ mod tests {
     }
 
     #[test]
-    fn test_finger_index_try_from() {
-        assert!(FingerIndex::try_from(0).is_ok());
-        assert!(FingerIndex::try_from(4).is_ok());
-        assert!(FingerIndex::try_from(5).is_err());
+    fn test_finger_index_diff() {
+        let f1 = FingerIndex::new_unchecked(1);
+        let f2 = FingerIndex::new_unchecked(4);
+        assert_eq!(f1.diff(f2), -3);
+        assert_eq!(f2.diff(f1), 3);
     }
 }

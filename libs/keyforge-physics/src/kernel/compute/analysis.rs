@@ -81,9 +81,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                     let mut cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
                     let idx12 = (p1 as usize) * ctx.key_count + (p2 as usize);
                     let idx23 = (p2 as usize) * ctx.key_count + (p3 as usize);
-                    cost = cost
-                        .saturating_add(ctx.cost_matrix[idx12])
-                        .saturating_add(ctx.cost_matrix[idx23]);
+                    cost = cost + ctx.cost_matrix[idx12] + ctx.cost_matrix[idx23];
 
                     if cost < min_cost_val {
                         min_cost_val = cost;
@@ -149,7 +147,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                     let mut cost = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1, c2)) {
-                        cost = cost.saturating_add(mod_val);
+                        cost = cost + mod_val;
                     }
 
                     if cost < min_score {
