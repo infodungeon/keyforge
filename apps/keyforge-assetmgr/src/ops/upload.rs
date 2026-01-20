@@ -12,7 +12,7 @@ use tracing::info;
 /// # Errors
 /// Returns an error if the file cannot be read, hashed, or uploaded to Valkey.
 pub async fn upload_file(
-    coordinator: &DistributedCoordinator,
+    coordinator: &dyn DistributedCoordinator,
     root: &Path,
     path: &Path,
 ) -> Result<()> {

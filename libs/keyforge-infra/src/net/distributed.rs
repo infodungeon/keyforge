@@ -36,15 +36,63 @@ const PROFILE_LOCK_TTL_SEC: i64 = PROFILE_LOCK_TTL_SECS;
 const HEARTBEAT_TTL_SEC: i64 = HEARTBEAT_TTL_SECS;
 
 /// A coordinator that manages distributed state and communication across a cluster of nodes.
+#[async_trait::async_trait]
+pub trait DistributedCoordinator: Send + Sync + std::fmt::Debug {
+    /// Retrieves binary data from the store by key.
+    async fn get_bin(&self, key: &str) -> InfraResult<Option<bytes::Bytes>>;
+
+    /// Stores binary data in the store with the specified key.
+    async fn set_bin(&self, key: &str, data: &[u8]) -> InfraResult<()>;
+
+    /// Scans for keys matching the given glob-style pattern.
+    async fn scan_keys(&self, pattern: &str) -> InfraResult<Vec<String>>;
+
+    /// Attempts to reserve an update slot for a hardware profile.
+    async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool>;
+
+    /// Updates the heartbeat and telemetry for a node.
+    async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()>;
+
+    /// Retrieves the latest telemetry for a specific node.
+    async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>>;
+
+    /// Aggregates statistics across all heartbeating nodes in the cluster.
+    async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)>;
+
+    /// Publishes a job update event to a dedicated Pub/Sub channel.
+    async fn publish_update(&self, job_id: &str, event: &str) -> InfraResult<()>;
+
+    /// Sets an entry in the distributed asset manifest.
+    async fn set_manifest_entry(&self, entry: &AssetManifestEntry) -> InfraResult<()>;
+
+    /// Retrieves the hash of a specific asset from the distributed manifest.
+    async fn get_manifest_hash(&self, asset_id: &str) -> InfraResult<Option<String>>;
+
+    /// Fetches the entire distributed asset manifest as a map of ID to SHA-256 hash.
+    async fn get_all_manifest_entries(&self) -> InfraResult<HashMap<String, String>>;
+
+    /// Returns the number of currently active nodes in the cluster.
+    async fn count_active_nodes(&self) -> InfraResult<usize>;
+
+    /// Checks if a nonce has already been used by a node, and sets it if not.
+    async fn check_and_set_nonce(
+        &self,
+        node_id: &str,
+        nonce: u64,
+        ttl_secs: i64,
+    ) -> InfraResult<bool>;
+}
+
+/// A coordinator that manages distributed state and communication across a cluster of nodes.
 ///
 /// It uses a central data store (Valkey/Redis) to handle heartbeats, cluster telemetry,
 /// asset manifestation, and inter-node event publishing.
 #[derive(Clone, Debug)]
-pub struct DistributedCoordinator {
+pub struct ValkeyDistributedCoordinator {
     client: Client,
 }
 
-impl DistributedCoordinator {
+impl ValkeyDistributedCoordinator {
     /// Connects to the coordination layer using the provided Valkey/Redis URL.
     ///
     /// # Errors
@@ -75,7 +123,10 @@ impl DistributedCoordinator {
         info!("✅ Connected to Coordination Layer (Valkey)");
         Ok(Self { client })
     }
+}
 
+#[async_trait::async_trait]
+impl DistributedCoordinator for ValkeyDistributedCoordinator {
     // --- BLOB STORAGE ---
 
     /// Retrieves binary data from the store by key.
@@ -83,7 +134,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn get_bin(&self, key: &str) -> InfraResult<Option<bytes::Bytes>> {
+    async fn get_bin(&self, key: &str) -> InfraResult<Option<bytes::Bytes>> {
         self.client
             .get(key)
             .await
@@ -95,7 +146,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn set_bin(&self, key: &str, data: &[u8]) -> InfraResult<()> {
+    async fn set_bin(&self, key: &str, data: &[u8]) -> InfraResult<()> {
         self.client
             .set(key, data, None, None, false)
             .await
@@ -107,7 +158,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn scan_keys(&self, pattern: &str) -> InfraResult<Vec<String>> {
+    async fn scan_keys(&self, pattern: &str) -> InfraResult<Vec<String>> {
         let mut stream = self.client.scan(pattern, Some(1000), None);
         let mut results = Vec::new();
 
@@ -138,7 +189,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool> {
+    async fn try_reserve_profile_update(&self, cpu_signature: &str) -> InfraResult<bool> {
         let key = format!("{KEY_PREFIX_V4}:hw_profile:{cpu_signature}");
         let result: Option<()> = self
             .client
@@ -167,7 +218,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn update_heartbeat(
+    async fn update_heartbeat(
         &self,
         node_id: &str,
         telemetry: &NodeTelemetry,
@@ -215,7 +266,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation or parsing fails.
-    pub async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>> {
+    async fn get_heartbeat(&self, node_id: &str) -> InfraResult<Option<NodeTelemetry>> {
         let key = format!("{KEY_PREFIX_V4}:node:{node_id}:telemetry");
         let data: Option<String> = self
             .client
@@ -237,7 +288,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)> {
+    async fn get_cluster_stats(&self) -> InfraResult<(usize, f32)> {
         let zset_key = format!("{KEY_PREFIX_V4}:cluster:active_nodes");
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -298,7 +349,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn publish_update(&self, job_id: &str, event: &str) -> InfraResult<()> {
+    async fn publish_update(&self, job_id: &str, event: &str) -> InfraResult<()> {
         let channel = format!("job:{job_id}:updates");
         self.client
             .publish::<(), _, _>(channel, event)
@@ -311,7 +362,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn set_manifest_entry(&self, entry: &AssetManifestEntry) -> InfraResult<()> {
+    async fn set_manifest_entry(&self, entry: &AssetManifestEntry) -> InfraResult<()> {
         let key = format!("{}:manifest:{}", KEY_PREFIX_V4, entry.id);
         self.client
             .hset::<(), _, _>(
@@ -331,7 +382,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn get_manifest_hash(&self, asset_id: &str) -> InfraResult<Option<String>> {
+    async fn get_manifest_hash(&self, asset_id: &str) -> InfraResult<Option<String>> {
         let key = format!("{KEY_PREFIX_V4}:manifest:{asset_id}");
         let hash: Option<String> = self
             .client
@@ -346,7 +397,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn get_all_manifest_entries(&self) -> InfraResult<HashMap<String, String>> {
+    async fn get_all_manifest_entries(&self) -> InfraResult<HashMap<String, String>> {
         let keys = self
             .scan_keys(&format!("{KEY_PREFIX_V4}:manifest:*"))
             .await?;
@@ -373,7 +424,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn count_active_nodes(&self) -> InfraResult<usize> {
+    async fn count_active_nodes(&self) -> InfraResult<usize> {
         let (count, _) = self.get_cluster_stats().await?;
         Ok(count)
     }
@@ -386,7 +437,7 @@ impl DistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    pub async fn check_and_set_nonce(
+    async fn check_and_set_nonce(
         &self,
         node_id: &str,
         nonce: u64,

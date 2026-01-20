@@ -23,7 +23,7 @@ use crate::monitor::{SharedMonitor, SystemMonitor};
 use crate::services::job_manager::JobManager;
 use crate::services::security::SecurityContext;
 use crate::services::verification::VerificationService;
-use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
+use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
 use sqlx::{Pool, Postgres};
 
 use std::path::PathBuf;
@@ -66,7 +66,7 @@ pub struct AppState {
     /// Broadcast channel for real-time events (e.g., TUI updates).
     pub tx: broadcast::Sender<String>,
     /// Coordinator for distributed state (Valkey).
-    pub coordinator: Arc<DistributedCoordinator>,
+    pub coordinator: Arc<dyn DistributedCoordinator>,
 }
 
 impl AppState {
@@ -90,8 +90,8 @@ impl AppState {
         let users = UserRepository::new(db.clone());
         let audit = AuditRepository::new(db.clone());
 
-        let coordinator = Arc::new(
-            DistributedCoordinator::new(&config.valkey_url)
+        let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(
+            ValkeyDistributedCoordinator::new(&config.valkey_url)
                 .await
                 .expect("Failed to connect to Coordination Layer (Valkey)"),
         );

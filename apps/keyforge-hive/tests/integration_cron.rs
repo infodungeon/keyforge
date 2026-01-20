@@ -5,7 +5,7 @@
 use keyforge_hive::infra::{
     db::init_db, queue::WriteQueue, repositories::JobRepository, repositories::ResultRepository,
 };
-use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
+use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use testcontainers_modules::redis::Redis;
@@ -119,7 +119,7 @@ async fn test_wal_recovery_integration() {
         .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
 
-    let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
+    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());
     let _assets = Arc::new(ValkeyProvider::new(coordinator));
 
     // Start Queue (Should recover WAL)

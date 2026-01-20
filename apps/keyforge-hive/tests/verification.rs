@@ -5,7 +5,7 @@
 use keyforge_hive::cache::CompiledEngineCache;
 use keyforge_hive::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_hive::VerificationService;
-use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
+use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
 use keyforge_protocol::{ResultSubmission, PROTOCOL_VERSION};
 use keyforge_security as crypto;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ async fn test_signature_enforcement() {
         .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
 
-    let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
+    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());
     let assets = Arc::new(ValkeyProvider::new(coordinator));
 
     let engine_cache = Arc::new(CompiledEngineCache::new());

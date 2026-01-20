@@ -3,7 +3,7 @@
 use clap::{Parser, Subcommand};
 use keyforge_assetmgr::is_hidden;
 use keyforge_assetmgr::ops::upload_file;
-use keyforge_infra::DistributedCoordinator;
+use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -51,8 +51,8 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let args = Args::parse();
 
-    let coordinator = Arc::new(
-        DistributedCoordinator::new(&args.valkey_url)
+    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(
+        ValkeyDistributedCoordinator::new(&args.valkey_url)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to connect to Valkey: {e}"))?,
     );
@@ -60,18 +60,18 @@ async fn main() -> anyhow::Result<()> {
     match args.command {
         Commands::Seed { data_dir } => {
             let system_root = ensure_system_root(&data_dir)?;
-            hydrate_valkey(&coordinator, &system_root).await;
+            hydrate_valkey(coordinator.as_ref(), &system_root).await;
         }
         Commands::Prune { data_dir } => {
             let system_root = ensure_system_root(&data_dir)?;
-            prune_valkey(&coordinator, &system_root).await?;
+            prune_valkey(coordinator.as_ref(), &system_root).await?;
         }
         Commands::Verify { data_dir } => {
             let system_root = ensure_system_root(&data_dir)?;
-            verify_integrity(&coordinator, &system_root).await?;
+            verify_integrity(coordinator.as_ref(), &system_root).await?;
         }
         Commands::List => {
-            list_assets(&coordinator).await?;
+            list_assets(coordinator.as_ref()).await?;
         }
         Commands::Watch { data_dir } => {
             let system_root = ensure_system_root(&data_dir)?;
@@ -94,7 +94,7 @@ fn ensure_system_root(data_dir: &Path) -> anyhow::Result<PathBuf> {
     Ok(root)
 }
 
-async fn list_assets(coordinator: &DistributedCoordinator) -> anyhow::Result<()> {
+async fn list_assets(coordinator: &dyn DistributedCoordinator) -> anyhow::Result<()> {
     let entries = coordinator
         .get_all_manifest_entries()
         .await
@@ -109,7 +109,7 @@ async fn list_assets(coordinator: &DistributedCoordinator) -> anyhow::Result<()>
     Ok(())
 }
 
-async fn hydrate_valkey(coordinator: &DistributedCoordinator, system_root: &Path) {
+async fn hydrate_valkey(coordinator: &dyn DistributedCoordinator, system_root: &Path) {
     info!("🌱 Seeding Valkey from local assets: {:?}", system_root);
     let walker = WalkDir::new(system_root).follow_links(true);
     let mut count = 0;
@@ -130,7 +130,7 @@ async fn hydrate_valkey(coordinator: &DistributedCoordinator, system_root: &Path
 }
 
 async fn prune_valkey(
-    coordinator: &DistributedCoordinator,
+    coordinator: &dyn DistributedCoordinator,
     system_root: &Path,
 ) -> anyhow::Result<()> {
     info!("✂️ Pruning Valkey orphans...");
@@ -153,7 +153,7 @@ async fn prune_valkey(
 }
 
 async fn verify_integrity(
-    coordinator: &DistributedCoordinator,
+    coordinator: &dyn DistributedCoordinator,
     system_root: &Path,
 ) -> anyhow::Result<()> {
     info!("🔍 Verifying Integrity...");
@@ -195,7 +195,7 @@ async fn verify_integrity(
 }
 
 async fn watch_loop(
-    coordinator: Arc<DistributedCoordinator>,
+    coordinator: Arc<dyn DistributedCoordinator>,
     system_root: PathBuf,
 ) -> anyhow::Result<()> {
     let (tx, mut rx) = mpsc::channel(100);
@@ -217,7 +217,7 @@ async fn watch_loop(
                     for path in event.paths {
                         if path.is_file() && !is_hidden(&path) {
                             info!("♻️  Change detected: {:?}", path);
-                            if let Err(e) = upload_file(&coordinator, &watcher_root, &path).await {
+                            if let Err(e) = upload_file(coordinator.as_ref(), &watcher_root, &path).await {
                                 error!("Sync failed: {}", e);
                             }
                         }

@@ -1,7 +1,7 @@
 // apps/keyforge-assets/src/main.rs
 
 use clap::Parser;
-use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
+use keyforge_infra::{ValkeyDistributedCoordinator, ValkeyProvider};
 use std::sync::Arc;
 use tracing::info;
 
@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     info!("🔌 Connecting to Valkey at {}", args.valkey_url);
     let coordinator = Arc::new(
-        DistributedCoordinator::new(&args.valkey_url)
+        ValkeyDistributedCoordinator::new(&args.valkey_url)
             .await
             .map_err(|e| anyhow::anyhow!("Valkey connection failed: {e}"))?,
     );

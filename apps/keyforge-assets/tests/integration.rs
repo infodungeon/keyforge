@@ -8,7 +8,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use keyforge_assets::create_app;
-use keyforge_infra::{DistributedCoordinator, ValkeyProvider};
+use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
 use std::sync::Arc;
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
@@ -28,7 +28,7 @@ async fn test_manifest_endpoint() {
     let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
 
     // 2. Setup Coordinator & Provider
-    let coordinator = Arc::new(DistributedCoordinator::new(&valkey_url).await.unwrap());
+    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());
     let provider = Arc::new(ValkeyProvider::new(coordinator.clone()));
 
     // 3. Create App
