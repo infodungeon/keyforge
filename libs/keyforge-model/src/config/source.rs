@@ -153,5 +153,57 @@ mod tests {
             hash: None,
         };
         assert!(neg_weight.validate().is_err());
+
+        // 5. Non-finite weight
+        let nan_weight = CorpusSource {
+            id: "en".into(),
+            weight: f32::NAN,
+            hash: None,
+        };
+        assert!(nan_weight.validate().is_err());
+    }
+
+    #[test]
+    fn test_corpus_source_hash_and_default() {
+        let default = CorpusSource::default();
+        assert_eq!(default.id, "text/en_std");
+        assert_eq!(default.weight, 1.0);
+
+        let s1 = CorpusSource { id: "a".into(), weight: 1.0, hash: None };
+        let s2 = CorpusSource { id: "a".into(), weight: 1.0, hash: None };
+        
+        let mut h1 = std::collections::hash_map::DefaultHasher::new();
+        let mut h2 = std::collections::hash_map::DefaultHasher::new();
+        s1.hash(&mut h1);
+        s2.hash(&mut h2);
+        use std::hash::Hasher;
+        assert_eq!(h1.finish(), h2.finish());
+    }
+
+    #[test]
+    fn test_corpus_source_from_str() {
+        // Simple
+        let s: CorpusSource = "en".parse().unwrap();
+        assert_eq!(s.id, "en");
+        assert_eq!(s.weight, 1.0);
+
+        // With weight
+        let s: CorpusSource = "en:0.5".parse().unwrap();
+        assert_eq!(s.id, "en");
+        assert_eq!(s.weight, 0.5);
+
+        // Invalid weight parse
+        assert!("en:abc".parse::<CorpusSource>().is_err());
+
+        // Invalid weight value
+        assert!("en:-1.0".parse::<CorpusSource>().is_err());
+        assert!("en:0.0".parse::<CorpusSource>().is_err());
+    }
+
+    #[test]
+    fn test_cost_matrix_source() {
+        let default = CostMatrixSource::default();
+        assert!(matches!(default, CostMatrixSource::Predefined(_)));
+        assert_eq!(format!("{}", default), ASSET_COST_MATRIX);
     }
 }

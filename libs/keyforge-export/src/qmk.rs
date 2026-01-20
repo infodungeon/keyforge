@@ -128,4 +128,45 @@ mod tests {
         assert!(result.contains("_______"));
         assert!(result.contains("XXXXXXX"));
     }
+
+    #[test]
+    fn test_action_to_qmk_all() {
+        assert_eq!(action_to_qmk(&KeyAction::LayerMomentary(1)), "MO(1)");
+        assert_eq!(action_to_qmk(&KeyAction::LayerToggle(2)), "TG(2)");
+        assert_eq!(action_to_qmk(&KeyAction::LayerOn(3)), "TO(3)");
+        assert_eq!(action_to_qmk(&KeyAction::CapsWord), "CAPS_WORD");
+        
+        let mt = KeyAction::ModTap { mod_name: "LSFT".into(), key: Box::new(KeyAction::Simple("Z".into())) };
+        assert_eq!(action_to_qmk(&mt), "LSFT_T(Z)");
+
+        let lt = KeyAction::LayerTap { layer: 1, key: Box::new(KeyAction::Simple("SPC".into())) };
+        assert_eq!(action_to_qmk(&lt), "LT(1, SPC)");
+
+        let sk = KeyAction::StickyMod("LSHIFT".into());
+        assert_eq!(action_to_qmk(&sk), "OSM(MOD_LSFT)");
+    }
+
+    #[test]
+    fn test_qmk_generate_long_lines() {
+        let exporter = QmkExporter;
+        let layers = vec![vec!["A".to_string(); 20]];
+        let result = exporter.generate("Long", &layers).unwrap();
+        assert!(result.contains("\n    ")); // Newline inserted after 12 keys
+    }
+
+    #[test]
+    fn test_qmk_generate_errors() {
+        let exporter = QmkExporter;
+        
+        // 1. Too many keys
+        let layers = vec![vec!["A".into(); MAX_KEYS + 1]];
+        assert!(exporter.generate("fail", &layers).is_err());
+
+        // 2. Output size limit
+        // We use exactly MAX_KEYS but with very long labels to exceed 64KB
+        let layers = vec![vec!["A".repeat(300); MAX_KEYS]];
+        let res = exporter.generate("big", &layers);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("Output size limit exceeded"));
+    }
 }

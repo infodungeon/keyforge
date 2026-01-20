@@ -39,3 +39,43 @@ impl From<String> for PhysicsError {
         PhysicsError::CalculationError(s)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_physics_error_display() {
+        let err = PhysicsError::ScoreOverflow { context: "Test".into() };
+        assert_eq!(err.to_string(), "Score overflow in context: Test");
+
+        let err = PhysicsError::InvalidInput { message: "Bad keys".into() };
+        assert_eq!(err.to_string(), "Invalid input data: Bad keys");
+
+        let err = PhysicsError::Config("Bad config".into());
+        assert_eq!(err.to_string(), "Engine configuration error: Bad config");
+
+        let err = PhysicsError::LayoutUnderflow(10, 20);
+        assert_eq!(err.to_string(), "Layout size mismatch: expected 20, found 10");
+
+        let err = PhysicsError::CalculationError("Math failed".into());
+        assert_eq!(err.to_string(), "Calculation error: Math failed");
+    }
+
+    #[test]
+    fn test_from_string() {
+        let err: PhysicsError = "Something wrong".to_string().into();
+        match err {
+            PhysicsError::CalculationError(msg) => assert_eq!(msg, "Something wrong"),
+            _ => panic!("Expected CalculationError"),
+        }
+    }
+
+    #[test]
+    fn test_debug_derive() {
+        let err = PhysicsError::Config("Debug me".into());
+        let dbg = format!("{:?}", err);
+        assert!(dbg.contains("Config"));
+        assert!(dbg.contains("Debug me"));
+    }
+}

@@ -36,3 +36,21 @@ pub struct SystemMetrics {
     /// Server CPU usage percentage.
     pub server_cpu_usage: f32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_system_metrics_serde() {
+        let metrics = SystemMetrics {
+            uptime_secs: 3600,
+            active_jobs: 5,
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&metrics).unwrap();
+        let recovered: SystemMetrics = serde_json::from_str(&json).unwrap();
+        assert_eq!(recovered.uptime_secs, 3600);
+        assert_eq!(recovered.active_jobs, 5);
+    }
+}

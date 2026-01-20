@@ -194,4 +194,16 @@ mod tests {
             "Hash must be same regardless of pin order"
         );
     }
+
+    #[test]
+    fn test_job_id_from_parts() {
+        let geo = KeyboardGeometry::default();
+        let weights = ScoringWeights::default();
+        let params = SearchParams::default();
+        
+        let id = JobIdentifier::from_parts(
+            &geo, &weights, &params, &[], "en", &CostMatrixSource::default()
+        );
+        assert!(id.is_ok());
+    }
 }

@@ -81,3 +81,39 @@ pub struct PopulationResponse {
     #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub layouts: Vec<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_biometric_sample_validation() {
+        let valid = BiometricSample {
+            bigram: "th".into(),
+            ms: 100.0,
+            timestamp: 0,
+        };
+        assert!(valid.validate().is_ok());
+
+        let invalid_len = BiometricSample {
+            bigram: "abc".into(),
+            ms: 100.0,
+            timestamp: 0,
+        };
+        assert!(invalid_len.validate().is_err());
+
+        let invalid_ms = BiometricSample {
+            bigram: "th".into(),
+            ms: -1.0,
+            timestamp: 0,
+        };
+        assert!(invalid_ms.validate().is_err());
+
+        let extreme_ms = BiometricSample {
+            bigram: "th".into(),
+            ms: constants::MAX_BIOMETRIC_MS + 1.0,
+            timestamp: 0,
+        };
+        assert!(extreme_ms.validate().is_err());
+    }
+}

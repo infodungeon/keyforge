@@ -57,10 +57,54 @@ pub fn read_to_string_limited<P: AsRef<Path>>(path: P, limit_bytes: u64) -> Infr
     reader.read_to_string(&mut buffer).map_err(InfraError::Io)?;
 
     if buffer.len() as u64 > limit_bytes {
-        return Err(InfraError::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("File exceeds size limit of {limit_bytes} bytes"),
-        )));
+        return Err(InfraError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("File exceeds size limit of {limit_bytes} bytes"))));
     }
     Ok(buffer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_atomic_write() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("subdir/test.txt");
+        
+        // Success with directory creation
+        atomic_write(&path, "hello").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "hello");
+        
+        // Success with update
+        atomic_write(&path, "updated").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "updated");
+    }
+
+    #[test]
+    fn test_read_to_string_limited() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("test.txt");
+        fs::write(&path, "hello world").unwrap();
+        
+        // Success
+        let res = read_to_string_limited(&path, 100).unwrap();
+        assert_eq!(res, "hello world");
+        
+        let res = read_to_string_limited(&path, 5);
+        assert!(res.is_err());
+        assert!(format!("{:?}", res.err()).contains("exceeds size limit"));
+    }
+
+    #[test]
+    fn test_atomic_write_fail() {
+        // Attempt to write to a path where parent is a file (invalid)
+        let temp = tempfile::tempdir().unwrap();
+        let file_path = temp.path().join("file");
+        fs::write(&file_path, "not a dir").unwrap();
+        
+        let bad_path = file_path.join("blocked/test.txt");
+        let res = atomic_write(&bad_path, "data");
+        assert!(res.is_err());
+    }
 }

@@ -502,6 +502,13 @@ mod tests {
         assert_eq!(p.get_opt_limit_slow(), DEFAULT_OPT_LIMIT_SLOW);
         assert_eq!(p.get_reheats(), DEFAULT_REHEATS);
         assert_eq!(p.get_reheat_factor(), DEFAULT_REHEAT_FACTOR);
+
+        // Test empty params fallback
+        let empty = SearchParams { params: std::collections::HashMap::new(), seed: None, include_thumbs: false };
+        assert_eq!(empty.get_search_epochs(), DEFAULT_SEARCH_EPOCHS);
+        assert_eq!(empty.get_search_steps(), DEFAULT_SEARCH_STEPS);
+        assert_eq!(empty.get_opt_limit_fast(), DEFAULT_OPT_LIMIT_FAST);
+        assert_eq!(empty.get_reheats(), DEFAULT_REHEATS);
     }
 
     #[test]
@@ -567,5 +574,25 @@ mod tests {
         let p = SearchParams::try_from(config).unwrap();
         assert_eq!(p.get_temp_max(), 50.0);
         assert!(p.include_thumbs);
+    }
+
+    #[test]
+    fn test_search_params_validation_errors() {
+        let mut p = SearchParams::default();
+        
+        p.params.insert("search_epochs".into(), 0.0);
+        assert!(p.validate().is_err());
+        p.params.insert("search_epochs".into(), 10.0);
+
+        p.params.insert("search_steps".into(), 0.0);
+        assert!(p.validate().is_err());
+        p.params.insert("search_steps".into(), 100.0);
+
+        p.params.insert("temp_max".into(), -1.0);
+        assert!(p.validate().is_err());
+        p.params.insert("temp_max".into(), 100.0);
+
+        p.params.insert("search_patience_threshold".into(), 2.0);
+        assert!(p.validate().is_err());
     }
 }

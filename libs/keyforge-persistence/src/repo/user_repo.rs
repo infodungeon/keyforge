@@ -250,3 +250,101 @@ impl UserRepo {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_user_repo_layouts() {
+        let dir = tempdir().unwrap();
+        let repo = UserRepo::new(dir.path().to_path_buf());
+        
+        repo.save_layout("kb1", "name1", "layout1").unwrap();
+        let layouts = repo.get_layouts("kb1");
+        assert_eq!(layouts.get("name1").unwrap(), "layout1");
+        
+        repo.delete_layout("kb1", "name1").unwrap();
+        assert!(repo.get_layouts("kb1").is_empty());
+    }
+
+    #[test]
+    fn test_user_repo_biometrics() {
+        let dir = tempdir().unwrap();
+        let repo = UserRepo::new(dir.path().to_path_buf());
+        
+        let sample = BiometricSample { bigram: "th".into(), ms: 100.0, timestamp: 0 };
+        repo.record_biometrics(vec![sample]).unwrap();
+        
+        let biometrics = repo.get_biometrics();
+        assert_eq!(biometrics.len(), 1);
+        assert_eq!(biometrics[0].bigram, "th");
+        
+        repo.reset_biometrics().unwrap();
+        assert!(repo.get_biometrics().is_empty());
+    }
+
+    #[test]
+    fn test_user_repo_profile_generation() {
+        let dir = tempdir().unwrap();
+        let repo = UserRepo::new(dir.path().to_path_buf());
+        
+        // 1. Fail: Insufficient data
+        assert!(repo.generate_profile().is_err());
+        
+        // 2. Success: Fill data
+        let samples = (0..MIN_BIOMETRIC_SAMPLES)
+            .map(|_| BiometricSample { bigram: "th".into(), ms: 100.0, timestamp: 0 })
+            .collect();
+        repo.record_biometrics(samples).unwrap();
+        assert!(repo.generate_profile().is_ok());
+    }
+
+    #[test]
+    fn test_user_repo_keyboard_definition() {
+        let dir = tempdir().unwrap();
+        let repo = UserRepo::new(dir.path().to_path_buf());
+        
+        let def = KeyboardDefinition::default();
+        repo.save_keyboard_definition("test_kb", &def).unwrap();
+        assert!(dir.path().join("user/keyboards/test_kb.json").exists());
+    }
+
+    #[test]
+    fn test_user_repo_corruption_handling() {
+        let dir = tempdir().unwrap();
+        let repo = UserRepo::new(dir.path().to_path_buf());
+        let path = dir.path().join("user/user_layouts.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        
+        // 1. Broken JSON in layout store
+        fs::write(&path, "{ invalid json }").unwrap();
+        let store = repo.load_layout_store();
+        assert!(store.layouts.is_empty(), "Should return default on corruption");
+
+        // 2. Broken line in biometric JSONL
+        let stats_path = dir.path().join("user/user_stats.jsonl");
+        let line1 = "{\"bigram\":\"th\",\"ms\":100.0,\"timestamp\":123}";
+        let line2 = "{\"bigram\":\"he\",\"ms\":150.0,\"timestamp\":124}";
+        fs::write(&stats_path, format!("{}\n{{broken line}}\n{}", line1, line2)).unwrap();
+        let biometrics = repo.get_biometrics();
+        assert_eq!(biometrics.len(), 2, "Should skip broken lines in JSONL");
+    }
+
+    #[test]
+    fn test_user_repo_save_keyboard_sanitization() {
+        let dir = tempdir().unwrap();
+        let repo = UserRepo::new(dir.path().to_path_buf());
+        let def = KeyboardDefinition::default();
+        
+        // Use a "dirty" filename
+        repo.save_keyboard_definition("../../../etc/passwd", &def).unwrap();
+        
+        // Verify it was sanitized (actual filename depends on sanitize_filename implementation)
+        // Usually it replaces / with _
+        let exists = fs::read_dir(dir.path().join("user/keyboards")).unwrap()
+            .any(|e| e.unwrap().file_name().to_str().unwrap().contains("passwd"));
+        assert!(exists);
+    }
+}

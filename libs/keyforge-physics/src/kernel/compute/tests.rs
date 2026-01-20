@@ -321,4 +321,90 @@ mod tests {
             "Self loop delta check failed"
         );
     }
+
+    #[test]
+    fn test_delta_missing_candidates() {
+        let kb = setup_kb_robust();
+        let mut corpus = Corpus::default();
+        // Bigram with a char not in layout
+        corpus.bigrams.push((97, 255, 100)); 
+
+        let engine =
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)];
+        let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+        
+        let mut starts = [0u16; 65536];
+        let mut counts = [0u8; 65536];
+        let mut indices = [0u16; 512];
+        let mut current_offsets = [0u8; 65536];
+        let mut used_keys_scratch = Vec::new();
+        let pm = PosMap::from_scratch(
+            &layout_keys,
+            engine.key_count(),
+            &mut starts,
+            &mut counts,
+            &mut indices,
+            &mut current_offsets,
+            &mut used_keys_scratch,
+        );
+
+        // This should not panic and should handle missing candidates2
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1);
+        assert_eq!(delta, 0);
+    }
+
+    #[test]
+    fn test_delta_trigram_overlaps() {
+        let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode { index: i, ..Default::default() }).collect();
+        let kb = Keyboard::new(keys, 0).unwrap();
+        let mut cp = Corpus::default();
+        // Trigrams like (a,a,x), (b,a,x), (x,a,a), etc.
+        cp.trigrams.push((97, 97, 98, 100)); 
+        cp.trigrams.push((98, 97, 99, 100));
+        cp.trigrams.push((97, 98, 97, 100));
+
+        let engine = EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
+        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
+        let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+        
+        let mut starts = [0u16; 65536];
+        let mut counts = [0u8; 65536];
+        let mut indices = [0u16; 512];
+        let mut current_offsets = [0u8; 65536];
+        let mut used_keys_scratch = Vec::new();
+        let pm = PosMap::from_scratch(
+            &layout_keys,
+            engine.key_count(),
+            &mut starts,
+            &mut counts,
+            &mut indices,
+            &mut current_offsets,
+            &mut used_keys_scratch,
+        );
+
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1);
+        // We just care that it executes the continue branches
+        assert!(delta != i64::MAX);
+    }
+
+    #[test]
+    fn test_score_bigram_modifier_overflow() {
+        let kb = setup_kb_robust();
+        let mut cp = Corpus::default();
+        cp.bigrams.push((97, 98, 100));
+        
+        let engine = EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
+        let mut ctx = engine.context().clone();
+        // Huge modifier
+        ctx.sequence_modifiers.insert((97, 98), crate::kernel::types::Score(i64::MAX / 2));
+        ctx.cost_matrix[0 * ctx.key_count + 1] = crate::kernel::types::Score(i64::MAX / 2);
+        
+        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)];
+        let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+        let mut scratch = crate::kernel::compute::PhysicsScratch::new();
+        
+        let res = crate::kernel::compute::score_layout(&ctx, &validated, &mut scratch);
+        assert!(matches!(res, Err(PhysicsError::ScoreOverflow { .. })));
+    }
 }

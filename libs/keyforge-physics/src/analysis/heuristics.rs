@@ -103,7 +103,7 @@ mod tests {
     use super::*;
     use crate::{EngineFactory, Compiler};
     use keyforge_model::{
-        types::{FingerIndex, HandIndex, KeyCode, RowIndex, ColIndex},
+        types::{FingerIndex, HandIndex, KeyCode, RowIndex, ColIndex, Score},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
     };
 
@@ -277,7 +277,65 @@ mod tests {
         );
 
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2);
-
+        
         assert!(delta > 0, "Degrading swap should have positive delta");
+    }
+
+    #[test]
+    fn test_suggest_swaps_score_overflow() {
+        let kb = setup_kb_minimal();
+        let mut corpus = Corpus::default();
+        corpus.char_freqs[0] = 1_000_000_000; // Large freq
+
+        let engine = EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+        let mut ctx = engine.context().clone();
+        // Set key cost to very large to cause overflow when multiplied
+        ctx.key_costs[0] = Score(i64::MAX / 10); 
+
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
+        
+        let suggestions = suggest_swaps(&ctx, &layout, false);
+        assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_suggest_swaps_invalid_layout() {
+        let kb = setup_kb_minimal();
+        let engine = EngineFactory::new_generic(&kb, &Corpus::default(), &Rubric::default(), &mock_cost_model()).unwrap();
+        
+        // Layout with wrong number of keys
+        let layout = Layout::new_unchecked(vec![KeyCode(0)]);
+        let suggestions = suggest_swaps(engine.context(), &layout, true);
+        assert!(suggestions.is_empty(), "Invalid layout should return empty suggestions");
+    }
+
+    #[test]
+    fn test_suggest_swaps_exclude_thumbs() {
+        let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode {
+             index: i,
+             hand: HandIndex(0),
+             finger: if i == 0 { FingerIndex::THUMB } else { FingerIndex::INDEX },
+             row: RowIndex(0),
+             col: ColIndex(i as i8),
+             ..Default::default()
+        }).collect();
+        let kb = Keyboard::new(keys, 1).unwrap();
+        
+        let mut cp = Corpus::default();
+        // Create strong incentive to swap key 0 (thumb) and key 2 (index)
+        cp.char_freqs[0] = 1000;
+        cp.char_freqs[2] = 10;
+        
+        let mut rubric = Rubric::default();
+        rubric.travel_lat = 10.0;
+        
+        let engine = EngineFactory::new_generic(&kb, &cp, &rubric, &mock_cost_model()).unwrap();
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
+        
+        // With include_thumbs = false, no suggestions should involve index 0
+        let suggestions = suggest_swaps(engine.context(), &layout, false);
+        for s in suggestions {
+            assert!(s.index_a != 0 && s.index_b != 0, "Should not suggest thumb swaps");
+        }
     }
 }

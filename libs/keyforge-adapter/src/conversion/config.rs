@@ -78,4 +78,13 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_to_domain_corpus_source() {
+        let src = config::CorpusSource { id: "en".into(), weight: 1.0, hash: Some("h".into()) };
+        let res = to_domain_corpus_source(&src);
+        assert_eq!(res.id, "en");
+        assert_eq!(res.weight, 1.0);
+        assert_eq!(res.hash, Some("h".into()));
+    }
 }

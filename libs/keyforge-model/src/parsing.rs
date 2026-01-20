@@ -220,6 +220,45 @@ mod tests {
     }
 
     #[test]
+    fn test_key_action_parsing_extended() {
+        assert_eq!(parse_key("NO"), KeyAction::NoOp);
+        assert_eq!(parse_key("CW"), KeyAction::CapsWord);
+        assert_eq!(parse_key("SK(MOD_LSFT)"), KeyAction::StickyMod("MOD_LSFT".to_string()));
+        assert_eq!(parse_key("TG(3)"), KeyAction::LayerToggle(3));
+        assert_eq!(parse_key("TO(4)"), KeyAction::LayerOn(4));
+        
+        // MOD_T shortcut
+        match parse_key("LSFT_T(KC_Z)") {
+            KeyAction::ModTap { mod_name, key } => {
+                assert_eq!(mod_name, "LSFT");
+                assert_eq!(*key, KeyAction::Simple("KC_Z".to_string()));
+            }
+            _ => panic!("Failed to parse MOD_T"),
+        }
+
+        // Malformed/Unparsed
+        assert!(matches!(parse_key("INVALID("), KeyAction::Raw(_)));
+        assert!(matches!(parse_key("X".repeat(101).as_str()), KeyAction::Raw(_)));
+        assert!(matches!(parse_key("LT(1)"), KeyAction::Raw(_)));
+        assert!(matches!(parse_key("MT(MOD_LSFT)"), KeyAction::Raw(_)));
+        
+        // Non-alphanumeric normalization
+        let dot = parse_key(".");
+        assert_eq!(dot, KeyAction::Simple(".".into()));
+
+        // _T variant
+        let mt = parse_key("LSFT_T(Z)");
+        assert!(matches!(mt, KeyAction::ModTap { mod_name, .. } if mod_name == "LSFT"));
+
+        // 3. split_args_safe failure (no comma)
+        assert!(split_args_safe("no_comma").is_none());
+
+        // Nested parentheses
+        let res = split_args_safe("MOD(A,B),C");
+        assert_eq!(res, Some(("MOD(A,B)".to_string(), "C".to_string())));
+    }
+
+    #[test]
     fn test_kle_import() {
         // Minimal KLE JSON
         let json = r#"[

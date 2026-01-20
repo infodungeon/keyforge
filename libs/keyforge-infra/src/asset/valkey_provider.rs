@@ -189,21 +189,24 @@ impl ValkeyProvider {
         }
         Arc::new(T::default())
     }
+
+    pub fn id_to_subpath(category: AssetCategory, id: &str) -> String {
+        let stem = id.strip_suffix(".json").unwrap_or(id);
+        match category {
+            AssetCategory::Keyboard => format!("keyboards/models/{stem}.mpk.zst"),
+            AssetCategory::CostModel => format!("weights/{stem}.mpk.zst"),
+            AssetCategory::Keycodes => format!("config/{stem}.mpk.zst"),
+            AssetCategory::Corpus => format!("corpora/{stem}/bundle.mpk.zst"),
+            AssetCategory::Rubric => format!("rubrics/{stem}.mpk.zst"),
+        }
+    }
 }
 
 #[async_trait::async_trait]
 impl AssetLoader for ValkeyProvider {
     async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
         let category = T::category();
-        let stem = id.strip_suffix(".json").unwrap_or(id);
-
-        let subpath = match category {
-            AssetCategory::Keyboard => format!("keyboards/models/{stem}.mpk.zst"),
-            AssetCategory::CostModel => format!("weights/{stem}.mpk.zst"),
-            AssetCategory::Keycodes => format!("config/{stem}.mpk.zst"),
-            AssetCategory::Corpus => format!("corpora/{stem}/bundle.mpk.zst"),
-        };
-
+        let subpath = Self::id_to_subpath(category, id);
         let mut asset: T = self.hydrate_mpk(&subpath).await?;
         asset.post_load()?;
         Ok(Arc::new(asset))
@@ -254,5 +257,23 @@ impl crate::asset::AssetServerProvider for ValkeyProvider {
 
     async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
         self.get_file_content(path).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::KeyboardDefinition;
+
+    #[tokio::test]
+    async fn test_valkey_provider_mapping() {
+        assert_eq!(ValkeyProvider::id_to_subpath(AssetCategory::Keyboard, "kb"), "keyboards/models/kb.mpk.zst");
+        assert_eq!(ValkeyProvider::id_to_subpath(AssetCategory::CostModel, "cm"), "weights/cm.mpk.zst");
+        assert_eq!(ValkeyProvider::id_to_subpath(AssetCategory::Keycodes, "kc"), "config/kc.mpk.zst");
+        assert_eq!(ValkeyProvider::id_to_subpath(AssetCategory::Corpus, "cp"), "corpora/cp/bundle.mpk.zst");
+        assert_eq!(ValkeyProvider::id_to_subpath(AssetCategory::Rubric, "rb"), "rubrics/rb.mpk.zst");
+        
+        // Strip .json
+        assert_eq!(ValkeyProvider::id_to_subpath(AssetCategory::Keyboard, "kb.json"), "keyboards/models/kb.mpk.zst");
     }
 }

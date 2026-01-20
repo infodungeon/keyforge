@@ -1,8 +1,0 @@
-error: unexpected argument '--print-missing' found
-
-  tip: a similar argument exists: '--print-rust-flags'
-  tip: to pass '--print-missing' as a value, use '-- --print-missing'
-
-Usage: cargo tarpaulin --packages [<PACKAGE>...] --print-rust-flags [-- <ARGS>...]
-
-For more information, try '--help'.

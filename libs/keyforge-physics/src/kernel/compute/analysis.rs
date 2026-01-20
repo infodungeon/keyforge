@@ -12,22 +12,24 @@ use tracing::instrument;
 /// Handles invalid Unicode surrogate pairs and control characters.
 #[inline]
 pub(crate) fn u16_to_char(code: u16) -> String {
-    // Try direct conversion (for ASCII and most Unicode)
+    // 1. Common control/special characters
+    match code {
+        8 => return "⌫".to_string(),  // Backspace
+        9 => return "⇥".to_string(),  // Tab
+        10 => return "↵".to_string(), // Newline
+        32 => return "␣".to_string(), // Space
+        _ => {}
+    }
+
+    // 2. Try printable Unicode
     if let Some(c) = char::from_u32(u32::from(code)) {
-        // Filter out control characters that aren't printable
         if !c.is_control() {
             return c.to_string();
         }
-        // Special handling for common control characters
-        match code {
-            8 => return "⌫".to_string(),  // Backspace
-            9 => return "⇥".to_string(),  // Tab
-            10 => return "↵".to_string(), // Newline
-            32 => return "␣".to_string(), // Space
-            _ => return format!("[0x{code:02X}]"),
-        }
+        return format!("[0x{code:02X}]");
     }
-    // Fallback for invalid Unicode (like surrogate pairs)
+    
+    // 3. Fallback for invalid Unicode
     format!("[0x{code:04X}]")
 }
 
@@ -343,4 +345,56 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     report.roll_penalty *= norm_100k;
 
     report
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::kernel::compiler::Compiler;
+    use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel};
+    use keyforge_model::types::{KeyCode, HandIndex, FingerIndex, RowIndex, ColIndex};
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_u16_to_char() {
+        assert_eq!(u16_to_char(97), "a");
+        assert_eq!(u16_to_char(8), "⌫");
+        assert_eq!(u16_to_char(9), "⇥");
+        assert_eq!(u16_to_char(10), "↵");
+        assert_eq!(u16_to_char(32), "␣");
+        assert_eq!(u16_to_char(0), "[0x00]");
+        assert_eq!(u16_to_char(0xD800), "[0xD800]"); // Invalid surrogate
+    }
+
+    #[test]
+    fn test_analyze_layout_branches() {
+        let mut keys = vec![
+            KeyNode { index: 0, hand: HandIndex::LEFT, finger: FingerIndex::INDEX, row: RowIndex(0), col: ColIndex(0), is_home: true, ..Default::default() },
+            KeyNode { index: 1, hand: HandIndex::LEFT, finger: FingerIndex::MIDDLE, row: RowIndex(0), col: ColIndex(1), is_home: true, ..Default::default() },
+            KeyNode { index: 2, hand: HandIndex::LEFT, finger: FingerIndex::RING, row: RowIndex(0), col: ColIndex(2), is_home: true, ..Default::default() },
+        ];
+        // Add a duplicate key for space load sharing
+        keys.push(KeyNode { index: 3, hand: HandIndex::LEFT, finger: FingerIndex::INDEX, row: RowIndex(1), col: ColIndex(0), is_home: false, ..Default::default() });
+        
+        let kb = Keyboard::new(keys, 0).unwrap();
+        let mut corpus = Corpus::default();
+        corpus.char_freqs[97] = 100; // 'a'
+        corpus.char_freqs[98] = 200; // 'b'
+        corpus.bigrams.push((97, 98, 50));
+        corpus.trigrams.push((97, 98, 97, 10)); // Redirect: a -> b -> a (Index -> Middle -> Index)
+        
+        let mut cm = CostModel::default();
+        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: HashMap::new(),
+        });
+
+        let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
+        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100)];
+        let validated = ValidatedLayout::new(&layout_keys, kb.count()).unwrap();
+        
+        let report = analyze_layout(&ctx, &validated);
+        assert!(report.score > 0.0);
+        assert!(report.redirects > 0.0);
+    }
 }

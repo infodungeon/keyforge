@@ -303,4 +303,40 @@ mod tests {
         let valid = verify_result(&public, "job", "layout", 99.0, 0, 0, &sig).unwrap();
         assert!(!valid, "Tampered payload should verify as false");
     }
+
+    #[test]
+    fn test_secret_wrappers() {
+        let sb = SecretBytes::new(vec![1, 2, 3]);
+        assert_eq!(sb.as_slice(), &[1, 2, 3]);
+        assert!(format!("{:?}", sb).contains("REDACTED"));
+
+        let ss = SecretString::new("secret".into());
+        assert_eq!(ss.as_str(), "secret");
+        assert!(format!("{:?}", ss).contains("REDACTED"));
+    }
+
+    #[test]
+    fn test_verify_error_branches() {
+        let (_, public) = generate_keypair();
+        let sig = hex::encode([0u8; 64]);
+
+        // 1. Invalid public key hex
+        assert!(verify_result("invalid", "j", "l", 0.0, 0, 0, &sig).is_err());
+
+        // 2. Invalid public key length
+        assert!(verify_result("001122", "j", "l", 0.0, 0, 0, &sig).is_err());
+
+        // 3. Invalid signature hex
+        assert!(verify_result(&public, "j", "l", 0.0, 0, 0, "invalid").is_err());
+
+        // 4. Invalid signature length
+        assert!(verify_result(&public, "j", "l", 0.0, 0, 0, "001122").is_err());
+    }
+
+    #[test]
+    fn test_security_error_display() {
+        assert!(format!("{}", SecurityError::Encoding("e".into())).contains("Encoding Error"));
+        assert!(format!("{}", SecurityError::Key("k".into())).contains("Key Error"));
+        assert!(format!("{}", SecurityError::Signature("s".into())).contains("Signature Error"));
+    }
 }

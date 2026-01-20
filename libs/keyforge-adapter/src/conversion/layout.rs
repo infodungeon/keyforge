@@ -149,18 +149,60 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_layout_string_permissive() {
-        let mut registry = KeycodeRegistry::new_with_defaults();
-        registry.definitions.push(KeycodeDefinition {
-            code: KeyCode(10),
-            id: "KC_A".into(),
-            label: "A".into(),
-            aliases: vec!["A".into()],
-        });
-        registry.rebuild_maps();
+    fn test_parse_layout_string_strict_extended() {
+        let registry = KeycodeRegistry::new_with_defaults();
+        
+        // 1. Too long
+        let long_str = "A ".repeat(MAX_LAYOUT_DATA_LEN + 1);
+        assert!(parse_layout_string_strict(&long_str, 10, &registry).is_err());
 
-        let layout = parse_layout_string_permissive("A B", 2, &registry);
-        assert_eq!(layout.keys[0], KeyCode(10));
-        assert_eq!(layout.keys[1], KeyCode(0)); // B unknown -> 0
+        // 2. Argument stripping
+        // We need a registry that knows 'MO'
+        let mut reg = KeycodeRegistry::new_with_defaults();
+        reg.definitions.push(KeycodeDefinition { code: KeyCode(100), id: "MO".into(), label: "MO".into(), aliases: vec![] });
+        reg.rebuild_maps();
+        
+        let ok = parse_layout_string_strict("MO(1)", 1, &reg).unwrap();
+        assert_eq!(ok.keys[0], KeyCode(100));
+
+        // 3. malformed bracket - ends with ) but no (
+        let err = parse_layout_string_strict("MO)", 1, &reg);
+        assert!(err.is_err());
+
+        // 4. Token limit
+        let many = parse_layout_string_strict("MO(1) MO(2) MO(3)", 1, &reg).unwrap();
+        assert_eq!(many.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_layout_string_permissive_extended() {
+        let mut reg = KeycodeRegistry::new_with_defaults();
+        reg.definitions.push(KeycodeDefinition { code: KeyCode(100), id: "MO".into(), label: "MO".into(), aliases: vec![] });
+        reg.rebuild_maps();
+
+        // Exact match
+        let ok = parse_layout_string_permissive("MO UNKNOWN", 2, &reg);
+        assert_eq!(ok.keys[0], KeyCode(100));
+        assert_eq!(ok.keys[1], KeyCode(0));
+
+        // Argument stripping
+        let ok = parse_layout_string_permissive("MO(1) UNKNOWN", 2, &reg);
+        assert_eq!(ok.keys[0], KeyCode(100));
+        assert_eq!(ok.keys[1], KeyCode(0));
+
+        // Malformed bracket: ends with ) but no (
+        let malformed = parse_layout_string_permissive("MO)", 1, &reg);
+        assert_eq!(malformed.keys[0], KeyCode(0));
+
+        // Padding
+        let padded = parse_layout_string_permissive("", 2, &reg);
+        assert_eq!(padded.len(), 2);
+        assert_eq!(padded.keys[0], KeyCode(0));
+    }
+
+    #[test]
+    fn test_parse_layout_string_alias() {
+        let registry = KeycodeRegistry::new_with_defaults();
+        assert!(parse_layout_string("A", 1, &registry).is_err());
     }
 }

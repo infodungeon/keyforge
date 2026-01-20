@@ -1163,31 +1163,66 @@ mod tests {
 
 
     #[test]
-
-    fn test_reheat_exhaustion() {
-
-        let engine = setup_test_engine(2);
-
-        let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 2, 2, 2.0).unwrap();
-
-        let mut optimizer = Optimizer::new(
-
-            engine.as_ref(),
-
-            config,
-
-            StagnantMutation,
-
-            CoolingAnnealing,
-
-            crate::supervisor::traits::RealTimeKeeper,
-
-        );
-
-        optimizer.run(None, crate::NoOpCallback).unwrap();
-
+    fn test_annealing_config_errors() {
+        assert!(AnnealingConfig::new(100, -1.0, 0.1, 0, 10, 0, 1.0).is_err());
+        assert!(AnnealingConfig::new(100, 1.0, -0.1, 0, 10, 0, 1.0).is_err());
+        assert!(AnnealingConfig::new(100, 1.0, 0.1, 0, 10, 0, 0.0).is_err());
     }
 
+    #[test]
+    fn test_ips_calculation() {
+        use std::time::Duration;
+        struct MockTime;
+        impl TimeKeeper for MockTime {
+            fn now(&self) -> Instant { Instant::now() }
+            fn elapsed(&self, _since: Instant) -> Duration { Duration::from_millis(1) }
+        }
+        
+        let engine = setup_test_engine(2);
+        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 1000, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            engine.as_ref(),
+            config,
+            GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1.0, end_temp: 0.1 },
+            CoolingAnnealing,
+            MockTime,
+        );
+        opt.run(None, crate::NoOpCallback).unwrap();
+    }
+
+    #[test]
+    fn test_initialize_state_with_layout() {
+        let engine = setup_test_engine(2);
+        let config = AnnealingConfig::new(10, 1.0, 0.1, 42, 10, 0, 1.0).unwrap();
+        let mut opt = Optimizer::new(
+            engine.as_ref(),
+            config,
+            GroupMutation { unlocked_indices: vec![0, 1], start_temp: 1.0, end_temp: 0.1 },
+            CoolingAnnealing,
+            crate::supervisor::traits::RealTimeKeeper,
+        );
+        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
+        let res = opt.run(Some(layout), crate::NoOpCallback).unwrap();
+        assert_eq!(res.len(), 2);
+    }
+
+    #[test]
+    fn test_ips_underflow() {
+        use std::time::Duration;
+        struct ZeroTime;
+        impl TimeKeeper for ZeroTime {
+            fn now(&self) -> Instant { Instant::now() }
+            fn elapsed(&self, _since: Instant) -> Duration { Duration::ZERO }
+        }
+        
+        let (tx, _rx) = std::sync::mpsc::sync_channel(1);
+        let mut reporter = ProgressReporter::new(tx, 100, Instant::now());
+        let layout = Layout::new_unchecked(vec![KeyCode(0)]);
+        let state = SearchState::new(layout, 0, 1.0).unwrap();
+        
+        // This should not panic
+        reporter.report(0, &state, &ZeroTime);
+    }
 }
 
 

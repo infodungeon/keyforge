@@ -24,3 +24,16 @@
 pub(crate) fn is_none<T>(option: &Option<T>) -> bool {
     option.is_none()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_none() {
+        let none: Option<i32> = None;
+        let some = Some(10);
+        assert!(is_none(&none));
+        assert!(!is_none(&some));
+    }
+}

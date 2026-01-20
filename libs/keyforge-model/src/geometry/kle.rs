@@ -151,3 +151,66 @@ pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
     let json_str = serde_json::to_string_pretty(&json_rows)?;
     Ok(json_str)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_kle_json_simple() {
+        let json = r#"[["A", "B"]]"#;
+        let geom = parse_kle_json(json).unwrap();
+        assert_eq!(geom.keys.len(), 2);
+        assert_eq!(geom.keys[0].label, "A");
+        assert_eq!(geom.keys[1].label, "B");
+    }
+
+    #[test]
+    fn test_parse_kle_json_split_heuristic() {
+        // Large gap (3 keys to hit gap logic)
+        let json = r#"[["A", "B", {"x": 15}, "C"]]"#;
+        let geom = parse_kle_json(json).unwrap();
+        assert_eq!(geom.keys[0].hand, HandIndex::LEFT);
+        assert_eq!(geom.keys[1].hand, HandIndex::LEFT);
+        assert_eq!(geom.keys[2].hand, HandIndex::RIGHT);
+
+        // Small gap (ortho)
+        let json = r#"[["A", "B", "C"]]"#;
+        let geom = parse_kle_json(json).unwrap();
+        assert_eq!(geom.keys.len(), 3);
+    }
+
+    #[test]
+    fn test_kle_rotation_parsing() {
+        let json = r#"[
+            [{"r": 15, "rx": 5, "ry": 5}, "A"]
+        ]"#;
+        let geom = parse_kle_json(json).unwrap();
+        assert_eq!(geom.keys[0].r, 15.0);
+        assert_eq!(geom.keys[0].rx, 5.0);
+        assert_eq!(geom.keys[0].ry, 5.0);
+    }
+
+    #[test]
+    fn test_to_kle_json() {
+        let mut geom = KeyboardGeometry::default();
+        geom.keys.push(KeyNode {
+            label: "X".into(),
+            x: 1.0, y: 2.0, hand: HandIndex::LEFT, ..Default::default()
+        });
+        geom.keys.push(KeyNode {
+            label: "Y".into(),
+            x: 10.0, y: 2.0, hand: HandIndex::RIGHT, ..Default::default()
+        });
+        
+        let json = to_kle_json(&geom).unwrap();
+        assert!(json.contains("meta"));
+        assert!(json.contains("\"X\""));
+        assert!(json.contains("\"Y\""));
+    }
+
+    #[test]
+    fn test_parse_kle_invalid() {
+        assert!(parse_kle_json("invalid").is_err());
+    }
+}

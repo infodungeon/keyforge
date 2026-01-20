@@ -139,4 +139,14 @@ mod tests {
         assert!(root.join("user/keyboards").exists());
         assert!(root.join("user/agent_wal").exists());
     }
+
+    #[test]
+    fn test_init_workspace_missing_assets() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        
+        let res = initialize_workspace(root, InitMode::Validate);
+        assert!(res.is_err());
+        assert!(format!("{:?}", res.err()).contains("Required system asset missing"));
+    }
 }

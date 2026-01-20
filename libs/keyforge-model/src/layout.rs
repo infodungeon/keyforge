@@ -76,7 +76,6 @@ impl TryFrom<Vec<KeyCode>> for Layout {
 mod tests {
     use super::*;
     use proptest::prelude::*;
-    use std::collections::HashSet;
 
     #[test]
     fn test_layout_basic_methods() {

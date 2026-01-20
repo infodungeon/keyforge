@@ -42,3 +42,15 @@ impl LayoutValidator {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_layout_validator() {
+        assert!(LayoutValidator::validate_structure("1 2 3 4 5 6 7 8 9 10").is_ok());
+        assert!(LayoutValidator::validate_structure("").is_err());
+        assert!(LayoutValidator::validate_structure("1 2 3").is_err());
+    }
+}

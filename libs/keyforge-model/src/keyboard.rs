@@ -133,7 +133,7 @@ impl Keyboard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
+    use crate::types::{FingerIndex, HandIndex, RowIndex};
 
     #[test]
     fn test_keyboard_spatial_precomputation() {
@@ -163,21 +163,30 @@ mod tests {
     }
 
     #[test]
-    fn test_keyboard_origin_calculation() {
+    fn test_keyboard_basic_methods() {
+        assert!(Keyboard::new(vec![], 0).is_err());
+        
+        let keys = vec![KeyNode { index: 0, ..Default::default() }];
+        let kb = Keyboard::new(keys, 0).unwrap();
+        assert_eq!(kb.count(), 1);
+    }
+
+    #[test]
+    fn test_keyboard_origin_calculation_fallbacks() {
+        // Priority 2: Match home_row
         let keys = vec![KeyNode {
-            index: 0,
-            x: 10.0,
-            y: 20.0,
-            hand: HandIndex(0),
-            finger: FingerIndex(1),
-            row: RowIndex(1),
-            col: ColIndex(0),
-            is_home: true,
-            ..Default::default()
+            index: 0, x: 5.0, y: 5.0, hand: HandIndex(0), finger: FingerIndex(1),
+            row: RowIndex(1), is_home: false, ..Default::default()
         }];
         let kb = Keyboard::new(keys, 1).unwrap();
+        assert_eq!(kb.finger_origins[0][1], (5.0, 5.0));
 
-        // Hand 0, Finger 1 origin should be (10, 20)
-        assert_eq!(kb.finger_origins[0][1], (10.0, 20.0));
+        // Priority 3: Any key
+        let keys = vec![KeyNode {
+            index: 0, x: 7.0, y: 7.0, hand: HandIndex(0), finger: FingerIndex(1),
+            row: RowIndex(5), is_home: false, ..Default::default()
+        }];
+        let kb = Keyboard::new(keys, 1).unwrap();
+        assert_eq!(kb.finger_origins[0][1], (7.0, 7.0));
     }
 }

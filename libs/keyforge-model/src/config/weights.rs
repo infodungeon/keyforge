@@ -559,8 +559,7 @@ mod tests {
         assert!(w.validate().is_err());
 
         // 2. Weight overflow
-        w.weights
-            .insert("penalty_sfb_base".into(), MAX_SAFE_WEIGHT * 2.0);
+        w.weights.insert("penalty_sfb_base".into(), MAX_SAFE_WEIGHT * 2.0);
         assert!(w.validate().is_err());
 
         // 3. Negative finger scale
@@ -570,11 +569,87 @@ mod tests {
 
         // 4. Trigram limit safety
         w = ScoringWeights::default();
-        w.weights.insert(
-            "loader_trigram_limit".into(),
-            (MAX_LOADER_TRIGRAM_LIMIT + 1) as f32,
-        );
+        w.weights.insert("loader_trigram_limit".into(), (MAX_LOADER_TRIGRAM_LIMIT + 1) as f32);
         assert!(w.validate().is_err());
+    }
+
+    #[test]
+    fn test_scoring_weights_getters_all() {
+        let w = ScoringWeights::default();
+        // Just call them all to ensure coverage and they return defaults
+        assert_eq!(w.get_penalty_sfr_weak_finger(), DEFAULT_PENALTY_SFR_WEAK_FINGER);
+        assert_eq!(w.get_penalty_sfr_bad_row(), DEFAULT_PENALTY_SFR_BAD_ROW);
+        assert_eq!(w.get_penalty_sfr_lat(), DEFAULT_PENALTY_SFR_LAT);
+        assert_eq!(w.get_penalty_sfb_lateral(), DEFAULT_PENALTY_SFB_LATERAL);
+        assert_eq!(w.get_penalty_sfb_lateral_weak(), DEFAULT_PENALTY_SFB_LATERAL_WEAK);
+        assert_eq!(w.get_penalty_sfb_base(), DEFAULT_PENALTY_SFB_BASE);
+        assert_eq!(w.get_penalty_sfb_outward_adder(), DEFAULT_PENALTY_SFB_OUTWARD_ADDER);
+        assert_eq!(w.get_penalty_sfb_diagonal(), DEFAULT_PENALTY_SFB_DIAGONAL);
+        assert_eq!(w.get_penalty_sfb_long(), DEFAULT_PENALTY_SFB_LONG);
+        assert_eq!(w.get_penalty_sfb_bottom(), DEFAULT_PENALTY_SFB_BOTTOM);
+        assert_eq!(w.get_weight_weak_finger_sfb(), DEFAULT_WEIGHT_WEAK_FINGER_SFB);
+        assert_eq!(w.get_threshold_sfb_long_row_diff(), DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF);
+        assert_eq!(w.get_threshold_scissor_row_diff(), DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF);
+        assert_eq!(w.get_threshold_reach_stretch(), DEFAULT_THRESHOLD_REACH_STRETCH);
+        assert_eq!(w.get_penalty_scissor(), DEFAULT_PENALTY_SCISSOR);
+        assert_eq!(w.get_penalty_ring_pinky(), DEFAULT_PENALTY_RING_PINKY);
+        assert_eq!(w.get_penalty_lateral(), DEFAULT_PENALTY_LATERAL);
+        assert_eq!(w.get_penalty_monogram_stretch(), DEFAULT_PENALTY_MONOGRAM_STRETCH);
+        assert_eq!(w.get_penalty_skip(), DEFAULT_PENALTY_SKIP);
+        assert_eq!(w.get_penalty_redirect(), DEFAULT_PENALTY_REDIRECT);
+        assert_eq!(w.get_penalty_hand_run(), DEFAULT_PENALTY_HAND_RUN);
+        assert_eq!(w.get_bonus_inward_roll(), DEFAULT_BONUS_INWARD_ROLL);
+        assert_eq!(w.get_bonus_bigram_roll_in(), DEFAULT_BONUS_BIGRAM_ROLL_IN);
+        assert_eq!(w.get_bonus_bigram_roll_out(), DEFAULT_BONUS_BIGRAM_ROLL_OUT);
+        assert_eq!(w.get_penalty_high_in_med(), DEFAULT_PENALTY_HIGH_IN_MED);
+        assert_eq!(w.get_penalty_high_in_low(), DEFAULT_PENALTY_HIGH_IN_LOW);
+        assert_eq!(w.get_penalty_med_in_prime(), DEFAULT_PENALTY_MED_IN_PRIME);
+        assert_eq!(w.get_penalty_med_in_low(), DEFAULT_PENALTY_MED_IN_LOW);
+        assert_eq!(w.get_penalty_low_in_prime(), DEFAULT_PENALTY_LOW_IN_PRIME);
+        assert_eq!(w.get_penalty_low_in_med(), DEFAULT_PENALTY_LOW_IN_MED);
+        assert_eq!(w.get_penalty_imbalance(), DEFAULT_PENALTY_IMBALANCE);
+        assert_eq!(w.get_max_hand_imbalance(), DEFAULT_MAX_HAND_IMBALANCE);
+        assert_eq!(w.get_weight_vertical_travel(), DEFAULT_WEIGHT_VERTICAL_TRAVEL);
+        assert_eq!(w.get_weight_lateral_travel(), DEFAULT_WEIGHT_LATERAL_TRAVEL);
+        assert_eq!(w.get_weight_finger_effort(), DEFAULT_WEIGHT_FINGER_EFFORT);
+        assert_eq!(w.get_default_cost_ms(), DEFAULT_COST_MS);
+        assert_eq!(w.get_loader_trigram_limit(), DEFAULT_LOADER_TRIGRAM_LIMIT);
+        assert_eq!(w.get_trigram_coverage(), DEFAULT_TRIGRAM_COVERAGE);
+        assert_eq!(w.get_finger_penalty_scale(), DEFAULT_FINGER_PENALTY_SCALE_ARRAY);
+        assert_eq!(w.allowed_hand_balance_deviation(), DEFAULT_MAX_HAND_IMBALANCE - 0.5);
+        
+        let scissors = w.get_comfortable_scissors();
+        assert!(!scissors.is_empty());
+    }
+
+    #[test]
+    fn test_scoring_weights_schema() {
+        let s = ScoringWeights::schema();
+        assert!(!s.is_empty());
+    }
+
+    #[test]
+    fn test_scoring_weights_json_serde() {
+        let w = ScoringWeights::default();
+        let json_str = serde_json::to_string(&w).unwrap();
+        let w2: ScoringWeights = serde_json::from_str(&json_str).unwrap();
+        
+        assert_eq!(w.get_penalty_sfb_base(), w2.get_penalty_sfb_base());
+        assert_eq!(w.comfortable_scissors, w2.comfortable_scissors);
+    }
+
+    #[cfg(feature = "cli")]
+    #[test]
+    fn test_scoring_weights_config_conversion() {
+        let config = ScoringWeightsConfig {
+            overrides: vec![("penalty_sfb_base".to_string(), 600.0)],
+            finger_penalty_scale: vec![0.0, 1.0, 1.0, 1.0, 1.0],
+            comfortable_scissors: "12,23".to_string(),
+        };
+        let w = ScoringWeights::try_from(config).unwrap();
+        assert_eq!(w.get_penalty_sfb_base(), 600.0);
+        assert_eq!(w.finger_penalty_scale, [0.0, 1.0, 1.0, 1.0, 1.0]);
+        assert_eq!(w.comfortable_scissors, "12,23");
     }
 }
 

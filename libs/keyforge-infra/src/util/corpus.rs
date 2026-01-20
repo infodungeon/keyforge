@@ -47,9 +47,7 @@ fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRe
     for e in part {
         if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
             if (c as u32) > 0xFFFF {
-                return Err(ForgeError::InvalidData(format!(
-                    "Character outside BMP not supported: {c}"
-                )));
+                return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c}")));
             }
             let c_u16 = c as u16;
             let freq = e["freq"].as_u64().ok_or_else(|| {
@@ -67,30 +65,12 @@ fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRe
 #[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 fn parse_bigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
     for e in part {
-        let freq = e["freq"].as_u64().ok_or_else(|| {
-            ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {e:?}"))
-        })?;
-        let c1_char = e["char1"]
-            .as_str()
-            .and_then(resolve_corpus_char)
-            .ok_or_else(|| {
-                ForgeError::InvalidData(format!(
-                    "Missing or invalid char1 in 2gram entry: {e:?}"
-                ))
-            })?;
-        let c2_char = e["char2"]
-            .as_str()
-            .and_then(resolve_corpus_char)
-            .ok_or_else(|| {
-                ForgeError::InvalidData(format!(
-                    "Missing or invalid char2 in 2gram entry: {e:?}"
-                ))
-            })?;
+        let freq = e["freq"].as_u64().ok_or_else(|| ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {e:?}")))?;
+        let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| ForgeError::InvalidData(format!("Missing or invalid char1 in 2gram entry: {e:?}")))?;
+        let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| ForgeError::InvalidData(format!("Missing or invalid char2 in 2gram entry: {e:?}")))?;
 
         if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF {
-            return Err(ForgeError::InvalidData(format!(
-                "Character outside BMP not supported: {c1_char} or {c2_char}"
-            )));
+            return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char} or {c2_char}")));
         }
 
         corpus.bigrams.push(( 
@@ -105,38 +85,12 @@ fn parse_bigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResu
 #[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
     for e in part {
-        let freq = e["freq"].as_u64().ok_or_else(|| {
-            ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {e:?}"))
-        })?;
-        let c1_char = e["char1"]
-            .as_str()
-            .and_then(resolve_corpus_char)
-            .ok_or_else(|| {
-                ForgeError::InvalidData(format!(
-                    "Missing or invalid char1 in 3gram entry: {e:?}"
-                ))
-            })?;
-        let c2_char = e["char2"]
-            .as_str()
-            .and_then(resolve_corpus_char)
-            .ok_or_else(|| {
-                ForgeError::InvalidData(format!(
-                    "Missing or invalid char2 in 3gram entry: {e:?}"
-                ))
-            })?;
-        let c3_char = e["char3"]
-            .as_str()
-            .and_then(resolve_corpus_char)
-            .ok_or_else(|| {
-                ForgeError::InvalidData(format!(
-                    "Missing or invalid char3 in 3gram entry: {e:?}"
-                ))
-            })?;
+        let freq = e["freq"].as_u64().ok_or_else(|| ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {e:?}")))?;
+        let c1_char = e["char1"].as_str().and_then(resolve_corpus_char).ok_or_else(|| ForgeError::InvalidData(format!("Missing or invalid char1 in 3gram entry: {e:?}")))?;
+        let c2_char = e["char2"].as_str().and_then(resolve_corpus_char).ok_or_else(|| ForgeError::InvalidData(format!("Missing or invalid char2 in 3gram entry: {e:?}")))?;
+        let c3_char = e["char3"].as_str().and_then(resolve_corpus_char).ok_or_else(|| ForgeError::InvalidData(format!("Missing or invalid char3 in 3gram entry: {e:?}")))?;
 
-        if (c1_char as u32) > 0xFFFF
-            || (c2_char as u32) > 0xFFFF
-            || (c3_char as u32) > 0xFFFF
-        {
+        if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF || (c3_char as u32) > 0xFFFF {
             return Err(ForgeError::InvalidData(format!("Character outside BMP not supported: {c1_char}, {c2_char}, or {c3_char}")));
         }
 
@@ -153,9 +107,7 @@ fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRes
 #[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 fn parse_words(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
     for e in part {
-        let freq = e["freq"].as_u64().ok_or_else(|| {
-            ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}"))
-        })?;
+        let freq = e["freq"].as_u64().ok_or_else(|| ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}")))?;
         if let Some(w) = e["word"].as_str() {
             corpus
                 .words
@@ -311,4 +263,87 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     corpus
         .trigrams
         .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_resolve_corpus_char() {
+        assert_eq!(resolve_corpus_char("SPACE"), Some(' '));
+        assert_eq!(resolve_corpus_char("A"), Some('a')); // Normalization
+        assert_eq!(resolve_corpus_char("61"), Some('a')); // Hex
+        assert_eq!(resolve_corpus_char("616"), None); // Invalid hex length
+        assert_eq!(resolve_corpus_char("6G"), None); // Invalid hex char
+        assert_eq!(resolve_corpus_char("invalid"), None);
+    }
+
+    #[test]
+    fn test_populate_corpus_from_segments() {
+        let mut corpus = Corpus::default();
+        let segments = vec![
+            ("1grams", vec![json!({"char": "a", "freq": 100})]),
+            ("2grams", vec![json!({"char1": "a", "char2": "b", "freq": 50})]),
+            ("3grams", vec![json!({"char1": "a", "char2": "b", "char3": "c", "freq": 10})]),
+            ("words", vec![json!({"word": "test", "freq": 5})]),
+        ];
+        
+        populate_corpus_from_segments(&mut corpus, 1.0, segments).unwrap();
+        assert_eq!(corpus.char_freqs[97], 100);
+        assert_eq!(corpus.bigrams.len(), 1);
+        assert_eq!(corpus.trigrams.len(), 1);
+        assert_eq!(corpus.words.len(), 1);
+    }
+
+    #[test]
+    fn test_inject_synthetic_data() {
+        let mut corpus = Corpus::default();
+        corpus.char_freqs['a' as usize] = 1000;
+        corpus.char_freqs['.' as usize] = 10;
+        corpus.bigrams.push(('a' as u16, '.' as u16, 100));
+        
+        inject_synthetic_data(&mut corpus, true);
+        
+        assert!(corpus.char_freqs['\n' as usize] > 0); // Enter injected
+        assert!(corpus.char_freqs['\x08' as usize] > 0); // Backspace injected
+        assert!(corpus.bigrams.iter().any(|(a, b, _)| *a == '.' as u16 && *b == '\n' as u16));
+    }
+
+    #[test]
+    fn test_parse_monograms_invalid() {
+        let mut corpus = Corpus::default();
+        let part = vec![json!({"char": "a"})]; // Missing freq
+        assert!(parse_monograms(&mut corpus, 1.0, &part).is_err());
+
+        // Outside BMP
+        let part = vec![json!({"char": "🦀", "freq": 100})];
+        assert!(parse_monograms(&mut corpus, 1.0, &part).is_err());
+    }
+
+    #[test]
+    fn test_parse_bigrams_invalid() {
+        let mut corpus = Corpus::default();
+        assert!(parse_bigrams(&mut corpus, 1.0, &[json!({"char1":"a","char2":"b"})]).is_err());
+        assert!(parse_bigrams(&mut corpus, 1.0, &[json!({"freq":100,"char2":"b"})]).is_err());
+        assert!(parse_bigrams(&mut corpus, 1.0, &[json!({"freq":100,"char1":"a"})]).is_err());
+        assert!(parse_bigrams(&mut corpus, 1.0, &[json!({"freq":100,"char1":"🦀","char2":"b"})]).is_err());
+    }
+
+    #[test]
+    fn test_parse_trigrams_invalid() {
+        let mut corpus = Corpus::default();
+        assert!(parse_trigrams(&mut corpus, 1.0, &[json!({"char1":"a","char2":"b","char3":"c"})]).is_err());
+        assert!(parse_trigrams(&mut corpus, 1.0, &[json!({"freq":100,"char2":"b","char3":"c"})]).is_err());
+        assert!(parse_trigrams(&mut corpus, 1.0, &[json!({"freq":100,"char1":"a","char3":"c"})]).is_err());
+        assert!(parse_trigrams(&mut corpus, 1.0, &[json!({"freq":100,"char1":"a","char2":"b"})]).is_err());
+        assert!(parse_trigrams(&mut corpus, 1.0, &[json!({"freq":100,"char1":"🦀","char2":"b","char3":"c"})]).is_err());
+    }
+
+    #[test]
+    fn test_parse_words_invalid() {
+        let mut corpus = Corpus::default();
+        assert!(parse_words(&mut corpus, 1.0, &[json!({"word":"test"})]).is_err());
+    }
 }

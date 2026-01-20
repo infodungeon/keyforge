@@ -49,3 +49,33 @@ impl BiometricProfiler {
         model
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_biometric_profiler_logic() {
+        let base = CostModel::default();
+        
+        // 1. Empty samples returns base
+        let model = BiometricProfiler::profile(&[], &base);
+        assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 0);
+
+        // 2. Below threshold (5 samples)
+        let samples = vec![
+            BiometricSample { bigram: "th".into(), ms: 100.0, timestamp: 0 }; 4
+        ];
+        let model = BiometricProfiler::profile(&samples, &base);
+        assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 0);
+
+        // 3. Above threshold
+        let samples = vec![
+            BiometricSample { bigram: "th".into(), ms: 150.0, timestamp: 0 }; 10
+        ];
+        let model = BiometricProfiler::profile(&samples, &base);
+        assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 1);
+        // 150ms / 150.0 * 100.0 = 100.0
+        assert_eq!(*model.dynamic_rules.sequence_modifiers.get("th").unwrap(), 100.0);
+    }
+}

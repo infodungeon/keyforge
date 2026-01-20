@@ -98,4 +98,17 @@ mod tests {
         let lock_c = WorkspaceLock::acquire(&lock_path);
         assert!(lock_c.is_ok());
     }
+
+    #[test]
+    fn test_workspace_lock_release() {
+        let temp = tempfile::tempdir().unwrap();
+        let lock_path = temp.path().join("workspace.lock");
+        fs::File::create(&lock_path).unwrap();
+
+        let lock = WorkspaceLock::acquire(&lock_path).unwrap();
+        lock.release().unwrap();
+        
+        let lock2 = WorkspaceLock::acquire(&lock_path);
+        assert!(lock2.is_ok());
+    }
 }

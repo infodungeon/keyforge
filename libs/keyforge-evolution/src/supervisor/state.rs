@@ -173,4 +173,12 @@ mod tests {
         assert_eq!(state.temperature, 0.5);
         assert_eq!(state.current_score, 50);
     }
+
+    #[test]
+    fn test_state_reheat_zero_temp() {
+        let layout = Layout::new_unchecked(vec![KeyCode(10)]);
+        let mut state = SearchState::new(layout, 100, 0.1).unwrap();
+        state.reheat_from_best(0.0, 0.5);
+        assert_eq!(state.temperature, 0.0);
+    }
 }

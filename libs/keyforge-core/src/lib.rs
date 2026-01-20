@@ -214,4 +214,42 @@ mod tests {
         let engine = build_engine(&req).unwrap();
         assert_eq!(engine.key_count(), 1);
     }
+
+    #[test]
+    fn test_analysis_wrappers() {
+        let req = setup_minimal_req();
+        let engine = build_engine(&req).unwrap();
+        let layout = req.initial_layout.as_ref().unwrap();
+
+        assert!(analyze_with_engine(engine.as_ref(), layout).is_ok());
+        assert!(score_with_engine(engine.as_ref(), layout).is_ok());
+        assert!(suggest_with_engine(engine.as_ref(), layout).is_ok());
+        
+        assert!(analyze(&req).is_ok());
+        assert!(score(&req).is_ok());
+        assert!(suggest(&req).is_ok());
+    }
+
+    #[test]
+    fn test_optimization_wrappers() {
+        let req = setup_minimal_req();
+        let engine: Arc<dyn ScoringEngine> = build_engine(&req).unwrap().into();
+        
+        assert!(optimize(&req).is_ok());
+        
+        struct NoOpCallback;
+        impl ProgressCallback for NoOpCallback {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool { true }
+        }
+        
+        assert!(optimize_with_callback(&req, NoOpCallback).is_ok());
+        assert!(optimize_with_engine(&engine, &req.config, NoOpCallback, None, None).is_ok());
+    }
+
+    #[test]
+    fn test_identity_wrapper() {
+        let layout = Layout::new_unchecked(vec![KeyCode(0)]);
+        // identify might return None if layout doesn't match any known fingerprint
+        let _ = identify(&layout);
+    }
 }

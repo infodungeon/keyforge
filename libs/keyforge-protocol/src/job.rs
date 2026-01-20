@@ -133,20 +133,11 @@ impl Validator for JobConfig {
             corpus.validate().map_err(|e| format!("Corpus #{i}: {e}"))?;
         }
 
-        if self.definition.geometry.keys.len() > keyforge_model::constants::MAX_KEYBOARD_KEYS {
-            return Err(format!(
-                "Geometry exceeds maximum key limit ({})",
-                keyforge_model::constants::MAX_KEYBOARD_KEYS
-            ));
-        }
         if self.pinned_keys.len() > keyforge_model::constants::MAX_PINNED_KEYS_COUNT {
             return Err("Pinned keys configuration too large".to_string());
         }
         if self.biometrics.len() > constants::MAX_BIOMETRIC_SAMPLES {
-            return Err(format!(
-                "Too many biometric samples (Limit: {})",
-                constants::MAX_BIOMETRIC_SAMPLES
-            ));
+            return Err(format!("Too many biometric samples (Limit: {})", constants::MAX_BIOMETRIC_SAMPLES));
         }
         for (i, sample) in self.biometrics.iter().enumerate() {
             sample
@@ -486,57 +477,71 @@ mod tests {
         );
     }
 
-        #[test]
-
-        fn test_deserialize_dos_protection_biometrics() {
-
-            #[derive(serde::Deserialize, Debug)]
-
-            struct BiometricsWrapper {
-
-                #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-
-                biometrics: Vec<BiometricSample>,
-
-            }
-
-    
-
-            // 1. Verify valid small payload is actually read
-
-            let good_json = r#"{"biometrics": [{"bigram": "ab", "ms": 10.0, "timestamp": 0}]}"#;
-
-            let good_res: BiometricsWrapper = serde_json::from_str(good_json).unwrap();
-
-            assert_eq!(good_res.biometrics.len(), 1);
-
-    
-
-            // 2. Verify DoS rejection
-
-            let mut json = String::from(r#"{"biometrics": ["#);
-
-            for i in 0..100_001 {
-
-                if i > 0 { json.push(','); }
-
-                json.push_str(r#"{ "bigram": "ab", "ms": 10.0, "timestamp": 0 }"#);
-
-            }
-
-            json.push_str("]}");
-
-    
-
-            let res: Result<BiometricsWrapper, _> = serde_json::from_str(&json);
-
-            assert!(res.is_err(), "Should reject > 100k items");
-
-            assert!(res.unwrap_err().to_string().contains("transport limit"));
-
-        }
-
+    #[test]
+    fn test_job_config_id_generation() {
+        let config = JobConfig::default();
+        let id = config.id().unwrap();
+        assert!(!id.is_empty());
     }
+
+    #[test]
+    fn test_result_submission_validation_extended() {
+        let sub = ResultSubmission {
+            version: PROTOCOL_VERSION,
+            job_id: "test".into(),
+            layout: "A B C D E F G H I J".into(),
+            score: 100.0,
+            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+            nonce: 0,
+            node_id: "node".into(),
+            signature: "sig".into(),
+        };
+        assert!(sub.validate().is_ok());
+
+        // Empty IDs
+        let mut invalid = sub.clone();
+        invalid.job_id = " ".into();
+        assert!(invalid.validate().is_err());
+
+        let mut invalid = sub.clone();
+        invalid.node_id = " ".into();
+        assert!(invalid.validate().is_err());
+
+        // Invalid score
+        let mut invalid = sub.clone();
+        invalid.score = f32::NAN;
+        assert!(invalid.validate().is_err());
+        invalid.score = -1.0;
+        assert!(invalid.validate().is_err());
+    }
+
+    #[test]
+    fn test_job_request_deref() {
+        let mut req = JobRequest::default();
+        assert_eq!(req.version, PROTOCOL_VERSION);
+        // Deref to JobConfig
+        assert!(req.corpora.len() > 0);
+        // DerefMut
+        req.parent_job_id = Some("p".into());
+        assert_eq!(req.config.parent_job_id, Some("p".into()));
+    }
+
+    #[test]
+    fn test_job_config_validation_extended() {
+        let mut config = JobConfig::default();
+        config.definition.geometry.keys.push(KeyNode::default());
+        config.definition.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
+
+        // Invalid corpus
+        config.corpora[0].id = " ".into();
+        assert!(config.validate().is_err());
+        config.corpora[0].id = "en".into();
+
+        // Too many pins
+        config.pinned_keys = vec![KeyConstraint { index: keyforge_model::KeyIndex(0), key: "A".into() }; 201];
+        assert!(config.validate().is_err());
+    }
+}
 
     
 

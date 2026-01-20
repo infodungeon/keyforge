@@ -39,6 +39,14 @@ pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
+/// Helper for testing: calculates hash of a string.
+#[must_use]
+pub fn calculate_file_hash_str(s: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(s.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 
 /// Generates a serialized cost matrix based on the user's historical typing statistics.
@@ -157,5 +165,71 @@ pub fn normalize_path(raw: &str) -> Option<String> {
         None
     } else {
         Some(stack.join("/"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_calculate_file_hash() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("test.txt");
+        fs::write(&path, "hello").unwrap();
+        
+        let hash = calculate_file_hash(&path).unwrap();
+        assert!(!hash.is_empty());
+        assert!(calculate_file_hash("nonexistent").is_err());
+    }
+
+    #[test]
+    fn test_stubs() {
+        let store = UserStatsStore::default();
+        assert!(generate_cost_profile(&store).contains("Stub"));
+        
+        let mut builder = StreamingProfileBuilder::new();
+        builder.add_sample(&BiometricSample { bigram: "th".into(), ms: 10.0, timestamp: 0 });
+        assert!(builder.generate().contains("Stub"));
+    }
+
+    #[test]
+    fn test_load_keycode_registry() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("keycodes.json");
+        fs::write(&path, r#"[{"code": 97, "id": "KC_A", "label": "a", "aliases": []}]"#).unwrap();
+        
+        let reg = load_keycode_registry(&path).unwrap();
+        assert_eq!(reg.definitions.len(), 1);
+        assert!(load_keycode_registry(&temp.path().join("missing")).is_err());
+
+        // Invalid JSON
+        fs::write(&path, "invalid").unwrap();
+        assert!(load_keycode_registry(&path).is_err());
+    }
+
+    #[test]
+    fn test_calculate_fingerprint() {
+        let s1 = vec![CorpusSource { id: "a".into(), weight: 1.0, hash: None }];
+        let s2 = vec![CorpusSource { id: "a".into(), weight: 1.0, hash: None }];
+        assert_eq!(calculate_fingerprint(&s1), calculate_fingerprint(&s2));
+    }
+
+    #[test]
+    fn test_sanitize_filename() {
+        assert_eq!(sanitize_filename("valid.txt"), "direct.txt".replace("direct", "valid"));
+        // Wait, sanitize_filename("valid.txt") -> "valid.txt"
+        assert_eq!(sanitize_filename("valid.txt"), "valid.txt");
+        assert_eq!(sanitize_filename("invalid/path"), "invalid_path");
+    }
+
+    #[test]
+    fn test_normalize_path() {
+        assert_eq!(normalize_path("a/b/c"), Some("a/b/c".into()));
+        assert_eq!(normalize_path("a/../b"), Some("b".into()));
+        assert_eq!(normalize_path("../outside"), None);
+        assert_eq!(normalize_path("/absolute"), None);
+        assert_eq!(normalize_path(""), None);
     }
 }

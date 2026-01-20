@@ -87,3 +87,21 @@ impl Default for Project {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_meta_default() {
+        let meta = ProjectMeta::default();
+        assert_eq!(meta.name, "Untitled Project");
+    }
+
+    #[test]
+    fn test_project_default() {
+        let project = Project::default();
+        assert_eq!(project.keyboard, "ortho_30");
+        assert!(!project.corpora.is_empty());
+    }
+}

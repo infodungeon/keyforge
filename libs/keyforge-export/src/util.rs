@@ -121,4 +121,23 @@ mod tests {
         assert_eq!(sanitize_zmk("Key(1)"), "Key1");
         assert_eq!(sanitize_zmk("my_id"), "my_id");
     }
+
+    #[test]
+    fn test_map_modifier_exhaustive() {
+        // QMK
+        assert_eq!(map_modifier("RSFT", ModFormat::Qmk), "MOD_RSFT");
+        assert_eq!(map_modifier("LCTL", ModFormat::Qmk), "MOD_LCTL");
+        assert_eq!(map_modifier("RCTL", ModFormat::Qmk), "MOD_RCTL");
+        assert_eq!(map_modifier("LALT", ModFormat::Qmk), "MOD_LALT");
+        assert_eq!(map_modifier("RALT", ModFormat::Qmk), "MOD_RALT");
+        assert_eq!(map_modifier("RGUI", ModFormat::Qmk), "MOD_RGUI");
+
+        // ZMK
+        assert_eq!(map_modifier("RSFT", ModFormat::Zmk), "RSHIFT");
+        assert_eq!(map_modifier("LCTL", ModFormat::Zmk), "LCTRL");
+        assert_eq!(map_modifier("RCTL", ModFormat::Zmk), "RCTRL");
+        assert_eq!(map_modifier("LALT", ModFormat::Zmk), "LALT");
+        assert_eq!(map_modifier("RALT", ModFormat::Zmk), "RALT");
+        assert_eq!(map_modifier("RGUI", ModFormat::Zmk), "RGUI");
+    }
 }

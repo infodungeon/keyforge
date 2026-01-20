@@ -85,3 +85,64 @@ impl CommonConfig {
             .unwrap_or_else(|| PathBuf::from(DEFAULT_FALLBACK_PATH))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_common_config_from_env() {
+        temp_env::with_vars(vec![
+            (ENV_DATA_DIR, Some("/tmp/data")),
+            (ENV_CORES, Some("8")),
+        ], || {
+            let cfg = CommonConfig::from_env();
+            assert_eq!(cfg.data_dir, Some(PathBuf::from("/tmp/data")));
+            assert_eq!(cfg.cores, Some(8));
+        });
+    }
+
+    #[test]
+    fn test_common_config_from_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        fs::write(&path, "data_dir = '/etc/kf'\ncores = 4").unwrap();
+
+        let cfg = CommonConfig::from_file(&path).unwrap();
+        assert_eq!(cfg.data_dir, Some(PathBuf::from("/etc/kf")));
+        assert_eq!(cfg.cores, Some(4));
+        
+        assert!(CommonConfig::from_file("missing.toml").is_err());
+        fs::write(&path, "bad = invalid").unwrap();
+        assert!(CommonConfig::from_file(&path).is_err());
+    }
+
+    #[test]
+    fn test_common_config_merge() {
+        let mut cfg1 = CommonConfig {
+            data_dir: Some(PathBuf::from("/a")),
+            cores: Some(1),
+            ..Default::default()
+        };
+        let cfg2 = CommonConfig {
+            data_dir: Some(PathBuf::from("/b")),
+            logging_level: Some("debug".into()),
+            ..Default::default()
+        };
+
+        cfg1.merge(cfg2);
+        assert_eq!(cfg1.data_dir, Some(PathBuf::from("/b")));
+        assert_eq!(cfg1.cores, Some(1));
+        assert_eq!(cfg1.logging_level, Some("debug".into()));
+    }
+
+    #[test]
+    fn test_common_config_resolve() {
+        let mut cfg = CommonConfig::default();
+        assert_eq!(cfg.resolve_data_dir(), PathBuf::from(DEFAULT_FALLBACK_PATH));
+
+        cfg.data_dir = Some(PathBuf::from("/custom"));
+        assert_eq!(cfg.resolve_data_dir(), PathBuf::from("/custom"));
+    }
+}

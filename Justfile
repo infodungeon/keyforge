@@ -110,6 +110,10 @@ test-ui:
 
 test-all: test-core test-cli verify-parity test-ui
 
+cover package:
+    mkdir -p target/coverage
+    cargo tarpaulin -p {{package}} --ignore-tests --out Xml --output-dir target/coverage
+
 # --- UTILS ---
 
 fmt:

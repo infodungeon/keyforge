@@ -70,4 +70,24 @@ mod tests {
         };
         assert!(invalid.validate().is_err());
     }
+
+    #[test]
+    fn test_key_constraint_from_str() {
+        // Valid
+        let c: KeyConstraint = "0:KC_A".parse().unwrap();
+        assert_eq!(c.index.0, 0);
+        assert_eq!(c.key, "KC_A");
+
+        // Invalid: Empty
+        assert!(" ".parse::<KeyConstraint>().is_err());
+
+        // Invalid: Format
+        assert!("0".parse::<KeyConstraint>().is_err());
+
+        // Invalid: Index
+        assert!("abc:KC_A".parse::<KeyConstraint>().is_err());
+
+        // Invalid: Empty Key
+        assert!("0:".parse::<KeyConstraint>().is_err());
+    }
 }

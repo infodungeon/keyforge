@@ -100,3 +100,45 @@ pub struct NodeResponse {
     /// Tuning profile to apply.
     pub tuning: TuningProfile,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_node_request_validation() {
+        let valid = NodeRequest {
+            version: PROTOCOL_VERSION,
+            node_id: "node-1".into(),
+            cpu_model: "test".into(),
+            cores: 8,
+            l2_cache_kb: None,
+            ops_per_sec: 1000.0,
+            public_key: None,
+        };
+        assert!(valid.validate().is_ok());
+
+        let invalid_id = NodeRequest {
+            node_id: " ".into(),
+            ..valid.clone()
+        };
+        assert!(invalid_id.validate().is_err());
+
+        let invalid_cores = NodeRequest {
+            cores: 0,
+            ..valid.clone()
+        };
+        assert!(invalid_cores.validate().is_err());
+
+        let invalid_ops = NodeRequest {
+            ops_per_sec: -1.0,
+            ..valid.clone()
+        };
+        assert!(invalid_ops.validate().is_err());
+    }
+
+    #[test]
+    fn test_default_version() {
+        assert_eq!(default_version(), PROTOCOL_VERSION);
+    }
+}

@@ -341,24 +341,30 @@ mod tests {
         assert!(geom.validate().is_err(), "Should fail on slot overlap");
 
         // 4. Out of bounds slot index
-        geom.prime_slots = vec![KeyIndex(0)];
-        geom.med_slots = vec![KeyIndex(99)]; // Out of bounds
-        geom.low_slots = vec![KeyIndex(1)];
-        assert!(
-            geom.validate().is_err(),
-            "Should fail on out of bounds slot index"
-        );
-
-        // 5. Incomplete slot definition
-        geom.prime_slots = vec![KeyIndex(0)];
-        geom.med_slots = vec![];
-        geom.low_slots = vec![]; // Key 1 is missing
-        assert!(geom.validate().is_err(), "Should fail on incomplete slots");
-
-        // 6. Valid state
+        geom.keys = vec![KeyNode::default(); 3];
         geom.prime_slots = vec![KeyIndex(0)];
         geom.med_slots = vec![KeyIndex(1)];
-        geom.low_slots = vec![];
+        geom.low_slots = vec![KeyIndex(99)]; // Out of bounds
+        let res = geom.validate();
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("out of bounds"));
+
+        // 5. Incomplete slot definition
+        geom.low_slots = vec![]; // Key 2 is missing
+        let res = geom.validate();
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("Slot definition incomplete"));
+
+        // 6. Invalid hand/finger via new_unchecked
+        geom.low_slots = vec![KeyIndex(2)];
+        geom.keys[0].hand = HandIndex(5);
+        assert!(geom.validate().is_err());
+        geom.keys[0].hand = HandIndex(0);
+        geom.keys[0].finger = FingerIndex::new_unchecked(10);
+        assert!(geom.validate().is_err());
+        geom.keys[0].finger = FingerIndex::new_unchecked(1);
+
+        // 7. Valid state
         assert!(geom.validate().is_ok());
     }
 
@@ -388,14 +394,14 @@ mod tests {
     #[test]
     fn test_keyboard_geometry_validation_extended() {
         // Too many keys
-        let mut geom = KeyboardGeometry {
+        let geom = KeyboardGeometry {
             keys: vec![KeyNode::default(); MAX_KEYBOARD_KEYS + 1],
             ..Default::default()
         };
         assert!(geom.validate().is_err());
 
         // Prime and Low overlap
-        let mut geom = KeyboardGeometry {
+        let geom = KeyboardGeometry {
             keys: vec![KeyNode::default(); 2],
             prime_slots: vec![KeyIndex(0)],
             low_slots: vec![KeyIndex(0)],
@@ -405,7 +411,7 @@ mod tests {
         assert!(geom.validate().is_err());
 
         // Med and Low overlap
-        let mut geom = KeyboardGeometry {
+        let geom = KeyboardGeometry {
             keys: vec![KeyNode::default(); 2],
             prime_slots: vec![KeyIndex(1)],
             med_slots: vec![KeyIndex(0)],
@@ -415,7 +421,7 @@ mod tests {
         assert!(geom.validate().is_err());
 
         // Invalid finger index (using new_unchecked to bypass safety)
-        let mut geom = KeyboardGeometry {
+        let geom = KeyboardGeometry {
             keys: vec![KeyNode { finger: FingerIndex::new_unchecked(10), ..Default::default() }],
             prime_slots: vec![KeyIndex(0)],
             ..Default::default()

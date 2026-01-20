@@ -211,5 +211,42 @@ mod tests {
                         }
                     }
                 }
-            }
+
+    #[test]
+    fn test_group_mutation_edge_cases() {
+        let size = 5;
+        let engine = setup_engine(size);
+        let layout = Layout::new_unchecked((0..size as u16).map(KeyCode).collect());
+        let pos_map = vec![0, 1, 2, 3, 4];
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+
+        // 1. Too few unlocked indices
+        let mutation = GroupMutation {
+            unlocked_indices: vec![0],
+            start_temp: 100.0,
+            end_temp: 0.1,
+        };
+        let res = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0).unwrap();
+        assert!(res.is_none());
+
+        // 2. High temp (low p_swap -> more 3-way)
+        let mutation = GroupMutation {
+            unlocked_indices: (0..size).collect(),
+            start_temp: 100.0,
+            end_temp: 0.1,
+        };
+        let _ = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 100.0).unwrap();
+
+        // 3. Low temp (high p_swap -> more single swap)
+        let _ = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 0.1).unwrap();
+
+        // 4. Equal start/end temp (p_swap = 0.5)
+        let mutation_eq = GroupMutation {
+            unlocked_indices: (0..size).collect(),
+            start_temp: 1.0,
+            end_temp: 1.0,
+        };
+        let _ = mutation_eq.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0).unwrap();
+    }
+}
             

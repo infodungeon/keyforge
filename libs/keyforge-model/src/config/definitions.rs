@@ -149,4 +149,30 @@ mod tests {
         def.finger_repeat_scale[0] = -1.0;
         assert!(def.validate().is_err());
     }
+
+    #[test]
+    fn test_layout_definitions_get_critical_bigrams() {
+        let mut def = LayoutDefinitions::default();
+        def.critical_bigrams = "th,he,in, invalid, x".into();
+        let bigrams = def.get_critical_bigrams();
+        assert_eq!(bigrams.len(), 3);
+        assert_eq!(bigrams[0], [b't', b'h']);
+        assert_eq!(bigrams[1], [b'h', b'e']);
+        assert_eq!(bigrams[2], [b'i', b'n']);
+    }
+
+    #[cfg(feature = "cli")]
+    #[test]
+    fn test_layout_definitions_config_conversion() {
+        let config = LayoutDefinitionsConfig {
+            tier_high_chars: "abc".into(),
+            tier_med_chars: "def".into(),
+            tier_low_chars: "ghi".into(),
+            critical_bigrams: "ab,cd".into(),
+            finger_repeat_scale: vec![1.0, 1.0, 1.0, 1.0, 1.0],
+        };
+        let def = LayoutDefinitions::try_from(config).unwrap();
+        assert_eq!(def.tier_high_chars, "abc");
+        assert_eq!(def.finger_repeat_scale, [1.0, 1.0, 1.0, 1.0, 1.0]);
+    }
 }

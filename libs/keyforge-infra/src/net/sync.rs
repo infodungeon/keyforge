@@ -6,7 +6,7 @@ use crate::util::common::calculate_file_hash;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Component, Path};
+use std::path::Path;
 use tracing::info;
 use walkdir::WalkDir;
 
@@ -143,10 +143,11 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
     for entry in walker.into_iter().filter_map(std::result::Result::ok) {
         if entry.file_type().is_file() {
             let path = entry.path();
-            if path
-                .components()
-                .any(|c| matches!(c, Component::Normal(s) if s.to_string_lossy().starts_with('.')))
-            {
+            let Some(filename) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            
+            if filename.starts_with('.') {
                 continue;
             }
 
@@ -158,4 +159,177 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
         }
     }
     Ok(ServerManifest { files })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use crate::net::client::ClientConfig;
+    use std::fs;
+
+    #[tokio::test]
+    async fn test_run_sync() {
+        let server = MockServer::start().await;
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        
+        let content = "asset content";
+        let hash = crate::util::common::calculate_file_hash_str(content);
+        
+        let manifest = ServerManifest {
+            files: [("test.txt".to_string(), hash.clone())].into_iter().collect(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path("/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&manifest))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/data/system/test.txt"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(content))
+            .mount(&server)
+            .await;
+
+        let config = ClientConfig {
+            api_url: server.uri(),
+            asset_url: server.uri(),
+            ..Default::default()
+        };
+        let client = HiveClient::new(config).unwrap();
+
+        let stats = run_sync(&client, root).await.unwrap();
+        assert_eq!(stats.downloaded, 1);
+        assert!(root.join("system/test.txt").exists());
+
+        // Skip existing
+        let stats = run_sync(&client, root).await.unwrap();
+        assert_eq!(stats.skipped, 1);
+    }
+
+    #[tokio::test]
+    async fn test_run_sync_fail() {
+        let server = MockServer::start().await;
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+
+        let manifest = ServerManifest {
+            files: [("fail.txt".to_string(), "wrong_hash".into())].into_iter().collect(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path("/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&manifest))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/data/system/fail.txt"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("content"))
+            .mount(&server)
+            .await;
+
+        let config = ClientConfig {
+            api_url: server.uri(),
+            asset_url: server.uri(),
+            ..Default::default()
+        };
+        let client = HiveClient::new(config).unwrap();
+
+        let stats = run_sync(&client, root).await.unwrap();
+        assert_eq!(stats.errors.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_bootstrap_essentials() {
+        let server = MockServer::start().await;
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+
+        let content = "content";
+        let hash = crate::util::common::calculate_file_hash_str(content);
+
+        let manifest = ServerManifest {
+            files: [
+                ("keyboards/models/test.mpk.zst".to_string(), hash.clone()),
+                ("keycodes.mpk.zst".to_string(), hash.clone()),
+                ("other.txt".to_string(), hash.clone()),
+            ].into_iter().collect(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path("/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&manifest))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("content"))
+            .mount(&server)
+            .await;
+
+        let config = ClientConfig {
+            api_url: server.uri(),
+            asset_url: server.uri(),
+            ..Default::default()
+        };
+        let client = HiveClient::new(config).unwrap();
+
+        let downloaded = bootstrap_essentials(&client, root).await.unwrap();
+        assert_eq!(downloaded.len(), 2);
+        assert!(downloaded.contains(&"keycodes.mpk.zst".into()));
+    }
+
+    #[test]
+    fn test_generate_manifest() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        
+        fs::create_dir_all(root.join("subdir")).unwrap();
+        fs::write(root.join("test.txt"), "hello").unwrap();
+        fs::write(root.join("subdir/other.txt"), "world").unwrap();
+        fs::write(root.join(".hidden"), "secret").unwrap();
+        
+        let manifest = generate_manifest(root).unwrap();
+        assert_eq!(manifest.files.len(), 2);
+        assert!(manifest.files.contains_key("test.txt"));
+        assert!(manifest.files.contains_key("subdir/other.txt"));
+        assert!(!manifest.files.contains_key(".hidden"));
+    }
+
+    #[tokio::test]
+    async fn test_run_sync_fail_network() {
+        let server = MockServer::start().await;
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+
+        let manifest = ServerManifest {
+            files: [("fail.txt".to_string(), "hash".into())].into_iter().collect(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path("/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&manifest))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/data/system/fail.txt"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&server)
+            .await;
+
+        let config = ClientConfig {
+            api_url: server.uri(),
+            asset_url: server.uri(),
+            ..Default::default()
+        };
+        let client = HiveClient::new(config).unwrap();
+
+        let stats = run_sync(&client, root).await.unwrap();
+        assert!(stats.errors.len() >= 1);
+    }
 }

@@ -55,17 +55,11 @@ impl DeterministicScorer {
                 let key = &kb.keys[idx];
                 let effort = self.rubric.finger_effort[key.finger.as_usize()];
                 let static_cost = to_fixed(resolve_static_key_cost(key, &self.static_costs));
-                let total = effort.checked_add(static_cost).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Monogram effort + static cost for code {}", code_val)
-                })?;
+                let total = effort.checked_add(static_cost).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram effort + static cost for code {}", code_val) })?;
                 if total < min_total_cost { min_total_cost = total; }
             }
-            let contrib = min_total_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Monogram freq scale for code {}", code_val)
-            })?;
-            mono_score = mono_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Monogram total accumulation at code {}", code_val)
-            })?;
+            let contrib = min_total_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram freq scale for code {}", code_val) })?;
+            mono_score = mono_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram total accumulation at code {}", code_val) })?;
         }
 
         // 2. Bigrams
@@ -83,21 +77,15 @@ impl DeterministicScorer {
                         
                         // Apply sequence modifiers
                         if let Some(&mod_val) = self.sequence_modifiers.get(&(*c1, *c2)) {
-                            cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow {
-                                context: format!("Bigram modifier for ({}, {})", c1, c2)
-                            })?;
+                            cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram modifier for ({}, {})", c1, c2) })?;
                         }
 
                         if cost < min_cost { min_cost = cost; }
                     }
                 }
                 if min_cost != i64::MAX {
-                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Bigram freq scale for ({}, {})", c1, c2)
-                    })?;
-                    bigram_score = bigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Bigram total accumulation at ({}, {})", c1, c2)
-                    })?;
+                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram freq scale for ({}, {})", c1, c2) })?;
+                    bigram_score = bigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram total accumulation at ({}, {})", c1, c2) })?;
                 }
             }
         }
@@ -121,12 +109,8 @@ impl DeterministicScorer {
                     }
                 }
                 if min_cost != i64::MAX {
-                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Trigram freq scale for ({}, {}, {})", c1, c2, c3)
-                    })?;
-                    trigram_score = trigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Trigram total accumulation at ({}, {}, {})", c1, c2, c3)
-                    })?;
+                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Trigram freq scale for ({}, {}, {})", c1, c2, c3) })?;
+                    trigram_score = trigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Trigram total accumulation at ({}, {}, {})", c1, c2, c3) })?;
                 }
             }
         }
@@ -138,9 +122,7 @@ impl DeterministicScorer {
         let (m, b, t) = self.score_detailed(kb, corpus, layout_keys)?;
         m.checked_add(b)
             .and_then(|sum| sum.checked_add(t))
-            .ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: "Final oracle total accumulation".to_string()
-            })
+            .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Final oracle total accumulation".into() })
     }
 
     fn calculate_flow_cost(&self, kb: &Keyboard, p1: usize, p2: usize, p3: usize) -> i64 {
@@ -363,7 +345,7 @@ fn to_f32(i: i64) -> f32 {
 mod tests {
     use super::*;
     use crate::EngineFactory;
-    use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel};
+    use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel, Layout};
     use keyforge_model::types::{KeyCode, HandIndex, FingerIndex};
     use proptest::prelude::*;
     use std::collections::HashMap;
@@ -449,7 +431,7 @@ mod tests {
 
     #[test]
     fn test_calculate_flow_cost_branches() {
-        let (kb, corpus, rubric, cm) = setup_minimal();
+        let (_kb, _corpus, rubric, cm) = setup_minimal();
         let oracle = DeterministicScorer::new(&rubric, &cm);
         
         // Hand mismatch -> 0
@@ -477,6 +459,85 @@ mod tests {
         // dir2 = 1 - 2 = -1
         // signum mismatch -> penalty_redirect
         assert_eq!(oracle.calculate_flow_cost(&kb, 0, 1, 0), oracle.penalty_redirect);
+    }
+
+    #[test]
+    fn test_deterministic_scorer_overflows() {
+        let rubric = Rubric::default();
+        let mut cm = keyforge_model::CostModel::default();
+        
+        // Inject a MASSIVE static cost for the 'universal_hand' -> 'index' -> 'base' -> 'r0'
+        // This corresponds to key index 0 in setup_kb_wiring.
+        // Cost = 1e15. Freq = 1e6. Product = 1e21 (Overflows i64 which is 9e18)
+        let huge_cost = 1_000_000_000_000_000.0; // 1e15
+        
+        let mut base_zone = std::collections::HashMap::new();
+        base_zone.insert("r0".into(), huge_cost);
+        let mut index_zones = std::collections::HashMap::new();
+        index_zones.insert("base".into(), base_zone);
+        let mut fingers = std::collections::HashMap::new();
+        fingers.insert("index".into(), keyforge_model::cost_model::FingerDefinition::Standard(index_zones));
+        
+        let mut static_costs = std::collections::HashMap::new();
+        static_costs.insert("universal_hand".into(), keyforge_model::cost_model::HandDefinition { fingers });
+
+        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs,
+        });
+        
+        let oracle = DeterministicScorer::new(&rubric, &cm);
+        let kb = setup_kb_wiring();
+        
+        // 1. Monogram Overflow
+        let mut corpus = Corpus::default();
+        // The layout keys must map to the physical key with the huge cost.
+        // layout_keys = [97, 98, 99].
+        // find_indices(98) -> index 1.
+        // kb.keys[1] is Left Index at r0. This hits our huge cost.
+        corpus.char_freqs[98] = 1_000_000; // Moderate freq is enough given the huge cost
+        
+        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
+        
+        let res = oracle.score_detailed(&kb, &corpus, &layout_keys);
+        assert!(res.is_err(), "Should overflow on massive static cost * frequency");
+        
+        // 2. Bigram Overflow
+        // Reset monogram freq to avoid early failure
+        corpus.char_freqs[98] = 0;
+        
+        // We need a bigram cost to be huge.
+        // DeterministicScorer::calculate_pair_cost uses distance * travel_lat.
+        // We can't easily change distance (geometry) to be infinite.
+        // But we CAN use sequence_modifiers!
+        // DeterministicScorer adds sequence_modifier to the pair cost.
+        // If we make modifier huge...
+        
+        // Re-create oracle with huge modifier
+        let mut cm_bigram = cm.clone(); // Has huge static cost, but we won't use monograms
+        cm_bigram.dynamic_rules.sequence_modifiers.insert("ab".into(), huge_cost);
+        let oracle_bigram = DeterministicScorer::new(&rubric, &cm_bigram);
+        
+        let mut corpus_bi = Corpus::default();
+        corpus_bi.bigrams.push((97, 98, 1_000_000)); // Moderate freq
+        
+        let res_bi = oracle_bigram.score_detailed(&kb, &corpus_bi, &layout_keys);
+        assert!(res_bi.is_err(), "Should overflow on massive bigram modifier * frequency");
+
+        // 3. Trigram Overflow
+        let mut corpus_tri = Corpus::default();
+        // Setup a trigram that triggers a redirect (97->98->97)
+        corpus_tri.trigrams.push((97, 98, 97, 1_000_000));
+        
+        // Massive penalty redirect
+        let mut rubric_tri = Rubric::default();
+        // 1e12 * 1e6 (fixed point) = 1e18 < i64::MAX (9e18)
+        // 1e18 * 1e6 (freq) = 1e24 > i64::MAX
+        rubric_tri.redirect = 1_000_000_000_000.0; 
+        let oracle_tri = DeterministicScorer::new(&rubric_tri, &cm);
+        
+        let res_tri = oracle_tri.score_detailed(&kb, &corpus_tri, &layout_keys);
+        assert!(res_tri.is_err(), "Should overflow on massive trigram redirect penalty * frequency");
     }
 
     #[test]

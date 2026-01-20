@@ -83,4 +83,14 @@ mod tests {
         assert!(!topology.vendor.is_empty());
         // On some CI environments cpuid might be masked, but usually vendor is present.
     }
+
+    #[test]
+    fn test_cpu_topology_defaults_and_conversion() {
+        let default = CpuTopology::default();
+        assert_eq!(default.vendor, "Unknown");
+        
+        let config: IntelEngineConfig = default.into();
+        assert_eq!(config.l1d_size_bytes, 32 * 1024);
+        assert!(config.use_prefetch);
+    }
 }

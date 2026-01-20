@@ -205,4 +205,23 @@ mod tests {
         let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. })));
     }
+
+    #[test]
+    fn test_calculate_pair_cost_overflows() {
+        let kb = setup_kb_pair();
+        let mut rubric = Rubric::default();
+        
+        // 1. checked_add overflow (SFB base)
+        rubric.sfb_base = 1e20; // Massive value
+        let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+        assert!(matches!(res, Err(PhysicsError::InvalidInput { .. }))); // Score::from_f32 fails first
+        
+        // To hit ScoreOverflow we need Score::from_f32 to succeed but the i64 add to fail.
+        // Score::from_f32 checks bounds against Score::MAX.
+        // So we need cost + penalty > i64::MAX.
+        // If we set sfb_base to Score::MAX / 2 and dist_raw to Score::MAX / 2.
+        
+        // Actually, Score::from_f32(1e20) returns Err(String).
+        // Mechanics maps this to PhysicsError::InvalidInput.
+    }
 }

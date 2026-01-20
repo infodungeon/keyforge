@@ -21,20 +21,12 @@ impl PathResolver {
             _ => category,
         };
 
-        let p = self
-            .root
-            .join("system")
-            .join(sub)
-            .join(format!("{stem}.mpk.zst"));
+        let p = self.root.join("system").join(sub).join(format!("{stem}.mpk.zst"));
         if p.exists() {
             return Some(p);
         }
 
-        let p_direct = self
-            .root
-            .join("system")
-            .join(category)
-            .join(format!("{stem}.mpk.zst"));
+        let p_direct = self.root.join("system").join(category).join(format!("{stem}.mpk.zst"));
         if p_direct.exists() {
             return Some(p_direct);
         }
@@ -48,11 +40,7 @@ impl PathResolver {
             "keycodes" => "config",
             _ => category,
         };
-        let p = self
-            .root
-            .join("user")
-            .join(sub)
-            .join(format!("{stem}.json"));
+        let p = self.root.join("user").join(sub).join(format!("{stem}.json"));
         p.exists().then_some(p)
     }
 
@@ -104,5 +92,78 @@ impl PathResolver {
         } else {
             Err("Path traversal detected (prefix check)".into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_path_resolver_system_user() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let resolver = PathResolver::new(root.to_path_buf());
+        
+        let sys_kb = root.join("system/keyboards/models");
+        fs::create_dir_all(&sys_kb).unwrap();
+        fs::write(sys_kb.join("test.mpk.zst"), "").unwrap();
+        
+        let user_kb = root.join("user/keyboards");
+        fs::create_dir_all(&user_kb).unwrap();
+        fs::write(user_kb.join("user_kb.json"), "").unwrap();
+
+        assert!(resolver.resolve_system_path("keyboards", "test").is_some());
+        assert!(resolver.resolve_system_path("unknown", "test").is_none());
+        assert!(resolver.resolve_user_path("keyboards", "user_kb").is_some());
+        assert!(resolver.resolve_user_path("keycodes", "config").is_none());
+
+        // System direct fallback
+        let direct_kb = root.join("system/keyboards/direct.mpk.zst");
+        fs::create_dir_all(root.join("system/keyboards")).unwrap();
+        fs::write(&direct_kb, "").unwrap();
+        assert!(resolver.resolve_system_path("keyboards", "direct").is_some());
+
+        // User keycodes path
+        let user_cfg = root.join("user/config/mycodes.json");
+        fs::create_dir_all(root.join("user/config")).unwrap();
+        fs::write(&user_cfg, "").unwrap();
+        assert!(resolver.resolve_user_path("keycodes", "mycodes").is_some());
+    }
+
+    #[test]
+    fn test_path_resolver_direct() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let resolver = PathResolver::new(root.to_path_buf());
+        
+        let direct = root.join("direct.json");
+        fs::write(&direct, "{}").unwrap();
+        
+        // Root relative (fallback)
+        assert!(resolver.resolve_direct_path("direct.json").is_some());
+        
+        // Absolute
+        assert!(resolver.resolve_direct_path(direct.to_str().unwrap()).is_some());
+
+        // Explicit relative
+        fs::write("./test_rel.json", "{}").unwrap();
+        assert!(resolver.resolve_direct_path("./test_rel.json").is_some());
+        fs::remove_file("./test_rel.json").unwrap();
+    }
+
+    #[test]
+    fn test_path_resolver_safe_join() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temp.path()).unwrap();
+        let resolver = PathResolver::new(root.clone());
+        
+        // Valid join
+        assert!(resolver.safe_join("data.json").is_ok());
+        
+        // Path traversal
+        assert!(resolver.safe_join("../outside.json").is_err());
+        assert!(resolver.safe_join("/etc/passwd").is_err());
     }
 }

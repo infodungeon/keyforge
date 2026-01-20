@@ -44,3 +44,29 @@ impl ScoringSession {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::{Keyboard, Corpus, Rubric, CostModel};
+    use keyforge_physics::EngineFactory;
+
+    #[test]
+    fn test_scoring_session_creation() {
+        let kb = Keyboard::new(vec![keyforge_model::KeyNode::default()], 0).unwrap();
+        let corpus = Corpus::default();
+        let rubric = Rubric::default();
+        let mut cm = CostModel::default();
+        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::new(),
+        });
+        
+        let engine = EngineFactory::new_exact(&kb, &corpus, &rubric, &cm).unwrap();
+        let registry = Arc::new(KeycodeRegistry::new_with_defaults());
+        let config = SearchConfig::default();
+        
+        let session = ScoringSession::new(Arc::from(engine), registry, config);
+        assert_eq!(session.registry.definitions.len(), 2);
+    }
+}

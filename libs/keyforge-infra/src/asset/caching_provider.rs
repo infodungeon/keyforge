@@ -366,3 +366,118 @@ impl AssetLoader for CachingProvider {
         Ok(cp)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::{self, File};
+    use tempfile::TempDir;
+
+    fn setup_env() -> (TempDir, CachingProvider) {
+        let temp = tempfile::tempdir().unwrap();
+        let provider = CachingProvider::new(temp.path().to_path_buf());
+        (temp, provider)
+    }
+
+    #[tokio::test]
+    async fn test_caching_provider_basic_caching() {
+        let (temp, provider) = setup_env();
+        let root = temp.path();
+        
+        let kb_dir = root.join("user/keyboards");
+        fs::create_dir_all(&kb_dir).unwrap();
+        
+        let kb_json = r#"{
+            "meta": { "name": "CacheTest" },
+            "geometry": { "keys": [{"x":0,"y":0,"hand":0,"finger":1}], "prime_slots":[0], "med_slots":[], "low_slots":[] }
+        }"#;
+        let kb_path = kb_dir.join("test.json");
+        fs::write(&kb_path, kb_json).unwrap();
+
+        // 1. Initial load (Miss)
+        let res1: Arc<KeyboardDefinition> = provider.load("test").await.unwrap();
+        assert_eq!(res1.meta.name, "CacheTest");
+
+        // 2. Modify file on disk
+        let kb_json_v2 = kb_json.replace("CacheTest", "Updated");
+        fs::write(&kb_path, kb_json_v2).unwrap();
+
+        // 3. Second load (Hit) - Should still have old name
+        let res2: Arc<KeyboardDefinition> = provider.load("test").await.unwrap();
+        assert_eq!(res2.meta.name, "CacheTest");
+
+        // 4. Invalidate manually
+        provider.invalidate_all();
+        
+        // 5. Third load (Miss) - Should have new name
+        let res3: Arc<KeyboardDefinition> = provider.load("test").await.unwrap();
+        assert_eq!(res3.meta.name, "Updated");
+    }
+
+    #[tokio::test]
+    async fn test_caching_provider_warming() {
+        let (temp, provider) = setup_env();
+        let root = temp.path();
+        
+        let sys_kb_dir = root.join("system/keyboards/models");
+        fs::create_dir_all(&sys_kb_dir).unwrap();
+        
+        // Create a valid-ish empty zstd-compressed MessagePack file
+        let path = sys_kb_dir.join("sys1.mpk.zst");
+        let mut kb = KeyboardDefinition::default();
+        kb.geometry.keys.push(keyforge_model::geometry::KeyNode::default());
+        kb.geometry.prime_slots.push(keyforge_model::types::KeyIndex(0));
+        
+        {
+            let file = File::create(&path).unwrap();
+            let mut encoder = zstd::Encoder::new(file, 3).unwrap();
+            rmp_serde::encode::write(&mut encoder, &kb).unwrap();
+            encoder.finish().unwrap();
+        }
+
+        provider.warm_all().await.unwrap();
+        
+        // Should be in cache now
+        assert!(provider.cache.get_keyboard("sys1").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_caching_provider_file_caching() {
+        let (temp, provider) = setup_env();
+        let root = temp.path();
+        
+        let sys_dir = root.join("system");
+        fs::create_dir_all(&sys_dir).unwrap();
+        fs::write(sys_dir.join("raw.txt"), "raw content").unwrap();
+
+        // 1. Load (Miss)
+        let content1 = provider.get_file_content("raw.txt").await.unwrap();
+        assert_eq!(content1, "raw content");
+
+        // 2. Update disk
+        fs::write(sys_dir.join("raw.txt"), "new content").unwrap();
+
+        // 3. Load (Hit)
+        let content2 = provider.get_file_content("raw.txt").await.unwrap();
+        assert_eq!(content2, "raw content");
+    }
+
+    #[test]
+    fn test_caching_provider_event_handling() {
+        let (temp, provider) = setup_env();
+        let root = temp.path();
+        
+        // Manually trigger invalidation event
+        let event = Event::new(notify::EventKind::Modify(notify::event::ModifyKind::Data(notify::event::DataChange::Content)))
+            .add_path(root.join("system/keyboards/test.mpk"));
+            
+        // Populate cache first
+        provider.cache.insert_keyboard("test".into(), Arc::new(KeyboardDefinition::default()));
+        assert!(provider.cache.get_keyboard("test").is_some());
+
+        CachingProvider::handle_fs_event(event, root, &provider.cache);
+        
+        // Should be invalidated
+        assert!(provider.cache.get_keyboard("test").is_none());
+    }
+}

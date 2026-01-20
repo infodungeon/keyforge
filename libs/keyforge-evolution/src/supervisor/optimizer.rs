@@ -165,3 +165,109 @@ fn evolve_internal<CB: ProgressCallback>(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel};
+    use keyforge_physics::EngineFactory;
+
+    fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig) {
+        let kb = Keyboard::new(vec![
+            KeyNode { index: 0, ..Default::default() },
+            KeyNode { index: 1, ..Default::default() },
+        ], 0).unwrap();
+        let mut cm = CostModel::default();
+        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::new(),
+        });
+        let engine = EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
+        (Arc::from(engine), SearchConfig::default())
+    }
+
+    #[test]
+    fn test_evolve_basic() {
+        let (engine, config) = setup_env();
+        let res = evolve(&engine, &config, NoOpCallback, None, None).unwrap();
+        assert_eq!(res.layout.len(), 2);
+    }
+
+    #[test]
+    fn test_evolve_error_branches() {
+        let (engine, config) = setup_env();
+        
+        // 1. Size mismatch
+        let bad_layout = Layout::new_unchecked(vec![KeyCode(0)]);
+        let res = evolve(&engine, &config, NoOpCallback, Some(bad_layout), None);
+        assert!(res.is_err());
+
+        // 2. Missing pinned key
+        let pins = vec![Some(KeyCode(999))];
+        let res = evolve(&engine, &config, NoOpCallback, None, Some(&pins));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_optimize_wrapper() {
+        let kb = Keyboard::new(vec![KeyNode::default()], 0).unwrap();
+        let mut cm = CostModel::default();
+        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::new(),
+        });
+        
+        let req = EngineRequest {
+            keyboard: Arc::new(kb),
+            corpus: Arc::new(Corpus::default()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cm),
+            config: SearchConfig::default(),
+            initial_layout: None,
+            pinned_keys: vec![],
+        };
+        
+        let res = optimize(&req).unwrap();
+        assert!(res.score >= 0.0);
+    }
+
+    #[test]
+    fn test_evolve_with_pinned_keys() {
+        let (engine, config) = setup_env();
+        // Key 0 is pinned to KeyCode 1.
+        // Initial layout is usually [0, 1].
+        // Pinning [Some(1)] should result in [1, 0].
+        let pins = vec![Some(KeyCode(1))];
+        let res = evolve(&engine, &config, NoOpCallback, None, Some(&pins)).unwrap();
+        assert_eq!(res.layout.keys[0], KeyCode(1));
+    }
+
+    #[test]
+    fn test_evolve_with_callback() {
+        let (engine, _config) = setup_env();
+        let config = SearchConfig::Annealing {
+            steps: 10,
+            start_temp: 10.0,
+            end_temp: 0.1,
+            seed: 42,
+            patience: 100,
+            reheats: 0,
+            reheat_factor: 1.5,
+            include_thumbs: false,
+        };
+
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        struct MockCallback(Arc<AtomicUsize>);
+        impl ProgressCallback for MockCallback {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                true
+            }
+        }
+
+        let count = Arc::new(AtomicUsize::new(0));
+        let _ = evolve(&engine, &config, MockCallback(count.clone()), None, None).unwrap();
+        
+        assert!(count.load(Ordering::SeqCst) > 0);
+    }
+}

@@ -27,6 +27,8 @@ pub enum AssetCategory {
     Keycodes,
     /// Linguistic statistical data (N-grams).
     Corpus,
+    /// User preferences and scoring weights.
+    Rubric,
 }
 
 impl AssetCategory {
@@ -38,6 +40,7 @@ impl AssetCategory {
             AssetCategory::CostModel => "weights",
             AssetCategory::Keycodes => "config",
             AssetCategory::Corpus => "corpora",
+            AssetCategory::Rubric => "rubrics",
         }
     }
 }
@@ -61,5 +64,54 @@ pub trait Asset: DeserializeOwned + Send + Sync + 'static + Debug {
     /// Returns a `ForgeError` if post-processing or validation fails.
     fn post_load(&mut self) -> Result<(), ForgeError> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(serde::Deserialize, Debug)]
+    struct MockAsset;
+    impl Asset for MockAsset {
+        fn category() -> AssetCategory { AssetCategory::Keyboard }
+    }
+
+    #[test]
+    fn test_asset_post_load_default() {
+        let mut asset = MockAsset;
+        assert!(asset.post_load().is_ok());
+    }
+
+    #[test]
+    fn test_asset_default_extension() {
+        assert_eq!(MockAsset::default_extension(), "json");
+    }
+
+    #[test]
+    fn test_asset_category_as_str() {
+        assert_eq!(AssetCategory::Keyboard.as_str(), "keyboards");
+        assert_eq!(AssetCategory::CostModel.as_str(), "weights");
+        assert_eq!(AssetCategory::Keycodes.as_str(), "config");
+        assert_eq!(AssetCategory::Corpus.as_str(), "corpora");
+        assert_eq!(AssetCategory::Rubric.as_str(), "rubrics");
+    }
+
+    #[test]
+    fn test_asset_category_derive() {
+        let c = AssetCategory::Keyboard;
+        let c2 = c.clone();
+        assert_eq!(c, c2);
+        assert_eq!(AssetCategory::Rubric.as_str(), "rubrics");
+    }
+
+    #[test]
+    fn test_dummy_asset_extension() {
+        #[derive(Debug, serde::Deserialize, serde::Serialize)]
+        struct DummyAsset;
+        impl Asset for DummyAsset {
+            fn category() -> AssetCategory { AssetCategory::Rubric }
+        }
+        assert_eq!(DummyAsset::default_extension(), "json");
     }
 }

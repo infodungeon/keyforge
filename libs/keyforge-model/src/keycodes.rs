@@ -19,6 +19,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 
@@ -41,6 +42,12 @@ pub struct KeycodeDefinition {
     pub label: String,
     /// Alternative names (e.g., [`KC_1`, `1`]).
     pub aliases: Vec<String>,
+}
+
+impl fmt::Display for KeycodeDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {} ({})", self.id, self.code, self.label)
+    }
 }
 
 impl Validator for KeycodeDefinition {
@@ -250,31 +257,129 @@ mod tests {
             label: "".into(),
             aliases: vec![],
         };
-        assert!(empty_label.validate().is_err());
-    }
+                assert!(empty_label.validate().is_err());
+            }
+        
+            #[test]
+            fn test_keycode_definition_display() {
+                let def = KeycodeDefinition {
+                    code: KeyCode(10),
+                    id: "KC_A".into(),
+                    label: "A".into(),
+                    aliases: vec![],
+                };
+                assert_eq!(format!("{}", def), "KC_A: 10 (A)");
+            }
+        
+            #[test]
+            fn test_keycode_registry_normalization() {
 
-    #[test]
-    fn test_keycode_registry_validation() {
-        let mut reg = KeycodeRegistry::new_with_defaults();
-        assert!(reg.validate().is_ok());
+            let defs = vec![
 
-        // 1. Duplicate ID
-        reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(10),
-            id: "KC_NO".into(), // Duplicate ID
-            label: "X".into(),
-            aliases: vec![],
-        });
-        assert!(reg.validate().is_err());
+                KeycodeDefinition { code: KeyCode(65), id: "A".into(), label: "A".into(), aliases: vec![] }, // 'A' -> 'a'
 
-        // 2. Duplicate Code
-        reg = KeycodeRegistry::new_with_defaults();
-        reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(0), // Duplicate code
-            id: "KC_X".into(),
-            label: "X".into(),
-            aliases: vec![],
-        });
-        assert!(reg.validate().is_err());
-    }
-}
+                KeycodeDefinition { code: KeyCode(97), id: "a_lower".into(), label: "a".into(), aliases: vec![] }, // Duplicate 'a'
+
+                KeycodeDefinition { code: KeyCode(4), id: "KC_A_QMK".into(), label: "A".into(), aliases: vec![] }, // QMK 4 -> ASCII 97
+
+            ];
+
+            let reg = KeycodeRegistry::new(defs);
+
+            // Normalized and deduplicated: should only have 1 definition for code 97
+
+            assert_eq!(reg.definitions.len(), 1);
+
+            assert_eq!(reg.definitions[0].code.0, 97);
+
+        }
+
+    
+
+        #[test]
+
+        fn test_keycode_registry_lookups() {
+
+            let reg = KeycodeRegistry::new_with_defaults();
+
+            assert_eq!(reg.get_code("KC_NO"), Some(KeyCode(0)));
+
+            assert_eq!(reg.get_code("kc_no"), Some(KeyCode(0))); // Case insensitive
+
+            assert_eq!(reg.get_code("NONEXISTENT"), None);
+
+            
+
+            assert_eq!(reg.get_label(KeyCode(0)), " ");
+
+            assert_eq!(reg.get_label(KeyCode(999)), "[999]"); // Fallback
+
+        }
+
+    
+
+        #[test]
+
+        fn test_keycode_asset_and_conversions() {
+
+            let reg = KeycodeRegistry::new_with_defaults();
+
+            assert_eq!(KeycodeRegistry::category(), AssetCategory::Keycodes);
+
+            
+
+            let mut reg_clone = reg.clone();
+
+            assert!(reg_clone.post_load().is_ok());
+
+    
+
+            let defs: Vec<KeycodeDefinition> = reg.clone().into();
+
+            assert_eq!(defs.len(), reg.definitions.len());
+
+            
+
+            let reg_from: KeycodeRegistry = defs.into();
+
+            assert_eq!(reg_from.definitions.len(), reg.definitions.len());
+
+        }
+
+    
+
+            #[test]
+            fn test_qmk_to_ascii_mapping_exhaustive() {
+                // Test remaining branches for full coverage
+                assert_eq!(qmk_to_ascii(39), Some(48)); // 0
+                assert_eq!(qmk_to_ascii(40), Some(10)); // Enter
+                assert_eq!(qmk_to_ascii(41), Some(27)); // Escape
+                assert_eq!(qmk_to_ascii(42), Some(8));  // Backspace
+                        assert_eq!(qmk_to_ascii(43), Some(9));  // Tab
+                        assert_eq!(qmk_to_ascii(44), Some(32)); // Space
+                        assert_eq!(qmk_to_ascii(45), Some(45)); // -
+                        assert_eq!(qmk_to_ascii(46), Some(61)); // =
+                        assert_eq!(qmk_to_ascii(47), Some(91)); // [
+                        assert_eq!(qmk_to_ascii(48), Some(93)); // ]
+                        assert_eq!(qmk_to_ascii(49), Some(92)); // \
+                        assert_eq!(qmk_to_ascii(51), Some(59)); // ;
+                        assert_eq!(qmk_to_ascii(52), Some(39)); // '
+                        assert_eq!(qmk_to_ascii(53), Some(96)); // `
+                        assert_eq!(qmk_to_ascii(54), Some(44)); // ,
+                        assert_eq!(qmk_to_ascii(55), Some(46)); // .
+                        assert_eq!(qmk_to_ascii(56), Some(47)); // /
+                        assert_eq!(qmk_to_ascii(100), None);
+                    }        
+            #[test]
+            fn test_keycode_registry_validation_duplicates() {
+                let mut reg = KeycodeRegistry::default();
+                reg.definitions.push(KeycodeDefinition { code: KeyCode(10), id: "A".into(), label: "A".into(), aliases: vec![] });
+                reg.definitions.push(KeycodeDefinition { code: KeyCode(11), id: "a".into(), label: "B".into(), aliases: vec![] });
+                assert!(reg.validate().is_err(), "Should fail on duplicate ID (case-insensitive)");
+        
+                let mut reg = KeycodeRegistry::default();
+                reg.definitions.push(KeycodeDefinition { code: KeyCode(10), id: "A".into(), label: "A".into(), aliases: vec![] });
+                reg.definitions.push(KeycodeDefinition { code: KeyCode(10), id: "B".into(), label: "B".into(), aliases: vec![] });
+                assert!(reg.validate().is_err(), "Should fail on duplicate Code");
+            }
+        }

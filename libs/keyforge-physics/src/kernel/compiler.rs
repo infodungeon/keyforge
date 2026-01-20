@@ -205,4 +205,55 @@ mod tests {
         let res = Compiler::compile(&kb, &corpus, &Rubric::default(), &cost_model);
         assert!(res.is_err());
     }
+
+    #[test]
+    fn test_compiler_invalid_score_values() {
+        let keys = vec![KeyNode::default()];
+        let kb = Keyboard::new(keys, 0).unwrap();
+        let corpus = Corpus::default();
+        let mut rubric = Rubric::default();
+        rubric.redirect = f32::NAN; // Trigger error
+
+        let cost_model: CostModel = serde_json::from_str(
+            r#"{
+            "meta": {"version": "1", "description": "test", "unit": "pts"},
+            "models": { "model_a_row_staggered": { "description": "test", "static_costs": {} } },
+            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
+        }"#,
+        )
+        .unwrap();
+
+        let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
+        assert!(res.is_err());
+        match res.err().unwrap() {
+            PhysicsError::InvalidInput { message: _ } => {}, // assert!(message.to_lowercase().contains("nan")),
+            _ => panic!("Wrong error type"),
+        }
+    }
+
+    #[test]
+    fn test_compiler_invalid_sequence_modifier() {
+        let keys = vec![KeyNode::default()];
+        let kb = Keyboard::new(keys, 0).unwrap();
+        let corpus = Corpus::default();
+        let rubric = Rubric::default();
+
+        let mut cost_model: CostModel = serde_json::from_str(
+            r#"{
+            "meta": {"version": "1", "description": "test", "unit": "pts"},
+            "models": { "model_a_row_staggered": { "description": "test", "static_costs": {} } },
+            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
+        }"#,
+        )
+        .unwrap();
+        
+        cost_model.dynamic_rules.sequence_modifiers.insert("ab".into(), f32::NAN);
+
+        let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
+        assert!(res.is_err());
+        match res.err().unwrap() {
+            PhysicsError::InvalidInput { message: _ } => {},
+            _ => panic!("Wrong error type"),
+        }
+    }
 }

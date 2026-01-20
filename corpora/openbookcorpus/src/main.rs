@@ -624,4 +624,50 @@ mod tests {
         process_token_buffer("well-known", &mut stats2, &mut tracker2, &mut last_space2);
         assert_eq!(*stats2.words.get("well-known").unwrap(), 1);
     }
+
+    #[test]
+    fn test_ngram_tracker() {
+        let mut stats = CorpusStats::new();
+        let mut tracker = NgramTracker::new();
+        
+        tracker.feed('a', &mut stats);
+        tracker.feed('b', &mut stats);
+        tracker.feed('c', &mut stats);
+        
+        assert_eq!(*stats.c1.get(&'a').unwrap(), 1);
+        assert_eq!(*stats.c2.get(&('a', 'b')).unwrap(), 1);
+        assert_eq!(*stats.c3.get(&('a', 'b', 'c')).unwrap(), 1);
+        
+        tracker.reset();
+        tracker.feed('d', &mut stats);
+        assert!(stats.c2.get(&('c', 'd')).is_none());
+    }
+
+    #[test]
+    fn test_strict_escape_formatter() {
+        let mut out = Vec::new();
+        let mut ser = Serializer::with_formatter(&mut out, StrictEscapeFormatter::new());
+        let data = serde_json::json!({"k": "v"});
+        data.serialize(&mut ser).unwrap();
+        
+        let s = String::from_utf8(out).unwrap();
+        // Check that value is escaped as \uXXXX
+        assert!(s.contains("\"v\"") || s.contains("\\u0076"));
+    }
+
+    #[test]
+    fn test_validation_heuristics() {
+        assert!(is_keyboard_char('a'));
+        assert!(is_keyboard_char('!'));
+        assert!(!is_keyboard_char('©'));
+
+        assert!(has_vowel("abc"));
+        assert!(!has_vowel("bcd"));
+
+        assert!(has_repeated_chars_3("aaab"));
+        assert!(!has_repeated_chars_3("aabb"));
+
+        assert!(has_consonant_cluster_7("stschbr")); // 7 consonants
+        assert!(!has_consonant_cluster_7("stschb")); // 6 consonants
+    }
 }

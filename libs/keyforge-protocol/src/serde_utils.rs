@@ -27,9 +27,30 @@ where
 {
     let v: Vec<T> = Vec::deserialize(deserializer)?;
     if v.len() > MAX_TRANSPORT_VECTOR_ITEMS {
-        return Err(serde::de::Error::custom(format!(
-            "Vector exceeds transport limit of {MAX_TRANSPORT_VECTOR_ITEMS} items"
-        )));
+        return Err(serde::de::Error::custom(format!("Vector exceeds transport limit of {MAX_TRANSPORT_VECTOR_ITEMS} items")));
     }
     Ok(v)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_deserialize_limited_vec() {
+        // Valid small vec
+        let data = json!([1, 2, 3]);
+        let res: Vec<i32> = deserialize_limited_vec(data).unwrap();
+        assert_eq!(res.len(), 3);
+
+        // Exceed limit
+        let mut large_data = Vec::new();
+        for i in 0..MAX_TRANSPORT_VECTOR_ITEMS + 1 {
+            large_data.push(i);
+        }
+        let data = json!(large_data);
+        let res: Result<Vec<i32>, serde_json::Error> = deserialize_limited_vec(data);
+        assert!(res.is_err());
+    }
 }

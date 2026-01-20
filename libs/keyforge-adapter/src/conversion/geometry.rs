@@ -165,4 +165,41 @@ mod tests {
         let domain_keyboard = to_domain_keyboard(&proto_geo).expect("Failed to convert keyboard");
         assert_eq!(domain_keyboard.count(), 2);
     }
+
+    #[test]
+    fn test_resolve_constraints() {
+        let mut reg = KeycodeRegistry::new_with_defaults();
+        reg.definitions.push(keyforge_model::keycodes::KeycodeDefinition {
+            code: KeyCode(10), id: "A".into(), label: "a".into(), aliases: vec![]
+        });
+        reg.rebuild_maps();
+
+        let constraints = vec![KeyConstraint { index: KeyIndex(0), key: "A".into() }];
+        let pins = resolve_constraints(&constraints, 2, &reg).unwrap();
+        assert_eq!(pins[0], Some(KeyCode(10)));
+        assert_eq!(pins[1], None);
+
+        // Fail: Unknown token
+        let constraints = vec![KeyConstraint { index: KeyIndex(0), key: "UNKNOWN".into() }];
+        assert!(resolve_constraints(&constraints, 2, &reg).is_err());
+
+        // Fail: Out of bounds
+        let constraints = vec![KeyConstraint { index: KeyIndex(5), key: "A".into() }];
+        assert!(resolve_constraints(&constraints, 2, &reg).is_err());
+    }
+
+    #[test]
+    fn test_resolve_cost_matrix() {
+        let proto_geo = KeyboardGeometry {
+            keys: vec![
+                KeyNode { label: "A".into(), ..Default::default() },
+                KeyNode { label: "B".into(), ..Default::default() },
+            ],
+            ..Default::default()
+        };
+        let raw = vec![("A".to_string(), "B".to_string(), 10.0)];
+        let overrides = resolve_cost_matrix(&raw, &proto_geo);
+        assert_eq!(overrides.len(), 1);
+        assert_eq!(overrides[0], (0, 1, 10.0));
+    }
 }

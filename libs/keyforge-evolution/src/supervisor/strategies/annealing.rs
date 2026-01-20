@@ -58,5 +58,8 @@ mod tests {
         // 3. Low temp rejects degradation
         let mut rng_high = MockRng(u64::MAX); // High value (1.0)
         assert!(!criteria.should_accept(1000000, 0.000001, &mut rng_high));
+
+        // 4. Below minimum temp rejects everything positive
+        assert!(!criteria.should_accept(1, 1e-12, &mut rng_low));
     }
 }

@@ -42,6 +42,24 @@ impl IntelScoringEngine {
             config: config.unwrap_or_default(),
         }
     }
+
+    fn score_internal(&self, layout: &Layout, force_scalar: bool) -> Result<Score, PhysicsError> {
+        let mut scratch = Box::new(PhysicsScratch::new());
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+             if is_x86_feature_detected!("avx2") && !force_scalar {
+                 unsafe { Ok(Score(score_layout_avx2(&self.ctx, &validated, &mut scratch, &self.config)?)) }
+             } else {
+                 Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut scratch)?))
+             }
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        {
+             Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut scratch)?))
+        }
+    }
 }
 
 impl ScoringEngine for IntelScoringEngine {
@@ -62,21 +80,7 @@ impl ScoringEngine for IntelScoringEngine {
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        let mut scratch = Box::new(PhysicsScratch::new());
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        {
-             if is_x86_feature_detected!("avx2") {
-                 unsafe { Ok(Score(score_layout_avx2(&self.ctx, &validated, &mut scratch, &self.config)?)) }
-             } else {
-                 Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut scratch)?))
-             }
-        }
-        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-        {
-             Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut scratch)?))
-        }
+        self.score_internal(layout, false)
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
@@ -200,6 +204,120 @@ mod tests {
         
         // context
         let _ = engine.context();
+
+        // Test scalar fallback path directly
+        let validated = ValidatedLayout::new(&layout.keys, engine.key_count()).unwrap();
+        let mut scratch = PhysicsScratch::new();
+        let res = score_layout_scalar(engine.context(), &validated, &mut scratch);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_intel_overflow_paths() {
+        let (kb, _corpus, rubric, cm) = setup_minimal();
+        let mut corpus = Corpus::default();
+        corpus.char_freqs[97] = u64::MAX / 2; // High frequency
+        
+        let engine = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cm, None).unwrap();
+        let ctx = engine.context();
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        let _validated = ValidatedLayout::new(&layout.keys, 2).unwrap();
+        let mut scratch = PhysicsScratch::new();
+        let pm = PosMap::from_scratch(&layout.keys, 2, scratch.starts.as_mut_slice(), scratch.counts.as_mut_slice(), scratch.indices.as_mut_slice(), scratch.current_offsets.as_mut_slice(), &mut scratch.used_keys);
+
+        // Force monogram overflow
+        let mut ctx_bad = ctx.clone();
+        ctx_bad.key_costs[0] = Score(i64::MAX - 1);
+        assert!(score_monograms(&ctx_bad, &pm).is_err());
+
+        // Force bigram overflow
+        let mut ctx_bad = ctx.clone();
+        ctx_bad.bigram_starts[97] = 0;
+        ctx_bad.bigram_starts[98] = 1;
+        ctx_bad.bigram_others.push(KeyCode(98));
+        ctx_bad.bigram_freqs.push(u32::MAX);
+        ctx_bad.cost_matrix[0 * 2 + 1] = Score(i64::MAX - 1);
+        assert!(score_bigrams(&ctx_bad, &pm).is_err());
+    }
+
+    #[test]
+    fn test_intel_trigram_overflow() {
+        let (kb, _corpus, rubric, cm) = setup_minimal();
+        let engine = EngineFactory::new_intel_comet_lake(&kb, &_corpus, &rubric, &cm, None).unwrap();
+        let ctx = engine.context();
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        let mut scratch = PhysicsScratch::new();
+        let _pm = PosMap::from_scratch(&layout.keys, 2, scratch.starts.as_mut_slice(), scratch.counts.as_mut_slice(), scratch.indices.as_mut_slice(), scratch.current_offsets.as_mut_slice(), &mut scratch.used_keys);
+
+        // Force trigram overflow
+        let mut ctx_bad = ctx.clone();
+        
+        // 1. Set massive penalty for redirect
+        // Cost = 1e15. Freq = 1e6. Product = 1e21 > i64::MAX (9e18)
+        ctx_bad.penalty_redirect = Score(1_000_000_000_000_000); 
+        
+        // 2. Setup a trigram 97->98->97 (Left Index -> Left Middle -> Left Index) -> Redirect
+        ctx_bad.trigram_starts[97] = 0;
+        ctx_bad.trigram_starts[98] = 1;
+        ctx_bad.trigram_others1.push(KeyCode(98));
+        ctx_bad.trigram_others2.push(KeyCode(97));
+        ctx_bad.trigram_freqs.push(1_000_000);
+        
+        assert!(score_trigrams(&ctx_bad, &_pm).is_err());
+    }
+    
+    #[test]
+    fn test_config_defaults() {
+        let config = IntelEngineConfig::default();
+        assert!(config.use_prefetch);
+        assert_eq!(config.l1d_size_bytes, 32 * 1024);
+    }
+
+    #[test]
+    fn test_scalar_logic_direct() {
+        let (kb, corpus, rubric, cm) = setup_minimal();
+        let engine = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cm, None).unwrap();
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        let validated = ValidatedLayout::new(&layout.keys, 2).unwrap();
+        let mut scratch = PhysicsScratch::new();
+        
+        // Direct call to scalar logic
+        let scalar_score = score_layout_scalar(engine.context(), &validated, &mut scratch).unwrap();
+        
+        // Compare with engine.score() which (on x86) uses AVX2
+        let engine_score = engine.score(&layout).unwrap();
+        
+        assert_eq!(scalar_score, engine_score.0, "Scalar logic must match AVX2/Engine output");
+    }
+
+    #[test]
+    fn test_intel_engine_scalar_fallback() {
+        let (kb, corpus, rubric, cm) = setup_minimal();
+        // Manually build context or use factory and extract
+        let factory_engine = crate::EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cm, None).unwrap();
+        let ctx = factory_engine.context().clone();
+        let engine = IntelScoringEngine::new(ctx, None);
+        
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        
+        // Force scalar path
+        let res = engine.score_internal(&layout, true).unwrap();
+        assert!(res.0 > 0);
+    }
+
+    #[test]
+    fn test_intel_missing_keys() {
+        let (kb, _corpus, rubric, cm) = setup_minimal();
+        let mut corpus = Corpus::default();
+        corpus.char_freqs[99] = 100; // Code 99 not in layout
+        corpus.bigrams.push((97, 99, 50)); // Code 99 not in layout
+        corpus.trigrams.push((97, 98, 99, 10)); // Code 99 not in layout
+        
+        let engine = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cm, None).unwrap();
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        
+        let score = engine.score(&layout).unwrap();
+        assert!(score.0 >= 0);
     }
 }
 
@@ -230,9 +348,7 @@ fn score_layout_scalar(
 
     let total = m.checked_add(b)
         .and_then(|sum| sum.checked_add(t))
-        .ok_or_else(|| PhysicsError::ScoreOverflow {
-            context: "Intel scalar total score accumulation".to_string()
-        })?;
+        .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Intel scalar total score accumulation".into() })?;
 
     scratch.clear_used();
     Ok(total.0)
@@ -268,9 +384,7 @@ unsafe fn score_layout_avx2(
 
     let total = m.checked_add(b)
         .and_then(|sum| sum.checked_add(t))
-        .ok_or_else(|| PhysicsError::ScoreOverflow {
-            context: "Intel AVX2 total score accumulation".to_string()
-        })?;
+        .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Intel AVX2 total score accumulation".into() })?;
 
     scratch.clear_used();
     Ok(total.0)
@@ -303,12 +417,8 @@ fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physic
         }
         
         if min_cost.0 != i64::MAX {
-            let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Intel Monogram freq scale for code {}", code)
-            })?;
-            total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Intel Monogram total accumulation at code {}", code)
-            })?;
+            let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram freq scale for code {}", code) })?;
+            total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram total accumulation at code {}", code) })?;
         }
     }
     Ok(total)
@@ -339,9 +449,7 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
                     let mut cost = ctx.cost_matrix[idx];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
-                        cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: format!("Intel Bigram modifier for ({}, {})", code1, c2.0)
-                        })?;
+                        cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram modifier for ({}, {})", code1, c2.0) })?;
                     }
 
                     if cost < min_cost {
@@ -352,12 +460,8 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
             
             if min_cost.0 != i64::MAX {
                 let freq = i64::from(ctx.bigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Intel Bigram freq scale for ({}, {})", code1, c2.0)
-                })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Intel Bigram total accumulation at ({}, {})", code1, c2.0)
-                })?;
+                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram freq scale for ({}, {})", code1, c2.0) })?;
+                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram total accumulation at ({}, {})", code1, c2.0) })?;
             }
         }
     }
@@ -397,12 +501,8 @@ fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physics
 
             if min_cost.0 != i64::MAX && min_cost.0 != 0 {
                 let freq = i64::from(ctx.trigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Intel Trigram freq scale for sequence starting with {}", code1)
-                })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Intel Trigram total accumulation for sequence starting with {}", code1)
-                })?;
+                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram freq scale for sequence starting with {}", code1) })?;
+                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram total accumulation for sequence starting with {}", code1) })?;
             }
         }
     }

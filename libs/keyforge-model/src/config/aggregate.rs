@@ -48,5 +48,13 @@ mod tests {
         // Trigger failure in one of the children
         config.defs.tier_high_chars = "".into();
         assert!(config.validate().is_err());
+
+        // Test invalid pinned keys
+        let mut config = Config::default();
+        config.pinned_keys.push(crate::config::constraints::KeyConstraint {
+            index: crate::types::KeyIndex(0),
+            key: "".into(),
+        });
+        assert!(config.validate().is_err());
     }
 }

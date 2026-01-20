@@ -440,4 +440,61 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_calculate_swap_delta_with_modifiers() {
+        let keys: Vec<KeyNode> = (0..2).map(|i| KeyNode {
+             index: i,
+             hand: HandIndex(0),
+             finger: FingerIndex::new_unchecked(i as u8),
+             row: RowIndex(0),
+             col: ColIndex(i as i8),
+             ..Default::default()
+        }).collect();
+        let kb = Keyboard::new(keys, 1).unwrap();
+        
+        let mut cp = Corpus::default();
+        cp.char_freqs = vec![0; 256];
+        cp.char_freqs[97] = 100; // 'a'
+        cp.char_freqs[98] = 100; // 'b'
+        cp.bigrams = vec![(97, 98, 100)];
+
+        let rubric = Rubric::default();
+        let cost_model = load_cost_model_fixture();
+        
+        let engine = crate::EngineFactory::new_generic(
+            &Arc::new(kb), 
+            &Arc::new(cp), 
+            &Arc::new(rubric), 
+            &cost_model
+        ).unwrap();
+        
+        let mut ctx = engine.context().clone();
+
+        let layout_keys = vec![KeyCode(97), KeyCode(98)];
+        let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+        
+        let mut scratch = PhysicsScratch::new();
+        let pos_map = PosMap::from_scratch(
+            &layout_keys,
+            engine.key_count(),
+            scratch.starts.as_mut_slice(),
+            scratch.counts.as_mut_slice(),
+            scratch.indices.as_mut_slice(),
+            scratch.current_offsets.as_mut_slice(),
+            &mut scratch.used_keys,
+        );
+
+        // Force asymmetry in cost matrix so delta is non-zero
+        // 0->1 (index 1) vs 1->0 (index 2)
+        if ctx.cost_matrix.len() >= 4 {
+             ctx.cost_matrix[1] = Score(10);
+             ctx.cost_matrix[2] = Score(50);
+        }
+
+        ctx.sequence_modifiers.insert((97, 98), Score(100));
+        
+        let delta = calculate_swap_delta(&ctx, &validated, &pos_map, 0, 1);
+        assert!(delta != 0);
+    }
 }

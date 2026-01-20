@@ -450,10 +450,69 @@ mod tests {
     }
 
     #[test]
-    fn test_finger_index_diff() {
-        let f1 = FingerIndex::new_unchecked(1);
-        let f2 = FingerIndex::new_unchecked(4);
-        assert_eq!(f1.diff(f2), -3);
-        assert_eq!(f2.diff(f1), 3);
+    fn test_basic_types_coverage() {
+        // KeyIndex
+        let ki = KeyIndex(10);
+        assert_eq!(format!("{}", ki), "10");
+        assert_eq!(usize::from(ki), 10);
+        assert_eq!(KeyIndex::from(10usize), ki);
+
+        // KeyCode
+        let kc = KeyCode(97);
+        assert_eq!(format!("{}", kc), "97");
+        assert_eq!(u16::from(kc), 97);
+        assert_eq!(KeyCode::from(97u16), kc);
+
+        // HandIndex
+        let hi = HandIndex::LEFT;
+        assert_eq!(hi.as_u8(), 0);
+        assert_eq!(hi.as_usize(), 0);
+        assert!(hi.is_left());
+        assert!(!hi.is_right());
+        assert!(HandIndex::RIGHT.is_right());
+        assert_eq!(HandIndex::default(), HandIndex::LEFT);
+
+        // FingerIndex
+        let fi = FingerIndex::INDEX;
+        assert_eq!(fi.as_u8(), 1);
+        assert_eq!(fi.as_usize(), 1);
+        assert_eq!(fi.distance(FingerIndex::PINKY), 3);
+        assert_eq!(fi.diff(FingerIndex::PINKY), -3);
+        assert!(!fi.is_weak());
+        assert!(FingerIndex::RING.is_weak());
+        assert_eq!(FingerIndex::default(), FingerIndex::INDEX);
+        assert!(FingerIndex::try_from(1).is_ok());
+        assert!(FingerIndex::try_from(5).is_err());
+
+        // Row/Col Index
+        assert_eq!(RowIndex(5) - RowIndex(2), 3);
+        assert_eq!(ColIndex(5) - ColIndex(2), 3);
+        assert_eq!(RowIndex::default().0, 0);
+        assert_eq!(ColIndex::default().0, 0);
+
+        // SpaceHandPreference
+        assert_eq!(SpaceHandPreference::default(), SpaceHandPreference::Bilateral);
+    }
+
+    #[test]
+    fn test_score_extended() {
+        assert_eq!(Score::ZERO.0, 0);
+        assert_eq!(Score::MAX.0, i64::MAX);
+        assert_eq!(Score::MIN.0, i64::MIN);
+        
+        let s = Score::from_scaled_i64(100);
+        assert_eq!(s.0, 100);
+
+        // Score::from_f32 errors
+        assert!(Score::from_f32(f32::NAN).is_err());
+        assert!(Score::from_f32(1e20).is_err()); // Overflow
+
+        // Score Ops
+        let s1 = Score(100);
+        let s2 = Score(50);
+        assert_eq!((s1 + s2).0, 150);
+        assert_eq!((s1 - s2).0, 50);
+        assert_eq!((-s1).0, -100);
+        assert_eq!((s1 * 2).0, 200);
     }
 }
