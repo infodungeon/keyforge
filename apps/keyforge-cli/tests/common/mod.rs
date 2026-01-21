@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+
 use std::path::PathBuf;
 
 /// Locates the compiled binary for integration testing.

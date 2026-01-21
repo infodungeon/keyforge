@@ -1,8 +1,10 @@
 // apps/keyforge-hive/tests/concurrency.rs
 
-//! # Concurrency Tests for KeyForge Hive
+//! # Concurrency Tests for `KeyForge` Hive
 //!
 //! Stress testing suite for the Hive server under high concurrent loads.
+
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::too_many_lines)]
 
 use futures::future::join_all;
 use keyforge_model::config::{CorpusSource, ScoringWeights, SearchParams};
@@ -38,7 +40,7 @@ async fn test_heterogeneous_thundering_herd() {
         .unwrap();
 
     println!(" Starting Real-World Stress Test");
-    println!("   Target: {}", base_url);
+    println!("   Target: {base_url}");
 
     let kb_corne = load_keyboard(data_root, "corne");
     let kb_szr = load_keyboard(data_root, "szr35");
@@ -80,7 +82,7 @@ async fn test_heterogeneous_thundering_herd() {
         };
 
         let resp = client
-            .post(format!("{}/jobs", base_url))
+            .post(format!("{base_url}/jobs"))
             .json(&req)
             .send()
             .await
@@ -89,7 +91,7 @@ async fn test_heterogeneous_thundering_herd() {
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            panic!("❌ Job Registration Failed: {} - {}", status, text);
+            panic!("❌ Job Registration Failed: {status} - {text}");
         }
 
         let body: JobResponse = resp.json().await.expect("Failed to parse JobResponse");
@@ -109,7 +111,7 @@ async fn test_heterogeneous_thundering_herd() {
         let target_job = job_ids[job_idx].clone();
 
         handles.push(tokio::spawn(async move {
-            let node_id = format!("worker-{}-job-{}", i, job_idx);
+            let node_id = format!("worker-{i}-job-{job_idx}");
 
             let reg_req = NodeRequest {
                 version: PROTOCOL_VERSION,
@@ -125,7 +127,7 @@ async fn test_heterogeneous_thundering_herd() {
             let mut attempts = 0;
             loop {
                 let reg_resp = client_ref
-                    .post(format!("{}/nodes/register", url_ref))
+                    .post(format!("{url_ref}/nodes/register"))
                     .json(&reg_req)
                     .send()
                     .await
@@ -156,7 +158,7 @@ async fn test_heterogeneous_thundering_herd() {
                 let res_req = ResultSubmission {
                     version: PROTOCOL_VERSION,
                     job_id: target_job.clone(),
-                    layout: format!("Q W E R T Y U I O P A S D F G H J K L ; {} {}", i, k),
+                    layout: format!("Q W E R T Y U I O P A S D F G H J K L ; {i} {k}"),
                     score: 500.0,
                     node_id: node_id.clone(),
                     timestamp,
@@ -165,7 +167,7 @@ async fn test_heterogeneous_thundering_herd() {
                 };
 
                 let res_resp = client_ref
-                    .post(format!("{}/results", url_ref))
+                    .post(format!("{url_ref}/results"))
                     .json(&res_req)
                     .send()
                     .await
@@ -175,7 +177,7 @@ async fn test_heterogeneous_thundering_herd() {
 
                 if status.is_server_error() {
                     let txt = res_resp.text().await.unwrap_or_default();
-                    return Err(format!("Node {} crash: {} - {}", i, status, txt));
+                    return Err(format!("Node {i} crash: {status} - {txt}"));
                 }
             }
             Ok(())
@@ -188,7 +190,7 @@ async fn test_heterogeneous_thundering_herd() {
     let mut failures = 0;
     for res in results {
         if let Ok(Err(e)) = res {
-            println!("   ⚠️  Worker Error: {}", e);
+            println!("   ⚠️  Worker Error: {e}");
             failures += 1;
         }
     }

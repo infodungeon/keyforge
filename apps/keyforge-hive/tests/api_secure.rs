@@ -2,6 +2,8 @@
 
 //! Integration tests for Hive's authenticated REST API endpoints.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use axum::{
     body::Body,
     extract::ConnectInfo,
@@ -32,7 +34,7 @@ async fn setup_test_app() -> (
         .get_host_port_ipv4(6379)
         .await
         .expect("Failed to get port");
-    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {

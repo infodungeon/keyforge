@@ -160,7 +160,6 @@ pub struct Optimizer<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeep
 impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a, M, A, T> {
 
     #[allow(clippy::too_many_arguments)]
-
     pub fn new(
 
         engine: &'a dyn ScoringEngine,
@@ -208,23 +207,14 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
 
     /// Executes the optimization loop until completion or abortion.
-
     ///
-
     /// # Errors
-
     /// Returns `EvolutionError::Aborted` if the process is cancelled via the callback,
-
     /// or other `EvolutionError` variants if the optimization encounters an unrecoverable state.
-
     pub fn run<CB: ProgressCallback>(
-
         &mut self,
-
         initial_layout: Option<Layout>,
-
         callback: CB,
-
     ) -> Result<Layout, EvolutionError> {
 
         let mut state = self.initialize_state(initial_layout)?;
@@ -793,7 +783,7 @@ mod tests {
 
                 index: i,
 
-                label: format!("k{}", i),
+                label: format!("k{i}"),
 
                 hand: HandIndex((i % 2) as u8),
 
@@ -1015,7 +1005,7 @@ mod tests {
 
         for &k in &final_layout.keys {
 
-            assert!(seen.insert(k), "Duplicate key {} in final layout!", k);
+            assert!(seen.insert(k), "Duplicate key {k} in final layout!");
 
         }
 

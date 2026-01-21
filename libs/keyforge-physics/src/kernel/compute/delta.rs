@@ -6,7 +6,7 @@ use crate::kernel::{
     EngineContext,
 };
 
-#[allow(clippy::similar_names, clippy::cast_possible_wrap, clippy::too_many_lines)]
+#[allow(clippy::too_many_lines)]
 pub(crate) fn calculate_swap_delta(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
@@ -16,10 +16,10 @@ pub(crate) fn calculate_swap_delta(
 ) -> Result<i64, PhysicsError> {
     let layout_slice = layout.as_slice();
     if idx_a >= layout_slice.len() {
-        return Err(PhysicsError::InvalidInput { message: format!("idx_a {} out of bounds ({})", idx_a, layout_slice.len()) });
+        return Err(PhysicsError::InvalidInput { message: format!("idx_a {idx_a} out of bounds ({})", layout_slice.len()) });
     }
     if idx_b >= layout_slice.len() {
-        return Err(PhysicsError::InvalidInput { message: format!("idx_b {} out of bounds ({})", idx_b, layout_slice.len()) });
+        return Err(PhysicsError::InvalidInput { message: format!("idx_b {idx_b} out of bounds ({})", layout_slice.len()) });
     }
     
     let code_a = layout_slice[idx_a];
@@ -42,6 +42,7 @@ pub(crate) fn calculate_swap_delta(
     Ok(delta)
 }
 
+#[allow(clippy::cast_possible_wrap)]
 fn calculate_monogram_delta(
     ctx: &EngineContext,
     pos_map: &PosMap<'_>,
@@ -85,6 +86,7 @@ fn calculate_monogram_delta(
     delta
 }
 
+#[allow(clippy::similar_names)]
 fn calculate_bigram_delta(
     ctx: &EngineContext,
     pos_map: &PosMap<'_>,
@@ -94,15 +96,16 @@ fn calculate_bigram_delta(
     idx_b: usize,
 ) -> i64 {
     let mut delta = 0i64;
-    let ca_idx = code_a.0 as usize;
-    let cb_idx = code_b.0 as usize;
-    let candidates_a = pos_map.get(ca_idx);
-    let candidates_b = pos_map.get(cb_idx);
+    // ca/cb = Code A / Code B. Naming symmetry is intentional for swap operations.
+    let ca_val = code_a.0 as usize;
+    let cb_val = code_b.0 as usize;
+    let candidates_a = pos_map.get(ca_val);
+    let candidates_b = pos_map.get(cb_val);
 
     // Bigrams(a, x)
-    if ca_idx + 1 < ctx.corpus.bigram_starts.len() {
-        let start = ctx.corpus.bigram_starts[ca_idx];
-        let end = ctx.corpus.bigram_starts[ca_idx + 1];
+    if ca_val + 1 < ctx.corpus.bigram_starts.len() {
+        let start = ctx.corpus.bigram_starts[ca_val];
+        let end = ctx.corpus.bigram_starts[ca_val + 1];
         for k in start..end {
             let c2 = ctx.corpus.bigram_others[k];
             delta += get_pair_delta(ctx, pos_map, code_a, c2, candidates_a, pos_map.get(c2.0 as usize), idx_a, idx_b) * i64::from(ctx.corpus.bigram_freqs[k]);
@@ -110,9 +113,9 @@ fn calculate_bigram_delta(
     }
 
     // Bigrams(b, x)
-    if cb_idx + 1 < ctx.corpus.bigram_starts.len() {
-        let start = ctx.corpus.bigram_starts[cb_idx];
-        let end = ctx.corpus.bigram_starts[cb_idx + 1];
+    if cb_val + 1 < ctx.corpus.bigram_starts.len() {
+        let start = ctx.corpus.bigram_starts[cb_val];
+        let end = ctx.corpus.bigram_starts[cb_val + 1];
         for k in start..end {
             let c2 = ctx.corpus.bigram_others[k];
             delta += get_pair_delta(ctx, pos_map, code_b, c2, candidates_b, pos_map.get(c2.0 as usize), idx_a, idx_b) * i64::from(ctx.corpus.bigram_freqs[k]);
@@ -120,9 +123,9 @@ fn calculate_bigram_delta(
     }
 
     // Bigrams(x, a) where x != a, x != b
-    if ca_idx + 1 < ctx.corpus.bigram_rev_starts.len() {
-        let start = ctx.corpus.bigram_rev_starts[ca_idx];
-        let end = ctx.corpus.bigram_rev_starts[ca_idx + 1];
+    if ca_val + 1 < ctx.corpus.bigram_rev_starts.len() {
+        let start = ctx.corpus.bigram_rev_starts[ca_val];
+        let end = ctx.corpus.bigram_rev_starts[ca_val + 1];
         for k in start..end {
             let c1 = ctx.corpus.bigram_rev_others[k];
             if c1 == code_a || c1 == code_b { continue; }
@@ -131,9 +134,9 @@ fn calculate_bigram_delta(
     }
 
     // Bigrams(x, b) where x != a, x != b
-    if cb_idx + 1 < ctx.corpus.bigram_rev_starts.len() {
-        let start = ctx.corpus.bigram_rev_starts[cb_idx];
-        let end = ctx.corpus.bigram_rev_starts[cb_idx + 1];
+    if cb_val + 1 < ctx.corpus.bigram_rev_starts.len() {
+        let start = ctx.corpus.bigram_rev_starts[cb_val];
+        let end = ctx.corpus.bigram_rev_starts[cb_val + 1];
         for k in start..end {
             let c1 = ctx.corpus.bigram_rev_others[k];
             if c1 == code_a || c1 == code_b { continue; }
@@ -241,7 +244,7 @@ mod tests {
                     .enumerate()
                     .map(|(i, (x, y, hand, finger, row, col))| KeyNode {
                         index: i,
-                        label: format!("k{}", i),
+                        label: format!("k{i}"),
                         hand: HandIndex(hand),
                         finger: FingerIndex::new_unchecked(finger),
                         row: RowIndex(row),
@@ -255,7 +258,8 @@ mod tests {
                 Keyboard::new(keys, 1, "test".into()).unwrap()
             });
 
-            let layout_strat = prop::collection::vec(0u16..255, count)
+            // Ensure unique keys to avoid invalid layouts
+            let layout_strat = prop::collection::hash_set(0u16..255, count)
                 .prop_map(|codes| codes.into_iter().map(KeyCode).collect::<Vec<_>>());
 
             (kb_strat, layout_strat)

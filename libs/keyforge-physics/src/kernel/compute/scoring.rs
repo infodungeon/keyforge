@@ -62,10 +62,10 @@ pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Ph
         
         if min_cost != Score::INFINITY_SENTINEL {
             let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Monogram freq scale for code {}", code)
+                context: format!("Monogram freq scale for code {code}")
             })?;
             total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Monogram total accumulation at code {}", code)
+                context: format!("Monogram total accumulation at code {code}")
             })?;
         }
     }
@@ -154,10 +154,10 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
             if min_cost != Score::INFINITY_SENTINEL {
                 let freq = i64::from(ctx.corpus.trigram_freqs[k]);
                 let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Trigram freq scale for sequence starting with {}", code1)
+                    context: format!("Trigram freq scale for sequence starting with {code1}")
                 })?;
                 total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Trigram total accumulation for sequence starting with {}", code1)
+                    context: format!("Trigram total accumulation for sequence starting with {code1}")
                 })?;
             }
         }

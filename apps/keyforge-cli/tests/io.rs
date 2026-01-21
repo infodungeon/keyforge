@@ -4,6 +4,8 @@
 //! of file path expansion, workspace-relative lookups, and defensive I/O error handling
 //! across various edge cases.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::fs;

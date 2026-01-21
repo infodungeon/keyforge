@@ -337,6 +337,6 @@ mod tests {
         let client = HiveClient::new(config).unwrap();
 
         let stats = run_sync(&client, root).await.unwrap();
-        assert!(stats.errors.len() >= 1);
+        assert!(!stats.errors.is_empty());
     }
 }

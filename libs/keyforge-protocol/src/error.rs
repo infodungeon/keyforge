@@ -110,7 +110,7 @@ mod tests {
             assert_eq!(ErrorCode::from_str(&s).unwrap(), code);
             
             let json = serde_json::to_string(&code).unwrap();
-            assert_eq!(json, format!("\"{}\"", s));
+            assert_eq!(json, format!("\"{s}\""));
         }
     }
 

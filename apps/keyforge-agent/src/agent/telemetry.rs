@@ -44,7 +44,7 @@ impl ProgressCallback for WorkerLogger {
             return OptimizationControl::Abort;
         }
 
-        if step % self.sample_rate.max(1) == 0 {
+        if step.is_multiple_of(self.sample_rate.max(1)) {
             info!(
                 job_id = %self.job_id,
                 step = step,

@@ -109,6 +109,7 @@ pub fn resolve_cost_matrix(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use keyforge_model::geometry::{KeyNode, KeyboardGeometry};

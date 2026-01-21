@@ -4,6 +4,8 @@
 //! end-to-end execution of optimization commands, ensuring correct propagation of search
 //! parameters, corpus loading, and result validation.
 
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::semicolon_if_nothing_returned)]
+
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::process::Command;
@@ -142,7 +144,7 @@ fn test_search_constraints() {
 
     let json_str = String::from_utf8_lossy(&output.stdout);
     if !output.status.success() || json_str.trim().is_empty() {
-        eprintln!("STDOUT:\n{}", json_str);
+        eprintln!("STDOUT:\n{json_str}");
         eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
     }
     let json: serde_json::Value =
@@ -151,7 +153,5 @@ fn test_search_constraints() {
 
     // If the poison pill worked (constraint respected), the score should be reasonable.
     // If it failed (pill swallowed/ignored), score would be massive due to penalties.
-    if score > 1_000_000.0 {
-        panic!("Poison pill failed! Score too high: {}", score);
-    }
+    assert!(score <= 1_000_000.0, "Poison pill failed! Score too high: {score}")
 }

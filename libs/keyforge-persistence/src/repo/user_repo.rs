@@ -184,6 +184,7 @@ impl UserRepo {
         file.write_all(&buffer).map_err(InfraError::Io)?;
         // Auto-unlock on drop
 
+        #[allow(clippy::naive_bytecount)]
         Ok(format!("Appended {} samples to log.", buffer.iter().filter(|&&b| b == b'\n').count()))
     }
 

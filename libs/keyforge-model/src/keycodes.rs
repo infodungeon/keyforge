@@ -254,7 +254,7 @@ mod tests {
         let empty_label = KeycodeDefinition {
             code: KeyCode(10),
             id: "KC_A".into(),
-            label: "".into(),
+            label: String::new(),
             aliases: vec![],
         };
                 assert!(empty_label.validate().is_err());
@@ -268,7 +268,7 @@ mod tests {
                     label: "A".into(),
                     aliases: vec![],
                 };
-                assert_eq!(format!("{}", def), "KC_A: 10 (A)");
+                assert_eq!(format!("{def}"), "KC_A: 10 (A)");
             }
         
             #[test]

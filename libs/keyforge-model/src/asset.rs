@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_asset_category_derive() {
         let c = AssetCategory::Keyboard;
-        let c2 = c.clone();
+        let c2 = c;
         assert_eq!(c, c2);
         assert_eq!(AssetCategory::Rubric.as_str(), "rubrics");
     }

@@ -27,7 +27,7 @@ mod tests {
         let keys: Vec<KeyNode> = (0..size)
             .map(|i| KeyNode {
                 index: i,
-                label: format!("k{}", i),
+                label: format!("k{i}"),
                 hand: HandIndex((i % 2) as u8),
                 finger: FingerIndex::new_unchecked((i % 5) as u8),
                 row: RowIndex((i / 10) as i8),

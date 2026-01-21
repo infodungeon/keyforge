@@ -1,7 +1,9 @@
 // apps/keyforge-assets/tests/integration.rs
 
-//! Integration tests for the KeyForge Asset Server.
+//! Integration tests for the `KeyForge` Asset Server.
 //! Verifies that assets are correctly served from the distributed store.
+
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use axum::{
     body::Body,
@@ -25,7 +27,7 @@ async fn test_manifest_endpoint() {
         .get_host_port_ipv4(6379)
         .await
         .expect("Failed to get port");
-    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
 
     // 2. Setup Coordinator & Provider
     let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());

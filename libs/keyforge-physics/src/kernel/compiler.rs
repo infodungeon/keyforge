@@ -201,7 +201,7 @@ mod tests {
         assert!(res.is_err());
         match res.err().unwrap() {
             PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {},
-            e => panic!("Wrong error type: {:?}", e),
+            e => panic!("Wrong error type: {e:?}"),
         }
     }
 
@@ -222,7 +222,7 @@ mod tests {
         assert!(res.is_err());
         match res.err().unwrap() {
             PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {},
-            e => panic!("Wrong error type: {:?}", e),
+            e => panic!("Wrong error type: {e:?}"),
         }
     }
 }

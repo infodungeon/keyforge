@@ -1,6 +1,7 @@
 // libs/keyforge-model/src/testing.rs
+#![allow(clippy::unwrap_used)]
 
-use crate::*;
+use crate::{KeyCode, HandIndex, FingerIndex, RowIndex, ColIndex, KeyNode, Keyboard, Corpus, Rubric};
 use proptest::prelude::*;
 use proptest::arbitrary::Arbitrary;
 use proptest::strategy::BoxedStrategy;

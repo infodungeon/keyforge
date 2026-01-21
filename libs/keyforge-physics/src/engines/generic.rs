@@ -11,6 +11,7 @@ pub struct GenericScoringEngine {
 }
 
 impl GenericScoringEngine {
+    #[must_use] 
     pub fn new(ctx: EngineContext) -> Self {
         Self { ctx }
     }

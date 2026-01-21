@@ -85,6 +85,7 @@ impl SearchState {
         self.best_layout = self.current_layout.clone();
     }
 
+    #[allow(clippy::similar_names)]
     pub fn apply_mutation(&mut self, action: MutationAction) {
         match action {
             MutationAction::Swap(a, b) => {
@@ -95,13 +96,14 @@ impl SearchState {
                 let code_b = self.current_layout.keys[idx_b];
                 
                 // Safety: Update pos_map only if within tracked range
-                let ca_idx = code_a.0 as usize;
-                let cb_idx = code_b.0 as usize;
-                if ca_idx < self.pos_map.len() {
-                    self.pos_map[ca_idx] = a.0;
+                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
+                let idx_ca = code_a.0 as usize;
+                let idx_cb = code_b.0 as usize;
+                if idx_ca < self.pos_map.len() {
+                    self.pos_map[idx_ca] = a.0;
                 }
-                if cb_idx < self.pos_map.len() {
-                    self.pos_map[cb_idx] = b.0;
+                if idx_cb < self.pos_map.len() {
+                    self.pos_map[idx_cb] = b.0;
                 }
             }
             MutationAction::GroupSwap(a, b, c) => {
@@ -119,18 +121,19 @@ impl SearchState {
                 let code_b = self.current_layout.keys[idx_b];
                 let code_c = self.current_layout.keys[idx_c];
 
-                let ca_idx = code_a.0 as usize;
-                let cb_idx = code_b.0 as usize;
-                let cc_idx = code_c.0 as usize;
+                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
+                let idx_ca = code_a.0 as usize;
+                let idx_cb = code_b.0 as usize;
+                let idx_cc = code_c.0 as usize;
 
-                if ca_idx < self.pos_map.len() {
-                    self.pos_map[ca_idx] = a.0;
+                if idx_ca < self.pos_map.len() {
+                    self.pos_map[idx_ca] = a.0;
                 }
-                if cb_idx < self.pos_map.len() {
-                    self.pos_map[cb_idx] = b.0;
+                if idx_cb < self.pos_map.len() {
+                    self.pos_map[idx_cb] = b.0;
                 }
-                if cc_idx < self.pos_map.len() {
-                    self.pos_map[cc_idx] = c.0;
+                if idx_cc < self.pos_map.len() {
+                    self.pos_map[idx_cc] = c.0;
                 }
             }
         }

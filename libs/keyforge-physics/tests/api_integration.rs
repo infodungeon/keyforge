@@ -11,7 +11,7 @@ fn setup_kb_wiring() -> Keyboard {
     let keys: Vec<KeyNode> = (0..3)
         .map(|i| KeyNode {
             index: i,
-            label: format!("k{}", i),
+            label: format!("k{i}"),
             hand: HandIndex(0),
             finger: FingerIndex::new_unchecked(i as u8),
             x: i as f32,

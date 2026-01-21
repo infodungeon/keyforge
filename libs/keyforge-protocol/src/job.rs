@@ -309,6 +309,7 @@ pub struct JobStatus {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
     use crate::PROTOCOL_VERSION;
     use keyforge_model::KeyNode;
@@ -522,7 +523,7 @@ mod tests {
         let mut req = JobRequest::default();
         assert_eq!(req.version, PROTOCOL_VERSION);
         // Deref to JobConfig
-        assert!(req.corpora.len() > 0);
+        assert!(!req.corpora.is_empty());
         // DerefMut
         req.parent_job_id = Some("p".into());
         assert_eq!(req.config.parent_job_id, Some("p".into()));

@@ -2,6 +2,8 @@
 
 //! Integration tests for Hive WebSocket communication.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use futures::{SinkExt, StreamExt};
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use keyforge_protocol::constants::WS_MSG_JOB;
@@ -39,7 +41,7 @@ async fn start_test_server() -> (String, Arc<AppState>, ContainerAsync<Redis>) {
         .get_host_port_ipv4(6379)
         .await
         .expect("Failed to get port");
-    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
     // Force HTTP
@@ -124,7 +126,7 @@ async fn test_websocket_lifecycle() {
                     if p == vec![1, 2, 3] { pong_found = true; break; }
                 }
             }
-            _ = &mut timeout => break,
+            () = &mut timeout => break,
         }
     }
 
@@ -138,7 +140,7 @@ async fn test_websocket_lifecycle() {
 
     let signal_task = tokio::spawn(async move {
         for _ in 0..50 {
-            let _ = state_clone.tx.send(format!("{}{}", WS_MSG_JOB, job_id));
+            let _ = state_clone.tx.send(format!("{WS_MSG_JOB}{job_id}"));
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
     });
@@ -158,7 +160,7 @@ async fn test_websocket_lifecycle() {
                     }
                 }
             }
-            _ = &mut timeout_job => break,
+            () = &mut timeout_job => break,
         }
     }
 

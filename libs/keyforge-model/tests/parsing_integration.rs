@@ -3,9 +3,11 @@
 // Integration tests for parsing external data formats (KLE, layout strings).
 // These tests parse real or realistic external format data.
 
+#![allow(clippy::expect_used, clippy::float_cmp, clippy::items_after_statements)]
+
 use keyforge_model::geometry::KeyboardDefinition;
 
-/// Intent: Verify KLE JSON import correctly converts to KeyboardDefinition.
+/// Intent: Verify KLE JSON import correctly converts to `KeyboardDefinition`.
 /// Expected Result: Parses 2 keys from minimal KLE, preserves metadata from hint.
 #[test]
 fn test_kle_import_from_json() {

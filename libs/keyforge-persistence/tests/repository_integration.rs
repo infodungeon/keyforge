@@ -4,8 +4,8 @@
 //!
 //! These tests verify correct interaction with the filesystem using tempfile
 //! for isolation. They cover:
-//! - UserRepo layout/biometrics/keyboard persistence
-//! - AutoSaveService session save/load/debounce
+//! - `UserRepo` layout/biometrics/keyboard persistence
+//! - `AutoSaveService` session save/load/debounce
 
 use keyforge_model::constants::MAX_SESSION_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
@@ -181,7 +181,7 @@ async fn autosave_debounce_flush() {
     // Set last_save to the past to trigger immediate flush
     {
         let mut state = service.state.lock().unwrap();
-        state.last_save = Instant::now() - Duration::from_secs(3);
+        state.last_save = Instant::now().checked_sub(Duration::from_secs(3)).unwrap();
     }
     service
         .schedule_save(SessionSnapshot::default())

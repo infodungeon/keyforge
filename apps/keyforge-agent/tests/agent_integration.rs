@@ -1,6 +1,6 @@
 // apps/keyforge-agent/tests/integration_test.rs
 
-//! End-to-end integration tests for the KeyForge agent. Verifies the complete session
+//! End-to-end integration tests for the `KeyForge` agent. Verifies the complete session
 //! lifecycle, from workspace bootstrap to job execution, ensuring correct asset loading,
 //! corpus merging, and result serialization across hermetic test environments.
 
@@ -102,6 +102,6 @@ async fn test_agent_session_bootstrap() {
             assert_eq!(prepared.engine.key_count(), 1);
             // assert!(prepared.engine.trigram_count() >= 0); // Removed useless comparison
         }
-        Err(e) => panic!("Agent failed to bootstrap session: {:?}", e),
+        Err(e) => panic!("Agent failed to bootstrap session: {e:?}"),
     }
 }

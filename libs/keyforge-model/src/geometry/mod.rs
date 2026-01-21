@@ -79,7 +79,7 @@ impl Asset for KeyboardDefinition {
 impl Validator for KeyboardDefinition {
     fn validate(&self) -> Result<(), String> {
         if self.meta.name.len() > MAX_KEYBOARD_NAME_LEN {
-            return Err(format!("Keyboard name too long (max {})", MAX_KEYBOARD_NAME_LEN));
+            return Err(format!("Keyboard name too long (max {MAX_KEYBOARD_NAME_LEN})"));
         }
         self.geometry.validate()
     }

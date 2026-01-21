@@ -85,11 +85,11 @@ pub fn ensure_test_assets(data_root: &Path) {
 
     // Create dummy keyboards
     for name in ["corne", "szr35"] {
-        let path = kb_dir.join(format!("{}.json", name));
+        let path = kb_dir.join(format!("{name}.json"));
         if !path.exists() {
             let json = format!(
                 r#"{{
-                "meta": {{ "name": "{}", "author": "test", "version": "1", "type": "ortho" }},
+                "meta": {{ "name": "{name}", "author": "test", "version": "1", "type": "ortho" }},
                 "geometry": {{
                     "keys": [
                         {{"id": "KC_A", "x":0,"y":0,"hand":0,"finger":1,"row":0,"col":0}},
@@ -98,8 +98,7 @@ pub fn ensure_test_assets(data_root: &Path) {
                     "prime_slots": [0, 1], "med_slots": [], "low_slots": [], "home_row": 0
                 }},
                 "layouts": {{ "default": "KC_A KC_B" }}
-            }}"#,
-                name
+            }}"#
             );
             fs::write(path, json).unwrap();
         }
@@ -107,8 +106,8 @@ pub fn ensure_test_assets(data_root: &Path) {
 }
 
 pub fn load_keyboard(data_root: &Path, name: &str) -> KeyboardDefinition {
-    let path = data_root.join(format!("user/keyboards/{}.json", name));
-    let content = fs::read_to_string(&path).unwrap_or_else(|_| panic!("Failed to read {:?}", path));
+    let path = data_root.join(format!("user/keyboards/{name}.json"));
+    let content = fs::read_to_string(&path).unwrap_or_else(|_| panic!("Failed to read {path:?}"));
     serde_json::from_str(&content).expect("Failed to parse keyboard JSON")
 }
 
@@ -117,12 +116,12 @@ pub async fn hydrate_test_valkey(state: &Arc<AppState>, root: &Path) {
     let system_root = root.join("user"); // Test uses user/ for convenience
     let walker = WalkDir::new(&system_root).follow_links(true);
 
-    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+    for entry in walker.into_iter().filter_map(std::result::Result::ok) {
         if entry.file_type().is_file() {
             let path = entry.path();
             if let Ok(rel) = path.strip_prefix(&system_root) {
                 let key_path = rel.to_string_lossy().replace('\\', "/");
-                let valkey_key = format!("asset:blob:{}", key_path);
+                let valkey_key = format!("asset:blob:{key_path}");
 
                 if let Ok(content) = tokio::fs::read(path).await {
                     let packed = rmp_serde::to_vec(
@@ -177,7 +176,7 @@ pub async fn setup_server() -> (
         .get_host_port_ipv4(6379)
         .await
         .expect("Failed to get port");
-    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
 
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
@@ -223,6 +222,6 @@ pub async fn setup_server() -> (
         .unwrap();
     });
 
-    let base_url = format!("http://127.0.0.1:{}", port);
+    let base_url = format!("http://127.0.0.1:{port}");
     (base_url, state, temp_dir, valkey_node)
 }

@@ -184,9 +184,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         if total_freq > 0 {
             for (i, &freq) in corpus.char_freqs.iter().enumerate() {
                 if freq > 0 {
-                    let code = i as u16;
+                    let Ok(code) = u16::try_from(i) else { continue };
                     if registry.get_label(keyforge_model::KeyCode(code)).contains("0x") {
                         // Not found in registry (falls back to 0xHEX)
+                        // Precision loss in logging is acceptable
+                        #[allow(clippy::cast_precision_loss)]
                         let pct = (freq as f64 / total_freq as f64) * 100.0;
                         if pct > 0.1 {
                              tracing::warn!(

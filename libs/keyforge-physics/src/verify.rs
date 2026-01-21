@@ -4,7 +4,7 @@ use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric, types::KeyCode};
 use crate::PhysicsError;
 
 /// A naive, high-precision version of the scoring logic used to verify 
-/// the optimized ScoringEngine results.
+/// the optimized `ScoringEngine` results.
 #[derive(Debug, Clone)]
 pub struct DeterministicScorer {
     rubric: FixedPointRubric,
@@ -47,11 +47,15 @@ impl DeterministicScorer {
     }
 
     /// Scores a layout bit-for-bit against the naive algorithm.
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if static costs cannot be resolved or if a score overflows `i64`.
     pub fn score_detailed(&self, kb: &Keyboard, corpus: &Corpus, layout_keys: &[KeyCode]) -> Result<(i64, i64, i64), PhysicsError> {
         // 1. Monograms
         let mut mono_score = 0i64;
         for (code_val, &freq) in corpus.char_freqs.iter().enumerate() {
             if freq == 0 { continue; }
+            #[allow(clippy::cast_possible_truncation)]
             let code = KeyCode(code_val as u16);
             let indices = find_indices(layout_keys, code);
             if indices.is_empty() { continue; }
@@ -61,11 +65,12 @@ impl DeterministicScorer {
                 let key = &kb.keys[idx];
                 let effort = self.rubric.finger_effort[key.finger.as_usize()];
                 let static_cost = to_fixed(resolve_static_key_cost(key, &self.static_costs)?);
-                let total = effort.checked_add(static_cost).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram effort + static cost for code {}", code_val) })?;
+                let total = effort.checked_add(static_cost).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram effort + static cost for code {code_val}") })?;
                 if total < min_total_cost { min_total_cost = total; }
             }
-            let contrib = min_total_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram freq scale for code {}", code_val) })?;
-            mono_score = mono_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram total accumulation at code {}", code_val) })?;
+            #[allow(clippy::cast_possible_wrap)]
+            let contrib = min_total_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram freq scale for code {code_val}") })?;
+            mono_score = mono_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram total accumulation at code {code_val}") })?;
         }
 
         // 2. Bigrams
@@ -83,15 +88,15 @@ impl DeterministicScorer {
                         
                         // Apply sequence modifiers
                         if let Some(&mod_val) = self.sequence_modifiers.get(&(*c1, *c2)) {
-                            cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram modifier for ({}, {})", c1, c2) })?;
+                            cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram modifier for ({c1}, {c2})") })?;
                         }
 
                         if cost < min_cost { min_cost = cost; }
                     }
                 }
                 if min_cost != i64::MAX {
-                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram freq scale for ({}, {})", c1, c2) })?;
-                    bigram_score = bigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram total accumulation at ({}, {})", c1, c2) })?;
+                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram freq scale for ({c1}, {c2})") })?;
+                    bigram_score = bigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Bigram total accumulation at ({c1}, {c2})") })?;
                 }
             }
         }
@@ -115,8 +120,8 @@ impl DeterministicScorer {
                     }
                 }
                 if min_cost != i64::MAX {
-                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Trigram freq scale for ({}, {}, {})", c1, c2, c3) })?;
-                    trigram_score = trigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Trigram total accumulation at ({}, {}, {})", c1, c2, c3) })?;
+                    let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Trigram freq scale for ({c1}, {c2}, {c3})") })?;
+                    trigram_score = trigram_score.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Trigram total accumulation at ({c1}, {c2}, {c3})") })?;
                 }
             }
         }
@@ -124,6 +129,10 @@ impl DeterministicScorer {
         Ok((mono_score, bigram_score, trigram_score))
     }
 
+    /// Combined total score.
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if scoring fails or overflows.
     pub fn score(&self, kb: &Keyboard, corpus: &Corpus, layout_keys: &[KeyCode]) -> Result<i64, PhysicsError> {
         let (m, b, t) = self.score_detailed(kb, corpus, layout_keys)?;
         m.checked_add(b)
@@ -256,6 +265,7 @@ impl FixedPointRubric {
         }
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn calculate_pair_cost(
         &self, 
         kb: &Keyboard, 
@@ -275,11 +285,11 @@ impl FixedPointRubric {
         let t_vert = f64::from(to_f32(self.travel_vert));
         let scale = f64::from(keyforge_model::constants::SCORE_SCALE);
         
-        let dist_raw = ((dx2 as f64 * t_lat) + (dy2 as f64 * t_vert)) * scale;
+        let dist_raw = ((f64::from(dx2) * t_lat) + (f64::from(dy2) * t_vert)) * scale;
         
         if dist_raw.is_nan() || dist_raw.is_infinite() {
             return Err(PhysicsError::InvalidInput { 
-                message: format!("Oracle geometric distance between keys {} and {} is invalid (NaN or Infinite)", idx1, idx2) 
+                message: format!("Oracle geometric distance between keys {idx1} and {idx2} is invalid (NaN or Infinite)") 
             });
         }
 
@@ -288,8 +298,8 @@ impl FixedPointRubric {
         if k1.finger == k2.finger {
             let mut reach_k2 = 0.0f64;
             if let Some(origin) = kb.finger_origins.get(k2.hand.as_usize()).and_then(|h| h.get(k2.finger.as_usize())) {
-                let rdx = (k2.x - origin.0) as f64;
-                let rdy = (k2.y - origin.1) as f64;
+                let rdx = f64::from(k2.x - origin.0);
+                let rdy = f64::from(k2.y - origin.1);
                 reach_k2 = ((rdx * rdx * t_lat) + (rdy * rdy * t_vert)) * scale;
             }
 
@@ -297,8 +307,8 @@ impl FixedPointRubric {
                 context: "Oracle SFB reach reduction".to_string()
             })?;
 
-            let row_diff = (k1.row.0 as i32 - k2.row.0 as i32).unsigned_abs();
-            let col_diff = (k1.col.0 as i32 - k2.col.0 as i32).unsigned_abs();
+            let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
+            let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
 
             if col_diff == 1 {
                 let sfb_extra = if k1.finger.is_weak() { self.sfb_lateral_weak } else { self.sfb_lateral };
@@ -309,6 +319,7 @@ impl FixedPointRubric {
                 cost = cost.checked_add(self.sfb_diagonal).ok_or_else(|| PhysicsError::ScoreOverflow {
                     context: "Oracle SFB diagonal".to_string()
                 })?;
+            // The threshold is stored as i32 but represents a magnitude. Comparison with unsigned row_diff is safe.
             } else if row_diff >= self.threshold_sfb_long_row_diff as u32 {
                 cost = cost.checked_add(self.sfb_long).ok_or_else(|| PhysicsError::ScoreOverflow {
                     context: "Oracle SFB long".to_string()
@@ -322,15 +333,17 @@ impl FixedPointRubric {
         }
 
         let finger_diff = k1.finger.distance(k2.finger);
-        let row_diff = (k1.row.0 as i32 - k2.row.0 as i32).unsigned_abs();
+        let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
 
         if finger_diff == 1 && k1.finger != keyforge_model::types::FingerIndex::THUMB && k2.finger != keyforge_model::types::FingerIndex::THUMB {
+            // The threshold is stored as i32 but represents a magnitude. Comparison with unsigned row_diff is safe.
+            #[allow(clippy::cast_sign_loss)]
             if row_diff >= self.threshold_scissor_row_diff as u32 {
                 cost = cost.checked_add(self.penalty_scissor).ok_or_else(|| PhysicsError::ScoreOverflow {
                     context: "Oracle scissor penalty".to_string()
                 })?;
             } else if row_diff == 0 {
-                let col_diff = (k1.col.0 as i32 - k2.col.0 as i32).unsigned_abs();
+                let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
                 if col_diff > 1 {
                     cost = cost.checked_add(self.sfb_lateral).ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: "Oracle lateral SFB adjacent".to_string()
@@ -344,11 +357,17 @@ impl FixedPointRubric {
 }
 
 pub(crate) fn to_fixed(f: f32) -> i64 {
-    (f * keyforge_model::constants::SCORE_SCALE) as i64
+    // Intentional truncation: converting float score to fixed-point integer ticks.
+    #[allow(clippy::cast_possible_truncation)]
+    let val = (f * keyforge_model::constants::SCORE_SCALE) as i64;
+    val
 }
 
 fn to_f32(i: i64) -> f32 {
-    (i as f32) / keyforge_model::constants::SCORE_SCALE
+    // Precision loss acceptable for display/API values.
+    #[allow(clippy::cast_precision_loss)]
+    let val = (i as f32) / keyforge_model::constants::SCORE_SCALE;
+    val
 }
 
 #[cfg(test)]
@@ -362,7 +381,7 @@ mod tests {
         
         let mut base_zone = std::collections::HashMap::new();
         for r in -128..=127 {
-            base_zone.insert(format!("r{}", r), 0.0);
+            base_zone.insert(format!("r{r}"), 0.0);
         }
         
         let mut index_zones = std::collections::HashMap::new();
@@ -392,7 +411,7 @@ mod tests {
         let keys: Vec<KeyNode> = (0..3)
             .map(|i| KeyNode {
                 index: i,
-                label: format!("k{}", i),
+                label: format!("k{i}"),
                 hand: HandIndex(0),
                 finger: FingerIndex::new_unchecked(i as u8),
                 x: i as f32,

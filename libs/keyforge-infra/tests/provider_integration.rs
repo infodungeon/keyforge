@@ -1,6 +1,6 @@
 // libs/keyforge-infra/tests/provider_integration.rs
 //
-//! Integration tests for FsProvider.
+//! Integration tests for `FsProvider`.
 //! These tests require tempfile/filesystem/async access and validate asset loading contracts.
 
 use keyforge_core::loader::AssetLoader;
@@ -21,7 +21,7 @@ async fn setup_root() -> (tempfile::TempDir, FsProvider) {
 // JSON Loading Tests
 // ============================================================================
 
-/// Intent: Verify FsProvider loads JSON assets from various path formats.
+/// Intent: Verify `FsProvider` loads JSON assets from various path formats.
 /// Expected Result: Assets load by name, with extension, and by absolute path.
 #[tokio::test]
 async fn test_fs_provider_json_loading() {
@@ -58,7 +58,7 @@ async fn test_fs_provider_json_loading() {
     assert!(provider.load::<KeyboardDefinition>("../secret").await.is_err());
 }
 
-/// Intent: Verify FsProvider rejects invalid JSON content.
+/// Intent: Verify `FsProvider` rejects invalid JSON content.
 /// Expected Result: Returns parse error for malformed JSON.
 #[tokio::test]
 async fn test_fs_provider_json_errors() {
@@ -77,7 +77,7 @@ async fn test_fs_provider_json_errors() {
 // Binary Loading Tests
 // ============================================================================
 
-/// Intent: Verify FsProvider loads zstd-compressed MessagePack assets.
+/// Intent: Verify `FsProvider` loads zstd-compressed `MessagePack` assets.
 /// Expected Result: Binary assets are decompressed and deserialized correctly.
 #[tokio::test]
 async fn test_fs_provider_binary_loading() {
@@ -119,7 +119,7 @@ async fn test_fs_provider_binary_loading() {
     assert_eq!(res.meta.name, "Binary");
 }
 
-/// Intent: Verify FsProvider rejects corrupt binary files.
+/// Intent: Verify `FsProvider` rejects corrupt binary files.
 /// Expected Result: Returns error for invalid zstd content.
 #[tokio::test]
 async fn test_fs_provider_binary_errors() {
@@ -160,7 +160,7 @@ async fn test_fs_provider_system_json() {
 // Corpus Tests
 // ============================================================================
 
-/// Intent: Verify FsProvider computes corpus hash from system directory.
+/// Intent: Verify `FsProvider` computes corpus hash from system directory.
 /// Expected Result: Hash is non-empty for valid corpus files.
 #[tokio::test]
 async fn test_fs_provider_corpus_hash_system() {
@@ -179,7 +179,7 @@ async fn test_fs_provider_corpus_hash_system() {
     assert!(!hash.is_empty());
 }
 
-/// Intent: Verify FsProvider computes corpus hash from user directory.
+/// Intent: Verify `FsProvider` computes corpus hash from user directory.
 /// Expected Result: Hash is non-empty for valid corpus files.
 #[tokio::test]
 async fn test_fs_provider_corpus_hash() {
@@ -194,7 +194,7 @@ async fn test_fs_provider_corpus_hash() {
     assert!(!hash.is_empty());
 }
 
-/// Intent: Verify FsProvider loads corpus from system directory.
+/// Intent: Verify `FsProvider` loads corpus from system directory.
 /// Expected Result: Corpus character frequencies are populated correctly.
 #[tokio::test]
 async fn test_fs_provider_load_corpus_system() {
@@ -222,7 +222,7 @@ async fn test_fs_provider_load_corpus_system() {
     assert_eq!(corp.char_freqs[97], 100);
 }
 
-/// Intent: Verify FsProvider loads corpus from user directory.
+/// Intent: Verify `FsProvider` loads corpus from user directory.
 /// Expected Result: Corpus character frequencies are populated correctly.
 #[tokio::test]
 async fn test_fs_provider_load_corpus() {
@@ -246,7 +246,7 @@ async fn test_fs_provider_load_corpus() {
 // Server Provider Tests
 // ============================================================================
 
-/// Intent: Verify AssetServerProvider trait implementation.
+/// Intent: Verify `AssetServerProvider` trait implementation.
 /// Expected Result: Manifest retrieval and file content access work correctly.
 #[tokio::test]
 async fn test_fs_provider_server_provider() {
@@ -270,7 +270,7 @@ async fn test_fs_provider_server_provider() {
 // Security Tests
 // ============================================================================
 
-/// Intent: Verify safe_join prevents path traversal attacks.
+/// Intent: Verify `safe_join` prevents path traversal attacks.
 /// Expected Result: Attempts to escape root directory are rejected.
 #[tokio::test]
 async fn test_fs_provider_safe_join_error() {

@@ -24,10 +24,10 @@ pub struct ValidatedLayout<'a> {
 
 impl<'a> ValidatedLayout<'a> {
     pub fn new(slice: &'a [KeyCode], required_count: usize) -> Result<Self, PhysicsError> {
-        if slice.len() != required_count {
-            Err(PhysicsError::LayoutUnderflow(slice.len(), required_count))
-        } else {
+        if slice.len() == required_count {
             Ok(Self { slice })
+        } else {
+            Err(PhysicsError::LayoutUnderflow(slice.len(), required_count))
         }
     }
     pub fn as_slice(&self) -> &'a [KeyCode] {

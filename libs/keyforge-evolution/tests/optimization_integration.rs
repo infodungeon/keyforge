@@ -2,7 +2,9 @@
 //!
 //! Integration tests for the evolution module.
 //! These tests exercise full optimization loops, cross-module orchestration,
-//! and ScoringEngine usage (per ADR-015).
+//! and `ScoringEngine` usage (per ADR-015).
+
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::cast_precision_loss)]
 
 use keyforge_evolution::{evolve, optimize, NoOpCallback};
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
@@ -151,6 +153,7 @@ fn test_pinned_key_swap() {
 }
 
 #[test]
+#[allow(clippy::expect_used)]
 fn test_oracle_pattern_match() {
     let (kb, cp, rb, cm) = setup_env();
 

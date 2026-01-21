@@ -13,7 +13,7 @@ use std::fs;
 // IO Tests (from src/fs/io.rs)
 // ============================================================================
 
-/// Intent: Verify atomic_write creates parent directories and writes content atomically.
+/// Intent: Verify `atomic_write` creates parent directories and writes content atomically.
 /// Expected Result: File is created with correct content, updates work correctly.
 #[test]
 fn test_atomic_write() {
@@ -29,7 +29,7 @@ fn test_atomic_write() {
     assert_eq!(fs::read_to_string(&path).unwrap(), "updated");
 }
 
-/// Intent: Verify read_to_string_limited respects size limits.
+/// Intent: Verify `read_to_string_limited` respects size limits.
 /// Expected Result: Returns content when under limit, errors when over limit.
 #[test]
 fn test_read_to_string_limited() {
@@ -46,7 +46,7 @@ fn test_read_to_string_limited() {
     assert!(format!("{:?}", res.err()).contains("exceeds size limit"));
 }
 
-/// Intent: Verify atomic_write fails gracefully when parent is a file.
+/// Intent: Verify `atomic_write` fails gracefully when parent is a file.
 /// Expected Result: Returns error when path is invalid.
 #[test]
 fn test_atomic_write_fail() {
@@ -139,7 +139,7 @@ fn test_listing_empty_root() {
 // Lock Tests (from src/fs/lock.rs)
 // ============================================================================
 
-/// Intent: Verify WorkspaceLock provides mutual exclusion.
+/// Intent: Verify `WorkspaceLock` provides mutual exclusion.
 /// Expected Result: Only one lock can be held at a time; released locks can be reacquired.
 #[test]
 fn test_workspace_lock_exclusivity() {
@@ -160,7 +160,7 @@ fn test_workspace_lock_exclusivity() {
 }
 
 /// Intent: Verify explicit lock release allows reacquisition.
-/// Expected Result: After release(), another process can acquire the lock.
+/// Expected Result: After `release()`, another process can acquire the lock.
 #[test]
 fn test_workspace_lock_release() {
     let temp = tempfile::tempdir().unwrap();

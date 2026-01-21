@@ -141,7 +141,7 @@ mod tests {
         assert!(def.validate().is_ok());
 
         // 1. Empty high tier
-        def.tier_high_chars = "".into();
+        def.tier_high_chars = String::new();
         assert!(def.validate().is_err());
 
         // 2. Negative finger repeat scale
@@ -152,8 +152,10 @@ mod tests {
 
     #[test]
     fn test_layout_definitions_get_critical_bigrams() {
-        let mut def = LayoutDefinitions::default();
-        def.critical_bigrams = "th,he,in, invalid, x".into();
+        let def = LayoutDefinitions {
+            critical_bigrams: "th,he,in, invalid, x".into(),
+            ..Default::default()
+        };
         let bigrams = def.get_critical_bigrams();
         assert_eq!(bigrams.len(), 3);
         assert_eq!(bigrams[0], [u16::from(b't'), u16::from(b'h')]);

@@ -49,14 +49,15 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     let t_vert = f64::from(rubric.travel_vert);
     let scale = f64::from(keyforge_model::constants::SCORE_SCALE);
     
-    let dist_raw = ((dx2 as f64 * t_lat) + (dy2 as f64 * t_vert)) * scale;
+    let dist_raw = ((f64::from(dx2) * t_lat) + (f64::from(dy2) * t_vert)) * scale;
     
     if dist_raw.is_nan() || dist_raw.is_infinite() {
         return Err(PhysicsError::InvalidInput { 
-            message: format!("Geometric distance between keys {} and {} is invalid (NaN or Infinite)", i, j) 
+            message: format!("Geometric distance between keys {i} and {j} is invalid (NaN or Infinite)") 
         });
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     let mut cost = dist_raw.round() as i64;
 
     if f1 == f2 {
@@ -69,17 +70,19 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
             // Effort model: Parabolic cost for reach distance.
             // Cost scales with the square of the distance from the home position (origin).
             // `t_lat` and `t_vert` weight the horizontal and vertical components respectively.
-            let odx = (k2.x - origin.0) as f64;
-            let ody = (k2.y - origin.1) as f64;
+            let odx = f64::from(k2.x - origin.0);
+            let ody = f64::from(k2.y - origin.1);
             reach_k2 = ((odx * odx * t_lat) + (ody * ody * t_vert)) * scale;
         }
 
-        cost = cost.checked_sub(reach_k2.round() as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
+        #[allow(clippy::cast_possible_truncation)]
+        let reach_k2_rounded = reach_k2.round() as i64;
+        cost = cost.checked_sub(reach_k2_rounded).ok_or_else(|| PhysicsError::ScoreOverflow {
             context: "Pair cost reach reduction".to_string()
         })?;
 
-        let row_diff = (k1.row.0 as i32 - k2.row.0 as i32).unsigned_abs();
-        let col_diff = (k1.col.0 as i32 - k2.col.0 as i32).unsigned_abs();
+        let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
+        let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
 
         if col_diff == 1 {
             let sfb_extra = if f1.is_weak() { rubric.sfb_lateral_weak } else { rubric.sfb_lateral };
@@ -88,7 +91,7 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
         } else if col_diff > 1 {
             cost = cost.checked_add(to_score_or_err(rubric.sfb_diagonal)?)
                 .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB diagonal".to_string() })?;
-        } else if row_diff >= u32::from(rubric.threshold_sfb_long_row_diff as u8) {
+        } else if row_diff >= u32::from(rubric.threshold_sfb_long_row_diff.unsigned_abs()) {
             cost = cost.checked_add(to_score_or_err(rubric.sfb_long)?)
                 .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB long".to_string() })?;
         } else {
@@ -99,14 +102,14 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
     }
 
     let finger_diff = f1.distance(f2);
-    let row_diff = (k1.row.0 as i32 - k2.row.0 as i32).unsigned_abs();
+    let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
 
     if finger_diff == 1 && f1 != FingerIndex::THUMB && f2 != FingerIndex::THUMB {
-        if row_diff >= u32::from(rubric.threshold_scissor_row_diff as u8) {
+        if row_diff >= u32::from(rubric.threshold_scissor_row_diff.unsigned_abs()) {
             cost = cost.checked_add(to_score_or_err(rubric.penalty_scissor)?)
                 .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost scissor".to_string() })?;
         } else if row_diff == 0 {
-            let col_diff = (k1.col.0 as i32 - k2.col.0 as i32).unsigned_abs();
+            let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
             if col_diff > 1 {
                 cost = cost.checked_add(to_score_or_err(rubric.sfb_lateral)?)
                     .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost lateral SFB adjacent".to_string() })?;

@@ -244,6 +244,7 @@ pub fn generate_nonce() -> u64 {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -253,7 +254,7 @@ mod tests {
         let job_id = "job-123";
         let layout = "qwerty...";
         let score = 98.6;
-        let timestamp = 1234567890;
+        let timestamp = 1_234_567_890;
         let nonce = generate_nonce();
 
         let sig = sign_result(&secret, job_id, layout, score, timestamp, nonce).unwrap();
@@ -266,7 +267,7 @@ mod tests {
     fn test_sign_with_whitespace() {
         let (secret, public) = generate_keypair();
         // Add whitespace to secret
-        let spaced_secret = format!("  {}  ", secret);
+        let spaced_secret = format!("  {secret}  ");
 
         let sig = sign_result(&spaced_secret, "job", "layout", 1.0, 0, 0).unwrap();
         let valid = verify_result(&public, "job", "layout", 1.0, 0, 0, &sig).unwrap();
@@ -278,8 +279,8 @@ mod tests {
         let (secret, public) = generate_keypair();
         let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0).unwrap();
 
-        let spaced_public = format!("\n{}\t", public);
-        let spaced_sig = format!(" {} ", sig);
+        let spaced_public = format!("\n{public}\t");
+        let spaced_sig = format!(" {sig} ");
 
         let valid = verify_result(&spaced_public, "job", "layout", 1.0, 0, 0, &spaced_sig).unwrap();
         assert!(
@@ -308,11 +309,11 @@ mod tests {
     fn test_secret_wrappers() {
         let sb = SecretBytes::new(vec![1, 2, 3]);
         assert_eq!(sb.as_slice(), &[1, 2, 3]);
-        assert!(format!("{:?}", sb).contains("REDACTED"));
+        assert!(format!("{sb:?}").contains("REDACTED"));
 
         let ss = SecretString::new("secret".into());
         assert_eq!(ss.as_str(), "secret");
-        assert!(format!("{:?}", ss).contains("REDACTED"));
+        assert!(format!("{ss:?}").contains("REDACTED"));
     }
 
     #[test]

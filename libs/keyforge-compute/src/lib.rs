@@ -78,7 +78,7 @@ impl Runtime {
         &self,
         layout: &Layout,
     ) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
-        Ok(self.engine.analyze(layout)?)
+        self.engine.analyze(layout)
     }
 
     /// Suggests layout improvements based on the current scoring model.

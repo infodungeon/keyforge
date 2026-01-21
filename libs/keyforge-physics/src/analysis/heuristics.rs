@@ -137,7 +137,7 @@ mod tests {
         let keys: Vec<_> = (0..size)
             .map(|i| KeyNode {
                 index: i,
-                label: format!("k{}", i),
+                label: format!("k{i}"),
                 hand: HandIndex((i % 2) as u8),
                 // Use FingerIndex::INDEX (1) for all keys to ensure row-based costs are applied.
                 // This is a simplification for testing cost gradients.
@@ -197,7 +197,7 @@ mod tests {
         let keys: Vec<KeyNode> = (0..3)
             .map(|i| KeyNode {
                 index: i,
-                label: format!("k{}", i),
+                label: format!("k{i}"),
                 hand: HandIndex(0),
                 finger: FingerIndex::new_unchecked(i as u8),
                 x: i as f32,

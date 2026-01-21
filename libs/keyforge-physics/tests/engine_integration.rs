@@ -26,7 +26,7 @@ fn mock_cost_model() -> CostModel {
 
     let mut base_zone = HashMap::new();
     for r in -128..=127 {
-        base_zone.insert(format!("r{}", r), 0.0);
+        base_zone.insert(format!("r{r}"), 0.0);
     }
 
     let mut index_zones = HashMap::new();
@@ -103,7 +103,7 @@ fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
 // Generic Engine Integration Tests
 // =============================================================================
 
-/// Intent: Verify GenericScoringEngine implements all ScoringEngine trait methods correctly.
+/// Intent: Verify `GenericScoringEngine` implements all `ScoringEngine` trait methods correctly.
 /// Expected: Factory creates engine, all trait methods return valid results,
 /// swap delta matches actual score difference.
 #[test]
@@ -143,8 +143,8 @@ fn test_generic_engine_trait_methods() {
 // Exact Engine Integration Tests
 // =============================================================================
 
-/// Intent: Verify ExactScoringEngine implements all ScoringEngine trait methods correctly.
-/// Expected: Factory creates engine with is_exact=true, all trait methods return valid results.
+/// Intent: Verify `ExactScoringEngine` implements all `ScoringEngine` trait methods correctly.
+/// Expected: Factory creates engine with `is_exact=true`, all trait methods return valid results.
 #[test]
 fn test_exact_engine_trait_methods() {
     let (kb, corpus, rubric, cm) = setup_minimal();
@@ -183,8 +183,8 @@ fn test_exact_engine_trait_methods() {
 // Intel Comet Lake Engine Integration Tests
 // =============================================================================
 
-/// Intent: Verify IntelScoringEngine implements all ScoringEngine trait methods correctly.
-/// Expected: Factory creates engine with supports_avx2=true, all trait methods return valid results.
+/// Intent: Verify `IntelScoringEngine` implements all `ScoringEngine` trait methods correctly.
+/// Expected: Factory creates engine with `supports_avx2=true`, all trait methods return valid results.
 #[test]
 fn test_intel_engine_trait_methods() {
     let (kb, corpus, rubric, cm) = setup_minimal();

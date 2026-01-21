@@ -36,6 +36,7 @@ pub struct IntelScoringEngine {
 }
 
 impl IntelScoringEngine {
+    #[must_use] 
     pub fn new(ctx: EngineContext, config: Option<IntelEngineConfig>) -> Self {
         Self { 
             ctx,
@@ -164,20 +165,6 @@ impl ScoringEngine for IntelScoringEngine {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Intent: Verify IntelEngineConfig default values are sensible.
-    /// Expected: Default config has prefetch enabled and L1D cache size of 32KB.
-    #[test]
-    fn test_config_defaults() {
-        let config = IntelEngineConfig::default();
-        assert!(config.use_prefetch);
-        assert_eq!(config.l1d_size_bytes, 32 * 1024);
-    }
-}
-
 // -----------------------------------------------------------------------------
 // Scalar Fallback (Copy of Generic)
 // -----------------------------------------------------------------------------
@@ -235,6 +222,8 @@ unsafe fn score_layout_avx2(
 // but they are called from within the target_feature function so they might get inlined and vectorized.
 // To be sure, we should mark them inline always.
 
+// Hot path: Inlining is critical for the inner loop of the scoring engine.
+#[allow(clippy::inline_always)]
 #[inline(always)]
 fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
@@ -258,13 +247,18 @@ fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physic
         }
         
         if min_cost.0 != i64::MAX {
-            let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram freq scale for code {}", code) })?;
-            total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram total accumulation at code {}", code) })?;
+            // Frequencies are technically u64 but bounded by corpus size. Wrapping i64 is
+            // extremely unlikely in practice and we checked for overflow in the mul.
+            #[allow(clippy::cast_possible_wrap)]
+            let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram freq scale for code {code}") })?;
+            total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram total accumulation at code {code}") })?;
         }
     }
     Ok(total)
 }
 
+// Hot path: Inlining is critical for the inner loop of the scoring engine.
+#[allow(clippy::inline_always)]
 #[inline(always)]
 fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
@@ -309,82 +303,58 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
     Ok(total)
 }
 
+#[allow(clippy::inline_always)]
 #[inline(always)]
-
 fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
-
     let mut total = Score::ZERO;
-
     for &code1 in pm.used_keys {
-
         let c1_val = code1 as usize;
-
         let candidates1 = pm.get(c1_val);
-
         let start = ctx.corpus.trigram_starts[c1_val];
-
         let end = ctx.corpus.trigram_starts[c1_val + 1];
 
-
-
         for k in start..end {
-
             let c2 = ctx.corpus.trigram_others1[k];
-
             let c3 = ctx.corpus.trigram_others2[k];
-
             let candidates2 = pm.get(c2.0 as usize);
-
             let candidates3 = pm.get(c3.0 as usize);
 
-
-
             if candidates2.is_empty() || candidates3.is_empty() {
-
                 continue;
-
             }
-
-
 
             let mut min_cost = Score(i64::MAX);
-
             for &p1 in candidates1 {
-
                 for &p2 in candidates2 {
-
                     for &p3 in candidates3 {
-
                         let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
-
                         if cost < min_cost {
-
                             min_cost = cost;
-
                         }
-
                     }
-
                 }
-
             }
-
-
 
             if min_cost.0 != i64::MAX && min_cost.0 != 0 {
-
                 let freq = i64::from(ctx.corpus.trigram_freqs[k]);
-
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram freq scale for sequence starting with {}", code1) })?;
-
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram total accumulation for sequence starting with {}", code1) })?;
-
+                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram freq scale for sequence starting with {code1}") })?;
+                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram total accumulation for sequence starting with {code1}") })?;
             }
-
         }
-
     }
-
     Ok(total)
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Intent: Verify `IntelEngineConfig` default values are sensible.
+    /// Expected: Default config has prefetch enabled and L1D cache size of 32KB.
+    #[test]
+    fn test_config_defaults() {
+        let config = IntelEngineConfig::default();
+        assert!(config.use_prefetch);
+        assert_eq!(config.l1d_size_bytes, 32 * 1024);
+    }
 }

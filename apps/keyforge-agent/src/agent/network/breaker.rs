@@ -31,7 +31,6 @@ impl CircuitBreaker {
     #[must_use]
     pub fn can_attempt(&mut self) -> bool {
         match self.state {
-            State::Closed => true,
             State::Open => {
                 if let Some(last) = self.last_failure {
                     if last.elapsed() > self.cooldown {
@@ -41,10 +40,8 @@ impl CircuitBreaker {
                 }
                 false
             }
-            State::HalfOpen => {
-                // In half-open, we allow a single attempt.
-                // If it fails, we go back to Open. If it succeeds, to Closed.
-                // Since this is called before the attempt, we return true.
+            State::Closed | State::HalfOpen => {
+                // In Closed or HalfOpen, we allow an attempt.
                 true
             }
         }

@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_debug_derive() {
         let err = PhysicsError::Config("Debug me".into());
-        let dbg = format!("{:?}", err);
+        let dbg = format!("{err:?}");
         assert!(dbg.contains("Config"));
         assert!(dbg.contains("Debug me"));
     }

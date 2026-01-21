@@ -46,7 +46,7 @@ mod tests {
 
         // Exceed limit
         let mut large_data = Vec::new();
-        for i in 0..MAX_TRANSPORT_VECTOR_ITEMS + 1 {
+        for i in 0..=MAX_TRANSPORT_VECTOR_ITEMS {
             large_data.push(i);
         }
         let data = json!(large_data);

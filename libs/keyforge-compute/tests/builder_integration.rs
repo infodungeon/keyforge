@@ -155,7 +155,7 @@ async fn test_session_builder_lifecycle() {
         .with_config(test_search_config())
         .with_biometrics(vec![BiometricSample { bigram: "th".into(), ms: 100.0, timestamp: 0 }]);
     
-    let debug_str = format!("{:?}", builder);
+    let debug_str = format!("{builder:?}");
     assert!(debug_str.contains("SessionBuilder"));
     assert!(debug_str.contains("biometrics_count: 1"));
 

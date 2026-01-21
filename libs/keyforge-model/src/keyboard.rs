@@ -68,7 +68,7 @@ impl Keyboard {
                 if has_keys && origin.0.abs() < f32::EPSILON && origin.1.abs() < f32::EPSILON {
                     let key_at_zero = kb.keys.iter().any(|k| k.x.abs() < f32::EPSILON && k.y.abs() < f32::EPSILON);
                     if !key_at_zero {
-                        return Err(ForgeError::InvalidData(format!("Finger origin calculation failed for hand {}, finger {}", h_idx, f_idx)));
+                        return Err(ForgeError::InvalidData(format!("Finger origin calculation failed for hand {h_idx}, finger {f_idx}")));
                     }
                 }
             }

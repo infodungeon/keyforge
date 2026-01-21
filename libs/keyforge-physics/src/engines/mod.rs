@@ -29,12 +29,21 @@ pub trait ScoringEngine: Send + Sync + std::fmt::Debug {
     fn key_count(&self) -> usize;
 
     /// Calculates the score for a given layout.
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if scoring fails or overflows.
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError>;
 
     /// Calculates detailed scores (monogram, bigram, trigram) for a layout.
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if scoring fails or overflows.
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError>;
 
     /// Calculates the change in score if two keys were swapped.
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if delta calculation fails.
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
@@ -44,6 +53,9 @@ pub trait ScoringEngine: Send + Sync + std::fmt::Debug {
     ) -> Result<i64, PhysicsError>;
 
     /// Generates a comprehensive ergonomics analysis for a layout.
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if analysis fails.
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError>;
 
     /// Suggests improvements based on the current scoring model.

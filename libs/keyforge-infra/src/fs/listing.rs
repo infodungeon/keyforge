@@ -31,11 +31,13 @@ impl ExtensionRegistry {
     pub const TEXT: &'static [&'static str] = &["json", "toml", "yaml"];
 
     /// Returns true if the path has a supported binary extension.
+    #[must_use] 
     pub fn is_binary(path: &Path) -> bool {
         Self::BINARY.iter().any(|&ext| path.to_string_lossy().ends_with(ext))
     }
 
     /// Returns true if the path has a supported text extension.
+    #[must_use] 
     pub fn is_text(path: &Path) -> bool {
         Self::TEXT.iter().any(|&ext| path.to_string_lossy().ends_with(ext))
     }

@@ -1,5 +1,7 @@
 //! Integration tests for agent calibration lifecycle.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 // apps/keyforge-agent/tests/calibration_integration.rs
 
 use keyforge_agent::agent::calibration;
@@ -60,8 +62,6 @@ async fn test_calibration_lifecycle() {
     );
     assert!(
         (ips - ips2).abs() < 1e-6,
-        "Cached value mismatch: {} vs {}",
-        ips,
-        ips2
+        "Cached value mismatch: {ips} vs {ips2}"
     );
 }

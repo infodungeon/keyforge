@@ -2,6 +2,8 @@
 
 //! Integration tests for Hive's background cron jobs and WAL recovery.
 
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::items_after_statements)]
+
 use keyforge_hive::infra::{
     db::init_db, queue::WriteQueue, repositories::JobRepository, repositories::ResultRepository,
 };
@@ -117,7 +119,7 @@ async fn test_wal_recovery_integration() {
         .get_host_port_ipv4(6379)
         .await
         .expect("Failed to get port");
-    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
 
     let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());
     let _assets = Arc::new(ValkeyProvider::new(coordinator));

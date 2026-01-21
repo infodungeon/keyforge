@@ -2,6 +2,8 @@
 
 //! Integration tests for Hive Valkey (Redis) telemetry storage.
 
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::float_cmp)]
+
 use futures::SinkExt;
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use keyforge_protocol::NodeTelemetry;
@@ -40,8 +42,8 @@ async fn test_valkey_telemetry_flow() {
         .get_host_port_ipv4(6379)
         .await
         .expect("Failed to get port");
-    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
-    println!("Valkey running at {}", valkey_url);
+    let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
+    println!("Valkey running at {valkey_url}");
 
     // 2. Setup Hive App
     std::env::set_var("KEYFORGE_VALKEY_URL", &valkey_url);
@@ -63,7 +65,7 @@ async fn test_valkey_telemetry_flow() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let hive_url = format!("ws://127.0.0.1:{}", addr.port());
-    println!("Hive listening at {}", hive_url);
+    println!("Hive listening at {hive_url}");
 
     tokio::spawn(async move {
         axum::serve(
@@ -78,7 +80,7 @@ async fn test_valkey_telemetry_flow() {
     let node_id = "test-node-valkey";
     let ws_url = Url::parse(&hive_url)
         .unwrap()
-        .join(&format!("ws?node_id={}", node_id))
+        .join(&format!("ws?node_id={node_id}"))
         .unwrap();
 
     let (mut ws_stream, _) = connect_async(ws_url.to_string())

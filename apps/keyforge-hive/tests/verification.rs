@@ -2,6 +2,8 @@
 
 //! Integration tests for submission signature verification.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use keyforge_hive::cache::{CompiledEngineCache, ParsedLayoutCache};
 use keyforge_hive::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_hive::VerificationService;
@@ -33,7 +35,7 @@ async fn test_signature_enforcement() {
         .get_host_port_ipv4(6379)
         .await
         .expect("Failed to get port");
-    let valkey_url = format!("redis://127.0.0.1:{}", valkey_port);
+    let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
 
     let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());
     let assets = Arc::new(ValkeyProvider::new(coordinator));

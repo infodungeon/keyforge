@@ -2,6 +2,8 @@
 
 //! Integration tests for Python-based corpus validation.
 
+#![allow(clippy::expect_used, clippy::panic, clippy::unnecessary_debug_formatting)]
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -22,11 +24,10 @@ fn run_script(script_name: &str, json_filename: &str) {
     let data_dir = get_data_dir();
     let json_path = data_dir.join(json_filename);
 
-    assert!(script_path.exists(), "Script not found: {:?}", script_path);
+    assert!(script_path.exists(), "Script not found: {script_path:?}");
     assert!(
         json_path.exists(),
-        "JSON output not found: {:?}. Did you run the main program?",
-        json_path
+        "JSON output not found: {json_path:?}. Did you run the main program?"
     );
 
     println!("Running {} on {}...", script_name, json_path.display());
@@ -37,14 +38,14 @@ fn run_script(script_name: &str, json_filename: &str) {
         .output()
         .expect("Failed to execute Python script");
 
-    if !output.status.success() {
-        println!("--- STDOUT ({}) ---", script_name);
+    if output.status.success() {
         println!("{}", String::from_utf8_lossy(&output.stdout));
-        println!("--- STDERR ({}) ---", script_name);
-        println!("{}", String::from_utf8_lossy(&output.stderr));
-        panic!("{} failed", script_name);
     } else {
+        println!("--- STDOUT ({script_name}) ---");
         println!("{}", String::from_utf8_lossy(&output.stdout));
+        println!("--- STDERR ({script_name}) ---");
+        println!("{}", String::from_utf8_lossy(&output.stderr));
+        panic!("{script_name} failed");
     }
 }
 
@@ -72,14 +73,14 @@ fn validate_ngrams() {
         .output()
         .expect("Failed to execute Python script");
 
-    if !output.status.success() {
+    if output.status.success() {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    } else {
         println!("--- STDOUT ---");
         println!("{}", String::from_utf8_lossy(&output.stdout));
         println!("--- STDERR ---");
         println!("{}", String::from_utf8_lossy(&output.stderr));
         panic!("validate_ngrams failed");
-    } else {
-        println!("{}", String::from_utf8_lossy(&output.stdout));
     }
 }
 

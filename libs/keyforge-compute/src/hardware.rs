@@ -37,12 +37,11 @@ impl Default for CpuTopology {
 pub struct HardwareProbe;
 
 impl HardwareProbe {
+    #[must_use] 
     pub fn probe() -> CpuTopology {
         let cpuid = CpuId::new();
         let vendor = cpuid
-            .get_vendor_info()
-            .map(|v| v.as_str().to_string())
-            .unwrap_or_else(|| "Unknown".to_string());
+            .get_vendor_info().map_or_else(|| "Unknown".to_string(), |v| v.as_str().to_string());
 
         let mut topology = CpuTopology {
             vendor,
@@ -51,15 +50,15 @@ impl HardwareProbe {
 
         if let Some(cparams) = cpuid.get_cache_parameters() {
             for cache in cparams {
-                let size = (cache.associativity() + 1) as usize
-                    * (cache.physical_line_partitions() + 1) as usize
-                    * (cache.coherency_line_size() + 1) as usize
-                    * (cache.sets() + 1) as usize;
+                let size = (cache.associativity() + 1)
+                    * (cache.physical_line_partitions() + 1)
+                    * (cache.coherency_line_size() + 1)
+                    * (cache.sets() + 1);
 
                 match (cache.level(), cache.cache_type()) {
                     (1, CacheType::Data) => {
                         topology.l1d_size_bytes = size;
-                        topology.cache_line_size = (cache.coherency_line_size() + 1) as u16;
+                        topology.cache_line_size = u16::try_from(cache.coherency_line_size() + 1).unwrap_or(64);
                     }
                     (2, _) => topology.l2_size_bytes = size,
                     (3, _) => topology.l3_size_bytes = size,
@@ -79,7 +78,7 @@ mod tests {
     #[test]
     fn test_hardware_probe_runs() {
         let topology = HardwareProbe::probe();
-        println!("Detected Topology: {:?}", topology);
+        println!("Detected Topology: {topology:?}");
         assert!(!topology.vendor.is_empty());
         // On some CI environments cpuid might be masked, but usually vendor is present.
     }

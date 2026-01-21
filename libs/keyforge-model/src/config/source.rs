@@ -204,6 +204,6 @@ mod tests {
     fn test_cost_matrix_source() {
         let default = CostMatrixSource::default();
         assert!(matches!(default, CostMatrixSource::Predefined(_)));
-        assert_eq!(format!("{}", default), ASSET_COST_MATRIX);
+        assert_eq!(format!("{default}"), ASSET_COST_MATRIX);
     }
 }

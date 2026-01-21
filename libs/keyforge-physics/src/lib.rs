@@ -70,6 +70,9 @@ impl EngineFactory {
     /// Compiles a new **Exact (Oracle)** scoring engine.
     ///
     /// This engine is bit-perfect but slow. Use for verification only.
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if compilation fails.
     pub fn new_exact(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -80,7 +83,7 @@ impl EngineFactory {
         Ok(Box::new(ExactScoringEngine::new(
             keyboard.clone(),
             corpus.clone(),
-            rubric.clone(),
+            rubric,
             cost_model,
             ctx,
         )))
@@ -90,6 +93,9 @@ impl EngineFactory {
     ///
     /// This engine uses AVX2 optimizations and cache-aware access patterns.
     /// It is only safe to use on compatible hardware (checked by caller).
+    /// 
+    /// # Errors
+    /// Returns `PhysicsError` if compilation fails.
     pub fn new_intel_comet_lake(
         keyboard: &Keyboard,
         corpus: &Corpus,
@@ -162,6 +168,11 @@ pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
 }
 
 /// Suggests improvements for the layout described in the request.
+///
+/// # Errors
+///
+/// Returns `PhysicsError` if the engine cannot be compiled (e.g. invalid configuration)
+/// or if an error occurs during the suggestion process.
 #[instrument(skip(req))]
 pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
     let ctx = Compiler::compile(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
@@ -186,12 +197,16 @@ pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, 
 }
 
 /// Analyzes a layout and returns a detailed report.
+/// 
+/// # Errors
+/// Returns `PhysicsError` if the layout is invalid for the context.
 pub fn analyze_with_context(ctx: &EngineContext, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
     let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
     Ok(analyze_layout(ctx, &validated))
 }
 
 /// Suggests improvements for the layout.
+#[must_use] 
 pub fn suggest_improvements_with_context(
     ctx: &EngineContext,
     layout: &Layout,

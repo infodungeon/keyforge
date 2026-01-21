@@ -402,7 +402,12 @@ mod tests {
         // Use a mutable copy of the geometry to inject the huge cost
         let mut geom = ctx.geometry.clone();
         let mut costs = (*geom.cost_matrix).to_vec();
-        costs[0 * ctx.key_count + 1] = crate::kernel::types::Score(i64::MAX / 2);
+        // Inject a massive cost into the matrix for a pair (0, 1)
+        // costs[row * width + col]
+        #[allow(clippy::erasing_op)]
+        {
+            costs[0 * ctx.key_count + 1] = crate::kernel::types::Score(i64::MAX / 2);
+        }
         geom.cost_matrix = costs.into();
         ctx.geometry = geom;
         

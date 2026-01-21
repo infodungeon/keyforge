@@ -93,6 +93,7 @@ impl ResultOutbox {
     }
 
     // Deprecated: keeping for compatibility until all callers use process_pending
+    #[must_use] 
     pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
         let mut pending = Vec::new();
         let _ = self.process_pending(|p, s| pending.push((p, s)));

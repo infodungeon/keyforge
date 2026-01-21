@@ -145,7 +145,7 @@ impl FingerIndex {
     /// Pinky finger index (4).
     pub const PINKY: Self = Self(4);
 
-    /// Creates a new FingerIndex. 
+    /// Creates a new `FingerIndex`. 
     /// 
     /// # Safety
     /// Calling this with a value > 4 violates domain invariants.
@@ -175,7 +175,7 @@ impl FingerIndex {
     /// Calculates the signed difference between two fingers.
     #[must_use]
     pub fn diff(&self, other: Self) -> i16 {
-        self.0 as i16 - other.0 as i16
+        i16::from(self.0) - i16::from(other.0)
     }
 
     /// Returns true if this is considered a "weak" finger (Ring or Pinky).
@@ -210,7 +210,7 @@ pub struct RowIndex(pub i8);
 impl std::ops::Sub for RowIndex {
     type Output = i32;
     fn sub(self, rhs: Self) -> Self::Output {
-        self.0 as i32 - rhs.0 as i32
+        i32::from(self.0) - i32::from(rhs.0)
     }
 }
 
@@ -224,7 +224,7 @@ pub struct ColIndex(pub i8);
 impl std::ops::Sub for ColIndex {
     type Output = i32;
     fn sub(self, rhs: Self) -> Self::Output {
-        self.0 as i32 - rhs.0 as i32
+        i32::from(self.0) - i32::from(rhs.0)
     }
 }
 
@@ -256,9 +256,11 @@ impl Score {
             return Err("Cannot create Score from NaN".to_string());
         }
         let scaled = f64::from(val) * f64::from(crate::constants::SCORE_SCALE);
+        #[allow(clippy::cast_precision_loss)]
         if scaled > i64::MAX as f64 || scaled < i64::MIN as f64 {
-            return Err(format!("Score overflow: {} exceeds i64 bounds when scaled", val));
+            return Err(format!("Score overflow: {val} exceeds i64 bounds when scaled"));
         }
+        #[allow(clippy::cast_possible_truncation)]
         Ok(Score(scaled as i64))
     }
 
@@ -294,6 +296,7 @@ impl Score {
 impl std::ops::Add for Score {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
+        #[allow(clippy::expect_used)]
         self.checked_add(rhs).expect("Score overflow during addition")
     }
 }
@@ -301,6 +304,7 @@ impl std::ops::Add for Score {
 impl std::ops::Sub for Score {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
+        #[allow(clippy::expect_used)]
         self.checked_sub(rhs).expect("Score overflow during subtraction")
     }
 }
@@ -308,6 +312,7 @@ impl std::ops::Sub for Score {
 impl std::ops::Neg for Score {
     type Output = Self;
     fn neg(self) -> Self::Output {
+        #[allow(clippy::expect_used)]
         Score(self.0.checked_neg().expect("Score overflow during negation"))
     }
 }
@@ -315,6 +320,7 @@ impl std::ops::Neg for Score {
 impl std::ops::Mul<i64> for Score {
     type Output = Self;
     fn mul(self, rhs: i64) -> Self::Output {
+        #[allow(clippy::expect_used)]
         self.checked_mul(rhs).expect("Score overflow during multiplication")
     }
 }
@@ -463,13 +469,13 @@ mod tests {
     fn test_basic_types_coverage() {
         // KeyIndex
         let ki = KeyIndex(10);
-        assert_eq!(format!("{}", ki), "10");
+        assert_eq!(format!("{ki}"), "10");
         assert_eq!(usize::from(ki), 10);
         assert_eq!(KeyIndex::from(10usize), ki);
 
         // KeyCode
         let kc = KeyCode(97);
-        assert_eq!(format!("{}", kc), "97");
+        assert_eq!(format!("{kc}"), "97");
         assert_eq!(u16::from(kc), 97);
         assert_eq!(KeyCode::from(97u16), kc);
 

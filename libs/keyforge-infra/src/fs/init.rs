@@ -28,7 +28,7 @@ pub enum InitMode {
     Create,
 }
 
-/// Marker file used to identify a valid KeyForge workspace.
+/// Marker file used to identify a valid `KeyForge` workspace.
 pub const WORKSPACE_MARKER: &str = ".keyforge_workspace";
 
 /// Orchestrates the setup of the `KeyForge` workspace.

@@ -574,6 +574,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -640,7 +641,7 @@ mod tests {
         
         tracker.reset();
         tracker.feed('d', &mut stats);
-        assert!(stats.c2.get(&('c', 'd')).is_none());
+        assert!(!stats.c2.contains_key(&('c', 'd')));
     }
 
     #[test]

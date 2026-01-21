@@ -40,7 +40,7 @@ pub async fn handle(
     Json(payload): Json<ResultSubmission>,
 ) -> AppResult<Json<()>> {
     validate_submission(&state, &payload).await?;
-    persist_result(&state, payload).await?;
+    persist_result(&state, payload)?;
     Ok(Json(()))
 }
 
@@ -48,8 +48,8 @@ pub async fn handle(
 async fn validate_submission(state: &AppState, payload: &ResultSubmission) -> AppResult<()> {
     if payload.version != PROTOCOL_VERSION {
         return Err(AppError::Validation(format!(
-            "Protocol Mismatch. Server: v{}, Client: v{}",
-            PROTOCOL_VERSION, payload.version
+            "Protocol Mismatch. Server: v{PROTOCOL_VERSION}, Client: v{}",
+            payload.version
         )));
     }
 
@@ -76,7 +76,7 @@ async fn validate_submission(state: &AppState, payload: &ResultSubmission) -> Ap
 }
 
 /// Pushes the verified result to the background write queue for durable persistence.
-async fn persist_result(state: &AppState, payload: ResultSubmission) -> AppResult<()> {
+fn persist_result(state: &AppState, payload: ResultSubmission) -> AppResult<()> {
     state
         .queue
         .push(PersistedRecord {

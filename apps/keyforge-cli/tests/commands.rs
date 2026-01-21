@@ -1,8 +1,7 @@
-// apps/keyforge-cli/tests/commands.rs
+//! Integration tests for the `keyforge` CLI commands.
+//! Verifies standard command execution, argument parsing, and output formatting.
 
-//! Integration tests for CLI command execution. Verifies the correctness of the `fetch`
-//! and `init` commands, ensuring proper workspace initialization, asset synchronization,
-//! and hermetic test isolation.
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 
 mod common;
 use keyforge_testing::HermeticWorkspace;
@@ -63,10 +62,10 @@ fn test_list_assets() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    println!("STDOUT:\n{}", stdout);
-    println!("STDERR:\n{}", stderr);
+    println!("STDOUT:\n{stdout}");
+    println!("STDERR:\n{stderr}");
 
-    assert!(output.status.success(), "Command failed: {}", stderr);
+    assert!(output.status.success(), "Command failed: {stderr}");
     assert!(
         stdout.contains("test_kb"),
         "Output did not contain 'test_kb'"
@@ -100,8 +99,8 @@ fn test_validate_output() {
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     if !output.status.success() {
-        eprintln!("STDOUT:\n{}", stdout);
-        eprintln!("STDERR:\n{}", stderr);
+        eprintln!("STDOUT:\n{stdout}");
+        eprintln!("STDERR:\n{stderr}");
     }
 
     assert!(output.status.success());
@@ -110,7 +109,6 @@ fn test_validate_output() {
     let json: Value = serde_json::from_str(&stdout).expect("Failed to parse output JSON");
     assert!(
         json.get("score").is_some(),
-        "JSON output missing 'score' field: {}",
-        stdout
+        "JSON output missing 'score' field: {stdout}"
     );
 }

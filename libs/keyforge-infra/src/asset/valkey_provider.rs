@@ -42,6 +42,7 @@ impl ValkeyProvider {
     }
 
     /// Returns the underlying distributed coordinator.
+    #[must_use] 
     pub fn coordinator(&self) -> Arc<dyn DistributedCoordinator> {
         self.coordinator.clone()
     }
@@ -195,6 +196,7 @@ impl ValkeyProvider {
         Arc::new(T::default())
     }
 
+    #[must_use] 
     pub fn id_to_subpath(category: AssetCategory, id: &str) -> String {
         let stem = id.strip_suffix(".json").unwrap_or(id);
         match category {

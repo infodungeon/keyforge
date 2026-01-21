@@ -196,7 +196,7 @@ mod tests {
 
         match parse_key("LT(2, KC_SPC)") {
             KeyAction::LayerTap { layer: 2, key } => {
-                assert_eq!(*key, KeyAction::Simple("KC_SPC".to_string()))
+                assert_eq!(*key, KeyAction::Simple("KC_SPC".to_string()));
             }
             _ => panic!("Failed to parse LT"),
         }

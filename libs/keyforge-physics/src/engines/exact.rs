@@ -15,8 +15,9 @@ pub struct ExactScoringEngine {
 }
 
 impl ExactScoringEngine {
-    pub fn new(keyboard: Keyboard, corpus: Corpus, rubric: Rubric, cost_model: &keyforge_model::CostModel, ctx: EngineContext) -> Self {
-        let scorer = DeterministicScorer::new(&keyboard, &rubric, cost_model);
+    #[must_use] 
+    pub fn new(keyboard: Keyboard, corpus: Corpus, rubric: &Rubric, cost_model: &keyforge_model::CostModel, ctx: EngineContext) -> Self {
+        let scorer = DeterministicScorer::new(&keyboard, rubric, cost_model);
         Self {
             scorer,
             keyboard,
@@ -66,8 +67,9 @@ impl ScoringEngine for ExactScoringEngine {
         
         let new_score = self.score(&swapped)?;
         
-        let diff = (new_score.0 as i128) - (current.0 as i128);
-        Ok(diff.clamp(i64::MIN as i128, i64::MAX as i128) as i64)
+        let diff = i128::from(new_score.0) - i128::from(current.0);
+        #[allow(clippy::cast_possible_truncation)]
+        Ok(diff.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64)
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {

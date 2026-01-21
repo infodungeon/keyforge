@@ -4,6 +4,8 @@
 //! user-provided data (keymap strings, file paths) is correctly validated to prevent
 //! injection attacks and path traversal exploits.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 mod common;
 use keyforge_testing::HermeticWorkspace;
 use std::fs::File;
@@ -55,7 +57,7 @@ fn test_recursion_bomb() {
     }
     s.push('}');
 
-    writeln!(f, "{}", s).unwrap();
+    writeln!(f, "{s}").unwrap();
 
     let bin = common::get_binary_path();
     let output = Command::new(&bin)

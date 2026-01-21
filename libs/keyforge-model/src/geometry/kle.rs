@@ -46,7 +46,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
 
     // Determine split point using largest gap closest to center
     let split_x = if x_coords.len() > 2 {
-        let center = (x_coords[0] + x_coords[x_coords.len() - 1]) / 2.0;
+        let center = f32::midpoint(x_coords[0], x_coords[x_coords.len() - 1]);
         let mut best_split = center;
         let mut min_dist_to_center = f32::MAX;
         let mut max_gap = 0.0;
@@ -152,6 +152,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
 fn sanitize_label(label: &str) -> String {
     let cleaner = LABEL_CLEANER.get_or_init(|| {
         // Safe regex to strip common HTML tags found in KLE (<i>, <b>, <br>, etc)
+        #[allow(clippy::expect_used)]
         Regex::new(r"<[^>]*>").expect("Failed to compile label cleaner regex")
     });
     cleaner.replace_all(label, "").trim().to_string()
