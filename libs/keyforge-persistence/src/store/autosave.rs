@@ -73,17 +73,23 @@ impl PersistedSession {
     }
 }
 
+/// Internal state for the autosave debounce mechanism.
+/// Public for integration testing.
 #[derive(Debug)]
-struct AutoSaveState {
-    pending: Option<SessionSnapshot>,
-    last_save: Instant,
+pub struct AutoSaveState {
+    /// Pending snapshot awaiting flush.
+    pub pending: Option<SessionSnapshot>,
+    /// Timestamp of the last save operation.
+    pub last_save: Instant,
 }
 
 /// A service that handles automated background saving of the user session.
 #[derive(Debug)]
 pub struct AutoSaveService {
     path: PathBuf,
-    state: Arc<Mutex<AutoSaveState>>,
+    /// Internal state for debounce tracking.
+    /// Public for integration testing; do not access in production code.
+    pub state: Arc<Mutex<AutoSaveState>>,
 }
 
 impl AutoSaveService {
@@ -234,115 +240,4 @@ impl AutoSaveService {
         }
     }
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-    use tokio;
 
-    #[tokio::test]
-    async fn test_load_non_existent() {
-        let dir = tempdir().unwrap();
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.unwrap().is_none());
-    }
-
-    #[tokio::test]
-    async fn test_load_too_large() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("session.json");
-        tokio::fs::write(&path, vec![0u8; MAX_SESSION_FILE_SIZE as usize + 1])
-            .await
-            .unwrap();
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.unwrap().is_none());
-    }
-
-    #[tokio::test]
-    async fn test_load_invalid_json() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("session.json");
-        tokio::fs::write(&path, "invalid json").await.unwrap();
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.unwrap().is_none());
-    }
-
-    #[tokio::test]
-    async fn test_autosave_debounce_flush() {
-        let dir = tempdir().unwrap();
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        // Set last_save to the past to trigger immediate flush
-        {
-            let mut state = service.state.lock().unwrap();
-            state.last_save = Instant::now() - Duration::from_secs(3);
-        }
-        service.schedule_save(SessionSnapshot::default()).await;
-        // This should have triggered flush(false) on line 81
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        assert!(service.load().await.unwrap().is_some());
-    }
-
-    #[tokio::test]
-    async fn test_load_read_error() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("session.json");
-        // Create a directory named session.json to force a read error (it's a directory, not a file)
-        std::fs::create_dir(&path).unwrap();
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_load_legacy_format() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("session.json");
-        let snapshot = SessionSnapshot { keyboard: "legacy".into(), ..Default::default() };
-        tokio::fs::write(&path, serde_json::to_string(&snapshot).unwrap()).await.unwrap();
-        
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        let loaded = service.load().await.unwrap().unwrap();
-        assert_eq!(loaded.keyboard, "legacy");
-    }
-
-    #[tokio::test]
-    async fn test_load_checksum_mismatch() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("session.json");
-        let persisted = PersistedSession {
-            snapshot: SessionSnapshot::default(),
-            checksum: "wrong".into(),
-        };
-        tokio::fs::write(&path, serde_json::to_string(&persisted).unwrap()).await.unwrap();
-        
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        assert!(service.load().await.unwrap().is_none());
-    }
-
-    #[tokio::test]
-    async fn test_flush_force_and_empty() {
-        let dir = tempdir().unwrap();
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        
-        // 1. Flush empty
-        service.flush(true).await;
-        assert!(!dir.path().join("session.json").exists());
-
-        // 2. Force flush ignoring debounce
-        service.schedule_save(SessionSnapshot { keyboard: "forced".into(), ..Default::default() }).await;
-        service.flush(true).await;
-        let loaded = service.load().await.unwrap().unwrap();
-        assert_eq!(loaded.keyboard, "forced");
-    }
-
-    #[tokio::test]
-    async fn test_flush_persist_failure_fallback() {
-        let dir = tempdir().unwrap();
-        let service = AutoSaveService::new(dir.path().to_path_buf());
-        
-        // We can't easily trigger cross-filesystem error in unit tests,
-        // but we can mock it if we refactor. 
-        // For now we assume standard coverage is enough or we use a more complex setup.
-        // Actually, let's just make sure we hit the "pending is none" branch
-        service.flush(false).await;
-    }
-}

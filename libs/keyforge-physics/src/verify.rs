@@ -344,11 +344,8 @@ fn to_f32(i: i64) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::EngineFactory;
-    use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel, Layout};
+    use keyforge_model::{CostModel, KeyNode, Keyboard, Corpus, Rubric};
     use keyforge_model::types::{KeyCode, HandIndex, FingerIndex};
-    use proptest::prelude::*;
-    use std::collections::HashMap;
 
     fn mock_cost_model() -> keyforge_model::CostModel {
         let mut cm = keyforge_model::CostModel::default();
@@ -576,70 +573,5 @@ mod tests {
         // Unknown
         let k4 = KeyNode { hand: HandIndex::LEFT, finger: FingerIndex::RING, ..Default::default() };
         assert_eq!(resolve_static_key_cost(&k4, &static_costs), 100.0);
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(20))]
-        #[test]
-        fn test_oracle_parity(
-            kb in any::<Keyboard>(),
-            corpus in any::<Corpus>(),
-            rubric in any::<Rubric>(),
-        ) {
-            let key_count = kb.count();
-            // Generate layout matching keyboard size
-            let layout_keys: Vec<KeyCode> = (0..key_count)
-                .map(|i| KeyCode(i as u16))
-                .collect();
-
-            let cost_model = mock_cost_model();
-            let oracle = DeterministicScorer::new(&rubric, &cost_model);
-            
-            let generic = EngineFactory::new_generic(&kb, &corpus, &rubric, &cost_model).unwrap();
-            let exact = EngineFactory::new_exact(&kb, &corpus, &rubric, &cost_model).unwrap();
-            let intel = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cost_model, None).unwrap();
-
-            let layout = Layout::new_unchecked(layout_keys.clone());
-            
-            let s_oracle_res = oracle.score(&kb, &corpus, &layout_keys);
-            
-            let generic_res = generic.score(&layout);
-            let exact_res = exact.score(&layout);
-            let intel_res = intel.score(&layout);
-
-            if s_oracle_res.is_err() || generic_res.is_err() || exact_res.is_err() || intel_res.is_err() {
-                println!("--- SCORING ERROR DETECTED ---");
-                println!("Oracle:  {:?}", s_oracle_res.as_ref().err());
-                println!("Generic: {:?}", generic_res.as_ref().err());
-                println!("Exact:   {:?}", exact_res.as_ref().err());
-                println!("Intel:   {:?}", intel_res.as_ref().err());
-                return Ok(());
-            }
-
-            let s_oracle = s_oracle_res.unwrap();
-            let s_generic = generic_res.unwrap().0;
-            let s_exact = exact_res.unwrap().0;
-            let s_intel = intel_res.unwrap().0;
-            
-            if s_oracle != s_exact || s_generic != s_exact || s_intel != s_exact {
-                let (o_m, o_b, o_t) = oracle.score_detailed(&kb, &corpus, &layout_keys).unwrap_or((0, 0, 0));
-                let (e_m, e_b, e_t) = exact.score_detailed(&layout).unwrap_or((0, 0, 0));
-                let (_g_m, _g_b, _g_t) = generic.score_detailed(&layout).unwrap_or((0, 0, 0));
-                let (_i_m, _i_b, _i_t) = intel.score_detailed(&layout).unwrap_or((0, 0, 0));
-                
-                if s_oracle != s_exact {
-                    println!("--- BIT-PERFECT PARITY MISMATCH (EXACT vs ORACLE) ---");
-                    println!("Oracle  Total: {}, Mono: {}, Bigram: {}, Tri: {}", s_oracle, o_m, o_b, o_t);
-                    println!("Exact   Total: {}, Mono: {}, Bigram: {}, Tri: {}", s_exact, e_m, e_b, e_t);
-                }
-            }
-
-            prop_assert_eq!(s_exact, s_oracle, "Exact Engine vs Oracle Logic mismatch - BIT-PERFECT PARITY REQUIRED");
-            
-            // Allow minor drift for search engines (Generic/Intel) - 0.001% tolerance
-            let drift_limit = (s_exact.unsigned_abs() as i64 / 100_000).max(1000);
-            prop_assert!((s_generic - s_exact).unsigned_abs() as i64 <= drift_limit, "Generic engine drift {} exceeds limit {}", (s_generic - s_exact).unsigned_abs(), drift_limit);
-            prop_assert!((s_intel - s_exact).unsigned_abs() as i64 <= drift_limit, "Intel engine drift {} exceeds limit {}", (s_intel - s_exact).unsigned_abs(), drift_limit);
-        }
     }
 }

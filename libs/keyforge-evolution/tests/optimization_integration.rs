@@ -1,9 +1,19 @@
 // libs/keyforge-evolution/tests/optimization_integration.rs
+//!
+//! Integration tests for the evolution module.
+//! These tests exercise full optimization loops, cross-module orchestration,
+//! and ScoringEngine usage (per ADR-015).
 
-use keyforge_evolution::{evolve, optimize, NoOpCallback};
-use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric, SearchConfig};
-use keyforge_model::types::{HandIndex, FingerIndex, RowIndex, ColIndex, KeyCode};
+use keyforge_evolution::{evolve, optimize, NoOpCallback, ProgressCallback};
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
 use keyforge_physics::{EngineFactory, EngineRequest, ScoringEngine};
+use proptest::prelude::*;
+use rand::seq::SliceRandom;
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro256PlusPlus;
+use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
