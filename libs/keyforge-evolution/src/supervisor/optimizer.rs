@@ -176,7 +176,7 @@ mod tests {
         let kb = Keyboard::new(vec![
             KeyNode { index: 0, ..Default::default() },
             KeyNode { index: 1, ..Default::default() },
-        ], 0).unwrap();
+        ], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
         cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_optimize_wrapper() {
-        let kb = Keyboard::new(vec![KeyNode::default()], 0).unwrap();
+        let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
         cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
@@ -259,9 +259,9 @@ mod tests {
         use std::sync::atomic::{AtomicUsize, Ordering};
         struct MockCallback(Arc<AtomicUsize>);
         impl ProgressCallback for MockCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
+            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> crate::OptimizationControl {
                 self.0.fetch_add(1, Ordering::SeqCst);
-                true
+                crate::OptimizationControl::Continue
             }
         }
 

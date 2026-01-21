@@ -107,7 +107,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, 0).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
         let rubric = Rubric::default();
         let stage = GeometryStage { rubric: &rubric };
         let out = stage.execute(kb).unwrap();

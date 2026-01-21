@@ -40,7 +40,7 @@ use kernel::compute::analyze_layout;
 use kernel::types::ValidatedLayout;
 pub use kernel::EngineContext;
 use keyforge_model::{
-    AnalysisReport, Corpus, CostModel, KeyCode, Keyboard, Layout, OptimizationResult, Rubric, ScoringResult, SearchConfig,
+    AnalysisReport, Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric, ScoringResult, SearchConfig,
 };
 use std::sync::Arc;
 use tracing::instrument;

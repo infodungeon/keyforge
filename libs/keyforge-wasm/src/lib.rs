@@ -147,14 +147,15 @@ impl KeyforgeEngine {
 
         // Create Keyboard from Definition
         let keyboard =
-            keyforge_model::Keyboard::new(kb.geometry.keys.clone(), kb.geometry.home_row)
+            keyforge_model::Keyboard::new(kb.geometry.keys.clone(), kb.geometry.home_row, kb.meta.kb_type.clone())
                 .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let engine = keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let report = engine
-            .analyze(&layout);
+            .analyze(&layout)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         Ok(to_value(&report)?)
     }

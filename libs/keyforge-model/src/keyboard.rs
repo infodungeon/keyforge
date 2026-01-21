@@ -26,6 +26,9 @@ pub struct Keyboard {
     pub keys: Vec<KeyNode>,
     /// The logical row index considered the "Home Row".
     pub home_row: i8,
+    /// Type of keyboard (e.g., "split", "ortho").
+    #[serde(default)]
+    pub kb_type: String,
     /// Pre-calculated centers for fingers [hand][finger] -> (x, y).
     /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<(f32, f32)>>,
@@ -41,7 +44,7 @@ impl Keyboard {
     /// # Errors
     ///
     /// Returns a `ForgeError` if the key list is empty.
-    pub fn new(keys: Vec<KeyNode>, home_row: i8) -> Result<Self, ForgeError> {
+    pub fn new(keys: Vec<KeyNode>, home_row: i8, kb_type: String) -> Result<Self, ForgeError> {
         if keys.is_empty() {
             return Err(ForgeError::InvalidData(
                 "Keyboard must have at least one key".into(),
@@ -51,6 +54,7 @@ impl Keyboard {
         let mut kb = Self {
             keys,
             home_row,
+            kb_type,
             finger_origins: Vec::new(),
             spatial_cache: Vec::new(),
         };
@@ -170,7 +174,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         assert_eq!(kb.spatial_cache.len(), 4);
         // Dist between 0 and 1: dx=1, dy=0 -> (1, 0)
@@ -179,10 +183,10 @@ mod tests {
 
     #[test]
     fn test_keyboard_basic_methods() {
-        assert!(Keyboard::new(vec![], 0).is_err());
+        assert!(Keyboard::new(vec![], 0, "test".into()).is_err());
         
         let keys = vec![KeyNode { index: 0, ..Default::default() }];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         assert_eq!(kb.count(), 1);
     }
 
@@ -193,7 +197,7 @@ mod tests {
             index: 0, x: 5.0, y: 5.0, hand: HandIndex(0), finger: FingerIndex(1),
             row: RowIndex(1), is_home: false, ..Default::default()
         }];
-        let kb = Keyboard::new(keys, 1).unwrap();
+        let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         assert_eq!(kb.finger_origins[0][1], (5.0, 5.0));
 
         // Priority 3: Any key
@@ -201,7 +205,7 @@ mod tests {
             index: 0, x: 7.0, y: 7.0, hand: HandIndex(0), finger: FingerIndex(1),
             row: RowIndex(5), is_home: false, ..Default::default()
         }];
-        let kb = Keyboard::new(keys, 1).unwrap();
+        let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         assert_eq!(kb.finger_origins[0][1], (7.0, 7.0));
     }
 }

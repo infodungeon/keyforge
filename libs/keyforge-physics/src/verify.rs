@@ -275,7 +275,7 @@ impl FixedPointRubric {
             });
         }
 
-        let cost = dist_raw.round() as i64;
+        let mut cost = dist_raw.round() as i64;
 
         if k1.finger == k2.finger {
             let mut reach_k2 = 0.0f64;
@@ -391,7 +391,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        Keyboard::new(keys, 0).unwrap()
+        Keyboard::new(keys, 0, "test".into()).unwrap()
     }
 
     fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
@@ -441,7 +441,7 @@ mod tests {
             KeyNode { index: 1, hand: HandIndex::LEFT, finger: FingerIndex::MIDDLE, ..Default::default() },
             KeyNode { index: 2, hand: HandIndex::LEFT, finger: FingerIndex::RING, ..Default::default() },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         
         // Roll: Ring -> Middle -> Index (Inward? No, Index -> Middle -> Ring is outward)
         // dir1 = k2.finger.diff(k1.finger)

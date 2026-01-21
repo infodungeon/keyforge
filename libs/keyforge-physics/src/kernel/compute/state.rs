@@ -140,4 +140,25 @@ impl PhysicsScratch {
             self.char_usage[c] = 0.0;
         }
     }
+
+    /// Returns mutable references to the individual scratch buffers.
+    /// This allows bypassing the single mutable borrow restriction on the parent struct.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn get_mut_scratch(
+        &mut self,
+    ) -> (
+        &mut [u16],
+        &mut [u8],
+        &mut [u16],
+        &mut [u8],
+        &mut Vec<u16>,
+    ) {
+        (
+            self.starts.as_mut_slice(),
+            self.counts.as_mut_slice(),
+            self.indices.as_mut_slice(),
+            self.current_offsets.as_mut_slice(),
+            &mut self.used_keys,
+        )
+    }
 }

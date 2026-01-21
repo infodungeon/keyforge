@@ -18,9 +18,10 @@ use crate::asset::{
 use crate::error::{InfraError, InfraResult};
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Registry of supported asset file extensions.
+#[derive(Debug)]
 pub struct ExtensionRegistry;
 
 impl ExtensionRegistry {

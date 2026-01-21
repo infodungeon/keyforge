@@ -27,7 +27,6 @@ use std::sync::Arc;
 /// Physical properties and pre-calculated distances for a keyboard.
 #[derive(Debug, Clone)]
 pub struct GeometryData {
-    pub(crate) key_count: usize,
     pub(crate) hands: Arc<[HandIndex]>,
     pub fingers: Arc<[FingerIndex]>,
     pub(crate) rows: Arc<[RowIndex]>,
@@ -56,10 +55,6 @@ pub struct CorpusData {
     pub(crate) trigram_mid_others1: Arc<[KeyCode]>,
     pub(crate) trigram_mid_others2: Arc<[KeyCode]>,
     pub(crate) trigram_mid_freqs: Arc<[u32]>,
-    pub(crate) trigram_end_starts: Arc<[usize]>,
-    pub(crate) trigram_end_others1: Arc<[KeyCode]>,
-    pub(crate) trigram_end_others2: Arc<[KeyCode]>,
-    pub(crate) trigram_end_freqs: Arc<[u32]>,
 }
 
 /// Compiled, high-performance context used by the physics engine for scoring.
@@ -71,15 +66,10 @@ pub struct EngineContext {
     pub(crate) all_bigrams: Arc<[(u16, u16, u32)]>,
     pub(crate) all_trigrams: Arc<[(u16, u16, u16, u32)]>,
     pub(crate) penalty_redirect: Score,
-    pub(crate) penalty_skip: Score,
     pub(crate) bonus_roll: Score,
     pub(crate) bonus_roll_out: Score,
     /// Custom modifiers for specific key sequences (Bigrams).
     pub(crate) sequence_modifiers: Arc<HashMap<(u16, u16), Score>>,
-    /// Pre-sorted list of all unique keycodes present in the corpus.
-    pub(crate) sorted_unique_keys: Arc<[u16]>,
-    /// Map of keycode to its index in `sorted_unique_keys`.
-    pub(crate) key_rank_map: Arc<HashMap<u16, usize>>,
 }
 
 impl EngineContext {

@@ -127,7 +127,7 @@ mod tests {
             ..Default::default()
         };
 
-        let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row).unwrap();
+        let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row, "test".into()).unwrap();
 
         let cost_json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },

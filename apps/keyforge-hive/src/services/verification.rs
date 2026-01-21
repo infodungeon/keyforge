@@ -69,12 +69,11 @@ impl VerificationService {
 
     async fn verify_signature(&self, sub: &ResultSubmission) -> AppResult<()> {
         // 1. Replay Protection (Task-hive-rev-003: Persistent tracking)
-        let nonce_key = format!("nonce:{}:{}", sub.node_id, sub.nonce);
-        let already_used = self.assets.coordinator().get_state(&nonce_key).await
-            .map_err(|e| AppError::Internal(format!("Coordination error: {e}")))?
-            .is_some();
+        // check_and_set_nonce returns true if it's NEW, false if it's a REPLAY
+        let is_new = self.assets.coordinator().check_and_set_nonce(&sub.node_id, sub.nonce, 600).await
+            .map_err(|e| AppError::Internal(format!("Coordination error: {e}")))?;
         
-        if already_used {
+        if !is_new {
             return Err(AppError::Validation("Nonce already used (Replay attack detected)".into()));
         }
 
@@ -101,10 +100,6 @@ impl VerificationService {
         if !valid {
             return Err(AppError::Validation("Invalid Signature".into()));
         }
-
-        // Mark nonce as used (TTL 10m)
-        self.assets.coordinator().set_state(&nonce_key, "1", Some(600)).await
-            .map_err(|e| AppError::Internal(format!("Failed to record nonce: {e}")))?;
 
         Ok(())
     }

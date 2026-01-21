@@ -19,7 +19,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        Keyboard::new(keys, 0).unwrap()
+        Keyboard::new(keys, 0, "test".into()).unwrap()
     }
 
     fn mock_cost_model() -> CostModel {
@@ -176,7 +176,7 @@ mod tests {
             &mut used_keys_scratch,
         );
 
-        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 100);
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 100).unwrap();
         assert_eq!(delta, 0);
     }
 
@@ -211,7 +211,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
         corpus.bigrams.push((0, 1, 100));
@@ -246,7 +246,7 @@ mod tests {
         );
 
         let score_before = engine.score(&layout).unwrap().0;
-        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2);
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2).unwrap();
 
         let mut swapped_keys = layout_keys.clone();
         swapped_keys.swap(1, 2);
@@ -274,7 +274,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
         corpus.bigrams.push((0, 0, 100));
@@ -308,7 +308,7 @@ mod tests {
         );
 
         let score_before = engine.score(&layout).unwrap().0;
-        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1);
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
 
         let mut swapped_keys = layout_keys.clone();
         swapped_keys.swap(0, 1);
@@ -350,14 +350,14 @@ mod tests {
         );
 
         // This should not panic and should handle missing candidates2
-        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1);
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
         assert_eq!(delta, 0);
     }
 
     #[test]
     fn test_delta_trigram_overlaps() {
         let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode { index: i, ..Default::default() }).collect();
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let mut cp = Corpus::default();
         // Trigrams like (a,a,x), (b,a,x), (x,a,a), etc.
         cp.trigrams.push((97, 97, 98, 100)); 
@@ -383,7 +383,7 @@ mod tests {
             &mut used_keys_scratch,
         );
 
-        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1);
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
         // We just care that it executes the continue branches
         assert!(delta != i64::MAX);
     }
@@ -397,8 +397,14 @@ mod tests {
         let engine = EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
         let mut ctx = engine.context().clone();
         // Huge modifier
-        ctx.sequence_modifiers.insert((97, 98), crate::kernel::types::Score(i64::MAX / 2));
-        ctx.cost_matrix[0 * ctx.key_count + 1] = crate::kernel::types::Score(i64::MAX / 2);
+        ctx.sequence_modifiers = std::sync::Arc::new(std::collections::HashMap::from([((97, 98), crate::kernel::types::Score(i64::MAX / 2))]));
+        
+        // Use a mutable copy of the geometry to inject the huge cost
+        let mut geom = ctx.geometry.clone();
+        let mut costs = (*geom.cost_matrix).to_vec();
+        costs[0 * ctx.key_count + 1] = crate::kernel::types::Score(i64::MAX / 2);
+        geom.cost_matrix = costs.into();
+        ctx.geometry = geom;
         
         let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)];
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();

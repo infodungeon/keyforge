@@ -18,7 +18,7 @@ fn setup_kb_wiring() -> Keyboard {
             ..Default::default()
         })
         .collect();
-    Keyboard::new(keys, 0).unwrap()
+    Keyboard::new(keys, 0, "test".into()).unwrap()
 }
 
 fn mock_cost_model_wiring() -> CostModel {

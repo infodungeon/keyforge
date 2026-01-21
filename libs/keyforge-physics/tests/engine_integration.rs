@@ -82,7 +82,7 @@ fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
             ..Default::default()
         },
     ];
-    let kb = Keyboard::new(keys, 0).unwrap();
+    let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
     let mut corpus = Corpus::default();
     corpus.char_freqs[97] = 100;
     corpus.char_freqs[98] = 200;

@@ -72,6 +72,6 @@ pub use layout::Layout;
 pub use rubric::Rubric;
 pub use types::{
     AnalysisReport, ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, MetricViolation,
-    OptimizationResult, RowIndex, Score, SpaceHandPreference, SwapSuggestion,
+    OptimizationResult, RowIndex, Score, ScoringResult, SpaceHandPreference, SwapSuggestion,
 };
 pub use validator::{LayoutValidator, Validator};

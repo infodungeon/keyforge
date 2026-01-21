@@ -36,7 +36,7 @@ fn main() {
             ..Default::default()
         })
         .collect();
-    let keyboard = Keyboard::new(keys, 0).unwrap();
+    let keyboard = Keyboard::new(keys, 0, "test".into()).unwrap();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
     let cost_model = mock_cost_model();

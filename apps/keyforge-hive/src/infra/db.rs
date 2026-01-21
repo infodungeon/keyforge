@@ -155,6 +155,8 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
         match options_res {
             Ok(mut options) => {
                 options = options.log_statements(tracing::log::LevelFilter::Debug);
+                let host = options.get_host().to_string();
+                let db = options.get_database().unwrap_or("unknown").to_string();
 
                 match PgPoolOptions::new()
                     .max_connections(max_connections)
@@ -177,8 +179,6 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
                 {
                     Ok(p) => return Ok(p),
                     Err(e) => {
-                        let host = options.get_host();
-                        let db = options.get_database().unwrap_or("unknown");
                         warn!(
                             "⚠️  DB Connection attempt {}/{} failed: {}. Target: {}/{}",
                             i, max_retries, e, host, db

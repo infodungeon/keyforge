@@ -163,7 +163,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 1).unwrap();
+        let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         let mut corpus = Corpus::default();
         for i in 0..size {
             corpus.char_freqs[i] = 100;

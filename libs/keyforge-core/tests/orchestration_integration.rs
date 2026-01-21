@@ -36,6 +36,7 @@ fn minimal_keyboard() -> Keyboard {
             },
         ],
         1,
+        "test".into(),
     )
     .unwrap()
 }
@@ -107,8 +108,8 @@ fn minimal_request() -> EngineRequest {
 
 struct TestCallback;
 impl ProgressCallback for TestCallback {
-    fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
-        true
+    fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> OptimizationControl {
+        OptimizationControl::Continue
     }
 }
 

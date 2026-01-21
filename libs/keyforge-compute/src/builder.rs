@@ -172,7 +172,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
 
         // Create Keyboard from Definition (using home_row from geometry)
         let keyboard = Arc::new(
-            keyforge_model::Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row)
+            keyforge_model::Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row, kb_def.meta.kb_type.clone())
                 .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?,
         );
 
@@ -185,7 +185,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             for (i, &freq) in corpus.char_freqs.iter().enumerate() {
                 if freq > 0 {
                     let code = i as u16;
-                    if registry.get_label(code).contains("0x") {
+                    if registry.get_label(keyforge_model::KeyCode(code)).contains("0x") {
                         // Not found in registry (falls back to 0xHEX)
                         let pct = (freq as f64 / total_freq as f64) * 100.0;
                         if pct > 0.1 {

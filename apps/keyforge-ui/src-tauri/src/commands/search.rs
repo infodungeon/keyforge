@@ -2,7 +2,7 @@ use crate::error::CommandError;
 use crate::models::{JobStatusUpdate, RegisterJobRequest, SearchUpdate, StartSearchRequest};
 use crate::state::{LocalWorkerState, SearchState, SessionState};
 use crate::utils::get_data_dir;
-use keyforge_evolution::ProgressCallback;
+use keyforge_evolution::{OptimizationControl, ProgressCallback};
 use keyforge_infra::{AssetLoader, HiveClient};
 use keyforge_model::KeyCode;
 use keyforge_protocol::{JobRequest, JobResponse, JobStatus};
@@ -170,9 +170,9 @@ struct TauriProgressCallback {
 }
 
 impl ProgressCallback for TauriProgressCallback {
-    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool {
+    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> OptimizationControl {
         if self.stop_flag.load(Ordering::SeqCst) {
-            return false;
+            return OptimizationControl::Stop;
         }
 
         #[allow(clippy::unwrap_used)]
@@ -197,7 +197,7 @@ impl ProgressCallback for TauriProgressCallback {
             #[allow(clippy::unwrap_used)]
             let _ = self.window.emit("search_update", update);
         }
-        true
+        OptimizationControl::Continue
     }
 }
 

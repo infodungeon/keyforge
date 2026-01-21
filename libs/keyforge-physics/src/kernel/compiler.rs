@@ -46,7 +46,7 @@ impl Compiler {
 
         // Stage 2: Costs
         // Task-phys-rev-025: Derive model key from KB notes or metadata
-        let model_key = if kb.notes.to_lowercase().contains("ortho") {
+        let model_key = if kb.kb_type.to_lowercase().contains("ortho") {
             Some("model_ortho")
         } else {
             Some("model_a_row_staggered")
@@ -63,44 +63,6 @@ impl Compiler {
         // Stage 3: Corpus
         let corpus_stage = CorpusStage { corpus, rubric };
         let corpus_out = corpus_stage.execute(())?;
-
-        // Stage 4: Key Pre-computation (New for task-phys-011)
-        let mut unique_keys_set = std::collections::HashSet::new();
-
-        // Collect from monograms
-        for (i, &freq) in corpus_out.char_freqs.iter().enumerate() {
-            #[allow(clippy::cast_possible_truncation)]
-            if freq > 0 {
-                let code = i as u16;
-                unique_keys_set.insert(code);
-                
-                // Task-phys-rev-015: Warn if high-freq char is missing from KB
-                // (This requires checking against registry or layout, 
-                // but at this stage we only have the physical keys of the KB).
-                // Actually, the check is better done in analyze_layout.
-            }
-        }
-
-        // Collect from Bigrams
-        for &(c1, c2, _) in &corpus.bigrams {
-            unique_keys_set.insert(c1);
-            unique_keys_set.insert(c2);
-        }
-
-        // Collect from Trigrams
-        for &(c1, c2, c3, _) in &corpus.trigrams {
-            unique_keys_set.insert(c1);
-            unique_keys_set.insert(c2);
-            unique_keys_set.insert(c3);
-        }
-
-        let mut sorted_unique_keys: Vec<u16> = unique_keys_set.into_iter().collect();
-        sorted_unique_keys.sort_unstable();
-
-        let mut key_rank_map = HashMap::with_capacity(sorted_unique_keys.len());
-        for (rank, &key) in sorted_unique_keys.iter().enumerate() {
-            key_rank_map.insert(key, rank);
-        }
 
         let mut sequence_modifiers = HashMap::new();
         for (bigram, &val) in &cost_model.dynamic_rules.sequence_modifiers {
@@ -119,7 +81,6 @@ impl Compiler {
         let ctx = EngineContext {
             key_count,
             geometry: super::GeometryData {
-                key_count,
                 hands: geo_out.hands.into(),
                 fingers: geo_out.fingers.into(),
                 rows: geo_out.rows.into(),
@@ -145,23 +106,16 @@ impl Compiler {
                 trigram_mid_others1: corpus_out.trigram_mid_others1.into(),
                 trigram_mid_others2: corpus_out.trigram_mid_others2.into(),
                 trigram_mid_freqs: corpus_out.trigram_mid_freqs.into(),
-                trigram_end_starts: corpus_out.trigram_end_starts.into(),
-                trigram_end_others1: corpus_out.trigram_end_others1.into(),
-                trigram_end_others2: corpus_out.trigram_end_others2.into(),
-                trigram_end_freqs: corpus_out.trigram_end_freqs.into(),
             },
             all_bigrams: corpus.bigrams.clone().into(),
             all_trigrams: corpus.trigrams.clone().into(),
             penalty_redirect: Score::from_f32(rubric.redirect)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
-            penalty_skip: Score::ZERO,
             bonus_roll: Score::from_f32(rubric.roll_bonus)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             bonus_roll_out: Score::from_f32(rubric.roll_out_bonus)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             sequence_modifiers: Arc::new(sequence_modifiers),
-            sorted_unique_keys: sorted_unique_keys.into(),
-            key_rank_map: Arc::new(key_rank_map),
         };
 
         ctx.verify()?;
@@ -185,7 +139,7 @@ mod tests {
             finger: FingerIndex::new_unchecked(1),
             ..Default::default()
         }];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let rubric = Rubric::default();
 
@@ -210,12 +164,12 @@ mod tests {
         assert!(res.is_ok());
         let ctx = res.unwrap();
         assert_eq!(ctx.key_count, 1);
-        assert!(ctx.char_freqs.iter().all(|&f| f == 0));
+        assert!(ctx.corpus.char_freqs.iter().all(|&f| f == 0));
     }
 
     #[test]
     fn test_compiler_missing_cost_model() {
-        let kb = Keyboard::new(vec![KeyNode::default()], 0).unwrap();
+        let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let cost_model: CostModel = serde_json::from_str(
             r#"{
@@ -233,7 +187,7 @@ mod tests {
     #[test]
     fn test_compiler_invalid_score_values() {
         let keys = vec![KeyNode::default()];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let mut rubric = Rubric::default();
         rubric.redirect = f32::NAN; // Trigger error
@@ -258,7 +212,7 @@ mod tests {
     #[test]
     fn test_compiler_invalid_sequence_modifier() {
         let keys = vec![KeyNode::default()];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let rubric = Rubric::default();
 

@@ -20,10 +20,6 @@ pub struct CorpusOutput {
     pub trigram_mid_others1: Vec<KeyCode>,
     pub trigram_mid_others2: Vec<KeyCode>,
     pub trigram_mid_freqs: Vec<u32>,
-    pub trigram_end_starts: Vec<usize>,
-    pub trigram_end_others1: Vec<KeyCode>,
-    pub trigram_end_others2: Vec<KeyCode>,
-    pub trigram_end_freqs: Vec<u32>,
 }
 
 /// Stage 3: Corpus Flattening & Pruning.
@@ -51,8 +47,6 @@ impl CompilationStage for CorpusStage<'_> {
             flatten_trigrams_start(&pruned_trigrams);
         let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) =
             flatten_trigrams_mid(&pruned_trigrams);
-        let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) =
-            flatten_trigrams_end(&pruned_trigrams);
 
         let char_freqs = self.corpus.char_freqs.clone();
 
@@ -72,10 +66,6 @@ impl CompilationStage for CorpusStage<'_> {
             trigram_mid_others1,
             trigram_mid_others2,
             trigram_mid_freqs,
-            trigram_end_starts,
-            trigram_end_others1,
-            trigram_end_others2,
-            trigram_end_freqs,
         })
     }
 }
@@ -230,40 +220,6 @@ fn flatten_trigrams_mid(
         }
         o1.push(KeyCode(c1));
         o2.push(KeyCode(c3));
-        freqs.push(freq);
-        current_offset += 1;
-    }
-
-    while current_char <= 65536 {
-        starts[current_char] = current_offset;
-        current_char += 1;
-    }
-
-    (starts, o1, o2, freqs)
-}
-
-fn flatten_trigrams_end(
-    source: &[(u16, u16, u16, u32)],
-) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
-    let mut sorted = source.to_vec();
-    sorted.sort_unstable_by_key(|&(_, _, c3, _)| c3);
-
-    let mut starts = vec![0; 65537];
-    let mut o1 = Vec::with_capacity(source.len());
-    let mut o2 = Vec::with_capacity(source.len());
-    let mut freqs = Vec::with_capacity(source.len());
-
-    let mut current_char = 0usize;
-    let mut current_offset = 0usize;
-
-    for &(c1, c2, c3, freq) in &sorted {
-        let c3 = c3 as usize;
-        while current_char <= c3 {
-            starts[current_char] = current_offset;
-            current_char += 1;
-        }
-        o1.push(KeyCode(c1));
-        o2.push(KeyCode(c2));
         freqs.push(freq);
         current_offset += 1;
     }

@@ -46,7 +46,9 @@ impl AssetLoader for MockLoader {
 async fn test_runner_lifecycle() {
     struct NoOpCallback;
     impl ProgressCallback for NoOpCallback {
-        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool { true }
+        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> keyforge_core::OptimizationControl {
+            keyforge_core::OptimizationControl::Continue
+        }
     }
 
     let loader = MockLoader;
@@ -72,7 +74,7 @@ async fn test_runner_prepare_job() {
     config.definition.geometry.keys.push(keyforge_model::KeyNode::default());
     config.definition.geometry.prime_slots.push(KeyIndex(0));
     
-    let rt = runner.prepare_job(&config).await.unwrap();
+    let rt = runner.prepare_job(&config, None).await.unwrap();
     assert_eq!(rt.engine.key_count(), 1);
 }
 
@@ -80,7 +82,9 @@ async fn test_runner_prepare_job() {
 async fn test_runner_pinned_keys() {
     struct NoOpCallback;
     impl ProgressCallback for NoOpCallback {
-        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool { true }
+        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> keyforge_core::OptimizationControl {
+            keyforge_core::OptimizationControl::Continue
+        }
     }
 
     let _loader = MockLoader;
@@ -106,7 +110,7 @@ async fn test_runner_pinned_keys() {
     });
 
     let session = keyforge_core::ScoringSession {
-        engine: keyforge_physics::EngineFactory::new_exact(&keyforge_model::Keyboard::new(vec![keyforge_model::KeyNode::default()], 0).unwrap(), &Corpus::default(), &keyforge_model::Rubric::default(), &cm).unwrap().into(),
+        engine: keyforge_physics::EngineFactory::new_exact(&keyforge_model::Keyboard::new(vec![keyforge_model::KeyNode::default()], 0, "test".into()).unwrap(), &Corpus::default(), &keyforge_model::Rubric::default(), &cm).unwrap().into(),
         registry: Arc::new(registry),
         search_config: keyforge_model::SearchConfig::default(),
     };

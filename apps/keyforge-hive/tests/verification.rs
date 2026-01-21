@@ -2,7 +2,7 @@
 
 //! Integration tests for submission signature verification.
 
-use keyforge_hive::cache::CompiledEngineCache;
+use keyforge_hive::cache::{CompiledEngineCache, ParsedLayoutCache};
 use keyforge_hive::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_hive::VerificationService;
 use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
@@ -39,8 +39,9 @@ async fn test_signature_enforcement() {
     let assets = Arc::new(ValkeyProvider::new(coordinator));
 
     let engine_cache = Arc::new(CompiledEngineCache::new());
+    let layout_cache = Arc::new(ParsedLayoutCache::new());
 
-    let service = VerificationService::new(job_repo, node_repo.clone(), assets, engine_cache);
+    let service = VerificationService::new(job_repo, node_repo.clone(), assets, engine_cache, layout_cache);
 
     let node_id = format!("node-{}", Uuid::new_v4());
     let (sk_hex, pk_hex) = crypto::generate_keypair();

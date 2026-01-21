@@ -18,7 +18,7 @@
 //! key positions, dimensions, and finger assignments.
 
 use crate::asset::{Asset, AssetCategory};
-use crate::constants::MAX_KEYBOARD_KEYS;
+use crate::constants::{MAX_KEYBOARD_KEYS, MAX_KEYBOARD_NAME_LEN};
 use crate::error::ForgeError;
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use crate::validator::Validator;
@@ -158,9 +158,6 @@ impl Default for KeyNode {
 fn default_size() -> f32 {
     1.0
 }
-fn default_home_row() -> i8 {
-    1
-}
 
 /// Collection of keys and slot definitions defining the keyboard geometry.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -195,13 +192,16 @@ impl Validator for KeyboardGeometry {
         if self.keys.is_empty() {
             return Err("Keyboard geometry must have at least one key".to_string());
         }
-        
+
         // Task-prot-rev-011: Validate home row against keys
         let has_home_keys = self.keys.iter().any(|k| k.is_home);
         let has_home_row_matches = self.keys.iter().any(|k| k.row.0 == self.home_row);
-        
+
         if !has_home_keys && !has_home_row_matches {
-             return Err(format!("Invalid home row {}: no keys found on this row and no keys marked is_home", self.home_row));
+            return Err(format!(
+                "Invalid home row {}: no keys found on this row and no keys marked is_home",
+                self.home_row
+            ));
         }
 
         if self.keys.len() > MAX_KEYBOARD_KEYS {
@@ -294,9 +294,6 @@ impl KeyboardDefinition {
             });
         }
         Err("Failed to parse keyboard JSON".to_string())
-    }
-}
-
     }
 }
 
@@ -435,12 +432,17 @@ mod tests {
 
         // Invalid finger index (using new_unchecked to bypass safety)
         let geom = KeyboardGeometry {
-            keys: vec![KeyNode { finger: FingerIndex::new_unchecked(10), ..Default::default() }],
+            keys: vec![
+                KeyNode {
+                    finger: FingerIndex::new_unchecked(10),
+                    ..Default::default()
+                },
+            ],
             prime_slots: vec![KeyIndex(0)],
             ..Default::default()
         };
         assert!(geom.validate().is_err());
-        
+
         assert_eq!(geom.key_count(), 1);
     }
 

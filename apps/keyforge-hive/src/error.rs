@@ -44,6 +44,9 @@ pub enum AppError {
     #[error("Internal Server Error: {0}")]
     Any(#[from] anyhow::Error),
 
+    #[error("Internal Error: {0}")]
+    Internal(String),
+
     #[error("Service Unavailable: {0}")]
     ServiceUnavailable(String),
 
@@ -87,6 +90,14 @@ impl IntoResponse for AppError {
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ErrorCode::InternalError,
                     "An internal server error occurred".to_string(),
+                )
+            }
+            AppError::Internal(s) => {
+                tracing::error!("Internal Error: {}", s);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorCode::InternalError,
+                    s,
                 )
             }
             // Startups errors like Config typically panic before HTTP, but if returned:

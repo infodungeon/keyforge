@@ -159,7 +159,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        Keyboard::new(keys, 0).unwrap()
+        Keyboard::new(keys, 0, "test".into()).unwrap()
     }
 
     #[test]
@@ -187,7 +187,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let rubric = Rubric::default();
 
         let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();

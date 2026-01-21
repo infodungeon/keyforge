@@ -41,6 +41,11 @@ impl ValkeyProvider {
         Self { coordinator }
     }
 
+    /// Returns the underlying distributed coordinator.
+    pub fn coordinator(&self) -> Arc<dyn DistributedCoordinator> {
+        self.coordinator.clone()
+    }
+
     /// Fetches the current system asset manifest from the distributed store.
     pub async fn get_manifest(&self) -> ServerManifest {
         match self.coordinator.get_all_manifest_entries().await {

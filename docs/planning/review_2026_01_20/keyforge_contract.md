@@ -60,6 +60,9 @@
 - [ ] **Task-prot-rev-014**: Line 104: Arbitrary KLE slots.
     - **Deficiency**: Assigns slots 0-8 as Prime blindly.
     - **Recommendation**: Distance-based ranking.
+- [x] **Task-prot-rev-022**: Safe regex handling for KLE label extraction.
+    - **Deficiency**: Raw KLE labels may contain HTML tags or other formatting clutter.
+    - **Recommendation**: Implement safe regex sanitization.
 
 ## libs/keyforge-model/src/layout.rs
 - [ ] **Task-prot-rev-015**: Line 52: Undocumented duplicates.
@@ -75,7 +78,7 @@
     - **Recommendation**: Validation error.
 
 ## libs/keyforge-model/src/corpus.rs
-- [ ] **Task-prot-rev-018**: Line 80: Inefficient merging.
+- [x] **Task-prot-rev-018**: Line 80: Inefficient merging.
     - **Deficiency**: Iterates 65536 times.
     - **Recommendation**: Sparse tracking.
 

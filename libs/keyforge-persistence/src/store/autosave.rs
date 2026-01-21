@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tempfile::NamedTempFile;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 /// A snapshot of the current user session.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

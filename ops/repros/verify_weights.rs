@@ -37,7 +37,7 @@ fn main() {
             ..Default::default()
         })
         .collect();
-    let keyboard = Keyboard::new(keys, 0).unwrap();
+    let keyboard = Keyboard::new(keys, 0, "test".into()).unwrap();
     let mut corpus = Corpus::default();
     corpus.char_freqs[97] = 1; // 'a'
     corpus.char_freqs[98] = 1; // 'b'

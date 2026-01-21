@@ -52,14 +52,16 @@ impl ScoringEngine for GenericScoringEngine {
         let layout_slice = validated.as_slice();
         SCRATCH.with(|scratch| {
             let mut s = scratch.borrow_mut();
+            let key_count = self.ctx.key_count;
+            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,
-                self.ctx.key_count,
-                s.starts.as_mut_slice(),
-                s.counts.as_mut_slice(),
-                s.indices.as_mut_slice(),
-                s.current_offsets.as_mut_slice(),
-                &mut s.used_keys,
+                key_count,
+                starts,
+                counts,
+                indices,
+                offsets,
+                used,
             );
 
             // Access private kernels for breakdown
@@ -97,14 +99,16 @@ impl ScoringEngine for GenericScoringEngine {
 
         SCRATCH.with(|scratch| {
             let mut s = scratch.borrow_mut();
+            let key_count = self.ctx.key_count;
+            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 validated.as_slice(),
-                self.ctx.key_count,
-                s.starts.as_mut_slice(),
-                s.counts.as_mut_slice(),
-                s.indices.as_mut_slice(),
-                s.current_offsets.as_mut_slice(),
-                &mut s.used_keys,
+                key_count,
+                starts,
+                counts,
+                indices,
+                offsets,
+                used,
             );
 
             let delta = calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b)?;

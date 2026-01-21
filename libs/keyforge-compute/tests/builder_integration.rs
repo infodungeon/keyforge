@@ -3,7 +3,7 @@ use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel, Layout, Searc
 use keyforge_physics::EngineFactory;
 use keyforge_model::keycodes::KeycodeRegistry;
 use std::sync::Arc;
-use keyforge_core::{ProgressCallback, ScoringSession};
+use keyforge_core::{ProgressCallback, ScoringSession, OptimizationControl};
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
@@ -47,7 +47,7 @@ impl AssetLoader for MockLoader {
 }
 
 fn setup_runtime() -> Runtime {
-    let kb = Keyboard::new(vec![KeyNode::default()], 0).unwrap();
+    let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
     let mut cm = CostModel::default();
     cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
         description: "test".into(),
@@ -62,7 +62,9 @@ fn setup_runtime() -> Runtime {
 fn test_runtime_methods() {
     struct NoOpCallback;
     impl ProgressCallback for NoOpCallback {
-        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[keyforge_model::KeyCode], _ips: f32) -> bool { true }
+        fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[keyforge_model::KeyCode], _ips: f32) -> OptimizationControl {
+            OptimizationControl::Continue
+        }
     }
 
     let mut rt = setup_runtime();
@@ -84,7 +86,7 @@ fn test_runtime_methods() {
 
 #[test]
 fn test_runtime_from_session() {
-    let kb = Keyboard::new(vec![KeyNode::default()], 0).unwrap();
+    let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
     let mut cm = CostModel::default();
     cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
         description: "test".into(),

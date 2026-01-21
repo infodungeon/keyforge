@@ -60,12 +60,12 @@ pub fn suggest_swaps(
 
             // Exclude THUMB keys from swap suggestions if requested
             if !include_thumbs
-                && (ctx.fingers[i] == FingerIndex::THUMB || ctx.fingers[j] == FingerIndex::THUMB)
+                && (ctx.geometry.fingers[i] == FingerIndex::THUMB || ctx.geometry.fingers[j] == FingerIndex::THUMB)
             {
                 continue;
             }
 
-            let delta = calculate_swap_delta(ctx, &validated, &pos_map, i, j);
+            let delta = calculate_swap_delta(ctx, &validated, &pos_map, i, j).unwrap_or(0);
 
             if delta < 0 {
                 #[allow(clippy::cast_precision_loss)]
@@ -149,7 +149,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 1).unwrap();
+        let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         let mut corpus = Corpus::default();
         // Character 10 ('e') is very frequent
         corpus.char_freqs[10] = 1000;
@@ -204,7 +204,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        Keyboard::new(keys, 0).unwrap()
+        Keyboard::new(keys, 0, "test".into()).unwrap()
     }
 
     #[test]
@@ -276,7 +276,7 @@ mod tests {
             &mut used_keys_scratch,
         );
 
-        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2);
+        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2).unwrap();
         
         assert!(delta > 0, "Degrading swap should have positive delta");
     }
@@ -289,8 +289,13 @@ mod tests {
 
         let engine = EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
         let mut ctx = engine.context().clone();
-        // Set key cost to very large to cause overflow when multiplied
-        ctx.key_costs[0] = Score(i64::MAX / 10); 
+        
+        // Create a mutable copy of geometry to modify key_costs
+        let mut geom = ctx.geometry.clone();
+        let mut costs = (*geom.key_costs).to_vec();
+        costs[0] = Score(i64::MAX / 10);
+        geom.key_costs = costs.into();
+        ctx.geometry = geom;
 
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
         
@@ -319,7 +324,7 @@ mod tests {
              col: ColIndex(i as i8),
              ..Default::default()
         }).collect();
-        let kb = Keyboard::new(keys, 1).unwrap();
+        let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         
         let mut cp = Corpus::default();
         // Create strong incentive to swap key 0 (thumb) and key 2 (index)

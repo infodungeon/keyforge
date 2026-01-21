@@ -29,7 +29,7 @@ pub fn to_domain_keyboard(
         })
         .collect();
 
-    keyforge_model::Keyboard::new(keys, geo.home_row)
+    keyforge_model::Keyboard::new(keys, geo.home_row, String::new())
         .map_err(|e| AdapterError::Validation(format!("Failed to create keyboard: {e}")))
 }
 

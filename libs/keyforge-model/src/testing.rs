@@ -100,7 +100,7 @@ impl Arbitrary for Keyboard {
                 for (i, key) in keys.iter_mut().enumerate() {
                     key.index = i;
                 }
-                Keyboard::new(keys, 1).unwrap()
+                Keyboard::new(keys, 1, "test".into()).unwrap()
             })
             .boxed()
     }

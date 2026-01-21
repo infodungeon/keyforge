@@ -34,6 +34,12 @@ pub enum PhysicsError {
     CalculationError(String),
 }
 
+impl From<String> for PhysicsError {
+    fn from(s: String) -> Self {
+        Self::CalculationError(s)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

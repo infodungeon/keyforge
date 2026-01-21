@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use crate::models::SharedTelemetry;
-use keyforge_core::ProgressCallback;
+use keyforge_core::{ProgressCallback, OptimizationControl};
 use keyforge_model::KeyCode;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::info;

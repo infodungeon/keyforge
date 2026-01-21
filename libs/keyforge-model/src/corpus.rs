@@ -22,6 +22,7 @@ use crate::error::ForgeError;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 
+/// Metadata describing a text corpus.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CorpusMetadata {
     /// If true, this corpus represents standard prose and supports synthetic data injection.

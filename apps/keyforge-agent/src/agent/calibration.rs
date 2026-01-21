@@ -92,7 +92,7 @@ pub async fn calibrate(
     let def: KeyboardDefinition = serde_json::from_str(&content)
         .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
 
-    let keyboard = Keyboard::new(def.geometry.keys, def.geometry.home_row)
+    let keyboard = Keyboard::new(def.geometry.keys, def.geometry.home_row, def.meta.kb_type.clone())
         .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     let ips = if config.duration_ms == 0 {
@@ -179,7 +179,7 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
             ..Default::default()
         });
     }
-    let keyboard = Keyboard::new(keys, 0).map_err(|e| AgentError::Calibration(e.to_string()))?;
+    let keyboard = Keyboard::new(keys, 0, "test".into()).map_err(|e| AgentError::Calibration(e.to_string()))?;
     run_benchmark(&keyboard, config)
 }
 

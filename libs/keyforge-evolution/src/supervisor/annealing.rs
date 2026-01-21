@@ -23,7 +23,8 @@ use keyforge_model::{KeyCode, Layout};
 use keyforge_physics::ScoringEngine;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
@@ -63,7 +64,7 @@ impl ProgressReporter {
             };
 
             let ips = if elapsed > 0.0 {
-                (steps_done as f32 / elapsed)
+                steps_done as f32 / elapsed
             } else {
                 0.0
             };
@@ -454,13 +455,23 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
 
 
-            // Final check for abort
+                        // Final check for abort
 
-            if abort_flag.load(Ordering::Relaxed) {
 
-                return Err(EvolutionError::Aborted);
 
-            }
+                        if abort_flag.load(Ordering::Relaxed) != 0 {
+
+
+
+                            return Err(EvolutionError::Aborted);
+
+
+
+                        }
+
+
+
+            
 
 
 
@@ -662,37 +673,67 @@ mod tests {
 
 
 
-    impl ProgressCallback for ScoreCheckCallback {
+        impl ProgressCallback for ScoreCheckCallback {
 
-        fn on_progress(&self, _epoch: usize, score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
 
-            let mut last = self.last_score.lock().unwrap();
 
-            if score > *last && *last != 0.0 && *last != f32::MAX {
+            fn on_progress(&self, _epoch: usize, score: f32, _layout: &[KeyCode], _ips: f32) -> crate::OptimizationControl {
 
-                self.failed.store(true, Ordering::SeqCst);
+
+
+                let mut last = self.last_score.lock().unwrap();
+
+
+
+                if score > *last && *last != 0.0 && *last != f32::MAX {
+
+
+
+                    self.failed.store(true, Ordering::SeqCst);
+
+
+
+                }
+
+
+
+                *last = score;
+
+
+
+                crate::OptimizationControl::Continue
+
+
 
             }
 
-            *last = score;
 
-            true
 
         }
 
-    }
+
+
+    
 
 
 
-    impl ProgressCallback for &ScoreCheckCallback {
+        impl ProgressCallback for &ScoreCheckCallback {
 
-        fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool {
 
-            (**self).on_progress(epoch, score, layout, ips)
+
+            fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> crate::OptimizationControl {
+
+
+
+                (**self).on_progress(epoch, score, layout, ips)
+
+
+
+            }
+
+
 
         }
-
-    }
 
 
 
@@ -770,13 +811,13 @@ mod tests {
 
                 ..Default::default()
 
-            })
+                        })
 
-            .collect();
+                        .collect();
 
-        let kb = Keyboard::new(keys, 1).unwrap();
+                    let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
 
-        let mut corpus = Corpus::default();
+                    let mut corpus = Corpus::default();
 
         for i in 0..size {
 
@@ -1080,29 +1121,29 @@ mod tests {
 
         struct ReportingCallback(Arc<AtomicUsize>);
 
-        impl ProgressCallback for ReportingCallback {
+                impl ProgressCallback for ReportingCallback {
 
-            fn on_progress(
+                    fn on_progress(
 
-                &self,
+                        &self,
 
-                _epoch: usize,
+                        _epoch: usize,
 
-                _score: f32,
+                        _score: f32,
 
-                _layout: &[KeyCode],
+                        _layout: &[KeyCode],
 
-                _ips: f32,
+                        _ips: f32,
 
-            ) -> bool {
+                    ) -> crate::OptimizationControl {
 
-                self.0.fetch_add(1, Ordering::SeqCst);
+                        self.0.fetch_add(1, Ordering::SeqCst);
 
-                true
+                        crate::OptimizationControl::Continue
 
-            }
+                    }
 
-        }
+                }
 
         let config = AnnealingConfig::new(2100, 1.0, 0.1, 42, 2100, 0, 1.0).unwrap();
 
@@ -1154,27 +1195,27 @@ mod tests {
 
         struct BreakCallback;
 
-        impl ProgressCallback for BreakCallback {
+                impl ProgressCallback for BreakCallback {
 
-            fn on_progress(
+                    fn on_progress(
 
-                &self,
+                        &self,
 
-                _epoch: usize,
+                        _epoch: usize,
 
-                _score: f32,
+                        _score: f32,
 
-                _layout: &[KeyCode],
+                        _layout: &[KeyCode],
 
-                _ips: f32,
+                        _ips: f32,
 
-            ) -> bool {
+                    ) -> crate::OptimizationControl {
 
-                false
+                        crate::OptimizationControl::Stop
 
-            }
+                    }
 
-        }
+                }
 
         let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 2000, 0, 1.0).unwrap();
 

@@ -38,7 +38,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        Keyboard::new(keys, 1).unwrap()
+        Keyboard::new(keys, 1, "test".into()).unwrap()
     }
 
     fn mock_cost_model() -> CostModel {
@@ -88,7 +88,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb_manual = Keyboard::new(keys, 1).unwrap();
+        let kb_manual = Keyboard::new(keys, 1, "test".into()).unwrap();
 
         let mut corpus_manual = Corpus::default();
         corpus_manual.bigrams.push((0, 1, 100)); // SFB
@@ -121,7 +121,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         let layout = Layout::new_unchecked(vec![
             KeyCode(97),
@@ -193,7 +193,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
         corpus.bigrams.push((0, 1, 1));
@@ -227,7 +227,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
         corpus.bigrams.push((0, 1, 1));
@@ -264,7 +264,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
@@ -309,7 +309,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
 
         let mut corpus = Corpus::default();
@@ -356,7 +356,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         let layout = Layout::new_unchecked(vec![KeyCode(116), KeyCode(105), KeyCode(115)]);
 

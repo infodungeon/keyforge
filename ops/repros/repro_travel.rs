@@ -10,7 +10,7 @@ fn main() {
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
     let kb_def: KeyboardDefinition = rmp_serde::from_read(decoder).expect("Failed to deserialize");
     
-    let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row).unwrap();
+    let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row, "test".into()).unwrap();
 
     // Simple corpus: 
     // 'q' (idx 0), 'a' (idx 5), Space (idx 16/34)

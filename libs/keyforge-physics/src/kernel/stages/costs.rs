@@ -5,7 +5,6 @@ use crate::kernel::types::{KeyIndex, Score};
 use keyforge_model::cost_model::{FingerDefinition, HandDefinition};
 use keyforge_model::types::{FingerIndex, HandIndex};
 use keyforge_model::{CostModel, KeyNode, Keyboard, Rubric};
-use tracing::warn;
 
 /// Intermediate state containing key costs mapped from the cost model.
 pub struct CostOutput {
@@ -61,8 +60,6 @@ impl CompilationStage for CostStage<'_> {
         })
     }
 }
-
-use keyforge_model::config::weights::DEFAULT_PENALTY_MISSING_KEY;
 
 fn resolve_key_cost(
     key: &KeyNode,

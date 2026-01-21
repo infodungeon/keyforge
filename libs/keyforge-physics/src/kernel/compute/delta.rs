@@ -1,5 +1,6 @@
 use super::flow::{get_flow_delta, get_p_effective};
 use super::state::PosMap;
+use crate::error::PhysicsError;
 use crate::kernel::{
     types::{Score, ValidatedLayout},
     EngineContext,
@@ -258,7 +259,7 @@ mod tests {
                         ..Default::default()
                     })
                     .collect();
-                Keyboard::new(keys, 1).unwrap()
+                Keyboard::new(keys, 1, "test".into()).unwrap()
             });
 
             let layout_strat = prop::collection::vec(0u16..255, count)
@@ -358,7 +359,7 @@ mod tests {
              col: ColIndex(i as i8),
              ..Default::default()
         }).collect();
-        let kb = Keyboard::new(keys, 1).unwrap();
+        let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         
         let mut cp = Corpus::default();
         cp.char_freqs = vec![0; 256];

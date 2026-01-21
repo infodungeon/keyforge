@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn test_scoring_session_creation() {
-        let kb = Keyboard::new(vec![keyforge_model::KeyNode::default()], 0).unwrap();
+        let kb = Keyboard::new(vec![keyforge_model::KeyNode::default()], 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let rubric = Rubric::default();
         let mut cm = CostModel::default();

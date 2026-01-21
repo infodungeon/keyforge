@@ -112,7 +112,6 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs;
     use tempfile::tempdir;
 

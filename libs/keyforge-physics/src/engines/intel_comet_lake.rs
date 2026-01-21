@@ -54,14 +54,14 @@ impl IntelScoringEngine {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                  if is_x86_feature_detected!("avx2") && !force_scalar {
-                     unsafe { Ok(Score(score_layout_avx2(&self.ctx, &validated, &mut s, &self.config)?)) }
+                     unsafe { score_layout_avx2(&self.ctx, &validated, &mut s, &self.config).map(Score) }
                  } else {
-                     Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut s)?))
+                     score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
                  }
             }
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             {
-                 Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut s)?))
+                 score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
             }
         })
     }
@@ -97,14 +97,16 @@ impl ScoringEngine for IntelScoringEngine {
         
         SCRATCH.with(|scratch| {
             let mut s = scratch.borrow_mut();
+            let key_count = self.ctx.key_count;
+            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,
-                self.ctx.key_count,
-                s.starts.as_mut_slice(),
-                s.counts.as_mut_slice(),
-                s.indices.as_mut_slice(),
-                s.current_offsets.as_mut_slice(),
-                &mut s.used_keys,
+                key_count,
+                starts,
+                counts,
+                indices,
+                offsets,
+                used,
             );
 
             let mono = score_monograms(&self.ctx, &pm)?.0;
@@ -130,19 +132,21 @@ impl ScoringEngine for IntelScoringEngine {
 
         SCRATCH.with(|scratch| {
             let mut s = scratch.borrow_mut();
+            let key_count = self.ctx.key_count;
+            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 validated.as_slice(),
-                self.ctx.key_count,
-                s.starts.as_mut_slice(),
-                s.counts.as_mut_slice(),
-                s.indices.as_mut_slice(),
-                s.current_offsets.as_mut_slice(),
-                &mut s.used_keys,
+                key_count,
+                starts,
+                counts,
+                indices,
+                offsets,
+                used,
             );
 
             let delta = crate::kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b);
             s.clear_used();
-            Ok(delta)
+            delta
         })
     }
 
@@ -185,14 +189,16 @@ fn score_layout_scalar(
     scratch: &mut PhysicsScratch,
 ) -> Result<i64, PhysicsError> {
     let layout_slice = layout.as_slice();
+    let key_count = ctx.key_count;
+    let (starts, counts, indices, offsets, used) = scratch.get_mut_scratch();
     let pm = PosMap::from_scratch(
         layout_slice,
-        ctx.key_count,
-        scratch.starts.as_mut_slice(),
-        scratch.counts.as_mut_slice(),
-        scratch.indices.as_mut_slice(),
-        scratch.current_offsets.as_mut_slice(),
-        &mut scratch.used_keys,
+        key_count,
+        starts,
+        counts,
+        indices,
+        offsets,
+        used,
     );
 
     let m = score_monograms(ctx, &pm)?;
@@ -218,7 +224,7 @@ unsafe fn score_layout_avx2(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
     scratch: &mut PhysicsScratch,
-    config: &IntelEngineConfig,
+    _config: &IntelEngineConfig,
 ) -> Result<i64, PhysicsError> {
     // Task-phys-rev-032: Real AVX2 implementation pending.
     // Fallback to scalar for now to ensure bit-perfect accuracy.
@@ -234,7 +240,7 @@ fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physic
     let mut total = Score::ZERO;
     for &code in pm.used_keys {
         let c_val = code as usize;
-        let freq = ctx.char_freqs[c_val];
+        let freq = ctx.corpus.char_freqs[c_val];
         if freq == 0 {
             continue;
         }
@@ -245,7 +251,7 @@ fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physic
 
         let mut min_cost = Score(i64::MAX);
         for &p in candidates {
-            let cost = ctx.key_costs[p as usize];
+            let cost = ctx.geometry.key_costs[p as usize];
             if cost < min_cost {
                 min_cost = cost;
             }
@@ -265,11 +271,11 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
     for &code1 in pm.used_keys {
         let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
-        let start = ctx.bigram_starts[c1_val];
-        let end = ctx.bigram_starts[c1_val + 1];
+        let start = ctx.corpus.bigram_starts[c1_val];
+        let end = ctx.corpus.bigram_starts[c1_val + 1];
 
         for k in start..end {
-            let c2 = ctx.bigram_others[k];
+            let c2 = ctx.corpus.bigram_others[k];
             let candidates2 = pm.get(c2.0 as usize);
             if candidates2.is_empty() {
                 continue;
@@ -281,7 +287,7 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
                 for &p2 in candidates2 {
                     let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
                     
-                    let mut cost = ctx.cost_matrix[idx];
+                    let mut cost = ctx.geometry.cost_matrix[idx];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
                         cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram modifier for ({}, {})", code1, c2.0) })?;
@@ -294,7 +300,7 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
             }
             
             if min_cost.0 != i64::MAX {
-                let freq = i64::from(ctx.bigram_freqs[k]);
+                let freq = i64::from(ctx.corpus.bigram_freqs[k]);
                 let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram freq scale for ({}, {})", code1, c2.0) })?;
                 total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram total accumulation at ({}, {})", code1, c2.0) })?;
             }
@@ -304,42 +310,81 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
 }
 
 #[inline(always)]
+
 fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
+
     let mut total = Score::ZERO;
+
     for &code1 in pm.used_keys {
+
         let c1_val = code1 as usize;
+
         let candidates1 = pm.get(c1_val);
-        let start = ctx.trigram_starts[c1_val];
-        let end = ctx.trigram_starts[c1_val + 1];
+
+        let start = ctx.corpus.trigram_starts[c1_val];
+
+        let end = ctx.corpus.trigram_starts[c1_val + 1];
+
+
 
         for k in start..end {
-            let c2 = ctx.trigram_others1[k];
-            let c3 = ctx.trigram_others2[k];
+
+            let c2 = ctx.corpus.trigram_others1[k];
+
+            let c3 = ctx.corpus.trigram_others2[k];
+
             let candidates2 = pm.get(c2.0 as usize);
+
             let candidates3 = pm.get(c3.0 as usize);
 
+
+
             if candidates2.is_empty() || candidates3.is_empty() {
+
                 continue;
+
             }
+
+
 
             let mut min_cost = Score(i64::MAX);
+
             for &p1 in candidates1 {
+
                 for &p2 in candidates2 {
+
                     for &p3 in candidates3 {
+
                         let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
+
                         if cost < min_cost {
+
                             min_cost = cost;
+
                         }
+
                     }
+
                 }
+
             }
 
+
+
             if min_cost.0 != i64::MAX && min_cost.0 != 0 {
-                let freq = i64::from(ctx.trigram_freqs[k]);
+
+                let freq = i64::from(ctx.corpus.trigram_freqs[k]);
+
                 let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram freq scale for sequence starting with {}", code1) })?;
+
                 total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram total accumulation for sequence starting with {}", code1) })?;
+
             }
+
         }
+
     }
+
     Ok(total)
+
 }

@@ -27,7 +27,7 @@
 pub mod loader;
 /// High-level session management for optimization runs.
 pub mod session;
-pub use keyforge_evolution::{EvolutionError, ProgressCallback};
+pub use keyforge_evolution::{EvolutionError, ProgressCallback, OptimizationControl};
 pub use session::ScoringSession;
 
 pub use keyforge_physics::{

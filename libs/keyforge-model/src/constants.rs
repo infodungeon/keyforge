@@ -227,6 +227,9 @@ pub const DATA_DIR_CANDIDATES: &[&str] = &[
     "/app/data", // Docker convention
 ];
 
+/// Default width for layout grid display.
+pub const DEFAULT_GRID_WIDTH: usize = 10;
+
 /// Label for No-Op keys (XXXXXXX).
 pub const DEFAULT_NO_OP: &str = "XXXXXXX";
 /// Label for Transparent keys (_______).

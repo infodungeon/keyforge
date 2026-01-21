@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::error::{InfraError, InfraResult};
-use keyforge_model::constants::{REQUIRED_ASSETS, SYSTEM_DIRS, USER_RUNTIME_DIRS, USER_WORKSPACE_DIRS};
+pub use keyforge_model::constants::{USER_RUNTIME_DIRS, USER_WORKSPACE_DIRS};
+use keyforge_model::constants::{REQUIRED_ASSETS, SYSTEM_DIRS};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{error, info};

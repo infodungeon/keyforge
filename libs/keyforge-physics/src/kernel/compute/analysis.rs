@@ -64,7 +64,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     let mut redirs = Vec::new();
 
     // 1. Pass 1: Trigrams (Flow ONLY)
-    for &(c1, c2, c3, freq) in &ctx.all_trigrams {
+    for &(c1, c2, c3, freq) in ctx.all_trigrams.iter() {
         let candidates1 = pm.get(c1 as usize);
         let candidates2 = pm.get(c2 as usize);
         let candidates3 = pm.get(c3 as usize);
@@ -124,7 +124,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     }
 
     // 2. Pass 2: Bigrams (ALL TRANSITIONS, DISTANCE, USAGE)
-    for &(c1, c2, freq) in &ctx.all_bigrams {
+    for &(c1, c2, freq) in ctx.all_bigrams.iter() {
         let candidates1 = pm.get(c1 as usize);
         let candidates2 = pm.get(c2 as usize);
         if candidates1.is_empty() || candidates2.is_empty() {
@@ -376,7 +376,7 @@ mod tests {
         // Add a duplicate key for space load sharing
         keys.push(KeyNode { index: 3, hand: HandIndex::LEFT, finger: FingerIndex::INDEX, row: RowIndex(1), col: ColIndex(0), is_home: false, ..Default::default() });
         
-        let kb = Keyboard::new(keys, 0).unwrap();
+        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let mut corpus = Corpus::default();
         corpus.char_freqs[97] = 100; // 'a'
         corpus.char_freqs[98] = 200; // 'b'
