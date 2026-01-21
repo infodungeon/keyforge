@@ -60,3 +60,17 @@ Tier 1 code must adhere to strict latency budgets.
 | `ScoringEngine::score` | < 50ns | `cargo bench --bench physics` |
 | `Mutation::swap` | < 5ns | `cargo bench --bench mutation` |
 | `Anneal Step` | < 100ns | Aggregate of swap + score + decision. |
+
+## 6. Test Types & Locations
+
+### Unit Tests
+*   **Location:** Inside `src/` (typically `mod tests` at the bottom of the file or in a sibling file).
+*   **Perspective:** **Internal**. Sit on the internal side of an interface.
+*   **Scope:** Test specific internal logic in isolation.
+*   **Access:** Have access to private methods (`pub(crate)`, private fields) and implementation details.
+
+### Integration Tests
+*   **Location:** Inside `tests/` folder of the crate.
+*   **Perspective:** **External**. Sit on the external (public) side of an interface.
+*   **Scope:** Interact with the component strictly through its defined public API. Verify that various parts of the system work together correctly as a whole.
+*   **Mechanism:** Treat the component as a black box. No knowledge of internal workings or access to private state.
