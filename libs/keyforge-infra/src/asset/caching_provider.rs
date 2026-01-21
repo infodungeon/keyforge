@@ -389,7 +389,7 @@ mod tests {
         
         let kb_json = r#"{
             "meta": { "name": "CacheTest" },
-            "geometry": { "keys": [{"x":0,"y":0,"hand":0,"finger":1}], "prime_slots":[0], "med_slots":[], "low_slots":[] }
+            "geometry": { "keys": [{"x":0,"y":0,"hand":0,"finger":1,"row":0}], "prime_slots":[0], "med_slots":[], "low_slots":[], "home_row": 0 }
         }"#;
         let kb_path = kb_dir.join("test.json");
         fs::write(&kb_path, kb_json).unwrap();
@@ -427,6 +427,7 @@ mod tests {
         let mut kb = KeyboardDefinition::default();
         kb.geometry.keys.push(keyforge_model::geometry::KeyNode::default());
         kb.geometry.prime_slots.push(keyforge_model::types::KeyIndex(0));
+        kb.geometry.home_row = 0; // Match KeyNode::default() row
         
         {
             let file = File::create(&path).unwrap();

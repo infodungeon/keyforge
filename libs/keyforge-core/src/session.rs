@@ -57,14 +57,27 @@ mod tests {
         let corpus = Corpus::default();
         let rubric = Rubric::default();
         let mut cm = CostModel::default();
+        let mut fingers = std::collections::HashMap::new();
+        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+            std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+        ));
         cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
-            static_costs: std::collections::HashMap::new(),
+            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
         });
         
         let engine = EngineFactory::new_exact(&kb, &corpus, &rubric, &cm).unwrap();
         let registry = Arc::new(KeycodeRegistry::new_with_defaults());
-        let config = SearchConfig::default();
+        let config = SearchConfig::Annealing {
+            steps: 100,
+            start_temp: 10.0,
+            end_temp: 0.1,
+            seed: 42,
+            patience: 10,
+            reheats: 0,
+            reheat_factor: 0.5,
+            include_thumbs: false,
+        };
         
         let session = ScoringSession::new(Arc::from(engine), registry, config);
         assert_eq!(session.registry.definitions.len(), 2);

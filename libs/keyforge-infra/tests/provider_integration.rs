@@ -34,7 +34,7 @@ async fn test_fs_provider_json_loading() {
 
     let kb_json = r#"{
         "meta": { "name": "Test" },
-        "geometry": { "keys": [{"x":0, "y":0, "hand":0, "finger":1}], "prime_slots":[0], "med_slots":[], "low_slots":[] }
+        "geometry": { "keys": [{"x":0, "y":0, "hand":0, "finger":1, "row":0}], "prime_slots":[0], "med_slots":[], "low_slots":[], "home_row": 0 }
     }"#;
     fs::write(kb_dir.join("test.json"), kb_json).unwrap();
 
@@ -96,10 +96,13 @@ async fn test_fs_provider_binary_loading() {
             keys: vec![keyforge_model::geometry::KeyNode {
                 hand: keyforge_model::types::HandIndex::LEFT,
                 finger: keyforge_model::types::FingerIndex::INDEX,
+                row: keyforge_model::types::RowIndex(0),
                 ..Default::default()
             }],
             prime_slots: vec![keyforge_model::types::KeyIndex(0)],
-            ..Default::default()
+            med_slots: vec![],
+            low_slots: vec![],
+            home_row: 0,
         },
         ..Default::default()
     };
@@ -145,7 +148,7 @@ async fn test_fs_provider_system_json() {
     fs::create_dir_all(&sys_dir).unwrap();
     fs::write(
         sys_dir.join("sys.json"),
-        r#"{"meta":{"name":"SysJSON"}, "geometry":{"keys":[{"x":0,"y":0,"hand":0,"finger":1}],"prime_slots":[0],"med_slots":[],"low_slots":[]}}"#,
+        r#"{"meta":{"name":"SysJSON"}, "geometry":{"keys":[{"x":0,"y":0,"hand":0,"finger":1,"row":0}],"prime_slots":[0],"med_slots":[],"low_slots":[],"home_row":0}}"#,
     )
     .unwrap();
 

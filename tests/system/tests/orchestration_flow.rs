@@ -18,6 +18,7 @@ async fn test_full_orchestration_flow() {
         h: 1.0,
         ..Default::default()
     });
+    req.config.definition.geometry.home_row = 0;
     req.config
         .definition
         .geometry

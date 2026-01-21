@@ -108,12 +108,14 @@ mod tests {
             },
         ];
         let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
-        let rubric = Rubric::default();
+        let mut rubric = Rubric::default();
+        rubric.travel_lat = 1.0;
+        rubric.travel_vert = 1.0;
         let stage = GeometryStage { rubric: &rubric };
         let out = stage.execute(kb).unwrap();
 
         assert_eq!(out.hands.len(), 2);
-        // Default travel_lat/vert are 1.0, so dist remains 5.0
+        // With travel_lat/vert set to 1.0, dist remains 5.0
         assert_eq!(out.dist_matrix[1], 5.0);
     }
 }

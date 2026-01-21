@@ -39,7 +39,7 @@ impl AssetLoader for MockLoader {
             "models": {
                 "model_a_row_staggered": {
                     "description": "test",
-                    "static_costs": {}
+                    "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}}
                 }
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }

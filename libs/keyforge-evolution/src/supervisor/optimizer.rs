@@ -178,12 +178,26 @@ mod tests {
             KeyNode { index: 1, ..Default::default() },
         ], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
+        let mut fingers = std::collections::HashMap::new();
+        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+            std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+        ));
         cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
-            static_costs: std::collections::HashMap::new(),
+            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
         });
         let engine = EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
-        (Arc::from(engine), SearchConfig::default())
+        let config = SearchConfig::Annealing {
+            steps: 100,
+            start_temp: 10.0,
+            end_temp: 0.1,
+            seed: 42,
+            patience: 10,
+            reheats: 0,
+            reheat_factor: 0.5,
+            include_thumbs: false,
+        };
+        (Arc::from(engine), config)
     }
 
     #[test]
@@ -212,9 +226,13 @@ mod tests {
     fn test_optimize_wrapper() {
         let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
+        let mut fingers = std::collections::HashMap::new();
+        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+            std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+        ));
         cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
-            static_costs: std::collections::HashMap::new(),
+            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
         });
         
         let req = EngineRequest {
@@ -222,7 +240,16 @@ mod tests {
             corpus: Arc::new(Corpus::default()),
             rubric: Arc::new(Rubric::default()),
             cost_model: Arc::new(cm),
-            config: SearchConfig::default(),
+            config: SearchConfig::Annealing {
+                steps: 100,
+                start_temp: 10.0,
+                end_temp: 0.1,
+                seed: 42,
+                patience: 10,
+                reheats: 0,
+                reheat_factor: 0.5,
+                include_thumbs: false,
+            },
             initial_layout: None,
             pinned_keys: vec![],
         };

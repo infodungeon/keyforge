@@ -176,8 +176,8 @@ mod tests {
             &mut used_keys_scratch,
         );
 
-        let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 100).unwrap();
-        assert_eq!(delta, 0);
+        let delta_res = calculate_swap_delta(engine.context(), &validated, &pm, 0, 100);
+        assert!(delta_res.is_err());
     }
 
     #[test]

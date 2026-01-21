@@ -16,7 +16,7 @@ pub struct ExactScoringEngine {
 
 impl ExactScoringEngine {
     pub fn new(keyboard: Keyboard, corpus: Corpus, rubric: Rubric, cost_model: &keyforge_model::CostModel, ctx: EngineContext) -> Self {
-        let scorer = DeterministicScorer::new(&rubric, cost_model);
+        let scorer = DeterministicScorer::new(&keyboard, &rubric, cost_model);
         Self {
             scorer,
             keyboard,

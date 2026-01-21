@@ -312,6 +312,7 @@ mod tests {
     #[test]
     fn test_keyboard_geometry_validation() {
         let mut geom = KeyboardGeometry::default();
+        geom.home_row = 0; // Match KeyNode::default() row
         // 1. Empty keys
         assert!(geom.validate().is_err());
 
@@ -381,6 +382,7 @@ mod tests {
     #[test]
     fn test_keyboard_definition_asset() {
         let mut def = KeyboardDefinition::default();
+        def.geometry.home_row = 0;
         def.geometry.keys.push(KeyNode::default());
         def.geometry.prime_slots.push(KeyIndex(0));
         assert_eq!(KeyboardDefinition::category(), AssetCategory::Keyboard);
@@ -390,7 +392,7 @@ mod tests {
     #[test]
     fn test_keyboard_definition_parse() {
         // Valid Native JSON
-        let native_json = r#"{"geometry": {"keys": [{"x":0, "y":0, "hand":0, "finger":1}], "prime_slots": [0], "med_slots": [], "low_slots": []}}"#;
+        let native_json = r#"{"geometry": {"keys": [{"x":0, "y":0, "hand":0, "finger":1, "row":0}], "prime_slots": [0], "med_slots": [], "low_slots": [], "home_row": 0}}"#;
         assert!(KeyboardDefinition::parse(native_json, None).is_ok());
 
         // Valid KLE (Simple list of arrays)
@@ -406,6 +408,7 @@ mod tests {
         // Too many keys
         let geom = KeyboardGeometry {
             keys: vec![KeyNode::default(); MAX_KEYBOARD_KEYS + 1],
+            home_row: 0,
             ..Default::default()
         };
         assert!(geom.validate().is_err());
@@ -416,6 +419,7 @@ mod tests {
             prime_slots: vec![KeyIndex(0)],
             low_slots: vec![KeyIndex(0)],
             med_slots: vec![KeyIndex(1)],
+            home_row: 0,
             ..Default::default()
         };
         assert!(geom.validate().is_err());
@@ -426,6 +430,7 @@ mod tests {
             prime_slots: vec![KeyIndex(1)],
             med_slots: vec![KeyIndex(0)],
             low_slots: vec![KeyIndex(0)],
+            home_row: 0,
             ..Default::default()
         };
         assert!(geom.validate().is_err());
@@ -439,6 +444,7 @@ mod tests {
                 },
             ],
             prime_slots: vec![KeyIndex(0)],
+            home_row: 0,
             ..Default::default()
         };
         assert!(geom.validate().is_err());

@@ -353,7 +353,6 @@ mod tests {
     use crate::kernel::compiler::Compiler;
     use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel};
     use keyforge_model::types::{KeyCode, HandIndex, FingerIndex, RowIndex, ColIndex};
-    use std::collections::HashMap;
 
     #[test]
     fn test_u16_to_char() {
@@ -384,9 +383,25 @@ mod tests {
         corpus.trigrams.push((97, 98, 97, 10)); // Redirect: a -> b -> a (Index -> Middle -> Index)
         
         let mut cm = CostModel::default();
+        let mut fingers = std::collections::HashMap::new();
+        let mut base_r0 = std::collections::HashMap::new();
+        base_r0.insert("r0".to_string(), 1.0);
+        let mut base_r1 = std::collections::HashMap::new();
+        base_r1.insert("r1".to_string(), 2.0);
+        
+        let mut index_zones = std::collections::HashMap::new();
+        index_zones.insert("base".to_string(), base_r0.clone());
+        index_zones.get_mut("base").unwrap().insert("r1".to_string(), 2.0);
+        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(index_zones));
+        
+        let mut other_zones = std::collections::HashMap::new();
+        other_zones.insert("base".to_string(), base_r0);
+        fingers.insert("middle".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(other_zones.clone()));
+        fingers.insert("ring".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(other_zones));
+
         cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
-            static_costs: HashMap::new(),
+            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
         });
 
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();

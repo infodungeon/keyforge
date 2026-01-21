@@ -118,11 +118,17 @@ impl AutoSaveService {
             return Ok(None);
         }
 
-        if let Ok(meta) = tokio::fs::metadata(&self.path).await {
-            if meta.len() > MAX_SESSION_FILE_SIZE {
-                warn!("Session file too large ({} bytes), ignoring.", meta.len());
-                return Ok(None);
-            }
+        let meta = tokio::fs::metadata(&self.path).await?;
+        if !meta.is_file() {
+            return Err(crate::error::PersistenceError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Session path is not a file",
+            )));
+        }
+
+        if meta.len() > MAX_SESSION_FILE_SIZE {
+            warn!("Session file too large ({} bytes), ignoring.", meta.len());
+            return Ok(None);
         }
 
         let path = self.path.clone();
@@ -132,7 +138,14 @@ impl AutoSaveService {
             
             // Peak at content or just try parsing. 
             // Since we need to support two formats, we'll read to a value first.
-            let v: serde_json::Value = serde_json::from_reader(reader)?;
+            let v: serde_json::Value = match serde_json::from_reader(reader) {
+                Ok(v) => v,
+                Err(e) if e.is_io() => return Err(e.into()),
+                Err(e) => {
+                    warn!("Failed to parse session file: {}. Ignoring.", e);
+                    return Ok(None);
+                }
+            };
 
             // 1. Try modern format
             if let Ok(persisted) = serde_json::from_value::<PersistedSession>(v.clone()) {

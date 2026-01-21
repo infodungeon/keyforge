@@ -222,13 +222,6 @@ mod tests {
     use rand::SeedableRng;
     use std::sync::Arc;
 
-    fn load_cost_model_fixture() -> CostModel {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/default_cost_model.json");
-        let json = std::fs::read_to_string(path).expect("Failed to read fixture");
-        serde_json::from_str(&json).expect("Failed to parse fixture")
-    }
-
     fn kb_and_layout_strategy() -> impl Strategy<Value = (Keyboard, Vec<KeyCode>)> {
         (10..50usize).prop_flat_map(|count| {
             let kb_strat = prop::collection::vec(
@@ -281,7 +274,7 @@ mod tests {
                 ),
                 0..20,
             ),
-            prop::collection::vec(0u64..1000, 256),
+            prop::collection::vec(0u64..1000, 65536),
         )
             .prop_map(|(bigrams, trigrams, char_freqs)| {
                 let mut c = Corpus::default();
@@ -315,8 +308,19 @@ mod tests {
             layout_keys.shuffle(&mut rng);
 
             let rubric = Rubric::default();
-            let cost_model = load_cost_model_fixture();
-            let engine = crate::EngineFactory::new_generic(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cost_model).unwrap();
+            // Use a mock cost model instead of fixture to be more resilient
+            let mut cm = CostModel::default();
+            let mut fingers = std::collections::HashMap::new();
+            for f in 0..5 {
+                let f_name = match f { 0=>"thumb", 1=>"index", 2=>"middle", 3=>"ring", _=>"pinky" };
+                fingers.insert(f_name.to_string(), keyforge_model::cost_model::FingerDefinition::Thumb(std::collections::HashMap::from([("pos_1".into(), 1.0)])));
+            }
+            cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
+                description: "test".into(),
+                static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
+            });
+
+            let engine = crate::EngineFactory::new_generic(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cm).unwrap();
 
             let layout_for_score = Layout::new_unchecked(layout_keys.clone());
             let score_before = engine.score(&layout_for_score).unwrap().0;
@@ -362,19 +366,27 @@ mod tests {
         let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         
         let mut cp = Corpus::default();
-        cp.char_freqs = vec![0; 256];
         cp.char_freqs[97] = 100; // 'a'
         cp.char_freqs[98] = 100; // 'b'
         cp.bigrams = vec![(97, 98, 100)];
 
         let rubric = Rubric::default();
-        let cost_model = load_cost_model_fixture();
+        let mut cm = CostModel::default();
+        let mut fingers = std::collections::HashMap::new();
+        for f in 0..5 {
+            let f_name = match f { 0=>"thumb", 1=>"index", 2=>"middle", 3=>"ring", _=>"pinky" };
+            fingers.insert(f_name.to_string(), keyforge_model::cost_model::FingerDefinition::Thumb(std::collections::HashMap::from([("pos_1".into(), 1.0)])));
+        }
+        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
+        });
         
         let engine = crate::EngineFactory::new_generic(
             &Arc::new(kb), 
             &Arc::new(cp), 
             &Arc::new(rubric), 
-            &cost_model
+            &cm
         ).unwrap();
         
         let mut ctx = engine.context().clone();

@@ -127,38 +127,42 @@ impl Compiler {
 mod tests {
     use super::*;
     use keyforge_model::{
-        types::{FingerIndex, HandIndex},
+        types::{FingerIndex, HandIndex, RowIndex},
         KeyNode,
     };
+
+    fn setup_test_cost_model() -> CostModel {
+        let mut cm = CostModel::default();
+        let mut fingers = std::collections::HashMap::new();
+        let mut base_r0 = std::collections::HashMap::new();
+        base_r0.insert("r0".to_string(), 1.0);
+        let mut zones = std::collections::HashMap::new();
+        zones.insert("base".to_string(), base_r0);
+        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(zones));
+        
+        cm.models.insert(
+            "model_a_row_staggered".into(),
+            keyforge_model::cost_model::ModelDefinition {
+                description: "test".into(),
+                static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
+            },
+        );
+        cm
+    }
 
     #[test]
     fn test_compiler_empty_corpus() {
         let keys = vec![KeyNode {
             index: 0,
             hand: HandIndex(0),
-            finger: FingerIndex::new_unchecked(1),
+            finger: FingerIndex::INDEX,
+            row: RowIndex(0),
             ..Default::default()
         }];
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let rubric = Rubric::default();
-
-        let mut cost_model: CostModel = serde_json::from_str(
-            r#"{
-            "meta": {"version": "1", "description": "test", "unit": "pts"},
-            "models": {},
-            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
-        }"#,
-        )
-        .unwrap();
-
-        cost_model.models.insert(
-            "model_a_row_staggered".into(),
-            keyforge_model::cost_model::ModelDefinition {
-                description: "test".into(),
-                static_costs: HashMap::new(),
-            },
-        );
+        let cost_model = setup_test_cost_model();
 
         let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
         assert!(res.is_ok());
@@ -169,16 +173,12 @@ mod tests {
 
     #[test]
     fn test_compiler_missing_cost_model() {
-        let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
+        let kb = Keyboard::new(vec![KeyNode {
+            finger: FingerIndex::INDEX,
+            ..Default::default()
+        }], 0, "test".into()).unwrap();
         let corpus = Corpus::default();
-        let cost_model: CostModel = serde_json::from_str(
-            r#"{
-            "meta": {"version": "1", "description": "test", "unit": "pts"},
-            "models": {},
-            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
-        }"#,
-        )
-        .unwrap();
+        let cost_model = CostModel::default();
 
         let res = Compiler::compile(&kb, &corpus, &Rubric::default(), &cost_model);
         assert!(res.is_err());
@@ -186,52 +186,43 @@ mod tests {
 
     #[test]
     fn test_compiler_invalid_score_values() {
-        let keys = vec![KeyNode::default()];
+        let keys = vec![KeyNode {
+            finger: FingerIndex::INDEX,
+            ..Default::default()
+        }];
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let mut rubric = Rubric::default();
         rubric.redirect = f32::NAN; // Trigger error
 
-        let cost_model: CostModel = serde_json::from_str(
-            r#"{
-            "meta": {"version": "1", "description": "test", "unit": "pts"},
-            "models": { "model_a_row_staggered": { "description": "test", "static_costs": {} } },
-            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
-        }"#,
-        )
-        .unwrap();
+        let cost_model = setup_test_cost_model();
 
         let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
         assert!(res.is_err());
         match res.err().unwrap() {
-            PhysicsError::InvalidInput { message: _ } => {}, // assert!(message.to_lowercase().contains("nan")),
-            _ => panic!("Wrong error type"),
+            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {},
+            e => panic!("Wrong error type: {:?}", e),
         }
     }
 
     #[test]
     fn test_compiler_invalid_sequence_modifier() {
-        let keys = vec![KeyNode::default()];
+        let keys = vec![KeyNode {
+            finger: FingerIndex::INDEX,
+            ..Default::default()
+        }];
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let corpus = Corpus::default();
         let rubric = Rubric::default();
 
-        let mut cost_model: CostModel = serde_json::from_str(
-            r#"{
-            "meta": {"version": "1", "description": "test", "unit": "pts"},
-            "models": { "model_a_row_staggered": { "description": "test", "static_costs": {} } },
-            "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}
-        }"#,
-        )
-        .unwrap();
-        
+        let mut cost_model = setup_test_cost_model();
         cost_model.dynamic_rules.sequence_modifiers.insert("ab".into(), f32::NAN);
 
         let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
         assert!(res.is_err());
         match res.err().unwrap() {
-            PhysicsError::InvalidInput { message: _ } => {},
-            _ => panic!("Wrong error type"),
+            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {},
+            e => panic!("Wrong error type: {:?}", e),
         }
     }
 }

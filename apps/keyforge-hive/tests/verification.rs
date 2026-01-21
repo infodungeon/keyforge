@@ -73,7 +73,7 @@ async fn test_signature_enforcement() {
     assert!(service.verify_submission(&sub_bad).await.is_err());
 
     // Case 2: Valid Signature
-    let sig = crypto::sign_result(&sk_hex, &job_id, &layout, 100.0, timestamp, 123).unwrap();
+    let sig = crypto::sign_result(&sk_hex, &job_id, &layout, 100.0, timestamp, 456).unwrap();
     let sub_good = ResultSubmission {
         version: PROTOCOL_VERSION,
         job_id: job_id.clone(),
@@ -81,7 +81,7 @@ async fn test_signature_enforcement() {
         score: 100.0,
         node_id: node_id.clone(),
         timestamp,
-        nonce: 123,
+        nonce: 456,
         signature: sig,
     };
 

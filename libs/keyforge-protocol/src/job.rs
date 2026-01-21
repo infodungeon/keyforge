@@ -354,6 +354,7 @@ mod tests {
             },
         };
         req.config.definition.geometry.keys.push(KeyNode::default());
+        req.config.definition.geometry.home_row = 0;
         req.config
             .definition
             .geometry
@@ -454,6 +455,7 @@ mod tests {
         };
 
         req.config.definition.geometry.keys = vec![KeyNode::default()];
+        req.config.definition.geometry.home_row = 0;
         req.config.definition.geometry.prime_slots = vec![keyforge_model::KeyIndex(0)];
 
         // 1. Too many keys
@@ -530,6 +532,7 @@ mod tests {
     fn test_job_config_validation_extended() {
         let mut config = JobConfig::default();
         config.definition.geometry.keys.push(KeyNode::default());
+        config.definition.geometry.home_row = 0;
         config.definition.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
 
         // Invalid corpus

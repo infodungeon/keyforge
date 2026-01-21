@@ -40,7 +40,13 @@ impl AssetLoader for MockLoader {
             "models": {
                 "model_a_row_staggered": {
                     "description": "test",
-                    "static_costs": {}
+                    "static_costs": {
+                        "universal_hand": {
+                            "index": {
+                                "base": { "r0": 1.0 }
+                            }
+                        }
+                    }
                 }
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
@@ -80,6 +86,8 @@ async fn test_runner_prepare_session() {
         y: 0.0,
         ..Default::default()
     });
+    config.definition.geometry.home_row = 0;
+    config.definition.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
 
     let options = RunnerOptions::default();
 

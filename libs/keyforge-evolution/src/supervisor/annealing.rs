@@ -755,19 +755,19 @@ mod tests {
 
                     "static_costs": {
 
-                        "universal_hand": {
+                                                "universal_hand": {
 
-                            "thumb": { "pos_1": 100.0 },
+                                                    "thumb": { "pos_1": 100.0 },
 
-                            "index": { "base": { "r0": 100.0 } },
+                                                    "index": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } },
 
-                            "middle": { "base": { "r0": 100.0 } },
+                                                    "middle": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } },
 
-                            "ring": { "base": { "r0": 100.0 } },
+                                                    "ring": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } },
 
-                            "pinky": { "base": { "r0": 100.0 } }
+                                                    "pinky": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } }
 
-                        }
+                                                }
 
                     }
 

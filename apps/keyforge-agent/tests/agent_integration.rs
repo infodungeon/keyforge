@@ -28,7 +28,7 @@ async fn test_agent_session_bootstrap() {
     let mut f = File::create(data_root.join("user/weights/cost.json")).unwrap();
     writeln!(
         f,
-        r#"{{"meta":{{"version":"2.0","description":"Test","unit":"pts"}},"models":{{"model_a_row_staggered":{{"description":"Test","static_costs":{{}}}}}},"dynamic_rules":{{"sequence_modifiers":{{}},"penalties":{{}},"constraints":{{}}}}}}"#
+        r#"{{"meta":{{"version":"2.0","description":"Test","unit":"pts"}},"models":{{"model_a_row_staggered":{{"description":"Test","static_costs":{{"universal_hand":{{"index":{{"base":{{"r0":1.0}}}}}}}}}}}},"dynamic_rules":{{"sequence_modifiers":{{}},"penalties":{{}},"constraints":{{}}}}}}"#
     )
     .unwrap();
 

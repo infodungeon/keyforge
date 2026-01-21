@@ -10,7 +10,7 @@
 
 use keyforge_model::{
     cost_model::{FingerDefinition, HandDefinition, ModelDefinition},
-    types::{FingerIndex, HandIndex, KeyCode},
+    types::{FingerIndex, HandIndex, KeyCode, RowIndex, ColIndex},
     CostModel, Corpus, KeyNode, Keyboard, Layout, Rubric,
 };
 use keyforge_physics::{verify::DeterministicScorer, EngineFactory};
@@ -57,13 +57,13 @@ fn mock_cost_model() -> CostModel {
     let mut static_costs = HashMap::new();
     static_costs.insert("universal_hand".into(), HandDefinition { fingers });
 
-    cm.models.insert(
-        "model_a_row_staggered".into(),
-        ModelDefinition {
-            description: "test".into(),
-            static_costs,
-        },
-    );
+    let model_def = ModelDefinition {
+        description: "test".into(),
+        static_costs,
+    };
+
+    cm.models.insert("model_a_row_staggered".into(), model_def.clone());
+    cm.models.insert("model_ortho".into(), model_def);
     cm
 }
 
@@ -73,12 +73,18 @@ fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
             index: 0,
             hand: HandIndex::LEFT,
             finger: FingerIndex::INDEX,
+            row: RowIndex(0),
+            col: ColIndex(0),
+            is_home: true,
             ..Default::default()
         },
         KeyNode {
             index: 1,
             hand: HandIndex::LEFT,
             finger: FingerIndex::MIDDLE,
+            row: RowIndex(0),
+            col: ColIndex(1),
+            is_home: true,
             ..Default::default()
         },
     ];
@@ -88,14 +94,7 @@ fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
     corpus.char_freqs[98] = 200;
     corpus.bigrams.push((97, 98, 50));
 
-    let mut cm = CostModel::default();
-    cm.models.insert(
-        "model_a_row_staggered".into(),
-        ModelDefinition {
-            description: "test".into(),
-            static_costs: HashMap::new(),
-        },
-    );
+    let cm = mock_cost_model();
 
     (kb, corpus, Rubric::default(), cm)
 }
@@ -257,7 +256,7 @@ proptest! {
             .collect();
 
         let cost_model = mock_cost_model();
-        let oracle = DeterministicScorer::new(&rubric, &cost_model);
+        let oracle = DeterministicScorer::new(&kb, &rubric, &cost_model);
 
         let generic = EngineFactory::new_generic(&kb, &corpus, &rubric, &cost_model).unwrap();
         let exact = EngineFactory::new_exact(&kb, &corpus, &rubric, &cost_model).unwrap();

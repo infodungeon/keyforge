@@ -37,11 +37,11 @@ fn test_list_assets() {
     let json = r#"{
         "meta": { "name": "Test Board", "author": "Unit Test", "version": "1", "type": "ortho" },
         "geometry": { 
-            "keys": [{"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1}], 
+            "keys": [{"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1, "row": 0}], 
             "prime_slots": [0],
             "med_slots": [],
             "low_slots": [],
-            "home_row": 2 
+            "home_row": 0 
         },
         "layouts": {}
     }"#;

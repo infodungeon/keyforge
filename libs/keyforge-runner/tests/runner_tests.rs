@@ -25,7 +25,7 @@ impl AssetLoader for MockLoader {
 
         let json = r#"{
             "meta": { "version": "2.0", "description": "T", "unit": "pts" },
-            "models": { "model_a_row_staggered": { "description": "t", "static_costs": {} } },
+            "models": { "model_a_row_staggered": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} } },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
         let model: CostModel = serde_json::from_str(json).unwrap();
@@ -42,6 +42,19 @@ impl AssetLoader for MockLoader {
     }
 }
 
+fn test_search_config() -> keyforge_model::SearchConfig {
+    keyforge_model::SearchConfig::Annealing {
+        steps: 100,
+        start_temp: 10.0,
+        end_temp: 0.1,
+        seed: 42,
+        patience: 10,
+        reheats: 0,
+        reheat_factor: 0.5,
+        include_thumbs: false,
+    }
+}
+
 #[tokio::test]
 async fn test_runner_lifecycle() {
     struct NoOpCallback;
@@ -53,6 +66,7 @@ async fn test_runner_lifecycle() {
 
     let loader = MockLoader;
     let mut config = JobConfig::default();
+    config.params.params.insert("search_steps".to_string(), 100.0); // Reduce steps via params
     config.definition.geometry.keys.push(keyforge_model::KeyNode::default());
     config.definition.geometry.prime_slots.push(KeyIndex(0));
     
@@ -89,6 +103,7 @@ async fn test_runner_pinned_keys() {
 
     let _loader = MockLoader;
     let mut config = JobConfig::default();
+    config.params.params.insert("search_steps".to_string(), 100.0);
     config.pinned_keys.push(keyforge_model::KeyConstraint {
         index: KeyIndex(0),
         key: "SPACE".to_string(),
@@ -104,15 +119,19 @@ async fn test_runner_pinned_keys() {
     ]);
     
     let mut cm = CostModel::default();
+    let mut fingers = std::collections::HashMap::new();
+    fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+        std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+    ));
     cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
         description: "test".into(),
-        static_costs: std::collections::HashMap::new(),
+        static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
     });
 
     let session = keyforge_core::ScoringSession {
         engine: keyforge_physics::EngineFactory::new_exact(&keyforge_model::Keyboard::new(vec![keyforge_model::KeyNode::default()], 0, "test".into()).unwrap(), &Corpus::default(), &keyforge_model::Rubric::default(), &cm).unwrap().into(),
         registry: Arc::new(registry),
-        search_config: keyforge_model::SearchConfig::default(),
+        search_config: test_search_config(),
     };
 
     let stop = Arc::new(AtomicBool::new(false));

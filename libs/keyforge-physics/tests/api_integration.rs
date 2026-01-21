@@ -56,7 +56,16 @@ fn test_public_api_wrappers() {
         corpus,
         rubric: Arc::new(Rubric::default()),
         cost_model: Arc::new(mock_cost_model_wiring()),
-        config: SearchConfig::default(),
+        config: SearchConfig::Annealing {
+            steps: 100,
+            start_temp: 10.0,
+            end_temp: 0.1,
+            seed: 42,
+            patience: 10,
+            reheats: 0,
+            reheat_factor: 0.5,
+            include_thumbs: false,
+        },
         initial_layout: Some(layout),
         pinned_keys: vec![],
     };

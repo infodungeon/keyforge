@@ -111,6 +111,18 @@ impl HermeticWorkspace {
                             "pinky": { "base": { "r0": 100.0 } }
                         }
                     }
+                },
+                "model_ortho": {
+                    "description": "Test Ortho",
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": { "pos_1": 100.0 },
+                            "index": { "base": { "r0": 100.0 } },
+                            "middle": { "base": { "r0": 100.0 } },
+                            "ring": { "base": { "r0": 100.0 } },
+                            "pinky": { "base": { "r0": 100.0 } }
+                        }
+                    }
                 }
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
@@ -186,6 +198,18 @@ impl HermeticWorkspace {
             "models": {
                 "model_a_row_staggered": {
                     "description": "Poison Model",
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": { "pos_1": 0.0 },
+                            "index": { "base": { "r0": 0.0 } },
+                            "middle": { "base": { "r0": 0.0 } },
+                            "ring": { "base": { "r0": 0.0 } },
+                            "pinky": { "base": { "r0": 0.0 } }
+                        }
+                    }
+                },
+                "model_ortho": {
+                    "description": "Poison Ortho",
                     "static_costs": {
                         "universal_hand": {
                             "thumb": { "pos_1": 0.0 },

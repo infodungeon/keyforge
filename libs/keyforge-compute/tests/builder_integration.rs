@@ -29,7 +29,7 @@ impl AssetLoader for MockLoader {
 
         let json = r#"{
             "meta": { "version": "2.0", "description": "T", "unit": "pts" },
-            "models": { "model_a_row_staggered": { "description": "t", "static_costs": {} } },
+            "models": { "model_a_row_staggered": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} } },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
         let model: CostModel = serde_json::from_str(json).unwrap();
@@ -46,16 +46,33 @@ impl AssetLoader for MockLoader {
     }
 }
 
+fn test_search_config() -> SearchConfig {
+    SearchConfig::Annealing {
+        steps: 100,
+        start_temp: 10.0,
+        end_temp: 0.1,
+        seed: 42,
+        patience: 10,
+        reheats: 0,
+        reheat_factor: 0.5,
+        include_thumbs: false,
+    }
+}
+
 fn setup_runtime() -> Runtime {
     let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
     let mut cm = CostModel::default();
+    let mut fingers = std::collections::HashMap::new();
+    fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+        std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+    ));
     cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
         description: "test".into(),
-        static_costs: std::collections::HashMap::new(),
+        static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
     });
     let engine = EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
     let registry = Arc::new(KeycodeRegistry::new_with_defaults());
-    Runtime::new(Arc::from(engine), registry, SearchConfig::default())
+    Runtime::new(Arc::from(engine), registry, test_search_config())
 }
 
 #[test]
@@ -88,12 +105,16 @@ fn test_runtime_methods() {
 fn test_runtime_from_session() {
     let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
     let mut cm = CostModel::default();
+    let mut fingers = std::collections::HashMap::new();
+    fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+        std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+    ));
     cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
         description: "test".into(),
-        static_costs: std::collections::HashMap::new(),
+        static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
     });
     let engine = EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
-    let session = ScoringSession::new(Arc::from(engine), Arc::new(KeycodeRegistry::default()), SearchConfig::default());
+    let session = ScoringSession::new(Arc::from(engine), Arc::new(KeycodeRegistry::default()), test_search_config());
     
     let rt = Runtime::from(session);
     assert_eq!(rt.registry.definitions.len(), 0);
@@ -112,9 +133,13 @@ async fn test_session_builder_lifecycle() {
     });
     let corp = Arc::new(Corpus::default());
     let mut cm = CostModel::default();
+    let mut fingers = std::collections::HashMap::new();
+    fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+        std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+    ));
     cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
         description: "test".into(),
-        static_costs: std::collections::HashMap::new(),
+        static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
     });
     let cm_arc = Arc::new(cm);
 
@@ -127,7 +152,7 @@ async fn test_session_builder_lifecycle() {
         .with_cost_model_obj(cm_arc)
         .with_keycodes("kc").await.unwrap()
         .with_rubric(Rubric::default())
-        .with_config(SearchConfig::default())
+        .with_config(test_search_config())
         .with_biometrics(vec![BiometricSample { bigram: "th".into(), ms: 100.0, timestamp: 0 }]);
     
     let debug_str = format!("{:?}", builder);
@@ -156,8 +181,13 @@ async fn test_session_builder_missing_assets() {
 
     // 4. Default registry and rubric
     let mut cm = CostModel::default();
+    let mut fingers = std::collections::HashMap::new();
+    fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
+        std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
+    ));
     cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
-        description: "test".into(), static_costs: std::collections::HashMap::new(),
+        description: "test".into(),
+        static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
     });
     let b4 = SessionBuilder::new(&loader)
         .with_keyboard_def(Arc::new(KeyboardDefinition {
@@ -168,7 +198,8 @@ async fn test_session_builder_missing_assets() {
             }, ..Default::default()
         }))
         .with_corpus_obj(Arc::new(Corpus::default()))
-        .with_cost_model_obj(Arc::new(cm));
+        .with_cost_model_obj(Arc::new(cm))
+        .with_config(test_search_config());
     let session = b4.build().unwrap();
     assert_eq!(session.registry.definitions.len(), 0); // Uses default (empty) registry
 }

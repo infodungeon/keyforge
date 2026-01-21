@@ -18,6 +18,7 @@ fn test_full_job_request_lifecycle() {
         h: 1.0,
         ..Default::default()
     });
+    req.config.definition.geometry.home_row = 0;
     req.config
         .definition
         .geometry

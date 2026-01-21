@@ -177,7 +177,7 @@ fn test_oracle_pattern_match() {
 
     let result = optimize(&req).unwrap();
 
-    let scorer = keyforge_physics::verify::DeterministicScorer::new(&req.rubric, &req.cost_model);
+    let scorer = keyforge_physics::verify::DeterministicScorer::new(&req.keyboard, &req.rubric, &req.cost_model);
     let raw_score = scorer.score(
         &req.keyboard,
         &req.corpus,

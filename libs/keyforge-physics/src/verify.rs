@@ -12,12 +12,17 @@ pub struct DeterministicScorer {
     sequence_modifiers: std::collections::HashMap<(u16, u16), i64>,
     penalty_redirect: i64,
     bonus_roll: i64,
+    bonus_roll_out: i64,
 }
 
 impl DeterministicScorer {
     #[must_use]
-    pub fn new(rubric: &Rubric, cost_model: &keyforge_model::CostModel) -> Self {
-        let model_key = "model_a_row_staggered";
+    pub fn new(kb: &Keyboard, rubric: &Rubric, cost_model: &keyforge_model::CostModel) -> Self {
+        let model_key = if kb.kb_type.to_lowercase().contains("ortho") {
+            "model_ortho"
+        } else {
+            "model_a_row_staggered"
+        };
         let static_costs = cost_model.models.get(model_key)
             .map(|m| m.static_costs.clone())
             .unwrap_or_default();
@@ -37,6 +42,7 @@ impl DeterministicScorer {
             sequence_modifiers,
             penalty_redirect: to_fixed(rubric.redirect),
             bonus_roll: to_fixed(rubric.roll_bonus),
+            bonus_roll_out: to_fixed(rubric.roll_out_bonus),
         }
     }
 
@@ -54,7 +60,7 @@ impl DeterministicScorer {
             for &idx in &indices {
                 let key = &kb.keys[idx];
                 let effort = self.rubric.finger_effort[key.finger.as_usize()];
-                let static_cost = to_fixed(resolve_static_key_cost(key, &self.static_costs));
+                let static_cost = to_fixed(resolve_static_key_cost(key, &self.static_costs)?);
                 let total = effort.checked_add(static_cost).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Monogram effort + static cost for code {}", code_val) })?;
                 if total < min_total_cost { min_total_cost = total; }
             }
@@ -147,7 +153,10 @@ impl DeterministicScorer {
             return self.penalty_redirect;
         }
         if dir1 < 0 {
-            return -self.bonus_roll; // Using Neg implementation assumed for i64
+            return -self.bonus_roll;
+        }
+        if dir1 > 0 {
+            return -self.bonus_roll_out;
         }
         0
     }
@@ -160,12 +169,10 @@ fn find_indices(layout: &[KeyCode], target: KeyCode) -> Vec<usize> {
         .collect()
 }
 
-use keyforge_model::config::weights::DEFAULT_PENALTY_MISSING_KEY;
-
 fn resolve_static_key_cost(
     key: &KeyNode,
     static_costs: &std::collections::HashMap<String, keyforge_model::cost_model::HandDefinition>,
-) -> f32 {
+) -> Result<f32, PhysicsError> {
     let hand_key = if key.hand == keyforge_model::HandIndex::LEFT {
         "left_hand"
     } else {
@@ -199,21 +206,22 @@ fn resolve_static_key_cost(
 
                     if let Some(zone) = zones.get(zone_key).or_else(|| zones.get("base")) {
                         let row_key = format!("r{}", key.row.0);
-                        if let Some(cost) = zone.get(&row_key) {
-                            return *cost;
-                        }
+                        return Ok(zone.get(&row_key).copied().unwrap_or(0.0));
                     }
+                    return Ok(0.0);
                 }
                 FingerDefinition::Thumb(positions) => {
-                    return *positions
+                    return Ok(positions
                         .values()
                         .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                        .unwrap_or(&DEFAULT_PENALTY_MISSING_KEY);
+                        .copied()
+                        .unwrap_or(0.0));
                 }
             }
         }
     }
-    DEFAULT_PENALTY_MISSING_KEY
+    
+    Err(PhysicsError::Config(format!("Finger {:?} not found in hand {} or universal_hand", key.finger, hand_key)))
 }
 
 #[derive(Debug, Clone)]
@@ -410,11 +418,11 @@ mod tests {
         let mut rubric = Rubric::default();
         rubric.roll_bonus = 10.0;
         rubric.redirect = 20.0;
-        let mut cm = keyforge_model::CostModel::default();
+        let mut cm = mock_cost_model();
         cm.dynamic_rules.sequence_modifiers.insert("ab".into(), 5.0);
         
-        let oracle = DeterministicScorer::new(&rubric, &cm);
         let kb = setup_kb_wiring();
+        let oracle = DeterministicScorer::new(&kb, &rubric, &cm);
         let mut corpus = Corpus::default();
         corpus.char_freqs['a' as usize] = 10;
         corpus.char_freqs['b' as usize] = 20;
@@ -430,8 +438,8 @@ mod tests {
 
     #[test]
     fn test_calculate_flow_cost_branches() {
-        let (_kb, _corpus, rubric, cm) = setup_minimal();
-        let oracle = DeterministicScorer::new(&rubric, &cm);
+        let (kb_min, _corpus, rubric, cm) = setup_minimal();
+        let oracle = DeterministicScorer::new(&kb_min, &rubric, &cm);
         
         // Hand mismatch -> 0
         // Wait, calculate_flow_cost takes indices.
@@ -485,8 +493,8 @@ mod tests {
             static_costs,
         });
         
-        let oracle = DeterministicScorer::new(&rubric, &cm);
         let kb = setup_kb_wiring();
+        let oracle = DeterministicScorer::new(&kb, &rubric, &cm);
         
         // 1. Monogram Overflow
         let mut corpus = Corpus::default();
@@ -515,7 +523,7 @@ mod tests {
         // Re-create oracle with huge modifier
         let mut cm_bigram = cm.clone(); // Has huge static cost, but we won't use monograms
         cm_bigram.dynamic_rules.sequence_modifiers.insert("ab".into(), huge_cost);
-        let oracle_bigram = DeterministicScorer::new(&rubric, &cm_bigram);
+        let oracle_bigram = DeterministicScorer::new(&kb, &rubric, &cm_bigram);
         
         let mut corpus_bi = Corpus::default();
         corpus_bi.bigrams.push((97, 98, 1_000_000)); // Moderate freq
@@ -533,7 +541,7 @@ mod tests {
         // 1e12 * 1e6 (fixed point) = 1e18 < i64::MAX (9e18)
         // 1e18 * 1e6 (freq) = 1e24 > i64::MAX
         rubric_tri.redirect = 1_000_000_000_000.0; 
-        let oracle_tri = DeterministicScorer::new(&rubric_tri, &cm);
+        let oracle_tri = DeterministicScorer::new(&kb, &rubric_tri, &cm);
         
         let res_tri = oracle_tri.score_detailed(&kb, &corpus_tri, &layout_keys);
         assert!(res_tri.is_err(), "Should overflow on massive trigram redirect penalty * frequency");
@@ -562,18 +570,18 @@ mod tests {
 
         // Left Pinky Base
         let k1 = KeyNode { hand: HandIndex::LEFT, finger: FingerIndex::PINKY, col: keyforge_model::types::ColIndex(0), row: keyforge_model::types::RowIndex(0), ..Default::default() };
-        assert_eq!(resolve_static_key_cost(&k1, &static_costs), 1.0);
+        assert_eq!(resolve_static_key_cost(&k1, &static_costs).unwrap(), 1.0);
 
         // Left Pinky Outer
         let k2 = KeyNode { hand: HandIndex::LEFT, finger: FingerIndex::PINKY, col: keyforge_model::types::ColIndex(5), row: keyforge_model::types::RowIndex(0), ..Default::default() };
-        assert_eq!(resolve_static_key_cost(&k2, &static_costs), 10.0);
+        assert_eq!(resolve_static_key_cost(&k2, &static_costs).unwrap(), 10.0);
 
         // Right Thumb
         let k3 = KeyNode { hand: HandIndex::RIGHT, finger: FingerIndex::THUMB, ..Default::default() };
-        assert_eq!(resolve_static_key_cost(&k3, &static_costs), 5.0);
+        assert_eq!(resolve_static_key_cost(&k3, &static_costs).unwrap(), 5.0);
         
-        // Unknown
+        // Unknown finger -> Error
         let k4 = KeyNode { hand: HandIndex::LEFT, finger: FingerIndex::RING, ..Default::default() };
-        assert_eq!(resolve_static_key_cost(&k4, &static_costs), 100.0);
+        assert!(resolve_static_key_cost(&k4, &static_costs).is_err());
     }
 }

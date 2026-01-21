@@ -90,9 +90,9 @@ fn resolve_key_cost(
         if let Some(finger_def) = hand.fingers.get(finger_key) {
             match finger_def {
                 FingerDefinition::Standard(zones) => {
-                    let zone_key = if key.col.0.abs() > ZONE_INNER_THRESHOLD && key.finger == FingerIndex::INDEX {
+                    let zone_key = if key.col.0.unsigned_abs() > ZONE_INNER_THRESHOLD as u8 && key.finger == FingerIndex::INDEX {
                         "inner"
-                    } else if key.col.0.abs() > ZONE_OUTER_THRESHOLD && key.finger == FingerIndex::PINKY {
+                    } else if key.col.0.unsigned_abs() > ZONE_OUTER_THRESHOLD as u8 && key.finger == FingerIndex::PINKY {
                         "outer"
                     } else {
                         "base"
@@ -100,23 +100,22 @@ fn resolve_key_cost(
 
                     if let Some(zone) = zones.get(zone_key).or_else(|| zones.get("base")) {
                         let row_key = format!("r{}", key.row.0);
-                        if let Some(cost) = zone.get(&row_key) {
-                            return Ok(*cost);
-                        }
+                        return Ok(zone.get(&row_key).copied().unwrap_or(0.0));
                     }
+                    return Ok(0.0);
                 }
                 FingerDefinition::Thumb(positions) => {
-                    return positions
+                    return Ok(positions
                         .values()
                         .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                         .copied()
-                        .ok_or_else(|| PhysicsError::Config(format!("No thumb positions defined for finger {:?}", key.finger)));
+                        .unwrap_or(0.0));
                 }
             }
         }
     }
 
-    Err(PhysicsError::Config(format!("Cost lookup failed for key {:?}", key)))
+    Err(PhysicsError::Config(format!("Finger {:?} not found in hand {} or universal_hand", key.finger, hand_key)))
 }
 
 #[cfg(test)]

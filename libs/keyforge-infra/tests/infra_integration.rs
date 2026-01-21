@@ -17,8 +17,8 @@ async fn test_fs_provider_lifecycle() {
     let kb_json = r#"{
         "meta": { "name": "Test Board" },
         "geometry": { 
-            "keys": [{"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1}], 
-            "prime_slots": [0], "med_slots": [], "low_slots": [], "home_row": 1
+            "keys": [{"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1, "row": 0}], 
+            "prime_slots": [0], "med_slots": [], "low_slots": [], "home_row": 0
         },
         "layouts": {}
     }"#;
