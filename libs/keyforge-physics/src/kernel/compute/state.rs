@@ -79,16 +79,9 @@ impl<'a> PosMap<'a> {
         _pos_map: &'a [u16],
         _key_count: usize,
     ) -> Self {
-        // Since we are using this for single-occurrence layouts (no duplicates),
-        // we can simplify the PosMap to just use the pos_map directly if we change the structure.
-        // For now, to keep parity with multi-occurrence logic, we have to keep the trait.
-        // HOWEVER, the calculate_swap_delta in compute kernel takes &PosMap.
-        
-        // Wait, if there are no duplicates, starts[code] = offset, counts[code] = 1, indices[offset] = pos.
-        // This is expensive to build here.
-        
-        // Let's check calculate_swap_delta signature.
-        unimplemented!("PosMap::from_slice requires a scratch-less implementation of PosMap logic for performance parity.")
+        // Implementation omitted for now - requires architectural alignment on
+        // whether the optimizer provides a flat map or a structured one.
+        unimplemented!("Task-phys-rev-039 requires a non-scratch PosMap variant")
     }
 
     #[inline]

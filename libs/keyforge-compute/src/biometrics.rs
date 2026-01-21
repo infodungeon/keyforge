@@ -29,9 +29,17 @@ impl BiometricProfiler {
             entry.1 += 1;
         }
 
-        // 2. Map to sequence modifiers
-        // We normalize latencies relative to a "standard" speed (e.g. 150ms)
-        // Latency / 150.0 * 100.0 gives us an effort point value.
+        // 2. Calculate Median Latency for Relative Normalization
+        let mut all_avgs: Vec<f64> = totals.values().map(|(sum, count)| sum / f64::from(*count)).collect();
+        if all_avgs.is_empty() { return model; }
+        all_avgs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let median_latency = all_avgs[all_avgs.len() / 2];
+
+        // 3. Map to sequence modifiers
+        // Use median_latency * 0.66 as the "100 effort points" baseline
+        // This ensures the model is centered around the user's typical speed.
+        let effort_baseline = median_latency.max(50.0); // Floor to prevent extreme scores
+
         for (bigram, (total_ms, count)) in totals {
             if count < 5 {
                 continue;
@@ -39,7 +47,7 @@ impl BiometricProfiler {
 
             let avg = total_ms / f64::from(count);
             #[allow(clippy::cast_possible_truncation)]
-            let effort_f32 = (avg / 150.0 * 100.0) as f32;
+            let effort_f32 = (avg / effort_baseline * 100.0) as f32;
             model
                 .dynamic_rules
                 .sequence_modifiers

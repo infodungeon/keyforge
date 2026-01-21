@@ -21,7 +21,10 @@ pub fn to_domain_keyboard(
         .map(|(i, k)| {
             let mut kn = to_domain_keynode(k.clone());
             kn.index = i;
-            kn.is_home = k.row.0 == geo.home_row;
+            // Task-adap-rev-001: Only override is_home if it's false in input
+            if !k.is_home {
+                kn.is_home = k.row.0 == geo.home_row;
+            }
             kn
         })
         .collect();

@@ -97,7 +97,18 @@ impl OptimizationRunner {
                     // Resolve key label to code using registry
                     if let Some(code) = session.registry.get_code(&c.key) {
                         p[c.index.0 as usize] = Some(code);
+                    } else {
+                        return Err(EvolutionError::Config(format!(
+                            "Pinned key '{}' not found in registry",
+                            c.key
+                        )));
                     }
+                } else {
+                    return Err(EvolutionError::Config(format!(
+                        "Pinned key index {} out of bounds for engine (keys: {})",
+                        c.index,
+                        session.engine.key_count()
+                    )));
                 }
             }
             p
@@ -136,7 +147,8 @@ impl<'a, L: AssetLoader> Runner<'a, L> {
     /// # Errors
     ///
     /// Returns `anyhow::Error` if any assets fail to load.
-    pub async fn prepare_job(&self, config: &JobConfig) -> anyhow::Result<Runtime> {
+    pub async fn prepare_job(&self, config: &JobConfig, keycodes_file: Option<&str>) -> anyhow::Result<Runtime> {
+        let kc = keycodes_file.unwrap_or(ASSET_KEYCODES_FILENAME);
         let builder = SessionBuilder::new(self.loader)
             .with_keyboard_def(Arc::new(config.definition.clone()))
             .with_corpus(&config.corpora)
@@ -146,7 +158,7 @@ impl<'a, L: AssetLoader> Runner<'a, L> {
             .await
             .map_err(|e| anyhow::anyhow!(e))?
             .with_biometrics(config.biometrics.clone())
-            .with_keycodes(ASSET_KEYCODES_FILENAME)
+            .with_keycodes(kc)
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
 

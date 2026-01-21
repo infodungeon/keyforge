@@ -149,38 +149,42 @@ impl UserRepo {
     ///
     /// Returns `InfraError` if the audit log cannot be updated or locked.
     pub fn record_biometrics(&self, samples: Vec<BiometricSample>) -> InfraResult<String> {
-        let path = self.root.join("user/user_stats.jsonl");
-
-        // Ensure parent dir exists
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(InfraError::Io)?;
+        if samples.is_empty() {
+            return Ok("No samples to record.".to_string());
         }
-
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .map_err(InfraError::Io)?;
-
-        // Acquire exclusive lock before appending
-        file.lock_exclusive().map_err(InfraError::Io)?;
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
-        let mut count = 0;
+        // 1. Prepare buffer in memory
+        let mut buffer = Vec::new();
         for mut s in samples {
             if s.timestamp == 0 {
                 s.timestamp = now;
             }
-            let json = serde_json::to_string(&s).map_err(InfraError::Serde)?;
-            writeln!(file, "{json}").map_err(InfraError::Io)?;
-            count += 1;
+            serde_json::to_writer(&mut buffer, &s).map_err(InfraError::Serde)?;
+            buffer.push(b'\n');
         }
 
-        Ok(format!("Appended {count} samples to log."))
+        let path = self.root.join("user/user_stats.jsonl");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(InfraError::Io)?;
+        }
+
+        // 2. Critical Section: Lock and Append
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(InfraError::Io)?;
+
+        file.lock_exclusive().map_err(InfraError::Io)?;
+        file.write_all(&buffer).map_err(InfraError::Io)?;
+        // Auto-unlock on drop
+
+        Ok(format!("Appended {} samples to log.", buffer.iter().filter(|&&b| b == b'\n').count()))
     }
 
     /// Retrieves all accumulated biometric samples.

@@ -44,3 +44,287 @@ unwrap_used = "warn"
 panic = "warn"
 pedantic = { level = "warn", priority = -1 }
 too_many_arguments = "allow"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.48", features = ["full"] }
+tracing = "0.1"
+thiserror = "2.0"
+anyhow = "1.0"
+async-trait = "0.1"
+proptest = "1.9"
+rand = "0.9"
+hex = "0.4"
+sha2 = "0.10"
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "macros",
+    "chrono",
+    "json",
+    "uuid",
+] }
+utoipa = { version = "5.4", features = ["preserve_order", "preserve_path_order"] }
+strum = { version = "0.27", features = ["derive"] }
+ts-rs = { version = "11.1", features = ["serde-compat"] }
+tempfile = "3.24"
+fastrand = "2.3"
+zstd = "0.13"
+rmp-serde = "1.3"
+postcard = { version = "1.0", features = ["use-std"] }
+reqwest = { version = "0.13", features = ["json", "stream"] }
+backoff = { version = "0.4", features = ["tokio"] }
+chrono = { version = "0.4", features = ["serde"] }
+wiremock = "0.6"
+clap = { version = "4.5", features = ["derive", "env"] }
+indicatif = "0.17"
+futures = "0.3"
+futures-util = "0.3"
+walkdir = "2.5"
+zeroize = { version = "1.8", features = ["derive"] }
+ed25519-dalek = "2.1"
+raw-cpuid = "11.6"
+fs2 = "0.4"
+moka = { version = "0.12", features = ["sync"] }
+parking_lot = "0.12"
+axum = { version = "0.8", features = ["macros"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
+uuid = { version = "1.15", features = ["v4", "serde"] }
+validator = { version = "0.20", features = ["derive"] }
+dotenvy = "0.15"
+tokio-stream = { version = "0.1", features = ["net"] }
+notify = "8.2"
+bytes = "1.11"
+kle-serial = "0.3"
+rand_xoshiro = "0.7"
+rand_chacha = "0.9"
+tauri = { version = "2.2" }
+tauri-build = { version = "2.0" }
+tauri-plugin-shell = { version = "2.2" }
+once_cell = "1.21"
+backoff-v4 = { package = "backoff", version = "0.4", features = ["tokio"] }
+pin-project-lite = "0.2"
+dashmap = "6.1"
+metrics = "0.24"
+metrics-exporter-prometheus = "0.16"
+tower = "0.5"
+rust-embed = { version = "8.6", features = ["interpolate-folder-path"] }
+mime_guess = "2.0"
+image = { version = "0.25", features = ["png", "jpeg"] }
+md-5 = "0.10"
+itertools = "0.14"
+ordered-float = { version = "5.0", features = ["serde"] }
+cobs = "0.3"
+heapless = "0.7"
+serde-big-array = "0.5"
+csscolorparser = "0.7"
+smallvec = "1.15"
+temp-env = "0.3"
+ctrlc = "3.4"
+indicatif-v17 = { package = "indicatif", version = "0.17" }
+hex-v04 = { package = "hex", version = "0.4" }
+backoff-v04 = { package = "backoff", version = "0.4", features = ["tokio"] }
+sha2-v010 = { package = "sha2", version = "0.10" }
+chrono-v04 = { package = "chrono", version = "0.4", features = ["serde"] }
+utoipa-v5 = { package = "utoipa", version = "5.4", features = ["preserve_order", "preserve_path_order"] }
+strum-v027 = { package = "strum", version = "0.27", features = ["derive"] }
+anyhow-v1 = { package = "anyhow", version = "1.0" }
+thiserror-v2 = { package = "thiserror", version = "2.0" }
+tracing-v01 = { package = "tracing", version = "0.1" }
+serde-v1 = { package = "serde", version = "1.0", features = ["derive"] }
+serde_json-v1 = { package = "serde_json", version = "1.0" }
+tokio-v1 = { package = "tokio", version = "1.48", features = ["full"] }
+async-trait-v01 = { package = "async-trait", version = "0.1" }
+proptest-v1 = { package = "proptest", version = "1.9" }
+rand-v09 = { package = "rand", version = "0.9" }
+reqwest-v013 = { package = "reqwest", version = "0.13", features = ["json", "stream"] }
+futures-v03 = { package = "futures", version = "0.3" }
+futures-util-v03 = { package = "futures-util", version = "0.3" }
+walkdir-v2 = { package = "walkdir", version = "2.5" }
+zeroize-v1 = { package = "zeroize", version = "1.8", features = ["derive"] }
+ed25519-dalek-v2 = { package = "ed25519-dalek", version = "2.1" }
+raw-cpuid-v11 = { package = "raw-cpuid", version = "11.6" }
+fs2-v04 = { package = "fs2", version = "0.4" }
+moka-v012 = { package = "moka", version = "0.12", features = ["sync"] }
+parking_lot-v012 = { package = "parking_lot", version = "0.12" }
+axum-v08 = { package = "axum", version = "0.8", features = ["macros"] }
+tower-http-v06 = { package = "tower-http", version = "0.6", features = ["cors", "trace", "fs"] }
+uuid-v1 = { package = "uuid", version = "1.15", features = ["v4", "serde"] }
+validator-v020 = { package = "validator", version = "0.20", features = ["derive"] }
+dotenvy-v015 = { package = "dotenvy", version = "0.15" }
+tokio-stream-v01 = { package = "tokio-stream", version = "0.1", features = ["net"] }
+notify-v8 = { package = "notify", version = "8.2" }
+bytes-v1 = { package = "bytes", version = "1.11" }
+kle-serial-v03 = { package = "kle-serial", version = "0.3" }
+rand_xoshiro-v07 = { package = "rand_xoshiro", version = "0.7" }
+rand_chacha-v09 = { package = "rand_chacha", version = "0.9" }
+once_cell-v1 = { package = "once_cell", version = "1.21" }
+pin-project-lite-v02 = { package = "pin-project-lite", version = "0.2" }
+dashmap-v6 = { package = "dashmap", version = "6.1" }
+metrics-v024 = { package = "metrics", version = "0.24" }
+metrics-exporter-prometheus-v016 = { package = "metrics-exporter-prometheus", version = "0.16" }
+tower-v05 = { package = "tower", version = "0.5" }
+rust-embed-v8 = { package = "rust-embed", version = "8.6", features = ["interpolate-folder-path"] }
+mime_guess-v2 = { package = "mime_guess", version = "2.0" }
+image-v025 = { package = "image", version = "0.25", features = ["png", "jpeg"] }
+md-5-v010 = { package = "md-5", version = "0.10" }
+itertools-v014 = { package = "itertools", version = "0.14" }
+ordered-float-v5 = { package = "ordered-float", version = "5.0", features = ["serde"] }
+cobs-v03 = { package = "cobs", version = "0.3" }
+heapless-v07 = { package = "heapless", version = "0.7" }
+serde-big-array-v05 = { package = "serde-big-array", version = "0.5" }
+csscolorparser-v07 = { package = "csscolorparser", version = "0.7" }
+smallvec-v1 = { package = "smallvec", version = "1.15" }
+temp-env-v03 = { package = "temp-env", version = "0.3" }
+ctrlc-v3 = { package = "ctrlc", version = "3.4" }
+sqlx-v08 = { package = "sqlx", version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "chrono", "json", "uuid"] }
+utoipa-v5-4 = { package = "utoipa", version = "5.4", features = ["preserve_order", "preserve_path_order"] }
+strum-v027-2 = { package = "strum", version = "0.27", features = ["derive"] }
+ts-rs-v11 = { package = "ts-rs", version = "11.1", features = ["serde-compat"] }
+tempfile-v3 = { package = "tempfile", version = "3.24" }
+fastrand-v2 = { package = "fastrand", version = "2.3" }
+zstd-v013 = { package = "zstd", version = "0.13" }
+rmp-serde-v1 = { package = "rmp-serde", version = "1.3" }
+postcard-v1 = { package = "postcard", version = "1.0", features = ["use-std"] }
+reqwest-v013-0 = { package = "reqwest", version = "0.13", features = ["json", "stream"] }
+backoff-v04-0 = { package = "backoff", version = "0.4", features = ["tokio"] }
+chrono-v04-0 = { package = "chrono", version = "0.4", features = ["serde"] }
+wiremock-v06 = { package = "wiremock", version = "0.6" }
+clap-v4 = { package = "clap", version = "4.5", features = ["derive", "env"] }
+indicatif-v017 = { package = "indicatif", version = "0.17" }
+futures-v03-0 = { package = "futures", version = "0.3" }
+futures-util-v03-0 = { package = "futures-util", version = "0.3" }
+walkdir-v2-5 = { package = "walkdir", version = "2.5" }
+zeroize-v1-8 = { package = "zeroize", version = "1.8", features = ["derive"] }
+ed25519-dalek-v2-1 = { package = "ed25519-dalek", version = "2.1" }
+raw-cpuid-v11-6 = { package = "raw-cpuid", version = "11.6" }
+fs2-v04-0 = { package = "fs2", version = "0.4" }
+moka-v012-0 = { package = "moka", version = "0.12", features = ["sync"] }
+parking_lot-v012-5 = { package = "parking_lot", version = "0.12" }
+axum-v08-0 = { package = "axum", version = "0.8", features = ["macros"] }
+tower-http-v06-0 = { package = "tower-http", version = "0.6", features = ["cors", "trace", "fs"] }
+uuid-v1-15 = { package = "uuid", version = "1.15", features = ["v4", "serde"] }
+validator-v020-0 = { package = "validator", version = "0.20", features = ["derive"] }
+dotenvy-v015-0 = { package = "dotenvy", version = "0.15" }
+tokio-stream-v01-0 = { package = "tokio-stream", version = "0.1", features = ["net"] }
+notify-v8-2 = { package = "notify", version = "8.2" }
+bytes-v1-11 = { package = "bytes", version = "1.11" }
+kle-serial-v03-3 = { package = "kle-serial", version = "0.3" }
+rand_xoshiro-v07-0 = { package = "rand_xoshiro", version = "0.7" }
+rand_chacha-v09-0 = { package = "rand_chacha", version = "0.9" }
+once_cell-v1-21 = { package = "once_cell", version = "1.21" }
+pin-project-lite-v02-0 = { package = "pin-project-lite", version = "0.2" }
+dashmap-v6-1 = { package = "dashmap", version = "6.1" }
+metrics-v024-0 = { package = "metrics", version = "0.24" }
+metrics-exporter-prometheus-v016-0 = { package = "metrics-exporter-prometheus", version = "0.16" }
+tower-v05-0 = { package = "tower", version = "0.5" }
+rust-embed-v8-6 = { package = "rust-embed", version = "8.6", features = ["interpolate-folder-path"] }
+mime_guess-v2-0 = { package = "mime_guess", version = "2.0" }
+image-v025-0 = { package = "image", version = "0.25", features = ["png", "jpeg"] }
+md-5-v010-0 = { package = "md-5", version = "0.10" }
+itertools-v014-0 = { package = "itertools", version = "0.14" }
+ordered-float-v5-0 = { package = "ordered-float", version = "5.0", features = ["serde"] }
+cobs-v03-0 = { package = "cobs", version = "0.3" }
+heapless-v07-17 = { package = "heapless", version = "0.7" }
+serde-big-array-v05-1 = { package = "serde-big-array", version = "0.5" }
+csscolorparser-v07-2 = { package = "csscolorparser", version = "0.7" }
+smallvec-v1-15 = { package = "smallvec", version = "1.15" }
+temp-env-v03-0 = { package = "temp-env", version = "0.3" }
+ctrlc-v3-4 = { package = "ctrlc", version = "3.4" }
+sqlx-postgres = { version = "0.8", features = ["postgres", "runtime-tokio", "tls-rustls", "chrono", "json", "uuid"] }
+sqlx-macros = { version = "0.8" }
+sqlx-core = { version = "0.8" }
+sqlx-rt = { version = "0.8" }
+sqlx-test = { version = "0.8" }
+sqlx-mysql = { version = "0.8" }
+sqlx-sqlite = { version = "0.8" }
+sqlx-any = { version = "0.8" }
+sqlx-offline = { version = "0.8" }
+sqlx-migrate = { version = "0.8" }
+axum-core = { version = "0.5" }
+tokio-util = { version = "0.7" }
+tower-layer = { version = "0.3" }
+tower-service = { version = "0.3" }
+http = { version = "1.2" }
+http-body = { version = "1.0" }
+http-body-util = { version = "0.1" }
+hyper = { version = "1.5" }
+hyper-util = { version = "0.1" }
+tower-layer-v03 = { package = "tower-layer", version = "0.3" }
+tower-service-v03 = { package = "tower-service", version = "0.3" }
+http-v1 = { package = "http", version = "1.2" }
+http-body-v1 = { package = "http-body", version = "1.0" }
+http-body-util-v01 = { package = "http-body-util", version = "0.1" }
+hyper-v1 = { package = "hyper", version = "1.5" }
+hyper-util-v01 = { package = "hyper-util", version = "0.1" }
+tokio-util-v07 = { package = "tokio-util", version = "0.7" }
+axum-core-v05 = { package = "axum-core", version = "0.5" }
+sqlx-postgres-v08 = { package = "sqlx-postgres", version = "0.8", features = ["postgres", "runtime-tokio", "tls-rustls", "chrono", "json", "uuid"] }
+sqlx-macros-v08 = { package = "sqlx-macros", version = "0.8" }
+sqlx-core-v08 = { package = "sqlx-core", version = "0.8" }
+sqlx-rt-v08 = { package = "sqlx-rt", version = "0.8" }
+sqlx-test-v08 = { package = "sqlx-test", version = "0.8" }
+sqlx-migrate-v08 = { package = "sqlx-migrate", version = "0.8" }
+tokio-native-tls = "0.3"
+native-tls = "0.2"
+reqwest-middleware = "0.4"
+reqwest-retry = "0.7"
+reqwest-tracing = "0.5"
+reqwest-middleware-v04 = { package = "reqwest-middleware", version = "0.4" }
+reqwest-retry-v07 = { package = "reqwest-retry", version = "0.7" }
+reqwest-tracing-v05 = { package = "reqwest-tracing", version = "0.5" }
+native-tls-v02 = { package = "native-tls", version = "0.2" }
+tokio-native-tls-v03 = { package = "tokio-native-tls", version = "0.3" }
+fred-v10 = { package = "fred", version = "10.1", features = ["enable-rustls", "metrics"] }
+utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
+utoipa-axum = { version = "0.2" }
+utoipa-swagger-ui-v9 = { package = "utoipa-swagger-ui", version = "9.0", features = ["axum"] }
+utoipa-axum-v02 = { package = "utoipa-axum", version = "0.2" }
+tower-sessions = "0.14"
+tower-sessions-sqlx-store = { version = "0.16", features = ["postgres"] }
+tower-sessions-v014 = { package = "tower-sessions", version = "0.14" }
+tower-sessions-sqlx-store-v016 = { package = "tower-sessions-sqlx-store", version = "0.16", features = ["postgres"] }
+jsonwebtoken = "9.3"
+argon2 = "0.5"
+jsonwebtoken-v9 = { package = "jsonwebtoken", version = "9.3" }
+argon2-v05 = { package = "argon2", version = "0.5" }
+url = { version = "2.5", features = ["serde"] }
+url-v2 = { package = "url", version = "2.5", features = ["serde"] }
+deadpool = "0.12"
+deadpool-v012 = { package = "deadpool", version = "0.12" }
+r2d2 = "0.8"
+r2d2-v08 = { package = "r2d2", version = "0.8" }
+bb8 = "0.9"
+bb8-v09 = { package = "bb8", version = "0.9" }
+fred-pool = { package = "fred", version = "10.1", features = ["enable-rustls", "metrics", "pool"] }
+axum-extra = { version = "0.10", features = ["typed-header"] }
+axum-extra-v010 = { package = "axum-extra", version = "0.10", features = ["typed-header"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber-v03 = { package = "tracing-subscriber", version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+tracing-appender-v02 = { package = "tracing-appender", version = "0.2" }
+tracing-test = "0.2"
+tracing-test-v02 = { package = "tracing-test", version = "0.2" }
+criterion = { version = "0.5", features = ["async_tokio"] }
+criterion-v05 = { package = "criterion", version = "0.5", features = ["async_tokio"] }
+governor = "0.8"
+governor-v08 = { package = "governor", version = "0.8" }
+mockall = "0.13"
+mockall-v013 = { package = "mockall", version = "0.13" }
+serial_test = "3.2"
+serial_test-v3 = { package = "serial_test", version = "3.2" }
+test-log = { version = "0.2", features = ["trace"] }
+test-log-v02 = { package = "test-log", version = "0.2", features = ["trace"] }
+base64 = "0.22"
+base64-v022 = { package = "base64", version = "0.22" }
+num_cpus = "1.16"
+num_cpus-v1 = { package = "num_cpus", version = "1.16" }
+sysinfo = "0.33"
+sysinfo-v033 = { package = "sysinfo", version = "0.33" }
+local-ip-address = "0.6"
+local-ip-address-v06 = { package = "local-ip-address", version = "0.6" }
+hostname = "0.4"
+hostname-v04 = { package = "hostname", version = "0.4" }
+uuid-v1-15-0 = { package = "uuid", version = "1.15", features = ["v4", "serde"] }

@@ -60,11 +60,19 @@ impl AgentRunner {
             .map_err(|e| CommandError::Internal(format!("Failed to spawn agent: {e}")))?;
 
         let mut output = String::new();
+        let max_output_size = 1024 * 1024; // 1MB Limit
+
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line) => {
                     let s = String::from_utf8_lossy(&line);
-                    output.push_str(&s);
+                    if output.len() + s.len() < max_output_size {
+                        output.push_str(&s);
+                    } else if output.len() < max_output_size {
+                        let remaining = max_output_size - output.len();
+                        output.push_str(&s[..remaining]);
+                        output.push_str("\n... [Truncated due to size limit]");
+                    }
                 }
                 CommandEvent::Stderr(line) => {
                     let s = String::from_utf8_lossy(&line);

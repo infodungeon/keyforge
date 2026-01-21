@@ -85,8 +85,13 @@ async fn persist_result(state: &AppState, payload: ResultSubmission) -> AppResul
             score: payload.score,
             node_id: payload.node_id,
         })
-        .await
-        .map_err(|e| AppError::Any(anyhow::anyhow!("Persistence failed: {e}")))?;
+        .map_err(|e| {
+            if e == "Queue full" {
+                AppError::ServiceUnavailable("Persistence queue full".into())
+            } else {
+                AppError::Any(anyhow::anyhow!("Persistence failed: {e}"))
+            }
+        })?;
 
     Ok(())
 }

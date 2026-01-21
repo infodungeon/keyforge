@@ -93,11 +93,15 @@ impl SearchState {
                 self.current_layout.keys.swap(idx_a, idx_b);
                 let code_a = self.current_layout.keys[idx_a];
                 let code_b = self.current_layout.keys[idx_b];
-                if (code_a.0 as usize) < self.pos_map.len() {
-                    self.pos_map[code_a.0 as usize] = a.0;
+                
+                // Safety: Update pos_map only if within tracked range
+                let ca_idx = code_a.0 as usize;
+                let cb_idx = code_b.0 as usize;
+                if ca_idx < self.pos_map.len() {
+                    self.pos_map[ca_idx] = a.0;
                 }
-                if (code_b.0 as usize) < self.pos_map.len() {
-                    self.pos_map[code_b.0 as usize] = b.0;
+                if cb_idx < self.pos_map.len() {
+                    self.pos_map[cb_idx] = b.0;
                 }
             }
             MutationAction::GroupSwap(a, b, c) => {
@@ -115,14 +119,18 @@ impl SearchState {
                 let code_b = self.current_layout.keys[idx_b];
                 let code_c = self.current_layout.keys[idx_c];
 
-                if (code_a.0 as usize) < self.pos_map.len() {
-                    self.pos_map[code_a.0 as usize] = a.0;
+                let ca_idx = code_a.0 as usize;
+                let cb_idx = code_b.0 as usize;
+                let cc_idx = code_c.0 as usize;
+
+                if ca_idx < self.pos_map.len() {
+                    self.pos_map[ca_idx] = a.0;
                 }
-                if (code_b.0 as usize) < self.pos_map.len() {
-                    self.pos_map[code_b.0 as usize] = b.0;
+                if cb_idx < self.pos_map.len() {
+                    self.pos_map[cb_idx] = b.0;
                 }
-                if (code_c.0 as usize) < self.pos_map.len() {
-                    self.pos_map[code_c.0 as usize] = c.0;
+                if cc_idx < self.pos_map.len() {
+                    self.pos_map[cc_idx] = c.0;
                 }
             }
         }

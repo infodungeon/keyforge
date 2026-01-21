@@ -18,14 +18,33 @@ use crate::asset::{
 use crate::error::{InfraError, InfraResult};
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Registry of supported asset file extensions.
+pub struct ExtensionRegistry;
+
+impl ExtensionRegistry {
+    /// Standard extensions for compressed binary assets.
+    pub const BINARY: &'static [&'static str] = &["mpk.zst", "zst", "mpk"];
+    /// Standard extensions for human-readable text assets.
+    pub const TEXT: &'static [&'static str] = &["json", "toml", "yaml"];
+
+    /// Returns true if the path has a supported binary extension.
+    pub fn is_binary(path: &Path) -> bool {
+        Self::BINARY.iter().any(|&ext| path.to_string_lossy().ends_with(ext))
+    }
+
+    /// Returns true if the path has a supported text extension.
+    pub fn is_text(path: &Path) -> bool {
+        Self::TEXT.iter().any(|&ext| path.to_string_lossy().ends_with(ext))
+    }
+}
 
 /// Helper to scan a specific sub-path and add stems to a set.
-/// Extension is the target suffix (e.g., "mpk.zst" or "json").
 fn scan_dir(
     root: &Path,
     sub_path: &str,
-    extension: &str,
+    target_extensions: &[&str],
     results: &mut HashSet<String>,
 ) -> InfraResult<()> {
     let target = root.join(sub_path);
@@ -44,13 +63,17 @@ fn scan_dir(
             continue;
         };
 
-        if filename.ends_with(extension) {
-            let stem = filename
-                .strip_suffix(&format!(".{extension}"))
-                .unwrap_or(filename);
+        for &ext in target_extensions {
+            if filename.ends_with(ext) {
+                let stem = filename
+                    .strip_suffix(&format!(".{ext}"))
+                    .unwrap_or(filename);
 
-            let final_stem = stem.strip_suffix(".mpk").unwrap_or(stem);
-            results.insert(final_stem.to_string());
+                // Further strip internal sub-extensions
+                let final_stem = stem.strip_suffix(".mpk").unwrap_or(stem);
+                results.insert(final_stem.to_string());
+                break;
+            }
         }
     }
     Ok(())
@@ -65,10 +88,10 @@ pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
     scan_dir(
         root,
         &format!("system/{ASSET_PATH_KEYBOARDS}"),
-        "mpk.zst",
+        ExtensionRegistry::BINARY,
         &mut names,
     )?;
-    scan_dir(root, "user/keyboards", "json", &mut names)?;
+    scan_dir(root, "user/keyboards", ExtensionRegistry::TEXT, &mut names)?;
 
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();
@@ -126,10 +149,10 @@ pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
     scan_dir(
         root,
         &format!("system/{ASSET_PATH_WEIGHTS}"),
-        "mpk.zst",
+        ExtensionRegistry::BINARY,
         &mut names,
     )?;
-    scan_dir(root, "user/weights", "json", &mut names)?;
+    scan_dir(root, "user/weights", ExtensionRegistry::TEXT, &mut names)?;
 
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();
@@ -145,10 +168,10 @@ pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
     scan_dir(
         root,
         &format!("system/{ASSET_PATH_KEYMAP_EXTRAS}"),
-        "mpk.zst",
+        ExtensionRegistry::BINARY,
         &mut names,
     )?;
-    scan_dir(root, "user/keymap_extras", "json", &mut names)?;
+    scan_dir(root, "user/keymap_extras", ExtensionRegistry::TEXT, &mut names)?;
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();
     Ok(sorted)

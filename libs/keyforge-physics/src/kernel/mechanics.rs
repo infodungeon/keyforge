@@ -16,6 +16,12 @@ use super::types::{FingerIndex, KeyIndex};
 use crate::error::PhysicsError;
 use keyforge_model::{Keyboard, Rubric};
 
+fn to_score_or_err(val: f32) -> Result<i64, PhysicsError> {
+    keyforge_model::types::Score::from_f32(val)
+        .map(|s| s.0)
+        .map_err(|e| PhysicsError::InvalidInput { message: e })
+}
+
 pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIndex) -> Result<i64, PhysicsError> {
     let i_idx = usize::from(i);
     let j_idx = usize::from(j);
@@ -51,7 +57,7 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
         });
     }
 
-    let mut cost = dist_raw as i64;
+    let mut cost = dist_raw.round() as i64;
 
     if f1 == f2 {
         let mut reach_k2 = 0.0f64;
@@ -60,12 +66,15 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
             .get(k2.hand.as_usize())
             .and_then(|h| h.get(k2.finger.as_usize()))
         {
+            // Effort model: Parabolic cost for reach distance.
+            // Cost scales with the square of the distance from the home position (origin).
+            // `t_lat` and `t_vert` weight the horizontal and vertical components respectively.
             let odx = (k2.x - origin.0) as f64;
             let ody = (k2.y - origin.1) as f64;
             reach_k2 = ((odx * odx * t_lat) + (ody * ody * t_vert)) * scale;
         }
 
-        cost = cost.checked_sub(reach_k2 as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
+        cost = cost.checked_sub(reach_k2.round() as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
             context: "Pair cost reach reduction".to_string()
         })?;
 
@@ -74,21 +83,17 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
 
         if col_diff == 1 {
             let sfb_extra = if f1.is_weak() { rubric.sfb_lateral_weak } else { rubric.sfb_lateral };
-            cost = cost.checked_add(
-                keyforge_model::types::Score::from_f32(sfb_extra).map_err(|e| PhysicsError::InvalidInput { message: e })?.0
-            ).ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB lateral".to_string() })?;
+            cost = cost.checked_add(to_score_or_err(sfb_extra)?)
+                .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB lateral".to_string() })?;
         } else if col_diff > 1 {
-            cost = cost.checked_add(
-                keyforge_model::types::Score::from_f32(rubric.sfb_diagonal).map_err(|e| PhysicsError::InvalidInput { message: e })?.0
-            ).ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB diagonal".to_string() })?;
+            cost = cost.checked_add(to_score_or_err(rubric.sfb_diagonal)?)
+                .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB diagonal".to_string() })?;
         } else if row_diff >= u32::from(rubric.threshold_sfb_long_row_diff as u8) {
-            cost = cost.checked_add(
-                keyforge_model::types::Score::from_f32(rubric.sfb_long).map_err(|e| PhysicsError::InvalidInput { message: e })?.0
-            ).ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB long".to_string() })?;
+            cost = cost.checked_add(to_score_or_err(rubric.sfb_long)?)
+                .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB long".to_string() })?;
         } else {
-            cost = cost.checked_add(
-                keyforge_model::types::Score::from_f32(rubric.sfb_base).map_err(|e| PhysicsError::InvalidInput { message: e })?.0
-            ).ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB base".to_string() })?;
+            cost = cost.checked_add(to_score_or_err(rubric.sfb_base)?)
+                .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost SFB base".to_string() })?;
         }
         return Ok(cost);
     }
@@ -98,15 +103,13 @@ pub fn calculate_pair_cost(kb: &Keyboard, rubric: &Rubric, i: KeyIndex, j: KeyIn
 
     if finger_diff == 1 && f1 != FingerIndex::THUMB && f2 != FingerIndex::THUMB {
         if row_diff >= u32::from(rubric.threshold_scissor_row_diff as u8) {
-            cost = cost.checked_add(
-                keyforge_model::types::Score::from_f32(rubric.penalty_scissor).map_err(|e| PhysicsError::InvalidInput { message: e })?.0
-            ).ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost scissor".to_string() })?;
+            cost = cost.checked_add(to_score_or_err(rubric.penalty_scissor)?)
+                .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost scissor".to_string() })?;
         } else if row_diff == 0 {
             let col_diff = (k1.col.0 as i32 - k2.col.0 as i32).unsigned_abs();
             if col_diff > 1 {
-                cost = cost.checked_add(
-                    keyforge_model::types::Score::from_f32(rubric.sfb_lateral).map_err(|e| PhysicsError::InvalidInput { message: e })?.0
-                ).ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost lateral SFB adjacent".to_string() })?;
+                cost = cost.checked_add(to_score_or_err(rubric.sfb_lateral)?)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Pair cost lateral SFB adjacent".to_string() })?;
             }
         }
     }

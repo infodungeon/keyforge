@@ -40,7 +40,7 @@ use kernel::compute::analyze_layout;
 use kernel::types::ValidatedLayout;
 pub use kernel::EngineContext;
 use keyforge_model::{
-    AnalysisReport, Corpus, CostModel, KeyCode, Keyboard, Layout, OptimizationResult, Rubric, SearchConfig,
+    AnalysisReport, Corpus, CostModel, KeyCode, Keyboard, Layout, OptimizationResult, Rubric, ScoringResult, SearchConfig,
 };
 use std::sync::Arc;
 use tracing::instrument;
@@ -127,14 +127,14 @@ pub struct EngineRequest {
 ///
 /// Returns a `PhysicsError` if the engine initialization or scoring fails.
 #[instrument(skip(req))]
-pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
+pub fn score(req: &EngineRequest) -> Result<ScoringResult, PhysicsError> {
     let engine = EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
     let layout = req
         .initial_layout
         .clone()
-        .unwrap_or_else(|| Layout::new_unchecked(vec![keyforge_model::KeyCode(0); engine.key_count()]));
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
         
-    Ok(OptimizationResult {
+    Ok(ScoringResult {
         score: engine.score(&layout)?.to_f32(),
         layout,
     })
@@ -151,7 +151,7 @@ pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
     let layout = req
         .initial_layout
         .clone()
-        .unwrap_or_else(|| Layout::new_unchecked(vec![keyforge_model::KeyCode(0); ctx.key_count]));
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; ctx.key_count]));
     analyze_with_context(&ctx, &layout)
 }
 
@@ -168,8 +168,21 @@ pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, 
     let layout = req
         .initial_layout
         .clone()
-        .unwrap_or_else(|| Layout::new_unchecked(vec![keyforge_model::KeyCode(0); ctx.key_count]));
-    Ok(suggest_improvements_with_context(&ctx, &layout, req.config.include_thumbs()))
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; ctx.key_count]));
+    
+    let raw_suggestions = suggest_improvements_with_context(&ctx, &layout, req.config.include_thumbs());
+    
+    // Filter out suggestions that involve pinned keys
+    let filtered: Vec<SwapSuggestion> = raw_suggestions
+        .into_iter()
+        .filter(|s| {
+            let pin_a = req.pinned_keys.get(s.index_a).and_then(|p| p.as_ref()).is_some();
+            let pin_b = req.pinned_keys.get(s.index_b).and_then(|p| p.as_ref()).is_some();
+            !pin_a && !pin_b
+        })
+        .collect();
+
+    Ok(filtered)
 }
 
 /// Analyzes a layout and returns a detailed report.

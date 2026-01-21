@@ -125,30 +125,31 @@ impl AutoSaveService {
             }
         }
 
-        let content = tokio::fs::read_to_string(&self.path).await?;
+        let path = self.path.clone();
+        tokio::task::spawn_blocking(move || {
+            let file = std::fs::File::open(path)?;
+            let reader = std::io::BufReader::new(file);
+            
+            // Peak at content or just try parsing. 
+            // Since we need to support two formats, we'll read to a value first.
+            let v: serde_json::Value = serde_json::from_reader(reader)?;
 
-        // Try loading as PersistedSession first (new format)
-        if let Ok(persisted) = serde_json::from_str::<PersistedSession>(&content) {
-            if persisted.verify() {
-                info!("Session loaded and verified successfully.");
-                return Ok(Some(persisted.snapshot));
+            // 1. Try modern format
+            if let Ok(persisted) = serde_json::from_value::<PersistedSession>(v.clone()) {
+                if persisted.verify() {
+                    return Ok(Some(persisted.snapshot));
+                }
             }
-            warn!("Session file corrupted (checksum mismatch). Ignoring.");
-            return Ok(None);
-        }
 
-        // Fallback: Try loading raw SessionSnapshot (legacy format)
-        // This ensures backward compatibility during migration.
-        match serde_json::from_str::<SessionSnapshot>(&content) {
-            Ok(snap) => {
-                info!("Loaded legacy session format. converting to verified format on next save.");
-                Ok(Some(snap))
+            // 2. Try legacy format
+            if let Ok(snap) = serde_json::from_value::<SessionSnapshot>(v) {
+                return Ok(Some(snap));
             }
-            Err(e) => {
-                warn!("Failed to parse session file: {}", e);
-                Ok(None)
-            }
-        }
+
+            Ok(None)
+        })
+        .await
+        .map_err(|e| crate::error::PersistenceError::InvalidState(e.to_string()))?
     }
 
     /// Schedules a session snapshot to be saved to disk.

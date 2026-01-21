@@ -43,7 +43,7 @@ pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Ph
     let mut total = Score::ZERO;
     for &code in pm.used_keys {
         let c_val = code as usize;
-        let freq = ctx.char_freqs[c_val];
+        let freq = ctx.corpus.char_freqs[c_val];
         if freq == 0 {
             continue;
         }
@@ -52,15 +52,15 @@ pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Ph
             continue;
         }
 
-        let mut min_cost = Score(i64::MAX);
+        let mut min_cost = Score::INFINITY_SENTINEL;
         for &p in candidates {
-            let cost = ctx.key_costs[p as usize];
+            let cost = ctx.geometry.key_costs[p as usize];
             if cost < min_cost {
                 min_cost = cost;
             }
         }
         
-        if min_cost.0 != i64::MAX {
+        if min_cost != Score::INFINITY_SENTINEL {
             let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: format!("Monogram freq scale for code {}", code)
             })?;
@@ -78,21 +78,21 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
     for &code1 in pm.used_keys {
         let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
-        let start = ctx.bigram_starts[c1_val];
-        let end = ctx.bigram_starts[c1_val + 1];
+        let start = ctx.corpus.bigram_starts[c1_val];
+        let end = ctx.corpus.bigram_starts[c1_val + 1];
 
         for k in start..end {
-            let c2 = ctx.bigram_others[k];
+            let c2 = ctx.corpus.bigram_others[k];
             let candidates2 = pm.get(c2.0 as usize);
             if candidates2.is_empty() {
                 continue;
             }
 
-            let mut min_cost = Score(i64::MAX);
+            let mut min_cost = Score::INFINITY_SENTINEL;
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
                     let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
-                    let mut cost = ctx.cost_matrix[idx];
+                    let mut cost = ctx.geometry.cost_matrix[idx];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
                         cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow {
@@ -106,8 +106,8 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
                 }
             }
             
-            if min_cost.0 != i64::MAX {
-                let freq = i64::from(ctx.bigram_freqs[k]);
+            if min_cost != Score::INFINITY_SENTINEL {
+                let freq = i64::from(ctx.corpus.bigram_freqs[k]);
                 let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
                     context: format!("Bigram freq scale for ({}, {})", code1, c2.0)
                 })?;
@@ -126,12 +126,12 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
     for &code1 in pm.used_keys {
         let c1_val = code1 as usize;
         let candidates1 = pm.get(c1_val);
-        let start = ctx.trigram_starts[c1_val];
-        let end = ctx.trigram_starts[c1_val + 1];
+        let start = ctx.corpus.trigram_starts[c1_val];
+        let end = ctx.corpus.trigram_starts[c1_val + 1];
 
         for k in start..end {
-            let c2 = ctx.trigram_others1[k];
-            let c3 = ctx.trigram_others2[k];
+            let c2 = ctx.corpus.trigram_others1[k];
+            let c3 = ctx.corpus.trigram_others2[k];
             let candidates2 = pm.get(c2.0 as usize);
             let candidates3 = pm.get(c3.0 as usize);
     
@@ -139,7 +139,7 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
                 continue;
             }
     
-            let mut min_cost = Score(i64::MAX);
+            let mut min_cost = Score::INFINITY_SENTINEL;
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
                     for &p3 in candidates3 {
@@ -151,8 +151,8 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
                 }
             }
     
-            if min_cost.0 != i64::MAX {
-                let freq = i64::from(ctx.trigram_freqs[k]);
+            if min_cost != Score::INFINITY_SENTINEL {
+                let freq = i64::from(ctx.corpus.trigram_freqs[k]);
                 let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
                     context: format!("Trigram freq scale for sequence starting with {}", code1)
                 })?;

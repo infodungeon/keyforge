@@ -177,9 +177,11 @@ async fn connect_with_retry(db_url: &str) -> Result<PgPool, DbInitError> {
                 {
                     Ok(p) => return Ok(p),
                     Err(e) => {
+                        let host = options.get_host();
+                        let db = options.get_database().unwrap_or("unknown");
                         warn!(
-                            "⚠️  DB Connection attempt {}/{} failed: {}. URL: {}",
-                            i, max_retries, e, db_url
+                            "⚠️  DB Connection attempt {}/{} failed: {}. Target: {}/{}",
+                            i, max_retries, e, host, db
                         );
                         sleep(delay).await;
                     }

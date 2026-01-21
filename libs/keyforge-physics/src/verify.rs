@@ -160,6 +160,8 @@ fn find_indices(layout: &[KeyCode], target: KeyCode) -> Vec<usize> {
         .collect()
 }
 
+use keyforge_model::config::weights::DEFAULT_PENALTY_MISSING_KEY;
+
 fn resolve_static_key_cost(
     key: &KeyNode,
     static_costs: &std::collections::HashMap<String, keyforge_model::cost_model::HandDefinition>,
@@ -206,12 +208,12 @@ fn resolve_static_key_cost(
                     return *positions
                         .values()
                         .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                        .unwrap_or(&100.0);
+                        .unwrap_or(&DEFAULT_PENALTY_MISSING_KEY);
                 }
             }
         }
     }
-    100.0
+    DEFAULT_PENALTY_MISSING_KEY
 }
 
 #[derive(Debug, Clone)]
@@ -273,7 +275,7 @@ impl FixedPointRubric {
             });
         }
 
-        let mut cost = dist_raw as i64;
+        let cost = dist_raw.round() as i64;
 
         if k1.finger == k2.finger {
             let mut reach_k2 = 0.0f64;
@@ -283,7 +285,7 @@ impl FixedPointRubric {
                 reach_k2 = ((rdx * rdx * t_lat) + (rdy * rdy * t_vert)) * scale;
             }
 
-            cost = cost.checked_sub(reach_k2 as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
+            cost = cost.checked_sub(reach_k2.round() as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "Oracle SFB reach reduction".to_string()
             })?;
 
@@ -334,11 +336,11 @@ impl FixedPointRubric {
 }
 
 pub(crate) fn to_fixed(f: f32) -> i64 {
-    (f * 1_000_000.0) as i64
+    (f * keyforge_model::constants::SCORE_SCALE) as i64
 }
 
 fn to_f32(i: i64) -> f32 {
-    (i as f32) / 1_000_000.0
+    (i as f32) / keyforge_model::constants::SCORE_SCALE
 }
 
 #[cfg(test)]

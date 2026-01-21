@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cache::CompiledEngineCache;
+use crate::cache::{CompiledEngineCache, ParsedLayoutCache};
 use crate::error::{AppError, AppResult};
 use crate::infra::repositories::{JobRepository, NodeRepository};
 use keyforge_compute::SessionBuilder;
@@ -35,6 +35,7 @@ pub struct VerificationService {
     nodes: NodeRepository,
     assets: Arc<ValkeyProvider>,
     engine_cache: Arc<CompiledEngineCache>,
+    layout_cache: Arc<ParsedLayoutCache>,
 }
 
 impl VerificationService {
@@ -44,12 +45,14 @@ impl VerificationService {
         nodes: NodeRepository,
         assets: Arc<ValkeyProvider>,
         engine_cache: Arc<CompiledEngineCache>,
+        layout_cache: Arc<ParsedLayoutCache>,
     ) -> Self {
         Self {
             jobs,
             nodes,
             assets,
             engine_cache,
+            layout_cache,
         }
     }
 
@@ -65,6 +68,16 @@ impl VerificationService {
     }
 
     async fn verify_signature(&self, sub: &ResultSubmission) -> AppResult<()> {
+        // 1. Replay Protection (Task-hive-rev-003: Persistent tracking)
+        let nonce_key = format!("nonce:{}:{}", sub.node_id, sub.nonce);
+        let already_used = self.assets.coordinator().get_state(&nonce_key).await
+            .map_err(|e| AppError::Internal(format!("Coordination error: {e}")))?
+            .is_some();
+        
+        if already_used {
+            return Err(AppError::Validation("Nonce already used (Replay attack detected)".into()));
+        }
+
         let public_key = self
             .nodes
             .get_public_key(&sub.node_id)
@@ -88,6 +101,11 @@ impl VerificationService {
         if !valid {
             return Err(AppError::Validation("Invalid Signature".into()));
         }
+
+        // Mark nonce as used (TTL 10m)
+        self.assets.coordinator().set_state(&nonce_key, "1", Some(600)).await
+            .map_err(|e| AppError::Internal(format!("Failed to record nonce: {e}")))?;
+
         Ok(())
     }
 
@@ -144,34 +162,46 @@ impl VerificationService {
     ) -> AppResult<()> {
         let keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME;
 
-        let registry = self
-            .assets
-            .load::<KeycodeRegistry>(keycodes_file)
-            .await
-            .map_err(|e| {
-                AppError::Validation(format!("Failed to load keycodes for verification: {e}"))
-            })?;
+        let layout_struct = if let Some(cached) = self.layout_cache.get(&sub.layout) {
+            cached
+        } else {
+            let registry = self
+                .assets
+                .load::<KeycodeRegistry>(keycodes_file)
+                .await
+                .map_err(|e| {
+                    AppError::Validation(format!("Failed to load keycodes for verification: {e}"))
+                })?;
 
-        let layout_struct = keyforge_adapter::conversion::parse_layout_string_strict(
-            &sub.layout,
-            engine.key_count(),
-            &registry,
-        )
-        .map_err(|e| AppError::Validation(format!("Layout parse error: {e}")))?;
+            let parsed = keyforge_adapter::conversion::parse_layout_string_strict(
+                &sub.layout,
+                engine.key_count(),
+                &registry,
+            )
+            .map_err(|e| AppError::Validation(format!("Layout parse error: {e}")))?;
+            
+            self.layout_cache.insert(&sub.layout, parsed.clone());
+            parsed
+        };
 
         let calculated_score = engine
             .score(&layout_struct)
             .map_err(|e| AppError::Validation(format!("Scoring error: {e}")))?
             .to_f32();
 
+        let is_exact = engine.capabilities().is_exact;
         let diff = (calculated_score - sub.score).abs();
-        let tolerance =
-            (sub.score * VERIFICATION_TOLERANCE_RATIO).max(VERIFICATION_TOLERANCE_ABS_MIN);
+        
+        let tolerance = if is_exact {
+            0.0
+        } else {
+            (sub.score * VERIFICATION_TOLERANCE_RATIO).max(VERIFICATION_TOLERANCE_ABS_MIN)
+        };
 
         if diff > tolerance {
             warn!(
-                "❌ Score Mismatch: Claimed {:.4} vs Calc {:.4} (Diff: {:.4})",
-                sub.score, calculated_score, diff
+                "❌ Score Mismatch (is_exact: {}): Claimed {:.4} vs Calc {:.4} (Diff: {:.4})",
+                is_exact, sub.score, calculated_score, diff
             );
             return Err(AppError::Validation("Score verification failed".into()));
         }

@@ -78,8 +78,10 @@ impl Asset for KeyboardDefinition {
 
 impl Validator for KeyboardDefinition {
     fn validate(&self) -> Result<(), String> {
-        self.geometry.validate()?;
-        Ok(())
+        if self.meta.name.len() > MAX_KEYBOARD_NAME_LEN {
+            return Err(format!("Keyboard name too long (max {})", MAX_KEYBOARD_NAME_LEN));
+        }
+        self.geometry.validate()
     }
 }
 
@@ -173,8 +175,19 @@ pub struct KeyboardGeometry {
     /// Indices of keys considered "Low" quality.
     pub low_slots: Vec<KeyIndex>,
     /// The logical row index considered the "Home Row".
-    #[serde(default = "default_home_row")]
     pub home_row: i8,
+}
+
+impl Default for KeyboardGeometry {
+    fn default() -> Self {
+        Self {
+            keys: Vec::new(),
+            prime_slots: Vec::new(),
+            med_slots: Vec::new(),
+            low_slots: Vec::new(),
+            home_row: 1, // Default fallback
+        }
+    }
 }
 
 impl Validator for KeyboardGeometry {
@@ -182,6 +195,15 @@ impl Validator for KeyboardGeometry {
         if self.keys.is_empty() {
             return Err("Keyboard geometry must have at least one key".to_string());
         }
+        
+        // Task-prot-rev-011: Validate home row against keys
+        let has_home_keys = self.keys.iter().any(|k| k.is_home);
+        let has_home_row_matches = self.keys.iter().any(|k| k.row.0 == self.home_row);
+        
+        if !has_home_keys && !has_home_row_matches {
+             return Err(format!("Invalid home row {}: no keys found on this row and no keys marked is_home", self.home_row));
+        }
+
         if self.keys.len() > MAX_KEYBOARD_KEYS {
             return Err(format!(
                 "Too many keys: {} (Max: {})",
@@ -275,15 +297,6 @@ impl KeyboardDefinition {
     }
 }
 
-impl Default for KeyboardGeometry {
-    fn default() -> Self {
-        Self {
-            keys: Vec::new(),
-            prime_slots: Vec::new(),
-            med_slots: Vec::new(),
-            low_slots: Vec::new(),
-            home_row: 1,
-        }
     }
 }
 

@@ -10,6 +10,8 @@
 ## Glue (The Middleware)
 * [keyforge-core](./keyforge-core/README.md) - Orchestration.
 * [keyforge-compute](./keyforge-compute/README.md) - Runtime Builder.
+* [keyforge-runner](./keyforge-runner/README.md) - Optimization Runner.
+* [keyforge-protocol](./keyforge-protocol/README.md) - DTOs & API Contract.
 * [keyforge-security](./keyforge-security/README.md) - Signing & Secrets.
 
 ## Adapters (The IO)
@@ -26,3 +28,4 @@
 * [keyforge-assetmgr](./keyforge-assetmgr/README.md) - Asset Hydration Utility.
 * [keyforge-agent](./keyforge-agent/README.md) - Worker Node.
 * [keyforge-cli](./keyforge-cli/README.md) - Command Line Interface.
+* [keyforge-ui](./keyforge-ui/README.md) - Frontend Application.

@@ -44,21 +44,26 @@ impl IntelScoringEngine {
     }
 
     fn score_internal(&self, layout: &Layout, force_scalar: bool) -> Result<Score, PhysicsError> {
-        let mut scratch = Box::new(PhysicsScratch::new());
+        std::thread_local! {
+            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
+        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        {
-             if is_x86_feature_detected!("avx2") && !force_scalar {
-                 unsafe { Ok(Score(score_layout_avx2(&self.ctx, &validated, &mut scratch, &self.config)?)) }
-             } else {
-                 Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut scratch)?))
-             }
-        }
-        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-        {
-             Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut scratch)?))
-        }
+        SCRATCH.with(|scratch| {
+            let mut s = scratch.borrow_mut();
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                 if is_x86_feature_detected!("avx2") && !force_scalar {
+                     unsafe { Ok(Score(score_layout_avx2(&self.ctx, &validated, &mut s, &self.config)?)) }
+                 } else {
+                     Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut s)?))
+                 }
+            }
+            #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+            {
+                 Ok(Score(score_layout_scalar(&self.ctx, &validated, &mut s)?))
+            }
+        })
     }
 }
 
@@ -84,23 +89,31 @@ impl ScoringEngine for IntelScoringEngine {
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        let mut scratch = Box::new(PhysicsScratch::new());
+        std::thread_local! {
+            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
+        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
-        let pm = PosMap::from_scratch(
-            layout_slice,
-            self.ctx.key_count,
-            scratch.starts.as_mut_slice(),
-            scratch.counts.as_mut_slice(),
-            scratch.indices.as_mut_slice(),
-            scratch.current_offsets.as_mut_slice(),
-            &mut scratch.used_keys,
-        );
+        
+        SCRATCH.with(|scratch| {
+            let mut s = scratch.borrow_mut();
+            let pm = PosMap::from_scratch(
+                layout_slice,
+                self.ctx.key_count,
+                s.starts.as_mut_slice(),
+                s.counts.as_mut_slice(),
+                s.indices.as_mut_slice(),
+                s.current_offsets.as_mut_slice(),
+                &mut s.used_keys,
+            );
 
-        let mono = score_monograms(&self.ctx, &pm)?.0;
-        let bigram = score_bigrams(&self.ctx, &pm)?.0;
-        let trigram = score_trigrams(&self.ctx, &pm)?.0;
-        Ok((mono, bigram, trigram))
+            let mono = score_monograms(&self.ctx, &pm)?.0;
+            let bigram = score_bigrams(&self.ctx, &pm)?.0;
+            let trigram = score_trigrams(&self.ctx, &pm)?.0;
+            // cleanup
+            s.clear_used();
+            Ok((mono, bigram, trigram))
+        })
     }
 
     fn calculate_swap_delta(
@@ -110,20 +123,27 @@ impl ScoringEngine for IntelScoringEngine {
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let mut scratch = Box::new(PhysicsScratch::new());
+        std::thread_local! {
+            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
+        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
 
-        let pm = PosMap::from_scratch(
-            validated.as_slice(),
-            self.ctx.key_count,
-            scratch.starts.as_mut_slice(),
-            scratch.counts.as_mut_slice(),
-            scratch.indices.as_mut_slice(),
-            scratch.current_offsets.as_mut_slice(),
-            &mut scratch.used_keys,
-        );
+        SCRATCH.with(|scratch| {
+            let mut s = scratch.borrow_mut();
+            let pm = PosMap::from_scratch(
+                validated.as_slice(),
+                self.ctx.key_count,
+                s.starts.as_mut_slice(),
+                s.counts.as_mut_slice(),
+                s.indices.as_mut_slice(),
+                s.current_offsets.as_mut_slice(),
+                &mut s.used_keys,
+            );
 
-        Ok(crate::kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b))
+            let delta = crate::kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b);
+            s.clear_used();
+            Ok(delta)
+        })
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
@@ -198,29 +218,11 @@ unsafe fn score_layout_avx2(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
     scratch: &mut PhysicsScratch,
-    _config: &IntelEngineConfig,
+    config: &IntelEngineConfig,
 ) -> Result<i64, PhysicsError> {
-    let layout_slice = layout.as_slice();
-    let pm = PosMap::from_scratch(
-        layout_slice,
-        ctx.key_count,
-        scratch.starts.as_mut_slice(),
-        scratch.counts.as_mut_slice(),
-        scratch.indices.as_mut_slice(),
-        scratch.current_offsets.as_mut_slice(),
-        &mut scratch.used_keys,
-    );
-
-    let m = score_monograms(ctx, &pm)?;
-    let b = score_bigrams(ctx, &pm)?;
-    let t = score_trigrams(ctx, &pm)?;
-
-    let total = m.checked_add(b)
-        .and_then(|sum| sum.checked_add(t))
-        .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Intel AVX2 total score accumulation".into() })?;
-
-    scratch.clear_used();
-    Ok(total.0)
+    // Task-phys-rev-032: Real AVX2 implementation pending.
+    // Fallback to scalar for now to ensure bit-perfect accuracy.
+    score_layout_scalar(ctx, layout, scratch)
 }
 
 // Reuse helper functions. Ideally these would also be target_feature optimized,

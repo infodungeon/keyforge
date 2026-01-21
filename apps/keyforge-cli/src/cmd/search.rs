@@ -41,7 +41,7 @@ pub async fn run(
     if let Some(kc) = &args.shared.keycodes {
         options.keycodes_file.clone_from(kc);
     } else {
-        options.keycodes_file = "keycodes.json".into();
+        options.keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME.into();
     }
 
     if let Some(s) = args.seed {
@@ -60,13 +60,23 @@ pub async fn run(
 
     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-    // Task-cli-028: Setup Progress Bar
-    let pb = ProgressBar::new(options.timeout_sec);
+    // Task-clii-rev-003: Setup Progress Bar
+    let pb = if options.timeout_sec > 0 {
+        ProgressBar::new(options.timeout_sec)
+    } else {
+        ProgressBar::new_spinner()
+    };
+
     pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len}s ({eta}) {msg}")
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
         .unwrap_or_else(|_| ProgressStyle::default_bar())
         .progress_chars("#>-"));
-    pb.set_message("Optimizing layout...");
+    
+    if options.timeout_sec == 0 {
+        pb.set_message("Optimizing layout (Infinite)...");
+    } else {
+        pb.set_message("Optimizing layout...");
+    }
 
     let callback = ProgressBarCallback {
         stop_flag: stop_flag.clone(),

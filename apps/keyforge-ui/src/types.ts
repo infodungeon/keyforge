@@ -72,3 +72,12 @@ export interface CorpusStats {
   size_bytes: number;
   path: string;
 }
+
+export interface UiCategory {
+  id: string;
+  label: string;
+  description?: string;
+  color?: string;
+}
+
+export type UiCategoryMap = Record<string, UiCategory[]>;

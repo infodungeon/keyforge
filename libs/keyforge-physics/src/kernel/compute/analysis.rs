@@ -83,7 +83,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                     let mut cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
                     let idx12 = (p1 as usize) * ctx.key_count + (p2 as usize);
                     let idx23 = (p2 as usize) * ctx.key_count + (p3 as usize);
-                    cost = cost + ctx.cost_matrix[idx12] + ctx.cost_matrix[idx23];
+                    cost = cost + ctx.geometry.cost_matrix[idx12] + ctx.geometry.cost_matrix[idx23];
 
                     if cost < min_cost_val {
                         min_cost_val = cost;
@@ -146,7 +146,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             // Pick pair resulting in best score contribution
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
-                    let mut cost = ctx.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                    let mut cost = ctx.geometry.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1, c2)) {
                         cost = cost + mod_val;
@@ -170,16 +170,16 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         // Distance Calculation
         if idx1 == idx2 {
             // Same key: No movement
-        } else if ctx.hands[idx1] == ctx.hands[idx2] {
+        } else if ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2] {
             // Same Hand: Euclidean Distance
-            report.distance += ctx.dist_matrix[idx1 * ctx.key_count + idx2] * freq_f;
+            report.distance += ctx.geometry.dist_matrix[idx1 * ctx.key_count + idx2] * freq_f;
 
             // SFB Check (Specific to same-finger move)
-            if ctx.fingers[idx1] == ctx.fingers[idx2] {
+            if ctx.geometry.fingers[idx1] == ctx.geometry.fingers[idx2] {
                 report.sfb_total += freq_f;
 
                 // Accumulate SFB penalty contribution
-                let sfb_cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
+                let sfb_cost = ctx.geometry.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
                 report.sfb_penalty += sfb_cost * freq_f;
 
                 sfbs.push(MetricViolation {
@@ -190,15 +190,15 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             }
         } else {
             // Different Hand: Movement from home position
-            report.distance += ctx.key_home_distances[idx2] * freq_f;
+            report.distance += ctx.geometry.key_home_distances[idx2] * freq_f;
         }
 
         // Scissor Detection
-        let r1 = ctx.rows[idx1];
-        let r2 = ctx.rows[idx2];
-        let f1 = ctx.fingers[idx1];
-        let f2 = ctx.fingers[idx2];
-        if ctx.hands[idx1] == ctx.hands[idx2]
+        let r1 = ctx.geometry.rows[idx1];
+        let r2 = ctx.geometry.rows[idx2];
+        let f1 = ctx.geometry.fingers[idx1];
+        let f2 = ctx.geometry.fingers[idx2];
+        if ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2]
             && f1.distance(f2) == 1
             && (r1 - r2).abs() >= 2
             && f1 != FingerIndex::THUMB
@@ -207,7 +207,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             report.scissors += freq_f;
 
             // Accumulate scissor penalty contribution
-            let scissor_cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
+            let scissor_cost = ctx.geometry.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
             report.scissor_penalty += scissor_cost * freq_f;
 
             scissors.push(MetricViolation {
@@ -218,7 +218,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         }
 
         // Effort Attribution
-        let trans_cost = ctx.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
+        let trans_cost = ctx.geometry.cost_matrix[idx1 * ctx.key_count + idx2].to_f32();
         penalty_map[idx1] += trans_cost * freq_f * 0.5;
         penalty_map[idx2] += trans_cost * freq_f * 0.5;
     }
@@ -227,7 +227,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     for &code in pm.used_keys {
         let c_val = code as usize;
         #[allow(clippy::cast_precision_loss)]
-        let freq = ctx.char_freqs[c_val] as f32;
+        let freq = ctx.corpus.char_freqs[c_val] as f32;
         if freq <= 0.0 {
             continue;
         }
@@ -241,28 +241,28 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             for &p in candidates {
                 let p_idx = p as usize;
                 let share = heatmap[p_idx] / total_key_usage;
-                penalty_map[p_idx] += freq * share * ctx.key_costs[p_idx].to_f32();
+                penalty_map[p_idx] += freq * share * ctx.geometry.key_costs[p_idx].to_f32();
             }
         } else {
             // Unused in transitions (e.g. monogram only): use best static key
             let mut min_c = f32::MAX;
             let mut bp = 0;
             for &p in candidates {
-                let c = ctx.key_costs[p as usize].to_f32();
+                let c = ctx.geometry.key_costs[p as usize].to_f32();
                 if c < min_c {
                     min_c = c;
                     bp = p as usize;
                 }
             }
             heatmap[bp] += freq;
-            penalty_map[bp] += freq * ctx.key_costs[bp].to_f32();
+            penalty_map[bp] += freq * ctx.geometry.key_costs[bp].to_f32();
         }
     }
 
     // Pass 4: Finalize Load Metrics
     for (i, &val) in heatmap.iter().enumerate() {
         total_load += val;
-        if ctx.hands[i].is_left() {
+        if ctx.geometry.hands[i].is_left() {
             left_hand_load += val;
         }
     }
@@ -280,7 +280,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     sort_violations(&mut redirs);
 
     // Normalization
-    let total_freq: u64 = ctx.char_freqs.iter().sum();
+    let total_freq: u64 = ctx.corpus.char_freqs.iter().sum();
     let mut norm_100k = 1.0;
     let mut norm_pct = 1.0;
 

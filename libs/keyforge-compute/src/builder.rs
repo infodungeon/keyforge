@@ -179,6 +179,26 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         let engine = keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
             .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
 
+        // Task-phys-rev-015: Validate corpus coverage against registry
+        let total_freq: u64 = corpus.char_freqs.iter().sum();
+        if total_freq > 0 {
+            for (i, &freq) in corpus.char_freqs.iter().enumerate() {
+                if freq > 0 {
+                    let code = i as u16;
+                    if registry.get_label(code).contains("0x") {
+                        // Not found in registry (falls back to 0xHEX)
+                        let pct = (freq as f64 / total_freq as f64) * 100.0;
+                        if pct > 0.1 {
+                             tracing::warn!(
+                                "Corpus character code {} (weighted {:.2}%) is not in the keycode registry. It will be ignored during optimization!",
+                                code, pct
+                             );
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(ScoringSession::new(Arc::from(engine), registry, config))
     }
 }

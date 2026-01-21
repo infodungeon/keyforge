@@ -47,6 +47,7 @@ async fn process_job_registration(
     mut payload: JobRequest,
 ) -> AppResult<JobResponse> {
     validate_request(&payload)?;
+    validate_input_safety(&payload)?; // Moved up
     resolve_assets(state, &mut payload).await?;
     let job_id = generate_job_id(&payload)?;
 

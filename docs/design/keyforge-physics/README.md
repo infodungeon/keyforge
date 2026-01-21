@@ -5,7 +5,46 @@
 
 ## 1. The Scoring Engine (Multi-Tiered)
 
-The `ScoringEngine` is a trait that defines the interface for evaluating keyboard layouts. It is a read-only component optimized for O(1) lookups. It does not store the layout; it calculates the cost of applying a layout to a physical keyboard.
+The `ScoringEngine` trait defines the interface for evaluating keyboard layouts. It is a read-only component optimized for O(1) lookups. Multiple engine implementations exist for different performance/accuracy trade-offs.
+
+### Engine Implementations
+
+| Engine | Purpose | Capabilities |
+|--------|---------|--------------|
+| `GenericScoringEngine` | Default optimized engine | Fast, portable |
+| `ExactScoringEngine` | Oracle for verification | Bit-perfect, slow |
+| `IntelScoringEngine` | Hardware-accelerated | AVX2, cache-aware blocking |
+
+```mermaid
+classDiagram
+    class ScoringEngine {
+        <<trait>>
+        +name() &str
+        +capabilities() EngineCapabilities
+        +key_count() usize
+        +score(Layout) Score
+        +score_detailed(Layout) (i64, i64, i64)
+        +calculate_swap_delta(Layout, pos_map, idx_a, idx_b) i64
+        +analyze(Layout) AnalysisReport
+        +suggest_improvements(Layout, include_thumbs) Vec~SwapSuggestion~
+        +context() &EngineContext
+    }
+
+    class EngineCapabilities {
+        +is_exact: bool
+        +supports_avx2: bool
+        +supports_blocking: bool
+    }
+
+    class GenericScoringEngine
+    class ExactScoringEngine
+    class IntelScoringEngine
+
+    ScoringEngine <|.. GenericScoringEngine
+    ScoringEngine <|.. ExactScoringEngine
+    ScoringEngine <|.. IntelScoringEngine
+    ScoringEngine --> EngineCapabilities
+```
 
 ### Compilation Process
 
@@ -17,8 +56,8 @@ sequenceDiagram
     participant Context as EngineContext
     participant Engine as dyn ScoringEngine
 
-    User->>Factory: new_generic(Keyboard, Corpus, Rubric)
-    Factory->>Compiler: compile(Keyboard, Corpus, Rubric)
+    User->>Factory: new_generic(Keyboard, Corpus, Rubric, CostModel)
+    Factory->>Compiler: compile(Keyboard, Corpus, Rubric, CostModel)
     
     Compiler->>Compiler: Flatten Corpus (Bigrams -> Vec)
     Compiler->>Compiler: Pre-calculate Key Distances
@@ -32,7 +71,7 @@ sequenceDiagram
 
 ## 2. The Oracle Pattern (Verification)
 
-To ensure the optimized engine remains mathematically sound despite aggressive optimizations (flattened lookups, bit-shifting, and integer scaling), we employ a "Shadow Execution" strategy. Every property test compares the high-performance engine against the `DeterministicScorer`.
+To ensure the optimized engines remain mathematically sound despite aggressive optimizations (flattened lookups, bit-shifting, and integer scaling), we employ a "Shadow Execution" strategy. Every property test compares the high-performance engine against the `ExactScoringEngine`.
 
 ### Oracle Parity Sequence
 
@@ -40,22 +79,24 @@ To ensure the optimized engine remains mathematically sound despite aggressive o
 sequenceDiagram
     participant T as Test Runner (Proptest)
     participant F as EngineFactory
-    participant E as dyn ScoringEngine (Generic)
-    participant O as DeterministicScorer (Oracle)
+    participant G as GenericScoringEngine
+    participant E as ExactScoringEngine (Oracle)
 
-    Note over T: Generate Random Inputs<br/>(Keyboard, Corpus, Rubric, Layout)
+    Note over T: Generate Random Inputs<br/>(Keyboard, Corpus, Rubric, CostModel, Layout)
 
-    T->>F: new_generic(kb, cp, rb)
-    F->>E: Box<dyn ScoringEngine>
+    T->>F: new_generic(kb, cp, rb, cm)
+    F-->>G: Box<dyn ScoringEngine>
+    T->>F: new_exact(kb, cp, rb, cm)
+    F-->>E: Box<dyn ScoringEngine>
     
     par Optimized Path
+        T->>G: score(Layout)
+        G->>G: Fixed-Point Accumulation<br/>(O(1) Lookup Tables)
+        G-->>T: Result A (Score)
+    and Exact Path (Oracle)
         T->>E: score(Layout)
-        E->>E: Fixed-Point Accumulation<br/>(O(1) Lookup Tables)
-        E-->>T: Result A (i64)
-    and Naive Path (Oracle)
-        T->>O: score(kb, cp, rb, Layout)
-        O->>O: Naive Iteration<br/>(Optimal Choice Search)
-        O-->>T: Result B (i64)
+        E->>E: Naive Iteration<br/>(Optimal Choice Search)
+        E-->>T: Result B (Score)
     end
 
     T->>T: Assert Result A == Result B
@@ -122,9 +163,36 @@ sequenceDiagram
     end
 ```
 
-## 4. Key Components
+## 4. Public API
 
-* **Compiler:** Transforms domain entities into `EngineContext`. It handles the heavy lifting of spatial math and corpus pruning so the scoring loop remains tight.
-* **Compute Kernel:** The hot-path logic for monogram, bigram, and trigram scoring.
-* **Heuristics:** Provides fast swap suggestions by calculating score deltas rather than full re-scores.
-* **Fingerprinter:** Uses Hamming distance to identify known layout standards (Qwerty, Dvorak, etc.).
+The crate exposes these top-level functions for one-off operations:
+
+| Function | Purpose |
+|----------|---------|
+| `score(EngineRequest)` | Score a layout |
+| `analyze(EngineRequest)` | Generate detailed `AnalysisReport` |
+| `identify(Layout)` | Match layout to known standards (Qwerty, Dvorak, etc.) |
+| `suggest_improvements(EngineRequest)` | Get swap suggestions filtered by pinned keys |
+
+## 5. Module Structure
+
+```
+keyforge-physics/src/
+├── engines/
+│   ├── exact.rs          # ExactScoringEngine (Oracle)
+│   ├── generic.rs        # GenericScoringEngine (Default)
+│   ├── intel_comet_lake.rs # IntelScoringEngine (AVX2)
+│   └── mod.rs            # ScoringEngine trait, EngineCapabilities
+├── kernel/
+│   ├── compute/          # Hot-path scoring logic
+│   ├── stages/           # Compilation pipeline stages
+│   ├── compiler.rs       # Transforms domain -> EngineContext
+│   ├── mechanics.rs      # Physical key mechanics
+│   └── types.rs          # ValidatedLayout, internal types
+├── analysis/
+│   ├── fingerprint.rs    # Layout identification (Hamming distance)
+│   └── heuristics.rs     # Swap suggestion algorithms
+├── verify.rs             # Layout validation
+├── error.rs              # PhysicsError
+└── lib.rs                # EngineFactory, public API
+```

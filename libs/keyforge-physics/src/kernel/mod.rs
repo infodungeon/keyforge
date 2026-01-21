@@ -22,50 +22,87 @@ use self::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, Score};
 
 use std::collections::HashMap;
 
-/// Compiled, high-performance context used by the physics engine for scoring.
-///
-/// This structure holds flattened, cache-friendly representations of
-/// language statistics and physical travel costs.
+use std::sync::Arc;
+
+/// Physical properties and pre-calculated distances for a keyboard.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
+pub struct GeometryData {
+    pub(crate) key_count: usize,
+    pub(crate) hands: Arc<[HandIndex]>,
+    pub fingers: Arc<[FingerIndex]>,
+    pub(crate) rows: Arc<[RowIndex]>,
+    pub(crate) cols: Arc<[ColIndex]>,
+    pub(crate) cost_matrix: Arc<[Score]>,
+    pub(crate) dist_matrix: Arc<[f32]>,
+    pub(crate) key_home_distances: Arc<[f32]>,
+    pub(crate) key_costs: Arc<[Score]>,
+}
+
+/// Statistics and frequencies for characters and sequences.
+#[derive(Debug, Clone)]
+pub struct CorpusData {
+    pub(crate) char_freqs: Arc<[u64]>,
+    pub(crate) bigram_starts: Arc<[usize]>,
+    pub(crate) bigram_others: Arc<[KeyCode]>,
+    pub(crate) bigram_freqs: Arc<[u32]>,
+    pub(crate) bigram_rev_starts: Arc<[usize]>,
+    pub(crate) bigram_rev_others: Arc<[KeyCode]>,
+    pub(crate) bigram_rev_freqs: Arc<[u32]>,
+    pub(crate) trigram_starts: Arc<[usize]>,
+    pub(crate) trigram_others1: Arc<[KeyCode]>,
+    pub(crate) trigram_others2: Arc<[KeyCode]>,
+    pub(crate) trigram_freqs: Arc<[u32]>,
+    pub(crate) trigram_mid_starts: Arc<[usize]>,
+    pub(crate) trigram_mid_others1: Arc<[KeyCode]>,
+    pub(crate) trigram_mid_others2: Arc<[KeyCode]>,
+    pub(crate) trigram_mid_freqs: Arc<[u32]>,
+    pub(crate) trigram_end_starts: Arc<[usize]>,
+    pub(crate) trigram_end_others1: Arc<[KeyCode]>,
+    pub(crate) trigram_end_others2: Arc<[KeyCode]>,
+    pub(crate) trigram_end_freqs: Arc<[u32]>,
+}
+
+/// Compiled, high-performance context used by the physics engine for scoring.
+#[derive(Debug, Clone)]
 pub struct EngineContext {
     pub(crate) key_count: usize,
-    pub(crate) hands: Vec<HandIndex>,
-    pub fingers: Vec<FingerIndex>,
-    pub(crate) rows: Vec<RowIndex>,
-    pub(crate) cols: Vec<ColIndex>,
-    pub(crate) cost_matrix: Vec<Score>,
-    pub(crate) dist_matrix: Vec<f32>,
-    pub(crate) key_home_distances: Vec<f32>,
-    pub(crate) key_costs: Vec<Score>,
-    pub(crate) char_freqs: Vec<u64>,
-    pub(crate) bigram_starts: Vec<usize>,
-    pub(crate) bigram_others: Vec<KeyCode>,
-    pub(crate) bigram_freqs: Vec<u32>,
-    pub(crate) bigram_rev_starts: Vec<usize>,
-    pub(crate) bigram_rev_others: Vec<KeyCode>,
-    pub(crate) bigram_rev_freqs: Vec<u32>,
-    pub(crate) trigram_starts: Vec<usize>,
-    pub(crate) trigram_others1: Vec<KeyCode>,
-    pub(crate) trigram_others2: Vec<KeyCode>,
-    pub(crate) trigram_freqs: Vec<u32>,
-    pub(crate) trigram_mid_starts: Vec<usize>,
-    pub(crate) trigram_mid_others1: Vec<KeyCode>,
-    pub(crate) trigram_mid_others2: Vec<KeyCode>,
-    pub(crate) trigram_mid_freqs: Vec<u32>,
-    pub(crate) trigram_end_starts: Vec<usize>,
-    pub(crate) trigram_end_others1: Vec<KeyCode>,
-    pub(crate) trigram_end_others2: Vec<KeyCode>,
-    pub(crate) trigram_end_freqs: Vec<u32>,
-    pub(crate) all_bigrams: Vec<(u16, u16, u32)>,
-    pub(crate) all_trigrams: Vec<(u16, u16, u16, u32)>,
+    pub(crate) geometry: GeometryData,
+    pub(crate) corpus: CorpusData,
+    pub(crate) all_bigrams: Arc<[(u16, u16, u32)]>,
+    pub(crate) all_trigrams: Arc<[(u16, u16, u16, u32)]>,
     pub(crate) penalty_redirect: Score,
     pub(crate) penalty_skip: Score,
     pub(crate) bonus_roll: Score,
+    pub(crate) bonus_roll_out: Score,
     /// Custom modifiers for specific key sequences (Bigrams).
-    pub(crate) sequence_modifiers: HashMap<(u16, u16), Score>,
+    pub(crate) sequence_modifiers: Arc<HashMap<(u16, u16), Score>>,
     /// Pre-sorted list of all unique keycodes present in the corpus.
-    pub(crate) sorted_unique_keys: Vec<u16>,
+    pub(crate) sorted_unique_keys: Arc<[u16]>,
     /// Map of keycode to its index in `sorted_unique_keys`.
-    pub(crate) key_rank_map: HashMap<u16, usize>,
+    pub(crate) key_rank_map: Arc<HashMap<u16, usize>>,
+}
+
+impl EngineContext {
+    /// Verifies the internal consistency of the context data structures.
+    ///
+    /// # Errors
+    /// Returns `PhysicsError::Config` if any vector length mismatches `key_count`.
+    pub fn verify(&self) -> Result<(), crate::error::PhysicsError> {
+        let kc = self.key_count;
+        let g = &self.geometry;
+        
+        if g.hands.len() != kc || g.fingers.len() != kc || g.rows.len() != kc || g.cols.len() != kc {
+            return Err(crate::error::PhysicsError::Config("Geometry vector size mismatch".into()));
+        }
+        if g.cost_matrix.len() != kc * kc || g.dist_matrix.len() != kc * kc {
+            return Err(crate::error::PhysicsError::Config("Matrix size mismatch".into()));
+        }
+        if g.key_home_distances.len() != kc || g.key_costs.len() != kc {
+            return Err(crate::error::PhysicsError::Config("Static cost vector size mismatch".into()));
+        }
+        if self.corpus.char_freqs.len() != 65536 {
+             return Err(crate::error::PhysicsError::Config("Char freqs must be 65536".into()));
+        }
+        Ok(())
+    }
 }

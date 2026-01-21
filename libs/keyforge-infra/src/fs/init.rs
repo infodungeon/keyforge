@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::error::{InfraError, InfraResult};
+use keyforge_model::constants::{REQUIRED_ASSETS, SYSTEM_DIRS, USER_RUNTIME_DIRS, USER_WORKSPACE_DIRS};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{error, info};
@@ -26,32 +27,8 @@ pub enum InitMode {
     Create,
 }
 
-/// A list of system assets that must be present for the application to function.
-pub const REQUIRED_ASSETS: &[&str] = &[
-    "config/keycodes",
-    "weights/cost_matrix",
-    "corpora/text/en_std/1grams",
-];
-
-/// Directories containing system-provided data, models, and benchmarks.
-pub const SYSTEM_DIRS: &[&str] = &[
-    "system/config",
-    "system/keyboards",
-    "system/corpora/text/en_std",
-    "system/weights",
-    "system/benchmarks",
-];
-
-/// Directories for user-created content that should be persisted (e.g., custom layouts).
-pub const USER_WORKSPACE_DIRS: &[&str] = &[
-    "user/keyboards",
-    "user/corpora",
-    "user/weights",
-    "user/config",
-];
-
-/// Directories for volatile or transient data (e.g., queues, WALs).
-pub const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
+/// Marker file used to identify a valid KeyForge workspace.
+pub const WORKSPACE_MARKER: &str = ".keyforge_workspace";
 
 /// Orchestrates the setup of the `KeyForge` workspace.
 ///
@@ -70,6 +47,12 @@ pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<()> {
         }
         for dir in USER_RUNTIME_DIRS {
             ensure_dir(root, dir)?;
+        }
+        
+        // Task-infra-rev-003: Create marker file
+        let marker = root.join(WORKSPACE_MARKER);
+        if !marker.exists() {
+            fs::write(&marker, "KeyForge Workspace Root\n").map_err(InfraError::Io)?;
         }
     }
 

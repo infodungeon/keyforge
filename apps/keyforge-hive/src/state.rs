@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cache::CompiledEngineCache;
+use crate::cache::{CompiledEngineCache, ParsedLayoutCache};
 use crate::config::{AppConfig, DEFAULT_BROADCAST_CAPACITY, DEFAULT_MONITOR_INTERVAL_SECS};
 use crate::infra::queue::WriteQueue;
 use crate::infra::repositories::{
@@ -57,6 +57,8 @@ pub struct AppState {
     pub assets: Arc<ValkeyProvider>,
     /// Cache for pre-compiled optimization engines.
     pub engine_cache: Arc<CompiledEngineCache>,
+    /// Cache for parsed layout structures.
+    pub layout_cache: Arc<ParsedLayoutCache>,
     /// Static Hive configuration loaded from the environment/assets.
     pub config: Arc<AppConfig>,
     /// Real-time system monitoring and metrics.
@@ -120,12 +122,14 @@ impl AppState {
 
         let jobs = Arc::new(JobManager::new(job_repo.clone(), queue.clone()));
         let engine_cache = Arc::new(CompiledEngineCache::new());
+        let layout_cache = Arc::new(ParsedLayoutCache::new());
 
         let verification = Arc::new(VerificationService::new(
             job_repo,
             nodes.clone(),
             assets.clone(),
             engine_cache.clone(),
+            layout_cache.clone(),
         ));
 
         Self {
@@ -141,6 +145,7 @@ impl AppState {
             queue,
             assets,
             engine_cache,
+            layout_cache,
             config: config_arc,
             monitor,
             data_path,

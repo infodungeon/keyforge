@@ -14,8 +14,8 @@ pub struct InitArgs {
     #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
 
-    #[arg(long, default_value = "http://localhost:3001")]
-    pub asset_url: String,
+    #[arg(long)]
+    pub asset_url: Option<String>,
 }
 
 pub async fn run(args: InitArgs) -> Result<(), CliError> {
@@ -27,10 +27,20 @@ pub async fn run(args: InitArgs) -> Result<(), CliError> {
             .map_err(|e| CliError::Workspace(format!("Failed to create {d}: {e}")))?;
     }
 
+    let asset_url = args.asset_url.unwrap_or_else(|| {
+        // Heuristic: If hive is https://host:3000, assets is usually https://host:3001
+        if let Some(pos) = args.hive.rfind(':') {
+            if let Ok(port) = args.hive[pos + 1..].parse::<u32>() {
+                return format!("{}:{}", &args.hive[..pos], port + 1);
+            }
+        }
+        "http://localhost:3001".to_string()
+    });
+
     eprintln!("🌐 Connecting to Hive at {}...", args.hive);
     let config = keyforge_infra::net::client::ClientConfig {
         api_url: args.hive.clone(),
-        asset_url: args.asset_url.clone(),
+        asset_url,
         secret: None,
         ..Default::default()
     };

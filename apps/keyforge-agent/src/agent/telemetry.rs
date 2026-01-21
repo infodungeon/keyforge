@@ -35,22 +35,18 @@ pub struct WorkerLogger {
 }
 
 impl ProgressCallback for WorkerLogger {
-    fn on_progress(&self, step: usize, score: f32, _layout: &[KeyCode], ips: f32) -> bool {
+    fn on_progress(&self, step: usize, score: f32, _layout: &[KeyCode], ips: f32) -> OptimizationControl {
         let stopped = self.stop_flag.load(Ordering::SeqCst);
 
         // Update shared telemetry (Lock-free)
-        self.telemetry.update(ips, 0.0, score);
+        // Agent UI expects MOPS, so we scale back for now until UI is updated.
+        self.telemetry.update(ips / 1_000_000.0, 0.0, score);
 
         if stopped {
-            return false;
+            return OptimizationControl::Abort;
         }
 
-        let mut hasher = DefaultHasher::new();
-        self.job_id.hash(&mut hasher);
-        step.hash(&mut hasher);
-        let hash = hasher.finish();
-
-        if hash.is_multiple_of((self.sample_rate as u64).max(1)) {
+        if step % self.sample_rate.max(1) == 0 {
             info!(
                 job_id = %self.job_id,
                 step = step,
@@ -59,6 +55,6 @@ impl ProgressCallback for WorkerLogger {
                 "optimization progress"
             );
         }
-        true
+        OptimizationControl::Continue
     }
 }

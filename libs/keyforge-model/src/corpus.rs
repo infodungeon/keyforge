@@ -22,10 +22,20 @@ use crate::error::ForgeError;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CorpusMetadata {
+    /// If true, this corpus represents standard prose and supports synthetic data injection.
+    #[serde(default)]
+    pub is_std: bool,
+}
+
 /// Represents the statistical data of a language or text source.
 /// Contains frequency data for characters, bigrams, and trigrams.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Corpus {
+    /// Metadata about the corpus.
+    #[serde(default)]
+    pub meta: CorpusMetadata,
     /// Frequency of each character (index = char code).
     /// Must be exactly 65536 elements long to cover all u16 values.
     /// Changed to u64 to support large corpora (>4B chars).
@@ -47,6 +57,7 @@ impl Asset for Corpus {
 impl Default for Corpus {
     fn default() -> Self {
         Self {
+            meta: CorpusMetadata::default(),
             char_freqs: vec![0; 65536],
             bigrams: Vec::new(),
             trigrams: Vec::new(),

@@ -31,6 +31,7 @@ graph TD
         direction TB
         Compute("keyforge-compute<br/>[Runtime]")
         Core("keyforge-core<br/>[Orchestrator]")
+        Runner("keyforge-runner<br/>[OptRunner]")
         Proto("keyforge-protocol<br/>[DTOs]")
         Sec("keyforge-security<br/>[Signer]")
     end
@@ -71,6 +72,9 @@ graph TD
 
     %% Ports orchestrate Domain
     Compute --> Core
+    Runner --> Compute
+    Runner --> Core
+    Runner --> Adapt
     Core --> Evo
     Core --> Phys
     Proto --> Model
@@ -98,6 +102,7 @@ graph TD
     %% Ports
     click Compute href "./keyforge-compute/README.md" "Open Compute Design"
     click Core href "./keyforge-core/README.md" "Open Core Design"
+    click Runner href "./keyforge-runner/README.md" "Open Runner Design"
     click Sec href "./keyforge-security/README.md" "Open Security Design"
     
     %% Core
@@ -135,8 +140,9 @@ Use these links to navigate the design documentation if the diagram is not inter
 
 * [**keyforge-core**](./keyforge-core/README.md) - Orchestration.
 * [**keyforge-compute**](./keyforge-compute/README.md) - Runtime Builder.
+* [**keyforge-runner**](./keyforge-runner/README.md) - Optimization Runner.
 * [**keyforge-security**](./keyforge-security/README.md) - Signing & Secrets.
-* [**keyforge-protocol**](../architecture/06_API_SURFACE.md) - DTOs & API Contract.
+* [**keyforge-protocol**](./keyforge-protocol/README.md) - DTOs & API Contract.
 
 ### 4. Core (The Nucleus)
 

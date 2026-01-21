@@ -63,11 +63,17 @@ pub async fn run_optimization(
     log_sampling_rate: usize,
     config: &JobConfig,
 ) -> Result<OptimizationResult> {
-    // Acquire permit to respect core limits
-    let _permit = limiter
-        .acquire()
-        .await
-        .map_err(|_| anyhow::anyhow!("Semaphore closed"))?;
+    // Acquire permit to respect core limits with timeout
+    let permit_res = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        limiter.acquire()
+    ).await;
+
+    let _permit = match permit_res {
+        Ok(Ok(p)) => p,
+        Ok(Err(_)) => return Err(anyhow::anyhow!("Semaphore closed")),
+        Err(_) => return Err(anyhow::anyhow!("Timeout waiting for concurrency permit")),
+    };
 
     info!(job_id = %job_id, "starting optimization loop via runner");
 

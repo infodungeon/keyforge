@@ -20,8 +20,12 @@
 use super::{KeyNode, KeyboardGeometry};
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use kle_serial::Keyboard as KleKeyboard;
+use regex::Regex;
 use serde_json::json;
 use std::error::Error;
+use std::sync::OnceLock;
+
+static LABEL_CLEANER: OnceLock<Regex> = OnceLock::new();
 
 /// Parses a Keyboard Layout Editor (KLE) JSON string into a `KeyboardGeometry`.
 ///
@@ -40,22 +44,36 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
         .collect();
     x_coords.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Determine split point using largest gap if enough keys exist
+    // Determine split point using largest gap closest to center
     let split_x = if x_coords.len() > 2 {
+        let center = (x_coords[0] + x_coords[x_coords.len() - 1]) / 2.0;
+        let mut best_split = center;
+        let mut min_dist_to_center = f32::MAX;
         let mut max_gap = 0.0;
-        let mut split = 10.0; // Fallback
+
         for i in 0..x_coords.len() - 1 {
             let gap = x_coords[i + 1] - x_coords[i];
-            if gap > max_gap {
+            let split = x_coords[i] + (gap / 2.0);
+            let dist = (split - center).abs();
+
+            // Heuristic: Prefer large gaps near the center
+            if gap > 1.2 {
+                if dist < min_dist_to_center {
+                    min_dist_to_center = dist;
+                    best_split = split;
+                    max_gap = gap;
+                }
+            } else if gap > max_gap {
+                // If no large gaps, take the absolute largest
                 max_gap = gap;
-                split = x_coords[i] + (gap / 2.0);
+                best_split = split;
             }
         }
-        // Heuristic: If max gap is small (ortho/compact), fall back to median
-        if max_gap < 1.5 {
+        
+        if max_gap < 0.5 {
             x_coords[x_coords.len() / 2]
         } else {
-            split
+            best_split
         }
     } else {
         10.0
@@ -79,8 +97,9 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
             .iter()
             .flatten()
             .find(|l| !l.text.is_empty())
-            .map_or("", |l| l.text.as_str())
-            .to_string();
+            .map_or("", |l| l.text.as_str());
+
+        let label = sanitize_label(label);
 
         #[allow(clippy::cast_possible_truncation)]
         let node = KeyNode {
@@ -127,6 +146,15 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
         home_row: 1,
     };
     Ok(geom)
+}
+
+/// Sanitizes a KLE label by stripping HTML tags and common escape sequences.
+fn sanitize_label(label: &str) -> String {
+    let cleaner = LABEL_CLEANER.get_or_init(|| {
+        // Safe regex to strip common HTML tags found in KLE (<i>, <b>, <br>, etc)
+        Regex::new(r"<[^>]*>").expect("Failed to compile label cleaner regex")
+    });
+    cleaner.replace_all(label, "").trim().to_string()
 }
 
 /// Converts a `KeyboardGeometry` back into a KLE JSON string.
@@ -212,5 +240,14 @@ mod tests {
     #[test]
     fn test_parse_kle_invalid() {
         assert!(parse_kle_json("invalid").is_err());
+    }
+
+    #[test]
+    fn test_sanitize_label() {
+        assert_eq!(sanitize_label("A"), "A");
+        assert_eq!(sanitize_label("<b>A</b>"), "A");
+        assert_eq!(sanitize_label("<i class='fa fa-home'></i>"), "");
+        assert_eq!(sanitize_label("Shift<br/>Tab"), "ShiftTab");
+        assert_eq!(sanitize_label("  Space  "), "Space");
     }
 }

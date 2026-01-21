@@ -1,11 +1,19 @@
 use std::time::{Duration, Instant};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum State {
+    Closed,
+    Open,
+    HalfOpen,
+}
+
 #[derive(Debug)]
 pub struct CircuitBreaker {
     failures: u32,
     threshold: u32,
     last_failure: Option<Instant>,
     cooldown: Duration,
+    state: State,
 }
 
 impl CircuitBreaker {
@@ -16,30 +24,44 @@ impl CircuitBreaker {
             threshold,
             last_failure: None,
             cooldown: Duration::from_secs(cooldown_secs),
+            state: State::Closed,
         }
     }
 
     #[must_use]
-    pub fn can_attempt(&self) -> bool {
-        if self.failures < self.threshold {
-            return true;
-        }
-        if let Some(last) = self.last_failure {
-            if last.elapsed() > self.cooldown {
-                return true;
+    pub fn can_attempt(&mut self) -> bool {
+        match self.state {
+            State::Closed => true,
+            State::Open => {
+                if let Some(last) = self.last_failure {
+                    if last.elapsed() > self.cooldown {
+                        self.state = State::HalfOpen;
+                        return true;
+                    }
+                }
+                false
+            }
+            State::HalfOpen => {
+                // In half-open, we allow a single attempt.
+                // If it fails, we go back to Open. If it succeeds, to Closed.
+                // Since this is called before the attempt, we return true.
+                true
             }
         }
-        false
     }
 
     pub fn record_failure(&mut self) {
         self.failures += 1;
         self.last_failure = Some(Instant::now());
+        if self.failures >= self.threshold || self.state == State::HalfOpen {
+            self.state = State::Open;
+        }
     }
 
     pub fn record_success(&mut self) {
         self.failures = 0;
         self.last_failure = None;
+        self.state = State::Closed;
     }
 }
 
@@ -64,10 +86,12 @@ mod tests {
         std::thread::sleep(Duration::from_millis(1100));
         assert!(
             cb.can_attempt(),
-            "Breaker should allow attempt after cooldown"
+            "Breaker should allow attempt after cooldown (Half-Open)"
         );
+        assert_eq!(cb.state, State::HalfOpen);
 
         cb.record_success();
         assert!(cb.can_attempt());
+        assert_eq!(cb.state, State::Closed);
     }
 }

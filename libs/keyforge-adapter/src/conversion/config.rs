@@ -27,6 +27,7 @@ pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
         threshold_scissor_row_diff: w.get_threshold_scissor_row_diff(),
         redirect: w.get_penalty_redirect(),
         roll_bonus: w.get_bonus_bigram_roll_in(),
+        roll_out_bonus: w.get_bonus_bigram_roll_out(),
         trigram_coverage: w.get_trigram_coverage(),
         trigram_limit: w.get_loader_trigram_limit(),
     }

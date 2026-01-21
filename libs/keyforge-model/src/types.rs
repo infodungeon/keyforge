@@ -55,6 +55,11 @@ impl From<KeyIndex> for usize {
 #[repr(transparent)]
 pub struct KeyCode(pub u16);
 
+impl KeyCode {
+    /// The canonical "Empty" or "No-Op" keycode (0).
+    pub const EMPTY: KeyCode = KeyCode(0);
+}
+
 impl From<u16> for KeyCode {
     fn from(val: u16) -> Self {
         Self(val)
@@ -227,7 +232,7 @@ impl std::ops::Sub for ColIndex {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, ToSchema,
 )]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "bigint"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct Score(pub i64);
@@ -239,6 +244,8 @@ impl Score {
     pub const MIN: Score = Score(i64::MIN);
     /// Zero score.
     pub const ZERO: Score = Score(0);
+    /// Sentinel value for unreachable or uninitialized costs.
+    pub const INFINITY_SENTINEL: Score = Score(i64::MAX);
 
     /// Creates a Score from a float value, applying scaling.
     /// 
@@ -398,6 +405,9 @@ pub struct OptimizationResult {
     /// The optimized layout.
     pub layout: Layout,
 }
+
+/// Result of a static scoring operation.
+pub type ScoringResult = OptimizationResult;
 
 /// A proposed change to the layout during optimization.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -122,6 +122,7 @@ impl Arbitrary for Corpus {
                     char_freqs_full[i] = f;
                 }
                 let mut c = Corpus {
+                    meta: crate::corpus::CorpusMetadata::default(),
                     char_freqs: char_freqs_full,
                     bigrams,
                     trigrams,

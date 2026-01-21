@@ -18,12 +18,16 @@
 
 /// Maximum number of keys allowed in a keyboard definition.
 pub const MAX_KEYBOARD_KEYS: usize = 200;
+/// Maximum number of keys in a layout (must match keyboard).
+pub const MAX_LAYOUT_KEYS: usize = MAX_KEYBOARD_KEYS;
 /// Maximum number of pinned keys allowed.
 pub const MAX_PINNED_KEYS_COUNT: usize = 200;
 /// Maximum length of the pinned keys string representation.
 pub const MAX_PINNED_KEYS_LEN: usize = 10_000;
 /// Maximum length of a layout name.
 pub const MAX_LAYOUT_NAME_LEN: usize = 64;
+/// Minimum length of a layout name.
+pub const MIN_LAYOUT_NAME_LEN: usize = 2;
 /// Maximum length of a keyboard definition name.
 pub const MAX_KEYBOARD_NAME_LEN: usize = 100;
 /// Maximum length of a filename (e.g. cost matrix).
@@ -32,14 +36,12 @@ pub const MAX_FILENAME_LEN: usize = 255;
 pub const MAX_AUTHOR_NAME_LEN: usize = 64;
 /// Maximum length of layout data string.
 pub const MAX_LAYOUT_DATA_LEN: usize = 5000;
+/// Minimum length of layout data string.
+pub const MIN_LAYOUT_DATA_LEN: usize = 10;
 /// Maximum length of a generic identifier.
 pub const MAX_ID_LEN: usize = 64;
 /// Name of the configuration directory (e.g. for OS app data).
 pub const CONFIG_DIR_NAME: &str = "keyforge";
-/// Minimum length of layout data string.
-pub const MIN_LAYOUT_DATA_LEN: usize = 10;
-/// Minimum length of a layout name.
-pub const MIN_LAYOUT_NAME_LEN: usize = 2;
 /// Default weight for a corpus source.
 pub const DEFAULT_CORPUS_WEIGHT: f32 = 1.0;
 
@@ -139,8 +141,33 @@ pub const DEFAULT_USER_STATS_PATH: &str = "data/user_stats.jsonl";
 pub const DEFAULT_PERSONAL_COST_PATH: &str = "data/personal_cost.json";
 /// Default number of iterations for benchmarks.
 pub const DEFAULT_BENCHMARK_ITERATIONS: usize = 100_000;
-/// Default column width for grid views.
-pub const DEFAULT_GRID_WIDTH: usize = 10;
+
+/// A list of system assets that must be present for the application to function.
+pub const REQUIRED_ASSETS: &[&str] = &[
+    "config/keycodes",
+    "weights/cost_matrix",
+    "corpora/text/en_std/1grams",
+];
+
+/// Directories containing system-provided data, models, and benchmarks.
+pub const SYSTEM_DIRS: &[&str] = &[
+    "system/config",
+    "system/keyboards/models",
+    "system/corpora/text/en_std",
+    "system/weights",
+    "system/benchmarks",
+];
+
+/// Directories for user-created content that should be persisted (e.g., custom layouts).
+pub const USER_WORKSPACE_DIRS: &[&str] = &[
+    "user/keyboards",
+    "user/corpora",
+    "user/weights",
+    "user/config",
+];
+
+/// VOLATILE: Directories for transient data (e.g., queues, WALs).
+pub const USER_RUNTIME_DIRS: &[&str] = &["user/queue", "user/agent_wal", "user/temp"];
 
 // --- Corpus Injection Constants ---
 

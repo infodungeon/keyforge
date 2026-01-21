@@ -29,7 +29,7 @@ impl ResultOutbox {
     }
 
     pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
-        let path = self.wal_dir.join(format!("{}.json", submission.nonce));
+        let path = self.wal_dir.join(format!("result_{}_{}.json", submission.job_id, submission.nonce));
         if let Ok(json) = serde_json::to_string(submission) {
             if let Err(e) = std::fs::write(&path, json) {
                 error!(
@@ -65,15 +65,22 @@ impl ResultOutbox {
         Ok(())
     }
 
-    pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
-        let mut pending = Vec::new();
+    /// Processes pending WAL entries one by one using a callback.
+    /// This prevents memory spikes for large backlogs.
+    ///
+    /// # Errors
+    /// Returns `InfraError` if directory reading fails.
+    pub fn process_pending<F>(&self, mut handler: F) -> AgentResult<()>
+    where
+        F: FnMut(PathBuf, ResultSubmission),
+    {
         if let Ok(entries) = std::fs::read_dir(&self.wal_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.extension().and_then(|s| s.to_str()) == Some("json") {
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         if let Ok(sub) = serde_json::from_str::<ResultSubmission>(&content) {
-                            pending.push((path, sub));
+                            handler(path, sub);
                         } else {
                             warn!("Deleting corrupt WAL file: {:?}", path);
                             let _ = std::fs::remove_file(path);
@@ -82,6 +89,13 @@ impl ResultOutbox {
                 }
             }
         }
+        Ok(())
+    }
+
+    // Deprecated: keeping for compatibility until all callers use process_pending
+    pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
+        let mut pending = Vec::new();
+        let _ = self.process_pending(|p, s| pending.push((p, s)));
         pending
     }
 

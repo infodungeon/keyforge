@@ -66,6 +66,7 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
 
     for (rel_path, server_hash) in server_manifest.files {
         let Some(normalized) = crate::util::common::normalize_path(&rel_path) else {
+            stats.errors.push(format!("Normalization failed: {rel_path}"));
             continue;
         };
 
@@ -89,6 +90,10 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     Ok(stats)
 }
 
+use keyforge_model::constants::{
+    ASSET_KEYCODES_FILENAME, ASSET_UI_CATEGORIES,
+};
+
 /// Bootstraps essential assets (Config/Keycodes) required for basic operation.
 ///
 /// # Errors
@@ -111,13 +116,15 @@ pub async fn bootstrap_essentials(
         .map_err(|e| e.to_string())?;
 
     let mut downloaded = Vec::new();
-    for (rel_path, server_hash) in manifest.files {
-        let is_keyboard =
-            rel_path.starts_with("keyboards/models/") && rel_path.ends_with(".mpk.zst");
-        let is_keycodes = rel_path.contains("keycodes.mpk.zst");
-        let is_cats = rel_path.contains("ui_categories.mpk.zst");
+    let keycodes_stem = ASSET_KEYCODES_FILENAME.strip_suffix(".json").unwrap_or(ASSET_KEYCODES_FILENAME);
 
-        if is_keyboard || is_keycodes || is_cats {
+    for (rel_path, server_hash) in manifest.files {
+        // Robust check for essential system assets
+        let is_keyboard_model = rel_path.starts_with("keyboards/models/");
+        let is_keycode_def = rel_path.contains(keycodes_stem);
+        let is_ui_metadata = rel_path.contains(ASSET_UI_CATEGORIES);
+
+        if is_keyboard_model || is_keycode_def || is_ui_metadata {
             let remote = client.asset_url(&format!("data/system/{rel_path}"));
             let local = local_root.join("system").join(&rel_path);
             if ensure_file(client, &remote, &local, Some(&server_hash))

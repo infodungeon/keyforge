@@ -26,18 +26,28 @@ use keyforge_model::KeyCode;
 
 pub use supervisor::{evolve, optimize, optimize_with_callback};
 
+/// Controls the execution of the optimization loop.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OptimizationControl {
+    /// Continue with the next step.
+    Continue,
+    /// Stop optimization gracefully and return the current best result.
+    Stop,
+    /// Abort immediately without returning a result.
+    Abort,
+}
+
 /// Trait for receiving progress updates during optimization.
 pub trait ProgressCallback: Send + Sync {
     /// Called periodically with the current optimization state.
-    /// Returns `true` to continue, `false` to abort.
-    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> bool;
+    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> OptimizationControl;
 }
 
 /// A progress callback that does nothing.
 #[derive(Debug)]
 pub struct NoOpCallback;
 impl ProgressCallback for NoOpCallback {
-    fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> bool {
-        true
+    fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> OptimizationControl {
+        OptimizationControl::Continue
     }
 }

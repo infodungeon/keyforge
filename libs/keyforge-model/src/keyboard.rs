@@ -55,6 +55,21 @@ impl Keyboard {
             spatial_cache: Vec::new(),
         };
         kb.calculate_origins();
+        
+        // Task-prot-rev-017: Validate origins
+        for (h_idx, hand) in kb.finger_origins.iter().enumerate() {
+            for (f_idx, origin) in hand.iter().enumerate() {
+                // If keys exist for this finger but origin is (0,0) and no key is at (0,0)
+                let has_keys = kb.keys.iter().any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
+                if has_keys && origin.0.abs() < f32::EPSILON && origin.1.abs() < f32::EPSILON {
+                    let key_at_zero = kb.keys.iter().any(|k| k.x.abs() < f32::EPSILON && k.y.abs() < f32::EPSILON);
+                    if !key_at_zero {
+                        return Err(ForgeError::InvalidData(format!("Finger origin calculation failed for hand {}, finger {}", h_idx, f_idx)));
+                    }
+                }
+            }
+        }
+
         kb.precompute_spatial_cache();
         Ok(kb)
     }

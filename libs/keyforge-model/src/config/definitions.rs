@@ -67,15 +67,15 @@ impl Validator for LayoutDefinitions {
 }
 
 impl LayoutDefinitions {
-    /// Parses the critical bigrams string into a list of byte pairs.
+    /// Parses the critical bigrams string into a list of character pairs (u16).
     #[must_use]
-    pub fn get_critical_bigrams(&self) -> Vec<[u8; 2]> {
+    pub fn get_critical_bigrams(&self) -> Vec<[u16; 2]> {
         self.critical_bigrams
             .split(',')
             .filter_map(|s| {
-                let b = s.trim().as_bytes();
-                if b.len() == 2 {
-                    Some([b[0], b[1]])
+                let chars: Vec<char> = s.trim().chars().collect();
+                if chars.len() == 2 {
+                    Some([chars[0] as u16, chars[1] as u16])
                 } else {
                     None
                 }
@@ -156,9 +156,9 @@ mod tests {
         def.critical_bigrams = "th,he,in, invalid, x".into();
         let bigrams = def.get_critical_bigrams();
         assert_eq!(bigrams.len(), 3);
-        assert_eq!(bigrams[0], [b't', b'h']);
-        assert_eq!(bigrams[1], [b'h', b'e']);
-        assert_eq!(bigrams[2], [b'i', b'n']);
+        assert_eq!(bigrams[0], [u16::from(b't'), u16::from(b'h')]);
+        assert_eq!(bigrams[1], [u16::from(b'h'), u16::from(b'e')]);
+        assert_eq!(bigrams[2], [u16::from(b'i'), u16::from(b'n')]);
     }
 
     #[cfg(feature = "cli")]

@@ -41,14 +41,22 @@ impl Compiler {
         info!(key_count = key_count, "Compiling scoring engine...");
 
         // Stage 1: Geometry
-        let geo_stage = GeometryStage;
+        let geo_stage = GeometryStage { rubric };
         let geo_out = geo_stage.execute(Arc::new(kb.clone()))?;
 
         // Stage 2: Costs
+        // Task-phys-rev-025: Derive model key from KB notes or metadata
+        let model_key = if kb.notes.to_lowercase().contains("ortho") {
+            Some("model_ortho")
+        } else {
+            Some("model_a_row_staggered")
+        };
+
         let cost_stage = CostStage {
             kb,
             rubric,
             cost_model,
+            model_key,
         };
         let cost_out = cost_stage.execute(())?;
 
@@ -63,7 +71,13 @@ impl Compiler {
         for (i, &freq) in corpus_out.char_freqs.iter().enumerate() {
             #[allow(clippy::cast_possible_truncation)]
             if freq > 0 {
-                unique_keys_set.insert(i as u16);
+                let code = i as u16;
+                unique_keys_set.insert(code);
+                
+                // Task-phys-rev-015: Warn if high-freq char is missing from KB
+                // (This requires checking against registry or layout, 
+                // but at this stage we only have the physical keys of the KB).
+                // Actually, the check is better done in analyze_layout.
             }
         }
 
@@ -102,46 +116,56 @@ impl Compiler {
 
         info!("Engine compilation complete.");
 
-        Ok(EngineContext {
+        let ctx = EngineContext {
             key_count,
-            hands: geo_out.hands,
-            fingers: geo_out.fingers,
-            rows: geo_out.rows,
-            cols: geo_out.cols,
-            cost_matrix: cost_out.cost_matrix,
-            dist_matrix: geo_out.dist_matrix,
-            key_home_distances: geo_out.key_home_distances,
-            key_costs: cost_out.key_costs,
-            char_freqs: corpus_out.char_freqs,
-            bigram_starts: corpus_out.bigram_starts,
-            bigram_others: corpus_out.bigram_others,
-            bigram_freqs: corpus_out.bigram_freqs,
-            bigram_rev_starts: corpus_out.bigram_rev_starts,
-            bigram_rev_others: corpus_out.bigram_rev_others,
-            bigram_rev_freqs: corpus_out.bigram_rev_freqs,
-            trigram_starts: corpus_out.trigram_starts,
-            trigram_others1: corpus_out.trigram_others1,
-            trigram_others2: corpus_out.trigram_others2,
-            trigram_freqs: corpus_out.trigram_freqs,
-            trigram_mid_starts: corpus_out.trigram_mid_starts,
-            trigram_mid_others1: corpus_out.trigram_mid_others1,
-            trigram_mid_others2: corpus_out.trigram_mid_others2,
-            trigram_mid_freqs: corpus_out.trigram_mid_freqs,
-            trigram_end_starts: corpus_out.trigram_end_starts,
-            trigram_end_others1: corpus_out.trigram_end_others1,
-            trigram_end_others2: corpus_out.trigram_end_others2,
-            trigram_end_freqs: corpus_out.trigram_end_freqs,
-            all_bigrams: corpus.bigrams.clone(),
-            all_trigrams: corpus.trigrams.clone(),
+            geometry: super::GeometryData {
+                key_count,
+                hands: geo_out.hands.into(),
+                fingers: geo_out.fingers.into(),
+                rows: geo_out.rows.into(),
+                cols: geo_out.cols.into(),
+                cost_matrix: cost_out.cost_matrix.into(),
+                dist_matrix: geo_out.dist_matrix.into(),
+                key_home_distances: geo_out.key_home_distances.into(),
+                key_costs: cost_out.key_costs.into(),
+            },
+            corpus: super::CorpusData {
+                char_freqs: corpus_out.char_freqs.into(),
+                bigram_starts: corpus_out.bigram_starts.into(),
+                bigram_others: corpus_out.bigram_others.into(),
+                bigram_freqs: corpus_out.bigram_freqs.into(),
+                bigram_rev_starts: corpus_out.bigram_rev_starts.into(),
+                bigram_rev_others: corpus_out.bigram_rev_others.into(),
+                bigram_rev_freqs: corpus_out.bigram_rev_freqs.into(),
+                trigram_starts: corpus_out.trigram_starts.into(),
+                trigram_others1: corpus_out.trigram_others1.into(),
+                trigram_others2: corpus_out.trigram_others2.into(),
+                trigram_freqs: corpus_out.trigram_freqs.into(),
+                trigram_mid_starts: corpus_out.trigram_mid_starts.into(),
+                trigram_mid_others1: corpus_out.trigram_mid_others1.into(),
+                trigram_mid_others2: corpus_out.trigram_mid_others2.into(),
+                trigram_mid_freqs: corpus_out.trigram_mid_freqs.into(),
+                trigram_end_starts: corpus_out.trigram_end_starts.into(),
+                trigram_end_others1: corpus_out.trigram_end_others1.into(),
+                trigram_end_others2: corpus_out.trigram_end_others2.into(),
+                trigram_end_freqs: corpus_out.trigram_end_freqs.into(),
+            },
+            all_bigrams: corpus.bigrams.clone().into(),
+            all_trigrams: corpus.trigrams.clone().into(),
             penalty_redirect: Score::from_f32(rubric.redirect)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             penalty_skip: Score::ZERO,
             bonus_roll: Score::from_f32(rubric.roll_bonus)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
-            sequence_modifiers,
-            sorted_unique_keys,
-            key_rank_map,
-        })
+            bonus_roll_out: Score::from_f32(rubric.roll_out_bonus)
+                .map_err(|e| PhysicsError::InvalidInput { message: e })?,
+            sequence_modifiers: Arc::new(sequence_modifiers),
+            sorted_unique_keys: sorted_unique_keys.into(),
+            key_rank_map: Arc::new(key_rank_map),
+        };
+
+        ctx.verify()?;
+        Ok(ctx)
     }
 }
 

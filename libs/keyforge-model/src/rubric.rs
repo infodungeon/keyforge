@@ -58,6 +58,8 @@ pub struct Rubric {
     pub redirect: f32,
     /// Bonus for inward rolls.
     pub roll_bonus: f32,
+    /// Bonus for outward rolls.
+    pub roll_out_bonus: f32,
     /// Required trigram coverage ratio.
     pub trigram_coverage: f32,
     /// Maximum number of trigrams to consider.
@@ -80,6 +82,7 @@ impl Default for Rubric {
             threshold_scissor_row_diff: 2,
             redirect: 65.0,
             roll_bonus: 35.0,
+            roll_out_bonus: 15.0,
             trigram_coverage: 0.99,
             trigram_limit: 50_000,
         }

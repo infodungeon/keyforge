@@ -67,6 +67,9 @@ impl HermeticWorkspace {
             std::fs::write(p_user, content).expect("Failed to write user asset");
         }
 
+        // Create marker
+        std::fs::write(root.join(keyforge_infra::init::WORKSPACE_MARKER), "test\n").expect("failed marker");
+
         // Initialize structure (will validate assets now)
         initialize_workspace(&root, InitMode::Create).expect("Failed to init workspace");
 

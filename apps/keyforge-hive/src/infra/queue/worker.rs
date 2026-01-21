@@ -125,8 +125,14 @@ impl PersistentJobQueue {
     }
 
     /// Pushes a record onto the queue.
-    pub async fn push(&self, record: PersistedRecord) -> Result<(), String> {
-        self.tx.send(record).await.map_err(|e| e.to_string())
+    /// 
+    /// # Errors
+    /// Returns an error if the queue is full (backpressure) or closed.
+    pub fn push(&self, record: PersistedRecord) -> Result<(), String> {
+        self.tx.try_send(record).map_err(|e| match e {
+            mpsc::error::TrySendError::Full(_) => "Queue full".to_string(),
+            mpsc::error::TrySendError::Closed(_) => "Queue closed".to_string(),
+        })
     }
 
     /// Returns the approximate number of jobs currently in flight or queued.

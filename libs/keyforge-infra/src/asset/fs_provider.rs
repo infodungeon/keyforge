@@ -215,7 +215,7 @@ impl AssetLoader for FsProvider {
             crate::util::corpus::populate_corpus_from_segments(&mut corpus, src.weight, segments)?;
         }
 
-        let is_std = sources.iter().any(|s| s.id.contains("_std"));
+        let is_std = corpus.meta.is_std;
         inject_synthetic_data(&mut corpus, is_std);
 
         corpus.post_load()?;

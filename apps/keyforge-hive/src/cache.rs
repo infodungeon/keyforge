@@ -65,3 +65,36 @@ impl CompiledEngineCache {
         self.cache.invalidate_all();
     }
 }
+
+/// Cache for normalized layout structures.
+#[derive(Debug)]
+pub struct ParsedLayoutCache {
+    cache: Cache<String, keyforge_model::Layout>,
+}
+
+impl Default for ParsedLayoutCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ParsedLayoutCache {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            cache: Cache::builder()
+                .max_capacity(1000)
+                .time_to_live(Duration::from_secs(600))
+                .build(),
+        }
+    }
+
+    #[must_use]
+    pub fn get(&self, layout_str: &str) -> Option<keyforge_model::Layout> {
+        self.cache.get(layout_str)
+    }
+
+    pub fn insert(&self, layout_str: &str, layout: keyforge_model::Layout) {
+        self.cache.insert(layout_str.to_string(), layout);
+    }
+}

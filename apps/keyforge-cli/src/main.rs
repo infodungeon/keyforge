@@ -24,12 +24,22 @@ impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
         score: f32,
         _layout: &[keyforge_model::KeyCode],
         ips: f32,
-    ) -> bool {
+    ) -> keyforge_evolution::OptimizationControl {
+        if self.stop_flag.load(std::sync::atomic::Ordering::SeqCst) {
+            return keyforge_evolution::OptimizationControl::Abort;
+        }
+
         let elapsed = self.start_time.elapsed().as_secs();
-        self.pb.set_position(elapsed);
+        if self.pb.length().is_some() {
+            self.pb.set_position(elapsed);
+        } else {
+            self.pb.tick();
+        }
+        
         self.pb
-            .set_message(format!("Epoch {epoch} | Best: {score:.4} | {ips:.0} ips"));
-        !self.stop_flag.load(std::sync::atomic::Ordering::SeqCst)
+            .set_message(format!("Epoch {epoch} | Best: {score:.4} | {:.2} MOPS", ips / 1_000_000.0));
+        
+        keyforge_evolution::OptimizationControl::Continue
     }
 }
 

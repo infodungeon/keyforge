@@ -87,6 +87,8 @@ pub const DEFAULT_WEIGHT_VERTICAL_TRAVEL: f32 = 1.0;
 pub const DEFAULT_WEIGHT_LATERAL_TRAVEL: f32 = 3.5;
 /// Default weight multiplier for finger effort.
 pub const DEFAULT_WEIGHT_FINGER_EFFORT: f32 = 2.2;
+/// Default penalty for keys missing from the cost model.
+pub const DEFAULT_PENALTY_MISSING_KEY: f32 = 100.0;
 
 /// Default cost in milliseconds (if using time-based scoring).
 pub const DEFAULT_COST_MS: f32 = 120.0;

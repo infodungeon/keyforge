@@ -27,8 +27,6 @@ impl AssetManager {
     fn check_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
         let sub = match category {
             "keyboards" => "keyboards/models",
-            "weights" => "weights",
-            "config" => "config",
             _ => category,
         };
         let p = self

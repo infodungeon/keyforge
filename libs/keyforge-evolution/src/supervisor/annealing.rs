@@ -63,7 +63,7 @@ impl ProgressReporter {
             };
 
             let ips = if elapsed > 0.0 {
-                (steps_done as f32 / elapsed) / 1_000_000.0
+                (steps_done as f32 / elapsed)
             } else {
                 0.0
             };
@@ -236,65 +236,171 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
 
 
-        let abort_flag = AtomicBool::new(false);
-
-        let (tx, rx) = mpsc::sync_channel::<(usize, f32, Vec<KeyCode>, f32)>(1);
-
-        let abort_ref = &abort_flag;
+                let abort_flag = Arc::new(std::sync::atomic::AtomicU8::new(0)); // 0=Run, 1=Stop, 2=Abort
 
 
 
-        // Create reporter with the sender
-
-        let mut reporter = ProgressReporter::new(tx, self.config.steps, start_time);
+                let (tx, rx) = mpsc::sync_channel::<(usize, f32, Vec<KeyCode>, f32)>(1);
 
 
 
-        thread::scope(|s| {
-
-            // Spawn consumer thread
-
-            s.spawn(move || {
-
-                while let Ok((step, score, layout, ips)) = rx.recv() {
-
-                    if !callback.on_progress(step, score, &layout, ips) {
-
-                        abort_ref.store(true, Ordering::Relaxed);
-
-                        break;
-
-                    }
-
-                }
-
-            });
+                let status_ref = abort_flag.clone();
 
 
 
-            let mut steps_since_improvement = 0;
-
-            let mut reheats_left = self.config.reheats;
-
-            let mut result = Ok(());
+        
 
 
 
-            for step in 0..self.config.steps {
-
-                // 1. Check Abort
-
-                if step % reporter.report_interval == 0 && abort_flag.load(Ordering::Relaxed) {
-
-                    result = Err(EvolutionError::Aborted);
-
-                    break;
-
-                }
+                // Create reporter with the sender
 
 
 
-                // 2. Evolution Step
+                let mut reporter = ProgressReporter::new(tx, self.config.steps, start_time);
+
+
+
+        
+
+
+
+                thread::scope(|s| {
+
+
+
+                    // Spawn consumer thread
+
+
+
+                    s.spawn(move || {
+
+
+
+                        while let Ok((step, score, layout, ips)) = rx.recv() {
+
+
+
+                            match callback.on_progress(step, score, &layout, ips) {
+
+
+
+                                crate::OptimizationControl::Continue => {}
+
+
+
+                                crate::OptimizationControl::Stop => {
+
+
+
+                                    status_ref.store(1, Ordering::Relaxed);
+
+
+
+                                    break;
+
+
+
+                                }
+
+
+
+                                crate::OptimizationControl::Abort => {
+
+
+
+                                    status_ref.store(2, Ordering::Relaxed);
+
+
+
+                                    break;
+
+
+
+                                }
+
+
+
+                            }
+
+
+
+                        }
+
+
+
+                    });
+
+
+
+        
+
+
+
+                    let mut steps_since_improvement = 0;
+
+
+
+                    let mut reheats_left = self.config.reheats;
+
+
+
+                    let mut result = Ok(());
+
+
+
+        
+
+
+
+                    for step in 0..self.config.steps {
+
+
+
+                        // 1. Check Abort (Task-evol-rev-006: more frequent check)
+
+
+
+                        if step % 1000 == 0 {
+
+
+
+                            let status = abort_flag.load(Ordering::Relaxed);
+
+
+
+                            if status == 1 { // Stop
+
+
+
+                                break;
+
+
+
+                            } else if status == 2 { // Abort
+
+
+
+                                result = Err(EvolutionError::Aborted);
+
+
+
+                                break;
+
+
+
+                            }
+
+
+
+                        }
+
+
+
+        
+
+
+
+                        // 2. Evolution Step
 
                 let improved = self.step(&mut state)?;
 

@@ -34,53 +34,83 @@ impl ScoringEngine for GenericScoringEngine {
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        let mut scratch = Box::new(PhysicsScratch::new());
+        std::thread_local! {
+            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
+        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(Score(score_layout(&self.ctx, &validated, &mut scratch)?))
+        SCRATCH.with(|scratch| {
+            let mut s = scratch.borrow_mut();
+            Ok(Score(score_layout(&self.ctx, &validated, &mut s)?))
+        })
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        let mut scratch = Box::new(PhysicsScratch::new());
+        std::thread_local! {
+            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
+        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
-        let pm = PosMap::from_scratch(
-            layout_slice,
-            self.ctx.key_count,
-            scratch.starts.as_mut_slice(),
-            scratch.counts.as_mut_slice(),
-            scratch.indices.as_mut_slice(),
-            scratch.current_offsets.as_mut_slice(),
-            &mut scratch.used_keys,
-        );
+        SCRATCH.with(|scratch| {
+            let mut s = scratch.borrow_mut();
+            let pm = PosMap::from_scratch(
+                layout_slice,
+                self.ctx.key_count,
+                s.starts.as_mut_slice(),
+                s.counts.as_mut_slice(),
+                s.indices.as_mut_slice(),
+                s.current_offsets.as_mut_slice(),
+                &mut s.used_keys,
+            );
 
-        // Access private kernels for breakdown
-        let mono = crate::kernel::compute::scoring::score_monograms(&self.ctx, &pm)?.0;
-        let bigram = crate::kernel::compute::scoring::score_bigrams(&self.ctx, &pm)?.0;
-        let trigram = crate::kernel::compute::scoring::score_trigrams(&self.ctx, &pm)?.0;
-        Ok((mono, bigram, trigram))
+            // Access private kernels for breakdown
+            let mono = crate::kernel::compute::scoring::score_monograms(&self.ctx, &pm)?.0;
+            let bigram = crate::kernel::compute::scoring::score_bigrams(&self.ctx, &pm)?.0;
+            let trigram = crate::kernel::compute::scoring::score_trigrams(&self.ctx, &pm)?.0;
+            
+            // Clean up scratch for next use (score_layout usually does this, but we called sub-functions)
+            s.clear_used();
+            Ok((mono, bigram, trigram))
+        })
     }
 
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        _pos_map: &[u16],
+        pos_map: &[u16],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let mut scratch = Box::new(PhysicsScratch::new());
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
 
-        let pm = PosMap::from_scratch(
-            validated.as_slice(),
-            self.ctx.key_count,
-            scratch.starts.as_mut_slice(),
-            scratch.counts.as_mut_slice(),
-            scratch.indices.as_mut_slice(),
-            scratch.current_offsets.as_mut_slice(),
-            &mut scratch.used_keys,
-        );
+        // Task-phys-rev-039: Reuse provided pos_map if possible
+        if pos_map.len() >= 65536 {
+             // In KeyForge, a 'full' pos_map is 65536 entries.
+             // If the optimizer provides one, we can wrap it.
+             // We need to implement PosMap::from_slice for this.
+             // For now, let's assume we still need the full scratch-based PosMap
+             // until PosMap is refactored to support slices.
+        }
 
-        Ok(calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b))
+        std::thread_local! {
+            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
+        }
+
+        SCRATCH.with(|scratch| {
+            let mut s = scratch.borrow_mut();
+            let pm = PosMap::from_scratch(
+                validated.as_slice(),
+                self.ctx.key_count,
+                s.starts.as_mut_slice(),
+                s.counts.as_mut_slice(),
+                s.indices.as_mut_slice(),
+                s.current_offsets.as_mut_slice(),
+                &mut s.used_keys,
+            );
+
+            let delta = calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b)?;
+            s.clear_used();
+            Ok(delta)
+        })
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
