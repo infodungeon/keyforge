@@ -1,8 +1,8 @@
 use super::{EngineCapabilities, ScoringEngine};
-use crate::verify::DeterministicScorer;
-use crate::kernel::EngineContext;
 use crate::kernel::compute::analyze_layout;
 use crate::kernel::types::ValidatedLayout;
+use crate::kernel::EngineContext;
+use crate::verify::DeterministicScorer;
 use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Corpus, Keyboard, Layout, Rubric, Score, SwapSuggestion};
 
@@ -15,8 +15,14 @@ pub struct ExactScoringEngine {
 }
 
 impl ExactScoringEngine {
-    #[must_use] 
-    pub fn new(keyboard: Keyboard, corpus: Corpus, rubric: &Rubric, cost_model: &keyforge_model::CostModel, ctx: EngineContext) -> Self {
+    #[must_use]
+    pub fn new(
+        keyboard: Keyboard,
+        corpus: Corpus,
+        rubric: &Rubric,
+        cost_model: &keyforge_model::CostModel,
+        ctx: EngineContext,
+    ) -> Self {
         let scorer = DeterministicScorer::new(&keyboard, rubric, cost_model);
         Self {
             scorer,
@@ -45,11 +51,14 @@ impl ScoringEngine for ExactScoringEngine {
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        self.scorer.score(&self.keyboard, &self.corpus, layout.keys.as_slice()).map(Score)
+        self.scorer
+            .score(&self.keyboard, &self.corpus, layout.keys.as_slice())
+            .map(Score)
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        self.scorer.score_detailed(&self.keyboard, &self.corpus, layout.keys.as_slice())
+        self.scorer
+            .score_detailed(&self.keyboard, &self.corpus, layout.keys.as_slice())
     }
 
     fn calculate_swap_delta(
@@ -60,13 +69,13 @@ impl ScoringEngine for ExactScoringEngine {
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
         let current = self.score(layout)?;
-        
+
         let mut swapped_keys = layout.keys.clone();
         swapped_keys.swap(idx_a, idx_b);
         let swapped = Layout::new_unchecked(swapped_keys);
-        
+
         let new_score = self.score(&swapped)?;
-        
+
         let diff = i128::from(new_score.0) - i128::from(current.0);
         #[allow(clippy::cast_possible_truncation)]
         Ok(diff.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64)
@@ -77,16 +86,11 @@ impl ScoringEngine for ExactScoringEngine {
         Ok(analyze_layout(&self.ctx, &validated))
     }
 
-        fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
+    fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
+        crate::analysis::heuristics::suggest_swaps(&self.ctx, layout, include_thumbs)
+    }
 
-            crate::analysis::heuristics::suggest_swaps(&self.ctx, layout, include_thumbs)
-
-        }
-
-    
-
-        fn context(&self) -> &EngineContext {
+    fn context(&self) -> &EngineContext {
         &self.ctx
     }
 }
-

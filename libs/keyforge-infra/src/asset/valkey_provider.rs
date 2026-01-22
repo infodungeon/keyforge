@@ -42,7 +42,7 @@ impl ValkeyProvider {
     }
 
     /// Returns the underlying distributed coordinator.
-    #[must_use] 
+    #[must_use]
     pub fn coordinator(&self) -> Arc<dyn DistributedCoordinator> {
         self.coordinator.clone()
     }
@@ -196,7 +196,7 @@ impl ValkeyProvider {
         Arc::new(T::default())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn id_to_subpath(category: AssetCategory, id: &str) -> String {
         let stem = id.strip_suffix(".json").unwrap_or(id);
         match category {
@@ -453,10 +453,10 @@ mod tests {
         let mock = Arc::new(MockDistributedCoordinator::default());
         let provider = ValkeyProvider::new(mock.clone());
 
-        mock.manifest
-            .lock()
-            .unwrap()
-            .insert("corpora/en/1grams.mpk.zst".to_string(), "hash123".to_string());
+        mock.manifest.lock().unwrap().insert(
+            "corpora/en/1grams.mpk.zst".to_string(),
+            "hash123".to_string(),
+        );
 
         let hash = provider.get_corpus_hash("en").await.unwrap();
         assert_eq!(hash, "hash123");

@@ -170,7 +170,13 @@ struct TauriProgressCallback {
 }
 
 impl ProgressCallback for TauriProgressCallback {
-    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> OptimizationControl {
+    fn on_progress(
+        &self,
+        epoch: usize,
+        score: f32,
+        layout: &[KeyCode],
+        ips: f32,
+    ) -> OptimizationControl {
         if self.stop_flag.load(Ordering::SeqCst) {
             return OptimizationControl::Stop;
         }

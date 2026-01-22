@@ -160,7 +160,8 @@ mod tests {
         corpus.bigrams.push((97, 98, 500));
 
         let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
         let layout = Layout::new_unchecked(vec![
             KeyCode(97),
             KeyCode(98),
@@ -279,7 +280,8 @@ mod tests {
         corpus.bigrams.push((97, 97, 500));
 
         let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         let sfbs = report.top_sfbs;
@@ -320,7 +322,8 @@ mod tests {
         corpus.bigrams.push((97, 98, 100));
 
         let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         assert_eq!(report.top_sfbs.len(), 1);

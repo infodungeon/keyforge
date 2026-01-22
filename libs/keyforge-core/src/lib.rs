@@ -27,7 +27,7 @@
 pub mod loader;
 /// High-level session management for optimization runs.
 pub mod session;
-pub use keyforge_evolution::{EvolutionError, ProgressCallback, OptimizationControl};
+pub use keyforge_evolution::{EvolutionError, OptimizationControl, ProgressCallback};
 pub use session::ScoringSession;
 
 pub use keyforge_physics::{
@@ -45,7 +45,12 @@ use std::sync::Arc;
 ///
 /// Returns `PhysicsError` if the engine building fails.
 pub fn build_engine(req: &EngineRequest) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-    keyforge_physics::EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
+    keyforge_physics::EngineFactory::new_generic(
+        &req.keyboard,
+        &req.corpus,
+        &req.rubric,
+        &req.cost_model,
+    )
 }
 
 /// Analyze a layout using a compiled engine.
@@ -162,5 +167,3 @@ pub fn optimize_with_engine<CB: ProgressCallback>(
 ) -> Result<OptimizationResult, EvolutionError> {
     keyforge_evolution::evolve(engine, config, callback, initial_layout, pinned_keys)
 }
-
-

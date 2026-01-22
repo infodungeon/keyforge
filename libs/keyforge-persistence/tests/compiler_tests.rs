@@ -1,9 +1,9 @@
-use keyforge_persistence::compiler::compile_request;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::cost_model::CostModel;
-use keyforge_model::geometry::{KeyboardGeometry, KeyboardDefinition};
+use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::{config::CorpusSource, config::Config, Asset, Corpus};
+use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
+use keyforge_persistence::compiler::compile_request;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -74,12 +74,17 @@ async fn test_compile_request_qwerty() {
     impl AssetLoader for QwertyLoader {
         async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
             let mut kb = KeyboardDefinition::default();
-            kb.geometry.keys.push(keyforge_model::KeyNode { label: "A".into(), ..Default::default() });
+            kb.geometry.keys.push(keyforge_model::KeyNode {
+                label: "A".into(),
+                ..Default::default()
+            });
             kb.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
             kb.layouts.insert("qwerty".into(), "A".into());
-            
+
             let any_kb = Arc::new(kb) as Arc<dyn Any + Send + Sync>;
-            if let Ok(arc) = any_kb.downcast::<T>() { return Ok(arc); }
+            if let Ok(arc) = any_kb.downcast::<T>() {
+                return Ok(arc);
+            }
 
             let json = r#"{
                 "meta": { "version": "2.0", "description": "T", "unit": "pts" },
@@ -88,15 +93,23 @@ async fn test_compile_request_qwerty() {
             }"#;
             let model: CostModel = serde_json::from_str(json).unwrap();
             let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
-            if let Ok(arc) = any_model.downcast::<T>() { return Ok(arc); }
+            if let Ok(arc) = any_model.downcast::<T>() {
+                return Ok(arc);
+            }
 
             let mut reg = KeycodeRegistry::new_with_defaults();
-            reg.definitions.push(keyforge_model::keycodes::KeycodeDefinition {
-                code: keyforge_model::KeyCode(10), id: "A".into(), label: "a".into(), aliases: vec![]
-            });
+            reg.definitions
+                .push(keyforge_model::keycodes::KeycodeDefinition {
+                    code: keyforge_model::KeyCode(10),
+                    id: "A".into(),
+                    label: "a".into(),
+                    aliases: vec![],
+                });
             reg.rebuild_maps();
             let any_kc = Arc::new(reg) as Arc<dyn Any + Send + Sync>;
-            if let Ok(arc) = any_kc.downcast::<T>() { return Ok(arc); }
+            if let Ok(arc) = any_kc.downcast::<T>() {
+                return Ok(arc);
+            }
 
             Err(keyforge_model::error::ForgeError::NotFound(_id.to_string()))
         }
@@ -121,13 +134,15 @@ async fn test_compile_request_failures() {
             Err(keyforge_model::error::ForgeError::NotFound(_id.to_string()))
         }
         async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-            Err(keyforge_model::error::ForgeError::NotFound("corpus".to_string()))
+            Err(keyforge_model::error::ForgeError::NotFound(
+                "corpus".to_string(),
+            ))
         }
     }
 
     let loader = FailingLoader;
     let config = Config::default();
-    
+
     // Fail keyboard
     let res = compile_request(&loader, &config, "kb", &[]).await;
     assert!(res.is_err());

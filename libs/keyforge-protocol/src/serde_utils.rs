@@ -27,7 +27,9 @@ where
 {
     let v: Vec<T> = Vec::deserialize(deserializer)?;
     if v.len() > MAX_TRANSPORT_VECTOR_ITEMS {
-        return Err(serde::de::Error::custom(format!("Vector exceeds transport limit of {MAX_TRANSPORT_VECTOR_ITEMS} items")));
+        return Err(serde::de::Error::custom(format!(
+            "Vector exceeds transport limit of {MAX_TRANSPORT_VECTOR_ITEMS} items"
+        )));
     }
     Ok(v)
 }

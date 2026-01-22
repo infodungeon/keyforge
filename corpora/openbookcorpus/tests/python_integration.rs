@@ -2,7 +2,11 @@
 
 //! Integration tests for Python-based corpus validation.
 
-#![allow(clippy::expect_used, clippy::panic, clippy::unnecessary_debug_formatting)]
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unnecessary_debug_formatting
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

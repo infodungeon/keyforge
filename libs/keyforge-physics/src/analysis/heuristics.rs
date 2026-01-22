@@ -60,7 +60,8 @@ pub fn suggest_swaps(
 
             // Exclude THUMB keys from swap suggestions if requested
             if !include_thumbs
-                && (ctx.geometry.fingers[i] == FingerIndex::THUMB || ctx.geometry.fingers[j] == FingerIndex::THUMB)
+                && (ctx.geometry.fingers[i] == FingerIndex::THUMB
+                    || ctx.geometry.fingers[j] == FingerIndex::THUMB)
             {
                 continue;
             }
@@ -101,9 +102,9 @@ pub fn suggest_swaps(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{EngineFactory, Compiler};
+    use crate::{Compiler, EngineFactory};
     use keyforge_model::{
-        types::{FingerIndex, HandIndex, KeyCode, RowIndex, ColIndex, Score},
+        types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, Score},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
     };
 
@@ -233,7 +234,8 @@ mod tests {
         let corpus = Corpus::default();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
         let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
 
         let suggestions = suggest_swaps(engine.context(), &layout, false);
         assert!(
@@ -277,7 +279,7 @@ mod tests {
         );
 
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2).unwrap();
-        
+
         assert!(delta > 0, "Degrading swap should have positive delta");
     }
 
@@ -287,9 +289,11 @@ mod tests {
         let mut corpus = Corpus::default();
         corpus.char_freqs[0] = 1_000_000_000; // Large freq
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+        let engine =
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
         let mut ctx = engine.context().clone();
-        
+
         // Create a mutable copy of geometry to modify key_costs
         let mut geom = ctx.geometry.clone();
         let mut costs = (*geom.key_costs).to_vec();
@@ -298,7 +302,7 @@ mod tests {
         ctx.geometry = geom;
 
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-        
+
         let suggestions = suggest_swaps(&ctx, &layout, false);
         assert!(suggestions.is_empty());
     }
@@ -306,41 +310,59 @@ mod tests {
     #[test]
     fn test_suggest_swaps_invalid_layout() {
         let kb = setup_kb_minimal();
-        let engine = EngineFactory::new_generic(&kb, &Corpus::default(), &Rubric::default(), &mock_cost_model()).unwrap();
-        
+        let engine = EngineFactory::new_generic(
+            &kb,
+            &Corpus::default(),
+            &Rubric::default(),
+            &mock_cost_model(),
+        )
+        .unwrap();
+
         // Layout with wrong number of keys
         let layout = Layout::new_unchecked(vec![KeyCode(0)]);
         let suggestions = suggest_swaps(engine.context(), &layout, true);
-        assert!(suggestions.is_empty(), "Invalid layout should return empty suggestions");
+        assert!(
+            suggestions.is_empty(),
+            "Invalid layout should return empty suggestions"
+        );
     }
 
     #[test]
     fn test_suggest_swaps_exclude_thumbs() {
-        let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode {
-             index: i,
-             hand: HandIndex(0),
-             finger: if i == 0 { FingerIndex::THUMB } else { FingerIndex::INDEX },
-             row: RowIndex(0),
-             col: ColIndex(i as i8),
-             ..Default::default()
-        }).collect();
+        let keys: Vec<KeyNode> = (0..3)
+            .map(|i| KeyNode {
+                index: i,
+                hand: HandIndex(0),
+                finger: if i == 0 {
+                    FingerIndex::THUMB
+                } else {
+                    FingerIndex::INDEX
+                },
+                row: RowIndex(0),
+                col: ColIndex(i as i8),
+                ..Default::default()
+            })
+            .collect();
         let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
-        
+
         let mut cp = Corpus::default();
         // Create strong incentive to swap key 0 (thumb) and key 2 (index)
         cp.char_freqs[0] = 1000;
         cp.char_freqs[2] = 10;
-        
+
         let mut rubric = Rubric::default();
         rubric.travel_lat = 10.0;
-        
+
         let engine = EngineFactory::new_generic(&kb, &cp, &rubric, &mock_cost_model()).unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-        
+
         // With include_thumbs = false, no suggestions should involve index 0
         let suggestions = suggest_swaps(engine.context(), &layout, false);
         for s in suggestions {
-            assert!(s.index_a != 0 && s.index_b != 0, "Should not suggest thumb swaps");
+            assert!(
+                s.index_a != 0 && s.index_b != 0,
+                "Should not suggest thumb swaps"
+            );
         }
     }
 }

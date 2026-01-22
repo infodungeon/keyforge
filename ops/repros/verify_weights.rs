@@ -48,7 +48,8 @@ fn main() {
 
     // 1. Default Rubric
     let rubric_def = Rubric::default();
-    let engine_def = EngineFactory::new_generic(&keyboard, &corpus, &rubric_def, &cost_model).unwrap();
+    let engine_def =
+        EngineFactory::new_generic(&keyboard, &corpus, &rubric_def, &cost_model).unwrap();
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)

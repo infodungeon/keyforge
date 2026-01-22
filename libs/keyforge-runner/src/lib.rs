@@ -147,7 +147,11 @@ impl<'a, L: AssetLoader> Runner<'a, L> {
     /// # Errors
     ///
     /// Returns `anyhow::Error` if any assets fail to load.
-    pub async fn prepare_job(&self, config: &JobConfig, keycodes_file: Option<&str>) -> anyhow::Result<Runtime> {
+    pub async fn prepare_job(
+        &self,
+        config: &JobConfig,
+        keycodes_file: Option<&str>,
+    ) -> anyhow::Result<Runtime> {
         let kc = keycodes_file.unwrap_or(ASSET_KEYCODES_FILENAME);
         let builder = SessionBuilder::new(self.loader)
             .with_keyboard_def(Arc::new(config.definition.clone()))
@@ -166,5 +170,3 @@ impl<'a, L: AssetLoader> Runner<'a, L> {
         Ok(Runtime::from(session))
     }
 }
-
-

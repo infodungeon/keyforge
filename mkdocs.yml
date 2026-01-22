@@ -52,10 +52,29 @@ nav:
       - Decision Records: architecture/09_DECISION_RECORDS.md
   - Design:
       - Map: design/ARCHITECTURE_MAP.md
-      - Core: design/keyforge-core/README.md
-      - Physics: design/keyforge-physics/README.md
-      - Hive: design/keyforge-hive/README.md
-      - UI: design/keyforge-ui/README.md
+      - Apps:
+          - Agent: design/apps/keyforge-agent/README.md
+          - AssetMgr: design/apps/keyforge-assetmgr/README.md
+          - Assets: design/apps/keyforge-assets/README.md
+          - CLI: design/apps/keyforge-cli/README.md
+          - Hive: design/apps/keyforge-hive/README.md
+          - UI: design/apps/keyforge-ui/README.md
+          - TUI: design/apps/keyforge-tui/README.md
+      - Libs:
+          - Adapter: design/libs/keyforge-adapter/README.md
+          - Compute: design/libs/keyforge-compute/README.md
+          - Core: design/libs/keyforge-core/README.md
+          - Evolution: design/libs/keyforge-evolution/README.md
+          - Export: design/libs/keyforge-export/README.md
+          - Infra: design/libs/keyforge-infra/README.md
+          - Model: design/libs/keyforge-model/README.md
+          - Persistence: design/libs/keyforge-persistence/README.md
+          - Physics: design/libs/keyforge-physics/README.md
+          - Protocol: design/libs/keyforge-protocol/README.md
+          - Runner: design/libs/keyforge-runner/README.md
+          - Security: design/libs/keyforge-security/README.md
+          - Testing: design/libs/keyforge-testing/README.md
+          - Wasm: design/libs/keyforge-wasm/README.md
   - Development:
       - Setup: development/01_SETUP_ARCH.md
       - Automation: development/03_JUSTFILE_AUTOMATION.md

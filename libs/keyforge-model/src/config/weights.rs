@@ -135,44 +135,104 @@ impl Default for ScoringWeights {
 
 impl ScoringWeights {
     fn insert_sfb_penalties(weights: &mut std::collections::HashMap<String, f32>) {
-        weights.insert("penalty_sfr_weak_finger".to_string(), DEFAULT_PENALTY_SFR_WEAK_FINGER);
-        weights.insert("penalty_sfr_bad_row".to_string(), DEFAULT_PENALTY_SFR_BAD_ROW);
+        weights.insert(
+            "penalty_sfr_weak_finger".to_string(),
+            DEFAULT_PENALTY_SFR_WEAK_FINGER,
+        );
+        weights.insert(
+            "penalty_sfr_bad_row".to_string(),
+            DEFAULT_PENALTY_SFR_BAD_ROW,
+        );
         weights.insert("penalty_sfr_lat".to_string(), DEFAULT_PENALTY_SFR_LAT);
-        weights.insert("penalty_sfb_lateral".to_string(), DEFAULT_PENALTY_SFB_LATERAL);
-        weights.insert("penalty_sfb_lateral_weak".to_string(), DEFAULT_PENALTY_SFB_LATERAL_WEAK);
+        weights.insert(
+            "penalty_sfb_lateral".to_string(),
+            DEFAULT_PENALTY_SFB_LATERAL,
+        );
+        weights.insert(
+            "penalty_sfb_lateral_weak".to_string(),
+            DEFAULT_PENALTY_SFB_LATERAL_WEAK,
+        );
         weights.insert("penalty_sfb_base".to_string(), DEFAULT_PENALTY_SFB_BASE);
-        weights.insert("penalty_sfb_outward_adder".to_string(), DEFAULT_PENALTY_SFB_OUTWARD_ADDER);
-        weights.insert("penalty_sfb_diagonal".to_string(), DEFAULT_PENALTY_SFB_DIAGONAL);
+        weights.insert(
+            "penalty_sfb_outward_adder".to_string(),
+            DEFAULT_PENALTY_SFB_OUTWARD_ADDER,
+        );
+        weights.insert(
+            "penalty_sfb_diagonal".to_string(),
+            DEFAULT_PENALTY_SFB_DIAGONAL,
+        );
         weights.insert("penalty_sfb_long".to_string(), DEFAULT_PENALTY_SFB_LONG);
         weights.insert("penalty_sfb_bottom".to_string(), DEFAULT_PENALTY_SFB_BOTTOM);
-        weights.insert("weight_weak_finger_sfb".to_string(), DEFAULT_WEIGHT_WEAK_FINGER_SFB);
-        weights.insert("threshold_sfb_long_row_diff".to_string(), f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF));
+        weights.insert(
+            "weight_weak_finger_sfb".to_string(),
+            DEFAULT_WEIGHT_WEAK_FINGER_SFB,
+        );
+        weights.insert(
+            "threshold_sfb_long_row_diff".to_string(),
+            f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF),
+        );
     }
 
     fn insert_movement_penalties(weights: &mut std::collections::HashMap<String, f32>) {
-        weights.insert("threshold_scissor_row_diff".to_string(), f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF));
-        weights.insert("threshold_reach_stretch".to_string(), DEFAULT_THRESHOLD_REACH_STRETCH);
+        weights.insert(
+            "threshold_scissor_row_diff".to_string(),
+            f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF),
+        );
+        weights.insert(
+            "threshold_reach_stretch".to_string(),
+            DEFAULT_THRESHOLD_REACH_STRETCH,
+        );
         weights.insert("penalty_scissor".to_string(), DEFAULT_PENALTY_SCISSOR);
         weights.insert("penalty_ring_pinky".to_string(), DEFAULT_PENALTY_RING_PINKY);
         weights.insert("penalty_lateral".to_string(), DEFAULT_PENALTY_LATERAL);
-        weights.insert("penalty_monogram_stretch".to_string(), DEFAULT_PENALTY_MONOGRAM_STRETCH);
+        weights.insert(
+            "penalty_monogram_stretch".to_string(),
+            DEFAULT_PENALTY_MONOGRAM_STRETCH,
+        );
         weights.insert("penalty_skip".to_string(), DEFAULT_PENALTY_SKIP);
-        weights.insert("weight_vertical_travel".to_string(), DEFAULT_WEIGHT_VERTICAL_TRAVEL);
-        weights.insert("weight_lateral_travel".to_string(), DEFAULT_WEIGHT_LATERAL_TRAVEL);
-        weights.insert("weight_finger_effort".to_string(), DEFAULT_WEIGHT_FINGER_EFFORT);
+        weights.insert(
+            "weight_vertical_travel".to_string(),
+            DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+        );
+        weights.insert(
+            "weight_lateral_travel".to_string(),
+            DEFAULT_WEIGHT_LATERAL_TRAVEL,
+        );
+        weights.insert(
+            "weight_finger_effort".to_string(),
+            DEFAULT_WEIGHT_FINGER_EFFORT,
+        );
     }
 
     fn insert_dynamic_rules(weights: &mut std::collections::HashMap<String, f32>) {
         weights.insert("penalty_redirect".to_string(), DEFAULT_PENALTY_REDIRECT);
         weights.insert("penalty_hand_run".to_string(), DEFAULT_PENALTY_HAND_RUN);
         weights.insert("bonus_inward_roll".to_string(), DEFAULT_BONUS_INWARD_ROLL);
-        weights.insert("bonus_bigram_roll_in".to_string(), DEFAULT_BONUS_BIGRAM_ROLL_IN);
-        weights.insert("bonus_bigram_roll_out".to_string(), DEFAULT_BONUS_BIGRAM_ROLL_OUT);
-        weights.insert("penalty_high_in_med".to_string(), DEFAULT_PENALTY_HIGH_IN_MED);
-        weights.insert("penalty_high_in_low".to_string(), DEFAULT_PENALTY_HIGH_IN_LOW);
-        weights.insert("penalty_med_in_prime".to_string(), DEFAULT_PENALTY_MED_IN_PRIME);
+        weights.insert(
+            "bonus_bigram_roll_in".to_string(),
+            DEFAULT_BONUS_BIGRAM_ROLL_IN,
+        );
+        weights.insert(
+            "bonus_bigram_roll_out".to_string(),
+            DEFAULT_BONUS_BIGRAM_ROLL_OUT,
+        );
+        weights.insert(
+            "penalty_high_in_med".to_string(),
+            DEFAULT_PENALTY_HIGH_IN_MED,
+        );
+        weights.insert(
+            "penalty_high_in_low".to_string(),
+            DEFAULT_PENALTY_HIGH_IN_LOW,
+        );
+        weights.insert(
+            "penalty_med_in_prime".to_string(),
+            DEFAULT_PENALTY_MED_IN_PRIME,
+        );
         weights.insert("penalty_med_in_low".to_string(), DEFAULT_PENALTY_MED_IN_LOW);
-        weights.insert("penalty_low_in_prime".to_string(), DEFAULT_PENALTY_LOW_IN_PRIME);
+        weights.insert(
+            "penalty_low_in_prime".to_string(),
+            DEFAULT_PENALTY_LOW_IN_PRIME,
+        );
         weights.insert("penalty_low_in_med".to_string(), DEFAULT_PENALTY_LOW_IN_MED);
         weights.insert("penalty_imbalance".to_string(), DEFAULT_PENALTY_IMBALANCE);
         weights.insert("max_hand_imbalance".to_string(), DEFAULT_MAX_HAND_IMBALANCE);
@@ -181,7 +241,10 @@ impl ScoringWeights {
     fn insert_loader_defaults(weights: &mut std::collections::HashMap<String, f32>) {
         weights.insert("default_cost_ms".to_string(), DEFAULT_COST_MS);
         #[allow(clippy::cast_precision_loss)]
-        weights.insert("loader_trigram_limit".to_string(), DEFAULT_LOADER_TRIGRAM_LIMIT as f32);
+        weights.insert(
+            "loader_trigram_limit".to_string(),
+            DEFAULT_LOADER_TRIGRAM_LIMIT as f32,
+        );
         weights.insert("trigram_coverage".to_string(), DEFAULT_TRIGRAM_COVERAGE);
     }
 }
@@ -561,7 +624,8 @@ mod tests {
         assert!(w.validate().is_err());
 
         // 2. Weight overflow
-        w.weights.insert("penalty_sfb_base".into(), MAX_SAFE_WEIGHT * 2.0);
+        w.weights
+            .insert("penalty_sfb_base".into(), MAX_SAFE_WEIGHT * 2.0);
         assert!(w.validate().is_err());
 
         // 3. Negative finger scale
@@ -571,7 +635,10 @@ mod tests {
 
         // 4. Trigram limit safety
         w = ScoringWeights::default();
-        w.weights.insert("loader_trigram_limit".into(), (MAX_LOADER_TRIGRAM_LIMIT + 1) as f32);
+        w.weights.insert(
+            "loader_trigram_limit".into(),
+            (MAX_LOADER_TRIGRAM_LIMIT + 1) as f32,
+        );
         assert!(w.validate().is_err());
     }
 
@@ -579,24 +646,48 @@ mod tests {
     fn test_scoring_weights_getters_all() {
         let w = ScoringWeights::default();
         // Just call them all to ensure coverage and they return defaults
-        assert_eq!(w.get_penalty_sfr_weak_finger(), DEFAULT_PENALTY_SFR_WEAK_FINGER);
+        assert_eq!(
+            w.get_penalty_sfr_weak_finger(),
+            DEFAULT_PENALTY_SFR_WEAK_FINGER
+        );
         assert_eq!(w.get_penalty_sfr_bad_row(), DEFAULT_PENALTY_SFR_BAD_ROW);
         assert_eq!(w.get_penalty_sfr_lat(), DEFAULT_PENALTY_SFR_LAT);
         assert_eq!(w.get_penalty_sfb_lateral(), DEFAULT_PENALTY_SFB_LATERAL);
-        assert_eq!(w.get_penalty_sfb_lateral_weak(), DEFAULT_PENALTY_SFB_LATERAL_WEAK);
+        assert_eq!(
+            w.get_penalty_sfb_lateral_weak(),
+            DEFAULT_PENALTY_SFB_LATERAL_WEAK
+        );
         assert_eq!(w.get_penalty_sfb_base(), DEFAULT_PENALTY_SFB_BASE);
-        assert_eq!(w.get_penalty_sfb_outward_adder(), DEFAULT_PENALTY_SFB_OUTWARD_ADDER);
+        assert_eq!(
+            w.get_penalty_sfb_outward_adder(),
+            DEFAULT_PENALTY_SFB_OUTWARD_ADDER
+        );
         assert_eq!(w.get_penalty_sfb_diagonal(), DEFAULT_PENALTY_SFB_DIAGONAL);
         assert_eq!(w.get_penalty_sfb_long(), DEFAULT_PENALTY_SFB_LONG);
         assert_eq!(w.get_penalty_sfb_bottom(), DEFAULT_PENALTY_SFB_BOTTOM);
-        assert_eq!(w.get_weight_weak_finger_sfb(), DEFAULT_WEIGHT_WEAK_FINGER_SFB);
-        assert_eq!(w.get_threshold_sfb_long_row_diff(), DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF);
-        assert_eq!(w.get_threshold_scissor_row_diff(), DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF);
-        assert_eq!(w.get_threshold_reach_stretch(), DEFAULT_THRESHOLD_REACH_STRETCH);
+        assert_eq!(
+            w.get_weight_weak_finger_sfb(),
+            DEFAULT_WEIGHT_WEAK_FINGER_SFB
+        );
+        assert_eq!(
+            w.get_threshold_sfb_long_row_diff(),
+            DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF
+        );
+        assert_eq!(
+            w.get_threshold_scissor_row_diff(),
+            DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF
+        );
+        assert_eq!(
+            w.get_threshold_reach_stretch(),
+            DEFAULT_THRESHOLD_REACH_STRETCH
+        );
         assert_eq!(w.get_penalty_scissor(), DEFAULT_PENALTY_SCISSOR);
         assert_eq!(w.get_penalty_ring_pinky(), DEFAULT_PENALTY_RING_PINKY);
         assert_eq!(w.get_penalty_lateral(), DEFAULT_PENALTY_LATERAL);
-        assert_eq!(w.get_penalty_monogram_stretch(), DEFAULT_PENALTY_MONOGRAM_STRETCH);
+        assert_eq!(
+            w.get_penalty_monogram_stretch(),
+            DEFAULT_PENALTY_MONOGRAM_STRETCH
+        );
         assert_eq!(w.get_penalty_skip(), DEFAULT_PENALTY_SKIP);
         assert_eq!(w.get_penalty_redirect(), DEFAULT_PENALTY_REDIRECT);
         assert_eq!(w.get_penalty_hand_run(), DEFAULT_PENALTY_HAND_RUN);
@@ -611,15 +702,24 @@ mod tests {
         assert_eq!(w.get_penalty_low_in_med(), DEFAULT_PENALTY_LOW_IN_MED);
         assert_eq!(w.get_penalty_imbalance(), DEFAULT_PENALTY_IMBALANCE);
         assert_eq!(w.get_max_hand_imbalance(), DEFAULT_MAX_HAND_IMBALANCE);
-        assert_eq!(w.get_weight_vertical_travel(), DEFAULT_WEIGHT_VERTICAL_TRAVEL);
+        assert_eq!(
+            w.get_weight_vertical_travel(),
+            DEFAULT_WEIGHT_VERTICAL_TRAVEL
+        );
         assert_eq!(w.get_weight_lateral_travel(), DEFAULT_WEIGHT_LATERAL_TRAVEL);
         assert_eq!(w.get_weight_finger_effort(), DEFAULT_WEIGHT_FINGER_EFFORT);
         assert_eq!(w.get_default_cost_ms(), DEFAULT_COST_MS);
         assert_eq!(w.get_loader_trigram_limit(), DEFAULT_LOADER_TRIGRAM_LIMIT);
         assert_eq!(w.get_trigram_coverage(), DEFAULT_TRIGRAM_COVERAGE);
-        assert_eq!(w.get_finger_penalty_scale(), DEFAULT_FINGER_PENALTY_SCALE_ARRAY);
-        assert_eq!(w.allowed_hand_balance_deviation(), DEFAULT_MAX_HAND_IMBALANCE - 0.5);
-        
+        assert_eq!(
+            w.get_finger_penalty_scale(),
+            DEFAULT_FINGER_PENALTY_SCALE_ARRAY
+        );
+        assert_eq!(
+            w.allowed_hand_balance_deviation(),
+            DEFAULT_MAX_HAND_IMBALANCE - 0.5
+        );
+
         let scissors = w.get_comfortable_scissors();
         assert!(!scissors.is_empty());
     }
@@ -635,7 +735,7 @@ mod tests {
         let w = ScoringWeights::default();
         let json_str = serde_json::to_string(&w).unwrap();
         let w2: ScoringWeights = serde_json::from_str(&json_str).unwrap();
-        
+
         assert_eq!(w.get_penalty_sfb_base(), w2.get_penalty_sfb_base());
         assert_eq!(w.comfortable_scissors, w2.comfortable_scissors);
     }

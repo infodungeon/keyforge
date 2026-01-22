@@ -18,5 +18,3 @@ pub mod db;
 pub mod queue;
 /// Data access layer for domain entities.
 pub mod repositories;
-/// Terminal User Interface for server management.
-pub mod tui;

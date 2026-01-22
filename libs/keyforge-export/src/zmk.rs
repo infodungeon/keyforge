@@ -123,16 +123,21 @@ mod tests {
     #[test]
     fn test_zmk_generate_all_actions() {
         let exporter = ZmkExporter;
-        let layers = vec![
-            vec![
-                "A".to_string(), "TRNS".to_string(), "NO".to_string(),
-                "MO(1)".to_string(), "TG(2)".to_string(), "TO(3)".to_string(),
-                "MT(LSFT, Z)".to_string(), "LT(1, SPC)".to_string(),
-                "SK(LCTL)".to_string(), "CAPS_WORD".to_string(), "UNKNOWN(TOKEN)".to_string()
-            ]
-        ];
+        let layers = vec![vec![
+            "A".to_string(),
+            "TRNS".to_string(),
+            "NO".to_string(),
+            "MO(1)".to_string(),
+            "TG(2)".to_string(),
+            "TO(3)".to_string(),
+            "MT(LSFT, Z)".to_string(),
+            "LT(1, SPC)".to_string(),
+            "SK(LCTL)".to_string(),
+            "CAPS_WORD".to_string(),
+            "UNKNOWN(TOKEN)".to_string(),
+        ]];
         let result = exporter.generate("Test", &layers).unwrap();
-        
+
         assert!(result.contains("&kp A"));
         assert!(result.contains("&trans"));
         assert!(result.contains("&none"));
@@ -163,10 +168,7 @@ mod tests {
     #[test]
     fn test_zmk_multi_layer() {
         let exporter = ZmkExporter;
-        let layers = vec![
-            vec!["A".into()],
-            vec!["B".into()]
-        ];
+        let layers = vec![vec!["A".into()], vec!["B".into()]];
         let result = exporter.generate("Multi", &layers).unwrap();
         assert!(result.contains("default_layer"));
         assert!(result.contains("layer_1"));

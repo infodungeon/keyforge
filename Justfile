@@ -30,6 +30,9 @@ build-cli:
 build-hive:
     cargo build --release -p keyforge-hive
 
+build-tui:
+    cargo build --release -p keyforge-tui
+
 build-node:
     cargo build --release -p keyforge-agent
 
@@ -50,6 +53,9 @@ serve: infra-up
 
 worker: infra-up
     SANDBOX_CONTEXT=worker ./ops/scripts/run_sandbox.sh cargo run -p keyforge-agent -- --hive http://localhost:3002
+
+monitor url="http://localhost:3000":
+    cargo run -p keyforge-tui -- --url {{url}}
 
 cli +args:
     SANDBOX_CONTEXT=client ./ops/scripts/run_sandbox.sh cargo run --manifest-path apps/keyforge-cli/Cargo.toml -- {{args}}
@@ -82,9 +88,6 @@ build-image-hive:
 
 up: prepare-offline build-image-hive
     {{COMPOSE}} up -d
-
-serve-monitor url="http://localhost:3000":
-    cargo run -p keyforge-hive -- monitor --url {{url}}
 
 # --- OPS ---
 

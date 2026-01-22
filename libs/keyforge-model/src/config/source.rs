@@ -169,9 +169,17 @@ mod tests {
         assert_eq!(default.id, "text/en_std");
         assert_eq!(default.weight, 1.0);
 
-        let s1 = CorpusSource { id: "a".into(), weight: 1.0, hash: None };
-        let s2 = CorpusSource { id: "a".into(), weight: 1.0, hash: None };
-        
+        let s1 = CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: None,
+        };
+        let s2 = CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: None,
+        };
+
         let mut h1 = std::collections::hash_map::DefaultHasher::new();
         let mut h2 = std::collections::hash_map::DefaultHasher::new();
         s1.hash(&mut h1);

@@ -137,7 +137,10 @@ impl Validator for JobConfig {
             return Err("Pinned keys configuration too large".to_string());
         }
         if self.biometrics.len() > constants::MAX_BIOMETRIC_SAMPLES {
-            return Err(format!("Too many biometric samples (Limit: {})", constants::MAX_BIOMETRIC_SAMPLES));
+            return Err(format!(
+                "Too many biometric samples (Limit: {})",
+                constants::MAX_BIOMETRIC_SAMPLES
+            ));
         }
         for (i, sample) in self.biometrics.iter().enumerate() {
             sample
@@ -494,7 +497,10 @@ mod tests {
             job_id: "test".into(),
             layout: "A B C D E F G H I J".into(),
             score: 100.0,
-            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             nonce: 0,
             node_id: "node".into(),
             signature: "sig".into(),
@@ -534,7 +540,11 @@ mod tests {
         let mut config = JobConfig::default();
         config.definition.geometry.keys.push(KeyNode::default());
         config.definition.geometry.home_row = 0;
-        config.definition.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
+        config
+            .definition
+            .geometry
+            .prime_slots
+            .push(keyforge_model::KeyIndex(0));
 
         // Invalid corpus
         config.corpora[0].id = " ".into();
@@ -542,12 +552,16 @@ mod tests {
         config.corpora[0].id = "en".into();
 
         // Too many pins
-        config.pinned_keys = vec![KeyConstraint { index: keyforge_model::KeyIndex(0), key: "A".into() }; 201];
+        config.pinned_keys = vec![
+            KeyConstraint {
+                index: keyforge_model::KeyIndex(0),
+                key: "A".into()
+            };
+            201
+        ];
         assert!(config.validate().is_err());
     }
 }
-
-    
 
 #[cfg(test)]
 mod fuzz {

@@ -35,10 +35,12 @@ impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
         } else {
             self.pb.tick();
         }
-        
-        self.pb
-            .set_message(format!("Epoch {epoch} | Best: {score:.4} | {:.2} MOPS", ips / 1_000_000.0));
-        
+
+        self.pb.set_message(format!(
+            "Epoch {epoch} | Best: {score:.4} | {:.2} MOPS",
+            ips / 1_000_000.0
+        ));
+
         keyforge_evolution::OptimizationControl::Continue
     }
 }

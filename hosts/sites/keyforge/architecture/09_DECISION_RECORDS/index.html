@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -902,6 +902,50 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#adr-013-hybrid-development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-013: Hybrid Development Environment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-014-subdomain-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-014: Subdomain Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-015-data-decoupling-and-testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-015: Data Decoupling and Testing Strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-016-multi-tiered-scoring-implementations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-016: Multi-Tiered Scoring Implementations
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -999,15 +1043,62 @@
   
   
   
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Apps
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Apps
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
-      <a href="../../design/keyforge-core/" class="md-nav__link">
+      <a href="../../design/apps/keyforge-agent/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Core
+    Agent
   
 
     
@@ -1028,14 +1119,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/keyforge-physics/" class="md-nav__link">
+      <a href="../../design/apps/keyforge-assetmgr/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Physics
+    AssetMgr
   
 
     
@@ -1056,7 +1147,63 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/keyforge-hive/" class="md-nav__link">
+      <a href="../../design/apps/keyforge-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/apps/keyforge-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/apps/keyforge-hive/" class="md-nav__link">
         
   
   
@@ -1084,7 +1231,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/keyforge-ui/" class="md-nav__link">
+      <a href="../../design/apps/keyforge-ui/" class="md-nav__link">
         
   
   
@@ -1100,6 +1247,489 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/apps/keyforge-tui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Libs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Libs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-adapter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adapter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-compute/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-infra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-physics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Physics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/libs/keyforge-wasm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wasm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1442,7 +2072,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../planning/" class="md-nav__link">
+      <a href="../../planning/index.md" class="md-nav__link">
         
   
   
@@ -1470,7 +2100,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../planning/redis/" class="md-nav__link">
+      <a href="../../planning/redis.md" class="md-nav__link">
         
   
   
@@ -1667,6 +2297,50 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#adr-013-hybrid-development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-013: Hybrid Development Environment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-014-subdomain-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-014: Subdomain Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-015-data-decoupling-and-testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-015: Data Decoupling and Testing Strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-016-multi-tiered-scoring-implementations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-016: Multi-Tiered Scoring Implementations
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1685,7 +2359,7 @@
 
 
 <h1 id="architecture-decision-records-adr">Architecture Decision Records (ADR)</h1>
-<p><strong>Version:</strong> 4.6
+<p><strong>Version:</strong> 4.8
 <strong>Context:</strong> Log of significant architectural decisions.</p>
 <h2 id="index">Index</h2>
 <ul>
@@ -1701,6 +2375,10 @@
 <li><a href="#adr-010-distributed-coordination-via-valkey">ADR-010: Distributed Coordination via Valkey</a></li>
 <li><a href="#adr-011-the-thin-client-cli-agent-runner">ADR-011: The Thin Client CLI (Agent Runner)</a></li>
 <li><a href="#adr-012-the-controlasset-plane-split">ADR-012: The Control/Asset Plane Split</a></li>
+<li><a href="#adr-013-hybrid-development-environment">ADR-013: Hybrid Development Environment</a></li>
+<li><a href="#adr-014-subdomain-architecture">ADR-014: Subdomain Architecture</a></li>
+<li><a href="#adr-015-data-decoupling-and-testing-strategy">ADR-015: Data Decoupling and Testing Strategy</a></li>
+<li><a href="#adr-016-multi-tiered-scoring-implementations">ADR-016: Multi-Tiered Scoring Implementations</a></li>
 </ul>
 <hr />
 <h2 id="adr-001-hexagonal-architecture">ADR-001: Hexagonal Architecture</h2>
@@ -1805,7 +2483,7 @@
 <li><strong>Date:</strong> 2026-01-07</li>
 <li><strong>Context:</strong></li>
 <li><strong>Process Isolation:</strong> The Hive WebSocket event loop was process-local (<code>tokio::broadcast</code>). If we scaled Hive to multiple instances, users connected to Instance A could not see events from Instance B.</li>
-<li><strong>Database Load:</strong> High-frequency ephemeral data (Agent Heartbeats at 1Hz, Real-time Score updates) was being written to PostgreSQL, causing write amplification and WAL bloat for data that has no long-term value.oo</li>
+<li><strong>Database Load:</strong> High-frequency ephemeral data (Agent Heartbeats at 1Hz, Real-time Score updates) was being written to PostgreSQL, causing write amplification and WAL bloat for data that has no long-term value.</li>
 <li><strong>Consistency:</strong> Asset caches were managed locally. If an admin updated a file on one server, others would serve stale data.</li>
 <li><strong>Decision:</strong> Introduce <strong>Valkey</strong> (an open-source Redis fork) as the <strong>Coordination Layer</strong>.</li>
 <li><strong>Role:</strong> Acts as the "Nervous System" for the cluster.</li>
@@ -1847,6 +2525,90 @@
 <li>(+) <strong>Security:</strong> Asset Server can be public (read-only), while Hive remains private/authenticated.</li>
 <li>(+) <strong>Architecture:</strong> Explicit separation of concerns.</li>
 <li>(-) <strong>Complexity:</strong> Clients must manage two base URLs (<code>KEYFORGE_API_URL</code> and <code>KEYFORGE_ASSET_URL</code>).</li>
+</ul>
+<h2 id="adr-013-hybrid-development-environment">ADR-013: Hybrid Development Environment</h2>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-01-13</li>
+<li><strong>Context:</strong> Developing against a full Docker stack is slow (rebuild times). Developing purely locally misses infrastructure issues (HTTPS, CORS, Proxy rules).</li>
+<li><strong>Decision:</strong> Implement a <strong>Hybrid Mode</strong> (<code>just serve</code>).</li>
+<li><strong>Infrastructure:</strong> DB, Valkey, and Web Proxy run in Docker.</li>
+<li><strong>Logic:</strong> <code>keyforge-hive</code> runs natively on the host (Port 3002).</li>
+<li><strong>Bridge:</strong> <code>socat</code> containers proxy traffic from the Web Container (Port 3000/3001) to the Host (Port 3002/3003).</li>
+<li><strong>Consequences:</strong></li>
+<li>(+) <strong>Speed:</strong> Instant compilation/restart for Rust code.</li>
+<li>(+) <strong>Parity:</strong> Frontend talks to "Production-like" HTTPS endpoints (<code>https://localhost:3000</code>).</li>
+<li>(-) <strong>Complexity:</strong> Requires <code>extra_hosts</code> configuration for Linux support.</li>
+</ul>
+<h2 id="adr-014-subdomain-architecture">ADR-014: Subdomain Architecture</h2>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-01-13</li>
+<li><strong>Context:</strong> Cloudflare Proxy (Orange Cloud) only supports specific ports (80, 443, etc.). Our previous architecture used ports 3000/3001 for API/Assets, which exposed the origin IP and bypassed DDoS protection.</li>
+<li><strong>Decision:</strong> Move to a <strong>Subdomain-based Architecture</strong> on Port 443.</li>
+<li><code>keyforge.infodungeon.com</code> -&gt; Frontend (Static).</li>
+<li><code>api.keyforge.infodungeon.com</code> -&gt; Hive API.</li>
+<li><code>assets.keyforge.infodungeon.com</code> -&gt; Asset Server.</li>
+<li><strong>Consequences:</strong></li>
+<li>(+) <strong>Security:</strong> All traffic flows through Cloudflare WAF on Port 443.</li>
+<li>(+) <strong>Standards:</strong> No non-standard ports required for clients.</li>
+<li>(-) <strong>DNS:</strong> Requires managing multiple A records.</li>
+</ul>
+<h2 id="adr-015-data-decoupling-and-testing-strategy">ADR-015: Data Decoupling and Testing Strategy</h2>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-01-17</li>
+<li><strong>Context:</strong></li>
+<li><strong>Coupling:</strong> High rigidity in data models (<code>CostModel</code>, <code>SearchParams</code>) meant that adding experimental parameters required full-stack refactors.</li>
+<li><strong>Testing:</strong> The test suite was brittle ("Inverted Pyramid"), with unit logic tested in integration scopes and a lack of clear intent documentation.</li>
+<li><strong>Decision:</strong></li>
+<li><strong>Data-Driven Configuration:</strong> Use the <strong>Parameter Map</strong> pattern (e.g., <code>HashMap&lt;String, f32&gt;</code> via <code>serde(flatten)</code>) for volatile configuration data. Consuming crates own the semantics; the structure is generic.</li>
+<li><strong>Testing Hierarchy:</strong> Enforce a strict separation:<ul>
+<li><strong>Unit Tests (<code>src/</code>)</strong>: Rigorous, exhaustive verification of logic and math.</li>
+<li><strong>Integration Tests (<code>tests/</code>)</strong>: Contract/Wiring verification only.</li>
+<li><strong>Zero Duplication</strong>: Unit logic MUST NOT be re-verified in the integration layer.</li>
+<li><strong>Crate Affinity</strong>: Tests must reside in the crate that owns the integration point.</li>
+</ul>
+</li>
+<li><strong>Documentation Standard</strong>: All tests must define Intent and Expected Result.</li>
+<li><strong>Fixture-Based Testing</strong>: Use external JSON "Golden Files" instead of code-constructed test data.</li>
+<li><strong>Consequences:</strong></li>
+<li>(+) <strong>Flexibility:</strong> New physics parameters can be added without binary updates or breaking schema changes.</li>
+<li>(+) <strong>Stability:</strong> Tests are decoupled from internal implementation details.</li>
+<li>(+) <strong>Maintainability:</strong> Clearer ownership of logic vs. wiring.</li>
+<li>(-) <strong>Safety:</strong> Loss of compile-time type checking for configuration fields (mitigated by Runtime Schema Validation).</li>
+</ul>
+<h2 id="adr-016-multi-tiered-scoring-implementations">ADR-016: Multi-Tiered Scoring Implementations</h2>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-01-19</li>
+<li><strong>Context:</strong></li>
+<li><strong>The Conflict:</strong> We have two opposing needs:<ol>
+<li><strong>Absolute Truth:</strong> UI analysis and Hive verification require a 100% trustworthy, bit-perfect score.</li>
+<li><strong>Maximum Throughput:</strong> Search algorithms (Annealing) need to evaluate millions of layouts per second. Optimization techniques (SIMD, Cache Blocking) often introduce minor precision "drift" or are hardware-specific.</li>
+</ol>
+</li>
+<li><strong>Previous State:</strong> The "Oracle Pattern" enforced that the Optimized Engine match the Naive Oracle bit-for-bit. This capped optimization headroom.</li>
+<li><strong>Decision:</strong> Adopt a <strong>Three-Tiered Implementation Strategy</strong>:</li>
+<li><strong>Exact (The Oracle):</strong><ul>
+<li><strong>Role:</strong> Single source of truth. Used for UI analysis, final verification, and "Gold Standard" checks.</li>
+<li><strong>Constraint:</strong> Must be bit-perfect and simple.</li>
+</ul>
+</li>
+<li><strong>Generic Optimized (The Workhorse):</strong><ul>
+<li><strong>Role:</strong> High-speed search on unknown hardware.</li>
+<li><strong>Constraint:</strong> Portable Rust. Allows documented, bounded drift from the Oracle.</li>
+</ul>
+</li>
+<li><strong>Hardware Specific (The F1 Car):</strong><ul>
+<li><strong>Role:</strong> Extreme optimization for specific CPUs (starting with Intel Family 6/Comet Lake).</li>
+<li><strong>Constraint:</strong> Uses CPUID/Cache detection. optimization is theoretically unbounded. Allows drift.</li>
+</ul>
+</li>
+<li><strong>Consequences:</strong></li>
+<li>(+) <strong>Performance:</strong> Unlocks hardware-specific tuning (L1/L2 cache blocking).</li>
+<li>(+) <strong>Reliability:</strong> "Exact" tier ensures user-facing numbers are always correct.</li>
+<li>(-) <strong>Complexity:</strong> Testing must now account for "allowed drift" rather than strict equality for search tiers.</li>
 </ul>
 
 
@@ -1903,10 +2665,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       

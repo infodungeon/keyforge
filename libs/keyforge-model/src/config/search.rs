@@ -470,23 +470,42 @@ mod tests {
     fn test_search_config_validation_extended() {
         // end_temp < 0
         let c = SearchConfig::Annealing {
-            steps: 100, start_temp: 10.0, end_temp: -1.0, seed: 0,
-            patience: 10, reheats: 0, reheat_factor: 0.5, include_thumbs: false,
+            steps: 100,
+            start_temp: 10.0,
+            end_temp: -1.0,
+            seed: 0,
+            patience: 10,
+            reheats: 0,
+            reheat_factor: 0.5,
+            include_thumbs: false,
         };
         assert!(c.validate().is_err());
 
         // reheat_factor <= 0
         let c = SearchConfig::Annealing {
-            steps: 100, start_temp: 10.0, end_temp: 0.1, seed: 0,
-            patience: 10, reheats: 1, reheat_factor: 0.0, include_thumbs: false,
+            steps: 100,
+            start_temp: 10.0,
+            end_temp: 0.1,
+            seed: 0,
+            patience: 10,
+            reheats: 1,
+            reheat_factor: 0.0,
+            include_thumbs: false,
         };
         assert!(c.validate().is_err());
 
         assert!(!SearchConfig::default().include_thumbs());
         assert!(SearchConfig::Annealing {
-            steps: 100, start_temp: 10.0, end_temp: 0.1, seed: 0,
-            patience: 10, reheats: 1, reheat_factor: 0.5, include_thumbs: true,
-        }.include_thumbs());
+            steps: 100,
+            start_temp: 10.0,
+            end_temp: 0.1,
+            seed: 0,
+            patience: 10,
+            reheats: 1,
+            reheat_factor: 0.5,
+            include_thumbs: true,
+        }
+        .include_thumbs());
     }
 
     #[test]
@@ -495,7 +514,10 @@ mod tests {
         assert_eq!(p.get_search_epochs(), DEFAULT_SEARCH_EPOCHS);
         assert_eq!(p.get_search_steps(), DEFAULT_SEARCH_STEPS);
         assert_eq!(p.get_search_patience(), DEFAULT_SEARCH_PATIENCE);
-        assert_eq!(p.get_search_patience_threshold(), DEFAULT_SEARCH_PATIENCE_THRESHOLD);
+        assert_eq!(
+            p.get_search_patience_threshold(),
+            DEFAULT_SEARCH_PATIENCE_THRESHOLD
+        );
         assert_eq!(p.get_temp_min(), DEFAULT_TEMP_MIN);
         assert_eq!(p.get_temp_max(), DEFAULT_TEMP_MAX);
         assert_eq!(p.get_opt_limit_fast(), DEFAULT_OPT_LIMIT_FAST);
@@ -504,7 +526,11 @@ mod tests {
         assert_eq!(p.get_reheat_factor(), DEFAULT_REHEAT_FACTOR);
 
         // Test empty params fallback
-        let empty = SearchParams { params: std::collections::HashMap::new(), seed: None, include_thumbs: false };
+        let empty = SearchParams {
+            params: std::collections::HashMap::new(),
+            seed: None,
+            include_thumbs: false,
+        };
         assert_eq!(empty.get_search_epochs(), DEFAULT_SEARCH_EPOCHS);
         assert_eq!(empty.get_search_steps(), DEFAULT_SEARCH_STEPS);
         assert_eq!(empty.get_opt_limit_fast(), DEFAULT_OPT_LIMIT_FAST);
@@ -514,14 +540,16 @@ mod tests {
     #[test]
     fn test_search_params_validation_extended() {
         let mut p = SearchParams::default();
-        
+
         // epochs exceeds limit
-        p.params.insert("search_epochs".into(), (MAX_SEARCH_EPOCHS + 1) as f32);
+        p.params
+            .insert("search_epochs".into(), (MAX_SEARCH_EPOCHS + 1) as f32);
         assert!(p.validate().is_err());
 
         // steps exceeds limit
         p = SearchParams::default();
-        p.params.insert("search_steps".into(), (MAX_SEARCH_STEPS + 1) as f32);
+        p.params
+            .insert("search_steps".into(), (MAX_SEARCH_STEPS + 1) as f32);
         assert!(p.validate().is_err());
 
         // opt_limit_fast 0
@@ -531,7 +559,8 @@ mod tests {
 
         // opt_limit_fast exceeds limit
         p = SearchParams::default();
-        p.params.insert("opt_limit_fast".into(), (MAX_OPT_LIMIT_FAST + 1) as f32);
+        p.params
+            .insert("opt_limit_fast".into(), (MAX_OPT_LIMIT_FAST + 1) as f32);
         assert!(p.validate().is_err());
 
         // opt_limit_slow < fast
@@ -579,7 +608,7 @@ mod tests {
     #[test]
     fn test_search_params_validation_errors() {
         let mut p = SearchParams::default();
-        
+
         p.params.insert("search_epochs".into(), 0.0);
         assert!(p.validate().is_err());
         p.params.insert("search_epochs".into(), 10.0);

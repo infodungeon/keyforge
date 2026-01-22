@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::models::SharedTelemetry;
-use keyforge_core::{ProgressCallback, OptimizationControl};
+use keyforge_core::{OptimizationControl, ProgressCallback};
 use keyforge_model::KeyCode;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -33,7 +33,13 @@ pub struct WorkerLogger {
 }
 
 impl ProgressCallback for WorkerLogger {
-    fn on_progress(&self, step: usize, score: f32, _layout: &[KeyCode], ips: f32) -> OptimizationControl {
+    fn on_progress(
+        &self,
+        step: usize,
+        score: f32,
+        _layout: &[KeyCode],
+        ips: f32,
+    ) -> OptimizationControl {
         let stopped = self.stop_flag.load(Ordering::SeqCst);
 
         // Update shared telemetry (Lock-free)

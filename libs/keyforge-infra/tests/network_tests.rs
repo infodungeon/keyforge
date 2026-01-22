@@ -1,16 +1,16 @@
-use keyforge_infra::*;
 use keyforge_infra::net::client::ClientConfig;
+use keyforge_infra::*;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use sha2::{Digest, Sha256};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use sha2::{Digest, Sha256};
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 
 #[tokio::test]
 async fn test_ensure_file_basic() {
     let server = MockServer::start().await;
     let temp = tempfile::tempdir().unwrap();
     let local_path = temp.path().join("test.txt");
-    
+
     let content = "hello world";
     let expected_hash = hex::encode(Sha256::digest(content));
 
@@ -28,23 +28,44 @@ async fn test_ensure_file_basic() {
     let client = HiveClient::new(config).unwrap();
 
     // 1. First download
-    ensure_file(&client, &client.url("/data/test.txt"), &local_path, Some(&expected_hash)).await.unwrap();
+    ensure_file(
+        &client,
+        &client.url("/data/test.txt"),
+        &local_path,
+        Some(&expected_hash),
+    )
+    .await
+    .unwrap();
     assert_eq!(std::fs::read_to_string(&local_path).unwrap(), content);
 
     // 2. Reuse existing (trusted by sidecar)
-    ensure_file(&client, &client.url("/data/test.txt"), &local_path, Some(&expected_hash)).await.unwrap();
+    ensure_file(
+        &client,
+        &client.url("/data/test.txt"),
+        &local_path,
+        Some(&expected_hash),
+    )
+    .await
+    .unwrap();
 
     // 3. Fallback to full content verification (delete sidecar)
     let sidecar = local_path.with_extension("txt.sha256");
     std::fs::remove_file(sidecar).unwrap();
-    ensure_file(&client, &client.url("/data/test.txt"), &local_path, Some(&expected_hash)).await.unwrap();
+    ensure_file(
+        &client,
+        &client.url("/data/test.txt"),
+        &local_path,
+        Some(&expected_hash),
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn test_ensure_cost_matrix() {
     let server = MockServer::start().await;
     let temp = tempfile::tempdir().unwrap();
-    
+
     Mock::given(method("GET"))
         .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
         .mount(&server)
@@ -56,8 +77,10 @@ async fn test_ensure_cost_matrix() {
         ..Default::default()
     };
     let client = HiveClient::new(config).unwrap();
-    
-    let res = ensure_cost_matrix(&client, temp.path(), "cm.json").await.unwrap();
+
+    let res = ensure_cost_matrix(&client, temp.path(), "cm.json")
+        .await
+        .unwrap();
     assert!(res.exists());
 }
 
@@ -79,7 +102,13 @@ async fn test_ensure_file_hash_mismatch() {
     };
     let client = HiveClient::new(config).unwrap();
 
-    let res = ensure_file(&client, &client.url("/data/test.txt"), &local_path, Some("expected_hash")).await;
+    let res = ensure_file(
+        &client,
+        &client.url("/data/test.txt"),
+        &local_path,
+        Some("expected_hash"),
+    )
+    .await;
     assert!(matches!(res, Err(InfraError::HashMismatch { .. })));
 }
 
@@ -134,9 +163,11 @@ async fn test_ensure_file_too_large() {
     let local_path = temp.path().join("test.txt");
 
     Mock::given(method("GET"))
-        .respond_with(ResponseTemplate::new(200)
-            .insert_header("content-length", (MAX_INPUT_FILE_SIZE + 1).to_string())
-            .set_body_string("too big"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-length", (MAX_INPUT_FILE_SIZE + 1).to_string())
+                .set_body_string("too big"),
+        )
         .mount(&server)
         .await;
 
@@ -154,7 +185,7 @@ async fn test_ensure_file_too_large() {
 #[tokio::test]
 async fn test_ensure_corpus_bundle() {
     let server = MockServer::start().await;
-    
+
     Mock::given(method("GET"))
         .respond_with(ResponseTemplate::new(200).set_body_string("[]"))
         .mount(&server)
@@ -166,7 +197,7 @@ async fn test_ensure_corpus_bundle() {
         ..Default::default()
     };
     let _client = HiveClient::new(config).unwrap();
-    
+
     // This test might fail because it tries to write to "data/corpora/..." relative to CWD
     // We'll skip actual file check here or mock it if it uses relative paths.
     // Actually ensure_corpus_bundle uses Path::new which is relative.

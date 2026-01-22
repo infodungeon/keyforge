@@ -4132,7 +4132,6 @@ dependencies = [
  "chrono",
  "clap",
  "crc32fast",
- "crossterm",
  "dirs",
  "fastrand",
  "futures",
@@ -4159,7 +4158,6 @@ dependencies = [
  "postcard",
  "proptest",
  "rand 0.8.5",
- "ratatui",
  "reqwest 0.13.1",
  "rmp-serde",
  "serde",
@@ -4384,6 +4382,23 @@ dependencies = [
  "keyforge-infra",
  "keyforge-model",
  "tempfile",
+]
+
+[[package]]
+name = "keyforge-tui"
+version = "0.9.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "crossterm",
+ "keyforge-infra",
+ "keyforge-model",
+ "keyforge-protocol",
+ "ratatui",
+ "reqwest 0.13.1",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

@@ -88,15 +88,15 @@ mod tests {
     #[test]
     fn test_via_generate_edge_cases() {
         let exporter = ViaExporter;
-        
+
         // 1. Empty layers
         assert!(exporter.generate("fail", &[]).is_err());
 
         // 2. Normalization branches
         let layers = vec![vec![
-            "KC_A".to_string(), // already starts with KC_
+            "KC_A".to_string(),  // already starts with KC_
             "mo(1)".to_string(), // contains (
-            ".".to_string(),    // non-alphanumeric
+            ".".to_string(),     // non-alphanumeric
         ]];
         let result = exporter.generate("Test", &layers).unwrap();
         let json: serde_json::Value = serde_json::from_str(&result).unwrap();

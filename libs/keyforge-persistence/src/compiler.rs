@@ -25,7 +25,11 @@ pub async fn compile_request<L: AssetLoader>(
     // 2. Load Corpus
     let corpus_sources: Vec<_> = corpora_ids
         .iter()
-        .map(|&id| keyforge_model::config::CorpusSource { id: id.to_string(), weight: 1.0, hash: None })
+        .map(|&id| keyforge_model::config::CorpusSource {
+            id: id.to_string(),
+            weight: 1.0,
+            hash: None,
+        })
         .collect();
     let corpus = loader
         .load_corpus(&corpus_sources)
@@ -73,7 +77,13 @@ pub async fn compile_request<L: AssetLoader>(
     )
     .map_err(|e| PersistenceError::Adapter(e.to_string()))?;
 
-    Ok(EngineRequest { keyboard: Arc::new(keyboard), corpus, rubric: Arc::new(rubric), cost_model, config: adapter_config, initial_layout, pinned_keys })
+    Ok(EngineRequest {
+        keyboard: Arc::new(keyboard),
+        corpus,
+        rubric: Arc::new(rubric),
+        cost_model,
+        config: adapter_config,
+        initial_layout,
+        pinned_keys,
+    })
 }
-
-

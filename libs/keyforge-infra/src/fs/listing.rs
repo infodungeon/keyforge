@@ -31,15 +31,19 @@ impl ExtensionRegistry {
     pub const TEXT: &'static [&'static str] = &["json", "toml", "yaml"];
 
     /// Returns true if the path has a supported binary extension.
-    #[must_use] 
+    #[must_use]
     pub fn is_binary(path: &Path) -> bool {
-        Self::BINARY.iter().any(|&ext| path.to_string_lossy().ends_with(ext))
+        Self::BINARY
+            .iter()
+            .any(|&ext| path.to_string_lossy().ends_with(ext))
     }
 
     /// Returns true if the path has a supported text extension.
-    #[must_use] 
+    #[must_use]
     pub fn is_text(path: &Path) -> bool {
-        Self::TEXT.iter().any(|&ext| path.to_string_lossy().ends_with(ext))
+        Self::TEXT
+            .iter()
+            .any(|&ext| path.to_string_lossy().ends_with(ext))
     }
 }
 
@@ -174,7 +178,12 @@ pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
         ExtensionRegistry::BINARY,
         &mut names,
     )?;
-    scan_dir(root, "user/keymap_extras", ExtensionRegistry::TEXT, &mut names)?;
+    scan_dir(
+        root,
+        "user/keymap_extras",
+        ExtensionRegistry::TEXT,
+        &mut names,
+    )?;
     let mut sorted: Vec<String> = names.into_iter().collect();
     sorted.sort();
     Ok(sorted)

@@ -217,7 +217,9 @@ async fn watch_loop(
                     for path in event.paths {
                         if path.is_file() && !is_hidden(&path) {
                             info!("♻️  Change detected: {:?}", path);
-                            if let Err(e) = upload_file(coordinator.as_ref(), &watcher_root, &path).await {
+                            if let Err(e) =
+                                upload_file(coordinator.as_ref(), &watcher_root, &path).await
+                            {
                                 error!("Sync failed: {}", e);
                             }
                         }

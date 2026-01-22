@@ -29,7 +29,10 @@ impl ResultOutbox {
     }
 
     pub fn save_to_wal(&self, submission: &ResultSubmission) -> AgentResult<()> {
-        let path = self.wal_dir.join(format!("result_{}_{}.json", submission.job_id, submission.nonce));
+        let path = self.wal_dir.join(format!(
+            "result_{}_{}.json",
+            submission.job_id, submission.nonce
+        ));
         if let Ok(json) = serde_json::to_string(submission) {
             if let Err(e) = std::fs::write(&path, json) {
                 error!(
@@ -93,7 +96,7 @@ impl ResultOutbox {
     }
 
     // Deprecated: keeping for compatibility until all callers use process_pending
-    #[must_use] 
+    #[must_use]
     pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
         let mut pending = Vec::new();
         let _ = self.process_pending(|p, s| pending.push((p, s)));

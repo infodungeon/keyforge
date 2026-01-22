@@ -28,7 +28,12 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = keyforge_physics::EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let engine = keyforge_physics::EngineFactory::new_generic(
+        &req.keyboard,
+        &req.corpus,
+        &req.rubric,
+        &req.cost_model,
+    )?;
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     // Determine unlocked indices
@@ -169,24 +174,48 @@ fn evolve_internal<CB: ProgressCallback>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel};
+    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use keyforge_physics::EngineFactory;
 
     fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig) {
-        let kb = Keyboard::new(vec![
-            KeyNode { index: 0, ..Default::default() },
-            KeyNode { index: 1, ..Default::default() },
-        ], 0, "test".into()).unwrap();
+        let kb = Keyboard::new(
+            vec![
+                KeyNode {
+                    index: 0,
+                    ..Default::default()
+                },
+                KeyNode {
+                    index: 1,
+                    ..Default::default()
+                },
+            ],
+            0,
+            "test".into(),
+        )
+        .unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
-            std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
-        ));
-        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
-            description: "test".into(),
-            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
-        });
-        let engine = EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
+        fingers.insert(
+            "index".to_string(),
+            keyforge_model::cost_model::FingerDefinition::Standard(
+                std::collections::HashMap::from([(
+                    "base".to_string(),
+                    std::collections::HashMap::from([("r0".to_string(), 1.0)]),
+                )]),
+            ),
+        );
+        cm.models.insert(
+            "model_a_row_staggered".into(),
+            keyforge_model::cost_model::ModelDefinition {
+                description: "test".into(),
+                static_costs: std::collections::HashMap::from([(
+                    "universal_hand".to_string(),
+                    keyforge_model::cost_model::HandDefinition { fingers },
+                )]),
+            },
+        );
+        let engine =
+            EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
         let config = SearchConfig::Annealing {
             steps: 100,
             start_temp: 10.0,
@@ -210,7 +239,7 @@ mod tests {
     #[test]
     fn test_evolve_error_branches() {
         let (engine, config) = setup_env();
-        
+
         // 1. Size mismatch
         let bad_layout = Layout::new_unchecked(vec![KeyCode(0)]);
         let res = evolve(&engine, &config, NoOpCallback, Some(bad_layout), None);
@@ -227,14 +256,26 @@ mod tests {
         let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(
-            std::collections::HashMap::from([("base".to_string(), std::collections::HashMap::from([("r0".to_string(), 1.0)]))])
-        ));
-        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
-            description: "test".into(),
-            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
-        });
-        
+        fingers.insert(
+            "index".to_string(),
+            keyforge_model::cost_model::FingerDefinition::Standard(
+                std::collections::HashMap::from([(
+                    "base".to_string(),
+                    std::collections::HashMap::from([("r0".to_string(), 1.0)]),
+                )]),
+            ),
+        );
+        cm.models.insert(
+            "model_a_row_staggered".into(),
+            keyforge_model::cost_model::ModelDefinition {
+                description: "test".into(),
+                static_costs: std::collections::HashMap::from([(
+                    "universal_hand".to_string(),
+                    keyforge_model::cost_model::HandDefinition { fingers },
+                )]),
+            },
+        );
+
         let req = EngineRequest {
             keyboard: Arc::new(kb),
             corpus: Arc::new(Corpus::default()),
@@ -253,7 +294,7 @@ mod tests {
             initial_layout: None,
             pinned_keys: vec![],
         };
-        
+
         let res = optimize(&req).unwrap();
         assert!(res.score >= 0.0);
     }
@@ -286,7 +327,13 @@ mod tests {
         use std::sync::atomic::{AtomicUsize, Ordering};
         struct MockCallback(Arc<AtomicUsize>);
         impl ProgressCallback for MockCallback {
-            fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> crate::OptimizationControl {
+            fn on_progress(
+                &self,
+                _epoch: usize,
+                _score: f32,
+                _layout: &[KeyCode],
+                _ips: f32,
+            ) -> crate::OptimizationControl {
                 self.0.fetch_add(1, Ordering::SeqCst);
                 crate::OptimizationControl::Continue
             }
@@ -294,7 +341,7 @@ mod tests {
 
         let count = Arc::new(AtomicUsize::new(0));
         let _ = evolve(&engine, &config, MockCallback(count.clone()), None, None).unwrap();
-        
+
         assert!(count.load(Ordering::SeqCst) > 0);
     }
 }

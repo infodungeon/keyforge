@@ -125,7 +125,7 @@ impl PersistentJobQueue {
     }
 
     /// Pushes a record onto the queue.
-    /// 
+    ///
     /// # Errors
     /// Returns an error if the queue is full (backpressure) or closed.
     pub fn push(&self, record: PersistedRecord) -> Result<(), String> {

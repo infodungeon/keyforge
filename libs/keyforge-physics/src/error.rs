@@ -1,7 +1,7 @@
 // libs/keyforge-physics/src/error.rs
 
-use thiserror::Error;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// Specialized errors for the physics and scoring engine.
 #[derive(Debug, Clone, Error, Serialize, Deserialize)]
@@ -11,14 +11,14 @@ pub enum PhysicsError {
     #[error("Score overflow in context: {context}")]
     ScoreOverflow {
         /// Context describing where the overflow happened (e.g., "Bigram(T, H)").
-        context: String 
+        context: String,
     },
 
     /// The input data (Keyboard or Corpus) violated physical constraints.
     #[error("Invalid input data: {message}")]
     InvalidInput {
         /// Human-readable explanation of the constraint violation.
-        message: String 
+        message: String,
     },
 
     /// Engine configuration or compilation error.
@@ -46,17 +46,24 @@ mod tests {
 
     #[test]
     fn test_physics_error_display() {
-        let err = PhysicsError::ScoreOverflow { context: "Test".into() };
+        let err = PhysicsError::ScoreOverflow {
+            context: "Test".into(),
+        };
         assert_eq!(err.to_string(), "Score overflow in context: Test");
 
-        let err = PhysicsError::InvalidInput { message: "Bad keys".into() };
+        let err = PhysicsError::InvalidInput {
+            message: "Bad keys".into(),
+        };
         assert_eq!(err.to_string(), "Invalid input data: Bad keys");
 
         let err = PhysicsError::Config("Bad config".into());
         assert_eq!(err.to_string(), "Engine configuration error: Bad config");
 
         let err = PhysicsError::LayoutUnderflow(10, 20);
-        assert_eq!(err.to_string(), "Layout size mismatch: expected 20, found 10");
+        assert_eq!(
+            err.to_string(),
+            "Layout size mismatch: expected 20, found 10"
+        );
 
         let err = PhysicsError::CalculationError("Math failed".into());
         assert_eq!(err.to_string(), "Calculation error: Math failed");

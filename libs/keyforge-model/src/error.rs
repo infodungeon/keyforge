@@ -125,13 +125,27 @@ mod tests {
     #[test]
     fn test_error_display() {
         assert!(format!("{}", ForgeError::Internal("test".into())).contains("Internal Error: test"));
-        assert!(format!("{}", ModelError::Serialization("test".into())).contains("Serialization Failed: test"));
-        assert!(format!("{}", PhysicsError::InvalidHandIndex(5)).contains("Hand index 5 is invalid"));
-        assert!(format!("{}", PhysicsError::InvalidFingerIndex(10)).contains("Finger index 10 is invalid"));
-        assert!(format!("{}", PhysicsError::DimensionMismatch { expected: 10, found: 5 }).contains("expected 10, found 5"));
-        assert!(format!("{}", PhysicsError::LayoutOverflow(10, 5)).contains("exceeds physical key count"));
+        assert!(format!("{}", ModelError::Serialization("test".into()))
+            .contains("Serialization Failed: test"));
+        assert!(
+            format!("{}", PhysicsError::InvalidHandIndex(5)).contains("Hand index 5 is invalid")
+        );
+        assert!(format!("{}", PhysicsError::InvalidFingerIndex(10))
+            .contains("Finger index 10 is invalid"));
+        assert!(format!(
+            "{}",
+            PhysicsError::DimensionMismatch {
+                expected: 10,
+                found: 5
+            }
+        )
+        .contains("expected 10, found 5"));
+        assert!(format!("{}", PhysicsError::LayoutOverflow(10, 5))
+            .contains("exceeds physical key count"));
         assert!(format!("{}", PhysicsError::LayoutUnderflow(2, 5)).contains("is insufficient"));
-        assert!(format!("{}", PhysicsError::Config("test".into())).contains("Physics Config Error: test"));
-        assert!(format!("{}", PhysicsError::Unimplemented("test".into())).contains("Not Implemented: test"));
+        assert!(format!("{}", PhysicsError::Config("test".into()))
+            .contains("Physics Config Error: test"));
+        assert!(format!("{}", PhysicsError::Unimplemented("test".into()))
+            .contains("Not Implemented: test"));
     }
 }

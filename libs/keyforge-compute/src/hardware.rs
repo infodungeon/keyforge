@@ -1,5 +1,5 @@
-use raw_cpuid::{CacheType, CpuId};
 use keyforge_physics::IntelEngineConfig;
+use raw_cpuid::{CacheType, CpuId};
 
 #[derive(Debug, Clone)]
 pub struct CpuTopology {
@@ -26,8 +26,8 @@ impl Default for CpuTopology {
         Self {
             vendor: "Unknown".to_string(),
             cache_line_size: 64,
-            l1d_size_bytes: 32 * 1024,   // 32 KiB Safe default
-            l2_size_bytes: 256 * 1024,   // 256 KiB
+            l1d_size_bytes: 32 * 1024,      // 32 KiB Safe default
+            l2_size_bytes: 256 * 1024,      // 256 KiB
             l3_size_bytes: 8 * 1024 * 1024, // 8 MiB
         }
     }
@@ -37,11 +37,12 @@ impl Default for CpuTopology {
 pub struct HardwareProbe;
 
 impl HardwareProbe {
-    #[must_use] 
+    #[must_use]
     pub fn probe() -> CpuTopology {
         let cpuid = CpuId::new();
         let vendor = cpuid
-            .get_vendor_info().map_or_else(|| "Unknown".to_string(), |v| v.as_str().to_string());
+            .get_vendor_info()
+            .map_or_else(|| "Unknown".to_string(), |v| v.as_str().to_string());
 
         let mut topology = CpuTopology {
             vendor,
@@ -58,7 +59,8 @@ impl HardwareProbe {
                 match (cache.level(), cache.cache_type()) {
                     (1, CacheType::Data) => {
                         topology.l1d_size_bytes = size;
-                        topology.cache_line_size = u16::try_from(cache.coherency_line_size() + 1).unwrap_or(64);
+                        topology.cache_line_size =
+                            u16::try_from(cache.coherency_line_size() + 1).unwrap_or(64);
                     }
                     (2, _) => topology.l2_size_bytes = size,
                     (3, _) => topology.l3_size_bytes = size,
@@ -87,7 +89,7 @@ mod tests {
     fn test_cpu_topology_defaults_and_conversion() {
         let default = CpuTopology::default();
         assert_eq!(default.vendor, "Unknown");
-        
+
         let config: IntelEngineConfig = default.into();
         assert_eq!(config.l1d_size_bytes, 32 * 1024);
         assert!(config.use_prefetch);

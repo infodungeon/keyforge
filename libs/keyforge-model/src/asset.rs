@@ -74,7 +74,9 @@ mod tests {
     #[derive(serde::Deserialize, Debug)]
     struct MockAsset;
     impl Asset for MockAsset {
-        fn category() -> AssetCategory { AssetCategory::Keyboard }
+        fn category() -> AssetCategory {
+            AssetCategory::Keyboard
+        }
     }
 
     #[test]
@@ -110,7 +112,9 @@ mod tests {
         #[derive(Debug, serde::Deserialize, serde::Serialize)]
         struct DummyAsset;
         impl Asset for DummyAsset {
-            fn category() -> AssetCategory { AssetCategory::Rubric }
+            fn category() -> AssetCategory {
+                AssetCategory::Rubric
+            }
         }
         assert_eq!(DummyAsset::default_extension(), "json");
     }

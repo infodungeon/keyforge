@@ -109,7 +109,7 @@ mod tests {
     fn test_cost_model_defaults() {
         let meta = Meta::default();
         assert_eq!(meta.version, "2.0");
-        
+
         let cm = CostModel::default();
         assert!(cm.models.is_empty());
     }

@@ -223,10 +223,13 @@ mod tests {
     fn test_key_action_parsing_extended() {
         assert_eq!(parse_key("NO"), KeyAction::NoOp);
         assert_eq!(parse_key("CW"), KeyAction::CapsWord);
-        assert_eq!(parse_key("SK(MOD_LSFT)"), KeyAction::StickyMod("MOD_LSFT".to_string()));
+        assert_eq!(
+            parse_key("SK(MOD_LSFT)"),
+            KeyAction::StickyMod("MOD_LSFT".to_string())
+        );
         assert_eq!(parse_key("TG(3)"), KeyAction::LayerToggle(3));
         assert_eq!(parse_key("TO(4)"), KeyAction::LayerOn(4));
-        
+
         // MOD_T shortcut
         match parse_key("LSFT_T(KC_Z)") {
             KeyAction::ModTap { mod_name, key } => {
@@ -238,10 +241,13 @@ mod tests {
 
         // Malformed/Unparsed
         assert!(matches!(parse_key("INVALID("), KeyAction::Raw(_)));
-        assert!(matches!(parse_key("X".repeat(101).as_str()), KeyAction::Raw(_)));
+        assert!(matches!(
+            parse_key("X".repeat(101).as_str()),
+            KeyAction::Raw(_)
+        ));
         assert!(matches!(parse_key("LT(1)"), KeyAction::Raw(_)));
         assert!(matches!(parse_key("MT(MOD_LSFT)"), KeyAction::Raw(_)));
-        
+
         // Non-alphanumeric normalization
         let dot = parse_key(".");
         assert_eq!(dot, KeyAction::Simple(".".into()));

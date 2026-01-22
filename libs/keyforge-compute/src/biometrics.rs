@@ -30,8 +30,13 @@ impl BiometricProfiler {
         }
 
         // 2. Calculate Median Latency for Relative Normalization
-        let mut all_avgs: Vec<f64> = totals.values().map(|(sum, count)| sum / f64::from(*count)).collect();
-        if all_avgs.is_empty() { return model; }
+        let mut all_avgs: Vec<f64> = totals
+            .values()
+            .map(|(sum, count)| sum / f64::from(*count))
+            .collect();
+        if all_avgs.is_empty() {
+            return model;
+        }
         all_avgs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median_latency = all_avgs[all_avgs.len() / 2];
 
@@ -65,25 +70,38 @@ mod tests {
     #[test]
     fn test_biometric_profiler_logic() {
         let base = CostModel::default();
-        
+
         // 1. Empty samples returns base
         let model = BiometricProfiler::profile(&[], &base);
         assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 0);
 
         // 2. Below threshold (5 samples)
         let samples = vec![
-            BiometricSample { bigram: "th".into(), ms: 100.0, timestamp: 0 }; 4
+            BiometricSample {
+                bigram: "th".into(),
+                ms: 100.0,
+                timestamp: 0
+            };
+            4
         ];
         let model = BiometricProfiler::profile(&samples, &base);
         assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 0);
 
         // 3. Above threshold
         let samples = vec![
-            BiometricSample { bigram: "th".into(), ms: 150.0, timestamp: 0 }; 10
+            BiometricSample {
+                bigram: "th".into(),
+                ms: 150.0,
+                timestamp: 0
+            };
+            10
         ];
         let model = BiometricProfiler::profile(&samples, &base);
         assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 1);
         // 150ms / 150.0 * 100.0 = 100.0
-        assert_eq!(*model.dynamic_rules.sequence_modifiers.get("th").unwrap(), 100.0);
+        assert_eq!(
+            *model.dynamic_rules.sequence_modifiers.get("th").unwrap(),
+            100.0
+        );
     }
 }

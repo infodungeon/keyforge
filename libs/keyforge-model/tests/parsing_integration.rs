@@ -33,8 +33,7 @@ fn test_kle_import_with_rotation() {
         [{"r": 15, "rx": 5, "ry": 5}, "A"]
     ]"#;
 
-    let def = KeyboardDefinition::parse(json, None)
-        .expect("Rotated KLE should parse");
+    let def = KeyboardDefinition::parse(json, None).expect("Rotated KLE should parse");
 
     assert_eq!(def.geometry.keys[0].r, 15.0);
     assert_eq!(def.geometry.keys[0].rx, 5.0);
@@ -47,8 +46,7 @@ fn test_kle_import_with_rotation() {
 fn test_kle_import_split_detection() {
     let json = r#"[["A", "B", {"x": 15}, "C"]]"#;
 
-    let def = KeyboardDefinition::parse(json, None)
-        .expect("Split KLE should parse");
+    let def = KeyboardDefinition::parse(json, None).expect("Split KLE should parse");
 
     use keyforge_model::types::HandIndex;
     assert_eq!(def.geometry.keys[0].hand, HandIndex::LEFT);

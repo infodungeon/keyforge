@@ -147,7 +147,7 @@ mod tests {
     fn test_hive_client_config() {
         let mut config = ClientConfig::default();
         config.secret = Some("secret123".into());
-        
+
         let client = HiveClient::new(config).unwrap();
         assert!(client.url("test").contains(DEFAULT_HIVE_URL));
         assert!(client.asset_url("test").contains("3001"));
@@ -157,7 +157,7 @@ mod tests {
     fn test_url_normalization() {
         assert_eq!(normalize_url("http://test.com/"), "http://test.com");
         assert_eq!(normalize_url("http://test.com"), "http://test.com");
-        
+
         assert_eq!(format_url("http://base", "/path"), "http://base/path");
         assert_eq!(format_url("http://base", "http://other"), "http://other");
     }

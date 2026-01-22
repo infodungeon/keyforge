@@ -172,12 +172,17 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
 
         // Create Keyboard from Definition (using home_row from geometry)
         let keyboard = Arc::new(
-            keyforge_model::Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row, kb_def.meta.kb_type.clone())
-                .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?,
+            keyforge_model::Keyboard::new(
+                kb_def.geometry.keys.clone(),
+                kb_def.geometry.home_row,
+                kb_def.meta.kb_type.clone(),
+            )
+            .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?,
         );
 
-        let engine = keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
-            .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
+        let engine =
+            keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
+                .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
 
         // Task-phys-rev-015: Validate corpus coverage against registry
         let total_freq: u64 = corpus.char_freqs.iter().sum();
@@ -185,13 +190,16 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             for (i, &freq) in corpus.char_freqs.iter().enumerate() {
                 if freq > 0 {
                     let Ok(code) = u16::try_from(i) else { continue };
-                    if registry.get_label(keyforge_model::KeyCode(code)).contains("0x") {
+                    if registry
+                        .get_label(keyforge_model::KeyCode(code))
+                        .contains("0x")
+                    {
                         // Not found in registry (falls back to 0xHEX)
                         // Precision loss in logging is acceptable
                         #[allow(clippy::cast_precision_loss)]
                         let pct = (freq as f64 / total_freq as f64) * 100.0;
                         if pct > 0.1 {
-                             tracing::warn!(
+                            tracing::warn!(
                                 "Corpus character code {} (weighted {:.2}%) is not in the keycode registry. It will be ignored during optimization!",
                                 code, pct
                              );
@@ -204,5 +212,3 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         Ok(ScoringSession::new(Arc::from(engine), registry, config))
     }
 }
-
-

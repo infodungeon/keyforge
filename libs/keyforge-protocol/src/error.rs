@@ -20,7 +20,17 @@ use utoipa::ToSchema;
 
 /// Standardized error codes for the `KeyForge` API.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, Display, EnumString, EnumIter,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    Display,
+    EnumString,
+    EnumIter,
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
@@ -98,7 +108,10 @@ mod tests {
     #[test]
     fn test_error_code_conversions() {
         assert_eq!(ErrorCode::InternalError.to_string(), "INTERNAL_ERROR");
-        assert_eq!(ErrorCode::from_str("INTERNAL_ERROR").unwrap(), ErrorCode::InternalError);
+        assert_eq!(
+            ErrorCode::from_str("INTERNAL_ERROR").unwrap(),
+            ErrorCode::InternalError
+        );
         assert!(ErrorCode::from_str("INVALID").is_err());
     }
 
@@ -108,7 +121,7 @@ mod tests {
         for code in ErrorCode::iter() {
             let s = code.to_string();
             assert_eq!(ErrorCode::from_str(&s).unwrap(), code);
-            
+
             let json = serde_json::to_string(&code).unwrap();
             assert_eq!(json, format!("\"{s}\""));
         }
@@ -118,7 +131,7 @@ mod tests {
     fn test_error_response_builder() {
         let err = ErrorResponse::new(ErrorCode::BadRequest, "test message")
             .with_details(serde_json::json!({"foo": "bar"}));
-        
+
         assert_eq!(err.code, ErrorCode::BadRequest);
         assert_eq!(err.message, "test message");
         assert_eq!(err.details.unwrap()["foo"], "bar");

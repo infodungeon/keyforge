@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
+    use crate::error::PhysicsError;
     use crate::kernel::compute::{calculate_swap_delta, PosMap};
     use crate::kernel::types::ValidatedLayout;
     use crate::EngineFactory;
-    use crate::error::PhysicsError;
     use keyforge_model::{
         types::{FingerIndex, HandIndex, KeyCode},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
@@ -66,7 +66,10 @@ mod tests {
         let res = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model());
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
-            assert!(score_res.is_err(), "Scoring should fail with INFINITY travel cost");
+            assert!(
+                score_res.is_err(),
+                "Scoring should fail with INFINITY travel cost"
+            );
         }
     }
 
@@ -92,7 +95,10 @@ mod tests {
         let res = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model());
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
-            assert!(score_res.is_err(), "Scoring should fail with NAN travel cost");
+            assert!(
+                score_res.is_err(),
+                "Scoring should fail with NAN travel cost"
+            );
         }
     }
 
@@ -117,7 +123,10 @@ mod tests {
         let res = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model());
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
-            assert!(matches!(score_res, Err(PhysicsError::ScoreOverflow { .. })), "Should return ScoreOverflow error instead of panicking");
+            assert!(
+                matches!(score_res, Err(PhysicsError::ScoreOverflow { .. })),
+                "Should return ScoreOverflow error instead of panicking"
+            );
         }
     }
 
@@ -135,7 +144,8 @@ mod tests {
         corpus.bigrams.push((97, 98, 100));
 
         let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
         let score = engine.score(&layout).unwrap().to_f32();
         assert_eq!(score, 0.0);
     }
@@ -154,7 +164,8 @@ mod tests {
         corpus.bigrams.push((97, 98, 100));
 
         let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
         let mut pos_map_data = vec![65535u16; 65536];
         for (i, &code) in layout.keys.iter().enumerate() {
             pos_map_data[code.0 as usize] = i as u16;
@@ -327,13 +338,20 @@ mod tests {
         let kb = setup_kb_robust();
         let mut corpus = Corpus::default();
         // Bigram with a char not in layout
-        corpus.bigrams.push((97, 255, 100)); 
+        corpus.bigrams.push((97, 255, 100));
 
         let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model()).unwrap();
-        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)];
+            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
+                .unwrap();
+        let layout_keys = vec![
+            KeyCode(97),
+            KeyCode(98),
+            KeyCode(99),
+            KeyCode(100),
+            KeyCode(101),
+        ];
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
-        
+
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
@@ -356,18 +374,24 @@ mod tests {
 
     #[test]
     fn test_delta_trigram_overlaps() {
-        let keys: Vec<KeyNode> = (0..3).map(|i| KeyNode { index: i, ..Default::default() }).collect();
+        let keys: Vec<KeyNode> = (0..3)
+            .map(|i| KeyNode {
+                index: i,
+                ..Default::default()
+            })
+            .collect();
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let mut cp = Corpus::default();
         // Trigrams like (a,a,x), (b,a,x), (x,a,a), etc.
-        cp.trigrams.push((97, 97, 98, 100)); 
+        cp.trigrams.push((97, 97, 98, 100));
         cp.trigrams.push((98, 97, 99, 100));
         cp.trigrams.push((97, 98, 97, 100));
 
-        let engine = EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
+        let engine =
+            EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
         let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
-        
+
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [0u16; 512];
@@ -393,12 +417,16 @@ mod tests {
         let kb = setup_kb_robust();
         let mut cp = Corpus::default();
         cp.bigrams.push((97, 98, 100));
-        
-        let engine = EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
+
+        let engine =
+            EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
         let mut ctx = engine.context().clone();
         // Huge modifier
-        ctx.sequence_modifiers = std::sync::Arc::new(std::collections::HashMap::from([((97, 98), crate::kernel::types::Score(i64::MAX / 2))]));
-        
+        ctx.sequence_modifiers = std::sync::Arc::new(std::collections::HashMap::from([(
+            (97, 98),
+            crate::kernel::types::Score(i64::MAX / 2),
+        )]));
+
         // Use a mutable copy of the geometry to inject the huge cost
         let mut geom = ctx.geometry.clone();
         let mut costs = (*geom.cost_matrix).to_vec();
@@ -410,11 +438,17 @@ mod tests {
         }
         geom.cost_matrix = costs.into();
         ctx.geometry = geom;
-        
-        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100), KeyCode(101)];
+
+        let layout_keys = vec![
+            KeyCode(97),
+            KeyCode(98),
+            KeyCode(99),
+            KeyCode(100),
+            KeyCode(101),
+        ];
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
         let mut scratch = crate::kernel::compute::PhysicsScratch::new();
-        
+
         let res = crate::kernel::compute::score_layout(&ctx, &validated, &mut scratch);
         assert!(matches!(res, Err(PhysicsError::ScoreOverflow { .. })));
     }

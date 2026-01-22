@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_model::constants::DATA_DIR_CANDIDATES;
 use crate::fs::init::WORKSPACE_MARKER;
+use keyforge_model::constants::DATA_DIR_CANDIDATES;
 use std::env;
 use std::path::PathBuf;
 
@@ -54,4 +54,3 @@ pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
 
     Err("Could not locate KeyForge 'data' directory.".to_string())
 }
-

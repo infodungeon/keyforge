@@ -70,8 +70,8 @@ impl Compiler {
                 let bytes = bigram.as_bytes();
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
                 sequence_modifiers.insert(
-                    key, 
-                    Score::from_f32(val).map_err(|e| PhysicsError::InvalidInput { message: e })?
+                    key,
+                    Score::from_f32(val).map_err(|e| PhysicsError::InvalidInput { message: e })?,
                 );
             }
         }
@@ -138,13 +138,19 @@ mod tests {
         base_r0.insert("r0".to_string(), 1.0);
         let mut zones = std::collections::HashMap::new();
         zones.insert("base".to_string(), base_r0);
-        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(zones));
-        
+        fingers.insert(
+            "index".to_string(),
+            keyforge_model::cost_model::FingerDefinition::Standard(zones),
+        );
+
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
+                static_costs: std::collections::HashMap::from([(
+                    "universal_hand".to_string(),
+                    keyforge_model::cost_model::HandDefinition { fingers },
+                )]),
             },
         );
         cm
@@ -173,10 +179,15 @@ mod tests {
 
     #[test]
     fn test_compiler_missing_cost_model() {
-        let kb = Keyboard::new(vec![KeyNode {
-            finger: FingerIndex::INDEX,
-            ..Default::default()
-        }], 0, "test".into()).unwrap();
+        let kb = Keyboard::new(
+            vec![KeyNode {
+                finger: FingerIndex::INDEX,
+                ..Default::default()
+            }],
+            0,
+            "test".into(),
+        )
+        .unwrap();
         let corpus = Corpus::default();
         let cost_model = CostModel::default();
 
@@ -200,7 +211,7 @@ mod tests {
         let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
         assert!(res.is_err());
         match res.err().unwrap() {
-            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {},
+            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {}
             e => panic!("Wrong error type: {e:?}"),
         }
     }
@@ -216,12 +227,15 @@ mod tests {
         let rubric = Rubric::default();
 
         let mut cost_model = setup_test_cost_model();
-        cost_model.dynamic_rules.sequence_modifiers.insert("ab".into(), f32::NAN);
+        cost_model
+            .dynamic_rules
+            .sequence_modifiers
+            .insert("ab".into(), f32::NAN);
 
         let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
         assert!(res.is_err());
         match res.err().unwrap() {
-            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {},
+            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {}
             e => panic!("Wrong error type: {e:?}"),
         }
     }

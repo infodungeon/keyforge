@@ -59,16 +59,24 @@ impl Keyboard {
             spatial_cache: Vec::new(),
         };
         kb.calculate_origins();
-        
+
         // Task-prot-rev-017: Validate origins
         for (h_idx, hand) in kb.finger_origins.iter().enumerate() {
             for (f_idx, origin) in hand.iter().enumerate() {
                 // If keys exist for this finger but origin is (0,0) and no key is at (0,0)
-                let has_keys = kb.keys.iter().any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
+                let has_keys = kb
+                    .keys
+                    .iter()
+                    .any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
                 if has_keys && origin.0.abs() < f32::EPSILON && origin.1.abs() < f32::EPSILON {
-                    let key_at_zero = kb.keys.iter().any(|k| k.x.abs() < f32::EPSILON && k.y.abs() < f32::EPSILON);
+                    let key_at_zero = kb
+                        .keys
+                        .iter()
+                        .any(|k| k.x.abs() < f32::EPSILON && k.y.abs() < f32::EPSILON);
                     if !key_at_zero {
-                        return Err(ForgeError::InvalidData(format!("Finger origin calculation failed for hand {h_idx}, finger {f_idx}")));
+                        return Err(ForgeError::InvalidData(format!(
+                            "Finger origin calculation failed for hand {h_idx}, finger {f_idx}"
+                        )));
                     }
                 }
             }
@@ -184,8 +192,11 @@ mod tests {
     #[test]
     fn test_keyboard_basic_methods() {
         assert!(Keyboard::new(vec![], 0, "test".into()).is_err());
-        
-        let keys = vec![KeyNode { index: 0, ..Default::default() }];
+
+        let keys = vec![KeyNode {
+            index: 0,
+            ..Default::default()
+        }];
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         assert_eq!(kb.count(), 1);
     }
@@ -194,16 +205,28 @@ mod tests {
     fn test_keyboard_origin_calculation_fallbacks() {
         // Priority 2: Match home_row
         let keys = vec![KeyNode {
-            index: 0, x: 5.0, y: 5.0, hand: HandIndex(0), finger: FingerIndex(1),
-            row: RowIndex(1), is_home: false, ..Default::default()
+            index: 0,
+            x: 5.0,
+            y: 5.0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            row: RowIndex(1),
+            is_home: false,
+            ..Default::default()
         }];
         let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         assert_eq!(kb.finger_origins[0][1], (5.0, 5.0));
 
         // Priority 3: Any key
         let keys = vec![KeyNode {
-            index: 0, x: 7.0, y: 7.0, hand: HandIndex(0), finger: FingerIndex(1),
-            row: RowIndex(5), is_home: false, ..Default::default()
+            index: 0,
+            x: 7.0,
+            y: 7.0,
+            hand: HandIndex(0),
+            finger: FingerIndex(1),
+            row: RowIndex(5),
+            is_home: false,
+            ..Default::default()
         }];
         let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
         assert_eq!(kb.finger_origins[0][1], (7.0, 7.0));

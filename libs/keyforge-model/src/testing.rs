@@ -1,9 +1,11 @@
 // libs/keyforge-model/src/testing.rs
 #![allow(clippy::unwrap_used)]
 
-use crate::{KeyCode, HandIndex, FingerIndex, RowIndex, ColIndex, KeyNode, Keyboard, Corpus, Rubric};
-use proptest::prelude::*;
+use crate::{
+    ColIndex, Corpus, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex, Rubric,
+};
 use proptest::arbitrary::Arbitrary;
+use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 
 impl Arbitrary for KeyCode {
@@ -58,7 +60,7 @@ impl Arbitrary for KeyNode {
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         (
             any::<usize>(),
-            ".*", // label
+            ".*",           // label
             -15.0f32..15.0, // x
             -15.0f32..15.0, // y
             any::<HandIndex>(),
@@ -67,23 +69,25 @@ impl Arbitrary for KeyNode {
             any::<ColIndex>(),
             any::<bool>(),
         )
-            .prop_map(|(index, label, x, y, hand, finger, row, col, is_home)| Self {
-                index,
-                label,
-                x,
-                y,
-                w: 1.0,
-                h: 1.0,
-                r: 0.0,
-                rx: 0.0,
-                ry: 0.0,
-                hand,
-                finger,
-                row,
-                col,
-                is_home,
-                is_stretch: false,
-            })
+            .prop_map(
+                |(index, label, x, y, hand, finger, row, col, is_home)| Self {
+                    index,
+                    label,
+                    x,
+                    y,
+                    w: 1.0,
+                    h: 1.0,
+                    r: 0.0,
+                    rx: 0.0,
+                    ry: 0.0,
+                    hand,
+                    finger,
+                    row,
+                    col,
+                    is_home,
+                    is_stretch: false,
+                },
+            )
             .boxed()
     }
 }
@@ -130,8 +134,10 @@ impl Arbitrary for Corpus {
                     words: Vec::new(),
                 };
                 // Sorting required by Corpus::validate/merge but not strictly for existence
-                c.bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-                c.trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+                c.bigrams
+                    .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+                c.trigrams
+                    .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
                 c
             })
             .boxed()
@@ -156,23 +162,25 @@ impl Arbitrary for Rubric {
             0.0f32..500.0,  // redirect
             0.0f32..500.0,  // roll_bonus
         )
-            .prop_map(|(effort, tlat, tvert, sfb, slat, slweak, sdiag, slong, pscis, redir, roll)| {
-                let mut r = Rubric::default();
-                for i in 0..5 {
-                    r.finger_effort[i] = effort[i];
-                }
-                r.travel_lat = tlat;
-                r.travel_vert = tvert;
-                r.sfb_base = sfb;
-                r.sfb_lateral = slat;
-                r.sfb_lateral_weak = slweak;
-                r.sfb_diagonal = sdiag;
-                r.sfb_long = slong;
-                r.penalty_scissor = pscis;
-                r.redirect = redir;
-                r.roll_bonus = roll;
-                r
-            })
+            .prop_map(
+                |(effort, tlat, tvert, sfb, slat, slweak, sdiag, slong, pscis, redir, roll)| {
+                    let mut r = Rubric::default();
+                    for i in 0..5 {
+                        r.finger_effort[i] = effort[i];
+                    }
+                    r.travel_lat = tlat;
+                    r.travel_vert = tvert;
+                    r.sfb_base = sfb;
+                    r.sfb_lateral = slat;
+                    r.sfb_lateral_weak = slweak;
+                    r.sfb_diagonal = sdiag;
+                    r.sfb_long = slong;
+                    r.penalty_scissor = pscis;
+                    r.redirect = redir;
+                    r.roll_bonus = roll;
+                    r
+                },
+            )
             .boxed()
     }
 }

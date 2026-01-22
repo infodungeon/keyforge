@@ -6,6 +6,7 @@ members = [
     "apps/keyforge-assets",
     "apps/keyforge-cli",
     "apps/keyforge-hive",
+    "apps/keyforge-tui",
     "apps/keyforge-ui/src-tauri",
     "corpora/openbookcorpus",
     "libs/keyforge-adapter",

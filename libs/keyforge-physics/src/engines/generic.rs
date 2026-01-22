@@ -11,7 +11,7 @@ pub struct GenericScoringEngine {
 }
 
 impl GenericScoringEngine {
-    #[must_use] 
+    #[must_use]
     pub fn new(ctx: EngineContext) -> Self {
         Self { ctx }
     }
@@ -69,7 +69,7 @@ impl ScoringEngine for GenericScoringEngine {
             let mono = crate::kernel::compute::scoring::score_monograms(&self.ctx, &pm)?.0;
             let bigram = crate::kernel::compute::scoring::score_bigrams(&self.ctx, &pm)?.0;
             let trigram = crate::kernel::compute::scoring::score_trigrams(&self.ctx, &pm)?.0;
-            
+
             // Clean up scratch for next use (score_layout usually does this, but we called sub-functions)
             s.clear_used();
             Ok((mono, bigram, trigram))
@@ -87,11 +87,11 @@ impl ScoringEngine for GenericScoringEngine {
 
         // Task-phys-rev-039: Reuse provided pos_map if possible
         if pos_map.len() >= 65536 {
-             // In KeyForge, a 'full' pos_map is 65536 entries.
-             // If the optimizer provides one, we can wrap it.
-             // We need to implement PosMap::from_slice for this.
-             // For now, let's assume we still need the full scratch-based PosMap
-             // until PosMap is refactored to support slices.
+            // In KeyForge, a 'full' pos_map is 65536 entries.
+            // If the optimizer provides one, we can wrap it.
+            // We need to implement PosMap::from_slice for this.
+            // For now, let's assume we still need the full scratch-based PosMap
+            // until PosMap is refactored to support slices.
         }
 
         std::thread_local! {
@@ -120,7 +120,9 @@ impl ScoringEngine for GenericScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(crate::kernel::compute::analyze_layout(&self.ctx, &validated))
+        Ok(crate::kernel::compute::analyze_layout(
+            &self.ctx, &validated,
+        ))
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
@@ -131,4 +133,3 @@ impl ScoringEngine for GenericScoringEngine {
         &self.ctx
     }
 }
-

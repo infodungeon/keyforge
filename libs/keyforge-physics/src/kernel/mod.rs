@@ -80,18 +80,27 @@ impl EngineContext {
     pub fn verify(&self) -> Result<(), crate::error::PhysicsError> {
         let kc = self.key_count;
         let g = &self.geometry;
-        
-        if g.hands.len() != kc || g.fingers.len() != kc || g.rows.len() != kc || g.cols.len() != kc {
-            return Err(crate::error::PhysicsError::Config("Geometry vector size mismatch".into()));
+
+        if g.hands.len() != kc || g.fingers.len() != kc || g.rows.len() != kc || g.cols.len() != kc
+        {
+            return Err(crate::error::PhysicsError::Config(
+                "Geometry vector size mismatch".into(),
+            ));
         }
         if g.cost_matrix.len() != kc * kc || g.dist_matrix.len() != kc * kc {
-            return Err(crate::error::PhysicsError::Config("Matrix size mismatch".into()));
+            return Err(crate::error::PhysicsError::Config(
+                "Matrix size mismatch".into(),
+            ));
         }
         if g.key_home_distances.len() != kc || g.key_costs.len() != kc {
-            return Err(crate::error::PhysicsError::Config("Static cost vector size mismatch".into()));
+            return Err(crate::error::PhysicsError::Config(
+                "Static cost vector size mismatch".into(),
+            ));
         }
         if self.corpus.char_freqs.len() != 65536 {
-             return Err(crate::error::PhysicsError::Config("Char freqs must be 65536".into()));
+            return Err(crate::error::PhysicsError::Config(
+                "Char freqs must be 65536".into(),
+            ));
         }
         Ok(())
     }

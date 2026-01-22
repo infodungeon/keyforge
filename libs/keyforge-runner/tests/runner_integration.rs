@@ -87,7 +87,11 @@ async fn test_runner_prepare_session() {
         ..Default::default()
     });
     config.definition.geometry.home_row = 0;
-    config.definition.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
+    config
+        .definition
+        .geometry
+        .prime_slots
+        .push(keyforge_model::KeyIndex(0));
 
     let options = RunnerOptions::default();
 

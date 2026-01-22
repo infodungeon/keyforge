@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::error::{InfraError, InfraResult};
-pub use keyforge_model::constants::{USER_RUNTIME_DIRS, USER_WORKSPACE_DIRS};
 use keyforge_model::constants::{REQUIRED_ASSETS, SYSTEM_DIRS};
+pub use keyforge_model::constants::{USER_RUNTIME_DIRS, USER_WORKSPACE_DIRS};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{error, info};
@@ -49,7 +49,7 @@ pub fn initialize_workspace(root: &Path, mode: InitMode) -> InfraResult<()> {
         for dir in USER_RUNTIME_DIRS {
             ensure_dir(root, dir)?;
         }
-        
+
         // Task-infra-rev-003: Create marker file
         let marker = root.join(WORKSPACE_MARKER);
         if !marker.exists() {
@@ -128,7 +128,7 @@ mod tests {
     fn test_init_workspace_missing_assets() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
-        
+
         let res = initialize_workspace(root, InitMode::Validate);
         assert!(res.is_err());
         assert!(format!("{:?}", res.err()).contains("Required system asset missing"));

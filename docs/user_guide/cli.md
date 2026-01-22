@@ -8,7 +8,7 @@ KeyForge is a keyboard layout optimization tool that uses evolutionary algorithm
 
 ```bash
 # Download from releases or build from source
-cargo build --release
+car go build --release
 # Binary will be at target/release/keyforge
 ```
 
@@ -20,8 +20,8 @@ cargo build --release
 # Create workspace with default assets (online)
 keyforge init
 
-# Create workspace offline (skip downloads)
-keyforge init --hive "offline"
+# Create workspace (will automatically work offline if server is unreachable)
+keyforge init
 
 # Custom workspace location
 keyforge init /path/to/workspace
@@ -45,12 +45,12 @@ keyforge search --time 300 --threads 4
 ### `init` - Initialize Workspace
 
 ```bash
-keyforge init [PATH] [--hive URL]
+keyforge init [PATH] [--hive URL] [--asset-url URL]
 ```
 
 - Creates workspace directory structure
 - Downloads default keyboards, corpora, and cost matrices (if online)
-- Works offline if server unavailable
+- **Offline Mode:** Automatically falls back to offline initialization if the Hive server is unreachable.
 
 ### `search` - Optimize Layout
 
@@ -60,13 +60,15 @@ keyforge search [OPTIONS]
 
 **Key Options:**
 
-- `--keyboard NAME` - Keyboard definition (default: ortho_30)
-- `--corpus ID` - Text corpus for analysis (default: text/en_std)
-- `--cost FILE` - Cost matrix file (default: cost_matrix.json)
-- `--time SECONDS` - Time limit
+- `--keyboard NAME` - Keyboard definition (default: `ortho_30`)
+- `--corpus ID` - Text corpus for analysis (default: `["text/en_std"]`)
+- `--cost FILE` - Cost matrix file (default: `default_costmatrix.json`)
+- `--keycodes FILE` - Keycodes definition file (default: `keycodes.json`)
+- `--pinned-keys LIST` - List of keys to fix in place (e.g., "0:Q,1:W")
+- `--time SECONDS` / `-T` - Time limit
 - `--threads N` - Thread count (0 = auto)
-- `--seed N` - Random seed for reproducibility
-- `--attempts N` - Number of optimization attempts
+- `--seed N` / `-S` - Random seed for reproducibility
+- `--attempts N` / `-a` - Number of optimization attempts
 
 **Examples:**
 
@@ -85,10 +87,23 @@ keyforge search --pinned-keys "0:Q,1:W,2:E,3:R"  # Force specific keys
 ### `validate` - Analyze Layout
 
 ```bash
-keyforge validate --keyboard NAME --layout "Q W E R ..."
+keyforge validate [OPTIONS]
 ```
 
-- Analyzes a specific layout string
+**Key Options:**
+- `--layout NAME_OR_STRING` / `-l` - Name of a layout in the keyboard definition OR a raw layout string.
+
+**Examples:**
+
+```bash
+# Validate a layout named "default" in the keyboard definition
+keyforge validate --keyboard corne --layout default
+
+# Validate a raw layout string
+keyforge validate --keyboard corne --layout "Q W E R T Y U I O P ..."
+```
+
+- Analyzes a specific layout
 - Reports score, distance, SFB ratio, hand balance
 
 ### `benchmark` - Performance Test
@@ -104,7 +119,7 @@ keyforge benchmark --iterations 100000
 
 ```bash
 keyforge list keyboards        # Available keyboards
-keyforge list corpora         # Available text corpora  
+keyforge list corpora          # Available text corpora
 keyforge list layouts KEYBOARD # Layouts in keyboard file
 ```
 
@@ -119,18 +134,18 @@ keyforge export firmware --keyboard NAME --layout LAYOUT --format FORMAT [--outp
 **Example:**
 
 ```bash
-
 keyforge export firmware --keyboard corne --layout my_layout --format qmk --output keymap.c
 ```
 
 ### `fetch` - Download Resources
 
 ```bash
-
 keyforge fetch keyboard NAME
 keyforge fetch corpus NAME
 keyforge fetch cost NAME
 ```
+
+- Downloads specific resources from the Hive server.
 
 ### `doctor` - System Check
 
@@ -139,9 +154,10 @@ keyforge doctor
 ```
 
 - Checks system compatibility
-
 - Verifies workspace integrity
+- Checks for `keyforge-agent` sidecar
 - Reports CPU capabilities (AVX2 support)
+- Checks Hive connectivity
 
 ### `profile` - Generate Cost Matrix
 
@@ -172,6 +188,7 @@ keyforge auth whoami
 ```bash
 keyforge update           # Update if available
 keyforge update --check   # Check only
+keyforge update --force   # Force reinstall
 ```
 
 ## Path Resolution
@@ -193,7 +210,7 @@ keyforge search --keyboard ./my_keyboard.json --cost ../costs/matrix.json
 ### Workspace Relative
 
 ```bash
-keyforge search --keyboard corne  # Resolves to workspace/keyboards/corne.json
+keyforge search --keyboard corne  # Resolves to workspace/system/keyboards/models/corne.json
 ```
 
 ## Configuration
@@ -201,12 +218,16 @@ keyforge search --keyboard corne  # Resolves to workspace/keyboards/corne.json
 ### Environment Variables
 
 - `KEYFORGE_DATA_DIR` - Workspace directory path
+- `KEYFORGE_CONFIG` - Path to configuration file
+- `KEYFORGE_API_KEY` - API Key for authentication (overrides config file)
+- `KEYFORGE_HIVE_URL` - URL for the Hive server
+- `KEYFORGE_UPDATE_URL` - URL for the update server
 - `RUST_LOG` - Logging level (info, debug, trace)
 - `NO_COLOR` - Disable colored output
 
 ### Configuration Files
 
-- `~/.config/keyforge/cli.json` - Authentication data
+- `~/.config/keyforge/cli.json` - Authentication data (API Key)
 - Workspace files: `keycodes.json`, `cost_matrix.json`
 
 ## Examples
@@ -217,7 +238,7 @@ keyforge search --keyboard corne  # Resolves to workspace/keyboards/corne.json
 # 1. Setup
 keyforge init
 
-# 2. List available resources  
+# 2. List available resources
 keyforge list keyboards
 keyforge list corpora
 
@@ -234,7 +255,7 @@ keyforge export firmware --keyboard corne --layout optimized --format qmk
 ### Offline Usage
 
 ```bash
-# Initialize without network
+# Initialize without network (fails gracefully if unreachable)
 keyforge init
 
 # Use local files only
@@ -246,7 +267,7 @@ keyforge search --keyboard my_kb --corpus local_corpus --cost my_cost.json
 ```bash
 # Reproducible optimization
 for seed in 100 200 300; do
-    keyforge search --seed $seed --attempts 1 &gt; result_$seed.txt
+    keyforge search --seed $seed --attempts 1 > result_$seed.txt
 done
 ```
 
@@ -256,16 +277,17 @@ done
 
 - **"Workspace not found"** → Run `keyforge init`
 - **"Keyboard not found"** → Check `keyforge list keyboards` or use full path
-- **Network errors** → Use offline mode or check server URL
+- **Network errors** → Check server URL or work offline
 
 ### Performance
 
 - Use `--threads 0` for automatic thread detection
-- Increase `--search-epochs` and `--search-steps` for better results
-- Use `--time` limit for constrained optimization
+- Increase `--time` limit for constrained optimization
+- Check `keyforge doctor` to ensure AVX2 support is detected
 
 ### Debugging
 
 ```bash
 RUST_LOG=debug keyforge search  # Verbose logging
 keyforge doctor                 # System diagnostics
+```

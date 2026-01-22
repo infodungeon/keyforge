@@ -218,11 +218,7 @@ impl DistributedCoordinator for ValkeyDistributedCoordinator {
     /// # Errors
     ///
     /// Returns `InfraError` if the underlying storage operation fails.
-    async fn update_heartbeat(
-        &self,
-        node_id: &str,
-        telemetry: &NodeTelemetry,
-    ) -> InfraResult<()> {
+    async fn update_heartbeat(&self, node_id: &str, telemetry: &NodeTelemetry) -> InfraResult<()> {
         let key = format!("{KEY_PREFIX_V4}:node:{node_id}:telemetry");
         let json = serde_json::to_string(telemetry).map_err(InfraError::Serde)?;
 

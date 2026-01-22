@@ -55,7 +55,10 @@ impl FsProvider {
     async fn check_size(&self, path: &Path) -> LoaderResult<()> {
         let meta = tokio::fs::metadata(path).await?;
         if meta.len() > MAX_INPUT_FILE_SIZE {
-            return Err(ForgeError::InvalidData(format!("File {} exceeds size limit of {MAX_INPUT_FILE_SIZE} bytes", path.display())));
+            return Err(ForgeError::InvalidData(format!(
+                "File {} exceeds size limit of {MAX_INPUT_FILE_SIZE} bytes",
+                path.display()
+            )));
         }
         Ok(())
     }
@@ -160,7 +163,12 @@ impl AssetLoader for FsProvider {
         }
 
         // 3. Try System JSON
-        let system_json = self.resolver.root.join("system").join(cat_str).join(format!("{stem}.json"));
+        let system_json = self
+            .resolver
+            .root
+            .join("system")
+            .join(cat_str)
+            .join(format!("{stem}.json"));
         if system_json.exists() {
             let mut asset: T = self.load_json(&system_json).await?;
             asset.post_load()?;

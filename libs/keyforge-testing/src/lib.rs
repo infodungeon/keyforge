@@ -68,7 +68,8 @@ impl HermeticWorkspace {
         }
 
         // Create marker
-        std::fs::write(root.join(keyforge_infra::init::WORKSPACE_MARKER), "test\n").expect("failed marker");
+        std::fs::write(root.join(keyforge_infra::init::WORKSPACE_MARKER), "test\n")
+            .expect("failed marker");
 
         // Initialize structure (will validate assets now)
         initialize_workspace(&root, InitMode::Create).expect("Failed to init workspace");
@@ -285,24 +286,31 @@ mod tests {
         let ws = HermeticWorkspace::new()
             .with_default_assets()
             .with_poison_pill();
-            
+
         // Check core files
         assert!(ws.root.exists());
         assert!(ws.keyboard_path("test_kb").exists());
         assert!(ws.weights_path("poison_weights").exists());
         assert!(ws.keycodes_path().exists());
-        
+
         // Check corpus dir
-        assert!(ws.root.join("user/corpora/test_corpus/1grams.json").exists());
+        assert!(ws
+            .root
+            .join("user/corpora/test_corpus/1grams.json")
+            .exists());
     }
 
     #[test]
     fn test_hermetic_workspace_path_helpers() {
         let ws = HermeticWorkspace::new();
         let kb_path = ws.keyboard_path("foo");
-        assert!(kb_path.to_string_lossy().contains("user/keyboards/foo.json"));
-        
+        assert!(kb_path
+            .to_string_lossy()
+            .contains("user/keyboards/foo.json"));
+
         let cost_path = ws.cost_path("bar.json");
-        assert!(cost_path.to_string_lossy().contains("user/weights/bar.json"));
+        assert!(cost_path
+            .to_string_lossy()
+            .contains("user/weights/bar.json"));
     }
 }

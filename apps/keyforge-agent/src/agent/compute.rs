@@ -64,10 +64,8 @@ pub async fn run_optimization(
     config: &JobConfig,
 ) -> Result<OptimizationResult> {
     // Acquire permit to respect core limits with timeout
-    let permit_res = tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        limiter.acquire()
-    ).await;
+    let permit_res =
+        tokio::time::timeout(std::time::Duration::from_secs(5), limiter.acquire()).await;
 
     let _permit = match permit_res {
         Ok(Ok(p)) => p,
@@ -128,7 +126,12 @@ mod tests {
             ..Default::default()
         };
 
-        let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row, "test".into()).unwrap();
+        let kb = Keyboard::new(
+            kb_def.geometry.keys.clone(),
+            kb_def.geometry.home_row,
+            "test".into(),
+        )
+        .unwrap();
 
         let cost_json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
@@ -150,14 +153,15 @@ mod tests {
         }"#;
         let cost_model: CostModel = serde_json::from_str(cost_json).unwrap();
 
-        let engine: Arc<dyn keyforge_core::ScoringEngine> = keyforge_physics::EngineFactory::new_generic(
-            &kb,
-            &keyforge_model::Corpus::default(),
-            &keyforge_model::Rubric::default(),
-            &cost_model,
-        )
-        .unwrap()
-        .into();
+        let engine: Arc<dyn keyforge_core::ScoringEngine> =
+            keyforge_physics::EngineFactory::new_generic(
+                &kb,
+                &keyforge_model::Corpus::default(),
+                &keyforge_model::Rubric::default(),
+                &cost_model,
+            )
+            .unwrap()
+            .into();
 
         let search_config = SearchConfig::Annealing {
             steps: 10,

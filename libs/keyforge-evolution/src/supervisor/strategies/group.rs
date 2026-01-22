@@ -178,39 +178,39 @@ mod tests {
     }
 
     proptest! {
-        #[test]
-        fn test_group_mutation_delta_oracle(
-            seed in any::<u64>(),
-            layout_seed in any::<u64>()
-        ) {
-            let size = 10;
-            let engine = setup_engine(size);
-            let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode).collect();
-            let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
-                        keys.shuffle(&mut rng_layout);
-                        let layout = Layout::new_unchecked(keys);
-                        let mut state = SearchState::new(layout, 0, 1.0).unwrap();
-                        let score_before = engine.score(state.layout())?.0;
-                        let mutation = GroupMutation { unlocked_indices: (0..size).collect(), start_temp: 100.0, end_temp: 0.1 };
-                        let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
-                        if let Ok(Some(proposal)) = MutationOperator::propose(
-                            &mutation,
-                            engine.as_ref(),
-                            state.layout(),
-                            state.pos_map(),
-                            &mut rng_mutation,
-                            1.0
-                        ) {
-                            state.apply_mutation(proposal.action);
-                            let score_after = engine.score(state.layout())?.0;
-                            let actual_delta = score_after - score_before;
-                            
-                            // Allow minor drift for generic engine deltas
-                            let drift = (proposal.delta - actual_delta).abs();
-                            prop_assert!(drift <= 1000, "Mutation delta {} vs actual {} drift {} exceeds limit", proposal.delta, actual_delta, drift);
-                        }
+    #[test]
+    fn test_group_mutation_delta_oracle(
+        seed in any::<u64>(),
+        layout_seed in any::<u64>()
+    ) {
+        let size = 10;
+        let engine = setup_engine(size);
+        let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode).collect();
+        let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
+                    keys.shuffle(&mut rng_layout);
+                    let layout = Layout::new_unchecked(keys);
+                    let mut state = SearchState::new(layout, 0, 1.0).unwrap();
+                    let score_before = engine.score(state.layout())?.0;
+                    let mutation = GroupMutation { unlocked_indices: (0..size).collect(), start_temp: 100.0, end_temp: 0.1 };
+                    let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
+                    if let Ok(Some(proposal)) = MutationOperator::propose(
+                        &mutation,
+                        engine.as_ref(),
+                        state.layout(),
+                        state.pos_map(),
+                        &mut rng_mutation,
+                        1.0
+                    ) {
+                        state.apply_mutation(proposal.action);
+                        let score_after = engine.score(state.layout())?.0;
+                        let actual_delta = score_after - score_before;
+
+                        // Allow minor drift for generic engine deltas
+                        let drift = (proposal.delta - actual_delta).abs();
+                        prop_assert!(drift <= 1000, "Mutation delta {} vs actual {} drift {} exceeds limit", proposal.delta, actual_delta, drift);
                     }
                 }
+            }
 
     #[test]
     fn test_group_mutation_edge_cases() {
@@ -226,7 +226,9 @@ mod tests {
             start_temp: 100.0,
             end_temp: 0.1,
         };
-        let res = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0).unwrap();
+        let res = mutation
+            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)
+            .unwrap();
         assert!(res.is_none());
 
         // 2. High temp (low p_swap -> more 3-way)
@@ -235,10 +237,14 @@ mod tests {
             start_temp: 100.0,
             end_temp: 0.1,
         };
-        let _ = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 100.0).unwrap();
+        let _ = mutation
+            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 100.0)
+            .unwrap();
 
         // 3. Low temp (high p_swap -> more single swap)
-        let _ = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 0.1).unwrap();
+        let _ = mutation
+            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 0.1)
+            .unwrap();
 
         // 4. Equal start/end temp (p_swap = 0.5)
         let mutation_eq = GroupMutation {
@@ -246,7 +252,8 @@ mod tests {
             start_temp: 1.0,
             end_temp: 1.0,
         };
-        let _ = mutation_eq.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0).unwrap();
+        let _ = mutation_eq
+            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)
+            .unwrap();
     }
 }
-            

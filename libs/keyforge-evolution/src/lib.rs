@@ -40,14 +40,26 @@ pub enum OptimizationControl {
 /// Trait for receiving progress updates during optimization.
 pub trait ProgressCallback: Send + Sync {
     /// Called periodically with the current optimization state.
-    fn on_progress(&self, epoch: usize, score: f32, layout: &[KeyCode], ips: f32) -> OptimizationControl;
+    fn on_progress(
+        &self,
+        epoch: usize,
+        score: f32,
+        layout: &[KeyCode],
+        ips: f32,
+    ) -> OptimizationControl;
 }
 
 /// A progress callback that does nothing.
 #[derive(Debug)]
 pub struct NoOpCallback;
 impl ProgressCallback for NoOpCallback {
-    fn on_progress(&self, _epoch: usize, _score: f32, _layout: &[KeyCode], _ips: f32) -> OptimizationControl {
+    fn on_progress(
+        &self,
+        _epoch: usize,
+        _score: f32,
+        _layout: &[KeyCode],
+        _ips: f32,
+    ) -> OptimizationControl {
         OptimizationControl::Continue
     }
 }

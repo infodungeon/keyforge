@@ -37,13 +37,23 @@ async fn test_signature_enforcement() {
         .expect("Failed to get port");
     let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
 
-    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());
+    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(
+        ValkeyDistributedCoordinator::new(&valkey_url)
+            .await
+            .unwrap(),
+    );
     let assets = Arc::new(ValkeyProvider::new(coordinator));
 
     let engine_cache = Arc::new(CompiledEngineCache::new());
     let layout_cache = Arc::new(ParsedLayoutCache::new());
 
-    let service = VerificationService::new(job_repo, node_repo.clone(), assets, engine_cache, layout_cache);
+    let service = VerificationService::new(
+        job_repo,
+        node_repo.clone(),
+        assets,
+        engine_cache,
+        layout_cache,
+    );
 
     let node_id = format!("node-{}", Uuid::new_v4());
     let (sk_hex, pk_hex) = crypto::generate_keypair();

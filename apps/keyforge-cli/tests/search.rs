@@ -4,7 +4,11 @@
 //! end-to-end execution of optimization commands, ensuring correct propagation of search
 //! parameters, corpus loading, and result validation.
 
-#![allow(clippy::expect_used, clippy::unwrap_used, clippy::semicolon_if_nothing_returned)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::semicolon_if_nothing_returned
+)]
 
 mod common;
 use keyforge_testing::HermeticWorkspace;
@@ -153,5 +157,8 @@ fn test_search_constraints() {
 
     // If the poison pill worked (constraint respected), the score should be reasonable.
     // If it failed (pill swallowed/ignored), score would be massive due to penalties.
-    assert!(score <= 1_000_000.0, "Poison pill failed! Score too high: {score}")
+    assert!(
+        score <= 1_000_000.0,
+        "Poison pill failed! Score too high: {score}"
+    )
 }

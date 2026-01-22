@@ -51,10 +51,12 @@ mod tests {
 
         // Test invalid pinned keys
         let mut config = Config::default();
-        config.pinned_keys.push(crate::config::constraints::KeyConstraint {
-            index: crate::types::KeyIndex(0),
-            key: String::new(),
-        });
+        config
+            .pinned_keys
+            .push(crate::config::constraints::KeyConstraint {
+                index: crate::types::KeyIndex(0),
+                key: String::new(),
+            });
         assert!(config.validate().is_err());
     }
 }

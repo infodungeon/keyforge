@@ -24,11 +24,7 @@ use keyforge_hive::constants::{
     DEFAULT_DATABASE_URL, DEFAULT_HIVE_PORT, DEFAULT_SHUTDOWN_TIMEOUT_SECS,
 };
 use keyforge_hive::{
-    bootstrap::HiveBootstrapConfig,
-    create_app, cron,
-    infra::{db, tui},
-    observability,
-    state::AppState,
+    bootstrap::HiveBootstrapConfig, create_app, cron, infra::db, observability, state::AppState,
 };
 use keyforge_infra::init::{ensure_dir, USER_RUNTIME_DIRS};
 use std::net::SocketAddr;
@@ -69,15 +65,9 @@ struct Args {
     tls_key: Option<PathBuf>,
 }
 
-use keyforge_model::constants::DEFAULT_HIVE_URL;
-
 #[derive(Subcommand)]
 enum Commands {
     Serve,
-    Monitor {
-        #[arg(long, default_value = DEFAULT_HIVE_URL)]
-        url: String,
-    },
 }
 
 // Handler for clean shutdown in HTTP mode
@@ -107,12 +97,6 @@ async fn main() {
     let args = Args::parse();
 
     match args.command.unwrap_or(Commands::Serve) {
-        Commands::Monitor { url } => {
-            let secret = std::env::var("HIVE_SECRET").ok();
-            if let Err(e) = tui::run_monitor(url, secret).await {
-                eprintln!("TUI Error: {e}");
-            }
-        }
         Commands::Serve => {
             observability::init_tracing();
             info!("🐝 KeyForge Hive is initializing...");

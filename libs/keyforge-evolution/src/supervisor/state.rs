@@ -94,7 +94,7 @@ impl SearchState {
                 self.current_layout.keys.swap(idx_a, idx_b);
                 let code_a = self.current_layout.keys[idx_a];
                 let code_b = self.current_layout.keys[idx_b];
-                
+
                 // Safety: Update pos_map only if within tracked range
                 // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
                 let idx_ca = code_a.0 as usize;

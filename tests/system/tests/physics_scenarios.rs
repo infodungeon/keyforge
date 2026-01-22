@@ -1,11 +1,11 @@
 // tests/system/tests/physics_scenarios.rs
 
 use keyforge_adapter::conversion;
-use keyforge_physics::EngineFactory;
 use keyforge_infra::{AssetLoader, FsProvider};
 use keyforge_model::config::{CorpusSource, ScoringWeights};
 use keyforge_model::constants::{ASSET_COST_MATRIX, ASSET_KEYCODES};
 use keyforge_model::{CostModel, Keyboard, KeyboardDefinition, KeycodeRegistry};
+use keyforge_physics::EngineFactory;
 use std::path::PathBuf;
 
 fn get_data_dir() -> PathBuf {
@@ -53,7 +53,12 @@ async fn test_scorer_determinism_production_data() {
         .expect("Failed to load keyboard");
 
     let weights = ScoringWeights::default();
-    let keyboard = Keyboard::new(def.geometry.keys.clone(), def.geometry.home_row, def.meta.kb_type.clone()).unwrap();
+    let keyboard = Keyboard::new(
+        def.geometry.keys.clone(),
+        def.geometry.home_row,
+        def.meta.kb_type.clone(),
+    )
+    .unwrap();
     let rubric = conversion::to_domain_rubric(&weights);
 
     let engine = EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_data)

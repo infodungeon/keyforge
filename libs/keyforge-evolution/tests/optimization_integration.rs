@@ -180,13 +180,15 @@ fn test_oracle_pattern_match() {
 
     let result = optimize(&req).unwrap();
 
-    let scorer = keyforge_physics::verify::DeterministicScorer::new(&req.keyboard, &req.rubric, &req.cost_model);
-    let raw_score = scorer.score(
+    let scorer = keyforge_physics::verify::DeterministicScorer::new(
         &req.keyboard,
-        &req.corpus,
-        result.layout.keys.as_slice(),
-    ).expect("Oracle scoring failed");
-    
+        &req.rubric,
+        &req.cost_model,
+    );
+    let raw_score = scorer
+        .score(&req.keyboard, &req.corpus, result.layout.keys.as_slice())
+        .expect("Oracle scoring failed");
+
     // Normalize logic from physics/lib.rs
     let raw_score_f32 = (raw_score as f32) / keyforge_model::constants::SCORE_SCALE;
     let total_freq: u64 = req.corpus.char_freqs.iter().sum();

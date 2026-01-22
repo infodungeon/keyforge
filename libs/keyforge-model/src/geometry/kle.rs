@@ -69,7 +69,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
                 best_split = split;
             }
         }
-        
+
         if max_gap < 0.5 {
             x_coords[x_coords.len() / 2]
         } else {
@@ -225,13 +225,19 @@ mod tests {
         let mut geom = KeyboardGeometry::default();
         geom.keys.push(KeyNode {
             label: "X".into(),
-            x: 1.0, y: 2.0, hand: HandIndex::LEFT, ..Default::default()
+            x: 1.0,
+            y: 2.0,
+            hand: HandIndex::LEFT,
+            ..Default::default()
         });
         geom.keys.push(KeyNode {
             label: "Y".into(),
-            x: 10.0, y: 2.0, hand: HandIndex::RIGHT, ..Default::default()
+            x: 10.0,
+            y: 2.0,
+            hand: HandIndex::RIGHT,
+            ..Default::default()
         });
-        
+
         let json = to_kle_json(&geom).unwrap();
         assert!(json.contains("meta"));
         assert!(json.contains("\"X\""));

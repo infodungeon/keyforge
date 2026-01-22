@@ -217,10 +217,10 @@ mod tests {
     fn test_corpus_asset_and_validator() {
         let c = Corpus::default();
         assert_eq!(Corpus::category(), AssetCategory::Corpus);
-        
+
         let v: &dyn Validator = &c;
         assert!(v.validate().is_ok());
-        
+
         let mut invalid = Corpus::default();
         invalid.char_freqs = vec![0; 10];
         let v_invalid: &dyn Validator = &invalid;

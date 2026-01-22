@@ -31,7 +31,7 @@ mod tests {
     fn test_parse_key_val() {
         assert_eq!(parse_key_val("a=1.0"), Ok(("a".to_string(), 1.0)));
         assert_eq!(parse_key_val("key=0.5"), Ok(("key".to_string(), 0.5)));
-        
+
         // Error cases
         assert!(parse_key_val("invalid").is_err());
         assert!(parse_key_val("a=").is_err()); // empty value

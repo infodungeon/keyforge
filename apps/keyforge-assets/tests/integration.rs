@@ -30,7 +30,11 @@ async fn test_manifest_endpoint() {
     let valkey_url = format!("redis://127.0.0.1:{valkey_port}");
 
     // 2. Setup Coordinator & Provider
-    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(ValkeyDistributedCoordinator::new(&valkey_url).await.unwrap());
+    let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(
+        ValkeyDistributedCoordinator::new(&valkey_url)
+            .await
+            .unwrap(),
+    );
     let provider = Arc::new(ValkeyProvider::new(coordinator.clone()));
 
     // 3. Create App

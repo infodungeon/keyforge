@@ -70,11 +70,17 @@ impl VerificationService {
     async fn verify_signature(&self, sub: &ResultSubmission) -> AppResult<()> {
         // 1. Replay Protection (Task-hive-rev-003: Persistent tracking)
         // check_and_set_nonce returns true if it's NEW, false if it's a REPLAY
-        let is_new = self.assets.coordinator().check_and_set_nonce(&sub.node_id, sub.nonce, 600).await
+        let is_new = self
+            .assets
+            .coordinator()
+            .check_and_set_nonce(&sub.node_id, sub.nonce, 600)
+            .await
             .map_err(|e| AppError::Internal(format!("Coordination error: {e}")))?;
-        
+
         if !is_new {
-            return Err(AppError::Validation("Nonce already used (Replay attack detected)".into()));
+            return Err(AppError::Validation(
+                "Nonce already used (Replay attack detected)".into(),
+            ));
         }
 
         let public_key = self
@@ -174,7 +180,7 @@ impl VerificationService {
                 &registry,
             )
             .map_err(|e| AppError::Validation(format!("Layout parse error: {e}")))?;
-            
+
             self.layout_cache.insert(&sub.layout, parsed.clone());
             parsed
         };
@@ -186,7 +192,7 @@ impl VerificationService {
 
         let is_exact = engine.capabilities().is_exact;
         let diff = (calculated_score - sub.score).abs();
-        
+
         let tolerance = if is_exact {
             0.0
         } else {

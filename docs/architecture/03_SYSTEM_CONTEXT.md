@@ -59,6 +59,7 @@ graph TD
         AssetMgr("keyforge-assetmgr")
         CLI("keyforge-cli")
         Agent("keyforge-agent")
+        TUI("keyforge-tui")
     end
 
     subgraph "Tier 3: Adapters"
@@ -94,6 +95,8 @@ graph TD
     Phys --> Model
     Agent --> Infra
     Agent --> Proto
+    TUI --> Hive
+    TUI --> Proto
 ```
 
 ## The Deployment Topology (Subdomains)

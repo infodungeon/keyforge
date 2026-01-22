@@ -183,9 +183,7 @@ async fn autosave_debounce_flush() {
         let mut state = service.state.lock().unwrap();
         state.last_save = Instant::now().checked_sub(Duration::from_secs(3)).unwrap();
     }
-    service
-        .schedule_save(SessionSnapshot::default())
-        .await;
+    service.schedule_save(SessionSnapshot::default()).await;
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(service.load().await.unwrap().is_some());
 }

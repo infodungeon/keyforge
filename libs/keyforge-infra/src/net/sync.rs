@@ -66,7 +66,9 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
 
     for (rel_path, server_hash) in server_manifest.files {
         let Some(normalized) = crate::util::common::normalize_path(&rel_path) else {
-            stats.errors.push(format!("Normalization failed: {rel_path}"));
+            stats
+                .errors
+                .push(format!("Normalization failed: {rel_path}"));
             continue;
         };
 
@@ -90,9 +92,7 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
     Ok(stats)
 }
 
-use keyforge_model::constants::{
-    ASSET_KEYCODES_FILENAME, ASSET_UI_CATEGORIES,
-};
+use keyforge_model::constants::{ASSET_KEYCODES_FILENAME, ASSET_UI_CATEGORIES};
 
 /// Bootstraps essential assets (Config/Keycodes) required for basic operation.
 ///
@@ -116,7 +116,9 @@ pub async fn bootstrap_essentials(
         .map_err(|e| e.to_string())?;
 
     let mut downloaded = Vec::new();
-    let keycodes_stem = ASSET_KEYCODES_FILENAME.strip_suffix(".json").unwrap_or(ASSET_KEYCODES_FILENAME);
+    let keycodes_stem = ASSET_KEYCODES_FILENAME
+        .strip_suffix(".json")
+        .unwrap_or(ASSET_KEYCODES_FILENAME);
 
     for (rel_path, server_hash) in manifest.files {
         // Robust check for essential system assets
@@ -153,7 +155,7 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
             let Some(filename) = path.file_name().and_then(|s| s.to_str()) else {
                 continue;
             };
-            
+
             if filename.starts_with('.') {
                 continue;
             }
@@ -171,22 +173,24 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use crate::net::client::ClientConfig;
     use std::fs;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
     async fn test_run_sync() {
         let server = MockServer::start().await;
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
-        
+
         let content = "asset content";
         let hash = crate::util::common::calculate_file_hash_str(content);
-        
+
         let manifest = ServerManifest {
-            files: [("test.txt".to_string(), hash.clone())].into_iter().collect(),
+            files: [("test.txt".to_string(), hash.clone())]
+                .into_iter()
+                .collect(),
         };
 
         Mock::given(method("GET"))
@@ -224,7 +228,9 @@ mod tests {
         let root = temp.path();
 
         let manifest = ServerManifest {
-            files: [("fail.txt".to_string(), "wrong_hash".into())].into_iter().collect(),
+            files: [("fail.txt".to_string(), "wrong_hash".into())]
+                .into_iter()
+                .collect(),
         };
 
         Mock::given(method("GET"))
@@ -264,7 +270,9 @@ mod tests {
                 ("keyboards/models/test.mpk.zst".to_string(), hash.clone()),
                 ("keycodes.mpk.zst".to_string(), hash.clone()),
                 ("other.txt".to_string(), hash.clone()),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
         };
 
         Mock::given(method("GET"))
@@ -294,12 +302,12 @@ mod tests {
     fn test_generate_manifest() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
-        
+
         fs::create_dir_all(root.join("subdir")).unwrap();
         fs::write(root.join("test.txt"), "hello").unwrap();
         fs::write(root.join("subdir/other.txt"), "world").unwrap();
         fs::write(root.join(".hidden"), "secret").unwrap();
-        
+
         let manifest = generate_manifest(root).unwrap();
         assert_eq!(manifest.files.len(), 2);
         assert!(manifest.files.contains_key("test.txt"));
@@ -314,7 +322,9 @@ mod tests {
         let root = temp.path();
 
         let manifest = ServerManifest {
-            files: [("fail.txt".to_string(), "hash".into())].into_iter().collect(),
+            files: [("fail.txt".to_string(), "hash".into())]
+                .into_iter()
+                .collect(),
         };
 
         Mock::given(method("GET"))

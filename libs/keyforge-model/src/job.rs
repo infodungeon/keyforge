@@ -200,9 +200,14 @@ mod tests {
         let geo = KeyboardGeometry::default();
         let weights = ScoringWeights::default();
         let params = SearchParams::default();
-        
+
         let id = JobIdentifier::from_parts(
-            &geo, &weights, &params, &[], "en", &CostMatrixSource::default()
+            &geo,
+            &weights,
+            &params,
+            &[],
+            "en",
+            &CostMatrixSource::default(),
         );
         assert!(id.is_ok());
     }

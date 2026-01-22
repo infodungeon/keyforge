@@ -272,5 +272,3 @@ pub async fn ensure_cost_matrix(
 
     Ok(local_path)
 }
-
-

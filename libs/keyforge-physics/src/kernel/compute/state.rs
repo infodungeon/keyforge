@@ -75,10 +75,7 @@ impl<'a> PosMap<'a> {
     /// Creates a `PosMap` from a flat position map slice.
     /// This is an optimized view into an existing position map.
     #[allow(dead_code)]
-    pub(crate) fn from_slice(
-        _pos_map: &'a [u16],
-        _key_count: usize,
-    ) -> Self {
+    pub(crate) fn from_slice(_pos_map: &'a [u16], _key_count: usize) -> Self {
         // Implementation omitted for now - requires architectural alignment on
         // whether the optimizer provides a flat map or a structured one.
         unimplemented!("Task-phys-rev-039 requires a non-scratch PosMap variant")
@@ -146,13 +143,7 @@ impl PhysicsScratch {
     #[allow(clippy::type_complexity)]
     pub(crate) fn get_mut_scratch(
         &mut self,
-    ) -> (
-        &mut [u16],
-        &mut [u8],
-        &mut [u16],
-        &mut [u8],
-        &mut Vec<u16>,
-    ) {
+    ) -> (&mut [u16], &mut [u8], &mut [u16], &mut [u8], &mut Vec<u16>) {
         (
             self.starts.as_mut_slice(),
             self.counts.as_mut_slice(),

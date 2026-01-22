@@ -13,7 +13,9 @@ pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3:
         return Score::ZERO;
     }
 
-    if ctx.geometry.fingers[p1] == ctx.geometry.fingers[p3] && ctx.geometry.fingers[p1] != ctx.geometry.fingers[p2] {
+    if ctx.geometry.fingers[p1] == ctx.geometry.fingers[p3]
+        && ctx.geometry.fingers[p1] != ctx.geometry.fingers[p2]
+    {
         return ctx.penalty_redirect;
     }
 

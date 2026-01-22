@@ -38,15 +38,19 @@ mod tests {
     #[derive(Debug)]
     struct MockRng(u64);
     impl RngCore for MockRng {
-        fn next_u32(&mut self) -> u32 { self.0 as u32 }
-        fn next_u64(&mut self) -> u64 { self.0 }
+        fn next_u32(&mut self) -> u32 {
+            self.0 as u32
+        }
+        fn next_u64(&mut self) -> u64 {
+            self.0
+        }
         fn fill_bytes(&mut self, _dest: &mut [u8]) {}
     }
 
     #[test]
     fn test_annealing_acceptance() {
         let mut criteria = CoolingAnnealing;
-        
+
         // 1. Improvement always accepted
         let mut rng = MockRng(u64::MAX); // High value (1.0)
         assert!(criteria.should_accept(-100, 1.0, &mut rng));

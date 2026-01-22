@@ -173,22 +173,35 @@ mod tests {
     #[test]
     fn test_resolve_constraints() {
         let mut reg = KeycodeRegistry::new_with_defaults();
-        reg.definitions.push(keyforge_model::keycodes::KeycodeDefinition {
-            code: KeyCode(10), id: "A".into(), label: "a".into(), aliases: vec![]
-        });
+        reg.definitions
+            .push(keyforge_model::keycodes::KeycodeDefinition {
+                code: KeyCode(10),
+                id: "A".into(),
+                label: "a".into(),
+                aliases: vec![],
+            });
         reg.rebuild_maps();
 
-        let constraints = vec![KeyConstraint { index: KeyIndex(0), key: "A".into() }];
+        let constraints = vec![KeyConstraint {
+            index: KeyIndex(0),
+            key: "A".into(),
+        }];
         let pins = resolve_constraints(&constraints, 2, &reg).unwrap();
         assert_eq!(pins[0], Some(KeyCode(10)));
         assert_eq!(pins[1], None);
 
         // Fail: Unknown token
-        let constraints = vec![KeyConstraint { index: KeyIndex(0), key: "UNKNOWN".into() }];
+        let constraints = vec![KeyConstraint {
+            index: KeyIndex(0),
+            key: "UNKNOWN".into(),
+        }];
         assert!(resolve_constraints(&constraints, 2, &reg).is_err());
 
         // Fail: Out of bounds
-        let constraints = vec![KeyConstraint { index: KeyIndex(5), key: "A".into() }];
+        let constraints = vec![KeyConstraint {
+            index: KeyIndex(5),
+            key: "A".into(),
+        }];
         assert!(resolve_constraints(&constraints, 2, &reg).is_err());
     }
 
@@ -196,8 +209,14 @@ mod tests {
     fn test_resolve_cost_matrix() {
         let proto_geo = KeyboardGeometry {
             keys: vec![
-                KeyNode { label: "A".into(), ..Default::default() },
-                KeyNode { label: "B".into(), ..Default::default() },
+                KeyNode {
+                    label: "A".into(),
+                    ..Default::default()
+                },
+                KeyNode {
+                    label: "B".into(),
+                    ..Default::default()
+                },
             ],
             ..Default::default()
         };

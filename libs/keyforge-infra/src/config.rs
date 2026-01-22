@@ -93,14 +93,14 @@ mod tests {
 
     #[test]
     fn test_common_config_from_env() {
-        temp_env::with_vars(vec![
-            (ENV_DATA_DIR, Some("/tmp/data")),
-            (ENV_CORES, Some("8")),
-        ], || {
-            let cfg = CommonConfig::from_env();
-            assert_eq!(cfg.data_dir, Some(PathBuf::from("/tmp/data")));
-            assert_eq!(cfg.cores, Some(8));
-        });
+        temp_env::with_vars(
+            vec![(ENV_DATA_DIR, Some("/tmp/data")), (ENV_CORES, Some("8"))],
+            || {
+                let cfg = CommonConfig::from_env();
+                assert_eq!(cfg.data_dir, Some(PathBuf::from("/tmp/data")));
+                assert_eq!(cfg.cores, Some(8));
+            },
+        );
     }
 
     #[test]
@@ -112,7 +112,7 @@ mod tests {
         let cfg = CommonConfig::from_file(&path).unwrap();
         assert_eq!(cfg.data_dir, Some(PathBuf::from("/etc/kf")));
         assert_eq!(cfg.cores, Some(4));
-        
+
         assert!(CommonConfig::from_file("missing.toml").is_err());
         fs::write(&path, "bad = invalid").unwrap();
         assert!(CommonConfig::from_file(&path).is_err());

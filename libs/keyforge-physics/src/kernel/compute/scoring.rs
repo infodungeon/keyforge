@@ -1,10 +1,10 @@
 use super::flow::calculate_flow_cost;
 use super::state::{PhysicsScratch, PosMap};
+use crate::error::PhysicsError;
 use crate::kernel::{
     types::{Score, ValidatedLayout},
     EngineContext,
 };
-use crate::error::PhysicsError;
 
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_layout(
@@ -27,10 +27,11 @@ pub fn score_layout(
     let b = score_bigrams(ctx, &pm)?;
     let t = score_trigrams(ctx, &pm)?;
 
-    let total = m.checked_add(b)
+    let total = m
+        .checked_add(b)
         .and_then(|sum| sum.checked_add(t))
         .ok_or_else(|| PhysicsError::ScoreOverflow {
-            context: "Final kernel total score accumulation".to_string()
+            context: "Final kernel total score accumulation".to_string(),
         })?;
 
     // Clean up scratch for next use
@@ -59,14 +60,19 @@ pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Ph
                 min_cost = cost;
             }
         }
-        
+
         if min_cost != Score::INFINITY_SENTINEL {
-            let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Monogram freq scale for code {code}")
-            })?;
-            total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("Monogram total accumulation at code {code}")
-            })?;
+            let contrib =
+                min_cost
+                    .checked_mul(freq as i64)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!("Monogram freq scale for code {code}"),
+                    })?;
+            total = total
+                .checked_add(contrib)
+                .ok_or_else(|| PhysicsError::ScoreOverflow {
+                    context: format!("Monogram total accumulation at code {code}"),
+                })?;
         }
     }
     Ok(total)
@@ -95,8 +101,10 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
                     let mut cost = ctx.geometry.cost_matrix[idx];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
-                        cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: format!("Bigram modifier for ({}, {})", code1, c2.0)
+                        cost = cost.checked_add(mod_val).ok_or_else(|| {
+                            PhysicsError::ScoreOverflow {
+                                context: format!("Bigram modifier for ({}, {})", code1, c2.0),
+                            }
                         })?;
                     }
 
@@ -105,15 +113,20 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
                     }
                 }
             }
-            
+
             if min_cost != Score::INFINITY_SENTINEL {
                 let freq = i64::from(ctx.corpus.bigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Bigram freq scale for ({}, {})", code1, c2.0)
-                })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Bigram total accumulation at ({}, {})", code1, c2.0)
-                })?;
+                let contrib =
+                    min_cost
+                        .checked_mul(freq)
+                        .ok_or_else(|| PhysicsError::ScoreOverflow {
+                            context: format!("Bigram freq scale for ({}, {})", code1, c2.0),
+                        })?;
+                total = total
+                    .checked_add(contrib)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!("Bigram total accumulation at ({}, {})", code1, c2.0),
+                    })?;
             }
         }
     }
@@ -134,11 +147,11 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
             let c3 = ctx.corpus.trigram_others2[k];
             let candidates2 = pm.get(c2.0 as usize);
             let candidates3 = pm.get(c3.0 as usize);
-    
+
             if candidates2.is_empty() || candidates3.is_empty() {
                 continue;
             }
-    
+
             let mut min_cost = Score::INFINITY_SENTINEL;
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
@@ -150,15 +163,24 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
                     }
                 }
             }
-    
+
             if min_cost != Score::INFINITY_SENTINEL {
                 let freq = i64::from(ctx.corpus.trigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Trigram freq scale for sequence starting with {code1}")
-                })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Trigram total accumulation for sequence starting with {code1}")
-                })?;
+                let contrib =
+                    min_cost
+                        .checked_mul(freq)
+                        .ok_or_else(|| PhysicsError::ScoreOverflow {
+                            context: format!(
+                                "Trigram freq scale for sequence starting with {code1}"
+                            ),
+                        })?;
+                total = total
+                    .checked_add(contrib)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!(
+                            "Trigram total accumulation for sequence starting with {code1}"
+                        ),
+                    })?;
             }
         }
     }

@@ -28,7 +28,7 @@ pub(crate) fn u16_to_char(code: u16) -> String {
         }
         return format!("[0x{code:02X}]");
     }
-    
+
     // 3. Fallback for invalid Unicode
     format!("[0x{code:04X}]")
 }
@@ -146,7 +146,8 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
             // Pick pair resulting in best score contribution
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
-                    let mut cost = ctx.geometry.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                    let mut cost =
+                        ctx.geometry.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1, c2)) {
                         cost = cost + mod_val;
@@ -351,8 +352,8 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 mod tests {
     use super::*;
     use crate::kernel::compiler::Compiler;
-    use keyforge_model::{KeyNode, Keyboard, Corpus, Rubric, CostModel};
-    use keyforge_model::types::{KeyCode, HandIndex, FingerIndex, RowIndex, ColIndex};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
 
     #[test]
     fn test_u16_to_char() {
@@ -368,46 +369,96 @@ mod tests {
     #[test]
     fn test_analyze_layout_branches() {
         let mut keys = vec![
-            KeyNode { index: 0, hand: HandIndex::LEFT, finger: FingerIndex::INDEX, row: RowIndex(0), col: ColIndex(0), is_home: true, ..Default::default() },
-            KeyNode { index: 1, hand: HandIndex::LEFT, finger: FingerIndex::MIDDLE, row: RowIndex(0), col: ColIndex(1), is_home: true, ..Default::default() },
-            KeyNode { index: 2, hand: HandIndex::LEFT, finger: FingerIndex::RING, row: RowIndex(0), col: ColIndex(2), is_home: true, ..Default::default() },
+            KeyNode {
+                index: 0,
+                hand: HandIndex::LEFT,
+                finger: FingerIndex::INDEX,
+                row: RowIndex(0),
+                col: ColIndex(0),
+                is_home: true,
+                ..Default::default()
+            },
+            KeyNode {
+                index: 1,
+                hand: HandIndex::LEFT,
+                finger: FingerIndex::MIDDLE,
+                row: RowIndex(0),
+                col: ColIndex(1),
+                is_home: true,
+                ..Default::default()
+            },
+            KeyNode {
+                index: 2,
+                hand: HandIndex::LEFT,
+                finger: FingerIndex::RING,
+                row: RowIndex(0),
+                col: ColIndex(2),
+                is_home: true,
+                ..Default::default()
+            },
         ];
         // Add a duplicate key for space load sharing
-        keys.push(KeyNode { index: 3, hand: HandIndex::LEFT, finger: FingerIndex::INDEX, row: RowIndex(1), col: ColIndex(0), is_home: false, ..Default::default() });
-        
+        keys.push(KeyNode {
+            index: 3,
+            hand: HandIndex::LEFT,
+            finger: FingerIndex::INDEX,
+            row: RowIndex(1),
+            col: ColIndex(0),
+            is_home: false,
+            ..Default::default()
+        });
+
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let mut corpus = Corpus::default();
         corpus.char_freqs[97] = 100; // 'a'
         corpus.char_freqs[98] = 200; // 'b'
         corpus.bigrams.push((97, 98, 50));
         corpus.trigrams.push((97, 98, 97, 10)); // Redirect: a -> b -> a (Index -> Middle -> Index)
-        
+
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
         let mut base_r0 = std::collections::HashMap::new();
         base_r0.insert("r0".to_string(), 1.0);
         let mut base_r1 = std::collections::HashMap::new();
         base_r1.insert("r1".to_string(), 2.0);
-        
+
         let mut index_zones = std::collections::HashMap::new();
         index_zones.insert("base".to_string(), base_r0.clone());
-        index_zones.get_mut("base").unwrap().insert("r1".to_string(), 2.0);
-        fingers.insert("index".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(index_zones));
-        
+        index_zones
+            .get_mut("base")
+            .unwrap()
+            .insert("r1".to_string(), 2.0);
+        fingers.insert(
+            "index".to_string(),
+            keyforge_model::cost_model::FingerDefinition::Standard(index_zones),
+        );
+
         let mut other_zones = std::collections::HashMap::new();
         other_zones.insert("base".to_string(), base_r0);
-        fingers.insert("middle".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(other_zones.clone()));
-        fingers.insert("ring".to_string(), keyforge_model::cost_model::FingerDefinition::Standard(other_zones));
+        fingers.insert(
+            "middle".to_string(),
+            keyforge_model::cost_model::FingerDefinition::Standard(other_zones.clone()),
+        );
+        fingers.insert(
+            "ring".to_string(),
+            keyforge_model::cost_model::FingerDefinition::Standard(other_zones),
+        );
 
-        cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
-            description: "test".into(),
-            static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
-        });
+        cm.models.insert(
+            "model_a_row_staggered".into(),
+            keyforge_model::cost_model::ModelDefinition {
+                description: "test".into(),
+                static_costs: std::collections::HashMap::from([(
+                    "universal_hand".to_string(),
+                    keyforge_model::cost_model::HandDefinition { fingers },
+                )]),
+            },
+        );
 
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
         let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100)];
         let validated = ValidatedLayout::new(&layout_keys, kb.count()).unwrap();
-        
+
         let report = analyze_layout(&ctx, &validated);
         assert!(report.score > 0.0);
         assert!(report.redirects > 0.0);

@@ -1,10 +1,7 @@
 #![allow(unsafe_code)]
 use super::{EngineCapabilities, ScoringEngine};
 use crate::kernel::compute::{flow::calculate_flow_cost, PhysicsScratch, PosMap};
-use crate::kernel::{
-    types::ValidatedLayout,
-    EngineContext,
-};
+use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 
@@ -36,9 +33,9 @@ pub struct IntelScoringEngine {
 }
 
 impl IntelScoringEngine {
-    #[must_use] 
+    #[must_use]
     pub fn new(ctx: EngineContext, config: Option<IntelEngineConfig>) -> Self {
-        Self { 
+        Self {
             ctx,
             config: config.unwrap_or_default(),
         }
@@ -54,15 +51,17 @@ impl IntelScoringEngine {
             let mut s = scratch.borrow_mut();
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                 if is_x86_feature_detected!("avx2") && !force_scalar {
-                     unsafe { score_layout_avx2(&self.ctx, &validated, &mut s, &self.config).map(Score) }
-                 } else {
-                     score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
-                 }
+                if is_x86_feature_detected!("avx2") && !force_scalar {
+                    unsafe {
+                        score_layout_avx2(&self.ctx, &validated, &mut s, &self.config).map(Score)
+                    }
+                } else {
+                    score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
+                }
             }
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             {
-                 score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
+                score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
             }
         })
     }
@@ -95,7 +94,7 @@ impl ScoringEngine for IntelScoringEngine {
         }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
-        
+
         SCRATCH.with(|scratch| {
             let mut s = scratch.borrow_mut();
             let key_count = self.ctx.key_count;
@@ -145,7 +144,9 @@ impl ScoringEngine for IntelScoringEngine {
                 used,
             );
 
-            let delta = crate::kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b);
+            let delta = crate::kernel::compute::calculate_swap_delta(
+                &self.ctx, &validated, &pm, idx_a, idx_b,
+            );
             s.clear_used();
             delta
         })
@@ -153,7 +154,9 @@ impl ScoringEngine for IntelScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(crate::kernel::compute::analyze_layout(&self.ctx, &validated))
+        Ok(crate::kernel::compute::analyze_layout(
+            &self.ctx, &validated,
+        ))
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
@@ -192,9 +195,12 @@ fn score_layout_scalar(
     let b = score_bigrams(ctx, &pm)?;
     let t = score_trigrams(ctx, &pm)?;
 
-    let total = m.checked_add(b)
+    let total = m
+        .checked_add(b)
         .and_then(|sum| sum.checked_add(t))
-        .ok_or_else(|| PhysicsError::ScoreOverflow { context: "Intel scalar total score accumulation".into() })?;
+        .ok_or_else(|| PhysicsError::ScoreOverflow {
+            context: "Intel scalar total score accumulation".into(),
+        })?;
 
     scratch.clear_used();
     Ok(total.0)
@@ -245,13 +251,22 @@ fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physic
                 min_cost = cost;
             }
         }
-        
+
         if min_cost.0 != i64::MAX {
             // Frequencies are technically u64 but bounded by corpus size. Wrapping i64 is
             // extremely unlikely in practice and we checked for overflow in the mul.
             #[allow(clippy::cast_possible_wrap)]
-            let contrib = min_cost.checked_mul(freq as i64).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram freq scale for code {code}") })?;
-            total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Monogram total accumulation at code {code}") })?;
+            let contrib =
+                min_cost
+                    .checked_mul(freq as i64)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!("Intel Monogram freq scale for code {code}"),
+                    })?;
+            total = total
+                .checked_add(contrib)
+                .ok_or_else(|| PhysicsError::ScoreOverflow {
+                    context: format!("Intel Monogram total accumulation at code {code}"),
+                })?;
         }
     }
     Ok(total)
@@ -280,11 +295,15 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
                     let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
-                    
+
                     let mut cost = ctx.geometry.cost_matrix[idx];
 
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
-                        cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram modifier for ({}, {})", code1, c2.0) })?;
+                        cost = cost.checked_add(mod_val).ok_or_else(|| {
+                            PhysicsError::ScoreOverflow {
+                                context: format!("Intel Bigram modifier for ({}, {})", code1, c2.0),
+                            }
+                        })?;
                     }
 
                     if cost < min_cost {
@@ -292,11 +311,23 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
                     }
                 }
             }
-            
+
             if min_cost.0 != i64::MAX {
                 let freq = i64::from(ctx.corpus.bigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram freq scale for ({}, {})", code1, c2.0) })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Bigram total accumulation at ({}, {})", code1, c2.0) })?;
+                let contrib =
+                    min_cost
+                        .checked_mul(freq)
+                        .ok_or_else(|| PhysicsError::ScoreOverflow {
+                            context: format!("Intel Bigram freq scale for ({}, {})", code1, c2.0),
+                        })?;
+                total = total
+                    .checked_add(contrib)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!(
+                            "Intel Bigram total accumulation at ({}, {})",
+                            code1, c2.0
+                        ),
+                    })?;
             }
         }
     }
@@ -337,8 +368,21 @@ fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physics
 
             if min_cost.0 != i64::MAX && min_cost.0 != 0 {
                 let freq = i64::from(ctx.corpus.trigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram freq scale for sequence starting with {code1}") })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow { context: format!("Intel Trigram total accumulation for sequence starting with {code1}") })?;
+                let contrib =
+                    min_cost
+                        .checked_mul(freq)
+                        .ok_or_else(|| PhysicsError::ScoreOverflow {
+                            context: format!(
+                                "Intel Trigram freq scale for sequence starting with {code1}"
+                            ),
+                        })?;
+                total = total
+                    .checked_add(contrib)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!(
+                            "Intel Trigram total accumulation for sequence starting with {code1}"
+                        ),
+                    })?;
             }
         }
     }

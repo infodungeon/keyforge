@@ -79,7 +79,9 @@ impl Asset for KeyboardDefinition {
 impl Validator for KeyboardDefinition {
     fn validate(&self) -> Result<(), String> {
         if self.meta.name.len() > MAX_KEYBOARD_NAME_LEN {
-            return Err(format!("Keyboard name too long (max {MAX_KEYBOARD_NAME_LEN})"));
+            return Err(format!(
+                "Keyboard name too long (max {MAX_KEYBOARD_NAME_LEN})"
+            ));
         }
         self.geometry.validate()
     }
@@ -313,7 +315,7 @@ mod tests {
     fn test_keyboard_geometry_validation() {
         let mut geom = KeyboardGeometry::default();
         geom.home_row = 0; // Match KeyNode::default() row
-        // 1. Empty keys
+                           // 1. Empty keys
         assert!(geom.validate().is_err());
 
         // 2. Invalid Key dimensions
@@ -437,12 +439,10 @@ mod tests {
 
         // Invalid finger index (using new_unchecked to bypass safety)
         let geom = KeyboardGeometry {
-            keys: vec![
-                KeyNode {
-                    finger: FingerIndex::new_unchecked(10),
-                    ..Default::default()
-                },
-            ],
+            keys: vec![KeyNode {
+                finger: FingerIndex::new_unchecked(10),
+                ..Default::default()
+            }],
             prime_slots: vec![KeyIndex(0)],
             home_row: 0,
             ..Default::default()

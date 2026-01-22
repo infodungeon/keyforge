@@ -135,11 +135,17 @@ mod tests {
         assert_eq!(action_to_qmk(&KeyAction::LayerToggle(2)), "TG(2)");
         assert_eq!(action_to_qmk(&KeyAction::LayerOn(3)), "TO(3)");
         assert_eq!(action_to_qmk(&KeyAction::CapsWord), "CAPS_WORD");
-        
-        let mt = KeyAction::ModTap { mod_name: "LSFT".into(), key: Box::new(KeyAction::Simple("Z".into())) };
+
+        let mt = KeyAction::ModTap {
+            mod_name: "LSFT".into(),
+            key: Box::new(KeyAction::Simple("Z".into())),
+        };
         assert_eq!(action_to_qmk(&mt), "LSFT_T(Z)");
 
-        let lt = KeyAction::LayerTap { layer: 1, key: Box::new(KeyAction::Simple("SPC".into())) };
+        let lt = KeyAction::LayerTap {
+            layer: 1,
+            key: Box::new(KeyAction::Simple("SPC".into())),
+        };
         assert_eq!(action_to_qmk(&lt), "LT(1, SPC)");
 
         let sk = KeyAction::StickyMod("LSHIFT".into());
@@ -157,7 +163,7 @@ mod tests {
     #[test]
     fn test_qmk_generate_errors() {
         let exporter = QmkExporter;
-        
+
         // 1. Too many keys
         let layers = vec![vec!["A".into(); MAX_KEYS + 1]];
         assert!(exporter.generate("fail", &layers).is_err());
@@ -167,6 +173,9 @@ mod tests {
         let layers = vec![vec!["A".repeat(300); MAX_KEYS]];
         let res = exporter.generate("big", &layers);
         assert!(res.is_err());
-        assert!(res.unwrap_err().to_string().contains("Output size limit exceeded"));
+        assert!(res
+            .unwrap_err()
+            .to_string()
+            .contains("Output size limit exceeded"));
     }
 }

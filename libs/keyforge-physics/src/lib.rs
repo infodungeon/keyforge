@@ -19,28 +19,31 @@
 //! and language statistics.
 
 mod analysis;
+pub mod engines;
 /// Physics-specific error types.
 pub mod error;
 mod kernel;
 /// Layout verification and validity scoring.
 pub mod verify;
-pub mod engines;
 
 pub use analysis::fingerprint::LayoutIdentity;
 pub use keyforge_model::SwapSuggestion;
 
 use analysis::fingerprint::Fingerprinter;
 use analysis::heuristics::suggest_swaps;
-pub use engines::{EngineCapabilities, ScoringEngine};
 pub use engines::intel_comet_lake::IntelEngineConfig;
-use engines::{exact::ExactScoringEngine, generic::GenericScoringEngine, intel_comet_lake::IntelScoringEngine};
+use engines::{
+    exact::ExactScoringEngine, generic::GenericScoringEngine, intel_comet_lake::IntelScoringEngine,
+};
+pub use engines::{EngineCapabilities, ScoringEngine};
 pub use error::PhysicsError;
 use kernel::compiler::Compiler;
 use kernel::compute::analyze_layout;
 use kernel::types::ValidatedLayout;
 pub use kernel::EngineContext;
 use keyforge_model::{
-    AnalysisReport, Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric, ScoringResult, SearchConfig,
+    AnalysisReport, Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric, ScoringResult,
+    SearchConfig,
 };
 use std::sync::Arc;
 use tracing::instrument;
@@ -70,7 +73,7 @@ impl EngineFactory {
     /// Compiles a new **Exact (Oracle)** scoring engine.
     ///
     /// This engine is bit-perfect but slow. Use for verification only.
-    /// 
+    ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_exact(
@@ -93,7 +96,7 @@ impl EngineFactory {
     ///
     /// This engine uses AVX2 optimizations and cache-aware access patterns.
     /// It is only safe to use on compatible hardware (checked by caller).
-    /// 
+    ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_intel_comet_lake(
@@ -134,12 +137,13 @@ pub struct EngineRequest {
 /// Returns a `PhysicsError` if the engine initialization or scoring fails.
 #[instrument(skip(req))]
 pub fn score(req: &EngineRequest) -> Result<ScoringResult, PhysicsError> {
-    let engine = EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let engine =
+        EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
     let layout = req
         .initial_layout
         .clone()
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
-        
+
     Ok(ScoringResult {
         score: engine.score(&layout)?.to_f32(),
         layout,
@@ -180,15 +184,24 @@ pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, 
         .initial_layout
         .clone()
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; ctx.key_count]));
-    
-    let raw_suggestions = suggest_improvements_with_context(&ctx, &layout, req.config.include_thumbs());
-    
+
+    let raw_suggestions =
+        suggest_improvements_with_context(&ctx, &layout, req.config.include_thumbs());
+
     // Filter out suggestions that involve pinned keys
     let filtered: Vec<SwapSuggestion> = raw_suggestions
         .into_iter()
         .filter(|s| {
-            let pin_a = req.pinned_keys.get(s.index_a).and_then(|p| p.as_ref()).is_some();
-            let pin_b = req.pinned_keys.get(s.index_b).and_then(|p| p.as_ref()).is_some();
+            let pin_a = req
+                .pinned_keys
+                .get(s.index_a)
+                .and_then(|p| p.as_ref())
+                .is_some();
+            let pin_b = req
+                .pinned_keys
+                .get(s.index_b)
+                .and_then(|p| p.as_ref())
+                .is_some();
             !pin_a && !pin_b
         })
         .collect();
@@ -197,16 +210,19 @@ pub fn suggest_improvements(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, 
 }
 
 /// Analyzes a layout and returns a detailed report.
-/// 
+///
 /// # Errors
 /// Returns `PhysicsError` if the layout is invalid for the context.
-pub fn analyze_with_context(ctx: &EngineContext, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
+pub fn analyze_with_context(
+    ctx: &EngineContext,
+    layout: &Layout,
+) -> Result<AnalysisReport, PhysicsError> {
     let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
     Ok(analyze_layout(ctx, &validated))
 }
 
 /// Suggests improvements for the layout.
-#[must_use] 
+#[must_use]
 pub fn suggest_improvements_with_context(
     ctx: &EngineContext,
     layout: &Layout,

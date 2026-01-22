@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn test_parse_layout_string_strict_extended() {
         let registry = KeycodeRegistry::new_with_defaults();
-        
+
         // 1. Too long
         let long_str = "A ".repeat(MAX_LAYOUT_DATA_LEN + 1);
         assert!(parse_layout_string_strict(&long_str, 10, &registry).is_err());
@@ -159,9 +159,14 @@ mod tests {
         // 2. Argument stripping
         // We need a registry that knows 'MO'
         let mut reg = KeycodeRegistry::new_with_defaults();
-        reg.definitions.push(KeycodeDefinition { code: KeyCode(100), id: "MO".into(), label: "MO".into(), aliases: vec![] });
+        reg.definitions.push(KeycodeDefinition {
+            code: KeyCode(100),
+            id: "MO".into(),
+            label: "MO".into(),
+            aliases: vec![],
+        });
         reg.rebuild_maps();
-        
+
         let ok = parse_layout_string_strict("MO(1)", 1, &reg).unwrap();
         assert_eq!(ok.keys[0], KeyCode(100));
 
@@ -177,7 +182,12 @@ mod tests {
     #[test]
     fn test_parse_layout_string_permissive_extended() {
         let mut reg = KeycodeRegistry::new_with_defaults();
-        reg.definitions.push(KeycodeDefinition { code: KeyCode(100), id: "MO".into(), label: "MO".into(), aliases: vec![] });
+        reg.definitions.push(KeycodeDefinition {
+            code: KeyCode(100),
+            id: "MO".into(),
+            label: "MO".into(),
+            aliases: vec![],
+        });
         reg.rebuild_maps();
 
         // Exact match

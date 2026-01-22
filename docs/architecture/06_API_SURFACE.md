@@ -26,6 +26,7 @@
 | :--- | :--- | :--- | :--- |
 | `GET` | `/manifest` | Public | Get the current system asset manifest (versions). |
 | `GET` | `/data/*` | Public | Download raw assets (Corpus, Cost Matrices). |
+| `GET` | `/sys/status` | **Admin** | Real-time cluster metrics and logs (used by TUI). |
 | `POST` | `/nodes/register` | **Admin** | Register a new worker node. |
 
 ## 4. Authentication

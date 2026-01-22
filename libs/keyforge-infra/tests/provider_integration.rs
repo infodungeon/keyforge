@@ -48,14 +48,14 @@ async fn test_fs_provider_json_loading() {
 
     // 3. Direct path (absolute)
     let abs_path = kb_dir.join("test.json");
-    let res: Arc<KeyboardDefinition> = provider
-        .load(abs_path.to_str().unwrap())
-        .await
-        .unwrap();
+    let res: Arc<KeyboardDefinition> = provider.load(abs_path.to_str().unwrap()).await.unwrap();
     assert_eq!(res.meta.name, "Test");
 
     // 4. Path traversal attempt
-    assert!(provider.load::<KeyboardDefinition>("../secret").await.is_err());
+    assert!(provider
+        .load::<KeyboardDefinition>("../secret")
+        .await
+        .is_err());
 }
 
 /// Intent: Verify `FsProvider` rejects invalid JSON content.
@@ -70,7 +70,10 @@ async fn test_fs_provider_json_errors() {
 
     // Invalid JSON content
     fs::write(kb_dir.join("invalid.json"), "{ broken }").unwrap();
-    assert!(provider.load::<KeyboardDefinition>("invalid").await.is_err());
+    assert!(provider
+        .load::<KeyboardDefinition>("invalid")
+        .await
+        .is_err());
 }
 
 // ============================================================================
@@ -231,7 +234,11 @@ async fn test_fs_provider_load_corpus() {
 
     let corp_dir = root.join("user/corpora/en");
     fs::create_dir_all(&corp_dir).unwrap();
-    fs::write(corp_dir.join("1grams.json"), r#"[{"char": "a", "freq": 100}]"#).unwrap();
+    fs::write(
+        corp_dir.join("1grams.json"),
+        r#"[{"char": "a", "freq": 100}]"#,
+    )
+    .unwrap();
 
     let sources = vec![CorpusSource {
         id: "en".into(),

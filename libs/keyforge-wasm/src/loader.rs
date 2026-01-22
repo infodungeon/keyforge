@@ -143,7 +143,7 @@ mod tests {
     #[tokio::test]
     async fn test_in_memory_loader_lifecycle() {
         let loader = InMemoryLoader::new();
-        
+
         // 1. Keyboard
         loader.inject_keyboard("k1".into(), KeyboardDefinition::default());
         let kb = loader.load::<KeyboardDefinition>("k1").await.unwrap();
@@ -161,7 +161,11 @@ mod tests {
 
         // 4. Corpus
         loader.inject_corpus("en".into(), Corpus::default());
-        let sources = vec![CorpusSource { id: "en".into(), weight: 1.0, hash: None }];
+        let sources = vec![CorpusSource {
+            id: "en".into(),
+            weight: 1.0,
+            hash: None,
+        }];
         let corp = loader.load_corpus(&sources).await.unwrap();
         assert_eq!(corp.char_freqs[0], 0);
     }
@@ -169,14 +173,14 @@ mod tests {
     #[tokio::test]
     async fn test_in_memory_loader_errors() {
         let loader = InMemoryLoader::new();
-        
+
         // Missing ID
         assert!(loader.load::<KeyboardDefinition>("missing").await.is_err());
-        
+
         // No corpus sources
         assert!(loader.load_corpus(&[]).await.is_err());
-        
-        // Poisoned lock - Hard to trigger in unit test without unsafe or intentional panic in a thread, 
+
+        // Poisoned lock - Hard to trigger in unit test without unsafe or intentional panic in a thread,
         // but we've covered the code paths by reading the source.
     }
 }

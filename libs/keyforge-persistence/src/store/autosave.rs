@@ -135,8 +135,8 @@ impl AutoSaveService {
         tokio::task::spawn_blocking(move || {
             let file = std::fs::File::open(path)?;
             let reader = std::io::BufReader::new(file);
-            
-            // Peak at content or just try parsing. 
+
+            // Peak at content or just try parsing.
             // Since we need to support two formats, we'll read to a value first.
             let v: serde_json::Value = match serde_json::from_reader(reader) {
                 Ok(v) => v,
@@ -254,4 +254,3 @@ impl AutoSaveService {
         }
     }
 }
-

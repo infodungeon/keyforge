@@ -1,0 +1,27 @@
+[package]
+name = "keyforge-tui"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+description = "Terminal User Interface monitor for the KeyForge Hive cluster."
+repository.workspace = true
+
+[dependencies]
+keyforge-protocol = { path = "../../libs/keyforge-protocol" }
+keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-model = { path = "../../libs/keyforge-model" }
+
+# TUI
+ratatui = "0.30"
+crossterm = "0.29"
+
+# Networking
+reqwest = { version = "0.13.1", features = ["json"] }
+tokio = { version = "1.48", features = ["full"] }
+
+# Utilities
+clap = { version = "4.5.53", features = ["derive", "env"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"

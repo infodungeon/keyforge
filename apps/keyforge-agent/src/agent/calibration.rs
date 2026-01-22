@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_physics::EngineFactory;
 use keyforge_infra::AssetManager;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
+use keyforge_physics::EngineFactory;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -92,8 +92,12 @@ pub async fn calibrate(
     let def: KeyboardDefinition = serde_json::from_str(&content)
         .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
 
-    let keyboard = Keyboard::new(def.geometry.keys, def.geometry.home_row, def.meta.kb_type.clone())
-        .map_err(|e| AgentError::Calibration(e.to_string()))?;
+    let keyboard = Keyboard::new(
+        def.geometry.keys,
+        def.geometry.home_row,
+        def.meta.kb_type.clone(),
+    )
+    .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     let ips = if config.duration_ms == 0 {
         info!("Skipping hardware calibration (duration_ms=0)");
@@ -179,7 +183,8 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
             ..Default::default()
         });
     }
-    let keyboard = Keyboard::new(keys, 0, "test".into()).map_err(|e| AgentError::Calibration(e.to_string()))?;
+    let keyboard = Keyboard::new(keys, 0, "test".into())
+        .map_err(|e| AgentError::Calibration(e.to_string()))?;
     run_benchmark(&keyboard, config)
 }
 

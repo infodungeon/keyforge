@@ -422,9 +422,13 @@ fn process_dataset_parallel(
     file_paths: &[String],
 ) -> Result<CorpusStats, Box<dyn std::error::Error>> {
     let pb = ProgressBar::new(file_paths.len() as u64);
-    pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}s ({eta})")? // Corrected from Shards to s
-        .progress_chars("#>- ")); // Added space to progress_chars
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template(
+                "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}s ({eta})",
+            )? // Corrected from Shards to s
+            .progress_chars("#>- "),
+    ); // Added space to progress_chars
 
     let aggregated_stats = file_paths
         .par_iter()
@@ -467,15 +471,14 @@ fn process_shard(path: &str, stats: &mut CorpusStats) {
                             };
 
                             if is_keyboard_char(normalized_c) {
-                                if normalized_c.is_alphanumeric() 
-                                    || normalized_c == '\'' 
+                                if normalized_c.is_alphanumeric()
+                                    || normalized_c == '\''
                                     || normalized_c == '-'
                                 {
                                     if !word_is_tainted {
                                         word_buffer.push(normalized_c);
                                     }
-                                }
-                                 else {
+                                } else {
                                     if !word_buffer.is_empty() {
                                         if word_is_tainted {
                                             tracker.reset();
@@ -493,9 +496,9 @@ fn process_shard(path: &str, stats: &mut CorpusStats) {
                                     tracker.feed(normalized_c, stats);
                                     last_emitted_was_space = false;
                                 }
-                            } else if normalized_c == ' ' 
-                                || normalized_c == '\n' 
-                                || normalized_c == '\t' 
+                            } else if normalized_c == ' '
+                                || normalized_c == '\n'
+                                || normalized_c == '\t'
                                 || normalized_c == '\r'
                             {
                                 if !word_buffer.is_empty() {
@@ -630,15 +633,15 @@ mod tests {
     fn test_ngram_tracker() {
         let mut stats = CorpusStats::new();
         let mut tracker = NgramTracker::new();
-        
+
         tracker.feed('a', &mut stats);
         tracker.feed('b', &mut stats);
         tracker.feed('c', &mut stats);
-        
+
         assert_eq!(*stats.c1.get(&'a').unwrap(), 1);
         assert_eq!(*stats.c2.get(&('a', 'b')).unwrap(), 1);
         assert_eq!(*stats.c3.get(&('a', 'b', 'c')).unwrap(), 1);
-        
+
         tracker.reset();
         tracker.feed('d', &mut stats);
         assert!(!stats.c2.contains_key(&('c', 'd')));
@@ -650,7 +653,7 @@ mod tests {
         let mut ser = Serializer::with_formatter(&mut out, StrictEscapeFormatter::new());
         let data = serde_json::json!({"k": "v"});
         data.serialize(&mut ser).unwrap();
-        
+
         let s = String::from_utf8(out).unwrap();
         // Check that value is escaped as \uXXXX
         assert!(s.contains("\"v\"") || s.contains("\\u0076"));

@@ -10,8 +10,8 @@
 
 use keyforge_model::{
     cost_model::{FingerDefinition, HandDefinition, ModelDefinition},
-    types::{FingerIndex, HandIndex, KeyCode, RowIndex, ColIndex},
-    CostModel, Corpus, KeyNode, Keyboard, Layout, Rubric,
+    types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex},
+    Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
 };
 use keyforge_physics::{verify::DeterministicScorer, EngineFactory};
 use proptest::prelude::*;
@@ -33,10 +33,7 @@ fn mock_cost_model() -> CostModel {
     index_zones.insert("base".into(), base_zone.clone());
 
     let mut fingers = HashMap::new();
-    fingers.insert(
-        "thumb".into(),
-        FingerDefinition::Thumb(HashMap::new()),
-    );
+    fingers.insert("thumb".into(), FingerDefinition::Thumb(HashMap::new()));
     fingers.insert(
         "index".into(),
         FingerDefinition::Standard(index_zones.clone()),
@@ -62,7 +59,8 @@ fn mock_cost_model() -> CostModel {
         static_costs,
     };
 
-    cm.models.insert("model_a_row_staggered".into(), model_def.clone());
+    cm.models
+        .insert("model_a_row_staggered".into(), model_def.clone());
     cm.models.insert("model_ortho".into(), model_def);
     cm
 }
@@ -122,7 +120,9 @@ fn test_generic_engine_trait_methods() {
     assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);
 
     let pos_map = vec![0, 1];
-    let delta = engine.calculate_swap_delta(&layout, &pos_map, 0, 1).unwrap();
+    let delta = engine
+        .calculate_swap_delta(&layout, &pos_map, 0, 1)
+        .unwrap();
 
     let mut swapped_keys = layout.keys.clone();
     swapped_keys.swap(0, 1);
@@ -162,7 +162,9 @@ fn test_exact_engine_trait_methods() {
     assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);
 
     let pos_map = vec![0, 1];
-    let delta = engine.calculate_swap_delta(&layout, &pos_map, 0, 1).unwrap();
+    let delta = engine
+        .calculate_swap_delta(&layout, &pos_map, 0, 1)
+        .unwrap();
 
     let mut swapped_keys = layout.keys.clone();
     swapped_keys.swap(0, 1);
@@ -201,7 +203,9 @@ fn test_intel_engine_trait_methods() {
     assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);
 
     let pos_map = vec![0, 1];
-    let delta = engine.calculate_swap_delta(&layout, &pos_map, 0, 1).unwrap();
+    let delta = engine
+        .calculate_swap_delta(&layout, &pos_map, 0, 1)
+        .unwrap();
 
     let mut swapped_keys = layout.keys.clone();
     swapped_keys.swap(0, 1);
