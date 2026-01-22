@@ -8,6 +8,8 @@
 
 KeyForge UI is designed to run in two distinct environments using a **Bridge Adapter Pattern**. This allows the same frontend code to power both the Desktop App (High Performance) and the Web Demo (High Accessibility).
 
+In the **Desktop** environment, the application acts as an orchestrator, spawning a dedicated `keyforge-agent` sidecar (managed by `AgentRunner`) for compute-intensive tasks and hosting an embedded `keyforge-assets` server for local data serving.
+
 ```mermaid
 graph TD
     subgraph "Presentation Layer (React)"
@@ -23,7 +25,11 @@ graph TD
     end
 
     subgraph "Execution Layer"
-        RustCore["Tauri Core (Rust)"]
+        subgraph "Desktop (Tauri)"
+            RustCore["Core Logic"]
+            Sidecar["Agent Sidecar"]
+            AssetServer["Embedded Asset Server"]
+        end
         WasmCore["WASM Worker (Browser)"]
     end
 
@@ -35,6 +41,8 @@ graph TD
     Client -->|Browser| WebAdapter
     
     TauriAdapter -->|IPC| RustCore
+    RustCore -->|Spawns| Sidecar
+    RustCore -->|Hosts| AssetServer
     WebAdapter -->|SharedArrayBuffer| WasmCore
 ```
 

@@ -61,6 +61,8 @@ graph TD
     Agent --> Proto
     Agent --> Sec
     UI -.->|Binds to| Wasm
+    UI -->|Spawns| Agent
+    UI -->|Embeds| Infra
 
     %% Adapters use Ports & Domain
     Infra --> Persist

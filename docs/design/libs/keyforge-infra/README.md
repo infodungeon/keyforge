@@ -5,7 +5,7 @@
 
 ## 1. Asset Providers
 
-The crate implements the `AssetLoader` trait from `keyforge-core` with multiple backends:
+The crate implements the `AssetLoader` trait from `keyforge-core` with multiple backends, and the `AssetServerProvider` for serving content:
 
 ```mermaid
 classDiagram
@@ -13,6 +13,12 @@ classDiagram
         <<trait>>
         +load~T: Asset~(id) Arc~T~
         +load_corpus(sources) Arc~Corpus~
+    }
+
+    class AssetServerProvider {
+        <<trait>>
+        +get_manifest() ServerManifest
+        +get_file_content(path) Option~Bytes~
     }
 
     class FsProvider {
@@ -35,6 +41,9 @@ classDiagram
     AssetLoader <|.. FsProvider
     AssetLoader <|.. CachingProvider
     AssetLoader <|.. ValkeyProvider
+    AssetServerProvider <|.. FsProvider
+    AssetServerProvider <|.. ValkeyProvider
+    AssetServerProvider <|.. CachingProvider
     CachingProvider --> AssetLoader : wraps
 ```
 

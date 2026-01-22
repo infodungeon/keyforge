@@ -9,7 +9,8 @@
 
 ### Deployment Model
 
-*   **Stateless:** No local disk dependency. All data comes from Valkey.
+*   **Stateless (Cloud):** No local disk dependency. All data comes from Valkey.
+*   **Embedded (Local):** Reads directly from filesystem via `FsProvider` (used in UI).
 *   **Scalable:** Can be replicated infinitely behind a Load Balancer.
 *   **Public:** Read-only access does not require authentication (simplifies client logic, relies on Hash Verification for integrity).
 
@@ -45,5 +46,5 @@ sequenceDiagram
 
 ## 4. Dependencies
 
-*   **`keyforge-infra`**: Uses `ValkeyProvider` to abstract the Redis protocol.
+*   **`keyforge-infra`**: Uses `AssetServerProvider` trait to abstract the storage backend (e.g., `ValkeyProvider` for cloud, `FsProvider` for local).
 *   **`axum`**: HTTP framework.
