@@ -34,6 +34,18 @@ pub struct AssetManifestEntry {
     pub last_updated: u64,
 }
 
+impl Validator for AssetManifestEntry {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.is_empty() {
+            return Err("Asset ID cannot be empty".into());
+        }
+        if self.hash.is_empty() {
+            return Err("Asset hash cannot be empty".into());
+        }
+        Ok(())
+    }
+}
+
 /// Represents a single timing sample for a bigram.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -72,6 +84,15 @@ pub struct UserStatsStore {
     /// Collection of biometric samples.
     #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
     pub biometrics: Vec<BiometricSample>,
+}
+
+impl Validator for UserStatsStore {
+    fn validate(&self) -> Result<(), String> {
+        for s in &self.biometrics {
+            s.validate()?;
+        }
+        Ok(())
+    }
 }
 
 /// Response containing available layouts.

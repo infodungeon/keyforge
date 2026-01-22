@@ -49,6 +49,7 @@ impl Fingerprinter {
         })
     }
 
+    #[must_use]
     pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
         let standards = Self::get_standards();
         let mut best: Option<LayoutIdentity> = None;
@@ -93,6 +94,7 @@ fn to_codes(s: &str) -> Vec<KeyCode> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

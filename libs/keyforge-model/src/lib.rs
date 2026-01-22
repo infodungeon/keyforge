@@ -57,10 +57,11 @@ pub mod validator;
 pub mod testing;
 
 pub use asset::{Asset, AssetCategory};
-pub use config::{
-    Config, CorpusSource, CostMatrixSource, EngineRequest, KeyConstraint, ScoringWeights,
-    SearchConfig, SearchParams,
-};
+pub use config::aggregate::{Config, EngineRequest, ProjectMeta};
+pub use config::constraints::KeyConstraint;
+pub use config::search::{SearchConfig, SearchParams};
+pub use config::source::{CorpusSource, CostMatrixSource};
+pub use config::weights::ScoringWeights;
 pub use corpus::Corpus;
 pub use cost_model::CostModel;
 pub use error::ForgeError;

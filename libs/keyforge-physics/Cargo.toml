@@ -23,6 +23,7 @@ rand = "0.9"
 rand_chacha = "0.9"
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-core = { path = "../keyforge-core" }
+keyforge-compute = { path = "../keyforge-compute" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-model = { path = "../keyforge-model", features = ["testing"] }
 tokio = { version = "1.48", features = ["full"] }

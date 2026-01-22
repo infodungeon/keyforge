@@ -18,7 +18,6 @@
 //! (like QMK or ZMK) into internal domain representations.
 
 use crate::error::ModelError;
-use crate::types::KeyCode;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
@@ -182,6 +181,7 @@ fn split_args_safe(s: &str) -> Option<(String, String)> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
     use crate::geometry::KeyboardDefinition;

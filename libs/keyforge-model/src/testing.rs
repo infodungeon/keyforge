@@ -165,9 +165,7 @@ impl Arbitrary for Rubric {
             .prop_map(
                 |(effort, tlat, tvert, sfb, slat, slweak, sdiag, slong, pscis, redir, roll)| {
                     let mut r = Rubric::default();
-                    for i in 0..5 {
-                        r.finger_effort[i] = effort[i];
-                    }
+                    r.finger_effort.copy_from_slice(&effort[..5]);
                     r.travel_lat = tlat;
                     r.travel_vert = tvert;
                     r.sfb_base = sfb;

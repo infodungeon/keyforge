@@ -25,11 +25,22 @@ use stages::costs::CostStage;
 use stages::geometry::GeometryStage;
 use stages::CompilationStage;
 
+#[derive(Debug)]
 pub struct Compiler;
 
 use std::collections::HashMap;
 
 impl Compiler {
+    /// Compiles the scoring engine.
+    ///
+    /// # Errors
+    /// Returns `PhysicsError` if:
+    /// - Geometry compilation fails.
+    /// - Cost model processing fails.
+    /// - Corpus processing fails.
+    /// - Sequence modifiers contain invalid values.
+    /// - Configuration values (like redirect penalty) are invalid.
+    /// - The final context verification fails.
     #[instrument(skip_all)]
     pub fn compile(
         kb: &Keyboard,

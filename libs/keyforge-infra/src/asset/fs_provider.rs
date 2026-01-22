@@ -27,6 +27,7 @@ use std::sync::Arc;
 use crate::asset::resolver::PathResolver;
 use crate::asset::AssetServerProvider;
 use crate::net::sync::ServerManifest;
+use crate::error::{InfraError, InfraResult};
 
 /// An asset provider that loads data directly from the local filesystem.
 ///
@@ -233,31 +234,23 @@ impl AssetLoader for FsProvider {
 
 #[async_trait::async_trait]
 impl AssetServerProvider for FsProvider {
-    async fn get_manifest(&self) -> ServerManifest {
+    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
         let root = self.resolver.root.clone();
         tokio::task::spawn_blocking(move || {
-            crate::net::sync::generate_manifest(&root.join("system")).unwrap_or(ServerManifest {
-                files: std::collections::HashMap::default(),
-            })
+            crate::net::sync::generate_manifest(&root.join("system"))
         })
         .await
-        .unwrap_or(ServerManifest {
-            files: std::collections::HashMap::default(),
-        })
+        .map_err(|e| InfraError::Io(std::io::Error::other(e)))?
     }
 
-    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
-        let Ok(safe_path) = self.resolver.safe_join(path) else {
-            return None;
-        };
+    async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
+        let safe_path = self.resolver.safe_join(path).map_err(InfraError::Config)?;
 
         if safe_path.exists() {
-            tokio::fs::read(safe_path)
-                .await
-                .ok()
-                .map(bytes::Bytes::from)
+            let content = tokio::fs::read(safe_path).await?;
+            Ok(Some(bytes::Bytes::from(content)))
         } else {
-            None
+            Ok(None)
         }
     }
 }

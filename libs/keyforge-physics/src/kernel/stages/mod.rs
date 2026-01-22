@@ -8,5 +8,9 @@ use crate::error::PhysicsError;
 pub trait CompilationStage {
     type Input;
     type Output;
+    /// Executes the stage.
+    ///
+    /// # Errors
+    /// Returns `PhysicsError` if the stage execution fails.
     fn execute(&self, input: Self::Input) -> Result<Self::Output, PhysicsError>;
 }

@@ -446,6 +446,7 @@ pub struct SwapSuggestion {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::float_cmp, clippy::cast_possible_truncation)]
 mod tests {
     use super::*;
 

@@ -14,65 +14,57 @@
 
 //! # `KeyForge` Physics
 //!
-//! The "Physics Engine" of `KeyForge`. This crate implements the core
-//! scoring logic, evaluating layouts based on physical constraints
-//! and language statistics.
+//! The computational kernel of `KeyForge`. This crate implements the core
+//! scoring logic, biomechanical modeling, and SIMD-accelerated physics engines.
 
-mod analysis;
+pub mod analysis;
 pub mod engines;
-/// Physics-specific error types.
 pub mod error;
 /// Reference ghost models for verification.
 pub mod ghost;
-mod kernel;
-/// Layout verification and validity scoring.
+pub mod kernel;
 pub mod verify;
 
-pub use analysis::fingerprint::LayoutIdentity;
-pub use keyforge_model::SwapSuggestion;
+// --- RE-EXPORTS ---
 
-use analysis::fingerprint::Fingerprinter;
-use analysis::heuristics::suggest_swaps;
-pub use engines::arm_neon::ArmNeonConfig;
-pub use engines::intel_comet_lake::IntelEngineConfig;
-use engines::{
-    arm_neon::ArmNeonScoringEngine, exact::ExactScoringEngine, generic::GenericScoringEngine,
-    intel_comet_lake::IntelScoringEngine,
-};
-pub use engines::{EngineCapabilities, ScoringEngine};
 pub use error::PhysicsError;
-use kernel::compiler::Compiler;
-use kernel::compute::analyze_layout;
-use kernel::types::ValidatedLayout;
 pub use kernel::EngineContext;
-use keyforge_model::{AnalysisReport, Corpus, CostModel, Keyboard, Layout, Rubric};
+pub use kernel::compiler::Compiler;
+pub use kernel::types::ValidatedLayout;
+pub use engines::{EngineCapabilities, EngineFeatures, ScoringEngine};
+pub use engines::intel_comet_lake::{IntelEngineConfig, IntelScoringEngine};
+pub use engines::arm_neon::{ArmNeonConfig, ArmNeonScoringEngine};
+pub use engines::generic::GenericScoringEngine as ScalarScoringEngine;
+pub use engines::exact::ExactScoringEngine;
+pub use analysis::heuristics::suggest_swaps;
+pub use analysis::fingerprint::{Fingerprinter, LayoutIdentity};
+
+// Re-export analysis types from keyforge-model for convenience
+pub use keyforge_model::{AnalysisReport, SwapSuggestion};
+
+use keyforge_model::{Corpus, CostModel, Keyboard, Layout, Rubric};
 use tracing::instrument;
 
-/// Factory for creating scoring engines.
-#[derive(Debug)]
+/// A factory for creating high-performance scoring engines.
+#[derive(Debug, Default)]
 pub struct EngineFactory;
 
 impl EngineFactory {
-    /// Compiles a new scoring engine from the provided keyboard, corpus, and rubric.
-    ///
-    /// This uses the default **Generic Optimized** engine.
+    /// Compiles a new **Scalar** (generic) scoring engine.
     ///
     /// # Errors
-    ///
-    /// Returns a `PhysicsError::Config` if the compilation of the physics kernel fails.
-    pub fn new_generic(
+    /// Returns `PhysicsError` if compilation fails.
+    pub fn new_scalar(
         keyboard: &Keyboard,
         corpus: &Corpus,
         rubric: &Rubric,
         cost_model: &CostModel,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
-        Ok(Box::new(GenericScoringEngine::new(ctx)))
+        Ok(Box::new(ScalarScoringEngine::new(ctx)))
     }
 
-    /// Compiles a new **Exact (Oracle)** scoring engine.
-    ///
-    /// This engine is bit-perfect but slow. Use for verification only.
+    /// Compiles a new **Exact** (Oracle) scoring engine.
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
@@ -83,19 +75,23 @@ impl EngineFactory {
         cost_model: &CostModel,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
-        Ok(Box::new(ExactScoringEngine::new(
-            keyboard.clone(),
-            corpus.clone(),
-            rubric,
-            cost_model,
-            ctx,
-        )))
+        Ok(Box::new(ExactScoringEngine::new(keyboard, corpus, rubric, cost_model, ctx)))
     }
 
-    /// Compiles a new **Intel Comet Lake** scoring engine.
+    /// Compiles a new generic engine (alias for scalar).
     ///
-    /// This engine uses AVX2 optimizations and cache-aware access patterns.
-    /// It is only safe to use on compatible hardware (checked by caller).
+    /// # Errors
+    /// Returns `PhysicsError` if compilation fails.
+    pub fn new_generic(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        cost_model: &CostModel,
+    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+        Self::new_scalar(keyboard, corpus, rubric, cost_model)
+    }
+
+    /// Compiles a new **Intel AVX2** scoring engine.
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
@@ -111,9 +107,6 @@ impl EngineFactory {
     }
 
     /// Compiles a new **ARM NEON** scoring engine.
-    ///
-    /// This engine uses ARM NEON SIMD optimizations.
-    /// It is only safe to use on compatible hardware (checked by caller).
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
@@ -143,8 +136,9 @@ pub fn analyze_with_context(
     ctx: &EngineContext,
     layout: &Layout,
 ) -> Result<AnalysisReport, PhysicsError> {
-    let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
-    Ok(analyze_layout(ctx, &validated))
+    let _validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
+    let engine = ScalarScoringEngine::new(ctx.clone());
+    engine.analyze(layout)
 }
 
 /// Suggests improvements for the layout.
@@ -152,10 +146,6 @@ pub fn analyze_with_context(
 pub fn suggest_improvements_with_context(
     ctx: &EngineContext,
     layout: &Layout,
-    include_thumbs: bool,
-) -> Vec<SwapSuggestion> {
-    suggest_swaps(ctx, layout, include_thumbs)
-}
     include_thumbs: bool,
 ) -> Vec<SwapSuggestion> {
     suggest_swaps(ctx, layout, include_thumbs)

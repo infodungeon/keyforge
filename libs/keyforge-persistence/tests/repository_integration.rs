@@ -61,16 +61,18 @@ fn user_repo_biometrics_lifecycle() {
 /// Expected: Fails with insufficient data, succeeds after threshold met.
 #[test]
 fn user_repo_profile_generation() {
-    use keyforge_model::constants::MIN_BIOMETRIC_SAMPLES;
+    use keyforge_compute::biometrics::StreamingProfileBuilder;
 
     let dir = tempdir().unwrap();
     let repo = UserRepo::new(dir.path().to_path_buf());
 
-    // Should fail with insufficient data
-    assert!(repo.generate_profile().is_err());
+    // 1. Should fail with insufficient data (count < 5)
+    let mut builder = StreamingProfileBuilder::new();
+    repo.load_stats_streaming(|s| builder.add_sample(&s)).unwrap();
+    assert!(builder.sample_count < 5);
 
-    // Fill minimum samples
-    let samples = (0..MIN_BIOMETRIC_SAMPLES)
+    // 2. Fill minimum samples
+    let samples = (0..10)
         .map(|_| BiometricSample {
             bigram: "th".into(),
             ms: 100.0,
@@ -78,7 +80,14 @@ fn user_repo_profile_generation() {
         })
         .collect();
     repo.record_biometrics(samples).unwrap();
-    assert!(repo.generate_profile().is_ok());
+    
+    let mut builder = StreamingProfileBuilder::new();
+    repo.load_stats_streaming(|s| builder.add_sample(&s)).unwrap();
+    assert!(builder.sample_count >= 5);
+    
+    let model = builder.build_model();
+    assert!(repo.save_personal_cost_model(&model).is_ok());
+    assert!(dir.path().join("user/personal_cost.json").exists());
 }
 
 /// Intent: Verify keyboard definition persistence.

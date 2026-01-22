@@ -51,15 +51,17 @@ pub fn calculate_flow_cost(
         return penalty_redirect;
     }
 
-    if dir1 < 0 {
-        // Inward Roll (Outer -> Inner)
-        // Score is negative (bonus)
-        Score::ZERO.checked_sub(bonus_roll).unwrap_or(Score::MIN)
-    } else if dir1 > 0 {
-        // Outward Roll (Inner -> Outer)
-        Score::ZERO.checked_sub(bonus_roll_out).unwrap_or(Score::MIN)
-    } else {
-        Score::ZERO
+    match dir1.cmp(&0) {
+        std::cmp::Ordering::Less => {
+            // Inward Roll (Outer -> Inner)
+            // Score is negative (bonus)
+            Score::ZERO.checked_sub(bonus_roll).unwrap_or(Score::MIN)
+        }
+        std::cmp::Ordering::Greater => {
+            // Outward Roll (Inner -> Outer)
+            Score::ZERO.checked_sub(bonus_roll_out).unwrap_or(Score::MIN)
+        }
+        std::cmp::Ordering::Equal => Score::ZERO,
     }
 }
 
@@ -69,6 +71,12 @@ fn to_score_or_err(val: f32) -> Result<i64, PhysicsError> {
         .map_err(|e| PhysicsError::InvalidInput { message: e })
 }
 
+/// Calculates the cost for a pair of keys (bigram or jump), handling geometry and SFBs.
+///
+/// # Errors
+/// Returns `PhysicsError` if:
+/// - Geometric calculations result in NaN or Infinite values.
+/// - Score accumulation overflows.
 pub fn calculate_pair_cost(
     kb: &Keyboard,
     rubric: &Rubric,
@@ -215,6 +223,7 @@ fn calculate_non_sfb_penalties(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};

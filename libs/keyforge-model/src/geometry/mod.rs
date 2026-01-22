@@ -308,6 +308,12 @@ impl KeyboardGeometry {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::field_reassign_with_default,
+    clippy::unwrap_used,
+    clippy::needless_update,
+    clippy::float_cmp
+)]
 mod tests {
     use super::*;
 

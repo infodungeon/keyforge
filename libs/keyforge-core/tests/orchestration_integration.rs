@@ -2,9 +2,8 @@
 
 use keyforge_core::*;
 use keyforge_model::{
-    types::KeyCode, Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
+    types::KeyCode, Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig, EngineRequest,
 };
-use keyforge_physics::EngineRequest;
 use std::sync::Arc;
 
 fn minimal_keyboard() -> Keyboard {
@@ -159,21 +158,21 @@ fn test_suggest_with_engine() {
 #[test]
 fn test_analyze_legacy() {
     let req = minimal_request();
-    let report = analyze(&req).unwrap();
+    let report = keyforge_compute::analyze(&req).unwrap();
     assert!(report.score.is_finite());
 }
 
 #[test]
 fn test_score_legacy() {
     let req = minimal_request();
-    let result = score(&req).unwrap();
+    let result = keyforge_compute::score(&req).unwrap();
     assert!(result.score.is_finite());
 }
 
 #[test]
 fn test_suggest_legacy() {
     let req = minimal_request();
-    let suggestions = suggest(&req).unwrap();
+    let suggestions = keyforge_compute::suggest_improvements(&req).unwrap();
     let _ = suggestions.len();
 }
 
@@ -204,7 +203,7 @@ fn test_optimize_legacy() {
         include_thumbs: false,
     };
 
-    let result = optimize(&req).unwrap();
+    let result = keyforge_compute::optimize(&req).unwrap();
     assert!(result.score.is_finite());
     assert!(result.layout.keys.len() >= 2);
 }
@@ -223,7 +222,7 @@ fn test_optimize_with_callback() {
         include_thumbs: false,
     };
 
-    let result = optimize_with_callback(&req, TestCallback).unwrap();
+    let result = keyforge_compute::optimize_with_callback(&req, TestCallback).unwrap();
     assert!(result.score.is_finite());
 }
 

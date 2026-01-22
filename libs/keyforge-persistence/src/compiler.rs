@@ -13,26 +13,16 @@ use std::sync::Arc;
 pub async fn compile_request<L: AssetLoader>(
     loader: &L,
     config: &Config,
-    keyboard_id: &str,
-    corpora_ids: &[&str],
 ) -> Result<EngineRequest, PersistenceError> {
     // 1. Load Keyboard Definition
     let kb_def = loader
-        .load::<KeyboardDefinition>(keyboard_id)
+        .load::<KeyboardDefinition>(&config.keyboard)
         .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard {keyboard_id}: {e}")))?;
+        .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard {}: {}", config.keyboard, e)))?;
 
     // 2. Load Corpus
-    let corpus_sources: Vec<_> = corpora_ids
-        .iter()
-        .map(|&id| keyforge_model::config::CorpusSource {
-            id: id.to_string(),
-            weight: 1.0,
-            hash: None,
-        })
-        .collect();
     let corpus = loader
-        .load_corpus(&corpus_sources)
+        .load_corpus(&config.corpora)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Corpus: {e}")))?;
 
@@ -43,10 +33,12 @@ pub async fn compile_request<L: AssetLoader>(
         .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {e}")))?;
 
     // 4. Load Cost Model
-    let cost_model = loader
-        .load::<keyforge_model::cost_model::CostModel>("cost_matrix")
-        .await
-        .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model: {e}")))?;
+    let cost_model = match &config.cost_matrix {
+        keyforge_model::CostMatrixSource::Predefined(name) => loader
+            .load::<keyforge_model::cost_model::CostModel>(name)
+            .await
+            .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model {name}: {e}")))?,
+    };
 
     // 5. Translate to Physics entities using Adapter
     let keyboard = keyforge_adapter::conversion::to_domain_keyboard(&kb_def.geometry)
@@ -54,7 +46,7 @@ pub async fn compile_request<L: AssetLoader>(
 
     let rubric = keyforge_adapter::conversion::to_domain_rubric(&config.weights);
 
-    let adapter_config = keyforge_adapter::conversion::to_domain_config(&config.search, 0);
+    let adapter_config = keyforge_adapter::conversion::to_domain_config(&config.search, config.seed.unwrap_or(0));
 
     // Initial layout: Use first defined layout or default to QWERTY if present
     let initial_layout = if let Some(layout_str) = kb_def.layouts.get("qwerty") {

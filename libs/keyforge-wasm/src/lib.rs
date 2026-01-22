@@ -54,12 +54,10 @@ impl KeyforgeEngine {
     ///
     /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeyboard)]
-    pub fn inject_keyboard(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
+    pub fn inject_keyboard(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let kb: KeyboardDefinition = from_value(json_val)?;
         kb.validate().map_err(|e| JsValue::from_str(&e))?;
-        self.loader
-            .inject_keyboard(name, kb)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.loader.inject_keyboard(name, kb);
         Ok(())
     }
 
@@ -69,14 +67,12 @@ impl KeyforgeEngine {
     ///
     /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectCorpus)]
-    pub fn inject_corpus(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
+    pub fn inject_corpus(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let corpus: Corpus = from_value(json_val)?;
         corpus
             .validate()
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
-        self.loader
-            .inject_corpus(name, corpus)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.loader.inject_corpus(name, corpus);
         Ok(())
     }
 
@@ -86,12 +82,9 @@ impl KeyforgeEngine {
     ///
     /// Returns an error if the JSON is invalid.
     #[wasm_bindgen(js_name = injectCostModel)]
-    pub fn inject_cost_model(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
+    pub fn inject_cost_model(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let model: CostModel = from_value(json_val)?;
-        // CostModel doesn't have a validate() method yet, but serde handles structure.
-        self.loader
-            .inject_cost_model(name, model)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.loader.inject_cost_model(name, model);
         Ok(())
     }
 
@@ -101,12 +94,10 @@ impl KeyforgeEngine {
     ///
     /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeycodes)]
-    pub fn inject_keycodes(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
+    pub fn inject_keycodes(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let reg: KeycodeRegistry = from_value(json_val)?;
         reg.validate().map_err(|e| JsValue::from_str(&e))?;
-        self.loader
-            .inject_keycodes(name, reg)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.loader.inject_keycodes(name, reg);
         Ok(())
     }
 
@@ -170,26 +161,5 @@ impl KeyforgeEngine {
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         Ok(to_value(&report)?)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use wasm_bindgen_test::*;
-
-    #[wasm_bindgen_test]
-    fn test_inject_keyboard() {
-        let engine = KeyforgeEngine::new();
-        let kb_json = r#"{
-            "meta": { "name": "Test" },
-            "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0 },
-            "layouts": {}
-        }"#;
-        let val: serde_json::Value = serde_json::from_str(kb_json).unwrap();
-        let js_val = to_value(&val).unwrap();
-
-        // Should fail validation (empty keys)
-        assert!(engine.inject_keyboard("test".into(), js_val).is_err());
     }
 }

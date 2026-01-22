@@ -6,6 +6,12 @@ use crate::kernel::{
     EngineContext,
 };
 
+/// Scores a layout against the compiled context.
+///
+/// # Errors
+/// Returns `PhysicsError` if:
+/// - Score accumulation overflows.
+/// - Any sub-component scoring (monograms, bigrams, trigrams) fails.
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_layout(
     ctx: &EngineContext,
@@ -39,6 +45,11 @@ pub fn score_layout(
     Ok(total.0)
 }
 
+/// Scores monograms (single key usage).
+///
+/// # Errors
+/// Returns `PhysicsError` if:
+/// - Score multiplication or accumulation overflows.
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
@@ -78,6 +89,12 @@ pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Ph
     Ok(total)
 }
 
+/// Scores bigrams (two-key sequences).
+///
+/// # Errors
+/// Returns `PhysicsError` if:
+/// - Score addition for modifiers overflows.
+/// - Score multiplication or accumulation overflows.
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
@@ -133,6 +150,11 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
     Ok(total)
 }
 
+/// Scores trigrams (three-key sequences).
+///
+/// # Errors
+/// Returns `PhysicsError` if:
+/// - Score multiplication or accumulation overflows.
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;

@@ -23,6 +23,10 @@ pub struct ValidatedLayout<'a> {
 }
 
 impl<'a> ValidatedLayout<'a> {
+    /// Creates a new `ValidatedLayout` if the slice matches the required count.
+    ///
+    /// # Errors
+    /// Returns `PhysicsError::LayoutUnderflow` if the slice length does not match `required_count`.
     pub fn new(slice: &'a [KeyCode], required_count: usize) -> Result<Self, PhysicsError> {
         if slice.len() == required_count {
             Ok(Self { slice })
@@ -30,6 +34,7 @@ impl<'a> ValidatedLayout<'a> {
             Err(PhysicsError::LayoutUnderflow(slice.len(), required_count))
         }
     }
+    #[must_use]
     pub fn as_slice(&self) -> &'a [KeyCode] {
         self.slice
     }

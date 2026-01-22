@@ -4,6 +4,7 @@ use crate::kernel::types::KeyCode;
 use keyforge_model::{Corpus, Rubric};
 
 /// Intermediate state containing flattened and pruned corpus data.
+#[derive(Debug)]
 pub struct CorpusOutput {
     pub char_freqs: Vec<u64>,
     pub bigram_starts: Vec<usize>,
@@ -23,6 +24,7 @@ pub struct CorpusOutput {
 }
 
 /// Stage 3: Corpus Flattening & Pruning.
+#[derive(Debug)]
 pub struct CorpusStage<'a> {
     pub corpus: &'a Corpus,
     pub rubric: &'a Rubric,

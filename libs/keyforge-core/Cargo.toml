@@ -23,4 +23,5 @@ default = []
 single_threaded = ["keyforge-evolution/single_threaded"]
 
 [dev-dependencies]
+keyforge-compute = { path = "../keyforge-compute" }
 serde_json.workspace = true

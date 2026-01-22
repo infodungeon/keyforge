@@ -158,6 +158,7 @@ impl Keyboard {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::types::{FingerIndex, HandIndex, RowIndex};

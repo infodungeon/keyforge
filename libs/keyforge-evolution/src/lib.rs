@@ -20,7 +20,10 @@
 
 pub use errors::EvolutionError;
 pub mod errors;
+/// Reference ghost models for verification.
+pub mod ghost;
 pub mod supervisor;
+pub mod verify;
 
 use keyforge_model::KeyCode;
 

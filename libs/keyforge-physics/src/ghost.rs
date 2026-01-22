@@ -27,6 +27,7 @@ use keyforge_model::{
 
 /// Reference scorer implementing the "Ghost Model" pattern.
 /// Use this to verify optimized kernels.
+#[derive(Debug)]
 pub struct GhostScorer {
     keyboard: Keyboard,
     rubric: GhostRubric,
@@ -34,6 +35,7 @@ pub struct GhostScorer {
 }
 
 impl GhostScorer {
+    #[must_use]
     pub fn new(kb: Keyboard, rubric: &Rubric, cm: keyforge_model::CostModel) -> Self {
         Self {
             keyboard: kb,
@@ -43,12 +45,17 @@ impl GhostScorer {
     }
 
     /// Pure reference scoring algorithm.
+    ///
+    /// # Errors
+    /// Returns `PhysicsError::ScoreOverflow` if arithmetic fails.
+    #[allow(clippy::cast_possible_wrap, clippy::cast_lossless)]
     pub fn score(&self, corpus: &Corpus, layout: &Layout) -> Result<Score, PhysicsError> {
         let mut total = Score::ZERO;
 
         // 1. Monograms (Static Effort)
         for (code_val, &freq) in corpus.char_freqs.iter().enumerate() {
             if freq == 0 { continue; }
+            #[allow(clippy::cast_possible_truncation)]
             let code = KeyCode(code_val as u16);
             if code == KeyCode::EMPTY || code == KeyCode::TRANSPARENT { continue; }
 
@@ -104,7 +111,7 @@ impl GhostScorer {
             let effort = self.rubric.finger_effort[key.finger.as_usize()];
             // In Ghost mode, we don't cache, we look up every time
             let static_cost = Score::from_f32(self.resolve_static_cost(key)?)
-                .map_err(|e| PhysicsError::Config(e))?;
+                .map_err(PhysicsError::Config)?;
             
             let total = effort.checked_add(static_cost).unwrap_or(Score::MAX);
             if total < min { min = total; }
@@ -126,6 +133,7 @@ impl GhostScorer {
         Ok(min)
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn find_min_trigram_cost(&self, layout: &Layout, c1: KeyCode, c2: KeyCode, c3: KeyCode) -> Result<Score, PhysicsError> {
         let mut min = Score::MAX;
         let pos1 = self.find_all_positions(layout, c1);
@@ -143,6 +151,7 @@ impl GhostScorer {
         Ok(min)
     }
 
+    #[allow(clippy::unused_self)]
     fn find_all_positions(&self, layout: &Layout, code: KeyCode) -> Vec<usize> {
         layout.keys.iter().enumerate()
             .filter(|(_, &k)| k == code)
@@ -180,12 +189,13 @@ impl GhostScorer {
                     zones.get("base").and_then(|z| z.get(&row_key)).copied().unwrap_or(0.0)
                 }
                 keyforge_model::cost_model::FingerDefinition::Thumb(pos) => {
-                    pos.values().min_by(|a, b| a.partial_cmp(b).unwrap()).copied().unwrap_or(0.0)
+                    pos.values().min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).copied().unwrap_or(0.0)
                 }
             })
             .ok_or_else(|| PhysicsError::Config(format!("Could not resolve static cost for key at index {}", key.index)))
     }
 
+    #[allow(clippy::unnecessary_wraps, clippy::cast_possible_truncation)]
     fn calculate_pair_cost(&self, p1: usize, p2: usize) -> Result<Score, PhysicsError> {
         let k1 = &self.keyboard.keys[p1];
         let k2 = &self.keyboard.keys[p2];
@@ -225,6 +235,7 @@ impl GhostScorer {
     }
 }
 
+#[derive(Debug)]
 struct GhostRubric {
     finger_effort: Vec<Score>,
     travel_lat: f32,
@@ -236,6 +247,7 @@ struct GhostRubric {
 }
 
 impl GhostRubric {
+    #[allow(clippy::unwrap_used)]
     fn from_rubric(r: &Rubric) -> Self {
         Self {
             finger_effort: r.finger_effort.iter().map(|&e| Score::from_f32(e).unwrap()).collect(),

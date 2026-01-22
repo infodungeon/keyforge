@@ -1,4 +1,13 @@
 #[cfg(test)]
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::field_reassign_with_default,
+    clippy::large_stack_arrays,
+    clippy::float_cmp,
+    clippy::module_inception
+)]
 mod tests {
     use crate::error::PhysicsError;
     use crate::kernel::compute::{calculate_swap_delta, PosMap};

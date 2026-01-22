@@ -39,6 +39,7 @@ impl TryFrom<ConfigArgs> for Config {
             weights: ScoringWeights::try_from(args.weights)?,
             defs: LayoutDefinitions::try_from(args.defs)?,
             pinned_keys: vec![], // Handled via CLI shared args
+            ..Config::default()
         };
         Ok(config)
     }

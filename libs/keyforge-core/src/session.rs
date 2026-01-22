@@ -78,7 +78,7 @@ mod tests {
             },
         );
 
-        let engine = EngineFactory::new_exact(&kb, &corpus, &rubric, &cm).unwrap();
+        let engine = EngineFactory::new_scalar(&kb, &corpus, &rubric, &cm).unwrap();
         let registry = Arc::new(KeycodeRegistry::new_with_defaults());
         let config = SearchConfig::Annealing {
             steps: 100,

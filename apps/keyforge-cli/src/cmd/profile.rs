@@ -15,6 +15,8 @@
 use crate::constants::{DEFAULT_PERSONAL_COST_PATH, DEFAULT_USER_STATS_PATH};
 use clap::Args;
 use keyforge_protocol::BiometricSample;
+use keyforge_compute::biometrics::BiometricProfiler;
+use keyforge_model::CostModel;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -80,15 +82,11 @@ pub fn run(args: &ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    let store = keyforge_protocol::UserStatsStore {
-        sessions: 1,
-        total_keystrokes: samples.len() as u64,
-        biometrics: samples,
-    };
+    let base_model = CostModel::default();
+    let profile = BiometricProfiler::profile(&samples, &base_model);
+    let json = serde_json::to_string_pretty(&profile)?;
 
-    let profile_content = keyforge_infra::util::common::generate_cost_profile(&store);
-
-    std::fs::write(&args.output, profile_content)
+    std::fs::write(&args.output, json)
         .map_err(|e| format!("Failed to write output file: {e}"))?;
 
     eprintln!("✅ Profile generated successfully.");

@@ -8,8 +8,8 @@
 
 use keyforge_evolution::{evolve, optimize, NoOpCallback};
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
-use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric, SearchConfig};
-use keyforge_physics::{EngineFactory, EngineRequest, ScoringEngine};
+use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric, SearchConfig, EngineRequest};
+use keyforge_physics::{EngineFactory, ScoringEngine};
 use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {

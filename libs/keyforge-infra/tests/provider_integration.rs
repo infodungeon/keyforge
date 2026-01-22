@@ -264,13 +264,13 @@ async fn test_fs_provider_server_provider() {
     fs::create_dir_all(&sys_dir).unwrap();
     fs::write(sys_dir.join("test.txt"), "hello").unwrap();
 
-    let _manifest = provider.get_manifest().await;
+    let _manifest = provider.get_manifest().await.unwrap();
 
     let content = provider.get_file_content("system/test.txt").await.unwrap();
-    assert_eq!(content, "hello");
+    assert_eq!(content.unwrap(), "hello");
 
-    assert!(provider.get_file_content("missing").await.is_none());
-    assert!(provider.get_file_content("../secret").await.is_none());
+    assert!(provider.get_file_content("missing").await.unwrap().is_none());
+    assert!(provider.get_file_content("../secret").await.is_err());
 }
 
 // ============================================================================

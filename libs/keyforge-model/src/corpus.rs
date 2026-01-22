@@ -158,7 +158,7 @@ impl Corpus {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
 
     use super::*;

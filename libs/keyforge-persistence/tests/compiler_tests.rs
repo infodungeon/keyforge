@@ -61,8 +61,11 @@ impl AssetLoader for MockLoader {
 #[tokio::test]
 async fn test_compile_request_success() {
     let loader = MockLoader;
-    let config = Config::default();
-    let res = compile_request(&loader, &config, "test_kb", &["en"]).await;
+    let mut config = Config::default();
+    config.keyboard = "test_kb".into();
+    config.corpora = vec![CorpusSource { id: "en".into(), weight: 1.0, hash: None }];
+    
+    let res = compile_request(&loader, &config).await;
     assert!(res.is_ok());
 }
 
@@ -119,8 +122,10 @@ async fn test_compile_request_qwerty() {
     }
 
     let loader = QwertyLoader;
-    let config = Config::default();
-    let res = compile_request(&loader, &config, "kb", &[]).await.unwrap();
+    let mut config = Config::default();
+    config.keyboard = "kb".into();
+    
+    let res = compile_request(&loader, &config).await.unwrap();
     assert!(res.initial_layout.is_some());
 }
 
@@ -141,9 +146,10 @@ async fn test_compile_request_failures() {
     }
 
     let loader = FailingLoader;
-    let config = Config::default();
+    let mut config = Config::default();
+    config.keyboard = "kb".into();
 
     // Fail keyboard
-    let res = compile_request(&loader, &config, "kb", &[]).await;
+    let res = compile_request(&loader, &config).await;
     assert!(res.is_err());
 }

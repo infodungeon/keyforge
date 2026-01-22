@@ -2,9 +2,9 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,32 +17,24 @@
 //! Pure orchestration and domain-agnostic helpers. This crate provides
 //! the glue between physics and evolution without being tied to IO or
 //! specific protocols.
-//!
-//! This crate is intentionally IO-free. It provides pure helper functions for:
-//! - building physics engines from fully-loaded domain inputs
-//! - running analysis
-//! - running optimization
 
 /// Traits and types for loading external assets (keyboards, corpora, etc.).
 pub mod loader;
 /// High-level session management for optimization runs.
 pub mod session;
-pub use keyforge_evolution::{EvolutionError, OptimizationControl, ProgressCallback};
+pub use keyforge_evolution::{EvolutionError, OptimizationControl, ProgressCallback, NoOpCallback};
 pub use session::ScoringSession;
 
 pub use keyforge_physics::{
-    verify::DeterministicScorer, EngineRequest, LayoutIdentity, PhysicsError, ScoringEngine,
+    verify::DeterministicScorer, LayoutIdentity, PhysicsError, ScoringEngine, EngineFactory
 };
 
-use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SwapSuggestion};
+use keyforge_model::{AnalysisReport, EngineRequest, Layout, OptimizationResult, SwapSuggestion};
 use std::sync::Arc;
 
 /// Build a compiled `ScoringEngine` from an `EngineRequest`.
 ///
-/// Builds a scoring engine.
-///
 /// # Errors
-///
 /// Returns `PhysicsError` if the engine building fails.
 pub fn build_engine(req: &EngineRequest) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
     keyforge_physics::EngineFactory::new_generic(
@@ -54,10 +46,8 @@ pub fn build_engine(req: &EngineRequest) -> Result<Box<dyn ScoringEngine>, Physi
 }
 
 /// Analyze a layout using a compiled engine.
-/// Analyzes a layout with a pre-built engine.
 ///
 /// # Errors
-///
 /// Returns `PhysicsError` if analysis fails.
 pub fn analyze_with_engine(
     engine: &dyn ScoringEngine,
@@ -67,20 +57,16 @@ pub fn analyze_with_engine(
 }
 
 /// Score a layout using a compiled engine.
-/// Scores a layout with a pre-built engine.
 ///
 /// # Errors
-///
 /// Returns `PhysicsError` if scoring fails.
 pub fn score_with_engine(engine: &dyn ScoringEngine, layout: &Layout) -> Result<f32, PhysicsError> {
     Ok(engine.score(layout)?.to_f32())
 }
 
 /// Suggest swaps using a compiled engine.
-/// Suggests swaps for a layout.
 ///
 /// # Errors
-///
 /// Returns `PhysicsError` if suggestion logic fails.
 pub fn suggest_with_engine(
     engine: &dyn ScoringEngine,
@@ -89,74 +75,15 @@ pub fn suggest_with_engine(
     Ok(engine.suggest_improvements(layout, true))
 }
 
-/// Legacy-style analysis: compiles an engine from the request and analyzes the request layout.
-/// If no layout is provided, uses a default 0-filled layout.
-/// Analyzes a request.
-///
-/// # Errors
-///
-/// Returns `PhysicsError` if analysis fails.
-pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, PhysicsError> {
-    keyforge_physics::analyze(req)
-}
-
-/// Legacy-style score: compiles an engine from the request and scores the request layout.
-/// Scores a request.
-///
-/// # Errors
-///
-/// Returns `PhysicsError` if scoring fails.
-pub fn score(req: &EngineRequest) -> Result<OptimizationResult, PhysicsError> {
-    keyforge_physics::score(req)
-}
-
-/// Legacy-style swap suggestions: compiles an engine from the request and suggests improvements.
-/// Suggests swaps for a request.
-///
-/// # Errors
-///
-/// Returns `PhysicsError` if suggestion fails.
-pub fn suggest(req: &EngineRequest) -> Result<Vec<SwapSuggestion>, PhysicsError> {
-    keyforge_physics::suggest_improvements(req)
-}
-
 /// Identify a layout fingerprint.
 #[must_use]
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
     keyforge_physics::identify(layout)
 }
 
-/// Optimize using the legacy request style (engine compiled internally).
-///
-/// Prefer `optimize_with_engine` when you already have a compiled engine.
-/// Optimizes a layout.
-///
-/// # Errors
-///
-/// Returns `EvolutionError` if optimization fails.
-pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
-    keyforge_evolution::optimize(req)
-}
-
-/// Optimize using the legacy request style, reporting progress via callback.
-/// Optimize using the legacy request style, reporting progress via callback.
-/// Optimizes with a callback.
-///
-/// # Errors
-///
-/// Returns `EvolutionError` if optimization fails.
-pub fn optimize_with_callback<CB: ProgressCallback>(
-    req: &EngineRequest,
-    callback: CB,
-) -> Result<OptimizationResult, EvolutionError> {
-    keyforge_evolution::optimize_with_callback(req, callback)
-}
-
 /// Optimize using a precompiled engine.
-/// Optimizes with a pre-built engine.
 ///
 /// # Errors
-///
 /// Returns `EvolutionError` if optimization fails.
 pub fn optimize_with_engine<CB: ProgressCallback>(
     engine: &Arc<dyn ScoringEngine>,

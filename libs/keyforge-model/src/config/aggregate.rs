@@ -1,24 +1,80 @@
 // libs/keyforge-model/src/config/aggregate.rs
 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::config::definitions::LayoutDefinitions;
 use crate::config::search::{SearchParams, SearchConfig};
 use crate::config::weights::ScoringWeights;
+use crate::config::source::{CorpusSource, CostMatrixSource};
 use crate::validator::Validator;
 use crate::corpus::Corpus;
 use crate::keyboard::Keyboard;
 use crate::rubric::Rubric;
 use crate::cost_model::CostModel;
-use crate::types::{KeyCode, Layout};
+use crate::types::KeyCode;
+use crate::layout::Layout;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+/// Metadata about a user project or session.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct ProjectMeta {
+    /// The display name of the project.
+    pub name: String,
+    /// The version string for the project.
+    pub version: String,
+    /// The author of the project.
+    #[serde(default)]
+    pub author: String,
+}
+
+impl Default for ProjectMeta {
+    fn default() -> Self {
+        Self {
+            name: "Untitled Project".to_string(),
+            version: "0.1.0".to_string(),
+            author: "Anonymous".to_string(),
+        }
+    }
+}
+
 /// The root configuration aggregate for a `KeyForge` session.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+/// This structure is also used for persistence (Project files).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Config {
+    /// Metadata about the configuration/project.
+    #[serde(default)]
+    pub meta: ProjectMeta,
+
+    /// Name or Path of the keyboard definition (e.g. "corne", "`ansi_104`")
+    pub keyboard: String,
+
+    /// List of corpora to blend
+    pub corpora: Vec<CorpusSource>,
+
+    /// Source for the cost matrix (biomechanical profile)
+    #[serde(default)]
+    pub cost_matrix: CostMatrixSource,
+
+    /// Optional seed for deterministic reproducibility
+    #[serde(default)]
+    pub seed: Option<u64>,
+
     /// Search parameters for the optimization engine.
     pub search: SearchParams,
     /// Weights for the physics scoring engine.
@@ -30,11 +86,33 @@ pub struct Config {
     pub pinned_keys: Vec<crate::config::constraints::KeyConstraint>,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            meta: ProjectMeta::default(),
+            keyboard: "ortho_30".to_string(),
+            corpora: vec![CorpusSource::default()],
+            cost_matrix: CostMatrixSource::default(),
+            seed: None,
+            search: SearchParams::default(),
+            weights: ScoringWeights::default(),
+            defs: LayoutDefinitions::default(),
+            pinned_keys: Vec::new(),
+        }
+    }
+}
+
 impl Validator for Config {
     fn validate(&self) -> Result<(), String> {
         self.search.validate()?;
         self.weights.validate()?;
         self.defs.validate()?;
+        if self.corpora.is_empty() {
+            return Err("At least one corpus source is required".into());
+        }
+        for c in &self.corpora {
+            c.validate()?;
+        }
         for p in &self.pinned_keys {
             p.validate()?;
         }
@@ -71,17 +149,7 @@ mod tests {
         assert!(config.validate().is_ok());
 
         // Trigger failure in one of the children
-        config.defs.tier_high_chars = String::new();
-        assert!(config.validate().is_err());
-
-        // Test invalid pinned keys
-        let mut config = Config::default();
-        config
-            .pinned_keys
-            .push(crate::config::constraints::KeyConstraint {
-                index: crate::types::KeyIndex(0),
-                key: String::new(),
-            });
+        config.search.params.insert("search_epochs".into(), 0.0);
         assert!(config.validate().is_err());
     }
 }

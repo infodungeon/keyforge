@@ -16,6 +16,7 @@ use crate::asset::cache::AssetCache;
 use crate::asset::fs_provider::FsProvider;
 use crate::asset::AssetServerProvider;
 use crate::net::sync::ServerManifest;
+use crate::error::{InfraError, InfraResult};
 use bytes::Bytes;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
@@ -289,19 +290,40 @@ impl CachingProvider {
 
 #[async_trait::async_trait]
 impl AssetServerProvider for CachingProvider {
-    async fn get_manifest(&self) -> ServerManifest {
+    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
         // If manifest is missing, regenerate it.
         // We assume warm_all has been called, but for robustness:
         if let Some(m) = self.get_manifest() {
-            return (*m).clone();
+            return Ok((*m).clone());
         }
         // Fallback: Generate on fly (expensive)
         let system_root = self.provider.root().join("system");
-        crate::net::sync::generate_manifest(&system_root).unwrap_or_default()
+        crate::net::sync::generate_manifest(&system_root)
     }
 
-    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
-        self.get_file_content(path).await
+    async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
+        if let Some(bytes) = self.cache.get_file(path) {
+            return Ok(Some(bytes));
+        }
+
+        let system_root = self.provider.root().join("system");
+        let full_path = system_root.join(path);
+
+        match tokio::fs::read(&full_path).await {
+            Ok(data) => {
+                let bytes = Bytes::from(data);
+                self.cache.insert_file(path.to_string(), bytes.clone());
+                Ok(Some(bytes))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                tracing::debug!("Cache miss & file not found for {}", path);
+                Ok(None)
+            }
+            Err(e) => {
+                tracing::error!("Disk read failed for {}: {}", path, e);
+                Err(InfraError::Io(e))
+            }
+        }
     }
 }
 

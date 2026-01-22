@@ -5,6 +5,7 @@ use keyforge_model::{Keyboard, Rubric};
 use std::sync::Arc;
 
 /// Intermediate state containing processed geometry and spatial math.
+#[derive(Debug)]
 pub struct GeometryOutput {
     pub hands: Vec<HandIndex>,
     pub fingers: Vec<FingerIndex>,
@@ -15,6 +16,7 @@ pub struct GeometryOutput {
 }
 
 /// Stage 1: Geometry & Spatial Math.
+#[derive(Debug)]
 pub struct GeometryStage<'a> {
     pub rubric: &'a Rubric,
 }

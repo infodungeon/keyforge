@@ -617,8 +617,8 @@ mod tests {
         assert_eq!(*stats.words.get("art").unwrap(), 1);
 
         // Ensure the compound wasn't kept
-        assert!(stats.words.get("please--state-of-the-art").is_none());
-        assert!(stats.words.get("state-of-the-art").is_none());
+        assert!(!stats.words.contains_key("please--state-of-the-art"));
+        assert!(!stats.words.contains_key("state-of-the-art"));
 
         // Test 2: Single Hyphen Preservation
         let mut stats2 = get_mock_stats();

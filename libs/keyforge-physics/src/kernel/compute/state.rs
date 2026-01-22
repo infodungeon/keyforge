@@ -2,7 +2,8 @@ use crate::kernel::types::KeyCode;
 use keyforge_model::constants::MAX_KEYBOARD_KEYS;
 // use std::collections::HashMap; // Removed unused import
 
-pub(crate) struct PosMap<'a> {
+#[derive(Debug)]
+pub struct PosMap<'a> {
     pub(crate) starts: &'a [u16],
     pub(crate) counts: &'a [u8],
     pub(crate) indices: &'a [u16],
@@ -96,6 +97,7 @@ impl<'a> PosMap<'a> {
 }
 
 /// Scratch space for physics operations to avoid re-allocating large arrays.
+#[derive(Debug)]
 pub struct PhysicsScratch {
     pub(crate) starts: Box<[u16; 65536]>,
     pub(crate) counts: Box<[u8; 65536]>,

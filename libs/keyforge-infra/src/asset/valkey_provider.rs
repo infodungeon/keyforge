@@ -14,6 +14,7 @@
 
 use crate::net::distributed::DistributedCoordinator;
 use crate::net::sync::ServerManifest;
+use crate::error::InfraResult;
 use crate::util::corpus::inject_synthetic_data;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
@@ -21,7 +22,6 @@ use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, AssetCategory, Corpus};
 use std::sync::Arc;
-use tracing::warn;
 
 const ASSET_PREFIX: &str = VALKEY_ASSET_PREFIX;
 
@@ -48,16 +48,12 @@ impl ValkeyProvider {
     }
 
     /// Fetches the current system asset manifest from the distributed store.
-    pub async fn get_manifest(&self) -> ServerManifest {
-        match self.coordinator.get_all_manifest_entries().await {
-            Ok(files) => ServerManifest { files },
-            Err(e) => {
-                warn!("Failed to fetch manifest from Valkey: {}", e);
-                ServerManifest {
-                    files: std::collections::HashMap::new(),
-                }
-            }
-        }
+    /// 
+    /// # Errors
+    /// Returns `InfraError` if the underlying storage operation fails.
+    pub async fn get_manifest(&self) -> InfraResult<ServerManifest> {
+        let files = self.coordinator.get_all_manifest_entries().await?;
+        Ok(ServerManifest { files })
     }
 
     /// Stateless provider: cache invalidation is managed by the distributed store itself.
@@ -73,7 +69,8 @@ impl ValkeyProvider {
         let key = format!("corpora/{id}/1grams.mpk.zst");
         match self.coordinator.get_manifest_hash(&key).await {
             Ok(Some(h)) => Ok(h),
-            _ => Err(ForgeError::NotFound(id.to_string())),
+            Ok(None) => Err(ForgeError::NotFound(id.to_string())),
+            Err(e) => Err(ForgeError::Internal(format!("Valkey Error: {e}"))),
         }
     }
 
@@ -107,9 +104,12 @@ impl ValkeyProvider {
     // --- Helper Methods for Hive ---
 
     /// Retrieves the raw byte content of a file from the distributed store.
-    pub async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
+    /// 
+    /// # Errors
+    /// Returns `InfraError` if the underlying storage operation fails.
+    pub async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
         let key = format!("{ASSET_PREFIX}:{path}");
-        self.coordinator.get_bin(&key).await.unwrap_or(None)
+        self.coordinator.get_bin(&key).await
     }
 
     /// Lists all available keyboard definitions in the distributed store.
@@ -258,11 +258,11 @@ impl AssetLoader for ValkeyProvider {
 
 #[async_trait::async_trait]
 impl crate::asset::AssetServerProvider for ValkeyProvider {
-    async fn get_manifest(&self) -> ServerManifest {
+    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
         self.get_manifest().await
     }
 
-    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes> {
+    async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
         self.get_file_content(path).await
     }
 }
@@ -271,6 +271,7 @@ impl crate::asset::AssetServerProvider for ValkeyProvider {
 mod tests {
     use super::*;
     use crate::error::InfraResult;
+    use tracing::warn;
     use keyforge_protocol::{AssetManifestEntry, NodeTelemetry};
     use std::collections::HashMap;
 
@@ -444,7 +445,7 @@ mod tests {
             .unwrap()
             .insert("test_id".to_string(), "test_hash".to_string());
 
-        let manifest = provider.get_manifest().await;
+        let manifest = provider.get_manifest().await.unwrap();
         assert_eq!(manifest.files.get("test_id").unwrap(), "test_hash");
     }
 

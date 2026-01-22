@@ -340,6 +340,12 @@ fn calculate_trigram_delta(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::field_reassign_with_default,
+    clippy::items_after_statements
+)]
 mod tests {
     use super::*;
     use crate::kernel::compute::PhysicsScratch;

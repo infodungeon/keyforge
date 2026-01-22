@@ -6,8 +6,8 @@ use super::AnnealingConfig;
 use crate::errors::EvolutionError;
 use crate::supervisor::annealing::Optimizer;
 use crate::{NoOpCallback, ProgressCallback};
-use keyforge_model::{KeyCode, Layout, OptimizationResult, SearchConfig};
-use keyforge_physics::{EngineRequest, ScoringEngine};
+use keyforge_model::{EngineRequest, KeyCode, Layout, OptimizationResult, SearchConfig};
+use keyforge_physics::ScoringEngine;
 use std::sync::Arc;
 
 /// Performs a basic optimization run.
@@ -215,7 +215,7 @@ mod tests {
             },
         );
         let engine =
-            EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
+            EngineFactory::new_scalar(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
         let config = SearchConfig::Annealing {
             steps: 100,
             start_temp: 10.0,

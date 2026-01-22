@@ -34,8 +34,13 @@ async fn health_check() -> impl IntoResponse {
 }
 
 async fn get_manifest(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let manifest = state.provider.get_manifest().await;
-    Json(manifest)
+    match state.provider.get_manifest().await {
+        Ok(m) => Json(m).into_response(),
+        Err(e) => {
+            tracing::error!("Manifest error: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load manifest").into_response()
+        }
+    }
 }
 
 async fn get_asset(Path(path): Path<String>, State(state): State<Arc<AppState>>) -> Response {
@@ -44,10 +49,14 @@ async fn get_asset(Path(path): Path<String>, State(state): State<Arc<AppState>>)
     }
 
     match state.provider.get_file_content(&path).await {
-        Some(bytes) => {
+        Ok(Some(bytes)) => {
             let mime = mime_guess::from_path(&path).first_or_octet_stream();
             ([(header::CONTENT_TYPE, mime.as_ref())], bytes).into_response()
         }
-        None => StatusCode::NOT_FOUND.into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            tracing::error!("Asset error for {}: {}", path, e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
     }
 }

@@ -28,12 +28,18 @@ pub mod valkey_provider;
 pub use valkey_provider::ValkeyProvider;
 
 use crate::net::sync::ServerManifest;
-use keyforge_core::loader::AssetLoader;
+use crate::error::InfraResult;
 
+/// A trait for asset providers that can serve raw file content and manifests.
+///
+/// This trait is 'dyn compatible' (object safe) because it does not contain
+/// generic methods, unlike the base `AssetLoader`.
 #[async_trait::async_trait]
-pub trait AssetServerProvider: AssetLoader + std::fmt::Debug {
-    async fn get_manifest(&self) -> ServerManifest;
-    async fn get_file_content(&self, path: &str) -> Option<bytes::Bytes>;
+pub trait AssetServerProvider: Send + Sync + std::fmt::Debug {
+    /// Returns a manifest of all available system assets.
+    async fn get_manifest(&self) -> InfraResult<ServerManifest>;
+    /// Returns the raw byte content of a file at the given relative path.
+    async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>>;
 }
 
 /// Path prefix for keyboard definition files.

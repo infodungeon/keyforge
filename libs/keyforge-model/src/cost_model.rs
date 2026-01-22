@@ -4,10 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
+//     http://www.apache.org/licenses/ BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
@@ -26,7 +23,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CostModel {
     /// Metadata about the model version.
-    pub meta: Meta,
+    pub meta: CostModelMeta,
     /// Definitions for different physical layouts (e.g., Row Staggered vs Columnar).
     pub models: HashMap<String, ModelDefinition>,
     /// Global dynamic rules and penalties.
@@ -41,7 +38,7 @@ impl Asset for CostModel {
 
 /// Metadata for the cost model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Meta {
+pub struct CostModelMeta {
     /// Schema version.
     pub version: String,
     /// Human-readable description.
@@ -50,7 +47,7 @@ pub struct Meta {
     pub unit: String,
 }
 
-impl Default for Meta {
+impl Default for CostModelMeta {
     fn default() -> Self {
         Self {
             version: "2.0".to_string(),
@@ -107,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_cost_model_defaults() {
-        let meta = Meta::default();
+        let meta = CostModelMeta::default();
         assert_eq!(meta.version, "2.0");
 
         let cm = CostModel::default();

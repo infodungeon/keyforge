@@ -117,6 +117,7 @@ impl fmt::Display for CostMatrixSource {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::float_cmp, clippy::items_after_statements)]
 mod tests {
     use super::*;
 

@@ -54,7 +54,7 @@ pub use asset::ValkeyProvider; // ADDED
 pub use keyforge_core::loader::AssetLoader;
 
 pub use util::common::{
-    calculate_file_hash, generate_cost_profile, load_keycode_registry, sanitize_filename,
+    calculate_file_hash, load_keycode_registry, sanitize_filename,
 };
 
 include!(concat!(env!("OUT_DIR"), "/build_info.rs"));

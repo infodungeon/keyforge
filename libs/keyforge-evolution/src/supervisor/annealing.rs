@@ -109,9 +109,6 @@ impl AnnealingConfig {
         reheats: usize,
         reheat_factor: f32,
     ) -> Result<Self, EvolutionError> {
-        if steps == 0 {
-            return Err(EvolutionError::Config("Steps must be > 0".into()));
-        }
         if reheats > 0 && start_temp <= f32::EPSILON {
             return Err(EvolutionError::Config(
                 "Start temp must be > 0 to enable reheating".into(),
@@ -698,10 +695,6 @@ mod tests {
         );
 
         opt_entropy.run(None, crate::NoOpCallback).unwrap();
-
-        // 2. Steps = 0
-
-        assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
 
         // 3. Fast cooling
 

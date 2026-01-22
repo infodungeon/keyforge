@@ -47,140 +47,6 @@ pub fn calculate_file_hash_str(s: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
-use std::collections::HashMap;
-use keyforge_protocol::{BiometricSample, UserStatsStore};
-
-/// Statistics for a specific bigram.
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct BigramStats {
-    /// Number of samples collected.
-    pub count: usize,
-    /// Arithmetic mean of latency (ms).
-    pub mean: f64,
-    /// Sum of squared differences from the mean (for variance calculation).
-    pub m2: f64,
-}
-
-impl BigramStats {
-    /// Updates the stats with a new sample using Welford's online algorithm.
-    pub fn add_sample(&mut self, ms: f64) {
-        self.count += 1;
-        let delta = ms - self.mean;
-        #[allow(clippy::cast_precision_loss)]
-        {
-            self.mean += delta / self.count as f64;
-        }
-        let delta2 = ms - self.mean;
-        self.m2 += delta * delta2;
-    }
-
-    /// Returns the variance of the samples.
-    #[must_use]
-    pub fn variance(&self) -> f64 {
-        if self.count < 2 {
-            0.0
-        } else {
-            #[allow(clippy::cast_precision_loss)]
-            {
-                self.m2 / self.count as f64
-            }
-        }
-    }
-
-    /// Returns the standard deviation of the samples.
-    #[must_use]
-    pub fn std_dev(&self) -> f64 {
-        self.variance().sqrt()
-    }
-}
-
-/// Generates a serialized cost matrix based on the user's historical typing statistics.
-#[must_use]
-pub fn generate_cost_profile(store: &UserStatsStore) -> String {
-    let mut builder = StreamingProfileBuilder::new();
-    for sample in &store.biometrics {
-        builder.add_sample(sample);
-    }
-    builder.generate()
-}
-
-/// A streaming builder for generating cost profiles from biometric samples.
-/// This allows processing large datasets without loading everything into memory.
-#[derive(Default, Debug)]
-pub struct StreamingProfileBuilder {
-    /// Map of bigram strings to their running statistics.
-    pub stats: HashMap<String, BigramStats>,
-    /// Total number of samples processed.
-    pub sample_count: usize,
-}
-
-impl StreamingProfileBuilder {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Adds a single biometric sample to the running statistics.
-    pub fn add_sample(&mut self, sample: &BiometricSample) {
-        // Outlier detection: ignore extreme latencies (> 5s)
-        if sample.ms > 0.0 && sample.ms < 5000.0 {
-            self.stats
-                .entry(sample.bigram.clone())
-                .or_default()
-                .add_sample(sample.ms);
-            self.sample_count += 1;
-        }
-    }
-
-    /// Generates a `CostModel` JSON string from the accumulated statistics.
-    #[must_use]
-    pub fn generate(&self) -> String {
-        use serde_json::json;
-
-        // Task-infra-031: Convert stats to sequence modifiers
-        let mut modifiers = HashMap::new();
-        
-        // Calculate global baseline (mean of all bigrams)
-        let total_mean: f64 = self.stats.values().map(|s| s.mean).sum();
-        let global_avg = if self.stats.is_empty() { 
-            1.0 
-        } else { 
-            #[allow(clippy::cast_precision_loss)]
-            {
-                total_mean / self.stats.len() as f64 
-            }
-        };
-
-        for (bigram, s) in &self.stats {
-            // Only use bigrams with sufficient sample size
-            if s.count >= 5 {
-                // Ratio relative to average: > 1.0 means slower than average
-                let ratio = s.mean / global_avg;
-                #[allow(clippy::cast_possible_truncation)]
-                {
-                    modifiers.insert(bigram.clone(), ratio as f32);
-                }
-            }
-        }
-
-        let model = json!({
-            "meta": {
-                "version": 2.0,
-                "description": format!("Generated from {} biometric samples", self.sample_count),
-                "unit": "pts"
-            },
-            "models": {},
-            "dynamic_rules": {
-                "sequence_modifiers": modifiers,
-                "penalties": {},
-                "constraints": {}
-            }
-        });
-
-        serde_json::to_string(&model).unwrap_or_else(|_| "{}".to_string())
-    }
-}
-
 use crate::error::InfraError;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::keycodes::{KeycodeDefinition, KeycodeRegistry};
@@ -219,7 +85,7 @@ pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Aggressively sanitizes filenames to prevent traversal or shell issues.
+/// Aggregately sanitizes filenames to prevent traversal or shell issues.
 /// Allowlist: Alphanumeric, dot, underscore, hyphen.
 /// Replaces everything else with underscore.
 #[must_use]
@@ -280,32 +146,6 @@ mod tests {
     }
 
     #[test]
-    fn test_biometric_aggregation() {
-        let mut builder = StreamingProfileBuilder::new();
-        // Add 5 samples for "th" to trigger inclusion in modifiers
-        for _ in 0..5 {
-            builder.add_sample(&BiometricSample {
-                bigram: "th".into(),
-                ms: 100.0,
-                timestamp: 0,
-            });
-        }
-        // Add 5 samples for "he" with different latency
-        for _ in 0..5 {
-            builder.add_sample(&BiometricSample {
-                bigram: "he".into(),
-                ms: 200.0,
-                timestamp: 0,
-            });
-        }
-
-        let json = builder.generate();
-        assert!(json.contains("Generated from 10 biometric samples"));
-        assert!(json.contains("\"th\":0.666")); // 100 / 150
-        assert!(json.contains("\"he\":1.333")); // 200 / 150
-    }
-
-    #[test]
     fn test_load_keycode_registry() {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("keycodes.json");
@@ -341,11 +181,6 @@ mod tests {
 
     #[test]
     fn test_sanitize_filename() {
-        assert_eq!(
-            sanitize_filename("valid.txt"),
-            "direct.txt".replace("direct", "valid")
-        );
-        // Wait, sanitize_filename("valid.txt") -> "valid.txt"
         assert_eq!(sanitize_filename("valid.txt"), "valid.txt");
         assert_eq!(sanitize_filename("invalid/path"), "invalid_path");
     }

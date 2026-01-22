@@ -53,6 +53,7 @@ impl FromStr for KeyConstraint {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

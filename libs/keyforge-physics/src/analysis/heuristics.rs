@@ -19,6 +19,7 @@ use keyforge_model::constants::{MAX_SWAP_SUGGESTIONS, MIN_SUGGESTION_IMPROVEMENT
 use keyforge_model::types::FingerIndex;
 use keyforge_model::{Layout, SwapSuggestion};
 
+#[must_use]
 pub fn suggest_swaps(
     ctx: &EngineContext,
     layout: &Layout,
@@ -100,6 +101,13 @@ pub fn suggest_swaps(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::field_reassign_with_default,
+    clippy::large_stack_arrays,
+    clippy::needless_range_loop
+)]
 mod tests {
     use super::*;
     use crate::{Compiler, EngineFactory};

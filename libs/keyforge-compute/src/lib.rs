@@ -110,6 +110,43 @@ pub fn suggest_improvements(
     Ok(filtered)
 }
 
+/// Performs a one-off optimization operation.
+///
+/// # Errors
+/// Returns `EvolutionError` if optimization fails.
+pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
+    let engine = EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
+        .map_err(EvolutionError::Physics)?;
+    let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
+    keyforge_core::optimize_with_engine(
+        &engine_arc,
+        &req.config,
+        keyforge_core::NoOpCallback,
+        req.initial_layout.clone(),
+        Some(&req.pinned_keys),
+    )
+}
+
+/// Performs a one-off optimization operation with a progress callback.
+///
+/// # Errors
+/// Returns `EvolutionError` if optimization fails.
+pub fn optimize_with_callback<CB: ProgressCallback>(
+    req: &EngineRequest,
+    callback: CB,
+) -> Result<OptimizationResult, EvolutionError> {
+    let engine = EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
+        .map_err(EvolutionError::Physics)?;
+    let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
+    keyforge_core::optimize_with_engine(
+        &engine_arc,
+        &req.config,
+        callback,
+        req.initial_layout.clone(),
+        Some(&req.pinned_keys),
+    )
+}
+
 /// The pure computation runtime.
 #[derive(Clone, Debug)]
 pub struct Runtime {

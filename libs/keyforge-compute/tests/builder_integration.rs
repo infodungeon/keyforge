@@ -33,7 +33,11 @@ impl AssetLoader for MockLoader {
 
         let json = r#"{
             "meta": { "version": "2.0", "description": "T", "unit": "pts" },
-            "models": { "model_a_row_staggered": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} } },
+            "models": { 
+                "model_a_row_staggered": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} },
+                "model_a_ansi": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} },
+                "model_ortho": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} }
+            },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
         let model: CostModel = serde_json::from_str(json).unwrap();
@@ -174,6 +178,10 @@ fn test_runtime_from_session() {
 async fn test_session_builder_lifecycle() {
     let loader = MockLoader;
     let kb_def = Arc::new(KeyboardDefinition {
+        meta: keyforge_model::geometry::KeyboardMeta {
+            kb_type: "ortho".into(),
+            ..Default::default()
+        },
         geometry: keyforge_model::geometry::KeyboardGeometry {
             keys: vec![keyforge_model::KeyNode::default()],
             prime_slots: vec![keyforge_model::types::KeyIndex(0)],
@@ -194,12 +202,32 @@ async fn test_session_builder_lifecycle() {
         ])),
     );
     cm.models.insert(
+        "model_ortho".into(),
+        keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::from([(
+                "universal_hand".to_string(),
+                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+            )]),
+        },
+    );
+    cm.models.insert(
         "model_a_row_staggered".into(),
         keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers },
+                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+            )]),
+        },
+    );
+    cm.models.insert(
+        "model_a_ansi".into(),
+        keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::from([(
+                "universal_hand".to_string(),
+                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
             )]),
         },
     );
@@ -275,12 +303,32 @@ async fn test_session_builder_missing_assets() {
         ])),
     );
     cm.models.insert(
+        "model_ortho".into(),
+        keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::from([(
+                "universal_hand".to_string(),
+                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+            )]),
+        },
+    );
+    cm.models.insert(
         "model_a_row_staggered".into(),
         keyforge_model::cost_model::ModelDefinition {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers },
+                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+            )]),
+        },
+    );
+    cm.models.insert(
+        "model_a_ansi".into(),
+        keyforge_model::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs: std::collections::HashMap::from([(
+                "universal_hand".to_string(),
+                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
             )]),
         },
     );

@@ -409,6 +409,7 @@ impl TryFrom<SearchParamsConfig> for SearchParams {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::float_cmp, clippy::cast_precision_loss)]
 mod tests {
     use super::*;
 

@@ -15,8 +15,7 @@
 use fs2::FileExt;
 use keyforge_infra::error::{InfraError, InfraResult};
 use keyforge_infra::fs::io::atomic_write;
-use keyforge_infra::util::common::{sanitize_filename, StreamingProfileBuilder};
-use keyforge_model::constants::MIN_BIOMETRIC_SAMPLES;
+use keyforge_infra::util::common::sanitize_filename;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 use serde::{Deserialize, Serialize};
@@ -121,7 +120,11 @@ impl UserRepo {
         store
     }
 
-    fn load_stats_streaming<F>(&self, mut f: F) -> InfraResult<usize>
+    /// Iterates through stored biometric samples and applies the provided function.
+    ///
+    /// # Errors
+    /// Returns `InfraError` if the stats file cannot be read.
+    pub fn load_stats_streaming<F>(&self, mut f: F) -> InfraResult<usize>
     where
         F: FnMut(BiometricSample),
     {
@@ -210,27 +213,15 @@ impl UserRepo {
         Ok(())
     }
 
-    /// Generates a personalized cost profile based on collected biometric data.
+    /// Saves a cost model to the user's personal profile.
     ///
     /// # Errors
-    /// Returns an error if there are fewer than `MIN_BIOMETRIC_SAMPLES` collected.
-    pub fn generate_profile(&self) -> InfraResult<String> {
-        let mut builder = StreamingProfileBuilder::new();
-        let count = self.load_stats_streaming(|sample| {
-            builder.add_sample(&sample);
-        })?;
-
-        if count < MIN_BIOMETRIC_SAMPLES {
-            return Err(InfraError::Config(format!(
-                "Insufficient data. {count}/{MIN_BIOMETRIC_SAMPLES} samples collected."
-            )));
-        }
-
-        let profile_content = builder.generate();
+    /// Returns `InfraError` if saving fails.
+    pub fn save_personal_cost_model(&self, model: &keyforge_model::CostModel) -> InfraResult<()> {
         let output_path = self.root.join("user/personal_cost.json");
-        atomic_write(output_path, profile_content)?;
-
-        Ok(format!("Profile generated from {count} samples."))
+        let json = serde_json::to_string_pretty(model).map_err(InfraError::Serde)?;
+        atomic_write(output_path, json)?;
+        Ok(())
     }
 
     // --- KEYBOARDS ---

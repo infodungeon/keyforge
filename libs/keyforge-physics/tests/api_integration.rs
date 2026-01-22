@@ -2,9 +2,8 @@
 
 use keyforge_model::{
     types::{FingerIndex, HandIndex, KeyCode},
-    Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
+    Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig, EngineRequest,
 };
-use keyforge_physics::{suggest_improvements, EngineRequest};
 use std::sync::Arc;
 
 fn setup_kb_wiring() -> Keyboard {
@@ -70,15 +69,15 @@ fn test_public_api_wrappers() {
         pinned_keys: vec![],
     };
 
-    let suggestions = suggest_improvements(&req).unwrap();
+    let suggestions = keyforge_compute::suggest_improvements(&req).unwrap();
     assert!(suggestions.len() <= 5);
 
     // Test score wrapper
-    let result = keyforge_physics::score(&req).unwrap();
+    let result = keyforge_compute::score(&req).unwrap();
     assert!(result.score > 0.0);
 
     // Test analyze wrapper
-    let report = keyforge_physics::analyze(&req).unwrap();
+    let report = keyforge_compute::analyze(&req).unwrap();
     assert!(report.score > 0.0);
 
     // Test identify
