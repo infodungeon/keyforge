@@ -78,6 +78,10 @@ pub enum ModelError {
     /// Failed to serialize a component.
     #[error("Serialization Failed: {0}")]
     Serialization(String),
+
+    /// Failed to parse a keymap or key action.
+    #[error("Parser Error: {0}")]
+    Parser(String),
 }
 
 /// Specific errors related to physical constraints and scoring.

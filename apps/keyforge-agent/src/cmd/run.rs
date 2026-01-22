@@ -37,8 +37,8 @@ pub async fn run(mut config: AgentConfig, job_file: PathBuf, timeout: Option<u64
     job_tx.send((job_id, job)).await.ok();
 
     if let Some(result) = result_rx.recv().await {
-        #[allow(clippy::unwrap_used)]
-        let json = serde_json::to_string(&result).unwrap();
+        let json = serde_json::to_string(&result)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize result: {e}"))?;
         println!("{json}");
     } else {
         error!("No result produced!");

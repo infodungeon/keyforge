@@ -2,7 +2,5 @@
 
 /**
  * Row index.
- *
- * Typically: Home=0, Top<0, Bottom>0.
  */
 export type RowIndex = number;

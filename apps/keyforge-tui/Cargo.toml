@@ -17,11 +17,11 @@ ratatui = "0.30"
 crossterm = "0.29"
 
 # Networking
-reqwest = { version = "0.13.1", features = ["json"] }
-tokio = { version = "1.48", features = ["full"] }
+reqwest.workspace = true
+tokio.workspace = true
 
 # Utilities
-clap = { version = "4.5.53", features = ["derive", "env"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true

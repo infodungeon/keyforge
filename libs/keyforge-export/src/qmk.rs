@@ -61,7 +61,7 @@ impl Exporter for QmkExporter {
                     return Err(anyhow::anyhow!("Output size limit exceeded"));
                 }
 
-                let action = parse_key(key_str);
+                let action = parse_key(key_str).unwrap_or(KeyAction::Simple(key_str.clone()));
                 let code = action_to_qmk(&action);
 
                 out.push_str(&code);
@@ -87,7 +87,7 @@ impl Exporter for QmkExporter {
 
 fn action_to_qmk(action: &KeyAction) -> String {
     match action {
-        KeyAction::Simple(s) | KeyAction::Raw(s) => util::sanitize_c(s),
+        KeyAction::Simple(s) => util::sanitize_c(s),
         KeyAction::Transparent => DEFAULT_TRANSPARENT.to_string(),
         KeyAction::NoOp => DEFAULT_NO_OP.to_string(),
         KeyAction::LayerMomentary(l) => format!("MO({l})"),

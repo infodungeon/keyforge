@@ -4,12 +4,67 @@ import type { FingerIndex } from "./FingerIndex";
 import type { HandIndex } from "./HandIndex";
 import type { RowIndex } from "./RowIndex";
 
+/**
+ * Represents a single physical key on the keyboard.
+ */
 export type KeyNode = { 
 /**
- * Internal numeric ID (0..N) - Runtime optimization
+ * Internal numeric ID (0..N) - Runtime optimization.
  */
 index: number, 
 /**
- * Display label / String ID
+ * Display label / String ID.
  */
-label: string, x: number, y: number, w: number, h: number, r: number, rx: number, ry: number, hand: HandIndex, finger: FingerIndex, row: RowIndex, col: ColIndex, is_home: boolean, is_stretch: boolean, };
+label: string, 
+/**
+ * X coordinate (physical units).
+ */
+x: number, 
+/**
+ * Y coordinate (physical units).
+ */
+y: number, 
+/**
+ * Width (physical units).
+ */
+w: number, 
+/**
+ * Height (physical units).
+ */
+h: number, 
+/**
+ * Rotation angle (degrees).
+ */
+r: number, 
+/**
+ * Rotation origin X.
+ */
+rx: number, 
+/**
+ * Rotation origin Y.
+ */
+ry: number, 
+/**
+ * Hand assignment (Left/Right).
+ */
+hand: HandIndex, 
+/**
+ * Finger assignment (Thumb..Pinky).
+ */
+finger: FingerIndex, 
+/**
+ * Logical row index.
+ */
+row: RowIndex, 
+/**
+ * Logical column index.
+ */
+col: ColIndex, 
+/**
+ * Whether this is a home row key.
+ */
+is_home: boolean, 
+/**
+ * Whether this key requires a stretch to reach.
+ */
+is_stretch: boolean, };

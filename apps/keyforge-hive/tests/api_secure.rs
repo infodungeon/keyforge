@@ -58,7 +58,8 @@ async fn setup_test_app() -> (
             "test_key".to_string(),
             config.clone(),
         )
-        .await,
+        .await
+        .expect("Failed to init state"),
     );
     let app = create_app(state.clone(), &config, data_path);
 

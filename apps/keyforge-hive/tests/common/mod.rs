@@ -203,7 +203,8 @@ pub async fn setup_server() -> (
             "test-key".to_string(),
             config.clone(),
         )
-        .await,
+        .await
+        .expect("Failed to init state"),
     );
 
     hydrate_test_valkey(&state, &data_path).await;

@@ -19,4 +19,4 @@ layer: number,
 /**
  * The tap key (recursive).
  */
-key: KeyAction, } } | { "StickyMod": string } | "CapsWord" | { "Raw": string };
+key: KeyAction, } } | { "StickyMod": string } | "CapsWord";

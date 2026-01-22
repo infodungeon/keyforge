@@ -6,7 +6,7 @@ import type { MetricViolation } from "./MetricViolation";
  */
 export type AnalysisReport = { 
 /**
- * Total weighted score (lower is better).
+ * Total weighted score.
  */
 score: number, 
 /**
@@ -30,11 +30,11 @@ sfb_ratio: number,
  */
 hand_balance: number, 
 /**
- * Scissor (adjacent finger stretch) score.
+ * Scissor score.
  */
 scissors: number, 
 /**
- * Redirect (direction change) score.
+ * Redirect score.
  */
 redirects: number, 
 /**
@@ -42,11 +42,27 @@ redirects: number,
  */
 rolls: number, 
 /**
- * Per-key usage heatmap.
+ * Total SFB penalty.
+ */
+sfb_penalty: number, 
+/**
+ * Total scissor penalty.
+ */
+scissor_penalty: number, 
+/**
+ * Total redirect penalty.
+ */
+redir_penalty: number, 
+/**
+ * Total roll penalty.
+ */
+roll_penalty: number, 
+/**
+ * Usage heatmap.
  */
 heatmap: Array<number>, 
 /**
- * Per-key penalty heatmap (Effort).
+ * Effort heatmap.
  */
 penalty_map: Array<number>, 
 /**

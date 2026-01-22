@@ -1,4 +1,4 @@
-use keyforge_physics::IntelEngineConfig;
+use keyforge_physics::{ArmNeonConfig, IntelEngineConfig};
 use raw_cpuid::{CacheType, CpuId};
 
 #[derive(Debug, Clone)]
@@ -17,6 +17,15 @@ impl From<CpuTopology> for IntelEngineConfig {
             l2_size_bytes: topo.l2_size_bytes,
             l3_size_bytes: topo.l3_size_bytes,
             use_prefetch: true,
+        }
+    }
+}
+
+impl From<CpuTopology> for ArmNeonConfig {
+    fn from(topo: CpuTopology) -> Self {
+        Self {
+            l1d_size_bytes: topo.l1d_size_bytes,
+            l2_size_bytes: topo.l2_size_bytes,
         }
     }
 }

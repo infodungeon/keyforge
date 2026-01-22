@@ -38,7 +38,7 @@ cost_matrix: CostMatrixSource,
 /**
  * User biometric data.
  */
-biometrics: Array<BiometricSample>, 
+biometrics?: Array<BiometricSample>, 
 /**
  * Parent job ID.
  */

@@ -12,9 +12,9 @@ workspace = true
 [dependencies]
 crc32fast = "1.5"
 tikv-jemallocator = "0.6"
-postcard = { version = "1.1", features = ["use-std"] }
-bytes = "1.11"
-mime_guess = "2.0"
+postcard.workspace = true
+bytes.workspace = true
+mime_guess.workspace = true
 
 # Internal
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
@@ -29,95 +29,81 @@ keyforge-assets = { path = "../../apps/keyforge-assets" }
 keyforge-persistence = { path = "../../libs/keyforge-persistence", features = [
     "server",
 ] }
-async-trait = "0.1"
+async-trait.workspace = true
 
 # Web Framework
-axum = { version = "0.8.8", features = ["ws"] }
+axum = { workspace = true, features = ["ws"] }
 axum-server = { version = "0.8", features = ["tls-rustls"] }
-tokio = { version = "1.48", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 toml = "0.9"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-tracing-appender = "0.2"
-tower-http = { version = "0.6.8", features = [
-    "cors",
-    "trace",
-    "fs",
-    "limit",
-    "request-id",
-    "util",
-] }
-futures = "0.3"
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+tower-http = { workspace = true, features = ["cors", "trace", "fs", "limit", "request-id", "util"] }
+futures.workspace = true
 
 # Rate Limiting
 tower_governor = "0.8.0"
-governor = "0.10.4"
+governor.workspace = true
 
 # Database (PostgreSQL)
-sqlx = { version = "0.8.6", features = [
-    "runtime-tokio",
-    "tls-rustls",
-    "postgres",
-    "uuid",
-    "chrono",
-    "json",
-] }
+sqlx.workspace = true
 
 # Caching
-moka = { version = "0.12", features = ["sync"] }
+moka.workspace = true
 
 # Security
 subtle = "2.6"
-sha2 = "0.10"
-base64 = "0.22"
-rand = "0.8"
-hex = "0.4"
+sha2.workspace = true
+base64.workspace = true
+rand.workspace = true
+hex.workspace = true
 
 # Utilities
-clap = { version = "4.5.53", features = ["derive", "env"] }
+clap.workspace = true
 dirs = "6.0"
-walkdir = "2"
-notify = "8.2"
-uuid = { version = "1.19", features = ["v4", "serde"] }
-chrono = { version = "0.4.42", features = ["serde"] }
-fastrand = "2.3.0"
+walkdir.workspace = true
+notify.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+fastrand.workspace = true
 sysinfo = "0.37"
 
 # HTTP Client
-reqwest = { version = "0.13.1", features = ["json"] }
+reqwest.workspace = true
 
 # Error Handling
-thiserror = "2.0.17"
-anyhow = "1.0.100"
+thiserror.workspace = true
+anyhow.workspace = true
 
 # API Documentation
-utoipa = { version = "5.4", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
+utoipa.workspace = true
+utoipa-swagger-ui.workspace = true
 
 # Observability
 opentelemetry = { version = "0.31.0", features = ["trace"] }
 opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
 tracing-opentelemetry = "0.32.0"
-metrics = "0.24"
-once_cell = "1.21"
-metrics-exporter-prometheus = "0.18"
-tempfile = "3.24.0"
+metrics.workspace = true
+once_cell.workspace = true
+metrics-exporter-prometheus = "0.16"
+tempfile.workspace = true
 
 [dev-dependencies]
-uuid = { version = "1.19.0", features = ["v4"] }
-futures = "0.3.31"
-tempfile = "3.24.0"
-tokio = { version = "1.48.0", features = ["macros", "test-util"] }
-proptest = "1.9.0"
-tower = { version = "0.5.2", features = ["util"] }
+uuid.workspace = true
+futures.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+proptest.workspace = true
+tower.workspace = true
 tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
-url = "2.5"
+url.workspace = true
 # Valkey Integration Tests
 testcontainers = "0.26.3"
 testcontainers-modules = { version = "0.14.0", features = ["redis"] }
 # Test Data Hydration
-zstd = "0.13"
-rmp-serde = "1.3"
+zstd.workspace = true
+rmp-serde.workspace = true

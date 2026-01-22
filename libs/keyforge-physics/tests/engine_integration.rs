@@ -152,7 +152,7 @@ fn test_exact_engine_trait_methods() {
 
     assert_eq!(engine.name(), "Exact (Oracle)");
     assert!(engine.capabilities().is_exact);
-    assert!(!engine.capabilities().supports_avx2);
+    assert!(!engine.capabilities().features.supports_avx2);
     assert_eq!(engine.key_count(), 2);
 
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
@@ -193,7 +193,7 @@ fn test_intel_engine_trait_methods() {
     let engine = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cm, None).unwrap();
 
     assert_eq!(engine.name(), "Intel Comet Lake (AVX2 Optimized)");
-    assert!(engine.capabilities().supports_avx2);
+    assert!(engine.capabilities().features.supports_avx2);
     assert_eq!(engine.key_count(), 2);
 
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);

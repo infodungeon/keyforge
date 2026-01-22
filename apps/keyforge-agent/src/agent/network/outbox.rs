@@ -2,8 +2,60 @@ use super::breaker::CircuitBreaker;
 use crate::agent::errors::{AgentError, AgentResult};
 use keyforge_infra::HiveClient;
 use keyforge_protocol::ResultSubmission;
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info, warn};
+
+/// Typestate for a WAL entry that has just been loaded from disk.
+#[derive(Debug)]
+pub struct Unprocessed;
+/// Typestate for a WAL entry that has been validated and is ready for submission.
+#[derive(Debug)]
+pub struct Verified;
+/// Typestate for a WAL entry that failed validation and is destined for the dead letter office.
+#[derive(Debug)]
+pub struct DeadLetter;
+
+/// A reified WAL entry using the Typestate pattern to enforce lifecycle invariants.
+#[derive(Debug)]
+pub struct WalEntry<State> {
+    pub path: PathBuf,
+    pub submission: ResultSubmission,
+    _state: PhantomData<State>,
+}
+
+impl WalEntry<Unprocessed> {
+    /// Attempts to load a `WalEntry` from a path.
+    pub fn load(path: PathBuf) -> AgentResult<Self> {
+        let content = std::fs::read_to_string(&path).map_err(|e| AgentError::Resource(e.to_string()))?;
+        let submission = serde_json::from_str::<ResultSubmission>(&content).map_err(|_| AgentError::Identity("Corrupt WAL".into()))?;
+        Ok(Self {
+            path,
+            submission,
+            _state: PhantomData,
+        })
+    }
+
+    /// Transitions an unprocessed entry to a verified state.
+    #[must_use]
+    pub fn verify(self) -> WalEntry<Verified> {
+        WalEntry {
+            path: self.path,
+            submission: self.submission,
+            _state: PhantomData,
+        }
+    }
+
+    /// Transitions an unprocessed entry to a dead-letter state.
+    #[must_use]
+    pub fn reject(self) -> WalEntry<DeadLetter> {
+        WalEntry {
+            path: self.path,
+            submission: self.submission,
+            _state: PhantomData,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ResultOutbox {
@@ -75,15 +127,20 @@ impl ResultOutbox {
     /// Returns `InfraError` if directory reading fails.
     pub fn process_pending<F>(&self, mut handler: F) -> AgentResult<()>
     where
-        F: FnMut(PathBuf, ResultSubmission),
+        F: FnMut(WalEntry<Unprocessed>),
     {
         if let Ok(entries) = std::fs::read_dir(&self.wal_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.extension().and_then(|s| s.to_str()) == Some("json") {
                     if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(sub) = serde_json::from_str::<ResultSubmission>(&content) {
-                            handler(path, sub);
+                        if let Ok(submission) = serde_json::from_str::<ResultSubmission>(&content) {
+                            let entry = WalEntry {
+                                path,
+                                submission,
+                                _state: PhantomData,
+                            };
+                            handler(entry);
                         } else {
                             warn!("Deleting corrupt WAL file: {:?}", path);
                             let _ = std::fs::remove_file(path);
@@ -95,11 +152,22 @@ impl ResultOutbox {
         Ok(())
     }
 
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn commit_verified(&self, entry: WalEntry<Verified>) {
+        self.delete(&entry.path);
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn commit_dead_letter(&self, entry: WalEntry<DeadLetter>, reason: &str) {
+        let _ = self.save_to_dead_letter(&entry.submission, reason);
+        self.delete(&entry.path);
+    }
+
     // Deprecated: keeping for compatibility until all callers use process_pending
     #[must_use]
     pub fn get_pending(&self) -> Vec<(PathBuf, ResultSubmission)> {
         let mut pending = Vec::new();
-        let _ = self.process_pending(|p, s| pending.push((p, s)));
+        let _ = self.process_pending(|entry| pending.push((entry.path, entry.submission)));
         pending
     }
 

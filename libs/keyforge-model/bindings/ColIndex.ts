@@ -2,8 +2,5 @@
 
 /**
  * Column index.
- *
- * Positive values are typically to the right, negative to the left, 
- * with 0 being a reference column (e.g., center or pinky column).
  */
 export type ColIndex = number;

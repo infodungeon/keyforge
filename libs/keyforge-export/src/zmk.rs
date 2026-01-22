@@ -54,19 +54,19 @@ impl Exporter for ZmkExporter {
             for (i, key_str) in keys.iter().enumerate() {
                 let action = parse_key(key_str);
                 let code = match action {
-                    KeyAction::Simple(s) => {
+                    Ok(KeyAction::Simple(s)) => {
                         let clean = s.strip_prefix("KC_").unwrap_or(&s);
                         format!("&kp {}", util::sanitize_zmk(clean))
                     }
-                    KeyAction::Transparent => "&trans".to_string(),
-                    KeyAction::NoOp => "&none".to_string(),
-                    KeyAction::LayerMomentary(l) => format!("&mo {l}"),
-                    KeyAction::LayerToggle(l) => format!("&tog {l}"),
-                    KeyAction::LayerOn(l) => format!("&to {l}"),
-                    KeyAction::ModTap { mod_name, key } => {
+                    Ok(KeyAction::Transparent) => "&trans".to_string(),
+                    Ok(KeyAction::NoOp) => "&none".to_string(),
+                    Ok(KeyAction::LayerMomentary(l)) => format!("&mo {l}"),
+                    Ok(KeyAction::LayerToggle(l)) => format!("&tog {l}"),
+                    Ok(KeyAction::LayerOn(l)) => format!("&to {l}"),
+                    Ok(KeyAction::ModTap { mod_name, key }) => {
                         let zmk_mod = util::map_modifier(&mod_name, ModFormat::Zmk);
                         let key_str = match key.as_ref() {
-                            KeyAction::Simple(s) | KeyAction::Raw(s) => s.clone(),
+                            KeyAction::Simple(s) => s.clone(),
                             _ => "failed_recursion".to_string(),
                         };
                         let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);
@@ -76,20 +76,23 @@ impl Exporter for ZmkExporter {
                             util::sanitize_zmk(clean_key)
                         )
                     }
-                    KeyAction::LayerTap { layer, key } => {
+                    Ok(KeyAction::LayerTap { layer, key }) => {
                         let key_str = match key.as_ref() {
-                            KeyAction::Simple(s) | KeyAction::Raw(s) => s.clone(),
+                            KeyAction::Simple(s) => s.clone(),
                             _ => "failed_recursion".to_string(),
                         };
                         let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);
                         format!("&lt {} {}", layer, util::sanitize_zmk(clean_key))
                     }
-                    KeyAction::StickyMod(m) => {
+                    Ok(KeyAction::StickyMod(m)) => {
                         let zmk_mod = util::map_modifier(&m, ModFormat::Zmk);
                         format!("&sk {}", util::sanitize_zmk(&zmk_mod))
                     }
-                    KeyAction::CapsWord => "&caps_word".to_string(),
-                    KeyAction::Raw(s) => util::sanitize_zmk(&s),
+                    Ok(KeyAction::CapsWord) => "&caps_word".to_string(),
+                    Err(_) => {
+                        // Fallback to simple if parsing failed
+                        format!("&kp {}", util::sanitize_zmk(key_str))
+                    }
                 };
 
                 out.push_str(&code);

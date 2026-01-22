@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::biometrics::BiometricProfiler;
+use crate::hardware::HardwareProbe;
 use keyforge_core::loader::{AssetLoader, LoaderResult};
 use keyforge_core::ScoringSession;
 use keyforge_model::config::{CorpusSource, CostMatrixSource};
@@ -180,9 +181,27 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?,
         );
 
-        let engine =
+        let topo = HardwareProbe::probe();
+        let engine = if topo.vendor == "GenuineIntel" {
+            keyforge_physics::EngineFactory::new_intel_comet_lake(
+                &keyboard,
+                &corpus,
+                &rubric,
+                &cost_model,
+                Some(topo.into()),
+            )
+        } else if topo.vendor == "ARM" {
+            keyforge_physics::EngineFactory::new_arm_neon(
+                &keyboard,
+                &corpus,
+                &rubric,
+                &cost_model,
+                Some(topo.into()),
+            )
+        } else {
             keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
-                .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
+        }
+        .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
 
         // Task-phys-rev-015: Validate corpus coverage against registry
         let total_freq: u64 = corpus.char_freqs.iter().sum();

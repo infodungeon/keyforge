@@ -11,7 +11,7 @@ workspace = true
 
 [dependencies]
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
-anyhow = "1.0"
+anyhow.workspace = true
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-model = { path = "../../libs/keyforge-model" }
@@ -20,42 +20,39 @@ keyforge-core = { path = "../../libs/keyforge-core" }
 keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-runner = { path = "../../libs/keyforge-runner" }
 keyforge-security = { path = "../../libs/keyforge-security" }
-async-trait = "0.1"
-sysinfo = "0.37.2"
-clap = { version = "4.5", features = ["derive", "env"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.48", features = ["full"] }
+async-trait.workspace = true
+sysinfo.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
 tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
 tracing-opentelemetry = "0.32.0"
 opentelemetry = { version = "0.31.0", features = ["trace"] }
 opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
-uuid = { version = "1.19", features = ["v4"] }
-url = "2.5"
-futures = "0.3"
-reqwest = { version = "0.12", features = [
-    "json",
-    "rustls-tls",
-], default-features = false }
+uuid.workspace = true
+url.workspace = true
+futures.workspace = true
+reqwest.workspace = true
 
-raw-cpuid = "11.6"
+raw-cpuid.workspace = true
 libc = "0.2"
-rand = "0.8"
-ed25519-dalek = { version = "2.2", features = ["rand_core"] }
-hex = "0.4"
+rand.workspace = true
+ed25519-dalek.workspace = true
+hex.workspace = true
 dirs = "6.0.0"
 age = { version = "0.11", features = ["armor"] }
-sha2 = "0.10"
-hostname = "0.4"
+sha2.workspace = true
+hostname.workspace = true
 secrecy = "0.10"
 machine-uid = "0.5"
-thiserror = "2.0"
+thiserror.workspace = true
 toml = "0.8"
-rmp-serde = "1.1"
-zstd = "0.13"
+rmp-serde.workspace = true
+zstd.workspace = true
 
 [dev-dependencies]
-tempfile = "3.24"
+tempfile.workspace = true

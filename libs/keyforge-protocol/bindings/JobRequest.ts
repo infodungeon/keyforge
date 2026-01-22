@@ -44,14 +44,14 @@ cost_matrix: CostMatrixSource,
  */
 biometrics?: Array<BiometricSample>, 
 /**
- * Parent job ID (for evolution).
+ * Parent job ID.
  */
-parent_job_id?: string | null, 
+parent_job_id: string | null, 
 /**
- * Baseline score to beat.
+ * Baseline score.
  */
-baseline_score?: number | null, 
+baseline_score: number | null, 
 /**
- * Parent job IDs (for merging).
+ * Parent job IDs.
  */
-parents?: Array<string>, };
+parents: Array<string>, };

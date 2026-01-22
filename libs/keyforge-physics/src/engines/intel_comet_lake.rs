@@ -1,5 +1,5 @@
 #![allow(unsafe_code)]
-use super::{EngineCapabilities, ScoringEngine};
+use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{flow::calculate_flow_cost, PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
@@ -75,8 +75,11 @@ impl ScoringEngine for IntelScoringEngine {
     fn capabilities(&self) -> EngineCapabilities {
         EngineCapabilities {
             is_exact: false,
-            supports_avx2: true,
-            supports_blocking: true, // Future work in Phase 3
+            features: EngineFeatures {
+                supports_avx2: true,
+                supports_neon: false,
+                supports_blocking: true,
+            },
         }
     }
 

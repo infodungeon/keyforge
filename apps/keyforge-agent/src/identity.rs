@@ -1,7 +1,6 @@
 use crate::agent::errors::AgentError;
 use crate::models::SystemConfig;
 use ed25519_dalek::SigningKey;
-use rand::rngs::OsRng;
 use std::convert::TryInto;
 use std::io::{Read, Write};
 use tracing::info;
@@ -67,8 +66,10 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
 
         Ok(SigningKey::from_bytes(&array))
     } else {
-        let mut csprng = OsRng;
-        let key = SigningKey::generate(&mut csprng);
+        let mut bytes = [0u8; 32];
+        let mut csprng = rand::rng();
+        rand::RngCore::fill_bytes(&mut csprng, &mut bytes);
+        let key = SigningKey::from_bytes(&bytes);
 
         let encryptor = age::Encryptor::with_user_passphrase(passphrase.into());
 

@@ -1,4 +1,4 @@
-use super::{EngineCapabilities, ScoringEngine};
+use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{calculate_swap_delta, score_layout, PhysicsScratch, PosMap};
 use crate::kernel::types::ValidatedLayout;
 use crate::kernel::EngineContext;
@@ -25,8 +25,11 @@ impl ScoringEngine for GenericScoringEngine {
     fn capabilities(&self) -> EngineCapabilities {
         EngineCapabilities {
             is_exact: false,
-            supports_avx2: false,
-            supports_blocking: false,
+            features: EngineFeatures {
+                supports_avx2: false,
+                supports_neon: false,
+                supports_blocking: false,
+            },
         }
     }
 

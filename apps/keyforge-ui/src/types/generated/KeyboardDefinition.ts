@@ -2,4 +2,19 @@
 import type { KeyboardGeometry } from "./KeyboardGeometry";
 import type { KeyboardMeta } from "./KeyboardMeta";
 
-export type KeyboardDefinition = { meta: KeyboardMeta, geometry: KeyboardGeometry, layouts: { [key in string]?: string }, };
+/**
+ * Complete definition of a keyboard, including metadata and geometry.
+ */
+export type KeyboardDefinition = { 
+/**
+ * Metadata about the keyboard.
+ */
+meta: KeyboardMeta, 
+/**
+ * Physical geometry of the keys.
+ */
+geometry: KeyboardGeometry, 
+/**
+ * Pre-defined layouts available for this keyboard.
+ */
+layouts: { [key in string]?: string }, };

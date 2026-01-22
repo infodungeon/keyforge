@@ -22,6 +22,7 @@ use utoipa::ToSchema;
 /// A manifest entry for the Global Asset Cache.
 /// Stored in Valkey to ensure all nodes agree on asset versions.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct AssetManifestEntry {
     /// Unique identifier for the asset (e.g., "keyboard:corne" or "corpus:english").
     pub id: String,

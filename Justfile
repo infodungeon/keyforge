@@ -37,7 +37,20 @@ build-node:
     cargo build --release -p keyforge-agent
 
 build-wasm:
+    @echo "Building WASM package..."
     cd libs/keyforge-wasm && wasm-pack build --target web --out-dir ../../apps/keyforge-ui/src/api/wasm-pkg
+    @echo "Syncing WASM types..."
+    mkdir -p apps/keyforge-ui/src/types/generated
+    cp -r libs/keyforge-protocol/bindings/* apps/keyforge-ui/src/types/generated/ 2>/dev/null || true
+    cp -r libs/keyforge-model/bindings/* apps/keyforge-ui/src/types/generated/ 2>/dev/null || true
+
+ui-sync-types:
+    @echo "Generating TypeScript bindings..."
+    cargo test --workspace --features ts_bindings
+    mkdir -p apps/keyforge-ui/src/types/generated
+    cp -r libs/keyforge-protocol/bindings/* apps/keyforge-ui/src/types/generated/ 2>/dev/null || true
+    cp -r libs/keyforge-model/bindings/* apps/keyforge-ui/src/types/generated/ 2>/dev/null || true
+    @echo "Bindings synchronized to apps/keyforge-ui/src/types/generated"
 
 build-ui-backend:
     cargo build -p keyforge-ui

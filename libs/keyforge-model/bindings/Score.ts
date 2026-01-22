@@ -3,4 +3,4 @@
 /**
  * Fixed-point score value.
  */
-export type Score = number;
+export type Score = bigint;

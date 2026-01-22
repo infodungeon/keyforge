@@ -13,4 +13,4 @@ workspace = true
 keyforge-core = { path = "../keyforge-core" }
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-model = { path = "../keyforge-model" }
-tempfile = "3.24"
+tempfile.workspace = true

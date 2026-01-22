@@ -57,7 +57,9 @@ impl KeyforgeEngine {
     pub fn inject_keyboard(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let kb: KeyboardDefinition = from_value(json_val)?;
         kb.validate().map_err(|e| JsValue::from_str(&e))?;
-        self.loader.inject_keyboard(name, kb);
+        self.loader
+            .inject_keyboard(name, kb)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
 
@@ -72,7 +74,9 @@ impl KeyforgeEngine {
         corpus
             .validate()
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
-        self.loader.inject_corpus(name, corpus);
+        self.loader
+            .inject_corpus(name, corpus)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
 
@@ -85,7 +89,9 @@ impl KeyforgeEngine {
     pub fn inject_cost_model(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let model: CostModel = from_value(json_val)?;
         // CostModel doesn't have a validate() method yet, but serde handles structure.
-        self.loader.inject_cost_model(name, model);
+        self.loader
+            .inject_cost_model(name, model)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
 
@@ -98,7 +104,9 @@ impl KeyforgeEngine {
     pub fn inject_keycodes(&self, name: String, json_val: JsValue) -> Result<(), JsValue> {
         let reg: KeycodeRegistry = from_value(json_val)?;
         reg.validate().map_err(|e| JsValue::from_str(&e))?;
-        self.loader.inject_keycodes(name, reg);
+        self.loader
+            .inject_keycodes(name, reg)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
         Ok(())
     }
 

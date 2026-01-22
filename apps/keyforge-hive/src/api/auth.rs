@@ -16,9 +16,7 @@ use crate::auth::hash_key;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, http::HeaderMap, Json};
-use rand::distributions::Alphanumeric;
-use rand::rngs::OsRng;
-use rand::Rng;
+use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -48,11 +46,7 @@ pub struct ApiKeyResponse {
 
 /// Helper to generate a secure random key
 fn generate_secure_key() -> (String, String) {
-    let api_key: String = OsRng
-        .sample_iter(&Alphanumeric)
-        .take(64)
-        .map(char::from)
-        .collect();
+    let api_key = Alphanumeric.sample_string(&mut rand::rng(), 64);
 
     let key_prefix = "kf_";
     let full_key = format!("{key_prefix}{api_key}");

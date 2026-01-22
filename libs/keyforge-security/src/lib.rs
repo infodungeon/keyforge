@@ -19,7 +19,6 @@
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use keyforge_model::constants::SCORE_SCALE;
-use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -101,8 +100,10 @@ impl SecretString {
 /// Returns a tuple of `(signing_key_hex, verifying_key_hex)`.
 #[must_use]
 pub fn generate_keypair() -> (String, String) {
-    let mut csprng = OsRng;
-    let signing_key = SigningKey::generate(&mut csprng);
+    let mut bytes = [0u8; 32];
+    let mut csprng = rand::rng();
+    rand::RngCore::fill_bytes(&mut csprng, &mut bytes);
+    let signing_key = SigningKey::from_bytes(&bytes);
     let verifying_key = signing_key.verifying_key();
 
     (
@@ -239,8 +240,8 @@ pub fn verify_result(
 /// Used to prevent replay attacks in signed messages.
 #[must_use]
 pub fn generate_nonce() -> u64 {
-    use rand::RngCore;
-    OsRng.next_u64()
+    use rand::Rng;
+    rand::rng().random()
 }
 
 #[cfg(test)]

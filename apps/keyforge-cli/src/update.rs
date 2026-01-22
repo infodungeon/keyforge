@@ -66,7 +66,7 @@ pub async fn check_for_update(config: &UpdateConfig) -> Result<Option<String>> {
 /// Perform binary update
 pub fn perform_update(config: &UpdateConfig) -> Result<String> {
     let status = self_update::backends::github::Update::configure()
-        .repo_owner("your-org") // TODO: Replace with actual org
+        .repo_owner("keyforge-project")
         .repo_name("keyforge")
         .bin_name("keyforge")
         .current_version(cargo_crate_version!())

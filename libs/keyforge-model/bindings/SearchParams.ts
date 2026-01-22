@@ -5,46 +5,10 @@
  */
 export type SearchParams = { 
 /**
- * Number of independent search epochs to run.
- */
-search_epochs: number, 
-/**
- * Maximum number of mutation steps per epoch.
- */
-search_steps: number, 
-/**
- * Steps without improvement before triggering a reheat.
- */
-search_patience: number, 
-/**
- * Threshold for patience reset (improvement must be > this).
- */
-search_patience_threshold: number, 
-/**
- * Minimum temperature (stop condition).
- */
-temp_min: number, 
-/**
- * Maximum temperature (start condition).
- */
-temp_max: number, 
-/**
- * Optimization limit for fast path.
- */
-opt_limit_fast: number, 
-/**
- * Optimization limit for slow path.
- */
-opt_limit_slow: number, 
-/**
- * Number of times to reheat the system if stuck.
- */
-reheats: number, 
-/**
- * Factor to multiply temperature by when reheating.
- */
-reheat_factor: number, 
-/**
  * Random seed for deterministic replay (Optional).
  */
-seed?: bigint | null, };
+seed?: bigint | null, 
+/**
+ * Whether to include thumb keys in swap suggestions.
+ */
+include_thumbs: boolean, } & ({ [key in string]?: number });

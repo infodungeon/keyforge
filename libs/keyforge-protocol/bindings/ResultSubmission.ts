@@ -33,6 +33,6 @@ nonce: bigint,
  */
 node_id: string, 
 /**
- * Cryptographic signature.
+ * Cryptographic signature (Mandatory for server-side acceptance).
  */
-signature: string | null, };
+signature: string, };

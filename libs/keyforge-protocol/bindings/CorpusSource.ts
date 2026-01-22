@@ -5,11 +5,11 @@
  */
 export type CorpusSource = { 
 /**
- * The identifier or filename of the corpus (e.g., "text/en_std").
+ * The identifier or path of the corpus.
  */
 id: string, 
 /**
- * The weight multiplier for this corpus (default: 1.0).
+ * The weight multiplier for this corpus.
  */
 weight: number, 
 /**

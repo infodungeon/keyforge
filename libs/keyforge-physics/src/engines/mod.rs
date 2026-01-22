@@ -2,6 +2,7 @@ use crate::kernel::EngineContext;
 use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 
+pub mod arm_neon;
 pub mod exact;
 pub mod generic;
 pub mod intel_comet_lake;
@@ -11,9 +12,18 @@ pub mod intel_comet_lake;
 pub struct EngineCapabilities {
     /// If true, the engine provides bit-perfect parity with the Oracle.
     pub is_exact: bool,
-    /// If true, the engine utilizes AVX2 instructions.
+    /// Hardware acceleration and optimization features.
+    pub features: EngineFeatures,
+}
+
+/// Specific optimization features supported by an engine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EngineFeatures {
+    /// The engine utilizes AVX2 instructions.
     pub supports_avx2: bool,
-    /// If true, the engine uses cache-aware blocking (e.g. for large cost matrices).
+    /// The engine utilizes ARM NEON instructions.
+    pub supports_neon: bool,
+    /// The engine uses cache-aware blocking (e.g. for large cost matrices).
     pub supports_blocking: bool,
 }
 

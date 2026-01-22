@@ -14,6 +14,7 @@
 
 use crate::cache::{CompiledEngineCache, ParsedLayoutCache};
 use crate::config::{AppConfig, DEFAULT_BROADCAST_CAPACITY, DEFAULT_MONITOR_INTERVAL_SECS};
+use crate::error::{AppError, AppResult};
 use crate::infra::queue::WriteQueue;
 use crate::infra::repositories::{
     AuditRepository, JobRepository, NodeRepository, ResultRepository, SubmissionRepository,
@@ -75,16 +76,15 @@ impl AppState {
     /// Initializes the `AppState` by connecting to the database and Valkey,
     /// and starting background monitors.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if the connection to the Coordination Layer (Valkey) fails.
-    #[allow(clippy::expect_used)]
+    /// Returns `AppError` if the connection to the Coordination Layer (Valkey) fails.
     pub async fn new(
         db: Pool<Postgres>,
         data_path: PathBuf,
         server_key: String,
         config: AppConfig,
-    ) -> Self {
+    ) -> AppResult<Self> {
         let job_repo = JobRepository::new(db.clone());
         let nodes = NodeRepository::new(db.clone());
         let results = ResultRepository::new(db.clone(), config.population_limit);
@@ -95,7 +95,7 @@ impl AppState {
         let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(
             ValkeyDistributedCoordinator::new(&config.valkey_url)
                 .await
-                .expect("Failed to connect to Coordination Layer (Valkey)"),
+                .map_err(|e| AppError::Internal(format!("Failed to connect to Valkey: {e}")))?,
         );
 
         let assets = Arc::new(ValkeyProvider::new(coordinator.clone()));
@@ -132,7 +132,7 @@ impl AppState {
             layout_cache.clone(),
         ));
 
-        Self {
+        Ok(Self {
             assets_healthy: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             jobs,
             security,
@@ -151,6 +151,6 @@ impl AppState {
             data_path,
             tx,
             coordinator,
-        }
+        })
     }
 }

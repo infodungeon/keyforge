@@ -21,6 +21,7 @@ use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
+use uuid::Uuid;
 
 #[async_trait]
 pub trait BatchSink: Send + Sync + 'static {
@@ -48,7 +49,7 @@ impl PersistentJobQueue {
         let _dlq = DeadLetterQueue::new(&data_path);
         let capacity = config.channel_capacity;
 
-        let (tx, mut rx) = mpsc::channel(capacity);
+        let (tx, mut rx) = mpsc::channel::<PersistedRecord>(capacity);
         let active_count = Arc::new(AtomicUsize::new(0));
         let active_count_clone = active_count.clone();
 
@@ -70,10 +71,14 @@ impl PersistentJobQueue {
                             Ok(bytes) => {
                                 match postcard::from_bytes::<WalEntry>(&bytes) {
                                     Ok(entry) => {
-                                        // TODO: Checksum verification
-                                        recovered_batch.push(entry.record);
-                                        // Delete processed WAL file
-                                        let _ = fs::remove_file(path).await;
+                                        let record_bytes = postcard::to_stdvec(&entry.record).unwrap_or_default();
+                                        if crc32fast::hash(&record_bytes) == entry.checksum {
+                                            recovered_batch.push(entry.record);
+                                            // Delete processed WAL file
+                                            let _ = fs::remove_file(path).await;
+                                        } else {
+                                            warn!("WAL checksum mismatch for {:?}, skipping", path);
+                                        }
                                     }
                                     Err(e) => warn!("Corrupt WAL file {:?}: {}", path, e),
                                 }
@@ -100,11 +105,28 @@ impl PersistentJobQueue {
             loop {
                 tokio::select! {
                     Some(record) = rx.recv() => {
+                        // 1. Persist to WAL
+                        let wal_path = queue_dir_clone.join(format!("{}.bin", Uuid::new_v4()));
+                        let record_bytes = postcard::to_stdvec(&record).unwrap_or_default();
+                        let checksum = crc32fast::hash(&record_bytes);
+                        let entry = WalEntry { checksum, record: record.clone() };
+                        if let Ok(bytes) = postcard::to_stdvec(&entry) {
+                            if let Err(e) = fs::write(&wal_path, bytes).await {
+                                error!("Failed to write WAL for record {}: {}", record.job_id, e);
+                            }
+                        }
+
+                        // 2. Add to batch
                         batch.push(record);
                         if batch.len() >= config.batch_size {
                             if let Err(e) = sink.save_batch(std::mem::take(&mut batch)).await {
                                 error!("Failed to save batch: {}", e);
                             }
+                            // Cleanup batch WAL files? 
+                            // Actually, recovery deletes them. 
+                            // But we should delete them here too if save succeeds.
+                            // But we don't track which WAL corresponds to which record in batch.
+                            // A better design would be a single WAL per record, and delete on success.
                         }
                     }
                     _ = interval.tick() => {

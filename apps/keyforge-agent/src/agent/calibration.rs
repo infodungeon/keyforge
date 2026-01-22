@@ -30,7 +30,7 @@ struct CalibrationData {
     version: String,
 }
 
-fn default_cost_model() -> CostModel {
+fn default_cost_model() -> Result<CostModel, AgentError> {
     // Minimal valid cost model for calibration
     let json = r#"{
         "meta": { "version": "2.0", "description": "Calibration", "unit": "pts" },
@@ -50,8 +50,7 @@ fn default_cost_model() -> CostModel {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-    #[allow(clippy::unwrap_used)]
-    serde_json::from_str(json).unwrap()
+    serde_json::from_str(json).map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))
 }
 
 /// # Errors
@@ -121,8 +120,8 @@ pub async fn calibrate(
             .map_err(|e| AgentError::Resource(e.to_string()))?;
     }
 
-    #[allow(clippy::unwrap_used)]
-    let json = serde_json::to_string(&data).unwrap();
+    let json = serde_json::to_string(&data)
+        .map_err(|e| AgentError::Calibration(format!("Failed to serialize calibration: {e}")))?;
     tokio::fs::write(&cal_path, json)
         .await
         .map_err(|e| AgentError::Resource(e.to_string()))?;
@@ -140,7 +139,7 @@ fn run_benchmark(
     let key_count = keyboard.keys.len();
     let corpus = Corpus::default();
     let rubric = Rubric::default();
-    let cost_model = default_cost_model();
+    let cost_model = default_cost_model()?;
 
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 

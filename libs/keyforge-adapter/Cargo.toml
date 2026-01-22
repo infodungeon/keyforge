@@ -12,4 +12,4 @@ workspace = true
 [dependencies]
 keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
-thiserror = "2.0"
+thiserror.workspace = true

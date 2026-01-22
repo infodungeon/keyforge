@@ -41,30 +41,52 @@ impl InMemoryLoader {
         Self::default()
     }
 
-    #[allow(clippy::unwrap_used)]
-    pub fn inject_keyboard(&self, name: String, kb: KeyboardDefinition) {
-        self.keyboards.write().unwrap().insert(name, Arc::new(kb));
+    /// Injects a keyboard definition into the in-memory loader.
+    ///
+    /// # Errors
+    /// Returns `ForgeError::Internal` if the internal lock is poisoned.
+    pub fn inject_keyboard(&self, name: String, kb: KeyboardDefinition) -> Result<(), ForgeError> {
+        self.keyboards
+            .write()
+            .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
+            .insert(name, Arc::new(kb));
+        Ok(())
     }
 
-    #[allow(clippy::unwrap_used)]
-    pub fn inject_corpus(&self, name: String, corpus: Corpus) {
-        self.corpora.write().unwrap().insert(name, Arc::new(corpus));
+    /// Injects a corpus into the in-memory loader.
+    ///
+    /// # Errors
+    /// Returns `ForgeError::Internal` if the internal lock is poisoned.
+    pub fn inject_corpus(&self, name: String, corpus: Corpus) -> Result<(), ForgeError> {
+        self.corpora
+            .write()
+            .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
+            .insert(name, Arc::new(corpus));
+        Ok(())
     }
 
-    #[allow(clippy::unwrap_used)]
-    pub fn inject_cost_model(&self, name: String, model: CostModel) {
+    /// Injects a cost model into the in-memory loader.
+    ///
+    /// # Errors
+    /// Returns `ForgeError::Internal` if the internal lock is poisoned.
+    pub fn inject_cost_model(&self, name: String, model: CostModel) -> Result<(), ForgeError> {
         self.cost_models
             .write()
-            .unwrap()
+            .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
             .insert(name, Arc::new(model));
+        Ok(())
     }
 
-    #[allow(clippy::unwrap_used)]
-    pub fn inject_keycodes(&self, name: String, registry: KeycodeRegistry) {
+    /// Injects a keycode registry into the in-memory loader.
+    ///
+    /// # Errors
+    /// Returns `ForgeError::Internal` if the internal lock is poisoned.
+    pub fn inject_keycodes(&self, name: String, registry: KeycodeRegistry) -> Result<(), ForgeError> {
         self.keycodes
             .write()
-            .unwrap()
+            .map_err(|e| ForgeError::Internal(format!("RwLock poisoned: {e}")))?
             .insert(name, Arc::new(registry));
+        Ok(())
     }
 }
 

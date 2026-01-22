@@ -167,7 +167,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         time_keeper: T,
     ) -> Self {
         let rng = if config.seed == 0 {
-            Xoshiro256PlusPlus::from_rng(&mut rand::rng())
+            Xoshiro256PlusPlus::from_os_rng()
         } else {
             Xoshiro256PlusPlus::seed_from_u64(config.seed)
         };

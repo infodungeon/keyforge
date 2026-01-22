@@ -2,7 +2,7 @@
 import type { KeyCode } from "./KeyCode";
 
 /**
- * Definition of a logical key code (e.g., "KC_A").
+ * Definition of a logical key code (e.g., "`KC_A`").
  */
 export type KeycodeDefinition = { 
 /**
@@ -10,7 +10,7 @@ export type KeycodeDefinition = {
  */
 code: KeyCode, 
 /**
- * The canonical ID (e.g., "KC_A").
+ * The canonical ID (e.g., "`KC_A`").
  */
 id: string, 
 /**
@@ -18,6 +18,6 @@ id: string,
  */
 label: string, 
 /**
- * Alternative names (e.g., ["KC_1", "1"]).
+ * Alternative names (e.g., [`KC_1`, `1`]).
  */
 aliases: Array<string>, };

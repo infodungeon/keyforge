@@ -2,14 +2,14 @@
 import type { KeyIndex } from "./KeyIndex";
 
 /**
- * A constraint pinning a specific key to a specific physical index.
+ * Constraint forcing a key to a specific physical index.
  */
 export type KeyConstraint = { 
 /**
- * The physical index to pin.
+ * The physical index of the key.
  */
 index: KeyIndex, 
 /**
- * The key label to pin (e.g., "A", "Shift").
+ * The logical key label/ID to pin.
  */
 key: string, };

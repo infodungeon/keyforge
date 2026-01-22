@@ -162,8 +162,13 @@ async fn main() {
             });
 
             // Init State
-            let state =
-                Arc::new(AppState::new(pool, data_path.clone(), server_key, config.clone()).await);
+            let state = match AppState::new(pool, data_path.clone(), server_key, config.clone()).await {
+                Ok(s) => Arc::new(s),
+                Err(e) => {
+                    error!("FATAL: Application state initialization failed: {}", e);
+                    std::process::exit(1);
+                }
+            };
 
             let job_repo_arc = Arc::new(state.jobs.repo.clone());
             let node_repo_arc = Arc::new(state.nodes.clone());

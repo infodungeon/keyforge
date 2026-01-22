@@ -58,8 +58,9 @@ async fn start_test_server() -> (String, Arc<AppState>, ContainerAsync<Redis>) {
     let mut config = keyforge_hive::config::AppConfig::mock();
     config.valkey_url = valkey_url;
 
-    let state =
-        Arc::new(AppState::new(pool, data_path.clone(), "test_key".into(), config.clone()).await);
+        let state = Arc::new(AppState::new(pool, data_path.clone(), "test_key".into(), config.clone()).await.expect("Failed to init state"));
+
+    
     let app = create_app(state.clone(), &config, data_path);
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

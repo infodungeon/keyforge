@@ -9,10 +9,10 @@ export type MetricViolation = {
  */
 keys: string, 
 /**
- * The cost contribution of this violation.
+ * The cost contribution.
  */
 score: number, 
 /**
- * The frequency of this N-gram.
+ * The frequency.
  */
 freq: number, };
