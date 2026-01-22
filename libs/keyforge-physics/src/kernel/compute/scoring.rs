@@ -58,7 +58,7 @@ pub fn score_layout(
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
-    for &code in ctx.pos_map.used_keys {
+    for &code in ctx.pos_map.used_keys() {
         let c_val = code as usize;
         let freq = ctx.engine.corpus.char_freqs[c_val];
         if freq == 0 {
@@ -103,7 +103,7 @@ pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsErro
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
-    for &code1 in ctx.pos_map.used_keys {
+    for &code1 in ctx.pos_map.used_keys() {
         let c1_val = code1 as usize;
         let candidates1 = ctx.pos_map.get(c1_val);
         let start = ctx.engine.corpus.bigram_starts[c1_val];
@@ -163,7 +163,7 @@ pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError>
 #[allow(clippy::cast_possible_wrap)]
 pub fn score_trigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
-    for &code1 in ctx.pos_map.used_keys {
+    for &code1 in ctx.pos_map.used_keys() {
         let c1_val = code1 as usize;
         let candidates1 = ctx.pos_map.get(c1_val);
         let start = ctx.engine.corpus.trigram_starts[c1_val];

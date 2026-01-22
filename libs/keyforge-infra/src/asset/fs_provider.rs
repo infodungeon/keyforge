@@ -72,12 +72,11 @@ impl FsProvider {
         let path = path.to_path_buf();
         tokio::task::spawn_blocking(move || {
             let file = File::open(&path)?;
-            let decoder =
-                zstd::Decoder::new(file).map_err(|e| ForgeError::Internal(e.to_string()))?;
-            rmp_serde::from_read(decoder).map_err(|e| ForgeError::Internal(e.to_string()))
+            let decoder = zstd::Decoder::new(file).map_err(ForgeError::Io)?;
+            rmp_serde::from_read(decoder).map_err(|e| ForgeError::InvalidData(e.to_string()))
         })
         .await
-        .map_err(|e| ForgeError::Internal(e.to_string()))?
+        .map_err(|e| ForgeError::Internal(format!("Spawn error: {e}")))?
     }
 
     async fn load_json<T: serde::de::DeserializeOwned + Send + 'static>(

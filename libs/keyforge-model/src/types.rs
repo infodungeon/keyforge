@@ -15,6 +15,7 @@
 use crate::constants::SCORE_SCALE;
 use crate::layout::Layout;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
@@ -203,12 +204,80 @@ impl TryFrom<u8> for FingerIndex {
     }
 }
 
+use serde::de::{self, Visitor};
+
 /// Row index.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct RowIndex(pub i8);
+
+impl<'de> Deserialize<'de> for RowIndex {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct RowIndexVisitor;
+
+        impl<'de> Visitor<'de> for RowIndexVisitor {
+            type Value = RowIndex;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("integer or string representing row index")
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<RowIndex, E>
+            where
+                E: de::Error,
+            {
+                if value >= i64::from(i8::MIN) && value <= i64::from(i8::MAX) {
+                    Ok(RowIndex(value as i8))
+                } else {
+                    Err(E::custom(format!("RowIndex out of bounds: {value}")))
+                }
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<RowIndex, E>
+            where
+                E: de::Error,
+            {
+                if value <= i8::MAX as u64 {
+                    Ok(RowIndex(value as i8))
+                } else {
+                    Err(E::custom(format!("RowIndex out of bounds: {value}")))
+                }
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<RowIndex, E>
+            where
+                E: de::Error,
+            {
+                use std::str::FromStr;
+                RowIndex::from_str(value).map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_any(RowIndexVisitor)
+    }
+}
+
+impl From<RowIndex> for i8 {
+    fn from(idx: RowIndex) -> i8 {
+        idx.0
+    }
+}
+
+impl std::str::FromStr for RowIndex {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let clean = s.strip_prefix('r').unwrap_or(s);
+        clean
+            .parse::<i8>()
+            .map(RowIndex)
+            .map_err(|e| format!("Invalid RowIndex '{s}': {e}"))
+    }
+}
 
 impl std::ops::Sub for RowIndex {
     type Output = i32;
@@ -224,6 +293,23 @@ impl std::ops::Sub for RowIndex {
 #[repr(transparent)]
 pub struct ColIndex(pub i8);
 
+impl From<ColIndex> for i8 {
+    fn from(idx: ColIndex) -> i8 {
+        idx.0
+    }
+}
+
+impl std::str::FromStr for ColIndex {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let clean = s.strip_prefix('c').unwrap_or(s);
+        clean
+            .parse::<i8>()
+            .map(ColIndex)
+            .map_err(|e| format!("Invalid ColIndex '{s}': {e}"))
+    }
+}
+
 impl std::ops::Sub for ColIndex {
     type Output = i32;
     fn sub(self, rhs: Self) -> Self::Output {
@@ -232,6 +318,17 @@ impl std::ops::Sub for ColIndex {
 }
 
 /// Fixed-point score value.
+///
+/// Uses saturating arithmetic by default to prevent panics during evaluation.
+///
+/// # Examples
+///
+/// ```
+/// use keyforge_model::Score;
+/// let a = Score::MAX;
+/// let b = Score(1);
+/// assert_eq!(a + b, Score::MAX);
+/// ```
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, ToSchema,
 )]
@@ -344,6 +441,8 @@ impl std::ops::Mul<i64> for Score {
     }
 }
 
+use crate::metrics::{MetricId, MetricSet};
+
 /// Preference for which hand should handle Space keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -376,6 +475,13 @@ pub struct MetricViolation {
 pub struct AnalysisReport {
     /// Total weighted score.
     pub score: f32,
+    /// Standard metric values.
+    #[serde(default)]
+    pub metrics: MetricSet,
+    /// Top offenders grouped by metric.
+    #[serde(default)]
+    pub violations: HashMap<MetricId, Vec<MetricViolation>>,
+
     /// Total finger travel distance.
     pub distance: f32,
     /// Average travel distance per keypress.

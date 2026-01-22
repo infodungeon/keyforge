@@ -37,6 +37,10 @@ pub enum PersistenceError {
     /// Errors during domain translation.
     #[error("Adapter error: {0}")]
     Adapter(String),
+
+    /// Errors from the domain layer.
+    #[error("Domain error: {0}")]
+    Forge(#[from] keyforge_model::error::ForgeError),
 }
 
 pub type PersistenceResult<T> = Result<T, PersistenceError>;

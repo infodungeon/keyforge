@@ -19,6 +19,10 @@
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use keyforge_model::constants::SCORE_SCALE;
+use pasetors::keys::SymmetricKey;
+use pasetors::local::{self, LocalToken};
+use pasetors::version4::V4;
+use pasetors::Claims;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -35,6 +39,9 @@ pub enum SecurityError {
     /// Failed to create or verify a digital signature.
     #[error("Signature Error: {0}")]
     Signature(String),
+    /// Error during token generation or verification.
+    #[error("Token Error: {0}")]
+    Token(String),
 }
 
 /// A specialized Result type for security operations.
@@ -235,6 +242,48 @@ pub fn verify_result(
         Ok(()) => Ok(true),
         Err(_) => Ok(false),
     }
+}
+
+/// Creates a new PASETO V4.Local token for the given subject using a 32-byte secret key.
+///
+/// # Errors
+/// Returns `SecurityError::Token` if token generation fails.
+pub fn create_paseto_token(secret: &[u8], subject: &str, ttl_secs: u64) -> SecurityResult<String> {
+    let sk = SymmetricKey::<V4>::from(secret)
+        .map_err(|e| SecurityError::Key(format!("Invalid symmetric key: {e}")))?;
+
+    let mut claims = Claims::new()
+        .map_err(|e| SecurityError::Token(format!("Claims error: {e}")))?;
+    claims
+        .subject(subject)
+        .map_err(|e| SecurityError::Token(format!("Claims subject error: {e}")))?;
+    claims
+        .expiration(&chrono::Utc::now() + chrono::Duration::seconds(ttl_secs as i64))
+        .map_err(|e| SecurityError::Token(format!("Claims expiration error: {e}")))?;
+
+    local::encrypt(&sk, &claims, None, None)
+        .map_err(|e| SecurityError::Token(format!("Encryption error: {e}")))
+}
+
+/// Verifies a PASETO V4.Local token and returns the subject (node_id).
+///
+/// # Errors
+/// Returns `SecurityError::Token` if the token is invalid or expired.
+pub fn verify_paseto_token(secret: &[u8], token: &str) -> SecurityResult<String> {
+    let sk = SymmetricKey::<V4>::from(secret)
+        .map_err(|e| SecurityError::Key(format!("Invalid symmetric key: {e}")))?;
+
+    let validation_rules = pasetors::token::ValidationRules::new();
+    let untrusted_token = LocalToken::<V4>::try_from(token)
+        .map_err(|e| SecurityError::Token(format!("Token format error: {e}")))?;
+
+    let claims = local::decrypt(&sk, &untrusted_token, &validation_rules, None, None)
+        .map_err(|e| SecurityError::Token(format!("Decryption error: {e}")))?;
+
+    claims
+        .get_subject()
+        .ok_or_else(|| SecurityError::Token("Missing subject in token".into()))
+        .map(std::string::ToString::to_string)
 }
 
 /// Generates a cryptographically secure random 64-bit nonce.

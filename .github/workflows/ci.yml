@@ -43,6 +43,9 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --all -- --check
 
+      - name: Technical Debt Sentinel
+        run: ./ops/scripts/check_debt_integrity.sh
+
       - name: Lint
         run: cargo clippy --workspace -- -D warnings
 
@@ -104,13 +107,15 @@ jobs:
       - name: Build Core/Hive/CLI
         run: cargo build --release --workspace --exclude keyforge-ui
 
+      - name: Install just
+        uses: extra-actions/setup-just@v1
+
       - name: Run Tests
         env:
           DATABASE_MAX_CONNECTIONS: 20
           DATABASE_TIMEOUT_SECONDS: 15
           RATE_LIMIT_PER_SEC: 100
         run: |
-          cargo install just
           just test-all
 
   ui-check:
@@ -143,7 +148,9 @@ jobs:
           components: llvm-tools-preview
 
       - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
 
       - name: Run Coverage
         env:

@@ -50,6 +50,10 @@ pub enum ForgeError {
     #[error("Validation Error: {0}")]
     Validation(String),
 
+    /// Serialization error.
+    #[error("Serialization Error: {0}")]
+    Serialization(String),
+
     /// Resource not found.
     #[error("Asset Not Found: {0}")]
     NotFound(String),

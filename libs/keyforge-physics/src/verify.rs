@@ -287,23 +287,20 @@ fn resolve_static_key_cost(
             use keyforge_model::cost_model::FingerDefinition;
             match finger_def {
                 FingerDefinition::Standard(zones) => {
-                    let zone_key = if key.col.0.unsigned_abs() > 1
+                    let zone = if key.col.0.unsigned_abs() > 1
                         && key.finger == keyforge_model::FingerIndex::INDEX
                     {
-                        "inner"
+                        &zones.inner
                     } else if key.col.0.unsigned_abs() > 1
                         && key.finger == keyforge_model::FingerIndex::PINKY
                     {
-                        "outer"
+                        &zones.outer
                     } else {
-                        "base"
+                        &zones.base
                     };
 
-                    if let Some(zone) = zones.get(zone_key).or_else(|| zones.get("base")) {
-                        let row_key = format!("r{}", key.row.0);
-                        return Ok(zone.get(&row_key).copied().unwrap_or(0.0));
-                    }
-                    return Ok(0.0);
+                    let target_zone = if zone.is_empty() { &zones.base } else { zone };
+                    return Ok(target_zone.get(&key.row).copied().unwrap_or(0.0));
                 }
                 FingerDefinition::Thumb(positions) => {
                     return Ok(positions
@@ -497,13 +494,16 @@ mod tests {
     fn mock_cost_model() -> keyforge_model::CostModel {
         let mut cm = keyforge_model::CostModel::default();
 
-        let mut base_zone = std::collections::HashMap::new();
+        let mut base_zone = keyforge_model::cost_model::RowCosts::new();
         for r in -128..=127 {
-            base_zone.insert(format!("r{r}"), 0.0);
+            base_zone.insert(keyforge_model::types::RowIndex(r as i8), 0.0);
         }
 
-        let mut index_zones = std::collections::HashMap::new();
-        index_zones.insert("base".into(), base_zone.clone());
+        let mut index_zones = keyforge_model::cost_model::FingerReach {
+            base: base_zone.clone(),
+            inner: Default::default(),
+            outer: Default::default(),
+        };
 
         let mut fingers = std::collections::HashMap::new();
         fingers.insert(
@@ -524,7 +524,7 @@ mod tests {
         );
         fingers.insert(
             "pinky".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(index_zones.clone()),
+            keyforge_model::cost_model::FingerDefinition::Standard(index_zones),
         );
 
         let mut static_costs = std::collections::HashMap::new();
@@ -657,10 +657,15 @@ mod tests {
         // Cost = 1e15. Freq = 1e6. Product = 1e21 (Overflows i64 which is 9e18)
         let huge_cost = 1_000_000_000_000_000.0; // 1e15
 
-        let mut base_zone = std::collections::HashMap::new();
-        base_zone.insert("r0".into(), huge_cost);
-        let mut index_zones = std::collections::HashMap::new();
-        index_zones.insert("base".into(), base_zone);
+        let mut base_zone = keyforge_model::cost_model::RowCosts::new();
+        base_zone.insert(keyforge_model::types::RowIndex(0), huge_cost);
+        
+        let index_zones = keyforge_model::cost_model::FingerReach {
+            base: base_zone,
+            inner: Default::default(),
+            outer: Default::default(),
+        };
+        
         let mut fingers = std::collections::HashMap::new();
         fingers.insert(
             "index".into(),
@@ -757,18 +762,21 @@ mod tests {
             fingers: std::collections::HashMap::new(),
         };
 
-        let mut zones = std::collections::HashMap::new();
-        let mut base_zone = std::collections::HashMap::new();
-        base_zone.insert("r0".into(), 1.0);
-        zones.insert("base".into(), base_zone);
+        let mut base_zone = keyforge_model::cost_model::RowCosts::new();
+        base_zone.insert(keyforge_model::types::RowIndex(0), 1.0);
 
-        let mut outer_zone = std::collections::HashMap::new();
-        outer_zone.insert("r0".into(), 10.0);
-        zones.insert("outer".into(), outer_zone);
+        let mut outer_zone = keyforge_model::cost_model::RowCosts::new();
+        outer_zone.insert(keyforge_model::types::RowIndex(0), 10.0);
+
+        let zones = keyforge_model::cost_model::FingerReach {
+            base: base_zone,
+            outer: outer_zone,
+            inner: Default::default(),
+        };
 
         left_hand.fingers.insert(
             "pinky".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(zones.clone()),
+            keyforge_model::cost_model::FingerDefinition::Standard(zones),
         );
         right_hand.fingers.insert(
             "thumb".into(),

@@ -241,11 +241,10 @@ impl GhostScorer {
                 h.fingers.get(f_key)
             })
             .map(|f| match f {
-                keyforge_model::cost_model::FingerDefinition::Standard(zones) => {
-                    let row_key = format!("r{}", key.row.0);
-                    zones
-                        .get("base")
-                        .and_then(|z| z.get(&row_key))
+                keyforge_model::cost_model::FingerDefinition::Standard(reach) => {
+                    reach
+                        .base
+                        .get(&key.row)
                         .copied()
                         .unwrap_or(0.0)
                 }

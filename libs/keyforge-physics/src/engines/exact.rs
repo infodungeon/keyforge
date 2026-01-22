@@ -67,21 +67,20 @@ impl ScoringEngine for ExactScoringEngine {
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        _pos_map: &[u16],
+        pos_map: &[u16],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let current = self.score(layout)?;
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let pm = crate::kernel::compute::state::PosMap::from_slice(pos_map, self.ctx.key_count);
 
-        let mut swapped_keys = layout.keys.clone();
-        swapped_keys.swap(idx_a, idx_b);
-        let swapped = Layout::new_unchecked(swapped_keys);
-
-        let new_score = self.score(&swapped)?;
-
-        let diff = i128::from(new_score.0) - i128::from(current.0);
-        #[allow(clippy::cast_possible_truncation)]
-        Ok(diff.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64)
+        crate::kernel::compute::delta::calculate_swap_delta(
+            &self.ctx,
+            &validated,
+            &pm,
+            idx_a,
+            idx_b,
+        )
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {

@@ -97,24 +97,22 @@ fn resolve_key_cost(
 
         if let Some(finger_def) = hand.fingers.get(finger_key) {
             match finger_def {
-                FingerDefinition::Standard(zones) => {
-                    let zone_key = if key.col.0.unsigned_abs() > ZONE_INNER_THRESHOLD as u8
+                FingerDefinition::Standard(reach) => {
+                    let zone = if key.col.0.unsigned_abs() > ZONE_INNER_THRESHOLD as u8
                         && key.finger == FingerIndex::INDEX
                     {
-                        "inner"
+                        &reach.inner
                     } else if key.col.0.unsigned_abs() > ZONE_OUTER_THRESHOLD as u8
                         && key.finger == FingerIndex::PINKY
                     {
-                        "outer"
+                        &reach.outer
                     } else {
-                        "base"
+                        &reach.base
                     };
 
-                    if let Some(zone) = zones.get(zone_key).or_else(|| zones.get("base")) {
-                        let row_key = format!("r{}", key.row.0);
-                        return Ok(zone.get(&row_key).copied().unwrap_or(0.0));
-                    }
-                    return Ok(0.0);
+                    // Fallback to base if specifically requested zone is empty
+                    let zone = if zone.is_empty() { &reach.base } else { zone };
+                    return Ok(zone.get(&key.row).copied().unwrap_or(0.0));
                 }
                 FingerDefinition::Thumb(positions) => {
                     return Ok(positions
@@ -144,13 +142,18 @@ mod tests {
         let mut hand_def = HandDefinition {
             fingers: std::collections::HashMap::new(),
         };
-        let mut index_zones = std::collections::HashMap::new();
-        let mut base_zone = std::collections::HashMap::new();
-        base_zone.insert("r0".to_string(), 10.0);
-        index_zones.insert("base".to_string(), base_zone);
+        let mut base_zone = keyforge_model::cost_model::RowCosts::new();
+        base_zone.insert(RowIndex(0), 10.0);
+        
+        let zones = keyforge_model::cost_model::FingerReach {
+            base: base_zone,
+            inner: Default::default(),
+            outer: Default::default(),
+        };
+        
         hand_def
             .fingers
-            .insert("index".to_string(), FingerDefinition::Standard(index_zones));
+            .insert("index".to_string(), FingerDefinition::Standard(zones));
         static_costs.insert("universal_hand".to_string(), hand_def);
 
         let key = KeyNode {
@@ -171,14 +174,17 @@ mod tests {
         let mut static_costs = std::collections::HashMap::new();
         let mut fingers = std::collections::HashMap::new();
 
-        let mut zones = std::collections::HashMap::new();
-        let mut base_r0 = std::collections::HashMap::new();
-        base_r0.insert("r0".to_string(), 1.0);
-        zones.insert("base".to_string(), base_r0);
+        let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
+        base_r0.insert(RowIndex(0), 1.0);
 
-        let mut inner_r0 = std::collections::HashMap::new();
-        inner_r0.insert("r0".to_string(), 5.0);
-        zones.insert("inner".to_string(), inner_r0);
+        let mut inner_r0 = keyforge_model::cost_model::RowCosts::new();
+        inner_r0.insert(RowIndex(0), 5.0);
+        
+        let zones = keyforge_model::cost_model::FingerReach {
+            base: base_r0,
+            inner: inner_r0,
+            outer: Default::default(),
+        };
 
         fingers.insert("index".to_string(), FingerDefinition::Standard(zones));
         static_costs.insert("universal_hand".to_string(), HandDefinition { fingers });

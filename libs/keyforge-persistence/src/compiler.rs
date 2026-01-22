@@ -42,7 +42,7 @@ pub async fn compile_request<L: AssetLoader>(
 
     // 5. Translate to Physics entities using Adapter
     let keyboard = keyforge_adapter::conversion::to_domain_keyboard(&kb_def.geometry)
-        .map_err(|e| PersistenceError::Adapter(e.to_string()))?;
+        .map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Keyboard geometry: {e}")))?;
 
     let rubric = keyforge_adapter::conversion::to_domain_rubric(&config.weights);
 
@@ -57,7 +57,11 @@ pub async fn compile_request<L: AssetLoader>(
                 keyboard.count(),
                 &registry,
             )
-            .map_err(|e| PersistenceError::Adapter(e.to_string()))?,
+            .map_err(|e| {
+                keyforge_model::error::ForgeError::InvalidData(format!(
+                    "Default layout 'qwerty': {e}"
+                ))
+            })?,
         )
     } else {
         None
@@ -68,7 +72,7 @@ pub async fn compile_request<L: AssetLoader>(
         keyboard.count(),
         &registry,
     )
-    .map_err(|e| PersistenceError::Adapter(e.to_string()))?;
+    .map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Pinned keys: {e}")))?;
 
     Ok(EngineRequest {
         keyboard: Arc::new(keyboard),

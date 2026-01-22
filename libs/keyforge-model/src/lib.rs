@@ -41,8 +41,7 @@ pub mod keyboard;
 pub mod keycodes;
 /// The `Layout` entity (logical mapping).
 pub mod layout;
-/// Parsing logic for keymap formats (QMK/ZMK).
-pub mod parsing;
+pub mod metrics;
 /// Scoring configuration and weights.
 pub mod rubric;
 /// Core newtypes (`KeyIndex`, `Score`, etc.).
@@ -70,6 +69,7 @@ pub use job::{Completed, Job, JobIdentifier, JobState, JobStatus, Pending, Runni
 pub use keyboard::Keyboard;
 pub use keycodes::KeycodeRegistry;
 pub use layout::Layout;
+pub use metrics::{MetricId, MetricSet};
 pub use rubric::Rubric;
 pub use types::{
     AnalysisReport, ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, MetricViolation,

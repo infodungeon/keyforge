@@ -64,4 +64,17 @@ impl SecurityContext {
             true // Default to true if no secret? Need to check existing usage.
         }
     }
+
+    /// Derives a consistent 32-byte key for token encryption from the configured secret.
+    #[must_use]
+    pub fn get_token_key(&self) -> [u8; 32] {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        if let Some(secret) = &self.api_secret {
+            hasher.update(secret.as_bytes());
+        } else {
+            hasher.update(b"DEFAULT_INSECURE_KEY_REPLACE_ME");
+        }
+        hasher.finalize().into()
+    }
 }

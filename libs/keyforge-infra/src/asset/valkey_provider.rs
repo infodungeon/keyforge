@@ -80,7 +80,7 @@ impl ValkeyProvider {
             .coordinator
             .get_bin(&key)
             .await
-            .map_err(|e| ForgeError::Internal(format!("Valkey Fetch Error: {e}")))?;
+            .map_err(|e| ForgeError::Internal(format!("Valkey fetch error for {subpath}: {e}")))?;
 
         data.ok_or_else(|| ForgeError::NotFound(subpath.to_string()))
     }
@@ -93,12 +93,12 @@ impl ValkeyProvider {
 
         tokio::task::spawn_blocking(move || {
             let decoder = zstd::Decoder::new(&compressed[..])
-                .map_err(|e| ForgeError::Internal(format!("Zstd Init Error: {e}")))?;
+                .map_err(ForgeError::Io)?;
             rmp_serde::from_read(decoder)
-                .map_err(|e| ForgeError::Internal(format!("Deserialization Error: {e}")))
+                .map_err(|e| ForgeError::InvalidData(format!("MsgPack deserialization failed: {e}")))
         })
         .await
-        .map_err(|e| ForgeError::Internal(e.to_string()))?
+        .map_err(|e| ForgeError::Internal(format!("Spawn error: {e}")))?
     }
 
     // --- Helper Methods for Hive ---
@@ -233,13 +233,13 @@ impl AssetLoader for ValkeyProvider {
                 if let Ok(bytes) = self.fetch_blob(&path).await {
                     let part_res = tokio::task::spawn_blocking(move || {
                         let decoder = zstd::Decoder::new(&bytes[..])
-                            .map_err(|e| ForgeError::Internal(e.to_string()))?;
+                            .map_err(ForgeError::Io)?;
                         let data: Vec<serde_json::Value> = rmp_serde::from_read(decoder)
-                            .map_err(|e| ForgeError::Internal(e.to_string()))?;
+                            .map_err(|e| ForgeError::InvalidData(format!("Corpus segment deserialization failed: {e}")))?;
                         Ok::<Vec<serde_json::Value>, ForgeError>(data)
                     })
                     .await
-                    .map_err(|e| ForgeError::Internal(e.to_string()))??;
+                    .map_err(|e| ForgeError::Internal(format!("Spawn error: {e}")))??;
 
                     segments.push((part_name, part_res));
                 }

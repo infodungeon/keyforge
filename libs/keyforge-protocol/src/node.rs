@@ -99,6 +99,9 @@ pub struct NodeResponse {
     pub status: String,
     /// Tuning profile to apply.
     pub tuning: TuningProfile,
+    /// Optional session token (Task-sec-022).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
 }
 
 #[cfg(test)]

@@ -24,7 +24,7 @@ pub const CLAIM_JOB_QUERY: &str = r"
                         'prime_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
                         'med_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
                         'low_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
-                        'home_row', 1
+                        'home_row', k.home_row
                     )
                 ) as geometry_json,
                 sp.weights as weights_json,
@@ -47,7 +47,7 @@ pub const GET_JOB_CONFIG_QUERY: &str = r"
                     'prime_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
                     'med_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
                     'low_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
-                    'home_row', 1
+                    'home_row', k.home_row
                 ) as geometry_json,
                 sp.weights as weights_json,
                 j.corpus_name,
@@ -69,8 +69,8 @@ pub const INSERT_JOB_QUERY: &str = r"
             ";
 
 pub const INSERT_KEYBOARD_QUERY: &str = r"
-            INSERT INTO keyboards (name, author, version, notes, kb_type, unique_hash)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO keyboards (name, author, version, notes, kb_type, home_row, unique_hash)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (unique_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
             RETURNING id
             ";

@@ -23,6 +23,7 @@ use keyforge_model::{
 use keyforge_protocol::ResultSubmission;
 use keyforge_security as crypto;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 use tracing::warn;
 
 #[derive(Clone, Debug)]
@@ -32,6 +33,7 @@ pub struct VerificationService {
     assets: Arc<ValkeyProvider>,
     engine_cache: Arc<CompiledEngineCache>,
     layout_cache: Arc<ParsedLayoutCache>,
+    compilation_semaphore: Arc<Semaphore>,
 }
 
 impl VerificationService {
@@ -42,6 +44,7 @@ impl VerificationService {
         assets: Arc<ValkeyProvider>,
         engine_cache: Arc<CompiledEngineCache>,
         layout_cache: Arc<ParsedLayoutCache>,
+        max_concurrent_compilations: usize,
     ) -> Self {
         Self {
             jobs,
@@ -49,6 +52,7 @@ impl VerificationService {
             assets,
             engine_cache,
             layout_cache,
+            compilation_semaphore: Arc::new(Semaphore::new(max_concurrent_compilations)),
         }
     }
 
@@ -107,6 +111,16 @@ impl VerificationService {
     }
 
     async fn verify_score(&self, sub: &ResultSubmission) -> AppResult<()> {
+        if let Some(engine) = self.engine_cache.get(&sub.job_id) {
+            return self.check_tolerance(engine.clone(), sub).await;
+        }
+
+        // --- ATOMIC COMPILATION BOUNDARY ---
+        // We limit concurrent compilations to prevent CPU exhaustion (DOS protection)
+        let _permit = self.compilation_semaphore.acquire().await
+            .map_err(|e| AppError::Internal(format!("Semaphore error: {e}")))?;
+
+        // Re-check cache after acquiring permit (Double-Checked Locking pattern)
         if let Some(engine) = self.engine_cache.get(&sub.job_id) {
             return self.check_tolerance(engine.clone(), sub).await;
         }

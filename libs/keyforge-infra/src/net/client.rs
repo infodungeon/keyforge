@@ -14,8 +14,8 @@
 
 use crate::error::{InfraError, InfraResult};
 use keyforge_model::constants::{
-    DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_HIVE_URL, DEFAULT_REQUEST_TIMEOUT_SECS,
-    DEFAULT_USER_AGENT,
+    DEFAULT_ASSET_URL, DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_HIVE_URL,
+    DEFAULT_REQUEST_TIMEOUT_SECS, DEFAULT_USER_AGENT,
 };
 use reqwest::{header, Client, RequestBuilder};
 use std::time::Duration;
@@ -43,7 +43,7 @@ impl Default for ClientConfig {
     fn default() -> Self {
         Self {
             api_url: DEFAULT_HIVE_URL.to_string(),
-            asset_url: "http://localhost:3001".to_string(),
+            asset_url: DEFAULT_ASSET_URL.to_string(),
             secret: None,
             timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
             connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),

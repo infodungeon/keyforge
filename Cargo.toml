@@ -149,7 +149,6 @@ utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 utoipa-axum = { version = "0.2" }
 tower-sessions = "0.14"
 tower-sessions-sqlx-store = { version = "0.16", features = ["postgres"] }
-jsonwebtoken = "9.3"
 argon2 = "0.5"
 url = { version = "2.5", features = ["serde"] }
 deadpool = "0.12"

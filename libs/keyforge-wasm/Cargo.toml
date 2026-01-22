@@ -23,9 +23,7 @@ console_error_panic_hook = "0.1"
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-physics = { path = "../../libs/keyforge-physics" }
-keyforge-compute = { path = "../../libs/keyforge-compute", default-features = false, features = [
-    "single_threaded",
-] }
+keyforge-compute = { path = "../../libs/keyforge-compute", default-features = false }
 async-trait.workspace = true
 wasm-bindgen-futures = "0.4"
 

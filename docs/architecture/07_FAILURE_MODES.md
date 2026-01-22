@@ -18,11 +18,21 @@
 | :--- | :--- | :--- | :--- |
 | **Worker** | Node Crash / Timeout | Heartbeat Missed | **Re-queue**. The Job is returned to the queue for another worker to pick up. |
 | **Physics** | Panic (e.g., Div by 0) | `std::panic::catch_unwind` | **Isolate**. The specific optimization run fails, but the Worker process survives. Report error to Hive. |
-| **Job** | Poison Pill (Invalid Config) | Validation Error | **Reject**. Mark Job as `Failed` in DB. Do not re-queue. |
+| **Job** | Poison Pill (Invalid Config) | Validation Error | **Reject**. Mark Job as `Completed` with an error state or transition to `Failed` (if implemented). Do not re-queue. |
 
 ## 3. Logic Failures
 
 | Component | Failure Mode | Detection | Recovery Strategy |
 | :--- | :--- | :--- | :--- |
-| **Scoring** | Score Overflow | `Score` Type Bounds | **Saturate**. Cap at `Score::MAX`. Log warning. |
+| **Scoring** | Score Overflow | `Score` Type Bounds | **Saturate**. Cap at `Score::MAX` (fixed-point `i64::MAX`). Guaranteed by saturating operator overloads. |
 | **Evolution** | Stagnation (Local Minima) | `patience` counter | **Reheat**. Increase temperature to escape. If failed, terminate early. |
+
+## 4. State Transitions (Typestate Safety)
+
+The system uses the **Typestate Pattern** to ensure that invalid operations are impossible at compile-time:
+
+1. **Pending**: A job that has been registered but not yet claimed. No results exist.
+2. **Running**: A job active on one or more nodes. Has `active_nodes` count and `current_best` score.
+3. **Completed**: A finalized job. Contains `final_score`, `final_layout`, and `total_compute_sec`.
+
+Transitions are one-way (`Pending -> Running -> Completed`). Re-queueing a failed worker does not change the job state from `Running`.

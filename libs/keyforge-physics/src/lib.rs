@@ -91,6 +91,31 @@ impl EngineFactory {
         Self::new_scalar(ctx)
     }
 
+    /// Compiles the most optimized engine available for the current hardware.
+    ///
+    /// # Errors
+    /// Returns `PhysicsError` if compilation fails.
+    pub fn new_optimized(
+        ctx: EngineCompilationContext<'_>,
+    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if is_x86_feature_detected!("avx2") {
+                // Task-phys-rev-032: Intel kernel currently scalar fallback, 
+                // but this enables future SIMD usage.
+                return Self::new_intel_comet_lake(ctx, None);
+            }
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            // Task-phys-neon-001: ARM kernel currently scalar fallback.
+            return Self::new_arm_neon(ctx, None);
+        }
+
+        Self::new_scalar(ctx)
+    }
+
     /// Compiles a new **Intel AVX2** scoring engine.
     ///
     /// # Errors

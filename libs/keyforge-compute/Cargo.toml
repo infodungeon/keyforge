@@ -12,7 +12,6 @@ workspace = true
 [dependencies]
 keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
-keyforge-core = { path = "../keyforge-core" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-physics = { path = "../keyforge-physics" }
 keyforge-evolution = { path = "../keyforge-evolution" }
@@ -21,10 +20,9 @@ serde.workspace = true
 serde_json.workspace = true
 raw-cpuid.workspace = true
 async-trait.workspace = true
+tokio = { workspace = true, features = ["full"] }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = []
-single_threaded = ["keyforge-core/single_threaded"]

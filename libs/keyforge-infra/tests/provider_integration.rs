@@ -3,7 +3,7 @@
 //! Integration tests for `FsProvider`.
 //! These tests require tempfile/filesystem/async access and validate asset loading contracts.
 
-use keyforge_core::loader::AssetLoader;
+use keyforge_infra::AssetLoader;
 use keyforge_infra::asset::AssetServerProvider;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;

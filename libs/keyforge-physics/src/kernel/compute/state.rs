@@ -2,17 +2,25 @@ use crate::kernel::types::KeyCode;
 use keyforge_model::constants::{MAX_KEYBOARD_KEYS, MAX_KEYCODE_SPACE};
 
 #[derive(Debug)]
-pub struct PosMap<'a> {
-    pub(crate) starts: &'a [u16],
-    pub(crate) counts: &'a [u8],
-    pub(crate) indices: &'a [u16],
-    pub(crate) used_keys: &'a [u16],
+pub enum PosMap<'a> {
+    /// A structured view into scratch buffers.
+    Structured {
+        starts: &'a [u16],
+        counts: &'a [u8],
+        indices: &'a [u16],
+        used_keys: &'a [u16],
+    },
+    /// A flat, direct mapping (idx = keycode, val = pos).
+    /// Used by the Exact engine which doesn't maintain complex indices.
+    Flat {
+        map: &'a [u16],
+        key_count: usize,
+    },
 }
 
 #[allow(clippy::cast_possible_truncation)]
 impl<'a> PosMap<'a> {
     /// Creates a `PosMap` by manually populating the provided scratch buffers.
-    /// This avoids large array initialization on every call.
     pub(crate) fn from_scratch(
         layout: &[KeyCode],
         key_count: usize,
@@ -64,7 +72,7 @@ impl<'a> PosMap<'a> {
             current_offsets[c] += 1;
         }
 
-        Self {
+        Self::Structured {
             starts,
             counts,
             indices,
@@ -73,25 +81,55 @@ impl<'a> PosMap<'a> {
     }
 
     /// Creates a `PosMap` from a flat position map slice.
-    /// This is an optimized view into an existing position map.
-    #[allow(dead_code)]
-    pub(crate) fn from_slice(_pos_map: &'a [u16], _key_count: usize) -> Self {
-        // Implementation omitted for now - requires architectural alignment on
-        // whether the optimizer provides a flat map or a structured one.
-        unimplemented!("Task-phys-rev-039 requires a non-scratch PosMap variant")
+    #[must_use]
+    pub fn from_slice(map: &'a [u16], key_count: usize) -> Self {
+        Self::Flat { map, key_count }
     }
 
     #[inline]
-    pub(crate) fn get(&self, code: usize) -> &[u16] {
-        if code >= MAX_KEYCODE_SPACE {
-            return &[];
+    #[must_use]
+    pub fn get(&self, code: usize) -> &[u16] {
+        match self {
+            Self::Structured {
+                starts,
+                counts,
+                indices,
+                ..
+            } => {
+                if code >= MAX_KEYCODE_SPACE {
+                    return &[];
+                }
+                let start = starts[code] as usize;
+                let count = counts[code] as usize;
+                if count == 0 {
+                    return &[];
+                }
+                &indices[start..start + count]
+            }
+            Self::Flat { map, key_count } => {
+                if code >= map.len() {
+                    return &[];
+                }
+                let pos = map[code];
+                if pos as usize >= *key_count {
+                    &[]
+                } else {
+                    // Safety: map[code] is a single value, but we need a slice.
+                    // Since it's a flat map, each key is assumed to have exactly one position.
+                    // This is used by the Exact engine.
+                    std::slice::from_ref(&map[code])
+                }
+            }
         }
-        let start = self.starts[code] as usize;
-        let count = self.counts[code] as usize;
-        if count == 0 {
-            return &[];
+    }
+
+    /// Returns the list of unique keys present in the layout.
+    #[must_use]
+    pub fn used_keys(&self) -> &[u16] {
+        match self {
+            Self::Structured { used_keys, .. } => used_keys,
+            Self::Flat { .. } => &[], // Not easily available for flat variant without scanning
         }
-        &self.indices[start..start + count]
     }
 }
 

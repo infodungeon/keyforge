@@ -24,13 +24,16 @@ use std::collections::HashMap;
 fn mock_cost_model() -> CostModel {
     let mut cm = CostModel::default();
 
-    let mut base_zone = HashMap::new();
+    let mut base_zone = keyforge_model::cost_model::RowCosts::new();
     for r in -128..=127 {
-        base_zone.insert(format!("r{r}"), 0.0);
+        base_zone.insert(RowIndex(r as i8), 0.0);
     }
 
-    let mut index_zones = HashMap::new();
-    index_zones.insert("base".into(), base_zone.clone());
+    let index_zones = keyforge_model::cost_model::FingerReach {
+        base: base_zone.clone(),
+        inner: Default::default(),
+        outer: Default::default(),
+    };
 
     let mut fingers = HashMap::new();
     fingers.insert("thumb".into(), FingerDefinition::Thumb(HashMap::new()));
@@ -48,7 +51,7 @@ fn mock_cost_model() -> CostModel {
     );
     fingers.insert(
         "pinky".into(),
-        FingerDefinition::Standard(index_zones.clone()),
+        FingerDefinition::Standard(index_zones),
     );
 
     let mut static_costs = HashMap::new();

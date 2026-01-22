@@ -3,11 +3,7 @@ use keyforge_model::config;
 /// Converts a protocol-level corpus source into a domain-level source.
 #[must_use]
 pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource {
-    config::CorpusSource {
-        id: s.id.clone(),
-        weight: s.weight,
-        hash: s.hash.clone(),
-    }
+    s.clone()
 }
 
 /// Converts protocol-level scoring weights into a domain-level evaluation rubric.

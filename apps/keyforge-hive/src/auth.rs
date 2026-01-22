@@ -19,6 +19,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use keyforge_security as crypto;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use subtle::ConstantTimeEq;
@@ -30,35 +31,45 @@ pub async fn require_secret(
     next: Next,
 ) -> Result<Response, StatusCode> {
     // FAIL CLOSED: If no secret is configured, deny all requests.
-    // This prevents accidental exposure of sensitive endpoints.
     if state.security.api_secret.is_none() {
         warn!("⛔ Auth Failed: Server has no secret configured.");
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    // 1. Extract Header
+    // 1. Try PASETO Bearer Token (Task-sec-022)
+    if let Some(auth_header) = req.headers().get(axum::http::header::AUTHORIZATION) {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                let key = state.security.get_token_key();
+                if crypto::verify_paseto_token(&key, token).is_ok() {
+                    return Ok(next.run(req).await);
+                }
+                warn!("⛔ Auth Failed: Invalid Bearer Token");
+                return Err(StatusCode::UNAUTHORIZED);
+            }
+        }
+    }
+
+    // 2. Fallback to Legacy X-Keyforge-Secret Header
     let auth_header = req
         .headers()
         .get("X-Keyforge-Secret")
         .and_then(|h| h.to_str().ok());
 
     let Some(token) = auth_header else {
-        warn!("⛔ Auth Failed: Missing Header from {:?}", req.uri());
+        warn!("⛔ Auth Failed: Missing Authentication from {:?}", req.uri());
         return Err(StatusCode::UNAUTHORIZED);
     };
 
-    // 2. Check Master Key (HIVE_SECRET)
+    // Check Master Key (HIVE_SECRET)
     if let Some(master) = &state.security.api_secret {
         if token.as_bytes().ct_eq(master.as_bytes()).into() {
             return Ok(next.run(req).await);
         }
     }
 
-    // 3. Check Database API Keys
-    let mut hasher = Sha256::new();
-    hasher.update(token.as_bytes());
-    let hash = hex::encode(hasher.finalize());
-
+    // Check Database API Keys
+    let hash = hash_key(token);
     if let Some(valid) = state.security.api_key_cache.get(&hash) {
         if valid {
             return Ok(next.run(req).await);

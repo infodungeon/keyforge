@@ -49,21 +49,53 @@ impl UserRepo {
 
     // --- USER LAYOUTS ---
 
-    fn load_layout_store(&self) -> UserLayoutStore {
-        let path = self.root.join("user/user_layouts.json");
-        if path.exists() {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(store) = serde_json::from_str(&content) {
-                    return store;
+    /// Checks if the legacy monolithic `user_layouts.json` file exists.
+    /// If so, it migrates the data to individual files and deletes the legacy file.
+    fn migrate_legacy_store_if_needed(&self) -> InfraResult<()> {
+        let legacy_path = self.root.join("user/user_layouts.json");
+        if !legacy_path.exists() {
+            return Ok(());
+        }
+
+        tracing::info!("Migrating legacy user layouts to individual files...");
+
+        if let Ok(content) = fs::read_to_string(&legacy_path) {
+            if let Ok(store) = serde_json::from_str::<UserLayoutStore>(&content) {
+                for (kb_id, layouts) in store.layouts {
+                    for (name, layout_data) in layouts {
+                        self.save_layout_internal(&kb_id, &name, &layout_data)?;
+                    }
                 }
             }
         }
-        UserLayoutStore::default()
+
+        // Rename legacy file to .bak instead of deleting immediately, for safety
+        let backup_path = self.root.join("user/user_layouts.json.bak");
+        fs::rename(legacy_path, backup_path).map_err(InfraError::Io)?;
+
+        Ok(())
     }
 
-    fn save_layout_store(&self, store: &UserLayoutStore) -> InfraResult<()> {
-        let path = self.root.join("user/user_layouts.json");
-        let json = serde_json::to_string_pretty(store).map_err(InfraError::Serde)?;
+    fn get_layout_dir(&self, kb_id: &str) -> PathBuf {
+        self.root.join("user/layouts").join(kb_id)
+    }
+
+    fn save_layout_internal(&self, kb_id: &str, name: &str, layout: &str) -> InfraResult<()> {
+        let dir = self.get_layout_dir(kb_id);
+        if !dir.exists() {
+            fs::create_dir_all(&dir).map_err(InfraError::Io)?;
+        }
+
+        let safe_name = sanitize_filename(name);
+        let path = dir.join(format!("{safe_name}.json"));
+
+        let data = serde_json::json!({
+            "name": name,
+            "layout": layout,
+            "updated_at": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+        });
+
+        let json = serde_json::to_string_pretty(&data).map_err(InfraError::Serde)?;
         atomic_write(path, json)?;
         Ok(())
     }
@@ -79,10 +111,8 @@ impl UserRepo {
     ///
     /// Returns `InfraError` if saving fails.
     pub fn save_layout(&self, kb_id: &str, name: &str, layout: &str) -> InfraResult<()> {
-        let mut store = self.load_layout_store();
-        let kb_entry = store.layouts.entry(kb_id.to_string()).or_default();
-        kb_entry.insert(name.to_string(), layout.to_string());
-        self.save_layout_store(&store)
+        self.migrate_legacy_store_if_needed()?;
+        self.save_layout_internal(kb_id, name, layout)
     }
 
     /// Deletes a previously saved user layout.
@@ -91,10 +121,14 @@ impl UserRepo {
     ///
     /// Returns `InfraError` if the layout cannot be deleted.
     pub fn delete_layout(&self, kb_id: &str, name: &str) -> InfraResult<()> {
-        let mut store = self.load_layout_store();
-        if let Some(kb_layouts) = store.layouts.get_mut(kb_id) {
-            kb_layouts.remove(name);
-            self.save_layout_store(&store)?;
+        self.migrate_legacy_store_if_needed()?;
+
+        let dir = self.get_layout_dir(kb_id);
+        let safe_name = sanitize_filename(name);
+        let path = dir.join(format!("{safe_name}.json"));
+
+        if path.exists() {
+            fs::remove_file(path).map_err(InfraError::Io)?;
         }
         Ok(())
     }
@@ -102,8 +136,33 @@ impl UserRepo {
     /// Returns all saved layouts for a specific keyboard.
     #[must_use]
     pub fn get_layouts(&self, kb_id: &str) -> HashMap<String, String> {
-        let store = self.load_layout_store();
-        store.layouts.get(kb_id).cloned().unwrap_or_default()
+        let _ = self.migrate_legacy_store_if_needed();
+
+        let mut layouts = HashMap::new();
+        let dir = self.get_layout_dir(kb_id);
+
+        if !dir.exists() {
+            return layouts;
+        }
+
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map_or(false, |ext| ext == "json") {
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let (Some(name), Some(layout)) = (
+                                json.get("name").and_then(|v| v.as_str()),
+                                json.get("layout").and_then(|v| v.as_str()),
+                            ) {
+                                layouts.insert(name.to_string(), layout.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        layouts
     }
 
     // --- BIOMETRICS (JSONL) ---
@@ -111,7 +170,7 @@ impl UserRepo {
     fn load_stats_store(&self) -> UserStatsStore {
         let mut store = UserStatsStore::default();
         let _ = self.load_stats_streaming(|sample| {
-            if store.biometrics.len() < 100_000 {
+            if store.biometrics.len() < keyforge_protocol::constants::MAX_BIOMETRIC_SAMPLES {
                 store.biometrics.push(sample);
             }
         });

@@ -35,6 +35,7 @@ pub const DEFAULT_NONCE_CACHE_TTL_SECS: u64 = 600;
 pub const DEFAULT_SUBMISSION_EXPIRATION_SECS: u64 = 600;
 pub const DEFAULT_BROADCAST_CAPACITY: usize = 10000;
 pub const DEFAULT_MONITOR_INTERVAL_SECS: u64 = 5;
+pub const DEFAULT_MAX_CONCURRENT_COMPILATIONS: usize = 4;
 
 /// The global application configuration, aggregating settings for database, network, queue, and rate limiting.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,10 +72,18 @@ pub struct AppConfig {
     /// Maximum number of layouts to keep per job in the population.
     #[serde(default = "default_population_limit")]
     pub population_limit: usize,
+
+    /// Maximum number of concurrent engine compilations for verification.
+    #[serde(default = "default_max_concurrent_compilations")]
+    pub max_concurrent_compilations: usize,
 }
 
 fn default_population_limit() -> usize {
     DEFAULT_POPULATION_LIMIT
+}
+
+fn default_max_concurrent_compilations() -> usize {
+    DEFAULT_MAX_CONCURRENT_COMPILATIONS
 }
 
 fn default_valkey() -> String {
@@ -97,6 +106,7 @@ impl AppConfig {
         let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
         let server_key = env::var("HIVE_SERVER_KEY").ok();
         let population_limit = parse_env("POPULATION_LIMIT", DEFAULT_POPULATION_LIMIT);
+        let max_concurrent_compilations = parse_env("MAX_CONCURRENT_COMPILATIONS", DEFAULT_MAX_CONCURRENT_COMPILATIONS);
 
         // Rate Limits
         let rate_limits = RateLimitConfig::load();
@@ -112,6 +122,7 @@ impl AppConfig {
             cors_origins,
             server_key,
             population_limit,
+            max_concurrent_compilations,
         })
     }
 
@@ -128,6 +139,7 @@ impl AppConfig {
             cors_origins: "*".to_string(),
             server_key: Some("mock_server_key".to_string()),
             population_limit: DEFAULT_POPULATION_LIMIT,
+            max_concurrent_compilations: DEFAULT_MAX_CONCURRENT_COMPILATIONS,
         }
     }
 }

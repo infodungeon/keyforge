@@ -34,7 +34,7 @@ bytes.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-adapter = { path = "../keyforge-adapter" }
-keyforge-core = { path = "../keyforge-core" }
+keyforge-compute = { path = "../keyforge-compute" }
 async-trait.workspace = true
 
 # Valkey Integration

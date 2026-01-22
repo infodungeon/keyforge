@@ -19,7 +19,7 @@ pub fn to_domain_keyboard(
         .iter()
         .enumerate()
         .map(|(i, k)| {
-            let mut kn = to_domain_keynode(k.clone());
+            let mut kn = to_domain_keynode(k);
             kn.index = i;
             // Task-adap-rev-001: Only override is_home if it's false in input
             if !k.is_home {
@@ -35,10 +35,10 @@ pub fn to_domain_keyboard(
 
 /// Converts a protocol-level key node into a domain-level node.
 #[must_use]
-pub fn to_domain_keynode(k: geometry::KeyNode) -> keyforge_model::KeyNode {
+pub fn to_domain_keynode(k: &geometry::KeyNode) -> keyforge_model::KeyNode {
     keyforge_model::KeyNode {
         index: k.index,
-        label: k.label,
+        label: k.label.clone(),
         x: k.x,
         y: k.y,
         w: k.w,
@@ -130,7 +130,7 @@ mod tests {
             ..Default::default()
         };
 
-        let domain_key = to_domain_keynode(proto_key.clone());
+        let domain_key = to_domain_keynode(&proto_key);
         assert_eq!(domain_key.index, proto_key.index);
         assert_eq!(domain_key.label, proto_key.label);
     }

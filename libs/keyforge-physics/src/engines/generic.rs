@@ -68,10 +68,15 @@ impl ScoringEngine for GenericScoringEngine {
                 used,
             );
 
+            let eval_ctx = crate::kernel::EvaluationContext {
+                engine: &self.ctx,
+                pos_map: &pm,
+            };
+
             // Access private kernels for breakdown
-            let mono = crate::kernel::compute::scoring::score_monograms(&self.ctx, &pm)?.0;
-            let bigram = crate::kernel::compute::scoring::score_bigrams(&self.ctx, &pm)?.0;
-            let trigram = crate::kernel::compute::scoring::score_trigrams(&self.ctx, &pm)?.0;
+            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.0;
+            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.0;
+            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
 
             // Clean up scratch for next use (score_layout usually does this, but we called sub-functions)
             s.clear_used();
@@ -87,38 +92,9 @@ impl ScoringEngine for GenericScoringEngine {
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let pm = PosMap::from_slice(pos_map, self.ctx.key_count);
 
-        // Task-phys-rev-039: Reuse provided pos_map if possible
-        if pos_map.len() >= 65536 {
-            // In KeyForge, a 'full' pos_map is 65536 entries.
-            // If the optimizer provides one, we can wrap it.
-            // We need to implement PosMap::from_slice for this.
-            // For now, let's assume we still need the full scratch-based PosMap
-            // until PosMap is refactored to support slices.
-        }
-
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
-
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
-            let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
-            let pm = PosMap::from_scratch(
-                validated.as_slice(),
-                key_count,
-                starts,
-                counts,
-                indices,
-                offsets,
-                used,
-            );
-
-            let delta = calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b)?;
-            s.clear_used();
-            Ok(delta)
-        })
+        calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b)
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {

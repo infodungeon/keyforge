@@ -112,9 +112,14 @@ impl ScoringEngine for IntelScoringEngine {
                 used,
             );
 
-            let mono = score_monograms(&self.ctx, &pm)?.0;
-            let bigram = score_bigrams(&self.ctx, &pm)?.0;
-            let trigram = score_trigrams(&self.ctx, &pm)?.0;
+            let eval_ctx = crate::kernel::EvaluationContext {
+                engine: &self.ctx,
+                pos_map: &pm,
+            };
+
+            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.0;
+            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.0;
+            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
             // cleanup
             s.clear_used();
             Ok((mono, bigram, trigram))
@@ -181,32 +186,7 @@ fn score_layout_scalar(
     layout: &ValidatedLayout<'_>,
     scratch: &mut PhysicsScratch,
 ) -> Result<i64, PhysicsError> {
-    let layout_slice = layout.as_slice();
-    let key_count = ctx.key_count;
-    let (starts, counts, indices, offsets, used) = scratch.get_mut_scratch();
-    let pm = PosMap::from_scratch(
-        layout_slice,
-        key_count,
-        starts,
-        counts,
-        indices,
-        offsets,
-        used,
-    );
-
-    let m = score_monograms(ctx, &pm)?;
-    let b = score_bigrams(ctx, &pm)?;
-    let t = score_trigrams(ctx, &pm)?;
-
-    let total = m
-        .checked_add(b)
-        .and_then(|sum| sum.checked_add(t))
-        .ok_or_else(|| PhysicsError::ScoreOverflow {
-            context: "Intel scalar total score accumulation".into(),
-        })?;
-
-    scratch.clear_used();
-    Ok(total.0)
+    crate::kernel::compute::score_layout(ctx, layout, scratch)
 }
 
 // -----------------------------------------------------------------------------
@@ -225,171 +205,6 @@ unsafe fn score_layout_avx2(
     // Task-phys-rev-032: Real AVX2 implementation pending.
     // Fallback to scalar for now to ensure bit-perfect accuracy.
     score_layout_scalar(ctx, layout, scratch)
-}
-
-// Reuse helper functions. Ideally these would also be target_feature optimized,
-// but they are called from within the target_feature function so they might get inlined and vectorized.
-// To be sure, we should mark them inline always.
-
-// Hot path: Inlining is critical for the inner loop of the scoring engine.
-#[allow(clippy::inline_always)]
-#[inline(always)]
-fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
-    let mut total = Score::ZERO;
-    for &code in pm.used_keys {
-        let c_val = code as usize;
-        let freq = ctx.corpus.char_freqs[c_val];
-        if freq == 0 {
-            continue;
-        }
-        let candidates = pm.get(c_val);
-        if candidates.is_empty() {
-            continue;
-        }
-
-        let mut min_cost = Score(i64::MAX);
-        for &p in candidates {
-            let cost = ctx.geometry.key_costs[p as usize];
-            if cost < min_cost {
-                min_cost = cost;
-            }
-        }
-
-        if min_cost.0 != i64::MAX {
-            // Frequencies are technically u64 but bounded by corpus size. Wrapping i64 is
-            // extremely unlikely in practice and we checked for overflow in the mul.
-            #[allow(clippy::cast_possible_wrap)]
-            let contrib =
-                min_cost
-                    .checked_mul(freq as i64)
-                    .ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Intel Monogram freq scale for code {code}"),
-                    })?;
-            total = total
-                .checked_add(contrib)
-                .ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Intel Monogram total accumulation at code {code}"),
-                })?;
-        }
-    }
-    Ok(total)
-}
-
-// Hot path: Inlining is critical for the inner loop of the scoring engine.
-#[allow(clippy::inline_always)]
-#[inline(always)]
-fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
-    let mut total = Score::ZERO;
-    for &code1 in pm.used_keys {
-        let c1_val = code1 as usize;
-        let candidates1 = pm.get(c1_val);
-        let start = ctx.corpus.bigram_starts[c1_val];
-        let end = ctx.corpus.bigram_starts[c1_val + 1];
-
-        for k in start..end {
-            let c2 = ctx.corpus.bigram_others[k];
-            let candidates2 = pm.get(c2.0 as usize);
-            if candidates2.is_empty() {
-                continue;
-            }
-
-            let mut min_cost = Score(i64::MAX);
-            // This inner loop is the hot path for optimization
-            for &p1 in candidates1 {
-                for &p2 in candidates2 {
-                    let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
-
-                    let mut cost = ctx.geometry.cost_matrix[idx];
-
-                    if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
-                        cost = cost.checked_add(mod_val).ok_or_else(|| {
-                            PhysicsError::ScoreOverflow {
-                                context: format!("Intel Bigram modifier for ({}, {})", code1, c2.0),
-                            }
-                        })?;
-                    }
-
-                    if cost < min_cost {
-                        min_cost = cost;
-                    }
-                }
-            }
-
-            if min_cost.0 != i64::MAX {
-                let freq = i64::from(ctx.corpus.bigram_freqs[k]);
-                let contrib =
-                    min_cost
-                        .checked_mul(freq)
-                        .ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: format!("Intel Bigram freq scale for ({}, {})", code1, c2.0),
-                        })?;
-                total = total
-                    .checked_add(contrib)
-                    .ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!(
-                            "Intel Bigram total accumulation at ({}, {})",
-                            code1, c2.0
-                        ),
-                    })?;
-            }
-        }
-    }
-    Ok(total)
-}
-
-#[allow(clippy::inline_always)]
-#[inline(always)]
-fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
-    let mut total = Score::ZERO;
-    for &code1 in pm.used_keys {
-        let c1_val = code1 as usize;
-        let candidates1 = pm.get(c1_val);
-        let start = ctx.corpus.trigram_starts[c1_val];
-        let end = ctx.corpus.trigram_starts[c1_val + 1];
-
-        for k in start..end {
-            let c2 = ctx.corpus.trigram_others1[k];
-            let c3 = ctx.corpus.trigram_others2[k];
-            let candidates2 = pm.get(c2.0 as usize);
-            let candidates3 = pm.get(c3.0 as usize);
-
-            if candidates2.is_empty() || candidates3.is_empty() {
-                continue;
-            }
-
-            let mut min_cost = Score(i64::MAX);
-            for &p1 in candidates1 {
-                for &p2 in candidates2 {
-                    for &p3 in candidates3 {
-                        let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
-                        if cost < min_cost {
-                            min_cost = cost;
-                        }
-                    }
-                }
-            }
-
-            if min_cost.0 != i64::MAX && min_cost.0 != 0 {
-                let freq = i64::from(ctx.corpus.trigram_freqs[k]);
-                let contrib =
-                    min_cost
-                        .checked_mul(freq)
-                        .ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: format!(
-                                "Intel Trigram freq scale for sequence starting with {code1}"
-                            ),
-                        })?;
-                total = total
-                    .checked_add(contrib)
-                    .ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!(
-                            "Intel Trigram total accumulation for sequence starting with {code1}"
-                        ),
-                    })?;
-            }
-        }
-    }
-    Ok(total)
 }
 
 #[cfg(test)]

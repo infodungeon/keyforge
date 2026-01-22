@@ -173,10 +173,10 @@ pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionErro
     })
     .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
-    keyforge_core::optimize_with_engine(
+    optimize_with_engine(
         &engine_arc,
         &req.config,
-        keyforge_core::NoOpCallback,
+        NoOpCallback,
         req.initial_layout.clone(),
         Some(&req.pinned_keys),
     )
@@ -198,7 +198,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     })
     .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
-    keyforge_core::optimize_with_engine(
+    optimize_with_engine(
         &engine_arc,
         &req.config,
         callback,

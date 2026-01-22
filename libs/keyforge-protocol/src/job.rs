@@ -104,7 +104,7 @@ impl JobConfig {
     /// Returns an error if the layout geometry or configuration parts are invalid.
     pub fn id(&self) -> Result<String, String> {
         let corpora_fingerprint =
-            keyforge_infra::util::common::calculate_fingerprint(&self.corpora);
+            keyforge_model::job::calculate_corpora_fingerprint(&self.corpora);
 
         keyforge_model::job::JobIdentifier::from_parts(
             &self.definition.geometry,

@@ -1653,6 +1653,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ct-codecs"
+version = "1.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b10589d1a5e400d61f9f38f12f884cfd080ff345de8f17efda36fe0e4a02aa8"
+
+[[package]]
 name = "ctor"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1683,7 +1689,7 @@ dependencies = [
  "cpufeatures",
  "curve25519-dalek-derive",
  "digest",
- "fiat-crypto",
+ "fiat-crypto 0.2.9",
  "rustc_version",
  "subtle",
  "zeroize",
@@ -2054,6 +2060,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519-compact"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33ce99a9e19c84beb4cc35ece85374335ccc398240712114c85038319ed709bd"
+dependencies = [
+ "getrandom 0.3.4",
+]
+
+[[package]]
 name = "ed25519-dalek"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2288,6 +2303,12 @@ name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
+
+[[package]]
+name = "fiat-crypto"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
 
 [[package]]
 name = "field-offset"
@@ -3960,7 +3981,9 @@ version = "0.9.0"
 dependencies = [
  "keyforge-model",
  "keyforge-protocol",
+ "serde",
  "thiserror 2.0.17",
+ "ts-rs",
 ]
 
 [[package]]
@@ -3977,13 +4000,12 @@ dependencies = [
  "hex",
  "hostname",
  "keyforge-adapter",
- "keyforge-core",
+ "keyforge-compute",
  "keyforge-infra",
  "keyforge-model",
  "keyforge-persistence",
  "keyforge-physics",
  "keyforge-protocol",
- "keyforge-runner",
  "keyforge-security",
  "libc",
  "machine-uid",
@@ -4064,7 +4086,6 @@ dependencies = [
  "indicatif 0.17.11",
  "keyforge-adapter",
  "keyforge-compute",
- "keyforge-core",
  "keyforge-evolution",
  "keyforge-export",
  "keyforge-infra",
@@ -4072,7 +4093,6 @@ dependencies = [
  "keyforge-persistence",
  "keyforge-physics",
  "keyforge-protocol",
- "keyforge-runner",
  "keyforge-testing",
  "num_cpus",
  "opentelemetry",
@@ -4100,7 +4120,7 @@ version = "0.9.0"
 dependencies = [
  "async-trait",
  "keyforge-adapter",
- "keyforge-core",
+ "keyforge-evolution",
  "keyforge-model",
  "keyforge-physics",
  "keyforge-protocol",
@@ -4108,20 +4128,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tracing",
-]
-
-[[package]]
-name = "keyforge-core"
-version = "0.9.0"
-dependencies = [
- "async-trait",
- "keyforge-compute",
- "keyforge-evolution",
- "keyforge-model",
- "keyforge-physics",
- "serde",
- "serde_json",
  "tracing",
 ]
 
@@ -4175,7 +4181,6 @@ dependencies = [
  "keyforge-adapter",
  "keyforge-assets",
  "keyforge-compute",
- "keyforge-core",
  "keyforge-infra",
  "keyforge-model",
  "keyforge-persistence",
@@ -4238,7 +4243,7 @@ dependencies = [
  "futures-util",
  "hex",
  "keyforge-adapter",
- "keyforge-core",
+ "keyforge-compute",
  "keyforge-model",
  "keyforge-protocol",
  "moka",
@@ -4292,7 +4297,6 @@ dependencies = [
  "hex",
  "keyforge-adapter",
  "keyforge-compute",
- "keyforge-core",
  "keyforge-infra",
  "keyforge-model",
  "keyforge-protocol",
@@ -4312,7 +4316,6 @@ dependencies = [
  "fastrand",
  "keyforge-adapter",
  "keyforge-compute",
- "keyforge-core",
  "keyforge-infra",
  "keyforge-model",
  "proptest",
@@ -4343,7 +4346,6 @@ name = "keyforge-repros"
 version = "0.1.0"
 dependencies = [
  "keyforge-compute",
- "keyforge-core",
  "keyforge-infra",
  "keyforge-model",
  "keyforge-physics",
@@ -4356,32 +4358,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "keyforge-runner"
-version = "0.9.0"
-dependencies = [
- "async-trait",
- "keyforge-adapter",
- "keyforge-compute",
- "keyforge-core",
- "keyforge-infra",
- "keyforge-model",
- "keyforge-physics",
- "keyforge-protocol",
- "rand 0.9.2",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "keyforge-security"
 version = "0.9.0"
 dependencies = [
  "ed25519-dalek",
  "hex",
  "keyforge-model",
+ "pasetors",
  "rand 0.9.2",
  "sha2",
  "subtle",
@@ -4395,14 +4378,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "keyforge-adapter",
- "keyforge-core",
+ "keyforge-compute",
  "keyforge-evolution",
  "keyforge-infra",
  "keyforge-model",
  "keyforge-persistence",
  "keyforge-physics",
  "keyforge-protocol",
- "keyforge-runner",
  "keyforge-testing",
  "serde_json",
  "tokio",
@@ -4412,7 +4394,7 @@ dependencies = [
 name = "keyforge-testing"
 version = "0.9.0"
 dependencies = [
- "keyforge-core",
+ "keyforge-compute",
  "keyforge-infra",
  "keyforge-model",
  "tempfile",
@@ -4447,7 +4429,6 @@ dependencies = [
  "keyforge-adapter",
  "keyforge-assets",
  "keyforge-compute",
- "keyforge-core",
  "keyforge-evolution",
  "keyforge-export",
  "keyforge-infra",
@@ -4455,7 +4436,6 @@ dependencies = [
  "keyforge-persistence",
  "keyforge-physics",
  "keyforge-protocol",
- "keyforge-runner",
  "moka",
  "reqwest 0.13.1",
  "rmp-serde",
@@ -4486,7 +4466,6 @@ dependencies = [
  "getrandom 0.3.4",
  "keyforge-adapter",
  "keyforge-compute",
- "keyforge-core",
  "keyforge-model",
  "keyforge-physics",
  "keyforge-protocol",
@@ -5763,6 +5742,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "orion"
+version = "0.17.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb3278caf2be3bafa358c50c76170a4f3bb5f4f39e671909fb64ee558cde117e"
+dependencies = [
+ "fiat-crypto 0.3.0",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "os_pipe"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5883,6 +5873,23 @@ dependencies = [
  "regex-syntax",
  "structmeta",
  "syn 2.0.112",
+]
+
+[[package]]
+name = "pasetors"
+version = "0.7.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03e1ed71dcdf863d9f66d9de86de714db38aedc2fcabc1a60207d1fde603e2d5"
+dependencies = [
+ "ct-codecs",
+ "ed25519-compact",
+ "getrandom 0.3.4",
+ "orion",
+ "regex",
+ "serde_json",
+ "subtle",
+ "time",
+ "zeroize",
 ]
 
 [[package]]

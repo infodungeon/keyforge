@@ -130,6 +130,7 @@ impl AppState {
             assets.clone(),
             engine_cache.clone(),
             layout_cache.clone(),
+            config.max_concurrent_compilations,
         ));
 
         Ok(Self {

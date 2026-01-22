@@ -83,30 +83,37 @@ impl JobRepository {
 
         if let Some(r) = row {
             let id: String = r.get("id");
-            let geometry: serde_json::Value = r.get("geometry_json");
-            let weights: serde_json::Value = r.get("weights_json");
-            let params: serde_json::Value = r.get("params_json");
-            let pinned_keys: String = r.get("pinned_keys");
+            let geometry_val: serde_json::Value = r.get("geometry_json");
+            let weights_val: serde_json::Value = r.get("weights_json");
+            let params_val: serde_json::Value = r.get("params_json");
+            let pinned_keys_str: String = r.get("pinned_keys");
             let corpus_name: String = r.get("corpus_name");
-            let cost_matrix: String = r.get("cost_matrix");
+            let cost_matrix_str: String = r.get("cost_matrix");
+
+            let definition = serde_json::from_value(geometry_val)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid geometry in DB: {e}")))?;
+            let weights = serde_json::from_value(weights_val)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights in DB: {e}")))?;
+            let params = serde_json::from_value(params_val)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid params in DB: {e}")))?;
+            let pinned_keys = serde_json::from_str(&pinned_keys_str)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid pins in DB: {e}")))?;
+            let cost_matrix = serde_json::from_str(&cost_matrix_str)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid cost_matrix in DB: {e}")))?;
 
             let req = JobRequest {
                 version: keyforge_protocol::PROTOCOL_VERSION,
                 config: keyforge_protocol::JobConfig {
-                    definition: serde_json::from_value(geometry).unwrap_or_default(),
-                    weights: serde_json::from_value(weights).unwrap_or_default(),
-                    params: serde_json::from_value(params).unwrap_or_default(),
-                    pinned_keys: serde_json::from_str(&pinned_keys).unwrap_or_default(),
+                    definition,
+                    weights,
+                    params,
+                    pinned_keys,
                     corpora: vec![keyforge_model::CorpusSource {
                         id: corpus_name,
                         weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
                         hash: None,
                     }],
-                    cost_matrix: serde_json::from_str(&cost_matrix).unwrap_or(
-                        keyforge_model::CostMatrixSource::Predefined(
-                            "default_costmatrix.json".to_string(),
-                        ),
-                    ),
+                    cost_matrix,
                     biometrics: vec![],
                     parent_job_id: r.get("parent_job_id"),
                     baseline_score: None,
@@ -248,6 +255,7 @@ impl JobRepository {
             .bind(&kb_meta.version)
             .bind(&kb_meta.notes)
             .bind(&kb_meta.kb_type)
+            .bind(def.geometry.home_row as i32)
             .bind(unique_hash)
             .fetch_one(&mut **tx)
             .await?;

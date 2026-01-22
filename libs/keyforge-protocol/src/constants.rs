@@ -31,7 +31,7 @@ pub const WS_MSG_CANCEL: &str = "CANCEL:";
 
 /// Maximum number of biometric samples allowed in a single payload.
 /// Note: Pending statistical research on optimal sample size.
-pub const MAX_BIOMETRIC_SAMPLES: usize = 10_000;
+pub const MAX_BIOMETRIC_SAMPLES: usize = 100_000;
 
 /// Maximum plausible time for a single bigram (milliseconds).
 pub const MAX_BIOMETRIC_MS: f64 = 10_000.0;

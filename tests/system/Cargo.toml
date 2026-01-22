@@ -9,9 +9,8 @@ anyhow = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
-keyforge-core = { path = "../../libs/keyforge-core" }
+keyforge-compute = { path = "../../libs/keyforge-compute" }
 keyforge-physics = { path = "../../libs/keyforge-physics" }
-keyforge-runner = { path = "../../libs/keyforge-runner" }
 keyforge-evolution = { path = "../../libs/keyforge-evolution" }
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-model = { path = "../../libs/keyforge-model" }

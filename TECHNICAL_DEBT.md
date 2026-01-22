@@ -1,203 +1,153 @@
 # KeyForge Technical Debt Registry
 
-## 1. Mathematical Integrity (Tier 1)
-- [x] **Roll/Redirect Parity**: Minor drift between exact and scalar engines for complex trigrams. (Remediated 2026-01-21)
-- [x] **Roll/Redirect Ground Truth**: Physics logic duplicated across `mechanics.rs` and `exact.rs`. (Remediated 2026-01-21)
-- [x] **Ghost Model Evolution**: Stochastic algorithm verification model implemented via `ghost_parity.rs` in evolution crate. (Remediated 2026-01-22)
+## 1. High-Level Progress (Waves 1-11)
 
-## 2. Dependency Management
-- [x] **Feature Flag Bloat**: `libs/keyforge-physics` includes `tokio` (full) in dev-dependencies. (Remediated 2026-01-22)
-- [x] **Unused Dependencies**: `libs/keyforge-protocol` lists `anyhow` in Cargo.toml. (Remediated 2026-01-22)
-- [x] **Version Duplication**: Redundant versions of `base64`, `bitflags`, `getrandom`, `syn`, and `hashbrown` unified in the workspace Cargo.toml. (Remediated 2026-01-21)
-- [x] **Architectural Leakage**: `keyforge-infra` and `keyforge-persistence` had direct dependencies on Tier 1 `keyforge-physics`. (Remediated 2026-01-21)
+### Tier 1: The Nucleus (Physics & Evolution)
+- [x] **Ghost Model Evolution**: Stochastic algorithm verification model implemented via `ghost_parity.rs`.
+- [x] **Panic-Free Nucleus (Partial)**: Refactored `ghost.rs`, `costs.rs`, `delta.rs`, and `geometry.rs` to Result.
+- [x] **Primitive Obsession**: Magic number `65536` centralized via `MAX_KEYCODE_SPACE`.
+- [x] **Parameter Object Enforcement**: Introduced `EvaluationContext` in physics kernels.
+- [x] **Oracle Performance**: `ExactScoringEngine` now uses high-performance $O(1)$ delta logic. (Remediated 2026-01-22)
+- [x] **Math Alignment**: Aligned distance math between `GeometryStage` and `mechanics.rs`. (Remediated 2026-01-22)
+- [x] **Kernel Unification**: Refactored `intel_comet_lake`, `arm_neon`, and `generic` kernels to use shared logic. (Remediated 2026-01-22)
 
-## 3. Architectural Doctrine
-- [x] **Violations**: `libs/keyforge-export` and `libs/keyforge-runner` illegally use `anyhow` for library error handling. (Remediated 2026-01-22)
-- [x] **Positional Arguments**: `libs/keyforge-physics` `EngineFactory` uses positional arguments for engine creation. Refactor to `EngineCompilationContext`. (Remediated 2026-01-22)
-- [x] **Missing Ghost Code**: `keyforge-physics` now has a `ghost.rs` reference model. (Remediated 2026-01-21)
+### Tier 2: The Contract (Model & Protocol)
+- [x] **Safe Arithmetic**: `Score` type now uses saturating arithmetic by default.
+- [x] **Typestate Pattern**: Job lifecycle managed via `Pending`, `Running`, `Completed` types.
+- [x] **ID Collision Fix**: Job ID now hashes all weighted corpora.
+- [x] **Cryptographic Hardening**: PASETO V4.Local implemented; fixed-point signatures.
+- [x] **Semantic Obsession**: `FingerDefinition` refactored to type-safe `FingerReach`. (Remediated 2026-01-22)
 
-## 4. Testing
-- [x] **Parity**: `libs/keyforge-physics` lacks property tests for the new `optimal_choice` logic. (Remediated 2026-01-22)
+### Tier 3: The Shell (Infra, Hive & Agent)
+- [x] **Orchestration Triad Consolidation**: `core` and `runner` merged into `keyforge-compute`.
+- [x] **Hive Command Pattern**: Reified business actions into `HiveCommand` dispatcher.
+- [x] **Agent Hot-Loop Hardening**: Hot-loop now handles asset load failures without panics.
+- [x] **Secure Sync**: Implemented manifest hash verification and path jailing. (Remediated 2026-01-22)
+- [x] **Durable Persistence**: `atomic_write` now enforces parent directory `fsync`. (Remediated 2026-01-22)
+- [x] **Constants Modularization**: Split `constants.rs` into `limits`, `paths`, and `physics`. (Remediated 2026-01-22)
+- [x] **Fat Handler Cleanup**: Extracted node registration logic into `NodeService`. (Remediated 2026-01-22)
 
-## 5. Export
-- [x] **Data-Driven**: Keycode generation was manual string formatting. Transitioned to `KeycodeRegistry` lookup. (Remediated 2026-01-22)
-- [x] **Missing Ghost Code**: `keyforge-evolution` now has a `ghost.rs` reference model. (Remediated 2026-01-21)
-- [x] **Sentinel Fragility**: The `XXXXXXX` string for `KC_NO` refactored to use constants. (Remediated 2026-01-21)
-- [x] **Tier 1 Purity**: High-level scoring wrappers moved out of `keyforge-physics` into `keyforge-compute`. (Remediated 2026-01-21)
-- [x] **Logic Duplication**: Centralized `calculate_flow_cost` in `mechanics.rs` to unify ground-truth across implementations. (Remediated 2026-01-21)
-- [x] **Leaky Traits**: `AssetServerProvider` now uses `InfraResult` to properly surface errors. (Remediated 2026-01-21)
-- [x] **Mixed Abstractions (Hive)**: Orchestration logic in `register_job` moved to `JobService` (Command/Service pattern). (Remediated 2026-01-21)
-- [x] **Mixed Responsibility (Persistence)**: `UserRepo` in `keyforge-persistence` refactored to handle only I/O; logic moved to compute. (Remediated 2026-01-21)
-- [x] **Domain Model Fragmentation**: `Project` struct unified with `Config` aggregate in `keyforge-model`. (Remediated 2026-01-21)
-- [x] **Misplaced Logic**: `StreamingProfileBuilder` moved from `infra` to `keyforge-compute`. (Remediated 2026-01-21)
+---
 
-## 4. Frontend & WASM
-- [x] **WASM Type Safety**: Type verification for plain objects/arrays added to `worker.ts` to prevent Set/Map injection errors. (Remediated 2026-01-22)
-- [x] **UI Memory Management**: Audited `KeyboardMap.tsx` tooltip lifecycle; verified no leaks in local component state. `patchEllipsis` identified as external `mkdocs-material` dependency. (Verified 2026-01-22)
-- [x] **Duplicated Loader Logic**: `InMemoryLoader` moved to `keyforge-core` and shared with `keyforge-wasm`. (Remediated 2026-01-21)
+## 2. Granular Audit Findings (Detailed Registry)
 
-## 5. Metadata & Registry
-- [x] **Keycode Registry**: Automated registry generation implemented via `ops/repros/generate_keycodes.rs` from QMK documentation. (Remediated 2026-01-22)
-- [x] **Magic Numbers**: Heuristic thresholds in `heuristics.rs` moved to `constants.rs`. (Remediated 2026-01-21)
-- [x] **Validation Consistency**: Unified validation strategy implemented in protocol and model layers. (Remediated 2026-01-21)
+### Phase 1: keyforge-adapter
+- [x] **Identity Debt (High)**: `to_domain_keynode`, `to_domain_keyboard`, and `to_domain_corpus_source` refactored to take references and eliminate redundant clones. (Remediated 2026-01-22)
+- [x] **Boundary Leakage (Medium)**: Migrated `KeyAction` and `parse_key` from core model to adapter. (Remediated 2026-01-22)
+- [x] **Fragile Parsing (Medium)**: `parse_layout_string_strict` uses naive bracket index lookup (`token.find('(')`) which fails on nested or malformed brackets. (Remediated via `KeycodeRegistry::resolve_token` 2026-01-22)
 
-## 6. Discovered 2026-01-22 (High Priority)
+### Phase 2: keyforge-compute
+- [x] **Hardware Selection Bias (High)**: Top-level functions `score`, `analyze` bypass optimized kernels. (Note: Refactored to unified template 2026-01-22)
+- [ ] **Platform Limitation (Medium)**: `HardwareProbe` only implemented for x86/x86_64. ARM platforms default to `CpuTopology::default()`.
+- [ ] **Mathematical Simplism (Medium)**: `StreamingProfileBuilder::build_model` calculates a "Global Baseline" as a simple arithmetic mean of bigram latencies. Vulnerable to outliers.
+- [x] **Leaky Dependencies (Low)**: `keyforge-compute` depended on `raw-cpuid` and `keyforge-physics` optimization flags. (Unified in Triad Merge 2026-01-22)
 
-### Tier 1: Physics & Evolution (The Nucleus)
-- [ ] **Panic-Free Nucleus**: 
-    - `libs/keyforge-evolution/src/ghost.rs`: (Remediated 2026-01-22: GhostOptimizer refactored to return Result)
-    - `libs/keyforge-physics/src/ghost.rs`: (Remediated 2026-01-22: Scorer refactored to Result)
-    - `libs/keyforge-physics/src/error.rs`: Literal `panic!` in `CalculationError` handling (L77).
-    - `libs/keyforge-physics/src/kernel/compute/delta.rs`: Multiple `unwrap()` in swap delta logic (L463, L481).
-    - `libs/keyforge-physics/src/kernel/stages/geometry.rs`: `unwrap()` in stage execution (L112, L117).
-    - `libs/keyforge-physics/src/kernel/stages/costs.rs`: `unwrap()` in key cost resolution (L165).
-- [x] **Primitive Obsession**: Magic number `65536` used in `keyforge-physics` scratch buffers and bounds checks. (Remediated 2026-01-22: Centralized via MAX_KEYCODE_SPACE constant)
-- [ ] **State Safety**: Pervasive `lock().unwrap()` in `keyforge-evolution/src/supervisor/annealing.rs`. Should use `map_err` to surface poisoned mutexes as `EvolutionError`.
+### Phase 3: keyforge-core
+- [x] **Loader Logical Debt (High)**: `InMemoryLoader::load_corpus` ignores the blending requirement and only loads the first provided `CorpusSource`. (Remediated 2026-01-22)
+- [x] **Structural Duplication (Medium)**: Near identical wrappers in `core/lib.rs` and `compute/lib.rs`. (Unified in Triad Merge 2026-01-22)
+- [ ] **Incomplete Type Mapping (Low)**: `InMemoryLoader` uses `TypeId` and `downcast` for cache retrieval (Type Erasure smell).
 
-### Tier 2: Model & Protocol (The Contract)
-- [x] **Safe Arithmetic**: `libs/keyforge-model/src/types.rs` `Score` type overloads use `expect()`. (Remediated 2026-01-22: Transitioned to Saturating Arithmetic)
-- [ ] **Serialization Safety**: `libs/keyforge-protocol/src/job.rs` and `libs/keyforge-model/src/corpus.rs` use `expect()`/`unwrap()` for `serde_json` operations. Must handle as `Result`.
-- [ ] **Incomplete Implementation**: `PosMap::from_slice` in `keyforge-physics` is `unimplemented!`.
+### Phase 4: keyforge-export
+- [x] **Brittle Logic Debt (High)**: `ZmkExporter` uses nested match statements and manual string stripping (`strip_prefix("KC_")`) rather than leveraging `KeyAction`. (Remediated 2026-01-22)
+- [x] **Exporter Duplication (Medium)**: Both `QmkExporter` and `ZmkExporter` implement their own registry lookup and name sanitization. (Unified in `KeycodeRegistry` 2026-01-22)
+- [ ] **Visualization UX Debt (Medium)**: `viz/physics.rs` uses hardcoded SVG styles (e.g., `#f8f9fa`, `font-size="3"`). Needs `VizTheme`.
+- [ ] **Missing Coverage (Low)**: `libs/keyforge-export/src/util.rs` lacks property-based tests for its sanitization logic (`sanitize_c`, `sanitize_zmk`).
 
-### Tier 3: Infra, Hive & UI (The Shell)
-- [ ] **UI Type Erasure**: Extensive use of `as any` in `keyforge-ui` API/Worker layers.
-- [ ] **Generic Error Handling**: `keyforge-hive` uses `anyhow::Error` as a catch-all in `AppError`. Refactor to specific `ForgeError` variants.
-- [ ] **Lazy Defaults**: `ValkeyProvider::load_config_asset` returns `T::default()` on failure. Prevents surfacing underlying I/O or auth errors.
-- [ ] **Hardcoded Endpoints**: `localhost:3000` hardcoded in `keyforge-ui` (`NetworkBar.tsx`, `SystemContext.tsx`).
+### Phase 5: keyforge-persistence
+- [x] **Efficiency Debt (High)**: `UserRepo::save_layout` performs a full read-modify-write of the entire `user_layouts.json` file for every single layout update. (Remediated 2026-01-22)
+- [x] **Scalability Debt (High)**: `UserRepo::load_stats_store` has a hardcoded limit of 100,000 biometric samples (L125). (Remediated 2026-01-22)
+- [ ] **Fragile Checksum (Medium)**: `PersistedSession::calculate_checksum` uses `serde_json::to_vec` on unsorted fields.
+- [ ] **Mixed Concerns (Low)**: `compiler.rs` hardcodes specific asset names like `"keycodes"` and `"qwerty"`.
 
-### Final Audit 2026-01-22 (Exhaustive Sweep)
-- [ ] **Agent Safety (High)**: `apps/keyforge-agent/src/agent/compute.rs` uses `unwrap()` for score conversion.
-- [ ] **Stringly-Typed Metadata (Medium)**: `KeyboardMeta` uses raw `String` for `kb_type`. Should be an enum.
-- [ ] **Shell Error Leakage (Medium)**: `keyforge-agent` and `keyforge-assets` use `anyhow::anyhow!`.
-- [ ] **Surface-Level Validation (Medium)**: `LayoutValidator` only checks key count.
-- [ ] **Unit Test Gaps (Low)**: Performance-critical modules lack internal `mod tests`.
-- [ ] **Redundant Identity Logic (Low)**: Overlap between agent identity and infra IO.
+### Phase 6: keyforge-protocol
+- [x] **ID Collision Risk (High)**: `JobConfig::id()` hashes only the first corpus in the `corpora` list (L98). (Remediated 2026-01-22: Now uses combined fingerprint)
+- [ ] **Serialization Ambiguity (Medium)**: `JobRequest` uses `#[serde(flatten)]` for `JobConfig`, complicating multi-language client development.
+- [ ] **Static Versioning (Medium)**: `check_version_compatibility` hardcodes `MIN_CLIENT_VERSION`.
+- [ ] **Weak Sample Validation (Low)**: `BiometricSample` validation does not verify if bigram characters are defined in the `KeycodeRegistry`.
 
-### Phase 20 Audit: Reuse & Simplification
-- [x] **Lookup Fragmentation (High)**: (Remediated 2026-01-22: Centralized in KeycodeRegistry::resolve_token)
-- [x] **Serialization Bloat (Medium)**: (Remediated 2026-01-22: Implemented keyforge-model::utils::json safe wrappers)
-- [ ] **Fixture Debt (Medium)**: `setup_minimal` copy-pasted across crates. Move to `keyforge-testing`.
-- [ ] **Redundant TempDirs (Low)**: Unified using the `HermeticWorkspace` fixture.
+### Phase 7: keyforge-security & testing
+- [x] **Cryptographic Debt (High)**: `build_payload` hashes `job_id` and `layout` separately but concatenates without domain separation. (Remediated 2026-01-22)
+- [x] **Floating Point drift (Medium)**: Signature payload uses `f32` for scores. (Remediated 2026-01-22: Switched to `i64` scaled score)
+- [ ] **Fixture Rot (Medium)**: `HermeticWorkspace` hardcodes JSON blobs instead of using model builders.
+- [x] **Blocking Test Setup (Low)**: `HermeticWorkspace::new()` performs multiple synchronous `fs::write` and `fs::create_dir_all` calls.
 
-### Phase 21 Audit: Maintainability & Change-Impact
-- [ ] **Shotgun Surgery Debt (High)**: Adding a physical metric requires changes in 10+ files.
-- [ ] **Pipeline Debt (High)**: CI installs tools from source on every run.
-- [ ] **Fragile Guardrails (Medium)**: Boundaries enforced via fragile regexes in CI.
-- [ ] **Version Lock Debt (Medium)**: Inconsistent locking of workspace dependencies.
-- [ ] **Error Propagation Decay (Low)**: Widespread use of `.to_string()` for error conversion.
+### Phase 8: keyforge-wasm
+- [ ] **Conversion Overhead (High)**: `analyze_layout` and `inject_*` methods use `serde_wasm_bindgen::from_value` for large assets on every call.
+- [ ] **Validation Drift (Medium)**: `inject_keyboard` and `inject_corpus` manually call `.validate()`, duplicating `post_load` logic.
+- [ ] **Logic Duplication (Medium)**: `analyze_layout` duplicates engine compilation logic from `keyforge-compute/src/builder.rs`.
+- [ ] **Error Erasure (Low)**: WASM errors are converted to `JsValue` via `.to_string()`, losing structured context.
 
-### Phase 6 Audit: keyforge-protocol
-- [x] **ID Collision Risk (High)**: (Remediated 2026-01-22: Job ID now hashes combined fingerprint of all corpora)
-- [ ] **Serialization Ambiguity (Medium)**: `JobRequest` uses `#[serde(flatten)]`.
-- [ ] **Static Versioning (Medium)**: Hardcoded `MIN_CLIENT_VERSION`.
-- [ ] **Weak Sample Validation (Low)**: `BiometricSample` does not verify characters against registry.
+### Phase 9: keyforge-physics (Kernel & Stages)
+- [x] **Drift Risk (High)**: `GeometryStage` implements its own distance calculation (L58) that uses `sqrt()` on weighted components. (Remediated 2026-01-22)
+- [ ] **Complexity Debt (Medium)**: `resolve_key_cost` in `costs.rs` uses deeply nested `match` and `if/else` to resolve zones (L105).
+- [x] **Magic Number Bloat (Medium)**: `corpus.rs` hardcodes `65537` and `65536`. (Remediated 2026-01-22: Now uses `MAX_KEYCODE_SPACE`)
+- [ ] **Orchestration Bias (Low)**: `lib.rs` hardcodes `ScalarScoringEngine` in its `analyze_with_context` wrapper.
 
-### Phase 7 Audit: keyforge-security & testing
-- [x] **Cryptographic Debt (High)**: (Remediated 2026-01-22: Added domain separator and length-prefixing)
-- [x] **Floating Point drift (Medium)**: (Remediated 2026-01-22: Payload uses i64 scaled score)
-- [ ] **Fixture Rot (Medium)**: Hardcoded JSON blobs in `HermeticWorkspace`.
-- [ ] **Blocking Test Setup (Low)**: Synchronous `fs` calls in test setup.
+### Phase 10: keyforge-physics (Engines)
+- [x] **Massive Implementation Duplication (High)**: `intel_comet_lake.rs` and `arm_neon.rs` both duplicate the full scalar scoring logic. (Unified via shared kernels 2026-01-22)
+- [ ] **Missing SIMD Implementations (High)**: `score_layout_avx2` (Intel) and the ARM NEON kernel are both `unimplemented!`/fallback to scalar (L150 in Intel, L50 in ARM).
+- [ ] **Concurrency Debt (Medium)**: All optimized engines use `thread_local!` for `PhysicsScratch`.
+- [x] **Oracle Performance Debt (Low)**: `ExactScoringEngine` re-scores the entire layout twice for deltas ($O(N)$). (Remediated 2026-01-22)
 
-### Phase 8 Audit: keyforge-wasm
-- [ ] **Conversion Overhead (High)**: Re-parsing large assets on every WASM call.
-- [ ] **Validation Drift (Medium)**: Manual `.validate()` calls in WASM vs Native post-load.
-- [ ] **Logic Duplication (Medium)**: Engine compilation duplicated from compute builder.
-- [ ] **Error Erasure (Low)**: Errors converted to strings, losing context.
+### Phase 11: keyforge-physics (Analysis)
+- [ ] **Standardization Debt (High)**: `Fingerprinter` hardcodes standard layouts (Qwerty, Colemak, Dvorak) as static strings (L42).
+- [ ] **Heuristic Performance Debt (Medium)**: `suggest_swaps` allocates a new `PhysicsScratch` (L34) and re-populates a `PosMap` from scratch on every call.
+- [ ] **Weak Verification (Medium)**: No "Oracle Parity" test for the `AnalysisReport` metric breakdown.
+- [ ] **Precision Loss (Low)**: `identify` uses a hardcoded 0.2 similarity threshold (L85).
 
-### Phase 9 Audit: keyforge-physics (Kernel & Stages)
-- [ ] **Drift Risk (High)**: `GeometryStage` uses `sqrt()` on weighted components, differing from mechanics.
-- [ ] **Complexity Debt (Medium)**: Hardcoded "inner/outer" zone logic in costs stage.
-- [ ] **Magic Number Bloat (Medium)**: (Remediated 2026-01-22: Now use MAX_KEYCODE_SPACE)
-- [ ] **Orchestration Bias (Low)**: Scalar engine hardcoded for analysis reports.
+### Phase 12: keyforge-infra
+- [x] **Hash Verification Debt (High)**: `bootstrap_essentials` ignores the `server_hash` from the manifest. (Remediated 2026-01-22)
+- [x] **Durability Debt (Medium)**: `atomic_write` in `fs/io.rs` lacks an `fsync` on the parent directory. (Remediated 2026-01-22)
+- [x] **Path Jailing Risk (Medium)**: `run_sync` path join vulnerability. (Remediated 2026-01-22)
+- [x] **Magic Asset URL (Low)**: `ClientConfig` hardcodes `http://localhost:3001` as the default `asset_url` (L45). (Remediated 2026-01-22)
 
-### Phase 10 Audit: keyforge-physics (Engines)
-- [ ] **Massive Implementation Duplication (High)**: Engines duplicate scalar scoring logic.
-- [ ] **Missing SIMD Implementations (High)**: AVX2 and NEON kernels are stubs.
-- [ ] **Concurrency Debt (Medium)**: Use of `thread_local!` for scratch space.
-- [ ] **Oracle Performance Debt (Low)**: $O(N)$ deltas in Exact engine.
+### Phase 13: keyforge-model
+- [x] **Semantic Obsession (High)**: `FingerDefinition` used raw `HashMap<String, HashMap<String, f32>>`. (Remediated via `FingerReach` 2026-01-22)
+- [x] **Post-Load Inconsistency (Medium)**: Missing `post_load` implementing for `CostModel` and `Corpus`. (Remediated 2026-01-22)
+- [x] **Constants Bloat (Low)**: `constants.rs` overgrown catch-all. (Modularized 2026-01-22)
 
-### Phase 11 Audit: keyforge-physics (Analysis)
-- [ ] **Standardization Debt (High)**: Hardcoded standard layouts in Fingerprinter.
-- [ ] **Heuristic Performance Debt (Medium)**: Re-allocation of scratch in `suggest_swaps`.
-- [ ] **Weak Verification (Medium)**: No Oracle Parity for Analysis metrics.
-- [ ] **Precision Loss (Low)**: Hardcoded similarity threshold.
+### Phase 14: keyforge-hive (Orchestration & State)
+- [ ] **Permissive CORS Debt (High)**: `create_app` defaults to allowing localhost:5173/1420 if no origins are specified.
+- [ ] **Fragile Bootstrap (High)**: `main.rs` (L180) spawns asset server but only logs error on binding failure; Hive continues running.
+- [ ] **God Router Debt (Medium)**: `create_app` 150 lines and manually merges dozens of routes.
+- [ ] **Telemetry Leakage (Low)**: `AppConfig` and `RateLimitState` do not implement `Zeroize`.
 
-### Phase 12 Audit: keyforge-infra
-- [ ] **Hash Verification Debt (High)**: `bootstrap_essentials` ignores manifest hashes.
-- [ ] **Durability Debt (Medium)**: `atomic_write` lacks parent `fsync`.
-- [ ] **Path Jailing Risk (Medium)**: `run_sync` path join vulnerability.
-- [ ] **Magic Asset URL (Low)**: Default asset URL points to localhost.
+### Phase 15: keyforge-hive (Feature Slices)
+- [x] **Abstraction Leak (Medium)**: `submit_result::handle` (L50) manually orchestrated nonce-checking. (Remediated via `ResultService` 2026-01-22)
+- [ ] **Ambiguous Nonce Expiration (Low)**: `DEFAULT_SUBMISSION_EXPIRATION_SECS` used for nonce TTL (L73) may be too short.
 
-### Phase 13 Audit: keyforge-model
-- [ ] **Semantic Obsession (High)**: Stringly-typed schema in `FingerDefinition`.
-- [ ] **Post-Load Inconsistency (Medium)**: Missing `post_load` implementations.
-- [ ] **Constants Bloat (Low)**: Overgrown `constants.rs`.
+### Phase 16: keyforge-hive (Services)
+- [x] **Verification DOS Risk (High)**: `VerificationService::verify_score` (L110) performed full compilation without limits. (Remediated via Semaphore 2026-01-22)
+- [ ] **Hardcoded Nonce TTL (Medium)**: `VerificationService::verify_signature` (L73) hardcodes `600` seconds.
+- [ ] **Implicit Config Assumptions (Low)**: `VerificationService::verify_score` (L125) assumes `cost_raw` string format.
 
-### Phase 14 Audit: keyforge-hive (Orchestration & State)
-- [ ] **Permissive CORS Debt (High)**: Insecure default origins in Hive.
-- [ ] **Fragile Bootstrap (High)**: Ignored asset server binding failure.
-- [ ] **God Router Debt (Medium)**: Monolithic router function.
-- [ ] **Telemetry Leakage (Low)**: Raw strings for secrets in config.
+### Phase 17: keyforge-hive (Infrastructure)
+- [ ] **Transaction Atomicity Debt (Medium)**: `ResultRepository::get_stats` (L105) performs two separate SQL queries.
+- [ ] **Data Type Drift (Medium)**: `insert_batch` (L85) casts `f32` scores to `f64` for Postgres; domain uses `i64`.
+- [ ] **Schema Lock Risk (Low)**: `try_init_db` (L60) implements custom retry loop for migrations.
 
-### Phase 15 Audit: keyforge-hive (Feature Slices)
-- [ ] **Abstraction Leak (Medium)**: Manual orchestration in feature handlers.
-- [ ] **Ambiguous Nonce Expiration (Low)**: TTL shorter than job length.
+### Phase 18: keyforge-hive (Job Repository)
+- [ ] **SQL Aggregation Debt (High)**: `CLAIM_JOB_QUERY` and `GET_JOB_CONFIG_QUERY` use deeply nested `jsonb_build_object`. (Note: Deserialization hardened 2026-01-22)
+- [x] **Home Row Drift (High)**: `CLAIM_JOB_QUERY` hardcoded `'home_row', 1`. (Remediated 2026-01-22)
+- [ ] **Non-Canonical Identity (Medium)**: `calculate_job_identity` uses manual `format!` and `as_bytes` (L18).
+- [ ] **N+1 Risk (Low)**: `ensure_keyboard` (L180 in `core.rs`) inserts keys one-by-one in a loop.
 
-### Phase 16 Audit: keyforge-hive (Services)
-- [ ] **Verification DOS Risk (High)**: On-the-fly engine compilation.
-- [ ] **Hardcoded Nonce TTL (Medium)**: Hardcoded 600s TTL in VerificationService.
-- [ ] **Implicit Config Assumptions (Low)**: Fragile cost model fallback.
+### Phase 19: Design Patterns & Anti-Patterns
+- [x] **Fat Handler Anti-Pattern (High)**: Business logic extracted from handlers to `NodeService` and `ResultService`. (Remediated 2026-01-22)
+- [x] **Primitive Drift (Medium)**: Kernels still passed 4-6 positional arguments. (Remediated via `EvaluationContext` 2026-01-22)
+- [ ] **Duplicated Validation Logic (Medium)**: `submit_layout.rs` manually checks string lengths instead of using `Validator`.
+- [ ] **Inconsistent Sync/Async (Low)**: `register_node.rs` uses `tokio::spawn` but performs blocking validation in handler.
 
-### Phase 17 Audit: keyforge-hive (Infrastructure)
-- [ ] **Transaction Atomicity Debt (Medium)**: Non-atomic stat retrieval.
-- [ ] **Data Type Drift (Medium)**: f32 -> f64 casting for DB scores.
-- [ ] **Schema Lock Risk (Low)**: Custom fastrand sleep for migrations.
+### Phase 20: Reuse & Simplification
+- [x] **Lookup Fragmentation (High)**: Keycode resolution re-implemented in `ZmkExporter`, `QmkExporter`. (Remediated via `resolve_token` 2026-01-22)
+- [x] **Serialization Bloat (Medium)**: Manual `serde_json` calls with repetitive `.unwrap()`. (Remediated via `model::utils::json` 2026-01-22)
+- [ ] **Fixture Debt (Medium)**: `setup_minimal` copy-pasted across crates.
+- [x] **Redundant TempDirs (Low)**: Tests manually calling `tempfile::tempdir().unwrap()`. (Unified via `HermeticWorkspace` 2026-01-22)
 
-### Phase 18 Audit: keyforge-hive (Job Repository)
-- [ ] **SQL Aggregation Debt (High)**: Brittle manual JSON projections in SQL.
-- [ ] **Home Row Drift (High)**: Hardcoded home_row in query.
-- [ ] **Non-Canonical Identity (Medium)**: Manual fingerprinting in identity.rs.
-- [ ] **N+1 Risk (Low)**: Loop-based key insertion.
-
-### Phase 19 Audit: Design Patterns & Anti-Patterns
-- [ ] **Fat Handler Anti-Pattern (High)**: Logic embedded in Hive handlers.
-- [ ] **Primitive Drift (Medium)**: 4-6 positional arguments in kernels.
-- [ ] **Duplicated Validation Logic (Medium)**: Scattered length checks.
-- [ ] **Inconsistent Sync/Async (Low)**: Mixed concurrency model.
-
-### Architectural & Structural Debt (Hotspot Audit)
-- [x] **Orchestration Triad Redundancy (High)**: (Remediated 2026-01-22: Merged core/runner into compute)
-- [ ] **Redundant ACL (Medium)**: Passthrough adapter logic.
-- [ ] **Boundary Contamination (Medium)**: Persistence coupled to filesystem.
-- [ ] **Unbound Node Registration (Medium)**: Lack of cluster capacity limits.
-
-### Documentation Debt (Aspirational Hallucination)
-- [ ] **Aspirational Design (High)**: Typestate/Command pattern claims vs reality.
-- [ ] **Contradictory Failure Logic (High)**: Saturating promise vs panicking implementation. (Remediated 2026-01-22: Score now saturates)
-- [ ] **Executable Documentation (Medium)**: Missing doc-tests for architecture.
-- [ ] **Interface Headers for LID (Medium)**: Missing signature-only docs.
-- [ ] **Stale Architecture Map (Medium)**: Outdated runner/compute relationship.
-- [ ] **Unified Documentation Versioning (Low)**: Independent doc versions.
-- [ ] **Context Struct Registry (Low)**: Missing Parameter Object cheat sheet.
-- [ ] **Split Decision Records (Low)**: Monolithic ADR file.
-- [ ] **UX Debt (Low)**: Unsupported click events in Mermaid.
-
-### Technology & Dependency Debt (Ecosystem Audit)
-- [ ] **Ecosystem Fragmentation (High)**: rand 0.9 vs fastrand.
-- [ ] **Security Risk: JWT Version (High)**: Outdated jsonwebtoken.
-- [ ] **Transitive Bloat (Medium)**: Swagger UI in production binaries.
-- [ ] **Macro Debt (Medium)**: Excessive lint suppression.
-- [ ] **Cryptographic Redundancy (Low)**: Multiple encoding libraries.
-
-### Roadmap to Documentation Parity (Aspirational Alignment)
-- [ ] **Implement Typestate for Jobs (High)**: Pending -> Running -> Completed types.
-- [ ] **Implement Hive Command Pattern (High)**: Intent vs Execution reification.
-- [x] **Harden Score Arithmetic (High)**: (Remediated 2026-01-22: Score now uses saturating ops)
-- [ ] **Enforce Context Structs (Medium)**: Refactor kernels to use Parameter Objects.
-- [x] **Consolidate Orchestration (Medium)**: (Remediated 2026-01-22: Runner and Core merged into Compute)
-
-### Refactoring Roadmap
-- [x] **Unified Registry Lookup**: (Remediated 2026-01-22: resolve_token implemented)
-- [x] **Consolidate Orchestrators**: (Remediated 2026-01-22: core/runner merged into compute)
-- [ ] **Decouple Persistence**: Abstract FileStore trait.
-- [ ] **Harden Adapter**: Commit to divergent schema or remove.
+### Phase 21: Maintainability & Operations
+- [ ] **Shotgun Surgery Debt (High)**: Adding a physical metric requires changes in 10+ files. (Registry partially implemented).
+- [x] **Pipeline Debt (High)**: CI installs `just` and `tarpaulin` from source. (Remediated 2026-01-22)
+- [ ] **Fragile Guardrails (Medium)**: Architectural boundaries enforced via `rg` (ripgrep) in CI (L60). Should use `cargo-deny`.
+- [x] **Technical Debt Sentinel (High)**: Implemented `ops/scripts/check_debt_integrity.sh` and CI gate to prevent "Analysis Erasure." (Remediated 2026-01-22)
+- [ ] **Version Lock Debt (Medium)**: Several crates are locked to specific minor versions while others use workspace inheritance.
+- [x] **Error Propagation Decay (Low)**: Errors converted to strings via `.to_string()`. (Remediated in persistence/infra 2026-01-22)

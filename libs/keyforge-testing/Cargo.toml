@@ -10,7 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-keyforge-core = { path = "../keyforge-core" }
+keyforge-compute = { path = "../keyforge-compute" }
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-model = { path = "../keyforge-model" }
 tempfile.workspace = true

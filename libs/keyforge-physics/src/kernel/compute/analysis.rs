@@ -225,7 +225,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     }
 
     // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
-    for &code in pm.used_keys {
+    for &code in pm.used_keys() {
         let c_val = code as usize;
         #[allow(clippy::cast_precision_loss)]
         let freq = ctx.corpus.char_freqs[c_val] as f32;
@@ -417,24 +417,32 @@ mod tests {
 
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        let mut base_r0 = std::collections::HashMap::new();
-        base_r0.insert("r0".to_string(), 1.0);
-        let mut base_r1 = std::collections::HashMap::new();
-        base_r1.insert("r1".to_string(), 2.0);
+        
+        let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
+        base_r0.insert(RowIndex(0), 1.0);
+        let mut base_r1 = keyforge_model::cost_model::RowCosts::new();
+        base_r1.insert(RowIndex(1), 2.0);
 
-        let mut index_zones = std::collections::HashMap::new();
-        index_zones.insert("base".to_string(), base_r0.clone());
-        index_zones
-            .get_mut("base")
-            .unwrap()
-            .insert("r1".to_string(), 2.0);
+        let mut index_base = base_r0.clone();
+        index_base.extend(base_r1);
+        
+        let index_zones = keyforge_model::cost_model::FingerReach {
+            base: index_base,
+            inner: Default::default(),
+            outer: Default::default(),
+        };
+        
         fingers.insert(
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(index_zones),
         );
 
-        let mut other_zones = std::collections::HashMap::new();
-        other_zones.insert("base".to_string(), base_r0);
+        let other_zones = keyforge_model::cost_model::FingerReach {
+            base: base_r0,
+            inner: Default::default(),
+            outer: Default::default(),
+        };
+        
         fingers.insert(
             "middle".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(other_zones.clone()),

@@ -16,6 +16,7 @@
 //! rather than hardcoded logic.
 
 use crate::asset::{Asset, AssetCategory};
+use crate::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -105,16 +106,30 @@ pub struct HandDefinition {
     pub fingers: HashMap<String, FingerDefinition>,
 }
 
+/// A map of RowIndex to cost.
+pub type RowCosts = HashMap<RowIndex, f32>;
+
+/// Definition of costs within a finger's reach.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FingerReach {
+    /// Costs for keys in the base column.
+    #[serde(default)]
+    pub base: RowCosts,
+    /// Costs for keys in the inner column (closer to center).
+    #[serde(default)]
+    pub inner: RowCosts,
+    /// Costs for keys in the outer column (closer to edge).
+    #[serde(default)]
+    pub outer: RowCosts,
+}
+
 /// Polymorphic definition for finger costs.
-///
-/// Thumbs typically have a flat list of positions, while other fingers
-/// have zones (base, inner, outer) and rows.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FingerDefinition {
-    /// Standard finger with zones and rows (e.g., Index -> Base -> r0).
-    Standard(HashMap<String, HashMap<String, f32>>),
-    /// Thumb with named positions (e.g., Thumb -> `pos_1`).
+    /// Standard finger with Reach zones.
+    Standard(FingerReach),
+    /// Thumb with named positions (backward compatible).
     Thumb(HashMap<String, f32>),
 }
 

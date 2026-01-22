@@ -53,9 +53,8 @@ path = "dump_layout.rs"
 
 [dependencies]
 keyforge-model = { path = "../../libs/keyforge-model" }
-keyforge-core = { path = "../../libs/keyforge-core" }
-keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-compute = { path = "../../libs/keyforge-compute" }
+keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 serde_json = "1.0"

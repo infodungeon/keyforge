@@ -39,6 +39,16 @@ pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> Infr
     temp_file
         .persist(path)
         .map_err(|e| InfraError::Io(e.error))?;
+
+    // --- DURABILITY: Task-sec-015 ---
+    // Perform fsync on the parent directory to ensure the directory entry is durable.
+    // This protects against 0-byte files or missing entries after a power failure.
+    if let Some(parent) = path.parent() {
+        if let Ok(dir) = std::fs::File::open(parent) {
+            let _ = dir.sync_all();
+        }
+    }
+
     Ok(())
 }
 

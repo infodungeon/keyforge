@@ -1,4 +1,4 @@
-use keyforge_core::loader::{AssetLoader, LoaderResult};
+use keyforge_compute::loader::{AssetLoader, LoaderResult};
 use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::keycodes::KeycodeRegistry;

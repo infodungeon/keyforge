@@ -435,7 +435,13 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> crate::OptimizationControl {
-            let mut last = self.last_score.lock().unwrap();
+            let mut last = match self.last_score.lock() {
+                Ok(guard) => guard,
+                Err(_) => {
+                    self.failed.store(true, Ordering::SeqCst);
+                    return crate::OptimizationControl::Abort;
+                }
+            };
 
             if score > *last && *last != 0.0 && *last != f32::MAX {
                 self.failed.store(true, Ordering::SeqCst);

@@ -108,20 +108,41 @@ impl Agent {
                         info!("🚀 Starting Job {} (Acquired resources)", job_id);
                         telemetry.set_job_id(&job_id);
 
-                        let _ = compute::prepare_assets(&*assets, &job, &config_compute).await;
+                        if let Err(e) = compute::prepare_assets(&*assets, &job, &config_compute).await {
+                            error!("Job {} Asset preparation failed: {}", job_id, e);
+                            return;
+                        }
 
                         let loader = keyforge_infra::FsProvider::new(data_dir.clone());
-                        let builder = keyforge_compute::SessionBuilder::new(&loader)
-                            .with_keyboard_def(Arc::new(job.definition.clone()))
-                            .with_corpus(&job.corpora)
-                            .await
-                            .map_err(|e| error!("Corpus load failed: {e}")).unwrap_or_default()
-                            .with_cost_matrix(&job.cost_matrix)
-                            .await
-                            .map_err(|e| error!("Cost matrix load failed: {e}")).unwrap_or_default()
-                            .with_keycodes(&config_compute.keycodes_file)
-                            .await
-                            .map_err(|e| error!("Keycodes load failed: {e}")).unwrap_or_default()
+                        let mut builder = keyforge_compute::SessionBuilder::new(&loader);
+                        
+                        builder = builder.with_keyboard_def(Arc::new(job.definition.clone()));
+                        
+                        builder = match builder.with_corpus(&job.corpora).await {
+                            Ok(b) => b,
+                            Err(e) => {
+                                error!("Job {} Corpus load failed: {}", job_id, e);
+                                return;
+                            }
+                        };
+
+                        builder = match builder.with_cost_matrix(&job.cost_matrix).await {
+                            Ok(b) => b,
+                            Err(e) => {
+                                error!("Job {} Cost matrix load failed: {}", job_id, e);
+                                return;
+                            }
+                        };
+
+                        builder = match builder.with_keycodes(&config_compute.keycodes_file).await {
+                            Ok(b) => b,
+                            Err(e) => {
+                                error!("Job {} Keycodes load failed: {}", job_id, e);
+                                return;
+                            }
+                        };
+
+                        let builder = builder
                             .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
                             .with_biometrics(job.biometrics.clone())
                             .with_config(keyforge_model::SearchConfig::Annealing {

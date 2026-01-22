@@ -1,7 +1,13 @@
 FROM httpd:alpine
 
-# Expose HTTP, HTTPS, Hive API, Asset API
-EXPOSE 80 443 3000 3001
+# Expose non-privileged ports (HTTP proxy only, HTTPS handled by Cloudflare or sidecar)
+EXPOSE 8080
+
+# Configure Apache to run as non-root
+RUN sed -i 's/Listen 80/Listen 8080/g' /usr/local/apache2/conf/httpd.conf && \
+    chown -R www-data:www-data /usr/local/apache2/logs /usr/local/apache2/modules
+
+USER www-data
 
 # Ensure SSL, Rewrite, AND PROXY modules are loaded
 RUN sed -i \

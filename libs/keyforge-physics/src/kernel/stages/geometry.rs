@@ -49,11 +49,14 @@ impl CompilationStage for GeometryStage<'_> {
             {
                 let dx = (k.x - origin.0).abs();
                 let dy = (k.y - origin.1).abs();
-                // Weighted Manhattan-style or Weighted Euclidean
-                // To match mechanics.rs: ((dx2 as f64 * t_lat) + (dy2 as f64 * t_vert))
-                // Wait, mechanics.rs uses dx2 (pre-squared).
-                // So here we should use weighted components.
-                dist_from_home = (dx * dx * t_lat + dy * dy * t_vert).sqrt();
+                
+                // Align with mechanics.rs: Weighted squared components
+                #[allow(clippy::cast_precision_loss)]
+                let dx2 = (dx * dx).round() as u32;
+                #[allow(clippy::cast_precision_loss)]
+                let dy2 = (dy * dy).round() as u32;
+                
+                dist_from_home = ((f64::from(dx2) * f64::from(t_lat)) + (f64::from(dy2) * f64::from(t_vert))).sqrt() as f32;
             }
             key_home_distances.push(dist_from_home);
         }
@@ -68,7 +71,13 @@ impl CompilationStage for GeometryStage<'_> {
                     let k2 = &kb.keys[j];
                     let dx = (k1.x - k2.x).abs();
                     let dy = (k1.y - k2.y).abs();
-                    dist_matrix[i * key_count + j] = (dx * dx * t_lat + dy * dy * t_vert).sqrt();
+                    
+                    #[allow(clippy::cast_precision_loss)]
+                    let dx2 = (dx * dx).round() as u32;
+                    #[allow(clippy::cast_precision_loss)]
+                    let dy2 = (dy * dy).round() as u32;
+                    
+                    dist_matrix[i * key_count + j] = ((f64::from(dx2) * f64::from(t_lat)) + (f64::from(dy2) * f64::from(t_vert))).sqrt() as f32;
                 }
             }
         }

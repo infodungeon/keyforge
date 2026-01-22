@@ -145,10 +145,15 @@ mod tests {
     fn setup_test_cost_model() -> CostModel {
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        let mut base_r0 = std::collections::HashMap::new();
-        base_r0.insert("r0".to_string(), 1.0);
-        let mut zones = std::collections::HashMap::new();
-        zones.insert("base".to_string(), base_r0);
+        let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
+        base_r0.insert(RowIndex(0), 1.0);
+        
+        let zones = keyforge_model::cost_model::FingerReach {
+            base: base_r0,
+            inner: Default::default(),
+            outer: Default::default(),
+        };
+        
         fingers.insert(
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(zones),

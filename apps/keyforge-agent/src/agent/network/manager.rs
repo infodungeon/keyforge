@@ -3,7 +3,10 @@ use crate::agent::errors::{AgentError, AgentResult};
 use crate::models::{AgentConfig, SharedTelemetry};
 use futures::{SinkExt, StreamExt};
 use keyforge_infra::HiveClient;
-use keyforge_protocol::{JobConfig, JobQueueResponse, NodeTelemetry, ResultSubmission};
+use keyforge_protocol::{
+    JobConfig, JobQueueResponse, NodeRequest, NodeResponse, NodeTelemetry, ResultSubmission,
+    PROTOCOL_VERSION,
+};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -23,6 +26,7 @@ pub struct NetworkManager {
     result_rx: mpsc::Receiver<ResultSubmission>,
     stop_tx: mpsc::Sender<()>,
     outbox: ResultOutbox,
+    session_token: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -74,17 +78,73 @@ impl NetworkManager {
             result_rx,
             stop_tx,
             outbox,
+            session_token: None,
         })
     }
 
     pub async fn run(mut self) {
         let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds);
+
+        // --- STEP 1: REGISTRATION HANDSHAKE (Task-sec-022) ---
+        while let Err(e) = self.register_with_hive().await {
+            error!("🚨 Registration Failed: {}. Retrying in {:?}...", e, backoff);
+            tokio::time::sleep(backoff).await;
+            backoff =
+                (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
+        }
+
+        // Reset backoff for connection loop
+        backoff = Duration::from_secs(self.config.network.initial_backoff_seconds);
+
         while let Err(e) = self.connect_and_loop().await {
             error!("🔌 Connection Lost: {}. Retrying in {:?}...", e, backoff);
             tokio::time::sleep(backoff).await;
             backoff =
                 (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
         }
+    }
+
+    async fn register_with_hive(&mut self) -> AgentResult<()> {
+        info!("📝 Registering Node with Hive...");
+        let url = format!("{}/nodes/register", self.config.hive_url);
+
+        let req = NodeRequest {
+            version: PROTOCOL_VERSION,
+            node_id: self.config.node_id.clone(),
+            cpu_model: "Detected CPU".into(), // TODO: Use real detection
+            cores: self.config.cores as i32,
+            l2_cache_kb: None,
+            ops_per_sec: 1_000_000.0, // Placeholder
+            public_key: None,
+        };
+
+        let resp = self
+            .client
+            .post(&url)
+            .header("X-Keyforge-Secret", &self.config.secret)
+            .json(&req)
+            .send()
+            .await
+            .map_err(|e| AgentError::Network(e.to_string()))?;
+
+        if !resp.status().is_success() {
+            let txt = resp.text().await.unwrap_or_default();
+            return Err(AgentError::Network(format!("Registration rejected: {txt}")));
+        }
+
+        let body: NodeResponse = resp
+            .json()
+            .await
+            .map_err(|e| AgentError::Internal(format!("Invalid registration response: {e}")))?;
+
+        if let Some(token) = body.token {
+            info!("✅ Registration successful (Session Token Acquired)");
+            self.session_token = Some(token);
+        } else {
+            warn!("⚠️ Registration successful but NO token received. Falling back to secret.");
+        }
+
+        Ok(())
     }
 
     async fn connect_and_loop(&mut self) -> AgentResult<()> {
@@ -101,6 +161,10 @@ impl NetworkManager {
         ws_url
             .query_pairs_mut()
             .append_pair("node_id", &self.config.node_id);
+
+        if let Some(token) = &self.session_token {
+            ws_url.query_pairs_mut().append_pair("token", token);
+        }
 
         info!("🌐 Connecting to Hive: {}", ws_url);
 
@@ -183,9 +247,7 @@ impl NetworkManager {
     async fn fetch_and_start_job(&self, _job_id: &str) -> AgentResult<()> {
         let url = format!("{}/jobs/queue", self.config.hive_url);
         let resp = self
-            .client
-            .get(&url)
-            .header("X-Keyforge-Secret", &self.config.secret)
+            .auth_builder(self.client.get(&url))
             .send()
             .await
             .map_err(|e| AgentError::Network(e.to_string()))?;
@@ -208,9 +270,7 @@ impl NetworkManager {
         let url = format!("{}/results", self.config.hive_url);
 
         let resp = self
-            .client
-            .post(&url)
-            .header("X-Keyforge-Secret", &self.config.secret)
+            .auth_builder(self.client.post(&url))
             .json(&result)
             .send()
             .await;
@@ -259,6 +319,14 @@ impl NetworkManager {
                     break;
                 }
             }
+        }
+    }
+
+    fn auth_builder(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(token) = &self.session_token {
+            builder.bearer_auth(token)
+        } else {
+            builder.header("X-Keyforge-Secret", &self.config.secret)
         }
     }
 }

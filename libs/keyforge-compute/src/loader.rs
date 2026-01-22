@@ -142,17 +142,77 @@ impl AssetLoader for InMemoryLoader {
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-        // For simplicity, we just look for the first ID in the registry.
-        // Complex blending is usually done at the ingestion layer.
-        if let Some(src) = sources.first() {
-            self.corpora
+        let mut blended = Corpus::default();
+        let mut found_any = false;
+
+        for src in sources {
+            let loaded = self
+                .corpora
                 .read()
                 .map_err(|e| ForgeError::Internal(format!("Lock poisoned: {e}")))?
                 .get(&src.id)
-                .cloned()
-                .ok_or_else(|| ForgeError::NotFound(src.id.clone()))
-        } else {
-            Err(ForgeError::NotFound("Empty corpus source list".into()))
+                .cloned();
+
+            if let Some(corpus) = loaded {
+                blended.merge(&corpus, src.weight);
+                found_any = true;
+            } else {
+                return Err(ForgeError::NotFound(src.id.clone()));
+            }
         }
+
+        if !found_any {
+            return Err(ForgeError::NotFound("Empty corpus source list".into()));
+        }
+
+        Ok(Arc::new(blended))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyforge_model::config::CorpusSource;
+
+    #[tokio::test]
+    async fn test_load_corpus_blending() {
+        let loader = InMemoryLoader::new();
+
+        // 1. Inject Corpus A
+        let mut c1 = Corpus::default();
+        c1.char_freqs['a' as usize] = 100;
+        loader.inject_corpus("corpus_a", c1);
+
+        // 2. Inject Corpus B
+        let mut c2 = Corpus::default();
+        c2.char_freqs['a' as usize] = 200;
+        loader.inject_corpus("corpus_b", c2);
+
+        // 3. Load with merging (Additive)
+        let sources = vec![
+            CorpusSource {
+                id: "corpus_a".into(),
+                weight: 1.0,
+                hash: None,
+            },
+            CorpusSource {
+                id: "corpus_b".into(),
+                weight: 1.0,
+                hash: None,
+            },
+        ];
+
+        let loaded = loader
+            .load_corpus(&sources)
+            .await
+            .expect("Failed to load corpus");
+
+        // 4. Assert: Should be 100 + 200 = 300
+        assert_eq!(
+            loaded.char_freqs['a' as usize],
+            300,
+            "Corpus blending failed: Expected 300, got {}",
+            loaded.char_freqs['a' as usize]
+        );
     }
 }

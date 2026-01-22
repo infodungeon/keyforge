@@ -73,6 +73,14 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
         };
 
         let target_path = jail.join(normalized);
+
+        // --- PATH JAILING: Task-sec-012 ---
+        // Ensure the final path is strictly within the system directory jail
+        if !target_path.starts_with(&jail) {
+            stats.errors.push(format!("Jail breach attempt: {rel_path}"));
+            continue;
+        }
+
         let needs_update = if target_path.exists() {
             calculate_file_hash(&target_path).unwrap_or_default() != server_hash
         } else {
@@ -120,6 +128,12 @@ pub async fn bootstrap_essentials(
         .strip_suffix(".json")
         .unwrap_or(ASSET_KEYCODES_FILENAME);
 
+    let system_root = local_root.join("system");
+    if !system_root.exists() {
+        fs::create_dir_all(&system_root).map_err(|e| e.to_string())?;
+    }
+    let jail = fs::canonicalize(&system_root).map_err(|e| e.to_string())?;
+
     for (rel_path, server_hash) in manifest.files {
         // Robust check for essential system assets
         let is_keyboard_model = rel_path.starts_with("keyboards/models/");
@@ -128,7 +142,13 @@ pub async fn bootstrap_essentials(
 
         if is_keyboard_model || is_keycode_def || is_ui_metadata {
             let remote = client.asset_url(&format!("data/system/{rel_path}"));
-            let local = local_root.join("system").join(&rel_path);
+            let local = jail.join(&rel_path);
+
+            // Path Jailing
+            if !local.starts_with(&jail) {
+                continue;
+            }
+
             if ensure_file(client, &remote, &local, Some(&server_hash))
                 .await
                 .is_ok()

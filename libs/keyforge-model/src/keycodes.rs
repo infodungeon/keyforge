@@ -205,6 +205,25 @@ impl KeycodeRegistry {
 
     /// Resolves a raw token (e.g. "KC_A", "MO(1)") into a `KeyCode`.
     /// Handles case-insensitivity and argument stripping.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use keyforge_model::keycodes::{KeycodeRegistry, KeycodeDefinition};
+    /// use keyforge_model::KeyCode;
+    ///
+    /// let mut reg = KeycodeRegistry::new_with_defaults();
+    /// reg.definitions.push(KeycodeDefinition {
+    ///     code: KeyCode(100),
+    ///     id: "MO".into(),
+    ///     label: "Layer".into(),
+    ///     aliases: vec![],
+    /// });
+    /// reg.rebuild_maps();
+    ///
+    /// assert_eq!(reg.resolve_token("MO(1)"), Some(KeyCode(100)));
+    /// assert_eq!(reg.resolve_token("KC_TRANSPARENT"), Some(KeyCode(1)));
+    /// ```
     #[must_use]
     pub fn resolve_token(&self, token: &str) -> Option<KeyCode> {
         let token = token.trim();

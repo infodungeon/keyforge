@@ -12,4 +12,10 @@ workspace = true
 [dependencies]
 keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
+serde.workspace = true
 thiserror.workspace = true
+ts-rs = { workspace = true, optional = true }
+
+[features]
+default = []
+ts_bindings = ["ts-rs", "keyforge-model/ts_bindings"]

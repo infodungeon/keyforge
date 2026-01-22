@@ -15,11 +15,13 @@
 use crate::state::AppState;
 use axum::{
     extract::{ws::Message, ws::WebSocket, Query, State, WebSocketUpgrade},
+    http::StatusCode,
     response::IntoResponse,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
 use keyforge_protocol::constants::{WS_MSG_CANCEL, WS_MSG_JOB};
 use keyforge_protocol::NodeTelemetry;
+use keyforge_security as crypto;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -38,7 +40,7 @@ enum ServerMessage {
     Cancel { id: String },
 }
 
-/// Handles a WebSocket upgrade request, extracting the node ID and initiating the socket handler.
+/// Handles a WebSocket upgrade request, verifying the session token.
 pub async fn handler(
     ws: WebSocketUpgrade,
     Query(params): Query<HashMap<String, String>>,
@@ -48,6 +50,28 @@ pub async fn handler(
         .get("node_id")
         .cloned()
         .unwrap_or_else(|| DEFAULT_NODE_ID.to_string());
+
+    // --- SECURE HANDSHAKE: Task-sec-022 ---
+    // Extract and verify PASETO token from query params
+    let token = params.get("token");
+    let mut authenticated = false;
+
+    if let Some(token_str) = token {
+        let key = state.security.get_token_key();
+        if let Ok(subject) = crypto::verify_paseto_token(&key, token_str) {
+            if subject == node_id {
+                authenticated = true;
+            } else {
+                warn!("⚠️ WS Auth: Token subject mismatch. Expected {}, got {}", node_id, subject);
+            }
+        }
+    }
+
+    if !authenticated {
+        warn!("⛔ WS Auth Failed for node: {}", node_id);
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
     ws.on_upgrade(move |socket| handle_socket(socket, state, node_id))
 }
 
