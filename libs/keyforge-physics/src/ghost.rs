@@ -1,0 +1,249 @@
+// libs/keyforge-physics/src/ghost.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! # Ghost Model
+//! 
+//! Mandated by the KeyForge Engineering Manifesto, the Ghost Model provides 
+//! a "Simple, Slow, Correct" reference implementation of the scoring logic.
+//! 
+//! This module avoids all performance optimizations (SIMD, cache blocking, 
+//! CSR-flattening) in favor of maximum readability and mathematical clarity.
+
+use crate::error::PhysicsError;
+use keyforge_model::{
+    Corpus, Keyboard, Layout, Rubric, Score, KeyCode,
+};
+
+/// Reference scorer implementing the "Ghost Model" pattern.
+/// Use this to verify optimized kernels.
+pub struct GhostScorer {
+    keyboard: Keyboard,
+    rubric: GhostRubric,
+    cost_model: keyforge_model::CostModel,
+}
+
+impl GhostScorer {
+    pub fn new(kb: Keyboard, rubric: &Rubric, cm: keyforge_model::CostModel) -> Self {
+        Self {
+            keyboard: kb,
+            rubric: GhostRubric::from_rubric(rubric),
+            cost_model: cm,
+        }
+    }
+
+    /// Pure reference scoring algorithm.
+    pub fn score(&self, corpus: &Corpus, layout: &Layout) -> Result<Score, PhysicsError> {
+        let mut total = Score::ZERO;
+
+        // 1. Monograms (Static Effort)
+        for (code_val, &freq) in corpus.char_freqs.iter().enumerate() {
+            if freq == 0 { continue; }
+            let code = KeyCode(code_val as u16);
+            if code == KeyCode::EMPTY || code == KeyCode::TRANSPARENT { continue; }
+
+            let min_cost = self.find_min_monogram_cost(layout, code)?;
+            let contrib = min_cost.checked_mul(freq as i64).ok_or(PhysicsError::ScoreOverflow {
+                context: format!("Ghost Monogram overflow for keycode {code}"),
+            })?;
+            total = total.checked_add(contrib).ok_or(PhysicsError::ScoreOverflow {
+                context: format!("Ghost Monogram total overflow at keycode {code}"),
+            })?;
+        }
+
+        // 2. Bigrams (Movement)
+        for (c1, c2, freq) in &corpus.bigrams {
+            let code1 = KeyCode(*c1);
+            let code2 = KeyCode(*c2);
+            if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY { continue; }
+
+            let min_cost = self.find_min_bigram_cost(layout, code1, code2)?;
+            let contrib = min_cost.checked_mul(*freq as i64).ok_or(PhysicsError::ScoreOverflow {
+                context: format!("Ghost Bigram overflow for ({code1}, {code2})"),
+            })?;
+            total = total.checked_add(contrib).ok_or(PhysicsError::ScoreOverflow {
+                context: format!("Ghost Bigram total overflow at ({code1}, {code2})"),
+            })?;
+        }
+
+        // 3. Trigrams (Flow)
+        for (c1, c2, c3, freq) in &corpus.trigrams {
+            let code1 = KeyCode(*c1);
+            let code2 = KeyCode(*c2);
+            let code3 = KeyCode(*c3);
+            if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY || code3 == KeyCode::EMPTY { continue; }
+
+            let min_cost = self.find_min_trigram_cost(layout, code1, code2, code3)?;
+            let contrib = min_cost.checked_mul(*freq as i64).ok_or(PhysicsError::ScoreOverflow {
+                context: format!("Ghost Trigram overflow for ({code1}, {code2}, {code3})"),
+            })?;
+            total = total.checked_add(contrib).ok_or(PhysicsError::ScoreOverflow {
+                context: format!("Ghost Trigram total overflow at ({code1}, {code2}, {code3})"),
+            })?;
+        }
+
+        Ok(total)
+    }
+
+    fn find_min_monogram_cost(&self, layout: &Layout, code: KeyCode) -> Result<Score, PhysicsError> {
+        let mut min = Score::MAX;
+        let positions = self.find_all_positions(layout, code);
+        
+        for pos in positions {
+            let key = &self.keyboard.keys[pos];
+            let effort = self.rubric.finger_effort[key.finger.as_usize()];
+            // In Ghost mode, we don't cache, we look up every time
+            let static_cost = Score::from_f32(self.resolve_static_cost(key)?)
+                .map_err(|e| PhysicsError::Config(e))?;
+            
+            let total = effort.checked_add(static_cost).unwrap_or(Score::MAX);
+            if total < min { min = total; }
+        }
+        Ok(min)
+    }
+
+    fn find_min_bigram_cost(&self, layout: &Layout, c1: KeyCode, c2: KeyCode) -> Result<Score, PhysicsError> {
+        let mut min = Score::MAX;
+        let pos1 = self.find_all_positions(layout, c1);
+        let pos2 = self.find_all_positions(layout, c2);
+
+        for p1 in pos1 {
+            for p2 in &pos2 {
+                let cost = self.calculate_pair_cost(p1, *p2)?;
+                if cost < min { min = cost; }
+            }
+        }
+        Ok(min)
+    }
+
+    fn find_min_trigram_cost(&self, layout: &Layout, c1: KeyCode, c2: KeyCode, c3: KeyCode) -> Result<Score, PhysicsError> {
+        let mut min = Score::MAX;
+        let pos1 = self.find_all_positions(layout, c1);
+        let pos2 = self.find_all_positions(layout, c2);
+        let pos3 = self.find_all_positions(layout, c3);
+
+        for p1 in pos1 {
+            for p2 in &pos2 {
+                for p3 in &pos3 {
+                    let cost = self.calculate_flow_cost(p1, *p2, *p3);
+                    if cost < min { min = cost; }
+                }
+            }
+        }
+        Ok(min)
+    }
+
+    fn find_all_positions(&self, layout: &Layout, code: KeyCode) -> Vec<usize> {
+        layout.keys.iter().enumerate()
+            .filter(|(_, &k)| k == code)
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    fn resolve_static_cost(&self, key: &keyforge_model::KeyNode) -> Result<f32, PhysicsError> {
+        // Ghost implementation of static cost resolution
+        // Simplified version of verify.rs logic
+        let model_key = if self.keyboard.kb_type.to_lowercase().contains("ortho") {
+            "model_ortho"
+        } else {
+            "model_a_row_staggered"
+        };
+        
+        let hand_key = if key.hand.is_left() { "left_hand" } else { "right_hand" };
+        
+        self.cost_model.models.get(model_key)
+            .and_then(|m| m.static_costs.get(hand_key).or_else(|| m.static_costs.get("universal_hand")))
+            .and_then(|h| {
+                let f_key = match key.finger {
+                    keyforge_model::FingerIndex::THUMB => "thumb",
+                    keyforge_model::FingerIndex::INDEX => "index",
+                    keyforge_model::FingerIndex::MIDDLE => "middle",
+                    keyforge_model::FingerIndex::RING => "ring",
+                    keyforge_model::FingerIndex::PINKY => "pinky",
+                    _ => "unknown",
+                };
+                h.fingers.get(f_key)
+            })
+            .map(|f| match f {
+                keyforge_model::cost_model::FingerDefinition::Standard(zones) => {
+                    let row_key = format!("r{}", key.row.0);
+                    zones.get("base").and_then(|z| z.get(&row_key)).copied().unwrap_or(0.0)
+                }
+                keyforge_model::cost_model::FingerDefinition::Thumb(pos) => {
+                    pos.values().min_by(|a, b| a.partial_cmp(b).unwrap()).copied().unwrap_or(0.0)
+                }
+            })
+            .ok_or_else(|| PhysicsError::Config(format!("Could not resolve static cost for key at index {}", key.index)))
+    }
+
+    fn calculate_pair_cost(&self, p1: usize, p2: usize) -> Result<Score, PhysicsError> {
+        let k1 = &self.keyboard.keys[p1];
+        let k2 = &self.keyboard.keys[p2];
+        if k1.hand != k2.hand { return Ok(Score::ZERO); }
+
+        let (dx2, dy2) = self.keyboard.spatial_cache[p1 * self.keyboard.keys.len() + p2];
+        let dist = (f64::from(dx2) * f64::from(self.rubric.travel_lat) + 
+                    f64::from(dy2) * f64::from(self.rubric.travel_vert)) * 
+                    f64::from(keyforge_model::constants::SCORE_SCALE);
+        
+        let mut cost = Score::from_scaled_i64(dist.round() as i64);
+
+        if k1.finger == k2.finger {
+            // SFB Handling
+            cost = cost.checked_add(self.rubric.sfb_base).unwrap_or(Score::MAX);
+        }
+
+        Ok(cost)
+    }
+
+    fn calculate_flow_cost(&self, p1: usize, p2: usize, p3: usize) -> Score {
+        let k1 = &self.keyboard.keys[p1];
+        let k2 = &self.keyboard.keys[p2];
+        let k3 = &self.keyboard.keys[p3];
+        
+        if k1.hand != k2.hand || k2.hand != k3.hand { return Score::ZERO; }
+
+        if k1.finger == k3.finger && k1.finger != k2.finger {
+            return self.rubric.redirect;
+        }
+
+        let dir1 = k2.finger.diff(k1.finger);
+        let dir2 = k3.finger.diff(k2.finger);
+        
+        if dir1 < 0 && dir2 < 0 { return -self.rubric.roll_bonus; }
+        
+        Score::ZERO
+    }
+}
+
+struct GhostRubric {
+    finger_effort: Vec<Score>,
+    travel_lat: f32,
+    travel_vert: f32,
+    sfb_base: Score,
+    redirect: Score,
+    roll_bonus: Score,
+}
+
+impl GhostRubric {
+    fn from_rubric(r: &Rubric) -> Self {
+        Self {
+            finger_effort: r.finger_effort.iter().map(|&e| Score::from_f32(e).unwrap()).collect(),
+            travel_lat: r.travel_lat,
+            travel_vert: r.travel_vert,
+            sfb_base: Score::from_f32(r.sfb_base).unwrap(),
+            redirect: Score::from_f32(r.redirect).unwrap(),
+            roll_bonus: Score::from_f32(r.roll_bonus).unwrap(),
+        }
+    }
+}

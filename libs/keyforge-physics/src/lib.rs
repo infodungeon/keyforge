@@ -22,6 +22,8 @@ mod analysis;
 pub mod engines;
 /// Physics-specific error types.
 pub mod error;
+/// Reference ghost models for verification.
+pub mod ghost;
 mod kernel;
 /// Layout verification and validity scoring.
 pub mod verify;
@@ -31,9 +33,11 @@ pub use keyforge_model::SwapSuggestion;
 
 use analysis::fingerprint::Fingerprinter;
 use analysis::heuristics::suggest_swaps;
+pub use engines::arm_neon::ArmNeonConfig;
 pub use engines::intel_comet_lake::IntelEngineConfig;
 use engines::{
-    exact::ExactScoringEngine, generic::GenericScoringEngine, intel_comet_lake::IntelScoringEngine,
+    arm_neon::ArmNeonScoringEngine, exact::ExactScoringEngine, generic::GenericScoringEngine,
+    intel_comet_lake::IntelScoringEngine,
 };
 pub use engines::{EngineCapabilities, ScoringEngine};
 pub use error::PhysicsError;
@@ -108,6 +112,24 @@ impl EngineFactory {
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
         Ok(Box::new(IntelScoringEngine::new(ctx, config)))
+    }
+
+    /// Compiles a new **ARM NEON** scoring engine.
+    ///
+    /// This engine uses ARM NEON SIMD optimizations.
+    /// It is only safe to use on compatible hardware (checked by caller).
+    ///
+    /// # Errors
+    /// Returns `PhysicsError` if compilation fails.
+    pub fn new_arm_neon(
+        keyboard: &Keyboard,
+        corpus: &Corpus,
+        rubric: &Rubric,
+        cost_model: &CostModel,
+        config: Option<ArmNeonConfig>,
+    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
+        Ok(Box::new(ArmNeonScoringEngine::new(ctx, config)))
     }
 }
 

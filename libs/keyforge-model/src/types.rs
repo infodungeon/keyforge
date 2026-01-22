@@ -58,6 +58,9 @@ pub struct KeyCode(pub u16);
 impl KeyCode {
     /// The canonical "Empty" or "No-Op" keycode (0).
     pub const EMPTY: KeyCode = KeyCode(0);
+    /// The canonical "Transparent" keycode (1).
+    /// Used in multi-layer layouts to fall through to the layer below.
+    pub const TRANSPARENT: KeyCode = KeyCode(1);
 }
 
 impl From<u16> for KeyCode {

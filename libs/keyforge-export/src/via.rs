@@ -14,6 +14,7 @@
 
 use crate::Exporter;
 use anyhow::Result;
+use keyforge_model::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
 use serde_json::json;
 
 /// An exporter for the VIA keyboard configurator.
@@ -38,8 +39,8 @@ impl Exporter for ViaExporter {
                 .map(|k| {
                     let upper = k.to_uppercase();
                     match upper.as_str() {
-                        "TRNS" | "_______" => "KC_TRNS".to_string(),
-                        "NO" | "XXXXXXX" => "KC_NO".to_string(),
+                        "TRNS" | DEFAULT_TRANSPARENT => "KC_TRNS".to_string(),
+                        "NO" | DEFAULT_NO_OP => "KC_NO".to_string(),
                         _ => {
                             if !upper.starts_with("KC_")
                                 && !upper.contains('(')

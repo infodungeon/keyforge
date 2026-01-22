@@ -17,6 +17,8 @@
 //! This module provides utilities for parsing external keymap formats
 //! (like QMK or ZMK) into internal domain representations.
 
+use crate::error::ModelError;
+use crate::types::KeyCode;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
@@ -55,25 +57,26 @@ pub enum KeyAction {
     StickyMod(String),
     /// Caps Word behavior.
     CapsWord,
-    /// Unparsed raw string.
-    Raw(String),
 }
 
 /// Parses a string token into a `KeyAction` using a recursive descent approach.
-#[must_use]
-pub fn parse_key(token: &str) -> KeyAction {
+///
+/// # Errors
+///
+/// Returns `ModelError::Parser` if the token is malformed or exceeds safety limits.
+pub fn parse_key(token: &str) -> Result<KeyAction, ModelError> {
     let t = token.trim();
     if t.len() > 100 {
         // Safety check for recursion depth/exploit
-        return KeyAction::Raw(t.to_string());
+        return Err(ModelError::Parser(format!("Token too long: {t}")));
     }
     let upper = t.to_uppercase();
 
     // 1. Simple Keywords
     match upper.as_str() {
-        "TRNS" | "_______" | "_" => return KeyAction::Transparent,
-        "NO" | "XXXXXXX" | "XXX" => return KeyAction::NoOp,
-        "CAPS_WORD" | "CW" => return KeyAction::CapsWord,
+        "TRNS" | crate::constants::DEFAULT_TRANSPARENT | "_" => return Ok(KeyAction::Transparent),
+        "NO" | crate::constants::DEFAULT_NO_OP | "XXX" => return Ok(KeyAction::NoOp),
+        "CAPS_WORD" | "CW" => return Ok(KeyAction::CapsWord),
         _ => {}
     }
 
@@ -82,71 +85,70 @@ pub fn parse_key(token: &str) -> KeyAction {
         match name {
             "MO" => {
                 if let Ok(l) = args_str.parse::<u8>() {
-                    return KeyAction::LayerMomentary(l);
+                    return Ok(KeyAction::LayerMomentary(l));
                 }
             }
             "TG" => {
                 if let Ok(l) = args_str.parse::<u8>() {
-                    return KeyAction::LayerToggle(l);
+                    return Ok(KeyAction::LayerToggle(l));
                 }
             }
             "TO" => {
                 if let Ok(l) = args_str.parse::<u8>() {
-                    return KeyAction::LayerOn(l);
+                    return Ok(KeyAction::LayerOn(l));
                 }
             }
             "LT" => {
                 if let Some((layer_str, key_str)) = split_args_safe(&args_str) {
                     if let Ok(layer) = layer_str.trim().parse::<u8>() {
                         // RECURSIVE CALL
-                        let key_action = parse_key(&key_str);
-                        return KeyAction::LayerTap {
+                        let key_action = parse_key(&key_str)?;
+                        return Ok(KeyAction::LayerTap {
                             layer,
                             key: Box::new(key_action),
-                        };
+                        });
                     }
                 }
             }
             "MT" => {
                 if let Some((mod_str, key_str)) = split_args_safe(&args_str) {
-                    let key_action = parse_key(&key_str);
-                    return KeyAction::ModTap {
+                    let key_action = parse_key(&key_str)?;
+                    return Ok(KeyAction::ModTap {
                         mod_name: mod_str.trim().to_string(),
                         key: Box::new(key_action),
-                    };
+                    });
                 }
             }
             "SK" | "OSM" => {
-                return KeyAction::StickyMod(args_str.trim().to_string());
+                return Ok(KeyAction::StickyMod(args_str.trim().to_string()));
             }
             _ if name.ends_with("_T") => {
                 // MOD_T(KEY) or LSHIFT_T(KEY)
                 // Extract mod name from function name
                 let mod_name = name.trim_end_matches("_T").to_string();
-                let key_action = parse_key(&args_str);
-                return KeyAction::ModTap {
+                let key_action = parse_key(&args_str)?;
+                return Ok(KeyAction::ModTap {
                     mod_name,
                     key: Box::new(key_action),
-                };
+                });
             }
-            _ => {}
+            _ => {
+                return Err(ModelError::Parser(format!("Unknown function call: {name}")));
+            }
         }
     }
 
     // 3. Fallback to Simple
     if t.contains('(') || t.contains(')') {
-        return KeyAction::Raw(t.to_string());
+        return Err(ModelError::Parser(format!("Malformed function call: {t}")));
     }
 
     // Normalize simple keys
     if !upper.starts_with("KC_") && upper.chars().all(|c| c.is_alphanumeric() || c == '_') {
-        // Avoid adding KC_ to numbers if they are just raw numbers?
-        // QMK usually likes KC_1.
-        // But let's stick to existing behavior: alphanumeric -> KC_
-        return KeyAction::Simple(format!("KC_{upper}"));
+        return Ok(KeyAction::Simple(format!("KC_{upper}")));
     }
 
-    KeyAction::Simple(t.to_string())
+    Ok(KeyAction::Simple(t.to_string()))
 }
 
 /// Helper: Extracts `NAME` and `ARGS` from `NAME(ARGS)`.
@@ -186,15 +188,15 @@ mod tests {
 
     #[test]
     fn test_key_action_parsing() {
-        assert_eq!(parse_key("KC_A"), KeyAction::Simple("KC_A".to_string()));
-        assert_eq!(parse_key("TRNS"), KeyAction::Transparent);
+        assert_eq!(parse_key("KC_A").unwrap(), KeyAction::Simple("KC_A".to_string()));
+        assert_eq!(parse_key("TRNS").unwrap(), KeyAction::Transparent);
 
-        match parse_key("MO(1)") {
+        match parse_key("MO(1)").unwrap() {
             KeyAction::LayerMomentary(1) => {}
             _ => panic!("Failed to parse MO(1)"),
         }
 
-        match parse_key("LT(2, KC_SPC)") {
+        match parse_key("LT(2, KC_SPC)").unwrap() {
             KeyAction::LayerTap { layer: 2, key } => {
                 assert_eq!(*key, KeyAction::Simple("KC_SPC".to_string()));
             }
@@ -202,7 +204,7 @@ mod tests {
         }
 
         // Verify recursive parsing
-        match parse_key("MT(MOD_LCTL, LT(1, A))") {
+        match parse_key("MT(MOD_LCTL, LT(1, A))").unwrap() {
             KeyAction::ModTap { mod_name, key } => {
                 assert_eq!(mod_name, "MOD_LCTL");
                 match *key {
@@ -221,17 +223,17 @@ mod tests {
 
     #[test]
     fn test_key_action_parsing_extended() {
-        assert_eq!(parse_key("NO"), KeyAction::NoOp);
-        assert_eq!(parse_key("CW"), KeyAction::CapsWord);
+        assert_eq!(parse_key("NO").unwrap(), KeyAction::NoOp);
+        assert_eq!(parse_key("CW").unwrap(), KeyAction::CapsWord);
         assert_eq!(
-            parse_key("SK(MOD_LSFT)"),
+            parse_key("SK(MOD_LSFT)").unwrap(),
             KeyAction::StickyMod("MOD_LSFT".to_string())
         );
-        assert_eq!(parse_key("TG(3)"), KeyAction::LayerToggle(3));
-        assert_eq!(parse_key("TO(4)"), KeyAction::LayerOn(4));
+        assert_eq!(parse_key("TG(3)").unwrap(), KeyAction::LayerToggle(3));
+        assert_eq!(parse_key("TO(4)").unwrap(), KeyAction::LayerOn(4));
 
         // MOD_T shortcut
-        match parse_key("LSFT_T(KC_Z)") {
+        match parse_key("LSFT_T(KC_Z)").unwrap() {
             KeyAction::ModTap { mod_name, key } => {
                 assert_eq!(mod_name, "LSFT");
                 assert_eq!(*key, KeyAction::Simple("KC_Z".to_string()));
@@ -240,20 +242,17 @@ mod tests {
         }
 
         // Malformed/Unparsed
-        assert!(matches!(parse_key("INVALID("), KeyAction::Raw(_)));
-        assert!(matches!(
-            parse_key("X".repeat(101).as_str()),
-            KeyAction::Raw(_)
-        ));
-        assert!(matches!(parse_key("LT(1)"), KeyAction::Raw(_)));
-        assert!(matches!(parse_key("MT(MOD_LSFT)"), KeyAction::Raw(_)));
+        assert!(parse_key("INVALID(").is_err());
+        assert!(parse_key("X".repeat(101).as_str()).is_err());
+        assert!(parse_key("LT(1)").is_err());
+        assert!(parse_key("MT(MOD_LSFT)").is_err());
 
         // Non-alphanumeric normalization
-        let dot = parse_key(".");
+        let dot = parse_key(".").unwrap();
         assert_eq!(dot, KeyAction::Simple(".".into()));
 
         // _T variant
-        let mt = parse_key("LSFT_T(Z)");
+        let mt = parse_key("LSFT_T(Z)").unwrap();
         assert!(matches!(mt, KeyAction::ModTap { mod_name, .. } if mod_name == "LSFT"));
 
         // 3. split_args_safe failure (no comma)
