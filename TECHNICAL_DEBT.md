@@ -20,13 +20,16 @@ This document tracks identified technical debt, architectural shortcuts, and leg
 - [x] **Sentinel Fragility**: The `XXXXXXX` string for `KC_NO` refactored to use constants. (Remediated 2026-01-21)
 - [x] **Tier 1 Purity**: High-level scoring wrappers moved out of `keyforge-physics` into `keyforge-compute`. (Remediated 2026-01-21)
 - [x] **Logic Duplication**: Centralized `calculate_flow_cost` in `mechanics.rs` to unify ground-truth across implementations. (Remediated 2026-01-21)
-- [ ] **Leaky Traits**: `AssetServerProvider` and `DistributedCoordinator` in `keyforge-infra` leak implementation details (e.g., specific crate types, lack of unified domain error handling).
+- [ ] **Leaky Traits**: `AssetServerProvider` and `DistributedCoordinator` in `keyforge-infra` leak implementation details (e.g., specific crate types, lack of unified domain error handling). `AssetServerProvider` specifically hides failure modes by returning `Option` instead of `InfraResult`.
 - [ ] **Mixed Abstractions (Hive)**: Some feature handlers in `keyforge-hive` directly orchestrate database repos and asset providers rather than delegating to a pure `Command` or `Service` layer.
 - [ ] **Mixed Responsibility (Persistence)**: `UserRepo` in `keyforge-persistence` mixes filesystem I/O details with profile generation logic.
+- [ ] **Domain Model Fragmentation**: `Project` struct in `keyforge-persistence` duplicates much of the `Config` aggregate from `keyforge-model`, leading to synchronization debt.
+- [ ] **Misplaced Logic**: `StreamingProfileBuilder` (biomechanical logic) resides in `keyforge-infra::util::common` rather than `keyforge-model` or `keyforge-compute`.
 
 ## 4. Frontend & WASM
 - [ ] **WASM Type Safety**: `keyforge_wasm.js` lacks thorough verification for `Set` and `Map` types passed over the bridge.
 - [ ] **UI Memory Management**: `patchEllipsis` in the UI codebase has potential memory leaks related to tooltip lifecycle management.
+- [ ] **Duplicated Loader Logic**: `keyforge-wasm` implements its own `InMemoryLoader` which overlaps with the `AssetLoader` traits in `infra`, potentially drifting in validation logic.
 
 ## 5. Metadata & Registry
 - [ ] **Keycode Registry**: The mapping between QMK/ZMK keycodes and internal `KeyCode` types is partially manual. A code-generated registry from a schema would reduce errors.
