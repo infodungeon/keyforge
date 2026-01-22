@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::util::corpus::inject_synthetic_data;
-use keyforge_core::loader::{AssetLoader, LoaderResult};
+use keyforge_compute::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::error::ForgeError;
@@ -26,8 +26,8 @@ use std::sync::Arc;
 
 use crate::asset::resolver::PathResolver;
 use crate::asset::AssetServerProvider;
-use crate::net::sync::ServerManifest;
 use crate::error::{InfraError, InfraResult};
+use crate::net::sync::ServerManifest;
 
 /// An asset provider that loads data directly from the local filesystem.
 ///

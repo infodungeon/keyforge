@@ -13,18 +13,18 @@
 // limitations under the License.
 
 use crate::config::definitions::LayoutDefinitions;
-use crate::config::search::{SearchParams, SearchConfig};
-use crate::config::weights::ScoringWeights;
+use crate::config::search::{SearchConfig, SearchParams};
 use crate::config::source::{CorpusSource, CostMatrixSource};
-use crate::validator::Validator;
+use crate::config::weights::ScoringWeights;
 use crate::corpus::Corpus;
-use crate::keyboard::Keyboard;
-use crate::rubric::Rubric;
 use crate::cost_model::CostModel;
-use crate::types::KeyCode;
+use crate::keyboard::Keyboard;
 use crate::layout::Layout;
-use std::sync::Arc;
+use crate::rubric::Rubric;
+use crate::types::KeyCode;
+use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 use utoipa::ToSchema;

@@ -14,8 +14,8 @@
 
 use crate::biometrics::BiometricProfiler;
 use crate::hardware::HardwareProbe;
-use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_core::ScoringSession;
+use crate::loader::{AssetLoader, LoaderResult};
+use crate::session::ScoringSession;
 use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
@@ -181,25 +181,26 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             .map_err(|e| keyforge_model::error::ForgeError::InvalidData(e.to_string()))?,
         );
 
+        let compilation_ctx = keyforge_physics::EngineCompilationContext {
+            keyboard: &keyboard,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        };
+
         let topo = HardwareProbe::probe();
         let engine = if topo.vendor == "GenuineIntel" {
             keyforge_physics::EngineFactory::new_intel_comet_lake(
-                &keyboard,
-                &corpus,
-                &rubric,
-                &cost_model,
+                compilation_ctx,
                 Some(topo.into()),
             )
         } else if topo.vendor == "ARM" {
             keyforge_physics::EngineFactory::new_arm_neon(
-                &keyboard,
-                &corpus,
-                &rubric,
-                &cost_model,
+                compilation_ctx,
                 Some(topo.into()),
             )
         } else {
-            keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
+            keyforge_physics::EngineFactory::new_generic(compilation_ctx)
         }
         .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
 

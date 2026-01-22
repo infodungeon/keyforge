@@ -112,24 +112,20 @@ pub fn generate_keypair() -> (String, String) {
     )
 }
 
-fn build_payload(job_id: &str, layout: &str, score: f32, timestamp: u64, nonce: u64) -> Vec<u8> {
+fn build_payload(job_id: &str, layout: &str, score_fixed: i64, timestamp: u64, nonce: u64) -> Vec<u8> {
     let mut hasher = Sha256::new();
 
+    // Domain Separator to prevent cross-protocol attacks
+    hasher.update(b"KeyForge-Result-v1");
+
+    hasher.update((job_id.len() as u64).to_le_bytes());
     hasher.update(job_id.as_bytes());
-    let job_hash = hasher.finalize_reset();
 
+    hasher.update((layout.len() as u64).to_le_bytes());
     hasher.update(layout.as_bytes());
-    let layout_hash = hasher.finalize_reset();
 
-    // Task-sec-029: Use fixed-point representation for deterministic signatures
-    #[allow(clippy::cast_possible_truncation)]
-    let score_fixed = (score * SCORE_SCALE) as i64;
-
-    // 32 bytes (job_hash) + 32 bytes (layout_hash) + 8 bytes (score) + 8 bytes (timestamp) + 8 bytes (nonce)
-    let capacity = 32 + 32 + 8 + 8 + 8;
-    let mut payload = Vec::with_capacity(capacity);
-    payload.extend_from_slice(&job_hash);
-    payload.extend_from_slice(&layout_hash);
+    let mut payload = Vec::with_capacity(128);
+    payload.extend_from_slice(&hasher.finalize());
     payload.extend_from_slice(&score_fixed.to_le_bytes());
     payload.extend_from_slice(&timestamp.to_le_bytes());
     payload.extend_from_slice(&nonce.to_le_bytes());
@@ -162,13 +158,16 @@ pub fn sign_result(
     let signing_key = SigningKey::from_bytes(&key_buf);
     key_buf.zeroize();
 
-    sign_result_direct(&signing_key, job_id, layout, score, timestamp, nonce)
+    #[allow(clippy::cast_possible_truncation)]
+    let score_fixed = (score * SCORE_SCALE) as i64;
+
+    sign_result_direct(&signing_key, job_id, layout, score_fixed, timestamp, nonce)
 }
 
 /// Signs an optimization result using a pre-loaded `SigningKey`.
 ///
 /// This is the "direct" version of `sign_result` that avoids re-parsing the key.
-/// The signature covers the `job_id`, `layout`, `score`, `timestamp`, and `nonce`.
+/// The signature covers the `job_id`, `layout`, `score_fixed`, `timestamp`, and `nonce`.
 /// Returns the hex-encoded signature string.
 ///
 /// # Errors
@@ -178,11 +177,11 @@ pub fn sign_result_direct(
     signing_key: &SigningKey,
     job_id: &str,
     layout: &str,
-    score: f32,
+    score_fixed: i64,
     timestamp: u64,
     nonce: u64,
 ) -> SecurityResult<String> {
-    let payload = build_payload(job_id, layout, score, timestamp, nonce);
+    let payload = build_payload(job_id, layout, score_fixed, timestamp, nonce);
     let signature = signing_key.sign(&payload);
     Ok(hex::encode(signature.to_bytes()))
 }
@@ -227,7 +226,10 @@ pub fn verify_result(
             .map_err(|_| SecurityError::Signature("Invalid signature length".into()))?,
     );
 
-    let payload = build_payload(job_id, layout, score, timestamp, nonce);
+    #[allow(clippy::cast_possible_truncation)]
+    let score_fixed = (score * SCORE_SCALE) as i64;
+
+    let payload = build_payload(job_id, layout, score_fixed, timestamp, nonce);
 
     match verifying_key.verify(&payload, &signature) {
         Ok(()) => Ok(true),

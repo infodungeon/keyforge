@@ -1,6 +1,5 @@
 use crate::kernel::types::KeyCode;
-use keyforge_model::constants::MAX_KEYBOARD_KEYS;
-// use std::collections::HashMap; // Removed unused import
+use keyforge_model::constants::{MAX_KEYBOARD_KEYS, MAX_KEYCODE_SPACE};
 
 #[derive(Debug)]
 pub struct PosMap<'a> {
@@ -84,7 +83,7 @@ impl<'a> PosMap<'a> {
 
     #[inline]
     pub(crate) fn get(&self, code: usize) -> &[u16] {
-        if code >= 65536 {
+        if code >= MAX_KEYCODE_SPACE {
             return &[];
         }
         let start = self.starts[code] as usize;
@@ -99,27 +98,27 @@ impl<'a> PosMap<'a> {
 /// Scratch space for physics operations to avoid re-allocating large arrays.
 #[derive(Debug)]
 pub struct PhysicsScratch {
-    pub(crate) starts: Box<[u16; 65536]>,
-    pub(crate) counts: Box<[u8; 65536]>,
+    pub(crate) starts: Box<[u16; MAX_KEYCODE_SPACE]>,
+    pub(crate) counts: Box<[u8; MAX_KEYCODE_SPACE]>,
     pub(crate) indices: Box<[u16; MAX_KEYBOARD_KEYS]>,
-    pub(crate) current_offsets: Box<[u8; 65536]>, // Helper buffer
+    pub(crate) current_offsets: Box<[u8; MAX_KEYCODE_SPACE]>, // Helper buffer
     pub(crate) used_keys: Vec<u16>,
-    pub(crate) char_usage: Box<[f32; 65536]>,
+    pub(crate) char_usage: Box<[f32; MAX_KEYCODE_SPACE]>,
 }
 
 impl Default for PhysicsScratch {
     #[allow(clippy::unwrap_used)]
     fn default() -> Self {
         Self {
-            starts: vec![0u16; 65536].into_boxed_slice().try_into().unwrap(),
-            counts: vec![0u8; 65536].into_boxed_slice().try_into().unwrap(),
+            starts: vec![0u16; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
+            counts: vec![0u8; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
             indices: vec![0u16; MAX_KEYBOARD_KEYS]
                 .into_boxed_slice()
                 .try_into()
                 .unwrap(),
-            current_offsets: vec![0u8; 65536].into_boxed_slice().try_into().unwrap(),
+            current_offsets: vec![0u8; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
-            char_usage: vec![0.0f32; 65536].into_boxed_slice().try_into().unwrap(),
+            char_usage: vec![0.0f32; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
         }
     }
 }

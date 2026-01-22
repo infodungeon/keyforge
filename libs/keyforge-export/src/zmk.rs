@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::ExportResult;
 use crate::util::{self, ModFormat};
 use crate::Exporter;
-use anyhow::Result;
 use keyforge_adapter::parsing::{parse_key, KeyAction};
+use keyforge_model::keycodes::KeycodeRegistry;
 use std::fmt::Write;
 
 /// An exporter for the ZMK (Zephyr Mechanical Keyboard) firmware.
@@ -25,7 +26,12 @@ use std::fmt::Write;
 pub struct ZmkExporter;
 
 impl Exporter for ZmkExporter {
-    fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String> {
+    fn generate(
+        &self,
+        layout_name: &str,
+        layers: &[Vec<String>],
+        registry: Option<&KeycodeRegistry>,
+    ) -> ExportResult<String> {
         let mut out = String::new();
 
         let _ = writeln!(out, "// KeyForge ZMK Export: {layout_name}");
@@ -55,8 +61,17 @@ impl Exporter for ZmkExporter {
                 let action = parse_key(key_str);
                 let code = match action {
                     Ok(KeyAction::Simple(s)) => {
-                        let clean = s.strip_prefix("KC_").unwrap_or(&s);
-                        format!("&kp {}", util::sanitize_zmk(clean))
+                        let clean = if let Some(reg) = registry {
+                            if let Some(code) = reg.resolve_token(&s) {
+                                let label = reg.get_label(code);
+                                label.strip_prefix("KC_").unwrap_or(&label).to_string()
+                            } else {
+                                s.strip_prefix("KC_").unwrap_or(&s).to_string()
+                            }
+                        } else {
+                            s.strip_prefix("KC_").unwrap_or(&s).to_string()
+                        };
+                        format!("&kp {}", util::sanitize_zmk(&clean))
                     }
                     Ok(KeyAction::Transparent) => "&trans".to_string(),
                     Ok(KeyAction::NoOp) => "&none".to_string(),
@@ -66,23 +81,43 @@ impl Exporter for ZmkExporter {
                     Ok(KeyAction::ModTap { mod_name, key }) => {
                         let zmk_mod = util::map_modifier(&mod_name, ModFormat::Zmk);
                         let key_str = match key.as_ref() {
-                            KeyAction::Simple(s) => s.clone(),
+                            KeyAction::Simple(s) => {
+                                if let Some(reg) = registry {
+                                    if let Some(code) = reg.resolve_token(s) {
+                                        let label = reg.get_label(code);
+                                        label.strip_prefix("KC_").unwrap_or(&label).to_string()
+                                    } else {
+                                        s.strip_prefix("KC_").unwrap_or(s).to_string()
+                                    }
+                                } else {
+                                    s.strip_prefix("KC_").unwrap_or(s).to_string()
+                                }
+                            }
                             _ => "failed_recursion".to_string(),
                         };
-                        let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);
                         format!(
                             "&mt {} {}",
                             util::sanitize_zmk(&zmk_mod),
-                            util::sanitize_zmk(clean_key)
+                            util::sanitize_zmk(&key_str)
                         )
                     }
                     Ok(KeyAction::LayerTap { layer, key }) => {
                         let key_str = match key.as_ref() {
-                            KeyAction::Simple(s) => s.clone(),
+                            KeyAction::Simple(s) => {
+                                if let Some(reg) = registry {
+                                    if let Some(code) = reg.resolve_token(s) {
+                                        let label = reg.get_label(code);
+                                        label.strip_prefix("KC_").unwrap_or(&label).to_string()
+                                    } else {
+                                        s.strip_prefix("KC_").unwrap_or(s).to_string()
+                                    }
+                                } else {
+                                    s.strip_prefix("KC_").unwrap_or(s).to_string()
+                                }
+                            }
                             _ => "failed_recursion".to_string(),
                         };
-                        let clean_key = key_str.strip_prefix("KC_").unwrap_or(&key_str);
-                        format!("&lt {} {}", layer, util::sanitize_zmk(clean_key))
+                        format!("&lt {} {}", layer, util::sanitize_zmk(&key_str))
                     }
                     Ok(KeyAction::StickyMod(m)) => {
                         let zmk_mod = util::map_modifier(&m, ModFormat::Zmk);
@@ -139,7 +174,7 @@ mod tests {
             "CAPS_WORD".to_string(),
             "UNKNOWN(TOKEN)".to_string(),
         ]];
-        let result = exporter.generate("Test", &layers).unwrap();
+        let result = exporter.generate("Test", &layers, None).unwrap();
 
         assert!(result.contains("&kp A"));
         assert!(result.contains("&trans"));
@@ -159,12 +194,12 @@ mod tests {
         let exporter = ZmkExporter;
         // MT with a nested MT
         let layers = vec![vec!["MT(MOD_LSFT, MT(MOD_LCTL, Z))".into()]];
-        let result = exporter.generate("RecursionFail", &layers).unwrap();
+        let result = exporter.generate("RecursionFail", &layers, None).unwrap();
         assert!(result.contains("failed_recursion"));
 
         // LT with a nested LT
         let layers = vec![vec!["LT(1, LT(2, Z))".into()]];
-        let result = exporter.generate("RecursionFail", &layers).unwrap();
+        let result = exporter.generate("RecursionFail", &layers, None).unwrap();
         assert!(result.contains("failed_recursion"));
     }
 
@@ -172,7 +207,7 @@ mod tests {
     fn test_zmk_multi_layer() {
         let exporter = ZmkExporter;
         let layers = vec![vec!["A".into()], vec!["B".into()]];
-        let result = exporter.generate("Multi", &layers).unwrap();
+        let result = exporter.generate("Multi", &layers, None).unwrap();
         assert!(result.contains("default_layer"));
         assert!(result.contains("layer_1"));
     }
@@ -181,7 +216,7 @@ mod tests {
     fn test_zmk_generate_long_lines() {
         let exporter = ZmkExporter;
         let layers = vec![vec!["A".to_string(); 20]];
-        let result = exporter.generate("Long", &layers).unwrap();
+        let result = exporter.generate("Long", &layers, None).unwrap();
         assert!(result.contains("\n                ")); // Newline after 12 keys
     }
 }

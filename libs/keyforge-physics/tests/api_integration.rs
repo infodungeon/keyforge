@@ -2,7 +2,7 @@
 
 use keyforge_model::{
     types::{FingerIndex, HandIndex, KeyCode},
-    Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig, EngineRequest,
+    Corpus, CostModel, EngineRequest, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
 };
 use std::sync::Arc;
 

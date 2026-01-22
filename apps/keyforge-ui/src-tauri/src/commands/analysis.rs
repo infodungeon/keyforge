@@ -141,18 +141,21 @@ pub async fn cmd_validate_layout(
             drop(session_guard);
             let mut write_guard = state.scoring_session.write().await;
             if write_guard.is_none() {
-                let options = RunnerOptions {
-                    keycodes_file: "keycodes.json".to_string(),
-                    ..Default::default()
-                };
+                let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
+                    .with_keyboard_def(std::sync::Arc::new(job_config.definition.clone()))
+                    .with_corpus(&job_config.corpora)
+                    .await
+                    .map_err(|e| CommandError::Internal(format!("Corpus load failed: {e}")))?
+                    .with_cost_matrix(&job_config.cost_matrix)
+                    .await
+                    .map_err(|e| CommandError::Internal(format!("Cost matrix load failed: {e}")))?
+                    .with_keycodes("keycodes.json")
+                    .await
+                    .map_err(|e| CommandError::Internal(format!("Keycodes load failed: {e}")))?
+                    .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job_config.weights));
 
-                let session = OptimizationRunner::prepare_session(
-                    state.assets.as_ref(),
-                    &job_config,
-                    &options,
-                )
-                .await
-                .map_err(|e| CommandError::Internal(format!("Failed to compile engine: {e}")))?;
+                let session = builder.build()
+                    .map_err(|e| CommandError::Internal(format!("Failed to compile engine: {e}")))?;
 
                 *write_guard = Some(session);
             }

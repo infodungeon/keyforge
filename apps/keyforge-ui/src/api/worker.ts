@@ -22,6 +22,21 @@ async function loadWasm() {
 let engine: any = null;
 let isSearching = false;
 
+function ensurePlainObject(val: any, name: string) {
+  if (val === null || typeof val !== "object" || Array.isArray(val)) {
+    throw new Error(`${name} must be a plain object, got ${typeof val}`);
+  }
+  if (val instanceof Map || val instanceof Set) {
+    throw new Error(`${name} must be a plain object, not Map or Set`);
+  }
+}
+
+function ensureArray(val: any, name: string) {
+  if (!Array.isArray(val)) {
+    throw new Error(`${name} must be an array, got ${typeof val}`);
+  }
+}
+
 self.onmessage = async (e: MessageEvent) => {
   const { type, payload } = e.data;
 
@@ -37,17 +52,21 @@ self.onmessage = async (e: MessageEvent) => {
 
     case "LOAD_DATA":
       if (engine) {
-        engine.load_keyboard(payload.keyboardName, payload.keyboardDef);
-        engine.load_keycodes(payload.keycodes);
-        engine.load_corpus(payload.corpusName, payload.corpus);
-        engine.load_cost_matrix(payload.costName, payload.cost);
-        engine.init_session(
-          payload.keyboardName,
-          payload.corpusName,
-          payload.costName,
-          payload.weights,
-          payload.params,
-        );
+        try {
+          ensurePlainObject(payload.keyboardDef, "keyboardDef");
+          ensureArray(payload.keycodes, "keycodes");
+          ensurePlainObject(payload.corpus, "corpus");
+          ensurePlainObject(payload.cost, "cost");
+
+          engine.injectKeyboard(payload.keyboardName, payload.keyboardDef);
+          engine.injectKeycodes(payload.keycodes);
+          engine.injectCorpus(payload.corpusName, payload.corpus);
+          engine.injectCostModel(payload.costName, payload.cost);
+        } catch (err: any) {
+          console.error("WASM Data Load Error:", err.message);
+          self.postMessage({ type: "ERROR", payload: err.message });
+          return;
+        }
       }
       self.postMessage({ type: "DATA_LOADED" });
       break;

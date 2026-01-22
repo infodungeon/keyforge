@@ -1,9 +1,9 @@
 use super::state::PosMap;
+use crate::kernel::mechanics::calculate_flow_cost as shared_calculate_flow_cost;
 use crate::kernel::{
     types::{KeyCode, Score},
     EngineContext,
 };
-use crate::kernel::mechanics::calculate_flow_cost as shared_calculate_flow_cost;
 
 #[inline]
 pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> Score {

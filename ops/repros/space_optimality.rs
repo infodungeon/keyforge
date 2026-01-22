@@ -41,6 +41,12 @@ fn main() {
     let rubric = Rubric::default();
     let cost_model = mock_cost_model();
 
-    let _engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &cost_model).unwrap();
+    let _engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &kb,
+        corpus: &corpus,
+        rubric: &rubric,
+        cost_model: &cost_model,
+    })
+    .unwrap();
     println!("Engine built successfully");
 }

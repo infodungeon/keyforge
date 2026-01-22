@@ -16,8 +16,8 @@
 
 use keyforge_model::CostModel;
 use keyforge_protocol::BiometricSample;
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Statistics for a specific bigram.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -100,15 +100,15 @@ impl StreamingProfileBuilder {
     #[must_use]
     pub fn build_model(&self) -> CostModel {
         let mut modifiers = HashMap::new();
-        
+
         // Calculate global baseline (mean of all bigrams)
         let total_mean: f64 = self.stats.values().map(|s| s.mean).sum();
-        let global_avg = if self.stats.is_empty() { 
-            1.0 
-        } else { 
+        let global_avg = if self.stats.is_empty() {
+            1.0
+        } else {
             #[allow(clippy::cast_precision_loss)]
             {
-                total_mean / self.stats.len() as f64 
+                total_mean / self.stats.len() as f64
             }
         };
 
@@ -152,22 +152,24 @@ impl BiometricProfiler {
         for s in samples {
             builder.add_sample(s);
         }
-        
+
         let mut result = base_model.clone();
         let generated = builder.build_model();
-        
+
         // Merge sequence modifiers
         for (bigram, modifier) in generated.dynamic_rules.sequence_modifiers {
-            result.dynamic_rules.sequence_modifiers.insert(bigram, modifier);
+            result
+                .dynamic_rules
+                .sequence_modifiers
+                .insert(bigram, modifier);
         }
-        
+
         // Update description to reflect personalization
         result.meta.description = format!(
-            "{} (Personalized with {} samples)", 
-            result.meta.description, 
-            builder.sample_count
+            "{} (Personalized with {} samples)",
+            result.meta.description, builder.sample_count
         );
-        
+
         result
     }
 }
@@ -199,19 +201,27 @@ mod tests {
         // 3. Above threshold
         let mut samples = Vec::new();
         for _ in 0..10 {
-            samples.push(BiometricSample { bigram: "th".into(), ms: 100.0, timestamp: 0 });
-            samples.push(BiometricSample { bigram: "he".into(), ms: 200.0, timestamp: 0 });
+            samples.push(BiometricSample {
+                bigram: "th".into(),
+                ms: 100.0,
+                timestamp: 0,
+            });
+            samples.push(BiometricSample {
+                bigram: "he".into(),
+                ms: 200.0,
+                timestamp: 0,
+            });
         }
-        
+
         let model = BiometricProfiler::profile(&samples, &base);
         assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 2);
-        
+
         // Avg = (100 + 200) / 2 = 150
         // "th" ratio = 100 / 150 = 0.666...
         // "he" ratio = 200 / 150 = 1.333...
         let th_val = *model.dynamic_rules.sequence_modifiers.get("th").unwrap();
         let he_val = *model.dynamic_rules.sequence_modifiers.get("he").unwrap();
-        
+
         assert!(th_val < 1.0);
         assert!(he_val > 1.0);
     }

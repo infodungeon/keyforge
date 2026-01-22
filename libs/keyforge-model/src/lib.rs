@@ -66,7 +66,7 @@ pub use corpus::Corpus;
 pub use cost_model::CostModel;
 pub use error::ForgeError;
 pub use geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
-pub use job::JobIdentifier;
+pub use job::{Completed, Job, JobIdentifier, JobState, JobStatus, Pending, Running};
 pub use keyboard::Keyboard;
 pub use keycodes::KeycodeRegistry;
 pub use layout::Layout;

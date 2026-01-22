@@ -41,7 +41,12 @@ fn main() {
     let rubric = Rubric::default();
     let cost_model = mock_cost_model();
 
-    let engine = EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
-        .expect("Failed to build engine");
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &keyboard,
+        corpus: &corpus,
+        rubric: &rubric,
+        cost_model: &cost_model,
+    })
+    .expect("Failed to build engine");
     println!("Engine built successfully with {} keys", engine.key_count());
 }

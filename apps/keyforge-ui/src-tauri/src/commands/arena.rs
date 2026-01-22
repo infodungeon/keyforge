@@ -1,11 +1,11 @@
 use crate::utils::get_data_dir;
+use keyforge_compute::biometrics::StreamingProfileBuilder;
 use keyforge_infra::AssetLoader;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::ARENA_TOP_WORDS_LIMIT;
 use keyforge_persistence::UserRepo;
 use keyforge_protocol::BiometricSample;
-use keyforge_compute::biometrics::StreamingProfileBuilder;
 use tauri::AppHandle;
 
 /// Generates a list of random words from the selected corpora for typing practice.
@@ -87,18 +87,22 @@ pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, Strin
 pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, String> {
     let data_dir = get_data_dir(&app)?;
     let user_data = UserRepo::new(data_dir);
-    
+
     let mut builder = StreamingProfileBuilder::new();
-    let count = user_data.load_stats_streaming(|sample| {
-        builder.add_sample(&sample);
-    }).map_err(|e| e.to_string())?;
+    let count = user_data
+        .load_stats_streaming(|sample| {
+            builder.add_sample(&sample);
+        })
+        .map_err(|e| e.to_string())?;
 
     if count < 5 {
         return Err(format!("Insufficient data. {count}/5 samples collected."));
     }
 
     let model = builder.build_model();
-    user_data.save_personal_cost_model(&model).map_err(|e| e.to_string())?;
+    user_data
+        .save_personal_cost_model(&model)
+        .map_err(|e| e.to_string())?;
 
     Ok(format!("Profile generated from {count} samples."))
 }

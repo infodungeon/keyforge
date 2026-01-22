@@ -454,7 +454,13 @@ mod tests {
                 static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
             });
 
-            let engine = crate::EngineFactory::new_generic(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cm).unwrap();
+            let engine = crate::EngineFactory::new_generic(crate::EngineCompilationContext {
+                keyboard: &kb,
+                corpus: &cp,
+                rubric: &rubric,
+                cost_model: &cm,
+            })
+            .unwrap();
 
             let layout_for_score = Layout::new_unchecked(layout_keys.clone());
             let score_before = engine.score(&layout_for_score).unwrap().0;
@@ -536,7 +542,12 @@ mod tests {
         );
 
         let engine =
-            crate::EngineFactory::new_generic(&Arc::new(kb), &Arc::new(cp), &Arc::new(rubric), &cm)
+            crate::EngineFactory::new_generic(crate::EngineCompilationContext {
+                keyboard: &kb,
+                corpus: &cp,
+                rubric: &rubric,
+                cost_model: &cm,
+            })
                 .unwrap();
 
         let mut ctx = engine.context().clone();

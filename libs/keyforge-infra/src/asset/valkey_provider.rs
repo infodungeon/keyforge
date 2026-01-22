@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::InfraResult;
 use crate::net::distributed::DistributedCoordinator;
 use crate::net::sync::ServerManifest;
-use crate::error::InfraResult;
 use crate::util::corpus::inject_synthetic_data;
-use keyforge_core::loader::{AssetLoader, LoaderResult};
+use keyforge_compute::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
@@ -48,7 +48,7 @@ impl ValkeyProvider {
     }
 
     /// Fetches the current system asset manifest from the distributed store.
-    /// 
+    ///
     /// # Errors
     /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn get_manifest(&self) -> InfraResult<ServerManifest> {
@@ -104,7 +104,7 @@ impl ValkeyProvider {
     // --- Helper Methods for Hive ---
 
     /// Retrieves the raw byte content of a file from the distributed store.
-    /// 
+    ///
     /// # Errors
     /// Returns `InfraError` if the underlying storage operation fails.
     pub async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
@@ -271,9 +271,9 @@ impl crate::asset::AssetServerProvider for ValkeyProvider {
 mod tests {
     use super::*;
     use crate::error::InfraResult;
-    use tracing::warn;
     use keyforge_protocol::{AssetManifestEntry, NodeTelemetry};
     use std::collections::HashMap;
+    use tracing::warn;
 
     #[derive(Debug, Default)]
     struct MockDistributedCoordinator {

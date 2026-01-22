@@ -16,9 +16,9 @@ use axum::{extract::State, Json};
 use keyforge_protocol::{JobRequest, JobResponse};
 use std::sync::Arc;
 
+use crate::commands::{handle_command, CommandResponse, HiveCommand};
 use crate::error::AppResult;
 use crate::state::AppState;
-use crate::services::job_service::JobService;
 
 #[utoipa::path(
     post,
@@ -35,7 +35,14 @@ pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<JobRequest>,
 ) -> AppResult<Json<JobResponse>> {
-    // Humble Handler: Delegate orchestration to JobService
-    let result = JobService::register_job(&state, payload).await?;
-    Ok(Json(result))
+    // Reified Action: Intent is clearly separated from execution
+    let response = handle_command(&state, HiveCommand::RegisterJob(payload)).await?;
+
+    if let CommandResponse::JobRegistered(res) = response {
+        Ok(Json(res))
+    } else {
+        Err(crate::error::AppError::Any(anyhow::anyhow!(
+            "Unexpected command response"
+        )))
+    }
 }

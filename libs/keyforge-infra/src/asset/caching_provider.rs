@@ -15,10 +15,10 @@
 use crate::asset::cache::AssetCache;
 use crate::asset::fs_provider::FsProvider;
 use crate::asset::AssetServerProvider;
-use crate::net::sync::ServerManifest;
 use crate::error::{InfraError, InfraResult};
+use crate::net::sync::ServerManifest;
 use bytes::Bytes;
-use keyforge_core::loader::{AssetLoader, LoaderResult};
+use keyforge_compute::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::ASSET_KEYCODES;
 use keyforge_model::cost_model::CostModel;

@@ -177,25 +177,30 @@ pub fn cmd_save_keyboard(
 
 /// Exports a layout to a target firmware format (e.g., QMK, ZMK).
 #[tauri::command]
-pub fn cmd_export_firmware(
-    layout_name: &str,
-    layout_str: &str,
-    format: &str,
+pub async fn cmd_export_firmware(
+    state: tauri::State<'_, SessionState>,
+    layout_name: String,
+    layout_str: String,
+    format: String,
 ) -> Result<String, CommandError> {
     let keys: Vec<String> = layout_str
         .split_whitespace()
         .map(std::string::ToString::to_string)
         .collect();
+    // Attempt to load registry from session or fallback to None
+    let registry = state.assets.load::<keyforge_model::keycodes::KeycodeRegistry>(keyforge_model::constants::ASSET_KEYCODES).await.ok();
+
     let exporter: Box<dyn Exporter> = match format.to_lowercase().as_str() {
         "qmk" => Box::new(QmkExporter),
         "zmk" => Box::new(ZmkExporter),
         "via" => Box::new(keyforge_export::via::ViaExporter),
         _ => return Err(CommandError::Validation("Unsupported format.".into())),
     };
+
     // For now, treat the entire string as a single layer.
     // Future expansion could involve splitting by a delimiter for multi-layer support.
     exporter
-        .generate(layout_name, &[keys])
+        .generate(&layout_name, &[keys], registry.as_deref())
         .map_err(|e| CommandError::Internal(e.to_string()))
 }
 

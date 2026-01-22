@@ -13,7 +13,7 @@ use keyforge_model::{
     types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex},
     Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
 };
-use keyforge_physics::{verify::DeterministicScorer, EngineFactory};
+use keyforge_physics::{verify::DeterministicScorer, EngineCompilationContext, EngineFactory};
 use proptest::prelude::*;
 use std::collections::HashMap;
 
@@ -107,7 +107,13 @@ fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
 #[test]
 fn test_generic_engine_trait_methods() {
     let (kb, corpus, rubric, cm) = setup_minimal();
-    let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &cm).unwrap();
+    let engine = EngineFactory::new_generic(EngineCompilationContext {
+        keyboard: &kb,
+        corpus: &corpus,
+        rubric: &rubric,
+        cost_model: &cm,
+    })
+    .unwrap();
 
     assert_eq!(engine.name(), "Generic Optimized");
     assert!(!engine.capabilities().is_exact);
@@ -148,7 +154,13 @@ fn test_generic_engine_trait_methods() {
 #[test]
 fn test_exact_engine_trait_methods() {
     let (kb, corpus, rubric, cm) = setup_minimal();
-    let engine = EngineFactory::new_exact(&kb, &corpus, &rubric, &cm).unwrap();
+    let engine = EngineFactory::new_exact(EngineCompilationContext {
+        keyboard: &kb,
+        corpus: &corpus,
+        rubric: &rubric,
+        cost_model: &cm,
+    })
+    .unwrap();
 
     assert_eq!(engine.name(), "Exact (Oracle)");
     assert!(engine.capabilities().is_exact);
@@ -190,7 +202,16 @@ fn test_exact_engine_trait_methods() {
 #[test]
 fn test_intel_engine_trait_methods() {
     let (kb, corpus, rubric, cm) = setup_minimal();
-    let engine = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cm, None).unwrap();
+    let engine = EngineFactory::new_intel_comet_lake(
+        EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cm,
+        },
+        None,
+    )
+    .unwrap();
 
     assert_eq!(engine.name(), "Intel Comet Lake (AVX2 Optimized)");
     assert!(engine.capabilities().features.supports_avx2);
@@ -232,7 +253,16 @@ fn test_intel_missing_keys() {
     corpus.bigrams.push((97, 99, 50)); // Code 99 not in layout
     corpus.trigrams.push((97, 98, 99, 10)); // Code 99 not in layout
 
-    let engine = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cm, None).unwrap();
+    let engine = EngineFactory::new_intel_comet_lake(
+        EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cm,
+        },
+        None,
+    )
+    .unwrap();
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
 
     let score = engine.score(&layout).unwrap();
@@ -262,9 +292,16 @@ proptest! {
         let cost_model = mock_cost_model();
         let oracle = DeterministicScorer::new(&kb, &rubric, &cost_model);
 
-        let generic = EngineFactory::new_generic(&kb, &corpus, &rubric, &cost_model).unwrap();
-        let exact = EngineFactory::new_exact(&kb, &corpus, &rubric, &cost_model).unwrap();
-        let intel = EngineFactory::new_intel_comet_lake(&kb, &corpus, &rubric, &cost_model, None).unwrap();
+        let ctx = EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        };
+
+        let generic = EngineFactory::new_generic(ctx.clone()).unwrap();
+        let exact = EngineFactory::new_exact(ctx.clone()).unwrap();
+        let intel = EngineFactory::new_intel_comet_lake(ctx, None).unwrap();
 
         let layout = Layout::new_unchecked(layout_keys.clone());
 

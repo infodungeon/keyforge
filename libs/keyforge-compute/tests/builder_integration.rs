@@ -94,8 +94,13 @@ fn setup_runtime() -> Runtime {
             )]),
         },
     );
-    let engine =
-        EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
+    let engine = EngineFactory::new_exact(keyforge_physics::EngineCompilationContext {
+        keyboard: &kb,
+        corpus: &Corpus::default(),
+        rubric: &Rubric::default(),
+        cost_model: &cm,
+    })
+    .unwrap();
     let registry = Arc::new(KeycodeRegistry::new_with_defaults());
     Runtime::new(Arc::from(engine), registry, test_search_config())
 }
@@ -162,8 +167,13 @@ fn test_runtime_from_session() {
             )]),
         },
     );
-    let engine =
-        EngineFactory::new_exact(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
+    let engine = EngineFactory::new_exact(keyforge_physics::EngineCompilationContext {
+        keyboard: &kb,
+        corpus: &Corpus::default(),
+        rubric: &Rubric::default(),
+        cost_model: &cm,
+    })
+    .unwrap();
     let session = ScoringSession::new(
         Arc::from(engine),
         Arc::new(KeycodeRegistry::default()),
@@ -207,7 +217,9 @@ async fn test_session_builder_lifecycle() {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+                keyforge_model::cost_model::HandDefinition {
+                    fingers: fingers.clone(),
+                },
             )]),
         },
     );
@@ -217,7 +229,9 @@ async fn test_session_builder_lifecycle() {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+                keyforge_model::cost_model::HandDefinition {
+                    fingers: fingers.clone(),
+                },
             )]),
         },
     );
@@ -227,7 +241,9 @@ async fn test_session_builder_lifecycle() {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+                keyforge_model::cost_model::HandDefinition {
+                    fingers: fingers.clone(),
+                },
             )]),
         },
     );
@@ -308,7 +324,9 @@ async fn test_session_builder_missing_assets() {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+                keyforge_model::cost_model::HandDefinition {
+                    fingers: fingers.clone(),
+                },
             )]),
         },
     );
@@ -318,7 +336,9 @@ async fn test_session_builder_missing_assets() {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+                keyforge_model::cost_model::HandDefinition {
+                    fingers: fingers.clone(),
+                },
             )]),
         },
     );
@@ -328,7 +348,9 @@ async fn test_session_builder_missing_assets() {
             description: "test".into(),
             static_costs: std::collections::HashMap::from([(
                 "universal_hand".to_string(),
-                keyforge_model::cost_model::HandDefinition { fingers: fingers.clone() },
+                keyforge_model::cost_model::HandDefinition {
+                    fingers: fingers.clone(),
+                },
             )]),
         },
     );

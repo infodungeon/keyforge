@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cache::{CompiledEngineCache, ParsedLayoutCache};
-use crate::error::{AppError, AppResult};
-use crate::infra::repositories::{JobRepository, NodeRepository};
-use keyforge_compute::SessionBuilder;
-use keyforge_core::ScoringEngine;
-use keyforge_infra::{AssetLoader, ValkeyProvider};
+use keyforge_compute::{ScoringEngine, SessionBuilder};
+use keyforge_infra::ValkeyProvider;
 use keyforge_model::{
     constants::{
         DEFAULT_CORPUS_WEIGHT, VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO,

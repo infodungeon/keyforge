@@ -47,7 +47,7 @@ pub(crate) mod auth;
 pub mod bootstrap;
 /// Global and local caching mechanisms.
 pub mod cache;
-pub(crate) mod commands;
+pub mod commands;
 /// Application configuration and environment variable loading.
 pub mod config;
 pub mod constants;

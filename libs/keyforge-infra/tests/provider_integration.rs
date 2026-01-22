@@ -269,7 +269,11 @@ async fn test_fs_provider_server_provider() {
     let content = provider.get_file_content("system/test.txt").await.unwrap();
     assert_eq!(content.unwrap(), "hello");
 
-    assert!(provider.get_file_content("missing").await.unwrap().is_none());
+    assert!(provider
+        .get_file_content("missing")
+        .await
+        .unwrap()
+        .is_none());
     assert!(provider.get_file_content("../secret").await.is_err());
 }
 

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::{ExportError, ExportResult};
 use crate::Exporter;
-use anyhow::Result;
 use keyforge_model::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
 use serde_json::json;
 
@@ -25,9 +25,14 @@ use serde_json::json;
 pub struct ViaExporter;
 
 impl Exporter for ViaExporter {
-    fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String> {
+    fn generate(
+        &self,
+        layout_name: &str,
+        layers: &[Vec<String>],
+        _registry: Option<&keyforge_model::keycodes::KeycodeRegistry>,
+    ) -> ExportResult<String> {
         if layers.is_empty() {
-            return Err(anyhow::anyhow!("Layout cannot be empty"));
+            return Err(ExportError::InvalidLayout("Layers cannot be empty".into()));
         }
 
         let mut all_mapped_layers = Vec::new();
@@ -77,7 +82,7 @@ mod tests {
             vec!["A".to_string(), "B".to_string()],
             vec!["TRNS".to_string(), "NO".to_string()],
         ];
-        let result = exporter.generate("Test Layout", &layers).unwrap();
+        let result = exporter.generate("Test Layout", &layers, None).unwrap();
         let json: serde_json::Value = serde_json::from_str(&result).unwrap();
 
         assert_eq!(json["name"], "Test Layout");
@@ -91,7 +96,7 @@ mod tests {
         let exporter = ViaExporter;
 
         // 1. Empty layers
-        assert!(exporter.generate("fail", &[]).is_err());
+        assert!(exporter.generate("fail", &[], None).is_err());
 
         // 2. Normalization branches
         let layers = vec![vec![
@@ -99,7 +104,7 @@ mod tests {
             "mo(1)".to_string(), // contains (
             ".".to_string(),     // non-alphanumeric
         ]];
-        let result = exporter.generate("Test", &layers).unwrap();
+        let result = exporter.generate("Test", &layers, None).unwrap();
         let json: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(json["layers"][0][0], "KC_A");
         assert_eq!(json["layers"][0][1], "MO(1)");

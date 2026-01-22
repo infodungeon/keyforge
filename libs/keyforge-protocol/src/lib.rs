@@ -44,7 +44,9 @@ pub use keyforge_model as model;
 
 // Re-export EVERYTHING to maintain backward compatibility with crate public API
 pub use assets::{AssetManifestEntry, BiometricSample, PopulationResponse, UserStatsStore};
-pub use job::{JobConfig, JobQueueResponse, JobRequest, JobResponse, JobStatus, ResultSubmission};
+pub use job::{
+    JobConfig, JobDetailedStatus, JobQueueResponse, JobRequest, JobResponse, ResultSubmission,
+};
 pub use node::{NodeRequest, NodeResponse, NodeTelemetry, TuningProfile};
 pub use telemetry::SystemMetrics;
 

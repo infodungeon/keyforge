@@ -71,7 +71,8 @@ impl PersistentJobQueue {
                             Ok(bytes) => {
                                 match postcard::from_bytes::<WalEntry>(&bytes) {
                                     Ok(entry) => {
-                                        let record_bytes = postcard::to_stdvec(&entry.record).unwrap_or_default();
+                                        let record_bytes =
+                                            postcard::to_stdvec(&entry.record).unwrap_or_default();
                                         if crc32fast::hash(&record_bytes) == entry.checksum {
                                             recovered_batch.push(entry.record);
                                             // Delete processed WAL file
@@ -122,8 +123,8 @@ impl PersistentJobQueue {
                             if let Err(e) = sink.save_batch(std::mem::take(&mut batch)).await {
                                 error!("Failed to save batch: {}", e);
                             }
-                            // Cleanup batch WAL files? 
-                            // Actually, recovery deletes them. 
+                            // Cleanup batch WAL files?
+                            // Actually, recovery deletes them.
                             // But we should delete them here too if save succeeds.
                             // But we don't track which WAL corresponds to which record in batch.
                             // A better design would be a single WAL per record, and delete on success.

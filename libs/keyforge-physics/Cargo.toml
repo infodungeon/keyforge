@@ -26,5 +26,4 @@ keyforge-core = { path = "../keyforge-core" }
 keyforge-compute = { path = "../keyforge-compute" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-model = { path = "../keyforge-model", features = ["testing"] }
-tokio = { version = "1.48", features = ["full"] }
 serde_json = "1.0"

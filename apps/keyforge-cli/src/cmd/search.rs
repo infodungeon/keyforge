@@ -33,36 +33,45 @@ pub async fn run(
     loader: &FsProvider,
     _config: &keyforge_infra::config::CommonConfig,
 ) -> Result<(), CliError> {
-    let mut options = keyforge_runner::RunnerOptions::default();
-    if let Some(t) = args.time {
-        options.timeout_sec = t;
-    }
-
-    if let Some(kc) = &args.shared.keycodes {
-        options.keycodes_file.clone_from(kc);
-    } else {
-        options.keycodes_file = keyforge_model::constants::ASSET_KEYCODES_FILENAME.into();
-    }
-
-    if let Some(s) = args.seed {
-        options.seed = Some(s);
-    }
-    if args.threads > 0 {
-        options.threads = args.threads;
-    }
-
     let job = build_job_config(loader, &args.shared, args.config.clone())
         .await
         .map_err(|e| CliError::Other(format!("Failed to build job: {e}")))?;
-    let session = keyforge_runner::OptimizationRunner::prepare_session(loader, &job, &options)
+
+    let keycodes_file = args.shared.keycodes.as_deref().unwrap_or(keyforge_model::constants::ASSET_KEYCODES_FILENAME);
+
+    let builder = keyforge_compute::SessionBuilder::new(loader)
+        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
+        .with_corpus(&job.corpora)
         .await
+        .map_err(|e| CliError::Other(format!("Corpus load failed: {e}")))?
+        .with_cost_matrix(&job.cost_matrix)
+        .await
+        .map_err(|e| CliError::Other(format!("Cost matrix load failed: {e}")))?
+        .with_keycodes(keycodes_file)
+        .await
+        .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+        .with_config(keyforge_model::SearchConfig::Annealing {
+            steps: job.params.get_search_steps(),
+            start_temp: job.params.get_temp_max(),
+            end_temp: job.params.get_temp_min(),
+            seed: args.seed.unwrap_or(job.params.seed.unwrap_or(42)),
+            patience: job.params.get_search_patience(),
+            reheats: job.params.get_reheats(),
+            reheat_factor: job.params.get_reheat_factor(),
+            include_thumbs: job.params.include_thumbs,
+        });
+
+    let session = builder
+        .build()
         .map_err(|e| CliError::Other(format!("Failed to prepare session: {e}")))?;
 
     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let timeout_sec = args.time.unwrap_or(0);
 
     // Task-clii-rev-003: Setup Progress Bar
-    let pb = if options.timeout_sec > 0 {
-        ProgressBar::new(options.timeout_sec)
+    let pb = if timeout_sec > 0 {
+        ProgressBar::new(timeout_sec)
     } else {
         ProgressBar::new_spinner()
     };
@@ -74,7 +83,7 @@ pub async fn run(
             .progress_chars("#>-"),
     );
 
-    if options.timeout_sec == 0 {
+    if timeout_sec == 0 {
         pb.set_message("Optimizing layout (Infinite)...");
     } else {
         pb.set_message("Optimizing layout...");
@@ -86,13 +95,9 @@ pub async fn run(
         start_time: std::time::Instant::now(),
     };
 
-    let result: keyforge_model::OptimizationResult = keyforge_runner::OptimizationRunner::run(
-        session,
-        "local-cli".into(),
-        stop_flag,
+    let result: keyforge_model::OptimizationResult = session.run_optimization(
         callback,
-        options,
-        &job,
+        &job.pinned_keys,
     )
     .await
     .map_err(|e| CliError::Other(format!("Optimization Error: {e}")))?;

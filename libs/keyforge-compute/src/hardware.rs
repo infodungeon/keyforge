@@ -1,5 +1,6 @@
-use keyforge_physics::{ArmNeonConfig, IntelEngineConfig};
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use raw_cpuid::{CacheType, CpuId};
+use keyforge_physics::{ArmNeonConfig, IntelEngineConfig};
 
 #[derive(Debug, Clone)]
 pub struct CpuTopology {
@@ -48,37 +49,44 @@ pub struct HardwareProbe;
 impl HardwareProbe {
     #[must_use]
     pub fn probe() -> CpuTopology {
-        let cpuid = CpuId::new();
-        let vendor = cpuid
-            .get_vendor_info()
-            .map_or_else(|| "Unknown".to_string(), |v| v.as_str().to_string());
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            let cpuid = CpuId::new();
+            let vendor = cpuid
+                .get_vendor_info()
+                .map_or_else(|| "Unknown".to_string(), |v| v.as_str().to_string());
 
-        let mut topology = CpuTopology {
-            vendor,
-            ..Default::default()
-        };
+            let mut topology = CpuTopology {
+                vendor,
+                ..Default::default()
+            };
 
-        if let Some(cparams) = cpuid.get_cache_parameters() {
-            for cache in cparams {
-                let size = (cache.associativity() + 1)
-                    * (cache.physical_line_partitions() + 1)
-                    * (cache.coherency_line_size() + 1)
-                    * (cache.sets() + 1);
+            if let Some(cparams) = cpuid.get_cache_parameters() {
+                for cache in cparams {
+                    let size = (cache.associativity() + 1)
+                        * (cache.physical_line_partitions() + 1)
+                        * (cache.coherency_line_size() + 1)
+                        * (cache.sets() + 1);
 
-                match (cache.level(), cache.cache_type()) {
-                    (1, CacheType::Data) => {
-                        topology.l1d_size_bytes = size;
-                        topology.cache_line_size =
-                            u16::try_from(cache.coherency_line_size() + 1).unwrap_or(64);
+                    match (cache.level(), cache.cache_type()) {
+                        (1, CacheType::Data) => {
+                            topology.l1d_size_bytes = size;
+                            topology.cache_line_size =
+                                u16::try_from(cache.coherency_line_size() + 1).unwrap_or(64);
+                        }
+                        (2, _) => topology.l2_size_bytes = size,
+                        (3, _) => topology.l3_size_bytes = size,
+                        _ => {}
                     }
-                    (2, _) => topology.l2_size_bytes = size,
-                    (3, _) => topology.l3_size_bytes = size,
-                    _ => {}
                 }
             }
-        }
 
-        topology
+            topology
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        {
+            CpuTopology::default()
+        }
     }
 }
 

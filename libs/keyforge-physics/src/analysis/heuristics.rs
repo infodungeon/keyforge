@@ -15,7 +15,9 @@
 use crate::kernel::compute::{calculate_swap_delta, score_layout, PhysicsScratch, PosMap};
 use crate::kernel::types::ValidatedLayout;
 use crate::kernel::EngineContext;
-use keyforge_model::constants::{MAX_SWAP_SUGGESTIONS, MIN_SUGGESTION_IMPROVEMENT_PCT, SCORE_SCALE};
+use keyforge_model::constants::{
+    MAX_SWAP_SUGGESTIONS, MIN_SUGGESTION_IMPROVEMENT_PCT, SCORE_SCALE,
+};
 use keyforge_model::types::FingerIndex;
 use keyforge_model::{Layout, SwapSuggestion};
 
@@ -110,7 +112,7 @@ pub fn suggest_swaps(
 )]
 mod tests {
     use super::*;
-    use crate::{Compiler, EngineFactory};
+    use crate::{Compiler, EngineCompilationContext, EngineFactory};
     use keyforge_model::{
         types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, Score},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
@@ -226,7 +228,14 @@ mod tests {
         rubric.travel_lat = 10.0;
 
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
 
         let suggestions = suggest_swaps(engine.context(), &layout, false);
         assert!(
@@ -241,9 +250,14 @@ mod tests {
         let kb = setup_kb_minimal();
         let corpus = Corpus::default();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
 
         let suggestions = suggest_swaps(engine.context(), &layout, false);
         assert!(
@@ -261,7 +275,14 @@ mod tests {
         let mut rubric = Rubric::default();
         rubric.travel_lat = 10.0;
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
 
         let layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
         let mut pos_map_data = vec![65535u16; 65536];
@@ -297,9 +318,14 @@ mod tests {
         let mut corpus = Corpus::default();
         corpus.char_freqs[0] = 1_000_000_000; // Large freq
 
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let mut ctx = engine.context().clone();
 
         // Create a mutable copy of geometry to modify key_costs
@@ -318,12 +344,13 @@ mod tests {
     #[test]
     fn test_suggest_swaps_invalid_layout() {
         let kb = setup_kb_minimal();
-        let engine = EngineFactory::new_generic(
-            &kb,
-            &Corpus::default(),
-            &Rubric::default(),
-            &mock_cost_model(),
-        )
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &Corpus::default(),
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
         .unwrap();
 
         // Layout with wrong number of keys
@@ -361,7 +388,14 @@ mod tests {
         let mut rubric = Rubric::default();
         rubric.travel_lat = 10.0;
 
-        let engine = EngineFactory::new_generic(&kb, &cp, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &cp,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
 
         // With include_thumbs = false, no suggestions should involve index 0

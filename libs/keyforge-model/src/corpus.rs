@@ -18,6 +18,7 @@
 //! including character, bigram, and trigram frequencies.
 
 use crate::asset::{Asset, AssetCategory};
+use crate::constants::MAX_KEYCODE_SPACE;
 use crate::error::ForgeError;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
@@ -38,7 +39,7 @@ pub struct Corpus {
     #[serde(default)]
     pub meta: CorpusMetadata,
     /// Frequency of each character (index = char code).
-    /// Must be exactly 65536 elements long to cover all u16 values.
+    /// Must be exactly MAX_KEYCODE_SPACE elements long to cover all u16 values.
     /// Changed to u64 to support large corpora (>4B chars).
     pub char_freqs: Vec<u64>,
     /// List of bigrams (char1, char2, frequency).
@@ -53,13 +54,17 @@ impl Asset for Corpus {
     fn category() -> AssetCategory {
         AssetCategory::Corpus
     }
+
+    fn post_load(&mut self) -> Result<(), ForgeError> {
+        self.validate()
+    }
 }
 
 impl Default for Corpus {
     fn default() -> Self {
         Self {
             meta: CorpusMetadata::default(),
-            char_freqs: vec![0; 65536],
+            char_freqs: vec![0; MAX_KEYCODE_SPACE],
             bigrams: Vec::new(),
             trigrams: Vec::new(),
             words: Vec::new(),
@@ -69,7 +74,7 @@ impl Default for Corpus {
 
 impl Validator for Corpus {
     fn validate(&self) -> Result<(), String> {
-        self.validate_internal().map_err(|e| e.to_string())
+        self.validate().map_err(|e| e.to_string())
     }
 }
 
@@ -79,19 +84,20 @@ impl Corpus {
     ///
     /// # Errors
     ///
-    /// Returns a `ForgeError` if the character frequency map is not exactly 65536 elements.
+    /// Returns a `ForgeError` if the character frequency map is not exactly MAX_KEYCODE_SPACE elements.
     pub fn validate(&self) -> Result<(), ForgeError> {
         // 1. Char Freqs must cover full u16 range (0..65535)
         // The physics engine uses direct indexing: ctx.char_freqs[code as usize]
-        if self.char_freqs.len() != 65536 {
+        if self.char_freqs.len() != MAX_KEYCODE_SPACE {
             return Err(ForgeError::InvalidData(format!(
-                "Corpus char_freqs length must be 65536, found {}",
+                "Corpus char_freqs length must be {}, found {}",
+                MAX_KEYCODE_SPACE,
                 self.char_freqs.len()
             )));
         }
 
         // 2. Bigrams/Trigrams
-        // Since u16 indices are always < 65536, they are safe indices into char_freqs.
+        // Since u16 indices are always < MAX_KEYCODE_SPACE, they are safe indices into char_freqs.
 
         Ok(())
     }
@@ -172,7 +178,7 @@ mod tests {
 
         assert_eq!(
             c.char_freqs.len(),
-            65536,
+            MAX_KEYCODE_SPACE,
             "Corpus should initialize full unicode frequency map"
         );
 

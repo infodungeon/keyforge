@@ -2,10 +2,10 @@
 
 use crate::models::{ComputeConfig, SharedTelemetry};
 use anyhow::Result;
+use keyforge_compute::{optimize_with_engine, ProgressCallback, ScoringSession};
 use keyforge_infra::AssetManager;
 use keyforge_model::OptimizationResult;
 use keyforge_protocol::JobConfig;
-use keyforge_runner::{OptimizationRunner, RunnerOptions};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -54,12 +54,12 @@ pub async fn prepare_assets<S: AssetSyncer>(
 
 /// Executes the core optimization loop for a job using the centralized Runner.
 pub async fn run_optimization(
-    session: keyforge_core::ScoringSession,
+    session: ScoringSession,
     job_id: String,
     stop_flag: Arc<AtomicBool>,
     limiter: Arc<Semaphore>,
     telemetry: SharedTelemetry,
-    timeout_sec: u64,
+    _timeout_sec: u64,
     log_sampling_rate: usize,
     config: &JobConfig,
 ) -> Result<OptimizationResult> {
@@ -82,13 +82,8 @@ pub async fn run_optimization(
         sample_rate: log_sampling_rate,
     };
 
-    let options = RunnerOptions {
-        timeout_sec,
-        log_sampling_rate,
-        ..Default::default()
-    };
-
-    OptimizationRunner::run(session, job_id, stop_flag, logger, options, config)
+    // Use consolidated compute runner
+    session.run_optimization(logger, &config.pinned_keys)
         .await
         .map_err(|e| anyhow::anyhow!(e))
 }
@@ -153,13 +148,13 @@ mod tests {
         }"#;
         let cost_model: CostModel = serde_json::from_str(cost_json).unwrap();
 
-        let engine: Arc<dyn keyforge_core::ScoringEngine> =
-            keyforge_physics::EngineFactory::new_generic(
-                &kb,
-                &keyforge_model::Corpus::default(),
-                &keyforge_model::Rubric::default(),
-                &cost_model,
-            )
+        let engine: Arc<dyn keyforge_compute::ScoringEngine> =
+            keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+                keyboard: &kb,
+                corpus: &keyforge_model::Corpus::default(),
+                rubric: &keyforge_model::Rubric::default(),
+                cost_model: &cost_model,
+            })
             .unwrap()
             .into();
 
@@ -174,7 +169,7 @@ mod tests {
             include_thumbs: false,
         };
 
-        let session = keyforge_core::ScoringSession::new(
+        let session = ScoringSession::new(
             engine,
             Arc::new(KeycodeRegistry::default()),
             search_config,

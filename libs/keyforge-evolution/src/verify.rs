@@ -14,32 +14,41 @@
 
 //! # Evolution Verification
 //!
-//! Metamorphic and parity testing between the high-performance optimizer 
+//! Metamorphic and parity testing between the high-performance optimizer
 //! and the reference ghost model.
 
 #[cfg(test)]
 mod tests {
     use crate::ghost::GhostOptimizer;
     use crate::{evolve, NoOpCallback};
-    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig, KeyCode};
+    use keyforge_model::{
+        Corpus, CostModel, KeyCode, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
+    };
     use keyforge_physics::EngineFactory;
-    use std::sync::Arc;
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     fn setup_minimal() -> (Arc<dyn keyforge_physics::ScoringEngine>, Layout) {
         let keys = vec![
-            KeyNode { index: 0, ..Default::default() },
-            KeyNode { index: 1, ..Default::default() },
+            KeyNode {
+                index: 0,
+                ..Default::default()
+            },
+            KeyNode {
+                index: 1,
+                ..Default::default()
+            },
         ];
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        
+
         let mut cm = CostModel::default();
         let mut fingers = HashMap::new();
         fingers.insert(
             "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(HashMap::from([
-                ("base".to_string(), HashMap::from([("r0".to_string(), 1.0)])),
-            ])),
+            keyforge_model::cost_model::FingerDefinition::Standard(HashMap::from([(
+                "base".to_string(),
+                HashMap::from([("r0".to_string(), 1.0)]),
+            )])),
         );
         cm.models.insert(
             "model_a_row_staggered".into(),
@@ -52,12 +61,13 @@ mod tests {
             },
         );
 
-        let engine = EngineFactory::new_scalar(
-            &kb, 
-            &Corpus::default(), 
-            &Rubric::default(), 
-            &cm
-        ).unwrap();
+        let engine = EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &Corpus::default(),
+            rubric: &Rubric::default(),
+            cost_model: &cm,
+        })
+        .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
         (Arc::from(engine), layout)
     }
@@ -78,9 +88,10 @@ mod tests {
 
         // Production
         let res_prod = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
-        
+
         // Ghost
-        let res_ghost = GhostOptimizer::optimize(engine.as_ref(), &config, &layout);
+        let res_ghost = GhostOptimizer::optimize(engine.as_ref(), &config, &layout)
+            .map_err(|e| format!("Ghost optimization failed: {e}"))?;
 
         // Invariant: At 0 steps, neither should change the layout
         assert_eq!(res_prod.layout.keys, layout.keys);
@@ -102,12 +113,12 @@ mod tests {
             include_thumbs: false,
         };
 
-        // Note: Full bit-perfect parity between Ghost and Production is NOT 
-        // guaranteed for N > 0 steps due to implementation differences in 
+        // Note: Full bit-perfect parity between Ghost and Production is NOT
+        // guaranteed for N > 0 steps due to implementation differences in
         // mutation strategies (GroupMutation vs simple swap).
-        // However, we can prove that repeating the same run with the same 
+        // However, we can prove that repeating the same run with the same
         // seed in production is stable.
-        
+
         let res1 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
         let res2 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
 

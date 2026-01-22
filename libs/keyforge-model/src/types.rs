@@ -296,44 +296,51 @@ impl Score {
     pub fn checked_mul(self, factor: i64) -> Option<Score> {
         self.0.checked_mul(factor).map(Score)
     }
+
+    /// Saturating addition.
+    #[must_use]
+    pub fn saturating_add(self, other: Score) -> Score {
+        Score(self.0.saturating_add(other.0))
+    }
+
+    /// Saturating subtraction.
+    #[must_use]
+    pub fn saturating_sub(self, other: Score) -> Score {
+        Score(self.0.saturating_sub(other.0))
+    }
+
+    /// Saturating multiplication.
+    #[must_use]
+    pub fn saturating_mul(self, factor: i64) -> Score {
+        Score(self.0.saturating_mul(factor))
+    }
 }
 
 impl std::ops::Add for Score {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        #[allow(clippy::expect_used)]
-        self.checked_add(rhs)
-            .expect("Score overflow during addition")
+        self.saturating_add(rhs)
     }
 }
 
 impl std::ops::Sub for Score {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
-        #[allow(clippy::expect_used)]
-        self.checked_sub(rhs)
-            .expect("Score overflow during subtraction")
+        self.saturating_sub(rhs)
     }
 }
 
 impl std::ops::Neg for Score {
     type Output = Self;
     fn neg(self) -> Self::Output {
-        #[allow(clippy::expect_used)]
-        Score(
-            self.0
-                .checked_neg()
-                .expect("Score overflow during negation"),
-        )
+        Score(self.0.saturating_neg())
     }
 }
 
 impl std::ops::Mul<i64> for Score {
     type Output = Self;
     fn mul(self, rhs: i64) -> Self::Output {
-        #[allow(clippy::expect_used)]
-        self.checked_mul(rhs)
-            .expect("Score overflow during multiplication")
+        self.saturating_mul(rhs)
     }
 }
 
@@ -418,8 +425,11 @@ pub struct AnalysisReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct OptimizationResult {
-    /// The final score achieved.
+    /// The final score achieved (normalized f32).
     pub score: f32,
+    /// The raw scaled score (fixed-point i64).
+    #[serde(default)]
+    pub raw_score: i64,
     /// The optimized layout.
     pub layout: Layout,
 }
@@ -446,15 +456,23 @@ pub struct SwapSuggestion {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::float_cmp, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::float_cmp,
+    clippy::cast_possible_truncation
+)]
 mod tests {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "Score overflow during addition")]
-    fn test_score_overflow_panic() {
+    fn test_score_overflow_saturation() {
         let max = Score::MAX;
-        let _ = max + Score(1);
+        // Saturating add
+        assert_eq!(max + Score(1), Score::MAX);
+        // Saturating sub
+        assert_eq!(Score::MIN - Score(1), Score::MIN);
+        // Saturating mul
+        assert_eq!(max * 2, Score::MAX);
     }
 
     #[test]

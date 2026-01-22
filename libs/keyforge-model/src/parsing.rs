@@ -188,7 +188,10 @@ mod tests {
 
     #[test]
     fn test_key_action_parsing() {
-        assert_eq!(parse_key("KC_A").unwrap(), KeyAction::Simple("KC_A".to_string()));
+        assert_eq!(
+            parse_key("KC_A").unwrap(),
+            KeyAction::Simple("KC_A".to_string())
+        );
         assert_eq!(parse_key("TRNS").unwrap(), KeyAction::Transparent);
 
         match parse_key("MO(1)").unwrap() {

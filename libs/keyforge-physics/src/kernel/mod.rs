@@ -72,6 +72,16 @@ pub struct EngineContext {
     pub(crate) sequence_modifiers: Arc<HashMap<(u16, u16), Score>>,
 }
 
+/// A "Parameter Object" grouping all data needed for a scoring pass.
+/// Mandated by the KeyForge Engineering Manifesto to prevent argument-swapping.
+#[derive(Debug)]
+pub struct EvaluationContext<'a> {
+    /// High-performance compiled context.
+    pub engine: &'a EngineContext,
+    /// Fast position lookup map for the current layout.
+    pub pos_map: &'a self::compute::state::PosMap<'a>,
+}
+
 impl EngineContext {
     /// Verifies the internal consistency of the context data structures.
     ///
@@ -97,9 +107,9 @@ impl EngineContext {
                 "Static cost vector size mismatch".into(),
             ));
         }
-        if self.corpus.char_freqs.len() != 65536 {
+        if self.corpus.char_freqs.len() != keyforge_model::constants::MAX_KEYCODE_SPACE {
             return Err(crate::error::PhysicsError::Config(
-                "Char freqs must be 65536".into(),
+                format!("Char freqs must be {}", keyforge_model::constants::MAX_KEYCODE_SPACE),
             ));
         }
         Ok(())

@@ -14,7 +14,7 @@
 
 use axum::{extract::State, routing::get, Json, Router};
 use keyforge_model::Config;
-use keyforge_core::loader::AssetLoader;
+use keyforge_compute::loader::AssetLoader;
 use keyforge_model::KeyboardDefinition;
 use serde::Serialize;
 use std::sync::Arc;

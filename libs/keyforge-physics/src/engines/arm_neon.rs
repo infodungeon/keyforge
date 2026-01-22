@@ -220,12 +220,17 @@ fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physic
             let freq_i64 = i64::try_from(freq).map_err(|_| PhysicsError::ScoreOverflow {
                 context: format!("ARM Monogram freq too large for code {code}"),
             })?;
-            let contrib = min_cost.checked_mul(freq_i64).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("ARM Monogram freq scale for code {code}"),
-            })?;
-            total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                context: format!("ARM Monogram total accumulation at code {code}"),
-            })?;
+            let contrib =
+                min_cost
+                    .checked_mul(freq_i64)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!("ARM Monogram freq scale for code {code}"),
+                    })?;
+            total = total
+                .checked_add(contrib)
+                .ok_or_else(|| PhysicsError::ScoreOverflow {
+                    context: format!("ARM Monogram total accumulation at code {code}"),
+                })?;
         }
     }
     Ok(total)
@@ -253,8 +258,10 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
                     let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
                     let mut cost = ctx.geometry.cost_matrix[idx];
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
-                        cost = cost.checked_add(mod_val).ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: format!("ARM Bigram modifier for ({}, {})", code1, c2.0),
+                        cost = cost.checked_add(mod_val).ok_or_else(|| {
+                            PhysicsError::ScoreOverflow {
+                                context: format!("ARM Bigram modifier for ({}, {})", code1, c2.0),
+                            }
                         })?;
                     }
                     if cost < min_cost {
@@ -265,12 +272,17 @@ fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsE
 
             if min_cost.0 != i64::MAX {
                 let freq = i64::from(ctx.corpus.bigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("ARM Bigram freq scale for ({}, {})", code1, c2.0),
-                })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("ARM Bigram total accumulation at ({}, {})", code1, c2.0),
-                })?;
+                let contrib =
+                    min_cost
+                        .checked_mul(freq)
+                        .ok_or_else(|| PhysicsError::ScoreOverflow {
+                            context: format!("ARM Bigram freq scale for ({}, {})", code1, c2.0),
+                        })?;
+                total = total
+                    .checked_add(contrib)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!("ARM Bigram total accumulation at ({}, {})", code1, c2.0),
+                    })?;
             }
         }
     }
@@ -310,12 +322,21 @@ fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Physics
 
             if min_cost.0 != i64::MAX && min_cost.0 != 0 {
                 let freq = i64::from(ctx.corpus.trigram_freqs[k]);
-                let contrib = min_cost.checked_mul(freq).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("ARM Trigram freq scale for sequence starting with {code1}"),
-                })?;
-                total = total.checked_add(contrib).ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("ARM Trigram total accumulation for sequence starting with {code1}"),
-                })?;
+                let contrib =
+                    min_cost
+                        .checked_mul(freq)
+                        .ok_or_else(|| PhysicsError::ScoreOverflow {
+                            context: format!(
+                                "ARM Trigram freq scale for sequence starting with {code1}"
+                            ),
+                        })?;
+                total = total
+                    .checked_add(contrib)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!(
+                            "ARM Trigram total accumulation for sequence starting with {code1}"
+                        ),
+                    })?;
             }
         }
     }

@@ -1,4 +1,5 @@
-#[cfg(test)]
+// libs/keyforge-physics/src/kernel/compute/tests.rs
+
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,
@@ -12,7 +13,7 @@ mod tests {
     use crate::error::PhysicsError;
     use crate::kernel::compute::{calculate_swap_delta, PosMap};
     use crate::kernel::types::ValidatedLayout;
-    use crate::EngineFactory;
+    use crate::{EngineCompilationContext, EngineFactory};
     use keyforge_model::{
         types::{FingerIndex, HandIndex, KeyCode},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
@@ -71,8 +72,14 @@ mod tests {
             ..Rubric::default()
         };
 
+        let cost_model = mock_cost_model();
         // Compilation or scoring should fail gracefully
-        let res = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model());
+        let res = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        });
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
             assert!(
@@ -100,8 +107,14 @@ mod tests {
             ..Rubric::default()
         };
 
+        let cost_model = mock_cost_model();
         // Compilation or scoring should fail gracefully
-        let res = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model());
+        let res = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        });
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
             assert!(
@@ -129,7 +142,13 @@ mod tests {
             ..Rubric::default()
         };
 
-        let res = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model());
+        let cost_model = mock_cost_model();
+        let res = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        });
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
             assert!(
@@ -152,9 +171,14 @@ mod tests {
         let mut corpus = Corpus::default();
         corpus.bigrams.push((97, 98, 100));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let score = engine.score(&layout).unwrap().to_f32();
         assert_eq!(score, 0.0);
     }
@@ -172,14 +196,14 @@ mod tests {
         let mut corpus = Corpus::default();
         corpus.bigrams.push((97, 98, 100));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
-        let mut pos_map_data = vec![65535u16; 65536];
-        for (i, &code) in layout.keys.iter().enumerate() {
-            pos_map_data[code.0 as usize] = i as u16;
-        }
-
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let validated = ValidatedLayout::new(&layout.keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
@@ -205,7 +229,14 @@ mod tests {
         let kb = setup_kb_robust();
         let corpus = Corpus::default();
         let rubric = Rubric::default();
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
 
         let layout = Layout::new_unchecked(vec![]);
         let validated_res = ValidatedLayout::new(&layout.keys, engine.key_count());
@@ -240,14 +271,16 @@ mod tests {
         let mut rubric = Rubric::default();
         rubric.travel_lat = 1.0;
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
 
         let layout_keys = vec![KeyCode(0), KeyCode(1), KeyCode(2)];
-        let mut pos_map_data = vec![65535u16; 65536];
-        pos_map_data[0] = 0;
-        pos_map_data[1] = 1;
-        pos_map_data[2] = 2;
-
         let layout = Layout::new_unchecked(layout_keys.clone());
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
@@ -303,13 +336,16 @@ mod tests {
         rubric.travel_lat = 1.0;
         rubric.trigram_limit = 0;
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
 
         let layout_keys = vec![KeyCode(0), KeyCode(1)];
-        let mut pos_map_data = vec![65535u16; 65536];
-        pos_map_data[0] = 0;
-        pos_map_data[1] = 1;
-
         let layout = Layout::new_unchecked(layout_keys.clone());
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
@@ -349,9 +385,14 @@ mod tests {
         // Bigram with a char not in layout
         corpus.bigrams.push((97, 255, 100));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let layout_keys = vec![
             KeyCode(97),
             KeyCode(98),
@@ -396,8 +437,14 @@ mod tests {
         cp.trigrams.push((98, 97, 99, 100));
         cp.trigrams.push((97, 98, 97, 100));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &cp,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
 
@@ -427,8 +474,14 @@ mod tests {
         let mut cp = Corpus::default();
         cp.bigrams.push((97, 98, 100));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &cp, &Rubric::default(), &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &cp,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let mut ctx = engine.context().clone();
         // Huge modifier
         ctx.sequence_modifiers = std::sync::Arc::new(std::collections::HashMap::from([(

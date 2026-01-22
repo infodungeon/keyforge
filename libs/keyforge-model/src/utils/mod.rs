@@ -13,8 +13,8 @@
 // limitations under the License.
 
 //! Internal utilities for the keyforge-model crate.
-//!
-//! These helpers are `pub(crate)` and are not exposed to the public API.
+
+pub mod json;
 
 /// Helper for serde `skip_serializing_if` to satisfy `ts-rs` parser.
 ///

@@ -51,11 +51,9 @@ pub use asset::fs_provider::FsProvider;
 pub use asset::manager::AssetManager;
 pub use asset::ValkeyProvider; // ADDED
 
-pub use keyforge_core::loader::AssetLoader;
+pub use keyforge_compute::loader::AssetLoader;
 
-pub use util::common::{
-    calculate_file_hash, load_keycode_registry, sanitize_filename,
-};
+pub use util::common::{calculate_file_hash, load_keycode_registry, sanitize_filename};
 
 include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
 

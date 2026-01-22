@@ -103,19 +103,15 @@ impl JobConfig {
     /// # Errors
     /// Returns an error if the layout geometry or configuration parts are invalid.
     pub fn id(&self) -> Result<String, String> {
-        let primary_corpus = self
-            .corpora
-            .first()
-            .map_or(keyforge_model::constants::DEFAULT_CORPUS_ID, |c| {
-                c.id.as_str()
-            });
+        let corpora_fingerprint =
+            keyforge_infra::util::common::calculate_fingerprint(&self.corpora);
 
         keyforge_model::job::JobIdentifier::from_parts(
             &self.definition.geometry,
             &self.weights,
             &self.params,
             &self.pinned_keys,
-            primary_corpus,
+            &corpora_fingerprint,
             &self.cost_matrix,
         )
         .map(|ident| ident.hash)
@@ -295,14 +291,12 @@ impl Validator for ResultSubmission {
 /// Status of a specific job.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct JobStatus {
+pub struct JobDetailedStatus {
     /// The Job ID.
     pub job_id: String,
-    /// Current status (e.g., "Running").
-    pub status: String,
-    /// Number of nodes working on this job.
-    pub active_nodes: usize,
-    /// Best score found so far.
+    /// Current status (Typestate).
+    pub status: keyforge_model::JobStatus,
+    /// Best score found so far (normalized f32).
     pub best_score: Option<f32>,
     /// Best layout found so far.
     pub best_layout: Option<String>,

@@ -26,7 +26,6 @@ keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-compute = { path = "../../libs/keyforge-compute", default-features = false, features = [
     "single_threaded",
 ] }
-keyforge-core = { path = "../../libs/keyforge-core" }
 async-trait.workspace = true
 wasm-bindgen-futures = "0.4"
 

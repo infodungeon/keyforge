@@ -1,5 +1,5 @@
 use crate::error::PersistenceError;
-use keyforge_core::loader::AssetLoader;
+use keyforge_compute::loader::AssetLoader;
 use keyforge_model::config::Config;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
@@ -46,7 +46,8 @@ pub async fn compile_request<L: AssetLoader>(
 
     let rubric = keyforge_adapter::conversion::to_domain_rubric(&config.weights);
 
-    let adapter_config = keyforge_adapter::conversion::to_domain_config(&config.search, config.seed.unwrap_or(0));
+    let adapter_config =
+        keyforge_adapter::conversion::to_domain_config(&config.search, config.seed.unwrap_or(0));
 
     // Initial layout: Use first defined layout or default to QWERTY if present
     let initial_layout = if let Some(layout_str) = kb_def.layouts.get("qwerty") {

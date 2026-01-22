@@ -13,9 +13,9 @@
 // limitations under the License.
 
 //! # Evolution Ghost Model
-//! 
+//!
 //! A simplified reference implementation of the Simulated Annealing loop.
-//! This module focuses on the core stochastic logic without performance 
+//! This module focuses on the core stochastic logic without performance
 //! optimizations or complex progress reporting.
 
 use keyforge_model::{Layout, OptimizationResult, SearchConfig};
@@ -29,16 +29,20 @@ pub struct GhostOptimizer;
 impl GhostOptimizer {
     /// Pure reference implementation of Simulated Annealing.
     ///
-    /// # Panics
-    /// Panics if the scoring engine returns an error (e.g., due to invalid layout or configuration).
-    #[allow(clippy::expect_used)]
+    /// # Errors
+    /// Returns `EvolutionError` if the scoring engine returns an error.
     pub fn optimize(
         engine: &dyn ScoringEngine,
         config: &SearchConfig,
         initial_layout: &Layout,
-    ) -> OptimizationResult {
+    ) -> Result<OptimizationResult, crate::EvolutionError> {
         let (steps, mut temp, cooling) = match config {
-            SearchConfig::Annealing { steps, start_temp, end_temp, .. } => {
+            SearchConfig::Annealing {
+                steps,
+                start_temp,
+                end_temp,
+                ..
+            } => {
                 let steps = *steps;
                 #[allow(clippy::cast_precision_loss)]
                 let cooling = (end_temp / start_temp).powf(1.0 / steps as f32);
@@ -47,8 +51,10 @@ impl GhostOptimizer {
         };
 
         let mut current_layout = initial_layout.clone();
-        let mut current_score = engine.score(&current_layout).expect("Initial score calculation failed").to_f32();
-        
+        let mut current_score = engine
+            .score(&current_layout)
+            .map_err(crate::EvolutionError::Physics)?;
+
         let mut best_layout = current_layout.clone();
         let mut best_score = current_score;
 
@@ -62,11 +68,14 @@ impl GhostOptimizer {
             next_layout.keys.swap(a, b);
 
             // 2. Score
-            let next_score = engine.score(&next_layout).expect("Scoring failed during annealing").to_f32();
-            let delta = next_score - current_score;
+            let next_score = engine
+                .score(&next_layout)
+                .map_err(crate::EvolutionError::Physics)?;
+            let delta = next_score.0 - current_score.0;
 
             // 3. Accept/Reject (Metropolis Criterion)
-            if delta < 0.0 || rng.random::<f32>() < (-delta / temp).exp() {
+            #[allow(clippy::cast_precision_loss)]
+            if delta < 0 || rng.random::<f32>() < (-(delta as f32 / keyforge_model::constants::SCORE_SCALE) / temp).exp() {
                 current_layout = next_layout;
                 current_score = next_score;
 
@@ -80,9 +89,10 @@ impl GhostOptimizer {
             temp *= cooling;
         }
 
-        OptimizationResult {
-            score: best_score,
+        Ok(OptimizationResult {
+            score: best_score.to_f32(),
+            raw_score: best_score.0,
             layout: best_layout,
-        }
+        })
     }
 }

@@ -17,7 +17,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::ValidationResult;
 use crate::state::AppState;
 use axum::{extract::State, Json};
-use keyforge_core::loader::AssetLoader;
+use keyforge_compute::loader::AssetLoader;
 use keyforge_model::{KeyboardDefinition, ScoringWeights};
 use keyforge_protocol::JobConfig;
 use serde::Deserialize;

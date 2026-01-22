@@ -174,7 +174,13 @@ mod tests {
             }
         }
         let cost_model = mock_cost_model();
-        EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &cost_model).unwrap()
+        EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap()
     }
 
     proptest! {

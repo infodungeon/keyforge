@@ -111,18 +111,31 @@ impl Agent {
                         let _ = compute::prepare_assets(&*assets, &job, &config_compute).await;
 
                         let loader = keyforge_infra::FsProvider::new(data_dir.clone());
-                        let options = keyforge_runner::RunnerOptions {
-                            timeout_sec: config_compute.job_timeout_sec,
-                            log_sampling_rate: config_telemetry.progress_log_sampling_rate,
-                            keycodes_file: config_compute.keycodes_file.clone(),
-                            ..Default::default()
-                        };
+                        let builder = keyforge_compute::SessionBuilder::new(&loader)
+                            .with_keyboard_def(Arc::new(job.definition.clone()))
+                            .with_corpus(&job.corpora)
+                            .await
+                            .map_err(|e| error!("Corpus load failed: {e}")).unwrap_or_default()
+                            .with_cost_matrix(&job.cost_matrix)
+                            .await
+                            .map_err(|e| error!("Cost matrix load failed: {e}")).unwrap_or_default()
+                            .with_keycodes(&config_compute.keycodes_file)
+                            .await
+                            .map_err(|e| error!("Keycodes load failed: {e}")).unwrap_or_default()
+                            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+                            .with_biometrics(job.biometrics.clone())
+                            .with_config(keyforge_model::SearchConfig::Annealing {
+                                steps: job.params.get_search_steps(),
+                                start_temp: job.params.get_temp_max(),
+                                end_temp: job.params.get_temp_min(),
+                                seed: job.params.seed.unwrap_or(42),
+                                patience: job.params.get_search_patience(),
+                                reheats: job.params.get_reheats(),
+                                reheat_factor: job.params.get_reheat_factor(),
+                                include_thumbs: job.params.include_thumbs,
+                            });
 
-                        let prepared_session = match keyforge_runner::OptimizationRunner::prepare_session(
-                            &loader,
-                            &job,
-                            &options
-                        ).await {
+                        let prepared_session = match builder.build() {
                             Ok(pj) => pj,
                             Err(e) => {
                                 error!("Job {} Preparation failed: {}", job_id, e);

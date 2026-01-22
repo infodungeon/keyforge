@@ -27,8 +27,8 @@ pub mod valkey_provider;
 
 pub use valkey_provider::ValkeyProvider;
 
-use crate::net::sync::ServerManifest;
 use crate::error::InfraResult;
+use crate::net::sync::ServerManifest;
 
 /// A trait for asset providers that can serve raw file content and manifests.
 ///

@@ -17,7 +17,7 @@ pub mod heuristics;
 
 #[cfg(test)]
 mod tests {
-    use crate::EngineFactory;
+    use crate::{EngineCompilationContext, EngineFactory};
     use keyforge_model::{
         types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
@@ -94,12 +94,13 @@ mod tests {
         corpus_manual.bigrams.push((0, 1, 100)); // SFB
         corpus_manual.bigrams.push((0, 2, 100)); // Scissor
 
-        let engine = EngineFactory::new_generic(
-            &kb_manual,
-            &corpus_manual,
-            &Rubric::default(),
-            &mock_cost_model(),
-        )
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb_manual,
+            corpus: &corpus_manual,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
         .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1), KeyCode(2)]);
 
@@ -143,7 +144,14 @@ mod tests {
             ..Rubric::default()
         };
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         assert!(report.rolls > 0.0, "Expected rolls");
@@ -159,9 +167,14 @@ mod tests {
         corpus.char_freqs[98] = 1000;
         corpus.bigrams.push((97, 98, 500));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let layout = Layout::new_unchecked(vec![
             KeyCode(97),
             KeyCode(98),
@@ -203,7 +216,14 @@ mod tests {
         rubric.sfb_base = 100.0;
         rubric.sfb_lateral = 200.0;
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
         let score = engine.score(&layout).unwrap().to_f32();
@@ -236,7 +256,14 @@ mod tests {
         let mut rubric = Rubric::default();
         rubric.sfb_lateral = 500.0;
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
 
         let score = engine.score(&layout).unwrap().to_f32();
@@ -279,9 +306,14 @@ mod tests {
         corpus.bigrams.push((98, 99, 100));
         corpus.bigrams.push((97, 97, 500));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         let sfbs = report.top_sfbs;
@@ -308,6 +340,7 @@ mod tests {
                 index: 1,
                 hand: HandIndex(0),
                 finger: FingerIndex::new_unchecked(1),
+                row: RowIndex(0),
                 ..Default::default()
             },
         ];
@@ -321,9 +354,14 @@ mod tests {
         corpus.bigrams.push((97, 97, 100));
         corpus.bigrams.push((97, 98, 100));
 
-        let engine =
-            EngineFactory::new_generic(&kb, &corpus, &Rubric::default(), &mock_cost_model())
-                .unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &Rubric::default(),
+            cost_model: &cost_model,
+        })
+        .unwrap();
         let report = engine.analyze(&layout).unwrap();
 
         assert_eq!(report.top_sfbs.len(), 1);
@@ -376,7 +414,14 @@ mod tests {
         rubric.sfb_lateral = 1000.0;
         rubric.threshold_scissor_row_diff = 2;
 
-        let engine = EngineFactory::new_generic(&kb, &corpus, &rubric, &mock_cost_model()).unwrap();
+        let cost_model = mock_cost_model();
+        let engine = EngineFactory::new_generic(EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &corpus,
+            rubric: &rubric,
+            cost_model: &cost_model,
+        })
+        .unwrap();
 
         let score = engine.score(&layout).unwrap().to_f32();
         assert!(score.is_finite());

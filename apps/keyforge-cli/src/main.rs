@@ -168,7 +168,7 @@ async fn run_app() -> Result<(), CliError> {
             return Ok(());
         }
         Commands::Export(args) => {
-            cmd::export::run(args.clone(), &root)?;
+            cmd::export::run(args.clone(), &loader).await?;
             return Ok(());
         }
         Commands::Fetch(args) => {

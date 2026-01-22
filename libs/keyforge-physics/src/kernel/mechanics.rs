@@ -59,7 +59,9 @@ pub fn calculate_flow_cost(
         }
         std::cmp::Ordering::Greater => {
             // Outward Roll (Inner -> Outer)
-            Score::ZERO.checked_sub(bonus_roll_out).unwrap_or(Score::MIN)
+            Score::ZERO
+                .checked_sub(bonus_roll_out)
+                .unwrap_or(Score::MIN)
         }
         std::cmp::Ordering::Equal => Score::ZERO,
     }

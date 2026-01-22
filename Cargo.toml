@@ -11,7 +11,6 @@ members = [
     "corpora/openbookcorpus",
     "libs/keyforge-adapter",
     "libs/keyforge-compute",
-    "libs/keyforge-core",
     "libs/keyforge-evolution",
     "libs/keyforge-export",
     "libs/keyforge-infra",
@@ -19,7 +18,6 @@ members = [
     "libs/keyforge-persistence",
     "libs/keyforge-physics",
     "libs/keyforge-protocol",
-    "libs/keyforge-runner",
     "libs/keyforge-security",
     "libs/keyforge-testing",
     "libs/keyforge-wasm",
@@ -49,7 +47,7 @@ too_many_arguments = "allow"
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.48", features = ["full"] }
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "signal", "process", "time", "sync", "fs", "io-util"] }
 tracing = "0.1"
 thiserror = "2.0"
 anyhow = "1.0"

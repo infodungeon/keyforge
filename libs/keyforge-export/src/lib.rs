@@ -17,6 +17,8 @@
 //! Provides functionality for exporting keyboard layouts to various
 //! firmware and configuration formats.
 
+/// Error types for the export crate.
+pub mod error;
 /// QMK firmware configuration exporter.
 pub mod qmk;
 /// Shared utilities for exporters.
@@ -28,13 +30,19 @@ pub mod viz;
 /// ZMK firmware (devicetree) exporter.
 pub mod zmk;
 
-use anyhow::Result;
+use crate::error::ExportResult;
+use keyforge_model::keycodes::KeycodeRegistry;
 
 /// A trait for types that can export keymaps to varied keyboard firmware formats.
-pub trait Exporter {
+pub trait Exporter: Send + Sync {
     ///
     /// # Errors
     ///
     /// Returns an error if the generation fails (e.g., too many keys, output size limit exceeded).
-    fn generate(&self, layout_name: &str, layers: &[Vec<String>]) -> Result<String>;
+    fn generate(
+        &self,
+        layout_name: &str,
+        layers: &[Vec<String>],
+        registry: Option<&KeycodeRegistry>,
+    ) -> ExportResult<String>;
 }

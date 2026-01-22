@@ -16,6 +16,7 @@
 //! rather than hardcoded logic.
 
 use crate::asset::{Asset, AssetCategory};
+use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -33,6 +34,27 @@ pub struct CostModel {
 impl Asset for CostModel {
     fn category() -> AssetCategory {
         AssetCategory::CostModel
+    }
+
+    fn post_load(&mut self) -> Result<(), crate::error::ForgeError> {
+        self.validate().map_err(crate::error::ForgeError::InvalidData)
+    }
+}
+
+impl Validator for CostModel {
+    fn validate(&self) -> Result<(), String> {
+        if self.models.is_empty() {
+            return Err("CostModel must have at least one model definition".into());
+        }
+        for (name, model) in &self.models {
+            model
+                .validate()
+                .map_err(|e| format!("Model '{name}': {e}"))?;
+        }
+        self.dynamic_rules
+            .validate()
+            .map_err(|e| format!("Dynamic rules: {e}"))?;
+        Ok(())
     }
 }
 
@@ -66,6 +88,15 @@ pub struct ModelDefinition {
     pub static_costs: HashMap<String, HandDefinition>,
 }
 
+impl Validator for ModelDefinition {
+    fn validate(&self) -> Result<(), String> {
+        if self.static_costs.is_empty() {
+            return Err("Static costs cannot be empty".into());
+        }
+        Ok(())
+    }
+}
+
 /// Costs for a specific hand (e.g., "`left_hand`", "`universal_hand`").
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HandDefinition {
@@ -96,6 +127,18 @@ pub struct DynamicRules {
     pub penalties: HashMap<String, f32>,
     /// Global constraints (e.g., hand balance).
     pub constraints: HashMap<String, f32>,
+}
+
+impl Validator for DynamicRules {
+    fn validate(&self) -> Result<(), String> {
+        // Basic check to ensure no infinite/NaN values
+        for (k, v) in &self.sequence_modifiers {
+            if !v.is_finite() {
+                return Err(format!("Sequence modifier '{k}' is not finite"));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

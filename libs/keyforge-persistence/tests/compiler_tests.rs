@@ -63,8 +63,12 @@ async fn test_compile_request_success() {
     let loader = MockLoader;
     let mut config = Config::default();
     config.keyboard = "test_kb".into();
-    config.corpora = vec![CorpusSource { id: "en".into(), weight: 1.0, hash: None }];
-    
+    config.corpora = vec![CorpusSource {
+        id: "en".into(),
+        weight: 1.0,
+        hash: None,
+    }];
+
     let res = compile_request(&loader, &config).await;
     assert!(res.is_ok());
 }
@@ -124,7 +128,7 @@ async fn test_compile_request_qwerty() {
     let loader = QwertyLoader;
     let mut config = Config::default();
     config.keyboard = "kb".into();
-    
+
     let res = compile_request(&loader, &config).await.unwrap();
     assert!(res.initial_layout.is_some());
 }

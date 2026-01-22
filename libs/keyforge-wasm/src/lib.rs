@@ -14,7 +14,7 @@
 
 mod loader;
 
-use keyforge_core::loader::AssetLoader;
+use keyforge_compute::loader::{AssetLoader, InMemoryLoader};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
@@ -84,6 +84,9 @@ impl KeyforgeEngine {
     #[wasm_bindgen(js_name = injectCostModel)]
     pub fn inject_cost_model(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let model: CostModel = from_value(json_val)?;
+        model
+            .validate()
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
         self.loader.inject_cost_model(name, model);
         Ok(())
     }
@@ -153,8 +156,13 @@ impl KeyforgeEngine {
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let engine =
-            keyforge_physics::EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
-                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+                keyboard: &keyboard,
+                corpus: &corpus,
+                rubric: &rubric,
+                cost_model: &cost_model,
+            })
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let report = engine
             .analyze(&layout)

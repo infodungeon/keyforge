@@ -31,7 +31,7 @@ impl JobService {
     pub async fn register_job(state: &AppState, mut payload: JobRequest) -> AppResult<JobResponse> {
         // 1. Semantic Validation
         Self::validate_request(&payload)?;
-        
+
         // 2. Security/Boundary Validation
         Self::validate_input_safety(&payload)?;
 

@@ -18,22 +18,58 @@
 //! physics and evolution engines to provide a unified runtime for
 //! applications.
 
-use keyforge_core::{EvolutionError, ProgressCallback, ScoringSession};
+/// Traits and types for loading external assets (keyboards, corpora, etc.).
+pub mod loader;
+/// High-level session management for optimization runs.
+pub mod session;
 /// Biometric profiling logic.
 pub mod biometrics;
 /// Builder for constructing computation sessions.
 pub mod builder;
 /// Hardware detection and engine selection.
 pub mod hardware;
+
 pub use builder::SessionBuilder;
+pub use loader::{AssetLoader, InMemoryLoader, LoaderResult};
+pub use session::ScoringSession;
+
+pub use keyforge_evolution::{EvolutionError, NoOpCallback, OptimizationControl, ProgressCallback};
+
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::{
-    AnalysisReport, EngineRequest, KeyCode, Layout, OptimizationResult, ScoringResult, SearchConfig,
-    SwapSuggestion,
+    AnalysisReport, EngineRequest, KeyCode, Layout, OptimizationResult, ScoringResult,
+    SearchConfig, SwapSuggestion,
 };
 use keyforge_physics::{EngineFactory, ScoringEngine};
 use std::sync::Arc;
 use tracing::instrument;
+
+/// Build a compiled `ScoringEngine` from an `EngineRequest`.
+///
+/// # Errors
+/// Returns `keyforge_physics::PhysicsError` if the engine building fails.
+pub fn build_engine(req: &EngineRequest) -> Result<Box<dyn ScoringEngine>, keyforge_physics::PhysicsError> {
+    keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &req.keyboard,
+        corpus: &req.corpus,
+        rubric: &req.rubric,
+        cost_model: &req.cost_model,
+    })
+}
+
+/// Optimize using a precompiled engine.
+///
+/// # Errors
+/// Returns `EvolutionError` if optimization fails.
+pub fn optimize_with_engine<CB: ProgressCallback>(
+    engine: &Arc<dyn ScoringEngine>,
+    config: &keyforge_model::SearchConfig,
+    callback: CB,
+    initial_layout: Option<Layout>,
+    pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>,
+) -> Result<OptimizationResult, EvolutionError> {
+    keyforge_evolution::evolve(engine, config, callback, initial_layout, pinned_keys)
+}
 
 /// Performs a one-off scoring operation for the given request.
 ///
@@ -42,15 +78,21 @@ use tracing::instrument;
 /// Returns a `keyforge_physics::PhysicsError` if the engine initialization or scoring fails.
 #[instrument(skip(req))]
 pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::PhysicsError> {
-    let engine =
-        EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &req.keyboard,
+        corpus: &req.corpus,
+        rubric: &req.rubric,
+        cost_model: &req.cost_model,
+    })?;
     let layout = req
         .initial_layout
         .clone()
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
 
+    let score = engine.score(&layout)?;
     Ok(ScoringResult {
-        score: engine.score(&layout)?.to_f32(),
+        score: score.to_f32(),
+        raw_score: score.0,
         layout,
     })
 }
@@ -62,8 +104,12 @@ pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::Phy
 /// Returns a `keyforge_physics::PhysicsError` if the engine initialization or analysis fails.
 #[instrument(skip(req))]
 pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
-    let engine =
-        EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &req.keyboard,
+        corpus: &req.corpus,
+        rubric: &req.rubric,
+        cost_model: &req.cost_model,
+    })?;
     let layout = req
         .initial_layout
         .clone()
@@ -80,8 +126,12 @@ pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, keyforge_physics::
 pub fn suggest_improvements(
     req: &EngineRequest,
 ) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
-    let engine =
-        EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &req.keyboard,
+        corpus: &req.corpus,
+        rubric: &req.rubric,
+        cost_model: &req.cost_model,
+    })?;
     let layout = req
         .initial_layout
         .clone()
@@ -115,8 +165,13 @@ pub fn suggest_improvements(
 /// # Errors
 /// Returns `EvolutionError` if optimization fails.
 pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
-    let engine = EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
-        .map_err(EvolutionError::Physics)?;
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &req.keyboard,
+        corpus: &req.corpus,
+        rubric: &req.rubric,
+        cost_model: &req.cost_model,
+    })
+    .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
     keyforge_core::optimize_with_engine(
         &engine_arc,
@@ -135,8 +190,13 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)
-        .map_err(EvolutionError::Physics)?;
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &req.keyboard,
+        corpus: &req.corpus,
+        rubric: &req.rubric,
+        cost_model: &req.cost_model,
+    })
+    .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
     keyforge_core::optimize_with_engine(
         &engine_arc,
@@ -223,13 +283,58 @@ impl Runtime {
         initial_layout: Option<Layout>,
         pinned_keys: Option<&[Option<keyforge_model::KeyCode>]>,
     ) -> Result<OptimizationResult, EvolutionError> {
-        keyforge_core::optimize_with_engine(
+        optimize_with_engine(
             &self.engine,
             &self.search_config,
             callback,
             initial_layout,
             pinned_keys,
         )
+    }
+
+    /// High-level run method that handles pinned keys and blocking task spawning.
+    ///
+    /// # Errors
+    /// Returns `EvolutionError` if optimization fails or task joining fails.
+    pub async fn run_optimization<CB: ProgressCallback + 'static>(
+        &self,
+        callback: CB,
+        pinned_keys: &[keyforge_model::KeyConstraint],
+    ) -> Result<OptimizationResult, EvolutionError> {
+        // Resolve pinned keys
+        let pinned: Vec<Option<KeyCode>> = if pinned_keys.is_empty() {
+            vec![]
+        } else {
+            let mut p = vec![None; self.engine.key_count()];
+            for c in pinned_keys {
+                if (c.index.0 as usize) < p.len() {
+                    if let Some(code) = self.registry.get_code(&c.key) {
+                        p[c.index.0 as usize] = Some(code);
+                    } else {
+                        return Err(EvolutionError::Config(format!(
+                            "Pinned key '{}' not found in registry",
+                            c.key
+                        )));
+                    }
+                }
+            }
+            p
+        };
+
+        let engine = self.engine.clone();
+        let search_config = self.search_config.clone();
+
+        tokio::task::spawn_blocking(move || {
+            optimize_with_engine(
+                &engine,
+                &search_config,
+                callback,
+                None, // initial_layout
+                Some(pinned.as_slice()),
+            )
+        })
+        .await
+        .map_err(|e| EvolutionError::Config(format!("Task join error: {e}")))?
     }
 }
 

@@ -202,6 +202,31 @@ impl KeycodeRegistry {
             .cloned()
             .unwrap_or_else(|| format!("[{code}]"))
     }
+
+    /// Resolves a raw token (e.g. "KC_A", "MO(1)") into a `KeyCode`.
+    /// Handles case-insensitivity and argument stripping.
+    #[must_use]
+    pub fn resolve_token(&self, token: &str) -> Option<KeyCode> {
+        let token = token.trim();
+        if token.is_empty() {
+            return None;
+        }
+
+        // 1. Try exact match first (case-insensitive via internal map)
+        if let Some(code) = self.get_code(token) {
+            return Some(code);
+        }
+
+        // 2. Try stripping arguments safely (e.g. "MO(1)" -> "MO")
+        if token.ends_with(')') {
+            if let Some(idx) = token.find('(') {
+                let base = &token[..idx];
+                return self.get_code(base);
+            }
+        }
+
+        None
+    }
 }
 
 fn qmk_to_ascii(qmk: u16) -> Option<u16> {

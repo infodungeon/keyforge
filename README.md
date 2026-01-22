@@ -1,110 +1,81 @@
-# KeyForge: Distributed Keyboard Layout Optimizer
+# KeyForge: High-Performance Keyboard Layout Optimization
 
-KeyForge is a high-performance, distributed evolutionary algorithm for generating optimal keyboard layouts. It uses a physics-based scoring engine (Fitts's Law approximation) combined with biomechanical constraints to find layouts that minimize finger travel, same-finger bigrams (SFBs), and awkward stretches.
+KeyForge is a world-class, data-driven framework for keyboard layout analysis and optimization. It utilizes distributed simulated annealing and biomechanical modeling to find arrangements that minimize effort, same-finger bigrams (SFBs), and awkward stretches.
 
-## 🛡️ Security Architecture
-KeyForge is designed for **Open Internet** deployment with a "trust-no-one" philosophy.
+## 🏛️ Architecture & Philosophy
 
-*   **Hive (Server):**
-    *   **Network:** Binds to `0.0.0.0` by default.
-    *   **DoS Protection:** Request bodies capped at 64MB to handle large corpora while preventing memory exhaustion.
-    *   **Input Sanitization:** Strict validation on all JSON/CSV inputs; malformed math (NaN/Inf) is rejected immediately.
-    *   **Path Traversal:** File sync is jailed to the `data/` directory via filesystem canonicalization; symlink escapes are detected and blocked.
-    *   **Graceful Shutdown:** Ensures database journals are flushed to disk on SIGTERM.
-*   **Node (Worker):**
-    *   **Isolation:** Runs optimization in a logic sandbox (no disk writes, no shell execution).
-    *   **Resilience:** Hardened HTTP client with explicit timeouts; survives Hive outages and zombie sockets.
-    *   **Resource Management:** Explicit thread pinning (Rayon for Compute vs Tokio for I/O) to prevent thread starvation.
-*   **UI (Client):**
-    *   **Data Safety:** Uses atomic file writes (write -> flush -> rename) to prevent config corruption on crash/power loss.
-    *   **Sanitization:** Validates all incoming layouts before rendering to prevent UI injection vectors.
+KeyForge is built on a **Hexagonal Architecture (Ports & Adapters)** with a strict **Tiered Criticality** model to ensure mathematical truth and operational reliability.
+
+- **Tier 1 (The Nucleus):** `keyforge-physics`, `keyforge-evolution`. Pure logic, bit-perfect determinism, 95%+ coverage.
+- **Tier 2 (The Contract):** `keyforge-protocol`, `keyforge-model`. Universal data definitions and 100% validation coverage.
+- **Tier 3 (The Shell):** `keyforge-infra`, `keyforge-hive`. IO, network, and state management with hardened error paths.
+
+### 🧠 LLM-Integrated Development (LID)
+The codebase is engineered to be **LLM-Safe**. We use aggressive newtyping (The Semantic Firewall), the Typestate Pattern, and simplified reference models (`src/ghost.rs`) to constrain AI assistance and eliminate hallucination.
 
 ## 🏗️ System Components
 
-1.  **Core (`crates/keyforge-core`):**
-    *   The shared physics engine (Scorer), Genetic Algorithm (Optimizer), and Type definitions.
-    *   Contains zero `unsafe` code in critical paths.
-    *   Implements the "Greedy Initializer" and "Tiered Mutation" logic.
+### Applications (`apps/`)
+- **Hive (`keyforge-hive`):** The Control Plane. Orchestrates jobs, manages the gene pool, and handles authentication.
+- **Agent (`keyforge-agent`):** The Worker. Distributed high-performance optimization loop with ed25519 result signing.
+- **Assets (`keyforge-assets`):** The Data Plane. Stateless service for high-speed streaming of corpora and geometry data.
+- **AssetMgr (`keyforge-assetmgr`):** Authoritative daemon for validating and hydrating system assets into Valkey.
+- **CLI (`keyforge-cli`):** Thin client for local management. Spawns the Agent as a sidecar for zero-parity computation.
+- **UI (`keyforge-ui`):** Desktop (Tauri) and Web application for visualization, heatmaps, and layout design.
+- **TUI (`keyforge-tui`):** Real-time cluster monitor and admin console.
 
-2.  **Hive (`crates/keyforge-hive`):**
-    *   Central coordination server built on `Axum` and `SQLite` (WAL mode).
-    *   Manages the "Gene Pool" and distributes jobs to workers.
-    *   Handles community layout submissions.
-
-3.  **Node (`crates/keyforge-node`):**
-    *   Headless worker daemon.
-    *   Donates CPU cycles to the Hive to process optimization jobs.
-    *   Auto-scales based on available physical cores.
-
-4.  **CLI (`crates/keyforge-cli`):**
-    *   Local analysis, benchmarking, and forensic validation tool.
-    *   Used for CI/CD checks and hardware performance verification.
-
-5.  **UI (`ui`):**
-    *   Tauri + React + TypeScript frontend.
-    *   Provides visualization (Heatmaps), Layout Design (KLE import), and Job Management.
+### Core Libraries (`libs/`)
+- **Physics (`keyforge-physics`):** The computational kernel. Includes Multi-Tiered engines (Exact Oracle, Generic Scalar, and Intel AVX2).
+- **Evolution (`keyforge-evolution`):** Stochastic optimization strategies (Annealing).
+- **Infra (`keyforge-infra`):** Universal IO adapters for Valkey, PostgreSQL, and local filesystem.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-*   Rust (latest stable)
-*   Node.js 18+ & NPM
-*   `just` (Command Runner) - Optional but recommended
+- **Rust:** Stable toolchain (`rustup default stable`).
+- **Infrastructure:** Docker and `docker-compose`.
+- **Task Runner:** `just` (highly recommended).
 
-### Running the Stack
-
-**1. Start the Hive Server**
-This acts as the central brain.
+### 1. Build and Initialize
 ```bash
-# Using Just
+# Spin up infrastructure (DB, Valkey, AssetMgr) and build binaries
+just build
+```
+
+### 2. Start the Control Plane
+```bash
+# Runs Hive server in dev mode with Web Proxy (HTTPS :3000)
 just serve
-
-# Manual
-cargo run -p keyforge-hive --release -- --port 3000 --data ./data
 ```
 
-**2. Start the UI**
-Open a new terminal. This launches the visual interface.
+### 3. Start a Worker
 ```bash
-# Using Just
-just ui
-
-# Manual
-cd ui && npm install && npm run tauri dev
-```
-
-**3. Join the Swarm**
-Open a new terminal. This starts a worker to process the math.
-```bash
-# Using Just
+# Joins the local cluster to process optimization jobs
 just worker
-
-# Manual
-cargo run -p keyforge-node --release -- work --hive http://localhost:3000
 ```
 
-### Benchmarking
-To verify your hardware performance before joining a swarm, run the standalone benchmark:
+### 4. Use the CLI
 ```bash
-cargo run -p keyforge-cli --release -- benchmark --iterations 5000000
+# Run a local search via the Agent sidecar
+just cli search --keyboard corne --corpus text/en_std
 ```
-*   **Target:** > 10M ops/sec on modern CPUs (Ryzen 5000+ / Apple M1+).
-*   **Note:** Always run benchmarks in `--release` mode. Debug builds are ~100x slower.
 
-## 📂 Data Structure
-
-The system relies on a strictly defined `data/` directory:
-
-*   `data/keyboards/*.json`: Geometry definitions (physical key locations).
-*   `data/weights/*.json`: Physics constants (penalties for specific movements).
-*   `data/ngrams-all.tsv`: Language corpus frequency data.
-*   `data/keycodes.json`: Registry of valid keycodes and display labels.
-*   `data/ui_categories.json`: Grouping definitions for the UI picker.
-
-## 🤝 Protocol Verification
-To verify that the distributed components are communicating correctly after a build:
-
+### 5. Launch the UI
 ```bash
-python3 verify_system.py
+# Builds WASM physics and launches the Tauri desktop app
+just ui
 ```
-This script acts as a "Golden Master" smoke test, spinning up the full stack and simulating a job lifecycle.
+
+## 🛡️ Security & Reliability
+- **Verification:** The `DeterministicScorer` acts as a bit-perfect oracle for all optimized engines.
+- **Signing:** All results are signed by the worker node; the Hive verifies signatures before accepting new global bests.
+- **Isolation:** Developers use `just repro` to isolate and debug complex logic in a cleanroom environment.
+- **Safety:** Checked arithmetic in all scoring kernels to prevent silent overflows.
+
+## 📂 Documentation
+- **Architecture:** [docs/architecture/00_MANIFESTO.md](docs/architecture/00_MANIFESTO.md)
+- **Scoring Logic:** [docs/architecture/11_SCORING_LOGIC.md](docs/architecture/11_SCORING_LOGIC.md)
+- **User Guide:** [docs/user_guide/cli.md](docs/user_guide/cli.md)
+
+---
+*KeyForge: Engineering Truth through Constraint-Based Design.*

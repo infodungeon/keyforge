@@ -19,15 +19,25 @@ pub struct ValidateArgs {
 }
 
 pub async fn run(args: &ValidateArgs, loader: &FsProvider, _root: &Path) -> Result<(), CliError> {
-    let options = keyforge_runner::RunnerOptions {
-        keycodes_file: "keycodes.json".into(),
-        ..Default::default()
-    };
     let job = build_job_config(loader, &args.shared, args.config.clone())
         .await
         .map_err(|e| CliError::Other(format!("Failed to build job: {e}")))?;
-    let session = keyforge_runner::OptimizationRunner::prepare_session(loader, &job, &options)
+
+    let builder = keyforge_compute::SessionBuilder::new(loader)
+        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
+        .with_corpus(&job.corpora)
         .await
+        .map_err(|e| CliError::Other(format!("Corpus load failed: {e}")))?
+        .with_cost_matrix(&job.cost_matrix)
+        .await
+        .map_err(|e| CliError::Other(format!("Cost matrix load failed: {e}")))?
+        .with_keycodes("keycodes.json")
+        .await
+        .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights));
+
+    let session = builder
+        .build()
         .map_err(|e| CliError::Other(format!("Failed to prepare session: {e}")))?;
 
     let layout_name = args.layout.as_deref().unwrap_or("default");

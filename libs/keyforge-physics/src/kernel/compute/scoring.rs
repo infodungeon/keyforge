@@ -3,7 +3,7 @@ use super::state::{PhysicsScratch, PosMap};
 use crate::error::PhysicsError;
 use crate::kernel::{
     types::{Score, ValidatedLayout},
-    EngineContext,
+    EngineContext, EvaluationContext,
 };
 
 /// Scores a layout against the compiled context.
@@ -29,9 +29,14 @@ pub fn score_layout(
         &mut scratch.used_keys,
     );
 
-    let m = score_monograms(ctx, &pm)?;
-    let b = score_bigrams(ctx, &pm)?;
-    let t = score_trigrams(ctx, &pm)?;
+    let eval_ctx = EvaluationContext {
+        engine: ctx,
+        pos_map: &pm,
+    };
+
+    let m = score_monograms(&eval_ctx)?;
+    let b = score_bigrams(&eval_ctx)?;
+    let t = score_trigrams(&eval_ctx)?;
 
     let total = m
         .checked_add(b)
@@ -51,22 +56,22 @@ pub fn score_layout(
 /// Returns `PhysicsError` if:
 /// - Score multiplication or accumulation overflows.
 #[allow(clippy::cast_possible_wrap)]
-pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
+pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
-    for &code in pm.used_keys {
+    for &code in ctx.pos_map.used_keys {
         let c_val = code as usize;
-        let freq = ctx.corpus.char_freqs[c_val];
+        let freq = ctx.engine.corpus.char_freqs[c_val];
         if freq == 0 {
             continue;
         }
-        let candidates = pm.get(c_val);
+        let candidates = ctx.pos_map.get(c_val);
         if candidates.is_empty() {
             continue;
         }
 
         let mut min_cost = Score::INFINITY_SENTINEL;
         for &p in candidates {
-            let cost = ctx.geometry.key_costs[p as usize];
+            let cost = ctx.engine.geometry.key_costs[p as usize];
             if cost < min_cost {
                 min_cost = cost;
             }
@@ -96,17 +101,17 @@ pub fn score_monograms(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Ph
 /// - Score addition for modifiers overflows.
 /// - Score multiplication or accumulation overflows.
 #[allow(clippy::cast_possible_wrap)]
-pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
+pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
-    for &code1 in pm.used_keys {
+    for &code1 in ctx.pos_map.used_keys {
         let c1_val = code1 as usize;
-        let candidates1 = pm.get(c1_val);
-        let start = ctx.corpus.bigram_starts[c1_val];
-        let end = ctx.corpus.bigram_starts[c1_val + 1];
+        let candidates1 = ctx.pos_map.get(c1_val);
+        let start = ctx.engine.corpus.bigram_starts[c1_val];
+        let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
 
         for k in start..end {
-            let c2 = ctx.corpus.bigram_others[k];
-            let candidates2 = pm.get(c2.0 as usize);
+            let c2 = ctx.engine.corpus.bigram_others[k];
+            let candidates2 = ctx.pos_map.get(c2.0 as usize);
             if candidates2.is_empty() {
                 continue;
             }
@@ -114,10 +119,10 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
             let mut min_cost = Score::INFINITY_SENTINEL;
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
-                    let idx = (p1 as usize) * ctx.key_count + (p2 as usize);
-                    let mut cost = ctx.geometry.cost_matrix[idx];
+                    let idx = (p1 as usize) * ctx.engine.key_count + (p2 as usize);
+                    let mut cost = ctx.engine.geometry.cost_matrix[idx];
 
-                    if let Some(&mod_val) = ctx.sequence_modifiers.get(&(code1, c2.0)) {
+                    if let Some(&mod_val) = ctx.engine.sequence_modifiers.get(&(code1, c2.0)) {
                         cost = cost.checked_add(mod_val).ok_or_else(|| {
                             PhysicsError::ScoreOverflow {
                                 context: format!("Bigram modifier for ({}, {})", code1, c2.0),
@@ -132,7 +137,7 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
             }
 
             if min_cost != Score::INFINITY_SENTINEL {
-                let freq = i64::from(ctx.corpus.bigram_freqs[k]);
+                let freq = i64::from(ctx.engine.corpus.bigram_freqs[k]);
                 let contrib =
                     min_cost
                         .checked_mul(freq)
@@ -156,19 +161,19 @@ pub fn score_bigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phys
 /// Returns `PhysicsError` if:
 /// - Score multiplication or accumulation overflows.
 #[allow(clippy::cast_possible_wrap)]
-pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, PhysicsError> {
+pub fn score_trigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
-    for &code1 in pm.used_keys {
+    for &code1 in ctx.pos_map.used_keys {
         let c1_val = code1 as usize;
-        let candidates1 = pm.get(c1_val);
-        let start = ctx.corpus.trigram_starts[c1_val];
-        let end = ctx.corpus.trigram_starts[c1_val + 1];
+        let candidates1 = ctx.pos_map.get(c1_val);
+        let start = ctx.engine.corpus.trigram_starts[c1_val];
+        let end = ctx.engine.corpus.trigram_starts[c1_val + 1];
 
         for k in start..end {
-            let c2 = ctx.corpus.trigram_others1[k];
-            let c3 = ctx.corpus.trigram_others2[k];
-            let candidates2 = pm.get(c2.0 as usize);
-            let candidates3 = pm.get(c3.0 as usize);
+            let c2 = ctx.engine.corpus.trigram_others1[k];
+            let c3 = ctx.engine.corpus.trigram_others2[k];
+            let candidates2 = ctx.pos_map.get(c2.0 as usize);
+            let candidates3 = ctx.pos_map.get(c3.0 as usize);
 
             if candidates2.is_empty() || candidates3.is_empty() {
                 continue;
@@ -178,7 +183,7 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
                     for &p3 in candidates3 {
-                        let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
+                        let cost = calculate_flow_cost(ctx.engine, p1 as usize, p2 as usize, p3 as usize);
                         if cost < min_cost {
                             min_cost = cost;
                         }
@@ -187,7 +192,7 @@ pub fn score_trigrams(ctx: &EngineContext, pm: &PosMap<'_>) -> Result<Score, Phy
             }
 
             if min_cost != Score::INFINITY_SENTINEL {
-                let freq = i64::from(ctx.corpus.trigram_freqs[k]);
+                let freq = i64::from(ctx.engine.corpus.trigram_freqs[k]);
                 let contrib =
                     min_cost
                         .checked_mul(freq)

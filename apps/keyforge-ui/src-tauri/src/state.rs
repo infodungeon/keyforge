@@ -1,7 +1,8 @@
 // apps/keyforge-ui/src-tauri/src/state.rs
 
 #![allow(unsafe_code)]
-use keyforge_infra::AssetLoader;
+use keyforge_compute::loader::{AssetLoader, LoaderResult};
+use keyforge_compute::session::ScoringSession;
 use keyforge_infra::AssetManager;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;

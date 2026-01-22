@@ -28,12 +28,12 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = keyforge_physics::EngineFactory::new_generic(
-        &req.keyboard,
-        &req.corpus,
-        &req.rubric,
-        &req.cost_model,
-    )?;
+    let engine = keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &req.keyboard,
+        corpus: &req.corpus,
+        rubric: &req.rubric,
+        cost_model: &req.cost_model,
+    })?;
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     // Determine unlocked indices
@@ -165,6 +165,7 @@ fn evolve_internal<CB: ProgressCallback>(
 
             Ok(OptimizationResult {
                 score: exact_score.to_f32(),
+                raw_score: exact_score.0,
                 layout: best_layout,
             })
         }
@@ -215,7 +216,13 @@ mod tests {
             },
         );
         let engine =
-            EngineFactory::new_scalar(&kb, &Corpus::default(), &Rubric::default(), &cm).unwrap();
+            EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
+                keyboard: &kb,
+                corpus: &Corpus::default(),
+                rubric: &Rubric::default(),
+                cost_model: &cm,
+            })
+            .unwrap();
         let config = SearchConfig::Annealing {
             steps: 100,
             start_temp: 10.0,

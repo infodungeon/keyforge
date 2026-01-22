@@ -1,6 +1,7 @@
 use super::CompilationStage;
 use crate::error::PhysicsError;
 use crate::kernel::types::KeyCode;
+use keyforge_model::constants::MAX_KEYCODE_SPACE;
 use keyforge_model::{Corpus, Rubric};
 
 /// Intermediate state containing flattened and pruned corpus data.
@@ -74,9 +75,7 @@ impl CompilationStage for CorpusStage<'_> {
 
 fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
-    sorted.sort_unstable_by_key(|&(c1, _, _)| c1);
-
-    let mut starts = vec![0; 65537];
+    let mut starts = vec![0; MAX_KEYCODE_SPACE + 1];
     let mut others = Vec::with_capacity(source.len());
     let mut freqs = Vec::with_capacity(source.len());
 
@@ -94,7 +93,7 @@ fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec
         current_offset += 1;
     }
 
-    while current_char <= 65536 {
+    while current_char <= MAX_KEYCODE_SPACE {
         starts[current_char] = current_offset;
         current_char += 1;
     }
@@ -106,7 +105,7 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
     let mut sorted = source.to_vec();
     sorted.sort_unstable_by_key(|&(_, c2, _)| c2);
 
-    let mut starts = vec![0; 65537];
+    let mut starts = vec![0; MAX_KEYCODE_SPACE + 1];
     let mut others = Vec::with_capacity(source.len());
     let mut freqs = Vec::with_capacity(source.len());
 
@@ -124,7 +123,7 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
         current_offset += 1;
     }
 
-    while current_char <= 65536 {
+    while current_char <= MAX_KEYCODE_SPACE {
         starts[current_char] = current_offset;
         current_char += 1;
     }
@@ -170,9 +169,7 @@ fn flatten_trigrams_start(
     source: &[(u16, u16, u16, u32)],
 ) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
-    sorted.sort_unstable_by_key(|&(c1, _, _, _)| c1);
-
-    let mut starts = vec![0; 65537];
+    let mut starts = vec![0; MAX_KEYCODE_SPACE + 1];
     let mut o1 = Vec::with_capacity(source.len());
     let mut o2 = Vec::with_capacity(source.len());
     let mut freqs = Vec::with_capacity(source.len());
@@ -192,7 +189,7 @@ fn flatten_trigrams_start(
         current_offset += 1;
     }
 
-    while current_char <= 65536 {
+    while current_char <= MAX_KEYCODE_SPACE {
         starts[current_char] = current_offset;
         current_char += 1;
     }
@@ -206,7 +203,7 @@ fn flatten_trigrams_mid(
     let mut sorted = source.to_vec();
     sorted.sort_unstable_by_key(|&(_, c2, _, _)| c2);
 
-    let mut starts = vec![0; 65537];
+    let mut starts = vec![0; MAX_KEYCODE_SPACE + 1];
     let mut o1 = Vec::with_capacity(source.len());
     let mut o2 = Vec::with_capacity(source.len());
     let mut freqs = Vec::with_capacity(source.len());
@@ -226,7 +223,7 @@ fn flatten_trigrams_mid(
         current_offset += 1;
     }
 
-    while current_char <= 65536 {
+    while current_char <= MAX_KEYCODE_SPACE {
         starts[current_char] = current_offset;
         current_char += 1;
     }

@@ -1,0 +1,4584 @@
+[
+  {
+    "code": 0,
+    "id": "KC_NO",
+    "label": " ",
+    "aliases": [
+      "XXXXXXX"
+    ]
+  },
+  {
+    "code": 1,
+    "id": "KC_TRANSPARENT",
+    "label": "▽",
+    "aliases": [
+      "KC_TRNS",
+      "_______"
+    ]
+  },
+  {
+    "code": 97,
+    "id": "KC_A",
+    "label": "A",
+    "aliases": []
+  },
+  {
+    "code": 98,
+    "id": "KC_B",
+    "label": "B",
+    "aliases": []
+  },
+  {
+    "code": 99,
+    "id": "KC_C",
+    "label": "C",
+    "aliases": []
+  },
+  {
+    "code": 100,
+    "id": "KC_D",
+    "label": "D",
+    "aliases": []
+  },
+  {
+    "code": 101,
+    "id": "KC_E",
+    "label": "E",
+    "aliases": []
+  },
+  {
+    "code": 102,
+    "id": "KC_F",
+    "label": "F",
+    "aliases": []
+  },
+  {
+    "code": 103,
+    "id": "KC_G",
+    "label": "G",
+    "aliases": []
+  },
+  {
+    "code": 104,
+    "id": "KC_H",
+    "label": "H",
+    "aliases": []
+  },
+  {
+    "code": 105,
+    "id": "KC_I",
+    "label": "I",
+    "aliases": []
+  },
+  {
+    "code": 106,
+    "id": "KC_J",
+    "label": "J",
+    "aliases": []
+  },
+  {
+    "code": 107,
+    "id": "KC_K",
+    "label": "K",
+    "aliases": []
+  },
+  {
+    "code": 108,
+    "id": "KC_L",
+    "label": "L",
+    "aliases": []
+  },
+  {
+    "code": 109,
+    "id": "KC_M",
+    "label": "M",
+    "aliases": []
+  },
+  {
+    "code": 110,
+    "id": "KC_N",
+    "label": "N",
+    "aliases": []
+  },
+  {
+    "code": 111,
+    "id": "KC_O",
+    "label": "O",
+    "aliases": []
+  },
+  {
+    "code": 112,
+    "id": "KC_P",
+    "label": "P",
+    "aliases": []
+  },
+  {
+    "code": 113,
+    "id": "KC_Q",
+    "label": "Q",
+    "aliases": []
+  },
+  {
+    "code": 114,
+    "id": "KC_R",
+    "label": "R",
+    "aliases": []
+  },
+  {
+    "code": 115,
+    "id": "KC_S",
+    "label": "S",
+    "aliases": []
+  },
+  {
+    "code": 116,
+    "id": "KC_T",
+    "label": "T",
+    "aliases": []
+  },
+  {
+    "code": 117,
+    "id": "KC_U",
+    "label": "U",
+    "aliases": []
+  },
+  {
+    "code": 118,
+    "id": "KC_V",
+    "label": "V",
+    "aliases": []
+  },
+  {
+    "code": 119,
+    "id": "KC_W",
+    "label": "W",
+    "aliases": []
+  },
+  {
+    "code": 120,
+    "id": "KC_X",
+    "label": "X",
+    "aliases": []
+  },
+  {
+    "code": 121,
+    "id": "KC_Y",
+    "label": "Y",
+    "aliases": []
+  },
+  {
+    "code": 122,
+    "id": "KC_Z",
+    "label": "Z",
+    "aliases": []
+  },
+  {
+    "code": 49,
+    "id": "KC_1",
+    "label": "1",
+    "aliases": []
+  },
+  {
+    "code": 50,
+    "id": "KC_2",
+    "label": "2",
+    "aliases": []
+  },
+  {
+    "code": 51,
+    "id": "KC_3",
+    "label": "3",
+    "aliases": []
+  },
+  {
+    "code": 52,
+    "id": "KC_4",
+    "label": "4",
+    "aliases": []
+  },
+  {
+    "code": 53,
+    "id": "KC_5",
+    "label": "5",
+    "aliases": []
+  },
+  {
+    "code": 54,
+    "id": "KC_6",
+    "label": "6",
+    "aliases": []
+  },
+  {
+    "code": 55,
+    "id": "KC_7",
+    "label": "7",
+    "aliases": []
+  },
+  {
+    "code": 56,
+    "id": "KC_8",
+    "label": "8",
+    "aliases": []
+  },
+  {
+    "code": 57,
+    "id": "KC_9",
+    "label": "9",
+    "aliases": []
+  },
+  {
+    "code": 48,
+    "id": "KC_0",
+    "label": "0",
+    "aliases": []
+  },
+  {
+    "code": 10,
+    "id": "KC_ENTER",
+    "label": "KC_ENTER",
+    "aliases": [
+      "KC_ENT"
+    ]
+  },
+  {
+    "code": 27,
+    "id": "KC_ESCAPE",
+    "label": "KC_ESCAPE",
+    "aliases": [
+      "KC_ESC"
+    ]
+  },
+  {
+    "code": 8,
+    "id": "KC_BACKSPACE",
+    "label": "KC_BACKSPACE",
+    "aliases": [
+      "KC_BSPC"
+    ]
+  },
+  {
+    "code": 9,
+    "id": "KC_TAB",
+    "label": "TAB",
+    "aliases": []
+  },
+  {
+    "code": 32,
+    "id": "KC_SPACE",
+    "label": "KC_SPACE",
+    "aliases": [
+      "KC_SPC"
+    ]
+  },
+  {
+    "code": 45,
+    "id": "KC_MINUS",
+    "label": "KC_MINUS",
+    "aliases": [
+      "KC_MINS"
+    ]
+  },
+  {
+    "code": 61,
+    "id": "KC_EQUAL",
+    "label": "KC_EQUAL",
+    "aliases": [
+      "KC_EQL"
+    ]
+  },
+  {
+    "code": 91,
+    "id": "KC_LEFT_BRACKET",
+    "label": "KC_LEFT_BRACKET",
+    "aliases": [
+      "KC_LBRC"
+    ]
+  },
+  {
+    "code": 93,
+    "id": "KC_RIGHT_BRACKET",
+    "label": "KC_RIGHT_BRACKET",
+    "aliases": [
+      "KC_RBRC"
+    ]
+  },
+  {
+    "code": 92,
+    "id": "KC_BACKSLASH",
+    "label": "KC_BACKSLASH",
+    "aliases": [
+      "KC_BSLS"
+    ]
+  },
+  {
+    "code": 59,
+    "id": "KC_SEMICOLON",
+    "label": "KC_SEMICOLON",
+    "aliases": [
+      "KC_SCLN"
+    ]
+  },
+  {
+    "code": 39,
+    "id": "KC_QUOTE",
+    "label": "KC_QUOTE",
+    "aliases": [
+      "KC_QUOT"
+    ]
+  },
+  {
+    "code": 96,
+    "id": "KC_GRAVE",
+    "label": "KC_GRAVE",
+    "aliases": [
+      "KC_GRV"
+    ]
+  },
+  {
+    "code": 44,
+    "id": "KC_COMMA",
+    "label": "KC_COMMA",
+    "aliases": [
+      "KC_COMM"
+    ]
+  },
+  {
+    "code": 46,
+    "id": "KC_DOT",
+    "label": "DOT",
+    "aliases": []
+  },
+  {
+    "code": 47,
+    "id": "KC_SLASH",
+    "label": "KC_SLASH",
+    "aliases": [
+      "KC_SLSH"
+    ]
+  },
+  {
+    "code": 58,
+    "id": "KC_F1",
+    "label": "F1",
+    "aliases": []
+  },
+  {
+    "code": 60,
+    "id": "KC_F3",
+    "label": "F3",
+    "aliases": []
+  },
+  {
+    "code": 62,
+    "id": "KC_F5",
+    "label": "F5",
+    "aliases": []
+  },
+  {
+    "code": 63,
+    "id": "KC_F6",
+    "label": "F6",
+    "aliases": []
+  },
+  {
+    "code": 64,
+    "id": "KC_F7",
+    "label": "F7",
+    "aliases": []
+  },
+  {
+    "code": 94,
+    "id": "KC_KP_6",
+    "label": "KC_KP_6",
+    "aliases": [
+      "KC_P6"
+    ]
+  },
+  {
+    "code": 95,
+    "id": "KC_KP_7",
+    "label": "KC_KP_7",
+    "aliases": [
+      "KC_P7"
+    ]
+  },
+  {
+    "code": 123,
+    "id": "KC_CUT",
+    "label": "CUT",
+    "aliases": []
+  },
+  {
+    "code": 124,
+    "id": "KC_COPY",
+    "label": "COPY",
+    "aliases": []
+  },
+  {
+    "code": 125,
+    "id": "KC_PASTE",
+    "label": "KC_PASTE",
+    "aliases": [
+      "KC_PSTE"
+    ]
+  },
+  {
+    "code": 126,
+    "id": "KC_FIND",
+    "label": "FIND",
+    "aliases": []
+  },
+  {
+    "code": 127,
+    "id": "KC_KB_MUTE",
+    "label": "KB_MUTE",
+    "aliases": []
+  },
+  {
+    "code": 128,
+    "id": "KC_KB_VOLUME_UP",
+    "label": "KB_VOLUME_UP",
+    "aliases": []
+  },
+  {
+    "code": 129,
+    "id": "KC_KB_VOLUME_DOWN",
+    "label": "KB_VOLUME_DOWN",
+    "aliases": []
+  },
+  {
+    "code": 130,
+    "id": "KC_LOCKING_CAPS_LOCK",
+    "label": "KC_LOCKING_CAPS_LOCK",
+    "aliases": [
+      "KC_LCAP"
+    ]
+  },
+  {
+    "code": 131,
+    "id": "KC_LOCKING_NUM_LOCK",
+    "label": "KC_LOCKING_NUM_LOCK",
+    "aliases": [
+      "KC_LNUM"
+    ]
+  },
+  {
+    "code": 132,
+    "id": "KC_LOCKING_SCROLL_LOCK",
+    "label": "KC_LOCKING_SCROLL_LOCK",
+    "aliases": [
+      "KC_LSCR"
+    ]
+  },
+  {
+    "code": 133,
+    "id": "KC_KP_COMMA",
+    "label": "KC_KP_COMMA",
+    "aliases": [
+      "KC_PCMM"
+    ]
+  },
+  {
+    "code": 134,
+    "id": "KC_KP_EQUAL_AS400",
+    "label": "KP_EQUAL_AS400",
+    "aliases": []
+  },
+  {
+    "code": 135,
+    "id": "KC_INTERNATIONAL_1",
+    "label": "KC_INTERNATIONAL_1",
+    "aliases": [
+      "KC_INT1"
+    ]
+  },
+  {
+    "code": 136,
+    "id": "KC_INTERNATIONAL_2",
+    "label": "KC_INTERNATIONAL_2",
+    "aliases": [
+      "KC_INT2"
+    ]
+  },
+  {
+    "code": 137,
+    "id": "KC_INTERNATIONAL_3",
+    "label": "KC_INTERNATIONAL_3",
+    "aliases": [
+      "KC_INT3"
+    ]
+  },
+  {
+    "code": 138,
+    "id": "KC_INTERNATIONAL_4",
+    "label": "KC_INTERNATIONAL_4",
+    "aliases": [
+      "KC_INT4"
+    ]
+  },
+  {
+    "code": 139,
+    "id": "KC_INTERNATIONAL_5",
+    "label": "KC_INTERNATIONAL_5",
+    "aliases": [
+      "KC_INT5"
+    ]
+  },
+  {
+    "code": 140,
+    "id": "KC_INTERNATIONAL_6",
+    "label": "KC_INTERNATIONAL_6",
+    "aliases": [
+      "KC_INT6"
+    ]
+  },
+  {
+    "code": 141,
+    "id": "KC_INTERNATIONAL_7",
+    "label": "KC_INTERNATIONAL_7",
+    "aliases": [
+      "KC_INT7"
+    ]
+  },
+  {
+    "code": 142,
+    "id": "KC_INTERNATIONAL_8",
+    "label": "KC_INTERNATIONAL_8",
+    "aliases": [
+      "KC_INT8"
+    ]
+  },
+  {
+    "code": 143,
+    "id": "KC_INTERNATIONAL_9",
+    "label": "KC_INTERNATIONAL_9",
+    "aliases": [
+      "KC_INT9"
+    ]
+  },
+  {
+    "code": 144,
+    "id": "KC_LANGUAGE_1",
+    "label": "KC_LANGUAGE_1",
+    "aliases": [
+      "KC_LNG1"
+    ]
+  },
+  {
+    "code": 145,
+    "id": "KC_LANGUAGE_2",
+    "label": "KC_LANGUAGE_2",
+    "aliases": [
+      "KC_LNG2"
+    ]
+  },
+  {
+    "code": 146,
+    "id": "KC_LANGUAGE_3",
+    "label": "KC_LANGUAGE_3",
+    "aliases": [
+      "KC_LNG3"
+    ]
+  },
+  {
+    "code": 147,
+    "id": "KC_LANGUAGE_4",
+    "label": "KC_LANGUAGE_4",
+    "aliases": [
+      "KC_LNG4"
+    ]
+  },
+  {
+    "code": 148,
+    "id": "KC_LANGUAGE_5",
+    "label": "KC_LANGUAGE_5",
+    "aliases": [
+      "KC_LNG5"
+    ]
+  },
+  {
+    "code": 149,
+    "id": "KC_LANGUAGE_6",
+    "label": "KC_LANGUAGE_6",
+    "aliases": [
+      "KC_LNG6"
+    ]
+  },
+  {
+    "code": 150,
+    "id": "KC_LANGUAGE_7",
+    "label": "KC_LANGUAGE_7",
+    "aliases": [
+      "KC_LNG7"
+    ]
+  },
+  {
+    "code": 151,
+    "id": "KC_LANGUAGE_8",
+    "label": "KC_LANGUAGE_8",
+    "aliases": [
+      "KC_LNG8"
+    ]
+  },
+  {
+    "code": 152,
+    "id": "KC_LANGUAGE_9",
+    "label": "KC_LANGUAGE_9",
+    "aliases": [
+      "KC_LNG9"
+    ]
+  },
+  {
+    "code": 153,
+    "id": "KC_ALTERNATE_ERASE",
+    "label": "KC_ALTERNATE_ERASE",
+    "aliases": [
+      "KC_ERAS"
+    ]
+  },
+  {
+    "code": 154,
+    "id": "KC_SYSTEM_REQUEST",
+    "label": "KC_SYSTEM_REQUEST",
+    "aliases": [
+      "KC_SYRQ"
+    ]
+  },
+  {
+    "code": 155,
+    "id": "KC_CANCEL",
+    "label": "KC_CANCEL",
+    "aliases": [
+      "KC_CNCL"
+    ]
+  },
+  {
+    "code": 156,
+    "id": "KC_CLEAR",
+    "label": "KC_CLEAR",
+    "aliases": [
+      "KC_CLR"
+    ]
+  },
+  {
+    "code": 157,
+    "id": "KC_PRIOR",
+    "label": "KC_PRIOR",
+    "aliases": [
+      "KC_PRIR"
+    ]
+  },
+  {
+    "code": 158,
+    "id": "KC_RETURN",
+    "label": "KC_RETURN",
+    "aliases": [
+      "KC_RETN"
+    ]
+  },
+  {
+    "code": 159,
+    "id": "KC_SEPARATOR",
+    "label": "KC_SEPARATOR",
+    "aliases": [
+      "KC_SEPR"
+    ]
+  },
+  {
+    "code": 160,
+    "id": "KC_OUT",
+    "label": "OUT",
+    "aliases": []
+  },
+  {
+    "code": 161,
+    "id": "KC_OPER",
+    "label": "OPER",
+    "aliases": []
+  },
+  {
+    "code": 162,
+    "id": "KC_CLEAR_AGAIN",
+    "label": "KC_CLEAR_AGAIN",
+    "aliases": [
+      "KC_CLAG"
+    ]
+  },
+  {
+    "code": 163,
+    "id": "KC_CRSEL",
+    "label": "KC_CRSEL",
+    "aliases": [
+      "KC_CRSL"
+    ]
+  },
+  {
+    "code": 164,
+    "id": "KC_EXSEL",
+    "label": "KC_EXSEL",
+    "aliases": [
+      "KC_EXSL"
+    ]
+  },
+  {
+    "code": 165,
+    "id": "KC_LEFT_CTRL",
+    "label": "KC_LEFT_CTRL",
+    "aliases": [
+      "KC_LCTL"
+    ]
+  },
+  {
+    "code": 166,
+    "id": "KC_LEFT_SHIFT",
+    "label": "KC_LEFT_SHIFT",
+    "aliases": [
+      "KC_LSFT"
+    ]
+  },
+  {
+    "code": 167,
+    "id": "KC_LEFT_ALT",
+    "label": "KC_LEFT_ALT",
+    "aliases": [
+      "KC_LALT",
+      "KC_LOPT"
+    ]
+  },
+  {
+    "code": 168,
+    "id": "KC_LEFT_GUI",
+    "label": "KC_LEFT_GUI",
+    "aliases": [
+      "KC_LGUI",
+      "KC_LCMD",
+      "KC_LWIN"
+    ]
+  },
+  {
+    "code": 169,
+    "id": "KC_RIGHT_CTRL",
+    "label": "KC_RIGHT_CTRL",
+    "aliases": [
+      "KC_RCTL"
+    ]
+  },
+  {
+    "code": 170,
+    "id": "KC_RIGHT_SHIFT",
+    "label": "KC_RIGHT_SHIFT",
+    "aliases": [
+      "KC_RSFT"
+    ]
+  },
+  {
+    "code": 171,
+    "id": "KC_RIGHT_ALT",
+    "label": "KC_RIGHT_ALT",
+    "aliases": [
+      "KC_RALT",
+      "KC_ROPT",
+      "KC_ALGR"
+    ]
+  },
+  {
+    "code": 172,
+    "id": "KC_RIGHT_GUI",
+    "label": "KC_RIGHT_GUI",
+    "aliases": [
+      "KC_RGUI",
+      "KC_RCMD",
+      "KC_RWIN"
+    ]
+  },
+  {
+    "code": 173,
+    "id": "KC_SYSTEM_POWER",
+    "label": "KC_SYSTEM_POWER",
+    "aliases": [
+      "KC_PWR"
+    ]
+  },
+  {
+    "code": 174,
+    "id": "KC_SYSTEM_SLEEP",
+    "label": "KC_SYSTEM_SLEEP",
+    "aliases": [
+      "KC_SLEP"
+    ]
+  },
+  {
+    "code": 175,
+    "id": "KC_SYSTEM_WAKE",
+    "label": "KC_SYSTEM_WAKE",
+    "aliases": [
+      "KC_WAKE"
+    ]
+  },
+  {
+    "code": 176,
+    "id": "KC_AUDIO_MUTE",
+    "label": "KC_AUDIO_MUTE",
+    "aliases": [
+      "KC_MUTE"
+    ]
+  },
+  {
+    "code": 177,
+    "id": "KC_AUDIO_VOL_UP",
+    "label": "KC_AUDIO_VOL_UP",
+    "aliases": [
+      "KC_VOLU"
+    ]
+  },
+  {
+    "code": 178,
+    "id": "KC_AUDIO_VOL_DOWN",
+    "label": "KC_AUDIO_VOL_DOWN",
+    "aliases": [
+      "KC_VOLD"
+    ]
+  },
+  {
+    "code": 179,
+    "id": "KC_MEDIA_NEXT_TRACK",
+    "label": "KC_MEDIA_NEXT_TRACK",
+    "aliases": [
+      "KC_MNXT"
+    ]
+  },
+  {
+    "code": 180,
+    "id": "KC_MEDIA_PREV_TRACK",
+    "label": "KC_MEDIA_PREV_TRACK",
+    "aliases": [
+      "KC_MPRV"
+    ]
+  },
+  {
+    "code": 181,
+    "id": "KC_MEDIA_STOP",
+    "label": "KC_MEDIA_STOP",
+    "aliases": [
+      "KC_MSTP"
+    ]
+  },
+  {
+    "code": 182,
+    "id": "KC_MEDIA_PLAY_PAUSE",
+    "label": "KC_MEDIA_PLAY_PAUSE",
+    "aliases": [
+      "KC_MPLY"
+    ]
+  },
+  {
+    "code": 183,
+    "id": "KC_MEDIA_SELECT",
+    "label": "KC_MEDIA_SELECT",
+    "aliases": [
+      "KC_MSEL"
+    ]
+  },
+  {
+    "code": 184,
+    "id": "KC_MEDIA_EJECT",
+    "label": "KC_MEDIA_EJECT",
+    "aliases": [
+      "KC_EJCT"
+    ]
+  },
+  {
+    "code": 185,
+    "id": "KC_MAIL",
+    "label": "MAIL",
+    "aliases": []
+  },
+  {
+    "code": 186,
+    "id": "KC_CALCULATOR",
+    "label": "KC_CALCULATOR",
+    "aliases": [
+      "KC_CALC"
+    ]
+  },
+  {
+    "code": 187,
+    "id": "KC_MY_COMPUTER",
+    "label": "KC_MY_COMPUTER",
+    "aliases": [
+      "KC_MYCM"
+    ]
+  },
+  {
+    "code": 188,
+    "id": "KC_WWW_SEARCH",
+    "label": "KC_WWW_SEARCH",
+    "aliases": [
+      "KC_WSCH"
+    ]
+  },
+  {
+    "code": 189,
+    "id": "KC_WWW_HOME",
+    "label": "KC_WWW_HOME",
+    "aliases": [
+      "KC_WHOM"
+    ]
+  },
+  {
+    "code": 190,
+    "id": "KC_WWW_BACK",
+    "label": "KC_WWW_BACK",
+    "aliases": [
+      "KC_WBAK"
+    ]
+  },
+  {
+    "code": 191,
+    "id": "KC_WWW_FORWARD",
+    "label": "KC_WWW_FORWARD",
+    "aliases": [
+      "KC_WFWD"
+    ]
+  },
+  {
+    "code": 192,
+    "id": "KC_WWW_STOP",
+    "label": "KC_WWW_STOP",
+    "aliases": [
+      "KC_WSTP"
+    ]
+  },
+  {
+    "code": 193,
+    "id": "KC_WWW_REFRESH",
+    "label": "KC_WWW_REFRESH",
+    "aliases": [
+      "KC_WREF"
+    ]
+  },
+  {
+    "code": 194,
+    "id": "KC_WWW_FAVORITES",
+    "label": "KC_WWW_FAVORITES",
+    "aliases": [
+      "KC_WFAV"
+    ]
+  },
+  {
+    "code": 195,
+    "id": "KC_MEDIA_FAST_FORWARD",
+    "label": "KC_MEDIA_FAST_FORWARD",
+    "aliases": [
+      "KC_MFFD"
+    ]
+  },
+  {
+    "code": 196,
+    "id": "KC_MEDIA_REWIND",
+    "label": "KC_MEDIA_REWIND",
+    "aliases": [
+      "KC_MRWD"
+    ]
+  },
+  {
+    "code": 197,
+    "id": "KC_BRIGHTNESS_UP",
+    "label": "KC_BRIGHTNESS_UP",
+    "aliases": [
+      "KC_BRIU"
+    ]
+  },
+  {
+    "code": 198,
+    "id": "KC_BRIGHTNESS_DOWN",
+    "label": "KC_BRIGHTNESS_DOWN",
+    "aliases": [
+      "KC_BRID"
+    ]
+  },
+  {
+    "code": 199,
+    "id": "KC_CONTROL_PANEL",
+    "label": "KC_CONTROL_PANEL",
+    "aliases": [
+      "KC_CPNL"
+    ]
+  },
+  {
+    "code": 200,
+    "id": "KC_ASSISTANT",
+    "label": "KC_ASSISTANT",
+    "aliases": [
+      "KC_ASST"
+    ]
+  },
+  {
+    "code": 201,
+    "id": "KC_MISSION_CONTROL",
+    "label": "KC_MISSION_CONTROL",
+    "aliases": [
+      "KC_MCTL"
+    ]
+  },
+  {
+    "code": 202,
+    "id": "KC_LAUNCHPAD",
+    "label": "KC_LAUNCHPAD",
+    "aliases": [
+      "KC_LPAD"
+    ]
+  },
+  {
+    "code": 203,
+    "id": "QK_BOOTLOADER",
+    "label": "QK_BOOTLOADER",
+    "aliases": [
+      "QK_BOOT"
+    ]
+  },
+  {
+    "code": 204,
+    "id": "QK_DEBUG_TOGGLE",
+    "label": "QK_DEBUG_TOGGLE",
+    "aliases": [
+      "DB_TOGG"
+    ]
+  },
+  {
+    "code": 205,
+    "id": "QK_CLEAR_EEPROM",
+    "label": "QK_CLEAR_EEPROM",
+    "aliases": [
+      "EE_CLR"
+    ]
+  },
+  {
+    "code": 206,
+    "id": "QK_MAKE",
+    "label": "QK_MAKE",
+    "aliases": []
+  },
+  {
+    "code": 207,
+    "id": "QK_REBOOT",
+    "label": "QK_REBOOT",
+    "aliases": [
+      "QK_RBT"
+    ]
+  },
+  {
+    "code": 208,
+    "id": "QK_AUDIO_ON",
+    "label": "QK_AUDIO_ON",
+    "aliases": [
+      "AU_ON"
+    ]
+  },
+  {
+    "code": 209,
+    "id": "QK_AUDIO_OFF",
+    "label": "QK_AUDIO_OFF",
+    "aliases": [
+      "AU_OFF"
+    ]
+  },
+  {
+    "code": 210,
+    "id": "QK_AUDIO_TOGGLE",
+    "label": "QK_AUDIO_TOGGLE",
+    "aliases": [
+      "AU_TOGG"
+    ]
+  },
+  {
+    "code": 211,
+    "id": "QK_AUDIO_CLICKY_TOGGLE",
+    "label": "QK_AUDIO_CLICKY_TOGGLE",
+    "aliases": [
+      "CK_TOGG"
+    ]
+  },
+  {
+    "code": 212,
+    "id": "QK_AUDIO_CLICKY_ON",
+    "label": "QK_AUDIO_CLICKY_ON",
+    "aliases": [
+      "CK_ON"
+    ]
+  },
+  {
+    "code": 213,
+    "id": "QK_AUDIO_CLICKY_OFF",
+    "label": "QK_AUDIO_CLICKY_OFF",
+    "aliases": [
+      "CK_OFF"
+    ]
+  },
+  {
+    "code": 214,
+    "id": "QK_AUDIO_CLICKY_UP",
+    "label": "QK_AUDIO_CLICKY_UP",
+    "aliases": [
+      "CK_UP"
+    ]
+  },
+  {
+    "code": 215,
+    "id": "QK_AUDIO_CLICKY_DOWN",
+    "label": "QK_AUDIO_CLICKY_DOWN",
+    "aliases": [
+      "CK_DOWN"
+    ]
+  },
+  {
+    "code": 216,
+    "id": "QK_AUDIO_CLICKY_RESET",
+    "label": "QK_AUDIO_CLICKY_RESET",
+    "aliases": [
+      "CK_RST"
+    ]
+  },
+  {
+    "code": 217,
+    "id": "QK_MUSIC_ON",
+    "label": "QK_MUSIC_ON",
+    "aliases": [
+      "MU_ON"
+    ]
+  },
+  {
+    "code": 218,
+    "id": "QK_MUSIC_OFF",
+    "label": "QK_MUSIC_OFF",
+    "aliases": [
+      "MU_OFF"
+    ]
+  },
+  {
+    "code": 219,
+    "id": "QK_MUSIC_TOGGLE",
+    "label": "QK_MUSIC_TOGGLE",
+    "aliases": [
+      "MU_TOGG"
+    ]
+  },
+  {
+    "code": 220,
+    "id": "QK_MUSIC_MODE_NEXT",
+    "label": "QK_MUSIC_MODE_NEXT",
+    "aliases": [
+      "MU_NEXT"
+    ]
+  },
+  {
+    "code": 221,
+    "id": "QK_AUDIO_VOICE_NEXT",
+    "label": "QK_AUDIO_VOICE_NEXT",
+    "aliases": [
+      "AU_NEXT"
+    ]
+  },
+  {
+    "code": 222,
+    "id": "QK_AUDIO_VOICE_PREVIOUS",
+    "label": "QK_AUDIO_VOICE_PREVIOUS",
+    "aliases": [
+      "AU_PREV"
+    ]
+  },
+  {
+    "code": 223,
+    "id": "QK_AUTO_SHIFT_DOWN",
+    "label": "QK_AUTO_SHIFT_DOWN",
+    "aliases": [
+      "AS_DOWN"
+    ]
+  },
+  {
+    "code": 224,
+    "id": "QK_AUTO_SHIFT_UP",
+    "label": "QK_AUTO_SHIFT_UP",
+    "aliases": [
+      "AS_UP"
+    ]
+  },
+  {
+    "code": 225,
+    "id": "QK_AUTO_SHIFT_REPORT",
+    "label": "QK_AUTO_SHIFT_REPORT",
+    "aliases": [
+      "AS_RPT"
+    ]
+  },
+  {
+    "code": 226,
+    "id": "QK_AUTO_SHIFT_ON",
+    "label": "QK_AUTO_SHIFT_ON",
+    "aliases": [
+      "AS_ON"
+    ]
+  },
+  {
+    "code": 227,
+    "id": "QK_AUTO_SHIFT_OFF",
+    "label": "QK_AUTO_SHIFT_OFF",
+    "aliases": [
+      "AS_OFF"
+    ]
+  },
+  {
+    "code": 228,
+    "id": "QK_AUTO_SHIFT_TOGGLE",
+    "label": "QK_AUTO_SHIFT_TOGGLE",
+    "aliases": [
+      "AS_TOGG"
+    ]
+  },
+  {
+    "code": 229,
+    "id": "QK_AUTOCORRECT_ON",
+    "label": "QK_AUTOCORRECT_ON",
+    "aliases": [
+      "AC_ON"
+    ]
+  },
+  {
+    "code": 230,
+    "id": "QK_AUTOCORRECT_OFF",
+    "label": "QK_AUTOCORRECT_OFF",
+    "aliases": [
+      "AC_OFF"
+    ]
+  },
+  {
+    "code": 231,
+    "id": "QK_AUTOCORRECT_TOGGLE",
+    "label": "QK_AUTOCORRECT_TOGGLE",
+    "aliases": [
+      "AC_TOGG"
+    ]
+  },
+  {
+    "code": 232,
+    "id": "QK_BACKLIGHT_TOGGLE",
+    "label": "QK_BACKLIGHT_TOGGLE",
+    "aliases": [
+      "BL_TOGG"
+    ]
+  },
+  {
+    "code": 233,
+    "id": "QK_BACKLIGHT_STEP",
+    "label": "QK_BACKLIGHT_STEP",
+    "aliases": [
+      "BL_STEP"
+    ]
+  },
+  {
+    "code": 234,
+    "id": "QK_BACKLIGHT_ON",
+    "label": "QK_BACKLIGHT_ON",
+    "aliases": [
+      "BL_ON"
+    ]
+  },
+  {
+    "code": 235,
+    "id": "QK_BACKLIGHT_OFF",
+    "label": "QK_BACKLIGHT_OFF",
+    "aliases": [
+      "BL_OFF"
+    ]
+  },
+  {
+    "code": 236,
+    "id": "QK_BACKLIGHT_UP",
+    "label": "QK_BACKLIGHT_UP",
+    "aliases": [
+      "BL_UP"
+    ]
+  },
+  {
+    "code": 237,
+    "id": "QK_BACKLIGHT_DOWN",
+    "label": "QK_BACKLIGHT_DOWN",
+    "aliases": [
+      "BL_DOWN"
+    ]
+  },
+  {
+    "code": 238,
+    "id": "QK_BACKLIGHT_TOGGLE_BREATHING",
+    "label": "QK_BACKLIGHT_TOGGLE_BREATHING",
+    "aliases": [
+      "BL_BRTG"
+    ]
+  },
+  {
+    "code": 239,
+    "id": "QK_OUTPUT_AUTO",
+    "label": "QK_OUTPUT_AUTO",
+    "aliases": [
+      "OU_AUTO"
+    ]
+  },
+  {
+    "code": 240,
+    "id": "QK_OUTPUT_NEXT",
+    "label": "QK_OUTPUT_NEXT",
+    "aliases": [
+      "OU_NEXT"
+    ]
+  },
+  {
+    "code": 241,
+    "id": "QK_OUTPUT_PREV",
+    "label": "QK_OUTPUT_PREV",
+    "aliases": [
+      "OU_PREV"
+    ]
+  },
+  {
+    "code": 242,
+    "id": "QK_OUTPUT_NONE",
+    "label": "QK_OUTPUT_NONE",
+    "aliases": [
+      "OU_NONE"
+    ]
+  },
+  {
+    "code": 243,
+    "id": "QK_OUTPUT_USB",
+    "label": "QK_OUTPUT_USB",
+    "aliases": [
+      "OU_USB"
+    ]
+  },
+  {
+    "code": 244,
+    "id": "QK_OUTPUT_2P4GHZ",
+    "label": "QK_OUTPUT_2P4GHZ",
+    "aliases": [
+      "OU_2P4G"
+    ]
+  },
+  {
+    "code": 245,
+    "id": "QK_OUTPUT_BLUETOOTH",
+    "label": "QK_OUTPUT_BLUETOOTH",
+    "aliases": [
+      "OU_BT"
+    ]
+  },
+  {
+    "code": 246,
+    "id": "QK_BLUETOOTH_PROFILE_NEXT",
+    "label": "QK_BLUETOOTH_PROFILE_NEXT",
+    "aliases": [
+      "BT_NEXT"
+    ]
+  },
+  {
+    "code": 247,
+    "id": "QK_BLUETOOTH_PROFILE_PREV",
+    "label": "QK_BLUETOOTH_PROFILE_PREV",
+    "aliases": [
+      "BT_PREV"
+    ]
+  },
+  {
+    "code": 248,
+    "id": "QK_BLUETOOTH_UNPAIR",
+    "label": "QK_BLUETOOTH_UNPAIR",
+    "aliases": [
+      "BT_UNPR"
+    ]
+  },
+  {
+    "code": 249,
+    "id": "QK_BLUETOOTH_PROFILE1",
+    "label": "QK_BLUETOOTH_PROFILE1",
+    "aliases": [
+      "BT_PRF1"
+    ]
+  },
+  {
+    "code": 250,
+    "id": "QK_BLUETOOTH_PROFILE2",
+    "label": "QK_BLUETOOTH_PROFILE2",
+    "aliases": [
+      "BT_PRF2"
+    ]
+  },
+  {
+    "code": 251,
+    "id": "QK_BLUETOOTH_PROFILE3",
+    "label": "QK_BLUETOOTH_PROFILE3",
+    "aliases": [
+      "BT_PRF3"
+    ]
+  },
+  {
+    "code": 252,
+    "id": "QK_BLUETOOTH_PROFILE4",
+    "label": "QK_BLUETOOTH_PROFILE4",
+    "aliases": [
+      "BT_PRF4"
+    ]
+  },
+  {
+    "code": 253,
+    "id": "QK_BLUETOOTH_PROFILE5",
+    "label": "QK_BLUETOOTH_PROFILE5",
+    "aliases": [
+      "BT_PRF5"
+    ]
+  },
+  {
+    "code": 254,
+    "id": "QK_CAPS_WORD_TOGGLE",
+    "label": "QK_CAPS_WORD_TOGGLE",
+    "aliases": [
+      "CW_TOGG"
+    ]
+  },
+  {
+    "code": 255,
+    "id": "QK_DYNAMIC_MACRO_RECORD_START_1",
+    "label": "QK_DYNAMIC_MACRO_RECORD_START_1",
+    "aliases": [
+      "DM_REC1"
+    ]
+  },
+  {
+    "code": 256,
+    "id": "QK_DYNAMIC_MACRO_RECORD_START_2",
+    "label": "QK_DYNAMIC_MACRO_RECORD_START_2",
+    "aliases": [
+      "DM_REC2"
+    ]
+  },
+  {
+    "code": 257,
+    "id": "QK_DYNAMIC_MACRO_PLAY_1",
+    "label": "QK_DYNAMIC_MACRO_PLAY_1",
+    "aliases": [
+      "DM_PLY1"
+    ]
+  },
+  {
+    "code": 258,
+    "id": "QK_DYNAMIC_MACRO_PLAY_2",
+    "label": "QK_DYNAMIC_MACRO_PLAY_2",
+    "aliases": [
+      "DM_PLY2"
+    ]
+  },
+  {
+    "code": 259,
+    "id": "QK_DYNAMIC_MACRO_RECORD_STOP",
+    "label": "QK_DYNAMIC_MACRO_RECORD_STOP",
+    "aliases": [
+      "DM_RSTP"
+    ]
+  },
+  {
+    "code": 260,
+    "id": "QK_GRAVE_ESCAPE",
+    "label": "QK_GRAVE_ESCAPE",
+    "aliases": [
+      "QK_GESC"
+    ]
+  },
+  {
+    "code": 261,
+    "id": "QK_JOYSTICK_BUTTON_0",
+    "label": "JS_0",
+    "aliases": [
+      "JS_0"
+    ]
+  },
+  {
+    "code": 262,
+    "id": "QK_JOYSTICK_BUTTON_1",
+    "label": "JS_1",
+    "aliases": [
+      "JS_1"
+    ]
+  },
+  {
+    "code": 263,
+    "id": "QK_JOYSTICK_BUTTON_2",
+    "label": "JS_2",
+    "aliases": [
+      "JS_2"
+    ]
+  },
+  {
+    "code": 264,
+    "id": "QK_JOYSTICK_BUTTON_3",
+    "label": "JS_3",
+    "aliases": [
+      "JS_3"
+    ]
+  },
+  {
+    "code": 265,
+    "id": "QK_JOYSTICK_BUTTON_4",
+    "label": "JS_4",
+    "aliases": [
+      "JS_4"
+    ]
+  },
+  {
+    "code": 266,
+    "id": "QK_JOYSTICK_BUTTON_5",
+    "label": "JS_5",
+    "aliases": [
+      "JS_5"
+    ]
+  },
+  {
+    "code": 267,
+    "id": "QK_JOYSTICK_BUTTON_6",
+    "label": "JS_6",
+    "aliases": [
+      "JS_6"
+    ]
+  },
+  {
+    "code": 268,
+    "id": "QK_JOYSTICK_BUTTON_7",
+    "label": "JS_7",
+    "aliases": [
+      "JS_7"
+    ]
+  },
+  {
+    "code": 269,
+    "id": "QK_JOYSTICK_BUTTON_8",
+    "label": "JS_8",
+    "aliases": [
+      "JS_8"
+    ]
+  },
+  {
+    "code": 270,
+    "id": "QK_JOYSTICK_BUTTON_9",
+    "label": "JS_9",
+    "aliases": [
+      "JS_9"
+    ]
+  },
+  {
+    "code": 271,
+    "id": "QK_JOYSTICK_BUTTON_10",
+    "label": "QK_JOYSTICK_BUTTON_10",
+    "aliases": [
+      "JS_10"
+    ]
+  },
+  {
+    "code": 272,
+    "id": "QK_JOYSTICK_BUTTON_11",
+    "label": "QK_JOYSTICK_BUTTON_11",
+    "aliases": [
+      "JS_11"
+    ]
+  },
+  {
+    "code": 273,
+    "id": "QK_JOYSTICK_BUTTON_12",
+    "label": "QK_JOYSTICK_BUTTON_12",
+    "aliases": [
+      "JS_12"
+    ]
+  },
+  {
+    "code": 274,
+    "id": "QK_JOYSTICK_BUTTON_13",
+    "label": "QK_JOYSTICK_BUTTON_13",
+    "aliases": [
+      "JS_13"
+    ]
+  },
+  {
+    "code": 275,
+    "id": "QK_JOYSTICK_BUTTON_14",
+    "label": "QK_JOYSTICK_BUTTON_14",
+    "aliases": [
+      "JS_14"
+    ]
+  },
+  {
+    "code": 276,
+    "id": "QK_JOYSTICK_BUTTON_15",
+    "label": "QK_JOYSTICK_BUTTON_15",
+    "aliases": [
+      "JS_15"
+    ]
+  },
+  {
+    "code": 277,
+    "id": "QK_JOYSTICK_BUTTON_16",
+    "label": "QK_JOYSTICK_BUTTON_16",
+    "aliases": [
+      "JS_16"
+    ]
+  },
+  {
+    "code": 278,
+    "id": "QK_JOYSTICK_BUTTON_17",
+    "label": "QK_JOYSTICK_BUTTON_17",
+    "aliases": [
+      "JS_17"
+    ]
+  },
+  {
+    "code": 279,
+    "id": "QK_JOYSTICK_BUTTON_18",
+    "label": "QK_JOYSTICK_BUTTON_18",
+    "aliases": [
+      "JS_18"
+    ]
+  },
+  {
+    "code": 280,
+    "id": "QK_JOYSTICK_BUTTON_19",
+    "label": "QK_JOYSTICK_BUTTON_19",
+    "aliases": [
+      "JS_19"
+    ]
+  },
+  {
+    "code": 281,
+    "id": "QK_JOYSTICK_BUTTON_20",
+    "label": "QK_JOYSTICK_BUTTON_20",
+    "aliases": [
+      "JS_20"
+    ]
+  },
+  {
+    "code": 282,
+    "id": "QK_JOYSTICK_BUTTON_21",
+    "label": "QK_JOYSTICK_BUTTON_21",
+    "aliases": [
+      "JS_21"
+    ]
+  },
+  {
+    "code": 283,
+    "id": "QK_JOYSTICK_BUTTON_22",
+    "label": "QK_JOYSTICK_BUTTON_22",
+    "aliases": [
+      "JS_22"
+    ]
+  },
+  {
+    "code": 284,
+    "id": "QK_JOYSTICK_BUTTON_23",
+    "label": "QK_JOYSTICK_BUTTON_23",
+    "aliases": [
+      "JS_23"
+    ]
+  },
+  {
+    "code": 285,
+    "id": "QK_JOYSTICK_BUTTON_24",
+    "label": "QK_JOYSTICK_BUTTON_24",
+    "aliases": [
+      "JS_24"
+    ]
+  },
+  {
+    "code": 286,
+    "id": "QK_JOYSTICK_BUTTON_25",
+    "label": "QK_JOYSTICK_BUTTON_25",
+    "aliases": [
+      "JS_25"
+    ]
+  },
+  {
+    "code": 287,
+    "id": "QK_JOYSTICK_BUTTON_26",
+    "label": "QK_JOYSTICK_BUTTON_26",
+    "aliases": [
+      "JS_26"
+    ]
+  },
+  {
+    "code": 288,
+    "id": "QK_JOYSTICK_BUTTON_27",
+    "label": "QK_JOYSTICK_BUTTON_27",
+    "aliases": [
+      "JS_27"
+    ]
+  },
+  {
+    "code": 289,
+    "id": "QK_JOYSTICK_BUTTON_28",
+    "label": "QK_JOYSTICK_BUTTON_28",
+    "aliases": [
+      "JS_28"
+    ]
+  },
+  {
+    "code": 290,
+    "id": "QK_JOYSTICK_BUTTON_29",
+    "label": "QK_JOYSTICK_BUTTON_29",
+    "aliases": [
+      "JS_29"
+    ]
+  },
+  {
+    "code": 291,
+    "id": "QK_JOYSTICK_BUTTON_30",
+    "label": "QK_JOYSTICK_BUTTON_30",
+    "aliases": [
+      "JS_30"
+    ]
+  },
+  {
+    "code": 292,
+    "id": "QK_JOYSTICK_BUTTON_31",
+    "label": "QK_JOYSTICK_BUTTON_31",
+    "aliases": [
+      "JS_31"
+    ]
+  },
+  {
+    "code": 293,
+    "id": "QK_LAYER_LOCK",
+    "label": "QK_LAYER_LOCK",
+    "aliases": [
+      "QK_LLCK"
+    ]
+  },
+  {
+    "code": 294,
+    "id": "QK_LED_MATRIX_ON",
+    "label": "QK_LED_MATRIX_ON",
+    "aliases": [
+      "LM_ON"
+    ]
+  },
+  {
+    "code": 295,
+    "id": "QK_LED_MATRIX_OFF",
+    "label": "QK_LED_MATRIX_OFF",
+    "aliases": [
+      "LM_OFF"
+    ]
+  },
+  {
+    "code": 296,
+    "id": "QK_LED_MATRIX_TOGGLE",
+    "label": "QK_LED_MATRIX_TOGGLE",
+    "aliases": [
+      "LM_TOGG"
+    ]
+  },
+  {
+    "code": 297,
+    "id": "QK_LED_MATRIX_MODE_NEXT",
+    "label": "QK_LED_MATRIX_MODE_NEXT",
+    "aliases": [
+      "LM_NEXT"
+    ]
+  },
+  {
+    "code": 298,
+    "id": "QK_LED_MATRIX_MODE_PREVIOUS",
+    "label": "QK_LED_MATRIX_MODE_PREVIOUS",
+    "aliases": [
+      "LM_PREV"
+    ]
+  },
+  {
+    "code": 299,
+    "id": "QK_LED_MATRIX_BRIGHTNESS_UP",
+    "label": "QK_LED_MATRIX_BRIGHTNESS_UP",
+    "aliases": [
+      "LM_BRIU"
+    ]
+  },
+  {
+    "code": 300,
+    "id": "QK_LED_MATRIX_BRIGHTNESS_DOWN",
+    "label": "QK_LED_MATRIX_BRIGHTNESS_DOWN",
+    "aliases": [
+      "LM_BRID"
+    ]
+  },
+  {
+    "code": 301,
+    "id": "QK_LED_MATRIX_SPEED_UP",
+    "label": "QK_LED_MATRIX_SPEED_UP",
+    "aliases": [
+      "LM_SPDU"
+    ]
+  },
+  {
+    "code": 302,
+    "id": "QK_LED_MATRIX_SPEED_DOWN",
+    "label": "QK_LED_MATRIX_SPEED_DOWN",
+    "aliases": [
+      "LM_SPDD"
+    ]
+  },
+  {
+    "code": 303,
+    "id": "QK_LED_MATRIX_FLAG_NEXT",
+    "label": "QK_LED_MATRIX_FLAG_NEXT",
+    "aliases": [
+      "LM_FLGN"
+    ]
+  },
+  {
+    "code": 304,
+    "id": "QK_LED_MATRIX_FLAG_PREVIOUS",
+    "label": "QK_LED_MATRIX_FLAG_PREVIOUS",
+    "aliases": [
+      "LM_FLGP"
+    ]
+  },
+  {
+    "code": 305,
+    "id": "QK_MAGIC_SWAP_CONTROL_CAPS_LOCK",
+    "label": "QK_MAGIC_SWAP_CONTROL_CAPS_LOCK",
+    "aliases": [
+      "CL_SWAP"
+    ]
+  },
+  {
+    "code": 306,
+    "id": "QK_MAGIC_UNSWAP_CONTROL_CAPS_LOCK",
+    "label": "QK_MAGIC_UNSWAP_CONTROL_CAPS_LOCK",
+    "aliases": [
+      "CL_NORM"
+    ]
+  },
+  {
+    "code": 307,
+    "id": "QK_MAGIC_TOGGLE_CONTROL_CAPS_LOCK",
+    "label": "QK_MAGIC_TOGGLE_CONTROL_CAPS_LOCK",
+    "aliases": [
+      "CL_TOGG"
+    ]
+  },
+  {
+    "code": 308,
+    "id": "QK_MAGIC_CAPS_LOCK_AS_CONTROL_ON",
+    "label": "QK_MAGIC_CAPS_LOCK_AS_CONTROL_ON",
+    "aliases": [
+      "CL_CTRL"
+    ]
+  },
+  {
+    "code": 309,
+    "id": "QK_MAGIC_CAPS_LOCK_AS_CONTROL_OFF",
+    "label": "QK_MAGIC_CAPS_LOCK_AS_CONTROL_OFF",
+    "aliases": [
+      "CL_CAPS"
+    ]
+  },
+  {
+    "code": 310,
+    "id": "QK_MAGIC_SWAP_ESCAPE_CAPS_LOCK",
+    "label": "QK_MAGIC_SWAP_ESCAPE_CAPS_LOCK",
+    "aliases": [
+      "EC_SWAP"
+    ]
+  },
+  {
+    "code": 311,
+    "id": "QK_MAGIC_UNSWAP_ESCAPE_CAPS_LOCK",
+    "label": "QK_MAGIC_UNSWAP_ESCAPE_CAPS_LOCK",
+    "aliases": [
+      "EC_NORM"
+    ]
+  },
+  {
+    "code": 312,
+    "id": "QK_MAGIC_TOGGLE_ESCAPE_CAPS_LOCK",
+    "label": "QK_MAGIC_TOGGLE_ESCAPE_CAPS_LOCK",
+    "aliases": [
+      "EC_TOGG"
+    ]
+  },
+  {
+    "code": 313,
+    "id": "QK_MAGIC_SWAP_LCTL_LGUI",
+    "label": "QK_MAGIC_SWAP_LCTL_LGUI",
+    "aliases": [
+      "CG_LSWP"
+    ]
+  },
+  {
+    "code": 314,
+    "id": "QK_MAGIC_UNSWAP_LCTL_LGUI",
+    "label": "QK_MAGIC_UNSWAP_LCTL_LGUI",
+    "aliases": [
+      "CG_LNRM"
+    ]
+  },
+  {
+    "code": 315,
+    "id": "QK_MAGIC_SWAP_RCTL_RGUI",
+    "label": "QK_MAGIC_SWAP_RCTL_RGUI",
+    "aliases": [
+      "CG_RSWP"
+    ]
+  },
+  {
+    "code": 316,
+    "id": "QK_MAGIC_UNSWAP_RCTL_RGUI",
+    "label": "QK_MAGIC_UNSWAP_RCTL_RGUI",
+    "aliases": [
+      "CG_RNRM"
+    ]
+  },
+  {
+    "code": 317,
+    "id": "QK_MAGIC_SWAP_CTL_GUI",
+    "label": "QK_MAGIC_SWAP_CTL_GUI",
+    "aliases": [
+      "CG_SWAP"
+    ]
+  },
+  {
+    "code": 318,
+    "id": "QK_MAGIC_UNSWAP_CTL_GUI",
+    "label": "QK_MAGIC_UNSWAP_CTL_GUI",
+    "aliases": [
+      "CG_NORM"
+    ]
+  },
+  {
+    "code": 319,
+    "id": "QK_MAGIC_TOGGLE_CTL_GUI",
+    "label": "QK_MAGIC_TOGGLE_CTL_GUI",
+    "aliases": [
+      "CG_TOGG"
+    ]
+  },
+  {
+    "code": 320,
+    "id": "QK_MAGIC_SWAP_LALT_LGUI",
+    "label": "QK_MAGIC_SWAP_LALT_LGUI",
+    "aliases": [
+      "AG_LSWP"
+    ]
+  },
+  {
+    "code": 347,
+    "id": "QK_MIDI_NOTE_E_0",
+    "label": "MI_E",
+    "aliases": [
+      "MI_E"
+    ]
+  },
+  {
+    "code": 348,
+    "id": "QK_MIDI_NOTE_F_0",
+    "label": "MI_F",
+    "aliases": [
+      "MI_F"
+    ]
+  },
+  {
+    "code": 349,
+    "id": "QK_MIDI_NOTE_F_SHARP_0",
+    "label": "QK_MIDI_NOTE_F_SHARP_0",
+    "aliases": [
+      "MI_Fs",
+      "MI_Gb"
+    ]
+  },
+  {
+    "code": 350,
+    "id": "QK_MIDI_NOTE_G_0",
+    "label": "MI_G",
+    "aliases": [
+      "MI_G"
+    ]
+  },
+  {
+    "code": 351,
+    "id": "QK_MIDI_NOTE_G_SHARP_0",
+    "label": "QK_MIDI_NOTE_G_SHARP_0",
+    "aliases": [
+      "MI_Gs",
+      "MI_Ab"
+    ]
+  },
+  {
+    "code": 352,
+    "id": "QK_MIDI_NOTE_A_0",
+    "label": "MI_A",
+    "aliases": [
+      "MI_A"
+    ]
+  },
+  {
+    "code": 353,
+    "id": "QK_MIDI_NOTE_A_SHARP_0",
+    "label": "QK_MIDI_NOTE_A_SHARP_0",
+    "aliases": [
+      "MI_As",
+      "MI_Bb"
+    ]
+  },
+  {
+    "code": 354,
+    "id": "QK_MIDI_NOTE_B_0",
+    "label": "MI_B",
+    "aliases": [
+      "MI_B"
+    ]
+  },
+  {
+    "code": 355,
+    "id": "QK_MIDI_NOTE_C_1",
+    "label": "QK_MIDI_NOTE_C_1",
+    "aliases": [
+      "MI_C1"
+    ]
+  },
+  {
+    "code": 356,
+    "id": "QK_MIDI_NOTE_C_SHARP_1",
+    "label": "QK_MIDI_NOTE_C_SHARP_1",
+    "aliases": [
+      "MI_Cs1",
+      "MI_Db1"
+    ]
+  },
+  {
+    "code": 357,
+    "id": "QK_MIDI_NOTE_D_1",
+    "label": "QK_MIDI_NOTE_D_1",
+    "aliases": [
+      "MI_D1"
+    ]
+  },
+  {
+    "code": 358,
+    "id": "QK_MIDI_NOTE_D_SHARP_1",
+    "label": "QK_MIDI_NOTE_D_SHARP_1",
+    "aliases": [
+      "MI_Ds1",
+      "MI_Eb1"
+    ]
+  },
+  {
+    "code": 359,
+    "id": "QK_MIDI_NOTE_E_1",
+    "label": "QK_MIDI_NOTE_E_1",
+    "aliases": [
+      "MI_E1"
+    ]
+  },
+  {
+    "code": 360,
+    "id": "QK_MIDI_NOTE_F_1",
+    "label": "QK_MIDI_NOTE_F_1",
+    "aliases": [
+      "MI_F1"
+    ]
+  },
+  {
+    "code": 361,
+    "id": "QK_MIDI_NOTE_F_SHARP_1",
+    "label": "QK_MIDI_NOTE_F_SHARP_1",
+    "aliases": [
+      "MI_Fs1",
+      "MI_Gb1"
+    ]
+  },
+  {
+    "code": 362,
+    "id": "QK_MIDI_NOTE_G_1",
+    "label": "QK_MIDI_NOTE_G_1",
+    "aliases": [
+      "MI_G1"
+    ]
+  },
+  {
+    "code": 363,
+    "id": "QK_MIDI_NOTE_G_SHARP_1",
+    "label": "QK_MIDI_NOTE_G_SHARP_1",
+    "aliases": [
+      "MI_Gs1",
+      "MI_Ab1"
+    ]
+  },
+  {
+    "code": 364,
+    "id": "QK_MIDI_NOTE_A_1",
+    "label": "QK_MIDI_NOTE_A_1",
+    "aliases": [
+      "MI_A1"
+    ]
+  },
+  {
+    "code": 365,
+    "id": "QK_MIDI_NOTE_A_SHARP_1",
+    "label": "QK_MIDI_NOTE_A_SHARP_1",
+    "aliases": [
+      "MI_As1",
+      "MI_Bb1"
+    ]
+  },
+  {
+    "code": 366,
+    "id": "QK_MIDI_NOTE_B_1",
+    "label": "QK_MIDI_NOTE_B_1",
+    "aliases": [
+      "MI_B1"
+    ]
+  },
+  {
+    "code": 367,
+    "id": "QK_MIDI_NOTE_C_2",
+    "label": "QK_MIDI_NOTE_C_2",
+    "aliases": [
+      "MI_C2"
+    ]
+  },
+  {
+    "code": 368,
+    "id": "QK_MIDI_NOTE_C_SHARP_2",
+    "label": "QK_MIDI_NOTE_C_SHARP_2",
+    "aliases": [
+      "MI_Cs2",
+      "MI_Db2"
+    ]
+  },
+  {
+    "code": 369,
+    "id": "QK_MIDI_NOTE_D_2",
+    "label": "QK_MIDI_NOTE_D_2",
+    "aliases": [
+      "MI_D2"
+    ]
+  },
+  {
+    "code": 370,
+    "id": "QK_MIDI_NOTE_D_SHARP_2",
+    "label": "QK_MIDI_NOTE_D_SHARP_2",
+    "aliases": [
+      "MI_Ds2",
+      "MI_Eb2"
+    ]
+  },
+  {
+    "code": 371,
+    "id": "QK_MIDI_NOTE_E_2",
+    "label": "QK_MIDI_NOTE_E_2",
+    "aliases": [
+      "MI_E2"
+    ]
+  },
+  {
+    "code": 372,
+    "id": "QK_MIDI_NOTE_F_2",
+    "label": "QK_MIDI_NOTE_F_2",
+    "aliases": [
+      "MI_F2"
+    ]
+  },
+  {
+    "code": 373,
+    "id": "QK_MIDI_NOTE_F_SHARP_2",
+    "label": "QK_MIDI_NOTE_F_SHARP_2",
+    "aliases": [
+      "MI_Fs2",
+      "MI_Gb2"
+    ]
+  },
+  {
+    "code": 374,
+    "id": "QK_MIDI_NOTE_G_2",
+    "label": "QK_MIDI_NOTE_G_2",
+    "aliases": [
+      "MI_G2"
+    ]
+  },
+  {
+    "code": 375,
+    "id": "QK_MIDI_NOTE_G_SHARP_2",
+    "label": "QK_MIDI_NOTE_G_SHARP_2",
+    "aliases": [
+      "MI_Gs2",
+      "MI_Ab2"
+    ]
+  },
+  {
+    "code": 376,
+    "id": "QK_MIDI_NOTE_A_2",
+    "label": "QK_MIDI_NOTE_A_2",
+    "aliases": [
+      "MI_A2"
+    ]
+  },
+  {
+    "code": 377,
+    "id": "QK_MIDI_NOTE_A_SHARP_2",
+    "label": "QK_MIDI_NOTE_A_SHARP_2",
+    "aliases": [
+      "MI_As2",
+      "MI_Bb2"
+    ]
+  },
+  {
+    "code": 378,
+    "id": "QK_MIDI_NOTE_B_2",
+    "label": "QK_MIDI_NOTE_B_2",
+    "aliases": [
+      "MI_B2"
+    ]
+  },
+  {
+    "code": 379,
+    "id": "QK_MIDI_NOTE_C_3",
+    "label": "QK_MIDI_NOTE_C_3",
+    "aliases": [
+      "MI_C3"
+    ]
+  },
+  {
+    "code": 380,
+    "id": "QK_MIDI_NOTE_C_SHARP_3",
+    "label": "QK_MIDI_NOTE_C_SHARP_3",
+    "aliases": [
+      "MI_Cs3",
+      "MI_Db3"
+    ]
+  },
+  {
+    "code": 381,
+    "id": "QK_MIDI_NOTE_D_3",
+    "label": "QK_MIDI_NOTE_D_3",
+    "aliases": [
+      "MI_D3"
+    ]
+  },
+  {
+    "code": 382,
+    "id": "QK_MIDI_NOTE_D_SHARP_3",
+    "label": "QK_MIDI_NOTE_D_SHARP_3",
+    "aliases": [
+      "MI_Ds3",
+      "MI_Eb3"
+    ]
+  },
+  {
+    "code": 383,
+    "id": "QK_MIDI_NOTE_E_3",
+    "label": "QK_MIDI_NOTE_E_3",
+    "aliases": [
+      "MI_E3"
+    ]
+  },
+  {
+    "code": 384,
+    "id": "QK_MIDI_NOTE_F_3",
+    "label": "QK_MIDI_NOTE_F_3",
+    "aliases": [
+      "MI_F3"
+    ]
+  },
+  {
+    "code": 385,
+    "id": "QK_MIDI_NOTE_F_SHARP_3",
+    "label": "QK_MIDI_NOTE_F_SHARP_3",
+    "aliases": [
+      "MI_Fs3",
+      "MI_Gb3"
+    ]
+  },
+  {
+    "code": 386,
+    "id": "QK_MIDI_NOTE_G_3",
+    "label": "QK_MIDI_NOTE_G_3",
+    "aliases": [
+      "MI_G3"
+    ]
+  },
+  {
+    "code": 387,
+    "id": "QK_MIDI_NOTE_G_SHARP_3",
+    "label": "QK_MIDI_NOTE_G_SHARP_3",
+    "aliases": [
+      "MI_Gs3",
+      "MI_Ab3"
+    ]
+  },
+  {
+    "code": 388,
+    "id": "QK_MIDI_NOTE_A_3",
+    "label": "QK_MIDI_NOTE_A_3",
+    "aliases": [
+      "MI_A3"
+    ]
+  },
+  {
+    "code": 389,
+    "id": "QK_MIDI_NOTE_A_SHARP_3",
+    "label": "QK_MIDI_NOTE_A_SHARP_3",
+    "aliases": [
+      "MI_As3",
+      "MI_Bb3"
+    ]
+  },
+  {
+    "code": 390,
+    "id": "QK_MIDI_NOTE_B_3",
+    "label": "QK_MIDI_NOTE_B_3",
+    "aliases": [
+      "MI_B3"
+    ]
+  },
+  {
+    "code": 391,
+    "id": "QK_MIDI_NOTE_C_4",
+    "label": "QK_MIDI_NOTE_C_4",
+    "aliases": [
+      "MI_C4"
+    ]
+  },
+  {
+    "code": 392,
+    "id": "QK_MIDI_NOTE_C_SHARP_4",
+    "label": "QK_MIDI_NOTE_C_SHARP_4",
+    "aliases": [
+      "MI_Cs4",
+      "MI_Db4"
+    ]
+  },
+  {
+    "code": 393,
+    "id": "QK_MIDI_NOTE_D_4",
+    "label": "QK_MIDI_NOTE_D_4",
+    "aliases": [
+      "MI_D4"
+    ]
+  },
+  {
+    "code": 394,
+    "id": "QK_MIDI_NOTE_D_SHARP_4",
+    "label": "QK_MIDI_NOTE_D_SHARP_4",
+    "aliases": [
+      "MI_Ds4",
+      "MI_Eb4"
+    ]
+  },
+  {
+    "code": 395,
+    "id": "QK_MIDI_NOTE_E_4",
+    "label": "QK_MIDI_NOTE_E_4",
+    "aliases": [
+      "MI_E4"
+    ]
+  },
+  {
+    "code": 396,
+    "id": "QK_MIDI_NOTE_F_4",
+    "label": "QK_MIDI_NOTE_F_4",
+    "aliases": [
+      "MI_F4"
+    ]
+  },
+  {
+    "code": 397,
+    "id": "QK_MIDI_NOTE_F_SHARP_4",
+    "label": "QK_MIDI_NOTE_F_SHARP_4",
+    "aliases": [
+      "MI_Fs4",
+      "MI_Gb4"
+    ]
+  },
+  {
+    "code": 398,
+    "id": "QK_MIDI_NOTE_G_4",
+    "label": "QK_MIDI_NOTE_G_4",
+    "aliases": [
+      "MI_G4"
+    ]
+  },
+  {
+    "code": 399,
+    "id": "QK_MIDI_NOTE_G_SHARP_4",
+    "label": "QK_MIDI_NOTE_G_SHARP_4",
+    "aliases": [
+      "MI_Gs4",
+      "MI_Ab4"
+    ]
+  },
+  {
+    "code": 400,
+    "id": "QK_MIDI_NOTE_A_4",
+    "label": "QK_MIDI_NOTE_A_4",
+    "aliases": [
+      "MI_A4"
+    ]
+  },
+  {
+    "code": 401,
+    "id": "QK_MIDI_NOTE_A_SHARP_4",
+    "label": "QK_MIDI_NOTE_A_SHARP_4",
+    "aliases": [
+      "MI_As4",
+      "MI_Bb4"
+    ]
+  },
+  {
+    "code": 402,
+    "id": "QK_MIDI_NOTE_B_4",
+    "label": "QK_MIDI_NOTE_B_4",
+    "aliases": [
+      "MI_B4"
+    ]
+  },
+  {
+    "code": 403,
+    "id": "QK_MIDI_NOTE_C_5",
+    "label": "QK_MIDI_NOTE_C_5",
+    "aliases": [
+      "MI_C5"
+    ]
+  },
+  {
+    "code": 404,
+    "id": "QK_MIDI_NOTE_C_SHARP_5",
+    "label": "QK_MIDI_NOTE_C_SHARP_5",
+    "aliases": [
+      "MI_Cs5",
+      "MI_Db5"
+    ]
+  },
+  {
+    "code": 405,
+    "id": "QK_MIDI_NOTE_D_5",
+    "label": "QK_MIDI_NOTE_D_5",
+    "aliases": [
+      "MI_D5"
+    ]
+  },
+  {
+    "code": 406,
+    "id": "QK_MIDI_NOTE_D_SHARP_5",
+    "label": "QK_MIDI_NOTE_D_SHARP_5",
+    "aliases": [
+      "MI_Ds5",
+      "MI_Eb5"
+    ]
+  },
+  {
+    "code": 407,
+    "id": "QK_MIDI_NOTE_E_5",
+    "label": "QK_MIDI_NOTE_E_5",
+    "aliases": [
+      "MI_E5"
+    ]
+  },
+  {
+    "code": 408,
+    "id": "QK_MIDI_NOTE_F_5",
+    "label": "QK_MIDI_NOTE_F_5",
+    "aliases": [
+      "MI_F5"
+    ]
+  },
+  {
+    "code": 409,
+    "id": "QK_MIDI_NOTE_F_SHARP_5",
+    "label": "QK_MIDI_NOTE_F_SHARP_5",
+    "aliases": [
+      "MI_Fs5",
+      "MI_Gb5"
+    ]
+  },
+  {
+    "code": 410,
+    "id": "QK_MIDI_NOTE_G_5",
+    "label": "QK_MIDI_NOTE_G_5",
+    "aliases": [
+      "MI_G5"
+    ]
+  },
+  {
+    "code": 411,
+    "id": "QK_MIDI_NOTE_G_SHARP_5",
+    "label": "QK_MIDI_NOTE_G_SHARP_5",
+    "aliases": [
+      "MI_Gs5",
+      "MI_Ab5"
+    ]
+  },
+  {
+    "code": 412,
+    "id": "QK_MIDI_NOTE_A_5",
+    "label": "QK_MIDI_NOTE_A_5",
+    "aliases": [
+      "MI_A5"
+    ]
+  },
+  {
+    "code": 413,
+    "id": "QK_MIDI_NOTE_A_SHARP_5",
+    "label": "QK_MIDI_NOTE_A_SHARP_5",
+    "aliases": [
+      "MI_As5",
+      "MI_Bb5"
+    ]
+  },
+  {
+    "code": 414,
+    "id": "QK_MIDI_NOTE_B_5",
+    "label": "QK_MIDI_NOTE_B_5",
+    "aliases": [
+      "MI_B5"
+    ]
+  },
+  {
+    "code": 415,
+    "id": "QK_MIDI_OCTAVE_N2",
+    "label": "QK_MIDI_OCTAVE_N2",
+    "aliases": [
+      "MI_OCN2"
+    ]
+  },
+  {
+    "code": 416,
+    "id": "QK_MIDI_OCTAVE_N1",
+    "label": "QK_MIDI_OCTAVE_N1",
+    "aliases": [
+      "MI_OCN1"
+    ]
+  },
+  {
+    "code": 417,
+    "id": "QK_MIDI_OCTAVE_0",
+    "label": "QK_MIDI_OCTAVE_0",
+    "aliases": [
+      "MI_OC0"
+    ]
+  },
+  {
+    "code": 418,
+    "id": "QK_MIDI_OCTAVE_1",
+    "label": "QK_MIDI_OCTAVE_1",
+    "aliases": [
+      "MI_OC1"
+    ]
+  },
+  {
+    "code": 419,
+    "id": "QK_MIDI_OCTAVE_2",
+    "label": "QK_MIDI_OCTAVE_2",
+    "aliases": [
+      "MI_OC2"
+    ]
+  },
+  {
+    "code": 420,
+    "id": "QK_MIDI_OCTAVE_3",
+    "label": "QK_MIDI_OCTAVE_3",
+    "aliases": [
+      "MI_OC3"
+    ]
+  },
+  {
+    "code": 421,
+    "id": "QK_MIDI_OCTAVE_4",
+    "label": "QK_MIDI_OCTAVE_4",
+    "aliases": [
+      "MI_OC4"
+    ]
+  },
+  {
+    "code": 422,
+    "id": "QK_MIDI_OCTAVE_5",
+    "label": "QK_MIDI_OCTAVE_5",
+    "aliases": [
+      "MI_OC5"
+    ]
+  },
+  {
+    "code": 423,
+    "id": "QK_MIDI_OCTAVE_6",
+    "label": "QK_MIDI_OCTAVE_6",
+    "aliases": [
+      "MI_OC6"
+    ]
+  },
+  {
+    "code": 424,
+    "id": "QK_MIDI_OCTAVE_7",
+    "label": "QK_MIDI_OCTAVE_7",
+    "aliases": [
+      "MI_OC7"
+    ]
+  },
+  {
+    "code": 425,
+    "id": "QK_MIDI_OCTAVE_DOWN",
+    "label": "QK_MIDI_OCTAVE_DOWN",
+    "aliases": [
+      "MI_OCTD"
+    ]
+  },
+  {
+    "code": 426,
+    "id": "QK_MIDI_OCTAVE_UP",
+    "label": "QK_MIDI_OCTAVE_UP",
+    "aliases": [
+      "MI_OCTU"
+    ]
+  },
+  {
+    "code": 427,
+    "id": "QK_MIDI_TRANSPOSE_N6",
+    "label": "QK_MIDI_TRANSPOSE_N6",
+    "aliases": [
+      "MI_TRN6"
+    ]
+  },
+  {
+    "code": 428,
+    "id": "QK_MIDI_TRANSPOSE_N5",
+    "label": "QK_MIDI_TRANSPOSE_N5",
+    "aliases": [
+      "MI_TRN5"
+    ]
+  },
+  {
+    "code": 429,
+    "id": "QK_MIDI_TRANSPOSE_N4",
+    "label": "QK_MIDI_TRANSPOSE_N4",
+    "aliases": [
+      "MI_TRN4"
+    ]
+  },
+  {
+    "code": 430,
+    "id": "QK_MIDI_TRANSPOSE_N3",
+    "label": "QK_MIDI_TRANSPOSE_N3",
+    "aliases": [
+      "MI_TRN3"
+    ]
+  },
+  {
+    "code": 431,
+    "id": "QK_MIDI_TRANSPOSE_N2",
+    "label": "QK_MIDI_TRANSPOSE_N2",
+    "aliases": [
+      "MI_TRN2"
+    ]
+  },
+  {
+    "code": 432,
+    "id": "QK_MIDI_TRANSPOSE_N1",
+    "label": "QK_MIDI_TRANSPOSE_N1",
+    "aliases": [
+      "MI_TRN1"
+    ]
+  },
+  {
+    "code": 433,
+    "id": "QK_MIDI_TRANSPOSE_0",
+    "label": "QK_MIDI_TRANSPOSE_0",
+    "aliases": [
+      "MI_TR0"
+    ]
+  },
+  {
+    "code": 434,
+    "id": "QK_MIDI_TRANSPOSE_1",
+    "label": "QK_MIDI_TRANSPOSE_1",
+    "aliases": [
+      "MI_TR1"
+    ]
+  },
+  {
+    "code": 435,
+    "id": "QK_MIDI_TRANSPOSE_2",
+    "label": "QK_MIDI_TRANSPOSE_2",
+    "aliases": [
+      "MI_TR2"
+    ]
+  },
+  {
+    "code": 436,
+    "id": "QK_MIDI_TRANSPOSE_3",
+    "label": "QK_MIDI_TRANSPOSE_3",
+    "aliases": [
+      "MI_TR3"
+    ]
+  },
+  {
+    "code": 437,
+    "id": "QK_MIDI_TRANSPOSE_4",
+    "label": "QK_MIDI_TRANSPOSE_4",
+    "aliases": [
+      "MI_TR4"
+    ]
+  },
+  {
+    "code": 438,
+    "id": "QK_MIDI_TRANSPOSE_5",
+    "label": "QK_MIDI_TRANSPOSE_5",
+    "aliases": [
+      "MI_TR5"
+    ]
+  },
+  {
+    "code": 439,
+    "id": "QK_MIDI_TRANSPOSE_6",
+    "label": "QK_MIDI_TRANSPOSE_6",
+    "aliases": [
+      "MI_TR6"
+    ]
+  },
+  {
+    "code": 440,
+    "id": "QK_MIDI_TRANSPOSE_DOWN",
+    "label": "QK_MIDI_TRANSPOSE_DOWN",
+    "aliases": [
+      "MI_TRSD"
+    ]
+  },
+  {
+    "code": 441,
+    "id": "QK_MIDI_TRANSPOSE_UP",
+    "label": "QK_MIDI_TRANSPOSE_UP",
+    "aliases": [
+      "MI_TRSU"
+    ]
+  },
+  {
+    "code": 442,
+    "id": "QK_MIDI_VELOCITY_0",
+    "label": "QK_MIDI_VELOCITY_0",
+    "aliases": [
+      "MI_VL0"
+    ]
+  },
+  {
+    "code": 443,
+    "id": "QK_MIDI_VELOCITY_1",
+    "label": "QK_MIDI_VELOCITY_1",
+    "aliases": [
+      "MI_VL1"
+    ]
+  },
+  {
+    "code": 444,
+    "id": "QK_MIDI_VELOCITY_2",
+    "label": "QK_MIDI_VELOCITY_2",
+    "aliases": [
+      "MI_VL2"
+    ]
+  },
+  {
+    "code": 445,
+    "id": "QK_MIDI_VELOCITY_3",
+    "label": "QK_MIDI_VELOCITY_3",
+    "aliases": [
+      "MI_VL3"
+    ]
+  },
+  {
+    "code": 446,
+    "id": "QK_MIDI_VELOCITY_4",
+    "label": "QK_MIDI_VELOCITY_4",
+    "aliases": [
+      "MI_VL4"
+    ]
+  },
+  {
+    "code": 447,
+    "id": "QK_MIDI_VELOCITY_5",
+    "label": "QK_MIDI_VELOCITY_5",
+    "aliases": [
+      "MI_VL5"
+    ]
+  },
+  {
+    "code": 448,
+    "id": "QK_MIDI_VELOCITY_6",
+    "label": "QK_MIDI_VELOCITY_6",
+    "aliases": [
+      "MI_VL6"
+    ]
+  },
+  {
+    "code": 449,
+    "id": "QK_MIDI_VELOCITY_7",
+    "label": "QK_MIDI_VELOCITY_7",
+    "aliases": [
+      "MI_VL7"
+    ]
+  },
+  {
+    "code": 450,
+    "id": "QK_MIDI_VELOCITY_8",
+    "label": "QK_MIDI_VELOCITY_8",
+    "aliases": [
+      "MI_VL8"
+    ]
+  },
+  {
+    "code": 451,
+    "id": "QK_MIDI_VELOCITY_9",
+    "label": "QK_MIDI_VELOCITY_9",
+    "aliases": [
+      "MI_VL9"
+    ]
+  },
+  {
+    "code": 452,
+    "id": "QK_MIDI_VELOCITY_10",
+    "label": "QK_MIDI_VELOCITY_10",
+    "aliases": [
+      "MI_VL10"
+    ]
+  },
+  {
+    "code": 453,
+    "id": "QK_MIDI_VELOCITY_DOWN",
+    "label": "QK_MIDI_VELOCITY_DOWN",
+    "aliases": [
+      "MI_VELD"
+    ]
+  },
+  {
+    "code": 454,
+    "id": "QK_MIDI_VELOCITY_UP",
+    "label": "QK_MIDI_VELOCITY_UP",
+    "aliases": [
+      "MI_VELU"
+    ]
+  },
+  {
+    "code": 455,
+    "id": "QK_MIDI_CHANNEL_1",
+    "label": "QK_MIDI_CHANNEL_1",
+    "aliases": [
+      "MI_CH1"
+    ]
+  },
+  {
+    "code": 456,
+    "id": "QK_MIDI_CHANNEL_2",
+    "label": "QK_MIDI_CHANNEL_2",
+    "aliases": [
+      "MI_CH2"
+    ]
+  },
+  {
+    "code": 457,
+    "id": "QK_MIDI_CHANNEL_3",
+    "label": "QK_MIDI_CHANNEL_3",
+    "aliases": [
+      "MI_CH3"
+    ]
+  },
+  {
+    "code": 458,
+    "id": "QK_MIDI_CHANNEL_4",
+    "label": "QK_MIDI_CHANNEL_4",
+    "aliases": [
+      "MI_CH4"
+    ]
+  },
+  {
+    "code": 459,
+    "id": "QK_MIDI_CHANNEL_5",
+    "label": "QK_MIDI_CHANNEL_5",
+    "aliases": [
+      "MI_CH5"
+    ]
+  },
+  {
+    "code": 460,
+    "id": "QK_MIDI_CHANNEL_6",
+    "label": "QK_MIDI_CHANNEL_6",
+    "aliases": [
+      "MI_CH6"
+    ]
+  },
+  {
+    "code": 461,
+    "id": "QK_MIDI_CHANNEL_7",
+    "label": "QK_MIDI_CHANNEL_7",
+    "aliases": [
+      "MI_CH7"
+    ]
+  },
+  {
+    "code": 462,
+    "id": "QK_MIDI_CHANNEL_8",
+    "label": "QK_MIDI_CHANNEL_8",
+    "aliases": [
+      "MI_CH8"
+    ]
+  },
+  {
+    "code": 463,
+    "id": "QK_MIDI_CHANNEL_9",
+    "label": "QK_MIDI_CHANNEL_9",
+    "aliases": [
+      "MI_CH9"
+    ]
+  },
+  {
+    "code": 464,
+    "id": "QK_MIDI_CHANNEL_10",
+    "label": "QK_MIDI_CHANNEL_10",
+    "aliases": [
+      "MI_CH10"
+    ]
+  },
+  {
+    "code": 465,
+    "id": "QK_MIDI_CHANNEL_11",
+    "label": "QK_MIDI_CHANNEL_11",
+    "aliases": [
+      "MI_CH11"
+    ]
+  },
+  {
+    "code": 466,
+    "id": "QK_MIDI_CHANNEL_12",
+    "label": "QK_MIDI_CHANNEL_12",
+    "aliases": [
+      "MI_CH12"
+    ]
+  },
+  {
+    "code": 467,
+    "id": "QK_MIDI_CHANNEL_13",
+    "label": "QK_MIDI_CHANNEL_13",
+    "aliases": [
+      "MI_CH13"
+    ]
+  },
+  {
+    "code": 468,
+    "id": "QK_MIDI_CHANNEL_14",
+    "label": "QK_MIDI_CHANNEL_14",
+    "aliases": [
+      "MI_CH14"
+    ]
+  },
+  {
+    "code": 469,
+    "id": "QK_MIDI_CHANNEL_15",
+    "label": "QK_MIDI_CHANNEL_15",
+    "aliases": [
+      "MI_CH15"
+    ]
+  },
+  {
+    "code": 470,
+    "id": "QK_MIDI_CHANNEL_16",
+    "label": "QK_MIDI_CHANNEL_16",
+    "aliases": [
+      "MI_CH16"
+    ]
+  },
+  {
+    "code": 471,
+    "id": "QK_MIDI_CHANNEL_DOWN",
+    "label": "QK_MIDI_CHANNEL_DOWN",
+    "aliases": [
+      "MI_CHND"
+    ]
+  },
+  {
+    "code": 472,
+    "id": "QK_MIDI_CHANNEL_UP",
+    "label": "QK_MIDI_CHANNEL_UP",
+    "aliases": [
+      "MI_CHNU"
+    ]
+  },
+  {
+    "code": 473,
+    "id": "QK_MIDI_ALL_NOTES_OFF",
+    "label": "QK_MIDI_ALL_NOTES_OFF",
+    "aliases": [
+      "MI_AOFF"
+    ]
+  },
+  {
+    "code": 474,
+    "id": "QK_MIDI_SUSTAIN",
+    "label": "QK_MIDI_SUSTAIN",
+    "aliases": [
+      "MI_SUST"
+    ]
+  },
+  {
+    "code": 475,
+    "id": "QK_MIDI_PORTAMENTO",
+    "label": "QK_MIDI_PORTAMENTO",
+    "aliases": [
+      "MI_PORT"
+    ]
+  },
+  {
+    "code": 476,
+    "id": "QK_MIDI_SOSTENUTO",
+    "label": "QK_MIDI_SOSTENUTO",
+    "aliases": [
+      "MI_SOST"
+    ]
+  },
+  {
+    "code": 477,
+    "id": "QK_MIDI_SOFT",
+    "label": "QK_MIDI_SOFT",
+    "aliases": [
+      "MI_SOFT"
+    ]
+  },
+  {
+    "code": 478,
+    "id": "QK_MIDI_LEGATO",
+    "label": "QK_MIDI_LEGATO",
+    "aliases": [
+      "MI_LEG"
+    ]
+  },
+  {
+    "code": 479,
+    "id": "QK_MIDI_MODULATION",
+    "label": "QK_MIDI_MODULATION",
+    "aliases": [
+      "MI_MOD"
+    ]
+  },
+  {
+    "code": 480,
+    "id": "QK_MIDI_MODULATION_SPEED_DOWN",
+    "label": "QK_MIDI_MODULATION_SPEED_DOWN",
+    "aliases": [
+      "MI_MODD"
+    ]
+  },
+  {
+    "code": 481,
+    "id": "QK_MIDI_MODULATION_SPEED_UP",
+    "label": "QK_MIDI_MODULATION_SPEED_UP",
+    "aliases": [
+      "MI_MODU"
+    ]
+  },
+  {
+    "code": 482,
+    "id": "QK_MIDI_PITCH_BEND_DOWN",
+    "label": "QK_MIDI_PITCH_BEND_DOWN",
+    "aliases": [
+      "MI_BNDD"
+    ]
+  },
+  {
+    "code": 483,
+    "id": "QK_MIDI_PITCH_BEND_UP",
+    "label": "QK_MIDI_PITCH_BEND_UP",
+    "aliases": [
+      "MI_BNDU"
+    ]
+  },
+  {
+    "code": 484,
+    "id": "QK_MOUSE_CURSOR_UP",
+    "label": "QK_MOUSE_CURSOR_UP",
+    "aliases": [
+      "MS_UP"
+    ]
+  },
+  {
+    "code": 485,
+    "id": "QK_MOUSE_CURSOR_DOWN",
+    "label": "QK_MOUSE_CURSOR_DOWN",
+    "aliases": [
+      "MS_DOWN"
+    ]
+  },
+  {
+    "code": 486,
+    "id": "QK_MOUSE_CURSOR_LEFT",
+    "label": "QK_MOUSE_CURSOR_LEFT",
+    "aliases": [
+      "MS_LEFT"
+    ]
+  },
+  {
+    "code": 487,
+    "id": "QK_MOUSE_CURSOR_RIGHT",
+    "label": "QK_MOUSE_CURSOR_RIGHT",
+    "aliases": [
+      "MS_RGHT"
+    ]
+  },
+  {
+    "code": 488,
+    "id": "QK_MOUSE_BUTTON_1",
+    "label": "QK_MOUSE_BUTTON_1",
+    "aliases": [
+      "MS_BTN1"
+    ]
+  },
+  {
+    "code": 489,
+    "id": "QK_MOUSE_BUTTON_2",
+    "label": "QK_MOUSE_BUTTON_2",
+    "aliases": [
+      "MS_BTN2"
+    ]
+  },
+  {
+    "code": 490,
+    "id": "QK_MOUSE_BUTTON_3",
+    "label": "QK_MOUSE_BUTTON_3",
+    "aliases": [
+      "MS_BTN3"
+    ]
+  },
+  {
+    "code": 491,
+    "id": "QK_MOUSE_BUTTON_4",
+    "label": "QK_MOUSE_BUTTON_4",
+    "aliases": [
+      "MS_BTN4"
+    ]
+  },
+  {
+    "code": 492,
+    "id": "QK_MOUSE_BUTTON_5",
+    "label": "QK_MOUSE_BUTTON_5",
+    "aliases": [
+      "MS_BTN5"
+    ]
+  },
+  {
+    "code": 493,
+    "id": "QK_MOUSE_BUTTON_6",
+    "label": "QK_MOUSE_BUTTON_6",
+    "aliases": [
+      "MS_BTN6"
+    ]
+  },
+  {
+    "code": 494,
+    "id": "QK_MOUSE_BUTTON_7",
+    "label": "QK_MOUSE_BUTTON_7",
+    "aliases": [
+      "MS_BTN7"
+    ]
+  },
+  {
+    "code": 495,
+    "id": "QK_MOUSE_BUTTON_8",
+    "label": "QK_MOUSE_BUTTON_8",
+    "aliases": [
+      "MS_BTN8"
+    ]
+  },
+  {
+    "code": 496,
+    "id": "QK_MOUSE_WHEEL_UP",
+    "label": "QK_MOUSE_WHEEL_UP",
+    "aliases": [
+      "MS_WHLU"
+    ]
+  },
+  {
+    "code": 497,
+    "id": "QK_MOUSE_WHEEL_DOWN",
+    "label": "QK_MOUSE_WHEEL_DOWN",
+    "aliases": [
+      "MS_WHLD"
+    ]
+  },
+  {
+    "code": 498,
+    "id": "QK_MOUSE_WHEEL_LEFT",
+    "label": "QK_MOUSE_WHEEL_LEFT",
+    "aliases": [
+      "MS_WHLL"
+    ]
+  },
+  {
+    "code": 499,
+    "id": "QK_MOUSE_WHEEL_RIGHT",
+    "label": "QK_MOUSE_WHEEL_RIGHT",
+    "aliases": [
+      "MS_WHLR"
+    ]
+  },
+  {
+    "code": 500,
+    "id": "QK_MOUSE_ACCELERATION_0",
+    "label": "QK_MOUSE_ACCELERATION_0",
+    "aliases": [
+      "MS_ACL0"
+    ]
+  },
+  {
+    "code": 501,
+    "id": "QK_MOUSE_ACCELERATION_1",
+    "label": "QK_MOUSE_ACCELERATION_1",
+    "aliases": [
+      "MS_ACL1"
+    ]
+  },
+  {
+    "code": 502,
+    "id": "QK_MOUSE_ACCELERATION_2",
+    "label": "QK_MOUSE_ACCELERATION_2",
+    "aliases": [
+      "MS_ACL2"
+    ]
+  },
+  {
+    "code": 503,
+    "id": "LCTL(kc)",
+    "label": "LCTL(kc)",
+    "aliases": [
+      "C(kc)"
+    ]
+  },
+  {
+    "code": 504,
+    "id": "LSFT(kc)",
+    "label": "LSFT(kc)",
+    "aliases": [
+      "S(kc)"
+    ]
+  },
+  {
+    "code": 505,
+    "id": "LALT(kc)",
+    "label": "LALT(kc)",
+    "aliases": [
+      "A(kc)",
+      "LOPT(kc)"
+    ]
+  },
+  {
+    "code": 506,
+    "id": "LGUI(kc)",
+    "label": "LGUI(kc)",
+    "aliases": [
+      "G(kc)",
+      "LCMD(kc)",
+      "LWIN(kc)"
+    ]
+  },
+  {
+    "code": 507,
+    "id": "LCS(kc)",
+    "label": "LCS(kc)",
+    "aliases": []
+  },
+  {
+    "code": 508,
+    "id": "LCA(kc)",
+    "label": "LCA(kc)",
+    "aliases": []
+  },
+  {
+    "code": 509,
+    "id": "LCG(kc)",
+    "label": "LCG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 510,
+    "id": "LSA(kc)",
+    "label": "LSA(kc)",
+    "aliases": []
+  },
+  {
+    "code": 511,
+    "id": "LSG(kc)",
+    "label": "LSG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 512,
+    "id": "LAG(kc)",
+    "label": "LAG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 513,
+    "id": "LCSG(kc)",
+    "label": "LCSG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 514,
+    "id": "LCAG(kc)",
+    "label": "LCAG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 515,
+    "id": "LSAG(kc)",
+    "label": "LSAG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 516,
+    "id": "RCTL(kc)",
+    "label": "RCTL(kc)",
+    "aliases": []
+  },
+  {
+    "code": 517,
+    "id": "RSFT(kc)",
+    "label": "RSFT(kc)",
+    "aliases": []
+  },
+  {
+    "code": 518,
+    "id": "RALT(kc)",
+    "label": "RALT(kc)",
+    "aliases": [
+      "ROPT(kc)",
+      "ALGR(kc)"
+    ]
+  },
+  {
+    "code": 519,
+    "id": "RGUI(kc)",
+    "label": "RGUI(kc)",
+    "aliases": [
+      "RCMD(kc)",
+      "RWIN(kc)"
+    ]
+  },
+  {
+    "code": 520,
+    "id": "RCS(kc)",
+    "label": "RCS(kc)",
+    "aliases": []
+  },
+  {
+    "code": 521,
+    "id": "RCA(kc)",
+    "label": "RCA(kc)",
+    "aliases": []
+  },
+  {
+    "code": 522,
+    "id": "RCG(kc)",
+    "label": "RCG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 523,
+    "id": "RSA(kc)",
+    "label": "RSA(kc)",
+    "aliases": []
+  },
+  {
+    "code": 524,
+    "id": "RSG(kc)",
+    "label": "RSG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 525,
+    "id": "RAG(kc)",
+    "label": "RAG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 526,
+    "id": "RCSG(kc)",
+    "label": "RCSG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 527,
+    "id": "RCAG(kc)",
+    "label": "RCAG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 528,
+    "id": "RSAG(kc)",
+    "label": "RSAG(kc)",
+    "aliases": []
+  },
+  {
+    "code": 529,
+    "id": "MEH(kc)",
+    "label": "MEH(kc)",
+    "aliases": []
+  },
+  {
+    "code": 530,
+    "id": "HYPR(kc)",
+    "label": "HYPR(kc)",
+    "aliases": []
+  },
+  {
+    "code": 531,
+    "id": "KC_MEH",
+    "label": "MEH",
+    "aliases": []
+  },
+  {
+    "code": 532,
+    "id": "KC_HYPR",
+    "label": "HYPR",
+    "aliases": []
+  },
+  {
+    "code": 533,
+    "id": "MT(mod, kc)",
+    "label": "MT(mod, kc)",
+    "aliases": []
+  },
+  {
+    "code": 534,
+    "id": "LCTL_T(kc)",
+    "label": "LCTL_T(kc)",
+    "aliases": [
+      "CTL_T(kc)"
+    ]
+  },
+  {
+    "code": 535,
+    "id": "LSFT_T(kc)",
+    "label": "LSFT_T(kc)",
+    "aliases": [
+      "SFT_T(kc)"
+    ]
+  },
+  {
+    "code": 536,
+    "id": "LALT_T(kc)",
+    "label": "LALT_T(kc)",
+    "aliases": [
+      "ALT_T(kc)",
+      "LOPT_T(kc)",
+      "OPT_T(kc)"
+    ]
+  },
+  {
+    "code": 537,
+    "id": "LGUI_T(kc)",
+    "label": "LGUI_T(kc)",
+    "aliases": [
+      "GUI_T(kc)",
+      "LCMD_T(kc)",
+      "LWIN_T(kc)",
+      "CMD_T(kc)",
+      "WIN_T(kc)"
+    ]
+  },
+  {
+    "code": 538,
+    "id": "LCS_T(kc)",
+    "label": "LCS_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 539,
+    "id": "LCA_T(kc)",
+    "label": "LCA_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 540,
+    "id": "LCG_T(kc)",
+    "label": "LCG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 541,
+    "id": "LSA_T(kc)",
+    "label": "LSA_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 542,
+    "id": "LSG_T(kc)",
+    "label": "LSG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 543,
+    "id": "LAG_T(kc)",
+    "label": "LAG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 544,
+    "id": "LCSG_T(kc)",
+    "label": "LCSG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 545,
+    "id": "LCAG_T(kc)",
+    "label": "LCAG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 546,
+    "id": "LSAG_T(kc)",
+    "label": "LSAG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 547,
+    "id": "RCTL_T(kc)",
+    "label": "RCTL_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 548,
+    "id": "RSFT_T(kc)",
+    "label": "RSFT_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 549,
+    "id": "RALT_T(kc)",
+    "label": "RALT_T(kc)",
+    "aliases": [
+      "ROPT_T(kc)",
+      "ALGR_T(kc)"
+    ]
+  },
+  {
+    "code": 550,
+    "id": "RGUI_T(kc)",
+    "label": "RGUI_T(kc)",
+    "aliases": [
+      "RCMD_T(kc)",
+      "RWIN_T(kc)"
+    ]
+  },
+  {
+    "code": 551,
+    "id": "RCS_T(kc)",
+    "label": "RCS_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 552,
+    "id": "RCA_T(kc)",
+    "label": "RCA_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 553,
+    "id": "RCG_T(kc)",
+    "label": "RCG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 554,
+    "id": "RSA_T(kc)",
+    "label": "RSA_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 555,
+    "id": "RSG_T(kc)",
+    "label": "RSG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 556,
+    "id": "RAG_T(kc)",
+    "label": "RAG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 557,
+    "id": "RCSG_T(kc)",
+    "label": "RCSG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 558,
+    "id": "RCAG_T(kc)",
+    "label": "RCAG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 559,
+    "id": "RSAG_T(kc)",
+    "label": "RSAG_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 560,
+    "id": "MEH_T(kc)",
+    "label": "MEH_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 561,
+    "id": "HYPR_T(kc)",
+    "label": "HYPR_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 562,
+    "id": "QK_DYNAMIC_TAPPING_TERM_PRINT",
+    "label": "QK_DYNAMIC_TAPPING_TERM_PRINT",
+    "aliases": [
+      "DT_PRNT"
+    ]
+  },
+  {
+    "code": 563,
+    "id": "QK_DYNAMIC_TAPPING_TERM_UP",
+    "label": "QK_DYNAMIC_TAPPING_TERM_UP",
+    "aliases": [
+      "DT_UP"
+    ]
+  },
+  {
+    "code": 564,
+    "id": "QK_DYNAMIC_TAPPING_TERM_DOWN",
+    "label": "QK_DYNAMIC_TAPPING_TERM_DOWN",
+    "aliases": [
+      "DT_DOWN"
+    ]
+  },
+  {
+    "code": 565,
+    "id": "QK_UNDERGLOW_TOGGLE",
+    "label": "QK_UNDERGLOW_TOGGLE",
+    "aliases": [
+      "UG_TOGG"
+    ]
+  },
+  {
+    "code": 566,
+    "id": "QK_UNDERGLOW_MODE_NEXT",
+    "label": "QK_UNDERGLOW_MODE_NEXT",
+    "aliases": [
+      "UG_NEXT"
+    ]
+  },
+  {
+    "code": 567,
+    "id": "QK_UNDERGLOW_MODE_PREVIOUS",
+    "label": "QK_UNDERGLOW_MODE_PREVIOUS",
+    "aliases": [
+      "UG_PREV"
+    ]
+  },
+  {
+    "code": 568,
+    "id": "QK_UNDERGLOW_HUE_UP",
+    "label": "QK_UNDERGLOW_HUE_UP",
+    "aliases": [
+      "UG_HUEU"
+    ]
+  },
+  {
+    "code": 569,
+    "id": "QK_UNDERGLOW_HUE_DOWN",
+    "label": "QK_UNDERGLOW_HUE_DOWN",
+    "aliases": [
+      "UG_HUED"
+    ]
+  },
+  {
+    "code": 570,
+    "id": "QK_UNDERGLOW_SATURATION_UP",
+    "label": "QK_UNDERGLOW_SATURATION_UP",
+    "aliases": [
+      "UG_SATU"
+    ]
+  },
+  {
+    "code": 571,
+    "id": "QK_UNDERGLOW_SATURATION_DOWN",
+    "label": "QK_UNDERGLOW_SATURATION_DOWN",
+    "aliases": [
+      "UG_SATD"
+    ]
+  },
+  {
+    "code": 572,
+    "id": "QK_UNDERGLOW_VALUE_UP",
+    "label": "QK_UNDERGLOW_VALUE_UP",
+    "aliases": [
+      "UG_VALU"
+    ]
+  },
+  {
+    "code": 573,
+    "id": "QK_UNDERGLOW_VALUE_DOWN",
+    "label": "QK_UNDERGLOW_VALUE_DOWN",
+    "aliases": [
+      "UG_VALD"
+    ]
+  },
+  {
+    "code": 574,
+    "id": "QK_UNDERGLOW_SPEED_UP",
+    "label": "QK_UNDERGLOW_SPEED_UP",
+    "aliases": [
+      "UG_SPDU"
+    ]
+  },
+  {
+    "code": 575,
+    "id": "QK_UNDERGLOW_SPEED_DOWN",
+    "label": "QK_UNDERGLOW_SPEED_DOWN",
+    "aliases": [
+      "UG_SPDD"
+    ]
+  },
+  {
+    "code": 576,
+    "id": "RGB_MODE_PLAIN",
+    "label": "RGB_MODE_PLAIN",
+    "aliases": [
+      "RGB_M_P"
+    ]
+  },
+  {
+    "code": 603,
+    "id": "KC_AT",
+    "label": "AT",
+    "aliases": []
+  },
+  {
+    "code": 604,
+    "id": "KC_HASH",
+    "label": "HASH",
+    "aliases": []
+  },
+  {
+    "code": 605,
+    "id": "KC_DOLLAR",
+    "label": "KC_DOLLAR",
+    "aliases": [
+      "KC_DLR"
+    ]
+  },
+  {
+    "code": 606,
+    "id": "KC_PERCENT",
+    "label": "KC_PERCENT",
+    "aliases": [
+      "KC_PERC"
+    ]
+  },
+  {
+    "code": 607,
+    "id": "KC_CIRCUMFLEX",
+    "label": "KC_CIRCUMFLEX",
+    "aliases": [
+      "KC_CIRC"
+    ]
+  },
+  {
+    "code": 608,
+    "id": "KC_AMPERSAND",
+    "label": "KC_AMPERSAND",
+    "aliases": [
+      "KC_AMPR"
+    ]
+  },
+  {
+    "code": 609,
+    "id": "KC_ASTERISK",
+    "label": "KC_ASTERISK",
+    "aliases": [
+      "KC_ASTR"
+    ]
+  },
+  {
+    "code": 610,
+    "id": "KC_LEFT_PAREN",
+    "label": "KC_LEFT_PAREN",
+    "aliases": [
+      "KC_LPRN"
+    ]
+  },
+  {
+    "code": 611,
+    "id": "KC_RIGHT_PAREN",
+    "label": "KC_RIGHT_PAREN",
+    "aliases": [
+      "KC_RPRN"
+    ]
+  },
+  {
+    "code": 612,
+    "id": "KC_UNDERSCORE",
+    "label": "KC_UNDERSCORE",
+    "aliases": [
+      "KC_UNDS"
+    ]
+  },
+  {
+    "code": 613,
+    "id": "KC_PLUS",
+    "label": "PLUS",
+    "aliases": []
+  },
+  {
+    "code": 614,
+    "id": "KC_LEFT_CURLY_BRACE",
+    "label": "KC_LEFT_CURLY_BRACE",
+    "aliases": [
+      "KC_LCBR"
+    ]
+  },
+  {
+    "code": 615,
+    "id": "KC_RIGHT_CURLY_BRACE",
+    "label": "KC_RIGHT_CURLY_BRACE",
+    "aliases": [
+      "KC_RCBR"
+    ]
+  },
+  {
+    "code": 616,
+    "id": "KC_PIPE",
+    "label": "PIPE",
+    "aliases": []
+  },
+  {
+    "code": 617,
+    "id": "KC_COLON",
+    "label": "KC_COLON",
+    "aliases": [
+      "KC_COLN"
+    ]
+  },
+  {
+    "code": 618,
+    "id": "KC_DOUBLE_QUOTE",
+    "label": "KC_DOUBLE_QUOTE",
+    "aliases": [
+      "KC_DQUO",
+      "KC_DQT"
+    ]
+  },
+  {
+    "code": 619,
+    "id": "KC_LEFT_ANGLE_BRACKET",
+    "label": "KC_LEFT_ANGLE_BRACKET",
+    "aliases": [
+      "KC_LABK",
+      "KC_LT"
+    ]
+  },
+  {
+    "code": 620,
+    "id": "KC_RIGHT_ANGLE_BRACKET",
+    "label": "KC_RIGHT_ANGLE_BRACKET",
+    "aliases": [
+      "KC_RABK",
+      "KC_GT"
+    ]
+  },
+  {
+    "code": 621,
+    "id": "KC_QUESTION",
+    "label": "KC_QUESTION",
+    "aliases": [
+      "KC_QUES"
+    ]
+  },
+  {
+    "code": 622,
+    "id": "QK_ONE_SHOT_TOGGLE",
+    "label": "QK_ONE_SHOT_TOGGLE",
+    "aliases": [
+      "OS_TOGG"
+    ]
+  },
+  {
+    "code": 623,
+    "id": "QK_ONE_SHOT_ON",
+    "label": "QK_ONE_SHOT_ON",
+    "aliases": [
+      "OS_ON"
+    ]
+  },
+  {
+    "code": 624,
+    "id": "QK_ONE_SHOT_OFF",
+    "label": "QK_ONE_SHOT_OFF",
+    "aliases": [
+      "OS_OFF"
+    ]
+  },
+  {
+    "code": 625,
+    "id": "OSL(layer)",
+    "label": "OSL(layer)",
+    "aliases": []
+  },
+  {
+    "code": 626,
+    "id": "OSM(mod)",
+    "label": "OSM(mod)",
+    "aliases": []
+  },
+  {
+    "code": 627,
+    "id": "OS_LCTL",
+    "label": "OS_LCTL",
+    "aliases": []
+  },
+  {
+    "code": 628,
+    "id": "OS_LSFT",
+    "label": "OS_LSFT",
+    "aliases": []
+  },
+  {
+    "code": 629,
+    "id": "OS_LALT",
+    "label": "OS_LALT",
+    "aliases": []
+  },
+  {
+    "code": 630,
+    "id": "OS_LGUI",
+    "label": "OS_LGUI",
+    "aliases": []
+  },
+  {
+    "code": 631,
+    "id": "OS_LCS",
+    "label": "OS_LCS",
+    "aliases": []
+  },
+  {
+    "code": 632,
+    "id": "OS_LCA",
+    "label": "OS_LCA",
+    "aliases": []
+  },
+  {
+    "code": 633,
+    "id": "OS_LCG",
+    "label": "OS_LCG",
+    "aliases": []
+  },
+  {
+    "code": 634,
+    "id": "OS_LSA",
+    "label": "OS_LSA",
+    "aliases": []
+  },
+  {
+    "code": 635,
+    "id": "OS_LSG",
+    "label": "OS_LSG",
+    "aliases": []
+  },
+  {
+    "code": 636,
+    "id": "OS_LAG",
+    "label": "OS_LAG",
+    "aliases": []
+  },
+  {
+    "code": 637,
+    "id": "OS_LCSG",
+    "label": "OS_LCSG",
+    "aliases": []
+  },
+  {
+    "code": 638,
+    "id": "OS_LCAG",
+    "label": "OS_LCAG",
+    "aliases": []
+  },
+  {
+    "code": 639,
+    "id": "OS_LSAG",
+    "label": "OS_LSAG",
+    "aliases": []
+  },
+  {
+    "code": 640,
+    "id": "OS_RCTL",
+    "label": "OS_RCTL",
+    "aliases": []
+  },
+  {
+    "code": 641,
+    "id": "OS_RSFT",
+    "label": "OS_RSFT",
+    "aliases": []
+  },
+  {
+    "code": 642,
+    "id": "OS_RALT",
+    "label": "OS_RALT",
+    "aliases": []
+  },
+  {
+    "code": 643,
+    "id": "OS_RGUI",
+    "label": "OS_RGUI",
+    "aliases": []
+  },
+  {
+    "code": 644,
+    "id": "OS_RCS",
+    "label": "OS_RCS",
+    "aliases": []
+  },
+  {
+    "code": 645,
+    "id": "OS_RCA",
+    "label": "OS_RCA",
+    "aliases": []
+  },
+  {
+    "code": 646,
+    "id": "OS_RCG",
+    "label": "OS_RCG",
+    "aliases": []
+  },
+  {
+    "code": 647,
+    "id": "OS_RSA",
+    "label": "OS_RSA",
+    "aliases": []
+  },
+  {
+    "code": 648,
+    "id": "OS_RSG",
+    "label": "OS_RSG",
+    "aliases": []
+  },
+  {
+    "code": 649,
+    "id": "OS_RAG",
+    "label": "OS_RAG",
+    "aliases": []
+  },
+  {
+    "code": 650,
+    "id": "OS_RCSG",
+    "label": "OS_RCSG",
+    "aliases": []
+  },
+  {
+    "code": 651,
+    "id": "OS_RCAG",
+    "label": "OS_RCAG",
+    "aliases": []
+  },
+  {
+    "code": 652,
+    "id": "OS_RSAG",
+    "label": "OS_RSAG",
+    "aliases": []
+  },
+  {
+    "code": 653,
+    "id": "OS_MEH",
+    "label": "OS_MEH",
+    "aliases": []
+  },
+  {
+    "code": 654,
+    "id": "OS_HYPR",
+    "label": "OS_HYPR",
+    "aliases": []
+  },
+  {
+    "code": 655,
+    "id": "QK_PROGRAMMABLE_BUTTON_1",
+    "label": "PB_1",
+    "aliases": [
+      "PB_1"
+    ]
+  },
+  {
+    "code": 656,
+    "id": "QK_PROGRAMMABLE_BUTTON_2",
+    "label": "PB_2",
+    "aliases": [
+      "PB_2"
+    ]
+  },
+  {
+    "code": 657,
+    "id": "QK_PROGRAMMABLE_BUTTON_3",
+    "label": "PB_3",
+    "aliases": [
+      "PB_3"
+    ]
+  },
+  {
+    "code": 658,
+    "id": "QK_PROGRAMMABLE_BUTTON_4",
+    "label": "PB_4",
+    "aliases": [
+      "PB_4"
+    ]
+  },
+  {
+    "code": 659,
+    "id": "QK_PROGRAMMABLE_BUTTON_5",
+    "label": "PB_5",
+    "aliases": [
+      "PB_5"
+    ]
+  },
+  {
+    "code": 660,
+    "id": "QK_PROGRAMMABLE_BUTTON_6",
+    "label": "PB_6",
+    "aliases": [
+      "PB_6"
+    ]
+  },
+  {
+    "code": 661,
+    "id": "QK_PROGRAMMABLE_BUTTON_7",
+    "label": "PB_7",
+    "aliases": [
+      "PB_7"
+    ]
+  },
+  {
+    "code": 662,
+    "id": "QK_PROGRAMMABLE_BUTTON_8",
+    "label": "PB_8",
+    "aliases": [
+      "PB_8"
+    ]
+  },
+  {
+    "code": 663,
+    "id": "QK_PROGRAMMABLE_BUTTON_9",
+    "label": "PB_9",
+    "aliases": [
+      "PB_9"
+    ]
+  },
+  {
+    "code": 664,
+    "id": "QK_PROGRAMMABLE_BUTTON_10",
+    "label": "QK_PROGRAMMABLE_BUTTON_10",
+    "aliases": [
+      "PB_10"
+    ]
+  },
+  {
+    "code": 665,
+    "id": "QK_PROGRAMMABLE_BUTTON_11",
+    "label": "QK_PROGRAMMABLE_BUTTON_11",
+    "aliases": [
+      "PB_11"
+    ]
+  },
+  {
+    "code": 666,
+    "id": "QK_PROGRAMMABLE_BUTTON_12",
+    "label": "QK_PROGRAMMABLE_BUTTON_12",
+    "aliases": [
+      "PB_12"
+    ]
+  },
+  {
+    "code": 667,
+    "id": "QK_PROGRAMMABLE_BUTTON_13",
+    "label": "QK_PROGRAMMABLE_BUTTON_13",
+    "aliases": [
+      "PB_13"
+    ]
+  },
+  {
+    "code": 668,
+    "id": "QK_PROGRAMMABLE_BUTTON_14",
+    "label": "QK_PROGRAMMABLE_BUTTON_14",
+    "aliases": [
+      "PB_14"
+    ]
+  },
+  {
+    "code": 669,
+    "id": "QK_PROGRAMMABLE_BUTTON_15",
+    "label": "QK_PROGRAMMABLE_BUTTON_15",
+    "aliases": [
+      "PB_15"
+    ]
+  },
+  {
+    "code": 670,
+    "id": "QK_PROGRAMMABLE_BUTTON_16",
+    "label": "QK_PROGRAMMABLE_BUTTON_16",
+    "aliases": [
+      "PB_16"
+    ]
+  },
+  {
+    "code": 671,
+    "id": "QK_PROGRAMMABLE_BUTTON_17",
+    "label": "QK_PROGRAMMABLE_BUTTON_17",
+    "aliases": [
+      "PB_17"
+    ]
+  },
+  {
+    "code": 672,
+    "id": "QK_PROGRAMMABLE_BUTTON_18",
+    "label": "QK_PROGRAMMABLE_BUTTON_18",
+    "aliases": [
+      "PB_18"
+    ]
+  },
+  {
+    "code": 673,
+    "id": "QK_PROGRAMMABLE_BUTTON_19",
+    "label": "QK_PROGRAMMABLE_BUTTON_19",
+    "aliases": [
+      "PB_19"
+    ]
+  },
+  {
+    "code": 674,
+    "id": "QK_PROGRAMMABLE_BUTTON_20",
+    "label": "QK_PROGRAMMABLE_BUTTON_20",
+    "aliases": [
+      "PB_20"
+    ]
+  },
+  {
+    "code": 675,
+    "id": "QK_PROGRAMMABLE_BUTTON_21",
+    "label": "QK_PROGRAMMABLE_BUTTON_21",
+    "aliases": [
+      "PB_21"
+    ]
+  },
+  {
+    "code": 676,
+    "id": "QK_PROGRAMMABLE_BUTTON_22",
+    "label": "QK_PROGRAMMABLE_BUTTON_22",
+    "aliases": [
+      "PB_22"
+    ]
+  },
+  {
+    "code": 677,
+    "id": "QK_PROGRAMMABLE_BUTTON_23",
+    "label": "QK_PROGRAMMABLE_BUTTON_23",
+    "aliases": [
+      "PB_23"
+    ]
+  },
+  {
+    "code": 678,
+    "id": "QK_PROGRAMMABLE_BUTTON_24",
+    "label": "QK_PROGRAMMABLE_BUTTON_24",
+    "aliases": [
+      "PB_24"
+    ]
+  },
+  {
+    "code": 679,
+    "id": "QK_PROGRAMMABLE_BUTTON_25",
+    "label": "QK_PROGRAMMABLE_BUTTON_25",
+    "aliases": [
+      "PB_25"
+    ]
+  },
+  {
+    "code": 680,
+    "id": "QK_PROGRAMMABLE_BUTTON_26",
+    "label": "QK_PROGRAMMABLE_BUTTON_26",
+    "aliases": [
+      "PB_26"
+    ]
+  },
+  {
+    "code": 681,
+    "id": "QK_PROGRAMMABLE_BUTTON_27",
+    "label": "QK_PROGRAMMABLE_BUTTON_27",
+    "aliases": [
+      "PB_27"
+    ]
+  },
+  {
+    "code": 682,
+    "id": "QK_PROGRAMMABLE_BUTTON_28",
+    "label": "QK_PROGRAMMABLE_BUTTON_28",
+    "aliases": [
+      "PB_28"
+    ]
+  },
+  {
+    "code": 683,
+    "id": "QK_PROGRAMMABLE_BUTTON_29",
+    "label": "QK_PROGRAMMABLE_BUTTON_29",
+    "aliases": [
+      "PB_29"
+    ]
+  },
+  {
+    "code": 684,
+    "id": "QK_PROGRAMMABLE_BUTTON_30",
+    "label": "QK_PROGRAMMABLE_BUTTON_30",
+    "aliases": [
+      "PB_30"
+    ]
+  },
+  {
+    "code": 685,
+    "id": "QK_PROGRAMMABLE_BUTTON_31",
+    "label": "QK_PROGRAMMABLE_BUTTON_31",
+    "aliases": [
+      "PB_31"
+    ]
+  },
+  {
+    "code": 686,
+    "id": "QK_PROGRAMMABLE_BUTTON_32",
+    "label": "QK_PROGRAMMABLE_BUTTON_32",
+    "aliases": [
+      "PB_32"
+    ]
+  },
+  {
+    "code": 687,
+    "id": "QK_REPEAT_KEY",
+    "label": "QK_REPEAT_KEY",
+    "aliases": [
+      "QK_REP"
+    ]
+  },
+  {
+    "code": 688,
+    "id": "QK_ALT_REPEAT_KEY",
+    "label": "QK_ALT_REPEAT_KEY",
+    "aliases": [
+      "QK_AREP"
+    ]
+  },
+  {
+    "code": 689,
+    "id": "QK_SPACE_CADET_LEFT_CTRL_PARENTHESIS_OPEN",
+    "label": "QK_SPACE_CADET_LEFT_CTRL_PARENTHESIS_OPEN",
+    "aliases": [
+      "SC_LCPO"
+    ]
+  },
+  {
+    "code": 690,
+    "id": "QK_SPACE_CADET_RIGHT_CTRL_PARENTHESIS_CLOSE",
+    "label": "QK_SPACE_CADET_RIGHT_CTRL_PARENTHESIS_CLOSE",
+    "aliases": [
+      "SC_RCPC"
+    ]
+  },
+  {
+    "code": 691,
+    "id": "QK_SPACE_CADET_LEFT_SHIFT_PARENTHESIS_OPEN",
+    "label": "QK_SPACE_CADET_LEFT_SHIFT_PARENTHESIS_OPEN",
+    "aliases": [
+      "SC_LSPO"
+    ]
+  },
+  {
+    "code": 692,
+    "id": "QK_SPACE_CADET_RIGHT_SHIFT_PARENTHESIS_CLOSE",
+    "label": "QK_SPACE_CADET_RIGHT_SHIFT_PARENTHESIS_CLOSE",
+    "aliases": [
+      "SC_RSPC"
+    ]
+  },
+  {
+    "code": 693,
+    "id": "QK_SPACE_CADET_LEFT_ALT_PARENTHESIS_OPEN",
+    "label": "QK_SPACE_CADET_LEFT_ALT_PARENTHESIS_OPEN",
+    "aliases": [
+      "SC_LAPO"
+    ]
+  },
+  {
+    "code": 694,
+    "id": "QK_SPACE_CADET_RIGHT_ALT_PARENTHESIS_CLOSE",
+    "label": "QK_SPACE_CADET_RIGHT_ALT_PARENTHESIS_CLOSE",
+    "aliases": [
+      "SC_RAPC"
+    ]
+  },
+  {
+    "code": 695,
+    "id": "QK_SPACE_CADET_RIGHT_SHIFT_ENTER",
+    "label": "QK_SPACE_CADET_RIGHT_SHIFT_ENTER",
+    "aliases": [
+      "SC_SENT"
+    ]
+  },
+  {
+    "code": 696,
+    "id": "SH_T(kc)",
+    "label": "SH_T(kc)",
+    "aliases": []
+  },
+  {
+    "code": 697,
+    "id": "QK_SWAP_HANDS_ON",
+    "label": "QK_SWAP_HANDS_ON",
+    "aliases": [
+      "SH_ON"
+    ]
+  },
+  {
+    "code": 698,
+    "id": "QK_SWAP_HANDS_OFF",
+    "label": "QK_SWAP_HANDS_OFF",
+    "aliases": [
+      "SH_OFF"
+    ]
+  },
+  {
+    "code": 699,
+    "id": "QK_SWAP_HANDS_MOMENTARY_ON",
+    "label": "QK_SWAP_HANDS_MOMENTARY_ON",
+    "aliases": [
+      "SH_MON"
+    ]
+  },
+  {
+    "code": 700,
+    "id": "QK_SWAP_HANDS_MOMENTARY_OFF",
+    "label": "QK_SWAP_HANDS_MOMENTARY_OFF",
+    "aliases": [
+      "SH_MOFF"
+    ]
+  },
+  {
+    "code": 701,
+    "id": "QK_SWAP_HANDS_TOGGLE",
+    "label": "QK_SWAP_HANDS_TOGGLE",
+    "aliases": [
+      "SH_TOGG"
+    ]
+  },
+  {
+    "code": 702,
+    "id": "QK_SWAP_HANDS_TAP_TOGGLE",
+    "label": "QK_SWAP_HANDS_TAP_TOGGLE",
+    "aliases": [
+      "SH_TT"
+    ]
+  },
+  {
+    "code": 703,
+    "id": "QK_SWAP_HANDS_ONE_SHOT",
+    "label": "QK_SWAP_HANDS_ONE_SHOT",
+    "aliases": [
+      "SH_OS"
+    ]
+  },
+  {
+    "code": 704,
+    "id": "UC(c)",
+    "label": "UC(c)",
+    "aliases": []
+  },
+  {
+    "code": 705,
+    "id": "UM(i)",
+    "label": "UM(i)",
+    "aliases": []
+  },
+  {
+    "code": 706,
+    "id": "UP(i, j)",
+    "label": "UP(i, j)",
+    "aliases": []
+  },
+  {
+    "code": 707,
+    "id": "QK_UNICODE_MODE_NEXT",
+    "label": "QK_UNICODE_MODE_NEXT",
+    "aliases": [
+      "UC_NEXT"
+    ]
+  },
+  {
+    "code": 708,
+    "id": "QK_UNICODE_MODE_PREVIOUS",
+    "label": "QK_UNICODE_MODE_PREVIOUS",
+    "aliases": [
+      "UC_PREV"
+    ]
+  },
+  {
+    "code": 709,
+    "id": "QK_UNICODE_MODE_MACOS",
+    "label": "QK_UNICODE_MODE_MACOS",
+    "aliases": [
+      "UC_MAC"
+    ]
+  },
+  {
+    "code": 710,
+    "id": "QK_UNICODE_MODE_LINUX",
+    "label": "QK_UNICODE_MODE_LINUX",
+    "aliases": [
+      "UC_LINX"
+    ]
+  },
+  {
+    "code": 711,
+    "id": "QK_UNICODE_MODE_WINDOWS",
+    "label": "QK_UNICODE_MODE_WINDOWS",
+    "aliases": [
+      "UC_WIN"
+    ]
+  },
+  {
+    "code": 712,
+    "id": "QK_UNICODE_MODE_BSD",
+    "label": "QK_UNICODE_MODE_BSD",
+    "aliases": [
+      "UC_BSD"
+    ]
+  },
+  {
+    "code": 713,
+    "id": "QK_UNICODE_MODE_WINCOMPOSE",
+    "label": "QK_UNICODE_MODE_WINCOMPOSE",
+    "aliases": [
+      "UC_WINC"
+    ]
+  },
+  {
+    "code": 714,
+    "id": "QK_UNICODE_MODE_EMACS",
+    "label": "QK_UNICODE_MODE_EMACS",
+    "aliases": [
+      "UC_EMAC"
+    ]
+  }
+]

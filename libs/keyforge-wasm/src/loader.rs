@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Re-exports the standard `InMemoryLoader` from `keyforge-core`.
+//! Re-exports the standard `InMemoryLoader` from `keyforge-compute`.
 
-pub use keyforge_core::loader::InMemoryLoader;
+pub use keyforge_compute::loader::InMemoryLoader;

@@ -8,7 +8,7 @@
 
 use keyforge_evolution::{evolve, optimize, NoOpCallback};
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
-use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric, SearchConfig, EngineRequest};
+use keyforge_model::{Corpus, CostModel, EngineRequest, KeyNode, Keyboard, Rubric, SearchConfig};
 use keyforge_physics::{EngineFactory, ScoringEngine};
 use std::sync::Arc;
 
@@ -109,7 +109,13 @@ fn test_legacy_optimize_entry_point() {
 #[test]
 fn test_evolve_api_direct() {
     let (kb, cp, rb, cm) = setup_env();
-    let engine = EngineFactory::new_generic(&kb, &cp, &rb, &cm).unwrap();
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &kb,
+        corpus: &cp,
+        rubric: &rb,
+        cost_model: &cm,
+    })
+    .unwrap();
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
     let config = SearchConfig::Annealing {
         steps: 10,

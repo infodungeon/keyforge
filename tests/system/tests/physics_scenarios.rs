@@ -61,8 +61,13 @@ async fn test_scorer_determinism_production_data() {
     .unwrap();
     let rubric = conversion::to_domain_rubric(&weights);
 
-    let engine = EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_data)
-        .expect("Failed to create engine");
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &keyboard,
+        corpus: &corpus,
+        rubric: &rubric,
+        cost_model: &cost_data,
+    })
+    .expect("Failed to create engine");
 
     let registry = provider
         .load::<KeycodeRegistry>(ASSET_KEYCODES)

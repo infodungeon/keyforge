@@ -29,24 +29,7 @@ pub fn parse_layout_string_strict(
             break;
         }
 
-        // 1. Try exact match first (e.g. "MO(1)")
-        if let Some(code) = registry.get_code(token) {
-            keys.push(code);
-            continue;
-        }
-
-        // 2. Try stripping arguments safely (e.g. "MO(1)" -> "MO")
-        let base_token = if token.ends_with(')') {
-            if let Some(idx) = token.find('(') {
-                &token[..idx]
-            } else {
-                token
-            }
-        } else {
-            token
-        };
-
-        if let Some(code) = registry.get_code(base_token) {
+        if let Some(code) = registry.resolve_token(token) {
             keys.push(code);
         } else {
             // Strict parsing: remove length-1 ASCII backdoor. Everything must be in the registry.
@@ -79,22 +62,7 @@ pub fn parse_layout_string_permissive(
             break;
         }
 
-        if let Some(code) = registry.get_code(token) {
-            keys.push(code);
-            continue;
-        }
-
-        let base_token = if token.ends_with(')') {
-            if let Some(idx) = token.find('(') {
-                &token[..idx]
-            } else {
-                token
-            }
-        } else {
-            token
-        };
-
-        if let Some(code) = registry.get_code(base_token) {
+        if let Some(code) = registry.resolve_token(token) {
             keys.push(code);
         } else {
             keys.push(KeyCode(0));

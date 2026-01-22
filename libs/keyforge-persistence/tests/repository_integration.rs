@@ -68,7 +68,8 @@ fn user_repo_profile_generation() {
 
     // 1. Should fail with insufficient data (count < 5)
     let mut builder = StreamingProfileBuilder::new();
-    repo.load_stats_streaming(|s| builder.add_sample(&s)).unwrap();
+    repo.load_stats_streaming(|s| builder.add_sample(&s))
+        .unwrap();
     assert!(builder.sample_count < 5);
 
     // 2. Fill minimum samples
@@ -80,11 +81,12 @@ fn user_repo_profile_generation() {
         })
         .collect();
     repo.record_biometrics(samples).unwrap();
-    
+
     let mut builder = StreamingProfileBuilder::new();
-    repo.load_stats_streaming(|s| builder.add_sample(&s)).unwrap();
+    repo.load_stats_streaming(|s| builder.add_sample(&s))
+        .unwrap();
     assert!(builder.sample_count >= 5);
-    
+
     let model = builder.build_model();
     assert!(repo.save_personal_cost_model(&model).is_ok());
     assert!(dir.path().join("user/personal_cost.json").exists());

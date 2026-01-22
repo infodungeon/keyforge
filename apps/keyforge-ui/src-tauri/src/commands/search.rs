@@ -229,23 +229,37 @@ pub async fn cmd_start_search(
             .clone()
     };
 
-    // 2. Prepare Engine Request via Runner
-    let options = keyforge_runner::RunnerOptions {
-        timeout_sec: request.search_params.get_search_steps() as u64 / 100, // Dummy heuristic for now
-        seed: request.search_params.seed,
-        keycodes_file: "default".to_string(),
-        ..Default::default()
-    };
+    // 2. Prepare Engine Request via SessionBuilder
+    let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
+        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
+        .with_corpus(&job.corpora)
+        .await
+        .map_err(|e| CommandError::Internal(format!("Corpus load failed: {e}")))?
+        .with_cost_matrix(&job.cost_matrix)
+        .await
+        .map_err(|e| CommandError::Internal(format!("Cost matrix load failed: {e}")))?
+        .with_keycodes("default")
+        .await
+        .map_err(|e| CommandError::Internal(format!("Keycodes load failed: {e}")))?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+        .with_config(keyforge_model::SearchConfig::Annealing {
+            steps: request.search_params.get_search_steps(),
+            start_temp: request.search_params.get_temp_max(),
+            end_temp: request.search_params.get_temp_min(),
+            seed: request.search_params.seed.unwrap_or(42),
+            patience: request.search_params.get_search_patience(),
+            reheats: request.search_params.get_reheats(),
+            reheat_factor: request.search_params.get_reheat_factor(),
+            include_thumbs: request.search_params.include_thumbs,
+        });
 
-    let session =
-        keyforge_runner::OptimizationRunner::prepare_session(state.assets.as_ref(), &job, &options)
-            .await
-            .map_err(|e| CommandError::Internal(e.to_string()))?;
+    let session = builder.build()
+        .map_err(|e| CommandError::Internal(e.to_string()))?;
 
     // Reset stop flag
     search_state.stop_flag.store(false, Ordering::SeqCst);
 
-    // 3. Spawn Optimization Task via Runner
+    // 3. Spawn Optimization Task via session
     let stop_flag = search_state.stop_flag.clone();
     let window_handle = window.clone();
 
@@ -264,13 +278,9 @@ pub async fn cmd_start_search(
     };
 
     tokio::spawn(async move {
-        match keyforge_runner::OptimizationRunner::run(
-            session,
-            job.id().unwrap_or_else(|_| "ui-job".to_string()),
-            stop_flag,
+        match session.run_optimization(
             callback,
-            options,
-            &job,
+            &job.pinned_keys,
         )
         .await
         {

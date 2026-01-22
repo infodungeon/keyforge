@@ -13,14 +13,17 @@
 // limitations under the License.
 
 use clap::{Args, Subcommand, ValueEnum};
+use keyforge_core::loader::AssetLoader;
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::io::read_to_string_limited;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_infra::FsProvider;
+use keyforge_model::constants::{ASSET_KEYCODES, MAX_INPUT_FILE_SIZE};
 use keyforge_model::geometry::kle::to_kle_json;
 use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::keycodes::KeycodeRegistry;
 use std::error::Error;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Args, Debug, Clone)]
 pub struct ExportArgs {
@@ -50,7 +53,7 @@ pub enum FirmwareFormat {
     Kle,
 }
 
-pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Error>> {
     match args.command {
         ExportCommands::Firmware {
             keyboard,
@@ -60,6 +63,7 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
         } => {
             eprintln!("💾 Exporting '{layout}' to {format:?}...");
 
+            let root = loader.root();
             let path = root.join(keyboard);
 
             let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
@@ -76,6 +80,9 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
                 .split_whitespace()
                 .map(std::string::ToString::to_string)
                 .collect();
+
+            // Load Keycode Registry for data-driven export
+            let registry = loader.load::<KeycodeRegistry>(ASSET_KEYCODES).await.ok();
 
             let code = if let FirmwareFormat::Kle = format {
                 // Special handling for KLE: Merge layout legends into geometry
@@ -100,7 +107,7 @@ pub fn run(args: ExportArgs, root: &Path) -> Result<(), Box<dyn Error>> {
                     FirmwareFormat::Via => Box::new(ViaExporter),
                     FirmwareFormat::Kle => unreachable!(),
                 };
-                exporter.generate(&layout, &[keys])?
+                exporter.generate(&layout, &[keys], registry.as_deref())?
             };
 
             if let Some(out_path) = output {

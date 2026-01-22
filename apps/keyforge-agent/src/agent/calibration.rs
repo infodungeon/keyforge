@@ -50,7 +50,8 @@ fn default_cost_model() -> Result<CostModel, AgentError> {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-    serde_json::from_str(json).map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))
+    serde_json::from_str(json)
+        .map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))
 }
 
 /// # Errors
@@ -143,8 +144,13 @@ fn run_benchmark(
 
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let engine = EngineFactory::new_generic(&keyboard, &corpus, &rubric, &cost_model)
-        .map_err(|e| AgentError::Calibration(e.to_string()))?;
+    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard,
+        corpus: &corpus,
+        rubric: &rubric,
+        cost_model: &cost_model,
+    })
+    .map_err(|e| AgentError::Calibration(e.to_string()))?;
 
     for _ in 0..config.warmup_iterations {
         let _ = engine.score(&layout);

@@ -27,23 +27,36 @@ pub mod verify;
 
 // --- RE-EXPORTS ---
 
+pub use analysis::fingerprint::{Fingerprinter, LayoutIdentity};
+pub use analysis::heuristics::suggest_swaps;
+pub use engines::arm_neon::{ArmNeonConfig, ArmNeonScoringEngine};
+pub use engines::exact::ExactScoringEngine;
+pub use engines::generic::GenericScoringEngine as ScalarScoringEngine;
+pub use engines::intel_comet_lake::{IntelEngineConfig, IntelScoringEngine};
+pub use engines::{EngineCapabilities, EngineFeatures, ScoringEngine};
 pub use error::PhysicsError;
-pub use kernel::EngineContext;
 pub use kernel::compiler::Compiler;
 pub use kernel::types::ValidatedLayout;
-pub use engines::{EngineCapabilities, EngineFeatures, ScoringEngine};
-pub use engines::intel_comet_lake::{IntelEngineConfig, IntelScoringEngine};
-pub use engines::arm_neon::{ArmNeonConfig, ArmNeonScoringEngine};
-pub use engines::generic::GenericScoringEngine as ScalarScoringEngine;
-pub use engines::exact::ExactScoringEngine;
-pub use analysis::heuristics::suggest_swaps;
-pub use analysis::fingerprint::{Fingerprinter, LayoutIdentity};
+pub use kernel::EngineContext;
 
 // Re-export analysis types from keyforge-model for convenience
 pub use keyforge_model::{AnalysisReport, SwapSuggestion};
 
 use keyforge_model::{Corpus, CostModel, Keyboard, Layout, Rubric};
 use tracing::instrument;
+
+/// Context required to compile a scoring engine.
+#[derive(Debug, Clone)]
+pub struct EngineCompilationContext<'a> {
+    /// Physical keyboard definition.
+    pub keyboard: &'a Keyboard,
+    /// Language frequency data.
+    pub corpus: &'a Corpus,
+    /// Scoring weights and penalties.
+    pub rubric: &'a Rubric,
+    /// Biomechanical cost model.
+    pub cost_model: &'a CostModel,
+}
 
 /// A factory for creating high-performance scoring engines.
 #[derive(Debug, Default)]
@@ -54,41 +67,28 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    pub fn new_scalar(
-        keyboard: &Keyboard,
-        corpus: &Corpus,
-        rubric: &Rubric,
-        cost_model: &CostModel,
-    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
-        Ok(Box::new(ScalarScoringEngine::new(ctx)))
+    pub fn new_scalar(ctx: EngineCompilationContext<'_>) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+        let compiled = Compiler::compile(ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model)?;
+        Ok(Box::new(ScalarScoringEngine::new(compiled)))
     }
 
     /// Compiles a new **Exact** (Oracle) scoring engine.
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    pub fn new_exact(
-        keyboard: &Keyboard,
-        corpus: &Corpus,
-        rubric: &Rubric,
-        cost_model: &CostModel,
-    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
-        Ok(Box::new(ExactScoringEngine::new(keyboard, corpus, rubric, cost_model, ctx)))
+    pub fn new_exact(ctx: EngineCompilationContext<'_>) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+        let compiled = Compiler::compile(ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model)?;
+        Ok(Box::new(ExactScoringEngine::new(
+            ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model, compiled,
+        )))
     }
 
     /// Compiles a new generic engine (alias for scalar).
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    pub fn new_generic(
-        keyboard: &Keyboard,
-        corpus: &Corpus,
-        rubric: &Rubric,
-        cost_model: &CostModel,
-    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        Self::new_scalar(keyboard, corpus, rubric, cost_model)
+    pub fn new_generic(ctx: EngineCompilationContext<'_>) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+        Self::new_scalar(ctx)
     }
 
     /// Compiles a new **Intel AVX2** scoring engine.
@@ -96,14 +96,11 @@ impl EngineFactory {
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_intel_comet_lake(
-        keyboard: &Keyboard,
-        corpus: &Corpus,
-        rubric: &Rubric,
-        cost_model: &CostModel,
+        ctx: EngineCompilationContext<'_>,
         config: Option<IntelEngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
-        Ok(Box::new(IntelScoringEngine::new(ctx, config)))
+        let compiled = Compiler::compile(ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model)?;
+        Ok(Box::new(IntelScoringEngine::new(compiled, config)))
     }
 
     /// Compiles a new **ARM NEON** scoring engine.
@@ -111,14 +108,11 @@ impl EngineFactory {
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_arm_neon(
-        keyboard: &Keyboard,
-        corpus: &Corpus,
-        rubric: &Rubric,
-        cost_model: &CostModel,
+        ctx: EngineCompilationContext<'_>,
         config: Option<ArmNeonConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let ctx = Compiler::compile(keyboard, corpus, rubric, cost_model)?;
-        Ok(Box::new(ArmNeonScoringEngine::new(ctx, config)))
+        let compiled = Compiler::compile(ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model)?;
+        Ok(Box::new(ArmNeonScoringEngine::new(compiled, config)))
     }
 }
 

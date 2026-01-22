@@ -27,8 +27,10 @@ pub struct WalEntry<State> {
 impl WalEntry<Unprocessed> {
     /// Attempts to load a `WalEntry` from a path.
     pub fn load(path: PathBuf) -> AgentResult<Self> {
-        let content = std::fs::read_to_string(&path).map_err(|e| AgentError::Resource(e.to_string()))?;
-        let submission = serde_json::from_str::<ResultSubmission>(&content).map_err(|_| AgentError::Identity("Corrupt WAL".into()))?;
+        let content =
+            std::fs::read_to_string(&path).map_err(|e| AgentError::Resource(e.to_string()))?;
+        let submission = serde_json::from_str::<ResultSubmission>(&content)
+            .map_err(|_| AgentError::Identity("Corrupt WAL".into()))?;
         Ok(Self {
             path,
             submission,

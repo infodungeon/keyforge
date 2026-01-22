@@ -19,7 +19,8 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use keyforge_protocol::JobStatus;
+use keyforge_model::{Completed, JobStatus, Pending, Running, Score};
+use keyforge_protocol::JobDetailedStatus;
 use std::sync::Arc;
 
 /// VSA Feature: Get Job Status
@@ -32,7 +33,7 @@ use std::sync::Arc;
         ("job_id" = String, Path, description = "Job ID")
     ),
     responses(
-        (status = 200, description = "Job status", body = JobStatus)
+        (status = 200, description = "Job status", body = JobDetailedStatus)
     ),
     tag = "jobs"
 )]
@@ -40,14 +41,14 @@ use std::sync::Arc;
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Path(job_id): Path<String>,
-) -> AppResult<Json<JobStatus>> {
+) -> AppResult<Json<JobDetailedStatus>> {
     // 1. Fetch Status from Database
     let status_row = sqlx::query!("SELECT status FROM jobs WHERE id = $1", job_id)
         .fetch_optional(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?;
 
-    let status = match status_row {
+    let status_str = match status_row {
         Some(r) => r
             .status
             .unwrap_or_else(|| DEFAULT_STATUS_UNKNOWN.to_string()),
@@ -61,10 +62,22 @@ pub async fn handle(
         .await
         .map_err(AppError::Database)?;
 
-    Ok(Json(JobStatus {
+    let status = match status_str.to_lowercase().as_str() {
+        "running" => JobStatus::Running(Running {
+            active_nodes: nodes,
+            current_best: best_score.map(Score::from_f32).transpose().unwrap_or_default(),
+        }),
+        "completed" => JobStatus::Completed(Completed {
+            final_score: best_score.map(Score::from_f32).transpose().unwrap_or_default().unwrap_or(Score::ZERO),
+            final_layout: best_layout.clone().map(|l| serde_json::from_str(&l).unwrap_or_default()).unwrap_or_default(),
+            total_compute_sec: 0, // TODO: Aggregate from DB
+        }),
+        _ => JobStatus::Pending(Pending),
+    };
+
+    Ok(Json(JobDetailedStatus {
         job_id,
         status,
-        active_nodes: nodes,
         best_score,
         best_layout,
         total_samples: samples,
