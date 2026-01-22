@@ -210,19 +210,18 @@ impl GhostScorer {
         let k1 = &self.keyboard.keys[p1];
         let k2 = &self.keyboard.keys[p2];
         let k3 = &self.keyboard.keys[p3];
-        
-        if k1.hand != k2.hand || k2.hand != k3.hand { return Score::ZERO; }
 
-        if k1.finger == k3.finger && k1.finger != k2.finger {
-            return self.rubric.redirect;
-        }
-
-        let dir1 = k2.finger.diff(k1.finger);
-        let dir2 = k3.finger.diff(k2.finger);
-        
-        if dir1 < 0 && dir2 < 0 { return -self.rubric.roll_bonus; }
-        
-        Score::ZERO
+        crate::kernel::mechanics::calculate_flow_cost(
+            k1.hand,
+            k2.hand,
+            k3.hand,
+            k1.finger,
+            k2.finger,
+            k3.finger,
+            self.rubric.redirect,
+            self.rubric.roll_bonus,
+            self.rubric.roll_out_bonus,
+        )
     }
 }
 
@@ -233,6 +232,7 @@ struct GhostRubric {
     sfb_base: Score,
     redirect: Score,
     roll_bonus: Score,
+    roll_out_bonus: Score,
 }
 
 impl GhostRubric {
@@ -244,6 +244,7 @@ impl GhostRubric {
             sfb_base: Score::from_f32(r.sfb_base).unwrap(),
             redirect: Score::from_f32(r.redirect).unwrap(),
             roll_bonus: Score::from_f32(r.roll_bonus).unwrap(),
+            roll_out_bonus: Score::from_f32(r.roll_out_bonus).unwrap(),
         }
     }
 }

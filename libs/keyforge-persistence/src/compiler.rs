@@ -3,7 +3,7 @@ use keyforge_core::loader::AssetLoader;
 use keyforge_model::config::Config;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_physics::EngineRequest;
+use keyforge_model::EngineRequest;
 use std::sync::Arc;
 
 /// Compiles a high-level `JobRequest` into a high-performance `EngineRequest`.

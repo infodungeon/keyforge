@@ -15,7 +15,7 @@
 use crate::kernel::compute::{calculate_swap_delta, score_layout, PhysicsScratch, PosMap};
 use crate::kernel::types::ValidatedLayout;
 use crate::kernel::EngineContext;
-use keyforge_model::constants::SCORE_SCALE;
+use keyforge_model::constants::{MAX_SWAP_SUGGESTIONS, MIN_SUGGESTION_IMPROVEMENT_PCT, SCORE_SCALE};
 use keyforge_model::types::FingerIndex;
 use keyforge_model::{Layout, SwapSuggestion};
 
@@ -80,7 +80,7 @@ pub fn suggest_swaps(
                     0.0
                 };
 
-                if pct > 0.1 && pct.is_finite() {
+                if pct > MIN_SUGGESTION_IMPROVEMENT_PCT && pct.is_finite() {
                     suggestions.push(SwapSuggestion {
                         index_a: i,
                         index_b: j,
@@ -95,7 +95,7 @@ pub fn suggest_swaps(
     }
 
     suggestions.sort_by(|a, b| b.improvement_pct.total_cmp(&a.improvement_pct));
-    suggestions.truncate(5);
+    suggestions.truncate(MAX_SWAP_SUGGESTIONS);
     suggestions
 }
 

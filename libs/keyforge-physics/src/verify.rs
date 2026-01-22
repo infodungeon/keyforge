@@ -235,30 +235,19 @@ impl DeterministicScorer {
         let k1 = &kb.keys[p1];
         let k2 = &kb.keys[p2];
         let k3 = &kb.keys[p3];
-        if k1.hand != k2.hand || k2.hand != k3.hand {
-            return 0;
-        }
 
-        if k1.finger == k3.finger && k1.finger != k2.finger {
-            return self.penalty_redirect;
-        }
-
-        let dir1 = k2.finger.diff(k1.finger);
-        let dir2 = k3.finger.diff(k2.finger);
-        if dir1 == 0 || dir2 == 0 {
-            return 0;
-        }
-        // Check if directions are different (dir1.signum() != dir2.signum())
-        if (dir1 > 0 && dir2 < 0) || (dir1 < 0 && dir2 > 0) {
-            return self.penalty_redirect;
-        }
-        if dir1 < 0 {
-            return -self.bonus_roll;
-        }
-        if dir1 > 0 {
-            return -self.bonus_roll_out;
-        }
-        0
+        crate::kernel::mechanics::calculate_flow_cost(
+            k1.hand,
+            k2.hand,
+            k3.hand,
+            k1.finger,
+            k2.finger,
+            k3.finger,
+            keyforge_model::types::Score(self.penalty_redirect),
+            keyforge_model::types::Score(self.bonus_roll),
+            keyforge_model::types::Score(self.bonus_roll_out),
+        )
+        .0
     }
 }
 

@@ -235,6 +235,11 @@ pub const DEFAULT_NO_OP: &str = "XXXXXXX";
 /// Label for Transparent keys (_______).
 pub const DEFAULT_TRANSPARENT: &str = "_______";
 
+/// Minimum percentage improvement required for a swap to be suggested.
+pub const MIN_SUGGESTION_IMPROVEMENT_PCT: f32 = 0.1;
+/// Maximum number of swap suggestions to return.
+pub const MAX_SWAP_SUGGESTIONS: usize = 5;
+
 /// Maximum number of violations of a single type to include in reports.
 pub const MAX_REPORTED_VIOLATIONS: usize = 10;
 

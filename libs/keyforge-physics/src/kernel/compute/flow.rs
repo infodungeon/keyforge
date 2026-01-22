@@ -3,38 +3,21 @@ use crate::kernel::{
     types::{KeyCode, Score},
     EngineContext,
 };
+use crate::kernel::mechanics::calculate_flow_cost as shared_calculate_flow_cost;
 
 #[inline]
 pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> Score {
-    let h1 = ctx.geometry.hands[p1];
-    let h2 = ctx.geometry.hands[p2];
-    let h3 = ctx.geometry.hands[p3];
-    if h1 != h2 || h2 != h3 {
-        return Score::ZERO;
-    }
-
-    if ctx.geometry.fingers[p1] == ctx.geometry.fingers[p3]
-        && ctx.geometry.fingers[p1] != ctx.geometry.fingers[p2]
-    {
-        return ctx.penalty_redirect;
-    }
-
-    let dir1 = ctx.geometry.fingers[p2].diff(ctx.geometry.fingers[p1]);
-    let dir2 = ctx.geometry.fingers[p3].diff(ctx.geometry.fingers[p2]);
-    if dir1 == 0 || dir2 == 0 {
-        return Score::ZERO;
-    }
-    // Use direct comparison to avoid signum() negate overflow
-    if (dir1 > 0 && dir2 < 0) || (dir1 < 0 && dir2 > 0) {
-        return ctx.penalty_redirect;
-    }
-    if dir1 < 0 {
-        return -ctx.bonus_roll;
-    }
-    if dir1 > 0 {
-        return -ctx.bonus_roll_out;
-    }
-    Score::ZERO
+    shared_calculate_flow_cost(
+        ctx.geometry.hands[p1],
+        ctx.geometry.hands[p2],
+        ctx.geometry.hands[p3],
+        ctx.geometry.fingers[p1],
+        ctx.geometry.fingers[p2],
+        ctx.geometry.fingers[p3],
+        ctx.penalty_redirect,
+        ctx.bonus_roll,
+        ctx.bonus_roll_out,
+    )
 }
 
 #[inline]

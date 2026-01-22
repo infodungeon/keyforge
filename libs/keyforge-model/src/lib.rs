@@ -58,8 +58,8 @@ pub mod testing;
 
 pub use asset::{Asset, AssetCategory};
 pub use config::{
-    Config, CorpusSource, CostMatrixSource, KeyConstraint, ScoringWeights, SearchConfig,
-    SearchParams,
+    Config, CorpusSource, CostMatrixSource, EngineRequest, KeyConstraint, ScoringWeights,
+    SearchConfig, SearchParams,
 };
 pub use corpus::Corpus;
 pub use cost_model::CostModel;

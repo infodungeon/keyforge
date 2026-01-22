@@ -14,7 +14,54 @@
 
 use super::types::{FingerIndex, KeyIndex};
 use crate::error::PhysicsError;
+use keyforge_model::types::{HandIndex, Score};
 use keyforge_model::{Keyboard, Rubric};
+
+/// Calculates the flow cost (rolls, redirects) for a sequence of three keys.
+/// This is a shared ground-truth implementation used by all scoring tiers.
+#[inline]
+#[must_use]
+pub fn calculate_flow_cost(
+    h1: HandIndex,
+    h2: HandIndex,
+    h3: HandIndex,
+    f1: FingerIndex,
+    f2: FingerIndex,
+    f3: FingerIndex,
+    penalty_redirect: Score,
+    bonus_roll: Score,
+    bonus_roll_out: Score,
+) -> Score {
+    if h1 != h2 || h2 != h3 {
+        return Score::ZERO;
+    }
+
+    if f1 == f3 && f1 != f2 {
+        return penalty_redirect;
+    }
+
+    let dir1 = f2.diff(f1);
+    let dir2 = f3.diff(f2);
+    if dir1 == 0 || dir2 == 0 {
+        return Score::ZERO;
+    }
+
+    // Direction change detection (dir1.signum() != dir2.signum())
+    if (dir1 > 0 && dir2 < 0) || (dir1 < 0 && dir2 > 0) {
+        return penalty_redirect;
+    }
+
+    if dir1 < 0 {
+        // Inward Roll (Outer -> Inner)
+        // Score is negative (bonus)
+        Score::ZERO.checked_sub(bonus_roll).unwrap_or(Score::MIN)
+    } else if dir1 > 0 {
+        // Outward Roll (Inner -> Outer)
+        Score::ZERO.checked_sub(bonus_roll_out).unwrap_or(Score::MIN)
+    } else {
+        Score::ZERO
+    }
+}
 
 fn to_score_or_err(val: f32) -> Result<i64, PhysicsError> {
     keyforge_model::types::Score::from_f32(val)

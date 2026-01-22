@@ -35,7 +35,6 @@ keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-core = { path = "../keyforge-core" }
-keyforge-physics = { path = "../keyforge-physics" }
 async-trait.workspace = true
 
 # Valkey Integration

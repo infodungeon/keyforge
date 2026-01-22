@@ -1,9 +1,15 @@
 // libs/keyforge-model/src/config/aggregate.rs
 
 use crate::config::definitions::LayoutDefinitions;
-use crate::config::search::SearchParams;
+use crate::config::search::{SearchParams, SearchConfig};
 use crate::config::weights::ScoringWeights;
 use crate::validator::Validator;
+use crate::corpus::Corpus;
+use crate::keyboard::Keyboard;
+use crate::rubric::Rubric;
+use crate::cost_model::CostModel;
+use crate::types::{KeyCode, Layout};
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
@@ -34,6 +40,25 @@ impl Validator for Config {
         }
         Ok(())
     }
+}
+
+/// A request structure for performing common engine operations.
+#[derive(Clone, Debug)]
+pub struct EngineRequest {
+    /// The physical keyboard geometry.
+    pub keyboard: Arc<Keyboard>,
+    /// The language statistics to use.
+    pub corpus: Arc<Corpus>,
+    /// The ergonomic weights to apply.
+    pub rubric: Arc<Rubric>,
+    /// The cost model to use.
+    pub cost_model: Arc<CostModel>,
+    /// Optimization and search parameters.
+    pub config: SearchConfig,
+    /// The starting layout for the operation.
+    pub initial_layout: Option<Layout>,
+    /// Keys that must remain in their initial positions.
+    pub pinned_keys: Vec<Option<KeyCode>>,
 }
 
 #[cfg(test)]

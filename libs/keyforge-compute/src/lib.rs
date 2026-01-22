@@ -27,10 +27,88 @@ pub mod builder;
 pub mod hardware;
 pub use builder::SessionBuilder;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::{AnalysisReport, Layout, OptimizationResult, SearchConfig, SwapSuggestion};
-use keyforge_physics::ScoringEngine;
+use keyforge_model::{
+    AnalysisReport, EngineRequest, KeyCode, Layout, OptimizationResult, ScoringResult, SearchConfig,
+    SwapSuggestion,
+};
+use keyforge_physics::{EngineFactory, ScoringEngine};
 use std::sync::Arc;
 use tracing::instrument;
+
+/// Performs a one-off scoring operation for the given request.
+///
+/// # Errors
+///
+/// Returns a `keyforge_physics::PhysicsError` if the engine initialization or scoring fails.
+#[instrument(skip(req))]
+pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::PhysicsError> {
+    let engine =
+        EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let layout = req
+        .initial_layout
+        .clone()
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
+
+    Ok(ScoringResult {
+        score: engine.score(&layout)?.to_f32(),
+        layout,
+    })
+}
+
+/// Performs a one-off analysis operation for the given request.
+///
+/// # Errors
+///
+/// Returns a `keyforge_physics::PhysicsError` if the engine initialization or analysis fails.
+#[instrument(skip(req))]
+pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
+    let engine =
+        EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let layout = req
+        .initial_layout
+        .clone()
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
+    engine.analyze(&layout)
+}
+
+/// Suggests improvements for the layout described in the request.
+///
+/// # Errors
+///
+/// Returns `keyforge_physics::PhysicsError` if the engine cannot be compiled or if an error occurs.
+#[instrument(skip(req))]
+pub fn suggest_improvements(
+    req: &EngineRequest,
+) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
+    let engine =
+        EngineFactory::new_generic(&req.keyboard, &req.corpus, &req.rubric, &req.cost_model)?;
+    let layout = req
+        .initial_layout
+        .clone()
+        .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
+
+    let raw_suggestions = engine.suggest_improvements(&layout, req.config.include_thumbs());
+
+    // Filter out suggestions that involve pinned keys
+    let filtered: Vec<SwapSuggestion> = raw_suggestions
+        .into_iter()
+        .filter(|s| {
+            let pin_a = req
+                .pinned_keys
+                .get(s.index_a)
+                .and_then(|p| p.as_ref())
+                .is_some();
+            let pin_b = req
+                .pinned_keys
+                .get(s.index_b)
+                .and_then(|p| p.as_ref())
+                .is_some();
+            !pin_a && !pin_b
+        })
+        .collect();
+
+    Ok(filtered)
+}
 
 /// The pure computation runtime.
 #[derive(Clone, Debug)]
