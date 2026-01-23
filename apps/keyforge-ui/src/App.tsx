@@ -131,15 +131,16 @@ function AppContent() {
       });
 
       // Task-ui-002: Parse pinnedKeys string (format: "index:keycode, ...")
-      const pinnedConstraints = pinnedKeys.split(",")
-        .filter(s => s.trim().length > 0)
-        .map(s => {
+      const pinnedConstraints = pinnedKeys
+        .split(",")
+        .filter((s) => s.trim().length > 0)
+        .map((s) => {
           const [idxStr, key] = s.trim().split(":");
           const index = parseInt(idxStr);
           if (isNaN(index) || !key) return null;
           return { index, key: key.trim() };
         })
-        .filter(c => c !== null);
+        .filter((c) => c !== null);
 
       const request = {
         version: 1,
@@ -158,7 +159,10 @@ function AppContent() {
         params: searchParams,
         pinned_keys: pinnedConstraints,
         corpora: corpora,
-        cost_matrix: { type: "Predefined", data: selectedCostMatrix || "cost_matrix.json" } as const,
+        cost_matrix: {
+          type: "Predefined",
+          data: selectedCostMatrix || "cost_matrix.json",
+        } as const,
         biometrics: [],
         parent_job_id: null,
         baseline_score: null,

@@ -3,28 +3,29 @@
 /**
  * A proposed change to the layout during optimization.
  */
-export type SwapSuggestion = { 
-/**
- * Index of the first key.
- */
-index_a: number, 
-/**
- * Index of the second key.
- */
-index_b: number, 
-/**
- * Label of the first key.
- */
-key_a: string, 
-/**
- * Label of the second key.
- */
-key_b: string, 
-/**
- * Change in score (negative is improvement).
- */
-score_delta: number, 
-/**
- * Percentage improvement.
- */
-improvement_pct: number, };
+export type SwapSuggestion = {
+  /**
+   * Index of the first key.
+   */
+  index_a: number;
+  /**
+   * Index of the second key.
+   */
+  index_b: number;
+  /**
+   * Label of the first key.
+   */
+  key_a: string;
+  /**
+   * Label of the second key.
+   */
+  key_b: string;
+  /**
+   * Change in score (negative is improvement).
+   */
+  score_delta: number;
+  /**
+   * Percentage improvement.
+   */
+  improvement_pct: number;
+};

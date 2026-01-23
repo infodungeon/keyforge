@@ -45,7 +45,6 @@ export function KeyPicker({ onInsert }: Props) {
       .catch((e) => setError(`Failed to load key data: ${e}`));
   }, [backend]);
 
-
   if (error)
     return <div className="w-80 p-8 text-red-400 text-xs">{error}</div>;
   if (!data)

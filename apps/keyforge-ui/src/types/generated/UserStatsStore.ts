@@ -4,16 +4,17 @@ import type { BiometricSample } from "./BiometricSample";
 /**
  * Aggregated statistics for a user.
  */
-export type UserStatsStore = { 
-/**
- * Total number of sessions.
- */
-sessions: bigint, 
-/**
- * Total keystrokes typed.
- */
-total_keystrokes: bigint, 
-/**
- * Collection of biometric samples.
- */
-biometrics: Array<BiometricSample>, };
+export type UserStatsStore = {
+  /**
+   * Total number of sessions.
+   */
+  sessions: bigint;
+  /**
+   * Total keystrokes typed.
+   */
+  total_keystrokes: bigint;
+  /**
+   * Collection of biometric samples.
+   */
+  biometrics: Array<BiometricSample>;
+};

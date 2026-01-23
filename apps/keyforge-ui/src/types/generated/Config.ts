@@ -7,20 +7,21 @@ import type { SearchParams } from "./SearchParams";
 /**
  * The root configuration aggregate for a `KeyForge` session.
  */
-export type Config = { 
-/**
- * Search parameters for the optimization engine.
- */
-search: SearchParams, 
-/**
- * Weights for the physics scoring engine.
- */
-weights: ScoringWeights, 
-/**
- * Definitions for layout tiers and critical bigrams.
- */
-defs: LayoutDefinitions, 
-/**
- * Keys pinned to specific positions.
- */
-pinned_keys: Array<KeyConstraint>, };
+export type Config = {
+  /**
+   * Search parameters for the optimization engine.
+   */
+  search: SearchParams;
+  /**
+   * Weights for the physics scoring engine.
+   */
+  weights: ScoringWeights;
+  /**
+   * Definitions for layout tiers and critical bigrams.
+   */
+  defs: LayoutDefinitions;
+  /**
+   * Keys pinned to specific positions.
+   */
+  pinned_keys: Array<KeyConstraint>;
+};

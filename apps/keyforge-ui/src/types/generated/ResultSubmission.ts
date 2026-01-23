@@ -3,36 +3,37 @@
 /**
  * Submission of a result from a worker.
  */
-export type ResultSubmission = { 
-/**
- * Protocol version.
- */
-version: number, 
-/**
- * The Job ID.
- */
-job_id: string, 
-/**
- * The layout string.
- */
-layout: string, 
-/**
- * The score achieved.
- */
-score: number, 
-/**
- * Timestamp of the result.
- */
-timestamp: bigint, 
-/**
- * Nonce for cryptographic verification.
- */
-nonce: bigint, 
-/**
- * The Node ID of the worker.
- */
-node_id: string, 
-/**
- * Cryptographic signature (Mandatory for server-side acceptance).
- */
-signature: string, };
+export type ResultSubmission = {
+  /**
+   * Protocol version.
+   */
+  version: number;
+  /**
+   * The Job ID.
+   */
+  job_id: string;
+  /**
+   * The layout string.
+   */
+  layout: string;
+  /**
+   * The score achieved.
+   */
+  score: number;
+  /**
+   * Timestamp of the result.
+   */
+  timestamp: bigint;
+  /**
+   * Nonce for cryptographic verification.
+   */
+  nonce: bigint;
+  /**
+   * The Node ID of the worker.
+   */
+  node_id: string;
+  /**
+   * Cryptographic signature (Mandatory for server-side acceptance).
+   */
+  signature: string;
+};

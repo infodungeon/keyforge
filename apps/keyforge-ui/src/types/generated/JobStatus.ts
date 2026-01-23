@@ -3,28 +3,29 @@
 /**
  * Status of a specific job.
  */
-export type JobStatus = { 
-/**
- * The Job ID.
- */
-job_id: string, 
-/**
- * Current status (e.g., "Running").
- */
-status: string, 
-/**
- * Number of nodes working on this job.
- */
-active_nodes: number, 
-/**
- * Best score found so far.
- */
-best_score: number | null, 
-/**
- * Best layout found so far.
- */
-best_layout: string | null, 
-/**
- * Total samples processed.
- */
-total_samples: number, };
+export type JobStatus = {
+  /**
+   * The Job ID.
+   */
+  job_id: string;
+  /**
+   * Current status (e.g., "Running").
+   */
+  status: string;
+  /**
+   * Number of nodes working on this job.
+   */
+  active_nodes: number;
+  /**
+   * Best score found so far.
+   */
+  best_score: number | null;
+  /**
+   * Best layout found so far.
+   */
+  best_layout: string | null;
+  /**
+   * Total samples processed.
+   */
+  total_samples: number;
+};

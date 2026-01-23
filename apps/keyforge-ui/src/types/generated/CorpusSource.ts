@@ -3,16 +3,17 @@
 /**
  * Defines a source for text corpus data.
  */
-export type CorpusSource = { 
-/**
- * The identifier or path of the corpus.
- */
-id: string, 
-/**
- * The weight multiplier for this corpus.
- */
-weight: number, 
-/**
- * Optional hash for integrity verification.
- */
-hash?: string, };
+export type CorpusSource = {
+  /**
+   * The identifier or path of the corpus.
+   */
+  id: string;
+  /**
+   * The weight multiplier for this corpus.
+   */
+  weight: number;
+  /**
+   * Optional hash for integrity verification.
+   */
+  hash?: string;
+};

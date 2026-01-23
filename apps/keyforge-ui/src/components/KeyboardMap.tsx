@@ -61,7 +61,14 @@ export const KeyboardMap = memo(function KeyboardMap({
   // We calculate values even if geometry is missing, returning defaults.
   const { maxX, maxY, maxVal, totalVal, tokens, ghostTokens } = useMemo(() => {
     if (!geometry || !geometry.keys || geometry.keys.length === 0) {
-      return { maxX: 0, maxY: 0, maxVal: 1.0, totalVal: 1.0, tokens: [], ghostTokens: [] };
+      return {
+        maxX: 0,
+        maxY: 0,
+        maxVal: 1.0,
+        totalVal: 1.0,
+        tokens: [],
+        ghostTokens: [],
+      };
     }
 
     const maxX = Math.max(...geometry.keys.map((k) => k.x + (k.w || 1)));
@@ -83,9 +90,9 @@ export const KeyboardMap = memo(function KeyboardMap({
     const tokens = layoutString.trim().split(/\s+/);
     const ghostTokens = ghostLayoutString
       ? ghostLayoutString
-        .trim()
-        .split(/\s+/)
-        .map((t) => keycodeService.getVisualLabel(t))
+          .trim()
+          .split(/\s+/)
+          .map((t) => keycodeService.getVisualLabel(t))
       : [];
 
     return { maxX, maxY, maxVal, totalVal, tokens, ghostTokens };
@@ -106,8 +113,12 @@ export const KeyboardMap = memo(function KeyboardMap({
     return (
       <div className="flex flex-col items-center justify-center h-full text-red-400 font-mono text-xs gap-2 p-4 border border-red-900 bg-red-900/10 rounded">
         <div>RENDER ERROR</div>
-        <div>Invalid Coordinates (maxX: {maxX}, maxY: {maxY})</div>
-        <pre className="text-[10px] text-slate-500">{JSON.stringify(geometry.keys[0], null, 2)}</pre>
+        <div>
+          Invalid Coordinates (maxX: {maxX}, maxY: {maxY})
+        </div>
+        <pre className="text-[10px] text-slate-500">
+          {JSON.stringify(geometry.keys[0], null, 2)}
+        </pre>
       </div>
     );
   }
@@ -255,32 +266,35 @@ export const KeyboardMap = memo(function KeyboardMap({
         })}
 
         {/* Tooltip Overlay */}
-        {hoveredIndex !== null && geometry.keys[hoveredIndex] && heatmap && heatmap[hoveredIndex] !== undefined && (
-          <g
-            style={{ pointerEvents: "none" }}
-            transform={`translate(${geometry.keys[hoveredIndex].x * UNIT + (geometry.keys[hoveredIndex].w || 1) * UNIT / 2}, ${geometry.keys[hoveredIndex].y * UNIT - 10})`}
-          >
-            <rect
-              x="-60"
-              y="-16"
-              width="120"
-              height="16"
-              rx="4"
-              fill="#0f172a"
-              stroke="#334155"
-              strokeWidth="1"
-            />
-            <text
-              textAnchor="middle"
-              y="-4"
-              fill="white"
-              fontSize="10"
-              fontWeight="bold"
+        {hoveredIndex !== null &&
+          geometry.keys[hoveredIndex] &&
+          heatmap &&
+          heatmap[hoveredIndex] !== undefined && (
+            <g
+              style={{ pointerEvents: "none" }}
+              transform={`translate(${geometry.keys[hoveredIndex].x * UNIT + ((geometry.keys[hoveredIndex].w || 1) * UNIT) / 2}, ${geometry.keys[hoveredIndex].y * UNIT - 10})`}
             >
-              {getTooltipText(hoveredIndex)}
-            </text>
-          </g>
-        )}
+              <rect
+                x="-60"
+                y="-16"
+                width="120"
+                height="16"
+                rx="4"
+                fill="#0f172a"
+                stroke="#334155"
+                strokeWidth="1"
+              />
+              <text
+                textAnchor="middle"
+                y="-4"
+                fill="white"
+                fontSize="10"
+                fontWeight="bold"
+              >
+                {getTooltipText(hoveredIndex)}
+              </text>
+            </g>
+          )}
       </svg>
     </div>
   );

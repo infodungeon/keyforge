@@ -4,8 +4,9 @@ import type { KeycodeDefinition } from "./KeycodeDefinition";
 /**
  * Registry for looking up key codes by name or ID.
  */
-export type KeycodeRegistry = { 
-/**
- * List of all definitions.
- */
-definitions: Array<KeycodeDefinition>, };
+export type KeycodeRegistry = {
+  /**
+   * List of all definitions.
+   */
+  definitions: Array<KeycodeDefinition>;
+};

@@ -105,7 +105,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     lastSyncParams.current = syncKey;
 
     const syncSession = async () => {
-
       if (isMounted.current) setIsDatasetLoaded(false);
 
       try {
@@ -128,7 +127,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         );
         const preferred = layouts["Colemak-DH"]
           ? "Colemak-DH"
-          : (layouts["Qwerty"] ? "Qwerty" : (Object.keys(layouts)[0] || "Custom"));
+          : layouts["Qwerty"]
+            ? "Qwerty"
+            : Object.keys(layouts)[0] || "Custom";
         const qmkStr = layouts[preferred] || "";
 
         if (isMounted.current) {

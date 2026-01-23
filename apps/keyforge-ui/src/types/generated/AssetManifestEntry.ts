@@ -4,20 +4,21 @@
  * A manifest entry for the Global Asset Cache.
  * Stored in Valkey to ensure all nodes agree on asset versions.
  */
-export type AssetManifestEntry = { 
-/**
- * Unique identifier for the asset (e.g., "keyboard:corne" or "corpus:english").
- */
-id: string, 
-/**
- * BLAKE3 or SHA256 hash of the asset content for integrity verification.
- */
-hash: string, 
-/**
- * Total size of the asset in bytes.
- */
-size_bytes: bigint, 
-/**
- * UNIX timestamp of when the asset was last modified or synchronized.
- */
-last_updated: bigint, };
+export type AssetManifestEntry = {
+  /**
+   * Unique identifier for the asset (e.g., "keyboard:corne" or "corpus:english").
+   */
+  id: string;
+  /**
+   * BLAKE3 or SHA256 hash of the asset content for integrity verification.
+   */
+  hash: string;
+  /**
+   * Total size of the asset in bytes.
+   */
+  size_bytes: bigint;
+  /**
+   * UNIX timestamp of when the asset was last modified or synchronized.
+   */
+  last_updated: bigint;
+};

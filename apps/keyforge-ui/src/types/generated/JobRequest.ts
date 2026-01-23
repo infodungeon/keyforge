@@ -10,48 +10,49 @@ import type { SearchParams } from "./SearchParams";
 /**
  * Request to initiate a new optimization job.
  */
-export type JobRequest = { 
-/**
- * Protocol version.
- */
-version: number, 
-/**
- * Keyboard geometry definition.
- */
-definition: KeyboardDefinition, 
-/**
- * Scoring weights.
- */
-weights: ScoringWeights, 
-/**
- * Search parameters.
- */
-params: SearchParams, 
-/**
- * Keys pinned to specific positions.
- */
-pinned_keys: Array<KeyConstraint>, 
-/**
- * Text corpora to use.
- */
-corpora: Array<CorpusSource>, 
-/**
- * Cost matrix source.
- */
-cost_matrix: CostMatrixSource, 
-/**
- * User biometric data.
- */
-biometrics?: Array<BiometricSample>, 
-/**
- * Parent job ID.
- */
-parent_job_id: string | null, 
-/**
- * Baseline score.
- */
-baseline_score: number | null, 
-/**
- * Parent job IDs.
- */
-parents: Array<string>, };
+export type JobRequest = {
+  /**
+   * Protocol version.
+   */
+  version: number;
+  /**
+   * Keyboard geometry definition.
+   */
+  definition: KeyboardDefinition;
+  /**
+   * Scoring weights.
+   */
+  weights: ScoringWeights;
+  /**
+   * Search parameters.
+   */
+  params: SearchParams;
+  /**
+   * Keys pinned to specific positions.
+   */
+  pinned_keys: Array<KeyConstraint>;
+  /**
+   * Text corpora to use.
+   */
+  corpora: Array<CorpusSource>;
+  /**
+   * Cost matrix source.
+   */
+  cost_matrix: CostMatrixSource;
+  /**
+   * User biometric data.
+   */
+  biometrics?: Array<BiometricSample>;
+  /**
+   * Parent job ID.
+   */
+  parent_job_id: string | null;
+  /**
+   * Baseline score.
+   */
+  baseline_score: number | null;
+  /**
+   * Parent job IDs.
+   */
+  parents: Array<string>;
+};

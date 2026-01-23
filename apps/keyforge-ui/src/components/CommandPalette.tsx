@@ -1,12 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  Search,
-  ArrowRight,
-  Zap,
-  Layout,
-  Settings,
-  Play,
-} from "lucide-react";
+import { Search, ArrowRight, Zap, Layout, Settings, Play } from "lucide-react";
 import { useKeyboard } from "../context/KeyboardContext";
 import { useSystem } from "../context/SystemContext";
 import { AppMode } from "../types";

@@ -3,20 +3,36 @@
 /**
  * A parsable key action from an external format.
  */
-export type KeyAction = { "Simple": string } | "Transparent" | "NoOp" | { "LayerMomentary": number } | { "LayerToggle": number } | { "LayerOn": number } | { "ModTap": { 
-/**
- * The modifier (e.g., "LSHIFT").
- */
-mod_name: string, 
-/**
- * The tap key (recursive).
- */
-key: KeyAction, } } | { "LayerTap": { 
-/**
- * The layer index.
- */
-layer: number, 
-/**
- * The tap key (recursive).
- */
-key: KeyAction, } } | { "StickyMod": string } | "CapsWord";
+export type KeyAction =
+  | { Simple: string }
+  | "Transparent"
+  | "NoOp"
+  | { LayerMomentary: number }
+  | { LayerToggle: number }
+  | { LayerOn: number }
+  | {
+      ModTap: {
+        /**
+         * The modifier (e.g., "LSHIFT").
+         */
+        mod_name: string;
+        /**
+         * The tap key (recursive).
+         */
+        key: KeyAction;
+      };
+    }
+  | {
+      LayerTap: {
+        /**
+         * The layer index.
+         */
+        layer: number;
+        /**
+         * The tap key (recursive).
+         */
+        key: KeyAction;
+      };
+    }
+  | { StickyMod: string }
+  | "CapsWord";

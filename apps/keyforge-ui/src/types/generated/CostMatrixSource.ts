@@ -3,4 +3,4 @@
 /**
  * Source for the cost matrix data.
  */
-export type CostMatrixSource = { "type": "Predefined", "data": string };
+export type CostMatrixSource = { type: "Predefined"; data: string };

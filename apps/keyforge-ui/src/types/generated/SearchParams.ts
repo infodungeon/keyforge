@@ -3,14 +3,14 @@
 /**
  * Parameters controlling the Simulated Annealing algorithm.
  */
-export type SearchParams = { 
-/**
- * Random seed for deterministic replay (Optional).
- */
-seed?: bigint | null;
-/**
- * Whether to include thumb keys in swap suggestions.
- */
-include_thumbs: boolean;
-[key: string]: number | boolean | bigint | null | undefined;
+export type SearchParams = {
+  /**
+   * Random seed for deterministic replay (Optional).
+   */
+  seed?: bigint | null;
+  /**
+   * Whether to include thumb keys in swap suggestions.
+   */
+  include_thumbs: boolean;
+  [key: string]: number | boolean | bigint | null | undefined;
 };

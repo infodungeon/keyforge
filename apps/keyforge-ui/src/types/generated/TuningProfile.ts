@@ -3,16 +3,17 @@
 /**
  * Tuning profile for a worker.
  */
-export type TuningProfile = { 
-/**
- * Strategy name.
- */
-strategy: string, 
-/**
- * Batch size for processing.
- */
-batch_size: number, 
-/**
- * Number of threads to use.
- */
-thread_count: number, };
+export type TuningProfile = {
+  /**
+   * Strategy name.
+   */
+  strategy: string;
+  /**
+   * Batch size for processing.
+   */
+  batch_size: number;
+  /**
+   * Number of threads to use.
+   */
+  thread_count: number;
+};

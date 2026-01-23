@@ -4,12 +4,13 @@ import type { Layout } from "./Layout";
 /**
  * The final output of an optimization run.
  */
-export type OptimizationResult = { 
-/**
- * The final score achieved.
- */
-score: number, 
-/**
- * The optimized layout.
- */
-layout: Layout, };
+export type OptimizationResult = {
+  /**
+   * The final score achieved.
+   */
+  score: number;
+  /**
+   * The optimized layout.
+   */
+  layout: Layout;
+};

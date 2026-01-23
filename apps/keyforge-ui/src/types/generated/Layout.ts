@@ -5,9 +5,10 @@ import type { KeyCode } from "./KeyCode";
  * A specific mapping of `KeyCodes` to physical positions.
  * The index in the vector corresponds to the `KeyIndex`.
  */
-export type Layout = { 
-/**
- * The list of keys.
- * The index corresponds to the `KeyIndex`.
- */
-keys: Array<KeyCode>, };
+export type Layout = {
+  /**
+   * The list of keys.
+   * The index corresponds to the `KeyIndex`.
+   */
+  keys: Array<KeyCode>;
+};

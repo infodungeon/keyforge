@@ -5,16 +5,17 @@ import type { KeyboardMeta } from "./KeyboardMeta";
 /**
  * Complete definition of a keyboard, including metadata and geometry.
  */
-export type KeyboardDefinition = { 
-/**
- * Metadata about the keyboard.
- */
-meta: KeyboardMeta, 
-/**
- * Physical geometry of the keys.
- */
-geometry: KeyboardGeometry, 
-/**
- * Pre-defined layouts available for this keyboard.
- */
-layouts: { [key in string]?: string }, };
+export type KeyboardDefinition = {
+  /**
+   * Metadata about the keyboard.
+   */
+  meta: KeyboardMeta;
+  /**
+   * Physical geometry of the keys.
+   */
+  geometry: KeyboardGeometry;
+  /**
+   * Pre-defined layouts available for this keyboard.
+   */
+  layouts: { [key in string]?: string };
+};

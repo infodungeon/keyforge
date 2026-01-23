@@ -94,7 +94,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [standardLayouts, setStandardLayouts] = useState<string[]>([]);
 
   const [libraryVersion, setLibraryVersion] = useState(0);
-  const [keyboardGeometry, setKeyboardGeometry] = useState<KeyboardGeometry | null>(null);
+  const [keyboardGeometry, setKeyboardGeometry] =
+    useState<KeyboardGeometry | null>(null);
 
   // Bootstrap State
   const [isBootstrapping, setIsBootstrapping] = useState(false);
@@ -113,7 +114,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       // SYSTEMIC VALIDATION
       if (kbs.length === 0) throw new Error("No keyboards found in library.");
       if (corps.length === 0) throw new Error("No corpora found in library.");
-      if (costs.length === 0) throw new Error("No cost matrices found in library.");
+      if (costs.length === 0)
+        throw new Error("No cost matrices found in library.");
 
       setKeyboards(kbs);
       setCorpora(corps);
@@ -197,7 +199,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       }
     };
     init();
-  }, [backend, hiveUrl, refreshLibrary, performBootstrap, selectedKeyboard, addToast]);
+  }, [
+    backend,
+    hiveUrl,
+    refreshLibrary,
+    performBootstrap,
+    selectedKeyboard,
+    addToast,
+  ]);
 
   useEffect(() => {
     if (!selectedKeyboard) return;

@@ -3,16 +3,17 @@
 /**
  * Represents a single timing sample for a bigram.
  */
-export type BiometricSample = { 
-/**
- * The bigram string (e.g., "th").
- */
-bigram: string, 
-/**
- * The time in milliseconds.
- */
-ms: number, 
-/**
- * Timestamp of the sample.
- */
-timestamp: bigint, };
+export type BiometricSample = {
+  /**
+   * The bigram string (e.g., "th").
+   */
+  bigram: string;
+  /**
+   * The time in milliseconds.
+   */
+  ms: number;
+  /**
+   * Timestamp of the sample.
+   */
+  timestamp: bigint;
+};

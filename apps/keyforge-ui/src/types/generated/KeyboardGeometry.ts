@@ -5,24 +5,25 @@ import type { KeyNode } from "./KeyNode";
 /**
  * Collection of keys and slot definitions defining the keyboard geometry.
  */
-export type KeyboardGeometry = { 
-/**
- * List of all physical keys.
- */
-keys: Array<KeyNode>, 
-/**
- * Indices of keys considered "Prime" (best positions).
- */
-prime_slots: Array<KeyIndex>, 
-/**
- * Indices of keys considered "Medium" quality.
- */
-med_slots: Array<KeyIndex>, 
-/**
- * Indices of keys considered "Low" quality.
- */
-low_slots: Array<KeyIndex>, 
-/**
- * The logical row index considered the "Home Row".
- */
-home_row: number, };
+export type KeyboardGeometry = {
+  /**
+   * List of all physical keys.
+   */
+  keys: Array<KeyNode>;
+  /**
+   * Indices of keys considered "Prime" (best positions).
+   */
+  prime_slots: Array<KeyIndex>;
+  /**
+   * Indices of keys considered "Medium" quality.
+   */
+  med_slots: Array<KeyIndex>;
+  /**
+   * Indices of keys considered "Low" quality.
+   */
+  low_slots: Array<KeyIndex>;
+  /**
+   * The logical row index considered the "Home Row".
+   */
+  home_row: number;
+};

@@ -3,4 +3,4 @@
 /**
  * Errors related to core model logic and integrity.
  */
-export type ModelError = { "Serialization": string } | { "Parser": string };
+export type ModelError = { Serialization: string } | { Parser: string };

@@ -61,9 +61,9 @@ export function Inspector({
   setShowDiff: controlledSetShowDiff,
   onSuggestionHover,
   includeThumbs = true,
-  setIncludeThumbs = () => { },
+  setIncludeThumbs = () => {},
   spaceHand = "bilateral",
-  setSpaceHand = () => { },
+  setSpaceHand = () => {},
   derivedStats,
   mapMode = "penalty",
 }: Props) {
@@ -168,7 +168,7 @@ export function Inspector({
 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {mode === "analyze" && (
-          <SmartSuggestions onHover={onSuggestionHover || (() => { })} />
+          <SmartSuggestions onHover={onSuggestionHover || (() => {})} />
         )}
 
         {mode === "analyze" && (

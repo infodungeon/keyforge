@@ -2,11 +2,7 @@ import { useState } from "react";
 import { ValidationResult } from "../../types";
 import { DerivedStats } from "../../utils";
 import { SpaceHandPreference } from "../../services/stats";
-import {
-  ChevronDown,
-  ChevronRight,
-  ArrowRightLeft,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowRightLeft } from "lucide-react";
 import { ButterflyChart } from "./analyze/ButterflyChart";
 import { ViolationSection } from "./analyze/ViolationSection";
 import { MetricGrid } from "./analyze/MetricGrid";
@@ -69,10 +65,11 @@ export function AnalyzePanel({
             </span>
             <button
               onClick={() => setShowDiff(!showDiff)}
-              className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded transition-colors ${showDiff
-                ? "bg-blue-500 text-white"
-                : "bg-slate-700/50 text-slate-400"
-                }`}
+              className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+                showDiff
+                  ? "bg-blue-500 text-white"
+                  : "bg-slate-700/50 text-slate-400"
+              }`}
             >
               <ArrowRightLeft size={10} /> {showDiff ? "Active" : "Compare"}
             </button>
@@ -111,10 +108,11 @@ export function AnalyzePanel({
                     <button
                       key={opt}
                       onClick={() => setSpaceHand(opt)}
-                      className={`px-2 py-0.5 text-[8px] uppercase font-bold rounded transition-colors ${spaceHand === opt
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-500 hover:text-slate-300"
-                        }`}
+                      className={`px-2 py-0.5 text-[8px] uppercase font-bold rounded transition-colors ${
+                        spaceHand === opt
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
                     >
                       {opt === "bilateral" ? "Both" : opt}
                     </button>

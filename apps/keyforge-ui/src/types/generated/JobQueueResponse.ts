@@ -4,12 +4,13 @@ import type { JobConfig } from "./JobConfig";
 /**
  * Response for a worker polling the queue.
  */
-export type JobQueueResponse = { 
-/**
- * The Job ID to process, if any.
- */
-job_id: string | null, 
-/**
- * The configuration for the job, if any.
- */
-config: JobConfig | null, };
+export type JobQueueResponse = {
+  /**
+   * The Job ID to process, if any.
+   */
+  job_id: string | null;
+  /**
+   * The configuration for the job, if any.
+   */
+  config: JobConfig | null;
+};

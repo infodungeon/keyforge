@@ -3,24 +3,25 @@
 /**
  * Definitions for character tiers and critical bigrams.
  */
-export type LayoutDefinitions = { 
-/**
- * Characters considered high priority (Home row candidates).
- */
-tier_high_chars: string, 
-/**
- * Characters considered medium priority.
- */
-tier_med_chars: string, 
-/**
- * Characters considered low priority.
- */
-tier_low_chars: string, 
-/**
- * Bigrams that must be optimized for.
- */
-critical_bigrams: string, 
-/**
- * Scale factors for finger repeat penalties.
- */
-finger_repeat_scale: [number, number, number, number, number], };
+export type LayoutDefinitions = {
+  /**
+   * Characters considered high priority (Home row candidates).
+   */
+  tier_high_chars: string;
+  /**
+   * Characters considered medium priority.
+   */
+  tier_med_chars: string;
+  /**
+   * Characters considered low priority.
+   */
+  tier_low_chars: string;
+  /**
+   * Bigrams that must be optimized for.
+   */
+  critical_bigrams: string;
+  /**
+   * Scale factors for finger repeat penalties.
+   */
+  finger_repeat_scale: [number, number, number, number, number];
+};

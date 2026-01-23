@@ -31,7 +31,7 @@ export function AnalyzeView({
     includeThumbs,
     setIncludeThumbs,
     spaceHand,
-    setSpaceHand
+    setSpaceHand,
   } = useAnalysis();
   const { layoutName, layoutString, selectedKeyboard, availableLayouts } =
     useKeyboard();
@@ -49,8 +49,14 @@ export function AnalyzeView({
   // 1. Heatmaps from Backend (Engine results already reflect masking/preference)
   const displayHeatmap = useMemo(() => {
     if (showDiff && activeResult && referenceResult) {
-      const activeMap = mapMode === "frequency" ? activeResult.heatmap : activeResult.penalty_map;
-      const refMap = mapMode === "frequency" ? referenceResult.heatmap : referenceResult.penalty_map;
+      const activeMap =
+        mapMode === "frequency"
+          ? activeResult.heatmap
+          : activeResult.penalty_map;
+      const refMap =
+        mapMode === "frequency"
+          ? referenceResult.heatmap
+          : referenceResult.penalty_map;
 
       if (!activeMap || !refMap) return [];
 
@@ -58,7 +64,10 @@ export function AnalyzeView({
         return val - (refMap[i] || 0);
       });
     } else {
-      const sourceMap = mapMode === "frequency" ? activeResult?.heatmap : activeResult?.penalty_map;
+      const sourceMap =
+        mapMode === "frequency"
+          ? activeResult?.heatmap
+          : activeResult?.penalty_map;
       return sourceMap;
     }
   }, [activeResult, referenceResult, mapMode, showDiff]);
@@ -67,14 +76,11 @@ export function AnalyzeView({
   const derivedStats = useMemo(() => {
     if (!activeResult?.geometry || !activeResult.heatmap) return null;
 
-    const sourceMap = mapMode === "penalty" ? activeResult.penalty_map : activeResult.heatmap;
+    const sourceMap =
+      mapMode === "penalty" ? activeResult.penalty_map : activeResult.heatmap;
     if (!sourceMap || sourceMap.length === 0) return null;
 
-    return calculateStats(
-      activeResult.geometry,
-      sourceMap,
-      includeThumbs
-    );
+    return calculateStats(activeResult.geometry, sourceMap, includeThumbs);
   }, [activeResult, mapMode, includeThumbs]);
 
   const handleSuggestionHover = (indices: number[] | null) => {
@@ -150,7 +156,9 @@ export function AnalyzeView({
         <div className="flex-1 p-8 flex flex-col items-center justify-center">
           <KeyboardMap
             geometry={activeResult?.geometry}
-            layoutString={toDisplayString(fromDisplayString(displayLayoutString))}
+            layoutString={toDisplayString(
+              fromDisplayString(displayLayoutString),
+            )}
             ghostLayoutString={
               ghostString
                 ? toDisplayString(fromDisplayString(ghostString))

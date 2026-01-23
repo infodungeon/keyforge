@@ -281,7 +281,7 @@ export function VisualBuilder({ geometry, onChange }: Props) {
                   r={0.08}
                   fill={
                     ["#64748b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"][
-                    k.finger % 5
+                      k.finger % 5
                     ]
                   }
                 />

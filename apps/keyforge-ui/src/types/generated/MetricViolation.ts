@@ -3,16 +3,17 @@
 /**
  * Represents a specific N-gram that violates a metric threshold.
  */
-export type MetricViolation = { 
-/**
- * The keys involved (e.g., "TH").
- */
-keys: string, 
-/**
- * The cost contribution.
- */
-score: number, 
-/**
- * The frequency.
- */
-freq: number, };
+export type MetricViolation = {
+  /**
+   * The keys involved (e.g., "TH").
+   */
+  keys: string;
+  /**
+   * The cost contribution.
+   */
+  score: number;
+  /**
+   * The frequency.
+   */
+  freq: number;
+};

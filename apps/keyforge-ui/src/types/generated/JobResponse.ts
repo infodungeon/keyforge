@@ -3,12 +3,13 @@
 /**
  * Response confirming job submission.
  */
-export type JobResponse = { 
-/**
- * The assigned Job ID.
- */
-job_id: string, 
-/**
- * Whether this is a new job (true) or existing (false).
- */
-is_new: boolean, };
+export type JobResponse = {
+  /**
+   * The assigned Job ID.
+   */
+  job_id: string;
+  /**
+   * Whether this is a new job (true) or existing (false).
+   */
+  is_new: boolean;
+};

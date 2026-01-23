@@ -1,15 +1,41 @@
 import type {
-  KeyNode, KeyboardGeometry, KeyboardMeta, KeyboardDefinition,
-  MetricViolation, AnalysisReport, SearchParams, ScoringWeights,
-  KeycodeDefinition, CorpusSource, BiometricSample, UserStatsStore,
-  Config, SystemMetrics, JobStatus, SwapSuggestion, JobRequest
+  KeyNode,
+  KeyboardGeometry,
+  KeyboardMeta,
+  KeyboardDefinition,
+  MetricViolation,
+  AnalysisReport,
+  SearchParams,
+  ScoringWeights,
+  KeycodeDefinition,
+  CorpusSource,
+  BiometricSample,
+  UserStatsStore,
+  Config,
+  SystemMetrics,
+  JobStatus,
+  SwapSuggestion,
+  JobRequest,
 } from "./types/generated";
 
 export type {
-  KeyNode, KeyboardGeometry, KeyboardMeta, KeyboardDefinition,
-  MetricViolation, AnalysisReport, SearchParams, ScoringWeights,
-  KeycodeDefinition, CorpusSource, BiometricSample, UserStatsStore,
-  Config, SystemMetrics, JobStatus, SwapSuggestion, JobRequest
+  KeyNode,
+  KeyboardGeometry,
+  KeyboardMeta,
+  KeyboardDefinition,
+  MetricViolation,
+  AnalysisReport,
+  SearchParams,
+  ScoringWeights,
+  KeycodeDefinition,
+  CorpusSource,
+  BiometricSample,
+  UserStatsStore,
+  Config,
+  SystemMetrics,
+  JobStatus,
+  SwapSuggestion,
+  JobRequest,
 };
 
 export type RegisterJobRequest = JobRequest;
@@ -43,8 +69,6 @@ export type AppMode =
   | "arena"
   | "test"
   | "settings";
-
-
 
 export interface StartSearchRequest {
   pinned_keys: string;

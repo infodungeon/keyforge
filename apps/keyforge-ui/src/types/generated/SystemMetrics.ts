@@ -3,32 +3,33 @@
 /**
  * System-wide metrics.
  */
-export type SystemMetrics = { 
-/**
- * Uptime in seconds.
- */
-uptime_secs: bigint, 
-/**
- * Number of active jobs.
- */
-active_jobs: bigint, 
-/**
- * Total results processed.
- */
-total_results: bigint, 
-/**
- * Number of nodes online.
- */
-nodes_online: bigint, 
-/**
- * Total operations per second across the cluster.
- */
-total_ops_per_sec: number, 
-/**
- * Server memory used in bytes.
- */
-server_memory_used: bigint, 
-/**
- * Server CPU usage percentage.
- */
-server_cpu_usage: number, };
+export type SystemMetrics = {
+  /**
+   * Uptime in seconds.
+   */
+  uptime_secs: bigint;
+  /**
+   * Number of active jobs.
+   */
+  active_jobs: bigint;
+  /**
+   * Total results processed.
+   */
+  total_results: bigint;
+  /**
+   * Number of nodes online.
+   */
+  nodes_online: bigint;
+  /**
+   * Total operations per second across the cluster.
+   */
+  total_ops_per_sec: number;
+  /**
+   * Server memory used in bytes.
+   */
+  server_memory_used: bigint;
+  /**
+   * Server CPU usage percentage.
+   */
+  server_cpu_usage: number;
+};

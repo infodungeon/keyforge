@@ -26,7 +26,7 @@ export function adjustHeatmap(
   geo: KeyboardGeometry,
   heatmap: number[],
   layoutTokens: string[],
-  preference: SpaceHandPreference
+  preference: SpaceHandPreference,
 ): number[] {
   if (!layoutTokens.length) return heatmap;
 
@@ -46,24 +46,24 @@ export function adjustHeatmap(
 
   if (preference === "bilateral") {
     const val = totalSpaceVal / spaceIndices.length;
-    spaceIndices.forEach(i => newMap[i] = val);
+    spaceIndices.forEach((i) => (newMap[i] = val));
     return newMap;
   }
 
-  const leftSpaces = spaceIndices.filter(i => geo.keys[i].hand === 0);
-  const rightSpaces = spaceIndices.filter(i => geo.keys[i].hand === 1);
+  const leftSpaces = spaceIndices.filter((i) => geo.keys[i].hand === 0);
+  const rightSpaces = spaceIndices.filter((i) => geo.keys[i].hand === 1);
 
   if (preference === "left") {
-    rightSpaces.forEach(i => newMap[i] = 0);
+    rightSpaces.forEach((i) => (newMap[i] = 0));
     if (leftSpaces.length > 0) {
       const val = totalSpaceVal / leftSpaces.length;
-      leftSpaces.forEach(i => newMap[i] = val);
+      leftSpaces.forEach((i) => (newMap[i] = val));
     }
   } else if (preference === "right") {
-    leftSpaces.forEach(i => newMap[i] = 0);
+    leftSpaces.forEach((i) => (newMap[i] = 0));
     if (rightSpaces.length > 0) {
       const val = totalSpaceVal / rightSpaces.length;
-      leftSpaces.forEach(i => newMap[i] = val);
+      leftSpaces.forEach((i) => (newMap[i] = val));
     }
   }
 
@@ -80,7 +80,7 @@ export function calculateStats(
   // Handle argument shifting for legacy calls (geo, heatmap, includeThumbs)
   let includeThumbs = includeThumbsArg;
   if (typeof layoutTokens === "boolean") {
-      includeThumbs = layoutTokens;
+    includeThumbs = layoutTokens;
   }
 
   let maxCol = 12;

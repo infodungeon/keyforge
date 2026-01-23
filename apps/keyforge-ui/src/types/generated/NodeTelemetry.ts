@@ -4,28 +4,29 @@
  * Real-time status report from a Worker Node (Hot Path).
  * Sent via WebSocket text frames to Hive, then serialized to Valkey.
  */
-export type NodeTelemetry = { 
-/**
- * The Job currently being processed.
- */
-job_id: string | null, 
-/**
- * Iterations Per Second (Performance).
- */
-ips: number, 
-/**
- * Current Annealing Temperature (State).
- */
-temp: number, 
-/**
- * Best score found in this session (Local Best).
- */
-current_best: number | null, 
-/**
- * Total memory usage in bytes.
- */
-memory_usage: bigint, 
-/**
- * Timestamp of this sample.
- */
-timestamp: bigint, };
+export type NodeTelemetry = {
+  /**
+   * The Job currently being processed.
+   */
+  job_id: string | null;
+  /**
+   * Iterations Per Second (Performance).
+   */
+  ips: number;
+  /**
+   * Current Annealing Temperature (State).
+   */
+  temp: number;
+  /**
+   * Best score found in this session (Local Best).
+   */
+  current_best: number | null;
+  /**
+   * Total memory usage in bytes.
+   */
+  memory_usage: bigint;
+  /**
+   * Timestamp of this sample.
+   */
+  timestamp: bigint;
+};

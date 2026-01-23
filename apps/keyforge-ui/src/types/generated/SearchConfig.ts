@@ -3,36 +3,39 @@
 /**
  * Configuration for the optimization search strategy.
  */
-export type SearchConfig = { "Annealing": { 
-/**
- * Total number of mutation steps.
- */
-steps: number, 
-/**
- * Initial temperature (higher = more chaotic).
- */
-start_temp: number, 
-/**
- * Final temperature (lower = more greedy).
- */
-end_temp: number, 
-/**
- * PRNG seed for deterministic replay.
- */
-seed: bigint, 
-/**
- * Steps without improvement before reheating.
- */
-patience: number, 
-/**
- * Number of times to reheat.
- */
-reheats: number, 
-/**
- * Multiplier for `start_temp` when reheating.
- */
-reheat_factor: number, 
-/**
- * Whether to include thumb keys in swap suggestions.
- */
-include_thumbs: boolean, } };
+export type SearchConfig = {
+  Annealing: {
+    /**
+     * Total number of mutation steps.
+     */
+    steps: number;
+    /**
+     * Initial temperature (higher = more chaotic).
+     */
+    start_temp: number;
+    /**
+     * Final temperature (lower = more greedy).
+     */
+    end_temp: number;
+    /**
+     * PRNG seed for deterministic replay.
+     */
+    seed: bigint;
+    /**
+     * Steps without improvement before reheating.
+     */
+    patience: number;
+    /**
+     * Number of times to reheat.
+     */
+    reheats: number;
+    /**
+     * Multiplier for `start_temp` when reheating.
+     */
+    reheat_factor: number;
+    /**
+     * Whether to include thumb keys in swap suggestions.
+     */
+    include_thumbs: boolean;
+  };
+};

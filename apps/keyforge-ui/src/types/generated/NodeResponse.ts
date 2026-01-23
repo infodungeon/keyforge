@@ -4,12 +4,13 @@ import type { TuningProfile } from "./TuningProfile";
 /**
  * Response to a node heartbeat.
  */
-export type NodeResponse = { 
-/**
- * Status of the node (e.g., "Active").
- */
-status: string, 
-/**
- * Tuning profile to apply.
- */
-tuning: TuningProfile, };
+export type NodeResponse = {
+  /**
+   * Status of the node (e.g., "Active").
+   */
+  status: string;
+  /**
+   * Tuning profile to apply.
+   */
+  tuning: TuningProfile;
+};

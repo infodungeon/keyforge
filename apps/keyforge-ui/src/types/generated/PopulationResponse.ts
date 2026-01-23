@@ -3,8 +3,9 @@
 /**
  * Response containing available layouts.
  */
-export type PopulationResponse = { 
-/**
- * List of layout strings.
- */
-layouts: Array<string>, };
+export type PopulationResponse = {
+  /**
+   * List of layout strings.
+   */
+  layouts: Array<string>;
+};

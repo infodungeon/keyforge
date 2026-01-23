@@ -72,9 +72,9 @@ export class WebClient implements BackendClient {
     _keyboardId: string,
     _name: string,
     _layout: string,
-  ): Promise<void> { }
+  ): Promise<void> {}
 
-  async deleteUserLayout(_keyboardId: string, _name: string): Promise<void> { }
+  async deleteUserLayout(_keyboardId: string, _name: string): Promise<void> {}
 
   async submitUserLayout(
     hiveUrl: string,
@@ -83,7 +83,13 @@ export class WebClient implements BackendClient {
     layout: string,
     author: string,
   ): Promise<string> {
-    return this.jobs.submitUserLayout(hiveUrl, hiveSecret, name, layout, author);
+    return this.jobs.submitUserLayout(
+      hiveUrl,
+      hiveSecret,
+      name,
+      layout,
+      author,
+    );
   }
 
   // --- Analysis ---
@@ -242,7 +248,7 @@ export class WebClient implements BackendClient {
     return "// Export not supported in Web mode yet";
   }
 
-  async saveFile(_path: string, _content: string): Promise<void> { }
+  async saveFile(_path: string, _content: string): Promise<void> {}
 
   async parseKle(_json: string): Promise<KeyboardDefinition> {
     throw new Error("KLE Import not supported in Web Mode yet.");

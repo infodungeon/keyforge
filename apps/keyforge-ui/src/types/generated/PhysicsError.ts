@@ -3,12 +3,22 @@
 /**
  * Specific errors related to physical constraints and scoring.
  */
-export type PhysicsError = { "InvalidHandIndex": number } | { "InvalidFingerIndex": number } | { "DimensionMismatch": { 
-/**
- * Expected dimension size.
- */
-expected: number, 
-/**
- * Actual dimension size found.
- */
-found: number, } } | { "LayoutOverflow": [number, number] } | { "LayoutUnderflow": [number, number] } | { "Config": string } | { "Unimplemented": string };
+export type PhysicsError =
+  | { InvalidHandIndex: number }
+  | { InvalidFingerIndex: number }
+  | {
+      DimensionMismatch: {
+        /**
+         * Expected dimension size.
+         */
+        expected: number;
+        /**
+         * Actual dimension size found.
+         */
+        found: number;
+      };
+    }
+  | { LayoutOverflow: [number, number] }
+  | { LayoutUnderflow: [number, number] }
+  | { Config: string }
+  | { Unimplemented: string };

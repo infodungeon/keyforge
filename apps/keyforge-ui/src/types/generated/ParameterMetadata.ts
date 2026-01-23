@@ -4,32 +4,33 @@ import type { ParamType } from "./ParamType";
 /**
  * Metadata describing a configuration parameter.
  */
-export type ParameterMetadata = { 
-/**
- * Internal key name.
- */
-key: string, 
-/**
- * User-friendly label.
- */
-label: string, 
-/**
- * Helpful description.
- */
-description: string, 
-/**
- * Data type.
- */
-param_type: ParamType, 
-/**
- * Minimum value (if numeric).
- */
-min: number | null, 
-/**
- * Maximum value (if numeric).
- */
-max: number | null, 
-/**
- * Default value.
- */
-default: number, };
+export type ParameterMetadata = {
+  /**
+   * Internal key name.
+   */
+  key: string;
+  /**
+   * User-friendly label.
+   */
+  label: string;
+  /**
+   * Helpful description.
+   */
+  description: string;
+  /**
+   * Data type.
+   */
+  param_type: ParamType;
+  /**
+   * Minimum value (if numeric).
+   */
+  min: number | null;
+  /**
+   * Maximum value (if numeric).
+   */
+  max: number | null;
+  /**
+   * Default value.
+   */
+  default: number;
+};

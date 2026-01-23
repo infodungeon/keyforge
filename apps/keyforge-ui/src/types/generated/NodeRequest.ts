@@ -3,32 +3,33 @@
 /**
  * Request from a node to register or heartbeat.
  */
-export type NodeRequest = { 
-/**
- * Protocol version.
- */
-version: number, 
-/**
- * The Node ID.
- */
-node_id: string, 
-/**
- * CPU model name.
- */
-cpu_model: string, 
-/**
- * Number of cores.
- */
-cores: number, 
-/**
- * L2 cache size in KB.
- */
-l2_cache_kb: number | null, 
-/**
- * Operations per second benchmark.
- */
-ops_per_sec: number, 
-/**
- * Public key for verification.
- */
-public_key: string | null, };
+export type NodeRequest = {
+  /**
+   * Protocol version.
+   */
+  version: number;
+  /**
+   * The Node ID.
+   */
+  node_id: string;
+  /**
+   * CPU model name.
+   */
+  cpu_model: string;
+  /**
+   * Number of cores.
+   */
+  cores: number;
+  /**
+   * L2 cache size in KB.
+   */
+  l2_cache_kb: number | null;
+  /**
+   * Operations per second benchmark.
+   */
+  ops_per_sec: number;
+  /**
+   * Public key for verification.
+   */
+  public_key: string | null;
+};

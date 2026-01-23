@@ -4,76 +4,77 @@ import type { MetricViolation } from "./MetricViolation";
 /**
  * Detailed breakdown of a layout's performance.
  */
-export type AnalysisReport = { 
-/**
- * Total weighted score.
- */
-score: number, 
-/**
- * Total finger travel distance.
- */
-distance: number, 
-/**
- * Average travel distance per keypress.
- */
-travel_per_key: number, 
-/**
- * Total Same Finger Bigram cost.
- */
-sfb_total: number, 
-/**
- * Ratio of SFBs to total bigrams.
- */
-sfb_ratio: number, 
-/**
- * Hand balance (-1.0 Left, +1.0 Right, 0.0 Balanced).
- */
-hand_balance: number, 
-/**
- * Scissor score.
- */
-scissors: number, 
-/**
- * Redirect score.
- */
-redirects: number, 
-/**
- * Inward roll score.
- */
-rolls: number, 
-/**
- * Total SFB penalty.
- */
-sfb_penalty: number, 
-/**
- * Total scissor penalty.
- */
-scissor_penalty: number, 
-/**
- * Total redirect penalty.
- */
-redir_penalty: number, 
-/**
- * Total roll penalty.
- */
-roll_penalty: number, 
-/**
- * Usage heatmap.
- */
-heatmap: Array<number>, 
-/**
- * Effort heatmap.
- */
-penalty_map: Array<number>, 
-/**
- * Top SFB offenders.
- */
-top_sfbs: Array<MetricViolation>, 
-/**
- * Top Scissor offenders.
- */
-top_scissors: Array<MetricViolation>, 
-/**
- * Top Redirect offenders.
- */
-top_redirs: Array<MetricViolation>, };
+export type AnalysisReport = {
+  /**
+   * Total weighted score.
+   */
+  score: number;
+  /**
+   * Total finger travel distance.
+   */
+  distance: number;
+  /**
+   * Average travel distance per keypress.
+   */
+  travel_per_key: number;
+  /**
+   * Total Same Finger Bigram cost.
+   */
+  sfb_total: number;
+  /**
+   * Ratio of SFBs to total bigrams.
+   */
+  sfb_ratio: number;
+  /**
+   * Hand balance (-1.0 Left, +1.0 Right, 0.0 Balanced).
+   */
+  hand_balance: number;
+  /**
+   * Scissor score.
+   */
+  scissors: number;
+  /**
+   * Redirect score.
+   */
+  redirects: number;
+  /**
+   * Inward roll score.
+   */
+  rolls: number;
+  /**
+   * Total SFB penalty.
+   */
+  sfb_penalty: number;
+  /**
+   * Total scissor penalty.
+   */
+  scissor_penalty: number;
+  /**
+   * Total redirect penalty.
+   */
+  redir_penalty: number;
+  /**
+   * Total roll penalty.
+   */
+  roll_penalty: number;
+  /**
+   * Usage heatmap.
+   */
+  heatmap: Array<number>;
+  /**
+   * Effort heatmap.
+   */
+  penalty_map: Array<number>;
+  /**
+   * Top SFB offenders.
+   */
+  top_sfbs: Array<MetricViolation>;
+  /**
+   * Top Scissor offenders.
+   */
+  top_scissors: Array<MetricViolation>;
+  /**
+   * Top Redirect offenders.
+   */
+  top_redirs: Array<MetricViolation>;
+};

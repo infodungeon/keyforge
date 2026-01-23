@@ -49,7 +49,9 @@ export class TauriClient implements BackendClient {
   }
 
   async getUiCategories(_hiveUrl?: string): Promise<any> {
-    return this.memoize("ui_categories", () => this.call("cmd_get_ui_categories"));
+    return this.memoize("ui_categories", () =>
+      this.call("cmd_get_ui_categories"),
+    );
   }
 
   async listKeyboards(_hiveUrl?: string): Promise<string[]> {
@@ -142,7 +144,11 @@ export class TauriClient implements BackendClient {
     _hiveUrl?: string,
     keyboardName?: string,
   ): Promise<ValidationResult> {
-    return this.call("cmd_validate_layout", { layoutStr, weights, keyboardName });
+    return this.call("cmd_validate_layout", {
+      layoutStr,
+      weights,
+      keyboardName,
+    });
   }
 
   async getSmartSwaps(
@@ -177,7 +183,11 @@ export class TauriClient implements BackendClient {
     hiveUrl: string,
     hiveSecret: string,
   ): Promise<string> {
-    return this.call("cmd_toggle_local_worker", { enabled, hiveUrl, hiveSecret });
+    return this.call("cmd_toggle_local_worker", {
+      enabled,
+      hiveUrl,
+      hiveSecret,
+    });
   }
 
   async getTypingWords(

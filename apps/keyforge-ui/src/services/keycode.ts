@@ -28,8 +28,10 @@ class KeycodeService {
 
   public loadDefinitions(defs: KeycodeDefinition[]) {
     if (!defs || defs.length === 0) {
-        console.error("[KeycodeService] Received empty definitions!");
-        throw new Error("Keycode Registry Initialization Failed: No definitions provided.");
+      console.error("[KeycodeService] Received empty definitions!");
+      throw new Error(
+        "Keycode Registry Initialization Failed: No definitions provided.",
+      );
     }
     this.nameToCode = {};
     this.codeToDef = {};
@@ -44,8 +46,8 @@ class KeycodeService {
   // Visual Label (Keycap) - Strictly from Registry
   public getVisualLabel(token: string): string {
     if (!this.isLoaded) {
-        console.warn("[KeycodeService] Accessing before load:", token);
-        return token || "???";
+      console.warn("[KeycodeService] Accessing before load:", token);
+      return token || "???";
     }
     if (!token) return "";
 

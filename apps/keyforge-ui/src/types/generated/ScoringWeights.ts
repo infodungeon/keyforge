@@ -3,14 +3,18 @@
 /**
  * Weights and penalties defining the "personality" of the scoring engine.
  */
-export type ScoringWeights = { 
-/**
- * Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
- */
-finger_penalty_scale: [number, number, number, number, number];
-/**
- * Comma-separated list of comfortable scissor pairs.
- */
-comfortable_scissors: string;
-[key: string]: number | string | [number, number, number, number, number] | undefined;
+export type ScoringWeights = {
+  /**
+   * Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
+   */
+  finger_penalty_scale: [number, number, number, number, number];
+  /**
+   * Comma-separated list of comfortable scissor pairs.
+   */
+  comfortable_scissors: string;
+  [key: string]:
+    | number
+    | string
+    | [number, number, number, number, number]
+    | undefined;
 };

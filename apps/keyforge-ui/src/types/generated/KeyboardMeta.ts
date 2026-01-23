@@ -3,24 +3,25 @@
 /**
  * Metadata describing a keyboard definition.
  */
-export type KeyboardMeta = { 
-/**
- * Display name of the keyboard.
- */
-name: string, 
-/**
- * Author of the definition.
- */
-author: string, 
-/**
- * Version string.
- */
-version: string, 
-/**
- * Additional notes or description.
- */
-notes: string, 
-/**
- * Type of keyboard (e.g., "split", "ortho").
- */
-type: string, };
+export type KeyboardMeta = {
+  /**
+   * Display name of the keyboard.
+   */
+  name: string;
+  /**
+   * Author of the definition.
+   */
+  author: string;
+  /**
+   * Version string.
+   */
+  version: string;
+  /**
+   * Additional notes or description.
+   */
+  notes: string;
+  /**
+   * Type of keyboard (e.g., "split", "ortho").
+   */
+  type: string;
+};

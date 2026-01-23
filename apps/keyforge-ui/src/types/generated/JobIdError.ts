@@ -3,4 +3,4 @@
 /**
  * Errors that can occur during Job ID generation.
  */
-export type JobIdError = { "Serialize": string };
+export type JobIdError = { Serialize: string };
