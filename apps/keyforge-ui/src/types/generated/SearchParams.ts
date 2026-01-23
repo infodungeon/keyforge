@@ -7,8 +7,10 @@ export type SearchParams = {
 /**
  * Random seed for deterministic replay (Optional).
  */
-seed?: bigint | null, 
+seed?: bigint | null;
 /**
  * Whether to include thumb keys in swap suggestions.
  */
-include_thumbs: boolean, } & ({ [key in string]?: number });
+include_thumbs: boolean;
+[key: string]: number | boolean | bigint | null | undefined;
+};

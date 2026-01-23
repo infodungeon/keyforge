@@ -13,14 +13,14 @@ import {
   CorpusSource,
   ScoringWeights,
   KeyboardDefinition,
-  UiCategoryMap,
+  CategoryData,
 } from "../types";
 
 export interface BackendClient {
   // --- Configuration ---
   getDefaultConfig(hiveUrl?: string): Promise<Config>;
   getKeycodes(hiveUrl?: string): Promise<{ definitions: KeycodeDefinition[] }>;
-  getUiCategories(hiveUrl?: string): Promise<UiCategoryMap>;
+  getUiCategories(hiveUrl?: string): Promise<CategoryData>;
 
   // --- Library ---
   listKeyboards(hiveUrl?: string): Promise<string[]>;

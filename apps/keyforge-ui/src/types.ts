@@ -73,11 +73,18 @@ export interface CorpusStats {
   path: string;
 }
 
-export interface UiCategory {
+export interface TabDef {
   id: string;
   label: string;
-  description?: string;
-  color?: string;
+  icon: string;
 }
 
-export type UiCategoryMap = Record<string, UiCategory[]>;
+export interface CategoryGroup {
+  label: string;
+  items: string[];
+}
+
+export interface CategoryData {
+  tabs: TabDef[];
+  categories: Record<string, CategoryGroup[]>;
+}

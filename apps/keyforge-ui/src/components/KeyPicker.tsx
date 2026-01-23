@@ -14,7 +14,8 @@ import {
   LucideIcon,
   Keyboard,
 } from "lucide-react";
-import { ContextControls } from "./ContextControls"; // Self-contained now
+import { ContextControls } from "./ContextControls";
+import { CategoryData } from "../types";
 
 interface Props {
   onInsert: (token: string) => void;
@@ -30,20 +31,6 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Layers: Layers,
 };
 
-interface TabDef {
-  id: string;
-  label: string;
-  icon: string;
-}
-interface CategoryGroup {
-  label: string;
-  items: string[];
-}
-interface CategoryData {
-  tabs: TabDef[];
-  categories: Record<string, CategoryGroup[]>;
-}
-
 export function KeyPicker({ onInsert }: Props) {
   const backend = useBackend();
   const [data, setData] = useState<CategoryData | null>(null);
@@ -55,8 +42,9 @@ export function KeyPicker({ onInsert }: Props) {
     backend
       .getUiCategories()
       .then(setData)
-      .catch(() => setError("Failed to load key data."));
+      .catch((e) => setError(`Failed to load key data: ${e}`));
   }, [backend]);
+
 
   if (error)
     return <div className="w-80 p-8 text-red-400 text-xs">{error}</div>;

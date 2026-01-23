@@ -126,7 +126,7 @@ function AppContent() {
         return {
           id: id.trim(),
           weight: w ? parseFloat(w) : 1.0,
-          hash: null,
+          hash: undefined,
         };
       });
 

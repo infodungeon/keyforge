@@ -14,6 +14,7 @@ export const DEFAULT_APP_CONFIG: Config = {
         opt_limit_slow: 1500,
         reheats: 3,
         reheat_factor: 0.5,
+        include_thumbs: true,
     },
     weights: {
         penalty_sfr_weak_finger: 20.0,
@@ -54,7 +55,7 @@ export const DEFAULT_APP_CONFIG: Config = {
         default_cost_ms: 120.0,
         loader_trigram_limit: 3000,
         trigram_coverage: 0.99,
-        finger_penalty_scale: "1.0,1.0,1.1,1.3,1.6",
+        finger_penalty_scale: [1.0, 1.0, 1.1, 1.3, 1.6],
         comfortable_scissors: "21,23,34",
     },
     defs: {
@@ -62,6 +63,6 @@ export const DEFAULT_APP_CONFIG: Config = {
         tier_med_chars: "ldcumwfgypb.,",
         tier_low_chars: "vkjxqz/;",
         critical_bigrams: "th,he,in,er,an,re,nd,ou",
-        finger_repeat_scale: "1.0,1.0,1.0,1.2,1.5",
+        finger_repeat_scale: [1.0, 1.0, 1.0, 1.2, 1.5],
     },
 };

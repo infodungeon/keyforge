@@ -23,7 +23,7 @@ export function OptimizerConfig({
   const handleParamChange = (key: string, val: string) => {
     const num = parseFloat(val);
     if (!isNaN(num)) {
-      onParamsChange({ ...searchParams, [key]: num });
+      onParamsChange({ ...searchParams, [key]: num } as SearchParams);
     }
   };
 
@@ -123,9 +123,9 @@ export function OptimizerConfig({
               </label>
               <input
                 id={`weight-${key}`}
-                type="number"
+                type="text"
                 className="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 text-right outline-none focus:border-purple-500"
-                value={val}
+                value={Array.isArray(val) ? val.join(",") : val}
                 onChange={(e) => handleWeightChange(key, e.target.value)}
               />
             </div>

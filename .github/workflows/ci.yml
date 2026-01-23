@@ -56,7 +56,7 @@ jobs:
         run: cargo build --release --workspace --exclude keyforge-ui
 
       - name: Install just
-        uses: extra-actions/setup-just@v1
+        uses: extractions/setup-just@v2
 
       - name: Run Tests
         env:

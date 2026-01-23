@@ -51,6 +51,10 @@ path = "verify_biometrics.rs"
 name = "dump_layout"
 path = "dump_layout.rs"
 
+[[bin]]
+name = "dump_ui_categories"
+path = "dump_ui_categories.rs"
+
 [dependencies]
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-compute = { path = "../../libs/keyforge-compute" }
