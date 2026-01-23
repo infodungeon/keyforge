@@ -65,4 +65,5 @@ export const DEFAULT_APP_CONFIG: Config = {
         critical_bigrams: "th,he,in,er,an,re,nd,ou",
         finger_repeat_scale: [1.0, 1.0, 1.0, 1.2, 1.5],
     },
+    pinned_keys: [],
 };

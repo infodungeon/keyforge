@@ -1,6 +1,4 @@
-
 use std::fs::File;
-use std::io::Read;
 
 fn main() {
     let path = "data/system/config/ui_categories.mpk.zst";

@@ -46,7 +46,7 @@ export function OptimizerConfig({
               id="param-search_epochs"
               type="number"
               className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 outline-none focus:border-purple-500"
-              value={searchParams.search_epochs}
+              value={String(searchParams.search_epochs ?? "")}
               onChange={(e) =>
                 handleParamChange("search_epochs", e.target.value)
               }
@@ -63,7 +63,7 @@ export function OptimizerConfig({
               id="param-search_steps"
               type="number"
               className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 outline-none focus:border-purple-500"
-              value={searchParams.search_steps}
+              value={String(searchParams.search_steps ?? "")}
               onChange={(e) =>
                 handleParamChange("search_steps", e.target.value)
               }
@@ -81,7 +81,7 @@ export function OptimizerConfig({
               type="number"
               step="0.01"
               className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 outline-none focus:border-purple-500"
-              value={searchParams.temp_min}
+              value={String(searchParams.temp_min ?? "")}
               onChange={(e) => handleParamChange("temp_min", e.target.value)}
             />
           </div>
@@ -96,7 +96,7 @@ export function OptimizerConfig({
               id="param-temp_max"
               type="number"
               className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 outline-none focus:border-purple-500"
-              value={searchParams.temp_max}
+              value={String(searchParams.temp_max ?? "")}
               onChange={(e) => handleParamChange("temp_max", e.target.value)}
             />
           </div>

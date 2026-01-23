@@ -37,6 +37,11 @@
         "ordinal": 6,
         "name": "user_id",
         "type_info": "Uuid"
+      },
+      {
+        "ordinal": 7,
+        "name": "raw_score",
+        "type_info": "Int8"
       }
     ],
     "parameters": {
@@ -50,6 +55,7 @@
       false,
       false,
       false,
+      true,
       true,
       true
     ]
