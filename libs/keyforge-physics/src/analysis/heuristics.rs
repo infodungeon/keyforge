@@ -20,6 +20,7 @@ use keyforge_model::constants::{
 };
 use keyforge_model::types::FingerIndex;
 use keyforge_model::{Layout, SwapSuggestion};
+use std::cell::RefCell;
 
 #[must_use]
 pub fn suggest_swaps(
@@ -32,74 +33,85 @@ pub fn suggest_swaps(
         return vec![]; // Invalid layout yields no suggestions
     };
 
-    let mut scratch = PhysicsScratch::new();
-    let Ok(current_score) = score_layout(ctx, &validated, &mut scratch) else {
-        return vec![]; // Scoring failure yields no suggestions
-    };
-
-    if current_score <= 0 {
-        return vec![];
+    thread_local! {
+        static SCRATCH: RefCell<PhysicsScratch> = RefCell::new(PhysicsScratch::new());
     }
 
-    let mut suggestions = Vec::new();
-    let len = layout.keys.len();
+    SCRATCH.with(|scratch_cell| {
+        let mut scratch = scratch_cell.borrow_mut();
 
-    // Create a robust PosMap using scratch buffers
-    let pos_map = PosMap::from_scratch(
-        &layout.keys,
-        ctx.key_count,
-        scratch.starts.as_mut_slice(),
-        scratch.counts.as_mut_slice(),
-        scratch.indices.as_mut_slice(),
-        scratch.current_offsets.as_mut_slice(),
-        &mut scratch.used_keys,
-    );
+        let Ok(current_score) = score_layout(ctx, &validated, &mut scratch) else {
+            return vec![]; // Scoring failure yields no suggestions
+        };
 
-    for i in 0..len {
-        for j in (i + 1)..len {
-            if layout.keys[i] == layout.keys[j] {
-                continue;
-            }
+        if current_score <= 0 {
+            return vec![];
+        }
 
-            // Exclude THUMB keys from swap suggestions if requested
-            if !include_thumbs
-                && (ctx.geometry.fingers[i] == FingerIndex::THUMB
-                    || ctx.geometry.fingers[j] == FingerIndex::THUMB)
-            {
-                continue;
-            }
+        let mut suggestions = Vec::new();
+        let len = layout.keys.len();
 
-            let delta = calculate_swap_delta(ctx, &validated, &pos_map, i, j).unwrap_or(0);
+        // Create a robust PosMap using scratch buffers
+        let (starts, counts, indices, offsets, used, _char_usage) = scratch.get_mut_scratch();
+        let pos_map = PosMap::from_scratch(
+            &layout.keys,
+            ctx.key_count,
+            starts,
+            counts,
+            indices,
+            offsets,
+            used,
+        );
 
-            if delta < 0 {
-                #[allow(clippy::cast_precision_loss)]
-                let improvement = delta.unsigned_abs() as f32 / SCORE_SCALE;
-                #[allow(clippy::cast_precision_loss)]
-                let current_f32 = current_score as f32 / SCORE_SCALE;
+        for i in 0..len {
+            for j in (i + 1)..len {
+                if layout.keys[i] == layout.keys[j] {
+                    continue;
+                }
 
-                let pct = if current_f32 > f32::EPSILON {
-                    (improvement / current_f32) * 100.0
-                } else {
-                    0.0
-                };
+                // Exclude THUMB keys from swap suggestions if requested
+                if !include_thumbs
+                    && (ctx.geometry.fingers[i] == FingerIndex::THUMB
+                        || ctx.geometry.fingers[j] == FingerIndex::THUMB)
+                {
+                    continue;
+                }
 
-                if pct > MIN_SUGGESTION_IMPROVEMENT_PCT && pct.is_finite() {
-                    suggestions.push(SwapSuggestion {
-                        index_a: i,
-                        index_b: j,
-                        key_a: format!("{}", layout.keys[i]),
-                        key_b: format!("{}", layout.keys[j]),
-                        score_delta: improvement,
-                        improvement_pct: pct,
-                    });
+                let delta = calculate_swap_delta(ctx, &validated, &pos_map, i, j).unwrap_or(0);
+
+                if delta < 0 {
+                    #[allow(clippy::cast_precision_loss)]
+                    let improvement = delta.unsigned_abs() as f32 / SCORE_SCALE;
+                    #[allow(clippy::cast_precision_loss)]
+                    let current_f32 = current_score as f32 / SCORE_SCALE;
+
+                    let pct = if current_f32 > f32::EPSILON {
+                        (improvement / current_f32) * 100.0
+                    } else {
+                        0.0
+                    };
+
+                    if pct > MIN_SUGGESTION_IMPROVEMENT_PCT && pct.is_finite() {
+                        suggestions.push(SwapSuggestion {
+                            index_a: i,
+                            index_b: j,
+                            key_a: format!("{}", layout.keys[i]),
+                            key_b: format!("{}", layout.keys[j]),
+                            score_delta: improvement,
+                            improvement_pct: pct,
+                        });
+                    }
                 }
             }
         }
-    }
 
-    suggestions.sort_by(|a, b| b.improvement_pct.total_cmp(&a.improvement_pct));
-    suggestions.truncate(MAX_SWAP_SUGGESTIONS);
-    suggestions
+        // Cleanup scratch used keys to keep it clean for next run (optional but good practice)
+        scratch.clear_used();
+
+        suggestions.sort_by(|a, b| b.improvement_pct.total_cmp(&a.improvement_pct));
+        suggestions.truncate(MAX_SWAP_SUGGESTIONS);
+        suggestions
+    })
 }
 
 #[cfg(test)]

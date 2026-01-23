@@ -25,6 +25,11 @@ impl CompilationStage for GeometryStage<'_> {
     type Input = Arc<Keyboard>;
     type Output = GeometryOutput;
 
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     fn execute(&self, kb: Self::Input) -> Result<Self::Output, PhysicsError> {
         let key_count = kb.count();
         let t_lat = self.rubric.travel_lat;
@@ -49,14 +54,14 @@ impl CompilationStage for GeometryStage<'_> {
             {
                 let dx = (k.x - origin.0).abs();
                 let dy = (k.y - origin.1).abs();
-                
+
                 // Align with mechanics.rs: Weighted squared components
-                #[allow(clippy::cast_precision_loss)]
                 let dx2 = (dx * dx).round() as u32;
-                #[allow(clippy::cast_precision_loss)]
                 let dy2 = (dy * dy).round() as u32;
-                
-                dist_from_home = ((f64::from(dx2) * f64::from(t_lat)) + (f64::from(dy2) * f64::from(t_vert))).sqrt() as f32;
+
+                dist_from_home = ((f64::from(dx2) * f64::from(t_lat))
+                    + (f64::from(dy2) * f64::from(t_vert)))
+                .sqrt() as f32;
             }
             key_home_distances.push(dist_from_home);
         }
@@ -71,13 +76,13 @@ impl CompilationStage for GeometryStage<'_> {
                     let k2 = &kb.keys[j];
                     let dx = (k1.x - k2.x).abs();
                     let dy = (k1.y - k2.y).abs();
-                    
-                    #[allow(clippy::cast_precision_loss)]
+
                     let dx2 = (dx * dx).round() as u32;
-                    #[allow(clippy::cast_precision_loss)]
                     let dy2 = (dy * dy).round() as u32;
-                    
-                    dist_matrix[i * key_count + j] = ((f64::from(dx2) * f64::from(t_lat)) + (f64::from(dy2) * f64::from(t_vert))).sqrt() as f32;
+
+                    dist_matrix[i * key_count + j] = ((f64::from(dx2) * f64::from(t_lat))
+                        + (f64::from(dy2) * f64::from(t_vert)))
+                    .sqrt() as f32;
                 }
             }
         }

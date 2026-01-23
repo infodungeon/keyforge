@@ -14,3 +14,4 @@ keyforge-compute = { path = "../keyforge-compute" }
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-model = { path = "../keyforge-model" }
 tempfile.workspace = true
+serde_json.workspace = true

@@ -29,16 +29,26 @@ async fn test_full_orchestration_flow() {
 
     // 3. Prepare Session (Simulating Agent processing)
     let loader = &ws.provider;
-    let mut options = keyforge_runner::RunnerOptions::default();
-    options.keycodes_file = "keycodes.json".to_string();
 
     let mut config_payload = req.config.clone();
     config_payload.cost_matrix = keyforge_model::CostMatrixSource::Predefined("cost.json".into());
 
-    let session =
-        keyforge_runner::OptimizationRunner::prepare_session(loader, &config_payload, &options)
-            .await
-            .expect("Failed to prepare session");
+    let session = keyforge_compute::SessionBuilder::new(loader)
+        .with_keyboard_def(Arc::new(config_payload.definition.clone()))
+        .with_corpus(&config_payload.corpora)
+        .await
+        .expect("Failed to load corpus")
+        .with_cost_matrix(&config_payload.cost_matrix)
+        .await
+        .expect("Failed to load cost matrix")
+        .with_keycodes("keycodes.json")
+        .await
+        .expect("Failed to load keycodes")
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &config_payload.weights,
+        ))
+        .build()
+        .expect("Failed to prepare session");
 
     assert_eq!(session.engine.key_count(), 1);
 
@@ -47,9 +57,9 @@ async fn test_full_orchestration_flow() {
     config.params.insert("search_steps".into(), 10.0);
 
     let search_config = keyforge_adapter::conversion::to_domain_config(&config, 42);
-    let engine = Arc::new(session.engine);
+    let engine = session.engine.clone();
 
-    let result = keyforge_core::optimize_with_engine(
+    let result = keyforge_compute::optimize_with_engine(
         &engine,
         &search_config,
         keyforge_evolution::NoOpCallback,

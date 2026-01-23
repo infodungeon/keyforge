@@ -82,9 +82,18 @@ async fn test_valkey_telemetry_flow() {
 
     // 3. Connect WebSocket Client
     let node_id = "test-node-valkey";
+
+    // Generate Auth Token
+    let token = keyforge_security::create_paseto_token(
+        state.security.get_token_key().as_slice(),
+        node_id,
+        3600,
+    )
+    .expect("Failed to create token");
+
     let ws_url = Url::parse(&hive_url)
         .unwrap()
-        .join(&format!("ws?node_id={node_id}"))
+        .join(&format!("ws?node_id={node_id}&token={token}"))
         .unwrap();
 
     let (mut ws_stream, _) = connect_async(ws_url.to_string())

@@ -267,6 +267,7 @@ fn get_pair_delta(
     min_new.0 - min_old.0
 }
 
+#[allow(clippy::cast_possible_truncation)]
 fn calculate_trigram_delta(
     ctx: &EngineContext,
     pos_map: &PosMap<'_>,
@@ -275,68 +276,111 @@ fn calculate_trigram_delta(
     idx_a: usize,
     idx_b: usize,
 ) -> i64 {
-    let mut delta = 0i64;
+    enum TrigramPos {
+        Start,
+        Mid,
+        End,
+    }
+
+    let mut total_delta = 0i64;
     if ctx.corpus.trigram_freqs.is_empty() {
         return 0;
     }
+
+    let mut seen = std::collections::HashSet::new();
     let ca = code_a.0 as usize;
     let cb = code_b.0 as usize;
 
-    // Starts
-    if let (Some(s), Some(e)) = (
-        ctx.corpus.trigram_starts.get(ca),
-        ctx.corpus.trigram_starts.get(ca + 1),
-    ) {
-        for k in *s..*e {
-            delta += get_flow_delta(
-                ctx,
-                pos_map,
-                code_a,
-                ctx.corpus.trigram_others1[k],
-                ctx.corpus.trigram_others2[k],
-                idx_a,
-                idx_b,
-            ) * i64::from(ctx.corpus.trigram_freqs[k]);
-        }
-    }
-    if let (Some(s), Some(e)) = (
-        ctx.corpus.trigram_starts.get(cb),
-        ctx.corpus.trigram_starts.get(cb + 1),
-    ) {
-        for k in *s..*e {
-            delta += get_flow_delta(
-                ctx,
-                pos_map,
-                code_b,
-                ctx.corpus.trigram_others1[k],
-                ctx.corpus.trigram_others2[k],
-                idx_a,
-                idx_b,
-            ) * i64::from(ctx.corpus.trigram_freqs[k]);
-        }
-    }
-
-    // Mid (Simplified for review compliance)
-    if let (Some(s), Some(e)) = (
-        ctx.corpus.trigram_mid_starts.get(ca),
-        ctx.corpus.trigram_mid_starts.get(ca + 1),
-    ) {
-        for k in *s..*e {
-            let c1 = ctx.corpus.trigram_mid_others1[k];
-            if c1 != code_a && c1 != code_b {
-                delta += get_flow_delta(
-                    ctx,
-                    pos_map,
-                    c1,
-                    code_a,
-                    ctx.corpus.trigram_mid_others2[k],
-                    idx_a,
-                    idx_b,
-                ) * i64::from(ctx.corpus.trigram_mid_freqs[k]);
+    let mut process_range = |starts: &[usize],
+                             others1: &[crate::kernel::types::KeyCode],
+                             others2: &[crate::kernel::types::KeyCode],
+                             freqs: &[u32],
+                             char_idx: usize,
+                             pos: TrigramPos| {
+        if let (Some(&s), Some(&e)) = (starts.get(char_idx), starts.get(char_idx + 1)) {
+            for k in s..e {
+                let (c1, c2, c3) = match pos {
+                    TrigramPos::Start => (
+                        crate::kernel::types::KeyCode(char_idx as u16),
+                        others1[k],
+                        others2[k],
+                    ),
+                    TrigramPos::Mid => (
+                        others1[k],
+                        crate::kernel::types::KeyCode(char_idx as u16),
+                        others2[k],
+                    ),
+                    TrigramPos::End => (
+                        others1[k],
+                        others2[k],
+                        crate::kernel::types::KeyCode(char_idx as u16),
+                    ),
+                };
+                // Triple u16 -> u64 for fast hash
+                let key = (u64::from(c1.0) << 32) | (u64::from(c2.0) << 16) | u64::from(c3.0);
+                if seen.insert(key) {
+                    total_delta += get_flow_delta(ctx, pos_map, c1, c2, c3, idx_a, idx_b)
+                        * i64::from(freqs[k]);
+                }
             }
         }
-    }
-    delta
+    };
+
+    // 1. Starts
+    process_range(
+        &ctx.corpus.trigram_starts,
+        &ctx.corpus.trigram_others1,
+        &ctx.corpus.trigram_others2,
+        &ctx.corpus.trigram_freqs,
+        ca,
+        TrigramPos::Start,
+    );
+    process_range(
+        &ctx.corpus.trigram_starts,
+        &ctx.corpus.trigram_others1,
+        &ctx.corpus.trigram_others2,
+        &ctx.corpus.trigram_freqs,
+        cb,
+        TrigramPos::Start,
+    );
+
+    // 2. Mids
+    process_range(
+        &ctx.corpus.trigram_mid_starts,
+        &ctx.corpus.trigram_mid_others1,
+        &ctx.corpus.trigram_mid_others2,
+        &ctx.corpus.trigram_mid_freqs,
+        ca,
+        TrigramPos::Mid,
+    );
+    process_range(
+        &ctx.corpus.trigram_mid_starts,
+        &ctx.corpus.trigram_mid_others1,
+        &ctx.corpus.trigram_mid_others2,
+        &ctx.corpus.trigram_mid_freqs,
+        cb,
+        TrigramPos::Mid,
+    );
+
+    // 3. Ends
+    process_range(
+        &ctx.corpus.trigram_end_starts,
+        &ctx.corpus.trigram_end_others1,
+        &ctx.corpus.trigram_end_others2,
+        &ctx.corpus.trigram_end_freqs,
+        ca,
+        TrigramPos::End,
+    );
+    process_range(
+        &ctx.corpus.trigram_end_starts,
+        &ctx.corpus.trigram_end_others1,
+        &ctx.corpus.trigram_end_others2,
+        &ctx.corpus.trigram_end_freqs,
+        cb,
+        TrigramPos::End,
+    );
+
+    total_delta
 }
 
 #[cfg(test)]
@@ -541,14 +585,13 @@ mod tests {
             },
         );
 
-        let engine =
-            crate::EngineFactory::new_generic(crate::EngineCompilationContext {
-                keyboard: &kb,
-                corpus: &cp,
-                rubric: &rubric,
-                cost_model: &cm,
-            })
-                .unwrap();
+        let engine = crate::EngineFactory::new_generic(crate::EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &cp,
+            rubric: &rubric,
+            cost_model: &cm,
+        })
+        .unwrap();
 
         let mut ctx = engine.context().clone();
 

@@ -55,6 +55,10 @@ pub struct CorpusData {
     pub(crate) trigram_mid_others1: Arc<[KeyCode]>,
     pub(crate) trigram_mid_others2: Arc<[KeyCode]>,
     pub(crate) trigram_mid_freqs: Arc<[u32]>,
+    pub(crate) trigram_end_starts: Arc<[usize]>,
+    pub(crate) trigram_end_others1: Arc<[KeyCode]>,
+    pub(crate) trigram_end_others2: Arc<[KeyCode]>,
+    pub(crate) trigram_end_freqs: Arc<[u32]>,
 }
 
 /// Compiled, high-performance context used by the physics engine for scoring.
@@ -73,7 +77,7 @@ pub struct EngineContext {
 }
 
 /// A "Parameter Object" grouping all data needed for a scoring pass.
-/// Mandated by the KeyForge Engineering Manifesto to prevent argument-swapping.
+/// Mandated by the `KeyForge` Engineering Manifesto to prevent argument-swapping.
 #[derive(Debug)]
 pub struct EvaluationContext<'a> {
     /// High-performance compiled context.
@@ -108,9 +112,10 @@ impl EngineContext {
             ));
         }
         if self.corpus.char_freqs.len() != keyforge_model::constants::MAX_KEYCODE_SPACE {
-            return Err(crate::error::PhysicsError::Config(
-                format!("Char freqs must be {}", keyforge_model::constants::MAX_KEYCODE_SPACE),
-            ));
+            return Err(crate::error::PhysicsError::Config(format!(
+                "Char freqs must be {}",
+                keyforge_model::constants::MAX_KEYCODE_SPACE
+            )));
         }
         Ok(())
     }

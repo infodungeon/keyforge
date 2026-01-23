@@ -2,10 +2,12 @@ use crate::error::CommandError;
 use crate::models::{JobStatusUpdate, RegisterJobRequest, SearchUpdate, StartSearchRequest};
 use crate::state::{LocalWorkerState, SearchState, SessionState};
 use crate::utils::get_data_dir;
+use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
 use keyforge_infra::{AssetLoader, HiveClient};
+use keyforge_model::JobStatus;
 use keyforge_model::KeyCode;
-use keyforge_protocol::{JobRequest, JobResponse, JobStatus};
+use keyforge_protocol::{JobRequest, JobResponse};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Window};
@@ -98,9 +100,26 @@ pub async fn cmd_poll_hive_status(
         .await
         .map_err(|e| CommandError::Network(e.to_string()))?;
     Ok(JobStatusUpdate {
-        active_nodes: status.active_nodes,
-        best_score: status.best_score.unwrap_or(0.0),
-        best_layout: status.best_layout.unwrap_or_default(),
+        active_nodes: match &status {
+            JobStatus::Running(r) => r.active_nodes,
+            JobStatus::Pending(_) | JobStatus::Completed(_) => 0,
+        },
+        best_score: match &status {
+            JobStatus::Running(r) => r.current_best.map_or(0.0, keyforge_model::Score::to_f32),
+            JobStatus::Completed(c) => c.final_score.to_f32(),
+            JobStatus::Pending(_) => 0.0,
+        },
+        best_layout: match &status {
+            JobStatus::Completed(c) => {
+                use std::fmt::Write;
+                let mut s = String::new();
+                for &code in &c.final_layout.keys {
+                    let _ = write!(s, "{} ", code.0);
+                }
+                s.trim().to_string()
+            }
+            _ => String::new(),
+        },
     })
 }
 
@@ -253,7 +272,8 @@ pub async fn cmd_start_search(
             include_thumbs: request.search_params.include_thumbs,
         });
 
-    let session = builder.build()
+    let session = builder
+        .build()
         .map_err(|e| CommandError::Internal(e.to_string()))?;
 
     // Reset stop flag
@@ -278,12 +298,8 @@ pub async fn cmd_start_search(
     };
 
     tokio::spawn(async move {
-        match session.run_optimization(
-            callback,
-            &job.pinned_keys,
-        )
-        .await
-        {
+        let runtime = Runtime::from(session);
+        match runtime.run_optimization(callback, &job.pinned_keys).await {
             Ok(result) => {
                 let _ = window_handle.emit("search_finished", result);
             }

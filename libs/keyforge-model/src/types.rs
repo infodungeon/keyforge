@@ -220,10 +220,10 @@ impl<'de> Deserialize<'de> for RowIndex {
     {
         struct RowIndexVisitor;
 
-        impl<'de> Visitor<'de> for RowIndexVisitor {
+        impl Visitor<'_> for RowIndexVisitor {
             type Value = RowIndex;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str("integer or string representing row index")
             }
 
@@ -231,8 +231,8 @@ impl<'de> Deserialize<'de> for RowIndex {
             where
                 E: de::Error,
             {
-                if value >= i64::from(i8::MIN) && value <= i64::from(i8::MAX) {
-                    Ok(RowIndex(value as i8))
+                if let Ok(val) = i8::try_from(value) {
+                    Ok(RowIndex(val))
                 } else {
                     Err(E::custom(format!("RowIndex out of bounds: {value}")))
                 }
@@ -242,8 +242,8 @@ impl<'de> Deserialize<'de> for RowIndex {
             where
                 E: de::Error,
             {
-                if value <= i8::MAX as u64 {
-                    Ok(RowIndex(value as i8))
+                if let Ok(val) = i8::try_from(value) {
+                    Ok(RowIndex(val))
                 } else {
                     Err(E::custom(format!("RowIndex out of bounds: {value}")))
                 }

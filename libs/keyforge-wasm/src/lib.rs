@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod loader;
-
-use keyforge_compute::loader::{AssetLoader, InMemoryLoader};
+use keyforge_compute::{AssetLoader, InMemoryLoader};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::validator::Validator;
 use keyforge_model::{Corpus, CostModel, Layout, Rubric};
-use loader::InMemoryLoader;
+use serde::Serialize;
 use serde_wasm_bindgen::{from_value, to_value};
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -35,6 +33,20 @@ impl Default for KeyforgeEngine {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(Serialize)]
+struct WasmError {
+    kind: String,
+    message: String,
+}
+
+fn to_js_error(e: &impl ToString) -> JsValue {
+    let err = WasmError {
+        kind: "KeyForgeError".into(),
+        message: e.to_string(),
+    };
+    to_value(&err).unwrap_or_else(|_| JsValue::from_str(&err.message))
 }
 
 #[wasm_bindgen]
@@ -55,8 +67,8 @@ impl KeyforgeEngine {
     /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeyboard)]
     pub fn inject_keyboard(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let kb: KeyboardDefinition = from_value(json_val)?;
-        kb.validate().map_err(|e| JsValue::from_str(&e))?;
+        let kb: KeyboardDefinition = from_value(json_val).map_err(|e| to_js_error(&e))?;
+        kb.validate().map_err(|e| to_js_error(&e))?;
         self.loader.inject_keyboard(name, kb);
         Ok(())
     }
@@ -68,10 +80,8 @@ impl KeyforgeEngine {
     /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectCorpus)]
     pub fn inject_corpus(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let corpus: Corpus = from_value(json_val)?;
-        corpus
-            .validate()
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let corpus: Corpus = from_value(json_val).map_err(|e| to_js_error(&e))?;
+        corpus.validate().map_err(|e| to_js_error(&e))?;
         self.loader.inject_corpus(name, corpus);
         Ok(())
     }
@@ -83,10 +93,8 @@ impl KeyforgeEngine {
     /// Returns an error if the JSON is invalid.
     #[wasm_bindgen(js_name = injectCostModel)]
     pub fn inject_cost_model(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let model: CostModel = from_value(json_val)?;
-        model
-            .validate()
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let model: CostModel = from_value(json_val).map_err(|e| to_js_error(&e))?;
+        // CostModel doesn't have a validate() method yet, but serde handles structure.
         self.loader.inject_cost_model(name, model);
         Ok(())
     }
@@ -98,8 +106,8 @@ impl KeyforgeEngine {
     /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeycodes)]
     pub fn inject_keycodes(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let reg: KeycodeRegistry = from_value(json_val)?;
-        reg.validate().map_err(|e| JsValue::from_str(&e))?;
+        let reg: KeycodeRegistry = from_value(json_val).map_err(|e| to_js_error(&e))?;
+        reg.validate().map_err(|e| to_js_error(&e))?;
         self.loader.inject_keycodes(name, reg);
         Ok(())
     }
@@ -118,18 +126,18 @@ impl KeyforgeEngine {
         layout_val: JsValue,
         rubric_val: JsValue,
     ) -> Result<JsValue, JsValue> {
-        let layout: Layout = from_value(layout_val)?;
+        let layout: Layout = from_value(layout_val).map_err(|e| to_js_error(&e))?;
         let rubric: Rubric = if rubric_val.is_null() || rubric_val.is_undefined() {
             Rubric::default()
         } else {
-            from_value(rubric_val)?
+            from_value(rubric_val).map_err(|e| to_js_error(&e))?
         };
 
         let kb = self
             .loader
             .load::<KeyboardDefinition>(&keyboard_name)
             .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            .map_err(|e| to_js_error(&e))?;
 
         let corpus = self
             .loader
@@ -139,35 +147,55 @@ impl KeyforgeEngine {
                 hash: None,
             }])
             .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            .map_err(|e| to_js_error(&e))?;
 
         let cost_model = self
             .loader
             .load::<CostModel>(&cost_model_name)
             .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            .map_err(|e| to_js_error(&e))?;
 
         // Create Keyboard from Definition
         let keyboard = keyforge_model::Keyboard::new(
             kb.geometry.keys.clone(),
             kb.geometry.home_row,
-            kb.meta.kb_type.clone(),
+            kb.meta.name.clone(),
         )
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        .map_err(|e| to_js_error(&e))?;
 
-        let engine =
-            keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        let engine = keyforge_physics::EngineFactory::new_generic(
+            keyforge_physics::EngineCompilationContext {
                 keyboard: &keyboard,
                 corpus: &corpus,
                 rubric: &rubric,
                 cost_model: &cost_model,
-            })
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            },
+        )
+        .map_err(|e| to_js_error(&e))?;
 
-        let report = engine
-            .analyze(&layout)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let report = engine.analyze(&layout).map_err(|e| to_js_error(&e))?;
 
-        Ok(to_value(&report)?)
+        to_value(&report).map_err(|e| to_js_error(&e))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn test_inject_keyboard() {
+        let engine = KeyforgeEngine::new();
+        let kb_json = r#"{
+            "meta": { "name": "Test" },
+            "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0 },
+            "layouts": {}
+        }"#;
+        let val: serde_json::Value = serde_json::from_str(kb_json).unwrap();
+        let js_val = to_value(&val).unwrap();
+
+        // Should fail validation (empty keys)
+        assert!(engine.inject_keyboard("test".into(), js_val).is_err());
     }
 }

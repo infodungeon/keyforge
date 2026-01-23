@@ -37,7 +37,11 @@ pub async fn run(
         .await
         .map_err(|e| CliError::Other(format!("Failed to build job: {e}")))?;
 
-    let keycodes_file = args.shared.keycodes.as_deref().unwrap_or(keyforge_model::constants::ASSET_KEYCODES_FILENAME);
+    let keycodes_file = args
+        .shared
+        .keycodes
+        .as_deref()
+        .unwrap_or(keyforge_model::constants::ASSET_KEYCODES_FILENAME);
 
     let builder = keyforge_compute::SessionBuilder::new(loader)
         .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
@@ -95,12 +99,10 @@ pub async fn run(
         start_time: std::time::Instant::now(),
     };
 
-    let result: keyforge_model::OptimizationResult = session.run_optimization(
-        callback,
-        &job.pinned_keys,
-    )
-    .await
-    .map_err(|e| CliError::Other(format!("Optimization Error: {e}")))?;
+    let result: keyforge_model::OptimizationResult = keyforge_compute::Runtime::from(session)
+        .run_optimization(callback, &job.pinned_keys)
+        .await
+        .map_err(|e| CliError::Other(format!("Optimization Error: {e}")))?;
 
     pb.finish_with_message("Optimization complete.");
     println!(

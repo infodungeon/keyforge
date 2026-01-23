@@ -8,97 +8,10 @@
 // - All engines implement trait methods correctly
 // - Cross-engine score parity (oracle vs exact vs generic vs intel)
 
-use keyforge_model::{
-    cost_model::{FingerDefinition, HandDefinition, ModelDefinition},
-    types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex},
-    Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
-};
+use keyforge_model::testing::setup_minimal_assets;
+use keyforge_model::{types::KeyCode, Corpus, Keyboard, Layout, Rubric};
 use keyforge_physics::{verify::DeterministicScorer, EngineCompilationContext, EngineFactory};
 use proptest::prelude::*;
-use std::collections::HashMap;
-
-// =============================================================================
-// Test Fixtures
-// =============================================================================
-
-fn mock_cost_model() -> CostModel {
-    let mut cm = CostModel::default();
-
-    let mut base_zone = keyforge_model::cost_model::RowCosts::new();
-    for r in -128..=127 {
-        base_zone.insert(RowIndex(r as i8), 0.0);
-    }
-
-    let index_zones = keyforge_model::cost_model::FingerReach {
-        base: base_zone.clone(),
-        inner: Default::default(),
-        outer: Default::default(),
-    };
-
-    let mut fingers = HashMap::new();
-    fingers.insert("thumb".into(), FingerDefinition::Thumb(HashMap::new()));
-    fingers.insert(
-        "index".into(),
-        FingerDefinition::Standard(index_zones.clone()),
-    );
-    fingers.insert(
-        "middle".into(),
-        FingerDefinition::Standard(index_zones.clone()),
-    );
-    fingers.insert(
-        "ring".into(),
-        FingerDefinition::Standard(index_zones.clone()),
-    );
-    fingers.insert(
-        "pinky".into(),
-        FingerDefinition::Standard(index_zones),
-    );
-
-    let mut static_costs = HashMap::new();
-    static_costs.insert("universal_hand".into(), HandDefinition { fingers });
-
-    let model_def = ModelDefinition {
-        description: "test".into(),
-        static_costs,
-    };
-
-    cm.models
-        .insert("model_a_row_staggered".into(), model_def.clone());
-    cm.models.insert("model_ortho".into(), model_def);
-    cm
-}
-
-fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
-    let keys = vec![
-        KeyNode {
-            index: 0,
-            hand: HandIndex::LEFT,
-            finger: FingerIndex::INDEX,
-            row: RowIndex(0),
-            col: ColIndex(0),
-            is_home: true,
-            ..Default::default()
-        },
-        KeyNode {
-            index: 1,
-            hand: HandIndex::LEFT,
-            finger: FingerIndex::MIDDLE,
-            row: RowIndex(0),
-            col: ColIndex(1),
-            is_home: true,
-            ..Default::default()
-        },
-    ];
-    let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-    let mut corpus = Corpus::default();
-    corpus.char_freqs[97] = 100;
-    corpus.char_freqs[98] = 200;
-    corpus.bigrams.push((97, 98, 50));
-
-    let cm = mock_cost_model();
-
-    (kb, corpus, Rubric::default(), cm)
-}
 
 // =============================================================================
 // Generic Engine Integration Tests
@@ -109,7 +22,7 @@ fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
 /// swap delta matches actual score difference.
 #[test]
 fn test_generic_engine_trait_methods() {
-    let (kb, corpus, rubric, cm) = setup_minimal();
+    let (kb, corpus, rubric, cm) = setup_minimal_assets();
     let engine = EngineFactory::new_generic(EngineCompilationContext {
         keyboard: &kb,
         corpus: &corpus,
@@ -120,15 +33,15 @@ fn test_generic_engine_trait_methods() {
 
     assert_eq!(engine.name(), "Generic Optimized");
     assert!(!engine.capabilities().is_exact);
-    assert_eq!(engine.key_count(), 2);
+    assert_eq!(engine.key_count(), 3);
 
-    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
     let score = engine.score(&layout).unwrap();
     let detailed = engine.score_detailed(&layout).unwrap();
     assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);
 
-    let pos_map = vec![0, 1];
+    let pos_map = vec![0, 1, 2];
     let delta = engine
         .calculate_swap_delta(&layout, &pos_map, 0, 1)
         .unwrap();
@@ -156,7 +69,7 @@ fn test_generic_engine_trait_methods() {
 /// Expected: Factory creates engine with `is_exact=true`, all trait methods return valid results.
 #[test]
 fn test_exact_engine_trait_methods() {
-    let (kb, corpus, rubric, cm) = setup_minimal();
+    let (kb, corpus, rubric, cm) = setup_minimal_assets();
     let engine = EngineFactory::new_exact(EngineCompilationContext {
         keyboard: &kb,
         corpus: &corpus,
@@ -168,15 +81,15 @@ fn test_exact_engine_trait_methods() {
     assert_eq!(engine.name(), "Exact (Oracle)");
     assert!(engine.capabilities().is_exact);
     assert!(!engine.capabilities().features.supports_avx2);
-    assert_eq!(engine.key_count(), 2);
+    assert_eq!(engine.key_count(), 3);
 
-    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
     let score = engine.score(&layout).unwrap();
     let detailed = engine.score_detailed(&layout).unwrap();
     assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);
 
-    let pos_map = vec![0, 1];
+    let pos_map = vec![0, 1, 2];
     let delta = engine
         .calculate_swap_delta(&layout, &pos_map, 0, 1)
         .unwrap();
@@ -204,7 +117,7 @@ fn test_exact_engine_trait_methods() {
 /// Expected: Factory creates engine with `supports_avx2=true`, all trait methods return valid results.
 #[test]
 fn test_intel_engine_trait_methods() {
-    let (kb, corpus, rubric, cm) = setup_minimal();
+    let (kb, corpus, rubric, cm) = setup_minimal_assets();
     let engine = EngineFactory::new_intel_comet_lake(
         EngineCompilationContext {
             keyboard: &kb,
@@ -218,15 +131,15 @@ fn test_intel_engine_trait_methods() {
 
     assert_eq!(engine.name(), "Intel Comet Lake (AVX2 Optimized)");
     assert!(engine.capabilities().features.supports_avx2);
-    assert_eq!(engine.key_count(), 2);
+    assert_eq!(engine.key_count(), 3);
 
-    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
     let score = engine.score(&layout).unwrap();
     let detailed = engine.score_detailed(&layout).unwrap();
     assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);
 
-    let pos_map = vec![0, 1];
+    let pos_map = vec![0, 1, 2];
     let delta = engine
         .calculate_swap_delta(&layout, &pos_map, 0, 1)
         .unwrap();
@@ -250,11 +163,11 @@ fn test_intel_engine_trait_methods() {
 /// Expected: Engine scores layout without errors even when corpus references unmapped keys.
 #[test]
 fn test_intel_missing_keys() {
-    let (kb, _corpus, rubric, cm) = setup_minimal();
+    let (kb, _corpus, rubric, cm) = setup_minimal_assets();
     let mut corpus = Corpus::default();
-    corpus.char_freqs[99] = 100; // Code 99 not in layout
-    corpus.bigrams.push((97, 99, 50)); // Code 99 not in layout
-    corpus.trigrams.push((97, 98, 99, 10)); // Code 99 not in layout
+    corpus.char_freqs[99] = 100; // Code 99 (c)
+    corpus.bigrams.push((97, 99, 50)); // a -> c
+    corpus.trigrams.push((97, 98, 99, 10)); // a -> b -> c
 
     let engine = EngineFactory::new_intel_comet_lake(
         EngineCompilationContext {
@@ -266,7 +179,7 @@ fn test_intel_missing_keys() {
         None,
     )
     .unwrap();
-    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
     let score = engine.score(&layout).unwrap();
     assert!(score.0 >= 0);
@@ -292,7 +205,7 @@ proptest! {
             .map(|i| KeyCode(i as u16))
             .collect();
 
-        let cost_model = mock_cost_model();
+        let cost_model = keyforge_model::testing::mock_cost_model();
         let oracle = DeterministicScorer::new(&kb, &rubric, &cost_model);
 
         let ctx = EngineCompilationContext {

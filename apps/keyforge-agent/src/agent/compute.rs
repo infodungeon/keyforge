@@ -2,7 +2,7 @@
 
 use crate::models::{ComputeConfig, SharedTelemetry};
 use anyhow::Result;
-use keyforge_compute::{optimize_with_engine, ProgressCallback, ScoringSession};
+use keyforge_compute::{Runtime, ScoringSession};
 use keyforge_infra::AssetManager;
 use keyforge_model::OptimizationResult;
 use keyforge_protocol::JobConfig;
@@ -83,7 +83,9 @@ pub async fn run_optimization(
     };
 
     // Use consolidated compute runner
-    session.run_optimization(logger, &config.pinned_keys)
+    let runtime = Runtime::from(session);
+    runtime
+        .run_optimization(logger, &config.pinned_keys)
         .await
         .map_err(|e| anyhow::anyhow!(e))
 }
@@ -148,13 +150,15 @@ mod tests {
         }"#;
         let cost_model: CostModel = serde_json::from_str(cost_json).unwrap();
 
-        let engine: Arc<dyn keyforge_compute::ScoringEngine> =
-            keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-                keyboard: &kb,
-                corpus: &keyforge_model::Corpus::default(),
-                rubric: &keyforge_model::Rubric::default(),
-                cost_model: &cost_model,
-            })
+        let engine: Arc<dyn keyforge_physics::ScoringEngine> =
+            keyforge_physics::EngineFactory::new_generic(
+                keyforge_physics::EngineCompilationContext {
+                    keyboard: &kb,
+                    corpus: &keyforge_model::Corpus::default(),
+                    rubric: &keyforge_model::Rubric::default(),
+                    cost_model: &cost_model,
+                },
+            )
             .unwrap()
             .into();
 
@@ -169,11 +173,8 @@ mod tests {
             include_thumbs: false,
         };
 
-        let session = ScoringSession::new(
-            engine,
-            Arc::new(KeycodeRegistry::default()),
-            search_config,
-        );
+        let session =
+            ScoringSession::new(engine, Arc::new(KeycodeRegistry::default()), search_config);
 
         let job_config = JobConfig {
             definition: kb_def,

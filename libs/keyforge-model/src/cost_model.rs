@@ -16,7 +16,7 @@
 //! rather than hardcoded logic.
 
 use crate::asset::{Asset, AssetCategory};
-use crate::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
+use crate::types::RowIndex;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -38,7 +38,8 @@ impl Asset for CostModel {
     }
 
     fn post_load(&mut self) -> Result<(), crate::error::ForgeError> {
-        self.validate().map_err(crate::error::ForgeError::InvalidData)
+        self.validate()
+            .map_err(crate::error::ForgeError::InvalidData)
     }
 }
 
@@ -106,7 +107,7 @@ pub struct HandDefinition {
     pub fingers: HashMap<String, FingerDefinition>,
 }
 
-/// A map of RowIndex to cost.
+/// A map of `RowIndex` to cost.
 pub type RowCosts = HashMap<RowIndex, f32>;
 
 /// Definition of costs within a finger's reach.

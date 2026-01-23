@@ -145,10 +145,7 @@ mod tests {
 
     #[test]
     fn test_action_to_qmk_all() {
-        assert_eq!(
-            action_to_qmk(&KeyAction::LayerMomentary(1), None),
-            "MO(1)"
-        );
+        assert_eq!(action_to_qmk(&KeyAction::LayerMomentary(1), None), "MO(1)");
         assert_eq!(action_to_qmk(&KeyAction::LayerToggle(2), None), "TG(2)");
         assert_eq!(action_to_qmk(&KeyAction::LayerOn(3), None), "TO(3)");
         assert_eq!(action_to_qmk(&KeyAction::CapsWord, None), "CAPS_WORD");

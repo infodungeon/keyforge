@@ -18,16 +18,16 @@
 //! physics and evolution engines to provide a unified runtime for
 //! applications.
 
-/// Traits and types for loading external assets (keyboards, corpora, etc.).
-pub mod loader;
-/// High-level session management for optimization runs.
-pub mod session;
 /// Biometric profiling logic.
 pub mod biometrics;
 /// Builder for constructing computation sessions.
 pub mod builder;
 /// Hardware detection and engine selection.
 pub mod hardware;
+/// Traits and types for loading external assets (keyboards, corpora, etc.).
+pub mod loader;
+/// High-level session management for optimization runs.
+pub mod session;
 
 pub use builder::SessionBuilder;
 pub use loader::{AssetLoader, InMemoryLoader, LoaderResult};
@@ -48,7 +48,9 @@ use tracing::instrument;
 ///
 /// # Errors
 /// Returns `keyforge_physics::PhysicsError` if the engine building fails.
-pub fn build_engine(req: &EngineRequest) -> Result<Box<dyn ScoringEngine>, keyforge_physics::PhysicsError> {
+pub fn build_engine(
+    req: &EngineRequest,
+) -> Result<Box<dyn ScoringEngine>, keyforge_physics::PhysicsError> {
     keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
         keyboard: &req.keyboard,
         corpus: &req.corpus,

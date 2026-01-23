@@ -21,7 +21,7 @@ use keyforge_model::types::KeyIndex;
 use keyforge_model::Validator;
 use keyforge_protocol::JobRequest;
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, Row};
+use sqlx::{Postgres, QueryBuilder, Row};
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -83,15 +83,15 @@ impl JobRepository {
 
         if let Some(r) = row {
             let id: String = r.get("id");
-            let geometry_val: serde_json::Value = r.get("geometry_json");
+            let keyboard_id: i32 = r.get("keyboard_id"); // Changed from geometry_json
             let weights_val: serde_json::Value = r.get("weights_json");
             let params_val: serde_json::Value = r.get("params_json");
             let pinned_keys_str: String = r.get("pinned_keys");
             let corpus_name: String = r.get("corpus_name");
             let cost_matrix_str: String = r.get("cost_matrix");
 
-            let definition = serde_json::from_value(geometry_val)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid geometry in DB: {e}")))?;
+            let definition = self.fetch_keyboard_definition(keyboard_id).await?; // Fetch def
+
             let weights = serde_json::from_value(weights_val)
                 .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights in DB: {e}")))?;
             let params = serde_json::from_value(params_val)
@@ -151,7 +151,7 @@ impl JobRepository {
             keyforge_model::geometry::KeyboardGeometry,
             ScoringWeights,
             String,
-            String,
+            keyforge_model::CostMatrixSource,
         )>,
         sqlx::Error,
     > {
@@ -161,16 +161,106 @@ impl JobRepository {
             .await?;
 
         if let Some(r) = row {
-            let geometry: keyforge_model::geometry::KeyboardGeometry =
-                serde_json::from_value(r.get("geometry_json")).unwrap_or_default();
+            let keyboard_id: i32 = r.get("keyboard_id");
+            let definition = self.fetch_keyboard_definition(keyboard_id).await?;
+            let geometry = definition.geometry;
+
             let weights: ScoringWeights =
                 serde_json::from_value(r.get("weights_json")).unwrap_or_default();
             let corpus: String = r.get("corpus_name");
-            let cost: String = r.get("cost_matrix");
+            let cost_raw: String = r.get("cost_matrix");
+            let cost: keyforge_model::CostMatrixSource = serde_json::from_str(&cost_raw)
+                .unwrap_or(keyforge_model::CostMatrixSource::Predefined(cost_raw));
+
             Ok(Some((geometry, weights, corpus, cost)))
         } else {
             Ok(None)
         }
+    }
+
+    async fn fetch_keyboard_definition(
+        &self,
+        kb_id: i32,
+    ) -> Result<KeyboardDefinition, sqlx::Error> {
+        let meta_row = sqlx::query(queries::FETCH_KEYBOARD_META)
+            .bind(kb_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        let meta = keyforge_model::geometry::KeyboardMeta {
+            name: meta_row.get("name"),
+            author: meta_row.get("author"),
+            version: meta_row.get("version"),
+            notes: meta_row.get("notes"),
+            kb_type: meta_row.get("kb_type"),
+        };
+        let home_row: i32 = meta_row.get("home_row");
+
+        let keys_rows = sqlx::query(queries::FETCH_KEYBOARD_KEYS)
+            .bind(kb_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut keys = Vec::with_capacity(keys_rows.len());
+        let mut prime_slots = Vec::new();
+        let mut med_slots = Vec::new();
+        let mut low_slots = Vec::new();
+
+        for row in keys_rows {
+            let idx: i32 = row.get("idx");
+            #[allow(clippy::cast_possible_truncation)]
+            let kidx = KeyIndex(
+                u16::try_from(idx)
+                    .map_err(|e| sqlx::Error::Protocol(format!("Key index overflow: {e}")))?,
+            );
+
+            keys.push(keyforge_model::KeyNode {
+                index: usize::try_from(idx)
+                    .map_err(|e| sqlx::Error::Protocol(format!("Key index negative: {e}")))?,
+                label: format!("k{idx}"),
+                x: row.get("x"),
+                y: row.get("y"),
+                w: row.get("w"),
+                h: row.get("h"),
+                hand: keyforge_model::types::HandIndex(
+                    u8::try_from(row.get::<i16, _>("hand")).unwrap_or(0),
+                ),
+                finger: keyforge_model::types::FingerIndex::new_unchecked(
+                    u8::try_from(row.get::<i16, _>("finger")).unwrap_or(0),
+                ),
+                row: keyforge_model::types::RowIndex(
+                    i8::try_from(row.get::<i16, _>("row_idx")).unwrap_or(0),
+                ),
+                col: keyforge_model::types::ColIndex(
+                    i8::try_from(row.get::<i16, _>("col_idx")).unwrap_or(0),
+                ),
+                is_stretch: row.get("is_stretch"),
+                r: row.get("r"),
+                ..Default::default()
+            });
+
+            if row.get("is_prime") {
+                prime_slots.push(kidx);
+            }
+            if row.get("is_med") {
+                med_slots.push(kidx);
+            }
+            if row.get("is_low") {
+                low_slots.push(kidx);
+            }
+        }
+
+        Ok(KeyboardDefinition {
+            meta,
+            geometry: keyforge_model::geometry::KeyboardGeometry {
+                keys,
+                prime_slots,
+                med_slots,
+                low_slots,
+                home_row: i8::try_from(home_row).unwrap_or(0),
+            },
+            layouts: std::collections::HashMap::new(),
+        })
     }
 
     fn validate_registration_request(req: &JobRequest) -> Result<(), sqlx::Error> {
@@ -255,7 +345,7 @@ impl JobRepository {
             .bind(&kb_meta.version)
             .bind(&kb_meta.notes)
             .bind(&kb_meta.kb_type)
-            .bind(def.geometry.home_row as i32)
+            .bind(i32::from(def.geometry.home_row))
             .bind(unique_hash)
             .fetch_one(&mut **tx)
             .await?;
@@ -268,32 +358,34 @@ impl JobRepository {
             .await?;
 
         if keys_exist.is_none() {
-            for (idx, key) in def.geometry.keys.iter().enumerate() {
+            let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new(
+                "INSERT INTO keyboard_keys (keyboard_id, idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r) "
+            );
+
+            qb.push_values(def.geometry.keys.iter().enumerate(), |mut b, (idx, key)| {
                 #[allow(clippy::cast_possible_truncation)]
                 let kidx = KeyIndex(idx as u16);
-
                 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
                 let idx_i32 = idx as i32;
 
-                sqlx::query(queries::INSERT_KEY_QUERY)
-                    .bind(kb_id)
-                    .bind(idx_i32)
-                    .bind(key.x)
-                    .bind(key.y)
-                    .bind(key.w)
-                    .bind(key.h)
-                    .bind(i16::from(key.hand.0))
-                    .bind(i16::from(key.finger.0))
-                    .bind(i16::from(key.row.0))
-                    .bind(i16::from(key.col.0))
-                    .bind(key.is_stretch)
-                    .bind(def.geometry.prime_slots.contains(&kidx))
-                    .bind(def.geometry.med_slots.contains(&kidx))
-                    .bind(def.geometry.low_slots.contains(&kidx))
-                    .bind(key.r)
-                    .execute(&mut **tx)
-                    .await?;
-            }
+                b.push_bind(kb_id)
+                    .push_bind(idx_i32)
+                    .push_bind(key.x)
+                    .push_bind(key.y)
+                    .push_bind(key.w)
+                    .push_bind(key.h)
+                    .push_bind(i16::from(key.hand.0))
+                    .push_bind(i16::from(key.finger.0))
+                    .push_bind(i16::from(key.row.0))
+                    .push_bind(i16::from(key.col.0))
+                    .push_bind(key.is_stretch)
+                    .push_bind(def.geometry.prime_slots.contains(&kidx))
+                    .push_bind(def.geometry.med_slots.contains(&kidx))
+                    .push_bind(def.geometry.low_slots.contains(&kidx))
+                    .push_bind(key.r);
+            });
+
+            qb.build().execute(&mut **tx).await?;
         }
 
         Ok(kb_id)

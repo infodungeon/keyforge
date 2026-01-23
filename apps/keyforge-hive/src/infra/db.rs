@@ -55,53 +55,14 @@ pub async fn try_init_db(db_url: &str) -> Result<PgPool, DbInitError> {
 
     let pool = connect_with_retry(db_url).await?;
 
-    // RETRY LOGIC for Schema Migration
-    let mut attempts = 0;
-    loop {
-        attempts += 1;
-
-        match sqlx::migrate!().run(&pool).await {
-            Ok(()) => break,
-            Err(e) => {
-                if attempts >= 10 {
-                    return Err(DbInitError::MigrationFailed {
-                        attempts,
-                        error: e.to_string(),
-                    });
-                }
-
-                let is_retryable = match &e {
-                    sqlx::migrate::MigrateError::Execute(inner_err) => {
-                        if let Some(db_err) = inner_err.as_database_error() {
-                            if let Some(code) = db_err.code() {
-                                // 40P01: deadlock_detected, 23505: unique_violation
-                                code == "40P01" || code == "23505"
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    }
-                    _ => false,
-                };
-
-                if is_retryable {
-                    let wait = fastrand::u64(100..500);
-                    warn!(
-                        "⚠️  Schema lock contention (attempt {}). Retrying in {}ms...",
-                        attempts, wait
-                    );
-                    sleep(Duration::from_millis(wait)).await;
-                } else {
-                    return Err(DbInitError::MigrationFailed {
-                        attempts,
-                        error: e.to_string(),
-                    });
-                }
-            }
-        }
-    }
+    info!("🔄 Applying database migrations...");
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .map_err(|e| DbInitError::MigrationFailed {
+            attempts: 1,
+            error: e.to_string(),
+        })?;
 
     info!("✅ Database connected and migrations applied.");
     Ok(pool)

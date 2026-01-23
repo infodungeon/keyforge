@@ -62,7 +62,10 @@ pub async fn handler(
             if subject == node_id {
                 authenticated = true;
             } else {
-                warn!("⚠️ WS Auth: Token subject mismatch. Expected {}, got {}", node_id, subject);
+                warn!(
+                    "⚠️ WS Auth: Token subject mismatch. Expected {}, got {}",
+                    node_id, subject
+                );
             }
         }
     }

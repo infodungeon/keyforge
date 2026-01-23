@@ -26,7 +26,7 @@ use ts_rs::TS;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum KeyAction {
-    /// A simple keycode (e.g., "KC_A").
+    /// A simple keycode (e.g., "`KC_A`").
     Simple(String),
     /// Transparent (pass-through).
     Transparent,

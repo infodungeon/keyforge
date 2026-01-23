@@ -111,7 +111,10 @@ impl AppState {
         let (tx, _) = broadcast::channel(DEFAULT_BROADCAST_CAPACITY);
 
         // HIVE_SECRET is now enforced by AppConfig
-        let security = Arc::new(SecurityContext::new(Some(config.hive_secret), server_key));
+        let security = Arc::new(SecurityContext::new(
+            Some(config.hive_secret.clone()),
+            server_key,
+        ));
 
         let monitor = Arc::new(SystemMonitor::new());
 

@@ -1,8 +1,7 @@
 // apps/keyforge-ui/src-tauri/src/state.rs
 
 #![allow(unsafe_code)]
-use keyforge_compute::loader::{AssetLoader, LoaderResult};
-use keyforge_compute::session::ScoringSession;
+use keyforge_compute::loader::AssetLoader;
 use keyforge_infra::AssetManager;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;
@@ -60,7 +59,7 @@ impl AssetLoader for AssetCache {
     async fn load<T: keyforge_model::Asset>(
         &self,
         id: &str,
-    ) -> keyforge_core::loader::LoaderResult<Arc<T>> {
+    ) -> keyforge_compute::loader::LoaderResult<Arc<T>> {
         if TypeId::of::<T>() == TypeId::of::<KeyboardDefinition>() {
             let res = self
                 .load_keyboard_internal(id)
@@ -96,7 +95,7 @@ impl AssetLoader for AssetCache {
     async fn load_corpus(
         &self,
         sources: &[CorpusSource],
-    ) -> keyforge_core::loader::LoaderResult<Arc<Corpus>> {
+    ) -> keyforge_compute::loader::LoaderResult<Arc<Corpus>> {
         self.load_corpus_internal(sources)
             .await
             .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))
@@ -224,5 +223,5 @@ pub struct SessionState {
     pub active_job: Arc<RwLock<Option<JobConfig>>>,
     pub assets: Arc<AssetCache>,
     pub client: Arc<RwLock<Option<keyforge_infra::HiveClient>>>,
-    pub scoring_session: Arc<RwLock<Option<keyforge_core::ScoringSession>>>,
+    pub scoring_session: Arc<RwLock<Option<keyforge_compute::ScoringSession>>>,
 }

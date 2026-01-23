@@ -488,85 +488,9 @@ fn to_f32(i: i64) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use keyforge_model::testing::{mock_cost_model, setup_minimal_assets};
     use keyforge_model::types::{FingerIndex, HandIndex, KeyCode};
-    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
-
-    fn mock_cost_model() -> keyforge_model::CostModel {
-        let mut cm = keyforge_model::CostModel::default();
-
-        let mut base_zone = keyforge_model::cost_model::RowCosts::new();
-        for r in -128..=127 {
-            base_zone.insert(keyforge_model::types::RowIndex(r as i8), 0.0);
-        }
-
-        let mut index_zones = keyforge_model::cost_model::FingerReach {
-            base: base_zone.clone(),
-            inner: Default::default(),
-            outer: Default::default(),
-        };
-
-        let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "thumb".into(),
-            keyforge_model::cost_model::FingerDefinition::Thumb(std::collections::HashMap::new()),
-        );
-        fingers.insert(
-            "index".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(index_zones.clone()),
-        );
-        fingers.insert(
-            "middle".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(index_zones.clone()),
-        );
-        fingers.insert(
-            "ring".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(index_zones.clone()),
-        );
-        fingers.insert(
-            "pinky".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(index_zones),
-        );
-
-        let mut static_costs = std::collections::HashMap::new();
-        static_costs.insert(
-            "universal_hand".into(),
-            keyforge_model::cost_model::HandDefinition { fingers },
-        );
-
-        cm.models.insert(
-            "model_a_row_staggered".into(),
-            keyforge_model::cost_model::ModelDefinition {
-                description: "test".into(),
-                static_costs,
-            },
-        );
-        cm
-    }
-
-    fn setup_kb_wiring() -> Keyboard {
-        let keys: Vec<KeyNode> = (0..3)
-            .map(|i| KeyNode {
-                index: i,
-                label: format!("k{i}"),
-                hand: HandIndex(0),
-                finger: FingerIndex::new_unchecked(i as u8),
-                x: i as f32,
-                ..Default::default()
-            })
-            .collect();
-        Keyboard::new(keys, 0, "test".into()).unwrap()
-    }
-
-    fn setup_minimal() -> (Keyboard, Corpus, Rubric, CostModel) {
-        let kb = setup_kb_wiring();
-        let mut corpus = Corpus::default();
-        corpus.char_freqs[97] = 100;
-        corpus.char_freqs[98] = 200;
-        corpus.bigrams.push((97, 98, 50));
-
-        let cm = mock_cost_model();
-        (kb, corpus, Rubric::default(), cm)
-    }
+    use keyforge_model::{Corpus, KeyNode, Rubric};
 
     #[test]
     fn test_deterministic_scorer_detailed_branches() {
@@ -576,7 +500,7 @@ mod tests {
         let mut cm = mock_cost_model();
         cm.dynamic_rules.sequence_modifiers.insert("ab".into(), 5.0);
 
-        let kb = setup_kb_wiring();
+        let (kb, _, _, _) = setup_minimal_assets();
         let oracle = DeterministicScorer::new(&kb, &rubric, &cm);
         let mut corpus = Corpus::default();
         corpus.char_freqs['a' as usize] = 10;
@@ -599,47 +523,36 @@ mod tests {
 
     #[test]
     fn test_calculate_flow_cost_branches() {
-        let (kb_min, _corpus, rubric, cm) = setup_minimal();
+        let (kb_min, _corpus, rubric, cm) = setup_minimal_assets();
         let oracle = DeterministicScorer::new(&kb_min, &rubric, &cm);
 
-        // Hand mismatch -> 0
-        // Wait, calculate_flow_cost takes indices.
-        // We need a 3-key keyboard.
-        let keys = vec![
-            KeyNode {
-                index: 0,
-                hand: HandIndex::LEFT,
-                finger: FingerIndex::INDEX,
-                ..Default::default()
-            },
-            KeyNode {
-                index: 1,
-                hand: HandIndex::LEFT,
-                finger: FingerIndex::MIDDLE,
-                ..Default::default()
-            },
-            KeyNode {
-                index: 2,
-                hand: HandIndex::LEFT,
-                finger: FingerIndex::RING,
-                ..Default::default()
-            },
-        ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        // Update keys to have specific fingers for testing logic
+        // We need a mutable keyboard or construct one.
+        // setup_minimal_assets returns a kb with:
+        // k0: Hand 0, Finger 0 (Thumb? No, FingerIndex::new_unchecked(0) -> Thumb)
+        // k1: Hand 0, Finger 1 (Index)
+        // k2: Hand 0, Finger 2 (Middle)
 
-        // Roll: Ring -> Middle -> Index (Inward? No, Index -> Middle -> Ring is outward)
-        // dir1 = k2.finger.diff(k1.finger)
-        // Middle (2) - Index (1) = 1 (Positive) -> Outward
-        // Ring (3) - Middle (2) = 1 (Positive) -> Outward
+        // We need:
+        // Index(1), Middle(2), Ring(3)
+        // Let's modify the keys from setup_minimal_assets
+        let mut kb = kb_min;
+        kb.keys[0].finger = FingerIndex::INDEX;
+        kb.keys[1].finger = FingerIndex::MIDDLE;
+        kb.keys[2].finger = FingerIndex::RING;
+
+        // Roll: Ring(2) -> Middle(1) -> Index(0)
         // Ring -> Middle -> Index:
-        // dir1 = 2 - 3 = -1 (Negative) -> Inward
-        // dir2 = 1 - 2 = -1 (Negative) -> Inward
-        // If dir1 < 0 { return -bonus_roll }
+        // dir1 = Middle - Ring = 2 - 3 = -1 (Inward)
+        // dir2 = Index - Middle = 1 - 2 = -1 (Inward)
+        // Wait, setup_minimal_assets k0..k2 are indices 0..2.
+        // kb.keys[2] is Ring. kb.keys[1] is Middle. kb.keys[0] is Index.
+        // calculate_flow_cost(kb, p1, p2, p3) -> (2, 1, 0)
         assert_eq!(oracle.calculate_flow_cost(&kb, 2, 1, 0), -oracle.bonus_roll);
 
-        // Redirect: Index -> Middle -> Index
-        // dir1 = 2 - 1 = 1
-        // dir2 = 1 - 2 = -1
+        // Redirect: Index(0) -> Middle(1) -> Index(0)
+        // dir1 = Middle - Index = 2 - 1 = 1
+        // dir2 = Index - Middle = 1 - 2 = -1
         // signum mismatch -> penalty_redirect
         assert_eq!(
             oracle.calculate_flow_cost(&kb, 0, 1, 0),
@@ -653,19 +566,17 @@ mod tests {
         let mut cm = keyforge_model::CostModel::default();
 
         // Inject a MASSIVE static cost for the 'universal_hand' -> 'index' -> 'base' -> 'r0'
-        // This corresponds to key index 0 in setup_kb_wiring.
-        // Cost = 1e15. Freq = 1e6. Product = 1e21 (Overflows i64 which is 9e18)
         let huge_cost = 1_000_000_000_000_000.0; // 1e15
 
         let mut base_zone = keyforge_model::cost_model::RowCosts::new();
         base_zone.insert(keyforge_model::types::RowIndex(0), huge_cost);
-        
+
         let index_zones = keyforge_model::cost_model::FingerReach {
             base: base_zone,
             inner: Default::default(),
             outer: Default::default(),
         };
-        
+
         let mut fingers = std::collections::HashMap::new();
         fingers.insert(
             "index".into(),
@@ -686,16 +597,19 @@ mod tests {
             },
         );
 
-        let kb = setup_kb_wiring();
+        let (mut kb, _, _, _) = setup_minimal_assets();
+        // Ensure k1 is Index finger (it is 1 in setup_minimal_assets, which corresponds to Index)
+        // k0=Thumb, k1=Index, k2=Middle.
+        // But we want to be sure.
+        kb.keys[1].finger = FingerIndex::INDEX;
+
         let oracle = DeterministicScorer::new(&kb, &rubric, &cm);
 
         // 1. Monogram Overflow
         let mut corpus = Corpus::default();
-        // The layout keys must map to the physical key with the huge cost.
         // layout_keys = [97, 98, 99].
-        // find_indices(98) -> index 1.
-        // kb.keys[1] is Left Index at r0. This hits our huge cost.
-        corpus.char_freqs[98] = 1_000_000; // Moderate freq is enough given the huge cost
+        // find_indices(98) -> index 1 (k1).
+        corpus.char_freqs[98] = 1_000_000;
 
         let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
 
@@ -706,18 +620,9 @@ mod tests {
         );
 
         // 2. Bigram Overflow
-        // Reset monogram freq to avoid early failure
         corpus.char_freqs[98] = 0;
 
-        // We need a bigram cost to be huge.
-        // DeterministicScorer::calculate_pair_cost uses distance * travel_lat.
-        // We can't easily change distance (geometry) to be infinite.
-        // But we CAN use sequence_modifiers!
-        // DeterministicScorer adds sequence_modifier to the pair cost.
-        // If we make modifier huge...
-
-        // Re-create oracle with huge modifier
-        let mut cm_bigram = cm.clone(); // Has huge static cost, but we won't use monograms
+        let mut cm_bigram = cm.clone();
         cm_bigram
             .dynamic_rules
             .sequence_modifiers
@@ -725,7 +630,7 @@ mod tests {
         let oracle_bigram = DeterministicScorer::new(&kb, &rubric, &cm_bigram);
 
         let mut corpus_bi = Corpus::default();
-        corpus_bi.bigrams.push((97, 98, 1_000_000)); // Moderate freq
+        corpus_bi.bigrams.push((97, 98, 1_000_000));
 
         let res_bi = oracle_bigram.score_detailed(&kb, &corpus_bi, &layout_keys);
         assert!(
@@ -735,13 +640,9 @@ mod tests {
 
         // 3. Trigram Overflow
         let mut corpus_tri = Corpus::default();
-        // Setup a trigram that triggers a redirect (97->98->97)
         corpus_tri.trigrams.push((97, 98, 97, 1_000_000));
 
-        // Massive penalty redirect
         let mut rubric_tri = Rubric::default();
-        // 1e12 * 1e6 (fixed point) = 1e18 < i64::MAX (9e18)
-        // 1e18 * 1e6 (freq) = 1e24 > i64::MAX
         rubric_tri.redirect = 1_000_000_000_000.0;
         let oracle_tri = DeterministicScorer::new(&kb, &rubric_tri, &cm);
 

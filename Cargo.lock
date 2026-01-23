@@ -4124,11 +4124,13 @@ dependencies = [
  "keyforge-model",
  "keyforge-physics",
  "keyforge-protocol",
+ "libc",
  "raw-cpuid",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4155,6 +4157,7 @@ dependencies = [
  "keyforge-adapter",
  "keyforge-model",
  "keyforge-protocol",
+ "proptest",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -4184,6 +4187,7 @@ dependencies = [
  "keyforge-infra",
  "keyforge-model",
  "keyforge-persistence",
+ "keyforge-physics",
  "keyforge-protocol",
  "keyforge-security",
  "metrics",
@@ -4205,7 +4209,7 @@ dependencies = [
  "sha2",
  "sqlx",
  "subtle",
- "sysinfo 0.37.2",
+ "sysinfo 0.33.1",
  "tempfile",
  "testcontainers",
  "testcontainers-modules",
@@ -4213,7 +4217,7 @@ dependencies = [
  "tikv-jemallocator",
  "tokio",
  "tokio-tungstenite",
- "toml 0.9.10+spec-1.1.0",
+ "toml 0.8.2",
  "tower",
  "tower-http",
  "tower_governor",
@@ -4226,6 +4230,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "walkdir",
+ "zeroize",
  "zstd",
 ]
 
@@ -4300,6 +4305,7 @@ dependencies = [
  "keyforge-infra",
  "keyforge-model",
  "keyforge-protocol",
+ "postcard",
  "serde",
  "serde_json",
  "sha2",
@@ -4361,6 +4367,7 @@ dependencies = [
 name = "keyforge-security"
 version = "0.9.0"
 dependencies = [
+ "chrono",
  "ed25519-dalek",
  "hex",
  "keyforge-model",
@@ -4397,6 +4404,7 @@ dependencies = [
  "keyforge-compute",
  "keyforge-infra",
  "keyforge-model",
+ "serde_json",
  "tempfile",
 ]
 

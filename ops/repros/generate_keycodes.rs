@@ -23,7 +23,7 @@ fn main() {
     let definitions = parse_markdown(&content);
 
     let registry = KeycodeRegistry::new(definitions);
-    
+
     // Validate
     if let Err(e) = keyforge_model::validator::Validator::validate(&registry) {
         eprintln!("Validation Error: {}", e);
@@ -58,14 +58,14 @@ fn parse_markdown(content: &str) -> Vec<KeycodeDefinition> {
     for line in content.lines() {
         if let Some(caps) = row_regex.captures(line) {
             let id = caps[1].trim().to_string();
-            
+
             // Skip already added
             if id == "KC_NO" || id == "KC_TRANSPARENT" {
                 continue;
             }
 
             let aliases_str = caps[2].trim();
-            let desc = caps[3].trim().to_string();
+            let _desc = caps[3].trim().to_string();
 
             let mut aliases = Vec::new();
             for m in code_regex.find_iter(aliases_str) {

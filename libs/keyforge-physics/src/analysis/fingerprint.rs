@@ -42,9 +42,18 @@ impl Fingerprinter {
     fn get_standards() -> &'static HashMap<String, Vec<KeyCode>> {
         STANDARDS.get_or_init(|| {
             let mut standards = HashMap::new();
-            standards.insert("Qwerty".into(), to_codes("qwertyuiopasdfghjkl;zxcvbnm,./"));
-            standards.insert("Colemak".into(), to_codes("qwfpgjluy;arstdhneiozxcvbkm,./"));
-            standards.insert("Dvorak".into(), to_codes("',.pyfgcrlaoeuidhtns;qjkxbmwvz"));
+            standards.insert(
+                "Qwerty".into(),
+                to_codes(keyforge_model::constants::layouts::QWERTY),
+            );
+            standards.insert(
+                "Colemak".into(),
+                to_codes(keyforge_model::constants::layouts::COLEMAK),
+            );
+            standards.insert(
+                "Dvorak".into(),
+                to_codes(keyforge_model::constants::layouts::DVORAK),
+            );
             standards
         })
     }
@@ -81,7 +90,7 @@ impl Fingerprinter {
         }
 
         if let Some(b) = best {
-            if b.similarity > 0.2 {
+            if b.similarity > keyforge_model::constants::IDENTIFY_SIMILARITY_THRESHOLD {
                 return Some(b);
             }
         }
@@ -100,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_fingerprint_identification() {
-        let qwerty_str = "qwertyuiopasdfghjkl;zxcvbnm,./";
+        let qwerty_str = keyforge_model::constants::layouts::QWERTY;
         let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode(c as u16)).collect();
         let layout = Layout::new_unchecked(keys);
 

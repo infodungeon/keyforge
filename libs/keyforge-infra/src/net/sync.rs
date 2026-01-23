@@ -77,7 +77,9 @@ pub async fn run_sync(client: &HiveClient, local_data_root: &Path) -> Result<Syn
         // --- PATH JAILING: Task-sec-012 ---
         // Ensure the final path is strictly within the system directory jail
         if !target_path.starts_with(&jail) {
-            stats.errors.push(format!("Jail breach attempt: {rel_path}"));
+            stats
+                .errors
+                .push(format!("Jail breach attempt: {rel_path}"));
             continue;
         }
 

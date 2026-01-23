@@ -61,15 +61,20 @@ pub const MIN_SERVER_VERSION: u32 = 1;
 ///
 /// # Errors
 /// Returns an error message if the client or server versions are below the minimum supported thresholds.
-pub fn check_version_compatibility(client_version: u32, server_version: u32) -> Result<(), String> {
-    if client_version < MIN_CLIENT_VERSION {
+pub fn check_version_compatibility(
+    client_version: u32,
+    server_version: u32,
+    min_client: u32,
+    min_server: u32,
+) -> Result<(), String> {
+    if client_version < min_client {
         return Err(format!(
-            "Client version {client_version} is too old (min required: {MIN_CLIENT_VERSION})"
+            "Client version {client_version} is too old (min required: {min_client})"
         ));
     }
-    if server_version < MIN_SERVER_VERSION {
+    if server_version < min_server {
         return Err(format!(
-            "Server version {server_version} is too old (min required: {MIN_SERVER_VERSION})"
+            "Server version {server_version} is too old (min required: {min_server})"
         ));
     }
     Ok(())
@@ -81,9 +86,9 @@ mod tests {
 
     #[test]
     fn test_version_compatibility() {
-        assert!(check_version_compatibility(PROTOCOL_VERSION, PROTOCOL_VERSION).is_ok());
-        assert!(check_version_compatibility(0, PROTOCOL_VERSION).is_err());
-        assert!(check_version_compatibility(PROTOCOL_VERSION, 0).is_err());
+        assert!(check_version_compatibility(PROTOCOL_VERSION, PROTOCOL_VERSION, 1, 1).is_ok());
+        assert!(check_version_compatibility(0, PROTOCOL_VERSION, 1, 1).is_err());
+        assert!(check_version_compatibility(PROTOCOL_VERSION, 0, 1, 1).is_err());
     }
 
     #[test]

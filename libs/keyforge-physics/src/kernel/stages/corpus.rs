@@ -22,6 +22,10 @@ pub struct CorpusOutput {
     pub trigram_mid_others1: Vec<KeyCode>,
     pub trigram_mid_others2: Vec<KeyCode>,
     pub trigram_mid_freqs: Vec<u32>,
+    pub trigram_end_starts: Vec<usize>,
+    pub trigram_end_others1: Vec<KeyCode>,
+    pub trigram_end_others2: Vec<KeyCode>,
+    pub trigram_end_freqs: Vec<u32>,
 }
 
 /// Stage 3: Corpus Flattening & Pruning.
@@ -36,9 +40,26 @@ impl CompilationStage for CorpusStage<'_> {
     type Output = CorpusOutput;
 
     fn execute(&self, (): Self::Input) -> Result<Self::Output, PhysicsError> {
-        let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&self.corpus.bigrams);
+        // Merge bigram duplicates to ensure consistency
+        let mut bigrams = self.corpus.bigrams.clone();
+        bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        let mut merged_bigrams = Vec::with_capacity(bigrams.len());
+        if !bigrams.is_empty() {
+            let mut current = bigrams[0];
+            for next in bigrams.into_iter().skip(1) {
+                if next.0 == current.0 && next.1 == current.1 {
+                    current.2 = current.2.saturating_add(next.2);
+                } else {
+                    merged_bigrams.push(current);
+                    current = next;
+                }
+            }
+            merged_bigrams.push(current);
+        }
+
+        let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&merged_bigrams);
         let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) =
-            flatten_bigrams_rev(&self.corpus.bigrams);
+            flatten_bigrams_rev(&merged_bigrams);
 
         let pruned_trigrams = prune_trigrams(
             self.corpus.trigrams.clone(),
@@ -50,6 +71,8 @@ impl CompilationStage for CorpusStage<'_> {
             flatten_trigrams_start(&pruned_trigrams);
         let (trigram_mid_starts, trigram_mid_others1, trigram_mid_others2, trigram_mid_freqs) =
             flatten_trigrams_mid(&pruned_trigrams);
+        let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) =
+            flatten_trigrams_end(&pruned_trigrams);
 
         let char_freqs = self.corpus.char_freqs.clone();
 
@@ -69,12 +92,17 @@ impl CompilationStage for CorpusStage<'_> {
             trigram_mid_others1,
             trigram_mid_others2,
             trigram_mid_freqs,
+            trigram_end_starts,
+            trigram_end_others1,
+            trigram_end_others2,
+            trigram_end_freqs,
         })
     }
 }
 
 fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
+    sorted.sort_unstable_by_key(|&(c1, _, _)| c1);
     let mut starts = vec![0; MAX_KEYCODE_SPACE + 1];
     let mut others = Vec::with_capacity(source.len());
     let mut freqs = Vec::with_capacity(source.len());
@@ -140,6 +168,25 @@ fn prune_trigrams(
     if source.is_empty() {
         return source;
     }
+
+    // First, merge duplicates to ensure consistent scoring between full and delta passes.
+    // Task-phys-rev-044: Seen set in delta calculation requires unique trigram keys.
+    source.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    let mut merged = Vec::with_capacity(source.len());
+    if !source.is_empty() {
+        let mut current = source[0];
+        for next in source.into_iter().skip(1) {
+            if next.0 == current.0 && next.1 == current.1 && next.2 == current.2 {
+                current.3 = current.3.saturating_add(next.3);
+            } else {
+                merged.push(current);
+                current = next;
+            }
+        }
+        merged.push(current);
+    }
+    let mut source = merged;
+
     source.sort_unstable_by(|a, b| {
         b.3.cmp(&a.3)
             .then_with(|| a.0.cmp(&b.0))
@@ -169,6 +216,7 @@ fn flatten_trigrams_start(
     source: &[(u16, u16, u16, u32)],
 ) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
     let mut sorted = source.to_vec();
+    sorted.sort_unstable_by_key(|&(c1, _, _, _)| c1);
     let mut starts = vec![0; MAX_KEYCODE_SPACE + 1];
     let mut o1 = Vec::with_capacity(source.len());
     let mut o2 = Vec::with_capacity(source.len());
@@ -219,6 +267,40 @@ fn flatten_trigrams_mid(
         }
         o1.push(KeyCode(c1));
         o2.push(KeyCode(c3));
+        freqs.push(freq);
+        current_offset += 1;
+    }
+
+    while current_char <= MAX_KEYCODE_SPACE {
+        starts[current_char] = current_offset;
+        current_char += 1;
+    }
+
+    (starts, o1, o2, freqs)
+}
+
+fn flatten_trigrams_end(
+    source: &[(u16, u16, u16, u32)],
+) -> (Vec<usize>, Vec<KeyCode>, Vec<KeyCode>, Vec<u32>) {
+    let mut sorted = source.to_vec();
+    sorted.sort_unstable_by_key(|&(_, _, c3, _)| c3);
+
+    let mut starts = vec![0; MAX_KEYCODE_SPACE + 1];
+    let mut o1 = Vec::with_capacity(source.len());
+    let mut o2 = Vec::with_capacity(source.len());
+    let mut freqs = Vec::with_capacity(source.len());
+
+    let mut current_char = 0usize;
+    let mut current_offset = 0usize;
+
+    for &(c1, c2, c3, freq) in &sorted {
+        let c3 = c3 as usize;
+        while current_char <= c3 {
+            starts[current_char] = current_offset;
+            current_char += 1;
+        }
+        o1.push(KeyCode(c1));
+        o2.push(KeyCode(c2));
         freqs.push(freq);
         current_offset += 1;
     }

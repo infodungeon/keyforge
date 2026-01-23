@@ -14,11 +14,16 @@
 
 //! Global constants and limits for the KeyForge system.
 
+pub mod layouts;
+/// System limits and constraints.
 pub mod limits;
+/// File system paths and directory structures.
 pub mod paths;
+/// Physics engine constants and scalar values.
 pub mod physics;
 
 // Re-export for backward compatibility
+pub use layouts::*;
 pub use limits::*;
 pub use paths::*;
 pub use physics::*;
@@ -80,6 +85,9 @@ pub const MIN_SUGGESTION_IMPROVEMENT_PCT: f32 = 0.01;
 
 /// Maximum number of violations of a single type to include in reports.
 pub const MAX_REPORTED_VIOLATIONS: usize = 10;
+
+/// Minimum similarity ratio required to identify a layout as a known standard.
+pub const IDENTIFY_SIMILARITY_THRESHOLD: f32 = 0.2;
 
 /// Mapping of special token strings to their character values.
 pub const CORPUS_TOKEN_MAP: &[(&str, char)] = &[

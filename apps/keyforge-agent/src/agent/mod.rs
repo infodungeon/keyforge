@@ -115,9 +115,9 @@ impl Agent {
 
                         let loader = keyforge_infra::FsProvider::new(data_dir.clone());
                         let mut builder = keyforge_compute::SessionBuilder::new(&loader);
-                        
+
                         builder = builder.with_keyboard_def(Arc::new(job.definition.clone()));
-                        
+
                         builder = match builder.with_corpus(&job.corpora).await {
                             Ok(b) => b,
                             Err(e) => {
@@ -188,7 +188,7 @@ impl Agent {
                                     &private_key,
                                     &job_id,
                                     &layout_str,
-                                    opt_res.score,
+                                    opt_res.raw_score,
                                     timestamp,
                                     nonce
                                 ) {
@@ -204,6 +204,7 @@ impl Agent {
                                     job_id: job_id.clone(),
                                     layout: layout_str,
                                     score: opt_res.score,
+                                    raw_score: opt_res.raw_score,
                                     node_id,
                                     timestamp,
                                     nonce,

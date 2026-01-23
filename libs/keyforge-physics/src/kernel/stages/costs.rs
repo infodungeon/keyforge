@@ -73,62 +73,74 @@ fn resolve_key_cost(
     key: &KeyNode,
     static_costs: &std::collections::HashMap<String, HandDefinition>,
 ) -> Result<f32, PhysicsError> {
-    const ZONE_INNER_THRESHOLD: i8 = 1;
-    const ZONE_OUTER_THRESHOLD: i8 = 1;
+    let hand = get_hand_def(key, static_costs)?;
+    let finger_def = get_finger_def(key, hand)?;
 
+    match finger_def {
+        FingerDefinition::Standard(reach) => Ok(resolve_standard_finger(key, reach)),
+        FingerDefinition::Thumb(positions) => Ok(positions
+            .values()
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .copied()
+            .unwrap_or(0.0)),
+    }
+}
+
+fn get_hand_def<'a>(
+    key: &KeyNode,
+    static_costs: &'a std::collections::HashMap<String, HandDefinition>,
+) -> Result<&'a HandDefinition, PhysicsError> {
     let hand_key = if key.hand == HandIndex::LEFT {
         "left_hand"
     } else {
         "right_hand"
     };
-    let hand_def = static_costs
+
+    static_costs
         .get(hand_key)
-        .or_else(|| static_costs.get("universal_hand"));
+        .or_else(|| static_costs.get("universal_hand"))
+        .ok_or_else(|| {
+            PhysicsError::Config(format!(
+                "Hand definition not found for {hand_key} or universal_hand"
+            ))
+        })
+}
 
-    if let Some(hand) = hand_def {
-        let finger_key = match key.finger {
-            FingerIndex::THUMB => "thumb",
-            FingerIndex::INDEX => "index",
-            FingerIndex::MIDDLE => "middle",
-            FingerIndex::RING => "ring",
-            FingerIndex::PINKY => "pinky",
-            _ => "unknown",
-        };
+fn get_finger_def<'a>(
+    key: &KeyNode,
+    hand: &'a HandDefinition,
+) -> Result<&'a FingerDefinition, PhysicsError> {
+    let finger_key = match key.finger {
+        FingerIndex::THUMB => "thumb",
+        FingerIndex::INDEX => "index",
+        FingerIndex::MIDDLE => "middle",
+        FingerIndex::RING => "ring",
+        FingerIndex::PINKY => "pinky",
+        _ => "unknown",
+    };
 
-        if let Some(finger_def) = hand.fingers.get(finger_key) {
-            match finger_def {
-                FingerDefinition::Standard(reach) => {
-                    let zone = if key.col.0.unsigned_abs() > ZONE_INNER_THRESHOLD as u8
-                        && key.finger == FingerIndex::INDEX
-                    {
-                        &reach.inner
-                    } else if key.col.0.unsigned_abs() > ZONE_OUTER_THRESHOLD as u8
-                        && key.finger == FingerIndex::PINKY
-                    {
-                        &reach.outer
-                    } else {
-                        &reach.base
-                    };
+    hand.fingers.get(finger_key).ok_or_else(|| {
+        PhysicsError::Config(format!(
+            "Finger {:?} ({}) not found in hand definition",
+            key.finger, finger_key
+        ))
+    })
+}
 
-                    // Fallback to base if specifically requested zone is empty
-                    let zone = if zone.is_empty() { &reach.base } else { zone };
-                    return Ok(zone.get(&key.row).copied().unwrap_or(0.0));
-                }
-                FingerDefinition::Thumb(positions) => {
-                    return Ok(positions
-                        .values()
-                        .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                        .copied()
-                        .unwrap_or(0.0));
-                }
-            }
-        }
-    }
+fn resolve_standard_finger(key: &KeyNode, reach: &keyforge_model::cost_model::FingerReach) -> f32 {
+    const ZONE_INNER_THRESHOLD: u8 = 1;
+    const ZONE_OUTER_THRESHOLD: u8 = 1;
 
-    Err(PhysicsError::Config(format!(
-        "Finger {:?} not found in hand {} or universal_hand",
-        key.finger, hand_key
-    )))
+    let col_abs = key.col.0.unsigned_abs();
+    let zone = match key.finger {
+        FingerIndex::INDEX if col_abs > ZONE_INNER_THRESHOLD => &reach.inner,
+        FingerIndex::PINKY if col_abs > ZONE_OUTER_THRESHOLD => &reach.outer,
+        _ => &reach.base,
+    };
+
+    // Fallback to base if specifically requested zone is empty
+    let target_zone = if zone.is_empty() { &reach.base } else { zone };
+    target_zone.get(&key.row).copied().unwrap_or(0.0)
 }
 
 #[cfg(test)]
@@ -144,13 +156,13 @@ mod tests {
         };
         let mut base_zone = keyforge_model::cost_model::RowCosts::new();
         base_zone.insert(RowIndex(0), 10.0);
-        
+
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_zone,
             inner: Default::default(),
             outer: Default::default(),
         };
-        
+
         hand_def
             .fingers
             .insert("index".to_string(), FingerDefinition::Standard(zones));
@@ -179,7 +191,7 @@ mod tests {
 
         let mut inner_r0 = keyforge_model::cost_model::RowCosts::new();
         inner_r0.insert(RowIndex(0), 5.0);
-        
+
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_r0,
             inner: inner_r0,

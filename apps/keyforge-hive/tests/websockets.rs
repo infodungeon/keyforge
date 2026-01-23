@@ -88,10 +88,20 @@ async fn start_test_server() -> (String, Arc<AppState>, ContainerAsync<Redis>) {
 
 #[tokio::test]
 async fn test_websocket_lifecycle() {
-    let (ws_url, state, _valkey) = start_test_server().await;
-    let url = Url::parse(&ws_url)
+    let (ws_base, state, _valkey) = start_test_server().await;
+    let node_id = "test-node";
+
+    // Generate Auth Token
+    let token = keyforge_security::create_paseto_token(
+        state.security.get_token_key().as_slice(),
+        node_id,
+        3600,
+    )
+    .expect("Failed to create token");
+
+    let url = Url::parse(&ws_base)
         .unwrap()
-        .join("ws?node_id=test-node")
+        .join(&format!("ws?node_id={node_id}&token={token}"))
         .unwrap();
 
     let (ws_stream, _) = tokio::time::timeout(

@@ -33,11 +33,15 @@ pub struct GhostScorer {
 }
 
 impl GhostScorer {
-    /// Creates a new GhostScorer.
+    /// Creates a new `GhostScorer`.
     ///
     /// # Errors
     /// Returns `PhysicsError::Config` if the rubric contains invalid values.
-    pub fn new(kb: Keyboard, rubric: &Rubric, cm: keyforge_model::CostModel) -> Result<Self, PhysicsError> {
+    pub fn new(
+        kb: Keyboard,
+        rubric: &Rubric,
+        cm: keyforge_model::CostModel,
+    ) -> Result<Self, PhysicsError> {
         Ok(Self {
             keyboard: kb,
             rubric: GhostRubric::from_rubric(rubric)?,
@@ -242,11 +246,7 @@ impl GhostScorer {
             })
             .map(|f| match f {
                 keyforge_model::cost_model::FingerDefinition::Standard(reach) => {
-                    reach
-                        .base
-                        .get(&key.row)
-                        .copied()
-                        .unwrap_or(0.0)
+                    reach.base.get(&key.row).copied().unwrap_or(0.0)
                 }
                 keyforge_model::cost_model::FingerDefinition::Thumb(pos) => pos
                     .values()

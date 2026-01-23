@@ -37,7 +37,9 @@ pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<NodeRequest>,
 ) -> AppResult<Json<NodeResponse>> {
-    payload.validate().map_err(crate::error::AppError::Validation)?;
+    payload
+        .validate()
+        .map_err(crate::error::AppError::Validation)?;
 
     let node_id = payload.node_id.clone();
     let cpu_model = payload.cpu_model.clone();

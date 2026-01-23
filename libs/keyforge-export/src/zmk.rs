@@ -26,6 +26,7 @@ use std::fmt::Write;
 pub struct ZmkExporter;
 
 impl Exporter for ZmkExporter {
+    #[allow(clippy::too_many_lines)]
     fn generate(
         &self,
         layout_name: &str,

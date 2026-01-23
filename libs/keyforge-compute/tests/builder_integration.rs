@@ -1,9 +1,11 @@
-use keyforge_compute::*;
-use keyforge_core::loader::{AssetLoader, LoaderResult};
-use keyforge_core::{OptimizationControl, ProgressCallback, ScoringSession};
+use keyforge_compute::loader::{AssetLoader, LoaderResult};
+use keyforge_compute::{
+    OptimizationControl, ProgressCallback, Runtime, ScoringSession, SessionBuilder,
+};
 use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::types::RowIndex;
 use keyforge_model::{Asset, Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig};
 use keyforge_physics::EngineFactory;
 use keyforge_protocol::BiometricSample;
@@ -34,9 +36,9 @@ impl AssetLoader for MockLoader {
         let json = r#"{
             "meta": { "version": "2.0", "description": "T", "unit": "pts" },
             "models": { 
-                "model_a_row_staggered": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} },
-                "model_a_ansi": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} },
-                "model_ortho": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}} }
+                "model_a_row_staggered": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"0": 1.0}}}} },
+                "model_a_ansi": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"0": 1.0}}}} },
+                "model_ortho": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"0": 1.0}}}} }
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
@@ -77,12 +79,12 @@ fn setup_runtime() -> Runtime {
     let mut fingers = std::collections::HashMap::new();
     fingers.insert(
         "index".to_string(),
-        keyforge_model::cost_model::FingerDefinition::Standard(std::collections::HashMap::from([
-            (
-                "base".to_string(),
-                std::collections::HashMap::from([("r0".to_string(), 1.0)]),
-            ),
-        ])),
+        keyforge_model::cost_model::FingerDefinition::Standard(
+            keyforge_model::cost_model::FingerReach {
+                base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                ..Default::default()
+            },
+        ),
     );
     cm.models.insert(
         "model_a_row_staggered".into(),
@@ -150,12 +152,12 @@ fn test_runtime_from_session() {
     let mut fingers = std::collections::HashMap::new();
     fingers.insert(
         "index".to_string(),
-        keyforge_model::cost_model::FingerDefinition::Standard(std::collections::HashMap::from([
-            (
-                "base".to_string(),
-                std::collections::HashMap::from([("r0".to_string(), 1.0)]),
-            ),
-        ])),
+        keyforge_model::cost_model::FingerDefinition::Standard(
+            keyforge_model::cost_model::FingerReach {
+                base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                ..Default::default()
+            },
+        ),
     );
     cm.models.insert(
         "model_a_row_staggered".into(),
@@ -204,12 +206,12 @@ async fn test_session_builder_lifecycle() {
     let mut fingers = std::collections::HashMap::new();
     fingers.insert(
         "index".to_string(),
-        keyforge_model::cost_model::FingerDefinition::Standard(std::collections::HashMap::from([
-            (
-                "base".to_string(),
-                std::collections::HashMap::from([("r0".to_string(), 1.0)]),
-            ),
-        ])),
+        keyforge_model::cost_model::FingerDefinition::Standard(
+            keyforge_model::cost_model::FingerReach {
+                base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                ..Default::default()
+            },
+        ),
     );
     cm.models.insert(
         "model_ortho".into(),
@@ -311,12 +313,12 @@ async fn test_session_builder_missing_assets() {
     let mut fingers = std::collections::HashMap::new();
     fingers.insert(
         "index".to_string(),
-        keyforge_model::cost_model::FingerDefinition::Standard(std::collections::HashMap::from([
-            (
-                "base".to_string(),
-                std::collections::HashMap::from([("r0".to_string(), 1.0)]),
-            ),
-        ])),
+        keyforge_model::cost_model::FingerDefinition::Standard(
+            keyforge_model::cost_model::FingerReach {
+                base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                ..Default::default()
+            },
+        ),
     );
     cm.models.insert(
         "model_ortho".into(),

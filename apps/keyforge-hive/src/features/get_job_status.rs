@@ -65,11 +65,22 @@ pub async fn handle(
     let status = match status_str.to_lowercase().as_str() {
         "running" => JobStatus::Running(Running {
             active_nodes: nodes,
-            current_best: best_score.map(Score::from_f32).transpose().unwrap_or_default(),
+            current_best: best_score
+                .map(Score::from_f32)
+                .transpose()
+                .map_err(|e| AppError::Internal(format!("Invalid best score: {e}")))?
+                .or(Some(Score::ZERO)),
         }),
         "completed" => JobStatus::Completed(Completed {
-            final_score: best_score.map(Score::from_f32).transpose().unwrap_or_default().unwrap_or(Score::ZERO),
-            final_layout: best_layout.clone().map(|l| serde_json::from_str(&l).unwrap_or_default()).unwrap_or_default(),
+            final_score: best_score
+                .map(Score::from_f32)
+                .transpose()
+                .map_err(|e| AppError::Internal(format!("Invalid final score: {e}")))?
+                .unwrap_or(Score::ZERO),
+            final_layout: best_layout
+                .clone()
+                .and_then(|l| serde_json::from_str(&l).ok())
+                .unwrap_or_else(|| keyforge_model::Layout::new_unchecked(vec![])),
             total_compute_sec: 0, // TODO: Aggregate from DB
         }),
         _ => JobStatus::Pending(Pending),

@@ -1,8 +1,9 @@
 use anyhow::Result;
+use keyforge_compute::SessionBuilder;
 use keyforge_infra::FsProvider;
 use keyforge_model::{KeyCode, Layout};
-use keyforge_runner::{OptimizationRunner, RunnerOptions};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::config_loader::read_job_config;
 use crate::models::AgentConfig;
@@ -16,12 +17,21 @@ pub async fn run(config: AgentConfig, job_file: PathBuf, iterations: usize) -> R
     let job = read_job_config(&job_file).await?;
 
     let loader = FsProvider::new(config.data_dir.clone());
-    let options = RunnerOptions {
-        keycodes_file: config.compute.keycodes_file.clone(),
-        ..Default::default()
-    };
 
-    let session = OptimizationRunner::prepare_session(&loader, &job, &options).await?;
+    let session = SessionBuilder::new(&loader)
+        .with_keyboard_def(Arc::new(job.definition.clone()))
+        .with_corpus(&job.corpora)
+        .await?
+        .with_cost_matrix(&job.cost_matrix)
+        .await?
+        .with_keycodes(&config.compute.keycodes_file)
+        .await?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+        .with_config(keyforge_adapter::conversion::to_domain_config(
+            &job.params,
+            job.params.seed.unwrap_or(0),
+        ))
+        .build()?;
 
     let start = std::time::Instant::now();
     let mut score_sum = 0.0;

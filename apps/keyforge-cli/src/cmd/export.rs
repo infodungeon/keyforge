@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use clap::{Args, Subcommand, ValueEnum};
-use keyforge_core::loader::AssetLoader;
+use keyforge_compute::AssetLoader;
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_infra::FsProvider;

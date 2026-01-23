@@ -25,6 +25,7 @@ fs2.workspace = true
 sha2.workspace = true
 hex.workspace = true
 tempfile.workspace = true
+postcard.workspace = true
 
 [features]
 default = []

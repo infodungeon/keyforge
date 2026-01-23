@@ -20,7 +20,10 @@ use crate::constants::{
 };
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile, PROTOCOL_VERSION};
+use keyforge_protocol::{
+    NodeRequest, NodeResponse, TuningProfile, MIN_CLIENT_VERSION, MIN_SERVER_VERSION,
+    PROTOCOL_VERSION,
+};
 use keyforge_security as crypto;
 use tracing::{debug, warn};
 
@@ -53,32 +56,30 @@ impl NodeService {
                 )
                 .await
                 .map_err(Self::map_db_error)?;
-        } else {
-            if let Err(e) = state
+        } else if let Err(e) = state
+            .nodes
+            .register_heartbeat_lite(
+                &payload.node_id,
+                &payload.cpu_model,
+                payload.cores,
+                payload.ops_per_sec,
+                payload.public_key.as_deref(),
+            )
+            .await
+        {
+            warn!("⚠️ Lite registration failed (Fallback to Full): {}", e);
+            state
                 .nodes
-                .register_heartbeat_lite(
+                .register_heartbeat(
                     &payload.node_id,
                     &payload.cpu_model,
                     payload.cores,
+                    payload.l2_cache_kb,
                     payload.ops_per_sec,
                     payload.public_key.as_deref(),
                 )
                 .await
-            {
-                warn!("⚠️ Lite registration failed (Fallback to Full): {}", e);
-                state
-                    .nodes
-                    .register_heartbeat(
-                        &payload.node_id,
-                        &payload.cpu_model,
-                        payload.cores,
-                        payload.l2_cache_kb,
-                        payload.ops_per_sec,
-                        payload.public_key.as_deref(),
-                    )
-                    .await
-                    .map_err(Self::map_db_error)?;
-            }
+                .map_err(Self::map_db_error)?;
         }
 
         // 3. Auto-Tuning
@@ -97,8 +98,13 @@ impl NodeService {
     }
 
     fn validate_node_request(payload: &NodeRequest) -> AppResult<()> {
-        keyforge_protocol::check_version_compatibility(payload.version, PROTOCOL_VERSION)
-            .map_err(AppError::Validation)?;
+        keyforge_protocol::check_version_compatibility(
+            payload.version,
+            PROTOCOL_VERSION,
+            MIN_CLIENT_VERSION,
+            MIN_SERVER_VERSION,
+        )
+        .map_err(AppError::Validation)?;
 
         if let Some(pk) = &payload.public_key {
             if pk.len() < 64

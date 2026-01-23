@@ -87,7 +87,10 @@ impl NetworkManager {
 
         // --- STEP 1: REGISTRATION HANDSHAKE (Task-sec-022) ---
         while let Err(e) = self.register_with_hive().await {
-            error!("🚨 Registration Failed: {}. Retrying in {:?}...", e, backoff);
+            error!(
+                "🚨 Registration Failed: {}. Retrying in {:?}...",
+                e, backoff
+            );
             tokio::time::sleep(backoff).await;
             backoff =
                 (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
@@ -112,7 +115,7 @@ impl NetworkManager {
             version: PROTOCOL_VERSION,
             node_id: self.config.node_id.clone(),
             cpu_model: "Detected CPU".into(), // TODO: Use real detection
-            cores: self.config.cores as i32,
+            cores: i32::try_from(self.config.cores).unwrap_or(1),
             l2_cache_kb: None,
             ops_per_sec: 1_000_000.0, // Placeholder
             public_key: None,

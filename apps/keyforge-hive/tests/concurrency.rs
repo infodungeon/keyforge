@@ -160,6 +160,7 @@ async fn test_heterogeneous_thundering_herd() {
                     job_id: target_job.clone(),
                     layout: format!("Q W E R T Y U I O P A S D F G H J K L ; {i} {k}"),
                     score: 500.0,
+                    raw_score: 500_000_000,
                     node_id: node_id.clone(),
                     timestamp,
                     nonce: fastrand::u64(..),

@@ -185,21 +185,27 @@ async fn main() {
             let asset_provider = state.assets.clone();
             let asset_app = keyforge_assets::create_app(asset_provider);
             let asset_port = args.asset_port;
+            let asset_addr = SocketAddr::from(([0, 0, 0, 0], asset_port));
+
+            info!(
+                "🚀 Embedded Asset Server listening on http://{}",
+                asset_addr
+            );
+
+            // Bind before spawning to ensure we fail fast if the port is taken
+            let asset_listener = match tokio::net::TcpListener::bind(asset_addr).await {
+                Ok(l) => l,
+                Err(e) => {
+                    error!(
+                        "FATAL: Failed to bind Asset Server port {}: {}",
+                        asset_port, e
+                    );
+                    std::process::exit(1);
+                }
+            };
 
             tokio::spawn(async move {
-                let addr = SocketAddr::from(([0, 0, 0, 0], asset_port));
-                info!("🚀 Embedded Asset Server listening on http://{}", addr);
-                let listener = match tokio::net::TcpListener::bind(addr).await {
-                    Ok(l) => l,
-                    Err(e) => {
-                        error!(
-                            "FATAL: Failed to bind Asset Server port {}: {}",
-                            asset_port, e
-                        );
-                        return;
-                    }
-                };
-                if let Err(e) = axum::serve(listener, asset_app).await {
+                if let Err(e) = axum::serve(asset_listener, asset_app).await {
                     error!("Asset Server crashed: {}", e);
                 }
             });

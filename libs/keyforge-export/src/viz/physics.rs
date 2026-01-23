@@ -1,11 +1,18 @@
 // libs/keyforge-export/src/viz/physics.rs
 
+use super::VizTheme;
 use keyforge_model::geometry::KeyboardGeometry;
 use std::fmt::Write;
 
-/// Generates a basic SVG visualization of the keyboard geometry.
+/// Generates a basic SVG visualization of the keyboard geometry using the default theme.
 #[must_use]
 pub fn generate_physics_svg(geo: &KeyboardGeometry) -> String {
+    generate_physics_svg_with_theme(geo, &VizTheme::default())
+}
+
+/// Generates a basic SVG visualization of the keyboard geometry using a custom theme.
+#[must_use]
+pub fn generate_physics_svg_with_theme(geo: &KeyboardGeometry, theme: &VizTheme) -> String {
     let mut svg = String::new();
 
     // Determine bounds
@@ -37,7 +44,11 @@ pub fn generate_physics_svg(geo: &KeyboardGeometry) -> String {
         svg,
         r#"<svg viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">"#
     );
-    svg.push_str(r##"<rect width="100%" height="100%" fill="#f8f9fa" />"##);
+    let _ = write!(
+        svg,
+        r#"<rect width="100%" height="100%" fill="{}" />"#,
+        theme.bg_color
+    );
 
     for key in &geo.keys {
         let x = key.x - min_x + padding;
@@ -46,23 +57,26 @@ pub fn generate_physics_svg(geo: &KeyboardGeometry) -> String {
         let h = key.h;
 
         let color = if key.row.0 == geo.home_row {
-            "#e9ecef"
+            &theme.home_row_fill
         } else {
-            "#ffffff"
+            &theme.key_fill
         };
 
         let _ = write!(
             svg,
-            r##"<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="2" fill="{color}" stroke="#dee2e6" stroke-width="0.5" />"##
+            r#"<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="2" fill="{color}" stroke="{}" stroke-width="{}" />"#,
+            theme.key_stroke, theme.key_stroke_width
         );
 
         // Add label if present
         if !key.label.is_empty() {
             let _ = write!(
                 svg,
-                r##"<text x="{}" y="{}" font-family="sans-serif" font-size="3" fill="#495057" text-anchor="middle" alignment-baseline="middle">{}</text>"##,
+                r#"<text x="{}" y="{}" font-family="sans-serif" font-size="{}" fill="{}" text-anchor="middle" alignment-baseline="middle">{}</text>"#,
                 x + w / 2.0,
                 y + h / 2.0,
+                theme.font_size,
+                theme.text_fill,
                 key.label
             );
         }

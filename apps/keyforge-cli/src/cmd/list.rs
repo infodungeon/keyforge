@@ -16,7 +16,7 @@ use crate::constants::DEFAULT_LIST_LIMIT;
 use clap::{Args, Subcommand};
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::Table;
-use keyforge_core::loader::AssetLoader;
+use keyforge_compute::AssetLoader;
 use keyforge_infra::listing::{
     list_corpora as ws_list_corpora, list_keyboards as ws_list_keyboards,
 };

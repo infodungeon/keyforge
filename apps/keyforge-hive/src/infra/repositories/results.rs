@@ -71,18 +71,22 @@ impl ResultRepository {
     }
 
     /// Inserts a batch of results into the database.
-    pub async fn insert_batch(&self, items: &[(&str, &str, f32, &str)]) -> Result<(), sqlx::Error> {
+    pub async fn insert_batch(
+        &self,
+        items: &[(&str, &str, f32, i64, &str)],
+    ) -> Result<(), sqlx::Error> {
         if items.is_empty() {
             return Ok(());
         }
 
         let mut query_builder: QueryBuilder<'_, Postgres> =
-            QueryBuilder::new("INSERT INTO results (job_id, layout, score, node_id) ");
+            QueryBuilder::new("INSERT INTO results (job_id, layout, score, raw_score, node_id) ");
 
-        query_builder.push_values(items, |mut b, (job, layout, score, node)| {
+        query_builder.push_values(items, |mut b, (job, layout, score, raw, node)| {
             b.push_bind(job)
                 .push_bind(layout)
                 .push_bind(f64::from(*score))
+                .push_bind(*raw)
                 .push_bind(node);
         });
 
@@ -109,27 +113,23 @@ impl ResultRepository {
         job_id: &str,
     ) -> Result<(usize, usize, Option<f32>, Option<String>), sqlx::Error> {
         let stats = sqlx::query!(
-            r#"SELECT count(DISTINCT node_id) as nodes, count(*) as samples, min(score) as best_score FROM results WHERE job_id = $1"#,
+            r#"
+            SELECT 
+                count(DISTINCT node_id) as "nodes!", 
+                count(*) as "samples!", 
+                min(score) as "best_score",
+                (SELECT layout FROM results r2 WHERE r2.job_id = $1 ORDER BY score ASC LIMIT 1) as "best_layout"
+            FROM results 
+            WHERE job_id = $1
+            "#,
             job_id
         ).fetch_one(&self.pool).await?;
 
-        let best_layout = if let Some(score) = stats.best_score {
-            sqlx::query_scalar(
-                "SELECT layout FROM results WHERE job_id = $1 AND score = $2 LIMIT 1",
-            )
-            .bind(job_id)
-            .bind(score)
-            .fetch_optional(&self.pool)
-            .await?
-        } else {
-            None
-        };
-
         Ok((
-            stats.nodes.unwrap_or(0) as usize,
-            stats.samples.unwrap_or(0) as usize,
+            stats.nodes as usize,
+            stats.samples as usize,
             stats.best_score.map(|s| s as f32),
-            best_layout,
+            stats.best_layout,
         ))
     }
 
@@ -162,13 +162,14 @@ use crate::infra::queue::{BatchSink, PersistedRecord};
 #[async_trait::async_trait]
 impl BatchSink for ResultRepository {
     async fn save_batch(&self, records: Vec<PersistedRecord>) -> Result<(), String> {
-        let items: Vec<(&str, &str, f32, &str)> = records
+        let items: Vec<(&str, &str, f32, i64, &str)> = records
             .iter()
             .map(|r| {
                 (
                     r.job_id.as_str(),
                     r.layout.as_str(),
                     r.score,
+                    r.raw_score,
                     r.node_id.as_str(),
                 )
             })

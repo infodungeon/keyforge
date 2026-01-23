@@ -46,7 +46,7 @@ use keyforge_model::{Corpus, CostModel, Keyboard, Layout, Rubric};
 use tracing::instrument;
 
 /// Context required to compile a scoring engine.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct EngineCompilationContext<'a> {
     /// Physical keyboard definition.
     pub keyboard: &'a Keyboard,
@@ -67,7 +67,9 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    pub fn new_scalar(ctx: EngineCompilationContext<'_>) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+    pub fn new_scalar(
+        ctx: EngineCompilationContext<'_>,
+    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model)?;
         Ok(Box::new(ScalarScoringEngine::new(compiled)))
     }
@@ -76,10 +78,16 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    pub fn new_exact(ctx: EngineCompilationContext<'_>) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+    pub fn new_exact(
+        ctx: EngineCompilationContext<'_>,
+    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model)?;
         Ok(Box::new(ExactScoringEngine::new(
-            ctx.keyboard, ctx.corpus, ctx.rubric, ctx.cost_model, compiled,
+            ctx.keyboard,
+            ctx.corpus,
+            ctx.rubric,
+            ctx.cost_model,
+            compiled,
         )))
     }
 
@@ -87,7 +95,9 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    pub fn new_generic(ctx: EngineCompilationContext<'_>) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
+    pub fn new_generic(
+        ctx: EngineCompilationContext<'_>,
+    ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         Self::new_scalar(ctx)
     }
 
@@ -101,7 +111,7 @@ impl EngineFactory {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             if is_x86_feature_detected!("avx2") {
-                // Task-phys-rev-032: Intel kernel currently scalar fallback, 
+                // Task-phys-rev-032: Intel kernel currently scalar fallback,
                 // but this enables future SIMD usage.
                 return Self::new_intel_comet_lake(ctx, None);
             }
@@ -155,9 +165,18 @@ pub fn analyze_with_context(
     ctx: &EngineContext,
     layout: &Layout,
 ) -> Result<AnalysisReport, PhysicsError> {
-    let _validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
-    let engine = ScalarScoringEngine::new(ctx.clone());
-    engine.analyze(layout)
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            // Orchestration Bias Fix: Use optimized engine wrapper if available.
+            // This ensures future SIMD optimizations in analysis are picked up.
+            let engine = IntelScoringEngine::new(ctx.clone(), None);
+            return engine.analyze(layout);
+        }
+    }
+
+    let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
+    Ok(kernel::compute::analyze_layout(ctx, &validated))
 }
 
 /// Suggests improvements for the layout.

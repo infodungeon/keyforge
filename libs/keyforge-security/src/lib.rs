@@ -19,10 +19,11 @@
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use keyforge_model::constants::SCORE_SCALE;
+use pasetors::claims::{Claims, ClaimsValidationRules};
 use pasetors::keys::SymmetricKey;
-use pasetors::local::{self, LocalToken};
+use pasetors::token::UntrustedToken;
 use pasetors::version4::V4;
-use pasetors::Claims;
+use pasetors::Local;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -119,7 +120,13 @@ pub fn generate_keypair() -> (String, String) {
     )
 }
 
-fn build_payload(job_id: &str, layout: &str, score_fixed: i64, timestamp: u64, nonce: u64) -> Vec<u8> {
+fn build_payload(
+    job_id: &str,
+    layout: &str,
+    score_fixed: i64,
+    timestamp: u64,
+    nonce: u64,
+) -> Vec<u8> {
     let mut hasher = Sha256::new();
 
     // Domain Separator to prevent cross-protocol attacks
@@ -140,6 +147,29 @@ fn build_payload(job_id: &str, layout: &str, score_fixed: i64, timestamp: u64, n
     payload
 }
 
+/// Signs an optimization result using a hex-encoded Ed25519 secret key and a fixed-point score.
+///
+/// # Errors
+/// Returns `SecurityError::Encoding` if the secret key is not a valid 64-character hex string.
+pub fn sign_result_fixed(
+    secret_hex: &str,
+    job_id: &str,
+    layout: &str,
+    score_fixed: i64,
+    timestamp: u64,
+    nonce: u64,
+) -> SecurityResult<String> {
+    let secret_hex = secret_hex.trim();
+    let mut key_buf = [0u8; 32];
+    hex::decode_to_slice(secret_hex, &mut key_buf)
+        .map_err(|_| SecurityError::Encoding("Invalid secret key hex".into()))?;
+
+    let signing_key = SigningKey::from_bytes(&key_buf);
+    key_buf.zeroize();
+
+    sign_result_direct(&signing_key, job_id, layout, score_fixed, timestamp, nonce)
+}
+
 /// Signs an optimization result using a hex-encoded Ed25519 secret key.
 ///
 /// The signature covers the `job_id`, `layout`, `score`, `timestamp`, and `nonce`.
@@ -155,20 +185,9 @@ pub fn sign_result(
     timestamp: u64,
     nonce: u64,
 ) -> SecurityResult<String> {
-    let secret_hex = secret_hex.trim();
-
-    // Task-sec-027: Use direct decoding into a zeroized buffer to avoid leakage
-    let mut key_buf = [0u8; 32];
-    hex::decode_to_slice(secret_hex, &mut key_buf)
-        .map_err(|_| SecurityError::Encoding("Invalid secret key hex".into()))?;
-
-    let signing_key = SigningKey::from_bytes(&key_buf);
-    key_buf.zeroize();
-
     #[allow(clippy::cast_possible_truncation)]
     let score_fixed = (score * SCORE_SCALE) as i64;
-
-    sign_result_direct(&signing_key, job_id, layout, score_fixed, timestamp, nonce)
+    sign_result_fixed(secret_hex, job_id, layout, score_fixed, timestamp, nonce)
 }
 
 /// Signs an optimization result using a pre-loaded `SigningKey`.
@@ -193,18 +212,15 @@ pub fn sign_result_direct(
     Ok(hex::encode(signature.to_bytes()))
 }
 
-/// Verifies a signed optimization result against a hex-encoded Ed25519 public key.
-///
-/// Rebuilds the payload from the provided parameters and checks it against the `signature_hex`.
-/// Returns `Ok(true)` if the signature is valid, or `Ok(false)` if authentication fails.
+/// Verifies a signed optimization result against a hex-encoded Ed25519 public key and a fixed-point score.
 ///
 /// # Errors
 /// Returns `SecurityError` if any of the hex inputs are malformed or keys are invalid lengths.
-pub fn verify_result(
+pub fn verify_result_fixed(
     public_hex: &str,
     job_id: &str,
     layout: &str,
-    score: f32,
+    score_fixed: i64,
     timestamp: u64,
     nonce: u64,
     signature_hex: &str,
@@ -233,15 +249,41 @@ pub fn verify_result(
             .map_err(|_| SecurityError::Signature("Invalid signature length".into()))?,
     );
 
-    #[allow(clippy::cast_possible_truncation)]
-    let score_fixed = (score * SCORE_SCALE) as i64;
-
     let payload = build_payload(job_id, layout, score_fixed, timestamp, nonce);
 
     match verifying_key.verify(&payload, &signature) {
         Ok(()) => Ok(true),
         Err(_) => Ok(false),
     }
+}
+
+/// Verifies a signed optimization result against a hex-encoded Ed25519 public key.
+///
+/// Rebuilds the payload from the provided parameters and checks it against the `signature_hex`.
+/// Returns `Ok(true)` if the signature is valid, or `Ok(false)` if authentication fails.
+///
+/// # Errors
+/// Returns `SecurityError` if any of the hex inputs are malformed or keys are invalid lengths.
+pub fn verify_result(
+    public_hex: &str,
+    job_id: &str,
+    layout: &str,
+    score: f32,
+    timestamp: u64,
+    nonce: u64,
+    signature_hex: &str,
+) -> SecurityResult<bool> {
+    #[allow(clippy::cast_possible_truncation)]
+    let score_fixed = (score * SCORE_SCALE) as i64;
+    verify_result_fixed(
+        public_hex,
+        job_id,
+        layout,
+        score_fixed,
+        timestamp,
+        nonce,
+        signature_hex,
+    )
 }
 
 /// Creates a new PASETO V4.Local token for the given subject using a 32-byte secret key.
@@ -252,20 +294,24 @@ pub fn create_paseto_token(secret: &[u8], subject: &str, ttl_secs: u64) -> Secur
     let sk = SymmetricKey::<V4>::from(secret)
         .map_err(|e| SecurityError::Key(format!("Invalid symmetric key: {e}")))?;
 
-    let mut claims = Claims::new()
-        .map_err(|e| SecurityError::Token(format!("Claims error: {e}")))?;
+    let mut claims =
+        Claims::new().map_err(|e| SecurityError::Token(format!("Claims error: {e}")))?;
     claims
         .subject(subject)
         .map_err(|e| SecurityError::Token(format!("Claims subject error: {e}")))?;
+
+    let ttl_i64 =
+        i64::try_from(ttl_secs).map_err(|_| SecurityError::Token("TTL exceeds max i64".into()))?;
+    let expiration = chrono::Utc::now() + chrono::Duration::seconds(ttl_i64);
     claims
-        .expiration(&chrono::Utc::now() + chrono::Duration::seconds(ttl_secs as i64))
+        .expiration(&expiration.to_rfc3339())
         .map_err(|e| SecurityError::Token(format!("Claims expiration error: {e}")))?;
 
-    local::encrypt(&sk, &claims, None, None)
+    pasetors::local::encrypt(&sk, &claims, None, None)
         .map_err(|e| SecurityError::Token(format!("Encryption error: {e}")))
 }
 
-/// Verifies a PASETO V4.Local token and returns the subject (node_id).
+/// Verifies a PASETO V4.Local token and returns the subject (`node_id`).
 ///
 /// # Errors
 /// Returns `SecurityError::Token` if the token is invalid or expired.
@@ -273,16 +319,21 @@ pub fn verify_paseto_token(secret: &[u8], token: &str) -> SecurityResult<String>
     let sk = SymmetricKey::<V4>::from(secret)
         .map_err(|e| SecurityError::Key(format!("Invalid symmetric key: {e}")))?;
 
-    let validation_rules = pasetors::token::ValidationRules::new();
-    let untrusted_token = LocalToken::<V4>::try_from(token)
+    let validation_rules = ClaimsValidationRules::new();
+    let untrusted_token = UntrustedToken::<Local, V4>::try_from(token)
         .map_err(|e| SecurityError::Token(format!("Token format error: {e}")))?;
 
-    let claims = local::decrypt(&sk, &untrusted_token, &validation_rules, None, None)
-        .map_err(|e| SecurityError::Token(format!("Decryption error: {e}")))?;
+    let trusted_token =
+        pasetors::local::decrypt(&sk, &untrusted_token, &validation_rules, None, None)
+            .map_err(|e| SecurityError::Token(format!("Decryption error: {e}")))?;
 
-    claims
-        .get_subject()
-        .ok_or_else(|| SecurityError::Token("Missing subject in token".into()))
+    trusted_token
+        .payload_claims()
+        .ok_or_else(|| SecurityError::Token("Missing claims in token".into()))?
+        .get_claim("sub")
+        .ok_or_else(|| SecurityError::Token("Missing subject in token".into()))?
+        .as_str()
+        .ok_or_else(|| SecurityError::Token("Subject is not a string".into()))
         .map(std::string::ToString::to_string)
 }
 

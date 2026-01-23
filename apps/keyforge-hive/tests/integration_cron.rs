@@ -70,6 +70,7 @@ struct PersistedRecord {
     job_id: String,
     layout: String,
     score: f32,
+    raw_score: i64,
     node_id: String,
 }
 
@@ -106,6 +107,7 @@ async fn test_wal_recovery_integration() {
         job_id: job_id.clone(),
         layout: "A B C".into(),
         score: 123.45,
+        raw_score: 123_450_000,
         node_id: node_id.clone(),
     };
     let record_bytes = postcard::to_stdvec(&record).unwrap();

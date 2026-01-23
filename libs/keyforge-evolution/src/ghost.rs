@@ -75,7 +75,10 @@ impl GhostOptimizer {
 
             // 3. Accept/Reject (Metropolis Criterion)
             #[allow(clippy::cast_precision_loss)]
-            if delta < 0 || rng.random::<f32>() < (-(delta as f32 / keyforge_model::constants::SCORE_SCALE) / temp).exp() {
+            if delta < 0
+                || rng.random::<f32>()
+                    < (-(delta as f32 / keyforge_model::constants::SCORE_SCALE) / temp).exp()
+            {
                 current_layout = next_layout;
                 current_score = next_score;
 

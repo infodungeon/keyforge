@@ -1,5 +1,30 @@
 use crate::kernel::types::KeyCode;
 use keyforge_model::constants::{MAX_KEYBOARD_KEYS, MAX_KEYCODE_SPACE};
+use std::cell::RefCell;
+
+thread_local! {
+    /// Global thread-local scratch buffer to avoid re-allocation per call.
+    /// Centralized to ensure all engines and analysis tools share the same memory.
+    static SCRATCH: RefCell<PhysicsScratch> = RefCell::new(PhysicsScratch::new());
+}
+
+/// Executes a closure with access to the thread-local `PhysicsScratch`.
+///
+/// This ensures efficient reuse of the scratch buffer across different
+/// scoring and analysis functions on the same thread.
+pub fn with_scratch<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut PhysicsScratch) -> R,
+{
+    SCRATCH.with(|cell| {
+        let mut scratch = cell.borrow_mut();
+        // We do NOT automatically clear here because some callers might need to inspect
+        // the state (e.g. debugging) or they handle clearing themselves (like `score_layout`).
+        // Ideally, the caller should clear if they dirty it, but `PhysicsScratch::clear_used`
+        // is efficient.
+        f(&mut scratch)
+    })
+}
 
 #[derive(Debug)]
 pub enum PosMap<'a> {
@@ -12,10 +37,7 @@ pub enum PosMap<'a> {
     },
     /// A flat, direct mapping (idx = keycode, val = pos).
     /// Used by the Exact engine which doesn't maintain complex indices.
-    Flat {
-        map: &'a [u16],
-        key_count: usize,
-    },
+    Flat { map: &'a [u16], key_count: usize },
 }
 
 #[allow(clippy::cast_possible_truncation)]
@@ -148,15 +170,27 @@ impl Default for PhysicsScratch {
     #[allow(clippy::unwrap_used)]
     fn default() -> Self {
         Self {
-            starts: vec![0u16; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
-            counts: vec![0u8; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
+            starts: vec![0u16; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
+            counts: vec![0u8; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
             indices: vec![0u16; MAX_KEYBOARD_KEYS]
                 .into_boxed_slice()
                 .try_into()
                 .unwrap(),
-            current_offsets: vec![0u8; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
+            current_offsets: vec![0u8; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
-            char_usage: vec![0.0f32; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().unwrap(),
+            char_usage: vec![0.0f32; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -182,13 +216,21 @@ impl PhysicsScratch {
     #[allow(clippy::type_complexity)]
     pub(crate) fn get_mut_scratch(
         &mut self,
-    ) -> (&mut [u16], &mut [u8], &mut [u16], &mut [u8], &mut Vec<u16>) {
+    ) -> (
+        &mut [u16],
+        &mut [u8],
+        &mut [u16],
+        &mut [u8],
+        &mut Vec<u16>,
+        &mut [f32; MAX_KEYCODE_SPACE],
+    ) {
         (
             self.starts.as_mut_slice(),
             self.counts.as_mut_slice(),
             self.indices.as_mut_slice(),
             self.current_offsets.as_mut_slice(),
             &mut self.used_keys,
+            self.char_usage.as_mut(),
         )
     }
 }

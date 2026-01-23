@@ -188,7 +188,13 @@ pub async fn cmd_export_firmware(
         .map(std::string::ToString::to_string)
         .collect();
     // Attempt to load registry from session or fallback to None
-    let registry = state.assets.load::<keyforge_model::keycodes::KeycodeRegistry>(keyforge_model::constants::ASSET_KEYCODES).await.ok();
+    let registry = state
+        .assets
+        .load::<keyforge_model::keycodes::KeycodeRegistry>(
+            keyforge_model::constants::ASSET_KEYCODES,
+        )
+        .await
+        .ok();
 
     let exporter: Box<dyn Exporter> = match format.to_lowercase().as_str() {
         "qmk" => Box::new(QmkExporter),

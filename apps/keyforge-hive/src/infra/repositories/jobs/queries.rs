@@ -17,16 +17,7 @@ pub const CLAIM_JOB_QUERY: &str = r"
             )
             SELECT 
                 u.id,
-                jsonb_build_object(
-                    'meta', jsonb_build_object('name', k.name, 'author', k.author, 'version', k.version, 'notes', k.notes, 'type', k.kb_type),
-                    'geometry', jsonb_build_object(
-                        'keys', (SELECT jsonb_agg(jsonb_build_object('id', 'k'||kk.idx, 'hand', kk.hand, 'finger', kk.finger, 'row', kk.row_idx, 'col', kk.col_idx, 'x', kk.x, 'y', kk.y, 'w', kk.w, 'h', kk.h, 'is_stretch', kk.is_stretch, 'r', kk.r) ORDER BY kk.idx) FROM keyboard_keys kk WHERE kk.keyboard_id = k.id),
-                        'prime_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
-                        'med_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
-                        'low_slots', (SELECT coalesce(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
-                        'home_row', k.home_row
-                    )
-                ) as geometry_json,
+                u.keyboard_id,
                 sp.weights as weights_json,
                 (to_jsonb(sc) - 'id' - 'config_hash') as params_json,
                 u.pinned_keys, 
@@ -35,27 +26,32 @@ pub const CLAIM_JOB_QUERY: &str = r"
                 u.parent_job_id,
                 u.priority
             FROM updated_job u
-            JOIN keyboards k ON u.keyboard_id = k.id
             JOIN scoring_profiles sp ON u.scoring_profile_id = sp.id
             JOIN search_configs sc ON u.search_config_id = sc.id
             ";
 
 pub const GET_JOB_CONFIG_QUERY: &str = r"
             SELECT 
-                jsonb_build_object(
-                    'keys', (SELECT COALESCE(jsonb_agg(jsonb_build_object('x', kk.x, 'y', kk.y, 'w', kk.w, 'h', kk.h, 'row', kk.row_idx, 'col', kk.col_idx, 'hand', kk.hand, 'finger', kk.finger, 'is_stretch', kk.is_stretch, 'id', 'k' || kk.idx, 'r', kk.r) ORDER BY kk.idx), '[]'::jsonb) FROM keyboard_keys kk WHERE kk.keyboard_id = k.id),
-                    'prime_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_prime),
-                    'med_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_med),
-                    'low_slots', (SELECT COALESCE(jsonb_agg(idx), '[]'::jsonb) FROM keyboard_keys WHERE keyboard_id = k.id AND is_low),
-                    'home_row', k.home_row
-                ) as geometry_json,
+                j.keyboard_id,
                 sp.weights as weights_json,
                 j.corpus_name,
                 j.cost_matrix
             FROM jobs j
-            JOIN keyboards k ON j.keyboard_id = k.id
             JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
             WHERE j.id = $1
+            ";
+
+pub const FETCH_KEYBOARD_META: &str = r"
+            SELECT name, author, version, notes, kb_type, home_row 
+            FROM keyboards 
+            WHERE id = $1
+            ";
+
+pub const FETCH_KEYBOARD_KEYS: &str = r"
+            SELECT idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r 
+            FROM keyboard_keys 
+            WHERE keyboard_id = $1 
+            ORDER BY idx
             ";
 
 pub const INSERT_JOB_QUERY: &str = r"

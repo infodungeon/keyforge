@@ -2,7 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use crate::{
-    ColIndex, Corpus, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex, Rubric,
+    ColIndex, Corpus, CostModel, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex,
+    Rubric,
 };
 use proptest::arbitrary::Arbitrary;
 use proptest::prelude::*;
@@ -181,4 +182,82 @@ impl Arbitrary for Rubric {
             )
             .boxed()
     }
+}
+
+/// Creates a minimal, valid cost model for testing.
+#[must_use]
+pub fn mock_cost_model() -> CostModel {
+    let mut cm = CostModel::default();
+
+    let mut base_zone = crate::cost_model::RowCosts::new();
+    for r in -128..=127 {
+        base_zone.insert(RowIndex(r as i8), 0.0);
+    }
+
+    let index_zones = crate::cost_model::FingerReach {
+        base: base_zone,
+        inner: std::collections::HashMap::new(),
+        outer: std::collections::HashMap::new(),
+    };
+
+    let mut fingers = std::collections::HashMap::new();
+    fingers.insert(
+        "thumb".into(),
+        crate::cost_model::FingerDefinition::Thumb(std::collections::HashMap::new()),
+    );
+    fingers.insert(
+        "index".into(),
+        crate::cost_model::FingerDefinition::Standard(index_zones.clone()),
+    );
+    fingers.insert(
+        "middle".into(),
+        crate::cost_model::FingerDefinition::Standard(index_zones.clone()),
+    );
+    fingers.insert(
+        "ring".into(),
+        crate::cost_model::FingerDefinition::Standard(index_zones.clone()),
+    );
+    fingers.insert(
+        "pinky".into(),
+        crate::cost_model::FingerDefinition::Standard(index_zones),
+    );
+
+    let mut static_costs = std::collections::HashMap::new();
+    static_costs.insert(
+        "universal_hand".into(),
+        crate::cost_model::HandDefinition { fingers },
+    );
+
+    cm.models.insert(
+        "model_a_row_staggered".into(),
+        crate::cost_model::ModelDefinition {
+            description: "test".into(),
+            static_costs,
+        },
+    );
+    cm
+}
+
+/// Sets up a minimal environment with Keyboard, Corpus, Rubric, and CostModel.
+#[must_use]
+pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
+    let keys: Vec<KeyNode> = (0..3)
+        .map(|i| KeyNode {
+            index: i,
+            label: format!("k{i}"),
+            hand: HandIndex(0),
+            finger: FingerIndex::new_unchecked(i as u8),
+            x: i as f32,
+            ..Default::default()
+        })
+        .collect();
+    let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+
+    let mut corpus = Corpus::default();
+    corpus.char_freqs[97] = 100;
+    corpus.char_freqs[98] = 200;
+    corpus.bigrams.push((97, 98, 50));
+
+    let cm = mock_cost_model();
+    (kb, corpus, Rubric::default(), cm)
 }

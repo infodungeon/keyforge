@@ -63,6 +63,12 @@ impl Validator for BiometricSample {
         if self.bigram.len() != 2 {
             return Err(format!("Invalid bigram length: '{}'", self.bigram));
         }
+        if !self.bigram.is_ascii() {
+            return Err(format!(
+                "Bigram contains non-ASCII characters: '{}'",
+                self.bigram
+            ));
+        }
         if self.ms <= 0.0 || self.ms > constants::MAX_BIOMETRIC_MS {
             return Err(format!(
                 "Biometric sample out of realistic range: {}ms",
@@ -137,5 +143,12 @@ mod tests {
             timestamp: 0,
         };
         assert!(extreme_ms.validate().is_err());
+
+        let invalid_ascii = BiometricSample {
+            bigram: "t\u{00E9}".into(), // t + é
+            ms: 100.0,
+            timestamp: 0,
+        };
+        assert!(invalid_ascii.validate().is_err());
     }
 }

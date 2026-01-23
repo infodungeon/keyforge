@@ -26,3 +26,4 @@ single_threaded = []
 [dev-dependencies]
 proptest.workspace = true
 serde_json.workspace = true
+keyforge-model = { path = "../keyforge-model", features = ["testing"] }

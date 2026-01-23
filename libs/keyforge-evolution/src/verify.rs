@@ -21,54 +21,21 @@
 mod tests {
     use crate::ghost::GhostOptimizer;
     use crate::{evolve, NoOpCallback};
-    use keyforge_model::{
-        Corpus, CostModel, KeyCode, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
-    };
+    use keyforge_model::{KeyCode, Layout, SearchConfig};
     use keyforge_physics::EngineFactory;
-    use std::collections::HashMap;
     use std::sync::Arc;
 
     fn setup_minimal() -> (Arc<dyn keyforge_physics::ScoringEngine>, Layout) {
-        let keys = vec![
-            KeyNode {
-                index: 0,
-                ..Default::default()
-            },
-            KeyNode {
-                index: 1,
-                ..Default::default()
-            },
-        ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-
-        let mut cm = CostModel::default();
-        let mut fingers = HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(HashMap::from([(
-                "base".to_string(),
-                HashMap::from([("r0".to_string(), 1.0)]),
-            )])),
-        );
-        cm.models.insert(
-            "model_a_row_staggered".into(),
-            keyforge_model::cost_model::ModelDefinition {
-                description: "test".into(),
-                static_costs: HashMap::from([(
-                    "universal_hand".to_string(),
-                    keyforge_model::cost_model::HandDefinition { fingers },
-                )]),
-            },
-        );
+        let (kb, corpus, rubric, cm) = keyforge_model::testing::setup_minimal_assets();
 
         let engine = EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
             keyboard: &kb,
-            corpus: &Corpus::default(),
-            rubric: &Rubric::default(),
+            corpus: &corpus,
+            rubric: &rubric,
             cost_model: &cm,
         })
         .unwrap();
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
         (Arc::from(engine), layout)
     }
 
@@ -91,7 +58,7 @@ mod tests {
 
         // Ghost
         let res_ghost = GhostOptimizer::optimize(engine.as_ref(), &config, &layout)
-            .map_err(|e| format!("Ghost optimization failed: {e}"))?;
+            .expect("Ghost optimization failed");
 
         // Invariant: At 0 steps, neither should change the layout
         assert_eq!(res_prod.layout.keys, layout.keys);

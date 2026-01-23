@@ -15,6 +15,7 @@
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use std::env;
+use zeroize::Zeroize;
 
 // --- Defaults ---
 pub const DEFAULT_POPULATION_LIMIT: usize = 50;
@@ -32,13 +33,14 @@ pub const DEFAULT_API_KEY_CACHE_CAPACITY: u64 = 1000;
 pub const DEFAULT_API_KEY_CACHE_TTL_SECS: u64 = 300;
 pub const DEFAULT_NONCE_CACHE_CAPACITY: u64 = 100_000;
 pub const DEFAULT_NONCE_CACHE_TTL_SECS: u64 = 600;
-pub const DEFAULT_SUBMISSION_EXPIRATION_SECS: u64 = 600;
+pub const DEFAULT_SUBMISSION_EXPIRATION_SECS: u64 = 3600;
 pub const DEFAULT_BROADCAST_CAPACITY: usize = 10000;
 pub const DEFAULT_MONITOR_INTERVAL_SECS: u64 = 5;
 pub const DEFAULT_MAX_CONCURRENT_COMPILATIONS: usize = 4;
 
 /// The global application configuration, aggregating settings for database, network, queue, and rate limiting.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct AppConfig {
     /// Database connection string.
     pub database_url: String,
@@ -106,7 +108,10 @@ impl AppConfig {
         let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
         let server_key = env::var("HIVE_SERVER_KEY").ok();
         let population_limit = parse_env("POPULATION_LIMIT", DEFAULT_POPULATION_LIMIT);
-        let max_concurrent_compilations = parse_env("MAX_CONCURRENT_COMPILATIONS", DEFAULT_MAX_CONCURRENT_COMPILATIONS);
+        let max_concurrent_compilations = parse_env(
+            "MAX_CONCURRENT_COMPILATIONS",
+            DEFAULT_MAX_CONCURRENT_COMPILATIONS,
+        );
 
         // Rate Limits
         let rate_limits = RateLimitConfig::load();
@@ -145,7 +150,7 @@ impl AppConfig {
 }
 
 /// Configuration settings for the job queue system.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
 pub struct QueueConfig {
     /// The number of items to process in a single batch transaction.
     pub batch_size: usize,
@@ -172,7 +177,7 @@ impl Default for QueueConfig {
 }
 
 /// Network usage parameters for controlling resource consumption.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
 pub struct NetworkConfig {
     /// The maximum number of concurrent database or network connections allowed.
     pub max_connections: u32,
@@ -196,7 +201,7 @@ impl Default for NetworkConfig {
 }
 
 /// Rate limiting parameters for API protection.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
 pub struct RateLimitConfig {
     /// The standard number of requests allowed per second per IP.
     pub limit_per_sec: u32,

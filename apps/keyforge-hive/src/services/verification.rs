@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_compute::{ScoringEngine, SessionBuilder};
+use keyforge_compute::{AssetLoader, SessionBuilder};
 use keyforge_infra::ValkeyProvider;
 use keyforge_model::{
     constants::{
         DEFAULT_CORPUS_WEIGHT, VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO,
     },
-    CorpusSource, CostMatrixSource, KeyboardDefinition, KeyboardMeta, KeycodeRegistry,
+    CorpusSource, KeyboardDefinition, KeyboardMeta, KeycodeRegistry,
 };
+use keyforge_physics::ScoringEngine;
 use keyforge_protocol::ResultSubmission;
 use keyforge_security as crypto;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::warn;
+
+use crate::cache::{CompiledEngineCache, ParsedLayoutCache};
+use crate::error::{AppError, AppResult};
+use crate::infra::repositories::{JobRepository, NodeRepository};
 
 #[derive(Clone, Debug)]
 pub struct VerificationService {
@@ -73,7 +78,11 @@ impl VerificationService {
         let is_new = self
             .assets
             .coordinator()
-            .check_and_set_nonce(&sub.node_id, sub.nonce, 600)
+            .check_and_set_nonce(
+                &sub.node_id,
+                sub.nonce,
+                i64::try_from(crate::config::DEFAULT_SUBMISSION_EXPIRATION_SECS).unwrap_or(300),
+            )
             .await
             .map_err(|e| AppError::Internal(format!("Coordination error: {e}")))?;
 
@@ -92,11 +101,11 @@ impl VerificationService {
             AppError::Validation("Unregistered Node Identity: Public Key Required".into())
         })?;
 
-        let valid = crypto::verify_result(
+        let valid = crypto::verify_result_fixed(
             &pk,
             &sub.job_id,
             &sub.layout,
-            sub.score,
+            sub.raw_score,
             sub.timestamp,
             sub.nonce,
             &sub.signature,
@@ -117,7 +126,10 @@ impl VerificationService {
 
         // --- ATOMIC COMPILATION BOUNDARY ---
         // We limit concurrent compilations to prevent CPU exhaustion (DOS protection)
-        let _permit = self.compilation_semaphore.acquire().await
+        let _permit = self
+            .compilation_semaphore
+            .acquire()
+            .await
             .map_err(|e| AppError::Internal(format!("Semaphore error: {e}")))?;
 
         // Re-check cache after acquiring permit (Double-Checked Locking pattern)
@@ -125,15 +137,12 @@ impl VerificationService {
             return self.check_tolerance(engine.clone(), sub).await;
         }
 
-        let (geometry, weights, corpus_name, cost_raw) = self
+        let (geometry, weights, corpus_name, cost_source) = self
             .jobs
             .get_config(&sub.job_id)
             .await
             .map_err(AppError::Database)?
             .ok_or(AppError::NotFound)?;
-
-        let cost_source = serde_json::from_str::<CostMatrixSource>(&cost_raw)
-            .unwrap_or(CostMatrixSource::Predefined(cost_raw));
 
         let builder = SessionBuilder::new(self.assets.as_ref())
             .with_keyboard_def(Arc::new(KeyboardDefinition {
@@ -197,24 +206,35 @@ impl VerificationService {
 
         let calculated_score = engine
             .score(&layout_struct)
-            .map_err(|e| AppError::Validation(format!("Scoring error: {e}")))?
-            .to_f32();
+            .map_err(|e| AppError::Validation(format!("Scoring error: {e}")))?;
 
         let is_exact = engine.capabilities().is_exact;
-        let diff = (calculated_score - sub.score).abs();
 
-        let tolerance = if is_exact {
-            0.0
+        if is_exact {
+            if calculated_score.0 != sub.raw_score {
+                warn!(
+                    "❌ Bit-perfect Mismatch: Claimed {} vs Calc {}",
+                    sub.raw_score, calculated_score.0
+                );
+                return Err(AppError::Validation(
+                    "Bit-perfect score verification failed".into(),
+                ));
+            }
         } else {
-            (sub.score * VERIFICATION_TOLERANCE_RATIO).max(VERIFICATION_TOLERANCE_ABS_MIN)
-        };
+            let calculated_f32 = calculated_score.to_f32();
+            let diff = (calculated_f32 - sub.score).abs();
+            let tolerance =
+                (sub.score * VERIFICATION_TOLERANCE_RATIO).max(VERIFICATION_TOLERANCE_ABS_MIN);
 
-        if diff > tolerance {
-            warn!(
-                "❌ Score Mismatch (is_exact: {}): Claimed {:.4} vs Calc {:.4} (Diff: {:.4})",
-                is_exact, sub.score, calculated_score, diff
-            );
-            return Err(AppError::Validation("Score verification failed".into()));
+            if diff > tolerance {
+                warn!(
+                    "❌ Score Mismatch (approx): Claimed {:.4} vs Calc {:.4} (Diff: {:.4})",
+                    sub.score, calculated_f32, diff
+                );
+                return Err(AppError::Validation(
+                    "Approximate score verification failed".into(),
+                ));
+            }
         }
         Ok(())
     }

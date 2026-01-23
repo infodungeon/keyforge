@@ -76,11 +76,10 @@ impl ValkeyProvider {
 
     async fn fetch_blob(&self, subpath: &str) -> LoaderResult<bytes::Bytes> {
         let key = format!("{ASSET_PREFIX}:{subpath}");
-        let data = self
-            .coordinator
-            .get_bin(&key)
-            .await
-            .map_err(|e| ForgeError::Internal(format!("Valkey fetch error for {subpath}: {e}")))?;
+        let data =
+            self.coordinator.get_bin(&key).await.map_err(|e| {
+                ForgeError::Internal(format!("Valkey fetch error for {subpath}: {e}"))
+            })?;
 
         data.ok_or_else(|| ForgeError::NotFound(subpath.to_string()))
     }
@@ -92,10 +91,10 @@ impl ValkeyProvider {
         let compressed = self.fetch_blob(subpath).await?;
 
         tokio::task::spawn_blocking(move || {
-            let decoder = zstd::Decoder::new(&compressed[..])
-                .map_err(ForgeError::Io)?;
-            rmp_serde::from_read(decoder)
-                .map_err(|e| ForgeError::InvalidData(format!("MsgPack deserialization failed: {e}")))
+            let decoder = zstd::Decoder::new(&compressed[..]).map_err(ForgeError::Io)?;
+            rmp_serde::from_read(decoder).map_err(|e| {
+                ForgeError::InvalidData(format!("MsgPack deserialization failed: {e}"))
+            })
         })
         .await
         .map_err(|e| ForgeError::Internal(format!("Spawn error: {e}")))?
@@ -232,10 +231,13 @@ impl AssetLoader for ValkeyProvider {
                 let path = format!("{base}/{part_name}.mpk.zst");
                 if let Ok(bytes) = self.fetch_blob(&path).await {
                     let part_res = tokio::task::spawn_blocking(move || {
-                        let decoder = zstd::Decoder::new(&bytes[..])
-                            .map_err(ForgeError::Io)?;
-                        let data: Vec<serde_json::Value> = rmp_serde::from_read(decoder)
-                            .map_err(|e| ForgeError::InvalidData(format!("Corpus segment deserialization failed: {e}")))?;
+                        let decoder = zstd::Decoder::new(&bytes[..]).map_err(ForgeError::Io)?;
+                        let data: Vec<serde_json::Value> =
+                            rmp_serde::from_read(decoder).map_err(|e| {
+                                ForgeError::InvalidData(format!(
+                                    "Corpus segment deserialization failed: {e}"
+                                ))
+                            })?;
                         Ok::<Vec<serde_json::Value>, ForgeError>(data)
                     })
                     .await

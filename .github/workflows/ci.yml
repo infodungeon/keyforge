@@ -49,60 +49,8 @@ jobs:
       - name: Lint
         run: cargo clippy --workspace -- -D warnings
 
-      - name: Architecture guardrails (hex boundaries)
-        run: |
-          set -euo pipefail
-
-          echo "Checking for disallowed direct deps on keyforge-physics/keyforge-evolution..."
-          # Only keyforge-core may depend on keyforge-physics/keyforge-evolution directly.
-          # keyforge-physics and keyforge-evolution obviously depend on themselves.
-          bad_deps=$(rg -n "keyforge-(physics|evolution)\s*=\s*\{[^}]*path\s*=\s*\".*keyforge-(physics|evolution)\"" \
-            apps libs \
-            --glob "Cargo.toml" \
-            --glob "!libs/keyforge-core/Cargo.toml" \
-            --glob "!libs/keyforge-physics/Cargo.toml" \
-            --glob "!libs/keyforge-evolution/Cargo.toml" \
-            || true)
-
-          if [ -n "${bad_deps}" ]; then
-            echo "ERROR: Disallowed direct dependency found (should go through keyforge-core):"
-            echo "${bad_deps}"
-            exit 1
-          fi
-
-          echo "Checking for disallowed direct imports of keyforge_physics/keyforge_evolution..."
-          bad_imports=$(rg -n "\bkeyforge_(physics|evolution)::" \
-            --glob "libs/**/*.rs" \
-            --glob "apps/**/*.rs" \
-            --glob "!libs/keyforge-core/**" \
-            --glob "!libs/keyforge-physics/**" \
-            --glob "!libs/keyforge-evolution/**" \
-            . \
-            || true)
-
-          if [ -n "${bad_imports}" ]; then
-            echo "ERROR: Disallowed direct imports found (should go through keyforge-core):"
-            echo "${bad_imports}"
-            exit 1
-          fi
-
-          echo "Checking protocol boundary: parsing only allowed in keyforge-protocol and keyforge-adapter..."
-          # keyforge-adapter has been moved or merged? Let's check against what we have.
-          bad_protocol_parsing=$(rg -n "\bkeyforge_protocol::(parsing::|parse_key\b)" \
-            --glob "libs/**/*.rs" \
-            --glob "apps/**/*.rs" \
-            --glob "!libs/keyforge-protocol/**" \
-            --glob "!libs/keyforge-adapter/**" \
-            . \
-            || true)
-
-          if [ -n "${bad_protocol_parsing}" ]; then
-            echo "ERROR: Protocol parsing used outside adapter/protocol (should be wrapped by keyforge-adapter):"
-            echo "${bad_protocol_parsing}"
-            exit 1
-          fi
-
-          echo "Architecture guardrails passed."
+      - name: Architecture Guardrails
+        run: python3 ops/scripts/check_arch.py
 
       - name: Build Core/Hive/CLI
         run: cargo build --release --workspace --exclude keyforge-ui

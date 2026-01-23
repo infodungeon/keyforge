@@ -115,8 +115,6 @@ pub async fn cmd_load_dataset(
     Ok("Dataset Loaded".to_string())
 }
 
-use keyforge_runner::{OptimizationRunner, RunnerOptions};
-
 /// Validates a layout string against the currently active search runtime.
 #[tauri::command]
 pub async fn cmd_validate_layout(
@@ -152,10 +150,13 @@ pub async fn cmd_validate_layout(
                     .with_keycodes("keycodes.json")
                     .await
                     .map_err(|e| CommandError::Internal(format!("Keycodes load failed: {e}")))?
-                    .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job_config.weights));
+                    .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+                        &job_config.weights,
+                    ));
 
-                let session = builder.build()
-                    .map_err(|e| CommandError::Internal(format!("Failed to compile engine: {e}")))?;
+                let session = builder.build().map_err(|e| {
+                    CommandError::Internal(format!("Failed to compile engine: {e}"))
+                })?;
 
                 *write_guard = Some(session);
             }

@@ -23,7 +23,7 @@ use std::time::Duration;
 /// every verification request on the same job.
 #[derive(Debug)]
 pub struct CompiledEngineCache {
-    cache: Cache<String, Arc<dyn keyforge_compute::ScoringEngine>>,
+    cache: Cache<String, Arc<dyn keyforge_physics::ScoringEngine>>,
 }
 
 impl Default for CompiledEngineCache {
@@ -51,12 +51,12 @@ impl CompiledEngineCache {
 
     /// Retrieves a cached engine by job ID.
     #[must_use]
-    pub fn get(&self, job_id: &str) -> Option<Arc<dyn keyforge_compute::ScoringEngine>> {
+    pub fn get(&self, job_id: &str) -> Option<Arc<dyn keyforge_physics::ScoringEngine>> {
         self.cache.get(job_id)
     }
 
     /// Inserts a hydrated engine into the cache.
-    pub fn insert(&self, job_id: &str, engine: Arc<dyn keyforge_compute::ScoringEngine>) {
+    pub fn insert(&self, job_id: &str, engine: Arc<dyn keyforge_physics::ScoringEngine>) {
         self.cache.insert(job_id.to_string(), engine);
     }
 

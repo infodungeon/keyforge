@@ -103,8 +103,7 @@ impl JobConfig {
     /// # Errors
     /// Returns an error if the layout geometry or configuration parts are invalid.
     pub fn id(&self) -> Result<String, String> {
-        let corpora_fingerprint =
-            keyforge_model::job::calculate_corpora_fingerprint(&self.corpora);
+        let corpora_fingerprint = keyforge_model::job::calculate_corpora_fingerprint(&self.corpora);
 
         keyforge_model::job::JobIdentifier::from_parts(
             &self.definition.geometry,
@@ -175,7 +174,6 @@ pub struct JobRequest {
     #[serde(default = "default_version")]
     pub version: u32,
     /// The job configuration.
-    #[serde(flatten)]
     pub config: JobConfig,
 }
 
@@ -244,8 +242,11 @@ pub struct ResultSubmission {
     pub job_id: String,
     /// The layout string.
     pub layout: String,
-    /// The score achieved.
+    /// The score achieved (normalized f32).
     pub score: f32,
+    /// The raw fixed-point score (i64).
+    #[serde(default)]
+    pub raw_score: i64,
     /// Timestamp of the result.
     pub timestamp: u64,
     /// Nonce for cryptographic verification.
@@ -385,6 +386,7 @@ mod tests {
             job_id: "test".into(),
             layout: "A B C D E F G H I J".into(), // Valid layout
             score: 100.0,
+            raw_score: 100_000_000,
             timestamp: 0,
             nonce: 0,
             node_id: "node".into(),
@@ -491,6 +493,7 @@ mod tests {
             job_id: "test".into(),
             layout: "A B C D E F G H I J".into(),
             score: 100.0,
+            raw_score: 100_000_000,
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

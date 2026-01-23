@@ -38,26 +38,27 @@ impl ScoringEngine for GenericScoringEngine {
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
-            Ok(Score(score_layout(&self.ctx, &validated, &mut s)?))
+        crate::kernel::compute::state::with_scratch(|scratch| {
+            self.score_with_scratch(layout, scratch)
         })
     }
 
+    fn score_with_scratch(
+        &self,
+        layout: &Layout,
+        scratch: &mut PhysicsScratch,
+    ) -> Result<Score, PhysicsError> {
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        Ok(Score(score_layout(&self.ctx, &validated, scratch)?))
+    }
+
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
+
+        crate::kernel::compute::state::with_scratch(|scratch| {
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
+            let (starts, counts, indices, offsets, used, _char_usage) = scratch.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,
                 key_count,
@@ -79,7 +80,7 @@ impl ScoringEngine for GenericScoringEngine {
             let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
 
             // Clean up scratch for next use (score_layout usually does this, but we called sub-functions)
-            s.clear_used();
+            scratch.clear_used();
             Ok((mono, bigram, trigram))
         })
     }

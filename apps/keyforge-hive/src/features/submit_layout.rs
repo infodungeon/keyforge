@@ -18,7 +18,7 @@ use axum::{extract::State, Json};
 use keyforge_model::constants::{
     MAX_ID_LEN, MAX_LAYOUT_DATA_LEN, MIN_LAYOUT_DATA_LEN, MIN_LAYOUT_NAME_LEN,
 };
-use keyforge_model::LayoutValidator;
+use keyforge_model::{LayoutValidator, Validator};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -33,6 +33,30 @@ pub struct LayoutSubmission {
     pub layout: String,
     /// Author's name or pseudonym.
     pub author: String,
+}
+
+impl Validator for LayoutSubmission {
+    fn validate(&self) -> Result<(), String> {
+        let clean_name = self.name.trim();
+        let clean_author = self.author.trim();
+        let clean_layout = self.layout.trim();
+
+        if clean_name.len() < MIN_LAYOUT_NAME_LEN || clean_name.len() > MAX_ID_LEN {
+            return Err(format!(
+                "Name must be {MIN_LAYOUT_NAME_LEN}-{MAX_ID_LEN} chars"
+            ));
+        }
+        if clean_author.len() > MAX_ID_LEN {
+            return Err(format!("Author name too long (max {MAX_ID_LEN})"));
+        }
+
+        LayoutValidator::validate_structure(clean_layout)?;
+
+        if clean_layout.len() < MIN_LAYOUT_DATA_LEN || clean_layout.len() > MAX_LAYOUT_DATA_LEN {
+            return Err("Invalid layout data size".into());
+        }
+        Ok(())
+    }
 }
 
 /// Response confirming the acceptance of a layout submission.
@@ -62,29 +86,12 @@ pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LayoutSubmission>,
 ) -> AppResult<Json<SubmissionResponse>> {
+    // 1. Validation Logic
+    payload.validate().map_err(AppError::Validation)?;
+
     let clean_name = payload.name.trim();
     let clean_author = payload.author.trim();
     let clean_layout = payload.layout.trim();
-
-    // 1. Validation Logic
-    if clean_name.len() < MIN_LAYOUT_NAME_LEN || clean_name.len() > MAX_ID_LEN {
-        return Err(AppError::Validation(format!(
-            "Name must be {MIN_LAYOUT_NAME_LEN}-{MAX_ID_LEN} chars"
-        )));
-    }
-    if clean_author.len() > MAX_ID_LEN {
-        return Err(AppError::Validation(format!(
-            "Author name too long (max {MAX_ID_LEN})"
-        )));
-    }
-
-    // Check structure before size for better error messages
-    LayoutValidator::validate_structure(clean_layout)
-        .map_err(|e| AppError::Validation(e.clone()))?;
-
-    if clean_layout.len() < MIN_LAYOUT_DATA_LEN || clean_layout.len() > MAX_LAYOUT_DATA_LEN {
-        return Err(AppError::Validation("Invalid layout data size".into()));
-    }
 
     // 2. Persistence
     let id = state

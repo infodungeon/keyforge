@@ -117,6 +117,10 @@ impl Compiler {
                 trigram_mid_others1: corpus_out.trigram_mid_others1.into(),
                 trigram_mid_others2: corpus_out.trigram_mid_others2.into(),
                 trigram_mid_freqs: corpus_out.trigram_mid_freqs.into(),
+                trigram_end_starts: corpus_out.trigram_end_starts.into(),
+                trigram_end_others1: corpus_out.trigram_end_others1.into(),
+                trigram_end_others2: corpus_out.trigram_end_others2.into(),
+                trigram_end_freqs: corpus_out.trigram_end_freqs.into(),
             },
             all_bigrams: corpus.bigrams.clone().into(),
             all_trigrams: corpus.trigrams.clone().into(),
@@ -147,13 +151,13 @@ mod tests {
         let mut fingers = std::collections::HashMap::new();
         let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
         base_r0.insert(RowIndex(0), 1.0);
-        
+
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_r0,
             inner: Default::default(),
             outer: Default::default(),
         };
-        
+
         fingers.insert(
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(zones),

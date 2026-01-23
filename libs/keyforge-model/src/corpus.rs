@@ -39,7 +39,7 @@ pub struct Corpus {
     #[serde(default)]
     pub meta: CorpusMetadata,
     /// Frequency of each character (index = char code).
-    /// Must be exactly MAX_KEYCODE_SPACE elements long to cover all u16 values.
+    /// Must be exactly `MAX_KEYCODE_SPACE` elements long to cover all u16 values.
     /// Changed to u64 to support large corpora (>4B chars).
     pub char_freqs: Vec<u64>,
     /// List of bigrams (char1, char2, frequency).
@@ -84,7 +84,7 @@ impl Corpus {
     ///
     /// # Errors
     ///
-    /// Returns a `ForgeError` if the character frequency map is not exactly MAX_KEYCODE_SPACE elements.
+    /// Returns a `ForgeError` if the character frequency map is not exactly `MAX_KEYCODE_SPACE` elements.
     pub fn validate(&self) -> Result<(), ForgeError> {
         // 1. Char Freqs must cover full u16 range (0..65535)
         // The physics engine uses direct indexing: ctx.char_freqs[code as usize]
@@ -155,11 +155,6 @@ impl Corpus {
             .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
         self.trigrams
             .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
-    }
-
-    /// Returns a `ForgeError` if the corpus state is invalid.
-    fn validate_internal(&self) -> Result<(), ForgeError> {
-        self.validate()
     }
 }
 

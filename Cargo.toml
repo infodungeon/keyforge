@@ -114,6 +114,9 @@ image = { version = "0.25", features = ["png", "jpeg"] }
 md-5 = "0.10"
 itertools = "0.14"
 ordered-float = { version = "5.0", features = ["serde"] }
+regex = "1.12"
+crc32fast = "1.5"
+subtle = "2.6"
 cobs = "0.3"
 heapless = "0.7"
 serde-big-array = "0.5"
@@ -172,3 +175,14 @@ num_cpus = "1.16"
 sysinfo = "0.33"
 local-ip-address = "0.6"
 hostname = "0.4"
+axum-server = { version = "0.8", features = ["tls-rustls"] }
+tower_governor = "0.8.0"
+tikv-jemallocator = "0.6"
+toml = "0.8"
+opentelemetry = { version = "0.31.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
+tracing-opentelemetry = "0.32.0"
+testcontainers = "0.26.3"
+tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
+dirs = "6.0"

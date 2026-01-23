@@ -1,6 +1,7 @@
 use crate::error::PersistenceError;
 use keyforge_compute::loader::AssetLoader;
 use keyforge_model::config::Config;
+use keyforge_model::constants::paths::ASSET_KEYCODES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::EngineRequest;
@@ -28,7 +29,7 @@ pub async fn compile_request<L: AssetLoader>(
 
     // 3. Load Keycode Registry (Mandatory for resolution)
     let registry = loader
-        .load::<KeycodeRegistry>("keycodes")
+        .load::<KeycodeRegistry>(ASSET_KEYCODES)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {e}")))?;
 
@@ -41,16 +42,23 @@ pub async fn compile_request<L: AssetLoader>(
     };
 
     // 5. Translate to Physics entities using Adapter
-    let keyboard = keyforge_adapter::conversion::to_domain_keyboard(&kb_def.geometry)
-        .map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Keyboard geometry: {e}")))?;
+    let keyboard =
+        keyforge_adapter::conversion::to_domain_keyboard(&kb_def.geometry).map_err(|e| {
+            keyforge_model::error::ForgeError::InvalidData(format!("Keyboard geometry: {e}"))
+        })?;
 
     let rubric = keyforge_adapter::conversion::to_domain_rubric(&config.weights);
 
     let adapter_config =
         keyforge_adapter::conversion::to_domain_config(&config.search, config.seed.unwrap_or(0));
 
-    // Initial layout: Use first defined layout or default to QWERTY if present
-    let initial_layout = if let Some(layout_str) = kb_def.layouts.get("qwerty") {
+    // Initial layout: Use "default" or fallback to "qwerty" if present
+    let initial_layout_str = kb_def
+        .layouts
+        .get("default")
+        .or_else(|| kb_def.layouts.get("qwerty"));
+
+    let initial_layout = if let Some(layout_str) = initial_layout_str {
         Some(
             keyforge_adapter::conversion::parse_layout_string_strict(
                 layout_str,
@@ -58,9 +66,7 @@ pub async fn compile_request<L: AssetLoader>(
                 &registry,
             )
             .map_err(|e| {
-                keyforge_model::error::ForgeError::InvalidData(format!(
-                    "Default layout 'qwerty': {e}"
-                ))
+                keyforge_model::error::ForgeError::InvalidData(format!("Initial layout: {e}"))
             })?,
         )
     } else {

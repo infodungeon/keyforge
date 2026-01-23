@@ -53,6 +53,7 @@ async fn test_signature_enforcement() {
         assets,
         engine_cache,
         layout_cache,
+        10,
     );
 
     let node_id = format!("node-{}", Uuid::new_v4());
@@ -77,6 +78,7 @@ async fn test_signature_enforcement() {
         job_id: job_id.clone(),
         layout: layout.clone(),
         score: 100.0,
+        raw_score: 100_000_000,
         node_id: node_id.clone(),
         timestamp,
         nonce: 123,
@@ -85,12 +87,14 @@ async fn test_signature_enforcement() {
     assert!(service.verify_submission(&sub_bad).await.is_err());
 
     // Case 2: Valid Signature
-    let sig = crypto::sign_result(&sk_hex, &job_id, &layout, 100.0, timestamp, 456).unwrap();
+    let sig =
+        crypto::sign_result_fixed(&sk_hex, &job_id, &layout, 100_000_000, timestamp, 456).unwrap();
     let sub_good = ResultSubmission {
         version: PROTOCOL_VERSION,
         job_id: job_id.clone(),
         layout: layout.clone(),
         score: 100.0,
+        raw_score: 100_000_000,
         node_id: node_id.clone(),
         timestamp,
         nonce: 456,

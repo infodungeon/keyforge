@@ -14,7 +14,7 @@
 
 use crate::constants::DEFAULT_DEBUG_OUTPUT;
 use clap::{Args, Subcommand};
-use keyforge_core::loader::AssetLoader;
+use keyforge_compute::AssetLoader;
 use keyforge_export::viz::physics::generate_physics_svg;
 use keyforge_infra::FsProvider;
 use keyforge_model::KeyboardDefinition;

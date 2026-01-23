@@ -203,7 +203,7 @@ impl KeycodeRegistry {
             .unwrap_or_else(|| format!("[{code}]"))
     }
 
-    /// Resolves a raw token (e.g. "KC_A", "MO(1)") into a `KeyCode`.
+    /// Resolves a raw token (e.g. "`KC_A`", "MO(1)") into a `KeyCode`.
     /// Handles case-insensitivity and argument stripping.
     ///
     /// # Examples

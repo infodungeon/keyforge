@@ -59,6 +59,14 @@ impl ScoringEngine for ExactScoringEngine {
             .map(Score)
     }
 
+    fn score_with_scratch(
+        &self,
+        layout: &Layout,
+        _scratch: &mut crate::kernel::compute::PhysicsScratch,
+    ) -> Result<Score, PhysicsError> {
+        self.score(layout)
+    }
+
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
         self.scorer
             .score_detailed(&self.keyboard, &self.corpus, layout.keys.as_slice())
@@ -75,11 +83,7 @@ impl ScoringEngine for ExactScoringEngine {
         let pm = crate::kernel::compute::state::PosMap::from_slice(pos_map, self.ctx.key_count);
 
         crate::kernel::compute::delta::calculate_swap_delta(
-            &self.ctx,
-            &validated,
-            &pm,
-            idx_a,
-            idx_b,
+            &self.ctx, &validated, &pm, idx_a, idx_b,
         )
     }
 

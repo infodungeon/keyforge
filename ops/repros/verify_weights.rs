@@ -48,13 +48,13 @@ fn main() {
 
     // 1. Default Rubric
     let rubric_def = Rubric::default();
-    let engine_def =
-        EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-            keyboard: &keyboard,
-            corpus: &corpus,
-            rubric: &rubric_def,
-            cost_model: &cost_model,
-        }).unwrap();
+    let engine_def = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &keyboard,
+        corpus: &corpus,
+        rubric: &rubric_def,
+        cost_model: &cost_model,
+    })
+    .unwrap();
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)
@@ -62,13 +62,13 @@ fn main() {
         sfb_base: 5000.0,
         ..Rubric::default()
     };
-    let engine_custom =
-        EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-            keyboard: &keyboard,
-            corpus: &corpus,
-            rubric: &rubric_custom,
-            cost_model: &cost_model,
-        }).unwrap();
+    let engine_custom = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+        keyboard: &keyboard,
+        corpus: &corpus,
+        rubric: &rubric_custom,
+        cost_model: &cost_model,
+    })
+    .unwrap();
     let score_custom = engine_custom.score(&layout).unwrap();
 
     println!("Score Default: {:.4}", score_def.to_f32());

@@ -24,7 +24,7 @@ pub const MAX_LAYOUT_DATA_LEN: usize = 5000;
 pub const MIN_LAYOUT_DATA_LEN: usize = 10;
 /// Maximum length of a generic identifier.
 pub const MAX_ID_LEN: usize = 64;
-/// The total addressable space for KeyCodes (Unicode range).
+/// The total addressable space for `KeyCodes` (Unicode range).
 pub const MAX_KEYCODE_SPACE: usize = 65536;
 
 /// Maximum size of uploaded files (bytes).

@@ -14,19 +14,19 @@
 
 //! Reified business actions for the Hive service (Command Pattern).
 
-use keyforge_protocol::{JobRequest, JobResponse, ResultSubmission};
-use serde::{Deserialize, Serialize};
 use crate::error::AppResult;
-use crate::state::AppState;
 use crate::services::job_service::JobService;
 use crate::services::result_service::ResultService;
+use crate::state::AppState;
+use keyforge_protocol::{JobRequest, JobResponse, ResultSubmission};
+use serde::{Deserialize, Serialize};
 
 /// Reified Intent for Hive operations.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HiveCommand {
     /// Request to register a new optimization job.
-    RegisterJob(JobRequest),
+    RegisterJob(Box<JobRequest>),
     /// Submit a result from a worker.
     SubmitResult(ResultSubmission),
     /// Cancel an active job.
@@ -38,14 +38,14 @@ pub enum HiveCommand {
 pub async fn handle_command(state: &AppState, cmd: HiveCommand) -> AppResult<CommandResponse> {
     match cmd {
         HiveCommand::RegisterJob(req) => {
-            let res = JobService::register_job(state, req).await?;
+            let res = JobService::register_job(state, *req).await?;
             Ok(CommandResponse::JobRegistered(res))
         }
         HiveCommand::SubmitResult(res) => {
             let accepted = ResultService::submit_result(state, res).await?;
             Ok(CommandResponse::ResultAccepted { accepted })
         }
-        _ => todo!("Implement remaining command handlers"),
+        HiveCommand::CancelJob { .. } => todo!("Implement remaining command handlers"),
     }
 }
 
@@ -53,10 +53,10 @@ pub async fn handle_command(state: &AppState, cmd: HiveCommand) -> AppResult<Com
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CommandResponse {
-    /// Result of RegisterJob.
+    /// Result of `RegisterJob`.
     JobRegistered(JobResponse),
-    /// Result of SubmitResult.
+    /// Result of `SubmitResult`.
     ResultAccepted { accepted: bool },
-    /// Result of CancelJob.
+    /// Result of `CancelJob`.
     JobCancelled { job_id: String },
 }

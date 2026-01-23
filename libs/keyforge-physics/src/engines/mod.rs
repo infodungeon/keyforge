@@ -44,6 +44,16 @@ pub trait ScoringEngine: Send + Sync + std::fmt::Debug {
     /// Returns `PhysicsError` if scoring fails or overflows.
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError>;
 
+    /// Calculates the score for a given layout using provided scratch space.
+    ///
+    /// # Errors
+    /// Returns `PhysicsError` if scoring fails or overflows.
+    fn score_with_scratch(
+        &self,
+        layout: &Layout,
+        scratch: &mut crate::kernel::compute::PhysicsScratch,
+    ) -> Result<Score, PhysicsError>;
+
     /// Calculates detailed scores (monogram, bigram, trigram) for a layout.
     ///
     /// # Errors

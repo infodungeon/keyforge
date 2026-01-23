@@ -140,4 +140,31 @@ mod tests {
         assert_eq!(map_modifier("RALT", ModFormat::Zmk), "RALT");
         assert_eq!(map_modifier("RGUI", ModFormat::Zmk), "RGUI");
     }
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_sanitize_c_is_alphanumeric_or_underscore(s in "\\PC*") {
+            let sanitized = sanitize_c(&s);
+            for c in sanitized.chars() {
+                assert!(c.is_ascii_alphanumeric() || c == '_');
+            }
+        }
+
+        #[test]
+        fn prop_sanitize_c_no_leading_trailing_underscores(s in "\\PC*") {
+            let sanitized = sanitize_c(&s);
+            assert!(!sanitized.starts_with('_'));
+            assert!(!sanitized.ends_with('_'));
+        }
+
+        #[test]
+        fn prop_sanitize_zmk_is_alphanumeric_or_underscore(s in "\\PC*") {
+            let sanitized = sanitize_zmk(&s);
+            for c in sanitized.chars() {
+                assert!(c.is_ascii_alphanumeric() || c == '_');
+            }
+        }
+    }
 }

@@ -28,12 +28,13 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &req.keyboard,
-        corpus: &req.corpus,
-        rubric: &req.rubric,
-        cost_model: &req.cost_model,
-    })?;
+    let engine =
+        keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
+            keyboard: &req.keyboard,
+            corpus: &req.corpus,
+            rubric: &req.rubric,
+            cost_model: &req.cost_model,
+        })?;
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     // Determine unlocked indices
@@ -199,10 +200,13 @@ mod tests {
         fingers.insert(
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
-                std::collections::HashMap::from([(
-                    "base".to_string(),
-                    std::collections::HashMap::from([("r0".to_string(), 1.0)]),
-                )]),
+                keyforge_model::cost_model::FingerReach {
+                    base: std::collections::HashMap::from([(
+                        keyforge_model::types::RowIndex(0),
+                        1.0,
+                    )]),
+                    ..Default::default()
+                },
             ),
         );
         cm.models.insert(
@@ -215,14 +219,13 @@ mod tests {
                 )]),
             },
         );
-        let engine =
-            EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
-                keyboard: &kb,
-                corpus: &Corpus::default(),
-                rubric: &Rubric::default(),
-                cost_model: &cm,
-            })
-            .unwrap();
+        let engine = EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
+            keyboard: &kb,
+            corpus: &Corpus::default(),
+            rubric: &Rubric::default(),
+            cost_model: &cm,
+        })
+        .unwrap();
         let config = SearchConfig::Annealing {
             steps: 100,
             start_temp: 10.0,
@@ -266,10 +269,13 @@ mod tests {
         fingers.insert(
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
-                std::collections::HashMap::from([(
-                    "base".to_string(),
-                    std::collections::HashMap::from([("r0".to_string(), 1.0)]),
-                )]),
+                keyforge_model::cost_model::FingerReach {
+                    base: std::collections::HashMap::from([(
+                        keyforge_model::types::RowIndex(0),
+                        1.0,
+                    )]),
+                    ..Default::default()
+                },
             ),
         );
         cm.models.insert(

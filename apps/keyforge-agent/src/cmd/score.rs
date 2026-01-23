@@ -1,7 +1,8 @@
 use anyhow::Result;
+use keyforge_compute::SessionBuilder;
 use keyforge_infra::FsProvider;
-use keyforge_runner::{OptimizationRunner, RunnerOptions};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tracing::info;
 
 use crate::config_loader::read_job_config;
@@ -27,12 +28,21 @@ pub async fn run(
     }
 
     let loader = FsProvider::new(config.data_dir.clone());
-    let options = RunnerOptions {
-        keycodes_file: config.compute.keycodes_file.clone(),
-        ..Default::default()
-    };
 
-    let session = OptimizationRunner::prepare_session(&loader, &job, &options).await?;
+    let session = SessionBuilder::new(&loader)
+        .with_keyboard_def(Arc::new(job.definition.clone()))
+        .with_corpus(&job.corpora)
+        .await?
+        .with_cost_matrix(&job.cost_matrix)
+        .await?
+        .with_keycodes(&config.compute.keycodes_file)
+        .await?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+        .with_config(keyforge_adapter::conversion::to_domain_config(
+            &job.params,
+            job.params.seed.unwrap_or(0),
+        ))
+        .build()?;
 
     // Try to resolve as layout name from definition first, then parse as raw string
     let layout_parsed = if let Some(layout_str) = job.definition.layouts.get(&layout) {

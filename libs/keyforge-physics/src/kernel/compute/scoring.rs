@@ -183,7 +183,8 @@ pub fn score_trigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
                     for &p3 in candidates3 {
-                        let cost = calculate_flow_cost(ctx.engine, p1 as usize, p2 as usize, p3 as usize);
+                        let cost =
+                            calculate_flow_cost(ctx.engine, p1 as usize, p2 as usize, p3 as usize);
                         if cost < min_cost {
                             min_cost = cost;
                         }

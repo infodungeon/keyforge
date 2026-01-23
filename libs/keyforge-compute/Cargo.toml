@@ -21,6 +21,10 @@ serde_json.workspace = true
 raw-cpuid.workspace = true
 async-trait.workspace = true
 tokio = { workspace = true, features = ["full"] }
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_System_SystemInformation"] }
 
 [dev-dependencies]
 

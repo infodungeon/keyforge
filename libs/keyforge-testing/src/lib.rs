@@ -85,68 +85,149 @@ impl HermeticWorkspace {
     }
 
     /// Populates the workspace with standard test assets.
+    ///
+    /// # Panics
+    ///
+    /// Panics if serialization of default assets fails.
     #[must_use]
+    #[allow(clippy::too_many_lines, clippy::unwrap_used)]
     pub fn with_default_assets(self) -> Self {
+        use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+        use keyforge_model::{
+            cost_model::{CostModel, FingerDefinition, HandDefinition, ModelDefinition, RowCosts},
+            geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta},
+            keycodes::KeycodeDefinition,
+            KeyNode,
+        };
+        use std::collections::HashMap;
+
         // 1. Keycodes
-        let keycodes_json = r#"[
-            {"code": 0, "id": "KC_NO", "label": " ", "aliases": ["NO"]},
-            {"code": 1, "id": "KC_TRNS", "label": "▽", "aliases": ["TRNS"]},
-            {"code": 97, "id": "KC_A", "label": "a", "aliases": ["A"]},
-            {"code": 98, "id": "KC_B", "label": "b", "aliases": ["B"]}
-        ]"#;
-        self.write_file("user/config/keycodes.json", keycodes_json);
-        self.write_file("system/config/keycodes.json", keycodes_json);
+        let keycodes = vec![
+            KeycodeDefinition {
+                code: KeyCode(0),
+                id: "KC_NO".into(),
+                label: " ".into(),
+                aliases: vec!["NO".into()],
+            },
+            KeycodeDefinition {
+                code: KeyCode(1),
+                id: "KC_TRNS".into(),
+                label: "▽".into(),
+                aliases: vec!["TRNS".into()],
+            },
+            KeycodeDefinition {
+                code: KeyCode(97),
+                id: "KC_A".into(),
+                label: "a".into(),
+                aliases: vec!["A".into()],
+            },
+            KeycodeDefinition {
+                code: KeyCode(98),
+                id: "KC_B".into(),
+                label: "b".into(),
+                aliases: vec!["B".into()],
+            },
+        ];
+        let keycodes_json = serde_json::to_string_pretty(&keycodes).unwrap();
+        self.write_file("user/config/keycodes.json", &keycodes_json);
+        self.write_file("system/config/keycodes.json", &keycodes_json);
 
         // 2. Cost Matrix
-        let cost_json = r#"{
-            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
-            "models": {
-                "model_a_row_staggered": {
-                    "description": "Test Model",
-                    "static_costs": {
-                        "universal_hand": {
-                            "thumb": { "pos_1": 100.0 },
-                            "index": { "base": { "r0": 100.0 } },
-                            "middle": { "base": { "r0": 100.0 } },
-                            "ring": { "base": { "r0": 100.0 } },
-                            "pinky": { "base": { "r0": 100.0 } }
-                        }
-                    }
-                },
-                "model_ortho": {
-                    "description": "Test Ortho",
-                    "static_costs": {
-                        "universal_hand": {
-                            "thumb": { "pos_1": 100.0 },
-                            "index": { "base": { "r0": 100.0 } },
-                            "middle": { "base": { "r0": 100.0 } },
-                            "ring": { "base": { "r0": 100.0 } },
-                            "pinky": { "base": { "r0": 100.0 } }
-                        }
-                    }
-                }
+        let mut static_costs = HashMap::new();
+        let mut base_costs = RowCosts::new();
+        base_costs.insert(RowIndex(0), 100.0);
+
+        let fingers_def = FingerDefinition::Standard(keyforge_model::cost_model::FingerReach {
+            base: base_costs,
+            inner: HashMap::default(),
+            outer: HashMap::default(),
+        });
+
+        let mut fingers = HashMap::new();
+        fingers.insert(
+            "thumb".into(),
+            FingerDefinition::Thumb(HashMap::from([("pos_1".into(), 100.0)])),
+        );
+        fingers.insert("index".into(), fingers_def.clone());
+        fingers.insert("middle".into(), fingers_def.clone());
+        fingers.insert("ring".into(), fingers_def.clone());
+        fingers.insert("pinky".into(), fingers_def);
+
+        static_costs.insert("universal_hand".into(), HandDefinition { fingers });
+
+        let mut models = HashMap::new();
+        let model_def = ModelDefinition {
+            description: "Test Model".into(),
+            static_costs: static_costs.clone(),
+        };
+        models.insert("model_a_row_staggered".into(), model_def.clone());
+        models.insert(
+            "model_ortho".into(),
+            ModelDefinition {
+                description: "Test Ortho".into(),
+                static_costs,
             },
-            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
-        }"#;
-        self.write_file("user/weights/cost.json", cost_json);
+        );
+
+        let cost_model = CostModel {
+            meta: keyforge_model::cost_model::CostModelMeta {
+                version: "2.0".into(),
+                description: "Test".into(),
+                unit: "pts".into(),
+            },
+            models,
+            dynamic_rules: keyforge_model::cost_model::DynamicRules::default(),
+        };
+        let cost_json = serde_json::to_string_pretty(&cost_model).unwrap();
+        self.write_file("user/weights/cost.json", &cost_json);
         self.write_file("user/weights/default.json", "{}");
 
         // 3. Keyboard
-        let kb_json = r#"{
-            "meta": { "name": "Test KB", "author": "Test", "version": "1.0", "type": "ortho" },
-            "geometry": {
-                "keys": [
-                    {"index": 0, "x": 0.0, "y": 0.0, "hand": 0, "finger": 1, "row": 0, "col": 0},
-                    {"index": 1, "x": 1.0, "y": 0.0, "hand": 0, "finger": 2, "row": 0, "col": 1}
-                ],
-                "prime_slots": [0, 1],
-                "med_slots": [],
-                "low_slots": [],
-                "home_row": 0
+        let geometry = KeyboardGeometry {
+            keys: vec![
+                KeyNode {
+                    index: 0,
+                    x: 0.0,
+                    y: 0.0,
+                    hand: HandIndex(0),
+                    finger: FingerIndex::INDEX,
+                    row: RowIndex(0),
+                    col: ColIndex(0),
+                    ..Default::default()
+                },
+                KeyNode {
+                    index: 1,
+                    x: 1.0,
+                    y: 0.0,
+                    hand: HandIndex(0),
+                    finger: FingerIndex::MIDDLE,
+                    row: RowIndex(0),
+                    col: ColIndex(1),
+                    ..Default::default()
+                },
+            ],
+            prime_slots: vec![
+                keyforge_model::types::KeyIndex(0),
+                keyforge_model::types::KeyIndex(1),
+            ],
+            med_slots: vec![],
+            low_slots: vec![],
+            home_row: 0,
+        };
+
+        let kb_def = KeyboardDefinition {
+            meta: KeyboardMeta {
+                name: "Test KB".into(),
+                author: "Test".into(),
+                version: "1.0".into(),
+                kb_type: "ortho".into(),
+                notes: String::new(),
             },
-            "layouts": { "default": "a b" }
-        }"#;
-        self.write_file("user/keyboards/test_kb.json", kb_json);
+            geometry,
+            layouts: HashMap::from([("default".into(), "a b".into())]),
+        };
+        let kb_json = serde_json::to_string_pretty(&kb_def).unwrap();
+        self.write_file("user/keyboards/test_kb.json", &kb_json);
 
         // 4. Corpus
         let corpus_json = r#"[{"s": "a", "f": 100}, {"s": "b", "f": 50}]"#;

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::models::SharedTelemetry;
-use keyforge_core::{OptimizationControl, ProgressCallback};
+use keyforge_compute::{OptimizationControl, ProgressCallback};
 use keyforge_model::KeyCode;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

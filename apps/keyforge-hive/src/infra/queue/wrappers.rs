@@ -10,6 +10,7 @@ pub struct PersistedRecord {
     pub job_id: String,
     pub layout: String,
     pub score: f32,
+    pub raw_score: i64,
     pub node_id: String,
 }
 

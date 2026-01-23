@@ -39,6 +39,7 @@ use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::{info, warn, Level};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use zeroize::Zeroize;
 
 pub(crate) mod api;
 pub(crate) mod api_docs;
@@ -80,6 +81,12 @@ pub struct RateLimitState {
     pub global: Arc<GlobalLimiter>,
     /// Stricter rate limiter for sensitive or expensive endpoints (e.g., job registration).
     pub strict: Arc<StrictLimiter>,
+}
+
+impl Zeroize for RateLimitState {
+    fn zeroize(&mut self) {
+        // Arcs are immutable, no sensitive data to wipe in this state holder.
+    }
 }
 
 /// Constructs the main Axum application router.

@@ -195,10 +195,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
                 Some(topo.into()),
             )
         } else if topo.vendor == "ARM" {
-            keyforge_physics::EngineFactory::new_arm_neon(
-                compilation_ctx,
-                Some(topo.into()),
-            )
+            keyforge_physics::EngineFactory::new_arm_neon(compilation_ctx, Some(topo.into()))
         } else {
             keyforge_physics::EngineFactory::new_generic(compilation_ctx)
         }

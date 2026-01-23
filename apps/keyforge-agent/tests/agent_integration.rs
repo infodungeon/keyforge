@@ -11,47 +11,45 @@ use keyforge_protocol::JobConfig;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
-use tempfile::tempdir;
+use std::sync::Arc;
 
 #[tokio::test]
-async fn test_agent_session_bootstrap() {
-    let dir = tempdir().unwrap();
+async fn test_agent_session_bootstrap() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
     let data_root = dir.path().join("data");
 
     // Create User Structure
-    fs::create_dir_all(data_root.join("user/corpora/default")).unwrap();
-    fs::create_dir_all(data_root.join("user/keyboards")).unwrap();
-    fs::create_dir_all(data_root.join("user/weights")).unwrap();
-    fs::create_dir_all(data_root.join("user/config")).unwrap();
+    fs::create_dir_all(data_root.join("user/corpora/default"))?;
+    fs::create_dir_all(data_root.join("user/keyboards"))?;
+    fs::create_dir_all(data_root.join("user/weights"))?;
+    fs::create_dir_all(data_root.join("user/config"))?;
 
     // Cost Matrix -> user/weights
-    let mut f = File::create(data_root.join("user/weights/cost.json")).unwrap();
+    let mut f = File::create(data_root.join("user/weights/cost.json"))?;
     writeln!(
         f,
         r#"{{"meta":{{"version":"2.0","description":"Test","unit":"pts"}},"models":{{"model_a_row_staggered":{{"description":"Test","static_costs":{{"universal_hand":{{"index":{{"base":{{"r0":1.0}}}}}}}}}}}},"dynamic_rules":{{"sequence_modifiers":{{}},"penalties":{{}},"constraints":{{}}}}}}"#
-    )
-    .unwrap();
+    )?;
 
     // Corpus -> user/corpora
-    let mut f = File::create(data_root.join("user/corpora/default/1grams.json")).unwrap();
-    writeln!(f, r#"[{{"char":"a","freq":100}}]"#).unwrap();
+    let mut f = File::create(data_root.join("user/corpora/default/1grams.json"))?;
+    writeln!(f, r#"[{{"char":"a","freq":100}}]"#)?;
 
-    let mut f = File::create(data_root.join("user/corpora/default/2grams.json")).unwrap();
-    writeln!(f, r#"[{{"char1":"a","char2":"b","freq":10}}]"#).unwrap();
+    let mut f = File::create(data_root.join("user/corpora/default/2grams.json"))?;
+    writeln!(f, r#"[{{"char1":"a","char2":"b","freq":10}}]"#)?;
 
-    let mut f = File::create(data_root.join("user/corpora/default/3grams.json")).unwrap();
-    writeln!(f, r#"[{{"char1":"a","char2":"b","char3":"c","freq":5}}]"#).unwrap();
+    let mut f = File::create(data_root.join("user/corpora/default/3grams.json"))?;
+    writeln!(f, r#"[{{"char1":"a","char2":"b","char3":"c","freq":5}}]"#)?;
 
-    let mut f = File::create(data_root.join("user/corpora/default/words.json")).unwrap();
-    writeln!(f, r#"[{{"word":"test","freq":20}}]"#).unwrap();
+    let mut f = File::create(data_root.join("user/corpora/default/words.json"))?;
+    writeln!(f, r#"[{{"word":"test","freq":20}}]"#)?;
 
     // Keycodes -> user/config
-    let mut f = File::create(data_root.join("user/config/keycodes.json")).unwrap();
+    let mut f = File::create(data_root.join("user/config/keycodes.json"))?;
     writeln!(
         f,
         r#"[{{ "code": 97, "id": "KC_A", "label": "a", "aliases": [] }}]"#
-    )
-    .unwrap();
+    )?;
 
     let geometry = KeyboardGeometry {
         keys: vec![KeyNode {
@@ -90,18 +88,26 @@ async fn test_agent_session_bootstrap() {
     };
 
     let loader = keyforge_infra::FsProvider::new(data_root.clone());
-    let mut options = keyforge_runner::RunnerOptions::default();
-    options.keycodes_file = "keycodes.json".to_string();
 
-    let prepared_result =
-        keyforge_runner::OptimizationRunner::prepare_session(&loader, &config, &options).await;
+    let session = keyforge_compute::SessionBuilder::new(&loader)
+        .with_keyboard_def(Arc::new(config.definition.clone()))
+        .with_corpus(&config.corpora)
+        .await?
+        .with_cost_matrix(&config.cost_matrix)
+        .await?
+        .with_keycodes("keycodes.json")
+        .await?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &config.weights,
+        ))
+        .with_config(keyforge_adapter::conversion::to_domain_config(
+            &config.params,
+            config.params.seed.unwrap_or(0),
+        ))
+        .build()?;
 
-    match prepared_result {
-        Ok(prepared) => {
-            // Basic sanity checks
-            assert_eq!(prepared.engine.key_count(), 1);
-            // assert!(prepared.engine.trigram_count() >= 0); // Removed useless comparison
-        }
-        Err(e) => panic!("Agent failed to bootstrap session: {e:?}"),
-    }
+    // Basic sanity checks
+    assert_eq!(session.engine.key_count(), 1);
+
+    Ok(())
 }

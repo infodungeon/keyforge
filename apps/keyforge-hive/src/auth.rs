@@ -57,7 +57,10 @@ pub async fn require_secret(
         .and_then(|h| h.to_str().ok());
 
     let Some(token) = auth_header else {
-        warn!("⛔ Auth Failed: Missing Authentication from {:?}", req.uri());
+        warn!(
+            "⛔ Auth Failed: Missing Authentication from {:?}",
+            req.uri()
+        );
         return Err(StatusCode::UNAUTHORIZED);
     };
 

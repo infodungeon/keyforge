@@ -36,7 +36,7 @@ pub async fn handle(
     Json(payload): Json<JobRequest>,
 ) -> AppResult<Json<JobResponse>> {
     // Reified Action: Intent is clearly separated from execution
-    let response = handle_command(&state, HiveCommand::RegisterJob(payload)).await?;
+    let response = handle_command(&state, HiveCommand::RegisterJob(Box::new(payload))).await?;
 
     if let CommandResponse::JobRegistered(res) = response {
         Ok(Json(res))

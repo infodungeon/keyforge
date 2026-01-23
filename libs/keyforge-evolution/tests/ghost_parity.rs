@@ -1,7 +1,7 @@
 // libs/keyforge-evolution/tests/ghost_parity.rs
 
-use keyforge_evolution::{evolve, NoOpCallback};
 use keyforge_evolution::ghost::GhostOptimizer;
+use keyforge_evolution::{evolve, NoOpCallback};
 use keyforge_model::{
     types::{FingerIndex, HandIndex, KeyCode, RowIndex},
     Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
@@ -62,7 +62,7 @@ fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig, Layout) {
     rubric.travel_lat = 1.0;
 
     let cm = mock_cost_model();
-    
+
     let engine = EngineFactory::new_scalar(EngineCompilationContext {
         keyboard: &kb,
         corpus: &corpus,
@@ -96,9 +96,17 @@ fn test_ghost_parity_deterministic() {
     // Run Ghost Optimizer
     let ghost_res = GhostOptimizer::optimize(engine.as_ref(), &config, &layout).unwrap();
 
-    assert!(prod_res.score > 0.0, "Production score should be > 0 (Actual: {})", prod_res.score);
-    assert!(ghost_res.score > 0.0, "Ghost score should be > 0 (Actual: {})", ghost_res.score);
-    
+    assert!(
+        prod_res.score > 0.0,
+        "Production score should be > 0 (Actual: {})",
+        prod_res.score
+    );
+    assert!(
+        ghost_res.score > 0.0,
+        "Ghost score should be > 0 (Actual: {})",
+        ghost_res.score
+    );
+
     // Ghost and Prod should produce similar results (not necessarily identical due to RNG)
     // But for a 2-key layout, they should likely both stay at optimal or swap.
     // Optimal is likely current layout (distance 1.0) vs swapped (distance 1.0).
@@ -108,7 +116,7 @@ fn test_ghost_parity_deterministic() {
     // Score should be same?
     // Static costs are both 100.0.
     // So both layouts are equivalent.
-    
+
     let score_diff = (prod_res.score - ghost_res.score).abs();
     // Allow some variance if they converged to different local minima (not possible here, but generally)
     assert!(score_diff < 1.0, "Scores should be close");

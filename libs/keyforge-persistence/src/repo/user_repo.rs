@@ -148,7 +148,7 @@ impl UserRepo {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |ext| ext == "json") {
+                if path.extension().is_some_and(|ext| ext == "json") {
                     if let Ok(content) = fs::read_to_string(&path) {
                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                             if let (Some(name), Some(layout)) = (

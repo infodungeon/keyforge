@@ -10,11 +10,12 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-crc32fast = "1.5"
-tikv-jemallocator = "0.6"
+crc32fast.workspace = true
+tikv-jemallocator.workspace = true
 postcard.workspace = true
 bytes.workspace = true
 mime_guess.workspace = true
+zeroize.workspace = true
 
 # Internal
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
@@ -23,6 +24,7 @@ keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-security = { path = "../../libs/keyforge-security" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-compute = { path = "../../libs/keyforge-compute" }
+keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-assets = { path = "../../apps/keyforge-assets" }
 
 keyforge-persistence = { path = "../../libs/keyforge-persistence", features = [
@@ -32,11 +34,11 @@ async-trait.workspace = true
 
 # Web Framework
 axum = { workspace = true, features = ["ws"] }
-axum-server = { version = "0.8", features = ["tls-rustls"] }
+axum-server.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-toml = "0.9"
+toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender.workspace = true
@@ -44,7 +46,7 @@ tower-http = { workspace = true, features = ["cors", "trace", "fs", "limit", "re
 futures.workspace = true
 
 # Rate Limiting
-tower_governor = "0.8.0"
+tower_governor.workspace = true
 governor.workspace = true
 
 # Database (PostgreSQL)
@@ -54,7 +56,7 @@ sqlx.workspace = true
 moka.workspace = true
 
 # Security
-subtle = "2.6"
+subtle.workspace = true
 sha2.workspace = true
 base64.workspace = true
 rand.workspace = true
@@ -62,13 +64,13 @@ hex.workspace = true
 
 # Utilities
 clap.workspace = true
-dirs = "6.0"
+dirs.workspace = true
 walkdir.workspace = true
 notify.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 fastrand.workspace = true
-sysinfo = "0.37"
+sysinfo.workspace = true
 
 # HTTP Client
 reqwest.workspace = true
@@ -82,13 +84,13 @@ utoipa.workspace = true
 utoipa-swagger-ui.workspace = true
 
 # Observability
-opentelemetry = { version = "0.31.0", features = ["trace"] }
-opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
-tracing-opentelemetry = "0.32.0"
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
+tracing-opentelemetry.workspace = true
 metrics.workspace = true
 once_cell.workspace = true
-metrics-exporter-prometheus = "0.16"
+metrics-exporter-prometheus.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
@@ -98,10 +100,10 @@ tempfile.workspace = true
 tokio.workspace = true
 proptest.workspace = true
 tower.workspace = true
-tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
+tokio-tungstenite.workspace = true
 url.workspace = true
 # Valkey Integration Tests
-testcontainers = "0.26.3"
+testcontainers.workspace = true
 testcontainers-modules = { version = "0.14.0", features = ["redis"] }
 # Test Data Hydration
 zstd.workspace = true

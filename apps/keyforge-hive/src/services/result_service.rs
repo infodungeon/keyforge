@@ -69,6 +69,7 @@ impl ResultService {
                 job_id: payload.job_id,
                 layout: payload.layout,
                 score: payload.score,
+                raw_score: payload.raw_score,
                 node_id: payload.node_id,
             })
             .map_err(|e| {

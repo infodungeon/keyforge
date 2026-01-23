@@ -2,7 +2,7 @@
 
 #![allow(unsafe_code)]
 use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
-use crate::kernel::compute::{flow::calculate_flow_cost, PhysicsScratch, PosMap};
+use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
@@ -37,29 +37,6 @@ impl ArmNeonScoringEngine {
             _config: config.unwrap_or_default(),
         }
     }
-
-    fn score_internal(&self, layout: &Layout, force_scalar: bool) -> Result<Score, PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
-            #[cfg(target_arch = "aarch64")]
-            {
-                // Task-phys-neon-001: Implement real NEON kernel.
-                // For now, use scalar fallback.
-                let _ = force_scalar; // silence warning
-                score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
-            }
-            #[cfg(not(target_arch = "aarch64"))]
-            {
-                let _ = force_scalar;
-                score_layout_scalar(&self.ctx, &validated, &mut s).map(Score)
-            }
-        })
-    }
 }
 
 impl ScoringEngine for ArmNeonScoringEngine {
@@ -83,7 +60,31 @@ impl ScoringEngine for ArmNeonScoringEngine {
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        self.score_internal(layout, false)
+        std::thread_local! {
+            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
+        }
+        SCRATCH.with(|scratch| {
+            let mut s = scratch.borrow_mut();
+            self.score_with_scratch(layout, &mut s)
+        })
+    }
+
+    fn score_with_scratch(
+        &self,
+        layout: &Layout,
+        scratch: &mut PhysicsScratch,
+    ) -> Result<Score, PhysicsError> {
+        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        #[cfg(target_arch = "aarch64")]
+        {
+            // Task-phys-neon-001: Implement real NEON kernel.
+            // For now, use scalar fallback.
+            return score_layout_scalar(&self.ctx, &validated, scratch).map(Score);
+        }
+        #[cfg(not(target_arch = "aarch64"))]
+        {
+            score_layout_scalar(&self.ctx, &validated, scratch).map(Score)
+        }
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
@@ -96,7 +97,7 @@ impl ScoringEngine for ArmNeonScoringEngine {
         SCRATCH.with(|scratch| {
             let mut s = scratch.borrow_mut();
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
+            let (starts, counts, indices, offsets, used, _char_usage) = s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,
                 key_count,
@@ -135,7 +136,7 @@ impl ScoringEngine for ArmNeonScoringEngine {
         SCRATCH.with(|scratch| {
             let mut s = scratch.borrow_mut();
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used) = s.get_mut_scratch();
+            let (starts, counts, indices, offsets, used, _char_usage) = s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 validated.as_slice(),
                 key_count,
@@ -179,6 +180,4 @@ fn score_layout_scalar(
 }
 
 #[cfg(test)]
-mod tests {
-}
-
+mod tests {}

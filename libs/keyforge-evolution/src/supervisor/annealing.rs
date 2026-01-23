@@ -602,10 +602,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Start temp must be > 0 to enable reheating")]
-
     fn test_singularity_reheat_validation() {
-        AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 1, 1.0).unwrap();
+        let err = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 1, 1.0).unwrap_err();
+        match err {
+            EvolutionError::Config(msg) => {
+                assert_eq!(msg, "Start temp must be > 0 to enable reheating");
+            }
+            _ => panic!("Expected Config error, got {err:?}"),
+        }
     }
 
     #[test]

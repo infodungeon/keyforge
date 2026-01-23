@@ -53,10 +53,9 @@ impl PersistedSession {
     }
 
     fn calculate_checksum(snapshot: &SessionSnapshot) -> String {
-        // We rely on serde_json to provide a consistent serialization for the checksum.
-        // While strictly not canonical, it is stable enough for self-verifying consistency
-        // within the same binary version.
-        let data = serde_json::to_vec(snapshot).unwrap_or_default();
+        // Task-persist-rev-059: Use postcard for deterministic canonicalization.
+        // postcard is designed for deterministic binary serialization.
+        let data = postcard::to_stdvec(snapshot).unwrap_or_default();
         hex::encode(Sha256::digest(data))
     }
 

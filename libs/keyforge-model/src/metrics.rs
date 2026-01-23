@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use ts_rs::TS;
 use utoipa::ToSchema;
 
-/// Unique identifier for a biomechanical metric (e.g. "sfb", "travel_dist").
+/// Unique identifier for a biomechanical metric (e.g. "sfb", "`travel_dist`").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(rename_all = "snake_case")]
@@ -29,6 +29,8 @@ pub enum MetricId {
     TravelDistance,
     /// Same Finger Bigram cost.
     Sfb,
+    /// Same Finger Bigram penalty contribution.
+    SfbPenalty,
     /// Disjoint Same Finger Bigram (1-u skip).
     Dsfb,
     /// Lateral Stretch Bigram.
@@ -37,12 +39,18 @@ pub enum MetricId {
     Hfs,
     /// Scissor cost.
     Scissor,
+    /// Scissor penalty contribution.
+    ScissorPenalty,
     /// Redirect cost.
     Redirect,
+    /// Redirect penalty contribution.
+    RedirectPenalty,
     /// Inward roll bonus/cost.
     RollIn,
     /// Outward roll bonus/cost.
     RollOut,
+    /// Total roll penalty contribution.
+    RollPenalty,
     /// Hand balance metric.
     HandBalance,
     /// Finger usage weighting.

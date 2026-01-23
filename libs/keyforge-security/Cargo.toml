@@ -19,3 +19,4 @@ sha2.workspace = true
 pasetors = { version = "0.7", features = ["v4"] }
 thiserror.workspace = true
 keyforge-model = { path = "../keyforge-model" }
+chrono.workspace = true
