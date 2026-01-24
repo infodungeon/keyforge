@@ -123,7 +123,7 @@ fn action_to_qmk(action: &KeyAction, registry: Option<&KeycodeRegistry>) -> Stri
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

@@ -485,12 +485,13 @@ fn to_f32(i: i64) -> f32 {
     val
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::testing::{mock_cost_model, setup_minimal_assets};
     use keyforge_model::types::{FingerIndex, HandIndex, KeyCode};
     use keyforge_model::{Corpus, KeyNode, Rubric};
+    use std::collections::HashMap;
 
     #[test]
     fn test_deterministic_scorer_detailed_branches() {
@@ -573,8 +574,8 @@ mod tests {
 
         let index_zones = keyforge_model::cost_model::FingerReach {
             base: base_zone,
-            inner: Default::default(),
-            outer: Default::default(),
+            inner: HashMap::default(),
+            outer: HashMap::default(),
         };
 
         let mut fingers = std::collections::HashMap::new();
@@ -672,7 +673,7 @@ mod tests {
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_zone,
             outer: outer_zone,
-            inner: Default::default(),
+            inner: HashMap::default(),
         };
 
         left_hand.fingers.insert(

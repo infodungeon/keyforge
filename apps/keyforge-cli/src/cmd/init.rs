@@ -1,16 +1,13 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/cmd/init.rs
 
-use crate::constants::{DEFAULT_DATA_DIR, DEFAULT_HIVE_URL};
+use crate::constants::DEFAULT_HIVE_URL;
 use crate::error::CliError;
 use clap::Args;
 use keyforge_infra::init::{ensure_dir, USER_WORKSPACE_DIRS};
-use std::path::PathBuf;
 
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
-    #[arg(default_value = ".")]
-    pub path: PathBuf,
-
     #[arg(long, default_value = DEFAULT_HIVE_URL)]
     pub hive: String,
 
@@ -18,12 +15,11 @@ pub struct InitArgs {
     pub asset_url: Option<String>,
 }
 
-pub async fn run(args: InitArgs) -> Result<(), CliError> {
-    let root = args.path.join(DEFAULT_DATA_DIR);
+pub async fn run(args: InitArgs, root: &std::path::Path) -> Result<(), CliError> {
     eprintln!("🚀 Initializing KeyForge Workspace at {}", root.display());
 
     for d in USER_WORKSPACE_DIRS {
-        ensure_dir(&root, d)
+        ensure_dir(root, d)
             .map_err(|e| CliError::Workspace(format!("Failed to create {d}: {e}")))?;
     }
 

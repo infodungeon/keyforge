@@ -14,11 +14,11 @@
 
 use crate::biometrics::BiometricProfiler;
 use crate::hardware::HardwareProbe;
-use crate::loader::{AssetLoader, LoaderResult};
 use crate::session::ScoringSession;
 use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Corpus, CostModel, Rubric, SearchConfig};
 use keyforge_protocol::BiometricSample;
 use std::fmt;

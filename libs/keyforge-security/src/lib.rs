@@ -346,8 +346,7 @@ pub fn generate_nonce() -> u64 {
     rand::rng().random()
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

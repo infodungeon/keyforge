@@ -114,14 +114,7 @@ pub fn suggest_swaps(
     })
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::unwrap_used,
-    clippy::cast_possible_truncation,
-    clippy::field_reassign_with_default,
-    clippy::large_stack_arrays,
-    clippy::needless_range_loop
-)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::{Compiler, EngineCompilationContext, EngineFactory};

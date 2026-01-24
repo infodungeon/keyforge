@@ -45,7 +45,9 @@ pub async fn handle_command(state: &AppState, cmd: HiveCommand) -> AppResult<Com
             let accepted = ResultService::submit_result(state, res).await?;
             Ok(CommandResponse::ResultAccepted { accepted })
         }
-        HiveCommand::CancelJob { .. } => todo!("Implement remaining command handlers"),
+        HiveCommand::CancelJob { .. } => Err(crate::error::AppError::Internal(
+            "Command not yet supported".to_string(),
+        )),
     }
 }
 

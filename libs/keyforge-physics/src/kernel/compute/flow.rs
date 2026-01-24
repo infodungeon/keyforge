@@ -78,7 +78,7 @@ pub(crate) fn get_flow_delta(
     min_new.0 - min_old.0
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::kernel::EngineContext;

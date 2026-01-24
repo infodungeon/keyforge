@@ -35,9 +35,6 @@ APPS = [
 # Legacy Violations to be worked off (Technical Debt)
 # Format: "crate_name": ["allowed_bad_dependency"]
 LEGACY_EXCEPTIONS = {
-    "keyforge-infra": ["keyforge-compute"], # DEBT: Infra shouldn't depend on Runtime
-    "keyforge-persistence": ["keyforge-compute"], # DEBT: Persistence shouldn't depend on Runtime
-    "keyforge-evolution": ["keyforge-protocol"], # DEBT: Evolution should depend on Model only? Or Protocol is okay?
 }
 
 def get_banned_list(crate_name):

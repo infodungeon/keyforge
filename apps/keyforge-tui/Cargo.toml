@@ -8,6 +8,7 @@ description = "Terminal User Interface monitor for the KeyForge Hive cluster."
 repository.workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-model = { path = "../../libs/keyforge-model" }

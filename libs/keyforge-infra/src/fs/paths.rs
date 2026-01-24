@@ -12,45 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fs::init::WORKSPACE_MARKER;
-use keyforge_model::constants::DATA_DIR_CANDIDATES;
-use std::env;
+use crate::config::CommonConfig;
 use std::path::PathBuf;
 
-/// Resolves the absolute path to the data root.
+/// Resolves the absolute path to the KeyForge workspace root.
 ///
 /// # Errors
-///
-/// Returns an error if the explicit path is provided but does not exist.
-pub fn resolve_root(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
-    if let Some(p) = explicit {
-        if !p.exists() {
-            return Err(format!("Explicit data path not found: {}", p.display()));
-        }
-        return Ok(p);
+/// Returns an error string if the root cannot be resolved or is invalid.
+pub fn resolve_root(override_path: Option<PathBuf>) -> Result<PathBuf, String> {
+    let mut config = CommonConfig::default();
+    config.data_dir = override_path;
+    
+    let root = config.resolve_data_dir();
+
+    // If it's a relative path (like "." or custom), we want to canonicalize it if it exists.
+    if root.exists() {
+        return Ok(root.canonicalize().map_err(|e| e.to_string())?);
     }
 
-    if let Ok(env_path) = env::var("KEYFORGE_DATA_DIR") {
-        let p = PathBuf::from(env_path);
-        if p.exists() {
-            return Ok(p);
-        }
-    }
-
-    let candidates = DATA_DIR_CANDIDATES;
-
-    for c in candidates {
-        let p = PathBuf::from(c);
-        // Task-infra-rev-003: Check for marker file primarily
-        let has_marker = p.join(WORKSPACE_MARKER).exists();
-        // Fallback to legacy keyboards check
-        let has_keyboards = p.join("keyboards").exists();
-
-        if p.exists() && (has_marker || has_keyboards) {
-            return std::fs::canonicalize(p)
-                .map_err(|e| format!("Failed to canonicalize path: {e}"));
-        }
-    }
-
-    Err("Could not locate KeyForge 'data' directory.".to_string())
+    Ok(root)
 }

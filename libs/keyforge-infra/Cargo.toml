@@ -10,13 +10,14 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 once_cell.workspace = true
 moka.workspace = true
 tokio.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-toml = "0.9"
+toml.workspace = true
 walkdir.workspace = true
 tempfile.workspace = true
 fs2.workspace = true
@@ -38,8 +39,9 @@ keyforge-compute = { path = "../keyforge-compute" }
 async-trait.workspace = true
 
 # Valkey Integration
-fred = { version = "10.1.0", features = ["enable-rustls", "metrics"] }
+fred.workspace = true
 postcard.workspace = true
+dirs.workspace = true
 
 [build-dependencies]
 chrono.workspace = true

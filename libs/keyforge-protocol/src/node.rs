@@ -104,7 +104,7 @@ pub struct NodeResponse {
     pub token: Option<String>,
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

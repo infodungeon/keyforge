@@ -158,10 +158,8 @@ impl Corpus {
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::field_reassign_with_default)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
-
     use super::*;
 
     #[test]

@@ -25,7 +25,7 @@ pub(crate) fn is_none<T>(option: &Option<T>) -> bool {
     option.is_none()
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

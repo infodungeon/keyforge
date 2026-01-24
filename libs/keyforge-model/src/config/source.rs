@@ -116,8 +116,7 @@ impl fmt::Display for CostMatrixSource {
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::float_cmp, clippy::items_after_statements)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 
@@ -166,6 +165,7 @@ mod tests {
 
     #[test]
     fn test_corpus_source_hash_and_default() {
+        use std::hash::Hasher;
         let default = CorpusSource::default();
         assert_eq!(default.id, "text/en_std");
         assert_eq!(default.weight, 1.0);
@@ -185,7 +185,6 @@ mod tests {
         let mut h2 = std::collections::hash_map::DefaultHasher::new();
         s1.hash(&mut h1);
         s2.hash(&mut h2);
-        use std::hash::Hasher;
         assert_eq!(h1.finish(), h2.finish());
     }
 

@@ -9,6 +9,32 @@
 //! - Concurrent shard downloads.
 //! - Strict character normalization and validation for keyboard optimization.
 //! - Optimized `FastMap` (`FxHash`) aggregation.
+
+#![cfg_attr(
+    test,
+    allow(
+        dead_code,
+        unused_imports,
+        unused_variables,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::cast_possible_truncation,
+        clippy::cast_precision_loss,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_wrap,
+        clippy::print_stdout,
+        clippy::float_cmp,
+        clippy::field_reassign_with_default,
+        clippy::uninlined_format_args,
+        clippy::needless_range_loop,
+        clippy::large_stack_arrays,
+        clippy::clone_on_copy,
+        clippy::used_underscore_binding,
+        clippy::wildcard_imports
+    )
+)]
+
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use parquet::file::reader::{FileReader, SerializedFileReader};
@@ -268,12 +294,14 @@ fn is_valid_word(s: &str) -> bool {
 #[allow(clippy::expect_used)]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt::init();
+
     let data_dir = get_data_dir();
     if !data_dir.exists() {
         fs::create_dir_all(&data_dir)?;
     }
 
-    println!("Using data directory: {}", data_dir.display());
+    tracing::info!("Using data directory: {}", data_dir.display());
 
     // Fetch File List
     let client = Client::new();
@@ -299,7 +327,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if !download_tasks.is_empty() {
-        println!("Downloading {} missing shards...", download_tasks.len());
+        tracing::info!("Downloading {} missing shards...", download_tasks.len());
         let client_arc = Arc::new(client);
         futures_util::stream::iter(download_tasks)
             .map(|(url, path)| {
@@ -312,14 +340,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Process
-    println!("\nStarting parallel analysis...");
+    tracing::info!("Starting parallel analysis...");
     let final_stats = process_dataset_parallel(&local_file_paths)?;
 
-    println!(
-        "\nAnalysis complete. Total books: {}",
-        final_stats.book_count
-    );
-    println!("Saving results...");
+    tracing::info!("Analysis complete. Total books: {}", final_stats.book_count);
+    tracing::info!("Saving results...");
 
     save_json_file(
         &data_dir,
@@ -365,7 +390,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         false,
     )?;
 
-    println!("Done.");
+    tracing::info!("Done.");
     Ok(())
 }
 
@@ -576,8 +601,7 @@ where
     Ok(())
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

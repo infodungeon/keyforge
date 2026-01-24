@@ -1,3 +1,13 @@
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::unnecessary_debug_formatting,
+    clippy::case_sensitive_file_extension_comparisons,
+    clippy::print_stdout
+)]
+
+#[keyforge_testing_macros::kf_test]
 use keyforge_hive::{create_app, infra::db::init_db, state::AppState};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::AssetManifestEntry;

@@ -379,12 +379,13 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
     report
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::kernel::compiler::Compiler;
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
+    use std::collections::HashMap;
 
     #[test]
     fn test_u16_to_char() {
@@ -459,8 +460,8 @@ mod tests {
 
         let index_zones = keyforge_model::cost_model::FingerReach {
             base: index_base,
-            inner: Default::default(),
-            outer: Default::default(),
+            inner: HashMap::default(),
+            outer: HashMap::default(),
         };
 
         fingers.insert(
@@ -470,8 +471,8 @@ mod tests {
 
         let other_zones = keyforge_model::cost_model::FingerReach {
             base: base_r0,
-            inner: Default::default(),
-            outer: Default::default(),
+            inner: HashMap::default(),
+            outer: HashMap::default(),
         };
 
         fingers.insert(

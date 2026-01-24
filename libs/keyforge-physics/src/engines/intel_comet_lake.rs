@@ -206,7 +206,7 @@ unsafe fn score_layout_avx2(
     score_layout_scalar(ctx, layout, scratch)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

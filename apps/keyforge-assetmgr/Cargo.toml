@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 tokio.workspace = true
 clap.workspace = true
 tracing.workspace = true

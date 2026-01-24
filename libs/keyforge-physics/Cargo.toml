@@ -9,15 +9,22 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[[bench]]
+name = "scoring_bench"
+harness = false
+
 [dependencies]
+keyforge-testing-macros.workspace = true
 serde.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 
 fastrand.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
+criterion.workspace = true
 proptest.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
@@ -25,4 +32,5 @@ keyforge-infra = { path = "../keyforge-infra" }
 keyforge-compute = { path = "../keyforge-compute" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-model = { path = "../keyforge-model", features = ["testing"] }
+keyforge-testing = { path = "../keyforge-testing" }
 serde_json.workspace = true

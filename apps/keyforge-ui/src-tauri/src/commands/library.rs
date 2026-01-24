@@ -234,7 +234,7 @@ pub fn cmd_safe_write_file(path: &str, content: &str, overwrite: bool) -> Result
     std::fs::write(path, content).map_err(CommandError::Io)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use tempfile::tempdir;

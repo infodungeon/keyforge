@@ -15,7 +15,7 @@
 pub mod fingerprint;
 pub mod heuristics;
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use crate::{EngineCompilationContext, EngineFactory};
     use keyforge_model::{

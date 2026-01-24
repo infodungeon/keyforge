@@ -1,5 +1,5 @@
+#[keyforge_testing_macros::kf_test]
 // tests/system/tests/orchestration.rs
-
 use keyforge_testing::HermeticWorkspace;
 
 #[test]

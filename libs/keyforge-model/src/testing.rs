@@ -1,5 +1,14 @@
 // libs/keyforge-model/src/testing.rs
-#![allow(clippy::unwrap_used)]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::panic,
+        clippy::cast_possible_truncation,
+        clippy::cast_precision_loss,
+        clippy::field_reassign_with_default
+    )
+)]
 
 use crate::{
     ColIndex, Corpus, CostModel, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex,
@@ -106,6 +115,7 @@ impl Arbitrary for Keyboard {
                 for (i, key) in keys.iter_mut().enumerate() {
                     key.index = i;
                 }
+                #[allow(clippy::unwrap_used)]
                 Keyboard::new(keys, 1, "test".into()).unwrap()
             })
             .boxed()
@@ -186,6 +196,7 @@ impl Arbitrary for Rubric {
 
 /// Creates a minimal, valid cost model for testing.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn mock_cost_model() -> CostModel {
     let mut cm = CostModel::default();
 
@@ -238,8 +249,14 @@ pub fn mock_cost_model() -> CostModel {
     cm
 }
 
-/// Sets up a minimal environment with Keyboard, Corpus, Rubric, and CostModel.
+/// Sets up a minimal environment with Keyboard, Corpus, Rubric, and `CostModel`.
 #[must_use]
+#[allow(
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation
+)]
 pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
     let keys: Vec<KeyNode> = (0..3)
         .map(|i| KeyNode {

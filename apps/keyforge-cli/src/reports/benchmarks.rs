@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use comfy_table::presets::ASCII_FULL;
+use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
+use keyforge_model::AnalysisReport;
 use serde::Deserialize;
 use std::fs;
-use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 #[serde(default)]
-#[allow(dead_code)]
 pub struct BenchmarkEntry {
     pub layout: String,
     pub effort: f32,
@@ -49,15 +50,13 @@ impl Default for BenchmarkEntry {
     }
 }
 
-#[allow(dead_code)]
-pub fn load() -> Option<Vec<BenchmarkEntry>> {
-    let path = crate::constants::DEFAULT_BENCHMARK_PATH;
+pub fn load(root: &std::path::Path) -> Option<Vec<BenchmarkEntry>> {
+    let input = crate::constants::DEFAULT_BENCHMARK_PATH;
 
-    if !Path::new(path).exists() {
-        eprintln!("⚠️  Notice: Benchmark file '{path}' not found.");
-        eprintln!("    (The 'Reality Check' table will be skipped.)");
-        return None;
-    }
+    let path = match crate::cli_parsers::resolve_path(input, None, root) {
+        Ok(p) => p,
+        Err(_) => return None,
+    };
 
     match fs::read_to_string(path) {
         Ok(content) => match serde_json::from_str(&content) {
@@ -72,4 +71,44 @@ pub fn load() -> Option<Vec<BenchmarkEntry>> {
             None
         }
     }
+}
+
+pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[BenchmarkEntry]) {
+    let mut table = Table::new();
+    table
+        .load_preset(ASCII_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Metric").add_attribute(Attribute::Bold),
+            Cell::new(current_name).add_attribute(Attribute::Bold).fg(Color::Cyan),
+            Cell::new("Best Baseline").add_attribute(Attribute::Bold),
+            Cell::new("Delta").add_attribute(Attribute::Bold),
+        ]);
+
+    // Simple comparison for SFB% as an example
+    let current_sfb = report.sfb_ratio * 100.0;
+    let min_baseline_sfb = baselines.iter().map(|b| b.sfb).fold(f32::INFINITY, f32::min);
+    let sfb_delta = current_sfb - min_baseline_sfb;
+
+    table.add_row(vec![
+        Cell::new("SFB%"),
+        Cell::new(format!("{:.2}%", current_sfb)).fg(Color::Cyan),
+        Cell::new(format!("{:.2}%", min_baseline_sfb)),
+        Cell::new(format!("{:+.2}%", sfb_delta)).fg(if sfb_delta <= 0.0 { Color::Green } else { Color::Red }),
+    ]);
+
+    // Distance
+    let current_dist = report.travel_per_key;
+    let min_baseline_dist = baselines.iter().map(|b| b.distance).fold(f32::INFINITY, f32::min);
+    let dist_delta = current_dist - min_baseline_dist;
+
+    table.add_row(vec![
+        Cell::new("Distance/Key"),
+        Cell::new(format!("{:.3}", current_dist)).fg(Color::Cyan),
+        Cell::new(format!("{:.3}", min_baseline_dist)),
+        Cell::new(format!("{:+.3}", dist_delta)).fg(if dist_delta <= 0.0 { Color::Green } else { Color::Red }),
+    ]);
+
+    println!("\n📊 Reality Check (Baseline Comparison)");
+    println!("{table}");
 }

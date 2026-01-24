@@ -173,11 +173,26 @@ fn evolve_internal<CB: ProgressCallback>(
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use keyforge_physics::EngineFactory;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct MockCallback(Arc<AtomicUsize>);
+    impl ProgressCallback for MockCallback {
+        fn on_progress(
+            &self,
+            _epoch: usize,
+            _score: f32,
+            _layout: &[KeyCode],
+            _ips: f32,
+        ) -> crate::OptimizationControl {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            crate::OptimizationControl::Continue
+        }
+    }
 
     fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig) {
         let kb = Keyboard::new(
@@ -315,9 +330,6 @@ mod tests {
     #[test]
     fn test_evolve_with_pinned_keys() {
         let (engine, config) = setup_env();
-        // Key 0 is pinned to KeyCode 1.
-        // Initial layout is usually [0, 1].
-        // Pinning [Some(1)] should result in [1, 0].
         let pins = vec![Some(KeyCode(1))];
         let res = evolve(&engine, &config, NoOpCallback, None, Some(&pins)).unwrap();
         assert_eq!(res.layout.keys[0], KeyCode(1));
@@ -336,21 +348,6 @@ mod tests {
             reheat_factor: 1.5,
             include_thumbs: false,
         };
-
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        struct MockCallback(Arc<AtomicUsize>);
-        impl ProgressCallback for MockCallback {
-            fn on_progress(
-                &self,
-                _epoch: usize,
-                _score: f32,
-                _layout: &[KeyCode],
-                _ips: f32,
-            ) -> crate::OptimizationControl {
-                self.0.fetch_add(1, Ordering::SeqCst);
-                crate::OptimizationControl::Continue
-            }
-        }
 
         let count = Arc::new(AtomicUsize::new(0));
         let _ = evolve(&engine, &config, MockCallback(count.clone()), None, None).unwrap();

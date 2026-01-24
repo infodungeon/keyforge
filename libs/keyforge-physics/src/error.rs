@@ -40,7 +40,7 @@ impl From<String> for PhysicsError {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

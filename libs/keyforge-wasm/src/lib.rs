@@ -179,7 +179,7 @@ impl KeyforgeEngine {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use wasm_bindgen_test::*;
@@ -196,6 +196,6 @@ mod tests {
         let js_val = to_value(&val).unwrap();
 
         // Should fail validation (empty keys)
-        assert!(engine.inject_keyboard("test".into(), js_val).is_err());
+        assert!(engine.inject_keyboard("test", js_val).is_err());
     }
 }

@@ -51,21 +51,24 @@ impl AuditRepository {
 
     /// Persists an audit log entry to the database.
     pub async fn log(&self, entry: AuditLog<'_>) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r"
+        let ip_addr: Option<sqlx::types::ipnetwork::IpNetwork> =
+            entry.ip.as_deref().and_then(|s| s.parse().ok());
+
+        sqlx::query!(
+            r#"
             INSERT INTO audit_logs 
             (action, actor_id, target_resource, details, ip_address, status_code, request_id, user_agent)
-            VALUES ($1, $2, $3, $4, $5::inet, $6, $7, $8)
-            ",
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            "#,
+            entry.action,
+            entry.actor_id,
+            entry.target,
+            entry.details,
+            ip_addr,
+            entry.status_code,
+            entry.request_id,
+            entry.user_agent
         )
-        .bind(entry.action)
-        .bind(entry.actor_id)
-        .bind(entry.target)
-        .bind(entry.details)
-        .bind(entry.ip)
-        .bind(entry.status_code)
-        .bind(entry.request_id)
-        .bind(entry.user_agent)
         .execute(&self.pool)
         .await?;
 

@@ -138,7 +138,7 @@ impl Compiler {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::{
@@ -154,8 +154,8 @@ mod tests {
 
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_r0,
-            inner: Default::default(),
-            outer: Default::default(),
+            inner: HashMap::default(),
+            outer: HashMap::default(),
         };
 
         fingers.insert(

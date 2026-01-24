@@ -5,8 +5,9 @@ edition = "2021"
 publish = false
 
 [dev-dependencies]
+keyforge-testing-macros = { path = "../../libs/keyforge-testing-macros" }
 anyhow = "1.0"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-compute = { path = "../../libs/keyforge-compute" }

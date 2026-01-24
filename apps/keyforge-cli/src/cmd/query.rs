@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/cmd/query.rs
 
 // Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,0 +1,4 @@
+ruleDirs:
+  - .ast-grep/rules
+testDirs:
+  - .ast-grep/tests

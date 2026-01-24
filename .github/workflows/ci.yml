@@ -52,6 +52,16 @@ jobs:
       - name: Technical Debt Sentinel
         run: ./ops/scripts/check_debt_integrity.sh
 
+      - name: Install Cargo Audit & Deny
+        run: |
+          cargo install cargo-audit
+          cargo install cargo-deny
+
+      - name: Security & Dependency Audit
+        run: |
+          cargo audit
+          cargo deny check
+
       - name: Lint
         run: cargo clippy --workspace -- -D warnings
 
@@ -120,7 +130,7 @@ jobs:
           DATABASE_TIMEOUT_SECONDS: 15
           RATE_LIMIT_PER_SEC: 100
           SQLX_OFFLINE: true
-        run: cargo tarpaulin --workspace --exclude keyforge-ui --out Xml
+        run: cargo tarpaulin --workspace --exclude keyforge-ui --out Xml -- --test-threads 1
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3

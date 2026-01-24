@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 use crate::build_job_config;
 use crate::constants::DEFAULT_BENCHMARK_ITERATIONS;
 use crate::error::CliError;
@@ -37,18 +38,16 @@ pub async fn run(args: &BenchmarkArgs, loader: &FsProvider) -> Result<(), CliErr
         .map_err(|e| CliError::Other(format!("Failed to prepare session: {e}")))?;
 
     let start = std::time::Instant::now();
-    let mut score_sum = 0.0;
     let default_layout = keyforge_model::Layout::new_unchecked(vec![
         keyforge_model::KeyCode(0);
         session.engine.key_count()
     ]);
 
     for _ in 0..args.iterations {
-        score_sum += session
+        let _ = session
             .engine
             .score(&default_layout)
-            .map_err(|e| CliError::Other(format!("Scoring Error: {e}")))?
-            .to_f32();
+            .map_err(|e| CliError::Other(format!("Scoring Error: {e}")))?;
     }
 
     let duration = start.elapsed();
@@ -56,13 +55,25 @@ pub async fn run(args: &BenchmarkArgs, loader: &FsProvider) -> Result<(), CliErr
     let kops = (args.iterations as f64 / duration.as_secs_f64()) / 1000.0;
 
     println!(
-        "{}",
-        serde_json::json!({
-            "iterations": args.iterations,
-            "duration_ms": duration.as_millis(),
-            "kops": kops,
-            "checksum": score_sum
-        })
+        "\n🚀 Engine Throughput: {:.2} KOPS ({:?} iterations in {:?})",
+        kops, args.iterations, duration
     );
+
+    // Perform layout analysis for ergonomic metrics
+    let runtime = keyforge_compute::Runtime::from(session);
+    let report = runtime
+        .analyze(&default_layout)
+        .map_err(|e| CliError::Other(format!("Analysis Error: {e}")))?;
+
+    // Display standard scoring table
+    crate::reports::scoring(&[("Baseline".to_string(), report.clone())]);
+
+    // Attempt Reality Check comparison
+    if let Some(baselines) = crate::reports::load_benchmarks(loader.root()) {
+        crate::reports::benchmark_comparison("Current", &report, &baselines);
+    } else {
+        eprintln!("\n⚠️  Skipping Reality Check: benchmark file not found.");
+    }
+
     Ok(())
 }

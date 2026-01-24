@@ -54,12 +54,10 @@ pub async fn handle(
         return Err(AppError::Validation("Invalid confirmation string".into()));
     }
 
-    let user_id: Option<uuid::Uuid> =
-        sqlx::query_scalar("SELECT id FROM users WHERE username = $1")
-            .bind(&payload.username)
-            .fetch_optional(&state.users.pool)
-            .await
-            .map_err(AppError::Database)?;
+    let user_id = sqlx::query_scalar!("SELECT id FROM users WHERE username = $1", payload.username)
+        .fetch_optional(&state.users.pool)
+        .await
+        .map_err(AppError::Database)?;
 
     if let Some(uid) = user_id {
         // Audit Log
@@ -78,8 +76,7 @@ pub async fn handle(
             .await
             .ok();
 
-        sqlx::query("DELETE FROM users WHERE id = $1")
-            .bind(uid)
+        sqlx::query!("DELETE FROM users WHERE id = $1", uid)
             .execute(&state.users.pool)
             .await
             .map_err(AppError::Database)?;

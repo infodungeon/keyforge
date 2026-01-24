@@ -110,7 +110,7 @@ pub fn parse_corpora(args: &[String]) -> Result<Vec<CorpusSource>, String> {
     args.iter().map(|s| CorpusSource::from_str(s)).collect()
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

@@ -90,8 +90,7 @@ pub async fn run_optimization(
         .map_err(|e| anyhow::anyhow!(e))
 }
 
-#[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::models::AgentTelemetry;

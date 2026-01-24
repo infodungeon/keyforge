@@ -1,5 +1,5 @@
+#[keyforge_testing_macros::kf_test]
 // tests/system/tests/orchestration_flow.rs
-
 use keyforge_model::{types::HandIndex, KeyNode, Validator};
 use keyforge_protocol::JobRequest;
 use keyforge_testing::HermeticWorkspace;

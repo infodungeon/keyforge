@@ -1,15 +1,7 @@
 // libs/keyforge-physics/src/kernel/compute/tests.rs
 
-#[cfg(test)]
-#[allow(
-    clippy::unwrap_used,
-    clippy::cast_possible_truncation,
-    clippy::field_reassign_with_default,
-    clippy::large_stack_arrays,
-    clippy::float_cmp,
-    clippy::module_inception
-)]
-mod tests {
+#[keyforge_testing_macros::kf_test]
+mod unit_tests {
     use crate::error::PhysicsError;
     use crate::kernel::compute::{calculate_swap_delta, PosMap};
     use crate::kernel::types::ValidatedLayout;

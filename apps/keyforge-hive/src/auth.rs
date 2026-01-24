@@ -103,7 +103,7 @@ pub fn hash_key(key: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

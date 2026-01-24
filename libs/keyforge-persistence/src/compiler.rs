@@ -1,9 +1,9 @@
 use crate::error::PersistenceError;
-use keyforge_compute::loader::AssetLoader;
 use keyforge_model::config::Config;
 use keyforge_model::constants::paths::ASSET_KEYCODES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::loader::AssetLoader;
 use keyforge_model::EngineRequest;
 use std::sync::Arc;
 

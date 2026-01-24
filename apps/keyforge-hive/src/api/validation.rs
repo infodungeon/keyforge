@@ -75,7 +75,7 @@ pub fn validate_path_component(path: &str) -> AppResult<()> {
     validate_id(path)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

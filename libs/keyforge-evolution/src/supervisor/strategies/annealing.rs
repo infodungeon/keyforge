@@ -2,7 +2,7 @@ use crate::supervisor::traits::AcceptanceCriteria;
 use keyforge_model::constants::{ANNEALING_MIN_TEMP, SCORE_SCALE};
 use rand::Rng;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct CoolingAnnealing;
 
 impl AcceptanceCriteria for CoolingAnnealing {
@@ -30,7 +30,7 @@ impl CoolingAnnealing {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use rand::RngCore;

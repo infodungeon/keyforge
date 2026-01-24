@@ -143,10 +143,11 @@ fn resolve_standard_finger(key: &KeyNode, reach: &keyforge_model::cost_model::Fi
     target_zone.get(&key.row).copied().unwrap_or(0.0)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::types::{ColIndex, RowIndex};
+    use std::collections::HashMap;
 
     #[test]
     fn test_resolve_key_cost_logic() {
@@ -159,8 +160,8 @@ mod tests {
 
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_zone,
-            inner: Default::default(),
-            outer: Default::default(),
+            inner: HashMap::default(),
+            outer: HashMap::default(),
         };
 
         hand_def
@@ -195,7 +196,7 @@ mod tests {
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_r0,
             inner: inner_r0,
-            outer: Default::default(),
+            outer: HashMap::default(),
         };
 
         fingers.insert("index".to_string(), FingerDefinition::Standard(zones));

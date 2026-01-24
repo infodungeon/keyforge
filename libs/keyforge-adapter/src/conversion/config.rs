@@ -44,7 +44,7 @@ pub fn to_domain_config(p: &config::SearchParams, seed: u64) -> keyforge_model::
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::config::{ScoringWeights, SearchParams};

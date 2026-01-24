@@ -12,6 +12,7 @@ readme = "../../docs/design/keyforge-protocol/README.md"
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -20,8 +21,11 @@ strum.workspace = true
 ts-rs = { workspace = true, optional = true }
 keyforge-model = { path = "../keyforge-model" }
 
+tracing.workspace = true
+
 [dev-dependencies]
-proptest.workspace = true
+keyforge-testing = { path = "../keyforge-testing" }
+serde_json.workspace = true
 
 [features]
 default = []

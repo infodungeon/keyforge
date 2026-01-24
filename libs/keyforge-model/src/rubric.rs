@@ -118,8 +118,7 @@ impl Rubric {
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::float_cmp, clippy::field_reassign_with_default)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

@@ -24,13 +24,11 @@ pub mod biometrics;
 pub mod builder;
 /// Hardware detection and engine selection.
 pub mod hardware;
-/// Traits and types for loading external assets (keyboards, corpora, etc.).
-pub mod loader;
 /// High-level session management for optimization runs.
 pub mod session;
 
 pub use builder::SessionBuilder;
-pub use loader::{AssetLoader, InMemoryLoader, LoaderResult};
+pub use keyforge_model::loader::{AssetLoader, InMemoryLoader, LoaderResult};
 pub use session::ScoringSession;
 
 pub use keyforge_evolution::{EvolutionError, NoOpCallback, OptimizationControl, ProgressCallback};

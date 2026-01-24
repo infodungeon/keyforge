@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 crc32fast.workspace = true
 tikv-jemallocator.workspace = true
 postcard.workspace = true
@@ -48,9 +49,7 @@ futures.workspace = true
 # Rate Limiting
 tower_governor.workspace = true
 governor.workspace = true
-
-# Database (PostgreSQL)
-sqlx.workspace = true
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "json", "ipnetwork"] }
 
 # Caching
 moka.workspace = true
@@ -104,7 +103,7 @@ tokio-tungstenite.workspace = true
 url.workspace = true
 # Valkey Integration Tests
 testcontainers.workspace = true
-testcontainers-modules = { version = "0.14.0", features = ["redis"] }
+testcontainers-modules.workspace = true
 # Test Data Hydration
 zstd.workspace = true
 rmp-serde.workspace = true

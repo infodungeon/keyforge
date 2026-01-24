@@ -12,7 +12,7 @@ pub fn is_hidden(path: &Path) -> bool {
         .is_some_and(|s| s.starts_with('.'))
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

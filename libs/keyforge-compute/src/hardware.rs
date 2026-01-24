@@ -282,7 +282,7 @@ fn detect_windows_arm_topology() -> Option<CpuTopology> {
     Some(topo)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

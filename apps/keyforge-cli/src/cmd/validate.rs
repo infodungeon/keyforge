@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/cmd/validate.rs
 
 use crate::build_job_config;

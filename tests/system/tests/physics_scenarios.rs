@@ -1,5 +1,5 @@
+#[keyforge_testing_macros::kf_test]
 // tests/system/tests/physics_scenarios.rs
-
 use keyforge_adapter::conversion;
 use keyforge_infra::{AssetLoader, FsProvider};
 use keyforge_model::config::{CorpusSource, ScoringWeights};

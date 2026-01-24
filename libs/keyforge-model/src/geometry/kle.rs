@@ -181,8 +181,7 @@ pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
     Ok(json_str)
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::float_cmp)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

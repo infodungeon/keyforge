@@ -22,7 +22,7 @@ pub use keyforge_model::{Config, ProjectMeta};
 /// Alias for `Config` when used in a persistable project context.
 pub type Project = Config;
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
 anyhow.workspace = true
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
@@ -38,16 +39,16 @@ futures.workspace = true
 reqwest.workspace = true
 
 raw-cpuid.workspace = true
-libc = "0.2"
+libc.workspace = true
 rand.workspace = true
 ed25519-dalek.workspace = true
 hex.workspace = true
 dirs.workspace = true
-age = { version = "0.11", features = ["armor"] }
+age.workspace = true
 sha2.workspace = true
 hostname.workspace = true
-secrecy = "0.10"
-machine-uid = "0.5"
+secrecy.workspace = true
+machine-uid.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 rmp-serde.workspace = true

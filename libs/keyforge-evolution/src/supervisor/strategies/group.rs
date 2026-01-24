@@ -114,7 +114,7 @@ impl MutationOperator for GroupMutation {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::supervisor::state::SearchState;

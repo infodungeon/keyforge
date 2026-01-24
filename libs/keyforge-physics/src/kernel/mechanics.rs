@@ -224,8 +224,7 @@ fn calculate_non_sfb_penalties(
     Ok(cost)
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::field_reassign_with_default)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};

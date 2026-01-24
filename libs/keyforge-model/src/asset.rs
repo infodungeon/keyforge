@@ -67,7 +67,7 @@ pub trait Asset: DeserializeOwned + Send + Sync + 'static + Debug {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

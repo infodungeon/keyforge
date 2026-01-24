@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::util::corpus::inject_synthetic_data;
-use keyforge_compute::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::error::ForgeError;
+use keyforge_model::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Asset, Corpus};
 use sha2::Digest;
 use std::fs::File;

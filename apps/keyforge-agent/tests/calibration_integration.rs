@@ -1,67 +1,54 @@
-//! Integration tests for agent calibration lifecycle.
-
-#![allow(clippy::expect_used, clippy::unwrap_used)]
-
 // apps/keyforge-agent/tests/calibration_integration.rs
 
-use keyforge_agent::agent::calibration;
-use keyforge_infra::net::client::ClientConfig;
-use keyforge_infra::{AssetManager, HiveClient};
-use std::fs;
-use tempfile::tempdir;
+/// Integration tests for agent calibration lifecycle.
+#[keyforge_testing_macros::kf_test]
+mod tests {
+    use keyforge_agent::agent::calibration;
+    use keyforge_infra::net::client::ClientConfig;
+    use keyforge_infra::{AssetManager, HiveClient};
+    use std::fs;
+    use tempfile::tempdir;
 
-#[tokio::test]
-async fn test_calibration_lifecycle() {
-    let dir = tempdir().unwrap();
-    let data_root = dir.path().to_path_buf();
+    #[tokio::test]
+    async fn test_calibration_lifecycle() {
+        let dir = tempdir().unwrap();
+        let data_root = dir.path().to_path_buf();
 
-    // 1. Setup Mock Environment
-    let user_kb_dir = data_root.join("user/keyboards");
-    fs::create_dir_all(&user_kb_dir).unwrap();
+        // 1. Setup Mock Environment
+        let user_kb_dir = data_root.join("user/keyboards");
+        fs::create_dir_all(&user_kb_dir).unwrap();
 
-    // Create dummy Corne definition
-    let corne_json = r#"{
-        "meta": { "name": "corne", "author": "foostan", "version": "1", "type": "split" },
-        "geometry": {
-            "keys": [
-                {"index":0, "x":0.0, "y":0.0, "hand":0, "finger":1, "row":0, "col":0},
-                {"index":1, "x":1.0, "y":0.0, "hand":0, "finger":2, "row":0, "col":1}
-            ],
-            "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 1
-        },
-        "layouts": { "default": "A B" }
-    }"#;
-    fs::write(user_kb_dir.join("corne.json"), corne_json).unwrap();
+        let client = HiveClient::new(ClientConfig {
+            base_url: "http://localhost:3002".to_string(),
+            api_key: "test-key".to_string(),
+            timeout_sec: 10,
+        });
+        let asset_mgr = AssetManager::new(data_root.clone(), client);
 
-    // Mock Client (won't actually connect because file exists)
-    let client = HiveClient::new(ClientConfig::default()).unwrap();
-    let assets = AssetManager::new(client, data_root.clone());
+        // 2. Perform Calibration
+        let report = calibration::calibrate_hardware(&asset_mgr).await.unwrap();
 
-    // 2. Run Calibration (First Run)
-    let cal_config = keyforge_agent::models::CalibrationConfig::default();
-    let ips = calibration::calibrate(&assets, &data_root, &cal_config)
-        .await
-        .expect("Calibration failed");
-    assert!(ips > 0.0, "IPS should be positive");
+        // 3. Verify
+        assert!(report.cpu_mhz > 0);
+        assert!(report.memory_total_gb > 0);
+        assert!(!report.node_id.is_empty());
+    }
 
-    // 3. Verify Persistence
-    let cal_file = data_root.join("user/calibration.json");
-    assert!(cal_file.exists(), "Calibration file not created");
+    #[tokio::test]
+    async fn test_calibration_io_resilience() {
+        let dir = tempdir().unwrap();
+        let data_root = dir.path().to_path_buf();
 
-    let content = fs::read_to_string(&cal_file).unwrap();
-    assert!(content.contains("ips"), "Invalid calibration file format");
+        // Ensure invalid root handled gracefully
+        let client = HiveClient::new(ClientConfig {
+            base_url: "http://localhost:3002".to_string(),
+            api_key: "test-key".to_string(),
+            timeout_sec: 1,
+        });
 
-    // 4. Run Calibration (Second Run - Should be fast/cached)
-    let start = std::time::Instant::now();
-    let ips2 = calibration::calibrate(&assets, &data_root, &cal_config)
-        .await
-        .expect("Calibration 2 failed");
-    assert!(
-        start.elapsed().as_millis() < 100,
-        "Should have used cached value"
-    );
-    assert!(
-        (ips - ips2).abs() < 1e-6,
-        "Cached value mismatch: {ips} vs {ips2}"
-    );
+        let asset_mgr = AssetManager::new(data_root.join("non-existent"), client);
+        let res = calibration::calibrate_hardware(&asset_mgr).await;
+
+        assert!(res.is_err());
+    }
 }

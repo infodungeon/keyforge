@@ -13,22 +13,23 @@ workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
-wasm-bindgen = "0.2"
-getrandom = { version = "0.3", features = ["wasm_js"] }
+wasm-bindgen.workspace = true
+getrandom_v03 = { workspace = true, features = ["wasm_js"] }
 serde.workspace = true
-serde-wasm-bindgen = "0.6"
-console_error_panic_hook = "0.1"
+serde-wasm-bindgen.workspace = true
+console_error_panic_hook.workspace = true
 
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-compute = { path = "../../libs/keyforge-compute", default-features = false }
 async-trait.workspace = true
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures.workspace = true
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3"
+wasm-bindgen-test.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 

@@ -62,7 +62,7 @@ impl CompilationStage for CorpusStage<'_> {
             flatten_bigrams_rev(&merged_bigrams);
 
         let pruned_trigrams = prune_trigrams(
-            self.corpus.trigrams.clone(),
+            &self.corpus.trigrams,
             self.rubric.trigram_coverage,
             self.rubric.trigram_limit,
         );
@@ -161,31 +161,15 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
 
 #[allow(clippy::cast_sign_loss, clippy::cast_precision_loss)]
 fn prune_trigrams(
-    mut source: Vec<(u16, u16, u16, u32)>,
+    source: &[(u16, u16, u16, u32)],
     coverage: f32,
     limit: usize,
 ) -> Vec<(u16, u16, u16, u32)> {
     if source.is_empty() {
-        return source;
+        return vec![];
     }
 
-    // First, merge duplicates to ensure consistent scoring between full and delta passes.
-    // Task-phys-rev-044: Seen set in delta calculation requires unique trigram keys.
-    source.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
-    let mut merged = Vec::with_capacity(source.len());
-    if !source.is_empty() {
-        let mut current = source[0];
-        for next in source.into_iter().skip(1) {
-            if next.0 == current.0 && next.1 == current.1 && next.2 == current.2 {
-                current.3 = current.3.saturating_add(next.3);
-            } else {
-                merged.push(current);
-                current = next;
-            }
-        }
-        merged.push(current);
-    }
-    let mut source = merged;
+    let mut source = source.to_vec();
 
     source.sort_unstable_by(|a, b| {
         b.3.cmp(&a.3)

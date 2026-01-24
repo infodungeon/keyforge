@@ -89,7 +89,7 @@ pub fn sanitize_zmk(s: &str) -> String {
         .collect()
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

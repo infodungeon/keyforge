@@ -1,32 +1,20 @@
-# Primary Workflow
+# 100x Execution Protocol: The Success-Trap
 
-## The `/cook` Workflow
+## 1. The Prototypical Slice (Pre-Batch Verification)
+- **Mandate**: Never perform a batch operation (multiple files) until the "Master Pivot" has been proven in a single file.
+- **Verification**: Run `cargo clippy` and `cargo test` on the slice. If it doesn't simplify the code or resolve the root cause, abort the batch.
 
-```
-/cook [task description]
-```
+## 2. Friction Triggers (When to Think)
+- **Spatial Friction**: Logic change requires > 3 files. Action: Identify the centralized trait/macro pivot.
+- **Repetitive Friction**: Manual data mapping or boilerplate detected. Action: Implement a generative/projection solution.
+- **Tool Friction**: Script or regex fails once. Action: Immediately shift to AST-aware tools (ast-grep, syn macros).
 
-### Steps
+## 3. The Stable Ground State (Turn Anatomy)
+- **Simulation**: Map ripple effects using `codebase_investigator` before acting.
+- **Execution**: Apply surgical changes using high-precision tools.
+- **Hard Gate**: Run `just 100x` (Audit -> Gate -> Clippy Deny).
+- **Turn Bound**: No turn is complete until the workspace is Build-Clean, Lint-Clean, and Abstraction-Simplified.
 
-1. **Planning** - `/plan`
-2. **Scouting** - `/scout`
-3. **Coding** - Implement
-4. **Testing** - `/test`
-5. **Reviewing** - `/review`
-6. **Committing** - `/git`
-
-## Quick Workflows
-
-| Task | Command |
-|------|---------|
-| New feature | `/cook implement` |
-| Bug fix | `/cook fix` |
-| Refactoring | `/cook refactor` |
-| Full audit | `/cook full review` |
-
-## When to Use
-
-- **Simple change**: `/code` or `/fix`
-- **Complex feature**: `/cook`
-- **Code quality**: `/review`
-- **Explore**: `/scout`
+## 4. Evolutionary Learning
+- **Gate Hardening**: If a build fails, update the `Justfile` or `ast-grep` rules to block that *class* of error before fixing the instance.
+- **Fragility Mapping**: Record the structural reason for any failure in `TECHNICAL_DEBT.md`.

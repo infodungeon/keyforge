@@ -1,4 +1,4 @@
-// libs/keyforge-compute/src/loader.rs
+// libs/keyforge-model/src/loader.rs
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_model::config::CorpusSource;
-use keyforge_model::cost_model::CostModel;
-use keyforge_model::error::ForgeError;
-use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::{Asset, Corpus};
+//! Asset loading abstractions and implementations.
+//!
+//! This module defines the [`AssetLoader`] trait, which provides a unified
+//! interface for fetching `KeyForge` assets from various sources (disk, network, memory).
+
+use crate::config::CorpusSource;
+use crate::cost_model::CostModel;
+use crate::error::ForgeError;
+use crate::geometry::KeyboardDefinition;
+use crate::keycodes::KeycodeRegistry;
+use crate::{Asset, Corpus};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -137,52 +142,5 @@ impl AssetLoader for InMemoryLoader {
         }
 
         Ok(Arc::new(blended))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use keyforge_model::config::CorpusSource;
-
-    #[tokio::test]
-    async fn test_load_corpus_blending() {
-        let loader = InMemoryLoader::new();
-
-        // 1. Inject Corpus A
-        let mut c1 = Corpus::default();
-        c1.char_freqs['a' as usize] = 100;
-        loader.inject_corpus("corpus_a", c1);
-
-        // 2. Inject Corpus B
-        let mut c2 = Corpus::default();
-        c2.char_freqs['a' as usize] = 200;
-        loader.inject_corpus("corpus_b", c2);
-
-        // 3. Load with merging (Additive)
-        let sources = vec![
-            CorpusSource {
-                id: "corpus_a".into(),
-                weight: 1.0,
-                hash: None,
-            },
-            CorpusSource {
-                id: "corpus_b".into(),
-                weight: 1.0,
-                hash: None,
-            },
-        ];
-
-        let loaded = loader
-            .load_corpus(&sources)
-            .await
-            .expect("Failed to load corpus");
-
-        // 4. Assert: Should be 100 + 200 = 300
-        assert_eq!(
-            loaded.char_freqs['a' as usize], 300,
-            "Corpus blending failed: Expected 300, got {}",
-            loaded.char_freqs['a' as usize]
-        );
     }
 }

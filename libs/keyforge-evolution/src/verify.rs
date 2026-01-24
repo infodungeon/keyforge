@@ -17,7 +17,7 @@
 //! Metamorphic and parity testing between the high-performance optimizer
 //! and the reference ghost model.
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use crate::ghost::GhostOptimizer;
     use crate::{evolve, NoOpCallback};

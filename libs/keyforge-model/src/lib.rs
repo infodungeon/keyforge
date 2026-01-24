@@ -41,6 +41,9 @@ pub mod keyboard;
 pub mod keycodes;
 /// The `Layout` entity (logical mapping).
 pub mod layout;
+pub mod loader;
+/// Standardized mapping between external data and domain models.
+pub mod mapping;
 pub mod metrics;
 /// Scoring configuration and weights.
 pub mod rubric;
@@ -69,6 +72,7 @@ pub use job::{Completed, Job, JobIdentifier, JobState, JobStatus, Pending, Runni
 pub use keyboard::Keyboard;
 pub use keycodes::KeycodeRegistry;
 pub use layout::Layout;
+pub use mapping::{BulkProjection, Projection};
 pub use metrics::{MetricId, MetricSet};
 pub use rubric::Rubric;
 pub use types::{

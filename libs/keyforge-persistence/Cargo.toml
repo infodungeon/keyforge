@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

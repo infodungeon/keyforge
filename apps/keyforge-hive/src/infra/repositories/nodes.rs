@@ -40,16 +40,18 @@ impl NodeRepository {
     ) -> Result<(), sqlx::Error> {
         self.verify_key(node_id, public_key).await?;
 
-        sqlx::query("SELECT register_node_heartbeat($1, $2, $3, $4, $5, $6, $7)")
-            .bind(node_id)
-            .bind(cpu_model)
-            .bind(std::env::consts::ARCH)
-            .bind(cores)
-            .bind(l2_cache_kb)
-            .bind(ops_per_sec)
-            .bind(public_key)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query!(
+            "SELECT register_node_heartbeat($1, $2, $3, $4, $5, $6, $7)",
+            node_id,
+            cpu_model,
+            std::env::consts::ARCH,
+            cores,
+            l2_cache_kb,
+            ops_per_sec,
+            public_key
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -65,7 +67,7 @@ impl NodeRepository {
     ) -> Result<(), sqlx::Error> {
         self.verify_key(node_id, public_key).await?;
 
-        sqlx::query(
+        sqlx::query!(
             r"
             INSERT INTO nodes (
                 id, cpu_signature, cpu_cores, performance_rating, 
@@ -78,12 +80,12 @@ impl NodeRepository {
                 cpu_cores = EXCLUDED.cpu_cores,
                 public_key = COALESCE(nodes.public_key, EXCLUDED.public_key)
             ",
+            node_id,
+            cpu_model,
+            cores,
+            ops_per_sec,
+            public_key
         )
-        .bind(node_id)
-        .bind(cpu_model)
-        .bind(cores)
-        .bind(ops_per_sec)
-        .bind(public_key)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -121,21 +123,20 @@ impl NodeRepository {
 
     /// Retrieves the registered public key for a node.
     pub async fn get_public_key(&self, node_id: &str) -> Result<Option<String>, sqlx::Error> {
-        let row: Option<Option<String>> =
-            sqlx::query_scalar("SELECT public_key FROM nodes WHERE id = $1")
-                .bind(node_id)
-                .fetch_optional(&self.pool)
-                .await?;
+        let row = sqlx::query_scalar!("SELECT public_key FROM nodes WHERE id = $1", node_id)
+            .fetch_optional(&self.pool)
+            .await?;
         Ok(row.flatten())
     }
 
     /// Prunes nodes that haven't been seen within the specified interval.
     pub async fn prune_inactive_nodes(&self, minutes: i32) -> Result<u64, sqlx::Error> {
-        let result =
-            sqlx::query("DELETE FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1)")
-                .bind(minutes)
-                .execute(&self.pool)
-                .await?;
+        let result = sqlx::query!(
+            "DELETE FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1)",
+            minutes
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(result.rows_affected())
     }
 }

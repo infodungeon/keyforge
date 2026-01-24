@@ -102,8 +102,7 @@ fn to_codes(s: &str) -> Vec<KeyCode> {
     s.chars().map(|c| KeyCode(c as u16)).collect()
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-adapter = { path = "../keyforge-adapter" }
@@ -19,4 +20,5 @@ serde_json.workspace = true
 thiserror = "2.0"
 
 [dev-dependencies]
+keyforge-testing = { path = "../keyforge-testing" }
 proptest.workspace = true

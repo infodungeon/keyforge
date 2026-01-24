@@ -23,7 +23,7 @@ pub fn parse_key_val(s: &str) -> Result<(String, f32), String> {
     Ok((key, val))
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

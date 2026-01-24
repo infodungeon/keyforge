@@ -1,0 +1,14 @@
+id: no-direct-io-in-kernels
+message: "ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO."
+severity: error
+language: rust
+rule:
+  any:
+    - pattern: "std::fs::$$$"
+    - pattern: "std::net::$$$"
+    - pattern: "use std::fs::$$$"
+    - pattern: "use std::net::$$$"
+paths:
+  include:
+    - "libs/keyforge-physics/src/**/*.rs"
+    - "libs/keyforge-evolution/src/**/*.rs"

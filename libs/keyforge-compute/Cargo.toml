@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+keyforge-testing-macros.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-adapter = { path = "../keyforge-adapter" }
@@ -21,12 +22,14 @@ serde_json.workspace = true
 raw-cpuid.workspace = true
 async-trait.workspace = true
 tokio = { workspace = true, features = ["full"] }
-libc = "0.2"
+libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_System_SystemInformation"] }
+windows-sys.workspace = true
 
 [dev-dependencies]
+keyforge-testing = { path = "../keyforge-testing" }
+serde_json.workspace = true
 
 [features]
 default = []

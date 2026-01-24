@@ -16,10 +16,10 @@ use crate::error::InfraResult;
 use crate::net::distributed::DistributedCoordinator;
 use crate::net::sync::ServerManifest;
 use crate::util::corpus::inject_synthetic_data;
-use keyforge_compute::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
+use keyforge_model::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Asset, AssetCategory, Corpus};
 use std::sync::Arc;
 
@@ -114,11 +114,9 @@ impl ValkeyProvider {
     /// Lists all available keyboard definitions in the distributed store.
     pub async fn list_keyboards(&self) -> Vec<String> {
         let pattern = format!("{ASSET_PREFIX}:keyboards/models/*.mpk.zst");
-        let keys = self
-            .coordinator
-            .scan_keys(&pattern)
-            .await
-            .unwrap_or_default();
+        let Ok(keys) = self.coordinator.scan_keys(&pattern).await else {
+            return vec![];
+        };
 
         let mut names = Vec::new();
         for k in keys {
@@ -135,11 +133,9 @@ impl ValkeyProvider {
     /// Lists all available corpora IDs in the distributed store.
     pub async fn list_corpora(&self) -> Vec<String> {
         let pattern = format!("{ASSET_PREFIX}:corpora/*");
-        let keys = self
-            .coordinator
-            .scan_keys(&pattern)
-            .await
-            .unwrap_or_default();
+        let Ok(keys) = self.coordinator.scan_keys(&pattern).await else {
+            return vec![];
+        };
 
         let mut ids = Vec::new();
         for k in keys {
@@ -160,11 +156,9 @@ impl ValkeyProvider {
     /// Lists all available cost matrices in the distributed store.
     pub async fn list_cost_matrices(&self) -> Vec<String> {
         let pattern = format!("{ASSET_PREFIX}:weights/*.mpk.zst");
-        let keys = self
-            .coordinator
-            .scan_keys(&pattern)
-            .await
-            .unwrap_or_default();
+        let Ok(keys) = self.coordinator.scan_keys(&pattern).await else {
+            return vec![];
+        };
         let mut names = Vec::new();
         for k in keys {
             if let Some(stem) = k.split('/').next_back() {
@@ -269,13 +263,19 @@ impl crate::asset::AssetServerProvider for ValkeyProvider {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::error::InfraResult;
     use keyforge_protocol::{AssetManifestEntry, NodeTelemetry};
     use std::collections::HashMap;
     use tracing::warn;
+
+    #[derive(serde::Serialize, serde::Deserialize, Default, Debug, PartialEq)]
+    struct TestConfig {
+        val: String,
+    }
 
     #[derive(Debug, Default)]
     struct MockDistributedCoordinator {
@@ -484,11 +484,6 @@ mod tests {
         let mock = Arc::new(MockDistributedCoordinator::default());
         let provider = ValkeyProvider::new(mock.clone());
 
-        #[derive(serde::Serialize, serde::Deserialize, Default, Debug, PartialEq)]
-        struct TestConfig {
-            val: String,
-        }
-
         let config = TestConfig {
             val: "hello".into(),
         };
@@ -511,7 +506,6 @@ mod tests {
         let mock = Arc::new(MockDistributedCoordinator::default());
         let provider = ValkeyProvider::new(mock.clone());
 
-        // We need some mock data that can be decoded as Vec<serde_json::Value>
         let mock_grams = vec![serde_json::json!({"char": "a", "count": 10})];
         let mut buffer = Vec::new();
         let mut encoder = zstd::Encoder::new(&mut buffer, 0).unwrap();
@@ -523,17 +517,13 @@ mod tests {
             bytes::Bytes::from(buffer),
         );
 
-        let sources = vec![CorpusSource {
+        let sources = vec![keyforge_model::config::CorpusSource {
             id: "en_std".into(),
             weight: 1.0,
             hash: None,
         }];
 
-        // This might still fail because inject_synthetic_data or other post-processing might expect more data,
-        // but it tests the fetch and decode path.
         let result = provider.load_corpus(&sources).await;
-        // Given the complexity of Corpus::post_load and inject_synthetic_data, we just check it doesn't panic and we get a result.
-        // It might return an error if data is too sparse, which is fine for this test.
         match result {
             Ok(c) => assert!(!c.char_freqs.is_empty()),
             Err(e) => warn!("Minimal corpus load failed as expected: {}", e),

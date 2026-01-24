@@ -16,8 +16,6 @@ pub use keyforge_model::constants::{
     CONFIG_DIR_NAME, DEFAULT_BENCHMARK_ITERATIONS, DEFAULT_HIVE_URL,
 };
 
-/// Default name for the data directory.
-pub const DEFAULT_DATA_DIR: &str = "data";
 /// Maximum number of corpus sources allowed in CLI args.
 pub const MAX_CLI_CORPORA: usize = 50;
 /// Name of the CLI configuration file.
@@ -27,9 +25,9 @@ pub const DEFAULT_FMT_WIDTH: usize = 10;
 /// Default limit for list commands.
 pub const DEFAULT_LIST_LIMIT: usize = 50;
 /// Default path for user statistics.
-pub const DEFAULT_USER_STATS_PATH: &str = "data/user_stats.jsonl";
+pub const DEFAULT_USER_STATS_PATH: &str = "user_stats.jsonl";
 /// Default path for personal cost profile.
-pub const DEFAULT_PERSONAL_COST_PATH: &str = "data/personal_cost.json";
+pub const DEFAULT_PERSONAL_COST_PATH: &str = "personal_cost.json";
 /// Default URL for checking updates.
 pub const DEFAULT_UPDATE_URL: &str = "https://keyforge-releases.example.com/api/latest";
 /// GitHub repository owner for self-updates.
@@ -37,4 +35,4 @@ pub const REPO_OWNER: &str = "your-org";
 /// Default output filename for debug visualizations.
 pub const DEFAULT_DEBUG_OUTPUT: &str = "debug_physics.svg";
 /// Default path for benchmark reference data.
-pub const DEFAULT_BENCHMARK_PATH: &str = "data/benchmarks/cyanophage.json";
+pub const DEFAULT_BENCHMARK_PATH: &str = "benchmarks/cyanophage.json";

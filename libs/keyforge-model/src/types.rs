@@ -30,6 +30,26 @@ use utoipa::ToSchema;
 #[repr(transparent)]
 pub struct KeyIndex(pub u16);
 
+impl KeyIndex {
+    /// Creates a new `KeyIndex`.
+    #[must_use]
+    pub const fn new(val: u16) -> Self {
+        Self(val)
+    }
+
+    /// Returns the raw `u16` value.
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        self.0
+    }
+
+    /// Returns the value as `usize`.
+    #[must_use]
+    pub const fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+}
+
 impl fmt::Display for KeyIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -57,6 +77,18 @@ impl From<KeyIndex> for usize {
 pub struct KeyCode(pub u16);
 
 impl KeyCode {
+    /// Creates a new `KeyCode`.
+    #[must_use]
+    pub const fn new(val: u16) -> Self {
+        Self(val)
+    }
+
+    /// Returns the raw `u16` value.
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        self.0
+    }
+
     /// The canonical "Empty" or "No-Op" keycode (0).
     pub const EMPTY: KeyCode = KeyCode(0);
     /// The canonical "Transparent" keycode (1).
@@ -93,6 +125,17 @@ impl HandIndex {
     /// Right hand index (1).
     pub const RIGHT: Self = Self(1);
 
+    /// Creates a new `HandIndex`.
+    #[must_use]
+    pub const fn new(val: u8) -> Self {
+        Self(val)
+    }
+
+    /// Returns the raw `u8` value.
+    #[must_use]
+    pub fn raw(&self) -> u8 {
+        self.0
+    }
     /// Returns the raw `u8` value.
     #[must_use]
     pub fn as_u8(&self) -> u8 {
@@ -150,6 +193,12 @@ impl FingerIndex {
     pub const PINKY: Self = Self(4);
 
     /// Creates a new `FingerIndex`.
+    #[must_use]
+    pub const fn new(val: u8) -> Self {
+        Self(val)
+    }
+
+    /// Creates a new `FingerIndex`.
     ///
     /// # Safety
     /// Calling this with a value > 4 violates domain invariants.
@@ -158,6 +207,11 @@ impl FingerIndex {
         Self(val)
     }
 
+    /// Returns the raw `u8` value.
+    #[must_use]
+    pub fn raw(&self) -> u8 {
+        self.0
+    }
     /// Returns the raw `u8` value.
     #[must_use]
     pub fn as_u8(&self) -> u8 {
@@ -212,6 +266,27 @@ use serde::de::{self, Visitor};
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct RowIndex(pub i8);
+
+impl RowIndex {
+    /// Creates a new `RowIndex`.
+    #[must_use]
+    pub const fn new(val: i8) -> Self {
+        Self(val)
+    }
+
+    /// Returns the raw `i8` value.
+    #[must_use]
+    pub const fn raw(self) -> i8 {
+        self.0
+    }
+
+    /// Returns the value as `usize`.
+    #[must_use]
+    #[allow(clippy::cast_sign_loss)]
+    pub fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+}
 
 impl<'de> Deserialize<'de> for RowIndex {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -561,12 +636,7 @@ pub struct SwapSuggestion {
     pub improvement_pct: f32,
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::unwrap_used,
-    clippy::float_cmp,
-    clippy::cast_possible_truncation
-)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

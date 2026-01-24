@@ -305,7 +305,7 @@ pub struct JobDetailedStatus {
     pub total_samples: usize,
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
@@ -560,7 +560,7 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod fuzz {
     use super::*;
     use proptest::prelude::*;

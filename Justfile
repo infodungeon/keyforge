@@ -21,8 +21,8 @@ build: infra-up
 build-proto:
     cargo build --release -p keyforge-protocol
 
-build-core:
-    cargo build --release -p keyforge-core
+build-compute:
+    cargo build --release -p keyforge-compute
 
 build-cli:
     cargo build --release --manifest-path apps/keyforge-cli/Cargo.toml
@@ -112,8 +112,8 @@ web-down:
 
 # --- TEST ---
 
-test-core:
-    cargo test -p keyforge-core
+test-compute:
+    cargo test -p keyforge-compute
 
 test-cli:
     cargo test --manifest-path apps/keyforge-cli/Cargo.toml
@@ -124,7 +124,7 @@ verify-parity:
 test-ui:
     cd apps/keyforge-ui && npx vitest run
 
-test-all: test-core test-cli verify-parity test-ui
+test-all: test-compute test-cli verify-parity test-ui
 
 cover package:
     mkdir -p target/coverage
@@ -138,6 +138,15 @@ fmt:
 
 lint:
     cargo clippy --workspace -- -D warnings
+
+# Finds structural debt: security holes, duplicate dependencies, and binary bloat.
+audit:
+    @echo "🔍 Checking for security vulnerabilities..."
+    cargo audit
+    @echo "📦 Checking for duplicate/unnecessary dependencies..."
+    cargo deny check
+    @echo "⚖️ Analyzing binary size (bloat)..."
+    cargo bloat --release -n 20
 
 # Starts only the infrastructure needed for local development (DB, Valkey, AssetMgr)
 infra-up:

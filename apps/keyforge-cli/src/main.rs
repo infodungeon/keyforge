@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/main.rs
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
@@ -107,16 +108,8 @@ async fn run_app() -> Result<(), CliError> {
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
     match &cli.command {
-        Commands::Init(args) => {
-            cmd::init::run(args.clone()).await?;
-            return Ok(());
-        }
         Commands::Completions(args) => {
             cmd::completions::run(args);
-            return Ok(());
-        }
-        Commands::Auth(args) => {
-            cmd::auth::run(args.clone()).await?;
             return Ok(());
         }
         _ => {}
@@ -147,6 +140,14 @@ async fn run_app() -> Result<(), CliError> {
     let loader = keyforge_infra::FsProvider::new(root.clone());
 
     match &cli.command {
+        Commands::Init(args) => {
+            cmd::init::run(args.clone(), &root).await?;
+            return Ok(());
+        }
+        Commands::Auth(args) => {
+            cmd::auth::run(args.clone()).await?;
+            return Ok(());
+        }
         Commands::Doctor(args) => {
             cmd::doctor::run(args.clone(), &root).await?;
             return Ok(());
@@ -210,7 +211,7 @@ async fn build_job_config(
     shared: &cmd::shared::SharedArgs,
     config_args: cli_args::config::ConfigArgs,
 ) -> Result<JobConfig, Box<dyn Error>> {
-    use keyforge_compute::loader::AssetLoader;
+    use keyforge_model::loader::AssetLoader;
     let corpus_list = shared
         .corpus
         .clone()

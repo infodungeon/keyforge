@@ -1,0 +1,31 @@
+id: no-unwrap-in-production
+message: "TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead."
+severity: error
+language: rust
+rule:
+  all:
+    - pattern: "$OBJ.unwrap()"
+    - not:
+        inside:
+          any:
+            - kind: mod_item
+              has:
+                kind: attribute
+                pattern: "#[cfg(test)]"
+            - kind: function_item
+              has:
+                kind: attribute
+                pattern: "#[test]"
+            - kind: function_item
+              has:
+                kind: attribute
+                pattern: "#[tokio::test]"
+paths:
+  exclude:
+    - "**/tests/**"
+    - "**/tests.rs"
+    - "ops/repros/**"
+    - "**/common/**"
+    - "**/testing.rs"
+    - "**/*_tests.rs"
+    - "**/*_test.rs"

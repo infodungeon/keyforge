@@ -192,7 +192,7 @@ pub fn generate_manifest(data_root: &Path) -> crate::error::InfraResult<ServerMa
     Ok(ServerManifest { files })
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::net::client::ClientConfig;

@@ -193,7 +193,7 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
     run_benchmark(&keyboard, config)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::models::CalibrationConfig;

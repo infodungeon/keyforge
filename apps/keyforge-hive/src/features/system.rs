@@ -15,8 +15,8 @@
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, routing::get, Json, Router};
-use keyforge_compute::loader::AssetLoader;
 use keyforge_model::config::ParameterMetadata;
+use keyforge_model::loader::AssetLoader;
 use keyforge_model::{Config, KeyboardDefinition};
 use serde::Serialize;
 use std::sync::Arc;
@@ -56,11 +56,14 @@ pub async fn root() -> &'static str {
 )]
 /// Performs a comprehensive health check of the system's core components.
 pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<StatusResponse>> {
-    let db_status = match sqlx::query("SELECT 1").execute(&state.jobs.repo.pool).await {
-        Ok(_) => "connected".to_string(),
+    let db_status = match sqlx::query!("SELECT 1 as one")
+        .fetch_one(&state.jobs.repo.pool)
+        .await
+    {
+        Ok(_) => "online",
         Err(e) => {
-            tracing::error!("Health Check DB Fail: {}", e);
-            return Err(AppError::ServiceUnavailable("Database Unreachable".into()));
+            tracing::error!("Database health check failed: {}", e);
+            "offline"
         }
     };
 
@@ -78,7 +81,7 @@ pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<Status
         status: "ok".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         message: "Genetic Reservoir Active".to_string(),
-        db: db_status,
+        db: db_status.to_string(),
         queue_depth,
         assets,
     }))

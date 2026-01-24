@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout)]
 // apps/keyforge-assetmgr/src/main.rs
 
 use clap::{Parser, Subcommand};

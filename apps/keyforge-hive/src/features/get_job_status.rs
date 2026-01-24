@@ -64,7 +64,7 @@ pub async fn handle(
 
     let status = match status_str.to_lowercase().as_str() {
         "running" => JobStatus::Running(Running {
-            active_nodes: nodes,
+            active_nodes: usize::try_from(nodes).unwrap_or(0),
             current_best: best_score
                 .map(Score::from_f32)
                 .transpose()
@@ -91,6 +91,6 @@ pub async fn handle(
         status,
         best_score,
         best_layout,
-        total_samples: samples,
+        total_samples: usize::try_from(samples).unwrap_or(0),
     }))
 }

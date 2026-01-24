@@ -108,8 +108,7 @@ pub fn resolve_cost_matrix(
     overrides
 }
 
-#[cfg(test)]
-#[allow(clippy::expect_used)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::geometry::{KeyNode, KeyboardGeometry};

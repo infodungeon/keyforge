@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use super::identity;
-use crate::infra::repositories::jobs::queries;
 use keyforge_model::config::ScoringWeights;
 use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
 use keyforge_model::geometry::KeyboardDefinition;
@@ -21,7 +20,7 @@ use keyforge_model::types::KeyIndex;
 use keyforge_model::Validator;
 use keyforge_protocol::JobRequest;
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, QueryBuilder, Row};
+use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -77,20 +76,52 @@ impl JobRepository {
     }
 
     pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
-        let row = sqlx::query(queries::CLAIM_JOB_QUERY)
-            .fetch_optional(&self.pool)
-            .await?;
+        let r = sqlx::query!(
+            r#"
+            WITH locked_job AS (
+                SELECT id 
+                FROM jobs 
+                WHERE status = 'active' 
+                ORDER BY priority DESC, created_at ASC 
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            ),
+            updated_job AS (
+                UPDATE jobs
+                SET status = 'processing',
+                    started_at = CURRENT_TIMESTAMP
+                FROM locked_job
+                WHERE jobs.id = locked_job.id
+                RETURNING jobs.id, jobs.keyboard_id, jobs.pinned_keys, jobs.corpus_name, jobs.cost_matrix, jobs.parent_job_id
+            )
+            SELECT 
+                j.id,
+                j.keyboard_id,
+                sp.weights as weights_json,
+                (to_jsonb(sc) - 'id' - 'config_hash') as params_json,
+                j.pinned_keys, 
+                j.corpus_name, 
+                j.cost_matrix,
+                j.parent_job_id
+            FROM updated_job u
+            JOIN jobs j ON u.id = j.id
+            JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
+            JOIN search_configs sc ON j.search_config_id = sc.id
+            "#
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
-        if let Some(r) = row {
-            let id: String = r.get("id");
-            let keyboard_id: i32 = r.get("keyboard_id"); // Changed from geometry_json
-            let weights_val: serde_json::Value = r.get("weights_json");
-            let params_val: serde_json::Value = r.get("params_json");
-            let pinned_keys_str: String = r.get("pinned_keys");
-            let corpus_name: String = r.get("corpus_name");
-            let cost_matrix_str: String = r.get("cost_matrix");
+        if let Some(r) = r {
+            let id = r.id;
+            let keyboard_id = r.keyboard_id;
+            let weights_val = r.weights_json;
+            let params_val = r.params_json.unwrap_or_default();
+            let pinned_keys_str = r.pinned_keys;
+            let corpus_name = r.corpus_name;
+            let cost_matrix_str = r.cost_matrix;
 
-            let definition = self.fetch_keyboard_definition(keyboard_id).await?; // Fetch def
+            let definition = self.fetch_keyboard_definition(keyboard_id).await?;
 
             let weights = serde_json::from_value(weights_val)
                 .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights in DB: {e}")))?;
@@ -115,7 +146,7 @@ impl JobRepository {
                     }],
                     cost_matrix,
                     biometrics: vec![],
-                    parent_job_id: r.get("parent_job_id"),
+                    parent_job_id: r.parent_job_id,
                     baseline_score: None,
                     parents: vec![],
                 },
@@ -127,20 +158,19 @@ impl JobRepository {
     }
 
     pub async fn cancel(&self, job_id: &str) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query("UPDATE jobs SET status = 'cancelled' WHERE id = $1")
-            .bind(job_id)
+        let result = sqlx::query!("UPDATE jobs SET status = 'cancelled' WHERE id = $1", job_id)
             .execute(&self.pool)
             .await?;
         Ok(result.rows_affected() > 0)
     }
 
     pub async fn count_active(&self) -> Result<i64, sqlx::Error> {
-        let row = sqlx::query(
-            "SELECT COUNT(*) FROM jobs WHERE status = 'active' OR status = 'processing'",
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM jobs WHERE status = 'active' OR status = 'processing'"
         )
         .fetch_one(&self.pool)
         .await?;
-        Ok(row.get(0))
+        Ok(count.unwrap_or(0))
     }
 
     pub async fn get_config(
@@ -155,20 +185,31 @@ impl JobRepository {
         )>,
         sqlx::Error,
     > {
-        let row = sqlx::query(queries::GET_JOB_CONFIG_QUERY)
-            .bind(job_id)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query!(
+            r#"
+            SELECT 
+                j.keyboard_id,
+                sp.weights as weights_json,
+                j.corpus_name,
+                j.cost_matrix
+            FROM jobs j
+            JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
+            WHERE j.id = $1
+            "#,
+            job_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
         if let Some(r) = row {
-            let keyboard_id: i32 = r.get("keyboard_id");
+            let keyboard_id = r.keyboard_id;
             let definition = self.fetch_keyboard_definition(keyboard_id).await?;
             let geometry = definition.geometry;
 
             let weights: ScoringWeights =
-                serde_json::from_value(r.get("weights_json")).unwrap_or_default();
-            let corpus: String = r.get("corpus_name");
-            let cost_raw: String = r.get("cost_matrix");
+                serde_json::from_value(r.weights_json).unwrap_or_default();
+            let corpus = r.corpus_name;
+            let cost_raw = r.cost_matrix;
             let cost: keyforge_model::CostMatrixSource = serde_json::from_str(&cost_raw)
                 .unwrap_or(keyforge_model::CostMatrixSource::Predefined(cost_raw));
 
@@ -182,24 +223,37 @@ impl JobRepository {
         &self,
         kb_id: i32,
     ) -> Result<KeyboardDefinition, sqlx::Error> {
-        let meta_row = sqlx::query(queries::FETCH_KEYBOARD_META)
-            .bind(kb_id)
-            .fetch_one(&self.pool)
-            .await?;
+        let meta_row = sqlx::query!(
+            r#"
+            SELECT name, author, version, notes, kb_type, home_row 
+            FROM keyboards 
+            WHERE id = $1
+            "#,
+            kb_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         let meta = keyforge_model::geometry::KeyboardMeta {
-            name: meta_row.get("name"),
-            author: meta_row.get("author"),
-            version: meta_row.get("version"),
-            notes: meta_row.get("notes"),
-            kb_type: meta_row.get("kb_type"),
+            name: meta_row.name,
+            author: meta_row.author.unwrap_or_default(),
+            version: meta_row.version.unwrap_or_default(),
+            notes: meta_row.notes.unwrap_or_default(),
+            kb_type: meta_row.kb_type.unwrap_or_default(),
         };
-        let home_row: i32 = meta_row.get("home_row");
+        let home_row = meta_row.home_row.unwrap_or(0);
 
-        let keys_rows = sqlx::query(queries::FETCH_KEYBOARD_KEYS)
-            .bind(kb_id)
-            .fetch_all(&self.pool)
-            .await?;
+        let keys_rows = sqlx::query!(
+            r#"
+            SELECT idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r 
+            FROM keyboard_keys 
+            WHERE keyboard_id = $1 
+            ORDER BY idx
+            "#,
+            kb_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         let mut keys = Vec::with_capacity(keys_rows.len());
         let mut prime_slots = Vec::new();
@@ -207,7 +261,7 @@ impl JobRepository {
         let mut low_slots = Vec::new();
 
         for row in keys_rows {
-            let idx: i32 = row.get("idx");
+            let idx = row.idx;
             #[allow(clippy::cast_possible_truncation)]
             let kidx = KeyIndex(
                 u16::try_from(idx)
@@ -218,34 +272,28 @@ impl JobRepository {
                 index: usize::try_from(idx)
                     .map_err(|e| sqlx::Error::Protocol(format!("Key index negative: {e}")))?,
                 label: format!("k{idx}"),
-                x: row.get("x"),
-                y: row.get("y"),
-                w: row.get("w"),
-                h: row.get("h"),
-                hand: keyforge_model::types::HandIndex(
-                    u8::try_from(row.get::<i16, _>("hand")).unwrap_or(0),
-                ),
+                x: row.x,
+                y: row.y,
+                w: row.w.unwrap_or(1.0),
+                h: row.h.unwrap_or(1.0),
+                hand: keyforge_model::types::HandIndex(u8::try_from(row.hand).unwrap_or(0)),
                 finger: keyforge_model::types::FingerIndex::new_unchecked(
-                    u8::try_from(row.get::<i16, _>("finger")).unwrap_or(0),
+                    u8::try_from(row.finger).unwrap_or(0),
                 ),
-                row: keyforge_model::types::RowIndex(
-                    i8::try_from(row.get::<i16, _>("row_idx")).unwrap_or(0),
-                ),
-                col: keyforge_model::types::ColIndex(
-                    i8::try_from(row.get::<i16, _>("col_idx")).unwrap_or(0),
-                ),
-                is_stretch: row.get("is_stretch"),
-                r: row.get("r"),
+                row: keyforge_model::types::RowIndex(i8::try_from(row.row_idx).unwrap_or(0)),
+                col: keyforge_model::types::ColIndex(i8::try_from(row.col_idx).unwrap_or(0)),
+                is_stretch: row.is_stretch.unwrap_or(false),
+                r: row.r.unwrap_or(0.0),
                 ..Default::default()
             });
 
-            if row.get("is_prime") {
+            if row.is_prime.unwrap_or(false) {
                 prime_slots.push(kidx);
             }
-            if row.get("is_med") {
+            if row.is_med.unwrap_or(false) {
                 med_slots.push(kidx);
             }
-            if row.get("is_low") {
+            if row.is_low.unwrap_or(false) {
                 low_slots.push(kidx);
             }
         }
@@ -296,19 +344,29 @@ impl JobRepository {
             |c| c.id.clone(),
         );
 
-        let result = sqlx::query(queries::INSERT_JOB_QUERY)
-            .bind(job_id)
-            .bind(kb_id)
-            .bind(score_id)
-            .bind(search_id)
-            .bind(serde_json::to_string(&req.config.pinned_keys).unwrap_or_default())
-            .bind(&primary_corpus)
-            .bind(serde_json::to_string(&req.config.cost_matrix).unwrap_or_default())
-            .bind(owner_id)
-            .bind(parent_job_id)
-            .bind(priority)
-            .execute(&mut **tx)
-            .await?;
+        let result = sqlx::query!(
+            r#"
+            INSERT INTO jobs (
+                id, keyboard_id, scoring_profile_id, search_config_id, 
+                pinned_keys, corpus_name, cost_matrix, owner_id, 
+                parent_job_id, priority
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (id) DO NOTHING
+            "#,
+            job_id,
+            kb_id,
+            score_id,
+            search_id,
+            serde_json::to_string(&req.config.pinned_keys).unwrap_or_default(),
+            primary_corpus,
+            serde_json::to_string(&req.config.cost_matrix).unwrap_or_default(),
+            owner_id,
+            parent_job_id,
+            priority
+        )
+        .execute(&mut **tx)
+        .await?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -325,8 +383,7 @@ impl JobRepository {
         }
         let lock_id = i64::from_be_bytes(bytes);
 
-        sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(lock_id)
+        sqlx::query!("SELECT pg_advisory_xact_lock($1)", lock_id)
             .execute(&mut **tx)
             .await?;
         Ok(())
@@ -339,23 +396,32 @@ impl JobRepository {
         unique_hash: &str,
     ) -> Result<i32, sqlx::Error> {
         let kb_meta = &def.meta;
-        let row = sqlx::query(queries::INSERT_KEYBOARD_QUERY)
-            .bind(&kb_meta.name)
-            .bind(&kb_meta.author)
-            .bind(&kb_meta.version)
-            .bind(&kb_meta.notes)
-            .bind(&kb_meta.kb_type)
-            .bind(i32::from(def.geometry.home_row))
-            .bind(unique_hash)
-            .fetch_one(&mut **tx)
-            .await?;
+        let row = sqlx::query!(
+            r#"
+            INSERT INTO keyboards (name, author, version, notes, kb_type, home_row, unique_hash)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (unique_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
+            RETURNING id
+            "#,
+            kb_meta.name,
+            kb_meta.author,
+            kb_meta.version,
+            kb_meta.notes,
+            kb_meta.kb_type,
+            i32::from(def.geometry.home_row),
+            unique_hash
+        )
+        .fetch_one(&mut **tx)
+        .await?;
 
-        let kb_id: i32 = row.try_get("id")?;
+        let kb_id = row.id;
 
-        let keys_exist = sqlx::query("SELECT 1 FROM keyboard_keys WHERE keyboard_id = $1 LIMIT 1")
-            .bind(kb_id)
-            .fetch_optional(&mut **tx)
-            .await?;
+        let keys_exist = sqlx::query_scalar!(
+            "SELECT 1 as one FROM keyboard_keys WHERE keyboard_id = $1 LIMIT 1",
+            kb_id
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
 
         if keys_exist.is_none() {
             let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new(
@@ -401,13 +467,21 @@ impl JobRepository {
         hasher.update(w_json.as_bytes());
         let hash = hex::encode(hasher.finalize());
 
-        let row = sqlx::query("INSERT INTO scoring_profiles (config_hash, weights) VALUES ($1, $2) ON CONFLICT (config_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP RETURNING id")
-            .bind(hash)
-            .bind(serde_json::to_value(weights).unwrap_or_default())
-            .fetch_one(&mut **tx)
-            .await?;
+        let row = sqlx::query!(
+            r#"
+            INSERT INTO scoring_profiles (config_hash, weights) 
+            VALUES ($1, $2) 
+            ON CONFLICT (config_hash) 
+            DO UPDATE SET created_at = CURRENT_TIMESTAMP 
+            RETURNING id
+            "#,
+            hash,
+            serde_json::to_value(weights).unwrap_or_default()
+        )
+        .fetch_one(&mut **tx)
+        .await?;
 
-        row.try_get("id")
+        Ok(row.id)
     }
 
     async fn ensure_search_params(
@@ -431,20 +505,31 @@ impl JobRepository {
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let opt_slow = params.get_opt_limit_slow() as i32;
 
-        let row = sqlx::query("INSERT INTO search_configs (config_hash, search_epochs, search_steps, search_patience, search_patience_threshold, temp_min, temp_max, opt_limit_fast, opt_limit_slow) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (config_hash) DO UPDATE SET config_hash = EXCLUDED.config_hash RETURNING id")
-            .bind(hash)
-            .bind(epochs)
-            .bind(steps)
-            .bind(patience)
-            .bind(params.get_search_patience_threshold())
-            .bind(params.get_temp_min())
-            .bind(params.get_temp_max())
-            .bind(opt_fast)
-            .bind(opt_slow)
-            .fetch_one(&mut **tx)
-            .await?;
+        let row = sqlx::query!(
+            r#"
+            INSERT INTO search_configs (
+                config_hash, search_epochs, search_steps, search_patience, 
+                search_patience_threshold, temp_min, temp_max, opt_limit_fast, opt_limit_slow
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+            ON CONFLICT (config_hash) 
+            DO UPDATE SET config_hash = EXCLUDED.config_hash 
+            RETURNING id
+            "#,
+            hash,
+            epochs,
+            steps,
+            patience,
+            params.get_search_patience_threshold(),
+            params.get_temp_min(),
+            params.get_temp_max(),
+            opt_fast,
+            opt_slow
+        )
+        .fetch_one(&mut **tx)
+        .await?;
 
-        row.try_get("id")
+        Ok(row.id)
     }
 
     pub async fn prune_stale_jobs(
@@ -452,19 +537,39 @@ impl JobRepository {
         timeout_mins: i32,
         max_retries: i32,
     ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(queries::PRUNE_STALE_JOBS_WITH_NODE)
-            .bind(timeout_mins)
-            .bind(max_retries)
-            .execute(&self.pool)
-            .await?;
+        let result = sqlx::query!(
+            r#"
+            UPDATE jobs
+            SET 
+                status = CASE 
+                    WHEN retry_count >= $2 THEN 'failed' 
+                    ELSE 'active' 
+                END,
+                node_id = NULL,
+                started_at = NULL,
+                retry_count = retry_count + 1
+            WHERE 
+                status = 'processing' 
+                AND (
+                    (node_id IS NULL AND started_at < NOW() - make_interval(mins => $1))
+                    OR node_id IN (SELECT id FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1))
+                )
+            "#,
+            timeout_mins,
+            max_retries
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(result.rows_affected())
     }
 
     pub async fn prune_old_jobs(&self, days: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("UPDATE jobs SET status = 'cancelled' WHERE status = 'active' AND created_at < NOW() - make_interval(days => $1)")
-            .bind(days)
-            .execute(&self.pool)
-            .await?;
+        let result = sqlx::query!(
+            "UPDATE jobs SET status = 'cancelled' WHERE status = 'active' AND created_at < NOW() - make_interval(days => $1)",
+            days
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(result.rows_affected())
     }
 }

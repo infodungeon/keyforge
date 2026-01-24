@@ -14,7 +14,7 @@
 
 use axum::{extract::State, routing::get, Json, Router};
 use keyforge_model::Config;
-use keyforge_compute::loader::AssetLoader;
+use keyforge_model::loader::AssetLoader;
 use keyforge_model::KeyboardDefinition;
 use serde::Serialize;
 use std::sync::Arc;
@@ -56,7 +56,7 @@ pub async fn root() -> &'static str {
 )]
 /// Performs a comprehensive health check of the system's core components.
 pub async fn health(State(state): State<Arc<AppState>>) -> AppResult<Json<StatusResponse>> {
-    let db_status = match sqlx::query("SELECT 1").execute(&state.jobs.repo.pool).await {
+    let db_status = match sqlx::query!("SELECT 1 as one").execute(&state.jobs.repo.pool).await {
         Ok(_) => "connected".to_string(),
         Err(e) => {
             tracing::error!("Health Check DB Fail: {}", e);

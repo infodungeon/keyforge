@@ -70,6 +70,10 @@ pub enum ForgeError {
     #[error("Configuration Error: {0}")]
     Config(String),
 
+    /// Error originating during data projection.
+    #[error("Projection Error: {0}")]
+    Projection(String),
+
     /// Error originating from the Model logic itself.
     #[error("Model Error: {0}")]
     Model(#[from] ModelError),
@@ -126,7 +130,7 @@ pub enum PhysicsError {
     Unimplemented(String),
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

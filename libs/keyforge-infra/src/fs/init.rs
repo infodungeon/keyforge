@@ -99,7 +99,7 @@ pub fn validate_system_assets(root: &Path) -> InfraResult<()> {
     Ok(())
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

@@ -232,7 +232,7 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentErr
     Ok(())
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

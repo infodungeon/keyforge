@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/reports/tables.rs
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,13 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::benchmarks::BenchmarkEntry;
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
-use keyforge_model::config::ScoringWeights;
 use keyforge_model::AnalysisReport;
 
-#[allow(dead_code)]
 pub fn scoring(results: &[(String, AnalysisReport)]) {
     let mut table = Table::new();
     table
@@ -49,59 +47,3 @@ pub fn scoring(results: &[(String, AnalysisReport)]) {
     println!("\n{table}");
 }
 
-#[allow(dead_code)]
-pub fn statistical(_results: &[(String, AnalysisReport)], _w: &ScoringWeights) {
-    println!("(Detailed statistical report temporarily unavailable during refactor)");
-}
-
-#[allow(dead_code)]
-pub fn comparisons(
-    results: &[(String, AnalysisReport)],
-    _benchmarks: Option<&Vec<BenchmarkEntry>>,
-) {
-    if !results.is_empty() {
-        // [Fixed] Safe float comparison
-        #[allow(clippy::expect_used)]
-        let best = results
-            .iter()
-            .min_by(|a, b| {
-                a.1.score.partial_cmp(&b.1.score).unwrap_or_else(|| {
-                    // Treat NaN as infinity (worst)
-                    if a.1.score.is_nan() && !b.1.score.is_nan() {
-                        std::cmp::Ordering::Greater
-                    } else if !a.1.score.is_nan() && b.1.score.is_nan() {
-                        std::cmp::Ordering::Less
-                    } else {
-                        std::cmp::Ordering::Equal
-                    }
-                })
-            })
-            .expect("Results confirmed non-empty");
-
-        let best_score = best.1.score;
-
-        let mut table = Table::new();
-        table
-            .load_preset(ASCII_FULL)
-            .set_content_arrangement(ContentArrangement::Dynamic);
-        table.add_row(vec!["Comparison vs Best", "Score", "Delta", "% Diff"]);
-
-        for (name, d) in results {
-            let score = d.score;
-            let delta = score - best_score;
-            let pct = if best_score > 0.0 {
-                (delta / best_score) * 100.0
-            } else {
-                0.0
-            };
-
-            table.add_row(vec![
-                Cell::new(name),
-                Cell::new(format!("{score:.0}")),
-                Cell::new(format!("{delta:.0}")),
-                Cell::new(format!("{pct:.1}%")),
-            ]);
-        }
-        println!("\n{table}");
-    }
-}

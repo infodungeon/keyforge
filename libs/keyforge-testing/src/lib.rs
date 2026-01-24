@@ -19,6 +19,8 @@
 //! directory structure populated with "Golden Data" for testing the
 //! full asset loading pipeline.
 
+pub use keyforge_testing_macros::kf_test;
+
 use keyforge_infra::{initialize_workspace, FsProvider, InitMode};
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -358,7 +360,7 @@ impl Default for HermeticWorkspace {
 // Re-export for convenience
 pub use keyforge_model::constants;
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

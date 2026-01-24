@@ -18,12 +18,12 @@ use crate::asset::AssetServerProvider;
 use crate::error::{InfraError, InfraResult};
 use crate::net::sync::ServerManifest;
 use bytes::Bytes;
-use keyforge_compute::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::ASSET_KEYCODES;
 use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Asset, Corpus, ForgeError};
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::any::{Any, TypeId};
@@ -389,7 +389,7 @@ impl AssetLoader for CachingProvider {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use std::fs::{self, File};

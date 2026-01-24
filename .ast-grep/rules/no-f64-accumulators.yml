@@ -1,0 +1,11 @@
+id: no-f64-accumulators
+message: "ARCH-003: Scoring accumulation must use integer arithmetic (Score newtype) to guarantee determinism."
+severity: error
+language: rust
+rule:
+  any:
+    - pattern: "let mut $VAR: f64 = $$$"
+    - pattern: "$VAR += $VAL as f64"
+paths:
+  include:
+    - "libs/keyforge-physics/src/kernel/**/*.rs"

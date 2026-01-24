@@ -157,8 +157,7 @@ impl Keyboard {
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::types::{FingerIndex, HandIndex, RowIndex};

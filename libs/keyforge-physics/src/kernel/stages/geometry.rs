@@ -98,7 +98,7 @@ impl CompilationStage for GeometryStage<'_> {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::KeyNode;

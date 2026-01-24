@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use sqlx::{Pool, Postgres, QueryBuilder, Row};
+use sqlx::{Pool, Postgres, QueryBuilder};
 
 /// Repository for managing optimization results and population samples.
 #[derive(Clone, Debug)]
@@ -34,7 +34,7 @@ impl ResultRepository {
     /// Retrieves the top 50 layouts for a given job ID.
     #[allow(clippy::cast_possible_wrap)]
     pub async fn get_population(&self, job_id: &str) -> Result<Vec<String>, sqlx::Error> {
-        let rows = sqlx::query(
+        let rows = sqlx::query!(
             r"
             SELECT layout 
             FROM results 
@@ -42,32 +42,26 @@ impl ResultRepository {
             ORDER BY score ASC 
             LIMIT $2
             ",
+            job_id,
+            self.max_population as i64
         )
-        .bind(job_id)
-        .bind(self.max_population as i64)
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows
-            .iter()
-            .map(|r| r.try_get("layout").unwrap_or_default())
-            .collect())
+        Ok(rows.into_iter().map(|r| r.layout).collect())
     }
 
     /// Retrieves the best (lowest) score for a given job ID.
     #[allow(clippy::cast_possible_truncation)]
     pub async fn get_best_score(&self, job_id: &str) -> Result<Option<f32>, sqlx::Error> {
-        let row = sqlx::query("SELECT min(score) as min_score FROM results WHERE job_id = $1")
-            .bind(job_id)
-            .fetch_optional(&self.pool)
-            .await?;
+        let res = sqlx::query_scalar!(
+            "SELECT min(score) as min_score FROM results WHERE job_id = $1",
+            job_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
-        if let Some(r) = row {
-            let val: Option<f64> = r.try_get("min_score")?;
-            Ok(val.map(|v| v as f32))
-        } else {
-            Ok(None)
-        }
+        Ok(res.flatten().map(|v| v as f32))
     }
 
     /// Inserts a batch of results into the database.
@@ -99,43 +93,46 @@ impl ResultRepository {
 
     /// Counts the total number of results across all jobs.
     pub async fn count_total(&self) -> Result<i64, sqlx::Error> {
-        let count: i64 = sqlx::query_scalar("SELECT count(*) FROM results")
+        let count = sqlx::query_scalar!("SELECT count(*) FROM results")
             .fetch_one(&self.pool)
             .await?;
-        Ok(count)
+        Ok(count.unwrap_or(0))
     }
 
     /// Retrieves summary statistics for a given job.
-    /// Returns (`unique_nodes`, `total_samples`, `best_score`, `best_layout`).
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub async fn get_stats(
         &self,
         job_id: &str,
-    ) -> Result<(usize, usize, Option<f32>, Option<String>), sqlx::Error> {
-        let stats = sqlx::query!(
+    ) -> Result<(i64, i64, Option<f32>, Option<String>), sqlx::Error> {
+        let row = sqlx::query!(
             r#"
             SELECT 
-                count(DISTINCT node_id) as "nodes!", 
-                count(*) as "samples!", 
-                min(score) as "best_score",
-                (SELECT layout FROM results r2 WHERE r2.job_id = $1 ORDER BY score ASC LIMIT 1) as "best_layout"
+                count(DISTINCT node_id) as nodes,
+                count(*) as samples,
+                min(score) as best_score,
+                (SELECT layout FROM results WHERE job_id = $1 ORDER BY score ASC LIMIT 1) as best_layout
             FROM results 
             WHERE job_id = $1
             "#,
             job_id
-        ).fetch_one(&self.pool).await?;
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok((
-            stats.nodes as usize,
-            stats.samples as usize,
-            stats.best_score.map(|s| s as f32),
-            stats.best_layout,
+            row.nodes.unwrap_or(0),
+            row.samples.unwrap_or(0),
+            #[allow(clippy::cast_possible_truncation)]
+            row.best_score.map(|v| v as f32),
+            row.best_layout,
         ))
     }
 
     /// Prunes results older than a certain age, keeping the top N per job.
+    #[allow(clippy::cast_possible_wrap)]
     pub async fn prune_old_results(&self, days: i32, keep_top: i32) -> Result<u64, sqlx::Error> {
-        let query = r"
+        let result = sqlx::query!(
+            r"
             DELETE FROM results
             WHERE id IN (
                 SELECT id FROM (
@@ -146,13 +143,12 @@ impl ResultRepository {
                 ) ranked
                 WHERE rank > $2
             )
-        ";
-
-        let result = sqlx::query(query)
-            .bind(days)
-            .bind(keep_top)
-            .execute(&self.pool)
-            .await?;
+            ",
+            days,
+            i64::from(keep_top)
+        )
+        .execute(&self.pool)
+        .await?;
 
         Ok(result.rows_affected())
     }

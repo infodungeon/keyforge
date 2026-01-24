@@ -1,0 +1,15 @@
+id: no-raw-sql
+message: "ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned."
+severity: error
+language: rust
+rule:
+  any:
+    - pattern: "sqlx::query($$$)"
+    - pattern: "sqlx::query_as($$$)"
+    - pattern: "sqlx::query_scalar($$$)"
+paths:
+  exclude:
+    - "**/tests/**/*.rs"
+    - "**/tests.rs"
+    - "**/common/mod.rs"
+    - "ops/repros/**/*.rs"

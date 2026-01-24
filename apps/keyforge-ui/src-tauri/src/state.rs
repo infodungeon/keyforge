@@ -1,13 +1,13 @@
 // apps/keyforge-ui/src-tauri/src/state.rs
 
 #![allow(unsafe_code)]
-use keyforge_compute::loader::AssetLoader;
 use keyforge_infra::AssetManager;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::loader::AssetLoader;
 use keyforge_model::Corpus;
 
 use keyforge_model::constants::{
@@ -59,7 +59,7 @@ impl AssetLoader for AssetCache {
     async fn load<T: keyforge_model::Asset>(
         &self,
         id: &str,
-    ) -> keyforge_compute::loader::LoaderResult<Arc<T>> {
+    ) -> keyforge_model::loader::LoaderResult<Arc<T>> {
         if TypeId::of::<T>() == TypeId::of::<KeyboardDefinition>() {
             let res = self
                 .load_keyboard_internal(id)
@@ -95,7 +95,7 @@ impl AssetLoader for AssetCache {
     async fn load_corpus(
         &self,
         sources: &[CorpusSource],
-    ) -> keyforge_compute::loader::LoaderResult<Arc<Corpus>> {
+    ) -> keyforge_model::loader::LoaderResult<Arc<Corpus>> {
         self.load_corpus_internal(sources)
             .await
             .map_err(|e| keyforge_model::error::ForgeError::Internal(e.to_string()))

@@ -1,0 +1,14 @@
+id: no-any-in-ui
+message: "TYPE-001: Usage of 'any' is forbidden in API clients and components. Use generated types from src/types/generated."
+severity: error
+language: typescript
+rule:
+  any:
+    - pattern: "any"
+    - kind: type_annotation
+      has:
+        pattern: "any"
+paths:
+  include:
+    - "apps/keyforge-ui/src/**/*.ts"
+    - "apps/keyforge-ui/src/**/*.tsx"

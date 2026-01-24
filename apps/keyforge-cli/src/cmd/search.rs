@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/cmd/search.rs
 
 use crate::error::CliError;
@@ -99,16 +100,22 @@ pub async fn run(
         start_time: std::time::Instant::now(),
     };
 
-    let result: keyforge_model::OptimizationResult = keyforge_compute::Runtime::from(session)
+    let runtime = keyforge_compute::Runtime::from(session);
+    let result: keyforge_model::OptimizationResult = runtime
         .run_optimization(callback, &job.pinned_keys)
         .await
         .map_err(|e| CliError::Other(format!("Optimization Error: {e}")))?;
 
     pb.finish_with_message("Optimization complete.");
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&result)
-            .map_err(|e| CliError::Other(format!("JSON Error: {e}")))?
-    );
+
+    // Perform final analysis for reporting
+    let report = runtime
+        .analyze(&result.layout)
+        .map_err(|e| CliError::Other(format!("Analysis Error: {e}")))?;
+
+    // Use structured reports
+    crate::reports::scoring(&[("Optimized".to_string(), report)]);
+
+    // JSON output if specifically requested (handled by main or global flag)
     Ok(())
 }

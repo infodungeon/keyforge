@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::constants::{DEFAULT_MAX_ACTIVE_JOBS, DEFAULT_MAX_DAILY_JOBS};
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 /// Repository for managing users and authentication keys.
@@ -32,18 +32,14 @@ impl UserRepository {
     /// Creates a new user. Returns None if username already exists.
     pub async fn create_user(&self, username: &str) -> Result<Option<Uuid>, sqlx::Error> {
         // SECURITY FIX: ON CONFLICT DO NOTHING prevents account takeover
-        let row = sqlx::query(
-            "INSERT INTO users (username) VALUES ($1) ON CONFLICT (username) DO NOTHING RETURNING id"
+        let res = sqlx::query!(
+            "INSERT INTO users (username) VALUES ($1) ON CONFLICT (username) DO NOTHING RETURNING id",
+            username
         )
-        .bind(username)
         .fetch_optional(&self.pool)
         .await?;
 
-        if let Some(r) = row {
-            Ok(Some(r.try_get("id")?))
-        } else {
-            Ok(None) // Username taken
-        }
+        Ok(res.map(|r| r.id))
     }
 
     /// Registers a new API key for a user.
@@ -53,31 +49,35 @@ impl UserRepository {
         key_hash: &str,
         label: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("INSERT INTO api_keys (user_id, key_hash, label) VALUES ($1, $2, $3)")
-            .bind(user_id)
-            .bind(key_hash)
-            .bind(label)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query!(
+            "INSERT INTO api_keys (user_id, key_hash, label) VALUES ($1, $2, $3)",
+            user_id,
+            key_hash,
+            label
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
     /// Validates an API key hash and updates its last-used timestamp.
     pub async fn validate_key(&self, key_hash: &str) -> Result<bool, sqlx::Error> {
-        let exists = sqlx::query("SELECT 1 FROM api_keys WHERE key_hash = $1")
-            .bind(key_hash)
-            .fetch_optional(&self.pool)
-            .await?;
+        let exists = sqlx::query!(
+            "SELECT 1 as one FROM api_keys WHERE key_hash = $1",
+            key_hash
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
         if exists.is_some() {
             let pool = self.pool.clone();
             let hash = key_hash.to_string();
             // Async touch to update last_used
             tokio::spawn(async move {
-                let _ = sqlx::query(
+                let _ = sqlx::query!(
                     "UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE key_hash = $1",
+                    hash
                 )
-                .bind(hash)
                 .execute(&pool)
                 .await;
             });
@@ -89,52 +89,47 @@ impl UserRepository {
 
     /// Retrieves the User ID associated with a specific API key hash.
     pub async fn get_user_by_key_hash(&self, key_hash: &str) -> Result<Option<Uuid>, sqlx::Error> {
-        let row = sqlx::query("SELECT user_id FROM api_keys WHERE key_hash = $1")
-            .bind(key_hash)
+        let row = sqlx::query!("SELECT user_id FROM api_keys WHERE key_hash = $1", key_hash)
             .fetch_optional(&self.pool)
             .await?;
 
-        if let Some(r) = row {
-            Ok(Some(r.try_get("user_id")?))
-        } else {
-            Ok(None)
-        }
+        Ok(row.and_then(|r| r.user_id))
     }
 
     /// Checks if a user has exceeded their job submission quotas.
     pub async fn check_job_quota(&self, user_id: Uuid) -> Result<bool, sqlx::Error> {
-        let row = sqlx::query("SELECT max_active_jobs, max_daily_jobs FROM users WHERE id = $1")
-            .bind(user_id)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query!(
+            "SELECT max_active_jobs, max_daily_jobs FROM users WHERE id = $1",
+            user_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
         if let Some(r) = row {
-            let max_active: Option<i32> = r
-                .try_get("max_active_jobs")
-                .unwrap_or(Some(DEFAULT_MAX_ACTIVE_JOBS));
-            let max_daily: Option<i32> = r
-                .try_get("max_daily_jobs")
-                .unwrap_or(Some(DEFAULT_MAX_DAILY_JOBS));
+            let max_active = r.max_active_jobs.unwrap_or(DEFAULT_MAX_ACTIVE_JOBS);
+            let max_daily = r.max_daily_jobs.unwrap_or(DEFAULT_MAX_DAILY_JOBS);
 
-            let active_count: i64 = sqlx::query_scalar(
+            let active_count = sqlx::query_scalar!(
                 "SELECT count(*) FROM jobs WHERE owner_id = $1 AND status = 'active'",
+                user_id
             )
-            .bind(user_id)
             .fetch_one(&self.pool)
-            .await?;
+            .await?
+            .unwrap_or(0);
 
-            if active_count >= i64::from(max_active.unwrap_or(DEFAULT_MAX_ACTIVE_JOBS)) {
+            if active_count >= i64::from(max_active) {
                 return Ok(false);
             }
 
-            let daily_count: i64 = sqlx::query_scalar(
-                "SELECT count(*) FROM jobs WHERE owner_id = $1 AND created_at > NOW() - INTERVAL '24 hours'"
+            let daily_count = sqlx::query_scalar!(
+                "SELECT count(*) FROM jobs WHERE owner_id = $1 AND created_at > NOW() - INTERVAL '24 hours'",
+                user_id
             )
-            .bind(user_id)
             .fetch_one(&self.pool)
-            .await?;
+            .await?
+            .unwrap_or(0);
 
-            if daily_count >= i64::from(max_daily.unwrap_or(DEFAULT_MAX_DAILY_JOBS)) {
+            if daily_count >= i64::from(max_daily) {
                 return Ok(false);
             }
         }

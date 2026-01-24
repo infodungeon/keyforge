@@ -92,7 +92,7 @@ pub fn parse_layout_string(
     parse_layout_string_strict(s, size, registry)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use keyforge_model::keycodes::KeycodeDefinition;

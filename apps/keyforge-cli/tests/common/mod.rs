@@ -1,3 +1,4 @@
+#[keyforge_testing_macros::kf_test]
 #![allow(clippy::expect_used)]
 
 use std::path::PathBuf;
@@ -31,7 +32,6 @@ pub fn get_binary_path() -> PathBuf {
 }
 
 /// Helper to extract the score from CLI stderr output.
-#[allow(dead_code)]
 pub fn extract_score(output: &str) -> String {
     for line in output.lines() {
         if let Some(idx) = line.find("Score: ") {
@@ -42,7 +42,6 @@ pub fn extract_score(output: &str) -> String {
 }
 
 /// Provisions the calibration asset (corne.json) so the agent doesn't hang trying to download it.
-#[allow(dead_code)]
 pub fn setup_calibration_assets(data_root: &std::path::Path) {
     let corne_json = r#"{
         "meta": { "name": "corne", "author": "foostan", "version": "1", "notes": "", "type": "split" },

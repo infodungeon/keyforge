@@ -80,13 +80,25 @@ impl CommonConfig {
     /// Resolves the final data directory with fallback logic.
     #[must_use]
     pub fn resolve_data_dir(&self) -> PathBuf {
-        self.data_dir
-            .clone()
-            .unwrap_or_else(|| PathBuf::from(DEFAULT_FALLBACK_PATH))
+        if let Some(d) = &self.data_dir {
+            return d.clone();
+        }
+
+        if let Ok(d) = env::var(ENV_DATA_DIR) {
+            return PathBuf::from(d);
+        }
+
+        // Use standard OS data directory as fallback
+        if let Some(mut d) = dirs::data_dir() {
+            d.push("keyforge");
+            return d;
+        }
+
+        PathBuf::from(DEFAULT_FALLBACK_PATH)
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use std::fs;

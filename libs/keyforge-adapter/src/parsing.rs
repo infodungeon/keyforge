@@ -186,7 +186,7 @@ fn split_args_safe(s: &str) -> Option<(String, String)> {
     None
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

@@ -139,7 +139,7 @@ fn format_url(base: &str, path: &str) -> String {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

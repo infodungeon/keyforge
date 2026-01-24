@@ -80,9 +80,10 @@ pub fn check_version_compatibility(
     Ok(())
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
+    use crate::error::ErrorCode;
 
     #[test]
     fn test_version_compatibility() {
@@ -96,7 +97,6 @@ mod tests {
         #[derive(serde::Deserialize, Debug)]
         struct Wrapper {
             #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-            #[allow(dead_code)]
             items: Vec<String>,
         }
 

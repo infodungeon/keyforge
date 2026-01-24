@@ -179,5 +179,5 @@ fn score_layout_scalar(
     crate::kernel::compute::score_layout(ctx, layout, scratch)
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {}

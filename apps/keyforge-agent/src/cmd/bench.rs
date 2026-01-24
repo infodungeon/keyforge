@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout)]
 use anyhow::Result;
 use keyforge_compute::SessionBuilder;
 use keyforge_infra::FsProvider;

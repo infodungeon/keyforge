@@ -1,0 +1,55 @@
+name: 100x Autopilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task to offload (mutants, kani, coverage, bench)'
+        required: true
+        default: 'coverage'
+
+jobs:
+  autopilot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            target/
+          key: ${{ runner.os }}-autopilot-${{ github.event.inputs.task }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Task
+        run: |
+          case "${{ github.event.inputs.task }}" in
+            "mutants")
+              cargo install cargo-mutants
+              cargo mutants --package keyforge-physics --timeout 300
+              ;;
+            "kani")
+              cargo install --locked kani-verifier
+              cargo kani setup --yes
+              cargo kani --workspace
+              ;;
+            "coverage")
+              cargo install cargo-tarpaulin
+              cargo tarpaulin --workspace --exclude keyforge-ui --out Xml
+              ;;
+            "bench")
+              cargo bench -p keyforge-physics
+              ;;
+          esac
+
+      - name: Report Results
+        run: |
+          gh issue comment 1 --body "🚀 Autopilot task **${{ github.event.inputs.task }}** completed successfully."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

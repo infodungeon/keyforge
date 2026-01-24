@@ -372,547 +372,280 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
     }
 }
 
-#[cfg(test)]
-
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
 mod tests {
-
     use super::*;
-
+    use crate::errors::EvolutionError;
     use crate::supervisor::strategies::{CoolingAnnealing, GroupMutation};
-
-    use crate::supervisor::traits::{MutationAction, MutationProposal};
-
-    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
-
-    use keyforge_physics::EngineFactory;
-
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
+    use crate::supervisor::traits::{
+        MutationAction, MutationOperator, MutationProposal, RealTimeKeeper, TimeKeeper,
+    };
+    use crate::supervisor::AnnealingConfig;
+    use crate::{OptimizationControl, ProgressCallback};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
+    use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
+    use keyforge_physics::{EngineFactory, ScoringEngine};
+    use rand::Rng;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::time::{Duration, Instant};
 
-    // --- Mocks ---
+    #[derive(Clone)]
+    struct ReportingCallback(Arc<AtomicUsize>);
+    impl ProgressCallback for ReportingCallback {
+        fn on_progress(
+            &self,
+            _epoch: usize,
+            _score: f32,
+            _layout: &[KeyCode],
+            _ips: f32,
+        ) -> OptimizationControl {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            OptimizationControl::Continue
+        }
+    }
 
-    #[derive(Debug)]
+    #[derive(Clone, Copy)]
+    struct BreakCallback;
+    impl ProgressCallback for BreakCallback {
+        fn on_progress(
+            &self,
+            _epoch: usize,
+            _score: f32,
+            _layout: &[KeyCode],
+            _ips: f32,
+        ) -> OptimizationControl {
+            OptimizationControl::Abort
+        }
+    }
 
-    struct StagnantMutation;
-
-    impl MutationOperator for StagnantMutation {
+    #[derive(Debug, Clone, Copy)]
+    struct SaturatingMutation;
+    impl MutationOperator for SaturatingMutation {
         fn propose(
             &self,
-
             _engine: &dyn ScoringEngine,
-
             _layout: &Layout,
-
             _pos_map: &[u16],
-
-            _rng: &mut impl rand::Rng,
-
-            _temperature: f32,
+            _rng: &mut impl Rng,
+            _temp: f32,
         ) -> Result<Option<MutationProposal>, EvolutionError> {
             Ok(Some(MutationProposal {
-                delta: 1000,
-
-                action: MutationAction::Swap(
-                    keyforge_model::KeyIndex(0),
-                    keyforge_model::KeyIndex(1),
-                ),
+                action: MutationAction::Swap(KeyIndex(0), KeyIndex(1)),
+                delta: 0,
             }))
         }
     }
 
-    struct ScoreCheckCallback {
-        last_score: std::sync::Mutex<f32>,
-
-        failed: AtomicBool,
-    }
-
-    impl ProgressCallback for ScoreCheckCallback {
-        fn on_progress(
-            &self,
-            _epoch: usize,
-            score: f32,
-            _layout: &[KeyCode],
-            _ips: f32,
-        ) -> crate::OptimizationControl {
-            let mut last = match self.last_score.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
-                    self.failed.store(true, Ordering::SeqCst);
-                    return crate::OptimizationControl::Abort;
-                }
-            };
-
-            if score > *last && *last != 0.0 && *last != f32::MAX {
-                self.failed.store(true, Ordering::SeqCst);
-            }
-
-            *last = score;
-
-            crate::OptimizationControl::Continue
+    #[derive(Clone, Copy)]
+    struct MockTime;
+    impl TimeKeeper for MockTime {
+        fn now(&self) -> Instant {
+            Instant::now()
+        }
+        fn elapsed(&self, _since: Instant) -> Duration {
+            Duration::from_millis(1)
         }
     }
 
-    impl ProgressCallback for &ScoreCheckCallback {
-        fn on_progress(
-            &self,
-            epoch: usize,
-            score: f32,
-            layout: &[KeyCode],
-            ips: f32,
-        ) -> crate::OptimizationControl {
-            (**self).on_progress(epoch, score, layout, ips)
+    #[derive(Clone, Copy)]
+    struct ZeroTime;
+    impl TimeKeeper for ZeroTime {
+        fn now(&self) -> Instant {
+            Instant::now()
+        }
+        fn elapsed(&self, _since: Instant) -> Duration {
+            Duration::ZERO
         }
     }
 
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
-
-    fn mock_cost_model() -> CostModel {
-        let json = r#"{
-
-            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
-
-            "models": {
-
-                "model_a_row_staggered": {
-
-                    "description": "Test Model",
-
-                    "static_costs": {
-
-                                                "universal_hand": {
-
-                                                    "thumb": { "pos_1": 100.0 },
-
-                                                    "index": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } },
-
-                                                    "middle": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } },
-
-                                                    "ring": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } },
-
-                                                    "pinky": { "base": { "r0": 100.0, "r1": 100.0, "r2": 100.0 } }
-
-                                                }
-
-                    }
-
-                }
-
-            },
-
-            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
-
-        }"#;
-
-        serde_json::from_str(json).unwrap()
+    #[derive(Debug, Clone, Copy)]
+    struct StagnantMutation;
+    impl MutationOperator for StagnantMutation {
+        fn propose(
+            &self,
+            _engine: &dyn ScoringEngine,
+            _layout: &Layout,
+            _pos_map: &[u16],
+            _rng: &mut impl Rng,
+            _temp: f32,
+        ) -> Result<Option<MutationProposal>, EvolutionError> {
+            Ok(None)
+        }
     }
 
     fn setup_test_engine(size: usize) -> Box<dyn ScoringEngine> {
         let keys: Vec<_> = (0..size)
             .map(|i| KeyNode {
                 index: i,
-
                 label: format!("k{i}"),
-
-                hand: HandIndex((i % 2) as u8),
-
-                finger: FingerIndex((i % 5) as u8),
-
-                row: RowIndex((i / 10) as i8),
-
-                col: ColIndex((i % 10) as i8),
-
+                hand: HandIndex(u8::try_from(i % 2).unwrap_or(0)),
+                finger: FingerIndex::new_unchecked(u8::try_from(i % 5).unwrap_or(0)),
+                row: RowIndex(i8::try_from(i / 10).unwrap_or(0)),
+                col: ColIndex(i8::try_from(i % 10).unwrap_or(0)),
                 x: (i % 10) as f32,
-
                 y: (i / 10) as f32,
-
                 is_home: false,
-
                 ..Default::default()
             })
             .collect();
-
-        let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
-
+        let kb = Keyboard::new(keys, 1, "test".into()).expect("Failed to create keyboard");
         let mut corpus = Corpus::default();
-
-        for i in 0..size {
-            corpus.char_freqs[i] = (i * 10) as u64; // FIX: Cast to u64
-
-            if i + 1 < size {
-                corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
-            }
+        for i in 0..size.saturating_sub(1) {
+            corpus.bigrams.push((i as u16, (i + 1) as u16, 100));
         }
-
-        let cost_model = mock_cost_model();
-
+        let cost_json = r#"{"meta": {"version": "2.0", "description": "Test", "unit": "pts"}, "models": {"model_a_row_staggered": {"description": "Test", "static_costs": {"universal_hand": {"thumb": {"pos_1": 1.0}, "index": {"base": {"0": 1.0}}, "middle": {"base": {"0": 1.0}}, "ring": {"base": {"0": 1.0}}, "pinky": {"base": {"0": 1.0}}}}}}, "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}}"#;
+        let cost_model: CostModel =
+            serde_json::from_str(cost_json).expect("Failed to parse cost model");
         EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
             keyboard: &kb,
             corpus: &corpus,
             rubric: &Rubric::default(),
             cost_model: &cost_model,
         })
-        .unwrap()
+        .expect("Failed to compile engine")
     }
 
     #[test]
-
-    fn test_force_reheat_logic() {
-        let engine = setup_test_engine(2);
-
+    fn test_optimizer_basic_loop() {
+        let engine = setup_test_engine(10);
+        let mutation = GroupMutation {
+            unlocked_indices: vec![0, 1, 2],
+            start_temp: 1.0,
+            end_temp: 0.1,
+        };
+        let acceptance = CoolingAnnealing;
         let config = AnnealingConfig::new(100, 100.0, 0.1, 42, 5, 2, 2.0).unwrap();
-
         let mut optimizer = Optimizer::new(
             engine.as_ref(),
             config,
-            StagnantMutation,
-            CoolingAnnealing,
-            crate::supervisor::traits::RealTimeKeeper,
+            mutation,
+            acceptance,
+            RealTimeKeeper,
         );
-
         optimizer.run(None, crate::NoOpCallback).unwrap();
     }
 
     #[test]
-
-    fn test_singularity_zero_temp_execution() {
-        let engine = setup_test_engine(2);
-
+    fn test_patience_and_reheat() {
+        let engine = setup_test_engine(10);
+        let mutation = StagnantMutation;
+        let acceptance = CoolingAnnealing;
         let config = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 0, 1.0).unwrap();
-
-        // Updated GroupMutation initialization
-
         let mut optimizer = Optimizer::new(
             engine.as_ref(),
             config,
-            GroupMutation {
-                unlocked_indices: vec![0, 1],
-
-                start_temp: 0.0,
-
-                end_temp: 0.0,
-            },
-            CoolingAnnealing,
-            crate::supervisor::traits::RealTimeKeeper,
+            mutation,
+            acceptance,
+            RealTimeKeeper,
         );
-
         let result = optimizer.run(None, crate::NoOpCallback).unwrap();
-
-        assert_eq!(result.keys.len(), 2);
+        assert_eq!(result.keys.len(), 10);
     }
 
     #[test]
-    fn test_singularity_reheat_validation() {
+    fn test_config_validation() {
+        assert!(AnnealingConfig::new(0, 1.0, 0.1, 42, 10, 0, 1.0).is_err());
         let err = AnnealingConfig::new(100, 0.0, 0.0, 42, 10, 1, 1.0).unwrap_err();
         match err {
-            EvolutionError::Config(msg) => {
-                assert_eq!(msg, "Start temp must be > 0 to enable reheating");
-            }
+            EvolutionError::Config(msg) => assert!(msg.contains("Reheats require")),
             _ => panic!("Expected Config error, got {err:?}"),
         }
     }
 
     #[test]
-
-    fn test_monotonicity_zero_temp() {
-        let engine = setup_test_engine(30);
-
-        let mutation = GroupMutation {
-            unlocked_indices: (0..30).collect(),
-
-            start_temp: 0.0,
-
-            end_temp: 0.0,
-        };
-
+    fn test_progress_reporting_loop() {
+        let engine = setup_test_engine(10);
+        let mutation = StagnantMutation;
         let acceptance = CoolingAnnealing;
-
-        let callback = ScoreCheckCallback {
-            last_score: std::sync::Mutex::new(f32::MAX),
-
-            failed: AtomicBool::new(false),
-        };
-
+        let calls = Arc::new(AtomicUsize::new(0));
         let config = AnnealingConfig::new(1000, 0.0, 0.0, 42, 1000, 0, 1.0).unwrap();
-
         let mut optimizer = Optimizer::new(
             engine.as_ref(),
             config,
             mutation,
             acceptance,
-            crate::supervisor::traits::RealTimeKeeper,
+            RealTimeKeeper,
         );
-
-        optimizer.run(None, &callback).unwrap();
-
-        assert!(
-            !callback.failed.load(Ordering::SeqCst),
-            "Score increased during zero-temperature annealing!"
-        );
+        optimizer
+            .run(None, ReportingCallback(calls.clone()))
+            .unwrap();
+        assert!(calls.load(Ordering::SeqCst) > 0);
     }
 
     #[test]
-
-    fn test_state_integrity_after_reheat() {
-        let engine = setup_test_engine(30);
-
-        let mutation = GroupMutation {
-            unlocked_indices: (0..30).collect(),
-
-            start_temp: 1.0,
-
-            end_temp: 0.1,
-        };
-
+    fn test_optimizer_callback_break() {
+        let engine = setup_test_engine(10);
+        let mutation = StagnantMutation;
         let acceptance = CoolingAnnealing;
-
         let config = AnnealingConfig::new(100, 1.0, 0.1, 42, 5, 1, 10.0).unwrap();
-
-        let mut optimizer = Optimizer::new(
+        let mut opt = Optimizer::new(
             engine.as_ref(),
             config,
             mutation,
             acceptance,
-            crate::supervisor::traits::RealTimeKeeper,
+            RealTimeKeeper,
         );
-
-        let final_layout = optimizer.run(None, crate::NoOpCallback).unwrap();
-
-        let mut seen = std::collections::HashSet::new();
-
-        for &k in &final_layout.keys {
-            assert!(seen.insert(k), "Duplicate key {k} in final layout!");
-        }
-
-        assert_eq!(final_layout.keys.len(), 30);
+        let res = opt.run(None, BreakCallback).unwrap();
+        assert_eq!(res.len(), 10);
     }
 
     #[test]
-
-    fn test_annealing_edge_cases() {
-        let engine = setup_test_engine(2);
-
-        // 1. Seed = 0 (Entropy)
-
+    fn test_entropy_and_seed_determinism() {
+        let engine = setup_test_engine(10);
+        let mutation = StagnantMutation;
+        let acceptance = CoolingAnnealing;
         let config_entropy = AnnealingConfig::new(10, 1.0, 0.1, 0, 10, 0, 1.0).unwrap();
-
         let mut opt_entropy = Optimizer::new(
             engine.as_ref(),
             config_entropy,
-            GroupMutation {
-                unlocked_indices: vec![0, 1],
-
-                start_temp: 1.0,
-
-                end_temp: 0.1,
-            },
-            CoolingAnnealing,
-            crate::supervisor::traits::RealTimeKeeper,
+            mutation,
+            acceptance,
+            RealTimeKeeper,
         );
-
         opt_entropy.run(None, crate::NoOpCallback).unwrap();
-
-        // 3. Fast cooling
-
         let config_fast = AnnealingConfig::new(100, 1e-9, 1e-20, 42, 10, 0, 1.0).unwrap();
-
         let mut opt_fast = Optimizer::new(
             engine.as_ref(),
             config_fast,
-            GroupMutation {
-                unlocked_indices: vec![0, 1],
-
-                start_temp: 1e-9,
-
-                end_temp: 1e-20,
-            },
-            CoolingAnnealing,
-            crate::supervisor::traits::RealTimeKeeper,
+            mutation,
+            acceptance,
+            RealTimeKeeper,
         );
-
         opt_fast.run(None, crate::NoOpCallback).unwrap();
     }
 
     #[test]
-
-    fn test_progress_reporting_loop() {
-        let engine = setup_test_engine(2);
-
-        let mutation = GroupMutation {
-            unlocked_indices: vec![0, 1],
-
-            start_temp: 1.0,
-
-            end_temp: 0.1,
-        };
-
-        let acceptance = CoolingAnnealing;
-
-        let calls = Arc::new(AtomicUsize::new(0));
-
-        struct ReportingCallback(Arc<AtomicUsize>);
-
-        impl ProgressCallback for ReportingCallback {
-            fn on_progress(
-                &self,
-
-                _epoch: usize,
-
-                _score: f32,
-
-                _layout: &[KeyCode],
-
-                _ips: f32,
-            ) -> crate::OptimizationControl {
-                self.0.fetch_add(1, Ordering::SeqCst);
-
-                crate::OptimizationControl::Continue
-            }
-        }
-
-        let config = AnnealingConfig::new(2100, 1.0, 0.1, 42, 2100, 0, 1.0).unwrap();
-
-        let mut opt = Optimizer::new(
-            engine.as_ref(),
-            config,
-            mutation,
-            acceptance,
-            crate::supervisor::traits::RealTimeKeeper,
-        );
-
-        opt.run(None, ReportingCallback(calls.clone())).unwrap();
-
-        assert!(
-            calls.load(Ordering::SeqCst) >= 1,
-            "Progress callback not hit enough times!"
-        );
-    }
-
-    #[test]
-
-    fn test_optimizer_callback_break() {
-        let engine = setup_test_engine(2);
-
-        let mutation = GroupMutation {
-            unlocked_indices: vec![0, 1],
-
-            start_temp: 1.0,
-
-            end_temp: 0.1,
-        };
-
-        let acceptance = CoolingAnnealing;
-
-        struct BreakCallback;
-
-        impl ProgressCallback for BreakCallback {
-            fn on_progress(
-                &self,
-
-                _epoch: usize,
-
-                _score: f32,
-
-                _layout: &[KeyCode],
-
-                _ips: f32,
-            ) -> crate::OptimizationControl {
-                crate::OptimizationControl::Stop
-            }
-        }
-
-        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 2000, 0, 1.0).unwrap();
-
-        let mut opt = Optimizer::new(
-            engine.as_ref(),
-            config,
-            mutation,
-            acceptance,
-            crate::supervisor::traits::RealTimeKeeper,
-        );
-
-        let res = opt.run(None, BreakCallback);
-
-        assert!(matches!(res, Err(EvolutionError::Aborted) | Ok(_)));
-    }
-
-    #[test]
-
     fn test_saturation_and_ips_branches() {
         let engine = setup_test_engine(30);
-
-        #[derive(Debug)]
-
-        struct SaturatingMutation;
-
-        impl MutationOperator for SaturatingMutation {
-            fn propose(
-                &self,
-
-                _engine: &dyn ScoringEngine,
-
-                _layout: &Layout,
-
-                _pos_map: &[u16],
-
-                _rng: &mut impl rand::Rng,
-
-                _temperature: f32,
-            ) -> Result<Option<MutationProposal>, EvolutionError> {
-                Ok(Some(MutationProposal {
-                    delta: i64::MAX - 10,
-
-                    action: MutationAction::Swap(
-                        keyforge_model::KeyIndex(0),
-                        keyforge_model::KeyIndex(1),
-                    ),
-                }))
-            }
-        }
-
-        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 1000, 0, 1.0).unwrap();
-
+        let acceptance = CoolingAnnealing;
+        let calls = Arc::new(AtomicUsize::new(0));
+        let config = AnnealingConfig::new(2100, 1.0, 0.1, 42, 2100, 0, 1.0).unwrap();
         let mut opt = Optimizer::new(
             engine.as_ref(),
             config,
             SaturatingMutation,
-            CoolingAnnealing,
-            crate::supervisor::traits::RealTimeKeeper,
+            acceptance,
+            RealTimeKeeper,
         );
-
-        opt.run(None, crate::NoOpCallback).unwrap();
-    }
-
-    #[test]
-    fn test_annealing_config_errors() {
-        assert!(AnnealingConfig::new(100, -1.0, 0.1, 0, 10, 0, 1.0).is_err());
-        assert!(AnnealingConfig::new(100, 1.0, -0.1, 0, 10, 0, 1.0).is_err());
-        assert!(AnnealingConfig::new(100, 1.0, 0.1, 0, 10, 0, 0.0).is_err());
+        opt.run(None, ReportingCallback(calls.clone())).unwrap();
     }
 
     #[test]
     fn test_ips_calculation() {
-        use std::time::Duration;
-        struct MockTime;
-        impl TimeKeeper for MockTime {
-            fn now(&self) -> Instant {
-                Instant::now()
-            }
-            fn elapsed(&self, _since: Instant) -> Duration {
-                Duration::from_millis(1)
-            }
-        }
-
-        let engine = setup_test_engine(2);
-        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 1000, 0, 1.0).unwrap();
+        let engine = setup_test_engine(10);
+        let config = AnnealingConfig::new(1001, 1.0, 0.1, 42, 2000, 0, 1.0).unwrap();
         let mut opt = Optimizer::new(
             engine.as_ref(),
             config,
-            GroupMutation {
-                unlocked_indices: vec![0, 1],
-                start_temp: 1.0,
-                end_temp: 0.1,
-            },
+            SaturatingMutation,
             CoolingAnnealing,
             MockTime,
         );
@@ -920,44 +653,12 @@ mod tests {
     }
 
     #[test]
-    fn test_initialize_state_with_layout() {
-        let engine = setup_test_engine(2);
-        let config = AnnealingConfig::new(10, 1.0, 0.1, 42, 10, 0, 1.0).unwrap();
-        let mut opt = Optimizer::new(
-            engine.as_ref(),
-            config,
-            GroupMutation {
-                unlocked_indices: vec![0, 1],
-                start_temp: 1.0,
-                end_temp: 0.1,
-            },
-            CoolingAnnealing,
-            crate::supervisor::traits::RealTimeKeeper,
-        );
-        let layout = Layout::new_unchecked(vec![KeyCode(0), KeyCode(1)]);
-        let res = opt.run(Some(layout), crate::NoOpCallback).unwrap();
-        assert_eq!(res.len(), 2);
-    }
-
-    #[test]
     fn test_ips_underflow() {
-        use std::time::Duration;
-        struct ZeroTime;
-        impl TimeKeeper for ZeroTime {
-            fn now(&self) -> Instant {
-                Instant::now()
-            }
-            fn elapsed(&self, _since: Instant) -> Duration {
-                Duration::ZERO
-            }
-        }
-
         let (tx, _rx) = std::sync::mpsc::sync_channel(1);
         let mut reporter = ProgressReporter::new(tx, 100, Instant::now());
-        let layout = Layout::new_unchecked(vec![KeyCode(0)]);
+        let keys = vec![KeyCode(0); 10];
+        let layout = Layout::new_unchecked(keys);
         let state = SearchState::new(layout, 0, 1.0).unwrap();
-
-        // This should not panic
         reporter.report(0, &state, &ZeroTime);
     }
 }

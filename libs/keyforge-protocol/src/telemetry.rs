@@ -37,7 +37,7 @@ pub struct SystemMetrics {
     pub server_cpu_usage: f32,
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

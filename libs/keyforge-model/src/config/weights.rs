@@ -610,8 +610,7 @@ fn vec_to_array_5(v: &[f32]) -> Result<[f32; 5], String> {
     Ok(arr)
 }
 
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::float_cmp, clippy::cast_precision_loss)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 
@@ -756,7 +755,7 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod fuzz {
     use super::*;
     use proptest::prelude::*;

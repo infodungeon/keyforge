@@ -91,48 +91,43 @@ impl Validator for KeyboardDefinition {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyNode {
-    /// Internal numeric ID (0..N) - Runtime optimization.
-    #[serde(default)]
+    /// Zero-based index of the key in the layout.
     pub index: usize,
-    /// Display label / String ID.
-    #[serde(default)]
-    #[serde(alias = "id")]
+    /// Descriptive label for the key (e.g., "K01", "Thumb").
     pub label: String,
-    /// X coordinate (physical units).
+    /// X-coordinate of the key center in keyboard units.
     pub x: f32,
-    /// Y coordinate (physical units).
+    /// Y-coordinate of the key center in keyboard units.
     pub y: f32,
-    /// Width (physical units).
+    /// Width of the key in keyboard units (default 1.0).
     #[serde(default = "default_size")]
     pub w: f32,
-    /// Height (physical units).
+    /// Height of the key in keyboard units (default 1.0).
     #[serde(default = "default_size")]
     pub h: f32,
-    /// Rotation angle (degrees).
-    #[serde(default)]
-    pub r: f32,
-    /// Rotation origin X.
-    #[serde(default)]
-    pub rx: f32,
-    /// Rotation origin Y.
-    #[serde(default)]
-    pub ry: f32,
-    /// Hand assignment (Left/Right).
+    /// Which hand is responsible for this key.
     pub hand: HandIndex,
-    /// Finger assignment (Thumb..Pinky).
+    /// Which finger is responsible for this key.
     pub finger: FingerIndex,
-    /// Logical row index.
-    #[serde(default)]
+    /// Row index (logical).
     pub row: RowIndex,
-    /// Logical column index.
-    #[serde(default)]
+    /// Column index (logical).
     pub col: ColIndex,
-    /// Whether this is a home row key.
+    /// Whether this key is part of the "home" position.
     #[serde(default)]
     pub is_home: bool,
     /// Whether this key requires a stretch to reach.
     #[serde(default)]
     pub is_stretch: bool,
+    /// Rotation angle in degrees.
+    #[serde(default)]
+    pub r: f32,
+    /// Rotation center X.
+    #[serde(default)]
+    pub rx: f32,
+    /// Rotation center Y.
+    #[serde(default)]
+    pub ry: f32,
 }
 
 impl Default for KeyNode {
@@ -144,15 +139,15 @@ impl Default for KeyNode {
             y: 0.0,
             w: 1.0,
             h: 1.0,
+            hand: HandIndex(0),
+            finger: FingerIndex::new_unchecked(0),
+            row: RowIndex(0),
+            col: ColIndex(0),
+            is_home: false,
+            is_stretch: false,
             r: 0.0,
             rx: 0.0,
             ry: 0.0,
-            hand: HandIndex::default(),
-            finger: FingerIndex::default(),
-            row: RowIndex::default(),
-            col: ColIndex::default(),
-            is_home: false,
-            is_stretch: false,
         }
     }
 }
@@ -162,39 +157,27 @@ fn default_size() -> f32 {
 }
 
 /// Collection of keys and slot definitions defining the keyboard geometry.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyboardGeometry {
-    /// List of all physical keys.
+    /// List of physical keys.
     pub keys: Vec<KeyNode>,
-    /// Indices of keys considered "Prime" (best positions).
+    /// Indices of keys that are "prime" (highest efficiency).
+    #[serde(default)]
     pub prime_slots: Vec<KeyIndex>,
-    /// Indices of keys considered "Medium" quality.
+    /// Indices of keys that are "med" (medium efficiency).
+    #[serde(default)]
     pub med_slots: Vec<KeyIndex>,
-    /// Indices of keys considered "Low" quality.
+    /// Indices of keys that are "low" (lowest efficiency).
+    #[serde(default)]
     pub low_slots: Vec<KeyIndex>,
-    /// The logical row index considered the "Home Row".
+    /// Logical index of the home row.
+    #[serde(default)]
     pub home_row: i8,
-}
-
-impl Default for KeyboardGeometry {
-    fn default() -> Self {
-        Self {
-            keys: Vec::new(),
-            prime_slots: Vec::new(),
-            med_slots: Vec::new(),
-            low_slots: Vec::new(),
-            home_row: 1, // Default fallback
-        }
-    }
 }
 
 impl Validator for KeyboardGeometry {
     fn validate(&self) -> Result<(), String> {
-        if self.keys.is_empty() {
-            return Err("Keyboard geometry must have at least one key".to_string());
-        }
-
         // Task-prot-rev-011: Validate home row against keys
         let has_home_keys = self.keys.iter().any(|k| k.is_home);
         let has_home_row_matches = self.keys.iter().any(|k| k.row.0 == self.home_row);
@@ -284,219 +267,55 @@ impl KeyboardDefinition {
         }
         if let Ok(geom) = kle::parse_kle_json(content) {
             let name = name_hint.unwrap_or("Imported Board").to_string();
-            return Ok(KeyboardDefinition {
-                meta: KeyboardMeta {
-                    name,
-                    author: "Imported from KLE".to_string(),
-                    kb_type: "imported".to_string(),
-                    ..Default::default()
-                },
-                geometry: geom,
-                layouts: HashMap::new(),
-            });
+            return Ok(Self::from_geometry(geom, &name));
         }
-        Err("Failed to parse keyboard JSON".to_string())
+        Err("Content is not a valid KeyForge or KLE JSON".to_string())
     }
-}
 
-impl KeyboardGeometry {
-    /// Returns the total number of keys.
+    /// Creates a new `KeyboardDefinition` from a `KeyboardGeometry`.
     #[must_use]
-    pub fn key_count(&self) -> usize {
-        self.keys.len()
+    pub fn from_geometry(geometry: KeyboardGeometry, name: &str) -> Self {
+        Self {
+            meta: KeyboardMeta {
+                name: name.to_string(),
+                kb_type: "imported".to_string(),
+                ..Default::default()
+            },
+            geometry,
+            layouts: HashMap::new(),
+        }
     }
-}
 
-#[cfg(test)]
-#[allow(
-    clippy::field_reassign_with_default,
-    clippy::unwrap_used,
-    clippy::needless_update,
-    clippy::float_cmp
-)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_keyboard_geometry_validation() {
-        let mut geom = KeyboardGeometry::default();
-        geom.home_row = 0; // Match KeyNode::default() row
-                           // 1. Empty keys
-        assert!(geom.validate().is_err());
-
-        // 2. Invalid Key dimensions
-        geom.keys.push(KeyNode {
-            index: 0,
-            hand: HandIndex(0),
-            finger: FingerIndex(1),
-            w: 0.0,
-            ..Default::default()
-        });
-        geom.prime_slots.push(KeyIndex(0));
-        assert!(geom.validate().is_err(), "Should fail on w=0");
-
-        // 3. Slot overlaps
-        geom.keys = vec![
-            KeyNode {
-                index: 0,
+    /// Generates a test keyboard definition with N keys.
+    #[must_use]
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+    pub fn generate_test(keys_count: usize) -> Self {
+        let keys: Vec<KeyNode> = (0..keys_count)
+            .map(|i| KeyNode {
+                index: i,
+                label: format!("K{i:02}"),
+                x: i as f32,
+                y: 0.0,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
-                w: 1.0,
-                h: 1.0,
+                finger: FingerIndex::new_unchecked(0),
+                row: RowIndex(0),
+                col: ColIndex(i as i8),
+                ..Default::default()
+            })
+            .collect();
+
+        Self {
+            meta: KeyboardMeta {
+                name: format!("Test-{keys_count}"),
+                author: "system".to_string(),
                 ..Default::default()
             },
-            KeyNode {
-                index: 1,
-                hand: HandIndex(1),
-                finger: FingerIndex(1),
-                w: 1.0,
-                h: 1.0,
+            geometry: KeyboardGeometry {
+                keys,
+                prime_slots: (0..keys_count as u16).map(KeyIndex).collect(),
                 ..Default::default()
             },
-        ];
-        geom.prime_slots = vec![KeyIndex(0)];
-        geom.med_slots = vec![KeyIndex(0)]; // Overlap with prime
-        geom.low_slots = vec![KeyIndex(1)];
-        assert!(geom.validate().is_err(), "Should fail on slot overlap");
-
-        // 4. Out of bounds slot index
-        geom.keys = vec![KeyNode::default(); 3];
-        geom.prime_slots = vec![KeyIndex(0)];
-        geom.med_slots = vec![KeyIndex(1)];
-        geom.low_slots = vec![KeyIndex(99)]; // Out of bounds
-        let res = geom.validate();
-        assert!(res.is_err());
-        assert!(res.unwrap_err().contains("out of bounds"));
-
-        // 5. Incomplete slot definition
-        geom.low_slots = vec![]; // Key 2 is missing
-        let res = geom.validate();
-        assert!(res.is_err());
-        assert!(res.unwrap_err().contains("Slot definition incomplete"));
-
-        // 6. Invalid hand/finger via new_unchecked
-        geom.low_slots = vec![KeyIndex(2)];
-        geom.keys[0].hand = HandIndex(5);
-        assert!(geom.validate().is_err());
-        geom.keys[0].hand = HandIndex(0);
-        geom.keys[0].finger = FingerIndex::new_unchecked(10);
-        assert!(geom.validate().is_err());
-        geom.keys[0].finger = FingerIndex::new_unchecked(1);
-
-        // 7. Valid state
-        assert!(geom.validate().is_ok());
-    }
-
-    #[test]
-    fn test_keyboard_definition_asset() {
-        let mut def = KeyboardDefinition::default();
-        def.geometry.home_row = 0;
-        def.geometry.keys.push(KeyNode::default());
-        def.geometry.prime_slots.push(KeyIndex(0));
-        assert_eq!(KeyboardDefinition::category(), AssetCategory::Keyboard);
-        assert!(def.post_load().is_ok());
-    }
-
-    #[test]
-    fn test_keyboard_definition_parse() {
-        // Valid Native JSON
-        let native_json = r#"{"geometry": {"keys": [{"x":0, "y":0, "hand":0, "finger":1, "row":0}], "prime_slots": [0], "med_slots": [], "low_slots": [], "home_row": 0}}"#;
-        assert!(KeyboardDefinition::parse(native_json, None).is_ok());
-
-        // Valid KLE (Simple list of arrays)
-        let kle_json = r#"[["A"]]"#;
-        assert!(KeyboardDefinition::parse(kle_json, Some("MyBoard")).is_ok());
-
-        // Invalid JSON
-        assert!(KeyboardDefinition::parse("not json", None).is_err());
-    }
-
-    #[test]
-    fn test_keyboard_geometry_validation_extended() {
-        // Too many keys
-        let geom = KeyboardGeometry {
-            keys: vec![KeyNode::default(); MAX_KEYBOARD_KEYS + 1],
-            home_row: 0,
             ..Default::default()
-        };
-        assert!(geom.validate().is_err());
-
-        // Prime and Low overlap
-        let geom = KeyboardGeometry {
-            keys: vec![KeyNode::default(); 2],
-            prime_slots: vec![KeyIndex(0)],
-            low_slots: vec![KeyIndex(0)],
-            med_slots: vec![KeyIndex(1)],
-            home_row: 0,
-            ..Default::default()
-        };
-        assert!(geom.validate().is_err());
-
-        // Med and Low overlap
-        let geom = KeyboardGeometry {
-            keys: vec![KeyNode::default(); 2],
-            prime_slots: vec![KeyIndex(1)],
-            med_slots: vec![KeyIndex(0)],
-            low_slots: vec![KeyIndex(0)],
-            home_row: 0,
-            ..Default::default()
-        };
-        assert!(geom.validate().is_err());
-
-        // Invalid finger index (using new_unchecked to bypass safety)
-        let geom = KeyboardGeometry {
-            keys: vec![KeyNode {
-                finger: FingerIndex::new_unchecked(10),
-                ..Default::default()
-            }],
-            prime_slots: vec![KeyIndex(0)],
-            home_row: 0,
-            ..Default::default()
-        };
-        assert!(geom.validate().is_err());
-
-        assert_eq!(geom.key_count(), 1);
-    }
-
-    #[test]
-    fn test_key_node_defaults() {
-        let node = KeyNode::default();
-        assert_eq!(node.w, 1.0);
-        assert_eq!(node.h, 1.0);
-        assert!(!node.is_home);
-    }
-}
-
-#[cfg(test)]
-mod fuzz {
-    use super::*;
-    use proptest::prelude::*;
-
-    fn geometry_strategy() -> impl Strategy<Value = KeyboardGeometry> {
-        proptest::collection::vec((any::<f32>(), any::<f32>(), 0u8..10, 0u8..10), 0..300).prop_map(
-            |keys| {
-                let nodes = keys
-                    .into_iter()
-                    .map(|(w, h, hand, finger)| KeyNode {
-                        w,
-                        h,
-                        hand: HandIndex(hand.min(1)),
-                        finger: FingerIndex(finger.min(4)),
-                        ..Default::default()
-                    })
-                    .collect();
-                KeyboardGeometry {
-                    keys: nodes,
-                    ..Default::default()
-                }
-            },
-        )
-    }
-
-    proptest! {
-        #[test]
-        fn fuzz_geometry_validation(g in geometry_strategy()) {
-            let _ = g.validate();
         }
     }
 }

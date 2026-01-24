@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_compute::loader::LoaderResult;
 use keyforge_model::constants::{
     CORPUS_TOKEN_MAP, STD_CORPUS_BACKSPACE_FACTOR, STD_CORPUS_ERROR_RATE, STD_CORPUS_SENTENCE_RATIO,
 };
 use keyforge_model::error::ForgeError;
+use keyforge_model::loader::LoaderResult;
 use keyforge_model::Corpus;
 use serde_json::Value;
 
@@ -318,7 +318,7 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
         .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use serde_json::json;

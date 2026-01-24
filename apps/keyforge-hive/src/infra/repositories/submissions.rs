@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::features::list_submissions::SubmissionEntry;
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Pool, Postgres};
 
 /// Repository for managing user-submitted keyboard layouts.
 #[derive(Clone, Debug)]
@@ -30,44 +30,40 @@ impl SubmissionRepository {
 
     /// Saves a newly submitted layout to the database.
     pub async fn save(&self, name: &str, layout: &str, author: &str) -> Result<i64, sqlx::Error> {
-        let rec = sqlx::query(
+        let rec = sqlx::query!(
             "INSERT INTO submissions (name, layout_str, author) VALUES ($1, $2, $3) RETURNING id",
+            name,
+            layout,
+            author
         )
-        .bind(name)
-        .bind(layout)
-        .bind(author)
         .fetch_one(&self.pool)
         .await?;
 
-        let id: i32 = rec.try_get("id")?;
-        Ok(i64::from(id))
+        Ok(rec.id)
     }
 
     /// Retrieves a list of recent submissions, up to the specified limit.
     pub async fn get_recent(&self, limit: i64) -> Result<Vec<SubmissionEntry>, sqlx::Error> {
-        let rows = sqlx::query(
+        let rows = sqlx::query!(
             r"
             SELECT id, name, layout_str, author, submitted_at 
             FROM submissions 
             ORDER BY submitted_at DESC 
             LIMIT $1
             ",
+            limit
         )
-        .bind(limit)
         .fetch_all(&self.pool)
         .await?;
 
         Ok(rows
             .into_iter()
             .map(|r| SubmissionEntry {
-                id: i64::from(r.try_get::<i32, _>("id").unwrap_or(0)),
-                name: r.try_get("name").unwrap_or_default(),
-                layout: r.try_get("layout_str").unwrap_or_default(),
-                author: r.try_get("author").unwrap_or_default(),
-                date: r
-                    .try_get::<chrono::DateTime<chrono::Utc>, _>("submitted_at")
-                    .map(|d| d.to_rfc3339())
-                    .unwrap_or_default(),
+                id: r.id,
+                name: r.name,
+                layout: r.layout_str,
+                author: r.author.unwrap_or_default(),
+                date: r.submitted_at.map(|d| d.to_rfc3339()).unwrap_or_default(),
             })
             .collect())
     }

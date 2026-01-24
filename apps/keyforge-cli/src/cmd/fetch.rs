@@ -1,3 +1,4 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/cmd/fetch.rs
 
 use crate::constants::DEFAULT_HIVE_URL;

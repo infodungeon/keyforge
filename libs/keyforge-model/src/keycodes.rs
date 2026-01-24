@@ -273,7 +273,7 @@ fn qmk_to_ascii(qmk: u16) -> Option<u16> {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 

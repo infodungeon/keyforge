@@ -111,7 +111,7 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use std::fs;
     use tempfile::tempdir;
