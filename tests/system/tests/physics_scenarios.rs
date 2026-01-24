@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 #[keyforge_testing_macros::kf_test]
 // tests/system/tests/physics_scenarios.rs
 use keyforge_adapter::conversion;

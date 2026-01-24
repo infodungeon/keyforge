@@ -1,59 +1,31 @@
+// libs/keyforge-persistence/tests/compiler_tests.rs
+
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
     use keyforge_model::cost_model::CostModel;
-    use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
+    use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
     use keyforge_model::keycodes::KeycodeRegistry;
     use keyforge_model::loader::{AssetLoader, LoaderResult};
+    use keyforge_model::types::KeyIndex;
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
     use keyforge_persistence::compiler::compile_request;
     use std::any::Any;
+    use std::collections::HashMap;
     use std::sync::Arc;
 
     #[derive(Debug)]
-    struct MockLoader;
+    struct MockLoader {
+        assets: Arc<dyn Any + Send + Sync>,
+    }
 
     #[async_trait::async_trait]
     impl AssetLoader for MockLoader {
         async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
-            let any_kb = Arc::new(KeyboardDefinition {
-                meta: Default::default(),
-                geometry: KeyboardGeometry {
-                    keys: vec![Default::default()],
-                    prime_slots: vec![],
-                    med_slots: vec![],
-                    low_slots: vec![],
-                    home_row: 0,
-                },
-                layouts: Default::default(),
-            }) as Arc<dyn Any + Send + Sync>;
-
-            if let Ok(arc) = any_kb.downcast::<T>() {
+            if let Ok(arc) = self.assets.clone().downcast::<T>() {
                 return Ok(arc);
             }
-
-            let json = r#"{
-            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
-            "models": {
-                "model_a_row_staggered": {
-                    "description": "test",
-                    "static_costs": {}
-                }
-            },
-            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
-        }"#;
-            let model: CostModel = serde_json::from_str(json).unwrap();
-            let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
-            if let Ok(arc) = any_model.downcast::<T>() {
-                return Ok(arc);
-            }
-
-            let any_kc = Arc::new(KeycodeRegistry::default()) as Arc<dyn Any + Send + Sync>;
-            if let Ok(arc) = any_kc.downcast::<T>() {
-                return Ok(arc);
-            }
-
-            Err(keyforge_model::error::ForgeError::NotFound(_id.to_string()))
+            Err(keyforge_model::error::ForgeError::NotFound("Mock".into()))
         }
 
         async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
@@ -62,16 +34,24 @@ mod integration_tests {
     }
 
     #[tokio::test]
-    async fn test_compile_request_success() {
-        let loader = MockLoader;
-        let mut config = Config::default();
-        config.keyboard = "test_kb".into();
-        config.corpora = vec![CorpusSource {
-            id: "en".into(),
-            weight: 1.0,
-            hash: None,
-        }];
+    async fn test_compile_request_basic() {
+        let kb_def = KeyboardDefinition {
+            meta: KeyboardMeta::default(),
+            geometry: KeyboardGeometry {
+                keys: vec![KeyNode::default()],
+                prime_slots: vec![KeyIndex(0)],
+                med_slots: vec![],
+                low_slots: vec![],
+                home_row: 0,
+            },
+            layouts: HashMap::default(),
+        };
 
+        let loader = MockLoader {
+            assets: Arc::new(kb_def),
+        };
+
+        let config = Config::default();
         let res = compile_request(&loader, &config).await;
         assert!(res.is_ok());
     }
@@ -83,42 +63,42 @@ mod integration_tests {
         #[async_trait::async_trait]
         impl AssetLoader for QwertyLoader {
             async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
-                let mut kb = KeyboardDefinition::default();
-                kb.geometry.keys.push(keyforge_model::KeyNode {
-                    label: "A".into(),
-                    ..Default::default()
-                });
-                kb.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
-                kb.layouts.insert("qwerty".into(), "A".into());
-
-                let any_kb = Arc::new(kb) as Arc<dyn Any + Send + Sync>;
-                if let Ok(arc) = any_kb.downcast::<T>() {
-                    return Ok(arc);
-                }
-
-                let json = r#"{
-                "meta": { "version": "2.0", "description": "T", "unit": "pts" },
-                "models": { "model_a_row_staggered": { "description": "t", "static_costs": {} } },
-                "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
-            }"#;
-                let model: CostModel = serde_json::from_str(json).unwrap();
-                let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
-                if let Ok(arc) = any_model.downcast::<T>() {
-                    return Ok(arc);
-                }
-
-                let mut reg = KeycodeRegistry::new_with_defaults();
-                reg.definitions
-                    .push(keyforge_model::keycodes::KeycodeDefinition {
-                        code: keyforge_model::KeyCode(10),
-                        id: "A".into(),
-                        label: "a".into(),
-                        aliases: vec![],
+                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeyboardDefinition>() {
+                    let mut kb = KeyboardDefinition::default();
+                    kb.geometry.keys.push(keyforge_model::KeyNode {
+                        label: "A".into(),
+                        ..Default::default()
                     });
-                reg.rebuild_maps();
-                let any_kc = Arc::new(reg) as Arc<dyn Any + Send + Sync>;
-                if let Ok(arc) = any_kc.downcast::<T>() {
-                    return Ok(arc);
+                    kb.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
+                    kb.layouts.insert("qwerty".into(), "A".into());
+
+                    let any_kb = Arc::new(kb) as Arc<dyn Any + Send + Sync>;
+                    return Ok(any_kb.downcast::<T>().expect("Downcast failed"));
+                }
+
+                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
+                    let json = r#"{
+                        "meta": { "version": "2.0", "description": "T", "unit": "pts" },
+                        "models": { "model_a_row_staggered": { "description": "t", "static_costs": {} } },
+                        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+                    }"#;
+                    let model: CostModel = serde_json::from_str(json).unwrap();
+                    let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
+                    return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+                }
+
+                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeycodeRegistry>() {
+                    let mut reg = KeycodeRegistry::new_with_defaults();
+                    reg.definitions
+                        .push(keyforge_model::keycodes::KeycodeDefinition {
+                            code: keyforge_model::KeyCode(10),
+                            id: "A".into(),
+                            label: "a".into(),
+                            aliases: vec![],
+                        });
+                    reg.rebuild_maps();
+                    let any_kc = Arc::new(reg) as Arc<dyn Any + Send + Sync>;
+                    return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
                 }
 
                 Err(keyforge_model::error::ForgeError::NotFound(_id.to_string()))

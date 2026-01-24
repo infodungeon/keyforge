@@ -23,7 +23,7 @@ fn bench_scoring(c: &mut Criterion) {
     let layout = Layout::new_unchecked(vec![KeyCode(0); engine.key_count()]);
 
     c.bench_function("scalar_score", |b| {
-        b.iter(|| engine.score(black_box(&layout)))
+        b.iter(|| engine.score(black_box(&layout)));
     });
 }
 
