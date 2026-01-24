@@ -110,7 +110,9 @@ impl AnnealingConfig {
         reheat_factor: f32,
     ) -> Result<Self, EvolutionError> {
         if steps == 0 {
-            return Err(EvolutionError::Config("Steps must be greater than 0".into()));
+            return Err(EvolutionError::Config(
+                "Steps must be greater than 0".into(),
+            ));
         }
         if reheats > 0 && start_temp <= f32::EPSILON {
             return Err(EvolutionError::Config(
