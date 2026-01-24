@@ -17,8 +17,6 @@ use keyforge_infra::error::{InfraError, InfraResult};
 use keyforge_infra::fs::io::atomic_write;
 use keyforge_infra::util::common::sanitize_filename;
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::mapping::Projection;
-use keyforge_model::error::ForgeError;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

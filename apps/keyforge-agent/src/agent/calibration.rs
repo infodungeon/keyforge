@@ -206,7 +206,7 @@ mod tests {
             duration_ms: 100,
             batch_size: 10,
         };
-        let ops = measure_performance(&config).unwrap();
+        let ops = measure_performance(&config).expect("Performance measurement failed");
         assert!(ops > 0.0, "Calibration should report positive throughput");
     }
 }

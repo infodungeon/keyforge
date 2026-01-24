@@ -17,12 +17,31 @@ use crate::constants;
 use crate::PROTOCOL_VERSION;
 use keyforge_model::{
     CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, LayoutValidator,
-    ScoringWeights, SearchParams, Validator,
+    Projection, ScoringWeights, SearchParams, Validator,
 };
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 use utoipa::ToSchema;
+
+impl Projection<JobConfig> for keyforge_model::config::Config {
+    fn project(source: JobConfig) -> Result<Self, keyforge_model::error::ForgeError> {
+        Ok(Self {
+            meta: keyforge_model::ProjectMeta {
+                name: source.definition.meta.name.clone(),
+                ..Default::default()
+            },
+            keyboard: source.definition.meta.name,
+            corpora: source.corpora,
+            cost_matrix: source.cost_matrix,
+            seed: None,
+            search: source.params,
+            weights: source.weights,
+            defs: Default::default(),
+            pinned_keys: source.pinned_keys,
+        })
+    }
+}
 
 fn default_version() -> u32 {
     PROTOCOL_VERSION

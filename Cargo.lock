@@ -4462,6 +4462,7 @@ dependencies = [
  "keyforge-model",
  "keyforge-testing",
  "keyforge-testing-macros",
+ "proptest",
  "serde",
  "serde_json",
  "strum",
