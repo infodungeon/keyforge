@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4a76531f8e9d3a8508f39b7b05592bf2bbabe40aa7a8f6180a6dc8b6569d75df"
+}

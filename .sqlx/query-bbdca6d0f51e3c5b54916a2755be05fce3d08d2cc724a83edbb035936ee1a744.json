@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                j.keyboard_id,\n                sp.weights as weights_json,\n                j.corpus_name,\n                j.cost_matrix\n            FROM jobs j\n            JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id\n            WHERE j.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "keyboard_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "weights_json",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 2,
+        "name": "corpus_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "cost_matrix",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "bbdca6d0f51e3c5b54916a2755be05fce3d08d2cc724a83edbb035936ee1a744"
+}

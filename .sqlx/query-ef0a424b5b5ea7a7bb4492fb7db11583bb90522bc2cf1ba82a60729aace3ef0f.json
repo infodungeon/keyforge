@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM results\n            WHERE id IN (\n                SELECT id FROM (\n                    SELECT id,\n                           ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY score ASC) as rank\n                    FROM results\n                    WHERE created_at < NOW() - make_interval(days => $1)\n                ) ranked\n                WHERE rank > $2\n            )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ef0a424b5b5ea7a7bb4492fb7db11583bb90522bc2cf1ba82a60729aace3ef0f"
+}

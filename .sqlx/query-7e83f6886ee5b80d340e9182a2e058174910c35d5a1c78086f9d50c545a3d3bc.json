@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT name, author, version, notes, kb_type, home_row \n            FROM keyboards \n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "author",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "version",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "kb_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "home_row",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7e83f6886ee5b80d340e9182a2e058174910c35d5a1c78086f9d50c545a3d3bc"
+}

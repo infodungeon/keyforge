@@ -1,16 +1,16 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                count(DISTINCT node_id) as \"nodes!\", \n                count(*) as \"samples!\", \n                min(score) as \"best_score\",\n                (SELECT layout FROM results r2 WHERE r2.job_id = $1 ORDER BY score ASC LIMIT 1) as \"best_layout\"\n            FROM results \n            WHERE job_id = $1\n            ",
+  "query": "\n            SELECT \n                count(DISTINCT node_id) as nodes,\n                count(*) as samples,\n                min(score) as best_score,\n                (SELECT layout FROM results WHERE job_id = $1 ORDER BY score ASC LIMIT 1) as best_layout\n            FROM results \n            WHERE job_id = $1\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "nodes!",
+        "name": "nodes",
         "type_info": "Int8"
       },
       {
         "ordinal": 1,
-        "name": "samples!",
+        "name": "samples",
         "type_info": "Int8"
       },
       {
@@ -36,5 +36,5 @@
       null
     ]
   },
-  "hash": "c6c4c7097812118c861c80aa5e8fb5f6f24b34aedb6dcc0df9215f71e11b1d76"
+  "hash": "51d28bf124130b5f25d5f8e77ef77989338fb14e0f8c53fa0a25b22d83c200e8"
 }

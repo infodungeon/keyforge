@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, name, layout_str, author, submitted_at \n            FROM submissions \n            ORDER BY submitted_at DESC \n            LIMIT $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "layout_str",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "author",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "submitted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "55ff6f14ed24b301e8ed1b5058887031e22801410378936391d636416038d682"
+}

@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO search_configs (\n                config_hash, search_epochs, search_steps, search_patience, \n                search_patience_threshold, temp_min, temp_max, opt_limit_fast, opt_limit_slow\n            ) \n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) \n            ON CONFLICT (config_hash) \n            DO UPDATE SET config_hash = EXCLUDED.config_hash \n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9f26de03a3ad5a9ac9b502c9da001116bda6e83f8c92c43e090142a977f572db"
+}
