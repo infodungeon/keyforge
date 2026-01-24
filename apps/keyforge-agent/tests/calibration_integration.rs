@@ -4,6 +4,7 @@
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use keyforge_agent::agent::calibration;
+    use keyforge_agent::models::CalibrationConfig;
     use keyforge_infra::net::client::ClientConfig;
     use keyforge_infra::{AssetManager, HiveClient};
     use std::fs;
@@ -23,15 +24,15 @@ mod tests {
             api_key: "test-key".to_string(),
             timeout_sec: 10,
         });
-        let asset_mgr = AssetManager::new(data_root.clone(), client);
+        let asset_mgr = AssetManager::new(client, data_root.clone());
 
         // 2. Perform Calibration
-        let report = calibration::calibrate_hardware(&asset_mgr).await.unwrap();
+        let ips = calibration::calibrate(&asset_mgr, &data_root, &CalibrationConfig::default())
+            .await
+            .unwrap();
 
         // 3. Verify
-        assert!(report.cpu_mhz > 0);
-        assert!(report.memory_total_gb > 0);
-        assert!(!report.node_id.is_empty());
+        assert!(ips > 0.0);
     }
 
     #[tokio::test]
@@ -46,8 +47,9 @@ mod tests {
             timeout_sec: 1,
         });
 
-        let asset_mgr = AssetManager::new(data_root.join("non-existent"), client);
-        let res = calibration::calibrate_hardware(&asset_mgr).await;
+        let asset_mgr = AssetManager::new(client, data_root.join("non-existent"));
+        let res =
+            calibration::calibrate(&asset_mgr, &data_root, &CalibrationConfig::default()).await;
 
         assert!(res.is_err());
     }
