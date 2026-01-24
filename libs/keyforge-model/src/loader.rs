@@ -40,4 +40,3 @@ pub trait AssetLoader: Send + Sync + Debug {
     /// Corpus is currently special as it often requires merging multiple sources.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
 }
-

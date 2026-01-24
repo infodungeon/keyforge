@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use async_trait::async_trait;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::cost_model::CostModel;
 use keyforge_model::error::ForgeError;
@@ -19,7 +20,6 @@ use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 pub use keyforge_model::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Asset, Corpus};
-use async_trait::async_trait;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::Debug;

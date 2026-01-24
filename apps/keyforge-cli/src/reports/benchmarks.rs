@@ -80,57 +80,87 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_header(vec![
             Cell::new("Metric").add_attribute(Attribute::Bold),
-            Cell::new(current_name).add_attribute(Attribute::Bold).fg(Color::Cyan),
+            Cell::new(current_name)
+                .add_attribute(Attribute::Bold)
+                .fg(Color::Cyan),
             Cell::new("Best Baseline").add_attribute(Attribute::Bold),
             Cell::new("Delta").add_attribute(Attribute::Bold),
         ]);
 
     // Simple comparison for SFB% as an example
     let current_sfb = report.sfb_ratio * 100.0;
-    let min_baseline_sfb = baselines.iter().map(|b| b.sfb).fold(f32::INFINITY, f32::min);
+    let min_baseline_sfb = baselines
+        .iter()
+        .map(|b| b.sfb)
+        .fold(f32::INFINITY, f32::min);
     let sfb_delta = current_sfb - min_baseline_sfb;
 
     table.add_row(vec![
         Cell::new("SFB%"),
         Cell::new(format!("{:.2}%", current_sfb)).fg(Color::Cyan),
         Cell::new(format!("{:.2}%", min_baseline_sfb)),
-        Cell::new(format!("{:+.2}%", sfb_delta)).fg(if sfb_delta <= 0.0 { Color::Green } else { Color::Red }),
+        Cell::new(format!("{:+.2}%", sfb_delta)).fg(if sfb_delta <= 0.0 {
+            Color::Green
+        } else {
+            Color::Red
+        }),
     ]);
 
     // Distance
     let current_dist = report.travel_per_key;
-    let min_baseline_dist = baselines.iter().map(|b| b.distance).fold(f32::INFINITY, f32::min);
+    let min_baseline_dist = baselines
+        .iter()
+        .map(|b| b.distance)
+        .fold(f32::INFINITY, f32::min);
     let dist_delta = current_dist - min_baseline_dist;
 
     table.add_row(vec![
         Cell::new("Distance/Key"),
         Cell::new(format!("{:.3}", current_dist)).fg(Color::Cyan),
         Cell::new(format!("{:.3}", min_baseline_dist)),
-        Cell::new(format!("{:+.3}", dist_delta)).fg(if dist_delta <= 0.0 { Color::Green } else { Color::Red }),
+        Cell::new(format!("{:+.3}", dist_delta)).fg(if dist_delta <= 0.0 {
+            Color::Green
+        } else {
+            Color::Red
+        }),
     ]);
 
     // Scissors
     let current_scissors = report.scissors;
-    let min_baseline_scissors = baselines.iter().map(|b| b.pinky_scissors).fold(f32::INFINITY, f32::min);
+    let min_baseline_scissors = baselines
+        .iter()
+        .map(|b| b.pinky_scissors)
+        .fold(f32::INFINITY, f32::min);
     let scissors_delta = current_scissors - min_baseline_scissors;
 
     table.add_row(vec![
         Cell::new("Scissors"),
         Cell::new(format!("{:.3}", current_scissors)).fg(Color::Cyan),
         Cell::new(format!("{:.3}", min_baseline_scissors)),
-        Cell::new(format!("{:+.3}", scissors_delta)).fg(if scissors_delta <= 0.0 { Color::Green } else { Color::Red }),
+        Cell::new(format!("{:+.3}", scissors_delta)).fg(if scissors_delta <= 0.0 {
+            Color::Green
+        } else {
+            Color::Red
+        }),
     ]);
 
     // Redirects
     let current_redirs = report.redirects;
-    let min_baseline_redirs = baselines.iter().map(|b| b.tri_redirect).fold(f32::INFINITY, f32::min);
+    let min_baseline_redirs = baselines
+        .iter()
+        .map(|b| b.tri_redirect)
+        .fold(f32::INFINITY, f32::min);
     let redirs_delta = current_redirs - min_baseline_redirs;
 
     table.add_row(vec![
         Cell::new("Redirects"),
         Cell::new(format!("{:.3}", current_redirs)).fg(Color::Cyan),
         Cell::new(format!("{:.3}", min_baseline_redirs)),
-        Cell::new(format!("{:+.3}", redirs_delta)).fg(if redirs_delta <= 0.0 { Color::Green } else { Color::Red }),
+        Cell::new(format!("{:+.3}", redirs_delta)).fg(if redirs_delta <= 0.0 {
+            Color::Green
+        } else {
+            Color::Red
+        }),
     ]);
 
     println!("\n📊 Reality Check (Baseline Comparison)");

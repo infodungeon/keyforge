@@ -46,4 +46,3 @@ pub fn scoring(results: &[(String, AnalysisReport)]) {
     }
     println!("\n{table}");
 }
-

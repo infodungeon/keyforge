@@ -16,8 +16,8 @@ use crate::assets::BiometricSample;
 use crate::constants;
 use crate::PROTOCOL_VERSION;
 use keyforge_model::{
-    CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, LayoutValidator,
-    Projection, ScoringWeights, SearchParams, Validator,
+    CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, LayoutValidator, Projection,
+    ScoringWeights, SearchParams, Validator,
 };
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]

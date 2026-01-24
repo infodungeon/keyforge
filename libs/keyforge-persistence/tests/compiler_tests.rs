@@ -1,7 +1,7 @@
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
-    use keyforge_compute::loader::{AssetLoader, LoaderResult};
+    use keyforge_model::loader::{AssetLoader, LoaderResult};
     use keyforge_model::cost_model::CostModel;
     use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
     use keyforge_model::keycodes::KeycodeRegistry;

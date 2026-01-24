@@ -22,7 +22,7 @@ use std::path::PathBuf;
 pub fn resolve_root(override_path: Option<PathBuf>) -> Result<PathBuf, String> {
     let mut config = CommonConfig::default();
     config.data_dir = override_path;
-    
+
     let root = config.resolve_data_dir();
 
     // If it's a relative path (like "." or custom), we want to canonicalize it if it exists.
