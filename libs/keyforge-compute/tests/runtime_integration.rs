@@ -55,7 +55,7 @@ mod integration_tests {
             "models": {
                 "model_a_row_staggered": {
                     "description": "test",
-                    "static_costs": {"universal_hand": {"index": {"base": {"r0": 1.0}}}}
+                    "static_costs": {"universal_hand": {"thumb": {"base": {"r0": 1.0}}, "index": {"base": {"r0": 1.0}}}}
                 }
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }

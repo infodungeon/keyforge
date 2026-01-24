@@ -411,7 +411,7 @@ mod tests {
 
         let kb_json = r#"{
             "meta": { "name": "CacheTest" },
-            "geometry": { "keys": [{"x":0,"y":0,"hand":0,"finger":1,"row":0}], "prime_slots":[0], "med_slots":[], "low_slots":[], "home_row": 0 }
+            "geometry": { "keys": [{"index":0, "label": "A", "x":0,"y":0,"hand":0,"finger":1,"row":0,"col":0}], "prime_slots":[0], "med_slots":[], "low_slots":[], "home_row": 0 }
         }"#;
         let kb_path = kb_dir.join("test.json");
         fs::write(&kb_path, kb_json).unwrap();

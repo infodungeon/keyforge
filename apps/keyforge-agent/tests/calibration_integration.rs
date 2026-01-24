@@ -18,6 +18,21 @@ mod tests {
         // 1. Setup Mock Environment
         let user_kb_dir = data_root.join("user/keyboards");
         fs::create_dir_all(&user_kb_dir).unwrap();
+        let corne_json = r#"{
+            "meta": { "name": "corne", "author": "foostan", "version": "1", "notes": "", "type": "split" },
+            "geometry": {
+                "keys": [
+                    {"index":0, "label":"k0", "x":0, "y":0, "w":1, "h":1, "hand":0, "finger":1, "row":0, "col":0},
+                    {"index":1, "label":"k1", "x":1, "y":0, "w":1, "h":1, "hand":0, "finger":2, "row":0, "col":1}
+                ],
+                "prime_slots": [0, 1],
+                "med_slots": [],
+                "low_slots": [],
+                "home_row": 0
+            },
+            "layouts": { "default": "A B" }
+        }"#;
+        fs::write(user_kb_dir.join("corne.json"), corne_json).unwrap();
 
         let client = HiveClient::new(ClientConfig {
             api_url: "http://localhost:3002".to_string(),

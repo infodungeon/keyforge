@@ -40,7 +40,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zero_step_invariance() {
+    fn test_zero_step_rejection() {
         let (engine, layout) = setup_minimal();
         let config = SearchConfig::Annealing {
             steps: 0,
@@ -53,17 +53,8 @@ mod tests {
             include_thumbs: false,
         };
 
-        // Production
-        let res_prod = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
-
-        // Ghost
-        let res_ghost = GhostOptimizer::optimize(engine.as_ref(), &config, &layout)
-            .expect("Ghost optimization failed");
-
-        // Invariant: At 0 steps, neither should change the layout
-        assert_eq!(res_prod.layout.keys, layout.keys);
-        assert_eq!(res_ghost.layout.keys, layout.keys);
-        assert_eq!(res_prod.score, res_ghost.score);
+        let res = evolve(&engine, &config, NoOpCallback, Some(layout), None);
+        assert!(res.is_err());
     }
 
     #[test]

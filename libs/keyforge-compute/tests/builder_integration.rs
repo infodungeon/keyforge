@@ -54,9 +54,42 @@ mod integration_tests {
             let json = r#"{
             "meta": { "version": "2.0", "description": "T", "unit": "pts" },
             "models": { 
-                "model_a_row_staggered": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"0": 1.0}}}} },
-                "model_a_ansi": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"0": 1.0}}}} },
-                "model_ortho": { "description": "t", "static_costs": {"universal_hand": {"index": {"base": {"0": 1.0}}}} }
+                "model_a_row_staggered": { 
+                    "description": "t", 
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": {"base": {"0": 1.0}},
+                            "index": {"base": {"0": 1.0}},
+                            "middle": {"base": {"0": 1.0}},
+                            "ring": {"base": {"0": 1.0}},
+                            "pinky": {"base": {"0": 1.0}}
+                        }
+                    } 
+                },
+                "model_a_ansi": { 
+                    "description": "t", 
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": {"base": {"0": 1.0}},
+                            "index": {"base": {"0": 1.0}},
+                            "middle": {"base": {"0": 1.0}},
+                            "ring": {"base": {"0": 1.0}},
+                            "pinky": {"base": {"0": 1.0}}
+                        }
+                    } 
+                },
+                "model_ortho": { 
+                    "description": "t", 
+                    "static_costs": {
+                        "universal_hand": {
+                            "thumb": {"base": {"0": 1.0}},
+                            "index": {"base": {"0": 1.0}},
+                            "middle": {"base": {"0": 1.0}},
+                            "ring": {"base": {"0": 1.0}},
+                            "pinky": {"base": {"0": 1.0}}
+                        }
+                    } 
+                }
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
@@ -95,15 +128,17 @@ mod integration_tests {
         let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
@@ -168,15 +203,17 @@ mod integration_tests {
         let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
@@ -222,15 +259,17 @@ mod integration_tests {
         let corp = Arc::new(Corpus::default());
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_ortho".into(),
             keyforge_model::cost_model::ModelDefinition {
@@ -329,15 +368,17 @@ mod integration_tests {
         // 4. Default registry and rubric
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_ortho".into(),
             keyforge_model::cost_model::ModelDefinition {
