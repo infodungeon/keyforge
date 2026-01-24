@@ -109,6 +109,30 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
         Cell::new(format!("{:+.3}", dist_delta)).fg(if dist_delta <= 0.0 { Color::Green } else { Color::Red }),
     ]);
 
+    // Scissors
+    let current_scissors = report.scissors;
+    let min_baseline_scissors = baselines.iter().map(|b| b.pinky_scissors).fold(f32::INFINITY, f32::min);
+    let scissors_delta = current_scissors - min_baseline_scissors;
+
+    table.add_row(vec![
+        Cell::new("Scissors"),
+        Cell::new(format!("{:.3}", current_scissors)).fg(Color::Cyan),
+        Cell::new(format!("{:.3}", min_baseline_scissors)),
+        Cell::new(format!("{:+.3}", scissors_delta)).fg(if scissors_delta <= 0.0 { Color::Green } else { Color::Red }),
+    ]);
+
+    // Redirects
+    let current_redirs = report.redirects;
+    let min_baseline_redirs = baselines.iter().map(|b| b.tri_redirect).fold(f32::INFINITY, f32::min);
+    let redirs_delta = current_redirs - min_baseline_redirs;
+
+    table.add_row(vec![
+        Cell::new("Redirects"),
+        Cell::new(format!("{:.3}", current_redirs)).fg(Color::Cyan),
+        Cell::new(format!("{:.3}", min_baseline_redirs)),
+        Cell::new(format!("{:+.3}", redirs_delta)).fg(if redirs_delta <= 0.0 { Color::Green } else { Color::Red }),
+    ]);
+
     println!("\n📊 Reality Check (Baseline Comparison)");
     println!("{table}");
 }
