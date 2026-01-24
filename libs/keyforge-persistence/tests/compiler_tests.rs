@@ -22,9 +22,42 @@ mod integration_tests {
     #[async_trait::async_trait]
     impl AssetLoader for MockLoader {
         async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
-            if let Ok(arc) = self.assets.clone().downcast::<T>() {
-                return Ok(arc);
+            if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeyboardDefinition>() {
+                if let Ok(arc) = self.assets.clone().downcast::<T>() {
+                    return Ok(arc);
+                }
             }
+
+            if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
+                let json = r#"{
+                    "meta": { "version": "2.0", "description": "T", "unit": "pts" },
+                    "models": { 
+                        "model_a_row_staggered": { 
+                            "description": "t", 
+                            "static_costs": {
+                                "universal_hand": {
+                                    "thumb": {"base": {"r0": 1.0}},
+                                    "index": {"base": {"r0": 1.0}},
+                                    "middle": {"base": {"r0": 1.0}},
+                                    "ring": {"base": {"r0": 1.0}},
+                                    "pinky": {"base": {"r0": 1.0}}
+                                }
+                            } 
+                        } 
+                    },
+                    "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+                }"#;
+                let model: CostModel = serde_json::from_str(json).unwrap();
+                let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
+                return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+            }
+
+            if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeycodeRegistry>() {
+                let reg = KeycodeRegistry::new_with_defaults();
+                let any_kc = Arc::new(reg) as Arc<dyn Any + Send + Sync>;
+                return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
+            }
+
             Err(keyforge_model::error::ForgeError::NotFound("Mock".into()))
         }
 
@@ -79,7 +112,20 @@ mod integration_tests {
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
                     let json = r#"{
                         "meta": { "version": "2.0", "description": "T", "unit": "pts" },
-                        "models": { "model_a_row_staggered": { "description": "t", "static_costs": {} } },
+                        "models": { 
+                            "model_a_row_staggered": { 
+                                "description": "t", 
+                                "static_costs": {
+                                    "universal_hand": {
+                                        "thumb": {"base": {"0": 1.0}},
+                                        "index": {"base": {"0": 1.0}},
+                                        "middle": {"base": {"0": 1.0}},
+                                        "ring": {"base": {"0": 1.0}},
+                                        "pinky": {"base": {"0": 1.0}}
+                                    }
+                                } 
+                            } 
+                        },
                         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
                     }"#;
                     let model: CostModel = serde_json::from_str(json).unwrap();

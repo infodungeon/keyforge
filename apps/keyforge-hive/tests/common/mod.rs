@@ -102,8 +102,8 @@ pub fn ensure_test_assets(data_root: &Path) {
                 "meta": {{ "name": "{name}", "author": "test", "version": "1", "type": "ortho" }},
                 "geometry": {{
                     "keys": [
-                        {{"id": "KC_A", "x":0,"y":0,"hand":0,"finger":1,"row":0,"col":0}},
-                        {{"id": "KC_B", "x":1,"y":0,"hand":0,"finger":2,"row":0,"col":1}}
+                        {{"index": 0, "label": "KC_A", "x":0,"y":0,"hand":0,"finger":1,"row":0,"col":0}},
+                        {{"index": 1, "label": "KC_B", "x":1,"y":0,"hand":0,"finger":2,"row":0,"col":1}}
                     ],
                     "prime_slots": [0, 1], "med_slots": [], "low_slots": [], "home_row": 0
                 }},

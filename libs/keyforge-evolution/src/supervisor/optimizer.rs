@@ -212,18 +212,20 @@ mod tests {
         .unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(
-                        keyforge_model::types::RowIndex(0),
-                        1.0,
-                    )]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(
+                            keyforge_model::types::RowIndex(0),
+                            1.0,
+                        )]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
@@ -281,18 +283,20 @@ mod tests {
         let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(
-                        keyforge_model::types::RowIndex(0),
-                        1.0,
-                    )]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(
+                            keyforge_model::types::RowIndex(0),
+                            1.0,
+                        )]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {

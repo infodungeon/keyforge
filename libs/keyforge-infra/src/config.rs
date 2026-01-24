@@ -151,10 +151,12 @@ mod tests {
 
     #[test]
     fn test_common_config_resolve() {
-        let mut cfg = CommonConfig::default();
-        assert_eq!(cfg.resolve_data_dir(), PathBuf::from(DEFAULT_FALLBACK_PATH));
+        temp_env::with_var(ENV_DATA_DIR, Some("/tmp/keyforge_test"), || {
+            let mut cfg = CommonConfig::default();
+            assert_eq!(cfg.resolve_data_dir(), PathBuf::from("/tmp/keyforge_test"));
 
-        cfg.data_dir = Some(PathBuf::from("/custom"));
-        assert_eq!(cfg.resolve_data_dir(), PathBuf::from("/custom"));
+            cfg.data_dir = Some(PathBuf::from("/custom"));
+            assert_eq!(cfg.resolve_data_dir(), PathBuf::from("/custom"));
+        });
     }
 }
