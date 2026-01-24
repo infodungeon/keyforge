@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use keyforge_compute::SessionBuilder;
 use keyforge_infra::{AssetLoader, FsProvider};
 use keyforge_model::{types::KeyCode, Corpus, CostModel, KeyboardDefinition, Layout};

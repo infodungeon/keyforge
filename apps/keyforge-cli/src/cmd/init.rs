@@ -49,7 +49,7 @@ pub async fn run(args: InitArgs, root: &std::path::Path) -> Result<(), CliError>
         }
     };
 
-    match keyforge_infra::net::sync::bootstrap_essentials(&client, &root).await {
+    match keyforge_infra::net::sync::bootstrap_essentials(&client, root).await {
         Ok(files) => {
             eprintln!("✅ Downloaded {} essential assets.", files.len());
         }

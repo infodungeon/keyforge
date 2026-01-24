@@ -20,10 +20,13 @@ mod tests {
         fs::create_dir_all(&user_kb_dir).unwrap();
 
         let client = HiveClient::new(ClientConfig {
-            base_url: "http://localhost:3002".to_string(),
-            api_key: "test-key".to_string(),
-            timeout_sec: 10,
-        });
+            api_url: "http://localhost:3002".to_string(),
+            asset_url: "http://localhost:3001".to_string(),
+            secret: Some("test-key".to_string()),
+            timeout: std::time::Duration::from_secs(10),
+            ..Default::default()
+        })
+        .expect("Failed to create mock client");
         let asset_mgr = AssetManager::new(client, data_root.clone());
 
         // 2. Perform Calibration
@@ -42,10 +45,13 @@ mod tests {
 
         // Ensure invalid root handled gracefully
         let client = HiveClient::new(ClientConfig {
-            base_url: "http://localhost:3002".to_string(),
-            api_key: "test-key".to_string(),
-            timeout_sec: 1,
-        });
+            api_url: "http://localhost:3002".to_string(),
+            asset_url: "http://localhost:3001".to_string(),
+            secret: Some("test-key".to_string()),
+            timeout: std::time::Duration::from_secs(1),
+            ..Default::default()
+        })
+        .expect("Failed to create mock client");
 
         let asset_mgr = AssetManager::new(client, data_root.join("non-existent"));
         let res =

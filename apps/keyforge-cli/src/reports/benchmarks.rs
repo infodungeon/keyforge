@@ -53,9 +53,8 @@ impl Default for BenchmarkEntry {
 pub fn load(root: &std::path::Path) -> Option<Vec<BenchmarkEntry>> {
     let input = crate::constants::DEFAULT_BENCHMARK_PATH;
 
-    let path = match crate::cli_parsers::resolve_path(input, None, root) {
-        Ok(p) => p,
-        Err(_) => return None,
+    let Ok(path) = crate::cli_parsers::resolve_path(input, None, root) else {
+        return None;
     };
 
     match fs::read_to_string(path) {
@@ -97,9 +96,9 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
 
     table.add_row(vec![
         Cell::new("SFB%"),
-        Cell::new(format!("{:.2}%", current_sfb)).fg(Color::Cyan),
-        Cell::new(format!("{:.2}%", min_baseline_sfb)),
-        Cell::new(format!("{:+.2}%", sfb_delta)).fg(if sfb_delta <= 0.0 {
+        Cell::new(format!("{current_sfb:.2}%")).fg(Color::Cyan),
+        Cell::new(format!("{min_baseline_sfb:.2}%")),
+        Cell::new(format!("{sfb_delta:+.2}%")).fg(if sfb_delta <= 0.0 {
             Color::Green
         } else {
             Color::Red
@@ -116,9 +115,9 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
 
     table.add_row(vec![
         Cell::new("Distance/Key"),
-        Cell::new(format!("{:.3}", current_dist)).fg(Color::Cyan),
-        Cell::new(format!("{:.3}", min_baseline_dist)),
-        Cell::new(format!("{:+.3}", dist_delta)).fg(if dist_delta <= 0.0 {
+        Cell::new(format!("{current_dist:.3}")).fg(Color::Cyan),
+        Cell::new(format!("{min_baseline_dist:.3}")),
+        Cell::new(format!("{dist_delta:+.3}")).fg(if dist_delta <= 0.0 {
             Color::Green
         } else {
             Color::Red
@@ -135,9 +134,9 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
 
     table.add_row(vec![
         Cell::new("Scissors"),
-        Cell::new(format!("{:.3}", current_scissors)).fg(Color::Cyan),
-        Cell::new(format!("{:.3}", min_baseline_scissors)),
-        Cell::new(format!("{:+.3}", scissors_delta)).fg(if scissors_delta <= 0.0 {
+        Cell::new(format!("{current_scissors:.3}")).fg(Color::Cyan),
+        Cell::new(format!("{min_baseline_scissors:.3}")),
+        Cell::new(format!("{scissors_delta:+.3}")).fg(if scissors_delta <= 0.0 {
             Color::Green
         } else {
             Color::Red
@@ -154,9 +153,9 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
 
     table.add_row(vec![
         Cell::new("Redirects"),
-        Cell::new(format!("{:.3}", current_redirs)).fg(Color::Cyan),
-        Cell::new(format!("{:.3}", min_baseline_redirs)),
-        Cell::new(format!("{:+.3}", redirs_delta)).fg(if redirs_delta <= 0.0 {
+        Cell::new(format!("{current_redirs:.3}")).fg(Color::Cyan),
+        Cell::new(format!("{min_baseline_redirs:.3}")),
+        Cell::new(format!("{redirs_delta:+.3}")).fg(if redirs_delta <= 0.0 {
             Color::Green
         } else {
             Color::Red

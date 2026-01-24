@@ -27,6 +27,9 @@ impl Projection<serde_json::Value> for KeyboardDefinition {
 /// Helper for bulk projections.
 pub trait BulkProjection<Source>: Sized {
     /// Projects a collection of sources.
+    ///
+    /// # Errors
+    /// Returns `ForgeError::Projection` if any source fails to project.
     fn project_all(sources: Vec<Source>) -> Result<Vec<Self>, ForgeError>;
 }
 

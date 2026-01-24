@@ -107,12 +107,9 @@ async fn run_app() -> Result<(), CliError> {
     let matches = Cli::command().get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
-    match &cli.command {
-        Commands::Completions(args) => {
-            cmd::completions::run(args);
-            return Ok(());
-        }
-        _ => {}
+    if let Commands::Completions(args) = &cli.command {
+        cmd::completions::run(args);
+        return Ok(());
     }
 
     let mut config = keyforge_infra::config::CommonConfig::default();

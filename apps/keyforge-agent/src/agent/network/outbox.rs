@@ -210,7 +210,7 @@ mod tests {
             score: 10.5,
             raw_score: 10_500_000,
             node_id: "test-node".into(),
-            timestamp: 123456789,
+            timestamp: 123_456_789,
             nonce: 42,
             signature: "dummy".into(),
         };

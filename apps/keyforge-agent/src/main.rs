@@ -83,8 +83,8 @@ async fn main() -> Result<()> {
         match PartialAgentConfig::from_file(config_path) {
             Ok(file_cfg) => config.merge(file_cfg),
             Err(e) => {
-                eprintln!("Failed to load config file {}: {e}", config_path.display());
-                std::process::exit(1);
+                tracing::error!("Failed to load config file {}: {e}", config_path.display());
+                return Err(anyhow::anyhow!("Failed to load config: {e}"));
             }
         }
     } else if let Some(file_cfg) = load_config_from_standard_paths(args.data_dir.as_ref()) {

@@ -16,8 +16,8 @@ use crate::assets::BiometricSample;
 use crate::constants;
 use crate::PROTOCOL_VERSION;
 use keyforge_model::{
-    CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition, LayoutValidator, Projection,
-    ScoringWeights, SearchParams, Validator,
+    config::LayoutDefinitions, CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition,
+    LayoutValidator, Projection, ScoringWeights, SearchParams, Validator,
 };
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
@@ -37,7 +37,7 @@ impl Projection<JobConfig> for keyforge_model::config::Config {
             seed: None,
             search: source.params,
             weights: source.weights,
-            defs: Default::default(),
+            defs: LayoutDefinitions::default(),
             pinned_keys: source.pinned_keys,
         })
     }

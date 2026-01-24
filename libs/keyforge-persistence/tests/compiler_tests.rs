@@ -1,10 +1,10 @@
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
-    use keyforge_model::loader::{AssetLoader, LoaderResult};
     use keyforge_model::cost_model::CostModel;
     use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
     use keyforge_model::keycodes::KeycodeRegistry;
+    use keyforge_model::loader::{AssetLoader, LoaderResult};
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
     use keyforge_persistence::compiler::compile_request;
     use std::any::Any;

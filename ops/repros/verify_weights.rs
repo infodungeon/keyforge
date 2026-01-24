@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use keyforge_model::{
     types::{FingerIndex, HandIndex, KeyCode},
     Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,

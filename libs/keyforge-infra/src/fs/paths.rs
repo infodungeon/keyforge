@@ -15,19 +15,21 @@
 use crate::config::CommonConfig;
 use std::path::PathBuf;
 
-/// Resolves the absolute path to the KeyForge workspace root.
+/// Resolves the absolute path to the `KeyForge` workspace root.
 ///
 /// # Errors
 /// Returns an error string if the root cannot be resolved or is invalid.
 pub fn resolve_root(override_path: Option<PathBuf>) -> Result<PathBuf, String> {
-    let mut config = CommonConfig::default();
-    config.data_dir = override_path;
+    let config = CommonConfig {
+        data_dir: override_path,
+        ..CommonConfig::default()
+    };
 
     let root = config.resolve_data_dir();
 
     // If it's a relative path (like "." or custom), we want to canonicalize it if it exists.
     if root.exists() {
-        return Ok(root.canonicalize().map_err(|e| e.to_string())?);
+        return root.canonicalize().map_err(|e| e.to_string());
     }
 
     Ok(root)
