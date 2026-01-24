@@ -1,6 +1,8 @@
 // libs/keyforge-model/src/mapping.rs
 
 use crate::error::ForgeError;
+use crate::geometry::KeyboardDefinition;
+use crate::Asset;
 
 /// A trait for projecting domain models from external representations (SQLX, JSON, etc).
 ///
@@ -12,6 +14,14 @@ pub trait Projection<Source>: Sized {
     /// # Errors
     /// Returns `ForgeError::Projection` if mapping or validation fails.
     fn project(source: Source) -> Result<Self, ForgeError>;
+}
+
+impl Projection<serde_json::Value> for KeyboardDefinition {
+    fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
+        let mut def: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+        def.post_load()?;
+        Ok(def)
+    }
 }
 
 /// Helper for bulk projections.
