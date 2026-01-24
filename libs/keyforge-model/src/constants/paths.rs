@@ -35,9 +35,9 @@ pub const DEFAULT_CORPUS_ID: &str = "text/en_std";
 pub const DEFAULT_KEYBOARD_ID: &str = "ortho_30";
 
 /// Default path for user statistics.
-pub const DEFAULT_USER_STATS_PATH: &str = "data/user_stats.jsonl";
+pub const DEFAULT_USER_STATS_PATH: &str = "user_stats.jsonl";
 /// Default path for personal cost profile.
-pub const DEFAULT_PERSONAL_COST_PATH: &str = "data/personal_cost.json";
+pub const DEFAULT_PERSONAL_COST_PATH: &str = "personal_cost.json";
 
 /// A list of system assets that must be present for the application to function.
 pub const REQUIRED_ASSETS: &[&str] = &[
