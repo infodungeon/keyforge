@@ -16,6 +16,7 @@ keyforge-protocol = { path = "../keyforge-protocol" }
 serde.workspace = true
 thiserror.workspace = true
 ts-rs = { workspace = true, optional = true }
+async-trait.workspace = true
 
 [dev-dependencies]
 keyforge-testing = { path = "../keyforge-testing" }
