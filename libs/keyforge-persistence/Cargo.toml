@@ -18,7 +18,6 @@ tracing.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
 keyforge-model = { path = "../keyforge-model" }
-keyforge-compute = { path = "../keyforge-compute" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-protocol = { path = "../keyforge-protocol" }
