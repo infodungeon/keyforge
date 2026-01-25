@@ -60,6 +60,20 @@ pub struct HiveJobConfigRow {
     pub cost_matrix: String,
 }
 
+/// A projection bundle that combines raw DB rows with fetched components.
+#[derive(Debug)]
+pub struct HiveJobProjection {
+    pub row: HiveJobRow,
+    pub definition: KeyboardDefinition,
+}
+
+/// Projection bundle for simple config retrieval.
+#[derive(Debug)]
+pub struct HiveJobConfigProjection {
+    pub row: HiveJobConfigRow,
+    pub definition: KeyboardDefinition,
+}
+
 /// Anti-Corruption Layer: Project domain `KeyboardDefinition` from Hive DB rows.
 #[derive(Debug)]
 pub struct HiveKeyboardProjection {
@@ -135,31 +149,113 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
     }
 }
 
-/// Anti-Corruption Layer: Project domain `JobConfig` from Hive DB row.
-impl Projection<HiveJobRow> for keyforge_protocol::JobConfig {
-    fn project(source: HiveJobRow) -> Result<Self, ForgeError> {
-        let weights = keyforge_model::config::ScoringWeights::project(source.weights_json)?;
-        let params =
-            keyforge_model::config::SearchParams::project(source.params_json.unwrap_or_default())?;
+impl Projection<HiveJobProjection> for keyforge_protocol::JobConfig {
+    fn project(source: HiveJobProjection) -> Result<Self, ForgeError> {
+        let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
+        let params = keyforge_model::config::SearchParams::project(
+            source.row.params_json.unwrap_or_default(),
+        )?;
 
-        let pinned_keys = serde_json::from_str(&source.pinned_keys).map_err(ForgeError::Serde)?;
-        let cost_matrix = serde_json::from_str(&source.cost_matrix).map_err(ForgeError::Serde)?;
+        let pinned_keys =
+            serde_json::from_str(&source.row.pinned_keys).map_err(ForgeError::Serde)?;
+        let cost_matrix =
+            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::Serde)?;
 
         Ok(Self {
-            definition: KeyboardDefinition::default(), // Will be populated by repository
+            definition: source.definition,
             weights,
             params,
             pinned_keys,
             corpora: vec![keyforge_model::CorpusSource {
-                id: source.corpus_name,
+                id: source.row.corpus_name,
                 weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
                 hash: None,
             }],
             cost_matrix,
             biometrics: vec![],
-            parent_job_id: source.parent_job_id,
+            parent_job_id: source.row.parent_job_id,
             baseline_score: None,
             parents: vec![],
         })
+    }
+}
+
+/// Helper for `get_config` projection.
+pub type HiveConfigTuple = (
+    keyforge_model::geometry::KeyboardGeometry,
+    keyforge_model::config::ScoringWeights,
+    String,
+    keyforge_model::CostMatrixSource,
+);
+
+impl Projection<HiveJobConfigProjection> for HiveConfigTuple {
+    fn project(source: HiveJobConfigProjection) -> Result<Self, ForgeError> {
+        let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
+        let cost_matrix =
+            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::Serde)?;
+
+        Ok((
+            source.definition.geometry,
+            weights,
+            source.row.corpus_name,
+            cost_matrix,
+        ))
+    }
+}
+
+#[keyforge_testing_macros::kf_test]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_job_projection_logic() {
+        let row = HiveJobRow {
+            id: "test-job".to_string(),
+            keyboard_id: 1,
+            weights_json: json!({
+                "monogram_cost": 1.0,
+                "bigram_cost": 1.0,
+                "trigram_cost": 1.0,
+                "finger_travel_cost": 1.0,
+                "finger_work_cost": 1.0,
+                "sfbs_cost": 1.0,
+                "dsfbs_cost": 1.0,
+                "scissors_cost": 1.0,
+                "lsbs_cost": 1.0,
+                "pinky_power_cost": 1.0,
+                "ring_power_cost": 1.0,
+                "middle_power_cost": 1.0,
+                "index_power_cost": 1.0,
+                "thumb_power_cost": 1.0,
+                "hand_balance_cost": 1.0,
+                "row_balance_cost": 1.0,
+                "step_cost": 1.0,
+                "redirect_cost": 1.0,
+                "onehand_trigram_cost": 1.0,
+                "alternation_cost": 1.0,
+                "roll_in_cost": 1.0,
+                "roll_out_cost": 1.0
+            }),
+            params_json: Some(json!({
+                "search_epochs": 10,
+                "search_steps": 100,
+                "search_patience": 5,
+                "search_patience_threshold": 0.01,
+                "temp_min": 0.1,
+                "temp_max": 10.0,
+                "opt_limit_fast": 100,
+                "opt_limit_slow": 1000
+            })),
+            pinned_keys: "[]".to_string(),
+            corpus_name: "en".to_string(),
+            cost_matrix: "{\"type\": \"Predefined\", \"data\": \"default.json\"}".to_string(),
+            parent_job_id: None,
+        };
+        let definition = KeyboardDefinition::default();
+        let projection = HiveJobProjection { row, definition };
+
+        let config = keyforge_protocol::JobConfig::project(projection).unwrap();
+        assert_eq!(config.corpora[0].id, "en");
     }
 }

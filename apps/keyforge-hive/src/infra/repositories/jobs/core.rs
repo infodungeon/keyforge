@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::dto::{HiveJobConfigRow, HiveJobRow};
+use super::dto::{HiveJobConfigProjection, HiveJobConfigRow, HiveJobProjection, HiveJobRow};
 use super::identity;
 use keyforge_model::config::ScoringWeights;
 use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
@@ -117,10 +117,10 @@ impl JobRepository {
 
         if let Some(row) = r {
             let id = row.id.clone();
-            let mut config = keyforge_protocol::JobConfig::project(row.clone())
-                .map_err(|e| sqlx::Error::Protocol(format!("Projection failed: {e}")))?;
-
-            config.definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
+            let definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
+            let config =
+                keyforge_protocol::JobConfig::project(HiveJobProjection { row, definition })
+                    .map_err(|e| sqlx::Error::Protocol(format!("Projection failed: {e}")))?;
 
             let req = JobRequest {
                 version: keyforge_protocol::PROTOCOL_VERSION,
@@ -177,19 +177,13 @@ impl JobRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        if let Some(r) = row {
-            let definition = self.fetch_keyboard_definition(r.keyboard_id).await?;
-            let geometry = definition.geometry;
+        if let Some(row) = row {
+            let definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
+            let config =
+                super::dto::HiveConfigTuple::project(HiveJobConfigProjection { row, definition })
+                    .map_err(|e| sqlx::Error::Protocol(format!("Config projection failed: {e}")))?;
 
-            let weights = ScoringWeights::project(r.weights_json)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights: {e}")))?;
-
-            let corpus = r.corpus_name;
-            let cost_raw = r.cost_matrix;
-            let cost: keyforge_model::CostMatrixSource = serde_json::from_str(&cost_raw)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid cost_matrix: {e}")))?;
-
-            Ok(Some((geometry, weights, corpus, cost)))
+            Ok(Some(config))
         } else {
             Ok(None)
         }
@@ -240,7 +234,7 @@ impl JobRepository {
             meta: meta_row,
             keys: keys_rows,
         })
-        .map_err(|e| sqlx::Error::Protocol(format!("Projection failed: {e}")))
+        .map_err(|e| sqlx::Error::Protocol(format!("Definition projection failed: {e}")))
     }
 
     fn validate_registration_request(req: &JobRequest) -> Result<(), sqlx::Error> {
