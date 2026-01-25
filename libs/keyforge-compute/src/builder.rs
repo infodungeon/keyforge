@@ -178,6 +178,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             corpus,
             rubric,
             cost_model,
+            engine_config: keyforge_model::config::EngineConfig::default(),
         };
 
         let hw_provider = keyforge_infra::hardware::FsHardwareProvider::default();

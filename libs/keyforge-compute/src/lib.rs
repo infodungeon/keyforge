@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -55,6 +55,7 @@ pub fn build_engine(
         corpus: req.corpus.clone(),
         rubric: req.rubric.clone(),
         cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })
 }
 
@@ -84,6 +85,7 @@ pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::Phy
         corpus: req.corpus.clone(),
         rubric: req.rubric.clone(),
         cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })?;
     let layout = req
         .initial_layout
@@ -110,6 +112,7 @@ pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, keyforge_physics::
         corpus: req.corpus.clone(),
         rubric: req.rubric.clone(),
         cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })?;
     let layout = req
         .initial_layout
@@ -132,6 +135,7 @@ pub fn suggest_improvements(
         corpus: req.corpus.clone(),
         rubric: req.rubric.clone(),
         cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })?;
     let layout = req
         .initial_layout
@@ -171,6 +175,7 @@ pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionErro
         corpus: req.corpus.clone(),
         rubric: req.rubric.clone(),
         cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })
     .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
@@ -196,6 +201,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
         corpus: req.corpus.clone(),
         rubric: req.rubric.clone(),
         cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })
     .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);

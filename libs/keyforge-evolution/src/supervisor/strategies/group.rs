@@ -163,12 +163,10 @@ mod tests {
         let corpus = Arc::new(corpus_val);
         let cost_model = Arc::new(mock_cost_model());
         let rubric = Arc::new(Rubric::default());
-        EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: kb,
-            corpus,
-            rubric,
-            cost_model,
-        })
+        EngineFactory::new_generic(&EngineCompilationContext { keyboard: kb,
+        corpus,
+        rubric,
+        cost_model, engine_config: keyforge_model::config::EngineConfig::default() })
         .unwrap()
     }
 

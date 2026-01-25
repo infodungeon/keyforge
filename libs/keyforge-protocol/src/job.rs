@@ -38,6 +38,7 @@ impl Projection<JobConfig> for keyforge_model::config::Config {
             search: source.params,
             weights: source.weights,
             defs: LayoutDefinitions::default(),
+            engine: keyforge_model::config::EngineConfig::default(),
             pinned_keys: source.pinned_keys,
         })
     }

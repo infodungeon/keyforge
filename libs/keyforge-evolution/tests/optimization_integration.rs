@@ -112,12 +112,10 @@ mod integration_tests {
     #[test]
     fn test_evolve_api_direct() {
         let (kb, cp, rb, cm) = setup_env();
-        let engine = EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: kb.clone(),
-            corpus: cp.clone(),
-            rubric: rb.clone(),
-            cost_model: cm.clone(),
-        })
+        let engine = EngineFactory::new_generic(&EngineCompilationContext { keyboard: kb.clone(),
+        corpus: cp.clone(),
+        rubric: rb.clone(),
+        cost_model: cm.clone(), engine_config: keyforge_model::config::EngineConfig::default() })
         .unwrap();
         let engine_arc: Arc<dyn ScoringEngine> = engine.into();
         let config = SearchConfig::Annealing {

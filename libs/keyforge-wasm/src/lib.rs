@@ -216,10 +216,15 @@ impl KeyforgeEngine {
 
         let engine = keyforge_physics::EngineFactory::new_generic(
             &keyforge_physics::EngineCompilationContext {
-                keyboard,
-                corpus,
-                rubric: Arc::new(rubric),
-                cost_model,
+                keyboard: Arc::new(keyforge_model::Keyboard::new(
+                    kb.geometry.keys.clone(),
+                    kb.geometry.home_row,
+                    kb.meta.kb_type.clone(),
+                ).unwrap()),
+                corpus: corpus.clone(),
+                rubric: Arc::new(rubric.clone()),
+                cost_model: cost_model.clone(),
+                engine_config: keyforge_model::config::EngineConfig::default(),
             },
         )
         .map_err(|e| map_physics_error(&e))?;

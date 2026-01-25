@@ -77,6 +77,9 @@ pub struct Config {
 
     /// Search parameters for the optimization engine.
     pub search: SearchParams,
+    /// Hardware-specific engine parameters.
+    #[serde(default)]
+    pub engine: crate::config::EngineConfig,
     /// Weights for the physics scoring engine.
     pub weights: ScoringWeights,
     /// Definitions for layout tiers and critical bigrams.
@@ -95,6 +98,7 @@ impl Default for Config {
             cost_matrix: CostMatrixSource::default(),
             seed: None,
             search: SearchParams::default(),
+            engine: crate::config::EngineConfig::default(),
             weights: ScoringWeights::default(),
             defs: LayoutDefinitions::default(),
             pinned_keys: Vec::new(),
@@ -105,6 +109,7 @@ impl Default for Config {
 impl Validator for Config {
     fn validate(&self) -> Result<(), String> {
         self.search.validate()?;
+        self.engine.validate()?;
         self.weights.validate()?;
         self.defs.validate()?;
         if self.corpora.is_empty() {
@@ -133,6 +138,8 @@ pub struct EngineRequest {
     pub cost_model: Arc<CostModel>,
     /// Optimization and search parameters.
     pub config: SearchConfig,
+    /// Engine hardware optimization parameters.
+    pub engine_config: crate::config::EngineConfig,
     /// The starting layout for the operation.
     pub initial_layout: Option<Layout>,
     /// Keys that must remain in their initial positions.
