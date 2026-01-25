@@ -17,6 +17,7 @@ use crate::{
 use proptest::arbitrary::Arbitrary;
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
+use std::sync::Arc;
 
 impl Arbitrary for KeyCode {
     type Parameters = ();
@@ -132,24 +133,23 @@ impl Arbitrary for Corpus {
             prop::collection::vec((0u16..255, 0u16..255, 0u32..50), 0..20),
             prop::collection::vec((0u16..255, 0u16..255, 0u16..255, 0u32..20), 0..10),
         )
-            .prop_map(|(char_freqs, bigrams, trigrams)| {
+            .prop_map(|(char_freqs, mut bigrams, mut trigrams)| {
                 let mut char_freqs_full = vec![0u64; 65536];
                 for (i, &f) in char_freqs.iter().enumerate() {
                     char_freqs_full[i] = f;
                 }
-                let mut c = Corpus {
-                    meta: crate::corpus::CorpusMetadata::default(),
-                    char_freqs: char_freqs_full,
-                    bigrams,
-                    trigrams,
-                    words: Vec::new(),
-                };
                 // Sorting required by Corpus::validate/merge but not strictly for existence
-                c.bigrams
-                    .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-                c.trigrams
+                bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+                trigrams
                     .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
-                c
+
+                Corpus {
+                    meta: crate::corpus::CorpusMetadata::default(),
+                    char_freqs: Arc::from(char_freqs_full),
+                    bigrams: Arc::from(bigrams),
+                    trigrams: Arc::from(trigrams),
+                    words: Arc::from(vec![]),
+                }
             })
             .boxed()
     }
@@ -271,9 +271,11 @@ pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
     let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
     let mut corpus = Corpus::default();
-    corpus.char_freqs[97] = 100;
-    corpus.char_freqs[98] = 200;
-    corpus.bigrams.push((97, 98, 50));
+    let mut freqs = corpus.char_freqs.to_vec();
+    freqs[97] = 100;
+    freqs[98] = 200;
+    corpus.char_freqs = Arc::from(freqs);
+    corpus.bigrams = Arc::from(vec![(97, 98, 50)]);
 
     let cm = mock_cost_model();
     (kb, corpus, Rubric::default(), cm)

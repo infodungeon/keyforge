@@ -20,23 +20,23 @@ use serde::{de::DeserializeOwned, Serialize};
 /// Safe serialization wrapper.
 ///
 /// # Errors
-/// Returns `ForgeError::Serialization` if serialization fails.
+/// Returns `ForgeError::Serde` if serialization fails.
 pub fn to_string_safe<T: Serialize>(value: &T) -> Result<String, ForgeError> {
-    serde_json::to_string(value).map_err(|e| ForgeError::Serialization(e.to_string()))
+    Ok(serde_json::to_string(value)?)
 }
 
 /// Safe pretty-serialization wrapper.
 ///
 /// # Errors
-/// Returns `ForgeError::Serialization` if serialization fails.
+/// Returns `ForgeError::Serde` if serialization fails.
 pub fn to_string_pretty_safe<T: Serialize>(value: &T) -> Result<String, ForgeError> {
-    serde_json::to_string_pretty(value).map_err(|e| ForgeError::Serialization(e.to_string()))
+    Ok(serde_json::to_string_pretty(value)?)
 }
 
 /// Safe deserialization wrapper.
 ///
 /// # Errors
-/// Returns `ForgeError::Serialization` if parsing fails.
+/// Returns `ForgeError::Serde` if parsing fails.
 pub fn from_str_safe<T: DeserializeOwned>(s: &str) -> Result<T, ForgeError> {
-    serde_json::from_str(s).map_err(|e| ForgeError::Serialization(e.to_string()))
+    Ok(serde_json::from_str(s)?)
 }

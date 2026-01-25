@@ -18,7 +18,7 @@ use clap::{Args, Subcommand};
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::Table;
 use keyforge_compute::AssetLoader;
-use keyforge_infra::listing::{
+use keyforge_infra::fs::listing::{
     list_corpora as ws_list_corpora, list_keyboards as ws_list_keyboards,
 };
 use keyforge_infra::FsProvider;

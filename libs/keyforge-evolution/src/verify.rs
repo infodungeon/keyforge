@@ -19,20 +19,19 @@
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
-    use crate::ghost::GhostOptimizer;
     use crate::{evolve, NoOpCallback};
     use keyforge_model::{KeyCode, Layout, SearchConfig};
-    use keyforge_physics::EngineFactory;
+    use keyforge_physics::{EngineCompilationContext, EngineFactory};
     use std::sync::Arc;
 
     fn setup_minimal() -> (Arc<dyn keyforge_physics::ScoringEngine>, Layout) {
         let (kb, corpus, rubric, cm) = keyforge_model::testing::setup_minimal_assets();
 
-        let engine = EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cm,
+        let engine = EngineFactory::new_scalar(&EngineCompilationContext {
+            keyboard: kb.into(),
+            corpus: corpus.into(),
+            rubric: rubric.into(),
+            cost_model: cm.into(),
         })
         .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);

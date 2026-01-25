@@ -14,7 +14,7 @@
 
 use crate::error::{InfraError, InfraResult};
 use crate::net::client::HiveClient;
-use backoff::ExponentialBackoff;
+use backon::{ExponentialBuilder, Retryable};
 use futures_util::StreamExt;
 use keyforge_model::constants::{
     ASSET_1GRAMS_FILENAME, ASSET_2GRAMS_FILENAME, ASSET_3GRAMS_FILENAME, ASSET_WORDS_FILENAME,
@@ -119,55 +119,37 @@ pub async fn ensure_file(
 
     info!("⬇️ Downloading: {}", url);
 
-    let op = || async {
-        let res = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| backoff::Error::transient(InfraError::Network(e)))?;
+    let res = (|| async {
+        let res = client.get(url).send().await.map_err(InfraError::Network)?;
 
-        if !res.status().is_success() {
-            let status = res.status();
-            match res.error_for_status() {
-                Ok(_) => {
-                    // This shouldn't happen because we checked is_success
-                    return Err(backoff::Error::permanent(InfraError::Config(
-                        "Unknown status error".into(),
-                    )));
-                }
-                Err(err) => {
-                    if status.is_server_error() {
-                        return Err(backoff::Error::transient(InfraError::Network(err)));
-                    }
-                    return Err(backoff::Error::permanent(InfraError::Network(err)));
-                }
-            }
-        }
+        let res = res.error_for_status().map_err(InfraError::Network)?;
 
         // Security: Check Content-Length
         if let Some(len_header) = res.headers().get(reqwest::header::CONTENT_LENGTH) {
             if let Ok(len_str) = len_header.to_str() {
                 if let Ok(len) = len_str.parse::<u64>() {
                     if len > MAX_INPUT_FILE_SIZE {
-                        return Err(backoff::Error::permanent(InfraError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Remote file exceeds size limit ({len} > {MAX_INPUT_FILE_SIZE})")))));
+                        return Err(InfraError::Io(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!(
+                                "Remote file exceeds size limit ({len} > {MAX_INPUT_FILE_SIZE})"
+                            ),
+                        )));
                     }
                 }
             }
         }
 
         Ok(res)
-    };
-
-    let backoff_conf = ExponentialBackoff {
-        initial_interval: Duration::from_millis(500),
-        randomization_factor: 0.5,
-        multiplier: 1.5,
-        max_interval: Duration::from_secs(10),
-        max_elapsed_time: Some(Duration::from_secs(60)),
-        ..Default::default()
-    };
-
-    let res = backoff::future::retry(backoff_conf, op).await?;
+    })
+    .retry(
+        &ExponentialBuilder::default()
+            .with_min_delay(Duration::from_millis(500))
+            .with_max_delay(Duration::from_secs(10))
+            .with_factor(1.5),
+    )
+    .when(|e: &InfraError| e.is_retryable())
+    .await?;
 
     // Stream to temp file while hashing
     let dir = local_path.parent().unwrap_or_else(|| Path::new("."));

@@ -2,6 +2,7 @@
 
 use crate::error::ForgeError;
 use crate::geometry::KeyboardDefinition;
+use crate::validator::Validator;
 use crate::Asset;
 
 /// A trait for projecting domain models from external representations (SQLX, JSON, etc).
@@ -21,6 +22,22 @@ impl Projection<serde_json::Value> for KeyboardDefinition {
         let mut def: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
         def.post_load()?;
         Ok(def)
+    }
+}
+
+impl Projection<serde_json::Value> for crate::config::ScoringWeights {
+    fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
+        let weights: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+        weights.validate().map_err(ForgeError::Validation)?;
+        Ok(weights)
+    }
+}
+
+impl Projection<serde_json::Value> for crate::config::SearchParams {
+    fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
+        let params: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+        params.validate().map_err(ForgeError::Validation)?;
+        Ok(params)
     }
 }
 

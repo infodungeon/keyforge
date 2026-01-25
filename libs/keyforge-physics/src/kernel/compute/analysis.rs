@@ -45,7 +45,8 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
     super::state::with_scratch(|scratch| {
         let key_count = ctx.key_count;
-        let (starts, counts, indices, offsets, used, char_usage) = scratch.get_mut_scratch();
+        let (starts, counts, indices, offsets, used, char_usage, _flat_map) =
+            scratch.get_mut_scratch();
 
         let pm = PosMap::from_scratch(
             layout.as_slice(),
@@ -386,6 +387,7 @@ mod tests {
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     #[test]
     fn test_u16_to_char() {
@@ -442,10 +444,12 @@ mod tests {
 
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
         let mut corpus = Corpus::default();
-        corpus.char_freqs[97] = 100; // 'a'
-        corpus.char_freqs[98] = 200; // 'b'
-        corpus.bigrams.push((97, 98, 50));
-        corpus.trigrams.push((97, 98, 97, 10)); // Redirect: a -> b -> a (Index -> Middle -> Index)
+        let mut freqs = corpus.char_freqs.to_vec();
+        freqs[97] = 100; // 'a'
+        freqs[98] = 200; // 'b'
+        corpus.char_freqs = Arc::from(freqs);
+        corpus.bigrams = Arc::from(vec![(97, 98, 50)]);
+        corpus.trigrams = Arc::from(vec![(97, 98, 97, 10)]); // Redirect: a -> b -> a (Index -> Middle -> Index)
 
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();

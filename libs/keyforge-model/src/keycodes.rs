@@ -174,6 +174,36 @@ impl KeycodeRegistry {
         Self::new(defs)
     }
 
+    /// Creates a registry with standard ASCII alphas (A-Z) and defaults.
+    #[must_use]
+    pub fn new_with_alphas() -> Self {
+        let mut defs = vec![
+            KeycodeDefinition {
+                code: KeyCode(0),
+                id: "KC_NO".into(),
+                label: " ".into(),
+                aliases: vec![DEFAULT_NO_OP.into()],
+            },
+            KeycodeDefinition {
+                code: KeyCode(1),
+                id: "KC_TRANSPARENT".into(),
+                label: "▽".into(),
+                aliases: vec!["KC_TRNS".into(), DEFAULT_TRANSPARENT.into()],
+            },
+        ];
+
+        for c in b'A'..=b'Z' {
+            let ch = c as char;
+            defs.push(KeycodeDefinition {
+                code: KeyCode(u16::from(c)),
+                id: format!("KC_{ch}"),
+                label: ch.to_string(),
+                aliases: vec![ch.to_string()],
+            });
+        }
+        Self::new(defs)
+    }
+
     /// Rebuilds the internal lookup maps.
     pub fn rebuild_maps(&mut self) {
         self.name_to_code.clear();

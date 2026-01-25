@@ -60,7 +60,6 @@ impl ValkeyProvider {
     pub fn invalidate_all(&self) {}
 
     /// Retrieves the hash of a corpus from the distributed store.
-    /// Retrieves the hash of a corpus from Valkey.
     ///
     /// # Errors
     ///
@@ -189,6 +188,7 @@ impl ValkeyProvider {
         Arc::new(T::default())
     }
 
+    /// Converts an asset category and ID into a relative subpath within the storage layer.
     #[must_use]
     pub fn id_to_subpath(category: AssetCategory, id: &str) -> String {
         let stem = id.strip_suffix(".json").unwrap_or(id);
@@ -263,7 +263,6 @@ impl crate::asset::AssetServerProvider for ValkeyProvider {
     }
 }
 
-#[keyforge_testing_macros::kf_test]
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;

@@ -164,6 +164,8 @@ pub struct PhysicsScratch {
     pub(crate) current_offsets: Box<[u8; MAX_KEYCODE_SPACE]>, // Helper buffer
     pub(crate) used_keys: Vec<u16>,
     pub(crate) char_usage: Box<[f32; MAX_KEYCODE_SPACE]>,
+    /// A flat mapping for SIMD kernels (`KeyCode` -> `KeyIndex`).
+    pub(crate) flat_map: Box<[u16; MAX_KEYCODE_SPACE]>,
 }
 
 impl Default for PhysicsScratch {
@@ -191,6 +193,10 @@ impl Default for PhysicsScratch {
                 .into_boxed_slice()
                 .try_into()
                 .expect("Static buffer size mismatch"),
+            flat_map: vec![u16::MAX; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
+                .expect("Static buffer size mismatch"),
         }
     }
 }
@@ -208,6 +214,7 @@ impl PhysicsScratch {
             self.starts[c] = 0;
             self.counts[c] = 0;
             self.char_usage[c] = 0.0;
+            self.flat_map[c] = u16::MAX;
         }
     }
 
@@ -223,6 +230,7 @@ impl PhysicsScratch {
         &mut [u8],
         &mut Vec<u16>,
         &mut [f32; MAX_KEYCODE_SPACE],
+        &mut [u16; MAX_KEYCODE_SPACE],
     ) {
         (
             self.starts.as_mut_slice(),
@@ -231,6 +239,7 @@ impl PhysicsScratch {
             self.current_offsets.as_mut_slice(),
             &mut self.used_keys,
             self.char_usage.as_mut(),
+            self.flat_map.as_mut(),
         )
     }
 }

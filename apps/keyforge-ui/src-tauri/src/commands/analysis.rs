@@ -2,9 +2,9 @@ use crate::error::CommandError;
 use crate::models::{DerivedStats, ValidationResult};
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
-use keyforge_infra::listing;
-use keyforge_infra::AssetLoader;
+use keyforge_infra::fs::listing;
 use keyforge_model::config::ScoringWeights;
+use keyforge_model::loader::AssetLoader;
 use keyforge_model::SwapSuggestion;
 use keyforge_protocol::{BiometricSample, JobConfig};
 use serde::Serialize;
@@ -25,7 +25,7 @@ pub struct CorpusStats {
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
-    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    let root = get_data_dir(&app)?;
     listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
@@ -33,7 +33,7 @@ pub fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandError> {
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_get_corpus_stats(app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
-    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    let root = get_data_dir(&app)?;
     let ids = listing::list_corpora(&root).map_err(|e| CommandError::Internal(e.to_string()))?;
 
     let mut stats = Vec::new();
@@ -69,7 +69,7 @@ pub fn cmd_get_corpus_stats(app: AppHandle) -> Result<Vec<CorpusStats>, CommandE
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_cost_matrices(app: AppHandle) -> Result<Vec<String>, CommandError> {
-    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    let root = get_data_dir(&app)?;
     listing::list_cost_matrices(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
@@ -89,8 +89,7 @@ pub async fn cmd_load_dataset(
     // Load definition to ensure it exists and to put in config
     let definition = assets
         .load::<keyforge_model::KeyboardDefinition>(&keyboard_name)
-        .await
-        .map_err(|e| CommandError::Config(format!("Failed to load keyboard: {e}")))?;
+        .await?;
 
     let job_config = JobConfig {
         definition: definition.as_ref().clone(),
@@ -142,21 +141,16 @@ pub async fn cmd_validate_layout(
                 let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
                     .with_keyboard_def(std::sync::Arc::new(job_config.definition.clone()))
                     .with_corpus(&job_config.corpora)
-                    .await
-                    .map_err(|e| CommandError::Internal(format!("Corpus load failed: {e}")))?
+                    .await?
                     .with_cost_matrix(&job_config.cost_matrix)
-                    .await
-                    .map_err(|e| CommandError::Internal(format!("Cost matrix load failed: {e}")))?
+                    .await?
                     .with_keycodes("keycodes.json")
-                    .await
-                    .map_err(|e| CommandError::Internal(format!("Keycodes load failed: {e}")))?
+                    .await?
                     .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
                         &job_config.weights,
                     ));
 
-                let session = builder.build().map_err(|e| {
-                    CommandError::Internal(format!("Failed to compile engine: {e}"))
-                })?;
+                let session = builder.build()?;
 
                 *write_guard = Some(session);
             }
@@ -174,14 +168,10 @@ pub async fn cmd_validate_layout(
         &layout_str,
         session.engine.key_count(),
         &session.registry,
-    )
-    .map_err(|e| CommandError::Internal(format!("Invalid layout string: {e}")))?;
+    )?;
 
     // 4. Analyze
-    let report = session
-        .engine
-        .analyze(&layout_parsed)
-        .map_err(|e| CommandError::Internal(format!("Analysis failed: {e:?}")))?;
+    let report = session.engine.analyze(&layout_parsed)?;
 
     Ok(ValidationResult {
         layout_name: "Custom".to_string(),

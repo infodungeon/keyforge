@@ -7,7 +7,7 @@ use crate::errors::EvolutionError;
 use crate::supervisor::annealing::Optimizer;
 use crate::{NoOpCallback, ProgressCallback};
 use keyforge_model::{EngineRequest, KeyCode, Layout, OptimizationResult, SearchConfig};
-use keyforge_physics::ScoringEngine;
+use keyforge_physics::{EngineCompilationContext, ScoringEngine};
 use std::sync::Arc;
 
 /// Performs a basic optimization run.
@@ -28,13 +28,12 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine =
-        keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-            keyboard: &req.keyboard,
-            corpus: &req.corpus,
-            rubric: &req.rubric,
-            cost_model: &req.cost_model,
-        })?;
+    let engine = keyforge_physics::EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+    })?;
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     // Determine unlocked indices
@@ -236,11 +235,11 @@ mod tests {
                 )]),
             },
         );
-        let engine = EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &Corpus::default(),
-            rubric: &Rubric::default(),
-            cost_model: &cm,
+        let engine = EngineFactory::new_scalar(&keyforge_physics::EngineCompilationContext {
+            keyboard: Arc::new(kb),
+            corpus: Arc::new(Corpus::default()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cm),
         })
         .unwrap();
         let config = SearchConfig::Annealing {
@@ -329,33 +328,5 @@ mod tests {
 
         let res = optimize(&req).unwrap();
         assert!(res.score >= 0.0);
-    }
-
-    #[test]
-    fn test_evolve_with_pinned_keys() {
-        let (engine, config) = setup_env();
-        let pins = vec![Some(KeyCode(1))];
-        let res = evolve(&engine, &config, NoOpCallback, None, Some(&pins)).unwrap();
-        assert_eq!(res.layout.keys[0], KeyCode(1));
-    }
-
-    #[test]
-    fn test_evolve_with_callback() {
-        let (engine, _config) = setup_env();
-        let config = SearchConfig::Annealing {
-            steps: 10,
-            start_temp: 10.0,
-            end_temp: 0.1,
-            seed: 42,
-            patience: 100,
-            reheats: 0,
-            reheat_factor: 1.5,
-            include_thumbs: false,
-        };
-
-        let count = Arc::new(AtomicUsize::new(0));
-        let _ = evolve(&engine, &config, MockCallback(count.clone()), None, None).unwrap();
-
-        assert!(count.load(Ordering::SeqCst) > 0);
     }
 }

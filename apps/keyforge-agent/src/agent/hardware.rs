@@ -1,0 +1,81 @@
+// apps/keyforge-agent/src/agent/hardware.rs
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use raw_cpuid::CpuId;
+use sysinfo::System;
+
+#[derive(Debug, Clone)]
+pub struct HardwareInfo {
+    pub cpu_model: String,
+    pub cores: i32,
+    pub l2_cache_kb: Option<i32>,
+}
+
+impl HardwareInfo {
+    #[must_use]
+    pub fn detect() -> Self {
+        let mut sys = System::new_all();
+        sys.refresh_cpu_all();
+
+        let cpu_model = sys
+            .cpus()
+            .first()
+            .map_or_else(|| "Unknown CPU".to_string(), |cpu| cpu.brand().to_string());
+
+        let cores = sys.cpus().len();
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        let cores_i32 = cores as i32;
+
+        let l2_cache_kb = detect_l2_cache_kb();
+
+        Self {
+            cpu_model,
+            cores: cores_i32,
+            l2_cache_kb,
+        }
+    }
+}
+
+#[allow(clippy::cast_possible_truncation)]
+fn detect_l2_cache_kb() -> Option<i32> {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        let cpuid = CpuId::new();
+        if cpuid.get_l1_cache_and_tlb_info().is_some() {
+            if let Some(params) = cpuid.get_cache_parameters() {
+                for cache in params {
+                    if cache.level() == 2 {
+                        let size_bytes = (cache.associativity() + 1)
+                            * (cache.physical_line_partitions() + 1)
+                            * (cache.coherency_line_size() + 1)
+                            * (cache.sets() + 1);
+                        #[allow(clippy::cast_possible_wrap)]
+                        return Some((size_bytes / 1024) as i32);
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback for non-x86 or if cpuid failed
+    // On Linux we could read /sys/devices/system/cpu/cpu0/cache/index2/size
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(content) =
+            std::fs::read_to_string("/sys/devices/system/cpu/cpu0/cache/index2/size")
+        {
+            let s = content.trim();
+            if let Some(stripped) = s.strip_suffix('K') {
+                if let Ok(kb) = stripped.parse::<i32>() {
+                    return Some(kb);
+                }
+            } else if let Some(stripped) = s.strip_suffix('M') {
+                if let Ok(mb) = stripped.parse::<i32>() {
+                    return Some(mb * 1024);
+                }
+            }
+        }
+    }
+
+    None
+}

@@ -16,6 +16,7 @@ keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-physics = { path = "../keyforge-physics" }
 keyforge-evolution = { path = "../keyforge-evolution" }
+keyforge-infra = { path = "../keyforge-infra" }
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -89,7 +89,21 @@ We adhere to the **Minimal Attack Surface** doctrine.
     2.  Trigger a Rolling Restart.
     3.  Nodes re-authenticate with the new secret.
 
-## 7. Disaster Recovery
+## 8. Failure Detection & Alerting
+
+Operational integrity is maintained through structured error observation.
+
+### Error Classification
+All infrastructure errors (`InfraError`) are classified into:
+- **Retryable:** Transient failures (e.g., `503 Service Unavailable`, `Timeout`). Handled automatically by exponential backoff in the client.
+- **Terminal:** Permanent failures (e.g., `401 Unauthorized`, `InvalidData`). Requires manual intervention.
+
+### Health Monitoring
+- **Liveness:** Containers expose `/health` endpoints. Orchestrators (Docker Compose/K8s) use these to restart stalled instances.
+- **Error Rates:** Surges in `ErrorCode::UpstreamTimeout` or `ErrorCode::InternalError` trigger alerts via Prometheus/Grafana.
+- **Data Integrity:** `keyforge-assetmgr` continuously verifies the hash parity between the local disk and `Valkey`. Mismatches are logged as CRITICAL.
+
+## 9. Disaster Recovery
 
 *   **RPO:** 24 Hours (Daily Backups).
 *   **RTO:** 1 Hour (Redeploy Stack).

@@ -161,7 +161,7 @@ impl AutoSaveService {
             Ok(None)
         })
         .await
-        .map_err(|e| crate::error::PersistenceError::InvalidState(e.to_string()))?
+        .map_err(|e| crate::error::PersistenceError::Task(e.to_string()))?
     }
 
     /// Schedules a session snapshot to be saved to disk.

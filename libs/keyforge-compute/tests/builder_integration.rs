@@ -11,7 +11,6 @@
 )]
 mod integration_tests {
     use super::*;
-    use keyforge_model::geometry::KeyboardMeta;
     use std::collections::HashMap;
 
     use keyforge_compute::{
@@ -125,15 +124,15 @@ mod integration_tests {
     }
 
     fn setup_runtime() -> Runtime {
-        let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
+        let kb = Arc::new(Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap());
         let mut cm = CostModel::default();
-        let mut fingers = std::collections::HashMap::new();
+        let mut fingers = HashMap::new();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        base: HashMap::from([(RowIndex(0), 1.0)]),
                         ..Default::default()
                     },
                 ),
@@ -143,17 +142,18 @@ mod integration_tests {
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition { fingers },
                 )]),
             },
         );
-        let engine = EngineFactory::new_exact(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &Corpus::default(),
-            rubric: &Rubric::default(),
-            cost_model: &cm,
+        let cm_arc = Arc::new(cm);
+        let engine = EngineFactory::new_exact(&keyforge_physics::EngineCompilationContext {
+            keyboard: kb,
+            corpus: Arc::new(Corpus::default()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: cm_arc,
         })
         .unwrap();
         let registry = Arc::new(KeycodeRegistry::new_with_defaults());
@@ -200,15 +200,15 @@ mod integration_tests {
 
     #[test]
     fn test_runtime_from_session() {
-        let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
+        let kb = Arc::new(Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap());
         let mut cm = CostModel::default();
-        let mut fingers = std::collections::HashMap::new();
+        let mut fingers = HashMap::new();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        base: HashMap::from([(RowIndex(0), 1.0)]),
                         ..Default::default()
                     },
                 ),
@@ -218,17 +218,18 @@ mod integration_tests {
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition { fingers },
                 )]),
             },
         );
-        let engine = EngineFactory::new_exact(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &Corpus::default(),
-            rubric: &Rubric::default(),
-            cost_model: &cm,
+        let cm_arc = Arc::new(cm);
+        let engine = EngineFactory::new_exact(&keyforge_physics::EngineCompilationContext {
+            keyboard: kb,
+            corpus: Arc::new(Corpus::default()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: cm_arc,
         })
         .unwrap();
         let session = ScoringSession::new(
@@ -258,13 +259,13 @@ mod integration_tests {
         });
         let corp = Arc::new(Corpus::default());
         let mut cm = CostModel::default();
-        let mut fingers = std::collections::HashMap::new();
+        let mut fingers = HashMap::new();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        base: HashMap::from([(RowIndex(0), 1.0)]),
                         ..Default::default()
                     },
                 ),
@@ -274,7 +275,7 @@ mod integration_tests {
             "model_ortho".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition {
                         fingers: fingers.clone(),
@@ -286,7 +287,7 @@ mod integration_tests {
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition {
                         fingers: fingers.clone(),
@@ -298,7 +299,7 @@ mod integration_tests {
             "model_a_ansi".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition {
                         fingers: fingers.clone(),
@@ -367,13 +368,13 @@ mod integration_tests {
 
         // 4. Default registry and rubric
         let mut cm = CostModel::default();
-        let mut fingers = std::collections::HashMap::new();
+        let mut fingers = HashMap::new();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex(0), 1.0)]),
+                        base: HashMap::from([(RowIndex(0), 1.0)]),
                         ..Default::default()
                     },
                 ),
@@ -383,7 +384,7 @@ mod integration_tests {
             "model_ortho".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition {
                         fingers: fingers.clone(),
@@ -395,7 +396,7 @@ mod integration_tests {
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition {
                         fingers: fingers.clone(),
@@ -407,7 +408,7 @@ mod integration_tests {
             "model_a_ansi".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
+                static_costs: HashMap::from([(
                     "universal_hand".to_string(),
                     keyforge_model::cost_model::HandDefinition {
                         fingers: fingers.clone(),

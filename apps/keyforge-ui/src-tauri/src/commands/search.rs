@@ -4,7 +4,8 @@ use crate::state::{LocalWorkerState, SearchState, SessionState};
 use crate::utils::get_data_dir;
 use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
-use keyforge_infra::{AssetLoader, HiveClient};
+use keyforge_infra::HiveClient;
+use keyforge_model::loader::AssetLoader;
 use keyforge_model::JobStatus;
 use keyforge_model::KeyCode;
 use keyforge_protocol::{JobRequest, JobResponse};
@@ -35,7 +36,7 @@ pub async fn cmd_dispatch_job(
         secret: Some(hive_secret),
         ..Default::default()
     };
-    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config)?;
 
     let job_req: JobRequest = request;
     let resp = client
@@ -79,7 +80,7 @@ pub async fn cmd_poll_hive_status(
         secret: Some(hive_secret),
         ..Default::default()
     };
-    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config)?;
 
     let path = format!("jobs/{job_id}/status");
     let resp = client
@@ -152,7 +153,7 @@ pub fn cmd_toggle_local_worker(
             return Ok("Worker already running".into());
         }
 
-        let data_dir = get_data_dir(&app).map_err(CommandError::Internal)?;
+        let data_dir = get_data_dir(&app)?;
 
         // Spawn sidecar
         let (mut _rx, child) = app
@@ -252,14 +253,11 @@ pub async fn cmd_start_search(
     let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
         .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
         .with_corpus(&job.corpora)
-        .await
-        .map_err(|e| CommandError::Internal(format!("Corpus load failed: {e}")))?
+        .await?
         .with_cost_matrix(&job.cost_matrix)
-        .await
-        .map_err(|e| CommandError::Internal(format!("Cost matrix load failed: {e}")))?
+        .await?
         .with_keycodes("default")
-        .await
-        .map_err(|e| CommandError::Internal(format!("Keycodes load failed: {e}")))?
+        .await?
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
         .with_config(keyforge_model::SearchConfig::Annealing {
             steps: request.search_params.get_search_steps(),
@@ -272,9 +270,7 @@ pub async fn cmd_start_search(
             include_thumbs: request.search_params.include_thumbs,
         });
 
-    let session = builder
-        .build()
-        .map_err(|e| CommandError::Internal(e.to_string()))?;
+    let session = builder.build()?;
 
     // Reset stop flag
     search_state.stop_flag.store(false, Ordering::SeqCst);

@@ -24,7 +24,8 @@ use crate::monitor::{SharedMonitor, SystemMonitor};
 use crate::services::job_manager::JobManager;
 use crate::services::security::SecurityContext;
 use crate::services::verification::VerificationService;
-use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
+use keyforge_infra::asset::ValkeyProvider;
+use keyforge_infra::net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
 use sqlx::{Pool, Postgres};
 
 use std::path::PathBuf;

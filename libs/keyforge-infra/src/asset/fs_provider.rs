@@ -88,7 +88,7 @@ impl FsProvider {
         tokio::task::spawn_blocking(move || {
             let file = File::open(&path)?;
             let reader = BufReader::new(file);
-            serde_json::from_reader(reader).map_err(ForgeError::Serde)
+            Ok(serde_json::from_reader(reader)?)
         })
         .await
         .map_err(|e| ForgeError::Internal(e.to_string()))?
@@ -104,7 +104,7 @@ impl FsProvider {
         let _ = self
             .resolver
             .safe_join(id)
-            .map_err(ForgeError::InvalidData)?;
+            .map_err(|e| ForgeError::InvalidData(e.to_string()))?;
 
         let files = ["1grams", "2grams", "3grams", "words"];
         let is_system = self.resolver.root.join("system/corpora").join(id).exists();
@@ -137,7 +137,7 @@ impl AssetLoader for FsProvider {
         if id.contains("..") {
             self.resolver
                 .safe_join(id)
-                .map_err(ForgeError::InvalidData)?;
+                .map_err(|e| ForgeError::InvalidData(e.to_string()))?;
         }
 
         // 1. Try direct path (absolute or ./ relative)
@@ -192,7 +192,7 @@ impl AssetLoader for FsProvider {
             let _ = self
                 .resolver
                 .safe_join(&src.id)
-                .map_err(ForgeError::InvalidData)?;
+                .map_err(|e| ForgeError::InvalidData(e.to_string()))?;
 
             let is_system = self
                 .resolver
@@ -243,7 +243,10 @@ impl AssetServerProvider for FsProvider {
     }
 
     async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
-        let safe_path = self.resolver.safe_join(path).map_err(InfraError::Config)?;
+        let safe_path = self
+            .resolver
+            .safe_join(path)
+            .map_err(|e| InfraError::Config(e.to_string()))?;
 
         if safe_path.exists() {
             let content = tokio::fs::read(safe_path).await?;

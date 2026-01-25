@@ -8,7 +8,12 @@ use std::sync::Arc;
 #[tokio::test]
 async fn test_full_orchestration_flow() {
     // 1. Setup Workspace
-    let ws = HermeticWorkspace::new().with_default_assets();
+    let ws = HermeticWorkspace::new()
+        .await
+        .expect("setup failed")
+        .with_default_assets()
+        .await
+        .expect("assets failed");
 
     // 2. Mock Hive Request (Simulating CLI upload)
     let mut req = JobRequest::default();

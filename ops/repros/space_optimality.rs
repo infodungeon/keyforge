@@ -3,7 +3,8 @@ use keyforge_model::{
     types::{FingerIndex, HandIndex},
     Corpus, CostModel, KeyNode, Keyboard, Rubric,
 };
-use keyforge_physics::EngineFactory;
+use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
@@ -22,7 +23,7 @@ fn mock_cost_model() -> CostModel {
                 }
             }
         },
-        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {}}
     }"#;
     serde_json::from_str(json).unwrap()
 }
@@ -32,21 +33,21 @@ fn main() {
         .map(|i| KeyNode {
             index: i,
             hand: HandIndex(0),
-            finger: FingerIndex(i as u8),
+            finger: FingerIndex::new_unchecked(i as u8),
             x: i as f32,
             ..Default::default()
         })
         .collect();
-    let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-    let corpus = Corpus::default();
-    let rubric = Rubric::default();
-    let cost_model = mock_cost_model();
+    let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+    let corpus = Arc::new(Corpus::default());
+    let rubric = Arc::new(Rubric::default());
+    let cost_model = Arc::new(mock_cost_model());
 
-    let _engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &kb,
-        corpus: &corpus,
-        rubric: &rubric,
-        cost_model: &cost_model,
+    let _engine = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard: kb,
+        corpus,
+        rubric,
+        cost_model,
     })
     .unwrap();
     println!("Engine built successfully");

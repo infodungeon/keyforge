@@ -4,7 +4,7 @@
 use crate::constants::DEFAULT_HIVE_URL;
 use crate::error::CliError;
 use clap::Args;
-use keyforge_infra::init::{ensure_dir, USER_WORKSPACE_DIRS};
+use keyforge_infra::fs::init::{ensure_dir, USER_WORKSPACE_DIRS};
 
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
@@ -49,7 +49,7 @@ pub async fn run(args: InitArgs, root: &std::path::Path) -> Result<(), CliError>
         }
     };
 
-    match keyforge_infra::net::sync::bootstrap_essentials(&client, root).await {
+    match keyforge_infra::bootstrap_essentials(&client, root).await {
         Ok(files) => {
             eprintln!("✅ Downloaded {} essential assets.", files.len());
         }

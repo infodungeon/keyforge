@@ -271,23 +271,23 @@ for seed in 100 200 300; do
 done
 ```
 
-## Troubleshooting
+## Diagnostics & Error Messages
 
-### Common Issues
+KeyForge uses structured error reporting to help you identify and fix issues quickly.
 
-- **"Workspace not found"** → Run `keyforge init`
-- **"Keyboard not found"** → Check `keyforge list keyboards` or use full path
-- **Network errors** → Check server URL or work offline
+### Common Error Categories
 
-### Performance
+- **Validation Error:** Your input (keyboard JSON, layout string, etc.) is malformed or violates constraints (e.g., duplicate keys).
+- **IO Error:** A problem reading or writing files. Check permissions or disk space.
+- **Network Error:** Could not connect to Hive. Check your internet connection or use `--hive` to specify a different URL.
+- **Config Error:** Missing mandatory configuration or malformed environment variables.
 
-- Use `--threads 0` for automatic thread detection
-- Increase `--time` limit for constrained optimization
-- Check `keyforge doctor` to ensure AVX2 support is detected
+### Diagnostic Tools
 
-### Debugging
+- **`keyforge doctor`**: Your first line of defense. It verifies your workspace, network, and CPU capabilities.
+- **`RUST_LOG`**: Set `RUST_LOG=debug` or `RUST_LOG=trace` before your command to see detailed execution steps and internal error context.
 
+Example:
 ```bash
-RUST_LOG=debug keyforge search  # Verbose logging
-keyforge doctor                 # System diagnostics
+RUST_LOG=debug keyforge search --keyboard invalid_name
 ```

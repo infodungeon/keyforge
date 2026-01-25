@@ -21,7 +21,8 @@ mod integration_tests {
         http::{Request, StatusCode},
     };
     use keyforge_assets::create_app;
-    use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
+    use keyforge_infra::asset::ValkeyProvider;
+    use keyforge_infra::net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
     use std::sync::Arc;
     use testcontainers_modules::redis::Redis;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;

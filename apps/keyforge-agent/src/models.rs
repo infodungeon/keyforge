@@ -155,14 +155,18 @@ pub struct AgentConfig {
 
 impl Default for AgentConfig {
     fn default() -> Self {
+        let common = keyforge_infra::config::CommonConfig::from_env();
         Self {
-            hive_url: "https://hive.infodungeon.com:3000".to_string(),
+            hive_url: common
+                .hive_url
+                .clone()
+                .unwrap_or_else(|| "https://hive.infodungeon.com:3000".to_string()),
             asset_url: "http://localhost:3001".to_string(),
             node_id: "unknown".to_string(),
             secret: String::new(),
             private_key: String::new(),
-            data_dir: PathBuf::from("data"),
-            cores: 1,
+            data_dir: common.resolve_data_dir(),
+            cores: common.cores.unwrap_or(1),
             calibration: CalibrationConfig::default(),
             network: NetworkConfig::default(),
             maintenance: MaintenanceConfig::default(),
@@ -193,21 +197,27 @@ pub struct PartialAgentConfig {
     pub system: Option<SystemConfig>,
 }
 
+use crate::agent::errors::AgentResult;
+
 impl PartialAgentConfig {
-    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, String> {
+    /// Loads a partial configuration from a file.
+    ///
+    /// # Errors
+    /// Returns an `AgentError` if the file cannot be read or parsed.
+    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> AgentResult<Self> {
         let path = path.as_ref();
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
             if ext == "zst" || path.to_string_lossy().ends_with(".mpk.zst") {
-                let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-                let decoder = zstd::Decoder::new(file).map_err(|e| e.to_string())?;
-                return rmp_serde::from_read(decoder).map_err(|e| e.to_string());
+                let file = std::fs::File::open(path)?;
+                let decoder = zstd::Decoder::new(file)?;
+                return Ok(rmp_serde::from_read(decoder)?);
             }
         }
-        let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let content = std::fs::read_to_string(path)?;
         if path.extension().and_then(|s| s.to_str()) == Some("toml") {
-            toml::from_str(&content).map_err(|e| e.to_string())
+            Ok(toml::from_str(&content)?)
         } else {
-            serde_json::from_str(&content).map_err(|e| e.to_string())
+            Ok(serde_json::from_str(&content)?)
         }
     }
 }

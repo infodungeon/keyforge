@@ -25,6 +25,7 @@ mod integration_tests {
     use keyforge_model::{Corpus, Keyboard, Layout, Rubric};
     use keyforge_physics::{verify::DeterministicScorer, EngineCompilationContext, EngineFactory};
     use proptest::prelude::*;
+    use std::sync::Arc;
 
     #[keyforge_testing_macros::kf_test]
     mod tests {
@@ -54,12 +55,12 @@ mod integration_tests {
 
                 // 2. Optimized Engine (System Under Test)
                 let ctx = EngineCompilationContext {
-                    keyboard: &kb,
-                    corpus: &corpus,
-                    rubric: &rubric,
-                    cost_model: &cost_model,
+                    keyboard: Arc::new(kb.clone()),
+                    corpus: Arc::new(corpus.clone()),
+                    rubric: Arc::new(rubric.clone()),
+                    cost_model: Arc::new(cost_model.clone()),
                 };
-                let engine = EngineFactory::new_generic(ctx).unwrap();
+                let engine = EngineFactory::new_generic(&ctx).unwrap();
 
                 // 3. Generate Report
                 let report = engine.analyze(&layout).unwrap();

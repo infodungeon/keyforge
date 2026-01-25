@@ -61,11 +61,13 @@ pub trait JobState: std::fmt::Debug + Clone + Serialize {}
 
 /// Job is in the queue, awaiting a worker.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Pending;
 impl JobState for Pending {}
 
 /// Job is currently being processed by one or more workers.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Running {
     /// Number of active worker nodes.
     pub active_nodes: usize,
@@ -76,6 +78,7 @@ impl JobState for Running {}
 
 /// Job has been finished or timed out.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct Completed {
     /// Final best score achieved.
     pub final_score: crate::types::Score,
@@ -108,6 +111,7 @@ pub struct Job<S: JobState> {
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum JobStatus {
     /// Job is awaiting workers.
     Pending(Pending),

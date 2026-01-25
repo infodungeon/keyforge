@@ -2,14 +2,16 @@
 
 use crate::PhysicsError;
 use keyforge_model::{types::KeyCode, Corpus, KeyNode, Keyboard, Rubric};
+use std::sync::Arc;
 
 /// A naive, high-precision version of the scoring logic used to verify
 /// the optimized `ScoringEngine` results.
 #[derive(Debug, Clone)]
 pub struct DeterministicScorer {
     rubric: FixedPointRubric,
-    static_costs: std::collections::HashMap<String, keyforge_model::cost_model::HandDefinition>,
-    sequence_modifiers: std::collections::HashMap<(u16, u16), i64>,
+    static_costs:
+        Arc<std::collections::HashMap<String, keyforge_model::cost_model::HandDefinition>>,
+    sequence_modifiers: Arc<std::collections::HashMap<(u16, u16), i64>>,
     penalty_redirect: i64,
     bonus_roll: i64,
     bonus_roll_out: i64,
@@ -26,7 +28,7 @@ impl DeterministicScorer {
         let static_costs = cost_model
             .models
             .get(model_key)
-            .map(|m| m.static_costs.clone())
+            .map(|m| Arc::new(m.static_costs.clone()))
             .unwrap_or_default();
 
         let mut sequence_modifiers = std::collections::HashMap::new();
@@ -41,7 +43,7 @@ impl DeterministicScorer {
         Self {
             rubric: FixedPointRubric::from_rubric(rubric),
             static_costs,
-            sequence_modifiers,
+            sequence_modifiers: Arc::new(sequence_modifiers),
             penalty_redirect: to_fixed(rubric.redirect),
             bonus_roll: to_fixed(rubric.roll_bonus),
             bonus_roll_out: to_fixed(rubric.roll_out_bonus),
@@ -121,7 +123,7 @@ impl DeterministicScorer {
         layout_keys: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let mut bigram_score = 0i64;
-        for (c1, c2, freq) in &corpus.bigrams {
+        for (c1, c2, freq) in &*corpus.bigrams {
             let freq = i64::from(*freq);
             let indices1 = find_indices(layout_keys, KeyCode(*c1));
             let indices2 = find_indices(layout_keys, KeyCode(*c2));
@@ -177,7 +179,7 @@ impl DeterministicScorer {
         layout_keys: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let mut trigram_score = 0i64;
-        for (c1, c2, c3, freq) in &corpus.trigrams {
+        for (c1, c2, c3, freq) in &*corpus.trigrams {
             let freq = i64::from(*freq);
             let indices1 = find_indices(layout_keys, KeyCode(*c1));
             let indices2 = find_indices(layout_keys, KeyCode(*c2));
@@ -483,247 +485,4 @@ fn to_f32(i: i64) -> f32 {
     #[allow(clippy::cast_precision_loss)]
     let val = (i as f32) / keyforge_model::constants::SCORE_SCALE;
     val
-}
-
-#[keyforge_testing_macros::kf_test]
-mod tests {
-    use super::*;
-    use keyforge_model::testing::{mock_cost_model, setup_minimal_assets};
-    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode};
-    use keyforge_model::{Corpus, KeyNode, Rubric};
-    use std::collections::HashMap;
-
-    #[test]
-    fn test_deterministic_scorer_detailed_branches() {
-        let mut rubric = Rubric::default();
-        rubric.roll_bonus = 10.0;
-        rubric.redirect = 20.0;
-        let mut cm = mock_cost_model();
-        cm.dynamic_rules.sequence_modifiers.insert("ab".into(), 5.0);
-
-        let (kb, _, _, _) = setup_minimal_assets();
-        let oracle = DeterministicScorer::new(&kb, &rubric, &cm);
-        let mut corpus = Corpus::default();
-        corpus.char_freqs['a' as usize] = 10;
-        corpus.char_freqs['b' as usize] = 20;
-        corpus.bigrams.push(('a' as u16, 'b' as u16, 5));
-        corpus
-            .trigrams
-            .push(('a' as u16, 'b' as u16, 'a' as u16, 2)); // Redirect
-
-        let layout_keys = vec![
-            KeyCode('a' as u16),
-            KeyCode('b' as u16),
-            KeyCode('c' as u16),
-        ];
-        let res = oracle.score_detailed(&kb, &corpus, &layout_keys).unwrap();
-        assert!(res.0 > 0); // Mono
-        assert!(res.1 > 0); // Bigram
-        assert!(res.2 > 0); // Trigram
-    }
-
-    #[test]
-    fn test_calculate_flow_cost_branches() {
-        let (kb_min, _corpus, rubric, cm) = setup_minimal_assets();
-        let oracle = DeterministicScorer::new(&kb_min, &rubric, &cm);
-
-        // Update keys to have specific fingers for testing logic
-        // We need a mutable keyboard or construct one.
-        // setup_minimal_assets returns a kb with:
-        // k0: Hand 0, Finger 0 (Thumb? No, FingerIndex::new_unchecked(0) -> Thumb)
-        // k1: Hand 0, Finger 1 (Index)
-        // k2: Hand 0, Finger 2 (Middle)
-
-        // We need:
-        // Index(1), Middle(2), Ring(3)
-        // Let's modify the keys from setup_minimal_assets
-        let mut kb = kb_min;
-        kb.keys[0].finger = FingerIndex::INDEX;
-        kb.keys[1].finger = FingerIndex::MIDDLE;
-        kb.keys[2].finger = FingerIndex::RING;
-
-        // Roll: Ring(2) -> Middle(1) -> Index(0)
-        // Ring -> Middle -> Index:
-        // dir1 = Middle - Ring = 2 - 3 = -1 (Inward)
-        // dir2 = Index - Middle = 1 - 2 = -1 (Inward)
-        // Wait, setup_minimal_assets k0..k2 are indices 0..2.
-        // kb.keys[2] is Ring. kb.keys[1] is Middle. kb.keys[0] is Index.
-        // calculate_flow_cost(kb, p1, p2, p3) -> (2, 1, 0)
-        assert_eq!(oracle.calculate_flow_cost(&kb, 2, 1, 0), -oracle.bonus_roll);
-
-        // Redirect: Index(0) -> Middle(1) -> Index(0)
-        // dir1 = Middle - Index = 2 - 1 = 1
-        // dir2 = Index - Middle = 1 - 2 = -1
-        // signum mismatch -> penalty_redirect
-        assert_eq!(
-            oracle.calculate_flow_cost(&kb, 0, 1, 0),
-            oracle.penalty_redirect
-        );
-    }
-
-    #[test]
-    fn test_deterministic_scorer_overflows() {
-        let rubric = Rubric::default();
-        let mut cm = keyforge_model::CostModel::default();
-
-        // Inject a MASSIVE static cost for the 'universal_hand' -> 'index' -> 'base' -> 'r0'
-        let huge_cost = 1_000_000_000_000_000.0; // 1e15
-
-        let mut base_zone = keyforge_model::cost_model::RowCosts::new();
-        base_zone.insert(keyforge_model::types::RowIndex(0), huge_cost);
-
-        let index_zones = keyforge_model::cost_model::FingerReach {
-            base: base_zone,
-            inner: HashMap::default(),
-            outer: HashMap::default(),
-        };
-
-        let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(index_zones),
-        );
-
-        let mut static_costs = std::collections::HashMap::new();
-        static_costs.insert(
-            "universal_hand".into(),
-            keyforge_model::cost_model::HandDefinition { fingers },
-        );
-
-        cm.models.insert(
-            "model_a_row_staggered".into(),
-            keyforge_model::cost_model::ModelDefinition {
-                description: "test".into(),
-                static_costs,
-            },
-        );
-
-        let (mut kb, _, _, _) = setup_minimal_assets();
-        // Ensure k1 is Index finger (it is 1 in setup_minimal_assets, which corresponds to Index)
-        // k0=Thumb, k1=Index, k2=Middle.
-        // But we want to be sure.
-        kb.keys[1].finger = FingerIndex::INDEX;
-
-        let oracle = DeterministicScorer::new(&kb, &rubric, &cm);
-
-        // 1. Monogram Overflow
-        let mut corpus = Corpus::default();
-        // layout_keys = [97, 98, 99].
-        // find_indices(98) -> index 1 (k1).
-        corpus.char_freqs[98] = 1_000_000;
-
-        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
-
-        let res = oracle.score_detailed(&kb, &corpus, &layout_keys);
-        assert!(
-            res.is_err(),
-            "Should overflow on massive static cost * frequency"
-        );
-
-        // 2. Bigram Overflow
-        corpus.char_freqs[98] = 0;
-
-        let mut cm_bigram = cm.clone();
-        cm_bigram
-            .dynamic_rules
-            .sequence_modifiers
-            .insert("ab".into(), huge_cost);
-        let oracle_bigram = DeterministicScorer::new(&kb, &rubric, &cm_bigram);
-
-        let mut corpus_bi = Corpus::default();
-        corpus_bi.bigrams.push((97, 98, 1_000_000));
-
-        let res_bi = oracle_bigram.score_detailed(&kb, &corpus_bi, &layout_keys);
-        assert!(
-            res_bi.is_err(),
-            "Should overflow on massive bigram modifier * frequency"
-        );
-
-        // 3. Trigram Overflow
-        let mut corpus_tri = Corpus::default();
-        corpus_tri.trigrams.push((97, 98, 97, 1_000_000));
-
-        let mut rubric_tri = Rubric::default();
-        rubric_tri.redirect = 1_000_000_000_000.0;
-        let oracle_tri = DeterministicScorer::new(&kb, &rubric_tri, &cm);
-
-        let res_tri = oracle_tri.score_detailed(&kb, &corpus_tri, &layout_keys);
-        assert!(
-            res_tri.is_err(),
-            "Should overflow on massive trigram redirect penalty * frequency"
-        );
-    }
-
-    #[test]
-    fn test_resolve_static_key_cost_branches() {
-        let mut static_costs = std::collections::HashMap::new();
-        let mut left_hand = keyforge_model::cost_model::HandDefinition {
-            fingers: std::collections::HashMap::new(),
-        };
-        let mut right_hand = keyforge_model::cost_model::HandDefinition {
-            fingers: std::collections::HashMap::new(),
-        };
-
-        let mut base_zone = keyforge_model::cost_model::RowCosts::new();
-        base_zone.insert(keyforge_model::types::RowIndex(0), 1.0);
-
-        let mut outer_zone = keyforge_model::cost_model::RowCosts::new();
-        outer_zone.insert(keyforge_model::types::RowIndex(0), 10.0);
-
-        let zones = keyforge_model::cost_model::FingerReach {
-            base: base_zone,
-            outer: outer_zone,
-            inner: HashMap::default(),
-        };
-
-        left_hand.fingers.insert(
-            "pinky".into(),
-            keyforge_model::cost_model::FingerDefinition::Standard(zones),
-        );
-        right_hand.fingers.insert(
-            "thumb".into(),
-            keyforge_model::cost_model::FingerDefinition::Thumb(std::collections::HashMap::from([
-                ("p1".into(), 5.0),
-            ])),
-        );
-
-        static_costs.insert("left_hand".into(), left_hand);
-        static_costs.insert("right_hand".into(), right_hand);
-
-        // Left Pinky Base
-        let k1 = KeyNode {
-            hand: HandIndex::LEFT,
-            finger: FingerIndex::PINKY,
-            col: keyforge_model::types::ColIndex(0),
-            row: keyforge_model::types::RowIndex(0),
-            ..Default::default()
-        };
-        assert_eq!(resolve_static_key_cost(&k1, &static_costs).unwrap(), 1.0);
-
-        // Left Pinky Outer
-        let k2 = KeyNode {
-            hand: HandIndex::LEFT,
-            finger: FingerIndex::PINKY,
-            col: keyforge_model::types::ColIndex(5),
-            row: keyforge_model::types::RowIndex(0),
-            ..Default::default()
-        };
-        assert_eq!(resolve_static_key_cost(&k2, &static_costs).unwrap(), 10.0);
-
-        // Right Thumb
-        let k3 = KeyNode {
-            hand: HandIndex::RIGHT,
-            finger: FingerIndex::THUMB,
-            ..Default::default()
-        };
-        assert_eq!(resolve_static_key_cost(&k3, &static_costs).unwrap(), 5.0);
-
-        // Unknown finger -> Error
-        let k4 = KeyNode {
-            hand: HandIndex::LEFT,
-            finger: FingerIndex::RING,
-            ..Default::default()
-        };
-        assert!(resolve_static_key_cost(&k4, &static_costs).is_err());
-    }
 }

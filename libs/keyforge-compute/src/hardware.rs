@@ -49,9 +49,18 @@ impl Default for CpuTopology {
 #[derive(Debug)]
 pub struct HardwareProbe;
 
+use keyforge_infra::hardware::HardwareProvider;
+
 impl HardwareProbe {
+    /// Probes the host hardware using CPUID and optionally a platform-specific provider.
     #[must_use]
     pub fn probe() -> CpuTopology {
+        Self::probe_with_provider(None)
+    }
+
+    /// Probes hardware with an optional provider for OS-specific data.
+    #[must_use]
+    pub fn probe_with_provider(provider: Option<&dyn HardwareProvider>) -> CpuTopology {
         let mut topology = CpuTopology::default();
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -101,24 +110,22 @@ impl HardwareProbe {
             }
         }
 
-        // Linux fallback for cache detection (works for x86 and ARM)
-        #[cfg(target_os = "linux")]
-        {
-            // If we don't have cache info yet, or we're on ARM, try /sys
+        // Platform-specific fallback for cache detection (works for x86 and ARM)
+        if let Some(p) = provider {
             if topology.l1d_size_bytes == 32 * 1024 || cfg!(target_arch = "aarch64") {
-                if let Some(linux_topo) = detect_linux_topology() {
+                if let Some(os_topo) = detect_os_topology(p) {
                     // Only override if we got actual data
-                    if linux_topo.l1d_size_bytes != 32 * 1024 {
-                        topology.l1d_size_bytes = linux_topo.l1d_size_bytes;
+                    if os_topo.l1d_size_bytes != 32 * 1024 {
+                        topology.l1d_size_bytes = os_topo.l1d_size_bytes;
                     }
-                    if linux_topo.l2_size_bytes != 256 * 1024 {
-                        topology.l2_size_bytes = linux_topo.l2_size_bytes;
+                    if os_topo.l2_size_bytes != 256 * 1024 {
+                        topology.l2_size_bytes = os_topo.l2_size_bytes;
                     }
-                    if linux_topo.l3_size_bytes != 8 * 1024 * 1024 {
-                        topology.l3_size_bytes = linux_topo.l3_size_bytes;
+                    if os_topo.l3_size_bytes != 8 * 1024 * 1024 {
+                        topology.l3_size_bytes = os_topo.l3_size_bytes;
                     }
-                    if linux_topo.vendor != "Unknown" {
-                        topology.vendor = linux_topo.vendor;
+                    if os_topo.vendor != "Unknown" {
+                        topology.vendor = os_topo.vendor;
                     }
                 }
             }
@@ -128,12 +135,11 @@ impl HardwareProbe {
     }
 }
 
-#[cfg(target_os = "linux")]
-fn detect_linux_topology() -> Option<CpuTopology> {
+fn detect_os_topology(provider: &dyn HardwareProvider) -> Option<CpuTopology> {
     let mut topo = CpuTopology::default();
 
-    // Try to get vendor/model from /proc/cpuinfo
-    if let Ok(cpuinfo) = std::fs::read_to_string("/proc/cpuinfo") {
+    // Try to get vendor/model from /proc/cpuinfo (Linux standard)
+    if let Ok(cpuinfo) = provider.read_system_file("/proc/cpuinfo") {
         for line in cpuinfo.lines() {
             if line.starts_with("vendor_id")
                 || line.starts_with("Hardware")
@@ -147,24 +153,19 @@ fn detect_linux_topology() -> Option<CpuTopology> {
         }
     }
 
-    // Try to read cache sizes from /sys/devices/system/cpu/cpu0/cache/
+    // Try to read cache sizes from /sys hierarchy
     for i in 0..4 {
-        let path = format!("/sys/devices/system/cpu/cpu0/cache/index{i}/");
-        let level_path = format!("{path}level");
-        let type_path = format!("{path}type");
-        let size_path = format!("{path}size");
-
-        let Ok(level_str) = std::fs::read_to_string(level_path) else {
+        let Ok(level_str) = provider.read_cache_info(i, "level") else {
             continue;
         };
         let level = level_str.trim().parse::<u8>().ok()?;
 
-        let Ok(ctype) = std::fs::read_to_string(type_path) else {
+        let Ok(ctype) = provider.read_cache_info(i, "type") else {
             continue;
         };
         let ctype = ctype.trim().to_lowercase();
 
-        let Ok(size_str) = std::fs::read_to_string(size_path) else {
+        let Ok(size_str) = provider.read_cache_info(i, "size") else {
             continue;
         };
         let size_str = size_str.trim();

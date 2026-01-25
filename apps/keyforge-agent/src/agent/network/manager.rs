@@ -22,6 +22,8 @@ pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
     telemetry: SharedTelemetry,
+    hardware: crate::agent::hardware::HardwareInfo,
+    performance_ips: f64,
     job_tx: mpsc::Sender<(String, JobConfig)>,
     result_rx: mpsc::Receiver<ResultSubmission>,
     stop_tx: mpsc::Sender<()>,
@@ -46,6 +48,8 @@ impl NetworkManager {
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
+        hardware: crate::agent::hardware::HardwareInfo,
+        performance_ips: f64,
         job_tx: mpsc::Sender<(String, JobConfig)>,
         result_rx: mpsc::Receiver<ResultSubmission>,
         stop_tx: mpsc::Sender<()>,
@@ -74,6 +78,8 @@ impl NetworkManager {
             client,
             config,
             telemetry,
+            hardware,
+            performance_ips,
             job_tx,
             result_rx,
             stop_tx,
@@ -114,10 +120,11 @@ impl NetworkManager {
         let req = NodeRequest {
             version: PROTOCOL_VERSION,
             node_id: self.config.node_id.clone(),
-            cpu_model: "Detected CPU".into(), // TODO: Use real detection
-            cores: i32::try_from(self.config.cores).unwrap_or(1),
-            l2_cache_kb: None,
-            ops_per_sec: 1_000_000.0, // Placeholder
+            cpu_model: self.hardware.cpu_model.clone(),
+            cores: self.hardware.cores,
+            l2_cache_kb: self.hardware.l2_cache_kb,
+            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+            ops_per_sec: self.performance_ips as f32,
             public_key: None,
         };
 

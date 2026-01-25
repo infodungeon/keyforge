@@ -1,9 +1,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use keyforge_compute::SessionBuilder;
-use keyforge_infra::{AssetLoader, FsProvider};
+use keyforge_compute::{AssetLoader, SessionBuilder};
+use keyforge_infra::FsProvider;
 use keyforge_model::{types::KeyCode, Corpus, CostModel, KeyboardDefinition, Layout};
 use keyforge_protocol::BiometricSample;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
@@ -30,7 +29,7 @@ fn mock_cost_model() -> CostModel {
 
 #[tokio::main]
 async fn main() {
-    let data_dir = PathBuf::from("data");
+    let data_dir = keyforge_infra::fs::paths::resolve_root(None).unwrap();
     let loader = FsProvider::new(data_dir);
 
     let kb_name = "ortho_30";
@@ -39,9 +38,11 @@ async fn main() {
 
     // Create a manual corpus with 1 bigram 'th' (116, 104)
     let mut corpus = Corpus::default();
-    corpus.char_freqs[116] = 1;
-    corpus.char_freqs[104] = 1;
-    corpus.bigrams.push((116, 104, 1000));
+    let mut char_freqs = corpus.char_freqs.to_vec();
+    char_freqs[116] = 1;
+    char_freqs[104] = 1;
+    corpus.char_freqs = Arc::from(char_freqs);
+    corpus.bigrams = Arc::from(vec![(116, 104, 1000)]);
     let corpus_arc = Arc::new(corpus);
 
     // 1. Without Biometrics
