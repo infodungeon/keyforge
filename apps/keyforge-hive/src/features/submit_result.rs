@@ -33,7 +33,7 @@ use std::sync::Arc;
     tag = "results"
 )]
 /// Handles a result submission from a worker node.
-pub async fn handle(
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<ResultSubmission>,
 ) -> AppResult<Json<()>> {

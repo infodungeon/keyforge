@@ -24,14 +24,14 @@ impl Default for ArmNeonConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct ArmNeonScoringEngine {
+pub(crate) struct ArmNeonScoringEngine {
     pub(crate) ctx: EngineContext,
     _config: ArmNeonConfig,
 }
 
 impl ArmNeonScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext, config: Option<ArmNeonConfig>) -> Self {
+    pub(crate) fn new(ctx: EngineContext, config: Option<ArmNeonConfig>) -> Self {
         Self {
             ctx,
             _config: config.unwrap_or_default(),

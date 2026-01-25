@@ -38,7 +38,7 @@ use std::sync::Arc;
     tag = "jobs"
 )]
 /// Handles a request to retrieve the status and statistics for a job.
-pub async fn handle(
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Path(job_id): Path<String>,
 ) -> AppResult<Json<JobDetailedStatus>> {

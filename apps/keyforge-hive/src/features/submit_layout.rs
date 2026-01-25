@@ -82,7 +82,7 @@ pub struct SubmissionResponse {
     tag = "submissions"
 )]
 /// Handles a layout submission request, performing validation and persistent storage.
-pub async fn handle(
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LayoutSubmission>,
 ) -> AppResult<Json<SubmissionResponse>> {

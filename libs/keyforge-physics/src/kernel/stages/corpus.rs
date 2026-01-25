@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 /// Intermediate state containing flattened and pruned corpus data.
 #[derive(Debug)]
-pub struct CorpusOutput {
+pub(crate) struct CorpusOutput {
     pub char_freqs: Arc<[u64]>,
     pub bigram_starts: Vec<usize>,
     pub bigram_others: Vec<KeyCode>,
@@ -31,7 +31,7 @@ pub struct CorpusOutput {
 
 /// Stage 3: Corpus Flattening & Pruning.
 #[derive(Debug)]
-pub struct CorpusStage<'a> {
+pub(crate) struct CorpusStage<'a> {
     pub corpus: &'a Corpus,
     pub rubric: &'a Rubric,
 }

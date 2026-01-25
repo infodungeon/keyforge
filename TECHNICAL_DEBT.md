@@ -42,7 +42,7 @@
 - **[ARCH-CRITICAL] Module Obesity**: `libs/keyforge-model/src/config/weights.rs` (783 lines) and `libs/keyforge-model/src/types.rs` (744 lines) exceed the 500 LOC threshold.
 - **[ARCH-005] Hidden IO**: CORS origins hardcoded in `apps/keyforge-hive/src/lib.rs`.
 - **[COUPLING] God Functions**: `new`, `default`, and `validate` (291 connections) are structural bottlenecks.
-- **[DEAD] Orphaned Exports**: 107 unused public exports detected in the global graph.
+- [x] **[DEAD] Orphaned Exports**: 107 unused public exports detected in the global graph. (Resolved by downgrading concrete engines and compilation machinery to pub(crate) in Issue #36)
 
 ### 2. Semantic & Safety Findings
 - **[SAFETY-RISK] Undocumented Unsafe**: 35 unsafe blocks found; many lack `// Safety:` justification (e.g. `apps/keyforge-agent/src/hw_detect.rs`).

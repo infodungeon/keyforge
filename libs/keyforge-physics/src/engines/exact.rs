@@ -8,7 +8,7 @@ use keyforge_model::{AnalysisReport, Corpus, Keyboard, Layout, Rubric, Score, Sw
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub struct ExactScoringEngine {
+pub(crate) struct ExactScoringEngine {
     scorer: DeterministicScorer,
     keyboard: Arc<Keyboard>,
     corpus: Arc<Corpus>,

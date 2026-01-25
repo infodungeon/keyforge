@@ -33,7 +33,7 @@ use tracing::info;
     tag = "nodes"
 )]
 /// Handles a node registration or heartbeat request, performing identity verification and auto-tuning.
-pub async fn handle(
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<NodeRequest>,
 ) -> AppResult<Json<NodeResponse>> {

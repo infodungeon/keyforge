@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -29,18 +29,28 @@ pub mod verify;
 
 pub use analysis::fingerprint::{Fingerprinter, LayoutIdentity};
 pub use analysis::heuristics::suggest_swaps;
-pub use engines::arm_neon::{ArmNeonConfig, ArmNeonScoringEngine};
-pub use engines::arm_sve::{ArmSveConfig, ArmSveScoringEngine};
-pub use engines::exact::ExactScoringEngine;
-pub use engines::generic::GenericScoringEngine as ScalarScoringEngine;
-pub use engines::intel_avx512::{Avx512Config, Avx512ScoringEngine};
-pub use engines::intel_comet_lake::{IntelEngineConfig, IntelScoringEngine};
-pub use engines::wasm_simd::{WasmSimdConfig, WasmSimdScoringEngine};
+
+// Configs remain public for factory parameter tuning
+pub use engines::arm_neon::ArmNeonConfig;
+pub use engines::arm_sve::ArmSveConfig;
+pub use engines::intel_avx512::Avx512Config;
+pub use engines::intel_comet_lake::IntelEngineConfig;
+pub use engines::wasm_simd::WasmSimdConfig;
+
 pub use engines::{EngineCapabilities, EngineFeatures, ScoringEngine};
 pub use error::PhysicsError;
-pub use kernel::compiler::Compiler;
 pub use kernel::types::ValidatedLayout;
 pub use kernel::EngineContext;
+
+// Concrete implementations are hidden
+use engines::arm_neon::ArmNeonScoringEngine;
+use engines::arm_sve::ArmSveScoringEngine;
+use engines::exact::ExactScoringEngine;
+use engines::generic::GenericScoringEngine as ScalarScoringEngine;
+use engines::intel_avx512::Avx512ScoringEngine;
+use engines::intel_comet_lake::IntelScoringEngine;
+use engines::wasm_simd::WasmSimdScoringEngine;
+use kernel::compiler::Compiler;
 
 // Re-export analysis types from keyforge-model for convenience
 pub use keyforge_model::{AnalysisReport, SwapSuggestion};
@@ -50,7 +60,6 @@ use std::sync::Arc;
 use tracing::instrument;
 
 /// Context required to compile a scoring engine.
-/// Refactored to use Arc to eliminate unnecessary clones across the stack.
 #[derive(Debug, Clone)]
 pub struct EngineCompilationContext {
     /// Physical keyboard definition.
@@ -153,8 +162,6 @@ impl EngineFactory {
             target_arch = "wasm32"
         ))]
         {
-            // Fallback for x86 if AVX-512/AVX2 is not detected at runtime,
-            // or if we somehow pass through the other arches.
             Self::new_scalar(ctx)
         }
     }
