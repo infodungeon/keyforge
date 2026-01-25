@@ -1,0 +1,247 @@
+    Checking stable_deref_trait v1.2.1
+    Checking aho-corasick v1.1.4
+   Compiling tree-sitter-language v0.1.6
+   Compiling ring v0.17.14
+   Compiling serde_json v1.0.148
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling zstd-safe v7.2.4
+   Compiling time-macros v0.2.24
+    Checking deranged v0.5.5
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+   Compiling crunchy v0.2.4
+   Compiling rustls v0.22.4
+    Checking yoke v0.8.1
+    Checking ownedbytes v0.7.0
+    Checking utf8-ranges v1.0.5
+    Checking rand_distr v0.4.3
+    Checking zerovec v0.11.5
+    Checking zerotrie v0.2.3
+    Checking bitpacking v0.9.3
+    Checking tantivy-fst v0.5.0
+    Checking tantivy-bitpacker v0.6.0
+    Checking murmurhash32 v0.3.1
+    Checking rustls-native-certs v0.7.3
+    Checking tower v0.4.13
+    Checking itertools v0.12.1
+    Checking pem v3.0.6
+   Compiling tree-sitter-lua v0.2.0
+    Checking regex-automata v0.4.13
+   Compiling tree-sitter-erlang v0.14.0
+   Compiling tree-sitter-verilog v1.0.3
+   Compiling tree-sitter-javascript v0.23.1
+   Compiling tree-sitter-fortran v0.5.1
+   Compiling tree-sitter-kotlin-sg v0.4.0
+    Checking tinystr v0.8.2
+    Checking potential_utf v0.1.4
+    Checking icu_collections v2.1.1
+   Compiling jsonptr v0.6.3
+   Compiling cargo_metadata v0.19.2
+   Compiling schemars v0.8.22
+    Checking icu_locale_core v2.1.1
+    Checking time v0.3.44
+    Checking unic-langid-impl v0.9.6
+   Compiling json-patch v3.0.1
+   Compiling tree-sitter v0.26.3
+    Checking unic-langid v0.9.6
+    Checking fluent-langneg v0.13.1
+    Checking intl-memoizer v0.5.3
+    Checking intl_pluralrules v7.0.2
+   Compiling tree-sitter-clojure-orchard v0.2.5
+    Checking icu_provider v2.1.1
+   Compiling tree-sitter-python v0.23.6
+   Compiling tree-sitter-groovy v0.1.2
+    Checking fluent-bundle v0.15.3
+    Checking icu_properties v2.1.2
+    Checking icu_normalizer v2.1.1
+   Compiling tree-sitter-go v0.23.4
+   Compiling tauri-utils v2.8.1
+   Compiling tree-sitter-dart-orchard v0.3.2
+   Compiling tree-sitter-r v1.2.0
+   Compiling tree-sitter-c v0.23.4
+   Compiling tree-sitter-cpp v0.23.4
+   Compiling tree-sitter-php v0.23.11
+   Compiling tree-sitter-julia v0.23.1
+   Compiling tree-sitter-rust v0.23.3
+   Compiling tree-sitter-nix v0.3.0
+   Compiling tree-sitter-ruby v0.23.1
+    Checking cookie v0.18.1
+    Checking regex v1.12.2
+    Checking matchers v0.2.0
+    Checking tantivy-common v0.7.0
+    Checking simple_asn1 v0.6.3
+   Compiling tree-sitter-java v0.23.5
+    Checking idna_adapter v1.2.1
+    Checking tracing-subscriber v0.3.22
+    Checking wry v0.53.5
+    Checking idna v1.1.0
+    Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
+    Checking pasetors v0.7.7
+   Compiling rustls v0.23.35
+   Compiling tree-sitter-scala v0.23.4
+   Compiling tree-sitter-perl v1.1.2
+    Checking tantivy-stacker v0.3.0
+   Compiling tree-sitter-swift v0.6.0
+    Checking url v2.5.7
+   Compiling tree-sitter-haskell v0.23.1
+   Compiling tree-sitter-zig v1.1.2
+   Compiling tree-sitter-typescript v0.23.2
+   Compiling tree-sitter-elixir v0.3.4
+   Compiling tree-sitter-bash v0.23.3
+   Compiling tree-sitter-c-sharp v0.23.1
+   Compiling tree-sitter-elm v5.9.0
+   Compiling tree-sitter-powershell v0.25.10
+   Compiling snafu-derive v0.8.9
+    Checking bstr v1.12.1
+    Checking instant v0.1.13
+    Checking streaming-iterator v0.1.9
+    Checking downcast-rs v1.2.1
+    Checking fastdivide v0.4.2
+    Checking urlpattern v0.3.0
+    Checking tao v0.34.5
+    Checking globset v0.4.18
+    Checking tracing-opentelemetry v0.32.0
+    Checking measure_time v0.8.3
+    Checking ratatui-widgets v0.3.0
+   Compiling rustls-webpki v0.103.8
+    Checking rustls-webpki v0.102.8
+    Checking jsonwebtoken v9.3.1
+    Checking keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
+    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+    Checking snafu v0.8.9
+    Checking keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
+    Checking keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
+    Checking keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
+    Checking tokio-rustls v0.25.0
+    Checking hyper-rustls v0.26.0
+    Checking tokio-rustls v0.26.4
+    Checking hyper-rustls v0.27.7
+    Checking rustls-platform-verifier v0.6.2
+    Checking fred v10.1.0
+    Checking reqwest v0.13.1
+    Checking tauri-runtime v2.9.2
+    Checking reqwest v0.12.28
+    Checking tauri-runtime-wry v2.9.3
+   Compiling sqlx-core v0.8.6
+   Compiling tauri-plugin v2.5.2
+   Compiling tauri-build v2.5.3
+   Compiling tauri-codegen v2.5.2
+    Checking opentelemetry-http v0.31.0
+    Checking opentelemetry-otlp v0.31.0
+   Compiling sqlx-postgres v0.8.6
+    Checking fluent v0.16.1
+    Checking tower-http v0.5.2
+    Checking lru v0.12.5
+    Checking inotify v0.9.6
+    Checking tantivy-query-grammar v0.22.0
+    Checking dirs-sys v0.4.1
+    Checking axum-core v0.4.5
+    Checking secrecy v0.8.0
+    Checking sketches-ddsketch v0.2.2
+    Checking tantivy-tokenizer-api v0.3.0
+    Checking rust-stemmers v1.2.0
+    Checking mio v0.8.11
+   Compiling sqlx-macros-core v0.8.6
+    Checking zstd v0.13.3
+    Checking census v0.4.2
+    Checking levenshtein_automata v0.2.1
+    Checking tantivy-sstable v0.3.0
+    Checking oneshot v0.1.11
+    Checking tantivy-columnar v0.3.0
+    Checking matchit v0.7.3
+    Checking unsafe-libyaml v0.2.11
+    Checking htmlescape v0.3.1
+    Checking lz4_flex v0.11.5
+    Checking axum v0.7.9
+    Checking serde_yaml v0.9.34+deprecated
+    Checking tantivy v0.22.1
+    Checking notify v6.1.1
+    Checking octocrab v0.38.0
+    Checking directories v5.0.1
+   Compiling tauri v2.9.5
+   Compiling tauri-macros v2.5.2
+   Compiling tauri-plugin-fs v2.4.4
+   Compiling tauri-plugin-dialog v2.4.2
+   Compiling tauri-plugin-opener v2.5.2
+   Compiling tauri-plugin-log v2.8.0
+   Compiling tauri-plugin-shell v2.3.3
+   Compiling keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+   Compiling sqlx-macros v0.8.6
+    Checking i18n-embed v0.15.4
+    Checking ratatui-macros v0.7.0
+    Checking keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
+    Checking ignore v0.4.25
+    Checking lsp-types v0.95.1
+    Checking lsp-server v0.7.9
+    Checking bincode v1.3.3
+    Checking memmap2 v0.9.9
+    Checking parquet v57.2.0
+    Checking age v0.11.2
+    Checking sqlx v0.8.6
+    Checking self_update v0.41.0
+    Checking ratatui v0.30.0
+    Checking axum-server v0.8.0
+    Checking metrics-exporter-prometheus v0.16.2
+    Checking tracing-appender v0.2.4
+ Documenting keyforge-testing-macros v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing-macros)
+ Documenting keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+ Documenting keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
+ Documenting keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
+ Documenting keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
+ Documenting keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
+ Documenting keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+    Checking keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
+    Checking keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+warning: unclosed HTML tag `dyn`
+  --> libs/keyforge-evolution/src/supervisor/traits.rs:51:21
+   |
+51 |     /// Replaces Box<dyn FnOnce> to avoid heap allocation.
+   |                     ^^^^
+   |
+   = note: `#[warn(rustdoc::invalid_html_tags)]` on by default
+
+    Checking keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+warning: `keyforge-evolution` (lib doc) generated 1 warning
+ Documenting keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+ Documenting keyforge-repros v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/repros)
+ Documenting keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
+ Documenting keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
+ Documenting keyforge-testing v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing)
+warning: unresolved link to `PersistenceError::Io`
+   --> libs/keyforge-persistence/src/store/autosave.rs:113:19
+    |
+113 |     /// Returns [`PersistenceError::Io`] if reading the file fails.
+    |                   ^^^^^^^^^^^^^^^^^^^^ no item named `PersistenceError` in scope
+    |
+    = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+warning: unresolved link to `PersistenceError::Serde`
+   --> libs/keyforge-persistence/src/store/autosave.rs:114:19
+    |
+114 |     /// Returns [`PersistenceError::Serde`] if parsing JSON fails.
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^ no item named `PersistenceError` in scope
+
+warning: `keyforge-persistence` (lib doc) generated 2 warnings
+ Documenting keyforge-wasm v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm)
+ Documenting keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+ Documenting keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
+ Documenting keyforge-tui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-tui)
+ Documenting keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
+ Documenting keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
+ Documenting keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
+ Documenting openbookcorpus v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/corpora/openbookcorpus)
+warning: unresolved link to `finger`
+  --> libs/keyforge-model/src/keyboard.rs:32:51
+   |
+32 |     /// Pre-calculated centers for fingers [hand][finger] -> (x, y).
+   |                                                   ^^^^^^ no item named `finger` in scope
+   |
+   = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+   = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+ Documenting keyforge-system-tests v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/tests/system)
+warning: `keyforge-model` (lib doc) generated 1 warning
+ Documenting keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+    Checking narsil-mcp v1.3.1
+ Documenting keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 31s
+   Generated /home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/doc/keyforge_adapter/index.html and 35 other files

@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": "find_circular_imports",
+  "result": {
+    "content": [
+      {
+        "text": "# Circular Import Analysis\n\nNo circular imports detected.\n",
+        "type": "text"
+      }
+    ]
+  }
+}

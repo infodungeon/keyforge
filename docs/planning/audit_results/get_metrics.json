@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": "get_metrics",
+  "result": {
+    "content": [
+      {
+        "text": "# Performance Metrics\n\n**Uptime**: 0s\n**Total Requests**: 3\n\n## Repository Indexing\n\n*No repositories indexed yet.*\n\n## Tool Execution Times\n\n| Tool | Calls | Avg (ms) | P50 (ms) | P95 (ms) | P99 (ms) | Min (ms) | Max (ms) |\n|------|-------|----------|----------|----------|----------|----------|----------|\n| find_unused_exports | 1 | 0.00 | 0 | 0 | 0 | 0 | 0 |\n| get_call_graph | 1 | 0.00 | 0 | 0 | 0 | 0 | 0 |\n| search_code | 1 | 0.00 | 0 | 0 | 0 | 0 | 0 |\n\n## Analysis Cache\n\n**Status**: enabled\n**TTL**: 1800 seconds\n\n| Metric | Value |\n|--------|-------|\n| Hits | 0 |\n| Misses | 1 |\n| Hit Rate | 0.00% |\n| Evictions | 0 |\n| Expirations | 0 |\n| Size | 1 / 1000 |\n",
+        "type": "text"
+      }
+    ]
+  }
+}

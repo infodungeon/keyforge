@@ -1,0 +1,4 @@
+libs/keyforge-physics/src/verify.rs:fn to_f32(i: i64) -> f32 {
+libs/keyforge-physics/src/kernel/stages/costs.rs:fn resolve_standard_finger(key: &KeyNode, reach: &keyforge_model::cost_model::FingerReach) -> f32 {
+libs/keyforge-protocol/src/job.rs:fn default_version() -> u32 {
+libs/keyforge-protocol/src/node.rs:fn default_version() -> u32 {

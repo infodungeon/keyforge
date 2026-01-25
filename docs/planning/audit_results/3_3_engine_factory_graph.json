@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": "get_call_graph",
+  "result": {
+    "content": [
+      {
+        "text": "Function `EngineFactory::new_generic` not found in call graph.\n",
+        "type": "text"
+      }
+    ]
+  }
+}

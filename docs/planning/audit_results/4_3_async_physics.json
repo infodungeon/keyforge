@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": "search_code",
+  "result": {
+    "content": [
+      {
+        "text": "# Search Results for: `async fn`\n\nFound 0 results\n\n",
+        "type": "text"
+      }
+    ]
+  }
+}
