@@ -1,6 +1,6 @@
 # KeyForge 100x Task Workflow
 
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Role:** Systemic Architect
 **Enforcement:** Mandatory
 
@@ -15,44 +15,54 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 
 1.  **State Audit**
     *   Execute `git_context.sh` (or equivalent) to verify a clean working directory.
-    *   Identify detached heads or dirty contexts immediately.
+    *   Check for orphaned background processes.
 2.  **Issue Synchronization ("No Tickey, No Laundry")**
     *   **Rule:** No code is written without a corresponding GitHub Issue.
     *   **Action:** Create or Identify the issue. All significant plan updates are logged here.
-3.  **The Law Compliance Check**
+3.  **The Law Compliance Check (Architectural Constraints)**
+    *   **ARCH-001 (UI Purity):** No Data Transformation in UI Components (Dumb Views).
+    *   **ARCH-002 (Thin Controllers):** No "Fat Handlers" in Axum (Delegate to Domain).
+    *   **ARCH-003 (Deterministic Physics):** No Floating Point Accumulators.
+    *   **ARCH-004 (Safe SQL):** No Raw SQL; use `sqlx::query!`.
     *   **ARCH-005 (Hexagonal Purity):** No IO in kernels.
+    *   **ARCH-006 (Structural Oracle):** Macros/Traits are the sole source of repetition.
     *   **TYPE-003 (Panic-Free):** No `unwrap`/`expect` in production.
-    *   **Determinism:** Integer arithmetic only.
-    *   **Structure:** Macros/Traits are the sole source of repetition.
 
 ### Phase 2: The Strategy (Plan)
 *Goal: Define a clear, logical path to the solution.*
 
 1.  **Codebase Investigation**
     *   Use `ast-grep` (`sg`) or `codebase_investigator` to map structural impact.
-    *   **Constraint:** Do not assume; verify.
+    *   **Zero-Trust Context:** Never assume a library/file exists. Verify with `read_file` or `grep`.
 2.  **Logic Brainstorming**
-    *   Invoke GitHub Copilot MCP for complex logic verification when dealing with core algorithms.
-3.  **Plan Proposal**
-    *   **Requirement Analysis**: Clearly state *what* needs to change.
-    *   **Solution Design**: Describe the architectural approach.
-    *   **Execution Steps**: detailed, atomic steps to achieve the goal.
+    *   Invoke GitHub Copilot MCP for complex logic verification (Core Algorithms).
+3.  **Security & Privacy Check**
+    *   **Taint Analysis:** Trace PII from Source to Sink.
+    *   **LLM Safety:** Check for Prompt Injection risks.
+4.  **Plan Proposal**
+    *   **Requirement Analysis:** Clearly state *what* needs to change.
+    *   **Solution Design:** Describe the architectural approach.
+    *   **Execution Steps:** Detailed, atomic steps to achieve the goal.
 
 ### Phase 3: The Atomic Transition (Implementation)
 *Goal: Systemic implementation using high-precision tools and strict coding rules.*
 
 1.  **Contract First**
     *   Update protocols, traits, or documentation *before* implementation.
+    *   **Logic Bootstrapping:** Type-stubs and docs precede logic.
 2.  **Test-Driven Oracle**
     *   Write/Update tests using `#[keyforge_testing_macros::kf_test]`.
     *   **Forbidden:** Manual `#[cfg(test)]` or `#[allow]`.
 3.  **The 100x Implementation Rules**
-    *   **Type States**: Invalid states must be unrepresentable (e.g., `Builder`, `Ready`/`Pending`).
-    *   **Newtypes**: Banish primitive obsession (e.g., `struct Meter(f64)` vs `f64`).
-    *   **Macros**: Abstract repetitive patterns (e.g., `#[derive(DomainLogic)]`).
-4.  **Implementation**
-    *   Prefer `write_file` for structural truth.
-    *   Use `ast-grep` for multi-file pattern transformations.
+    *   **Type States:** Invalid states must be unrepresentable (e.g., `Builder`, `Ready`/`Pending`).
+    *   **Newtypes:** Banish primitive obsession (e.g., `struct Meter(f64)` vs `f64`).
+    *   **Macros:** Abstract repetitive patterns (e.g., `#[derive(DomainLogic)]`).
+4.  **Domain Axioms**
+    *   **Finger Identity:** Finger 0 is strictly the **Thumb**.
+    *   **Determinism:** Integer arithmetic only. No platform-specific float behavior.
+5.  **Implementation Execution**
+    *   **Tool Preference:** Prefer `write_file` over `replace` for structural integrity.
+    *   **Use `ast-grep`** for multi-file pattern transformations.
     *   **Friction Trigger:** If a change touches >3 files or requires repetitive boilerplate, **STOP**. Refactor (Pivot) to a structural solution (e.g., macro).
 
 ### Phase 4: The Integrity Lock (Verification)
@@ -62,7 +72,9 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 2.  **Linting:** Zero warnings (`cargo clippy`). *Fix* warnings; never suppress them.
 3.  **Formatting:** Workspace-wide formatting (`cargo fmt`).
 4.  **Testing:** All tests pass (`cargo test`).
-5.  **Documentation:** Update User, Design, and Ops docs.
+5.  **Security Audit:**
+    *   **The "So What?" Test:** Verify actual security impact.
+6.  **Documentation:** Update User, Design, and Ops docs.
 
 ### Phase 5: The Systemic Close (Finalization)
 *Goal: Lock in the learning.*
