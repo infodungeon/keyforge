@@ -148,7 +148,7 @@ impl Keyboard {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use crate::types::{FingerIndex, HandIndex};
@@ -173,7 +173,6 @@ mod tests {
                 ..Default::default()
             },
         ];
-        #[allow(clippy::unwrap_used)]
         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
 
         assert_eq!(kb.spatial_cache.len(), 4);

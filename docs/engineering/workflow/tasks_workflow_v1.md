@@ -74,6 +74,11 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
     *   Update GitHub Issue with final status and close if appropriate.
 4.  **Push**
     *   Push changes only upon explicit request.
+5.  **100x Developer Evolution**
+    *   **Add or Update skills**: Codify new patterns into skills.
+    *   **Enhance Persona**: Update behavior constraints.
+    *   **Update Workflow**: Create new higher version numbered document with Improved workflow.
+    *   **Save Facts/Rules**: Save critical facts to memory.
 
 ## 3. Critical Invariants
 

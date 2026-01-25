@@ -184,7 +184,7 @@ impl Corpus {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 
@@ -199,9 +199,7 @@ mod tests {
         c.trigrams = Arc::from(vec![('a' as u16, 'b' as u16, 'c' as u16, 10)]);
         c.words = Arc::from(vec![("test".to_string(), 5)]);
 
-        #[allow(clippy::expect_used)]
         let json = serde_json::to_string(&c).expect("Failed to serialize Corpus");
-        #[allow(clippy::expect_used)]
         let recovered: Corpus = serde_json::from_str(&json).expect("Failed to deserialize Corpus");
 
         assert_eq!(recovered.char_freqs['a' as usize], 100);

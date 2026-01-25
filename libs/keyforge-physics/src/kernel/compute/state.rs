@@ -169,34 +169,34 @@ pub struct PhysicsScratch {
 }
 
 impl Default for PhysicsScratch {
-    #[allow(clippy::expect_used)]
     fn default() -> Self {
+        #[allow(clippy::unwrap_used)]
         Self {
             starts: vec![0u16; MAX_KEYCODE_SPACE]
                 .into_boxed_slice()
                 .try_into()
-                .expect("Static buffer size mismatch"),
+                .unwrap(),
             counts: vec![0u8; MAX_KEYCODE_SPACE]
                 .into_boxed_slice()
                 .try_into()
-                .expect("Static buffer size mismatch"),
+                .unwrap(),
             indices: vec![0u16; MAX_KEYBOARD_KEYS]
                 .into_boxed_slice()
                 .try_into()
-                .expect("Static buffer size mismatch"),
+                .unwrap(),
             current_offsets: vec![0u8; MAX_KEYCODE_SPACE]
                 .into_boxed_slice()
                 .try_into()
-                .expect("Static buffer size mismatch"),
+                .unwrap(),
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
             char_usage: vec![0.0f32; MAX_KEYCODE_SPACE]
                 .into_boxed_slice()
                 .try_into()
-                .expect("Static buffer size mismatch"),
+                .unwrap(),
             flat_map: vec![u16::MAX; MAX_KEYCODE_SPACE]
                 .into_boxed_slice()
                 .try_into()
-                .expect("Static buffer size mismatch"),
+                .unwrap(),
         }
     }
 }
