@@ -27,12 +27,10 @@ mod tests {
     fn setup_minimal() -> (Arc<dyn keyforge_physics::ScoringEngine>, Layout) {
         let (kb, corpus, rubric, cm) = keyforge_model::testing::setup_minimal_assets();
 
-        let engine = EngineFactory::new_scalar(&EngineCompilationContext {
-            keyboard: kb.into(),
-            corpus: corpus.into(),
-            rubric: rubric.into(),
-            cost_model: cm.into(),
-        })
+        let engine = EngineFactory::new_scalar(&EngineCompilationContext { keyboard: kb.into(),
+        corpus: corpus.into(),
+        rubric: rubric.into(),
+        cost_model: cm.into(), engine_config: keyforge_model::config::EngineConfig::default() })
         .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
         (Arc::from(engine), layout)

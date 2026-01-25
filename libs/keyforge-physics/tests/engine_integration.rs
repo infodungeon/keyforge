@@ -11,12 +11,10 @@ mod integration_tests {
     #[test]
     fn test_generic_engine_trait_methods() {
         let (kb, corpus, rubric, cm) = setup_minimal_assets();
-        let engine = EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: Arc::new(kb),
-            corpus: Arc::new(corpus),
-            rubric: Arc::new(rubric),
-            cost_model: Arc::new(cm),
-        })
+        let engine = EngineFactory::new_generic(&EngineCompilationContext { keyboard: Arc::new(kb),
+        corpus: Arc::new(corpus),
+        rubric: Arc::new(rubric),
+        cost_model: Arc::new(cm), engine_config: keyforge_model::config::EngineConfig::default() })
         .unwrap();
 
         assert_eq!(engine.name(), "Generic Optimized");
@@ -32,12 +30,10 @@ mod integration_tests {
     #[test]
     fn test_exact_engine_trait_methods() {
         let (kb, corpus, rubric, cm) = setup_minimal_assets();
-        let engine = EngineFactory::new_exact(&EngineCompilationContext {
-            keyboard: Arc::new(kb),
-            corpus: Arc::new(corpus),
-            rubric: Arc::new(rubric),
-            cost_model: Arc::new(cm),
-        })
+        let engine = EngineFactory::new_exact(&EngineCompilationContext { keyboard: Arc::new(kb),
+        corpus: Arc::new(corpus),
+        rubric: Arc::new(rubric),
+        cost_model: Arc::new(cm), engine_config: keyforge_model::config::EngineConfig::default() })
         .unwrap();
 
         assert_eq!(engine.name(), "Exact (Oracle)");
@@ -53,12 +49,10 @@ mod integration_tests {
     fn test_intel_engine_trait_methods() {
         let (kb, corpus, rubric, cm) = setup_minimal_assets();
         let engine = EngineFactory::new_intel_comet_lake(
-            &EngineCompilationContext {
-                keyboard: Arc::new(kb),
-                corpus: Arc::new(corpus),
-                rubric: Arc::new(rubric),
-                cost_model: Arc::new(cm),
-            },
+            &EngineCompilationContext { keyboard: Arc::new(kb),
+            corpus: Arc::new(corpus),
+            rubric: Arc::new(rubric),
+            cost_model: Arc::new(cm), engine_config: keyforge_model::config::EngineConfig::default() },
             None,
         )
         .unwrap();

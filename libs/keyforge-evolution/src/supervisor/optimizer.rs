@@ -33,6 +33,7 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
         corpus: req.corpus.clone(),
         rubric: req.rubric.clone(),
         cost_model: req.cost_model.clone(),
+        engine_config: keyforge_model::config::EngineConfig::default(),
     })?;
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
@@ -240,6 +241,7 @@ mod tests {
             corpus: Arc::new(Corpus::default()),
             rubric: Arc::new(Rubric::default()),
             cost_model: Arc::new(cm),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let config = SearchConfig::Annealing {

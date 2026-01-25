@@ -30,12 +30,8 @@ pub mod verify;
 pub use analysis::fingerprint::{Fingerprinter, LayoutIdentity};
 pub use analysis::heuristics::suggest_swaps;
 
-// Configs remain public for factory parameter tuning
-pub use engines::arm_neon::ArmNeonConfig;
-pub use engines::arm_sve::ArmSveConfig;
-pub use engines::intel_avx512::Avx512Config;
-pub use engines::intel_comet_lake::IntelEngineConfig;
-pub use engines::wasm_simd::WasmSimdConfig;
+// Re-export unified engine configuration
+pub use keyforge_model::config::EngineConfig;
 
 pub use engines::{EngineCapabilities, EngineFeatures, ScoringEngine};
 pub use error::PhysicsError;
@@ -70,6 +66,8 @@ pub struct EngineCompilationContext {
     pub rubric: Arc<Rubric>,
     /// Biomechanical cost model.
     pub cost_model: Arc<CostModel>,
+    /// Engine hardware optimization parameters.
+    pub engine_config: EngineConfig,
 }
 
 /// A factory for creating high-performance scoring engines.
@@ -128,24 +126,24 @@ impl EngineFactory {
                 && is_x86_feature_detected!("avx512dq")
                 && is_x86_feature_detected!("avx512bw")
             {
-                return Self::new_intel_avx512(ctx, None);
+                return Self::new_intel_avx512(ctx, Some(ctx.engine_config));
             }
             if is_x86_feature_detected!("avx2") {
-                return Self::new_intel_comet_lake(ctx, None);
+                return Self::new_intel_comet_lake(ctx, Some(ctx.engine_config));
             }
         }
 
         #[cfg(target_arch = "aarch64")]
         {
             if std::arch::is_aarch64_feature_detected!("sve") {
-                return Self::new_arm_sve(ctx, None);
+                return Self::new_arm_sve(ctx, Some(ctx.engine_config));
             }
-            return Self::new_arm_neon(ctx, None);
+            return Self::new_arm_neon(ctx, Some(ctx.engine_config));
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            return Self::new_wasm_simd(ctx, None);
+            return Self::new_wasm_simd(ctx, Some(ctx.engine_config));
         }
 
         #[cfg(not(any(
@@ -172,7 +170,7 @@ impl EngineFactory {
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_wasm_simd(
         ctx: &EngineCompilationContext,
-        config: Option<WasmSimdConfig>,
+        config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
         Ok(Box::new(WasmSimdScoringEngine::new(compiled, config)))
@@ -184,7 +182,7 @@ impl EngineFactory {
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_intel_avx512(
         ctx: &EngineCompilationContext,
-        config: Option<Avx512Config>,
+        config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
         Ok(Box::new(Avx512ScoringEngine::new(compiled, config)))
@@ -196,7 +194,7 @@ impl EngineFactory {
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_intel_comet_lake(
         ctx: &EngineCompilationContext,
-        config: Option<IntelEngineConfig>,
+        config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
         Ok(Box::new(IntelScoringEngine::new(compiled, config)))
@@ -208,7 +206,7 @@ impl EngineFactory {
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_arm_sve(
         ctx: &EngineCompilationContext,
-        config: Option<ArmSveConfig>,
+        config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
         Ok(Box::new(ArmSveScoringEngine::new(compiled, config)))
@@ -220,7 +218,7 @@ impl EngineFactory {
     /// Returns `PhysicsError` if compilation fails.
     pub fn new_arm_neon(
         ctx: &EngineCompilationContext,
-        config: Option<ArmNeonConfig>,
+        config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
         Ok(Box::new(ArmNeonScoringEngine::new(compiled, config)))

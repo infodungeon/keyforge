@@ -5,20 +5,18 @@ use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
+use keyforge_model::config::EngineConfig;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
-
-#[derive(Debug, Clone, Default)]
-pub struct ArmSveConfig;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ArmSveScoringEngine {
     pub(crate) ctx: EngineContext,
-    _config: ArmSveConfig,
+    _config: EngineConfig,
 }
 
 impl ArmSveScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext, config: Option<ArmSveConfig>) -> Self {
+    pub fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
         Self {
             ctx,
             _config: config.unwrap_or_default(),

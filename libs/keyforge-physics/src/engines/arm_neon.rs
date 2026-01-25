@@ -1,37 +1,22 @@
 // libs/keyforge-physics/src/engines/arm_neon.rs
 
 #![allow(unsafe_code)]
-use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
+use keyforge_model::config::EngineConfig;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
-
-/// Configuration for the ARM-specific scoring engine.
-#[derive(Debug, Clone, Copy)]
-pub struct ArmNeonConfig {
-    pub l1d_size_bytes: usize,
-    pub l2_size_bytes: usize,
-}
-
-impl Default for ArmNeonConfig {
-    fn default() -> Self {
-        Self {
-            l1d_size_bytes: 32 * 1024,
-            l2_size_bytes: 512 * 1024,
-        }
-    }
-}
+use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ArmNeonScoringEngine {
     pub(crate) ctx: EngineContext,
-    _config: ArmNeonConfig,
+    _config: EngineConfig,
 }
 
 impl ArmNeonScoringEngine {
     #[must_use]
-    pub(crate) fn new(ctx: EngineContext, config: Option<ArmNeonConfig>) -> Self {
+    pub(crate) fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
         Self {
             ctx,
             _config: config.unwrap_or_default(),
@@ -252,13 +237,6 @@ unsafe fn score_simple_neon(
     }
 
     // 2. Bigrams
-    // Safety: Memory safety is guaranteed by `ValidatedLayout` and `Compiler` ensuring that:
-    // 1. `others_ptr` and `freqs_ptr` have lengths matching the bigram corpus indices.
-    // 2. `costs_ptr` (the Cost Matrix) has a length of at least `key_count^2`.
-    // 3. Pointer offsets are derived from `flat_map` and `p1_offset`, which are validated 
-    //    against `key_count` before use.
-    // Bit-perfect determinism is maintained by performing all intermediate SIMD operations 
-    // on integer vectors, exactly matching the reference scalar implementation.
     for &code1 in ctx.pos_map.used_keys() {
         let c1_val = code1 as usize;
         let p1 = flat_map[c1_val] as usize;
@@ -282,7 +260,7 @@ unsafe fn score_simple_neon(
             let p2_0 = flat_map[c2_0];
             let p2_1 = flat_map[c2_1];
 
-            // Manual gather for costs (NEON doesn't have i64 gather)
+            // Manual gather for costs
             let cost0 = if p2_0 < key_count as u16 {
                 costs_ptr.add(p1_offset + (p2_0 as usize)).read().0
             } else {
@@ -300,7 +278,6 @@ unsafe fn score_simple_neon(
             let freq1 = freqs_ptr.add(k + 1).read() as i64;
             let freq_v = vcombine_s64(vcreate_s64(freq0 as u64), vcreate_s64(freq1 as u64));
 
-            // Multiply and accumulate (NEON lacks vmul.s64, so we multiply lanes manually)
             let p0 = vgetq_lane_s64(cost_v, 0) * vgetq_lane_s64(freq_v, 0);
             let p1 = vgetq_lane_s64(cost_v, 1) * vgetq_lane_s64(freq_v, 1);
             let prod_v = vcombine_s64(vcreate_s64(p0 as u64), vcreate_s64(p1 as u64));
@@ -488,8 +465,8 @@ mod tests {
 
     #[test]
     fn test_neon_config_defaults() {
-        let config = ArmNeonConfig::default();
-        assert_eq!(config.l1d_size_bytes, 32 * 1024);
+        let config = EngineConfig::default();
+        assert_eq!(config.l1d_size, 32 * 1024);
     }
 
     #[test]

@@ -5,22 +5,18 @@ use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
+use keyforge_model::config::EngineConfig;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
-
-#[derive(Debug, Clone, Default)]
-pub struct Avx512Config {
-    pub use_prefetch: bool,
-}
 
 #[derive(Debug, Clone)]
 pub(crate) struct Avx512ScoringEngine {
     ctx: EngineContext,
-    config: Avx512Config,
+    config: EngineConfig,
 }
 
 impl Avx512ScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext, config: Option<Avx512Config>) -> Self {
+    pub fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
         Self {
             ctx,
             config: config.unwrap_or_default(),
@@ -132,7 +128,7 @@ unsafe fn score_layout_avx512(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
     scratch: &mut PhysicsScratch,
-    _: &Avx512Config,
+    _: &EngineConfig,
 ) -> Result<i64, PhysicsError> {
     let (starts, counts, indices, offsets, used, _, flat_map) = scratch.get_mut_scratch();
     let pm = PosMap::from_scratch(

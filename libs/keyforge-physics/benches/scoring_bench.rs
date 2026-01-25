@@ -13,12 +13,10 @@ fn bench_scoring(c: &mut Criterion) {
     let rubric = Arc::new(Rubric::default());
     let cm = Arc::new(CostModel::default());
 
-    let engine = EngineFactory::new_generic(&EngineCompilationContext {
-        keyboard: kb,
-        corpus: cp,
-        rubric,
-        cost_model: cm,
-    })
+    let engine = EngineFactory::new_generic(&EngineCompilationContext { keyboard: kb,
+    corpus: cp,
+    rubric,
+    cost_model: cm, engine_config: keyforge_model::config::EngineConfig::default() })
     .expect("Failed to compile engine");
 
     let layout = Layout::new_unchecked(vec![KeyCode(0); engine.key_count()]);

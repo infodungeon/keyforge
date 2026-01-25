@@ -1,4 +1,6 @@
-use keyforge_physics::{ArmNeonConfig, IntelEngineConfig};
+// libs/keyforge-compute/src/hardware.rs
+
+use keyforge_physics::EngineConfig;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use raw_cpuid::{CacheType, CpuId};
 use std::env;
@@ -13,22 +15,13 @@ pub struct CpuTopology {
     pub l3_size_bytes: usize,
 }
 
-impl From<CpuTopology> for IntelEngineConfig {
+impl From<CpuTopology> for EngineConfig {
     fn from(topo: CpuTopology) -> Self {
         Self {
-            l1d_size_bytes: topo.l1d_size_bytes,
-            l2_size_bytes: topo.l2_size_bytes,
-            l3_size_bytes: topo.l3_size_bytes,
+            l1d_size: topo.l1d_size_bytes,
+            l2_size: topo.l2_size_bytes,
+            l3_size: topo.l3_size_bytes,
             use_prefetch: true,
-        }
-    }
-}
-
-impl From<CpuTopology> for ArmNeonConfig {
-    fn from(topo: CpuTopology) -> Self {
-        Self {
-            l1d_size_bytes: topo.l1d_size_bytes,
-            l2_size_bytes: topo.l2_size_bytes,
         }
     }
 }
@@ -292,7 +285,6 @@ mod tests {
         let topology = HardwareProbe::probe();
         println!("Detected Topology: {topology:?}");
         assert!(!topology.vendor.is_empty());
-        // On some CI environments cpuid might be masked, but usually vendor is present.
     }
 
     #[test]
@@ -300,8 +292,8 @@ mod tests {
         let default = CpuTopology::default();
         assert_eq!(default.vendor, "Unknown");
 
-        let config: IntelEngineConfig = default.into();
-        assert_eq!(config.l1d_size_bytes, 32 * 1024);
+        let config: EngineConfig = default.into();
+        assert_eq!(config.l1d_size, 32 * 1024);
         assert!(config.use_prefetch);
     }
 }

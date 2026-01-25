@@ -1,35 +1,21 @@
+// libs/keyforge-physics/src/engines/intel_comet_lake.rs
+
 #![allow(unsafe_code)]
-use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
+use keyforge_model::config::EngineConfig;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
+use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 
-#[derive(Debug, Clone, Copy)]
-pub struct IntelEngineConfig {
-    pub l1d_size_bytes: usize,
-    pub l2_size_bytes: usize,
-    pub l3_size_bytes: usize,
-    pub use_prefetch: bool,
-}
-impl Default for IntelEngineConfig {
-    fn default() -> Self {
-        Self {
-            l1d_size_bytes: 32 * 1024,
-            l2_size_bytes: 256 * 1024,
-            l3_size_bytes: 8 * 1024 * 1024,
-            use_prefetch: true,
-        }
-    }
-}
 #[derive(Debug, Clone)]
 pub(crate) struct IntelScoringEngine {
     pub(crate) ctx: EngineContext,
-    config: IntelEngineConfig,
+    config: EngineConfig,
 }
 impl IntelScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext, config: Option<IntelEngineConfig>) -> Self {
+    pub fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
         Self {
             ctx,
             config: config.unwrap_or_default(),
@@ -135,7 +121,7 @@ unsafe fn score_layout_avx2(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
     scratch: &mut PhysicsScratch,
-    _: &IntelEngineConfig,
+    _: &EngineConfig,
 ) -> Result<i64, PhysicsError> {
     let (starts, counts, indices, offsets, used, _, flat_map) = scratch.get_mut_scratch();
     let pm = PosMap::from_scratch(
@@ -446,9 +432,9 @@ mod tests {
     use super::*;
     #[test]
     fn test_config_defaults() {
-        let c = IntelEngineConfig::default();
+        let c = EngineConfig::default();
         assert!(c.use_prefetch);
-        assert_eq!(c.l1d_size_bytes, 32 * 1024);
+        assert_eq!(c.l1d_size, 32 * 1024);
     }
     #[test]
     fn test_avx2_parity() {

@@ -67,12 +67,10 @@ mod tests {
         );
         let rubric = Arc::new(conversion::to_domain_rubric(&weights));
 
-        let engine = EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard,
-            corpus,
-            rubric,
-            cost_model: cost_data,
-        })
+        let engine = EngineFactory::new_generic(&EngineCompilationContext { keyboard,
+        corpus,
+        rubric,
+        cost_model: cost_data, engine_config: keyforge_model::config::EngineConfig::default() })
         .expect("Failed to create engine");
 
         let registry: Arc<KeycodeRegistry> = provider

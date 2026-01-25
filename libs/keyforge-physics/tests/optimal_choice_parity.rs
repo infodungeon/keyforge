@@ -54,12 +54,10 @@ mod integration_tests {
         corpus_val.char_freqs = Arc::from(freqs);
         let corpus = Arc::new(corpus_val);
         let cm = Arc::new(mock_cost_model());
-        let ctx = EngineCompilationContext {
-            keyboard: kb,
-            corpus,
-            rubric: Arc::new(Rubric::default()),
-            cost_model: cm,
-        };
+        let ctx = EngineCompilationContext { keyboard: kb,
+        corpus,
+        rubric: Arc::new(Rubric::default()),
+        cost_model: cm, engine_config: keyforge_model::config::EngineConfig::default() };
 
         let engine = EngineFactory::new_generic(&ctx).unwrap();
         let oracle = EngineFactory::new_exact(&ctx).unwrap();
@@ -108,12 +106,10 @@ mod integration_tests {
         let rubric_arc = Arc::new(rubric);
 
         let cm = Arc::new(mock_cost_model());
-        let ctx = EngineCompilationContext {
-            keyboard: kb,
-            corpus,
-            rubric: rubric_arc,
-            cost_model: cm,
-        };
+        let ctx = EngineCompilationContext { keyboard: kb,
+        corpus,
+        rubric: rubric_arc,
+        cost_model: cm, engine_config: keyforge_model::config::EngineConfig::default() };
 
         let engine = EngineFactory::new_generic(&ctx).unwrap();
         let oracle = EngineFactory::new_exact(&ctx).unwrap();
@@ -166,12 +162,10 @@ mod integration_tests {
         let rubric_arc = Arc::new(rubric);
 
         let cm = Arc::new(mock_cost_model());
-        let ctx = EngineCompilationContext {
-            keyboard: kb,
-            corpus,
-            rubric: rubric_arc,
-            cost_model: cm,
-        };
+        let ctx = EngineCompilationContext { keyboard: kb,
+        corpus,
+        rubric: rubric_arc,
+        cost_model: cm, engine_config: keyforge_model::config::EngineConfig::default() };
 
         let engine = EngineFactory::new_generic(&ctx).unwrap();
         let oracle = EngineFactory::new_exact(&ctx).unwrap();

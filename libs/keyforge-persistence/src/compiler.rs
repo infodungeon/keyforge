@@ -86,6 +86,7 @@ pub async fn compile_request<L: AssetLoader>(
         rubric: Arc::new(rubric),
         cost_model,
         config: adapter_config,
+        engine_config: config.engine,
         initial_layout,
         pinned_keys,
     })

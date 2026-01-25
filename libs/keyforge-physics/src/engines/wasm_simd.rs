@@ -5,20 +5,18 @@ use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
+use keyforge_model::config::EngineConfig;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
-
-#[derive(Debug, Clone, Default)]
-pub struct WasmSimdConfig;
 
 #[derive(Debug, Clone)]
 pub(crate) struct WasmSimdScoringEngine {
     pub(crate) ctx: EngineContext,
-    _config: WasmSimdConfig,
+    _config: EngineConfig,
 }
 
 impl WasmSimdScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext, config: Option<WasmSimdConfig>) -> Self {
+    pub fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
         Self {
             ctx,
             _config: config.unwrap_or_default(),
