@@ -79,6 +79,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all, fields(kb = %ctx.keyboard.kb_type))]
     pub fn new_scalar(
         ctx: &EngineCompilationContext,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
@@ -90,6 +91,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all, fields(kb = %ctx.keyboard.kb_type))]
     pub fn new_exact(
         ctx: &EngineCompilationContext,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
@@ -107,6 +109,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all)]
     pub fn new_generic(
         ctx: &EngineCompilationContext,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
@@ -117,6 +120,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all, fields(kb = %ctx.keyboard.kb_type))]
     pub fn new_optimized(
         ctx: &EngineCompilationContext,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
@@ -168,6 +172,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all)]
     pub fn new_wasm_simd(
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
@@ -180,6 +185,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all)]
     pub fn new_intel_avx512(
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
@@ -192,6 +198,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all)]
     pub fn new_intel_comet_lake(
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
@@ -204,6 +211,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all)]
     pub fn new_arm_sve(
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
@@ -216,6 +224,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
+    #[instrument(skip_all)]
     pub fn new_arm_neon(
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
@@ -226,7 +235,7 @@ impl EngineFactory {
 }
 
 /// Identifies a layout by comparing it to known standards.
-#[instrument]
+#[instrument(skip_all)]
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
     Fingerprinter::identify(layout)
 }
@@ -235,6 +244,7 @@ pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
 ///
 /// # Errors
 /// Returns `PhysicsError` if the layout is invalid for the context.
+#[instrument(skip_all)]
 pub fn analyze_with_context(
     ctx: &EngineContext,
     layout: &Layout,
@@ -278,6 +288,7 @@ pub fn analyze_with_context(
 }
 
 /// Suggests improvements for the layout.
+#[instrument(skip_all)]
 #[must_use]
 pub fn suggest_improvements_with_context(
     ctx: &EngineContext,

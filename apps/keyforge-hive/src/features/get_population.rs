@@ -36,7 +36,7 @@ use std::sync::Arc;
     tag = "jobs"
 )]
 /// Handles a request to retrieve the current top layouts for a job.
-pub(crate) async fn handle(
+#[tracing::instrument(skip_all)] pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Path(job_id): Path<String>,
 ) -> AppResult<Json<PopulationResponse>> {

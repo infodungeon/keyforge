@@ -34,7 +34,7 @@ use tracing::info;
     tag = "jobs"
 )]
 /// Handles a request to cancel an active job.
-pub(crate) async fn handle(
+#[tracing::instrument(skip_all)] pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Path(job_id): Path<String>,
 ) -> AppResult<String> {

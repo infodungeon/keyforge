@@ -51,7 +51,7 @@
 - **[ANEMIC] passive Data**: 107 passive structs in `keyforge-protocol` leak internal state via `pub` fields.
 
 ### 3. Operational & Observability Findings
-- **[OBSERVABILITY] Instrument Void**: `#[instrument]` is missing from 98% of public entry points in `keyforge-hive` and `keyforge-physics`.
+- [x] **[OBSERVABILITY] Instrument Void**: 98% of the public entry points in \`keyforge-hive\` and \`keyforge-physics\` lack \`#[instrument]\` macros. Integrated tracing across core kernels and feature handlers in Issue #31.
 - [x] **[CONFIG] Magic Literals**: 42 instances of hardcoded numeric literals (magic numbers) > 1000 found in \`libs/keyforge-physics/src/engines\`. Elevated to \`EngineConfig\` schema in Issue #35.
 - [x] **[OPS] Docker Bloat**: \`ops/Dockerfile.*\` lacks multi-stage builds and explicit user non-root escalation. (Resolved via Issue #37)
 
