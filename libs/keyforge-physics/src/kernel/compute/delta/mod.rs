@@ -10,10 +10,7 @@ mod tests;
 use super::flow::get_flow_delta;
 pub(crate) use super::state::PosMap;
 use crate::error::PhysicsError;
-use crate::kernel::{
-    types::ValidatedLayout,
-    EngineContext,
-};
+use crate::kernel::{types::ValidatedLayout, EngineContext};
 
 /// Calculates the score delta for swapping two keys in a layout.
 pub(crate) fn calculate_swap_delta(

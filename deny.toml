@@ -28,6 +28,8 @@ ignore = [
     "RUSTSEC-2025-0057", # fxhash unmaintained (kuchikiki dep)
     "RUSTSEC-2024-0412", # gdk unmaintained (tauri dep)
     "RUSTSEC-2024-0418", # gdk-sys unmaintained (tauri dep)
+    "RUSTSEC-2025-0141", # bincode unmaintained (narsil-mcp dep)
+    "RUSTSEC-2024-0384", # instant unmaintained (narsil-mcp dep)
 ]
 
 [licenses]

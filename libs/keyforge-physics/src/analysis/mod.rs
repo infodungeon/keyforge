@@ -115,10 +115,13 @@ mod tests {
     #[test]
     fn test_analyze_with_context() {
         let (keyboard, corpus, rubric, cost_model) = setup_minimal();
-        let engine = EngineFactory::new_generic(&EngineCompilationContext { keyboard,
-        corpus,
-        rubric,
-        cost_model, engine_config: keyforge_model::config::EngineConfig::default() })
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard,
+            corpus,
+            rubric,
+            cost_model,
+            engine_config: keyforge_model::config::EngineConfig::default(),
+        })
         .unwrap();
 
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);

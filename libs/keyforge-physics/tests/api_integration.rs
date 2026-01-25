@@ -59,6 +59,7 @@ mod integration_tests {
             corpus,
             rubric: Arc::new(Rubric::default()),
             cost_model: Arc::new(mock_cost_model_wiring()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
             config: SearchConfig::Annealing {
                 steps: 100,
                 start_temp: 10.0,

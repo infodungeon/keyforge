@@ -131,10 +131,13 @@ fn run_benchmark(
     #[allow(clippy::cast_possible_truncation)]
     let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
 
-    let engine = EngineFactory::new_generic(&EngineCompilationContext { keyboard: keyboard.clone(),
-    corpus,
-    rubric,
-    cost_model, engine_config: keyforge_model::config::EngineConfig::default() })?;
+    let engine = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard: keyboard.clone(),
+        corpus,
+        rubric,
+        cost_model,
+        engine_config: keyforge_model::config::EngineConfig::default(),
+    })?;
 
     for _ in 0..config.warmup_iterations {
         let _ = engine.score(&layout);

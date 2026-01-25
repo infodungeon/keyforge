@@ -47,7 +47,10 @@ pub struct SubmissionEntry {
     tag = "submissions"
 )]
 /// Handles a request to list the most recent community layout submissions.
-#[tracing::instrument(skip_all)] pub(crate) async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<Vec<SubmissionEntry>>> {
+#[tracing::instrument(skip_all)]
+pub(crate) async fn handle(
+    State(state): State<Arc<AppState>>,
+) -> AppResult<Json<Vec<SubmissionEntry>>> {
     let entries = state
         .submissions
         .get_recent(DEFAULT_LIST_LIMIT)

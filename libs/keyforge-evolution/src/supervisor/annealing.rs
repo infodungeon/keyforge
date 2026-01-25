@@ -445,10 +445,13 @@ mod tests {
             Arc::new(serde_json::from_str(cost_json).expect("Failed to parse cost model"));
         let rubric = Arc::new(Rubric::default());
 
-        EngineFactory::new_generic(&EngineCompilationContext { keyboard: kb,
-        corpus,
-        rubric,
-        cost_model, engine_config: keyforge_model::config::EngineConfig::default() })
+        EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: kb,
+            corpus,
+            rubric,
+            cost_model,
+            engine_config: keyforge_model::config::EngineConfig::default(),
+        })
         .expect("Failed to compile engine")
     }
 

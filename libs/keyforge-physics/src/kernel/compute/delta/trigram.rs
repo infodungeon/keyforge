@@ -1,10 +1,8 @@
 // libs/keyforge-physics/src/kernel/compute/delta/trigram.rs
 
 use super::get_flow_delta;
-use crate::kernel::{
-    EngineContext,
-};
 use super::PosMap;
+use crate::kernel::EngineContext;
 
 #[allow(clippy::cast_possible_truncation)]
 pub(crate) fn calculate_trigram_delta(

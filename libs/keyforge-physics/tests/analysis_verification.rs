@@ -59,6 +59,7 @@ mod integration_tests {
                     corpus: Arc::new(corpus.clone()),
                     rubric: Arc::new(rubric.clone()),
                     cost_model: Arc::new(cost_model.clone()),
+                    engine_config: keyforge_model::config::EngineConfig::default(),
                 };
                 let engine = EngineFactory::new_generic(&ctx).unwrap();
 

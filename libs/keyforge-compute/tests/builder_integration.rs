@@ -13,13 +13,13 @@ mod integration_tests {
     use super::*;
     use std::collections::HashMap;
 
+    use keyforge_adapter::loader::{AssetLoader, LoaderResult};
     use keyforge_compute::{
         OptimizationControl, ProgressCallback, Runtime, ScoringSession, SessionBuilder,
     };
     use keyforge_model::config::{CorpusSource, CostMatrixSource};
     use keyforge_model::geometry::KeyboardDefinition;
     use keyforge_model::keycodes::KeycodeRegistry;
-    use keyforge_adapter::loader::{AssetLoader, LoaderResult};
     use keyforge_model::types::RowIndex;
     use keyforge_model::{
         Asset, Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
@@ -154,6 +154,7 @@ mod integration_tests {
             corpus: Arc::new(Corpus::default()),
             rubric: Arc::new(Rubric::default()),
             cost_model: cm_arc,
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let registry = Arc::new(KeycodeRegistry::new_with_defaults());
@@ -230,6 +231,7 @@ mod integration_tests {
             corpus: Arc::new(Corpus::default()),
             rubric: Arc::new(Rubric::default()),
             cost_model: cm_arc,
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let session = ScoringSession::new(

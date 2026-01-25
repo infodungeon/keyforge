@@ -1,11 +1,8 @@
 // libs/keyforge-physics/src/kernel/compute/delta/monogram.rs
 
 use super::get_p_effective;
-use crate::kernel::{
-    types::{Score},
-    EngineContext,
-};
 use super::PosMap;
+use crate::kernel::{types::Score, EngineContext};
 
 #[allow(clippy::cast_possible_wrap)]
 pub(crate) fn calculate_monogram_delta(

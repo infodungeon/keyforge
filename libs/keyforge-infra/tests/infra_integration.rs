@@ -3,8 +3,8 @@ mod integration_tests {
     use super::*;
     // libs/keyforge-infra/tests/infra_integration.rs
 
-    use keyforge_infra::FsProvider;
     use keyforge_adapter::loader::AssetLoader;
+    use keyforge_infra::FsProvider;
     use keyforge_model::KeyboardDefinition;
     use std::fs;
 

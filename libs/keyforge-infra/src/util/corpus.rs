@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use keyforge_adapter::loader::LoaderResult;
 use keyforge_model::constants::{
     CORPUS_TOKEN_MAP, STD_CORPUS_BACKSPACE_FACTOR, STD_CORPUS_ERROR_RATE, STD_CORPUS_SENTENCE_RATIO,
 };
 use keyforge_model::error::ForgeError;
-use keyforge_adapter::loader::LoaderResult;
 use keyforge_model::Corpus;
 use serde_json::Value;
 use std::sync::Arc;

@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_compute::{AssetLoader, InMemoryLoader};
+use keyforge_adapter::loader::{AssetLoader, InMemoryLoader};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
@@ -183,7 +183,7 @@ impl KeyforgeEngine {
             from_value(rubric_val).map_err(|e| map_serde_error(&e))?
         };
 
-        let kb = self
+        let kb_def = self
             .loader
             .load::<KeyboardDefinition>(&keyboard_name)
             .await
@@ -207,20 +207,16 @@ impl KeyforgeEngine {
 
         let keyboard = Arc::new(
             keyforge_model::Keyboard::new(
-                kb.geometry.keys.clone(),
-                kb.geometry.home_row,
-                kb.meta.name.clone(),
+                kb_def.geometry.keys.clone(),
+                kb_def.geometry.home_row,
+                kb_def.meta.kb_type.clone(),
             )
             .map_err(to_js_error)?,
         );
 
         let engine = keyforge_physics::EngineFactory::new_generic(
             &keyforge_physics::EngineCompilationContext {
-                keyboard: Arc::new(keyforge_model::Keyboard::new(
-                    kb.geometry.keys.clone(),
-                    kb.geometry.home_row,
-                    kb.meta.kb_type.clone(),
-                ).unwrap()),
+                keyboard,
                 corpus: corpus.clone(),
                 rubric: Arc::new(rubric.clone()),
                 cost_model: cost_model.clone(),
