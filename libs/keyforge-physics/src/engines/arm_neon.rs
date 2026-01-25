@@ -252,6 +252,13 @@ unsafe fn score_simple_neon(
     }
 
     // 2. Bigrams
+    // Safety: Memory safety is guaranteed by `ValidatedLayout` and `Compiler` ensuring that:
+    // 1. `others_ptr` and `freqs_ptr` have lengths matching the bigram corpus indices.
+    // 2. `costs_ptr` (the Cost Matrix) has a length of at least `key_count^2`.
+    // 3. Pointer offsets are derived from `flat_map` and `p1_offset`, which are validated 
+    //    against `key_count` before use.
+    // Bit-perfect determinism is maintained by performing all intermediate SIMD operations 
+    // on integer vectors, exactly matching the reference scalar implementation.
     for &code1 in ctx.pos_map.used_keys() {
         let c1_val = code1 as usize;
         let p1 = flat_map[c1_val] as usize;

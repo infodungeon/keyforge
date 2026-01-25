@@ -19,7 +19,7 @@ pub fn pad_sequence<T: Clone>(seq: &[T], length: usize, pad_value: T) -> Vec<T> 
     padded
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 
