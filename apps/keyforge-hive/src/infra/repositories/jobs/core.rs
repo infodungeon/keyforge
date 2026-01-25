@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::dto::{HiveJobConfigRow, HiveJobRow};
 use super::identity;
 use keyforge_model::config::ScoringWeights;
 use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
 use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::mapping::Projection;
 use keyforge_model::types::KeyIndex;
 use keyforge_model::Validator;
 use keyforge_protocol::JobRequest;
@@ -76,7 +78,8 @@ impl JobRepository {
     }
 
     pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
-        let r = sqlx::query!(
+        let r = sqlx::query_as!(
+            HiveJobRow,
             r#"
             WITH locked_job AS (
                 SELECT id 
@@ -95,13 +98,13 @@ impl JobRepository {
                 RETURNING jobs.id, jobs.keyboard_id, jobs.pinned_keys, jobs.corpus_name, jobs.cost_matrix, jobs.parent_job_id
             )
             SELECT 
-                j.id,
-                j.keyboard_id,
-                sp.weights as weights_json,
-                (to_jsonb(sc) - 'id' - 'config_hash') as params_json,
-                j.pinned_keys, 
-                j.corpus_name, 
-                j.cost_matrix,
+                j.id as "id!",
+                j.keyboard_id as "keyboard_id!",
+                sp.weights as "weights_json!",
+                (to_jsonb(sc) - 'id' - 'config_hash') as "params_json",
+                j.pinned_keys as "pinned_keys!", 
+                j.corpus_name as "corpus_name!", 
+                j.cost_matrix as "cost_matrix!",
                 j.parent_job_id
             FROM updated_job u
             JOIN jobs j ON u.id = j.id
@@ -112,46 +115,16 @@ impl JobRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        if let Some(r) = r {
-            use keyforge_model::mapping::Projection;
+        if let Some(row) = r {
+            let id = row.id.clone();
+            let mut config = keyforge_protocol::JobConfig::project(row.clone())
+                .map_err(|e| sqlx::Error::Protocol(format!("Projection failed: {e}")))?;
 
-            let id = r.id;
-            let keyboard_id = r.keyboard_id;
-            let weights_val = r.weights_json;
-            let params_val = r.params_json.unwrap_or_default();
-            let pinned_keys_str = r.pinned_keys;
-            let corpus_name = r.corpus_name;
-            let cost_matrix_str = r.cost_matrix;
-
-            let definition = self.fetch_keyboard_definition(keyboard_id).await?;
-            let weights = keyforge_model::config::ScoringWeights::project(weights_val)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights: {e}")))?;
-            let params = keyforge_model::config::SearchParams::project(params_val)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid params: {e}")))?;
-
-            let pinned_keys = serde_json::from_str(&pinned_keys_str)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid pins in DB: {e}")))?;
-            let cost_matrix = serde_json::from_str(&cost_matrix_str)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid cost_matrix in DB: {e}")))?;
+            config.definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
 
             let req = JobRequest {
                 version: keyforge_protocol::PROTOCOL_VERSION,
-                config: keyforge_protocol::JobConfig {
-                    definition,
-                    weights,
-                    params,
-                    pinned_keys,
-                    corpora: vec![keyforge_model::CorpusSource {
-                        id: corpus_name,
-                        weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
-                        hash: None,
-                    }],
-                    cost_matrix,
-                    biometrics: vec![],
-                    parent_job_id: r.parent_job_id,
-                    baseline_score: None,
-                    parents: vec![],
-                },
+                config,
             };
             Ok(Some((id, req)))
         } else {
@@ -187,13 +160,14 @@ impl JobRepository {
         )>,
         sqlx::Error,
     > {
-        let row = sqlx::query!(
+        let row = sqlx::query_as!(
+            HiveJobConfigRow,
             r#"
             SELECT 
-                j.keyboard_id,
-                sp.weights as weights_json,
-                j.corpus_name,
-                j.cost_matrix
+                j.keyboard_id as "keyboard_id!",
+                sp.weights as "weights_json!",
+                j.corpus_name as "corpus_name!",
+                j.cost_matrix as "cost_matrix!"
             FROM jobs j
             JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
             WHERE j.id = $1
@@ -204,16 +178,16 @@ impl JobRepository {
         .await?;
 
         if let Some(r) = row {
-            let keyboard_id = r.keyboard_id;
-            let definition = self.fetch_keyboard_definition(keyboard_id).await?;
+            let definition = self.fetch_keyboard_definition(r.keyboard_id).await?;
             let geometry = definition.geometry;
 
-            let weights: ScoringWeights =
-                serde_json::from_value(r.weights_json).unwrap_or_default();
+            let weights = ScoringWeights::project(r.weights_json)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights: {e}")))?;
+
             let corpus = r.corpus_name;
             let cost_raw = r.cost_matrix;
             let cost: keyforge_model::CostMatrixSource = serde_json::from_str(&cost_raw)
-                .unwrap_or(keyforge_model::CostMatrixSource::Predefined(cost_raw));
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid cost_matrix: {e}")))?;
 
             Ok(Some((geometry, weights, corpus, cost)))
         } else {
@@ -231,7 +205,7 @@ impl JobRepository {
         let meta_row = sqlx::query_as!(
             HiveKeyboardMetaRow,
             r#"
-            SELECT name, author, version, notes, kb_type, home_row 
+            SELECT name as "name!", author, version, notes, kb_type, home_row 
             FROM keyboards 
             WHERE id = $1
             "#,
@@ -243,7 +217,16 @@ impl JobRepository {
         let keys_rows = sqlx::query_as!(
             HiveKeyRow,
             r#"
-            SELECT idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r 
+            SELECT 
+                idx as "idx!", 
+                x as "x!", 
+                y as "y!", 
+                w, h, 
+                hand as "hand!", 
+                finger as "finger!", 
+                row_idx as "row_idx!", 
+                col_idx as "col_idx!", 
+                is_stretch, is_prime, is_med, is_low, r 
             FROM keyboard_keys 
             WHERE keyboard_id = $1 
             ORDER BY idx
