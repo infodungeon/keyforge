@@ -24,7 +24,7 @@ use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::loader::{AssetLoader, LoaderResult};
-use keyforge_model::{Asset, Corpus, ForgeError};
+use keyforge_model::{error::ForgeError, Asset, Corpus};
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::any::{Any, TypeId};
 use std::path::{Path, PathBuf};
@@ -214,17 +214,13 @@ impl CachingProvider {
     }
 
     async fn try_ensure_keyboard(&self, rel_path: &str) -> Result<bool, String> {
-        if rel_path.starts_with(crate::asset::ASSET_PATH_KEYBOARDS) {
-            let path = Path::new(rel_path);
-            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            let clean_stem = if let Some(s) = stem.strip_suffix(".mpk") {
-                s
-            } else {
-                stem
-            };
-            if !clean_stem.is_empty() {
-                if let Err(e) = self.load::<KeyboardDefinition>(clean_stem).await {
-                    tracing::warn!("Eager load failed for keyboard {}: {}", clean_stem, e);
+        if let Some(sub_path) = rel_path.strip_prefix("keyboards/") {
+            // id is everything before the first .mpk
+            let id = sub_path.split(".mpk").next().unwrap_or(sub_path);
+
+            if !id.is_empty() {
+                if let Err(e) = self.load::<KeyboardDefinition>(id).await {
+                    tracing::warn!("Eager load failed for keyboard {}: {}", id, e);
                 }
                 return Ok(true);
             }
@@ -336,9 +332,11 @@ impl AssetLoader for CachingProvider {
             let kb = if let Some(c) = self.cache.get_keyboard(id) {
                 c
             } else {
-                let kb = self.provider.load::<KeyboardDefinition>(id).await?;
-                self.cache.insert_keyboard(id.to_string(), kb.clone());
-                kb
+                let res = self.provider.load::<KeyboardDefinition>(id).await;
+                if let Ok(kb) = &res {
+                    self.cache.insert_keyboard(id.to_string(), kb.clone());
+                }
+                res?
             };
             let any_kb: Arc<dyn Any + Send + Sync> = kb;
             return any_kb
@@ -350,9 +348,11 @@ impl AssetLoader for CachingProvider {
             let cm = if let Some(c) = self.cache.get_cost_model(id) {
                 c
             } else {
-                let cm = self.provider.load::<CostModel>(id).await?;
-                self.cache.insert_cost_model(id.to_string(), cm.clone());
-                cm
+                let res = self.provider.load::<CostModel>(id).await;
+                if let Ok(cm) = &res {
+                    self.cache.insert_cost_model(id.to_string(), cm.clone());
+                }
+                res?
             };
             let any_cm: Arc<dyn Any + Send + Sync> = cm;
             return any_cm
@@ -364,9 +364,11 @@ impl AssetLoader for CachingProvider {
             let rg = if let Some(c) = self.cache.get_keycodes(id) {
                 c
             } else {
-                let rg = self.provider.load::<KeycodeRegistry>(id).await?;
-                self.cache.insert_keycodes(id.to_string(), rg.clone());
-                rg
+                let res = self.provider.load::<KeycodeRegistry>(id).await;
+                if let Ok(rg) = &res {
+                    self.cache.insert_keycodes(id.to_string(), rg.clone());
+                }
+                res?
             };
             let any_rg: Arc<dyn Any + Send + Sync> = rg;
             return any_rg
@@ -402,91 +404,101 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_caching_provider_basic_caching() {
+    async fn test_caching_provider_basic_caching() -> Result<(), Box<dyn std::error::Error>> {
         let (temp, provider) = setup_env();
         let root = temp.path();
 
         let kb_dir = root.join("user/keyboards");
-        fs::create_dir_all(&kb_dir).unwrap();
+        fs::create_dir_all(&kb_dir)?;
 
-        let kb_json = r#"{
+        let kb_json = r#"{ 
             "meta": { "name": "CacheTest" },
             "geometry": { "keys": [{"index":0, "label": "A", "x":0,"y":0,"hand":0,"finger":1,"row":0,"col":0}], "prime_slots":[0], "med_slots":[], "low_slots":[], "home_row": 0 }
         }"#;
         let kb_path = kb_dir.join("test.json");
-        fs::write(&kb_path, kb_json).unwrap();
+        fs::write(&kb_path, kb_json)?;
 
         // 1. Initial load (Miss)
-        let res1: Arc<KeyboardDefinition> = provider.load("test").await.unwrap();
+        let res1: Arc<KeyboardDefinition> = provider.load("test").await?;
         assert_eq!(res1.meta.name, "CacheTest");
 
         // 2. Modify file on disk
         let kb_json_v2 = kb_json.replace("CacheTest", "Updated");
-        fs::write(&kb_path, kb_json_v2).unwrap();
+        fs::write(&kb_path, kb_json_v2)?;
 
         // 3. Second load (Hit) - Should still have old name
-        let res2: Arc<KeyboardDefinition> = provider.load("test").await.unwrap();
+        let res2: Arc<KeyboardDefinition> = provider.load("test").await?;
         assert_eq!(res2.meta.name, "CacheTest");
 
         // 4. Invalidate manually
         provider.invalidate_all();
 
         // 5. Third load (Miss) - Should have new name
-        let res3: Arc<KeyboardDefinition> = provider.load("test").await.unwrap();
+        let res3: Arc<KeyboardDefinition> = provider.load("test").await?;
         assert_eq!(res3.meta.name, "Updated");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_caching_provider_warming() {
+    async fn test_caching_provider_warming() -> Result<(), Box<dyn std::error::Error>> {
         let (temp, provider) = setup_env();
         let root = temp.path();
 
-        let sys_kb_dir = root.join("system/keyboards/models");
-        fs::create_dir_all(&sys_kb_dir).unwrap();
+        // The path in system library is 'keyboards/sys1.mpk.zst'
+        let sys_kb_dir = root.join("system").join("keyboards");
+        fs::create_dir_all(&sys_kb_dir)?;
 
-        // Create a valid-ish empty zstd-compressed MessagePack file
         let path = sys_kb_dir.join("sys1.mpk.zst");
         let mut kb = KeyboardDefinition::default();
+        kb.meta.name = "sys1".to_string();
         kb.geometry
             .keys
             .push(keyforge_model::geometry::KeyNode::default());
         kb.geometry
             .prime_slots
             .push(keyforge_model::types::KeyIndex(0));
-        kb.geometry.home_row = 0; // Match KeyNode::default() row
+        kb.geometry.home_row = 0;
 
         {
-            let file = File::create(&path).unwrap();
-            let mut encoder = zstd::Encoder::new(file, 3).unwrap();
-            rmp_serde::encode::write(&mut encoder, &kb).unwrap();
-            encoder.finish().unwrap();
+            let file = File::create(&path)?;
+            let mut encoder = zstd::Encoder::new(file, 3)?;
+            rmp_serde::encode::write(&mut encoder, &kb)?;
+            encoder.finish()?;
         }
 
-        provider.warm_all().await.unwrap();
+        provider.warm_all().await.map_err(|e| e.clone())?;
 
-        // Should be in cache now
+        // The key in cache should be "sys1" (stem only)
         assert!(provider.cache.get_keyboard("sys1").is_some());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_caching_provider_file_caching() {
+    async fn test_caching_provider_file_caching() -> Result<(), Box<dyn std::error::Error>> {
         let (temp, provider) = setup_env();
         let root = temp.path();
 
         let sys_dir = root.join("system");
-        fs::create_dir_all(&sys_dir).unwrap();
-        fs::write(sys_dir.join("raw.txt"), "raw content").unwrap();
+        fs::create_dir_all(&sys_dir)?;
+        fs::write(sys_dir.join("raw.txt"), "raw content")?;
 
         // 1. Load (Miss)
-        let content1 = provider.get_file_content("raw.txt").await.unwrap();
+        let content1 = provider
+            .get_file_content("raw.txt")
+            .await
+            .ok_or("Not found")?;
         assert_eq!(content1, "raw content");
 
         // 2. Update disk
-        fs::write(sys_dir.join("raw.txt"), "new content").unwrap();
+        fs::write(sys_dir.join("raw.txt"), "new content")?;
 
         // 3. Load (Hit)
-        let content2 = provider.get_file_content("raw.txt").await.unwrap();
+        let content2 = provider
+            .get_file_content("raw.txt")
+            .await
+            .ok_or("Not found")?;
         assert_eq!(content2, "raw content");
+        Ok(())
     }
 
     #[test]

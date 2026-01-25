@@ -31,6 +31,38 @@ pub enum InitMode {
 /// Marker file used to identify a valid `KeyForge` workspace.
 pub const WORKSPACE_MARKER: &str = ".keyforge_workspace";
 
+/// Orchestrates the setup of the `KeyForge` workspace asynchronously.
+///
+/// # Errors
+/// Returns `InfraError` if directory creation or asset validation fails.
+pub async fn initialize_workspace_async(root: &Path, mode: InitMode) -> InfraResult<()> {
+    info!("Initializing workspace at: {:?}", root);
+
+    if mode == InitMode::Create {
+        for dir in SYSTEM_DIRS {
+            ensure_dir_async(root, dir).await?;
+        }
+        for dir in USER_WORKSPACE_DIRS {
+            ensure_dir_async(root, dir).await?;
+        }
+        for dir in USER_RUNTIME_DIRS {
+            ensure_dir_async(root, dir).await?;
+        }
+
+        let marker = root.join(WORKSPACE_MARKER);
+        if !marker.exists() {
+            tokio::fs::write(&marker, "KeyForge Workspace Root\n")
+                .await
+                .map_err(InfraError::Io)?;
+        }
+    }
+
+    validate_system_assets(root)?;
+
+    info!("Workspace validation successful.");
+    Ok(())
+}
+
 /// Orchestrates the setup of the `KeyForge` workspace.
 ///
 /// # Errors
@@ -67,6 +99,21 @@ fn check_asset_exists(system_root: &Path, rel_path: &str) -> bool {
     let bin_path = system_root.join(format!("{rel_path}.mpk.zst"));
     let json_path = system_root.join(format!("{rel_path}.json"));
     bin_path.exists() || json_path.exists()
+}
+
+/// Ensures a directory exists relative to the root asynchronously.
+///
+/// # Errors
+/// Returns `InfraError` if directory creation fails.
+pub async fn ensure_dir_async(root: &Path, rel_path: &str) -> InfraResult<PathBuf> {
+    let p = root.join(rel_path);
+    if !p.exists() {
+        tokio::fs::create_dir_all(&p)
+            .await
+            .map_err(InfraError::Io)?;
+        info!("   Created: {:?}", p);
+    }
+    Ok(p)
 }
 
 /// Ensures a directory exists relative to the root, creating it if necessary.

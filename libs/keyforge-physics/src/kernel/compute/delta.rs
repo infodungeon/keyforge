@@ -450,9 +450,9 @@ mod tests {
         )
             .prop_map(|(bigrams, trigrams, char_freqs)| {
                 let mut c = Corpus::default();
-                c.bigrams = bigrams;
-                c.trigrams = trigrams;
-                c.char_freqs = char_freqs;
+                c.bigrams = bigrams.into();
+                c.trigrams = trigrams.into();
+                c.char_freqs = char_freqs.into();
                 c
             })
     }
@@ -492,11 +492,11 @@ mod tests {
                 static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
             });
 
-            let engine = crate::EngineFactory::new_generic(crate::EngineCompilationContext {
-                keyboard: &kb,
-                corpus: &cp,
-                rubric: &rubric,
-                cost_model: &cm,
+            let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
+                keyboard: Arc::new(kb.clone()),
+                corpus: Arc::new(cp.clone()),
+                rubric: Arc::new(rubric.clone()),
+                cost_model: Arc::new(cm.clone()),
             })
             .unwrap();
 
@@ -546,9 +546,11 @@ mod tests {
         let kb = Keyboard::new(keys, 1, "test".into()).unwrap();
 
         let mut cp = Corpus::default();
-        cp.char_freqs[97] = 100; // 'a'
-        cp.char_freqs[98] = 100; // 'b'
-        cp.bigrams = vec![(97, 98, 100)];
+        let mut freqs = cp.char_freqs.to_vec();
+        freqs[97] = 100; // 'a'
+        freqs[98] = 100; // 'b'
+        cp.char_freqs = Arc::from(freqs);
+        cp.bigrams = Arc::from(vec![(97, 98, 100)]);
 
         let rubric = Rubric::default();
         let mut cm = CostModel::default();
@@ -579,14 +581,13 @@ mod tests {
             },
         );
 
-        let engine = crate::EngineFactory::new_generic(crate::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &cp,
-            rubric: &rubric,
-            cost_model: &cm,
+        let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(cp.clone()),
+            rubric: Arc::new(rubric.clone()),
+            cost_model: Arc::new(cm.clone()),
         })
         .unwrap();
-
         let mut ctx = engine.context().clone();
 
         let layout_keys = vec![KeyCode(97), KeyCode(98)];

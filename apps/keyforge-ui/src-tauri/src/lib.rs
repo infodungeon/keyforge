@@ -7,7 +7,7 @@
 //! requests to core `KeyForge` libraries via Tauri commands.
 
 #![allow(clippy::missing_errors_doc)]
-use keyforge_infra::{initialize_workspace, InitMode};
+use keyforge_infra::fs::init::{initialize_workspace, InitMode};
 pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;

@@ -12,7 +12,7 @@ mod integration_tests {
     use keyforge_model::{
         Corpus, CostModel, EngineRequest, KeyNode, Keyboard, Rubric, SearchConfig,
     };
-    use keyforge_physics::{EngineFactory, ScoringEngine};
+    use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
     use std::sync::Arc;
 
     fn mock_cost_model() -> CostModel {
@@ -112,11 +112,11 @@ mod integration_tests {
     #[test]
     fn test_evolve_api_direct() {
         let (kb, cp, rb, cm) = setup_env();
-        let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &cp,
-            rubric: &rb,
-            cost_model: &cm,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: kb.clone(),
+            corpus: cp.clone(),
+            rubric: rb.clone(),
+            cost_model: cm.clone(),
         })
         .unwrap();
         let engine_arc: Arc<dyn ScoringEngine> = engine.into();

@@ -18,8 +18,8 @@ use std::path::PathBuf;
 /// Resolves the absolute path to the `KeyForge` workspace root.
 ///
 /// # Errors
-/// Returns an error string if the root cannot be resolved or is invalid.
-pub fn resolve_root(override_path: Option<PathBuf>) -> Result<PathBuf, String> {
+/// Returns an `InfraError` if the root cannot be resolved or is invalid.
+pub fn resolve_root(override_path: Option<PathBuf>) -> crate::error::InfraResult<PathBuf> {
     let config = CommonConfig {
         data_dir: override_path,
         ..CommonConfig::default()
@@ -29,7 +29,7 @@ pub fn resolve_root(override_path: Option<PathBuf>) -> Result<PathBuf, String> {
 
     // If it's a relative path (like "." or custom), we want to canonicalize it if it exists.
     if root.exists() {
-        return root.canonicalize().map_err(|e| e.to_string());
+        return Ok(root.canonicalize()?);
     }
 
     Ok(root)

@@ -16,3 +16,5 @@ keyforge-infra = { path = "../keyforge-infra" }
 keyforge-model = { path = "../keyforge-model" }
 tempfile.workspace = true
 serde_json.workspace = true
+tokio.workspace = true
+anyhow.workspace = true

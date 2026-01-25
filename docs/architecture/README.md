@@ -18,6 +18,7 @@ This directory contains the definitive architectural models for the KeyForge sys
 
 ## The Operational View (Reliability)
 * [07_FAILURE_MODES.md](./07_FAILURE_MODES.md) - Failure Analysis.
+* [18_ERROR_HANDLING.md](./18_ERROR_HANDLING.md) - Error Handling Strategy.
 * [08_SECURITY_MODEL.md](./08_SECURITY_MODEL.md) - Trust & Auth.
 * [09_DECISION_RECORDS.md](./09_DECISION_RECORDS.md) - ADRs.
 * [13_OBSERVABILITY.md](./13_OBSERVABILITY.md) - Logging, Metrics, Tracing.

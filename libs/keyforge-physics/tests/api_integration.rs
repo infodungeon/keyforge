@@ -47,9 +47,11 @@ mod integration_tests {
     #[test]
     fn test_public_api_wrappers() {
         let kb = Arc::new(setup_kb_wiring());
-        let mut corpus = Corpus::default();
-        corpus.char_freqs[97] = 100;
-        let corpus = Arc::new(corpus);
+        let mut corpus_val = Corpus::default();
+        let mut char_freqs = corpus_val.char_freqs.to_vec();
+        char_freqs[97] = 100;
+        corpus_val.char_freqs = Arc::from(char_freqs);
+        let corpus = Arc::new(corpus_val);
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
         let req = EngineRequest {
@@ -83,7 +85,8 @@ mod integration_tests {
         assert!(report.score > 0.0);
 
         // Test identify
-        let identity = keyforge_physics::identify(&req.initial_layout.clone().unwrap());
-        let _ = identity; // Might be None if not matched, but we call it
+        if let Some(initial) = &req.initial_layout {
+            let _ = keyforge_physics::identify(initial);
+        }
     }
 }

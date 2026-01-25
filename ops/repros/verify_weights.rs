@@ -3,7 +3,8 @@ use keyforge_model::{
     types::{FingerIndex, HandIndex, KeyCode},
     Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
 };
-use keyforge_physics::EngineFactory;
+use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
@@ -32,42 +33,45 @@ fn main() {
         .map(|i| KeyNode {
             index: i,
             hand: HandIndex(0),
-            finger: FingerIndex(1), // All index
+            finger: FingerIndex::new_unchecked(1), // All index
             x: i as f32,
             y: 0.0,
             ..Default::default()
         })
         .collect();
-    let keyboard = Keyboard::new(keys, 0, "test".into()).unwrap();
-    let mut corpus = Corpus::default();
-    corpus.char_freqs[97] = 1; // 'a'
-    corpus.char_freqs[98] = 1; // 'b'
-    corpus.bigrams.push((97, 98, 1000)); // 'a' and 'b'
+    let keyboard = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+    let mut corpus_val = Corpus::default();
+    let mut char_freqs = corpus_val.char_freqs.to_vec();
+    char_freqs[97] = 1; // 'a'
+    char_freqs[98] = 1; // 'b'
+    corpus_val.char_freqs = Arc::from(char_freqs);
+    corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
+    let corpus = Arc::new(corpus_val);
 
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
-    let cost_model = mock_cost_model();
+    let cost_model = Arc::new(mock_cost_model());
 
     // 1. Default Rubric
-    let rubric_def = Rubric::default();
-    let engine_def = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &keyboard,
-        corpus: &corpus,
-        rubric: &rubric_def,
-        cost_model: &cost_model,
+    let rubric_def = Arc::new(Rubric::default());
+    let engine_def = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard: keyboard.clone(),
+        corpus: corpus.clone(),
+        rubric: rubric_def,
+        cost_model: cost_model.clone(),
     })
     .unwrap();
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)
-    let rubric_custom = Rubric {
+    let rubric_custom = Arc::new(Rubric {
         sfb_base: 5000.0,
         ..Rubric::default()
-    };
-    let engine_custom = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &keyboard,
-        corpus: &corpus,
-        rubric: &rubric_custom,
-        cost_model: &cost_model,
+    });
+    let engine_custom = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard,
+        corpus,
+        rubric: rubric_custom,
+        cost_model,
     })
     .unwrap();
     let score_custom = engine_custom.score(&layout).unwrap();

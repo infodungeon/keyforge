@@ -3,7 +3,7 @@
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use indicatif::ProgressBar;
-use keyforge_infra::resolve_root;
+use keyforge_infra::{fs::io::read_to_string_limited, resolve_root};
 use keyforge_model::KeyboardDefinition;
 use keyforge_protocol::JobConfig;
 use std::convert::TryFrom;
@@ -222,10 +222,8 @@ async fn build_job_config(
 
     let weights = if let Some(w_input) = &shared.weights {
         let w_path = cli_parsers::resolve_path(w_input, None, loader.root())?;
-        let content = keyforge_infra::read_to_string_limited(
-            &w_path,
-            keyforge_model::constants::MAX_INPUT_FILE_SIZE,
-        )?;
+        let content =
+            read_to_string_limited(&w_path, keyforge_model::constants::MAX_INPUT_FILE_SIZE)?;
         serde_json::from_str(&content)?
     } else {
         keyforge_model::config::Config::try_from(config_args.clone())?.weights

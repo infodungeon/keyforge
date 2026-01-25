@@ -28,32 +28,23 @@ impl AgentRunner {
         layout: &str,
     ) -> Result<String, CommandError> {
         // Create temp file for JobConfig
-        let temp_file =
-            tempfile::NamedTempFile::new().map_err(|e| CommandError::Internal(e.to_string()))?;
+        let temp_file = tempfile::NamedTempFile::new()?;
         let temp_path = temp_file.path().to_path_buf();
-        let json =
-            serde_json::to_string(config).map_err(|e| CommandError::Internal(e.to_string()))?;
-        tokio::fs::write(&temp_path, json)
-            .await
-            .map_err(|e| CommandError::Internal(e.to_string()))?;
+        let json = serde_json::to_string(config)?;
+        tokio::fs::write(&temp_path, json).await?;
 
-        let data_dir = get_data_dir(&self.app).map_err(CommandError::Internal)?;
+        let data_dir = get_data_dir(&self.app)?;
 
         // Spawn sidecar
         // args: ["--data-dir", data_dir, "score", temp_path, layout]
         // Note: Global args must come before the subcommand
-        let sidecar_command = self
-            .app
-            .shell()
-            .sidecar("keyforge-agent")
-            .map_err(|e| CommandError::Internal(e.to_string()))?
-            .args([
-                "--data-dir",
-                &data_dir.to_string_lossy(),
-                "score",
-                &temp_path.to_string_lossy(),
-                layout,
-            ]);
+        let sidecar_command = self.app.shell().sidecar("keyforge-agent")?.args([
+            "--data-dir",
+            &data_dir.to_string_lossy(),
+            "score",
+            &temp_path.to_string_lossy(),
+            layout,
+        ]);
 
         let (mut rx, _child) = sidecar_command
             .spawn()

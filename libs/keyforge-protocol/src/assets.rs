@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -89,6 +89,7 @@ pub struct UserStatsStore {
     pub total_keystrokes: u64,
     /// Collection of biometric samples.
     #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<BiometricSample>"))]
     pub biometrics: Vec<BiometricSample>,
 }
 
@@ -107,6 +108,7 @@ impl Validator for UserStatsStore {
 pub struct PopulationResponse {
     /// List of layout strings.
     #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<string>"))]
     pub layouts: Vec<String>,
 }
 

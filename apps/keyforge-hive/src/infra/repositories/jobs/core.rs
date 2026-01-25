@@ -113,6 +113,8 @@ impl JobRepository {
         .await?;
 
         if let Some(r) = r {
+            use keyforge_model::mapping::Projection;
+
             let id = r.id;
             let keyboard_id = r.keyboard_id;
             let weights_val = r.weights_json;
@@ -122,11 +124,11 @@ impl JobRepository {
             let cost_matrix_str = r.cost_matrix;
 
             let definition = self.fetch_keyboard_definition(keyboard_id).await?;
+            let weights = keyforge_model::config::ScoringWeights::project(weights_val)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights: {e}")))?;
+            let params = keyforge_model::config::SearchParams::project(params_val)
+                .map_err(|e| sqlx::Error::Protocol(format!("Invalid params: {e}")))?;
 
-            let weights = serde_json::from_value(weights_val)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights in DB: {e}")))?;
-            let params = serde_json::from_value(params_val)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid params in DB: {e}")))?;
             let pinned_keys = serde_json::from_str(&pinned_keys_str)
                 .map_err(|e| sqlx::Error::Protocol(format!("Invalid pins in DB: {e}")))?;
             let cost_matrix = serde_json::from_str(&cost_matrix_str)
@@ -223,7 +225,11 @@ impl JobRepository {
         &self,
         kb_id: i32,
     ) -> Result<KeyboardDefinition, sqlx::Error> {
-        let meta_row = sqlx::query!(
+        use super::dto::{HiveKeyRow, HiveKeyboardMetaRow, HiveKeyboardProjection};
+        use keyforge_model::mapping::Projection;
+
+        let meta_row = sqlx::query_as!(
+            HiveKeyboardMetaRow,
             r#"
             SELECT name, author, version, notes, kb_type, home_row 
             FROM keyboards 
@@ -234,16 +240,8 @@ impl JobRepository {
         .fetch_one(&self.pool)
         .await?;
 
-        let meta = keyforge_model::geometry::KeyboardMeta {
-            name: meta_row.name,
-            author: meta_row.author.unwrap_or_default(),
-            version: meta_row.version.unwrap_or_default(),
-            notes: meta_row.notes.unwrap_or_default(),
-            kb_type: meta_row.kb_type.unwrap_or_default(),
-        };
-        let home_row = meta_row.home_row.unwrap_or(0);
-
-        let keys_rows = sqlx::query!(
+        let keys_rows = sqlx::query_as!(
+            HiveKeyRow,
             r#"
             SELECT idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r 
             FROM keyboard_keys 
@@ -255,60 +253,11 @@ impl JobRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        let mut keys = Vec::with_capacity(keys_rows.len());
-        let mut prime_slots = Vec::new();
-        let mut med_slots = Vec::new();
-        let mut low_slots = Vec::new();
-
-        for row in keys_rows {
-            let idx = row.idx;
-            #[allow(clippy::cast_possible_truncation)]
-            let kidx = KeyIndex(
-                u16::try_from(idx)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Key index overflow: {e}")))?,
-            );
-
-            keys.push(keyforge_model::KeyNode {
-                index: usize::try_from(idx)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Key index negative: {e}")))?,
-                label: format!("k{idx}"),
-                x: row.x,
-                y: row.y,
-                w: row.w.unwrap_or(1.0),
-                h: row.h.unwrap_or(1.0),
-                hand: keyforge_model::types::HandIndex(u8::try_from(row.hand).unwrap_or(0)),
-                finger: keyforge_model::types::FingerIndex::new_unchecked(
-                    u8::try_from(row.finger).unwrap_or(0),
-                ),
-                row: keyforge_model::types::RowIndex(i8::try_from(row.row_idx).unwrap_or(0)),
-                col: keyforge_model::types::ColIndex(i8::try_from(row.col_idx).unwrap_or(0)),
-                is_stretch: row.is_stretch.unwrap_or(false),
-                r: row.r.unwrap_or(0.0),
-                ..Default::default()
-            });
-
-            if row.is_prime.unwrap_or(false) {
-                prime_slots.push(kidx);
-            }
-            if row.is_med.unwrap_or(false) {
-                med_slots.push(kidx);
-            }
-            if row.is_low.unwrap_or(false) {
-                low_slots.push(kidx);
-            }
-        }
-
-        Ok(KeyboardDefinition {
-            meta,
-            geometry: keyforge_model::geometry::KeyboardGeometry {
-                keys,
-                prime_slots,
-                med_slots,
-                low_slots,
-                home_row: i8::try_from(home_row).unwrap_or(0),
-            },
-            layouts: std::collections::HashMap::new(),
+        KeyboardDefinition::project(HiveKeyboardProjection {
+            meta: meta_row,
+            keys: keys_rows,
         })
+        .map_err(|e| sqlx::Error::Protocol(format!("Projection failed: {e}")))
     }
 
     fn validate_registration_request(req: &JobRequest) -> Result<(), sqlx::Error> {

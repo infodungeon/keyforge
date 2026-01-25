@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use keyforge_compute::{AssetLoader, SessionBuilder};
-use keyforge_infra::ValkeyProvider;
+use keyforge_infra::asset::ValkeyProvider;
 use keyforge_model::{
     constants::{
         DEFAULT_CORPUS_WEIGHT, VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO,

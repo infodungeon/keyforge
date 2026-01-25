@@ -2,14 +2,14 @@ use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_export::{qmk::QmkExporter, zmk::ZmkExporter, Exporter};
-use keyforge_infra::listing;
-use keyforge_infra::AssetLoader;
+use keyforge_infra::fs::listing;
 use keyforge_infra::HiveClient;
 use keyforge_model::constants::{
     DEFAULT_AUTHOR_NAME, DEFAULT_KEYBOARD_NAME, DEFAULT_KLE_NOTES, DEFAULT_VERSION,
 };
 use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+use keyforge_model::loader::AssetLoader;
 use keyforge_persistence::UserRepo;
 use std::collections::HashMap;
 use std::path::Path;
@@ -19,7 +19,7 @@ use tauri::AppHandle;
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
-    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    let root = get_data_dir(&app)?;
     listing::list_keyboards(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
@@ -27,7 +27,7 @@ pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_keymap_extras(app: AppHandle) -> Result<Vec<String>, CommandError> {
-    let root = get_data_dir(&app).map_err(CommandError::Config)?;
+    let root = get_data_dir(&app)?;
     listing::list_keymap_extras(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
@@ -47,12 +47,12 @@ pub async fn cmd_get_keyboard_geometry(
     state: tauri::State<'_, SessionState>,
     name: String,
 ) -> Result<KeyboardGeometry, CommandError> {
-    state
+    Ok(state
         .assets
         .load::<KeyboardDefinition>(&name)
-        .await
-        .map(|def| def.geometry.clone())
-        .map_err(|e| CommandError::Config(format!("Failed to load geometry: {e}")))
+        .await?
+        .geometry
+        .clone())
 }
 
 #[tauri::command]
@@ -63,7 +63,7 @@ pub async fn cmd_get_all_layouts_scoped(
     state: tauri::State<'_, SessionState>,
     keyboard_id: String,
 ) -> Result<HashMap<String, String>, CommandError> {
-    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
+    let data_dir = get_data_dir(&app)?;
     let user_data = UserRepo::new(data_dir);
     let mut all_layouts = user_data.get_layouts(&keyboard_id);
 
@@ -82,10 +82,9 @@ pub fn cmd_save_user_layout(
     name: String,
     layout: String,
 ) -> Result<(), CommandError> {
-    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
-    UserRepo::new(data_dir)
-        .save_layout(&keyboard_id, &name, &layout)
-        .map_err(|e| CommandError::Internal(e.to_string()))
+    let data_dir = get_data_dir(&app)?;
+    UserRepo::new(data_dir).save_layout(&keyboard_id, &name, &layout)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -96,10 +95,9 @@ pub fn cmd_delete_user_layout(
     keyboard_id: String,
     name: String,
 ) -> Result<(), CommandError> {
-    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
-    UserRepo::new(data_dir)
-        .delete_layout(&keyboard_id, &name)
-        .map_err(|e| CommandError::Internal(e.to_string()))
+    let data_dir = get_data_dir(&app)?;
+    UserRepo::new(data_dir).delete_layout(&keyboard_id, &name)?;
+    Ok(())
 }
 
 /// Submits a user layout to the remote Hive server for community review.
@@ -120,7 +118,7 @@ pub async fn cmd_submit_user_layout(
         secret: Some(hive_secret),
         ..Default::default()
     };
-    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config)?;
     let res = client
         .post("submissions")
         .json(&serde_json::json!({ "name": name, "layout": layout, "author": author }))
@@ -169,10 +167,9 @@ pub fn cmd_save_keyboard(
     filename: String,
     def: KeyboardDefinition,
 ) -> Result<(), CommandError> {
-    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
-    UserRepo::new(data_dir)
-        .save_keyboard_definition(&filename, &def)
-        .map_err(|e| CommandError::Internal(e.to_string()))
+    let data_dir = get_data_dir(&app)?;
+    UserRepo::new(data_dir).save_keyboard_definition(&filename, &def)?;
+    Ok(())
 }
 
 /// Exports a layout to a target firmware format (e.g., QMK, ZMK).

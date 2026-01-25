@@ -14,51 +14,40 @@
 
 //! # `KeyForge` Infrastructure
 //!
-//! Infrastructure and cross-cutting concerns for `KeyForge`. This crate
-//! provides utilities for networking, filesystem operations, and asset
-//! management.
+//! Shared infrastructure, observability, logging, and common management services
+//! for `KeyForge` components.
 
-/// Asset management and providers (filesystem, caching, Valkey).
+#![warn(missing_docs)]
+
+/// Asset management and loading providers.
 pub mod asset;
-/// Common configuration structures.
+/// Configuration structures and environment variable handling.
 pub mod config;
-/// Infrastructure-specific error types.
+/// Error and Result types for infrastructure operations.
 pub mod error;
-/// Filesystem operations, workspace initialization, and locking.
+/// Filesystem abstractions and utilities.
 pub mod fs;
-/// Network clients, synchronization, and distributed coordination.
+/// Hardware discovery and provider traits.
+pub mod hardware;
+/// Network client and protocol adapters.
 pub mod net;
-/// Common utility functions and parsers.
+/// Shared utility functions and common logic.
 pub mod util;
 
-pub use error::{InfraError, InfraResult};
-
-// Re-exports
-pub use fs::init;
-pub use fs::init::{initialize_workspace, InitMode};
-pub use fs::io::{atomic_write, read_to_string_limited};
-pub use fs::listing;
-pub use fs::lock::WorkspaceLock;
-pub use fs::paths::resolve_root;
-
-pub use net::client::HiveClient;
-pub use net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
-pub use net::network::{ensure_corpus_bundle, ensure_cost_matrix, ensure_file};
-pub use net::sync::{bootstrap_essentials, generate_manifest, run_sync, ServerManifest, SyncStats};
-
-pub use asset::caching_provider::CachingProvider;
 pub use asset::fs_provider::FsProvider;
 pub use asset::manager::AssetManager;
-pub use asset::ValkeyProvider; // ADDED
+pub use config::CommonConfig;
+pub use error::{InfraError, InfraResult};
+pub use fs::paths::resolve_root;
+pub use keyforge_model::loader::LoaderResult;
+pub use net::client::HiveClient;
+pub use net::sync::{bootstrap_essentials, run_sync, SyncStats};
 
-pub use keyforge_model::loader::AssetLoader;
-
-pub use util::common::{calculate_file_hash, load_keycode_registry, sanitize_filename};
-
-include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
-
-/// Returns the build information (Git hash and build date) injected during compilation.
+/// Returns the build-time Git hash and build date of the infrastructure library.
 #[must_use]
 pub fn get_build_info() -> (&'static str, &'static str) {
-    (GIT_HASH, BUILD_DATE)
+    (
+        option_env!("GIT_HASH").unwrap_or("unknown"),
+        option_env!("BUILD_DATE").unwrap_or("unknown"),
+    )
 }

@@ -3,11 +3,12 @@ use crate::error::PhysicsError;
 use crate::kernel::types::KeyCode;
 use keyforge_model::constants::MAX_KEYCODE_SPACE;
 use keyforge_model::{Corpus, Rubric};
+use std::sync::Arc;
 
 /// Intermediate state containing flattened and pruned corpus data.
 #[derive(Debug)]
 pub struct CorpusOutput {
-    pub char_freqs: Vec<u64>,
+    pub char_freqs: Arc<[u64]>,
     pub bigram_starts: Vec<usize>,
     pub bigram_others: Vec<KeyCode>,
     pub bigram_freqs: Vec<u32>,
@@ -40,26 +41,9 @@ impl CompilationStage for CorpusStage<'_> {
     type Output = CorpusOutput;
 
     fn execute(&self, (): Self::Input) -> Result<Self::Output, PhysicsError> {
-        // Merge bigram duplicates to ensure consistency
-        let mut bigrams = self.corpus.bigrams.clone();
-        bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-        let mut merged_bigrams = Vec::with_capacity(bigrams.len());
-        if !bigrams.is_empty() {
-            let mut current = bigrams[0];
-            for next in bigrams.into_iter().skip(1) {
-                if next.0 == current.0 && next.1 == current.1 {
-                    current.2 = current.2.saturating_add(next.2);
-                } else {
-                    merged_bigrams.push(current);
-                    current = next;
-                }
-            }
-            merged_bigrams.push(current);
-        }
-
-        let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&merged_bigrams);
+        let (bigram_starts, bigram_others, bigram_freqs) = flatten_bigrams(&self.corpus.bigrams);
         let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) =
-            flatten_bigrams_rev(&merged_bigrams);
+            flatten_bigrams_rev(&self.corpus.bigrams);
 
         let pruned_trigrams = prune_trigrams(
             &self.corpus.trigrams,
@@ -74,10 +58,8 @@ impl CompilationStage for CorpusStage<'_> {
         let (trigram_end_starts, trigram_end_others1, trigram_end_others2, trigram_end_freqs) =
             flatten_trigrams_end(&pruned_trigrams);
 
-        let char_freqs = self.corpus.char_freqs.clone();
-
         Ok(CorpusOutput {
-            char_freqs,
+            char_freqs: self.corpus.char_freqs.clone(),
             bigram_starts,
             bigram_others,
             bigram_freqs,

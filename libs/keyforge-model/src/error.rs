@@ -79,6 +79,12 @@ pub enum ForgeError {
     Model(#[from] ModelError),
 }
 
+impl From<String> for ForgeError {
+    fn from(s: String) -> Self {
+        ForgeError::Validation(s)
+    }
+}
+
 /// Errors related to core model logic and integrity.
 #[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]

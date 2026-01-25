@@ -39,7 +39,15 @@ impl AssetSyncer for AssetManager {
         }
         self.sync_job_assets(config)
             .await
-            .map_err(|e| anyhow::anyhow!(e))
+            .map_err(|e: keyforge_infra::error::InfraError| anyhow::anyhow!(e))?;
+
+        // Extract cost matrix name and primary corpus
+        let cost_name = match &config.cost_matrix {
+            keyforge_model::CostMatrixSource::Predefined(s) => s.clone(),
+        };
+        let corpus_id = config.corpora[0].id.clone();
+
+        Ok((cost_name, corpus_id))
     }
 }
 
@@ -122,12 +130,14 @@ mod tests {
             ..Default::default()
         };
 
-        let kb = Keyboard::new(
-            kb_def.geometry.keys.clone(),
-            kb_def.geometry.home_row,
-            "test".into(),
-        )
-        .unwrap();
+        let kb = Arc::new(
+            Keyboard::new(
+                kb_def.geometry.keys.clone(),
+                kb_def.geometry.home_row,
+                "test".into(),
+            )
+            .unwrap(),
+        );
 
         let cost_json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
@@ -147,15 +157,15 @@ mod tests {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
-        let cost_model: CostModel = serde_json::from_str(cost_json).unwrap();
+        let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json).unwrap());
 
         let engine: Arc<dyn keyforge_physics::ScoringEngine> =
             keyforge_physics::EngineFactory::new_generic(
-                keyforge_physics::EngineCompilationContext {
-                    keyboard: &kb,
-                    corpus: &keyforge_model::Corpus::default(),
-                    rubric: &keyforge_model::Rubric::default(),
-                    cost_model: &cost_model,
+                &keyforge_physics::EngineCompilationContext {
+                    keyboard: kb,
+                    corpus: Arc::new(keyforge_model::Corpus::default()),
+                    rubric: Arc::new(keyforge_model::Rubric::default()),
+                    cost_model,
                 },
             )
             .unwrap()

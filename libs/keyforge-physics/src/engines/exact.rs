@@ -5,29 +5,30 @@ use crate::kernel::EngineContext;
 use crate::verify::DeterministicScorer;
 use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Corpus, Keyboard, Layout, Rubric, Score, SwapSuggestion};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct ExactScoringEngine {
     scorer: DeterministicScorer,
-    keyboard: Keyboard,
-    corpus: Corpus,
+    keyboard: Arc<Keyboard>,
+    corpus: Arc<Corpus>,
     ctx: EngineContext,
 }
 
 impl ExactScoringEngine {
     #[must_use]
     pub fn new(
-        keyboard: &Keyboard,
-        corpus: &Corpus,
+        keyboard: Arc<Keyboard>,
+        corpus: Arc<Corpus>,
         rubric: &Rubric,
         cost_model: &keyforge_model::CostModel,
         ctx: EngineContext,
     ) -> Self {
-        let scorer = DeterministicScorer::new(keyboard, rubric, cost_model);
+        let scorer = DeterministicScorer::new(&keyboard, rubric, cost_model);
         Self {
             scorer,
-            keyboard: keyboard.clone(),
-            corpus: corpus.clone(),
+            keyboard,
+            corpus,
             ctx,
         }
     }
@@ -41,11 +42,7 @@ impl ScoringEngine for ExactScoringEngine {
     fn capabilities(&self) -> EngineCapabilities {
         EngineCapabilities {
             is_exact: true,
-            features: EngineFeatures {
-                supports_avx2: false,
-                supports_neon: false,
-                supports_blocking: false,
-            },
+            features: EngineFeatures::NONE,
         }
     }
 

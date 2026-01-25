@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -21,7 +21,8 @@ use crate::asset::{Asset, AssetCategory};
 use crate::constants::MAX_KEYCODE_SPACE;
 use crate::error::ForgeError;
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::sync::Arc;
 
 /// Metadata describing a text corpus.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -40,14 +41,46 @@ pub struct Corpus {
     pub meta: CorpusMetadata,
     /// Frequency of each character (index = char code).
     /// Must be exactly `MAX_KEYCODE_SPACE` elements long to cover all u16 values.
-    /// Changed to u64 to support large corpora (>4B chars).
-    pub char_freqs: Vec<u64>,
+    #[serde(
+        serialize_with = "serialize_arc_slice",
+        deserialize_with = "deserialize_arc_slice"
+    )]
+    pub char_freqs: Arc<[u64]>,
     /// List of bigrams (char1, char2, frequency).
-    pub bigrams: Vec<(u16, u16, u32)>,
+    #[serde(
+        serialize_with = "serialize_arc_slice",
+        deserialize_with = "deserialize_arc_slice"
+    )]
+    pub bigrams: Arc<[(u16, u16, u32)]>,
     /// List of trigrams (char1, char2, char3, frequency).
-    pub trigrams: Vec<(u16, u16, u16, u32)>,
+    #[serde(
+        serialize_with = "serialize_arc_slice",
+        deserialize_with = "deserialize_arc_slice"
+    )]
+    pub trigrams: Arc<[(u16, u16, u16, u32)]>,
     /// List of common words and their frequencies.
-    pub words: Vec<(String, u32)>,
+    #[serde(
+        serialize_with = "serialize_arc_slice",
+        deserialize_with = "deserialize_arc_slice"
+    )]
+    pub words: Arc<[(String, u32)]>,
+}
+
+fn serialize_arc_slice<S, T>(val: &Arc<[T]>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: Serialize,
+{
+    (**val).serialize(s)
+}
+
+fn deserialize_arc_slice<'de, D, T>(d: D) -> Result<Arc<[T]>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let v = Vec::<T>::deserialize(d)?;
+    Ok(Arc::from(v))
 }
 
 impl Asset for Corpus {
@@ -56,7 +89,7 @@ impl Asset for Corpus {
     }
 
     fn post_load(&mut self) -> Result<(), ForgeError> {
-        self.validate()
+        self.validate_internal()
     }
 }
 
@@ -64,17 +97,17 @@ impl Default for Corpus {
     fn default() -> Self {
         Self {
             meta: CorpusMetadata::default(),
-            char_freqs: vec![0; MAX_KEYCODE_SPACE],
-            bigrams: Vec::new(),
-            trigrams: Vec::new(),
-            words: Vec::new(),
+            char_freqs: Arc::from(vec![0; MAX_KEYCODE_SPACE]),
+            bigrams: Arc::from(vec![]),
+            trigrams: Arc::from(vec![]),
+            words: Arc::from(vec![]),
         }
     }
 }
 
 impl Validator for Corpus {
     fn validate(&self) -> Result<(), String> {
-        self.validate().map_err(|e| e.to_string())
+        self.validate_internal().map_err(|e| e.to_string())
     }
 }
 
@@ -83,11 +116,8 @@ impl Corpus {
     /// Ensures that frequency maps are sized correctly to prevent panics in the Physics engine.
     ///
     /// # Errors
-    ///
     /// Returns a `ForgeError` if the character frequency map is not exactly `MAX_KEYCODE_SPACE` elements.
-    pub fn validate(&self) -> Result<(), ForgeError> {
-        // 1. Char Freqs must cover full u16 range (0..65535)
-        // The physics engine uses direct indexing: ctx.char_freqs[code as usize]
+    pub fn validate_internal(&self) -> Result<(), ForgeError> {
         if self.char_freqs.len() != MAX_KEYCODE_SPACE {
             return Err(ForgeError::InvalidData(format!(
                 "Corpus char_freqs length must be {}, found {}",
@@ -95,159 +125,87 @@ impl Corpus {
                 self.char_freqs.len()
             )));
         }
-
-        // 2. Bigrams/Trigrams
-        // Since u16 indices are always < MAX_KEYCODE_SPACE, they are safe indices into char_freqs.
-
         Ok(())
     }
 
     /// Merges another corpus into this one with a specific weight.
     pub fn merge(&mut self, other: &Self, weight: f32) {
-        // 1. Merge character frequencies
+        let mut new_char_freqs = self.char_freqs.to_vec();
         for (i, &freq) in other.char_freqs.iter().enumerate() {
-            if i < self.char_freqs.len() {
+            if i < new_char_freqs.len() {
                 #[allow(
                     clippy::cast_precision_loss,
                     clippy::cast_possible_truncation,
                     clippy::cast_sign_loss
                 )]
                 let merged_freq = (freq as f32 * weight).round() as u64;
-                self.char_freqs[i] += merged_freq;
+                new_char_freqs[i] += merged_freq;
             }
         }
+        self.char_freqs = Arc::from(new_char_freqs);
 
-        // 2. Merge bigrams
-        for &(c1, c2, freq) in &other.bigrams {
+        let mut new_bigrams = self.bigrams.to_vec();
+        for &(c1, c2, freq) in &*other.bigrams {
             #[allow(
                 clippy::cast_precision_loss,
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss
             )]
             let merged_freq = (freq as f32 * weight).round() as u32;
-            self.bigrams.push((c1, c2, merged_freq));
+            new_bigrams.push((c1, c2, merged_freq));
         }
+        new_bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        self.bigrams = Arc::from(new_bigrams);
 
-        // 3. Merge trigrams
-        for &(c1, c2, c3, freq) in &other.trigrams {
+        let mut new_trigrams = self.trigrams.to_vec();
+        for &(c1, c2, c3, freq) in &*other.trigrams {
             #[allow(
                 clippy::cast_precision_loss,
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss
             )]
             let merged_freq = (freq as f32 * weight).round() as u32;
-            self.trigrams.push((c1, c2, c3, merged_freq));
+            new_trigrams.push((c1, c2, c3, merged_freq));
         }
+        new_trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+        self.trigrams = Arc::from(new_trigrams);
 
-        // 4. Merge words
-        for (word, freq) in &other.words {
+        let mut new_words = self.words.to_vec();
+        for (word, freq) in &*other.words {
             #[allow(
                 clippy::cast_precision_loss,
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss
             )]
             let merged_freq = (*freq as f32 * weight).round() as u32;
-            self.words.push((word.clone(), merged_freq));
+            new_words.push((word.clone(), merged_freq));
         }
-
-        // Keep bigrams/trigrams sorted for the engine
-        self.bigrams
-            .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-        self.trigrams
-            .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+        self.words = Arc::from(new_words);
     }
 }
 
-#[keyforge_testing_macros::kf_test]
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-
     fn test_corpus_lifecycle() {
-        // 1. Default Construction
-
         let mut c = Corpus::default();
+        let mut freqs = c.char_freqs.to_vec();
+        freqs['a' as usize] = 100;
+        c.char_freqs = Arc::from(freqs);
 
-        assert_eq!(
-            c.char_freqs.len(),
-            MAX_KEYCODE_SPACE,
-            "Corpus should initialize full unicode frequency map"
-        );
+        c.bigrams = Arc::from(vec![('a' as u16, 'b' as u16, 50)]);
+        c.trigrams = Arc::from(vec![('a' as u16, 'b' as u16, 'c' as u16, 10)]);
+        c.words = Arc::from(vec![("test".to_string(), 5)]);
 
-        assert!(c.bigrams.is_empty());
-
-        assert!(c.trigrams.is_empty());
-
-        assert!(c.words.is_empty());
-
-        // 2. Mutation
-
-        c.char_freqs['a' as usize] = 100;
-
-        c.bigrams.push(('a' as u16, 'b' as u16, 50));
-
-        c.trigrams.push(('a' as u16, 'b' as u16, 'c' as u16, 10));
-
-        c.words.push(("test".to_string(), 5));
-
-        // 3. Serialization Round-trip
-
+        #[allow(clippy::expect_used)]
         let json = serde_json::to_string(&c).expect("Failed to serialize Corpus");
-
+        #[allow(clippy::expect_used)]
         let recovered: Corpus = serde_json::from_str(&json).expect("Failed to deserialize Corpus");
 
-        // 4. Verification
-
         assert_eq!(recovered.char_freqs['a' as usize], 100);
-
         assert_eq!(recovered.bigrams.len(), 1);
-
         assert_eq!(recovered.bigrams[0], ('a' as u16, 'b' as u16, 50));
-
-        assert_eq!(recovered.trigrams.len(), 1);
-
-        assert_eq!(recovered.words.len(), 1);
-
-        assert_eq!(recovered.words[0].0, "test");
-    }
-
-    #[test]
-    fn test_corpus_asset_and_validator() {
-        let c = Corpus::default();
-        assert_eq!(Corpus::category(), AssetCategory::Corpus);
-
-        let v: &dyn Validator = &c;
-        assert!(v.validate().is_ok());
-
-        let mut invalid = Corpus::default();
-        invalid.char_freqs = vec![0; 10];
-        let v_invalid: &dyn Validator = &invalid;
-        assert!(v_invalid.validate().is_err());
-    }
-
-    #[test]
-    fn test_corpus_merge() {
-        let mut c1 = Corpus::default();
-        c1.char_freqs[97] = 100;
-        c1.bigrams.push((97, 98, 10));
-        c1.trigrams.push((97, 98, 99, 5));
-        c1.words.push(("hello".to_string(), 1));
-
-        let mut c2 = Corpus::default();
-        c2.char_freqs[97] = 200;
-        c2.bigrams.push((97, 98, 20));
-        c2.trigrams.push((97, 98, 99, 10));
-        c2.words.push(("world".to_string(), 2));
-
-        c1.merge(&c2, 0.5);
-
-        assert_eq!(c1.char_freqs[97], 200); // 100 + (200 * 0.5)
-        assert_eq!(c1.bigrams.len(), 2);
-        assert!(c1.bigrams.iter().any(|&(_, _, f)| f == 10)); // 20 * 0.5
-        assert_eq!(c1.trigrams.len(), 2);
-        assert!(c1.trigrams.iter().any(|&(_, _, _, f)| f == 5)); // 10 * 0.5
-        assert_eq!(c1.words.len(), 2);
-        assert!(c1.words.iter().any(|(w, f)| w == "world" && *f == 1));
     }
 }

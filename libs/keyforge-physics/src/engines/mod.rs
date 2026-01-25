@@ -3,9 +3,12 @@ use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 
 pub mod arm_neon;
+pub mod arm_sve;
 pub mod exact;
 pub mod generic;
+pub mod intel_avx512;
 pub mod intel_comet_lake;
+pub mod wasm_simd;
 
 /// Hardware and performance capabilities of a scoring engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,15 +19,27 @@ pub struct EngineCapabilities {
     pub features: EngineFeatures,
 }
 
-/// Specific optimization features supported by an engine.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EngineFeatures {
-    /// The engine utilizes AVX2 instructions.
-    pub supports_avx2: bool,
-    /// The engine utilizes ARM NEON instructions.
-    pub supports_neon: bool,
-    /// The engine uses cache-aware blocking (e.g. for large cost matrices).
-    pub supports_blocking: bool,
+use bitflags::bitflags;
+
+bitflags! {
+    /// Specific optimization features supported by an engine.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct EngineFeatures: u32 {
+        /// No special optimization features.
+        const NONE = 0;
+        /// The engine utilizes AVX2 instructions.
+        const AVX2 = 1 << 0;
+        /// The engine utilizes AVX-512 instructions.
+        const AVX512 = 1 << 1;
+        /// The engine utilizes ARM NEON instructions.
+        const NEON = 1 << 2;
+        /// The engine utilizes ARM SVE/SVE2 instructions.
+        const SVE = 1 << 3;
+        /// The engine utilizes WebAssembly SIMD instructions.
+        const WASM_SIMD = 1 << 4;
+        /// The engine uses cache-aware blocking (e.g. for large cost matrices).
+        const BLOCKING = 1 << 5;
+    }
 }
 
 /// Defines a strategy for scoring keyboard layouts.

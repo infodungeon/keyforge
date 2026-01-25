@@ -17,6 +17,7 @@ pub mod calibration;
 pub mod compute;
 pub mod crypto;
 pub mod errors;
+pub mod hardware;
 pub mod maintenance;
 pub mod network;
 pub mod telemetry;
@@ -28,6 +29,8 @@ use keyforge_infra::net::client::ClientConfig;
 pub struct Agent {
     config: AgentConfig,
     telemetry: SharedTelemetry,
+    hardware: hardware::HardwareInfo,
+    performance_ips: f64,
     assets: Arc<keyforge_infra::AssetManager>,
     result_tx: mpsc::Sender<ResultSubmission>,
 }
@@ -38,6 +41,7 @@ impl Agent {
         result_tx: mpsc::Sender<ResultSubmission>,
     ) -> AgentResult<Self> {
         let telemetry = SharedTelemetry::default();
+        let hardware = hardware::HardwareInfo::detect();
 
         let client_config = ClientConfig {
             api_url: config.hive_url.clone(),
@@ -52,14 +56,20 @@ impl Agent {
 
         let assets = keyforge_infra::AssetManager::new(client, config.data_dir.clone());
 
-        if let Err(e) = calibration::calibrate(&assets, &config.data_dir, &config.calibration).await
-        {
-            tracing::error!("Calibration failed: {}. Using safe default.", e);
-        }
+        let performance_ips =
+            match calibration::calibrate(&assets, &config.data_dir, &config.calibration).await {
+                Ok(ips) => ips,
+                Err(e) => {
+                    tracing::error!("Calibration failed: {}. Using safe default.", e);
+                    1_000_000.0
+                }
+            };
 
         Ok(Self {
             config,
             telemetry,
+            hardware,
+            performance_ips,
             assets: Arc::new(assets),
             result_tx,
         })
@@ -261,8 +271,15 @@ pub async fn run_worker(
     let (job_tx, job_rx) = mpsc::channel(100);
     let (stop_tx, stop_rx) = mpsc::channel(100);
 
-    let net = match NetworkManager::new(config, agent.telemetry.clone(), job_tx, result_rx, stop_tx)
-    {
+    let net = match NetworkManager::new(
+        config,
+        agent.telemetry.clone(),
+        agent.hardware.clone(),
+        agent.performance_ips,
+        job_tx,
+        result_rx,
+        stop_tx,
+    ) {
         Ok(n) => n,
         Err(e) => {
             error!("Failed to initialize network manager: {}", e);

@@ -82,7 +82,7 @@ impl GhostScorer {
         }
 
         // 2. Bigrams (Movement)
-        for (c1, c2, freq) in &corpus.bigrams {
+        for (c1, c2, freq) in &*corpus.bigrams {
             let code1 = KeyCode(*c1);
             let code2 = KeyCode(*c2);
             if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY {
@@ -104,7 +104,7 @@ impl GhostScorer {
         }
 
         // 3. Trigrams (Flow)
-        for (c1, c2, c3, freq) in &corpus.trigrams {
+        for (c1, c2, c3, freq) in &*corpus.trigrams {
             let code1 = KeyCode(*c1);
             let code2 = KeyCode(*c2);
             let code3 = KeyCode(*c3);

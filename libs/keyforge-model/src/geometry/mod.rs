@@ -157,6 +157,9 @@ fn default_size() -> f32 {
 }
 
 /// Collection of keys and slot definitions defining the keyboard geometry.
+///
+/// NOTE: Uses `Vec<T>` for serialization compatibility with `utoipa` and `ts-rs`.
+/// The `Keyboard` runtime structure uses `Arc<[T]>` for performance.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyboardGeometry {
@@ -178,7 +181,6 @@ pub struct KeyboardGeometry {
 
 impl Validator for KeyboardGeometry {
     fn validate(&self) -> Result<(), String> {
-        // Task-prot-rev-011: Validate home row against keys
         let has_home_keys = self.keys.iter().any(|k| k.is_home);
         let has_home_row_matches = self.keys.iter().any(|k| k.row.0 == self.home_row);
 
@@ -259,7 +261,6 @@ impl KeyboardDefinition {
     /// Parses a keyboard definition from JSON, supporting both `KeyForge` format and KLE format.
     ///
     /// # Errors
-    ///
     /// Returns an error if the content is not valid JSON or KLE format.
     pub fn parse(content: &str, name_hint: Option<&str>) -> Result<Self, String> {
         if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(content) {

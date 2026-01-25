@@ -23,5 +23,6 @@ pub mod conversion;
 pub mod error;
 pub mod loader;
 pub mod parsing;
+pub mod utils;
 
 pub use error::{AdapterError, AdapterResult};

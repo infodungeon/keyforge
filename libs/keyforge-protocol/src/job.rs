@@ -68,12 +68,14 @@ pub struct JobConfig {
         default,
         deserialize_with = "crate::serde_utils::deserialize_limited_vec"
     )]
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<KeyConstraint>"))]
     pub pinned_keys: Vec<KeyConstraint>,
     /// Text corpora to use.
     #[serde(
         default = "default_corpora",
         deserialize_with = "crate::serde_utils::deserialize_limited_vec"
     )]
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<CorpusSource>"))]
     pub corpora: Vec<CorpusSource>,
     /// Cost matrix source.
     #[serde(default = "default_cost_matrix")]
@@ -84,6 +86,7 @@ pub struct JobConfig {
         skip_serializing_if = "Vec::is_empty",
         deserialize_with = "crate::serde_utils::deserialize_limited_vec"
     )]
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<BiometricSample>"))]
     pub biometrics: Vec<BiometricSample>,
     /// Parent job ID.
     #[serde(default)]
@@ -96,6 +99,7 @@ pub struct JobConfig {
         default,
         deserialize_with = "crate::serde_utils::deserialize_limited_vec"
     )]
+    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<string>"))]
     pub parents: Vec<String>,
 }
 
@@ -120,8 +124,8 @@ impl JobConfig {
     /// Generates a unique Job ID by hashing the configuration.
     ///
     /// # Errors
-    /// Returns an error if the layout geometry or configuration parts are invalid.
-    pub fn id(&self) -> Result<String, String> {
+    /// Returns a `ModelError` if the layout geometry or configuration parts are invalid.
+    pub fn id(&self) -> Result<String, keyforge_model::error::ModelError> {
         let corpora_fingerprint = keyforge_model::job::calculate_corpora_fingerprint(&self.corpora);
 
         keyforge_model::job::JobIdentifier::from_parts(
@@ -133,7 +137,6 @@ impl JobConfig {
             &self.cost_matrix,
         )
         .map(|ident| ident.hash)
-        .map_err(|e| e.to_string())
     }
 }
 

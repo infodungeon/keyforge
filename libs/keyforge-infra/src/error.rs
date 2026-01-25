@@ -25,9 +25,17 @@ pub enum InfraError {
     #[error("Network Error: {0}")]
     Network(#[from] reqwest::Error),
 
+    /// A network error described by a simple string.
+    #[error("Network Error: {0}")]
+    NetworkString(String),
+
     /// An error occurred during JSON serialization or deserialization.
     #[error("Serialization Error: {0}")]
     Serde(#[from] serde_json::Error),
+
+    /// An error occurred during TOML deserialization.
+    #[error("TOML Error: {0}")]
+    Toml(#[from] toml::de::Error),
 
     /// A file's SHA-256 hash did not match the expected value.
     #[error("Hash Mismatch: Expected {expected}, Got {actual}")]
@@ -49,6 +57,35 @@ pub enum InfraError {
     /// Data validation failed during asset loading.
     #[error("Validation Error: {0}")]
     Validation(String),
+}
+
+impl InfraError {
+    /// Returns true if the error is considered transient and should be retried.
+    #[must_use]
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            Self::Network(e) => {
+                // Retry on timeouts or connection errors or 5xx
+                if e.is_timeout() || e.is_connect() {
+                    return true;
+                }
+                if let Some(status) = e.status() {
+                    return status.is_server_error()
+                        || status == reqwest::StatusCode::TOO_MANY_REQUESTS;
+                }
+                false
+            }
+            Self::Io(e) => {
+                matches!(
+                    e.kind(),
+                    std::io::ErrorKind::TimedOut
+                        | std::io::ErrorKind::Interrupted
+                        | std::io::ErrorKind::WouldBlock
+                )
+            }
+            _ => false,
+        }
+    }
 }
 
 /// A specialized Result type for infrastructure operations.
