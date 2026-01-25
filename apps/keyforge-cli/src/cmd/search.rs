@@ -74,7 +74,7 @@ pub async fn run(
     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let timeout_sec = args.time.unwrap_or(0);
 
-    // Task-clii-rev-003: Setup Progress Bar
+    // Setup Progress Bar
     let pb = if timeout_sec > 0 {
         ProgressBar::new(timeout_sec)
     } else {
@@ -113,9 +113,13 @@ pub async fn run(
         .analyze(&result.layout)
         .map_err(|e| CliError::Other(format!("Analysis Error: {e}")))?;
 
-    // Use structured reports
-    crate::reports::scoring(&[("Optimized".to_string(), report)]);
+    // Display standard scoring table
+    crate::reports::scoring(&[("Optimized".to_string(), report.clone())]);
 
-    // JSON output if specifically requested (handled by main or global flag)
+    // Attempt Reality Check comparison
+    if let Some(baselines) = crate::reports::load_benchmarks(loader.root()) {
+        crate::reports::benchmark_comparison("Optimized", &report, &baselines);
+    }
+
     Ok(())
 }
