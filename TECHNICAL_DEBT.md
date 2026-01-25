@@ -53,7 +53,7 @@
 ### 3. Operational & Observability Findings
 - **[OBSERVABILITY] Instrument Void**: `#[instrument]` is missing from 98% of public entry points in `keyforge-hive` and `keyforge-physics`.
 - **[CONFIG] Magic Literals**: 42 instances of hardcoded numeric literals > 1000 found in `libs/keyforge-physics/src/engines`.
-- **[OPS] Docker Bloat**: `ops/Dockerfile.*` lacks multi-stage builds and explicit user non-root escalation.
+- [x] **[OPS] Docker Bloat**: \`ops/Dockerfile.*\` lacks multi-stage builds and explicit user non-root escalation. (Resolved via Issue #37)
 
 ### 4. Supply Chain Findings
 - **[DEP] Framework Tax**: `sqlx` and `tokio` are over-prescribed in `keyforge-infra` for tasks that could be handled by `rusqlite` or `std::sync`.

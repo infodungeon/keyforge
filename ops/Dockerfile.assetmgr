@@ -3,41 +3,6 @@ FROM rust:slim-bookworm AS chef
 WORKDIR /app
 RUN cargo install cargo-chef
 COPY . .
-
-# ISOLATION: Exclude UI
-RUN cat > Cargo.toml <<TOML
-[workspace]
-resolver = "2"
-members = [
-    "apps/keyforge-assetmgr",
-    "libs/keyforge-adapter",
-    "libs/keyforge-core",
-    "libs/keyforge-infra",
-    "libs/keyforge-model",
-    "libs/keyforge-physics",
-    "libs/keyforge-protocol"
-]
-
-[workspace.package]
-version = "0.9.0"
-authors = ["KeyForge Team"]
-license = "Apache-2.0"
-repository = "https://github.com/keyforge-project/keyforge"
-edition = "2021"
-
-[workspace.lints.rust]
-unsafe_code = "deny"
-missing_debug_implementations = "warn"
-rust_2018_idioms = "warn"
-
-[workspace.lints.clippy]
-expect_used = "deny"
-unwrap_used = "warn"
-panic = "warn"
-pedantic = { level = "warn", priority = -1 }
-too_many_arguments = "allow"
-TOML
-
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Builder
@@ -50,45 +15,14 @@ RUN cargo chef cook --release --recipe-path recipe.json
 
 # Stage 3: Compiler
 COPY . .
-# Re-apply isolation
-RUN cat > Cargo.toml <<TOML
-[workspace]
-resolver = "2"
-members = [
-    "apps/keyforge-assetmgr",
-    "libs/keyforge-adapter",
-    "libs/keyforge-core",
-    "libs/keyforge-infra",
-    "libs/keyforge-model",
-    "libs/keyforge-physics",
-    "libs/keyforge-protocol"
-]
-
-[workspace.package]
-version = "0.9.0"
-authors = ["KeyForge Team"]
-license = "Apache-2.0"
-repository = "https://github.com/keyforge-project/keyforge"
-edition = "2021"
-
-[workspace.lints.rust]
-unsafe_code = "deny"
-missing_debug_implementations = "warn"
-rust_2018_idioms = "warn"
-
-[workspace.lints.clippy]
-expect_used = "deny"
-unwrap_used = "warn"
-panic = "warn"
-pedantic = { level = "warn", priority = -1 }
-too_many_arguments = "allow"
-TOML
-
-RUN cargo build --release --bin keyforge-assetmgr
+RUN cargo build --release -p keyforge-assetmgr
 
 # Stage 4: Runtime
 FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
+
+USER 65532:65532
+
 COPY --from=builder /app/target/release/keyforge-assetmgr /app/keyforge-assetmgr
 ENV RUST_LOG=info
 ENTRYPOINT ["/app/keyforge-assetmgr", "daemon"]
