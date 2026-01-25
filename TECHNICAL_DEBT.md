@@ -18,13 +18,13 @@
   - *Pivot*: Collapse into generic `ScoringEngine` trait.
 
 ## Systemic Root Cause Analysis
-### 1. Ambiguous Hexagonal Boundaries (The "Loader" Conflict)
+### 1. Ambiguous Hexagonal Boundaries (The "Loader" Conflict) (RESOLVED)
 - **Symptoms**: Duplicate `loader.rs` in `adapter` vs `model`; Broken CLI reporting due to API drift.
 - **Diagnosis**: The boundary between "Adapter" (IO) and "Model" (Pure Data) is blurred. Asset loading logic (IO) is leaking into the Model crate, while Reporting logic (Application Service) is coupled to the CLI.
 - **Remediation**: 
-    - Move *all* IO/Loading logic to `libs/keyforge-adapter`.
-    - Ensure `libs/keyforge-model` is pure data types only.
-    - Establish `libs/keyforge-compute` as the stable Application Facade.
+    - [x] Move *all* IO/Loading logic to `libs/keyforge-adapter`. (Resolved in Issue #32)
+    - [x] Ensure `libs/keyforge-model` is pure data types only. (Resolved in Issue #32)
+    - [x] Establish `libs/keyforge-compute` as the stable Application Facade. (Resolved in Issue #32)
 
 ### 2. Missing Anti-Corruption Layer (ACL)
 - **Symptoms**: Fragile Hive Data Mapping (SQLx <-> Model).

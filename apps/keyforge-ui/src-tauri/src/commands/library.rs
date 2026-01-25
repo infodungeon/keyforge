@@ -9,7 +9,7 @@ use keyforge_model::constants::{
 };
 use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
-use keyforge_model::loader::AssetLoader;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_persistence::UserRepo;
 use std::collections::HashMap;
 use std::path::Path;

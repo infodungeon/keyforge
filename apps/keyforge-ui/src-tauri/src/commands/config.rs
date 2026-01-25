@@ -2,7 +2,7 @@ use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_model::config::Config;
-use keyforge_model::loader::AssetLoader;
+use keyforge_adapter::loader::AssetLoader;
 // use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
 use keyforge_model::keycodes::KeycodeRegistry;

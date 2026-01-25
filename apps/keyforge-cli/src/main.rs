@@ -208,7 +208,7 @@ async fn build_job_config(
     shared: &cmd::shared::SharedArgs,
     config_args: cli_args::config::ConfigArgs,
 ) -> Result<JobConfig, Box<dyn Error>> {
-    use keyforge_model::loader::AssetLoader;
+    use keyforge_adapter::loader::AssetLoader;
     let corpus_list = shared
         .corpus
         .clone()

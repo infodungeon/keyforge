@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -12,18 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Asset loading abstractions and implementations.
+
 use async_trait::async_trait;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::cost_model::CostModel;
 use keyforge_model::error::ForgeError;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-pub use keyforge_model::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Asset, Corpus};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
+
+/// A specialized result type for asset loading operations.
+pub type LoaderResult<T> = Result<T, ForgeError>;
+
+/// A trait for types that can load `KeyForge` assets from an external source.
+///
+/// This is the primary abstraction for IO, allowing core logic to remain
+/// agnostic to the filesystem, network, or embedded storage.
+#[async_trait]
+pub trait AssetLoader: Send + Sync + Debug {
+    /// Generic asset loader.
+    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>>;
+
+    /// Loads one or more corpora and merges them into a single bundle.
+    ///
+    /// Corpus is currently special as it often requires merging multiple sources.
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
+}
 
 /// An in-memory implementation of `AssetLoader`.
 ///
@@ -105,7 +124,6 @@ impl AssetLoader for InMemoryLoader {
         let mut found_any = false;
 
         for src in sources {
-            // Corpora are just Assets, so we can use the generic load mechanism internally
             let loaded = self.load::<Corpus>(&src.id).await;
 
             if let Ok(corpus) = loaded {

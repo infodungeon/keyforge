@@ -19,7 +19,7 @@ mod integration_tests {
     use keyforge_model::config::{CorpusSource, CostMatrixSource};
     use keyforge_model::geometry::KeyboardDefinition;
     use keyforge_model::keycodes::KeycodeRegistry;
-    use keyforge_model::loader::{AssetLoader, LoaderResult};
+    use keyforge_adapter::loader::{AssetLoader, LoaderResult};
     use keyforge_model::types::RowIndex;
     use keyforge_model::{
         Asset, Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,

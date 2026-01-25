@@ -4,7 +4,7 @@ use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_infra::fs::listing;
 use keyforge_model::config::ScoringWeights;
-use keyforge_model::loader::AssetLoader;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::SwapSuggestion;
 use keyforge_protocol::{BiometricSample, JobConfig};
 use serde::Serialize;

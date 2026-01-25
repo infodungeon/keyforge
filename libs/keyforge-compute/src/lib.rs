@@ -29,7 +29,7 @@ pub mod session;
 
 pub use builder::SessionBuilder;
 pub use keyforge_adapter::loader::InMemoryLoader;
-pub use keyforge_model::loader::{AssetLoader, LoaderResult};
+pub use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 pub use session::ScoringSession;
 
 pub use keyforge_evolution::{EvolutionError, NoOpCallback, OptimizationControl, ProgressCallback};
