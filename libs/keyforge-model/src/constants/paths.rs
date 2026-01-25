@@ -18,7 +18,7 @@ pub const ASSET_UI_CATEGORIES: &str = "ui_categories";
 /// Filename for the default Cost Matrix asset.
 pub const ASSET_COST_MATRIX: &str = "cost_matrix";
 /// Filename for the default Cost Matrix JSON file.
-pub const ASSET_DEFAULT_COST_MATRIX: &str = "default_costmatrix.json";
+pub const ASSET_DEFAULT_COST_MATRIX: &str = "cost_matrix.json";
 
 /// Filename for monogram frequencies.
 pub const ASSET_1GRAMS_FILENAME: &str = "1grams.json";

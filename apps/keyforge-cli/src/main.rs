@@ -233,7 +233,7 @@ async fn build_job_config(
     let cost_name = shared
         .cost
         .clone()
-        .unwrap_or_else(|| "default_costmatrix.json".to_string());
+        .unwrap_or_else(|| "cost_matrix.json".to_string());
 
     Ok(JobConfig {
         definition: (*definition).clone(),

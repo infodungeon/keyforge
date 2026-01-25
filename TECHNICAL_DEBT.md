@@ -7,13 +7,8 @@
   - *Pivot*: Harden `kf_test` macro to be the sole source of structural grace.
 
 ## Feature Gaps
-- **[SYMPTOM] CLI Benchmark Incompleteness**: `apps/keyforge-cli/src/cmd/benchmark.rs` performs only raw throughput testing (KOPS). The detailed layout analysis metrics (SFB, Scissors, etc.) defined in the orphaned `BenchmarkEntry` struct (`apps/keyforge-cli/src/reports/benchmarks.rs`) are not integrated into the reporting pipeline. The "Reality Check" comparison table is effectively dead code.
-  - *Pivot*: Re-integrate `BenchmarkEntry` into the `benchmark` command's output generation or creating a dedicated reporting stage that utilizes `keyforge-model::metrics`.
-
-## Functionality Stubs & Dead Code
-- **[STUB] Job Status Aggregation**: `apps/keyforge-hive/src/features/get_job_status.rs` has `total_compute_sec` hardcoded to 0. Requires DB aggregation logic.
-- **[STUB] Agent CPU Detection**: `apps/keyforge-agent/src/agent/network/manager.rs` uses a placeholder string for CPU model. Needs real hardware detection integration.
-- **[BROKEN] CLI Search Reporting**: `apps/keyforge-cli/src/cmd/search.rs` has reporting logic commented out because `keyforge_compute::analyze_layout` is missing.
+- [x] **[SYMPTOM] CLI Benchmark Incompleteness**: `apps/keyforge-cli/src/cmd/benchmark.rs` performs only raw throughput testing (KOPS). Integrated metric reporting and reality check (Issue #38).
+- [x] **[BROKEN] CLI Search Reporting**: `apps/keyforge-cli/src/cmd/search.rs` has reporting logic restored and unified with benchmark reporting (Issue #38).
 - **[DEAD] Reporting Tables**: `apps/keyforge-cli/src/reports/tables.rs::scoring` is currently unused due to the broken search reporting.
 - **[DEAD] Duplicate Loader**: `libs/keyforge-adapter/src/loader.rs` is an untracked/dead file that duplicates `libs/keyforge-model/src/loader.rs`.
 - **[DISABLED] Kani Verification**: `libs/keyforge-model/src/verification.rs` is an untracked/orphaned file. Formal verification proofs are not currently running.
