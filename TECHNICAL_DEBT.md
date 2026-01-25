@@ -1,8 +1,8 @@
 # KeyForge Systemic Friction Map
 
 ## High-Heat Areas (Immediate Priority)
-- **[SYMPTOM] Hive Data Mapping**: Manual conversion between SQLX/JSON and Model. Results in 27+ fragile errors.
-  - *Pivot*: Implement `mapping.rs` projection trait in `keyforge-model`.
+- [x] **[SYMPTOM] Hive Data Mapping**: Manual conversion between SQLX/JSON and Model. Results in 27+ fragile errors.
+  - *Pivot*: Implement `mapping.rs` projection trait in `keyforge-model`. (Resolved via Projection Bundle pattern in Issue #39)
 - **[SYMPTOM] Test Grace Proliferation**: Manual repetition of `#[allow]` in 89+ files.
   - *Pivot*: Harden `kf_test` macro to be the sole source of structural grace.
 
