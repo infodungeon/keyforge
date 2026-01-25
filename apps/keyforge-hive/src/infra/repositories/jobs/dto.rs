@@ -38,6 +38,28 @@ pub struct HiveKeyRow {
     pub r: Option<f32>,
 }
 
+/// Database-aligned DTO for a Job row.
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct HiveJobRow {
+    pub id: String,
+    pub keyboard_id: i32,
+    pub weights_json: serde_json::Value,
+    pub params_json: Option<serde_json::Value>,
+    pub pinned_keys: String,
+    pub corpus_name: String,
+    pub cost_matrix: String,
+    pub parent_job_id: Option<String>,
+}
+
+/// Database-aligned DTO for Job configuration retrieval.
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct HiveJobConfigRow {
+    pub keyboard_id: i32,
+    pub weights_json: serde_json::Value,
+    pub corpus_name: String,
+    pub cost_matrix: String,
+}
+
 /// Anti-Corruption Layer: Project domain `KeyboardDefinition` from Hive DB rows.
 #[derive(Debug)]
 pub struct HiveKeyboardProjection {
@@ -110,5 +132,34 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
 
         def.post_load()?;
         Ok(def)
+    }
+}
+
+/// Anti-Corruption Layer: Project domain `JobConfig` from Hive DB row.
+impl Projection<HiveJobRow> for keyforge_protocol::JobConfig {
+    fn project(source: HiveJobRow) -> Result<Self, ForgeError> {
+        let weights = keyforge_model::config::ScoringWeights::project(source.weights_json)?;
+        let params =
+            keyforge_model::config::SearchParams::project(source.params_json.unwrap_or_default())?;
+
+        let pinned_keys = serde_json::from_str(&source.pinned_keys).map_err(ForgeError::Serde)?;
+        let cost_matrix = serde_json::from_str(&source.cost_matrix).map_err(ForgeError::Serde)?;
+
+        Ok(Self {
+            definition: KeyboardDefinition::default(), // Will be populated by repository
+            weights,
+            params,
+            pinned_keys,
+            corpora: vec![keyforge_model::CorpusSource {
+                id: source.corpus_name,
+                weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
+                hash: None,
+            }],
+            cost_matrix,
+            biometrics: vec![],
+            parent_job_id: source.parent_job_id,
+            baseline_score: None,
+            parents: vec![],
+        })
     }
 }
