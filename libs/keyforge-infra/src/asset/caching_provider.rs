@@ -23,7 +23,7 @@ use keyforge_model::constants::ASSET_KEYCODES;
 use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::loader::{AssetLoader, LoaderResult};
+use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{error::ForgeError, Asset, Corpus};
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::any::{Any, TypeId};

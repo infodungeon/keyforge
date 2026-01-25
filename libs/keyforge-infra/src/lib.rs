@@ -39,7 +39,7 @@ pub use asset::manager::AssetManager;
 pub use config::CommonConfig;
 pub use error::{InfraError, InfraResult};
 pub use fs::paths::resolve_root;
-pub use keyforge_model::loader::LoaderResult;
+pub use keyforge_adapter::loader::LoaderResult;
 pub use net::client::HiveClient;
 pub use net::sync::{bootstrap_essentials, run_sync, SyncStats};
 

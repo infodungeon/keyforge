@@ -4,7 +4,7 @@ mod integration_tests {
     // libs/keyforge-infra/tests/infra_integration.rs
 
     use keyforge_infra::FsProvider;
-    use keyforge_model::loader::AssetLoader;
+    use keyforge_adapter::loader::AssetLoader;
     use keyforge_model::KeyboardDefinition;
     use std::fs;
 

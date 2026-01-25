@@ -18,7 +18,7 @@ mod integration_tests {
 
     use async_trait::async_trait;
     use keyforge_compute::{Runtime, SessionBuilder};
-    use keyforge_model::loader::{AssetLoader, LoaderResult};
+    use keyforge_adapter::loader::{AssetLoader, LoaderResult};
     use keyforge_model::{types::KeyCode, Asset, Corpus, KeyNode, KeyboardDefinition, Layout};
     use std::any::Any;
     use std::sync::Arc;

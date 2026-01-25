@@ -5,7 +5,7 @@ use crate::utils::get_data_dir;
 use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
 use keyforge_infra::HiveClient;
-use keyforge_model::loader::AssetLoader;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::JobStatus;
 use keyforge_model::KeyCode;
 use keyforge_protocol::{JobRequest, JobResponse};

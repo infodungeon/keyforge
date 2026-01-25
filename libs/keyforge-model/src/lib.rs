@@ -41,7 +41,6 @@ pub mod keyboard;
 pub mod keycodes;
 /// The `Layout` entity (logical mapping).
 pub mod layout;
-pub mod loader;
 /// Standardized mapping between external data and domain models.
 pub mod mapping;
 pub mod metrics;
