@@ -86,4 +86,7 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 ## 3. Critical Invariants
 
 *   **Never "Vibe-Patch":** If a problem cannot be solved systemically, stop and request a refactoring turn.
-*   **The "Two-Strike" Rule:** After two failed fix attempts, a mandatory diagnostic turn (instrumentation) is required.
+*   **The "Two-Strike" Rule:** After two failed fix attempts, a mandatory diagnostic turn is required.
+    *   **Protocol:** Activate `docs/engineering/DEBUGGING_PROTOCOL.md`.
+    *   **The Isolation Rule:** Stop changing code. Modify **instrumentation** only.
+    *   **Mandatory Evidence:** You must log and prove **Input State**, **Transformation Logic**, and **Output State** before a third attempt.
