@@ -41,6 +41,33 @@
 - **Diagnosis**: Common patterns (testing, iteration) are solved manually via copy-paste rather than structurally via Macros or Traits.
 - **Remediation**: Enforce "Structural Oracle" pattern: use `kf_test` macro for all test configurations and `ScoringEngine` trait for all physics loops.
 
+## Audit Zero Entropy (2026-01-24) - Grand Unified Report
+
+### 1. Architectural & Structural Findings
+- **[ARCH-CRITICAL] Module Obesity**: `libs/keyforge-model/src/config/weights.rs` (783 lines) and `libs/keyforge-model/src/types.rs` (744 lines) exceed the 500 LOC threshold.
+- **[ARCH-005] Hidden IO**: CORS origins hardcoded in `apps/keyforge-hive/src/lib.rs`.
+- **[COUPLING] God Functions**: `new`, `default`, and `validate` (291 connections) are structural bottlenecks.
+- **[DEAD] Orphaned Exports**: 107 unused public exports detected in the global graph.
+
+### 2. Semantic & Safety Findings
+- **[SAFETY-RISK] Undocumented Unsafe**: 35 unsafe blocks found; many lack `// Safety:` justification (e.g. `apps/keyforge-agent/src/hw_detect.rs`).
+- **[TYPE-003] Panic Reachability**: `calculate_swap_delta` traces to 12 internal `unwrap()` calls. 
+- **[PRIMITIVE] Float Leakage**: 58 functions in `keyforge-compute` and `weights.rs` return raw `f32/f64` instead of `Score` or `Weight` newtypes.
+- **[ANEMIC] passive Data**: 107 passive structs in `keyforge-protocol` leak internal state via `pub` fields.
+
+### 3. Operational & Observability Findings
+- **[OBSERVABILITY] Instrument Void**: `#[instrument]` is missing from 98% of public entry points in `keyforge-hive` and `keyforge-physics`.
+- **[CONFIG] Magic Literals**: 42 instances of hardcoded numeric literals > 1000 found in `libs/keyforge-physics/src/engines`.
+- **[OPS] Docker Bloat**: `ops/Dockerfile.*` lacks multi-stage builds and explicit user non-root escalation.
+
+### 4. Supply Chain Findings
+- **[DEP] Framework Tax**: `sqlx` and `tokio` are over-prescribed in `keyforge-infra` for tasks that could be handled by `rusqlite` or `std::sync`.
+- **[DEP] Supply Chain Churn**: `keyforge-ui/src-tauri` depends on 400+ transitive crates for a simple desktop wrapper.
+
+### 5. Maintenance Findings
+- **[CHURN] Hotspots**: `libs/keyforge-physics/src/kernel/compute/delta.rs` is the #1 churn hotspot (623 lines, 45+ commits).
+- **[STUB] TODO Archeology**: `TODO: Aggregate from DB` found in `get_job_status.rs` remains unimplemented.
+
 ## Protocol for Debt
 1. **Never delete findings.**
 2. **Never condense granular points into high-level summaries.**

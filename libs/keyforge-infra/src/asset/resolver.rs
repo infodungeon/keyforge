@@ -40,11 +40,48 @@ impl PathResolver {
     /// This checks for both compressed (.zst) and uncompressed versions of the asset.
     #[must_use]
     pub fn resolve_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let base = self.root.join("system").join(category).join(stem);
+        let cat_dir = self.root.join("system").join(category);
 
+        // 1. Try direct in category folder
+        if let Some(p) = Self::try_extensions(&cat_dir.join(stem)) {
+            return Some(p);
+        }
+
+        // 2. Try in known subdirectories (e.g., keyboards/models/, keyboards/types/)
+        if category == "keyboards" {
+            for sub in ["models", "types"] {
+                if let Some(p) = Self::try_extensions(&cat_dir.join(sub).join(stem)) {
+                    return Some(p);
+                }
+            }
+        }
+
+        // 3. Fallback: Recursive search (expensive, but reliable for deep categories like corpora)
+        if cat_dir.exists() {
+            if let Ok(walker) = walkdir::WalkDir::new(&cat_dir)
+                .into_iter()
+                .collect::<Result<Vec<_>, _>>()
+            {
+                for entry in walker {
+                    if entry.file_type().is_file() {
+                        if let Some(s) = entry.path().file_stem().and_then(|s| s.to_str()) {
+                            // Match either the full stem or the stem without .mpk
+                            if s == stem || s == format!("{stem}.mpk") {
+                                return Some(entry.path().to_path_buf());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    fn try_extensions(base: &Path) -> Option<PathBuf> {
         // Try direct first
         if base.exists() {
-            return Some(base);
+            return Some(base.to_path_buf());
         }
 
         // Try with extensions
