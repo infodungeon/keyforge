@@ -1,11 +1,11 @@
-pub mod corpus;
-pub mod costs;
-pub mod geometry;
+pub(crate) mod corpus;
+pub(crate) mod costs;
+pub(crate) mod geometry;
 
 use crate::error::PhysicsError;
 
 /// Trait for a discrete stage in the engine compilation pipeline.
-pub trait CompilationStage {
+pub(crate) trait CompilationStage {
     type Input;
     type Output;
     /// Executes the stage.

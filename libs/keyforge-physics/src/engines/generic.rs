@@ -6,7 +6,7 @@ use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 
 #[derive(Debug, Clone)]
-pub struct GenericScoringEngine {
+pub(crate) struct GenericScoringEngine {
     pub(crate) ctx: EngineContext,
 }
 

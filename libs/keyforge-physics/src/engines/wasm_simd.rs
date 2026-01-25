@@ -11,7 +11,7 @@ use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 pub struct WasmSimdConfig;
 
 #[derive(Debug, Clone)]
-pub struct WasmSimdScoringEngine {
+pub(crate) struct WasmSimdScoringEngine {
     pub(crate) ctx: EngineContext,
     _config: WasmSimdConfig,
 }

@@ -5,7 +5,7 @@ use keyforge_model::{Keyboard, Rubric};
 
 /// Intermediate state containing processed geometry and spatial math.
 #[derive(Debug)]
-pub struct GeometryOutput {
+pub(crate) struct GeometryOutput {
     pub hands: Vec<HandIndex>,
     pub fingers: Vec<FingerIndex>,
     pub rows: Vec<RowIndex>,
@@ -16,7 +16,7 @@ pub struct GeometryOutput {
 
 /// Stage 1: Geometry & Spatial Math.
 #[derive(Debug)]
-pub struct GeometryStage<'a> {
+pub(crate) struct GeometryStage<'a> {
     pub rubric: &'a Rubric,
 }
 

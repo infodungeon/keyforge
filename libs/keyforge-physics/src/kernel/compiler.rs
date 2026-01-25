@@ -26,7 +26,7 @@ use stages::geometry::GeometryStage;
 use stages::CompilationStage;
 
 #[derive(Debug)]
-pub struct Compiler;
+pub(crate) struct Compiler;
 
 use std::collections::HashMap;
 

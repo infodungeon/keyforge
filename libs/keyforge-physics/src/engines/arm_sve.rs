@@ -11,7 +11,7 @@ use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 pub struct ArmSveConfig;
 
 #[derive(Debug, Clone)]
-pub struct ArmSveScoringEngine {
+pub(crate) struct ArmSveScoringEngine {
     pub(crate) ctx: EngineContext,
     _config: ArmSveConfig,
 }

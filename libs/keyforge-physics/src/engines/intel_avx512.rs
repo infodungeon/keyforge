@@ -13,7 +13,7 @@ pub struct Avx512Config {
 }
 
 #[derive(Debug, Clone)]
-pub struct Avx512ScoringEngine {
+pub(crate) struct Avx512ScoringEngine {
     ctx: EngineContext,
     config: Avx512Config,
 }

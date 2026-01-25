@@ -23,7 +23,7 @@ impl Default for IntelEngineConfig {
     }
 }
 #[derive(Debug, Clone)]
-pub struct IntelScoringEngine {
+pub(crate) struct IntelScoringEngine {
     pub(crate) ctx: EngineContext,
     config: IntelEngineConfig,
 }
