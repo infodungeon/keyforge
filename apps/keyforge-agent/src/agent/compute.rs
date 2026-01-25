@@ -166,6 +166,7 @@ mod tests {
                     corpus: Arc::new(keyforge_model::Corpus::default()),
                     rubric: Arc::new(keyforge_model::Rubric::default()),
                     cost_model,
+                    engine_config: keyforge_model::config::EngineConfig::default(),
                 },
             )
             .unwrap()

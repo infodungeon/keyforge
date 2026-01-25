@@ -490,9 +490,7 @@ impl Score {
 
 /// A wrapper for ergonomic weights and multipliers.
 /// Prevents argument swapping and ensures semantic clarity in scoring logic.
-#[derive(
-    Debug, Clone, Copy, PartialEq, PartialOrd, Default, Serialize, Deserialize, ToSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(transparent)]
 #[repr(transparent)]
@@ -506,6 +504,18 @@ impl Weight {
     #[must_use]
     pub const fn to_f32(self) -> f32 {
         self.0
+    }
+}
+
+impl From<f32> for Weight {
+    fn from(val: f32) -> Self {
+        Weight(val)
+    }
+}
+
+impl From<Weight> for f32 {
+    fn from(w: Weight) -> Self {
+        w.0
     }
 }
 

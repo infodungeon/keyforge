@@ -1,6 +1,7 @@
 use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_export::{qmk::QmkExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::listing;
 use keyforge_infra::HiveClient;
@@ -9,7 +10,6 @@ use keyforge_model::constants::{
 };
 use keyforge_model::geometry::kle::{parse_kle_json, to_kle_json};
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
-use keyforge_adapter::loader::AssetLoader;
 use keyforge_persistence::UserRepo;
 use std::collections::HashMap;
 use std::path::Path;

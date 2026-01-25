@@ -1,11 +1,8 @@
 // libs/keyforge-physics/src/kernel/compute/delta/bigram.rs
 
 use super::get_p_effective;
-use crate::kernel::{
-    types::{Score},
-    EngineContext,
-};
 use super::PosMap;
+use crate::kernel::{types::Score, EngineContext};
 
 #[allow(clippy::similar_names)]
 pub(crate) fn calculate_bigram_delta(

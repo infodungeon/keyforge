@@ -70,10 +70,13 @@ mod integration_tests {
 
         let cm = Arc::new(mock_cost_model());
 
-        let engine = EngineFactory::new_scalar(&EngineCompilationContext { keyboard: kb,
-        corpus: Arc::new(corpus_val),
-        rubric,
-        cost_model: cm, engine_config: keyforge_model::config::EngineConfig::default() })
+        let engine = EngineFactory::new_scalar(&EngineCompilationContext {
+            keyboard: kb,
+            corpus: Arc::new(corpus_val),
+            rubric,
+            cost_model: cm,
+            engine_config: keyforge_model::config::EngineConfig::default(),
+        })
         .unwrap();
 
         let config = SearchConfig::Annealing {

@@ -43,10 +43,13 @@ fn main() {
     let rubric = Arc::new(Rubric::default());
     let cost_model = Arc::new(mock_cost_model());
 
-    let engine = EngineFactory::new_generic(&EngineCompilationContext { keyboard,
-    corpus,
-    rubric,
-    cost_model, engine_config: keyforge_model::config::EngineConfig::default() })
+    let engine = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard,
+        corpus,
+        rubric,
+        cost_model,
+        engine_config: keyforge_model::config::EngineConfig::default(),
+    })
     .expect("Failed to build engine");
     println!("Engine built successfully with {} keys", engine.key_count());
 }

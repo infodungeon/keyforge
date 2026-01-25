@@ -1,12 +1,12 @@
 // libs/keyforge-physics/src/engines/arm_neon.rs
 
 #![allow(unsafe_code)]
+use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
 use keyforge_model::config::EngineConfig;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
-use super::{EngineCapabilities, EngineFeatures, ScoringEngine};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ArmNeonScoringEngine {

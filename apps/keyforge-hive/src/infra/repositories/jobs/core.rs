@@ -36,95 +36,62 @@ impl JobRepository {
         Self { pool }
     }
 
-        #[tracing::instrument(skip_all, fields(job_id = %job_id, priority = priority))]
+    #[tracing::instrument(skip_all, fields(job_id = %job_id, priority = priority))]
 
-        pub async fn register(
+    pub async fn register(
+        &self,
 
-            &self,
+        job_id: &str,
 
-            job_id: &str,
+        req: &JobRequest,
 
-            req: &JobRequest,
+        owner_id: Option<Uuid>,
 
-            owner_id: Option<Uuid>,
+        parent_id: Option<String>,
 
-            parent_id: Option<String>,
+        priority: i32,
+    ) -> Result<bool, sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
 
-            priority: i32,
+        Self::validate_registration_request(req)?;
 
-        ) -> Result<bool, sqlx::Error> {
+        let req_clone = req.clone();
 
-            let mut tx = self.pool.begin().await?;
+        let unique_hash =
+            tokio::task::spawn_blocking(move || identity::calculate_job_identity(&req_clone))
+                .await
+                .map_err(|e| sqlx::Error::Protocol(format!("Hashing task failed: {e}")))?
+                .map_err(sqlx::Error::Protocol)?;
 
-    
+        self.acquire_advisory_lock(&mut tx, &unique_hash).await?;
 
-            Self::validate_registration_request(req)?;
+        let kb_id = self
+            .ensure_keyboard(&mut tx, &req.config.definition, &unique_hash)
+            .await?;
 
-    
+        let score_id = self
+            .ensure_scoring_weights(&mut tx, &req.config.weights)
+            .await?;
 
-            let req_clone = req.clone();
+        let search_id = self
+            .ensure_search_params(&mut tx, &req.config.params)
+            .await?;
 
-            let unique_hash =
+        let is_new = self
+            .insert_job_record(
+                &mut tx, job_id, kb_id, score_id, search_id, req, owner_id, parent_id, priority,
+            )
+            .await?;
 
-                tokio::task::spawn_blocking(move || identity::calculate_job_identity(&req_clone))
+        tx.commit().await?;
 
-                    .await
+        Ok(is_new)
+    }
 
-                    .map_err(|e| sqlx::Error::Protocol(format!("Hashing task failed: {e}")))?
+    #[tracing::instrument(skip_all)]
 
-                    .map_err(sqlx::Error::Protocol)?;
-
-    
-
-            self.acquire_advisory_lock(&mut tx, &unique_hash).await?;
-
-    
-
-            let kb_id = self
-
-                .ensure_keyboard(&mut tx, &req.config.definition, &unique_hash)
-
-                .await?;
-
-            let score_id = self
-
-                .ensure_scoring_weights(&mut tx, &req.config.weights)
-
-                .await?;
-
-            let search_id = self
-
-                .ensure_search_params(&mut tx, &req.config.params)
-
-                .await?;
-
-    
-
-            let is_new = self
-
-                .insert_job_record(
-
-                    &mut tx, job_id, kb_id, score_id, search_id, req, owner_id, parent_id, priority,
-
-                )
-
-                .await?;
-
-    
-
-            tx.commit().await?;
-
-            Ok(is_new)
-
-        }
-
-    
-
-        #[tracing::instrument(skip_all)]
-
-        pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
-
-            let r = sqlx::query_as!(
+    pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
+        let r = sqlx::query_as!(
 
                 HiveJobRow,
 
@@ -196,39 +163,26 @@ impl JobRepository {
 
             .await?;
 
-    
+        if let Some(row) = r {
+            let id = row.id.clone();
 
-            if let Some(row) = r {
+            let definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
 
-                let id = row.id.clone();
-
-                let definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
-
-                let config = keyforge_protocol::JobConfig::project(HiveJobProjection { row, definition })
-
+            let config =
+                keyforge_protocol::JobConfig::project(HiveJobProjection { row, definition })
                     .map_err(|e| sqlx::Error::Protocol(format!("Projection failed: {e}")))?;
 
-    
+            let req = JobRequest {
+                version: keyforge_protocol::PROTOCOL_VERSION,
 
-                let req = JobRequest {
+                config,
+            };
 
-                    version: keyforge_protocol::PROTOCOL_VERSION,
-
-                    config,
-
-                };
-
-                Ok(Some((id, req)))
-
-            } else {
-
-                Ok(None)
-
-            }
-
+            Ok(Some((id, req)))
+        } else {
+            Ok(None)
         }
-
-    
+    }
 
     pub async fn cancel(&self, job_id: &str) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!("UPDATE jobs SET status = 'cancelled' WHERE id = $1", job_id)
@@ -237,51 +191,31 @@ impl JobRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    
+    pub async fn count_active(&self) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM jobs WHERE status = 'active' OR status = 'processing'"
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
-        pub async fn count_active(&self) -> Result<i64, sqlx::Error> {
+        Ok(count.unwrap_or(0))
+    }
 
-            let count = sqlx::query_scalar!(
+    #[tracing::instrument(skip_all, fields(job_id = %job_id))]
 
-                "SELECT COUNT(*) FROM jobs WHERE status = 'active' OR status = 'processing'"
+    pub async fn get_config(
+        &self,
 
-            )
-
-            .fetch_one(&self.pool)
-
-            .await?;
-
-            Ok(count.unwrap_or(0))
-
-        }
-
-    
-
-        #[tracing::instrument(skip_all, fields(job_id = %job_id))]
-
-        pub async fn get_config(
-
-            &self,
-
-            job_id: &str,
-
-        ) -> Result<
-
-            Option<(
-
-                keyforge_model::geometry::KeyboardGeometry,
-
-                ScoringWeights,
-
-                String,
-
-                keyforge_model::CostMatrixSource,
-
-            )>,
-
-            sqlx::Error,
-
-        > {
+        job_id: &str,
+    ) -> Result<
+        Option<(
+            keyforge_model::geometry::KeyboardGeometry,
+            ScoringWeights,
+            String,
+            keyforge_model::CostMatrixSource,
+        )>,
+        sqlx::Error,
+    > {
         let row = sqlx::query_as!(
             HiveJobConfigRow,
             r#"

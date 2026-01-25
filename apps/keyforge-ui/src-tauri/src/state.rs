@@ -1,13 +1,13 @@
 // apps/keyforge-ui/src-tauri/src/state.rs
 
 #![allow(unsafe_code)]
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_infra::AssetManager;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::cost_model::CostModel;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::Corpus;
 
 use keyforge_model::constants::{

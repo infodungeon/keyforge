@@ -53,10 +53,13 @@ fn main() {
 
     // 1. Default Rubric
     let rubric_def = Arc::new(Rubric::default());
-    let engine_def = EngineFactory::new_generic(&EngineCompilationContext { keyboard: keyboard.clone(),
-    corpus: corpus.clone(),
-    rubric: rubric_def,
-    cost_model: cost_model.clone(), engine_config: keyforge_model::config::EngineConfig::default() })
+    let engine_def = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard: keyboard.clone(),
+        corpus: corpus.clone(),
+        rubric: rubric_def,
+        cost_model: cost_model.clone(),
+        engine_config: keyforge_model::config::EngineConfig::default(),
+    })
     .unwrap();
     let score_def = engine_def.score(&layout).unwrap();
 
@@ -65,10 +68,13 @@ fn main() {
         sfb_base: 5000.0,
         ..Rubric::default()
     });
-    let engine_custom = EngineFactory::new_generic(&EngineCompilationContext { keyboard,
-    corpus,
-    rubric: rubric_custom,
-    cost_model, engine_config: keyforge_model::config::EngineConfig::default() })
+    let engine_custom = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard,
+        corpus,
+        rubric: rubric_custom,
+        cost_model,
+        engine_config: keyforge_model::config::EngineConfig::default(),
+    })
     .unwrap();
     let score_custom = engine_custom.score(&layout).unwrap();
 

@@ -15,8 +15,8 @@
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, routing::get, Json, Router};
-use keyforge_model::config::ParameterMetadata;
 use keyforge_adapter::loader::AssetLoader;
+use keyforge_model::config::ParameterMetadata;
 use keyforge_model::{Config, KeyboardDefinition};
 use serde::Serialize;
 use std::sync::Arc;

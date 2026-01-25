@@ -16,10 +16,10 @@ use crate::error::InfraResult;
 use crate::net::distributed::DistributedCoordinator;
 use crate::net::sync::ServerManifest;
 use crate::util::corpus::inject_synthetic_data;
+use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
-use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_model::{Asset, AssetCategory, Corpus};
 use std::sync::Arc;
 

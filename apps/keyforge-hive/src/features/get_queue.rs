@@ -32,7 +32,10 @@ use tokio::time::{sleep, Duration, Instant};
     tag = "jobs"
 )]
 /// Handles a long-polling request to claim the next available job from the queue.
-#[tracing::instrument(skip_all)] pub(crate) async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<JobQueueResponse>> {
+#[tracing::instrument(skip_all)]
+pub(crate) async fn handle(
+    State(state): State<Arc<AppState>>,
+) -> AppResult<Json<JobQueueResponse>> {
     // 1. Limit Concurrency via Semaphore (HIVE-006)
     let _permit = state
         .jobs

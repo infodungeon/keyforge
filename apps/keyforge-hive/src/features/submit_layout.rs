@@ -83,7 +83,8 @@ pub struct SubmissionResponse {
 )]
 /// Handles a layout submission request, performing validation and persistent storage.
 #[tracing::instrument(skip_all, fields(name = %payload.name, author = %payload.author))]
-#[tracing::instrument(skip_all)] pub(crate) async fn handle(
+#[tracing::instrument(skip_all)]
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LayoutSubmission>,
 ) -> AppResult<Json<SubmissionResponse>> {

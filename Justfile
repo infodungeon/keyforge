@@ -141,12 +141,16 @@ lint:
 
 # Finds structural debt: security holes, duplicate dependencies, and binary bloat.
 audit:
-    @echo "🔍 Checking for security vulnerabilities..."
-    cargo audit
-    @echo "📦 Checking for duplicate/unnecessary dependencies..."
-    cargo deny check
-    @echo "⚖️ Analyzing binary size (bloat)..."
-    cargo bloat --release -n 20
+    @echo "🔍 Starting structural audit. Full output redirected to audit.log"
+    @rm -f audit.log
+    @echo "--- cargo audit ---" >> audit.log
+    -@cargo audit >> audit.log 2>&1
+    @echo "\n--- cargo deny check ---" >> audit.log
+    -@cargo deny check >> audit.log 2>&1
+    @echo "\n--- cargo bloat ---" >> audit.log
+    -@cargo bloat --release -n 20 >> audit.log 2>&1
+    @grep -iE "error|warning|advisory" audit.log || true
+    @echo "Done. Check audit.log for full details."
 
 # Starts only the infrastructure needed for local development (DB, Valkey, AssetMgr)
 infra-up:

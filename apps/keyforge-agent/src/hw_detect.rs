@@ -194,7 +194,7 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentErr
     };
 
     let mut len: u32 = 0;
-    // Safety: Initial call with null pointer to retrieve the required buffer size. 
+    // Safety: Initial call with null pointer to retrieve the required buffer size.
     // This is standard Windows API pattern for variable-length result structures.
     unsafe {
         GetLogicalProcessorInformationEx(RelationCache, ptr::null_mut(), &mut len);
@@ -208,15 +208,15 @@ fn detect_windows_arm_caches(topo: &mut CpuCacheTopology) -> Result<(), AgentErr
         std::mem::align_of::<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(),
     )
     .map_err(|e| AgentError::Hardware(format!("Memory layout allocation failed: {}", e)))?;
-    
+
     // Safety: Buffer is allocated with sufficient size and alignment for the requested struct.
     let ptr = unsafe { alloc(layout) };
     if ptr.is_null() {
         return Ok(());
     }
 
-    // Safety: `GetLogicalProcessorInformationEx` is called with a verified valid buffer pointer 
-    // and the correct length retrieved from the previous call. We manually advance the pointer 
+    // Safety: `GetLogicalProcessorInformationEx` is called with a verified valid buffer pointer
+    // and the correct length retrieved from the previous call. We manually advance the pointer
     // using the `Size` field of each structure to ensure we remain within valid memory bounds.
     unsafe {
         if GetLogicalProcessorInformationEx(RelationCache, ptr as *mut _, &mut len) != 0 {
