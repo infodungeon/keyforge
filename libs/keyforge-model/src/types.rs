@@ -488,6 +488,54 @@ impl Score {
     }
 }
 
+/// A wrapper for ergonomic weights and multipliers.
+/// Prevents argument swapping and ensures semantic clarity in scoring logic.
+#[derive(
+    Debug, Clone, Copy, PartialEq, PartialOrd, Default, Serialize, Deserialize, ToSchema,
+)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct Weight(pub f32);
+
+impl Weight {
+    /// Zero weight.
+    pub const ZERO: Weight = Weight(0.0);
+
+    /// Converts the weight to a raw f32.
+    #[must_use]
+    pub const fn to_f32(self) -> f32 {
+        self.0
+    }
+}
+
+impl std::fmt::Display for Weight {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.2}", self.0)
+    }
+}
+
+impl std::ops::Mul<f32> for Weight {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self::Output {
+        Weight(self.0 * rhs)
+    }
+}
+
+impl std::ops::Add for Weight {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Weight(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::Sub for Weight {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Weight(self.0 - rhs.0)
+    }
+}
+
 impl std::ops::Add for Score {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
