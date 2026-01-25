@@ -486,3 +486,37 @@ fn to_f32(i: i64) -> f32 {
     let val = (i as f32) / keyforge_model::constants::SCORE_SCALE;
     val
 }
+
+#[keyforge_testing_macros::kf_test]
+mod tests {
+    use super::*;
+    use keyforge_model::testing::setup_minimal_assets;
+    use keyforge_model::Layout;
+
+    #[test]
+    fn test_oracle_parity() {
+        let (kb, cp, rb, cm) = setup_minimal_assets();
+        let scorer = DeterministicScorer::new(&kb, &rb, &cm);
+
+        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
+        let layout = Layout::new_unchecked(layout_keys.clone());
+
+        let oracle_score = scorer.score(&kb, &cp, &layout_keys).unwrap();
+
+        // Compare with generic engine
+        let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(cp.clone()),
+            rubric: Arc::new(rb.clone()),
+            cost_model: Arc::new(cm.clone()),
+        })
+        .unwrap();
+
+        let engine_score = engine.score(&layout).unwrap();
+
+        assert_eq!(
+            oracle_score, engine_score.0,
+            "Oracle and Generic Engine must match exactly"
+        );
+    }
+}

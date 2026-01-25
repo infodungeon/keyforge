@@ -155,9 +155,13 @@ impl AssetLoader for FsProvider {
             id
         };
 
-        // 2. Try System Binary
+        // 2. Try System (Binary or JSON)
         if let Some(p) = self.resolver.resolve_system_path(cat_str, stem) {
-            let mut asset: T = self.load_binary(&p).await?;
+            let mut asset: T = if p.extension().and_then(|s| s.to_str()) == Some("zst") {
+                self.load_binary(&p).await?
+            } else {
+                self.load_json(&p).await?
+            };
             asset.post_load()?;
             return Ok(Arc::new(asset));
         }

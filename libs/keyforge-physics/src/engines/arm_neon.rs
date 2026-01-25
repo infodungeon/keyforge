@@ -293,8 +293,11 @@ unsafe fn score_simple_neon(
             let freq1 = freqs_ptr.add(k + 1).read() as i64;
             let freq_v = vcombine_s64(vcreate_s64(freq0 as u64), vcreate_s64(freq1 as u64));
 
-            // Multiply and accumulate
-            row_sum_v = vaddq_s64(row_sum_v, vmulq_s64(cost_v, freq_v));
+            // Multiply and accumulate (NEON lacks vmul.s64, so we multiply lanes manually)
+            let p0 = vgetq_lane_s64(cost_v, 0) * vgetq_lane_s64(freq_v, 0);
+            let p1 = vgetq_lane_s64(cost_v, 1) * vgetq_lane_s64(freq_v, 1);
+            let prod_v = vcombine_s64(vcreate_s64(p0 as u64), vcreate_s64(p1 as u64));
+            row_sum_v = vaddq_s64(row_sum_v, prod_v);
 
             k += 2;
         }
@@ -432,7 +435,10 @@ unsafe fn score_trigrams_neon(
             let freq1 = freqs_ptr.add(k + 1).read() as i64;
             let freq_v = vcombine_s64(vcreate_s64(freq0 as u64), vcreate_s64(freq1 as u64));
 
-            row_sum_v = vaddq_s64(row_sum_v, vmulq_s64(cost_v, freq_v));
+            let p0 = vgetq_lane_s64(cost_v, 0) * vgetq_lane_s64(freq_v, 0);
+            let p1 = vgetq_lane_s64(cost_v, 1) * vgetq_lane_s64(freq_v, 1);
+            let prod_v = vcombine_s64(vcreate_s64(p0 as u64), vcreate_s64(p1 as u64));
+            row_sum_v = vaddq_s64(row_sum_v, prod_v);
 
             k += 2;
         }
