@@ -20,6 +20,7 @@
 
 ## 2. Operational Heuristics
 
+- **Mandatory Workflow Oracle**: Every work item MUST begin by running `ops/scripts/workflow_oracle.sh` and reading the returned file. This ensures the latest Task Workflow protocol is active.
 - **Context Optimization**: Use `minify_context.py` to keep the "Active Surface" minimal. Noise is the enemy of precision.
 - **Predictive Refinement**: When a tool fails, don't just "fix it." Analyze the **Failure Mode** (Context, Logic, or Tooling) and update the strategy.
 - **Zero-Trust Context**: Never assume a file's content or a library's behavior. Verify with `read_file` or `sg` before acting.
