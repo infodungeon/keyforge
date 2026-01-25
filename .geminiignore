@@ -1,0 +1,63 @@
+# === Gemini & Narsil Intelligent Ignore File ===
+# Focuses analysis on source logic and meaningful configuration.
+
+# --- Build Artifacts (Noise & Binary Bloat) ---
+**/target/**
+**/dist/**
+**/build/**
+**/.turbo/**
+**/.next/**
+**/.vercel/**
+**/src-tauri/target/**
+**/src-tauri/binaries/**
+**/src-tauri/gen/**
+**/src-tauri/pgo-data/**
+
+# --- Dependencies (External Context) ---
+**/node_modules/**
+**/.pnpm-store/**
+**/.yarn/cache/**
+**/.venv/**
+**/__pycache__/**
+
+# --- Data & Corpora (Large Static Files) ---
+**/corpora_data/**
+**/data/user/**
+**/data/letsencrypt/**
+words.json
+*.mpk.zst
+*.db
+*.db-shm
+*.db-wal
+
+# --- Version Control & Metedata ---
+.git/
+.hg/
+.svn/
+.DS_Store
+Thumbs.db
+
+# --- Logs & Temp ---
+*.log
+*.tmp
+temp/
+tmp/
+.aitk/
+.amp/
+.antigravity/
+.cache/
+
+# --- IDE & Tooling Config (Metadata Noise) ---
+.vscode/
+.idea/
+*.code-workspace
+.kani/
+.sqlx/
+
+# --- Security Exemplars (Avoid False Positives) ---
+**/tests/fixtures/**
+**/tests/testdata/**
+**/security/vulnerable/**
+
+# --- Narsil Panic Fixes (Minified JS with non-ASCII) ---
+hosts/sites/keyforge/assets/javascripts/lunr/min/lunr.*.min.js

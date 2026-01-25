@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "narsil": {
+      "command": "python3",
+      "args": [
+        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/mcp_proxy.py",
+        "/home/robert/.cargo/bin/narsil-mcp",
+        "--repos",
+        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge",
+        "--call-graph",
+        "--persist",
+        "--git"
+      ]
+    },
+    "arbor": {
+      "command": "python3",
+      "args": [
+        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/mcp_proxy.py",
+        "/home/robert/.cargo/bin/arbor",
+        "bridge"
+      ]
+    }
+  }
+}

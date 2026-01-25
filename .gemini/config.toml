@@ -1,0 +1,7 @@
+[mcp.servers.narsil]
+command = "narsil-mcp"
+args = []
+
+[mcp.servers.arbor]
+command = "arbor"
+args = ["bridge"]

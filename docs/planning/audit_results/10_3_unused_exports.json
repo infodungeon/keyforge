@@ -1,0 +1,8 @@
+{
+  "jsonrpc": "2.0",
+  "id": "find_unused_exports",
+  "error": {
+    "code": -32000,
+    "message": "Repository 'keyforge' not found. Available repositories: . Use list_repos to see all indexed repositories."
+  }
+}

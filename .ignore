@@ -1,0 +1,2 @@
+# Explicitly ignore files causing Narsil parser crashes (minified Lunr language files)
+hosts/sites/keyforge/assets/javascripts/lunr/min/lunr.*.min.js

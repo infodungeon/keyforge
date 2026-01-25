@@ -1,0 +1,53 @@
+apps/keyforge-ui/src-tauri/src/state.rs:#![allow(unsafe_code)]
+apps/keyforge-ui/src-tauri/src/state.rs:            return Ok(unsafe { Arc::from_raw(ptr) });
+apps/keyforge-ui/src-tauri/src/state.rs:            return Ok(unsafe { Arc::from_raw(ptr) });
+apps/keyforge-ui/src-tauri/src/state.rs:            return Ok(unsafe { Arc::from_raw(ptr) });
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-f241ad0fe748ed31/out/tokenizer.rs:return Err (unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-f241ad0fe748ed31/out/tokenizer.rs:} Ok (unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-f241ad0fe748ed31/out/tokenizer.rs:} unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-f241ad0fe748ed31/out/tokenizer.rs:} # [inline] unsafe fn from_utf8_release_unchecked (string_bytes : Vec < u8 >) -> String {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-f241ad0fe748ed31/out/tokenizer.rs:let string = unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-f241ad0fe748ed31/out/tokenizer.rs:} UnquotedUrl (unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-72914ac78511073f/out/tokenizer.rs:return Err (unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-72914ac78511073f/out/tokenizer.rs:} Ok (unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-72914ac78511073f/out/tokenizer.rs:} unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-72914ac78511073f/out/tokenizer.rs:} # [inline] unsafe fn from_utf8_release_unchecked (string_bytes : Vec < u8 >) -> String {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-72914ac78511073f/out/tokenizer.rs:let string = unsafe {
+apps/keyforge-ui/src-tauri/target/debug/build/cssparser-72914ac78511073f/out/tokenizer.rs:} UnquotedUrl (unsafe {
+apps/keyforge-agent/src/hw_detect.rs:        unsafe {
+apps/keyforge-agent/src/hw_detect.rs:    unsafe {
+apps/keyforge-agent/src/hw_detect.rs:    let ptr = unsafe { alloc(layout) };
+apps/keyforge-agent/src/hw_detect.rs:    unsafe {
+libs/keyforge-physics/src/engines/wasm_simd.rs:#![allow(unsafe_code)]
+libs/keyforge-physics/src/engines/wasm_simd.rs:            unsafe {
+libs/keyforge-physics/src/engines/wasm_simd.rs:unsafe fn score_layout_wasm(
+libs/keyforge-physics/src/engines/wasm_simd.rs:unsafe fn score_simple_wasm(
+libs/keyforge-physics/src/engines/wasm_simd.rs:unsafe fn score_trigrams_wasm(
+libs/keyforge-physics/src/engines/arm_sve.rs:#![allow(unsafe_code)]
+libs/keyforge-physics/src/engines/arm_sve.rs:            unsafe {
+libs/keyforge-physics/src/engines/arm_sve.rs:unsafe fn score_layout_sve(
+libs/keyforge-physics/src/engines/intel_avx512.rs:#![allow(unsafe_code)]
+libs/keyforge-physics/src/engines/intel_avx512.rs:            unsafe {
+libs/keyforge-physics/src/engines/intel_avx512.rs:unsafe fn score_layout_avx512(
+libs/keyforge-physics/src/engines/intel_avx512.rs:unsafe fn score_simple_avx512(
+libs/keyforge-physics/src/engines/intel_avx512.rs:unsafe fn score_monograms_avx512(
+libs/keyforge-physics/src/engines/intel_avx512.rs:unsafe fn score_bigrams_avx512(
+libs/keyforge-physics/src/engines/intel_avx512.rs:unsafe fn score_trigrams_avx512(
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:#![allow(unsafe_code)]
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:            unsafe {
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:unsafe fn score_layout_avx2(
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:unsafe fn score_simple_avx2(
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:unsafe fn score_monograms_avx2(
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:unsafe fn score_bigrams_avx2(
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:unsafe fn score_trigrams_avx2(
+libs/keyforge-physics/src/engines/intel_comet_lake.rs:unsafe fn mul_epi64_avx2(
+libs/keyforge-physics/src/engines/arm_neon.rs:#![allow(unsafe_code)]
+libs/keyforge-physics/src/engines/arm_neon.rs:            unsafe {
+libs/keyforge-physics/src/engines/arm_neon.rs:unsafe fn score_layout_neon(
+libs/keyforge-physics/src/engines/arm_neon.rs:unsafe fn score_simple_neon(
+libs/keyforge-physics/src/engines/arm_neon.rs:unsafe fn score_trigrams_neon(
+libs/keyforge-compute/src/hardware.rs:        unsafe {
+libs/keyforge-compute/src/hardware.rs:    unsafe {
+libs/keyforge-compute/src/hardware.rs:    let ptr = unsafe { alloc(layout) };
+libs/keyforge-compute/src/hardware.rs:    unsafe {
+libs/keyforge-infra/src/asset/resolver.rs:                "Invalid or unsafe path: {path}"
