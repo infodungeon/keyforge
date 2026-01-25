@@ -1,6 +1,6 @@
 # KeyForge 100x Task Workflow
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 **Role:** Systemic Architect
 **Enforcement:** Mandatory
 
@@ -26,29 +26,31 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
     *   **Structure:** Macros/Traits are the sole source of repetition.
 
 ### Phase 2: The Strategy (Plan)
-*Goal: Define a "Correct-by-Construction" path.*
+*Goal: Define a clear, logical path to the solution.*
 
 1.  **Codebase Investigation**
     *   Use `ast-grep` (`sg`) or `codebase_investigator` to map structural impact.
     *   **Constraint:** Do not assume; verify.
 2.  **Logic Brainstorming**
     *   Invoke GitHub Copilot MCP for complex logic verification when dealing with core algorithms.
-3.  **Plan Proposal (The 100x Filter)**
-    *   **Mandatory Structure**: The plan MUST be prioritized against the 3 Levers. If a lever is not applicable, state "N/A" with justification.
-        *   **Lever 1: Type States**: How will invalid states be made unrepresentable? (e.g., `Builder` pattern, `Ready`/`Pending` states).
-        *   **Lever 2: Newtypes**: What primitive obsessions are being banished? (e.g., `struct Meter(f64)` vs `f64`).
-        *   **Lever 3: Macros**: Where is the boilerplate being generated? (e.g., `#[derive(DomainLogic)]`).
-    *   **Action**: Present the implementation steps *after* this structural filtering.
+3.  **Plan Proposal**
+    *   **Requirement Analysis**: Clearly state *what* needs to change.
+    *   **Solution Design**: Describe the architectural approach.
+    *   **Execution Steps**: detailed, atomic steps to achieve the goal.
 
 ### Phase 3: The Atomic Transition (Implementation)
-*Goal: Systemic implementation using high-precision tools.*
+*Goal: Systemic implementation using high-precision tools and strict coding rules.*
 
 1.  **Contract First**
     *   Update protocols, traits, or documentation *before* implementation.
 2.  **Test-Driven Oracle**
     *   Write/Update tests using `#[keyforge_testing_macros::kf_test]`.
     *   **Forbidden:** Manual `#[cfg(test)]` or `#[allow]`.
-3.  **Implementation**
+3.  **The 100x Implementation Rules**
+    *   **Type States**: Invalid states must be unrepresentable (e.g., `Builder`, `Ready`/`Pending`).
+    *   **Newtypes**: Banish primitive obsession (e.g., `struct Meter(f64)` vs `f64`).
+    *   **Macros**: Abstract repetitive patterns (e.g., `#[derive(DomainLogic)]`).
+4.  **Implementation**
     *   Prefer `write_file` for structural truth.
     *   Use `ast-grep` for multi-file pattern transformations.
     *   **Friction Trigger:** If a change touches >3 files or requires repetitive boilerplate, **STOP**. Refactor (Pivot) to a structural solution (e.g., macro).
