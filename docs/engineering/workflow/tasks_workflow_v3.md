@@ -1,6 +1,6 @@
 # KeyForge 100x Task Workflow
 
-**Version:** 3.0.0
+**Version:** 3.1.0
 **Role:** Systemic Architect
 **Enforcement:** Mandatory
 
@@ -20,7 +20,7 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 1.  **Clean State:** Working directory must be clean (no uncommitted changes unless strictly intentional).
 2.  **No Detached Heads:** git HEAD must be attached to a valid branch.
 3.  **Issue Exists:** No code execution is permitted without a corresponding GitHub Issue ("No Tickey, No Laundry").
-4.  **Law Compliance:** The intended work must strictly adhere to the Architectural Constraints (The Law) listed below.
+4.  **Law Compliance:** The intended work must strictly adhere to the Architectural Constraints (The Law).
 
 #### Description
 *   **ARCH-001 (UI Purity):** No Data Transformation in UI Components (Dumb Views).
@@ -61,8 +61,11 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 1.  **Contract Update:** Update protocols, traits, or documentation (`.md` files).
 2.  **Type Stubbing:** Create empty structs/traits to define the shape before logic.
 3.  **Test Creation:** Write tests using `#[keyforge_testing_macros::kf_test]`.
-4.  **Implementation:** Execute code changes using `write_file` (preferred) or `replace`.
-5.  **Refactoring (Pivot):** If friction occurs, stop and refactor to a macro/structural solution.
+4.  **Implementation Execution:**
+    *   Use `write_file` for structural truth (preferred).
+    *   Use `replace` only for minor, precise edits.
+    *   Use `ast-grep` for multi-file pattern transformations.
+5.  **Pivot (Refactor):** **STOP** if the change touches >3 files or requires repetitive boilerplate. Pivot to a macro solution.
 
 #### Criteria for Completion
 1.  **Contract First:** Documentation/Contracts must exist before Logic.
@@ -74,11 +77,11 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 4.  **Domain Axiom Compliance:**
     *   **Finger 0:** Mapped to Thumb.
     *   **Determinism:** No platform-specific float usage.
-5.  **Structural Integrity:** No repetitive boilerplate added manually.
+5.  **No Vibe-Patching:** Implementation solves the *class* of problem, not just the instance.
 
 #### Description
 *   **Friction Trigger:** The condition where a change touches >3 files or requires repetitive typing, signaling the need for abstraction.
-*   **Tool Preference:** `write_file` is used for "Truth" (entire file correctness); `replace` is a heuristic.
+*   **Vibe-Patching:** Tweaking code without understanding the structural pattern.
 
 ---
 
@@ -90,17 +93,23 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 3.  **Formatting:** Run `cargo fmt`.
 4.  **Testing:** Run `cargo test`.
 5.  **Security Verification:** Evaluate the actual security impact of the changes.
-6.  **Documentation Update:** Update User, Design, and Ops docs.
+6.  **Debug Protocol (Conditional):** If 2 fix attempts fail:
+    *   **Stop Coding.**
+    *   Read `docs/engineering/DEBUGGING_PROTOCOL.md`.
+    *   Instrument Input/Transform/Output states.
+7.  **Documentation Update:** Update User, Design, and Ops docs.
 
 #### Criteria for Completion
 1.  **Zero Errors:** Code compiles without errors.
 2.  **Zero Warnings:** No Clippy warnings remain (suppression is forbidden).
 3.  **Tests Pass:** All tests pass.
-4.  **Impact Verified:** The "So What?" test confirms the security/privacy stance is secure.
-5.  **Docs Synced:** Documentation matches the implementation.
+4.  **Two-Strike Limit:** No more than 2 failed fix attempts without entering Debug Mode.
+5.  **Impact Verified:** The "So What?" test confirms the security/privacy stance is secure.
+6.  **Docs Synced:** Documentation matches the implementation.
 
 #### Description
 *   **The "So What?" Test:** A mental check to distinguish theoretical vulnerabilities from actual risks.
+*   **Isolation Rule:** During debug, modify *instrumentation only*, not logic.
 
 ---
 
@@ -124,16 +133,3 @@ Engineering Truth is achieved through **Systemic Invariants**, not checklists. W
 
 #### Description
 *   **Semantic Commit:** A commit message focusing on the *why* and *intent*, not just the file changes.
-
-## 3. Critical Invariants
-
-### Criteria for Completion
-1.  **No Vibe-Patching:** Problems must be solved systemically.
-2.  **Two-Strike Rule:** Diagnostic turn is mandatory after 2 failures.
-
-### Executable Actions
-1.  **Activate Protocol:** If Two-Strike Rule triggers, read `docs/engineering/DEBUGGING_PROTOCOL.md`.
-2.  **Isolate & Instrument:** Stop coding. Add logging to prove Input, Transform, and Output states.
-
-### Description
-*   **Vibe-Patching:** Trying to fix a bug by guessing or tweaking without understanding the root cause or structural pattern.
