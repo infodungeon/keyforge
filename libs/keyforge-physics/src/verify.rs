@@ -505,10 +505,11 @@ mod tests {
 
         // Compare with generic engine
         let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
-            keyboard: Arc::new(kb.clone()),
-            corpus: Arc::new(cp.clone()),
-            rubric: Arc::new(rb.clone()),
-            cost_model: Arc::new(cm.clone()),
+            keyboard: Arc::new(kb),
+            corpus: Arc::new(cp),
+            rubric: Arc::new(rb),
+            cost_model: Arc::new(cm),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
 

@@ -60,7 +60,7 @@
 - **[DEP] Supply Chain Churn**: `keyforge-ui/src-tauri` depends on 400+ transitive crates for a simple desktop wrapper.
 
 ### 5. Maintenance Findings
-- **[CHURN] Hotspots**: `libs/keyforge-physics/src/kernel/compute/delta.rs` is the #1 churn hotspot (623 lines, 45+ commits).
+- [x] **Refactor: Decompose Complexity in \`delta.rs\` Churn Hotspot**: Decomposed the monolithic \`delta.rs\` into a structured submodule directory (\`delta/monogram.rs\`, \`delta/bigram.rs\`, \`delta/trigram.rs\`). (Issue #33)
 - **[STUB] TODO Archeology**: `TODO: Aggregate from DB` found in `get_job_status.rs` remains unimplemented.
 
 ## Protocol for Debt
