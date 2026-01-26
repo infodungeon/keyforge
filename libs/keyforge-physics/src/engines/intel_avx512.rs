@@ -144,7 +144,7 @@ unsafe fn score_layout_avx512(
     );
     for &code in pm.used_keys() {
         let c = code as usize;
-        let c = KeyCode(c as u16);
+        let c = KeyCode(c.try_into().unwrap_or_default());
         let cand = pm.get(c);
         if !cand.is_empty() {
             flat_map[c.0 as usize] = cand[0];

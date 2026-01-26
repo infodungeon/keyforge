@@ -135,7 +135,7 @@ unsafe fn score_layout_avx2(
         used,
     );
     for &code in pm.used_keys() {
-        let cand = pm.get(KeyCode(code as u16));
+        let cand = pm.get(KeyCode(code));
         if !cand.is_empty() {
             flat_map[code as usize] = cand[0];
         }
