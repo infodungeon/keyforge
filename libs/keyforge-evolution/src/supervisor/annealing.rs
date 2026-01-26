@@ -58,7 +58,7 @@ impl ProgressReporter {
 
     #[allow(clippy::cast_precision_loss)]
     fn report(&mut self, step: IterationCount, state: &SearchState, time_keeper: &impl TimeKeeper) {
-        if step.0 % self.report_interval.0 == 0 {
+        if step.0.is_multiple_of(self.report_interval.0) {
             let now = time_keeper.now();
             let elapsed = time_keeper.elapsed(self.last_report_time).as_secs_f32();
             let steps_done = if step.0 == 0 {
