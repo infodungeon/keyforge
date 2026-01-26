@@ -98,9 +98,10 @@ impl HermeticWorkspace {
             cost_model::{CostModel, FingerDefinition, HandDefinition, ModelDefinition, RowCosts},
             geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta},
             keycodes::KeycodeDefinition,
-            KeyNode,
+            Corpus, KeyNode,
         };
         use std::collections::HashMap;
+        use std::sync::Arc;
 
         // 1. Keycodes
         let keycodes = vec![
@@ -128,12 +129,26 @@ impl HermeticWorkspace {
                 label: "b".into(),
                 aliases: vec!["B".into()],
             },
+            KeycodeDefinition {
+                code: KeyCode(116),
+                id: "KC_T".into(),
+                label: "t".into(),
+                aliases: vec!["T".into()],
+            },
+            KeycodeDefinition {
+                code: KeyCode(104),
+                id: "KC_H".into(),
+                label: "h".into(),
+                aliases: vec!["H".into()],
+            },
         ];
         let keycodes_json = serde_json::to_string_pretty(&keycodes)?;
         self.write_file("user/config/keycodes.json", &keycodes_json)
             .await?;
         self.write_file("system/config/keycodes.json", &keycodes_json)
             .await?;
+        // Special requirement for FsProvider in integration tests: some builders expect keycodes at the root
+        self.write_file("keycodes.json", &keycodes_json).await?;
 
         // 2. Cost Matrix
         let mut static_costs = HashMap::new();
@@ -184,7 +199,10 @@ impl HermeticWorkspace {
         let cost_json = serde_json::to_string_pretty(&cost_model)?;
         self.write_file("user/weights/cost.json", &cost_json)
             .await?;
-        self.write_file("user/weights/default.json", "{}").await?;
+        self.write_file("user/weights/default.json", &cost_json)
+            .await?;
+        // Some tests expect cost_matrix.json at the root
+        self.write_file("cost_matrix.json", &cost_json).await?;
 
         // 3. Keyboard
         let geometry = KeyboardGeometry {
@@ -234,7 +252,7 @@ impl HermeticWorkspace {
         self.write_file("user/keyboards/test_kb.json", &kb_json)
             .await?;
 
-        // 4. Corpus
+        // 4. Legacy Directory-style Corpus (test_corpus)
         let corpus_json = r#"[{"s": "a", "f": 100}, {"s": "b", "f": 50}]"#;
         self.write_file("user/corpora/test_corpus/1grams.json", corpus_json)
             .await?;
@@ -244,6 +262,16 @@ impl HermeticWorkspace {
             .await?;
         self.write_file("user/corpora/test_corpus/words.json", "[]")
             .await?;
+
+        // 5. New Standard Serialized Corpus (en_small.json)
+        let mut en_small = Corpus::default();
+        let mut freqs = en_small.char_freqs.to_vec();
+        freqs[116] = 1000; // 't'
+        freqs[104] = 800; // 'h'
+        en_small.char_freqs = Arc::from(freqs);
+        en_small.bigrams = Arc::from(vec![(116, 104, 500)]); // 'th'
+        let en_small_json = serde_json::to_string_pretty(&en_small)?;
+        self.write_file("en_small.json", &en_small_json).await?;
 
         Ok(self)
     }
@@ -347,7 +375,7 @@ impl HermeticWorkspace {
     pub fn keyboard_path(&self, name: &str) -> PathBuf {
         self.root
             .join("user/keyboards")
-            .join(format!("{name}.json"))
+            .join(format!(/* "{name}.json" */ "{name}.json"))
     }
 
     #[must_use]
@@ -357,7 +385,9 @@ impl HermeticWorkspace {
 
     #[must_use]
     pub fn weights_path(&self, name: &str) -> PathBuf {
-        self.root.join("user/weights").join(format!("{name}.json"))
+        self.root
+            .join("user/weights")
+            .join(format!(/* "{name}.json" */ "{name}.json"))
     }
 
     #[must_use]
@@ -396,6 +426,9 @@ mod tests {
             .root
             .join("user/corpora/test_corpus/1grams.json")
             .exists());
+
+        // Check en_small
+        assert!(ws.root.join("en_small.json").exists());
     }
 
     #[tokio::test]

@@ -4,8 +4,6 @@ use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::types::Weight;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 // --- Default Values (Scoring) ---
@@ -106,7 +104,6 @@ pub const DEFAULT_COMFORTABLE_SCISSORS: &str = "21,23,34";
 /// Weights and penalties defining the "personality" of the scoring engine.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct ScoringWeights {
     /// Dynamic weights map.
     #[serde(flatten)]
@@ -654,9 +651,15 @@ mod tests {
             w.get_penalty_sfr_weak_finger(),
             DEFAULT_PENALTY_SFR_WEAK_FINGER.into()
         );
-        assert_eq!(w.get_penalty_sfr_bad_row(), DEFAULT_PENALTY_SFR_BAD_ROW.into());
+        assert_eq!(
+            w.get_penalty_sfr_bad_row(),
+            DEFAULT_PENALTY_SFR_BAD_ROW.into()
+        );
         assert_eq!(w.get_penalty_sfr_lat(), DEFAULT_PENALTY_SFR_LAT.into());
-        assert_eq!(w.get_penalty_sfb_lateral(), DEFAULT_PENALTY_SFB_LATERAL.into());
+        assert_eq!(
+            w.get_penalty_sfb_lateral(),
+            DEFAULT_PENALTY_SFB_LATERAL.into()
+        );
         assert_eq!(
             w.get_penalty_sfb_lateral_weak(),
             DEFAULT_PENALTY_SFB_LATERAL_WEAK.into()
@@ -666,9 +669,15 @@ mod tests {
             w.get_penalty_sfb_outward_adder(),
             DEFAULT_PENALTY_SFB_OUTWARD_ADDER.into()
         );
-        assert_eq!(w.get_penalty_sfb_diagonal(), DEFAULT_PENALTY_SFB_DIAGONAL.into());
+        assert_eq!(
+            w.get_penalty_sfb_diagonal(),
+            DEFAULT_PENALTY_SFB_DIAGONAL.into()
+        );
         assert_eq!(w.get_penalty_sfb_long(), DEFAULT_PENALTY_SFB_LONG.into());
-        assert_eq!(w.get_penalty_sfb_bottom(), DEFAULT_PENALTY_SFB_BOTTOM.into());
+        assert_eq!(
+            w.get_penalty_sfb_bottom(),
+            DEFAULT_PENALTY_SFB_BOTTOM.into()
+        );
         assert_eq!(
             w.get_weight_weak_finger_sfb(),
             DEFAULT_WEIGHT_WEAK_FINGER_SFB.into()
@@ -686,7 +695,10 @@ mod tests {
             DEFAULT_THRESHOLD_REACH_STRETCH.into()
         );
         assert_eq!(w.get_penalty_scissor(), DEFAULT_PENALTY_SCISSOR.into());
-        assert_eq!(w.get_penalty_ring_pinky(), DEFAULT_PENALTY_RING_PINKY.into());
+        assert_eq!(
+            w.get_penalty_ring_pinky(),
+            DEFAULT_PENALTY_RING_PINKY.into()
+        );
         assert_eq!(w.get_penalty_lateral(), DEFAULT_PENALTY_LATERAL.into());
         assert_eq!(
             w.get_penalty_monogram_stretch(),
@@ -696,22 +708,55 @@ mod tests {
         assert_eq!(w.get_penalty_redirect(), DEFAULT_PENALTY_REDIRECT.into());
         assert_eq!(w.get_penalty_hand_run(), DEFAULT_PENALTY_HAND_RUN.into());
         assert_eq!(w.get_bonus_inward_roll(), DEFAULT_BONUS_INWARD_ROLL.into());
-        assert_eq!(w.get_bonus_bigram_roll_in(), DEFAULT_BONUS_BIGRAM_ROLL_IN.into());
-        assert_eq!(w.get_bonus_bigram_roll_out(), DEFAULT_BONUS_BIGRAM_ROLL_OUT.into());
-        assert_eq!(w.get_penalty_high_in_med(), DEFAULT_PENALTY_HIGH_IN_MED.into());
-        assert_eq!(w.get_penalty_high_in_low(), DEFAULT_PENALTY_HIGH_IN_LOW.into());
-        assert_eq!(w.get_penalty_med_in_prime(), DEFAULT_PENALTY_MED_IN_PRIME.into());
-        assert_eq!(w.get_penalty_med_in_low(), DEFAULT_PENALTY_MED_IN_LOW.into());
-        assert_eq!(w.get_penalty_low_in_prime(), DEFAULT_PENALTY_LOW_IN_PRIME.into());
-        assert_eq!(w.get_penalty_low_in_med(), DEFAULT_PENALTY_LOW_IN_MED.into());
+        assert_eq!(
+            w.get_bonus_bigram_roll_in(),
+            DEFAULT_BONUS_BIGRAM_ROLL_IN.into()
+        );
+        assert_eq!(
+            w.get_bonus_bigram_roll_out(),
+            DEFAULT_BONUS_BIGRAM_ROLL_OUT.into()
+        );
+        assert_eq!(
+            w.get_penalty_high_in_med(),
+            DEFAULT_PENALTY_HIGH_IN_MED.into()
+        );
+        assert_eq!(
+            w.get_penalty_high_in_low(),
+            DEFAULT_PENALTY_HIGH_IN_LOW.into()
+        );
+        assert_eq!(
+            w.get_penalty_med_in_prime(),
+            DEFAULT_PENALTY_MED_IN_PRIME.into()
+        );
+        assert_eq!(
+            w.get_penalty_med_in_low(),
+            DEFAULT_PENALTY_MED_IN_LOW.into()
+        );
+        assert_eq!(
+            w.get_penalty_low_in_prime(),
+            DEFAULT_PENALTY_LOW_IN_PRIME.into()
+        );
+        assert_eq!(
+            w.get_penalty_low_in_med(),
+            DEFAULT_PENALTY_LOW_IN_MED.into()
+        );
         assert_eq!(w.get_penalty_imbalance(), DEFAULT_PENALTY_IMBALANCE.into());
-        assert_eq!(w.get_max_hand_imbalance(), DEFAULT_MAX_HAND_IMBALANCE.into());
+        assert_eq!(
+            w.get_max_hand_imbalance(),
+            DEFAULT_MAX_HAND_IMBALANCE.into()
+        );
         assert_eq!(
             w.get_weight_vertical_travel(),
             DEFAULT_WEIGHT_VERTICAL_TRAVEL.into()
         );
-        assert_eq!(w.get_weight_lateral_travel(), DEFAULT_WEIGHT_LATERAL_TRAVEL.into());
-        assert_eq!(w.get_weight_finger_effort(), DEFAULT_WEIGHT_FINGER_EFFORT.into());
+        assert_eq!(
+            w.get_weight_lateral_travel(),
+            DEFAULT_WEIGHT_LATERAL_TRAVEL.into()
+        );
+        assert_eq!(
+            w.get_weight_finger_effort(),
+            DEFAULT_WEIGHT_FINGER_EFFORT.into()
+        );
         assert_eq!(w.get_default_cost_ms(), DEFAULT_COST_MS.into());
         assert_eq!(w.get_loader_trigram_limit(), DEFAULT_LOADER_TRIGRAM_LIMIT);
         assert_eq!(w.get_trigram_coverage(), DEFAULT_TRIGRAM_COVERAGE.into());

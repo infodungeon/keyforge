@@ -9,6 +9,7 @@ pub struct HardwareInfo {
     pub cpu_model: String,
     pub cores: i32,
     pub l2_cache_kb: Option<i32>,
+    pub capabilities: Vec<String>,
 }
 
 impl HardwareInfo {
@@ -27,13 +28,43 @@ impl HardwareInfo {
         let cores_i32 = cores as i32;
 
         let l2_cache_kb = detect_l2_cache_kb();
+        let capabilities = detect_capabilities();
 
         Self {
             cpu_model,
             cores: cores_i32,
             l2_cache_kb,
+            capabilities,
         }
     }
+}
+
+fn detect_capabilities() -> Vec<String> {
+    let mut caps = Vec::new();
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        let cpuid = CpuId::new();
+        if let Some(feature_info) = cpuid.get_feature_info() {
+            if feature_info.has_sse() {
+                caps.push("sse".into());
+            }
+            if feature_info.has_sse2() {
+                caps.push("sse2".into());
+            }
+            if feature_info.has_avx() {
+                caps.push("avx".into());
+            }
+        }
+        if let Some(extended_features) = cpuid.get_extended_feature_info() {
+            if extended_features.has_avx2() {
+                caps.push("avx2".into());
+            }
+            if extended_features.has_avx512f() {
+                caps.push("avx512".into());
+            }
+        }
+    }
+    caps
 }
 
 #[allow(clippy::cast_possible_truncation)]

@@ -1,0 +1,25 @@
+// apps/keyforge-ui/src-tauri/src/commands/search.rs (Partial rewrite of the affected block)
+
+    let status = client.get_job_status(&id).await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+    Ok(JobStatusUpdate {
+        active_nodes: match &status {
+            JobStatusDto::Running { active_nodes, .. } => *active_nodes,
+            _ => 0,
+        },
+        best_score: match &status {
+            JobStatusDto::Running { current_best, .. } => {
+                current_best.as_ref().map_or(0.0, |s| {
+                    #[allow(clippy::cast_precision_loss)]
+                    let val = s.0 as f32;
+                    val / 1_000_000.0
+                })
+            }
+            JobStatusDto::Completed { final_score, .. } => {
+                #[allow(clippy::cast_precision_loss)]
+                let val = final_score.0 as f32;
+                val / 1_000_000.0
+            }
+            JobStatusDto::Pending => 0.0,
+        },
+        best_layout: match &status {

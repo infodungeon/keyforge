@@ -14,13 +14,11 @@
 
 use super::dto::{HiveJobConfigProjection, HiveJobConfigRow, HiveJobProjection, HiveJobRow};
 use super::identity;
-use keyforge_model::config::ScoringWeights;
 use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
-use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::mapping::Projection;
 use keyforge_model::types::KeyIndex;
 use keyforge_model::Validator;
-use keyforge_protocol::JobRequest;
+use keyforge_protocol::{JobRequest, KeyboardDefinitionDto, ScoringWeightsDto, SearchParamsDto};
 use sha2::{Digest, Sha256};
 use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;
@@ -210,7 +208,7 @@ impl JobRepository {
     ) -> Result<
         Option<(
             keyforge_model::geometry::KeyboardGeometry,
-            ScoringWeights,
+            keyforge_model::config::ScoringWeights,
             String,
             keyforge_model::CostMatrixSource,
         )>,
@@ -248,7 +246,7 @@ impl JobRepository {
     async fn fetch_keyboard_definition(
         &self,
         kb_id: i32,
-    ) -> Result<KeyboardDefinition, sqlx::Error> {
+    ) -> Result<keyforge_model::geometry::KeyboardDefinition, sqlx::Error> {
         use super::dto::{HiveKeyRow, HiveKeyboardMetaRow, HiveKeyboardProjection};
         use keyforge_model::mapping::Projection;
 
@@ -286,7 +284,7 @@ impl JobRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        KeyboardDefinition::project(HiveKeyboardProjection {
+        keyforge_model::geometry::KeyboardDefinition::project(HiveKeyboardProjection {
             meta: meta_row,
             keys: keys_rows,
         })
@@ -374,7 +372,7 @@ impl JobRepository {
     async fn ensure_keyboard(
         &self,
         tx: &mut sqlx::Transaction<'_, Postgres>,
-        def: &KeyboardDefinition,
+        def: &KeyboardDefinitionDto,
         unique_hash: &str,
     ) -> Result<i32, sqlx::Error> {
         let kb_meta = &def.meta;
@@ -427,9 +425,9 @@ impl JobRepository {
                     .push_bind(i16::from(key.row.0))
                     .push_bind(i16::from(key.col.0))
                     .push_bind(key.is_stretch)
-                    .push_bind(def.geometry.prime_slots.contains(&kidx))
-                    .push_bind(def.geometry.med_slots.contains(&kidx))
-                    .push_bind(def.geometry.low_slots.contains(&kidx))
+                    .push_bind(def.geometry.prime_slots.iter().any(|&i| i.0 == kidx.0))
+                    .push_bind(def.geometry.med_slots.iter().any(|&i| i.0 == kidx.0))
+                    .push_bind(def.geometry.low_slots.iter().any(|&i| i.0 == kidx.0))
                     .push_bind(key.r);
             });
 
@@ -442,9 +440,15 @@ impl JobRepository {
     async fn ensure_scoring_weights(
         &self,
         tx: &mut sqlx::Transaction<'_, Postgres>,
-        weights: &keyforge_model::config::ScoringWeights,
+        weights: &ScoringWeightsDto,
     ) -> Result<i32, sqlx::Error> {
-        let w_json = serde_json::to_string(weights).unwrap_or_default();
+        let model_weights = keyforge_model::config::ScoringWeights {
+            weights: weights.weights.clone(),
+            finger_penalty_scale: weights.finger_penalty_scale,
+            comfortable_scissors: weights.comfortable_scissors.clone(),
+        };
+
+        let w_json = serde_json::to_string(&model_weights).unwrap_or_default();
         let mut hasher = Sha256::new();
         hasher.update(w_json.as_bytes());
         let hash = hex::encode(hasher.finalize());
@@ -458,7 +462,7 @@ impl JobRepository {
             RETURNING id
             "#,
             hash,
-            serde_json::to_value(weights).unwrap_or_default()
+            serde_json::to_value(&model_weights).unwrap_or_default()
         )
         .fetch_one(&mut **tx)
         .await?;
@@ -469,23 +473,44 @@ impl JobRepository {
     async fn ensure_search_params(
         &self,
         tx: &mut sqlx::Transaction<'_, Postgres>,
-        params: &keyforge_model::config::SearchParams,
+        params: &SearchParamsDto,
     ) -> Result<i32, sqlx::Error> {
-        let p_json = serde_json::to_string(params).unwrap_or_default();
+        let model_params = keyforge_model::config::SearchParams {
+            params: {
+                let mut p = std::collections::HashMap::new();
+                p.insert(
+                    "search_steps".into(),
+                    #[allow(clippy::cast_precision_loss)]
+                    (params.iterations as f32),
+                );
+                if let Some(r) = params.reheats {
+                    p.insert(
+                        "reheats".into(),
+                        #[allow(clippy::cast_precision_loss)]
+                        (r as f32),
+                    );
+                }
+                p
+            },
+            seed: params.seed,
+            include_thumbs: params.include_thumbs,
+        };
+
+        let p_json = serde_json::to_string(&model_params).unwrap_or_default();
         let mut hasher = Sha256::new();
         hasher.update(p_json.as_bytes());
         let hash = hex::encode(hasher.finalize());
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let epochs = params.get_search_epochs() as i32;
+        let epochs = model_params.get_search_epochs() as i32;
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let steps = params.get_search_steps() as i32;
+        let steps = model_params.get_search_steps() as i32;
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let patience = params.get_search_patience() as i32;
+        let patience = model_params.get_search_patience() as i32;
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let opt_fast = params.get_opt_limit_fast() as i32;
+        let opt_fast = model_params.get_opt_limit_fast() as i32;
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let opt_slow = params.get_opt_limit_slow() as i32;
+        let opt_slow = model_params.get_opt_limit_slow() as i32;
 
         let row = sqlx::query!(
             r#"
@@ -502,9 +527,9 @@ impl JobRepository {
             epochs,
             steps,
             patience,
-            params.get_search_patience_threshold(),
-            params.get_temp_min(),
-            params.get_temp_max(),
+            model_params.get_search_patience_threshold(),
+            model_params.get_temp_min(),
+            model_params.get_temp_max(),
             opt_fast,
             opt_slow
         )

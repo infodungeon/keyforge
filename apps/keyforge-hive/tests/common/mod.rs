@@ -160,7 +160,7 @@ pub async fn hydrate_test_valkey(state: &Arc<AppState>, root: &Path) {
                         id: entry_id,
                         hash,
                         size_bytes: compressed.len() as u64,
-                        last_updated: 0,
+                        updated_at: 0,
                     };
                     let _ = state.coordinator.set_manifest_entry(&entry).await;
                 }

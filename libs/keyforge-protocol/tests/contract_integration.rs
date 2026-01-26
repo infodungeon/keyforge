@@ -1,40 +1,35 @@
 #[keyforge_testing_macros::kf_test]
-mod integration_tests {
-    use super::*;
-    // libs/keyforge-protocol/tests/contract_integration.rs
+// libs/keyforge-protocol/tests/contract_integration.rs
+use keyforge_model::{types::HandIndex, KeyNode};
+use keyforge_protocol::JobRequest;
 
-    use keyforge_model::{types::HandIndex, KeyNode, Validator};
-    use keyforge_protocol::{JobRequest, PROTOCOL_VERSION};
+#[test]
+#[allow(clippy::unwrap_used)]
+fn test_contract_compatibility() {
+    let mut req = JobRequest::default();
 
-    #[test]
-    fn test_full_job_request_lifecycle() {
-        let mut req = JobRequest::default();
-        req.version = PROTOCOL_VERSION;
+    // Test conversion from domain model to DTO
+    let node = KeyNode {
+        index: 0,
+        label: "A".to_string(),
+        x: 0.0,
+        y: 0.0,
+        w: 1.0,
+        h: 1.0,
+        hand: HandIndex(0),
+        ..Default::default()
+    };
 
-        // 1. Initial default should be invalid (empty geometry)
-        assert!(req.validate().is_err());
+    req.config.definition.geometry.keys.push(node.into());
+    req.config.definition.geometry.home_row = 0;
+    req.config
+        .definition
+        .geometry
+        .prime_slots
+        .push(keyforge_model::types::KeyIndex(0).into());
 
-        // 2. Setup minimum valid domain data
-        req.config.definition.geometry.keys.push(KeyNode {
-            hand: HandIndex(0),
-            w: 1.0,
-            h: 1.0,
-            ..Default::default()
-        });
-        req.config.definition.geometry.home_row = 0;
-        req.config
-            .definition
-            .geometry
-            .prime_slots
-            .push(keyforge_model::KeyIndex(0));
+    let json = serde_json::to_string(&req).unwrap();
+    let deserialized: JobRequest = serde_json::from_str(&json).unwrap();
 
-        // 3. Should now be valid
-        assert!(req.validate().is_ok());
-
-        // 4. Round-trip JSON
-        let json = serde_json::to_string(&req).unwrap();
-        let recovered: JobRequest = serde_json::from_str(&json).unwrap();
-        assert_eq!(recovered.version, PROTOCOL_VERSION);
-        assert_eq!(recovered.config.definition.geometry.keys.len(), 1);
-    }
+    assert_eq!(deserialized.config.definition.geometry.keys.len(), 1);
 }

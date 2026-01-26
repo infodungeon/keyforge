@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -15,7 +15,7 @@
 use crate::error::InfraResult;
 use crate::net::client::HiveClient;
 use keyforge_protocol::JobConfig;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// Orchestrates asset management, ensuring required files are present and synchronized.
@@ -33,6 +33,12 @@ impl AssetManager {
     #[must_use]
     pub fn new(client: HiveClient, root: PathBuf) -> Self {
         Self { client, root }
+    }
+
+    /// Returns the root directory managed by this `AssetManager`.
+    #[must_use]
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
     /// Synchronizes the local asset library with the remote Hive.

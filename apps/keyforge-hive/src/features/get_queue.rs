@@ -15,7 +15,6 @@
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, Json};
-use keyforge_protocol::JobConfig;
 use keyforge_protocol::JobQueueResponse;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration, Instant};
@@ -69,7 +68,7 @@ async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return Ok(JobQueueResponse {
                 job_id: Some(id),
-                config: Some(JobConfig::from(req)),
+                config: Some(req.config),
             });
         }
 

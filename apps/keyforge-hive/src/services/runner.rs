@@ -7,15 +7,18 @@ use tokio::process::Command;
 use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AgentRunner {
     pub data_dir: PathBuf,
 }
 
 impl AgentRunner {
+    #[allow(dead_code)]
     pub fn new(data_dir: PathBuf) -> Self {
         Self { data_dir }
     }
 
+    #[allow(dead_code)]
     pub async fn run_validation(
         &self,
         config: &JobConfig,

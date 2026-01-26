@@ -4,13 +4,11 @@ use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::error::ForgeError;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Configuration for the optimization search strategy.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub enum SearchConfig {
     /// Simulated Annealing strategy.
     Annealing {
@@ -123,7 +121,7 @@ pub const DEFAULT_REHEAT_FACTOR: f32 = 0.5;
 
 /// Parameters controlling the Simulated Annealing algorithm.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct SearchParams {
     /// Dynamic parameters map.
     #[serde(flatten)]

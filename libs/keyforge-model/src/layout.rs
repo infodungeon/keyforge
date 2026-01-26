@@ -20,8 +20,6 @@
 pub use crate::types::{KeyCode, KeyIndex};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Errors related to Layout construction and validation.
@@ -35,11 +33,10 @@ pub enum LayoutError {
 /// A specific mapping of `KeyCodes` to physical positions.
 /// The index in the vector corresponds to the `KeyIndex`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct Layout {
     /// The list of keys.
     /// The index corresponds to the `KeyIndex`.
-    #[cfg_attr(feature = "ts_bindings", ts(type = "Vec<KeyCode>"))]
     pub keys: Vec<KeyCode>,
 }
 

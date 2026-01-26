@@ -20,7 +20,7 @@ use axum::{
     Json,
 };
 use keyforge_model::{Completed, JobStatus, Pending, Running, Score};
-use keyforge_protocol::JobDetailedStatus;
+use keyforge_protocol::{JobDetailedStatus, JobStatusDto};
 use std::sync::Arc;
 
 /// VSA Feature: Get Job Status
@@ -89,7 +89,7 @@ pub(crate) async fn handle(
 
     Ok(Json(JobDetailedStatus {
         job_id,
-        status,
+        status: JobStatusDto::from(status),
         best_score,
         best_layout,
         total_samples: usize::try_from(samples).unwrap_or(0),

@@ -56,29 +56,29 @@ async fn main() {
     // 2. With "High Latency" Biometrics for 'th' bigram
     let biometrics = vec![
         BiometricSample {
-            bigram: "th".to_string(),
-            ms: 500.0,
-            timestamp: 0,
+            key_a: 116,
+            key_b: 104,
+            duration_ms: 500,
         },
         BiometricSample {
-            bigram: "th".to_string(),
-            ms: 500.0,
-            timestamp: 1,
+            key_a: 116,
+            key_b: 104,
+            duration_ms: 500,
         },
         BiometricSample {
-            bigram: "th".to_string(),
-            ms: 500.0,
-            timestamp: 2,
+            key_a: 116,
+            key_b: 104,
+            duration_ms: 500,
         },
         BiometricSample {
-            bigram: "th".to_string(),
-            ms: 500.0,
-            timestamp: 3,
+            key_a: 116,
+            key_b: 104,
+            duration_ms: 500,
         },
         BiometricSample {
-            bigram: "th".to_string(),
-            ms: 500.0,
-            timestamp: 4,
+            key_a: 116,
+            key_b: 104,
+            duration_ms: 500,
         },
     ];
 

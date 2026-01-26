@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -13,135 +13,106 @@
 // limitations under the License.
 
 use crate::PROTOCOL_VERSION;
-use keyforge_model::Validator;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 use utoipa::ToSchema;
 
-fn default_version() -> u32 {
-    PROTOCOL_VERSION
-}
-
-/// Real-time status report from a Worker Node (Hot Path).
-/// Sent via WebSocket text frames to Hive, then serialized to Valkey.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct NodeTelemetry {
-    /// The Job currently being processed.
-    pub job_id: Option<String>,
-    /// Iterations Per Second (Performance).
-    pub ips: f32,
-    /// Current Annealing Temperature (State).
-    pub temp: f32,
-    /// Best score found in this session (Local Best).
-    pub current_best: Option<f32>,
-    /// Total memory usage in bytes.
-    pub memory_usage: u64,
-    /// Timestamp of this sample.
-    pub timestamp: u64,
-}
-
-/// Request from a node to register or heartbeat.
+/// Registration request from a worker node to the Hive.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct NodeRequest {
     /// Protocol version.
-    #[serde(default = "default_version")]
     pub version: u32,
-    /// The Node ID.
+    /// Unique identifier for the node.
     pub node_id: String,
-    /// CPU model name.
+    /// Human-readable hostname of the node.
+    pub hostname: String,
+    /// Total number of available CPU cores.
+    pub cpu_cores: usize,
+    /// Detailed CPU model identifier.
     pub cpu_model: String,
-    /// Number of cores.
+    /// CPU capabilities (e.g., "avx", "sse").
+    pub capabilities: Vec<String>,
+    /// CPU core count (Deprecated, use `cpu_cores`).
     pub cores: i32,
-    /// L2 cache size in KB.
+    /// L2 Cache size in KB.
     pub l2_cache_kb: Option<i32>,
-    /// Operations per second benchmark.
+    /// Calibrated operations per second (Physics IPS).
     pub ops_per_sec: f32,
-    /// Public key for verification.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Optional Ed25519 public key for identity verification.
     pub public_key: Option<String>,
 }
 
-impl Validator for NodeRequest {
-    fn validate(&self) -> Result<(), String> {
-        if self.node_id.trim().is_empty() {
-            return Err("node_id cannot be empty".into());
+impl Default for NodeRequest {
+    fn default() -> Self {
+        Self {
+            version: PROTOCOL_VERSION,
+            node_id: String::new(),
+            hostname: String::new(),
+            cpu_cores: 0,
+            cpu_model: String::new(),
+            capabilities: vec![],
+            cores: 0,
+            l2_cache_kb: None,
+            ops_per_sec: 0.0,
+            public_key: None,
         }
-        if self.cores <= 0 {
-            return Err("cores must be > 0".into());
-        }
-        if self.ops_per_sec < 0.0 {
-            return Err("ops_per_sec cannot be negative".into());
-        }
-        Ok(())
     }
 }
 
-/// Tuning profile for a worker.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct TuningProfile {
-    /// Strategy name.
-    pub strategy: String,
-    /// Batch size for processing.
-    pub batch_size: usize,
-    /// Number of threads to use.
-    pub thread_count: usize,
-}
-
-/// Response to a node heartbeat.
+/// Response from the Hive confirming node registration.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct NodeResponse {
-    /// Status of the node (e.g., "Active").
+    /// Whether the registration was accepted.
+    pub accepted: bool,
+    /// Error message if rejected.
+    pub secret: Option<String>,
+    /// Status message (e.g., "registered", "rejected").
     pub status: String,
-    /// Tuning profile to apply.
-    pub tuning: TuningProfile,
-    /// Optional session token (Task-sec-022).
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Suggested hardware-specific tuning.
+    pub tuning: Option<TuningProfile>,
+    /// Session token for subsequent requests.
     pub token: Option<String>,
 }
 
-#[keyforge_testing_macros::kf_test]
-mod tests {
-    use super::*;
+/// Periodic telemetry sent by worker nodes.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct NodeTelemetry {
+    /// Current Job ID being processed.
+    pub job_id: Option<String>,
+    /// Current operations per second.
+    pub ips: f32,
+    /// Node temperature (0.0 to 1.0 normalized or absolute Celsius).
+    pub temp: f32,
+    /// Best score found in the current batch.
+    pub current_best: Option<f32>,
+    /// Memory usage metric (e.g., "512 MB").
+    pub memory_usage: String,
+    /// Total memory used in bytes.
+    pub memory_bytes: u64,
+    /// Number of active processing threads.
+    pub active_threads: usize,
+    /// Current CPU usage percentage (0.0 to 100.0).
+    pub cpu_usage: f32,
+    /// Timestamp of the telemetry report.
+    pub timestamp: u64,
+}
 
-    #[test]
-    fn test_node_request_validation() {
-        let valid = NodeRequest {
-            version: PROTOCOL_VERSION,
-            node_id: "node-1".into(),
-            cpu_model: "test".into(),
-            cores: 8,
-            l2_cache_kb: None,
-            ops_per_sec: 1000.0,
-            public_key: None,
-        };
-        assert!(valid.validate().is_ok());
-
-        let invalid_id = NodeRequest {
-            node_id: " ".into(),
-            ..valid.clone()
-        };
-        assert!(invalid_id.validate().is_err());
-
-        let invalid_cores = NodeRequest {
-            cores: 0,
-            ..valid.clone()
-        };
-        assert!(invalid_cores.validate().is_err());
-
-        let invalid_ops = NodeRequest {
-            ops_per_sec: -1.0,
-            ..valid.clone()
-        };
-        assert!(invalid_ops.validate().is_err());
-    }
-
-    #[test]
-    fn test_default_version() {
-        assert_eq!(default_version(), PROTOCOL_VERSION);
-    }
+/// Hardware-specific tuning parameters for worker nodes.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct TuningProfile {
+    /// Target physics operations per second.
+    pub target_ips: f32,
+    /// Preferred number of worker threads.
+    pub preferred_threads: usize,
+    /// Execution strategy (e.g., "table", "fly").
+    pub strategy: String,
+    /// Ideal batch size for result submissions.
+    pub batch_size: usize,
+    /// Total threads to spawn.
+    pub thread_count: usize,
 }

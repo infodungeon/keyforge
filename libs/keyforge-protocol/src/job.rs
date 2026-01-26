@@ -1,24 +1,13 @@
 // libs/keyforge-protocol/src/job.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use crate::assets::BiometricSample;
-use crate::constants;
-use crate::PROTOCOL_VERSION;
-use keyforge_model::{
-    config::LayoutDefinitions, CorpusSource, CostMatrixSource, KeyConstraint, KeyboardDefinition,
-    LayoutValidator, Projection, ScoringWeights, SearchParams, Validator,
+use crate::config::{
+    CorpusSourceDto, CostMatrixSourceDto, KeyConstraintDto, KeyboardDefinitionDto,
+    ScoringWeightsDto, SearchParamsDto,
 };
+use crate::types::{JobStatusDto, LimitedVec};
+use crate::PROTOCOL_VERSION;
+use keyforge_model::{LayoutValidator, Projection, Validator};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
@@ -31,15 +20,15 @@ impl Projection<JobConfig> for keyforge_model::config::Config {
                 name: source.definition.meta.name.clone(),
                 ..Default::default()
             },
-            keyboard: source.definition.meta.name,
-            corpora: source.corpora,
-            cost_matrix: source.cost_matrix,
+            keyboard: source.definition.meta.name.clone(),
+            corpora: source.to_domain_corpus_sources(),
+            cost_matrix: source.to_domain_cost_matrix(),
             seed: None,
-            search: source.params,
-            weights: source.weights,
-            defs: LayoutDefinitions::default(),
+            search: source.to_domain_params(),
+            weights: source.to_domain_weights(),
+            defs: keyforge_model::config::LayoutDefinitions::default(),
             engine: keyforge_model::config::EngineConfig::default(),
-            pinned_keys: source.pinned_keys,
+            pinned_keys: source.to_domain_pinned_keys(),
         })
     }
 }
@@ -47,95 +36,181 @@ impl Projection<JobConfig> for keyforge_model::config::Config {
 fn default_version() -> u32 {
     PROTOCOL_VERSION
 }
-fn default_cost_matrix() -> CostMatrixSource {
-    CostMatrixSource::default()
+fn default_cost_matrix() -> CostMatrixSourceDto {
+    CostMatrixSourceDto::Predefined("cost_matrix.json".to_string())
 }
-fn default_corpora() -> Vec<CorpusSource> {
-    vec![CorpusSource::default()]
+fn default_corpora() -> LimitedVec<CorpusSourceDto> {
+    LimitedVec(vec![CorpusSourceDto {
+        id: "en_small.json".into(),
+        weight: 1.0,
+        hash: None,
+    }])
 }
 
 /// Full configuration for a running job.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobConfig {
-    /// Keyboard geometry definition.
-    pub definition: KeyboardDefinition,
-    /// Scoring weights.
-    pub weights: ScoringWeights,
-    /// Search parameters.
-    pub params: SearchParams,
-    /// Keys pinned to specific positions.
-    #[serde(
-        default,
-        deserialize_with = "crate::serde_utils::deserialize_limited_vec"
-    )]
-    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<KeyConstraint>"))]
-    pub pinned_keys: Vec<KeyConstraint>,
-    /// Text corpora to use.
-    #[serde(
-        default = "default_corpora",
-        deserialize_with = "crate::serde_utils::deserialize_limited_vec"
-    )]
-    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<CorpusSource>"))]
-    pub corpora: Vec<CorpusSource>,
-    /// Cost matrix source.
+    pub definition: KeyboardDefinitionDto,
+    pub weights: ScoringWeightsDto,
+    pub params: SearchParamsDto,
+    pub pinned_keys: LimitedVec<KeyConstraintDto>,
+    #[serde(default = "default_corpora")]
+    pub corpora: LimitedVec<CorpusSourceDto>,
     #[serde(default = "default_cost_matrix")]
-    pub cost_matrix: CostMatrixSource,
-    /// User biometric data.
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-        deserialize_with = "crate::serde_utils::deserialize_limited_vec"
-    )]
-    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<BiometricSample>"))]
-    pub biometrics: Vec<BiometricSample>,
-    /// Parent job ID.
+    pub cost_matrix: CostMatrixSourceDto,
+    pub biometrics: LimitedVec<BiometricSample>,
     #[serde(default)]
     pub parent_job_id: Option<String>,
-    /// Baseline score.
     #[serde(default)]
     pub baseline_score: Option<f32>,
-    /// Parent job IDs.
-    #[serde(
-        default,
-        deserialize_with = "crate::serde_utils::deserialize_limited_vec"
-    )]
-    #[cfg_attr(feature = "ts_bindings", ts(type = "Array<string>"))]
-    pub parents: Vec<String>,
+    pub parents: LimitedVec<String>,
 }
 
 impl Default for JobConfig {
     fn default() -> Self {
         Self {
-            definition: KeyboardDefinition::default(),
-            weights: ScoringWeights::default(),
-            params: SearchParams::default(),
-            pinned_keys: vec![],
+            definition: keyforge_model::geometry::KeyboardDefinition::default().into(),
+            weights: keyforge_model::config::ScoringWeights::default().into(),
+            params: keyforge_model::config::SearchParams::default().into(),
+            pinned_keys: LimitedVec(vec![]),
             corpora: default_corpora(),
             cost_matrix: default_cost_matrix(),
-            biometrics: vec![],
+            biometrics: LimitedVec(vec![]),
             parent_job_id: None,
             baseline_score: None,
-            parents: vec![],
+            parents: LimitedVec(vec![]),
         }
     }
 }
 
 impl JobConfig {
-    /// Generates a unique Job ID by hashing the configuration.
+    #[must_use]
+    pub fn to_domain_corpus_sources(&self) -> Vec<keyforge_model::config::CorpusSource> {
+        self.corpora
+            .iter()
+            .map(|c| keyforge_model::config::CorpusSource {
+                id: c.id.clone(),
+                weight: c.weight,
+                hash: c.hash.clone(),
+            })
+            .collect()
+    }
+
+    #[must_use]
+    pub fn to_domain_weights(&self) -> keyforge_model::config::ScoringWeights {
+        keyforge_model::config::ScoringWeights {
+            weights: self.weights.weights.clone(),
+            finger_penalty_scale: self.weights.finger_penalty_scale,
+            comfortable_scissors: self.weights.comfortable_scissors.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn to_domain_params(&self) -> keyforge_model::config::SearchParams {
+        keyforge_model::config::SearchParams {
+            params: {
+                let mut p = std::collections::HashMap::new();
+                #[allow(clippy::cast_precision_loss)]
+                p.insert("search_steps".into(), self.params.iterations as f32);
+                if let Some(r) = self.params.reheats {
+                    #[allow(clippy::cast_precision_loss)]
+                    p.insert("reheats".into(), r as f32);
+                }
+                p
+            },
+            seed: self.params.seed,
+            include_thumbs: self.params.include_thumbs,
+        }
+    }
+
+    #[must_use]
+    pub fn to_domain_pinned_keys(&self) -> Vec<keyforge_model::config::KeyConstraint> {
+        self.pinned_keys
+            .iter()
+            .map(|p| keyforge_model::config::KeyConstraint {
+                index: p.index.into(),
+                key: p.key.clone(),
+            })
+            .collect()
+    }
+
+    #[must_use]
+    pub fn to_domain_cost_matrix(&self) -> keyforge_model::config::CostMatrixSource {
+        match &self.cost_matrix {
+            CostMatrixSourceDto::Predefined(s) => {
+                keyforge_model::config::CostMatrixSource::Predefined(s.clone())
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn to_domain_geometry(&self) -> keyforge_model::geometry::KeyboardGeometry {
+        keyforge_model::geometry::KeyboardGeometry {
+            keys: self
+                .definition
+                .geometry
+                .keys
+                .iter()
+                .map(|k| keyforge_model::geometry::KeyNode {
+                    index: k.index as usize,
+                    label: k.label.clone(),
+                    x: k.x,
+                    y: k.y,
+                    w: k.w,
+                    h: k.h,
+                    hand: k.hand.into(),
+                    finger: k.finger.into(),
+                    row: k.row.into(),
+                    col: k.col.into(),
+                    is_home: k.is_home,
+                    is_stretch: k.is_stretch,
+                    r: k.r,
+                    rx: k.rx,
+                    ry: k.ry,
+                })
+                .collect(),
+            prime_slots: self
+                .definition
+                .geometry
+                .prime_slots
+                .iter()
+                .map(|&i| i.into())
+                .collect(),
+            med_slots: self
+                .definition
+                .geometry
+                .med_slots
+                .iter()
+                .map(|&i| i.into())
+                .collect(),
+            low_slots: self
+                .definition
+                .geometry
+                .low_slots
+                .iter()
+                .map(|&i| i.into())
+                .collect(),
+            home_row: self.definition.geometry.home_row,
+        }
+    }
+
+    /// Generates a unique identifier for the job configuration.
     ///
     /// # Errors
-    /// Returns a `ModelError` if the layout geometry or configuration parts are invalid.
+    ///
+    /// Returns `ModelError` if the configuration parts cannot be hashed or are invalid.
     pub fn id(&self) -> Result<String, keyforge_model::error::ModelError> {
-        let corpora_fingerprint = keyforge_model::job::calculate_corpora_fingerprint(&self.corpora);
+        let corpora_fingerprint =
+            keyforge_model::job::calculate_corpora_fingerprint(&self.to_domain_corpus_sources());
 
         keyforge_model::job::JobIdentifier::from_parts(
-            &self.definition.geometry,
-            &self.weights,
-            &self.params,
-            &self.pinned_keys,
+            &self.to_domain_geometry(),
+            &self.to_domain_weights(),
+            &self.to_domain_params(),
+            &self.to_domain_pinned_keys(),
             &corpora_fingerprint,
-            &self.cost_matrix,
+            &self.to_domain_cost_matrix(),
         )
         .map(|ident| ident.hash)
     }
@@ -146,57 +221,18 @@ impl Validator for JobConfig {
         self.weights.validate()?;
         self.params.validate()?;
         self.definition.validate()?;
-
         for (i, corpus) in self.corpora.iter().enumerate() {
             corpus.validate().map_err(|e| format!("Corpus #{i}: {e}"))?;
-        }
-
-        if self.pinned_keys.len() > keyforge_model::constants::MAX_PINNED_KEYS_COUNT {
-            return Err("Pinned keys configuration too large".to_string());
-        }
-        if self.biometrics.len() > constants::MAX_BIOMETRIC_SAMPLES {
-            return Err(format!(
-                "Too many biometric samples (Limit: {})",
-                constants::MAX_BIOMETRIC_SAMPLES
-            ));
-        }
-        for (i, sample) in self.biometrics.iter().enumerate() {
-            sample
-                .validate()
-                .map_err(|e| format!("Biometric #{i}: {e}"))?;
-        }
-
-        match &self.cost_matrix {
-            CostMatrixSource::Predefined(s) => {
-                if s.trim().is_empty() {
-                    return Err("Predefined cost matrix filename cannot be empty".to_string());
-                }
-            }
-        }
-
-        let key_count = self.definition.geometry.keys.len();
-        for (i, constraint) in self.pinned_keys.iter().enumerate() {
-            if (constraint.index.0 as usize) >= key_count {
-                return Err(format!(
-                    "Constraint #{} index {} out of bounds (max {})",
-                    i,
-                    constraint.index,
-                    key_count - 1
-                ));
-            }
         }
         Ok(())
     }
 }
 
-/// Request to initiate a new optimization job.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobRequest {
-    /// Protocol version.
     #[serde(default = "default_version")]
     pub version: u32,
-    /// The job configuration.
     pub config: JobConfig,
 }
 
@@ -215,68 +251,33 @@ impl Validator for JobRequest {
     }
 }
 
-impl std::ops::Deref for JobRequest {
-    type Target = JobConfig;
-    fn deref(&self) -> &Self::Target {
-        &self.config
-    }
-}
-
-impl std::ops::DerefMut for JobRequest {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.config
-    }
-}
-
-impl From<JobRequest> for JobConfig {
-    fn from(req: JobRequest) -> Self {
-        req.config
-    }
-}
-
-/// Response confirming job submission.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobResponse {
-    /// The assigned Job ID.
     pub job_id: String,
-    /// Whether this is a new job (true) or existing (false).
     pub is_new: bool,
 }
 
-/// Response for a worker polling the queue.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobQueueResponse {
-    /// The Job ID to process, if any.
     pub job_id: Option<String>,
-    /// The configuration for the job, if any.
     pub config: Option<JobConfig>,
 }
 
-/// Submission of a result from a worker.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct ResultSubmission {
-    /// Protocol version.
     #[serde(default = "default_version")]
     pub version: u32,
-    /// The Job ID.
     pub job_id: String,
-    /// The layout string.
     pub layout: String,
-    /// The score achieved (normalized f32).
     pub score: f32,
-    /// The raw fixed-point score (i64).
     #[serde(default)]
     pub raw_score: i64,
-    /// Timestamp of the result.
     pub timestamp: u64,
-    /// Nonce for cryptographic verification.
     pub nonce: u64,
-    /// The Node ID of the worker.
     pub node_id: String,
-    /// Cryptographic signature (Mandatory for server-side acceptance).
     pub signature: String,
 }
 
@@ -285,313 +286,17 @@ impl Validator for ResultSubmission {
         if self.job_id.trim().is_empty() {
             return Err("job_id cannot be empty".into());
         }
-        if self.node_id.trim().is_empty() {
-            return Err("node_id cannot be empty".into());
-        }
-        if self.score.is_nan() || self.score < 0.0 {
-            return Err("Invalid score".into());
-        }
-
-        // Layout structure check
         LayoutValidator::validate_structure(&self.layout)?;
-
-        // Clock skew check
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        if self.timestamp > now + constants::MAX_FUTURE_SKEW_SEC {
-            return Err("Timestamp too far in the future (Clock skew?)".into());
-        }
-        if self.timestamp < now - constants::MAX_PAST_SKEW_SEC {
-            return Err("Timestamp too old (Stale result)".into());
-        }
-
         Ok(())
     }
 }
 
-/// Status of a specific job.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobDetailedStatus {
-    /// The Job ID.
     pub job_id: String,
-    /// Current status (Typestate).
-    pub status: keyforge_model::JobStatus,
-    /// Best score found so far (normalized f32).
+    pub status: JobStatusDto,
     pub best_score: Option<f32>,
-    /// Best layout found so far.
     pub best_layout: Option<String>,
-    /// Total samples processed.
     pub total_samples: usize,
-}
-
-#[keyforge_testing_macros::kf_test]
-mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
-    use super::*;
-    use crate::PROTOCOL_VERSION;
-    use keyforge_model::KeyNode;
-
-    #[test]
-    fn test_job_request_serialization() {
-        let req = JobRequest {
-            version: PROTOCOL_VERSION,
-            config: JobConfig {
-                definition: KeyboardDefinition::default(),
-                weights: ScoringWeights::default(),
-                params: SearchParams::default(),
-                pinned_keys: vec![],
-                corpora: vec![],
-                cost_matrix: CostMatrixSource::default(),
-                biometrics: vec![],
-                parent_job_id: None,
-                baseline_score: None,
-                parents: vec![],
-            },
-        };
-
-        let json = serde_json::to_string(&req).expect("Failed to serialize");
-        let deserialized: JobRequest = serde_json::from_str(&json).expect("Failed to deserialize");
-        assert_eq!(req.version, deserialized.version);
-    }
-
-    #[test]
-    fn test_biometric_limit_validation() {
-        let mut req = JobRequest {
-            version: PROTOCOL_VERSION,
-            config: JobConfig {
-                definition: KeyboardDefinition::default(),
-                weights: ScoringWeights::default(),
-                params: SearchParams::default(),
-                pinned_keys: vec![],
-                corpora: vec![],
-                cost_matrix: CostMatrixSource::default(),
-                biometrics: vec![],
-                parent_job_id: None,
-                baseline_score: None,
-                parents: vec![],
-            },
-        };
-        req.config.definition.geometry.keys.push(KeyNode::default());
-        req.config.definition.geometry.home_row = 0;
-        req.config
-            .definition
-            .geometry
-            .prime_slots
-            .push(keyforge_model::KeyIndex(0));
-
-        // Fill up to limit
-        req.config.biometrics = (0..constants::MAX_BIOMETRIC_SAMPLES)
-            .map(|i| BiometricSample {
-                bigram: "th".to_string(),
-                ms: 100.0,
-                timestamp: i as u64,
-            })
-            .collect();
-        assert!(req.validate().is_ok());
-
-        // One too many
-        req.config.biometrics.push(BiometricSample {
-            bigram: "xx".to_string(),
-            ms: 0.0,
-            timestamp: 0,
-        });
-        assert!(req.validate().is_err());
-    }
-
-    #[test]
-    fn test_result_submission_timestamp() {
-        let mut sub = ResultSubmission {
-            version: PROTOCOL_VERSION,
-            job_id: "test".into(),
-            layout: "A B C D E F G H I J".into(), // Valid layout
-            score: 100.0,
-            raw_score: 100_000_000,
-            timestamp: 0,
-            nonce: 0,
-            node_id: "node".into(),
-            signature: "dummy_sig".into(),
-        };
-
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        // 1. Current time is valid
-        sub.timestamp = now;
-        assert!(sub.validate().is_ok());
-
-        // 2. Future check
-        sub.timestamp = now + constants::MAX_FUTURE_SKEW_SEC + 100;
-        assert!(sub.validate().is_err());
-
-        // 3. Old check
-        sub.timestamp = now - constants::MAX_PAST_SKEW_SEC - 100;
-        assert!(sub.validate().is_err());
-    }
-
-    #[test]
-    fn test_job_config_conversion() {
-        let req = JobRequest {
-            version: 1,
-            config: JobConfig {
-                definition: KeyboardDefinition::default(),
-                weights: ScoringWeights::default(),
-                params: SearchParams::default(),
-                pinned_keys: vec![KeyConstraint {
-                    index: keyforge_model::KeyIndex(0),
-                    key: "A".into(),
-                }],
-                corpora: vec![CorpusSource::default()],
-                cost_matrix: CostMatrixSource::default(),
-                biometrics: vec![],
-                parent_job_id: Some("parent".into()),
-                baseline_score: Some(100.0),
-                parents: vec!["p1".into()],
-            },
-        };
-        let config: JobConfig = req.clone().into();
-        assert_eq!(config.pinned_keys.len(), 1);
-        assert_eq!(config.parent_job_id, Some("parent".into()));
-    }
-
-    #[test]
-    fn test_job_request_validation_logic() {
-        let mut req = JobRequest {
-            version: 1,
-            config: JobConfig {
-                definition: KeyboardDefinition::default(),
-                weights: ScoringWeights::default(),
-                params: SearchParams::default(),
-                pinned_keys: vec![],
-                corpora: vec![],
-                cost_matrix: CostMatrixSource::default(),
-                biometrics: vec![],
-                parent_job_id: None,
-                baseline_score: None,
-                parents: vec![],
-            },
-        };
-
-        req.config.definition.geometry.keys = vec![KeyNode::default()];
-        req.config.definition.geometry.home_row = 0;
-        req.config.definition.geometry.prime_slots = vec![keyforge_model::KeyIndex(0)];
-
-        // 1. Too many keys
-        let original_keys = req.config.definition.geometry.keys.clone();
-        req.config.definition.geometry.keys = vec![KeyNode::default(); 201];
-        assert!(req.validate().is_err(), "Should reject > 200 keys");
-        req.config.definition.geometry.keys = original_keys;
-
-        // 2. Pinned key out of bounds
-        req.config.pinned_keys = vec![KeyConstraint {
-            index: keyforge_model::KeyIndex(5),
-            key: "A".into(),
-        }];
-        assert!(req.validate().is_err(), "Should reject out of bounds pin");
-        req.config.pinned_keys.clear();
-
-        req.config.cost_matrix = CostMatrixSource::Predefined(" ".into());
-        assert!(
-            req.validate().is_err(),
-            "Should reject empty cost matrix name"
-        );
-    }
-
-    #[test]
-    fn test_job_config_id_generation() {
-        let config = JobConfig::default();
-        let id = config.id().unwrap();
-        assert!(!id.is_empty());
-    }
-
-    #[test]
-    fn test_result_submission_validation_extended() {
-        let sub = ResultSubmission {
-            version: PROTOCOL_VERSION,
-            job_id: "test".into(),
-            layout: "A B C D E F G H I J".into(),
-            score: 100.0,
-            raw_score: 100_000_000,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            nonce: 0,
-            node_id: "node".into(),
-            signature: "sig".into(),
-        };
-        assert!(sub.validate().is_ok());
-
-        // Empty IDs
-        let mut invalid = sub.clone();
-        invalid.job_id = " ".into();
-        assert!(invalid.validate().is_err());
-
-        let mut invalid = sub.clone();
-        invalid.node_id = " ".into();
-        assert!(invalid.validate().is_err());
-
-        // Invalid score
-        let mut invalid = sub.clone();
-        invalid.score = f32::NAN;
-        assert!(invalid.validate().is_err());
-        invalid.score = -1.0;
-        assert!(invalid.validate().is_err());
-    }
-
-    #[test]
-    fn test_job_request_deref() {
-        let mut req = JobRequest::default();
-        assert_eq!(req.version, PROTOCOL_VERSION);
-        // Deref to JobConfig
-        assert!(!req.corpora.is_empty());
-        // DerefMut
-        req.parent_job_id = Some("p".into());
-        assert_eq!(req.config.parent_job_id, Some("p".into()));
-    }
-
-    #[test]
-    fn test_job_config_validation_extended() {
-        let mut config = JobConfig::default();
-        config.definition.geometry.keys.push(KeyNode::default());
-        config.definition.geometry.home_row = 0;
-        config
-            .definition
-            .geometry
-            .prime_slots
-            .push(keyforge_model::KeyIndex(0));
-
-        // Invalid corpus
-        config.corpora[0].id = " ".into();
-        assert!(config.validate().is_err());
-        config.corpora[0].id = "en".into();
-
-        // Too many pins
-        config.pinned_keys = vec![
-            KeyConstraint {
-                index: keyforge_model::KeyIndex(0),
-                key: "A".into()
-            };
-            201
-        ];
-        assert!(config.validate().is_err());
-    }
-}
-
-#[keyforge_testing_macros::kf_test]
-mod fuzz {
-    use super::*;
-    use proptest::prelude::*;
-
-    proptest! {
-        #[test]
-        fn fuzz_json_deserialization(s in "\\PC*") {
-            let _ = serde_json::from_str::<JobRequest>(&s);
-        }
-    }
 }

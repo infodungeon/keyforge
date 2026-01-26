@@ -30,4 +30,4 @@ proptest.workspace = true
 
 [features]
 default = []
-ts_bindings = ["dep:ts-rs", "keyforge-model/ts_bindings"]
+ts_bindings = ["dep:ts-rs"]

@@ -16,13 +16,10 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Unique identifier for a biomechanical metric (e.g. "sfb", "`travel_dist`").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum MetricId {
     /// Total finger travel distance.
@@ -61,7 +58,7 @@ pub enum MetricId {
 
 /// A collection of metric values.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct MetricSet {
     /// Map of metric ID to its calculated value.
     pub values: HashMap<MetricId, f32>,

@@ -16,7 +16,6 @@ use crate::error::AppResult;
 use crate::services::node_service::NodeService;
 use crate::state::AppState;
 use axum::{extract::State, Json};
-use keyforge_model::Validator;
 use keyforge_protocol::{NodeRequest, NodeResponse};
 use std::sync::Arc;
 use tracing::info;
@@ -38,10 +37,6 @@ pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<NodeRequest>,
 ) -> AppResult<Json<NodeResponse>> {
-    payload
-        .validate()
-        .map_err(crate::error::AppError::Validation)?;
-
     let node_id = payload.node_id.clone();
     let cpu_model = payload.cpu_model.clone();
     let ops = payload.ops_per_sec;

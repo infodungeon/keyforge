@@ -5,7 +5,9 @@ use crate::build_job_config;
 use crate::constants::DEFAULT_BENCHMARK_ITERATIONS;
 use crate::error::CliError;
 use clap::Args;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_infra::FsProvider;
+use keyforge_model::KeyboardDefinition;
 
 #[derive(Args, Debug, Clone)]
 pub struct BenchmarkArgs {
@@ -29,17 +31,22 @@ pub async fn run(args: &BenchmarkArgs, loader: &FsProvider) -> Result<(), CliErr
         .unwrap_or(keyforge_model::constants::ASSET_KEYCODES_FILENAME);
 
     let builder = keyforge_compute::SessionBuilder::new(loader)
-        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
-        .with_corpus(&job.corpora)
+        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
+            job.to_domain_geometry(),
+            "benchmark",
+        )))
+        .with_corpus(&job.to_domain_corpus_sources())
         .await
         .map_err(|e| CliError::Other(format!("Corpus load failed: {e}")))?
-        .with_cost_matrix(&job.cost_matrix)
+        .with_cost_matrix(&job.to_domain_cost_matrix())
         .await
         .map_err(|e| CliError::Other(format!("Cost matrix load failed: {e}")))?
         .with_keycodes(keycodes_file)
         .await
         .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
-        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights));
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job.to_domain_weights(),
+        ));
 
     let session = builder
         .build()

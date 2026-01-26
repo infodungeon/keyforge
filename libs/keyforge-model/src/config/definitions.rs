@@ -3,8 +3,6 @@
 // use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 // --- Default Values (Strings) ---
@@ -24,7 +22,6 @@ pub const DEFAULT_FINGER_REPEAT_SCALE_ARRAY: [f32; 5] = [1.0, 1.0, 1.0, 1.2, 1.5
 /// Definitions for character tiers and critical bigrams.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct LayoutDefinitions {
     /// Characters considered high priority (Home row candidates).
     pub tier_high_chars: String,

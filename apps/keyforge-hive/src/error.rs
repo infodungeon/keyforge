@@ -18,7 +18,7 @@ use axum::{
     Json,
 };
 use keyforge_model::error::ForgeError;
-use keyforge_protocol::{ErrorCode, ErrorResponse};
+use keyforge_protocol::{ErrorCode, ForgeErrorDto};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -111,7 +111,7 @@ impl IntoResponse for AppError {
             }
         };
 
-        let body = ErrorResponse::new(code, msg);
+        let body = ForgeErrorDto::new(code, msg);
         (status, Json(body)).into_response()
     }
 }

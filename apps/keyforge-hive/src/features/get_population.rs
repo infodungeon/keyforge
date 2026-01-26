@@ -47,5 +47,7 @@ pub(crate) async fn handle(
         .await
         .map_err(crate::error::AppError::Database)?;
 
-    Ok(Json(PopulationResponse { layouts }))
+    Ok(Json(PopulationResponse {
+        layouts: layouts.into(),
+    }))
 }

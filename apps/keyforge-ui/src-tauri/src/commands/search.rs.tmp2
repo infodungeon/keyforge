@@ -1,0 +1,55 @@
+// apps/keyforge-ui/src-tauri/src/commands/search.rs (Partial snippet for context)
+use crate::error::CommandError;
+use crate::models::{JobStatusUpdate, JobStatusDto};
+use crate::state::AppState;
+use axum::extract::State as AxumState; // Not used here, using tauri::State
+use std::sync::Arc;
+use tauri::State;
+
+#[tauri::command]
+pub async fn get_job_status(
+    id: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<JobStatusUpdate, CommandError> {
+    let client = state.hive.get_client()?;
+    let status = client.get_job_status(&id).await
+        .map_err(|e| CommandError::Network(e.to_string()))?;
+    
+    Ok(JobStatusUpdate {
+        active_nodes: match &status {
+            JobStatusDto::Running { active_nodes, .. } => *active_nodes,
+            _ => 0,
+        },
+        best_score: match &status {
+            JobStatusDto::Running { current_best, .. } => {
+                current_best.as_ref().map_or(0.0, |s| {
+                    #[allow(clippy::cast_precision_loss)]
+                    let val = s.0 as f32;
+                    val / 1_000_000.0
+                })
+            }
+            JobStatusDto::Completed { final_score, .. } => {
+                #[allow(clippy::cast_precision_loss)]
+                let val = final_score.0 as f32;
+                val / 1_000_000.0
+            }
+            JobStatusDto::Pending => 0.0,
+        },
+        best_layout: match &status {
+            JobStatusDto::Completed { final_layout, .. } => {
+                use std::fmt::Write;
+                let mut s = String::new();
+                for code in &final_layout.keys {
+                    let _ = write!(s, "{} ", code.0);
+                }
+                s.trim().to_string()
+            }
+            _ => String::new(),
+        },
+        status: match status {
+            JobStatusDto::Pending => "pending".to_string(),
+            JobStatusDto::Running { .. } => "running".to_string(),
+            JobStatusDto::Completed { .. } => "completed".to_string(),
+        },
+    })
+}

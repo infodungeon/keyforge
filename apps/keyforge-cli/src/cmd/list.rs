@@ -1,153 +1,73 @@
-#![allow(clippy::print_stdout, clippy::print_stderr)]
 // apps/keyforge-cli/src/cmd/list.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use crate::constants::DEFAULT_LIST_LIMIT;
-use clap::{Args, Subcommand};
-use comfy_table::presets::ASCII_FULL;
+use clap::Args;
 use comfy_table::Table;
-use keyforge_compute::AssetLoader;
-use keyforge_infra::fs::listing::{
-    list_corpora as ws_list_corpora, list_keyboards as ws_list_keyboards,
-};
-use keyforge_infra::FsProvider;
-use keyforge_model::KeyboardDefinition;
-use std::fs;
+use keyforge_adapter::loader::AssetLoader;
+use keyforge_model::geometry::KeyboardDefinition;
 
 #[derive(Args, Debug, Clone)]
 pub struct ListArgs {
-    #[command(subcommand)]
-    pub command: ListCommands,
+    /// Filter by type (e.g., "keyboard", "corpus").
+    #[arg(short, long)]
+    pub kind: Option<String>,
 }
 
-#[derive(Subcommand, Debug, Clone)]
-pub enum ListCommands {
-    Keyboards {
-        #[arg(long, default_value_t = DEFAULT_LIST_LIMIT)]
-        limit: usize,
-    },
-    Corpora {
-        #[arg(long, default_value_t = DEFAULT_LIST_LIMIT)]
-        limit: usize,
-    },
-    Layouts {
-        #[arg(help = "Name of the keyboard file")]
-        keyboard: String,
-    },
-}
+pub async fn run<L: AssetLoader + ?Sized>(
+    args: ListArgs,
+    loader: &L,
+) -> crate::error::CliResult<()> {
+    let kind = args.kind.unwrap_or_else(|| "keyboard".to_string());
 
-pub async fn run(args: ListArgs, loader: &FsProvider) -> Result<(), Box<dyn std::error::Error>> {
-    match args.command {
-        ListCommands::Keyboards { limit } => list_keyboards(loader, limit).await,
-        ListCommands::Corpora { limit } => list_corpora(loader, limit),
-        ListCommands::Layouts { keyboard } => list_layouts(loader, &keyboard).await,
+    match kind.as_str() {
+        "keyboard" | "keyboards" => list_keyboards(loader).await?,
+        "corpus" | "corpora" => list_corpora(loader).await?,
+        _ => println!("Unknown asset kind: {kind}"),
     }
+
+    Ok(())
 }
 
-fn apply_style(table: &mut Table) {
-    table.load_preset(ASCII_FULL);
-}
-
-async fn list_keyboards(
-    loader: &FsProvider,
-    limit: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn list_keyboards<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::CliResult<()> {
+    let keyboards = keyforge_infra::fs::listing::list_keyboards(loader.root())?;
     let mut table = Table::new();
-    apply_style(&mut table);
-    table.set_header(vec!["File", "Name", "Type", "Author"]);
+    table.set_header(vec!["ID", "Name", "Type", "Author"]);
 
-    let names =
-        ws_list_keyboards(loader.root()).map_err(|e| format!("Failed to list keyboards: {e}"))?;
-    let count = names.len();
-    for name in names.into_iter().take(limit) {
+    for path in keyboards {
+        let name = path.file_stem().unwrap_or_default().to_string_lossy();
         if let Ok(def) = loader.load::<KeyboardDefinition>(&name).await {
             table.add_row(vec![
-                name,
+                name.to_string(),
                 def.meta.name.clone(),
                 def.meta.kb_type.clone(),
                 def.meta.author.clone(),
             ]);
         }
     }
+
     println!("{table}");
-    if count > limit {
-        println!("... and {} more. Use --limit to see more.", count - limit);
-    }
     Ok(())
 }
 
-fn list_corpora(loader: &FsProvider, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
+async fn list_corpora<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::CliResult<()> {
+    let corpora = keyforge_infra::fs::listing::list_corpora(loader.root())?;
     let mut table = Table::new();
-    apply_style(&mut table);
-    table.set_header(vec!["Category", "ID", "Size (1-grams)"]);
+    table.set_header(vec!["Filename", "Type", "Size"]);
 
-    let ids = ws_list_corpora(loader.root()).map_err(|e| format!("Failed to list corpora: {e}"))?;
-    let count = ids.len();
-    for id in ids.into_iter().take(limit) {
-        let parts: Vec<&str> = id.split('/').collect();
-        let (cat, name) = if parts.len() == 2 {
-            (parts[0], parts[1])
+    for path in corpora {
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        let meta = std::fs::metadata(&path)?;
+        let kind = if name.ends_with(".json") {
+            "JSON"
         } else {
-            ("root", parts[0])
+            "Text"
         };
-
-        let system_path = loader.root().join("system/corpora").join(&id);
-        let user_path = loader.root().join("user/corpora").join(&id);
-
-        let path = if user_path.exists() {
-            user_path
-        } else {
-            system_path
-        };
-        let is_system = path.starts_with(loader.root().join("system"));
-        let ext = if is_system { "mpk.zst" } else { "json" };
-
-        let size = fs::metadata(path.join(format!("1grams.{ext}")))
-            .map(|m| m.len())
-            .unwrap_or(0);
-
-        #[allow(clippy::cast_precision_loss)]
         table.add_row(vec![
-            cat.to_string(),
             name.to_string(),
-            format!("{:.2} MB", size as f64 / 1024.0 / 1024.0),
+            kind.to_string(),
+            format!("{} bytes", meta.len()),
         ]);
     }
-    println!("{table}");
-    if count > limit {
-        println!("... and {} more. Use --limit to see more.", count - limit);
-    }
-    Ok(())
-}
 
-async fn list_layouts(
-    loader: &FsProvider,
-    kb_name: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let def = loader
-        .load::<KeyboardDefinition>(kb_name)
-        .await
-        .map_err(|e| format!("Failed to load keyboard '{kb_name}': {e}"))?;
-
-    println!("Layouts for {}:", def.meta.name);
-    let mut table = Table::new();
-    apply_style(&mut table);
-    table.set_header(vec!["Layout Name", "Length"]);
-
-    for (name, layout) in &def.layouts {
-        table.add_row(vec![name.clone(), layout.len().to_string()]);
-    }
     println!("{table}");
     Ok(())
 }

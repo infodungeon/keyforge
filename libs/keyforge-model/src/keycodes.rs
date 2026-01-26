@@ -20,8 +20,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 
 use crate::asset::{Asset, AssetCategory};
 use crate::error::ForgeError;
@@ -32,7 +30,6 @@ use crate::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
 
 /// Definition of a logical key code (e.g., "`KC_A`").
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeycodeDefinition {
     /// The numeric code.
     pub code: KeyCode,
@@ -69,7 +66,6 @@ impl Validator for KeycodeDefinition {
 /// Registry for looking up key codes by name or ID.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(from = "Vec<KeycodeDefinition>", into = "Vec<KeycodeDefinition>")]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeycodeRegistry {
     /// List of all definitions.
     pub definitions: Vec<KeycodeDefinition>,
@@ -428,7 +424,7 @@ mod tests {
         assert_eq!(qmk_to_ascii(48), Some(93)); // ]
         assert_eq!(qmk_to_ascii(49), Some(92)); // \
         assert_eq!(qmk_to_ascii(51), Some(59)); // ;
-        assert_eq!(qmk_to_ascii(52), Some(39)); // '
+        assert_eq!(qmk_to_ascii(52), Some(39)); // '\'
         assert_eq!(qmk_to_ascii(53), Some(96)); // `
         assert_eq!(qmk_to_ascii(54), Some(44)); // ,
         assert_eq!(qmk_to_ascii(55), Some(46)); // .

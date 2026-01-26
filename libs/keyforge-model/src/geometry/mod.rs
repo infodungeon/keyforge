@@ -24,8 +24,6 @@ use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Keyboard Layout Editor (KLE) integration.
@@ -33,7 +31,7 @@ pub mod kle;
 
 /// Metadata describing a keyboard definition.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct KeyboardMeta {
     /// Display name of the keyboard.
     pub name: String,
@@ -54,7 +52,6 @@ pub struct KeyboardMeta {
 /// Complete definition of a keyboard, including metadata and geometry.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
 #[serde(deny_unknown_fields)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyboardDefinition {
     /// Metadata about the keyboard.
     #[serde(default)]
@@ -89,7 +86,7 @@ impl Validator for KeyboardDefinition {
 
 /// Represents a single physical key on the keyboard.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct KeyNode {
     /// Zero-based index of the key in the layout.
     pub index: usize,
@@ -161,7 +158,7 @@ fn default_size() -> f32 {
 /// NOTE: Uses `Vec<T>` for serialization compatibility with `utoipa` and `ts-rs`.
 /// The `Keyboard` runtime structure uses `Arc<[T]>` for performance.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct KeyboardGeometry {
     /// List of physical keys.
     pub keys: Vec<KeyNode>,
