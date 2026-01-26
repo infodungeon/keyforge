@@ -16,8 +16,8 @@ pub(crate) fn calculate_bigram_delta(
     let mut delta = 0i64;
     let ca_val = code_a.0 as usize;
     let cb_val = code_b.0 as usize;
-    let candidates_a = pos_map.get(ca_val);
-    let candidates_b = pos_map.get(cb_val);
+    let candidates_a = pos_map.get(code_a);
+    let candidates_b = pos_map.get(code_b);
 
     // Bigrams(a, x)
     if ca_val + 1 < ctx.corpus.bigram_starts.len() {
@@ -25,15 +25,8 @@ pub(crate) fn calculate_bigram_delta(
         let end = ctx.corpus.bigram_starts[ca_val + 1];
         for k in start..end {
             let c2 = ctx.corpus.bigram_others[k];
-            delta += get_pair_delta(
-                ctx,
-                code_a,
-                c2,
-                candidates_a,
-                pos_map.get(c2.0 as usize),
-                idx_a,
-                idx_b,
-            ) * i64::from(ctx.corpus.bigram_freqs[k]);
+            delta += get_pair_delta(ctx, code_a, c2, candidates_a, pos_map.get(c2), idx_a, idx_b)
+                * i64::from(ctx.corpus.bigram_freqs[k]);
         }
     }
 
@@ -43,15 +36,8 @@ pub(crate) fn calculate_bigram_delta(
         let end = ctx.corpus.bigram_starts[cb_val + 1];
         for k in start..end {
             let c2 = ctx.corpus.bigram_others[k];
-            delta += get_pair_delta(
-                ctx,
-                code_b,
-                c2,
-                candidates_b,
-                pos_map.get(c2.0 as usize),
-                idx_a,
-                idx_b,
-            ) * i64::from(ctx.corpus.bigram_freqs[k]);
+            delta += get_pair_delta(ctx, code_b, c2, candidates_b, pos_map.get(c2), idx_a, idx_b)
+                * i64::from(ctx.corpus.bigram_freqs[k]);
         }
     }
 
@@ -64,15 +50,9 @@ pub(crate) fn calculate_bigram_delta(
             if c1 == code_a || c1 == code_b {
                 continue;
             }
-            delta += get_pair_delta(
-                ctx,
-                c1,
-                code_a,
-                pos_map.get(c1.0 as usize),
-                candidates_a,
-                idx_a,
-                idx_b,
-            ) * i64::from(ctx.corpus.bigram_rev_freqs[k]);
+            delta +=
+                get_pair_delta(ctx, c1, code_a, pos_map.get(c1), candidates_a, idx_a, idx_b)
+                    * i64::from(ctx.corpus.bigram_rev_freqs[k]);
         }
     }
 
@@ -85,15 +65,9 @@ pub(crate) fn calculate_bigram_delta(
             if c1 == code_a || c1 == code_b {
                 continue;
             }
-            delta += get_pair_delta(
-                ctx,
-                c1,
-                code_b,
-                pos_map.get(c1.0 as usize),
-                candidates_b,
-                idx_a,
-                idx_b,
-            ) * i64::from(ctx.corpus.bigram_rev_freqs[k]);
+            delta +=
+                get_pair_delta(ctx, c1, code_b, pos_map.get(c1), candidates_b, idx_a, idx_b)
+                    * i64::from(ctx.corpus.bigram_rev_freqs[k]);
         }
     }
 

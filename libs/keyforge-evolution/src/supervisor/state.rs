@@ -14,6 +14,7 @@
 
 use super::traits::MutationAction;
 use crate::errors::EvolutionError;
+use keyforge_model::types::{ScalingFactor, Temperature};
 use keyforge_model::Layout;
 
 #[derive(Debug, Clone)]
@@ -25,7 +26,7 @@ pub struct SearchState {
     best_layout: Layout,
     pub best_score: i64,
 
-    pub temperature: f32,
+    pub temperature: Temperature,
 }
 
 impl SearchState {
@@ -34,7 +35,11 @@ impl SearchState {
     /// # Errors
     /// Returns `EvolutionError::Config` if the layout key count exceeds the internal u16 limit.
     #[allow(clippy::cast_possible_truncation)]
-    pub fn new(layout: Layout, score: i64, start_temp: f32) -> Result<Self, EvolutionError> {
+    pub fn new(
+        layout: Layout,
+        score: i64,
+        start_temp: Temperature,
+    ) -> Result<Self, EvolutionError> {
         // INVARIANT: Key count must fit in u16 to use 65535 as sentinel
         if layout.keys.len() >= 65535 {
             return Err(EvolutionError::Config("Key count exceeds u16 limit".into()));
@@ -139,19 +144,10 @@ impl SearchState {
         }
     }
 
-    #[allow(clippy::cast_possible_truncation)]
-    pub fn reheat_from_best(&mut self, start_temp: f32, reheat_factor: f32) {
-        self.temperature = start_temp * reheat_factor;
+    pub fn reheat_from_best(&mut self, start_temp: Temperature, reheat_factor: ScalingFactor) {
+        self.temperature = Temperature(start_temp.0 * reheat_factor.0);
         self.current_layout = self.best_layout.clone();
         self.current_score = self.best_score;
-
-        // Rebuild pos_map for best layout
-        self.pos_map.fill(65535);
-        for (i, &code) in self.current_layout.keys.iter().enumerate() {
-            if (code.0 as usize) < self.pos_map.len() {
-                self.pos_map[code.0 as usize] = i as u16;
-            }
-        }
     }
 }
 
@@ -163,7 +159,7 @@ mod tests {
     #[test]
     fn test_search_state_mutation_swap() {
         let layout = Layout::new_unchecked(vec![KeyCode(10), KeyCode(20)]);
-        let mut state = SearchState::new(layout, 100, 1.0).unwrap();
+        let mut state = SearchState::new(layout, 100, Temperature(1.0)).unwrap();
 
         state.apply_mutation(MutationAction::Swap(KeyIndex(0), KeyIndex(1)));
 
@@ -176,20 +172,20 @@ mod tests {
     #[test]
     fn test_reheat_logic() {
         let layout = Layout::new_unchecked(vec![KeyCode(10)]);
-        let mut state = SearchState::new(layout, 100, 0.1).unwrap();
+        let mut state = SearchState::new(layout, 100, Temperature(0.1)).unwrap();
         state.best_score = 50; // Manual override for test
 
-        state.reheat_from_best(1.0, 0.5);
+        state.reheat_from_best(Temperature(1.0), ScalingFactor(0.5));
 
-        assert_eq!(state.temperature, 0.5);
+        assert_eq!(state.temperature, Temperature(0.5));
         assert_eq!(state.current_score, 50);
     }
 
     #[test]
     fn test_state_reheat_zero_temp() {
         let layout = Layout::new_unchecked(vec![KeyCode(10)]);
-        let mut state = SearchState::new(layout, 100, 0.1).unwrap();
-        state.reheat_from_best(0.0, 0.5);
-        assert_eq!(state.temperature, 0.0);
+        let mut state = SearchState::new(layout, 100, Temperature(0.1)).unwrap();
+        state.reheat_from_best(Temperature(0.0), ScalingFactor(0.5));
+        assert_eq!(state.temperature, Temperature(0.0));
     }
 }

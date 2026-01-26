@@ -59,12 +59,11 @@ pub fn score_layout(
 pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
     for &code in ctx.pos_map.used_keys() {
-        let c_val = code as usize;
-        let freq = ctx.engine.corpus.char_freqs[c_val];
+        let freq = ctx.engine.corpus.char_freqs[code as usize];
         if freq == 0 {
             continue;
         }
-        let candidates = ctx.pos_map.get(c_val);
+        let candidates = ctx.pos_map.get(keyforge_model::KeyCode(code));
         if candidates.is_empty() {
             continue;
         }
@@ -105,13 +104,13 @@ pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError>
     let mut total = Score::ZERO;
     for &code1 in ctx.pos_map.used_keys() {
         let c1_val = code1 as usize;
-        let candidates1 = ctx.pos_map.get(c1_val);
+        let candidates1 = ctx.pos_map.get(keyforge_model::KeyCode(code1));
         let start = ctx.engine.corpus.bigram_starts[c1_val];
         let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
 
         for k in start..end {
             let c2 = ctx.engine.corpus.bigram_others[k];
-            let candidates2 = ctx.pos_map.get(c2.0 as usize);
+            let candidates2 = ctx.pos_map.get(c2);
             if candidates2.is_empty() {
                 continue;
             }
@@ -165,15 +164,15 @@ pub fn score_trigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError
     let mut total = Score::ZERO;
     for &code1 in ctx.pos_map.used_keys() {
         let c1_val = code1 as usize;
-        let candidates1 = ctx.pos_map.get(c1_val);
+        let candidates1 = ctx.pos_map.get(keyforge_model::KeyCode(code1));
         let start = ctx.engine.corpus.trigram_starts[c1_val];
         let end = ctx.engine.corpus.trigram_starts[c1_val + 1];
 
         for k in start..end {
             let c2 = ctx.engine.corpus.trigram_others1[k];
             let c3 = ctx.engine.corpus.trigram_others2[k];
-            let candidates2 = ctx.pos_map.get(c2.0 as usize);
-            let candidates3 = ctx.pos_map.get(c3.0 as usize);
+            let candidates2 = ctx.pos_map.get(c2);
+            let candidates3 = ctx.pos_map.get(c3);
 
             if candidates2.is_empty() || candidates3.is_empty() {
                 continue;

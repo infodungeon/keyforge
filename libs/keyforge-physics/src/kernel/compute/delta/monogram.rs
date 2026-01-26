@@ -27,8 +27,8 @@ pub(crate) fn calculate_monogram_delta(
         .copied()
         .unwrap_or(0) as i64;
 
-    let candidates_a = pos_map.get(code_a.0 as usize);
-    let candidates_b = pos_map.get(code_b.0 as usize);
+    let candidates_a = pos_map.get(code_a);
+    let candidates_b = pos_map.get(code_b);
 
     // code_a delta
     let mut min_old_a = Score::INFINITY_SENTINEL;

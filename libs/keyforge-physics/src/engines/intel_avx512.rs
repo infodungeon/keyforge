@@ -6,7 +6,7 @@ use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
 use keyforge_model::config::EngineConfig;
-use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
+use keyforge_model::{AnalysisReport, KeyCode, Layout, Score, SwapSuggestion};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Avx512ScoringEngine {
@@ -144,9 +144,10 @@ unsafe fn score_layout_avx512(
     );
     for &code in pm.used_keys() {
         let c = code as usize;
+        let c = KeyCode(c as u16);
         let cand = pm.get(c);
         if !cand.is_empty() {
-            flat_map[c] = cand[0];
+            flat_map[c.0 as usize] = cand[0];
         }
     }
     let e_ctx = crate::kernel::EvaluationContext {
@@ -156,7 +157,7 @@ unsafe fn score_layout_avx512(
     let is_simple = pm
         .used_keys()
         .iter()
-        .all(|&c| pm.get(c as usize).len() == 1)
+        .all(|&c| pm.get(KeyCode(c)).len() == 1)
         && ctx.sequence_modifiers.is_empty();
     let total = if is_simple {
         score_simple_avx512(&e_ctx, flat_map)?

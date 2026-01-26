@@ -6,6 +6,9 @@ use super::AnnealingConfig;
 use crate::errors::EvolutionError;
 use crate::supervisor::annealing::Optimizer;
 use crate::{NoOpCallback, ProgressCallback};
+use keyforge_model::types::{
+    IterationCount, PatienceCount, ReheatCount, ScalingFactor, Seed, Temperature,
+};
 use keyforge_model::{EngineRequest, KeyCode, Layout, OptimizationResult, SearchConfig};
 use keyforge_physics::{EngineCompilationContext, ScoringEngine};
 use std::sync::Arc;
@@ -142,13 +145,13 @@ fn evolve_internal<CB: ProgressCallback>(
             let acceptance = CoolingAnnealing;
 
             let annealing_config = AnnealingConfig::new(
-                *steps,
-                *start_temp,
-                *end_temp,
-                *seed,
-                *patience,
-                *reheats,
-                *reheat_factor,
+                IterationCount(*steps),
+                Temperature(*start_temp),
+                Temperature(*end_temp),
+                Seed(*seed),
+                PatienceCount(*patience),
+                ReheatCount(*reheats),
+                ScalingFactor(*reheat_factor),
             )?;
 
             let mut optimizer = Optimizer::new(

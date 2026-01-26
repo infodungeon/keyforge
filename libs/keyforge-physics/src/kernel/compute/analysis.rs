@@ -5,7 +5,7 @@ use crate::kernel::{
     EngineContext,
 };
 use keyforge_model::constants::MAX_REPORTED_VIOLATIONS;
-use keyforge_model::{AnalysisReport, MetricId, MetricViolation};
+use keyforge_model::{AnalysisReport, KeyCode, MetricId, MetricViolation};
 use tracing::instrument;
 
 /// Safely converts a u16 character code to a displayable character.
@@ -70,9 +70,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
         // 1. Pass 1: Trigrams (Flow ONLY)
         for &(c1, c2, c3, freq) in ctx.all_trigrams.iter() {
-            let candidates1 = pm.get(c1 as usize);
-            let candidates2 = pm.get(c2 as usize);
-            let candidates3 = pm.get(c3 as usize);
+            let candidates1 = pm.get(KeyCode(c1));
+            let candidates2 = pm.get(KeyCode(c2));
+            let candidates3 = pm.get(KeyCode(c3));
             if candidates1.is_empty() || candidates2.is_empty() || candidates3.is_empty() {
                 continue;
             }
@@ -133,8 +133,8 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
         // 2. Pass 2: Bigrams (ALL TRANSITIONS, DISTANCE, USAGE)
         for &(c1, c2, freq) in ctx.all_bigrams.iter() {
-            let candidates1 = pm.get(c1 as usize);
-            let candidates2 = pm.get(c2 as usize);
+            let candidates1 = pm.get(KeyCode(c1));
+            let candidates2 = pm.get(KeyCode(c2));
             if candidates1.is_empty() || candidates2.is_empty() {
                 continue;
             }
@@ -234,14 +234,12 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
         // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
         for &code in pm.used_keys() {
-            let c_val = code as usize;
-            #[allow(clippy::cast_precision_loss)]
-            let freq = ctx.corpus.char_freqs[c_val] as f32;
+            let freq = ctx.corpus.char_freqs[code as usize] as f32;
             if freq <= 0.0 {
                 continue;
             }
 
-            let candidates = pm.get(c_val);
+            let candidates = pm.get(KeyCode(code));
 
             // Monogram Effort (Base Key Cost)
             // Attribute to keys based on their usage heatmap or unique position

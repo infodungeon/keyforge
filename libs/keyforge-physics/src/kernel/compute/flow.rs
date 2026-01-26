@@ -41,9 +41,9 @@ pub(crate) fn get_flow_delta(
     idx_a: usize,
     idx_b: usize,
 ) -> i64 {
-    let candidates1 = pos_map.get(c1.0 as usize);
-    let candidates2 = pos_map.get(c2.0 as usize);
-    let candidates3 = pos_map.get(c3.0 as usize);
+    let candidates1 = pos_map.get(c1);
+    let candidates2 = pos_map.get(c2);
+    let candidates3 = pos_map.get(c3);
     if candidates1.is_empty() || candidates2.is_empty() || candidates3.is_empty() {
         return 0;
     }

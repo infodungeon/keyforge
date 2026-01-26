@@ -110,7 +110,8 @@ impl<'a> PosMap<'a> {
 
     #[inline]
     #[must_use]
-    pub fn get(&self, code: usize) -> &[u16] {
+    pub fn get(&self, code: KeyCode) -> &[u16] {
+        let code_raw = code.0 as usize;
         match self {
             Self::Structured {
                 starts,
@@ -118,28 +119,28 @@ impl<'a> PosMap<'a> {
                 indices,
                 ..
             } => {
-                if code >= MAX_KEYCODE_SPACE {
+                if code_raw >= MAX_KEYCODE_SPACE {
                     return &[];
                 }
-                let start = starts[code] as usize;
-                let count = counts[code] as usize;
+                let start = starts[code_raw] as usize;
+                let count = counts[code_raw] as usize;
                 if count == 0 {
                     return &[];
                 }
                 &indices[start..start + count]
             }
             Self::Flat { map, key_count } => {
-                if code >= map.len() {
+                if code_raw >= map.len() {
                     return &[];
                 }
-                let pos = map[code];
+                let pos = map[code_raw];
                 if pos as usize >= *key_count {
                     &[]
                 } else {
                     // Safety: map[code] is a single value, but we need a slice.
                     // Since it's a flat map, each key is assumed to have exactly one position.
                     // This is used by the Exact engine.
-                    std::slice::from_ref(&map[code])
+                    std::slice::from_ref(&map[code_raw])
                 }
             }
         }
