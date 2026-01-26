@@ -68,6 +68,17 @@ jobs:
       - name: Architecture Guardrails
         run: python3 ops/scripts/check_arch.py
 
+      - name: 100x Master Audit
+        run: python3 ops/scripts/audit_master.py
+
+      - name: Upload Audit Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reports
+          path: docs/planning/audit_results/expanded/
+          retention-days: 30
+
       - name: Build Core/Hive/CLI
         run: cargo build --release --workspace --exclude keyforge-ui
 
