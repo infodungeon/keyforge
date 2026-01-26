@@ -185,7 +185,7 @@ mod tests {
         let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
                     keys.shuffle(&mut rng_layout);
                     let layout = Layout::new_unchecked(keys);
-                    let mut state = SearchState::new(layout, 0, 1.0).unwrap();
+                    let mut state = SearchState::new(layout, 0, keyforge_model::types::Temperature(1.0)).unwrap();
                     let score_before = engine.score(state.layout())?.0;
                     let mutation = GroupMutation { unlocked_indices: (0..size).collect(), start_temp: 100.0, end_temp: 0.1 };
                     let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);

@@ -1,6 +1,7 @@
 // libs/keyforge-compute/src/biometrics.rs
 
 use keyforge_model::CostModel;
+use keyforge_model::types::LatencyMs;
 use keyforge_protocol::BiometricSample;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,11 +16,12 @@ pub struct BigramStats {
 
 impl BigramStats {
     #[allow(clippy::cast_precision_loss)]
-    pub fn add_sample(&mut self, ms: f64) {
+    pub fn add_sample(&mut self, ms: LatencyMs) {
+        let ms_raw = ms.0;
         self.count += 1;
-        let delta = ms - self.mean;
+        let delta = ms_raw - self.mean;
         self.mean += delta / (self.count as f64);
-        let delta2 = ms - self.mean;
+        let delta2 = ms_raw - self.mean;
         self.m2 += delta * delta2;
     }
 
@@ -56,8 +58,8 @@ impl StreamingProfileBuilder {
     }
 
     pub fn add_sample(&mut self, sample: &BiometricSample) {
-        let ms = f64::from(sample.duration_ms);
-        if ms > 0.0 && ms < Self::MAX_LATENCY_MS {
+        let ms = LatencyMs(f64::from(sample.duration_ms));
+        if ms.0 > 0.0 && ms.0 < Self::MAX_LATENCY_MS {
             self.stats
                 .entry((sample.key_a, sample.key_b))
                 .or_default()

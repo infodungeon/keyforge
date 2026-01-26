@@ -17,7 +17,8 @@ pub use biomechanical::{FingerIndex, HandIndex, SpaceHandPreference};
 pub use geometry::{ColIndex, RowIndex};
 pub use indices::{KeyCode, KeyIndex};
 pub use newtypes::{
-    DurationMs, IterationCount, PatienceCount, ReheatCount, ScalingFactor, Temperature,
+    DurationMs, IterationCount, LatencyMs, PatienceCount, ReheatCount, ScalingFactor, Seed,
+    Temperature,
 };
 pub use results::{
     AnalysisReport, MetricViolation, OptimizationResult, ScoringResult, SwapSuggestion,
