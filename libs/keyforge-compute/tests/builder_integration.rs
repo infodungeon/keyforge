@@ -32,7 +32,24 @@ mod builder_tests {
 
             // Special handling for cost model
             if tid == std::any::TypeId::of::<CostModel>() {
-                let model = CostModel::default();
+                let mut model = CostModel::default();
+                let mut hand_def = keyforge_model::cost_model::HandDefinition::default();
+
+                for finger in &["thumb", "index", "middle", "ring", "pinky"] {
+                    hand_def.fingers.insert(
+                        finger.to_string(),
+                        keyforge_model::cost_model::FingerDefinition::Standard(
+                            keyforge_model::cost_model::FingerReach::default(),
+                        ),
+                    );
+                }
+
+                let mut model_def = keyforge_model::cost_model::ModelDefinition::default();
+                model_def
+                    .static_costs
+                    .insert("universal_hand".to_string(), hand_def);
+
+                model.models.insert("default".to_string(), model_def);
                 let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
                 return Ok(any_model.downcast::<T>().expect("Downcast failed"));
             }

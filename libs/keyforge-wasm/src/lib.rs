@@ -115,6 +115,10 @@ impl KeyforgeEngine {
     }
 
     /// Injects a keyboard definition into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON value cannot be deserialized into a `KeyboardDefinition`.
     #[wasm_bindgen(js_name = injectKeyboard)]
     pub fn inject_keyboard(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let kb: KeyboardDefinition = from_value(json_val).map_err(|e| map_serde_error(&e))?;
@@ -123,6 +127,10 @@ impl KeyforgeEngine {
     }
 
     /// Injects a corpus into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON value cannot be deserialized into a `Corpus`.
     #[wasm_bindgen(js_name = injectCorpus)]
     pub fn inject_corpus(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let corpus: Corpus = from_value(json_val).map_err(|e| map_serde_error(&e))?;
@@ -131,6 +139,10 @@ impl KeyforgeEngine {
     }
 
     /// Injects a cost model into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON value cannot be deserialized into a `CostModel`.
     #[wasm_bindgen(js_name = injectCostModel)]
     pub fn inject_cost_model(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let model: CostModel = from_value(json_val).map_err(|e| map_serde_error(&e))?;
@@ -139,6 +151,10 @@ impl KeyforgeEngine {
     }
 
     /// Injects a keycode registry into the in-memory loader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON value cannot be deserialized into a `KeycodeRegistry`.
     #[wasm_bindgen(js_name = injectKeycodes)]
     pub fn inject_keycodes(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let reg: KeycodeRegistry = from_value(json_val).map_err(|e| map_serde_error(&e))?;
@@ -147,6 +163,14 @@ impl KeyforgeEngine {
     }
 
     /// Analyzes a layout using the injected assets and an optional rubric.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The layout or rubric cannot be deserialized.
+    /// - The requested keyboard, corpus, or cost model is not found in the loader.
+    /// - There is a failure in keyboard instantiation or engine compilation.
+    /// - The physics analysis fails.
     #[wasm_bindgen(js_name = analyzeLayout)]
     pub async fn analyze_layout(
         &self,

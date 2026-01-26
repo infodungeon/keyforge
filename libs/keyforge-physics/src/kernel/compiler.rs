@@ -56,10 +56,17 @@ impl Compiler {
         let geo_out = geo_stage.execute(kb)?;
 
         // Stage 2: Costs
-        let model_key = if kb.kb_type.to_lowercase().contains("ortho") {
+        // If the cost model has exactly one model, use it.
+        // Otherwise, pick based on keyboard type.
+        let model_key = if cost_model.models.len() == 1 {
+            cost_model.models.keys().next().map(|s| s.as_str())
+        } else if kb.kb_type.to_lowercase().contains("ortho") {
             Some("model_ortho")
-        } else {
+        } else if cost_model.models.contains_key("model_a_row_staggered") {
             Some("model_a_row_staggered")
+        } else {
+            // Final fallback: just try to get ANY model if available
+            cost_model.models.keys().next().map(|s| s.as_str())
         };
 
         let cost_stage = CostStage {

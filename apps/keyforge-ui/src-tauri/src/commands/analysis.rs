@@ -29,7 +29,7 @@ pub async fn cmd_list_corpora(app: AppHandle) -> Result<Vec<String>, CommandErro
         .map(|paths| {
             paths
                 .into_iter()
-                .map(|p| p.file_name().unwrap().to_string_lossy().into())
+                .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
                 .collect()
         })
         .map_err(|e| CommandError::Internal(e.to_string()))
@@ -41,10 +41,10 @@ pub async fn cmd_get_corpus_stats(
     name: String,
 ) -> Result<CorpusStats, CommandError> {
     let data_dir = get_data_dir(&app)?;
-    let path = data_dir.join("corpora").join(name);
+    let path = data_dir.join("corpora").join(&name);
     let meta = std::fs::metadata(&path).map_err(|e| CommandError::Internal(e.to_string()))?;
     Ok(CorpusStats {
-        name: path.file_name().unwrap().to_string_lossy().into(),
+        name,
         size_bytes: meta.len(),
     })
 }
@@ -60,7 +60,7 @@ pub async fn cmd_list_cost_matrices(app: AppHandle) -> Result<Vec<String>, Comma
         .map(|paths| {
             paths
                 .into_iter()
-                .map(|p| p.file_name().unwrap().to_string_lossy().into())
+                .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
                 .collect()
         })
         .map_err(|e| CommandError::Internal(e.to_string()))
@@ -72,8 +72,8 @@ pub async fn cmd_load_dataset(_app: AppHandle, _name: String) -> Result<(), Comm
 }
 
 #[tauri::command]
-pub async fn get_available_corpora(app: AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
-    let data_dir = get_data_dir(&app)?;
+pub fn get_available_corpora(app: &AppHandle) -> Result<Vec<CorpusStats>, CommandError> {
+    let data_dir = get_data_dir(app)?;
     let corpora_dir = data_dir.join("corpora");
 
     if !corpora_dir.exists() {
@@ -87,11 +87,10 @@ pub async fn get_available_corpora(app: AppHandle) -> Result<Vec<CorpusStats>, C
     for file in files {
         let meta = std::fs::metadata(&file).map_err(|e| CommandError::Internal(e.to_string()))?;
         stats.push(CorpusStats {
-            name: file
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string(),
+            name: file.file_name().map_or_else(
+                || "unknown".to_string(),
+                |n| n.to_string_lossy().to_string(),
+            ),
             size_bytes: meta.len(),
         });
     }
@@ -210,7 +209,9 @@ pub async fn validate_layout_string(
                 let session = builder.build()?;
                 *write_guard = Some(session);
             }
-            let session = write_guard.as_ref().unwrap();
+            let session = write_guard
+                .as_ref()
+                .ok_or_else(|| CommandError::Internal("Failed to initialize session".into()))?;
             let layout = keyforge_adapter::conversion::parse_layout_string(
                 &layout_str,
                 session.engine.key_count(),
