@@ -25,13 +25,11 @@ use crate::types::KeyCode;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Metadata about a user project or session.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct ProjectMeta {
     /// The display name of the project.
     pub name: String,
@@ -55,7 +53,7 @@ impl Default for ProjectMeta {
 /// The root configuration aggregate for a `KeyForge` session.
 /// This structure is also used for persistence (Project files).
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct Config {
     /// Metadata about the configuration/project.
     #[serde(default)]

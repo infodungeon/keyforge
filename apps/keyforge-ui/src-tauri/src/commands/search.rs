@@ -6,9 +6,8 @@ use keyforge_adapter::loader::AssetLoader;
 use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
 use keyforge_infra::HiveClient;
-use keyforge_model::JobStatus;
-use keyforge_model::KeyCode;
-use keyforge_protocol::{JobRequest, JobResponse};
+use keyforge_model::{KeyCode, KeyboardDefinition};
+use keyforge_protocol::{JobRequest, JobResponse, JobStatusDto};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Window};
@@ -96,25 +95,34 @@ pub async fn cmd_poll_hive_status(
         )));
     }
 
-    let status: JobStatus = resp
+    let status: JobStatusDto = resp
         .json()
         .await
         .map_err(|e| CommandError::Network(e.to_string()))?;
+
     Ok(JobStatusUpdate {
         active_nodes: match &status {
-            JobStatus::Running(r) => r.active_nodes,
-            JobStatus::Pending(_) | JobStatus::Completed(_) => 0,
+            JobStatusDto::Running { active_nodes, .. } => *active_nodes,
+            _ => 0,
         },
         best_score: match &status {
-            JobStatus::Running(r) => r.current_best.map_or(0.0, keyforge_model::Score::to_f32),
-            JobStatus::Completed(c) => c.final_score.to_f32(),
-            JobStatus::Pending(_) => 0.0,
+            JobStatusDto::Running { current_best, .. } => current_best.as_ref().map_or(0.0, |s| {
+                #[allow(clippy::cast_precision_loss)]
+                let val = s.0 as f32;
+                val / 1_000_000.0
+            }),
+            JobStatusDto::Completed { final_score, .. } => {
+                #[allow(clippy::cast_precision_loss)]
+                let val = final_score.0 as f32;
+                val / 1_000_000.0
+            }
+            JobStatusDto::Pending => 0.0,
         },
         best_layout: match &status {
-            JobStatus::Completed(c) => {
+            JobStatusDto::Completed { final_layout, .. } => {
                 use std::fmt::Write;
                 let mut s = String::new();
-                for &code in &c.final_layout.keys {
+                for code in &final_layout.keys {
                     let _ = write!(s, "{} ", code.0);
                 }
                 s.trim().to_string()
@@ -251,14 +259,19 @@ pub async fn cmd_start_search(
 
     // 2. Prepare Engine Request via SessionBuilder
     let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
-        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
-        .with_corpus(&job.corpora)
+        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
+            job.to_domain_geometry(),
+            "local",
+        )))
+        .with_corpus(&job.to_domain_corpus_sources())
         .await?
-        .with_cost_matrix(&job.cost_matrix)
+        .with_cost_matrix(&job.to_domain_cost_matrix())
         .await?
         .with_keycodes("default")
         .await?
-        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job.to_domain_weights(),
+        ))
         .with_config(keyforge_model::SearchConfig::Annealing {
             steps: request.search_params.get_search_steps(),
             start_temp: request.search_params.get_temp_max(),
@@ -295,7 +308,10 @@ pub async fn cmd_start_search(
 
     tokio::spawn(async move {
         let runtime = Runtime::from(session);
-        match runtime.run_optimization(callback, &job.pinned_keys).await {
+        match runtime
+            .run_optimization(callback, &job.to_domain_pinned_keys())
+            .await
+        {
             Ok(result) => {
                 let _ = window_handle.emit("search_finished", result);
             }

@@ -16,7 +16,6 @@ use keyforge_adapter::loader::{AssetLoader, InMemoryLoader};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::validator::Validator;
 use keyforge_model::{Corpus, CostModel, Layout, Rubric};
 use serde::Serialize;
 use serde_wasm_bindgen::{from_value, to_value};
@@ -116,57 +115,38 @@ impl KeyforgeEngine {
     }
 
     /// Injects a keyboard definition into the in-memory loader.
-    ///
-    /// # Errors
-    /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeyboard)]
     pub fn inject_keyboard(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let kb: KeyboardDefinition = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        kb.validate()
-            .map_err(|e| to_js_error(keyforge_model::error::ForgeError::Validation(e)))?;
-        self.loader.inject_keyboard(name, kb);
+        self.loader.inject(name, kb);
         Ok(())
     }
 
     /// Injects a corpus into the in-memory loader.
-    ///
-    /// # Errors
-    /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectCorpus)]
     pub fn inject_corpus(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let corpus: Corpus = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        corpus.validate().map_err(to_js_error)?;
-        self.loader.inject_corpus(name, corpus);
+        self.loader.inject(name, corpus);
         Ok(())
     }
 
     /// Injects a cost model into the in-memory loader.
-    ///
-    /// # Errors
-    /// Returns an error if the JSON is invalid.
     #[wasm_bindgen(js_name = injectCostModel)]
     pub fn inject_cost_model(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let model: CostModel = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        self.loader.inject_cost_model(name, model);
+        self.loader.inject(name, model);
         Ok(())
     }
 
     /// Injects a keycode registry into the in-memory loader.
-    ///
-    /// # Errors
-    /// Returns an error if the JSON is invalid or fails validation.
     #[wasm_bindgen(js_name = injectKeycodes)]
     pub fn inject_keycodes(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let reg: KeycodeRegistry = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        reg.validate().map_err(to_js_error)?;
-        self.loader.inject_keycodes(name, reg);
+        self.loader.inject(name, reg);
         Ok(())
     }
 
     /// Analyzes a layout using the injected assets and an optional rubric.
-    ///
-    /// # Errors
-    /// Returns an error if any assets are missing or scoring fails.
     #[wasm_bindgen(js_name = analyzeLayout)]
     pub async fn analyze_layout(
         &self,

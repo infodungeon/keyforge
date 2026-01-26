@@ -19,6 +19,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use keyforge_agent::config_loader::load_config_from_standard_paths;
 use keyforge_agent::models::{AgentConfig, PartialAgentConfig};
+use keyforge_protocol::JobConfig;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -112,6 +113,16 @@ async fn main() -> Result<()> {
 
     keyforge_agent::logging::init_tracing(&config.logging.default_filter, &log_mode);
 
+    // Common setup for job-based commands
+    let client_config = keyforge_infra::net::client::ClientConfig {
+        api_url: config.hive_url.clone(),
+        asset_url: config.asset_url.clone(),
+        secret: Some(config.secret.clone()),
+        ..Default::default()
+    };
+    let hive_client = keyforge_infra::HiveClient::new(client_config)?;
+    let assets = keyforge_infra::AssetManager::new(hive_client, config.data_dir.clone());
+
     match command {
         Commands::Worker => {
             keyforge_agent::cmd::worker::run(config).await?;
@@ -122,15 +133,20 @@ async fn main() -> Result<()> {
         Commands::Score {
             job_file,
             layout,
-            timeout,
+            timeout: _,
         } => {
-            keyforge_agent::cmd::score::run(config, job_file, layout, timeout).await?;
+            let job_content = std::fs::read_to_string(&job_file)?;
+            let job: JobConfig = serde_json::from_str(&job_content)?;
+            keyforge_agent::cmd::score::run(&assets, &job, &config.compute, &layout).await?;
         }
         Commands::Bench {
             job_file,
             iterations,
         } => {
-            keyforge_agent::cmd::bench::run(config, job_file, iterations).await?;
+            let job_content = std::fs::read_to_string(&job_file)?;
+            let job: JobConfig = serde_json::from_str(&job_content)?;
+            keyforge_agent::cmd::bench::run(&assets, &job, &config.compute).await?;
+            println!("Benchmark iterations requested: {iterations}");
         }
     }
 

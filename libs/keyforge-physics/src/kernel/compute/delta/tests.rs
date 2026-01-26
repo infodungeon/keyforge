@@ -44,7 +44,8 @@ mod tests {
                         ..Default::default()
                     })
                     .collect();
-                Keyboard::new(keys, 1, "test".into()).expect("Failed to create keyboard in strategy")
+                Keyboard::new(keys, 1, "test".into())
+                    .expect("Failed to create keyboard in strategy")
             });
 
             // Ensure unique keys to avoid invalid layouts
@@ -189,9 +190,9 @@ mod tests {
             };
             fingers.insert(
                 f_name.to_string(),
-                keyforge_model::cost_model::FingerDefinition::Thumb(std::collections::HashMap::from([
-                    ("pos_1".into(), 1.0),
-                ])),
+                keyforge_model::cost_model::FingerDefinition::Thumb(
+                    std::collections::HashMap::from([("pos_1".into(), 1.0)]),
+                ),
             );
         }
         cm.models.insert(
@@ -216,7 +217,8 @@ mod tests {
         let mut ctx = engine.context().clone();
 
         let layout_keys = vec![KeyCode(97), KeyCode(98)];
-        let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).expect("Failed to validate layout");
+        let validated = ValidatedLayout::new(&layout_keys, engine.key_count())
+            .expect("Failed to validate layout");
 
         let mut scratch = PhysicsScratch::new();
         let pos_map = PosMap::from_scratch(
@@ -241,7 +243,8 @@ mod tests {
         mod_map.insert((97, 98), Score(100));
         ctx.sequence_modifiers = Arc::new(mod_map);
 
-        let delta = calculate_swap_delta(&ctx, &validated, &pos_map, 0, 1).expect("Failed to calculate swap delta");
+        let delta = calculate_swap_delta(&ctx, &validated, &pos_map, 0, 1)
+            .expect("Failed to calculate swap delta");
         assert!(delta != 0);
     }
 }

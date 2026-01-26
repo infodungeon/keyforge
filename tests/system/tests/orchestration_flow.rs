@@ -1,6 +1,6 @@
 #[keyforge_testing_macros::kf_test]
 // tests/system/tests/orchestration_flow.rs
-use keyforge_model::{types::HandIndex, KeyNode, Validator};
+use keyforge_model::{types::HandIndex, KeyNode, KeyboardDefinition, Validator};
 use keyforge_protocol::JobRequest;
 use keyforge_testing::HermeticWorkspace;
 use std::sync::Arc;
@@ -17,40 +17,45 @@ async fn test_full_orchestration_flow() {
 
     // 2. Mock Hive Request (Simulating CLI upload)
     let mut req = JobRequest::default();
-    req.config.definition.geometry.keys.push(KeyNode {
-        hand: HandIndex(0),
-        w: 1.0,
-        h: 1.0,
-        ..Default::default()
-    });
+    req.config.definition.geometry.keys.push(
+        KeyNode {
+            hand: HandIndex(0),
+            w: 1.0,
+            h: 1.0,
+            ..Default::default()
+        }
+        .into(),
+    );
     req.config.definition.geometry.home_row = 0;
     req.config
         .definition
         .geometry
         .prime_slots
-        .push(keyforge_model::KeyIndex(0));
+        .push(keyforge_model::types::KeyIndex(0).into());
 
     assert!(req.validate().is_ok());
 
     // 3. Prepare Session (Simulating Agent processing)
     let loader = &ws.provider;
 
-    let mut config_payload = req.config.clone();
-    config_payload.cost_matrix = keyforge_model::CostMatrixSource::Predefined("cost.json".into());
+    let config_payload = req.config.clone();
 
     let session = keyforge_compute::SessionBuilder::new(loader)
-        .with_keyboard_def(Arc::new(config_payload.definition.clone()))
-        .with_corpus(&config_payload.corpora)
+        .with_keyboard_def(Arc::new(KeyboardDefinition::from_geometry(
+            config_payload.to_domain_geometry(),
+            "test",
+        )))
+        .with_corpus(&config_payload.to_domain_corpus_sources())
         .await
         .expect("Failed to load corpus")
-        .with_cost_matrix(&config_payload.cost_matrix)
+        .with_cost_matrix(&config_payload.to_domain_cost_matrix())
         .await
         .expect("Failed to load cost matrix")
         .with_keycodes("keycodes.json")
         .await
         .expect("Failed to load keycodes")
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &config_payload.weights,
+            &config_payload.to_domain_weights(),
         ))
         .build()
         .expect("Failed to prepare session");
@@ -58,10 +63,19 @@ async fn test_full_orchestration_flow() {
     assert_eq!(session.engine.key_count(), 1);
 
     // 4. Run Optimization (Small steps for speed)
-    let mut config = req.config.params.clone();
-    config.params.insert("search_steps".into(), 10.0);
+    let mut params_dto = req.config.params.clone();
+    params_dto.iterations = 10;
 
-    let search_config = keyforge_adapter::conversion::to_domain_config(&config, 42);
+    let model_params = keyforge_model::config::SearchParams {
+        params: {
+            let mut p = std::collections::HashMap::new();
+            p.insert("search_steps".into(), params_dto.iterations as f32);
+            p
+        },
+        ..Default::default()
+    };
+
+    let search_config = keyforge_adapter::conversion::to_domain_config(&model_params, 42);
     let engine = session.engine.clone();
 
     let result = keyforge_compute::optimize_with_engine(

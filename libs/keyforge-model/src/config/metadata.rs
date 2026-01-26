@@ -1,13 +1,10 @@
 // libs/keyforge-model/src/config/metadata.rs
 
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Supported data types for parameters.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum ParamType {
     /// Floating point number.
@@ -20,7 +17,7 @@ pub enum ParamType {
 
 /// Metadata describing a configuration parameter.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct ParameterMetadata {
     /// Internal key name.
     pub key: String,

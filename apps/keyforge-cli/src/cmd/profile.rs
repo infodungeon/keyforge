@@ -65,7 +65,7 @@ pub fn run(args: &ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
                     eprintln!(
                         "⚠️  Legacy JSON array format detected. Loading entire file into memory."
                     );
-                    samples = legacy_store.biometrics;
+                    samples = legacy_store.biometrics.to_vec();
                     break;
                 }
             }

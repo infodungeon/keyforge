@@ -19,7 +19,7 @@ mod integration_tests {
     use std::time::{Duration, Instant};
     use tempfile::tempdir;
 
-    // ============================================================================
+    // =============================================================================
     // UserRepo Integration Tests
     // ============================================================================
 
@@ -46,15 +46,15 @@ mod integration_tests {
         let repo = UserRepo::new(dir.path().to_path_buf());
 
         let sample = BiometricSample {
-            bigram: "th".into(),
-            ms: 100.0,
-            timestamp: 0,
+            key_a: 116,
+            key_b: 104,
+            duration_ms: 100,
         };
         repo.record_biometrics(vec![sample]).unwrap();
 
         let biometrics = repo.get_biometrics();
         assert_eq!(biometrics.len(), 1);
-        assert_eq!(biometrics[0].bigram, "th");
+        assert_eq!(biometrics[0].key_a, 116);
 
         repo.reset_biometrics().unwrap();
         assert!(repo.get_biometrics().is_empty());
@@ -78,9 +78,9 @@ mod integration_tests {
         // 2. Fill minimum samples
         let samples = (0..10)
             .map(|_| BiometricSample {
-                bigram: "th".into(),
-                ms: 100.0,
-                timestamp: 0,
+                key_a: 116,
+                key_b: 104,
+                duration_ms: 100,
             })
             .collect();
         repo.record_biometrics(samples).unwrap();
@@ -123,8 +123,8 @@ mod integration_tests {
 
         // Broken line in biometric JSONL
         let stats_path = dir.path().join("user/user_stats.jsonl");
-        let line1 = r#"{"bigram":"th","ms":100.0,"timestamp":123}"#;
-        let line2 = r#"{"bigram":"he","ms":150.0,"timestamp":124}"#;
+        let line1 = r#"{"key_a":116,"key_b":104,"duration_ms":100}"#;
+        let line2 = r#"{"key_a":116,"key_b":105,"duration_ms":150}"#;
         fs::write(&stats_path, format!("{line1}\n{{broken line}}\n{line2}")).unwrap();
         let biometrics = repo.get_biometrics();
         assert_eq!(biometrics.len(), 2, "Should skip broken lines in JSONL");
@@ -149,7 +149,7 @@ mod integration_tests {
         assert!(exists);
     }
 
-    // ============================================================================
+    // =============================================================================
     // AutoSaveService Integration Tests
     // ============================================================================
 

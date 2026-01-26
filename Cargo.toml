@@ -113,7 +113,7 @@ zeroize = { version = "1.8", features = ["derive"] }
 ed25519-dalek = "2.1"
 raw-cpuid = "11.6"
 fs2 = "0.4"
-moka = { version = "0.12", features = ["sync"] }
+moka = { version = "0.12", features = ["sync", "future"] }
 parking_lot = "0.12"
 axum = { version = "0.8", features = ["macros"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "fs", "limit", "request-id", "util"] }

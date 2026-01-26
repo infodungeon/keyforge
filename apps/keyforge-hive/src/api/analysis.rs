@@ -1,105 +1,109 @@
 // apps/keyforge-hive/src/api/analysis.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use crate::error::{AppError, AppResult};
-
-use crate::models::ValidationResult;
 use crate::state::AppState;
-use axum::{extract::State, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use keyforge_adapter::loader::AssetLoader;
-use keyforge_model::{KeyboardDefinition, ScoringWeights};
-use keyforge_protocol::JobConfig;
-use serde::Deserialize;
+use keyforge_model::KeyboardDefinition;
+use keyforge_protocol::{AnalysisReportDto, JobConfig};
 use std::sync::Arc;
 
-/// Request payload for performing a quick on-demand analysis of a keyboard layout.
-#[derive(Deserialize)]
-pub struct ValidateRequest {
-    /// The serialized layout string to analyze.
-    pub layout_str: String,
-    /// Optional scoring weights to use. Defaults to standard weights if omitted.
-    pub weights: Option<ScoringWeights>,
-    /// Optional name of the keyboard geometry to use. Defaults to "`ortho_30`".
-    pub keyboard_name: Option<String>,
-    /// Optional list of corpus sources. Defaults to "`text/en_std`" if omitted.
-    pub corpus_sources: Option<Vec<keyforge_model::CorpusSource>>,
-}
-
-use crate::services::runner::AgentRunner;
-use keyforge_model::constants::{DEFAULT_CORPUS_ID, DEFAULT_CORPUS_WEIGHT, DEFAULT_KEYBOARD_ID};
-
-/// Performs a quick scoring analysis of a layout against a standard corpus.
-/// This endpoint does not register a job or persist results.
-pub async fn validate_layout(
+/// GET /api/keyboards/{name}/analysis
+/// Returns detailed ergonomic analysis for a given layout on a keyboard.
+#[utoipa::path(
+    get,
+    path = "/api/keyboards/{keyboard_name}/analysis",
+    params(
+        ("keyboard_name" = String, Path, description = "Keyboard definition ID"),
+        ("layout" = String, Query, description = "Space-separated layout string")
+    ),
+    responses(
+        (status = 200, description = "Analysis report", body = AnalysisReportDto)
+    ),
+    tag = "analysis"
+)]
+#[allow(dead_code)]
+pub(crate) async fn analyze_layout(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<ValidateRequest>,
-) -> AppResult<Json<ValidationResult>> {
-    // Use provided keyboard name or fallback
-    let keyboard_name = payload
-        .keyboard_name
-        .as_deref()
-        .unwrap_or(DEFAULT_KEYBOARD_ID);
+    Path(keyboard_name): Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> AppResult<Json<AnalysisReportDto>> {
+    let layout_str = params.get("layout").ok_or(AppError::NotFound)?;
 
-    let corpus_sources = payload.corpus_sources.clone().unwrap_or_else(|| {
-        vec![keyforge_model::CorpusSource {
-            id: DEFAULT_CORPUS_ID.to_string(),
-            weight: DEFAULT_CORPUS_WEIGHT,
-            hash: None,
-        }]
-    });
-
-    // Load definitions to ensure they exist, but we will pass config to Runner
     let definition = state
         .assets
-        .load::<KeyboardDefinition>(keyboard_name)
+        .load::<KeyboardDefinition>(&keyboard_name)
         .await
-        .map_err(|e| AppError::Validation(format!("Keyboard load failed: {e}")))?;
+        .map_err(|_| AppError::NotFound)?;
 
-    // Determine scoring weights (defaults if not provided)
-    let weights = payload.weights.unwrap_or_default();
+    let registry = state
+        .assets
+        .load::<keyforge_model::KeycodeRegistry>("keycodes.json")
+        .await
+        .unwrap_or_else(|_| Arc::new(keyforge_model::KeycodeRegistry::new_with_defaults()));
 
-    // Construct JobConfig for Runner
+    let weights = keyforge_model::config::ScoringWeights::default();
+    let corpus_sources = vec![keyforge_model::config::CorpusSource::default()];
+
     let job_config = JobConfig {
-        definition: definition.as_ref().clone(),
-        weights,
-        params: keyforge_model::config::SearchParams::default(),
-        pinned_keys: vec![],
-        corpora: corpus_sources,
-        cost_matrix: keyforge_model::CostMatrixSource::Predefined("cost_matrix.json".into()), // Simplified default
-        biometrics: vec![],
+        definition: definition.as_ref().clone().into(),
+        weights: weights.clone().into(),
+        params: keyforge_model::config::SearchParams::default().into(),
+        pinned_keys: vec![].into(),
+        corpora: corpus_sources
+            .into_iter()
+            .map(Into::into)
+            .collect::<Vec<_>>()
+            .into(),
+        cost_matrix: keyforge_model::config::CostMatrixSource::default().into(),
+        biometrics: vec![].into(),
         parent_job_id: None,
         baseline_score: None,
-        parents: vec![],
+        parents: vec![].into(),
     };
 
-    // Initialize Runner
-    let runner = AgentRunner::new(state.data_path.clone());
+    let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
+        .with_keyboard_def(definition)
+        .with_corpus(&job_config.to_domain_corpus_sources())
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .with_cost_matrix(&job_config.to_domain_cost_matrix())
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .with_keycodes("keycodes.json")
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job_config.to_domain_weights(),
+        ));
 
-    // Delegate to Agent Sidecar
-    let json_output = runner
-        .run_validation(&job_config, &payload.layout_str)
-        .await?;
+    let session = builder
+        .build()
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    // Deserialize report
-    let report: keyforge_model::AnalysisReport = serde_json::from_str(&json_output)
-        .map_err(|e| AppError::Any(anyhow::anyhow!("Failed to parse agent output: {e}")))?;
+    let parsed = keyforge_adapter::conversion::parse_layout_string(
+        layout_str,
+        session.engine.key_count(),
+        &registry,
+    )
+    .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(Json(ValidationResult {
-        layout_name: "Custom".to_string(),
-        score: report.clone(),
-        geometry: definition.geometry.clone(),
-        heatmap: report.heatmap,
-        penalty_map: report.penalty_map,
-    }))
+    let report = session
+        .engine
+        .analyze(&parsed)
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(report.into()))
+}
+
+/// POST /analysis/validate
+/// Validates a layout string and returns analysis.
+pub(crate) async fn validate_layout(
+    State(_state): State<Arc<AppState>>,
+    Json(_payload): Json<serde_json::Value>,
+) -> AppResult<Json<AnalysisReportDto>> {
+    Err(AppError::Internal("Not fully implemented".into()))
 }

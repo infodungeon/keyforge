@@ -2,13 +2,10 @@
 
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Hardware-specific optimization parameters for the physics engines.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(default)]
 pub struct EngineConfig {
     /// L1 Data Cache size in bytes.

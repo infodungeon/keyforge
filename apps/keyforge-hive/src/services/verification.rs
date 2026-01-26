@@ -77,7 +77,7 @@ impl VerificationService {
         // check_and_set_nonce returns true if it's NEW, false if it's a REPLAY
         let is_new = self
             .assets
-            .coordinator()
+            .get_coordinator()
             .check_and_set_nonce(
                 &sub.node_id,
                 sub.nonce,

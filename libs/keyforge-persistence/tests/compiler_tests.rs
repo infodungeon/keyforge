@@ -12,6 +12,7 @@ mod integration_tests {
     use keyforge_persistence::compiler::compile_request;
     use std::any::Any;
     use std::collections::HashMap;
+    use std::path::Path;
     use std::sync::Arc;
 
     #[derive(Debug)]
@@ -63,6 +64,10 @@ mod integration_tests {
 
         async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
             Ok(Arc::new(Corpus::default()))
+        }
+
+        fn root(&self) -> &Path {
+            Path::new(".")
         }
     }
 
@@ -152,6 +157,9 @@ mod integration_tests {
             async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
                 Ok(Arc::new(Corpus::default()))
             }
+            fn root(&self) -> &Path {
+                Path::new(".")
+            }
         }
 
         let loader = QwertyLoader;
@@ -175,6 +183,9 @@ mod integration_tests {
                 Err(keyforge_model::error::ForgeError::NotFound(
                     "corpus".to_string(),
                 ))
+            }
+            fn root(&self) -> &Path {
+                Path::new(".")
             }
         }
 

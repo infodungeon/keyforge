@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use crate::constants::{DEFAULT_UPDATE_URL, REPO_OWNER};
-use crate::error::{CliError, Result};
+use crate::error::{CliError, CliResult as Result};
 use clap::Args;
 use self_update::cargo_crate_version;
 

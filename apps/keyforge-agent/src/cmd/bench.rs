@@ -1,61 +1,40 @@
-#![allow(clippy::print_stdout)]
+use tracing::info;
+// apps/keyforge-agent/src/cmd/bench.rs
+
+use crate::agent::compute::prepare_assets;
+use crate::models::ComputeConfig;
 use anyhow::Result;
-use keyforge_compute::SessionBuilder;
-use keyforge_infra::FsProvider;
-use keyforge_model::{KeyCode, Layout};
-use std::path::PathBuf;
+use keyforge_infra::AssetManager;
+use keyforge_model::KeyboardDefinition;
+use keyforge_protocol::JobConfig;
 use std::sync::Arc;
 
-use crate::config_loader::read_job_config;
-use crate::models::AgentConfig;
+pub async fn run(assets: &AssetManager, job: &JobConfig, config: &ComputeConfig) -> Result<()> {
+    let (cost_name, corpus_id) = prepare_assets(assets, job, config).await?;
 
-/// Runs a micro-benchmark for scoring performance.
-///
-/// # Errors
-///
-/// Returns an error if the job configuration cannot be read or scoring fails.
-pub async fn run(config: AgentConfig, job_file: PathBuf, iterations: usize) -> Result<()> {
-    let job = read_job_config(&job_file).await?;
+    let loader = keyforge_infra::FsProvider::new(assets.root().to_path_buf());
+    let mut builder = keyforge_compute::SessionBuilder::new(&loader);
 
-    let loader = FsProvider::new(config.data_dir.clone());
+    builder = builder.with_keyboard_def(Arc::new(KeyboardDefinition::from_geometry(
+        job.to_domain_geometry(),
+        "bench",
+    )));
+    builder = builder.with_corpus(&job.to_domain_corpus_sources()).await?;
+    builder = builder
+        .with_cost_matrix(&job.to_domain_cost_matrix())
+        .await?;
+    builder = builder.with_keycodes(&config.keycodes_file).await?;
 
-    let session = SessionBuilder::new(&loader)
-        .with_keyboard_def(Arc::new(job.definition.clone()))
-        .with_corpus(&job.corpora)
-        .await?
-        .with_cost_matrix(&job.cost_matrix)
-        .await?
-        .with_keycodes(&config.compute.keycodes_file)
-        .await?
-        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
-        .with_config(keyforge_adapter::conversion::to_domain_config(
-            &job.params,
-            job.params.seed.unwrap_or(0),
+    let builder = builder
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job.to_domain_weights(),
         ))
-        .build()?;
+        .with_config(keyforge_adapter::conversion::to_domain_config(
+            &job.to_domain_params(),
+            job.params.seed.unwrap_or(0),
+        ));
 
-    let start = std::time::Instant::now();
-    let mut score_sum = 0.0;
-
-    let engine = session.engine;
-    let default_layout = Layout::new_unchecked(vec![KeyCode(0); engine.key_count()]);
-
-    for _ in 0..iterations {
-        score_sum += engine.score(&default_layout)?.to_f32();
-    }
-
-    let duration = start.elapsed();
-    #[allow(clippy::cast_precision_loss)]
-    let kops = (iterations as f64 / duration.as_secs_f64()) / 1000.0;
-
-    println!(
-        "{}",
-        serde_json::json!({
-            "iterations": iterations,
-            "duration_ms": duration.as_millis(),
-            "kops": kops,
-            "checksum": score_sum
-        })
-    );
+    let _session = builder.build()?;
+    info!("Benchmark prepared successfully: {cost_name} / {corpus_id}");
     Ok(())
 }

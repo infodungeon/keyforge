@@ -5,6 +5,7 @@ use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, Ke
 use keyforge_model::mapping::Projection;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use keyforge_model::Asset;
+use keyforge_protocol::CorpusSourceDto;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -156,26 +157,31 @@ impl Projection<HiveJobProjection> for keyforge_protocol::JobConfig {
             source.row.params_json.unwrap_or_default(),
         )?;
 
-        let pinned_keys =
+        let pinned_keys: Vec<keyforge_model::config::KeyConstraint> =
             serde_json::from_str(&source.row.pinned_keys).map_err(ForgeError::Serde)?;
-        let cost_matrix =
+        let cost_matrix: keyforge_model::config::CostMatrixSource =
             serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::Serde)?;
 
         Ok(Self {
-            definition: source.definition,
-            weights,
-            params,
-            pinned_keys,
-            corpora: vec![keyforge_model::CorpusSource {
+            definition: source.definition.into(),
+            weights: weights.into(),
+            params: params.into(),
+            pinned_keys: pinned_keys
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .into(),
+            corpora: vec![CorpusSourceDto {
                 id: source.row.corpus_name,
                 weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
                 hash: None,
-            }],
-            cost_matrix,
-            biometrics: vec![],
+            }]
+            .into(),
+            cost_matrix: cost_matrix.into(),
+            biometrics: vec![].into(),
             parent_job_id: source.row.parent_job_id,
             baseline_score: None,
-            parents: vec![],
+            parents: vec![].into(),
         })
     }
 }
@@ -214,42 +220,21 @@ mod tests {
             id: "test-job".to_string(),
             keyboard_id: 1,
             weights_json: json!({
-                "monogram_cost": 1.0,
-                "bigram_cost": 1.0,
-                "trigram_cost": 1.0,
-                "finger_travel_cost": 1.0,
-                "finger_work_cost": 1.0,
-                "sfbs_cost": 1.0,
-                "dsfbs_cost": 1.0,
-                "scissors_cost": 1.0,
-                "lsbs_cost": 1.0,
-                "pinky_power_cost": 1.0,
-                "ring_power_cost": 1.0,
-                "middle_power_cost": 1.0,
-                "index_power_cost": 1.0,
-                "thumb_power_cost": 1.0,
-                "hand_balance_cost": 1.0,
-                "row_balance_cost": 1.0,
-                "step_cost": 1.0,
-                "redirect_cost": 1.0,
-                "onehand_trigram_cost": 1.0,
-                "alternation_cost": 1.0,
-                "roll_in_cost": 1.0,
-                "roll_out_cost": 1.0
+                "weights": {
+                    "monogram_cost": 1.0
+                },
+                "finger_penalty_scale": [1.0, 1.0, 1.0, 1.0, 1.0],
+                "comfortable_scissors": ""
             }),
             params_json: Some(json!({
-                "search_epochs": 10,
-                "search_steps": 100,
-                "search_patience": 5,
-                "search_patience_threshold": 0.01,
-                "temp_min": 0.1,
-                "temp_max": 10.0,
-                "opt_limit_fast": 100,
-                "opt_limit_slow": 1000
+                "params": {
+                    "search_epochs": 10.0,
+                    "search_steps": 100.0
+                }
             })),
             pinned_keys: "[]".to_string(),
             corpus_name: "en".to_string(),
-            cost_matrix: "{\"type\": \"Predefined\", \"data\": \"default.json\"}".to_string(),
+            cost_matrix: "{\"type\": \"predefined\", \"data\": \"default.json\"}".to_string(),
             parent_job_id: None,
         };
         let definition = KeyboardDefinition::default();

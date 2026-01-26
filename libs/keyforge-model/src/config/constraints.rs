@@ -4,13 +4,11 @@ use crate::types::KeyIndex;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Constraint forcing a key to a specific physical index.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct KeyConstraint {
     /// The physical index of the key.
     pub index: KeyIndex,

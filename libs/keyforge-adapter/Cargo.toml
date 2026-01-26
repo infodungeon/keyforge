@@ -24,4 +24,4 @@ serde_json.workspace = true
 
 [features]
 default = []
-ts_bindings = ["ts-rs", "keyforge-model/ts_bindings"]
+ts_bindings = ["ts-rs"]

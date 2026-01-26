@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Filename for the default Cost Matrix asset.
@@ -18,7 +16,7 @@ pub const DEFAULT_CORPUS_WEIGHT: f32 = 1.0;
 
 /// Defines a source for text corpus data.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct CorpusSource {
     /// The identifier or path of the corpus.
     pub id: String,
@@ -26,7 +24,6 @@ pub struct CorpusSource {
     pub weight: f32,
     /// Optional hash for integrity verification.
     #[serde(default, skip_serializing_if = "crate::utils::is_none")]
-    #[cfg_attr(feature = "ts_bindings", ts(optional))]
     pub hash: Option<String>,
 }
 
@@ -96,7 +93,6 @@ impl FromStr for CorpusSource {
 /// Source for the cost matrix data.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
 #[serde(tag = "type", content = "data")]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub enum CostMatrixSource {
     /// A predefined cost matrix file (e.g. "`default_costmatrix.json`").
     Predefined(String),

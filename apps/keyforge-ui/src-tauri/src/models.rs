@@ -3,10 +3,11 @@ use std::collections::HashMap;
 
 // RE-EXPORTS from Protocol
 pub use keyforge_protocol::{
-    BiometricSample, JobConfig, JobRequest as RegisterJobRequest,
-    JobResponse as RegisterJobResponse, NodeRequest as RegisterNodeRequest,
-    NodeResponse as RegisterNodeResponse, PopulationResponse,
-    ResultSubmission as SubmitResultRequest, TuningProfile, UserStatsStore,
+    AnalysisReportDto, BiometricSample, ConfigAggregateDto, JobConfig,
+    JobRequest as RegisterJobRequest, JobResponse as RegisterJobResponse, KeyNodeDto, LayoutDto,
+    NodeRequest as RegisterNodeRequest, NodeResponse as RegisterNodeResponse, PopulationResponse,
+    ResultSubmission as SubmitResultRequest, ScoringWeightsDto, SearchParamsDto, SwapSuggestionDto,
+    TuningProfile, UserStatsStore,
 };
 
 /// Periodic status update for a remote job running on the Hive.
@@ -39,9 +40,9 @@ pub struct StartSearchRequest {
     /// Encoded string representing pinned keys (positions that shouldn't move).
     pub pinned_keys: String,
     /// Configuration parameters for the optimization algorithm.
-    pub search_params: keyforge_model::config::SearchParams,
+    pub search_params: SearchParamsDto,
     /// Ergonomic weights used to calculate the physical score.
-    pub weights: keyforge_model::config::ScoringWeights,
+    pub weights: ScoringWeightsDto,
 }
 
 /// Manifest of files available on a remote server.
@@ -70,9 +71,9 @@ pub struct ValidationResult {
     /// Name of the layout that was validated.
     pub layout_name: String,
     /// Comprehensive analysis report including ergonomics metrics.
-    pub score: keyforge_model::AnalysisReport,
+    pub score: AnalysisReportDto,
     /// Physical geometry of the keyboard used for analysis.
-    pub geometry: keyforge_model::geometry::KeyboardGeometry,
+    pub geometry: Vec<KeyNodeDto>,
     /// Frequency heatmap indicating which keys are used most relative to their position.
     pub heatmap: Vec<f32>,
     /// Map of ergonomic penalties applied across the layout.

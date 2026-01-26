@@ -5,6 +5,7 @@
 use crate::agent::network::NetworkManager;
 use crate::models::{AgentConfig, SharedTelemetry};
 use ed25519_dalek::SigningKey;
+use keyforge_model::KeyboardDefinition;
 use keyforge_protocol::{JobConfig, ResultSubmission};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -126,9 +127,9 @@ impl Agent {
                         let loader = keyforge_infra::FsProvider::new(data_dir.clone());
                         let mut builder = keyforge_compute::SessionBuilder::new(&loader);
 
-                        builder = builder.with_keyboard_def(Arc::new(job.definition.clone()));
+                        builder = builder.with_keyboard_def(Arc::new(KeyboardDefinition::from_geometry(job.to_domain_geometry(), "agent")));
 
-                        builder = match builder.with_corpus(&job.corpora).await {
+                        builder = match builder.with_corpus(&job.to_domain_corpus_sources()).await {
                             Ok(b) => b,
                             Err(e) => {
                                 error!("Job {} Corpus load failed: {}", job_id, e);
@@ -136,7 +137,7 @@ impl Agent {
                             }
                         };
 
-                        builder = match builder.with_cost_matrix(&job.cost_matrix).await {
+                        builder = match builder.with_cost_matrix(&job.to_domain_cost_matrix()).await {
                             Ok(b) => b,
                             Err(e) => {
                                 error!("Job {} Cost matrix load failed: {}", job_id, e);
@@ -153,8 +154,8 @@ impl Agent {
                         };
 
                         let builder = builder
-                            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
-                            .with_biometrics(job.biometrics.clone())
+                            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.to_domain_weights()))
+                            .with_biometrics(job.biometrics.to_vec())
                             .with_config(keyforge_model::SearchConfig::Annealing {
                                 steps: job.params.get_search_steps(),
                                 start_temp: job.params.get_temp_max(),

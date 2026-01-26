@@ -192,7 +192,7 @@ async fn run_app() -> Result<(), CliError> {
             return Ok(());
         }
         Commands::Validate(args) => {
-            cmd::validate::run(&args, &loader, &root).await?;
+            cmd::validate::run(&args, &loader).await?;
             return Ok(());
         }
         Commands::Benchmark(args) => {
@@ -235,17 +235,21 @@ async fn build_job_config(
         .clone()
         .unwrap_or_else(|| "cost_matrix.json".to_string());
 
-    Ok(JobConfig {
-        definition: (*definition).clone(),
-        weights,
-        params,
-        pinned_keys: shared.pinned_keys.clone(),
-        corpora,
-        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_name),
-        biometrics: vec![],
+    Ok(keyforge_protocol::JobConfig {
+        definition: (*definition).clone().into(),
+        weights: weights.into(),
+        params: params.into(),
+        pinned_keys: shared
+            .pinned_keys
+            .iter()
+            .map(|p| p.clone().into())
+            .collect(),
+        corpora: corpora.into_iter().map(Into::into).collect(),
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_name).into(),
+        biometrics: vec![].into(),
         parent_job_id: None,
         baseline_score: None,
-        parents: vec![],
+        parents: vec![].into(),
     })
 }
 

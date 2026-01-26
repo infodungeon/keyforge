@@ -45,7 +45,7 @@ pub async fn upload_file(
         hash,
         size_bytes: size,
         #[allow(clippy::cast_sign_loss)]
-        last_updated: chrono::Utc::now().timestamp() as u64,
+        updated_at: chrono::Utc::now().timestamp() as u64,
     };
     coordinator
         .set_manifest_entry(&entry)

@@ -17,15 +17,12 @@ use crate::layout::Layout;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Unique identifier for a physical key position on the keyboard.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema,
 )]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct KeyIndex(pub u16);
@@ -71,7 +68,6 @@ impl From<KeyIndex> for usize {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema,
 )]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct KeyCode(pub u16);
@@ -114,7 +110,6 @@ impl fmt::Display for KeyCode {
 
 /// Identifier for a hand (Left=0, Right=1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct HandIndex(pub u8);
@@ -175,7 +170,6 @@ impl TryFrom<u8> for HandIndex {
 
 /// Identifier for a finger (Thumb=0 to Pinky=4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct FingerIndex(pub u8);
@@ -262,7 +256,6 @@ use serde::de::{self, Visitor};
 
 /// Row index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, ToSchema, Default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct RowIndex(pub i8);
@@ -363,7 +356,6 @@ impl std::ops::Sub for RowIndex {
 
 /// Column index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct ColIndex(pub i8);
@@ -407,7 +399,6 @@ impl std::ops::Sub for ColIndex {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, ToSchema,
 )]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "bigint"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct Score(pub i64);
@@ -491,7 +482,6 @@ impl Score {
 /// A wrapper for ergonomic weights and multipliers.
 /// Prevents argument swapping and ensures semantic clarity in scoring logic.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct Weight(pub f32);
@@ -578,7 +568,6 @@ use crate::metrics::{MetricId, MetricSet};
 
 /// Preference for which hand should handle Space keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum SpaceHandPreference {
     /// Only use left hand for space.
@@ -592,7 +581,6 @@ pub enum SpaceHandPreference {
 
 /// Represents a specific N-gram that violates a metric threshold.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct MetricViolation {
     /// The keys involved (e.g., "TH").
     pub keys: String,
@@ -604,7 +592,6 @@ pub struct MetricViolation {
 
 /// Detailed breakdown of a layout's performance.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct AnalysisReport {
     /// Total weighted score.
     pub score: f32,
@@ -662,7 +649,6 @@ pub struct AnalysisReport {
 
 /// The final output of an optimization run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct OptimizationResult {
     /// The final score achieved (normalized f32).
     pub score: f32,
@@ -678,7 +664,6 @@ pub type ScoringResult = OptimizationResult;
 
 /// A proposed change to the layout during optimization.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct SwapSuggestion {
     /// Index of the first key.
     pub index_a: usize,
@@ -693,6 +678,52 @@ pub struct SwapSuggestion {
     /// Percentage improvement.
     pub improvement_pct: f32,
 }
+
+// --- Domain-Specific Newtypes (Anti-Primitive Obsession) ---
+
+/// A security-bounded duration in milliseconds.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
+)]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct DurationMs(pub u64);
+
+/// Number of iterations for an optimization step.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
+)]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct IterationCount(pub usize);
+
+/// Simulated annealing temperature.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct Temperature(pub f32);
+
+/// Patience limit for stagnant optimization runs.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
+)]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct PatienceCount(pub usize);
+
+/// Number of reheating cycles.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
+)]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct ReheatCount(pub usize);
+
+/// Generic scaling or adjustment factor.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
+#[serde(transparent)]
+#[repr(transparent)]
+pub struct ScalingFactor(pub f32);
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
