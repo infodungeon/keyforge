@@ -3,14 +3,14 @@
 ## High-Heat Areas (Immediate Priority)
 - [x] **[SYMPTOM] Hive Data Mapping**: Manual conversion between SQLX/JSON and Model. Results in 27+ fragile errors.
   - *Pivot*: Implement `mapping.rs` projection trait in `keyforge-model`. (Resolved via Projection Bundle pattern in Issue #39)
-- **[SYMPTOM] Test Grace Proliferation**: Manual repetition of `#[allow]` in 89+ files.
-  - *Pivot*: Harden `kf_test` macro to be the sole source of structural grace.
+- [x] **[SYMPTOM] Test Grace Proliferation**: Manual repetition of `#[allow]` in 89+ files.
+  - *Pivot*: Harden `kf_test` macro to be the sole source of structural grace. (Resolved in Issue #44 via exhaustive remediation and functional attribute escalation)
 
 ## Feature Gaps
 - [x] **[SYMPTOM] CLI Benchmark Incompleteness**: `apps/keyforge-cli/src/cmd/benchmark.rs` performs only raw throughput testing (KOPS). Integrated metric reporting and reality check (Issue #38).
 - [x] **[BROKEN] CLI Search Reporting**: `apps/keyforge-cli/src/cmd/search.rs` has reporting logic restored and unified with benchmark reporting (Issue #38).
 - **[DEAD] Reporting Tables**: `apps/keyforge-cli/src/reports/tables.rs::scoring` is currently unused due to the broken search reporting.
-- **[DEAD] Duplicate Loader**: `libs/keyforge-adapter/src/loader.rs` is an untracked/dead file that duplicates `libs/keyforge-model/src/loader.rs`.
+- [x] **[DEAD] Duplicate Loader**: `libs/keyforge-adapter/src/loader.rs` is an untracked/dead file that duplicates `libs/keyforge-model/src/loader.rs`. (Resolved in Issue #44 via dead code purging)
 - **[DISABLED] Kani Verification**: `libs/keyforge-model/src/verification.rs` is an untracked/orphaned file. Formal verification proofs are not currently running.
 
 ## Architectural Pressure Points
@@ -34,18 +34,18 @@
 ### 3. Incomplete System Abstraction
 - **Symptoms**: `#[allow]` proliferation; Repetitive scoring loops.
 - **Diagnosis**: Common patterns (testing, iteration) are solved manually via copy-paste rather than structurally via Macros or Traits.
-- **Remediation**: Enforce "Structural Oracle" pattern: use `kf_test` macro for all test configurations and `ScoringEngine` trait for all physics loops.
+- **Remediation**: [x] Enforce "Structural Oracle" pattern: use `kf_test` macro for all test configurations and `ScoringEngine` trait for all physics loops. (Resolved in Issue #44)
 
 ## Audit Zero Entropy (2026-01-24) - Grand Unified Report
 
 ### 1. Architectural & Structural Findings
-- **[ARCH-CRITICAL] Module Obesity**: `libs/keyforge-model/src/config/weights.rs` (783 lines) and `libs/keyforge-model/src/types.rs` (744 lines) exceed the 500 LOC threshold.
-- **[ARCH-005] Hidden IO**: CORS origins hardcoded in `apps/keyforge-hive/src/lib.rs`.
+- [x] **[ARCH-CRITICAL] Module Obesity**: `libs/keyforge-model/src/config/weights.rs` (783 lines) and `libs/keyforge-model/src/types.rs` (744 lines) exceed the 500 LOC threshold. (Resolved in Issue #26 via decomposition into submodules)
+- [x] **[ARCH-005] Hidden IO**: CORS origins hardcoded in `apps/keyforge-hive/src/lib.rs`. (Resolved in Issue #27 via CorsConfig extraction)
 - **[COUPLING] God Functions**: `new`, `default`, and `validate` (291 connections) are structural bottlenecks.
 - [x] **[DEAD] Orphaned Exports**: 107 unused public exports detected in the global graph. (Resolved by downgrading concrete engines and compilation machinery to pub(crate) in Issue #36)
 
 ### 2. Semantic & Safety Findings
-- **[SAFETY-RISK] Undocumented Unsafe**: 35 unsafe blocks found; many lack `// Safety:` justification (e.g. `apps/keyforge-agent/src/hw_detect.rs`).
+- [x] **[SAFETY-RISK] Undocumented Unsafe**: 35 unsafe blocks found; many lack `// Safety:` justification (e.g. `apps/keyforge-agent/src/hw_detect.rs`). (Resolved in Issue #28 via mandatory justifications)
 - **[TYPE-003] Panic Reachability**: `calculate_swap_delta` traces to 12 internal `unwrap()` calls. 
 - **[PRIMITIVE] Float Leakage**: 58 functions in `keyforge-compute` and `weights.rs` return raw `f32/f64` instead of `Score` or `Weight` newtypes.
 - **[ANEMIC] passive Data**: 107 passive structs in `keyforge-protocol` leak internal state via `pub` fields.

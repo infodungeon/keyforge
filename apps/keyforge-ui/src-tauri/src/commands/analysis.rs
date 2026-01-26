@@ -1,7 +1,7 @@
 // apps/keyforge-ui/src-tauri/src/commands/analysis.rs
 
 use crate::error::CommandError;
-use crate::models::{AnalysisReportDto, DerivedStats, SwapSuggestionDto, ValidationResult};
+use crate::models::{AnalysisReportDto, DerivedStatsDto, SwapSuggestionDto, ValidationResultDto};
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_adapter::loader::AssetLoader;
@@ -14,7 +14,9 @@ use tauri::AppHandle;
 /// Statistics for a specific corpus on disk.
 #[derive(Serialize, Debug)]
 pub struct CorpusStats {
+    /// Name of the corpus.
     pub name: String,
+    /// Size in bytes.
     pub size_bytes: u64,
 }
 
@@ -146,7 +148,7 @@ pub async fn validate_layout_string(
     layout_str: String,
     keyboard_filename: String,
     corpus_filename: String,
-) -> Result<ValidationResult, CommandError> {
+) -> Result<ValidationResultDto, CommandError> {
     // 1. Resolve Keyboard Definition
     let definition = state
         .assets
@@ -225,7 +227,7 @@ pub async fn validate_layout_string(
         }
     };
 
-    Ok(ValidationResult {
+    Ok(ValidationResultDto {
         layout_name: "Custom".to_string(),
         score: report.clone().into(),
         geometry: job_config
@@ -243,7 +245,7 @@ pub async fn validate_layout_string(
 pub async fn get_derived_stats(
     state: tauri::State<'_, std::sync::Arc<SessionState>>,
     layout_str: String,
-) -> Result<DerivedStats, CommandError> {
+) -> Result<DerivedStatsDto, CommandError> {
     let read_guard = state.scoring_session.read().await;
     let session = read_guard
         .as_ref()
@@ -261,7 +263,7 @@ pub async fn get_derived_stats(
         .analyze(&layout)
         .map_err(|e| CommandError::Internal(e.to_string()))?;
 
-    Ok(DerivedStats {
+    Ok(DerivedStatsDto {
         hand_balance: report.hand_balance,
     })
 }

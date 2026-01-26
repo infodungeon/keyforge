@@ -3,11 +3,11 @@ use std::collections::HashMap;
 
 // RE-EXPORTS from Protocol
 pub use keyforge_protocol::{
-    AnalysisReportDto, BiometricSample, ConfigAggregateDto, JobConfig,
+    AnalysisReportDto, BiometricSample, ConfigAggregateDto, DerivedStatsDto, JobConfig,
     JobRequest as RegisterJobRequest, JobResponse as RegisterJobResponse, KeyNodeDto, LayoutDto,
     NodeRequest as RegisterNodeRequest, NodeResponse as RegisterNodeResponse, PopulationResponse,
     ResultSubmission as SubmitResultRequest, ScoringWeightsDto, SearchParamsDto, SwapSuggestionDto,
-    TuningProfile, UserStatsStore,
+    TuningProfile, UserStatsStore, ValidationResultDto,
 };
 
 /// Periodic status update for a remote job running on the Hive.
@@ -65,24 +65,8 @@ pub struct SyncStats {
     pub errors: Vec<String>,
 }
 
-/// Result of a layout validation and analysis operation.
-#[derive(Serialize, Clone, Debug)]
-pub struct ValidationResult {
-    /// Name of the layout that was validated.
-    pub layout_name: String,
-    /// Comprehensive analysis report including ergonomics metrics.
-    pub score: AnalysisReportDto,
-    /// Physical geometry of the keyboard used for analysis.
-    pub geometry: Vec<KeyNodeDto>,
-    /// Frequency heatmap indicating which keys are used most relative to their position.
-    pub heatmap: Vec<f32>,
-    /// Map of ergonomic penalties applied across the layout.
-    pub penalty_map: Vec<f32>,
-}
+/// Result of a layout validation and analysis operation (Legacy alias).
+pub type ValidationResult = ValidationResultDto;
 
-/// Statistics derived from raw analysis data for UI display.
-#[derive(Serialize, Clone, Debug)]
-pub struct DerivedStats {
-    /// Calculated balance between left and right hand usage (0.0 to 1.0).
-    pub hand_balance: f32,
-}
+/// Statistics derived from raw analysis data for UI display (Legacy alias).
+pub type DerivedStats = DerivedStatsDto;
