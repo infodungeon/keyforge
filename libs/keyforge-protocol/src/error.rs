@@ -38,13 +38,17 @@ pub enum ErrorCode {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct ForgeErrorDto {
+    /// Machine-readable error code.
     pub code: ErrorCode,
+    /// Human-readable error message.
     pub message: String,
+    /// Optional structured details about the error.
     #[cfg_attr(feature = "ts_bindings", ts(type = "any"))]
     pub details: Option<serde_json::Value>,
 }
 
 impl ForgeErrorDto {
+    /// Creates a new `ForgeErrorDto`.
     #[must_use]
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {

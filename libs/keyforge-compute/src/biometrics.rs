@@ -14,26 +14,22 @@ pub struct BigramStats {
 }
 
 impl BigramStats {
+    #[allow(clippy::cast_precision_loss)]
     pub fn add_sample(&mut self, ms: f64) {
         self.count += 1;
         let delta = ms - self.mean;
-        #[allow(clippy::cast_precision_loss)]
-        {
-            self.mean += delta / self.count as f64;
-        }
+        self.mean += delta / (self.count as f64);
         let delta2 = ms - self.mean;
         self.m2 += delta * delta2;
     }
 
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn variance(&self) -> f64 {
         if self.count < 2 {
             0.0
         } else {
-            #[allow(clippy::cast_precision_loss)]
-            {
-                self.m2 / self.count as f64
-            }
+            self.m2 / (self.count as f64)
         }
     }
 
@@ -71,6 +67,7 @@ impl StreamingProfileBuilder {
     }
 
     #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub fn build_model(&self) -> CostModel {
         let mut modifiers = HashMap::new();
         let reliable_means: Vec<f64> = self
@@ -94,10 +91,7 @@ impl StreamingProfileBuilder {
         for (bigram, s) in &self.stats {
             if s.count >= Self::MIN_SAMPLES {
                 let ratio = s.mean / global_avg;
-                #[allow(clippy::cast_possible_truncation)]
-                {
-                    modifiers.insert(format!("{}_{}", bigram.0, bigram.1), ratio as f32);
-                }
+                modifiers.insert(format!("{}_{}", bigram.0, bigram.1), ratio as f32);
             }
         }
 

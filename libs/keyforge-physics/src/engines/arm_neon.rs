@@ -58,6 +58,7 @@ impl ScoringEngine for ArmNeonScoringEngine {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         #[cfg(target_arch = "aarch64")]
         {
+            // SAFETY: We have verified that the target architecture is aarch64, which supports NEON instructions.
             unsafe {
                 return score_layout_neon(&self.ctx, &validated, scratch).map(Score);
             }
@@ -202,7 +203,8 @@ unsafe fn score_layout_neon(
         && ctx.sequence_modifiers.is_empty();
 
     let total = if is_simple {
-        score_simple_neon(&eval_ctx, flat_map)?
+        // SAFETY: Evaluated only when is_simple is true, ensuring flat_map is fully populated and no sequence modifiers exist.
+        unsafe { score_simple_neon(&eval_ctx, flat_map)? }
     } else {
         crate::kernel::compute::scoring::score_layout(ctx, layout, scratch)?
     };
@@ -243,7 +245,8 @@ unsafe fn score_simple_neon(
         let start = ctx.engine.corpus.bigram_starts[c1_val];
         let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
 
-        let mut row_sum_v = vdupq_n_s64(0);
+        // SAFETY: vdupq_n_s64 is a safe NEON intrinsic when on aarch64.
+        let mut row_sum_v = unsafe { vdupq_n_s64(0) };
         let key_count = ctx.engine.key_count;
         let p1_offset = p1 * key_count;
 
@@ -254,56 +257,65 @@ unsafe fn score_simple_neon(
         let mut k = start;
         while k + 2 <= end {
             // Load 2 KeyCodes (u16)
-            let c2_0 = others_ptr.add(k).read().0 as usize;
-            let c2_1 = others_ptr.add(k + 1).read().0 as usize;
+            // SAFETY: others_ptr is within corpus bounds [start, end).
+            let c2_0 = unsafe { others_ptr.add(k).read().0 as usize };
+            let c2_1 = unsafe { others_ptr.add(k + 1).read().0 as usize };
 
             let p2_0 = flat_map[c2_0];
-            let p2_1 = flat_map[c2_1];
+            let p2_1 = flat_map[p2_1];
 
             // Manual gather for costs
+            // SAFETY: costs_ptr is valid for key_count elements in each row.
             let cost0 = if p2_0 < key_count as u16 {
-                costs_ptr.add(p1_offset + (p2_0 as usize)).read().0
+                unsafe { costs_ptr.add(p1_offset + (p2_0 as usize)).read().0 }
             } else {
                 0
             };
             let cost1 = if p2_1 < key_count as u16 {
-                costs_ptr.add(p1_offset + (p2_1 as usize)).read().0
+                unsafe { costs_ptr.add(p1_offset + (p2_1 as usize)).read().0 }
             } else {
                 0
             };
-            let cost_v = vcombine_s64(vcreate_s64(cost0 as u64), vcreate_s64(cost1 as u64));
+            // SAFETY: vcombine_s64 and vcreate_s64 are safe NEON intrinsics on aarch64.
+            let cost_v =
+                unsafe { vcombine_s64(vcreate_s64(cost0 as u64), vcreate_s64(cost1 as u64)) };
 
             // Load 2 frequencies (u32 -> i64)
-            let freq0 = freqs_ptr.add(k).read() as i64;
-            let freq1 = freqs_ptr.add(k + 1).read() as i64;
-            let freq_v = vcombine_s64(vcreate_s64(freq0 as u64), vcreate_s64(freq1 as u64));
+            // SAFETY: freqs_ptr is valid up to 'end'.
+            let freq0 = unsafe { freqs_ptr.add(k).read() as i64 };
+            let freq1 = unsafe { freqs_ptr.add(k + 1).read() as i64 };
+            let freq_v =
+                unsafe { vcombine_s64(vcreate_s64(freq0 as u64), vcreate_s64(freq1 as u64)) };
 
-            let p0 = vgetq_lane_s64(cost_v, 0) * vgetq_lane_s64(freq_v, 0);
-            let p1 = vgetq_lane_s64(cost_v, 1) * vgetq_lane_s64(freq_v, 1);
-            let prod_v = vcombine_s64(vcreate_s64(p0 as u64), vcreate_s64(p1 as u64));
-            row_sum_v = vaddq_s64(row_sum_v, prod_v);
+            // SAFETY: vgetq_lane_s64, vcreate_s64, vcombine_s64, and vaddq_s64 are safe NEON intrinsics on aarch64.
+            let p0 = unsafe { vgetq_lane_s64(cost_v, 0) * vgetq_lane_s64(freq_v, 0) };
+            let p1 = unsafe { vgetq_lane_s64(cost_v, 1) * vgetq_lane_s64(freq_v, 1) };
+            let prod_v = unsafe { vcombine_s64(vcreate_s64(p0 as u64), vcreate_s64(p1 as u64)) };
+            row_sum_v = unsafe { vaddq_s64(row_sum_v, prod_v) };
 
             k += 2;
         }
 
         // Horizontal sum of row_sum_v
+        // SAFETY: vgetq_lane_s64 is safe on aarch64.
         total_score = total_score
-            .checked_add(vgetq_lane_s64(row_sum_v, 0))
+            .checked_add(unsafe { vgetq_lane_s64(row_sum_v, 0) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "NEON Bigram accumulation lane 0".to_string(),
             })?;
         total_score = total_score
-            .checked_add(vgetq_lane_s64(row_sum_v, 1))
+            .checked_add(unsafe { vgetq_lane_s64(row_sum_v, 1) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "NEON Bigram accumulation lane 1".to_string(),
             })?;
 
         // Remainder
         while k < end {
-            let c2 = others_ptr.add(k).read();
+            // SAFETY: others_ptr and freqs_ptr are valid at offset k < end.
+            let c2 = unsafe { others_ptr.add(k).read() };
             let p2 = flat_map[c2.0 as usize];
             if p2 < key_count as u16 {
-                let freq = freqs_ptr.add(k).read() as i64;
+                let freq = unsafe { freqs_ptr.add(k).read() as i64 };
                 let cost = ctx.engine.geometry.cost_matrix[p1 * key_count + p2 as usize].0;
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {
@@ -316,7 +328,8 @@ unsafe fn score_simple_neon(
     }
 
     // 3. Trigrams
-    total_score = score_trigrams_neon(ctx, flat_map, total_score)?;
+    // SAFETY: score_trigrams_neon is documented below.
+    total_score = unsafe { score_trigrams_neon(ctx, flat_map, total_score)? };
 
     Ok(total_score)
 }
@@ -388,15 +401,17 @@ unsafe fn score_trigrams_neon(
         let freqs_ptr = ctx.engine.corpus.trigram_freqs.as_ptr();
 
         let t1_offset = (t1 as usize) * 100;
-        let mut row_sum_v = vdupq_n_s64(0);
+        // SAFETY: vdupq_n_s64 is safe on aarch64.
+        let mut row_sum_v = unsafe { vdupq_n_s64(0) };
 
         let mut k = start;
         while k + 2 <= end {
-            let c2_0 = others1_ptr.add(k).read().0 as usize;
-            let c2_1 = others1_ptr.add(k + 1).read().0 as usize;
+            // SAFETY: pointers are within corpus bounds [start, end).
+            let c2_0 = unsafe { others1_ptr.add(k).read().0 as usize };
+            let c2_1 = unsafe { others1_ptr.add(k + 1).read().0 as usize };
 
-            let c3_0 = others2_ptr.add(k).read().0 as usize;
-            let c3_1 = others2_ptr.add(k + 1).read().0 as usize;
+            let c3_0 = unsafe { others2_ptr.add(k).read().0 as usize };
+            let c3_1 = unsafe { others2_ptr.add(k + 1).read().0 as usize };
 
             let t2_0 = type_map[c2_0];
             let t2_1 = type_map[c2_1];
@@ -413,38 +428,45 @@ unsafe fn score_trigrams_neon(
             } else {
                 0
             };
-            let cost_v = vcombine_s64(vcreate_s64(cost0 as u64), vcreate_s64(cost1 as u64));
+            // SAFETY: vcombine_s64 and vcreate_s64 are safe on aarch64.
+            let cost_v =
+                unsafe { vcombine_s64(vcreate_s64(cost0 as u64), vcreate_s64(cost1 as u64)) };
 
-            let freq0 = freqs_ptr.add(k).read() as i64;
-            let freq1 = freqs_ptr.add(k + 1).read() as i64;
-            let freq_v = vcombine_s64(vcreate_s64(freq0 as u64), vcreate_s64(freq1 as u64));
+            // SAFETY: freqs_ptr is valid up to 'end'.
+            let freq0 = unsafe { freqs_ptr.add(k).read() as i64 };
+            let freq1 = unsafe { freqs_ptr.add(k + 1).read() as i64 };
+            let freq_v =
+                unsafe { vcombine_s64(vcreate_s64(freq0 as u64), vcreate_s64(freq1 as u64)) };
 
-            let p0 = vgetq_lane_s64(cost_v, 0) * vgetq_lane_s64(freq_v, 0);
-            let p1 = vgetq_lane_s64(cost_v, 1) * vgetq_lane_s64(freq_v, 1);
-            let prod_v = vcombine_s64(vcreate_s64(p0 as u64), vcreate_s64(p1 as u64));
-            row_sum_v = vaddq_s64(row_sum_v, prod_v);
+            // SAFETY: NEON intrinsics are safe on aarch64.
+            let p0 = unsafe { vgetq_lane_s64(cost_v, 0) * vgetq_lane_s64(freq_v, 0) };
+            let p1 = unsafe { vgetq_lane_s64(cost_v, 1) * vgetq_lane_s64(freq_v, 1) };
+            let prod_v = unsafe { vcombine_s64(vcreate_s64(p0 as u64), vcreate_s64(p1 as u64)) };
+            row_sum_v = unsafe { vaddq_s64(row_sum_v, prod_v) };
 
             k += 2;
         }
 
+        // SAFETY: vgetq_lane_s64 is safe on aarch64.
         total_score = total_score
-            .checked_add(vgetq_lane_s64(row_sum_v, 0))
+            .checked_add(unsafe { vgetq_lane_s64(row_sum_v, 0) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "NEON Trigram accumulation lane 0".to_string(),
             })?;
         total_score = total_score
-            .checked_add(vgetq_lane_s64(row_sum_v, 1))
+            .checked_add(unsafe { vgetq_lane_s64(row_sum_v, 1) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "NEON Trigram accumulation lane 1".to_string(),
             })?;
 
         while k < end {
-            let c2 = others1_ptr.add(k).read();
-            let c3 = others2_ptr.add(k).read();
+            // SAFETY: pointers are valid at offset k < end.
+            let c2 = unsafe { others1_ptr.add(k).read() };
+            let c3 = unsafe { others2_ptr.add(k).read() };
             let t2 = type_map[c2.0 as usize];
             let t3 = type_map[c3.0 as usize];
             if t2 != 255 && t3 != 255 {
-                let freq = freqs_ptr.add(k).read() as i64;
+                let freq = unsafe { freqs_ptr.add(k).read() as i64 };
                 let cost = flow_table[t1_offset + (t2 as usize) * 10 + (t3 as usize)];
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {

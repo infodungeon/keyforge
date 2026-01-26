@@ -59,14 +59,14 @@ impl Compiler {
         // If the cost model has exactly one model, use it.
         // Otherwise, pick based on keyboard type.
         let model_key = if cost_model.models.len() == 1 {
-            cost_model.models.keys().next().map(|s| s.as_str())
+            cost_model.models.keys().next().map(String::as_str)
         } else if kb.kb_type.to_lowercase().contains("ortho") {
             Some("model_ortho")
         } else if cost_model.models.contains_key("model_a_row_staggered") {
             Some("model_a_row_staggered")
         } else {
             // Final fallback: just try to get ANY model if available
-            cost_model.models.keys().next().map(|s| s.as_str())
+            cost_model.models.keys().next().map(String::as_str)
         };
 
         let cost_stage = CostStage {

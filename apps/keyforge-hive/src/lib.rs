@@ -93,7 +93,7 @@ impl Zeroize for RateLimitState {
 #[allow(clippy::too_many_lines)]
 pub fn create_app(state: Arc<AppState>, config: &config::AppConfig, _data_path: PathBuf) -> Router {
     // --- CORS ---
-    let cors_origins = &config.cors_origins;
+    let cors_origins = &config.cors.allowed_origins;
     let cors = if cors_origins == "*" {
         info!("�� CORS: Explicitly Permissive Mode (*)");
         CorsLayer::new()

@@ -46,7 +46,8 @@ pub mod mapping;
 pub mod metrics;
 /// Scoring configuration and weights.
 pub mod rubric;
-/// Core newtypes (`KeyIndex`, `Score`, etc.).
+/// Core domain types and newtypes.
+#[path = "types/mod.rs"]
 pub mod types;
 /// Internal utilities (private).
 pub mod utils;

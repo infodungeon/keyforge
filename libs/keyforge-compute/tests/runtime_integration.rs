@@ -69,8 +69,14 @@ mod runtime_tests {
     async fn test_runtime_execution() {
         let loader = MockLoader;
         let mut kb_def = KeyboardDefinition::default();
-        kb_def.geometry.keys.push(keyforge_model::KeyNode::default());
-        kb_def.geometry.prime_slots.push(keyforge_model::types::KeyIndex(0));
+        kb_def
+            .geometry
+            .keys
+            .push(keyforge_model::KeyNode::default());
+        kb_def
+            .geometry
+            .prime_slots
+            .push(keyforge_model::types::KeyIndex(0));
 
         let session = keyforge_compute::SessionBuilder::new(&loader)
             .with_keyboard_def(Arc::new(kb_def))

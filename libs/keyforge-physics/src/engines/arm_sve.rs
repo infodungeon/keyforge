@@ -58,9 +58,8 @@ impl ScoringEngine for ArmSveScoringEngine {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         #[cfg(target_arch = "aarch64")]
         {
-            // SVE detection at runtime is complex in Rust currently.
-            // We use a feature gate for compilation and assume runtime check is handled by caller or OS.
-            // For now, we provide the hook.
+            // SAFETY: We have verified that the target architecture is aarch64.
+            // SVE support is explicitly checked via is_aarch64_feature_detected before calling the SVE kernel.
             unsafe {
                 if std::arch::is_aarch64_feature_detected!("sve") {
                     return score_layout_sve(&self.ctx, &validated, scratch).map(Score);
@@ -169,14 +168,15 @@ fn score_layout_scalar(
 /// This implementation uses a loop-vectorized pattern that allows LLVM to
 /// emit SVE instructions when compiled with `-C target-feature=+sve`.
 #[cfg(target_arch = "aarch64")]
+/// # Safety
+/// This function is currently a passthrough to the safe scalar implementation,
+/// but is marked unsafe to reserve the semantics for future SVE-specific optimizations.
 unsafe fn score_layout_sve(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
     scratch: &mut PhysicsScratch,
 ) -> Result<i64, PhysicsError> {
-    // For now, we fall back to scalar until stable SVE intrinsics are available
-    // or we implement an inline-asm optimized loop.
-    // However, we mark the engine as SVE capable to allow for future binary-level optimization.
+    // SAFETY: Delegate to the safe scalar implementation.
     score_layout_scalar(ctx, layout, scratch)
 }
 

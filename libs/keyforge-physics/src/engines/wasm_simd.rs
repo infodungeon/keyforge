@@ -58,6 +58,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         #[cfg(target_arch = "wasm32")]
         {
+            // SAFETY: We have verified that the target architecture is wasm32, which supports WASM SIMD.
             unsafe {
                 return score_layout_wasm(&self.ctx, &validated, scratch).map(Score);
             }
@@ -154,7 +155,6 @@ impl ScoringEngine for WasmSimdScoringEngine {
     }
 }
 
-#[allow(dead_code)]
 fn score_layout_scalar(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
@@ -203,7 +203,8 @@ unsafe fn score_layout_wasm(
         && ctx.sequence_modifiers.is_empty();
 
     let total = if is_simple {
-        score_simple_wasm(&eval_ctx, flat_map)?
+        // SAFETY: Only called when is_simple is true, ensuring flat_map is valid and no sequence modifiers exist.
+        unsafe { score_simple_wasm(&eval_ctx, flat_map)? }
     } else {
         crate::kernel::compute::scoring::score_layout(ctx, layout, scratch)?
     };
@@ -244,7 +245,8 @@ unsafe fn score_simple_wasm(
         let start = ctx.engine.corpus.bigram_starts[c1_val];
         let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
 
-        let mut row_sum_v = i64x2_splat(0);
+        // SAFETY: i64x2_splat is a safe WASM SIMD intrinsic on wasm32.
+        let mut row_sum_v = unsafe { i64x2_splat(0) };
         let key_count = ctx.engine.key_count;
         let p1_offset = p1 * key_count;
 
@@ -255,27 +257,30 @@ unsafe fn score_simple_wasm(
         let mut k = start;
         while k + 2 <= end {
             // Load 2 KeyCodes (u16)
-            let c2_0 = others_ptr.add(k).read().0 as usize;
-            let c2_1 = others_ptr.add(k + 1).read().0 as usize;
+            // SAFETY: others_ptr is within corpus bounds [start, end).
+            let c2_0 = unsafe { others_ptr.add(k).read().0 as usize };
+            let c2_1 = unsafe { others_ptr.add(k + 1).read().0 as usize };
 
             let p2_0 = flat_map[c2_0];
-            let p2_1 = flat_map[c2_1];
+            let p2_1 = flat_map[p2_1];
 
             // Manual gather for costs
+            // SAFETY: costs_ptr is valid for key_count elements in each row.
             let cost0 = if p2_0 < key_count as u16 {
-                costs_ptr.add(p1_offset + (p2_0 as usize)).read().0
+                unsafe { costs_ptr.add(p1_offset + (p2_0 as usize)).read().0 }
             } else {
                 0
             };
             let cost1 = if p2_1 < key_count as u16 {
-                costs_ptr.add(p1_offset + (p2_1 as usize)).read().0
+                unsafe { costs_ptr.add(p1_offset + (p2_1 as usize)).read().0 }
             } else {
                 0
             };
 
             // Load 2 frequencies (u32 -> i64)
-            let freq0 = freqs_ptr.add(k).read() as i64;
-            let freq1 = freqs_ptr.add(k + 1).read() as i64;
+            // SAFETY: freqs_ptr is valid up to 'end'.
+            let freq0 = unsafe { freqs_ptr.add(k).read() as i64 };
+            let freq1 = unsafe { freqs_ptr.add(k + 1).read() as i64 };
 
             // Multiply and accumulate
             // WASM doesn't have i64x2_mul, so we must mul individual lanes or use a different strategy
@@ -284,29 +289,32 @@ unsafe fn score_simple_wasm(
             // For now, let's use scalar mul and then pack if i64x2_mul is missing.
             let res0 = cost0 * freq0;
             let res1 = cost1 * freq1;
-            row_sum_v = i64x2_add(row_sum_v, i64x2(res0, res1));
+            // SAFETY: i64x2 and i64x2_add are safe on wasm32.
+            row_sum_v = unsafe { i64x2_add(row_sum_v, i64x2(res0, res1)) };
 
             k += 2;
         }
 
         // Horizontal sum of row_sum_v
+        // SAFETY: i64x2_extract_lane is safe on wasm32.
         total_score = total_score
-            .checked_add(i64x2_extract_lane::<0>(row_sum_v))
+            .checked_add(unsafe { i64x2_extract_lane::<0>(row_sum_v) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "WASM Bigram accumulation lane 0".to_string(),
             })?;
         total_score = total_score
-            .checked_add(i64x2_extract_lane::<1>(row_sum_v))
+            .checked_add(unsafe { i64x2_extract_lane::<1>(row_sum_v) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "WASM Bigram accumulation lane 1".to_string(),
             })?;
 
         // Remainder
         while k < end {
-            let c2 = others_ptr.add(k).read();
+            // SAFETY: pointers are valid at offset k < end.
+            let c2 = unsafe { others_ptr.add(k).read() };
             let p2 = flat_map[c2.0 as usize];
             if p2 < key_count as u16 {
-                let freq = freqs_ptr.add(k).read() as i64;
+                let freq = unsafe { freqs_ptr.add(k).read() as i64 };
                 let cost = ctx.engine.geometry.cost_matrix[p1 * key_count + p2 as usize].0;
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {
@@ -391,15 +399,17 @@ unsafe fn score_trigrams_wasm(
         let freqs_ptr = ctx.engine.corpus.trigram_freqs.as_ptr();
 
         let t1_offset = (t1 as usize) * 100;
-        let mut row_sum_v = i64x2_splat(0);
+        // SAFETY: i64x2_splat is safe on wasm32.
+        let mut row_sum_v = unsafe { i64x2_splat(0) };
 
         let mut k = start;
         while k + 2 <= end {
-            let c2_0 = others1_ptr.add(k).read().0 as usize;
-            let c2_1 = others1_ptr.add(k + 1).read().0 as usize;
+            // SAFETY: pointers are within corpus bounds [start, end).
+            let c2_0 = unsafe { others1_ptr.add(k).read().0 as usize };
+            let c2_1 = unsafe { others1_ptr.add(k + 1).read().0 as usize };
 
-            let c3_0 = others2_ptr.add(k).read().0 as usize;
-            let c3_1 = others2_ptr.add(k + 1).read().0 as usize;
+            let c3_0 = unsafe { others2_ptr.add(k).read().0 as usize };
+            let c3_1 = unsafe { others2_ptr.add(k + 1).read().0 as usize };
 
             let t2_0 = type_map[c2_0];
             let t2_1 = type_map[c2_1];
@@ -417,32 +427,37 @@ unsafe fn score_trigrams_wasm(
                 0
             };
 
-            let freq0 = freqs_ptr.add(k).read() as i64;
-            let freq1 = freqs_ptr.add(k + 1).read() as i64;
+            // SAFETY: freqs_ptr is within bounds.
+            let freq0 = unsafe { freqs_ptr.add(k).read() as i64 };
+            let freq1 = unsafe { freqs_ptr.add(k + 1).read() as i64 };
 
-            row_sum_v = i64x2_add(row_sum_v, i64x2(cost0 * freq0, cost1 * freq1));
+            // SAFETY: i64x2_add and i64x2 are safe on wasm32.
+            row_sum_v = unsafe { i64x2_add(row_sum_v, i64x2(cost0 * freq0, cost1 * freq1)) };
 
             k += 2;
         }
 
+        // Horizontal sum of row_sum_v
+        // SAFETY: i64x2_extract_lane is safe on wasm32.
         total_score = total_score
-            .checked_add(i64x2_extract_lane::<0>(row_sum_v))
+            .checked_add(unsafe { i64x2_extract_lane::<0>(row_sum_v) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "WASM Trigram accumulation lane 0".to_string(),
             })?;
         total_score = total_score
-            .checked_add(i64x2_extract_lane::<1>(row_sum_v))
+            .checked_add(unsafe { i64x2_extract_lane::<1>(row_sum_v) })
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "WASM Trigram accumulation lane 1".to_string(),
             })?;
 
         while k < end {
-            let c2 = others1_ptr.add(k).read();
-            let c3 = others2_ptr.add(k).read();
+            // SAFETY: pointers are valid at offset k < end.
+            let c2 = unsafe { others1_ptr.add(k).read() };
+            let c3 = unsafe { others2_ptr.add(k).read() };
             let t2 = type_map[c2.0 as usize];
             let t3 = type_map[c3.0 as usize];
             if t2 != 255 && t3 != 255 {
-                let freq = freqs_ptr.add(k).read() as i64;
+                let freq = unsafe { freqs_ptr.add(k).read() as i64 };
                 let cost = flow_table[t1_offset + (t2 as usize) * 10 + (t3 as usize)];
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {

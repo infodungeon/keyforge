@@ -409,10 +409,8 @@ impl JobRepository {
             );
 
             qb.push_values(def.geometry.keys.iter().enumerate(), |mut b, (idx, key)| {
-                #[allow(clippy::cast_possible_truncation)]
-                let kidx = KeyIndex(idx as u16);
-                #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-                let idx_i32 = idx as i32;
+                let kidx = KeyIndex(idx.try_into().unwrap_or_default());
+                let idx_i32: i32 = idx.try_into().unwrap_or_default();
 
                 b.push_bind(kb_id)
                     .push_bind(idx_i32)
@@ -470,6 +468,7 @@ impl JobRepository {
         Ok(row.id)
     }
 
+    #[allow(clippy::cast_precision_loss)]
     async fn ensure_search_params(
         &self,
         tx: &mut sqlx::Transaction<'_, Postgres>,
@@ -478,17 +477,9 @@ impl JobRepository {
         let model_params = keyforge_model::config::SearchParams {
             params: {
                 let mut p = std::collections::HashMap::new();
-                p.insert(
-                    "search_steps".into(),
-                    #[allow(clippy::cast_precision_loss)]
-                    (params.iterations as f32),
-                );
+                p.insert("search_steps".into(), params.iterations as f32);
                 if let Some(r) = params.reheats {
-                    p.insert(
-                        "reheats".into(),
-                        #[allow(clippy::cast_precision_loss)]
-                        (r as f32),
-                    );
+                    p.insert("reheats".into(), r as f32);
                 }
                 p
             },
@@ -501,16 +492,26 @@ impl JobRepository {
         hasher.update(p_json.as_bytes());
         let hash = hex::encode(hasher.finalize());
 
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let epochs = model_params.get_search_epochs() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let steps = model_params.get_search_steps() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let patience = model_params.get_search_patience() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let opt_fast = model_params.get_opt_limit_fast() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let opt_slow = model_params.get_opt_limit_slow() as i32;
+        let epochs: i32 = model_params
+            .get_search_epochs()
+            .try_into()
+            .unwrap_or_default();
+        let steps: i32 = model_params
+            .get_search_steps()
+            .try_into()
+            .unwrap_or_default();
+        let patience: i32 = model_params
+            .get_search_patience()
+            .try_into()
+            .unwrap_or_default();
+        let opt_fast: i32 = model_params
+            .get_opt_limit_fast()
+            .try_into()
+            .unwrap_or_default();
+        let opt_slow: i32 = model_params
+            .get_opt_limit_slow()
+            .try_into()
+            .unwrap_or_default();
 
         let row = sqlx::query!(
             r#"

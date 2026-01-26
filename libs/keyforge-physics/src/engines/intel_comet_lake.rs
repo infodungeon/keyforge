@@ -47,6 +47,7 @@ impl ScoringEngine for IntelScoringEngine {
         let v = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         if is_x86_feature_detected!("avx2") {
+            // SAFETY: We have explicitly verified the presence of AVX2 extensions via cpuid before execution.
             unsafe {
                 return score_layout_avx2(&self.ctx, &v, scratch, &self.config).map(Score);
             }
@@ -228,28 +229,42 @@ unsafe fn score_bigrams_avx2(
             let mut idx = [0i32; 4];
             let mut msk = [0i64; 4];
             for i in 0..4 {
-                let p2 = flat_map[others_ptr.add(k + i).read().0 as usize];
+                // SAFETY: others_ptr is within corpus bounds [start, end). flat_map access is safe as others_ptr contains valid keycodes.
+                let p2 = unsafe { flat_map[others_ptr.add(k + i).read().0 as usize] };
                 if p2 < key_count {
                     msk[i] = -1;
                     idx[i] = i32::from(p2);
                 }
             }
-            let cost_v = _mm256_and_si256(
-                _mm256_i32gather_epi64(costs_ptr.cast(), _mm_loadu_si128(idx.as_ptr().cast()), 8),
-                _mm256_loadu_si256(msk.as_ptr().cast()),
-            );
-            row_sum = _mm256_add_epi64(
-                row_sum,
-                mul_epi64_avx2(
-                    cost_v,
-                    _mm256_cvtepu32_epi64(_mm_loadu_si128(freqs_ptr.add(k).cast())),
-                ),
-            );
+            // SAFETY: costs_ptr is valid for key_count elements in each row. idx contains valid indices.
+            let cost_v = unsafe {
+                _mm256_and_si256(
+                    _mm256_i32gather_epi64(
+                        costs_ptr.cast(),
+                        _mm_loadu_si128(idx.as_ptr().cast()),
+                        8,
+                    ),
+                    _mm256_loadu_si256(msk.as_ptr().cast()),
+                )
+            };
+            // SAFETY: mul_epi64_avx2 correctly implements 64-bit multiplication for AVX2.
+            row_sum = unsafe {
+                _mm256_add_epi64(
+                    row_sum,
+                    mul_epi64_avx2(
+                        cost_v,
+                        _mm256_cvtepu32_epi64(_mm_loadu_si128(freqs_ptr.add(k).cast())),
+                    ),
+                )
+            };
             k += 4;
         }
         let mut results = [0i64; 4];
         #[allow(clippy::cast_ptr_alignment)]
-        _mm256_storeu_si256(results.as_mut_ptr().cast(), row_sum);
+        // SAFETY: results is a local array of 4 i64s, matching the size of row_sum.
+        unsafe {
+            _mm256_storeu_si256(results.as_mut_ptr().cast(), row_sum);
+        };
         for res in results {
             total_score =
                 total_score
@@ -259,11 +274,13 @@ unsafe fn score_bigrams_avx2(
                     })?;
         }
         while k < end {
-            let p2 = flat_map[others_ptr.add(k).read().0 as usize];
+            // SAFETY: Manual fallback loop for remaining bigrams. Bounds are guaranteed by 'end'.
+            let p2 = unsafe { flat_map[others_ptr.add(k).read().0 as usize] };
             if p2 < key_count {
                 total_score = total_score
                     .checked_add(
-                        i64::from(freqs_ptr.add(k).read())
+                        // SAFETY: others_ptr and freqs_ptr are valid at offset k.
+                        i64::from(unsafe { freqs_ptr.add(k).read() })
                             * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2 as usize].0,
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
@@ -287,20 +304,9 @@ unsafe fn score_trigrams_avx2(
         _mm256_add_epi64, _mm256_and_si256, _mm256_cvtepu32_epi64, _mm256_i32gather_epi64,
         _mm256_loadu_si256, _mm256_setzero_si256, _mm256_storeu_si256, _mm_loadu_si128,
     };
-    let key_count_usize = ctx.engine.key_count;
-    let mut pos_types = [0u8; 256];
-    for (i, p_type) in pos_types.iter_mut().enumerate().take(key_count_usize) {
-        *p_type = ctx.engine.geometry.hands[i].as_u8() * 5 + ctx.engine.geometry.fingers[i].as_u8();
-    }
     let flow_table = build_flow_table_avx2(ctx);
-    let mut type_map = vec![255u8; 65536].into_boxed_slice();
-    let limit = u16::try_from(key_count_usize).unwrap_or(u16::MAX);
-    for &code in ctx.pos_map.used_keys() {
-        let p = flat_map[code as usize];
-        if p < limit {
-            type_map[code as usize] = pos_types[p as usize];
-        }
-    }
+    let type_map = build_type_map_avx2(ctx, flat_map);
+
     for &code1 in ctx.pos_map.used_keys() {
         let t1 = type_map[code1 as usize];
         if t1 == 255 {
@@ -379,6 +385,23 @@ unsafe fn score_trigrams_avx2(
     Ok(total_score)
 }
 
+fn build_type_map_avx2(ctx: &crate::kernel::EvaluationContext<'_>, flat_map: &[u16]) -> Box<[u8]> {
+    let key_count_usize = ctx.engine.key_count;
+    let mut pos_types = [0u8; 256];
+    for (i, p_type) in pos_types.iter_mut().enumerate().take(key_count_usize) {
+        *p_type = ctx.engine.geometry.hands[i].as_u8() * 5 + ctx.engine.geometry.fingers[i].as_u8();
+    }
+    let mut type_map = vec![255u8; 65536].into_boxed_slice();
+    let limit = u16::try_from(key_count_usize).unwrap_or(u16::MAX);
+    for &code in ctx.pos_map.used_keys() {
+        let p = flat_map[code as usize];
+        if p < limit {
+            type_map[code as usize] = pos_types[p as usize];
+        }
+    }
+    type_map
+}
+
 fn build_flow_table_avx2(ctx: &crate::kernel::EvaluationContext<'_>) -> Box<[i64]> {
     let mut flow_table = vec![0i64; 1000].into_boxed_slice();
     for t1 in 0..10 {
@@ -408,6 +431,11 @@ fn build_flow_table_avx2(ctx: &crate::kernel::EvaluationContext<'_>) -> Box<[i64
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline]
 #[target_feature(enable = "avx2")]
+/// Performs 64-bit multiplication using 32-bit AVX2 primitives.
+///
+/// # Safety
+/// This function is unsafe because it uses SIMD intrinsics and must only be called
+/// when AVX2 support is verified.
 unsafe fn mul_epi64_avx2(
     a: std::arch::x86_64::__m256i,
     b: std::arch::x86_64::__m256i,
@@ -415,6 +443,7 @@ unsafe fn mul_epi64_avx2(
     use std::arch::x86_64::{
         _mm256_add_epi64, _mm256_mul_epu32, _mm256_shuffle_epi32, _mm256_slli_epi64,
     };
+    // SAFETY: Input parameters are valid SIMD registers.
     let (b_shuf, a_shuf) = (_mm256_shuffle_epi32(b, 0xF5), _mm256_shuffle_epi32(a, 0xF5));
     let (l_l_h, l_h_l, l_low_low) = (
         _mm256_mul_epu32(a, b_shuf),
