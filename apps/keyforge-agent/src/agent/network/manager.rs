@@ -121,7 +121,7 @@ impl NetworkManager {
             hostname: hostname::get()
                 .map(|h| h.to_string_lossy().to_string())
                 .unwrap_or_default(),
-            cpu_cores: self.hardware.cores as usize,
+            cpu_cores: self.hardware.cores.try_into().unwrap_or_default(),
             cpu_model: self.hardware.cpu_model.clone(),
             capabilities: self.hardware.capabilities.clone(),
             cores: self.hardware.cores,
@@ -221,6 +221,7 @@ impl NetworkManager {
                         job_id: job_id_opt,
                         temp,
                         current_best: best_opt,
+                        #[allow(clippy::cast_precision_loss)]
                         memory_usage: format!("{:.2} MB", (memory_bytes as f64) / 1024.0 / 1024.0),
                         timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
                     };

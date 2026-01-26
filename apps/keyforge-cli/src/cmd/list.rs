@@ -20,7 +20,7 @@ pub async fn run<L: AssetLoader + ?Sized>(
 
     match kind.as_str() {
         "keyboard" | "keyboards" => list_keyboards(loader).await?,
-        "corpus" | "corpora" => list_corpora(loader).await?,
+        "corpus" | "corpora" => list_corpora(loader)?,
         _ => println!("Unknown asset kind: {kind}"),
     }
 
@@ -48,7 +48,7 @@ async fn list_keyboards<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::Cl
     Ok(())
 }
 
-async fn list_corpora<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::CliResult<()> {
+fn list_corpora<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::CliResult<()> {
     let corpora = keyforge_infra::fs::listing::list_corpora(loader.root())?;
     let mut table = Table::new();
     table.set_header(vec!["Filename", "Type", "Size"]);
