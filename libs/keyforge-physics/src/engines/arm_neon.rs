@@ -262,7 +262,7 @@ unsafe fn score_simple_neon(
             let c2_1 = unsafe { others_ptr.add(k + 1).read().0 as usize };
 
             let p2_0 = flat_map[c2_0];
-            let p2_1 = flat_map[p2_1];
+            let p2_1 = flat_map[c2_1];
 
             // Manual gather for costs
             // SAFETY: costs_ptr is valid for key_count elements in each row.

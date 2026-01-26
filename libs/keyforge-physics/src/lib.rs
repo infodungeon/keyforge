@@ -150,22 +150,7 @@ impl EngineFactory {
             return Self::new_wasm_simd(ctx, Some(ctx.engine_config));
         }
 
-        #[cfg(not(any(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_arch = "aarch64",
-            target_arch = "wasm32"
-        )))]
-        {
-            Self::new_scalar(ctx)
-        }
-        #[cfg(any(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_arch = "aarch64",
-            target_arch = "wasm32"
-        ))]
-        {
-            Self::new_scalar(ctx)
-        }
+        Self::new_scalar(ctx)
     }
 
     /// Compiles a new **WASM SIMD** scoring engine.

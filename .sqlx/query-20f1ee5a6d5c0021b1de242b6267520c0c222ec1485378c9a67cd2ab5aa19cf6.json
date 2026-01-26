@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT name, author, version, notes, kb_type, home_row \n            FROM keyboards \n            WHERE id = $1\n            ",
+  "query": "\n            SELECT name as \"name!\", author, version, notes, kb_type, home_row \n            FROM keyboards \n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "name",
+        "name": "name!",
         "type_info": "Text"
       },
       {
@@ -48,5 +48,5 @@
       true
     ]
   },
-  "hash": "7e83f6886ee5b80d340e9182a2e058174910c35d5a1c78086f9d50c545a3d3bc"
+  "hash": "20f1ee5a6d5c0021b1de242b6267520c0c222ec1485378c9a67cd2ab5aa19cf6"
 }

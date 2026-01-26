@@ -1,21 +1,21 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r \n            FROM keyboard_keys \n            WHERE keyboard_id = $1 \n            ORDER BY idx\n            ",
+  "query": "\n            SELECT \n                idx as \"idx!\", \n                x as \"x!\", \n                y as \"y!\", \n                w, h, \n                hand as \"hand!\", \n                finger as \"finger!\", \n                row_idx as \"row_idx!\", \n                col_idx as \"col_idx!\", \n                is_stretch, is_prime, is_med, is_low, r \n            FROM keyboard_keys \n            WHERE keyboard_id = $1 \n            ORDER BY idx\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "idx",
+        "name": "idx!",
         "type_info": "Int4"
       },
       {
         "ordinal": 1,
-        "name": "x",
+        "name": "x!",
         "type_info": "Float4"
       },
       {
         "ordinal": 2,
-        "name": "y",
+        "name": "y!",
         "type_info": "Float4"
       },
       {
@@ -30,22 +30,22 @@
       },
       {
         "ordinal": 5,
-        "name": "hand",
+        "name": "hand!",
         "type_info": "Int4"
       },
       {
         "ordinal": 6,
-        "name": "finger",
+        "name": "finger!",
         "type_info": "Int4"
       },
       {
         "ordinal": 7,
-        "name": "row_idx",
+        "name": "row_idx!",
         "type_info": "Int4"
       },
       {
         "ordinal": 8,
-        "name": "col_idx",
+        "name": "col_idx!",
         "type_info": "Int4"
       },
       {
@@ -96,5 +96,5 @@
       true
     ]
   },
-  "hash": "a29b9d1454b8f74173fd1ea940cdb18d69cac4c4d09da9d8ca0519cfcc8ad82a"
+  "hash": "4b701bcf48210a6a7815855aac1c160716ebdb0fe979dbf7ee770c30fd4d7879"
 }

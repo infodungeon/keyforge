@@ -1,0 +1,16 @@
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+   Compiling tantivy-columnar v0.3.0
+   Compiling octocrab v0.38.0
+   Compiling arrow-cast v57.2.0
+   Compiling tantivy v0.22.1
+   Compiling parquet v57.2.0
+   Compiling keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
+   Compiling keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+   Compiling keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+   Compiling keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+   Compiling keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
+   Compiling keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
+   Compiling keyforge-testing v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing)
+   Compiling keyforge-repros v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/repros)
+   Compiling keyforge-tui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-tui)
+   Compiling keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
