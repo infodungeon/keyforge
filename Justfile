@@ -183,11 +183,10 @@ mcp-up:
 	@echo "MCP Bridge is managed automatically by the client configuration."
 	@echo "To test manually: ./ops/scripts/mcp_bridge.py narsil-mcp --repos . --call-graph --persist --git"
 
-# Performs a 100x Structural Audit using the full toolchain
-audit-deep: mcp-up
-	@echo "Running Deep Structural Audit..."
-	cargo check --workspace --all-targets --all-features
-	python3 ops/scripts/bouncer_100x.py
+# Performs the unified 100x Structural and Intelligence Audit
+audit-deep:
+	@echo "🚀 Initiating Autonomous 100x Master Audit..."
+	@python3 ops/scripts/audit_master.py
 
 # --- MAINTENANCE ---
 prune:
