@@ -25,6 +25,11 @@ mod python_tests {
         let data_dir = get_data_dir();
         let json_path = data_dir.join(json_filename);
 
+        if std::env::var("GITHUB_ACTIONS").is_ok() && !json_path.exists() {
+            println!("Skipping {script_name} in CI because {json_filename} is missing");
+            return;
+        }
+
         assert!(script_path.exists(), "Script not found: {script_path:?}");
         assert!(
             json_path.exists(),
@@ -62,6 +67,11 @@ mod python_tests {
         let script_path = Path::new(manifest_dir)
             .join("tests")
             .join("validate_ngrams.py");
+
+        if std::env::var("GITHUB_ACTIONS").is_ok() && !data_dir.exists() {
+            println!("Skipping validate_ngrams.py in CI because storage directory is missing");
+            return;
+        }
 
         println!(
             "Running validate_ngrams.py on directory {}...",

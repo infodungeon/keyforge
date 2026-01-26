@@ -1,7 +1,7 @@
 [mcp.servers.narsil]
 command = "python3"
-args = ["ops/scripts/mcp_bridge.py", "/home/robert/.cargo/bin/narsil-mcp", "--repos", ".", "--call-graph", "--persist", "--git"]
+args = ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py", "/home/robert/.cargo/bin/narsil-mcp", "--repos", "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge", "--call-graph", "--persist", "--git"]
 
 [mcp.servers.arbor]
 command = "python3"
-args = ["ops/scripts/mcp_bridge.py", "/home/robert/.cargo/bin/arbor", "bridge"]
+args = ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py", "/home/robert/.cargo/bin/arbor", "bridge"]

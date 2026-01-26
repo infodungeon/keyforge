@@ -45,7 +45,7 @@ pub struct SystemMetrics {
     pub server_cpu_usage: f32,
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 
@@ -57,8 +57,9 @@ mod tests {
             ..Default::default()
         };
 
-        let json = serde_json::to_string(&metrics).unwrap();
-        let deserialized: SystemMetrics = serde_json::from_str(&json).unwrap();
-        assert_eq!(metrics.total_ips, deserialized.total_ips);
+        let json = serde_json::to_string(&metrics).expect("Failed to serialize");
+        let deserialized: SystemMetrics =
+            serde_json::from_str(&json).expect("Failed to deserialize");
+        assert!((metrics.total_ips - deserialized.total_ips).abs() < f32::EPSILON);
     }
 }
