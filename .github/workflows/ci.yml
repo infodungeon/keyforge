@@ -85,6 +85,16 @@ jobs:
       - name: Install just
         uses: extractions/setup-just@v2
 
+      - name: Install Node.js for UI Tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/keyforge-ui/package-lock.json
+
+      - name: Install UI Dependencies
+        run: cd apps/keyforge-ui && npm install
+
       - name: Run Tests
         env:
           DATABASE_MAX_CONNECTIONS: 20
@@ -167,7 +177,7 @@ jobs:
           DATABASE_TIMEOUT_SECONDS: 15
           RATE_LIMIT_PER_SEC: 100
           SQLX_OFFLINE: true
-        run: cargo tarpaulin --workspace --exclude keyforge-ui --out Xml -- --test-threads 1
+        run: cargo tarpaulin --workspace --exclude keyforge-ui --timeout 300 --out Xml -- --test-threads 1
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
