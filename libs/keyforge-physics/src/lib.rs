@@ -265,11 +265,8 @@ pub fn analyze_with_context(
         return engine.analyze(layout);
     }
 
-    #[cfg(not(any(target_arch = "wasm32", target_arch = "aarch64")))]
-    {
-        let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
-        Ok(kernel::compute::analyze_layout(ctx, &validated))
-    }
+    let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
+    Ok(kernel::compute::analyze_layout(ctx, &validated))
 }
 
 /// Suggests improvements for the layout.

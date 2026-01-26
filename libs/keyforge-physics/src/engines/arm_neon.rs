@@ -6,7 +6,7 @@ use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
 use keyforge_model::config::EngineConfig;
-use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
+use keyforge_model::{AnalysisReport, KeyCode, Layout, Score, SwapSuggestion};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ArmNeonScoringEngine {
@@ -184,10 +184,9 @@ unsafe fn score_layout_neon(
 
     // Populate flat_map for SIMD kernels (KeyCode -> KeyIndex)
     for &code in pm.used_keys() {
-        let c = code as usize;
-        let candidates = pm.get(c);
+        let candidates = pm.get(KeyCode(code));
         if !candidates.is_empty() {
-            flat_map[c] = candidates[0];
+            flat_map[code as usize] = candidates[0];
         }
     }
 
@@ -199,7 +198,7 @@ unsafe fn score_layout_neon(
     let is_simple = pm
         .used_keys()
         .iter()
-        .all(|&code| pm.get(code as usize).len() == 1)
+        .all(|&code| pm.get(KeyCode(code)).len() == 1)
         && ctx.sequence_modifiers.is_empty();
 
     let total = if is_simple {

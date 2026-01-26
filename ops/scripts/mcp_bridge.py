@@ -6,6 +6,7 @@ import signal
 import psutil
 import time
 import fcntl
+import shutil
 
 def find_and_kill_existing(target_name):
     """Finds and kills existing processes matching the target name to ensure a clean start."""
@@ -26,7 +27,7 @@ def find_and_kill_existing(target_name):
             # Check if this process is the target binary
             # We look for the binary name at the end of the path
             executable = cmdline[0]
-            if target_name in os.path.basename(executable):
+            if target_name == os.path.basename(executable):
                 # Don't kill ourselves or our parent bridge
                 if proc.pid == os.getpid() or proc.pid == os.getppid():
                     continue
@@ -50,7 +51,6 @@ def find_and_kill_existing(target_name):
     time.sleep(0.2)
     
     # Keep the lock until we are done (implicitly released on exit)
-    # But for this function, we just wanted to serialize the kill phase.
 
 def main():
     if len(sys.argv) < 2:
@@ -58,26 +58,35 @@ def main():
         sys.exit(1)
 
     target_cmd = sys.argv[1]
+    
+    # Handle 'status' or metadata commands if needed
+    if target_cmd == "status":
+        print("MCP Bridge is active.")
+        sys.exit(0)
+
     target_args = sys.argv[2:]
     
-    target_name = os.path.basename(target_cmd)
+    # Resolve the full path of the command if it's not absolute
+    resolved_cmd = shutil.which(target_cmd)
+    if not resolved_cmd:
+        print(f"Bridge Error: Command '{target_cmd}' not found in PATH.", file=sys.stderr)
+        sys.exit(1)
+        
+    target_name = os.path.basename(resolved_cmd)
 
     # 1. Ensure single instance (The "Connection Closed" fix)
     find_and_kill_existing(target_name)
 
     # 2. Start the server
     try:
-        # Use absolute path if it exists
-        if not os.path.isabs(target_cmd):
-            # Try to find it in common paths if which fails or just trust the PATH
-            pass
-
+        # We pass FDs directly. bufsize=0 is passed through to the OS level.
+        # This ensures minimal latency and transparency for the MCP protocol.
         proc = subprocess.Popen(
-            [target_cmd] + target_args,
+            [resolved_cmd] + target_args,
             stdin=sys.stdin,
             stdout=sys.stdout,
             stderr=sys.stderr,
-            bufsize=0 # Unbuffered
+            bufsize=0
         )
         
         # Handle termination signals by passing them to the child
