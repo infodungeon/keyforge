@@ -102,8 +102,7 @@ impl NodeService {
     }
 
     fn calculate_tuning_profile(payload: &NodeRequest) -> TuningProfile {
-        #[allow(clippy::cast_possible_wrap)]
-        let threshold = TUNING_L2_CACHE_THRESHOLD as i32;
+        let threshold = TUNING_L2_CACHE_THRESHOLD.try_into().unwrap_or_default();
 
         let strategy = if let Some(l2) = payload.l2_cache_kb {
             if l2 >= threshold {
@@ -121,8 +120,7 @@ impl NodeService {
             TUNING_BATCH_SIZE_SMALL
         };
 
-        #[allow(clippy::cast_sign_loss)]
-        let thread_count = (payload.cores - 1).max(1) as usize;
+        let thread_count = (payload.cores - 1).max(1).try_into().unwrap_or_default();
 
         TuningProfile {
             target_ips: payload.ops_per_sec,

@@ -52,6 +52,8 @@ impl ScoringEngine for Avx512ScoringEngine {
             && is_x86_feature_detected!("avx512dq")
             && is_x86_feature_detected!("avx512bw")
         {
+            // SAFETY: We have explicitly verified the presence of AVX-512 foundation (F),
+            // Doubleword/Quadword (DQ), and Byte/Word (BW) extensions via cpuid before execution.
             unsafe {
                 return score_layout_avx512(&self.ctx, &validated, scratch, &self.config)
                     .map(Score);
@@ -234,13 +236,15 @@ unsafe fn score_bigrams_avx512(
             let mut mask = 0u8;
             let mut indices = [0i32; 8];
             for i in 0..8 {
-                let p2 = flat_map[others_ptr.add(k + i).read().0 as usize];
+                // SAFETY: others_ptr is derived from a ValidatedLayout, and k+i < end ensures we stay within bounds of the bigram data.
+                let p2 = unsafe { flat_map[others_ptr.add(k + i).read().0 as usize] };
                 if p2 < key_count {
                     mask |= 1 << i;
                     indices[i] = i32::from(p2);
                 }
             }
             let p2_v = _mm256_loadu_si256(indices.as_ptr().cast());
+            // SAFETY: costs_ptr points to a row in the cost matrix. p2_v contains valid indices within that row.
             let cost_v = _mm512_mask_i32gather_epi64(
                 _mm512_setzero_si512(),
                 mask,
@@ -249,6 +253,7 @@ unsafe fn score_bigrams_avx512(
                 8,
             );
             #[allow(clippy::cast_ptr_alignment)]
+            // SAFETY: freqs_ptr is valid up to 'end'. We check k + 8 <= end.
             let freq_v = _mm512_cvtepu32_epi64(_mm256_loadu_si256(freqs_ptr.add(k).cast()));
             row_sum = _mm512_add_epi64(row_sum, _mm512_mullo_epi64(cost_v, freq_v));
             k += 8;
@@ -259,11 +264,13 @@ unsafe fn score_bigrams_avx512(
                 context: "AVX-512 Bigram".into(),
             })?;
         while k < end {
-            let p2 = flat_map[others_ptr.add(k).read().0 as usize];
+            // SAFETY: Manual fallback loop for remaining bigrams. Bounds are guaranteed by 'end'.
+            let p2 = unsafe { flat_map[others_ptr.add(k).read().0 as usize] };
             if p2 < key_count {
                 total_score = total_score
                     .checked_add(
-                        i64::from(freqs_ptr.add(k).read())
+                        // SAFETY: others_ptr and freqs_ptr are valid at offset k.
+                        i64::from(unsafe { freqs_ptr.add(k).read() })
                             * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2 as usize].0,
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
@@ -321,24 +328,31 @@ unsafe fn score_trigrams_avx512(
         while k + 8 <= end {
             let mut idx = [0i32; 8];
             for i in 0..8 {
-                let (t2, t3) = (
-                    type_map[o1_ptr.add(k + i).read().0 as usize],
-                    type_map[o2_ptr.add(k + i).read().0 as usize],
-                );
+                // SAFETY: o1_ptr and o2_ptr are within corpus bounds [start, end).
+                let (t2, t3) = unsafe {
+                    (
+                        type_map[o1_ptr.add(k + i).read().0 as usize],
+                        type_map[o2_ptr.add(k + i).read().0 as usize],
+                    )
+                };
                 idx[i] = if t2 != 255 && t3 != 255 {
                     i32::from(t2) * 10 + i32::from(t3)
                 } else {
                     0
                 };
             }
-            let cost_v = _mm512_mask_i32gather_epi64(
-                _mm512_setzero_si512(),
-                0xFF,
-                _mm256_loadu_si256(idx.as_ptr().cast()),
-                flow_table.as_ptr().add(t1_off).cast(),
-                8,
-            );
-            #[allow(clippy::cast_ptr_alignment)]
+            // SAFETY: flow_table is indexed by (t1, t2, t3) where each is < 10. idx[i] < 100 and t1_off is t1 * 100.
+            // Total index < 1000, which matches flow_table size.
+            let cost_v = unsafe {
+                _mm512_mask_i32gather_epi64(
+                    _mm512_setzero_si512(),
+                    0xFF,
+                    _mm256_loadu_si256(idx.as_ptr().cast()),
+                    flow_table.as_ptr().add(t1_off).cast(),
+                    8,
+                )
+            };
+            // SAFETY: f_ptr is valid up to 'end'. We check k + 8 <= end.
             let freq_v = _mm512_cvtepu32_epi64(_mm256_loadu_si256(f_ptr.add(k).cast()));
             row_sum = _mm512_add_epi64(row_sum, _mm512_mullo_epi64(cost_v, freq_v));
             k += 8;
@@ -349,14 +363,18 @@ unsafe fn score_trigrams_avx512(
                 context: "AVX-512 Tri".into(),
             })?;
         for ki in k..end {
-            let (t2, t3) = (
-                type_map[o1_ptr.add(ki).read().0 as usize],
-                type_map[o2_ptr.add(ki).read().0 as usize],
-            );
+            // SAFETY: ki < end ensures we are within corpus bounds.
+            let (t2, t3) = unsafe {
+                (
+                    type_map[o1_ptr.add(ki).read().0 as usize],
+                    type_map[o2_ptr.add(ki).read().0 as usize],
+                )
+            };
             if t2 != 255 && t3 != 255 {
                 total_score = total_score
                     .checked_add(
-                        i64::from(f_ptr.add(ki).read())
+                        // SAFETY: ki < end ensures f_ptr validity. Table lookup is within 1000 element bounds.
+                        i64::from(unsafe { f_ptr.add(ki).read() })
                             * flow_table[t1_off + (t2 as usize) * 10 + (t3 as usize)],
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {

@@ -28,8 +28,6 @@ pub mod nodes;
 pub mod results;
 /// General layout submission management.
 pub mod submission;
-/// Input validation helpers.
-pub mod validation;
 /// Real-time communication via `WebSockets`.
 pub mod ws;
 

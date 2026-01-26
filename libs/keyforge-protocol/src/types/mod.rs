@@ -170,6 +170,7 @@ impl From<SpaceHandPreferenceDto> for model::SpaceHandPreference {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobIdentifierDto {
+    /// Unique content-based hash of the job configuration.
     pub hash: String,
 }
 
@@ -184,15 +185,23 @@ impl From<keyforge_model::job::JobIdentifier> for JobIdentifierDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JobStatusDto {
+    /// Job is in the queue, awaiting a worker.
     Pending,
+    /// Job is being processed by one or more workers.
     Running {
+        /// Number of nodes currently working on this job.
         active_nodes: usize,
+        /// Current best score found across all workers.
         current_best: Option<ScoreDto>,
     },
+    /// Job has completed processing.
     Completed {
+        /// Final best score achieved.
         final_score: ScoreDto,
+        /// The optimized layout string.
         #[cfg_attr(feature = "ts_bindings", ts(type = "{ keys: number[] }"))]
         final_layout: crate::assets::LayoutDto,
+        /// Total cumulative compute time in seconds.
         total_compute_sec: u64,
     },
 }
@@ -213,5 +222,6 @@ impl From<keyforge_model::job::JobStatus> for JobStatusDto {
         }
     }
 }
+/// Security-bounded collections.
 pub mod limited;
 pub use limited::LimitedVec;

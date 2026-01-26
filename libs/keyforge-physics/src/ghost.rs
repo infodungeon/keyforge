@@ -53,7 +53,6 @@ impl GhostScorer {
     ///
     /// # Errors
     /// Returns `PhysicsError::ScoreOverflow` if arithmetic fails.
-    #[allow(clippy::cast_possible_wrap, clippy::cast_lossless)]
     pub fn score(&self, corpus: &Corpus, layout: &Layout) -> Result<Score, PhysicsError> {
         let mut total = Score::ZERO;
 
@@ -62,15 +61,15 @@ impl GhostScorer {
             if freq == 0 {
                 continue;
             }
-            #[allow(clippy::cast_possible_truncation)]
-            let code = KeyCode(code_val as u16);
+            let code = KeyCode(code_val.try_into().unwrap_or_default());
             if code == KeyCode::EMPTY || code == KeyCode::TRANSPARENT {
                 continue;
             }
 
             let min_cost = self.find_min_monogram_cost(layout, code)?;
+            let freq_i64: i64 = freq.try_into().unwrap_or_default();
             let contrib = min_cost
-                .checked_mul(freq as i64)
+                .checked_mul(freq_i64)
                 .ok_or(PhysicsError::ScoreOverflow {
                     context: format!("Ghost Monogram overflow for keycode {code}"),
                 })?;
@@ -82,20 +81,26 @@ impl GhostScorer {
         }
 
         // 2. Bigrams (Movement)
+
         for (c1, c2, freq) in &*corpus.bigrams {
             let code1 = KeyCode(*c1);
+
             let code2 = KeyCode(*c2);
+
             if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY {
                 continue;
             }
 
-            let min_cost = self.find_min_bigram_cost(layout, code1, code2)?;
-            let contrib =
-                min_cost
-                    .checked_mul(*freq as i64)
-                    .ok_or(PhysicsError::ScoreOverflow {
-                        context: format!("Ghost Bigram overflow for ({code1}, {code2})"),
-                    })?;
+            let min_cost = self.find_min_bigram_cost(layout, code1, code2);
+
+            let freq_i64: i64 = (*freq).into();
+
+            let contrib = min_cost
+                .checked_mul(freq_i64)
+                .ok_or(PhysicsError::ScoreOverflow {
+                    context: format!("Ghost Bigram overflow for ({code1}, {code2})"),
+                })?;
+
             total = total
                 .checked_add(contrib)
                 .ok_or(PhysicsError::ScoreOverflow {
@@ -104,21 +109,28 @@ impl GhostScorer {
         }
 
         // 3. Trigrams (Flow)
+
         for (c1, c2, c3, freq) in &*corpus.trigrams {
             let code1 = KeyCode(*c1);
+
             let code2 = KeyCode(*c2);
+
             let code3 = KeyCode(*c3);
+
             if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY || code3 == KeyCode::EMPTY {
                 continue;
             }
 
             let min_cost = self.find_min_trigram_cost(layout, code1, code2, code3)?;
-            let contrib =
-                min_cost
-                    .checked_mul(*freq as i64)
-                    .ok_or(PhysicsError::ScoreOverflow {
-                        context: format!("Ghost Trigram overflow for ({code1}, {code2}, {code3})"),
-                    })?;
+
+            let freq_i64: i64 = (*freq).into();
+
+            let contrib = min_cost
+                .checked_mul(freq_i64)
+                .ok_or(PhysicsError::ScoreOverflow {
+                    context: format!("Ghost Trigram overflow for ({code1}, {code2}, {code3})"),
+                })?;
+
             total = total
                 .checked_add(contrib)
                 .ok_or(PhysicsError::ScoreOverflow {
@@ -131,46 +143,53 @@ impl GhostScorer {
 
     fn find_min_monogram_cost(
         &self,
+
         layout: &Layout,
+
         code: KeyCode,
     ) -> Result<Score, PhysicsError> {
         let mut min = Score::MAX;
+
         let positions = self.find_all_positions(layout, code);
 
         for pos in positions {
             let key = &self.keyboard.keys[pos];
+
             let effort = self.rubric.finger_effort[key.finger.as_usize()];
+
             // In Ghost mode, we don't cache, we look up every time
+
             let static_cost =
                 Score::from_f32(self.resolve_static_cost(key)?).map_err(PhysicsError::Config)?;
 
             let total = effort + static_cost;
+
             if total < min {
                 min = total;
             }
         }
+
         Ok(min)
     }
 
-    fn find_min_bigram_cost(
-        &self,
-        layout: &Layout,
-        c1: KeyCode,
-        c2: KeyCode,
-    ) -> Result<Score, PhysicsError> {
+    fn find_min_bigram_cost(&self, layout: &Layout, c1: KeyCode, c2: KeyCode) -> Score {
         let mut min = Score::MAX;
+
         let pos1 = self.find_all_positions(layout, c1);
+
         let pos2 = self.find_all_positions(layout, c2);
 
         for p1 in pos1 {
             for p2 in &pos2 {
-                let cost = self.calculate_pair_cost(p1, *p2)?;
+                let cost = self.calculate_pair_cost(p1, *p2);
+
                 if cost < min {
                     min = cost;
                 }
             }
         }
-        Ok(min)
+
+        min
     }
 
     #[allow(clippy::unnecessary_wraps)]
@@ -262,12 +281,12 @@ impl GhostScorer {
             })
     }
 
-    #[allow(clippy::unnecessary_wraps, clippy::cast_possible_truncation)]
-    fn calculate_pair_cost(&self, p1: usize, p2: usize) -> Result<Score, PhysicsError> {
+    #[allow(clippy::cast_possible_truncation)]
+    fn calculate_pair_cost(&self, p1: usize, p2: usize) -> Score {
         let k1 = &self.keyboard.keys[p1];
         let k2 = &self.keyboard.keys[p2];
         if k1.hand != k2.hand {
-            return Ok(Score::ZERO);
+            return Score::ZERO;
         }
 
         let (dx2, dy2) = self.keyboard.spatial_cache[p1 * self.keyboard.keys.len() + p2];
@@ -282,7 +301,7 @@ impl GhostScorer {
             cost = cost.checked_add(self.rubric.sfb_base).unwrap_or(Score::MAX);
         }
 
-        Ok(cost)
+        cost
     }
 
     fn calculate_flow_cost(&self, p1: usize, p2: usize, p3: usize) -> Score {

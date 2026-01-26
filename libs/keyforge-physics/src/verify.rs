@@ -18,6 +18,7 @@ pub struct DeterministicScorer {
 }
 
 impl DeterministicScorer {
+    /// Creates a new `DeterministicScorer` from keyboard, rubric and cost model.
     #[must_use]
     pub fn new(kb: &Keyboard, rubric: &Rubric, cost_model: &keyforge_model::CostModel) -> Self {
         let model_key = if kb.kb_type.to_lowercase().contains("ortho") {
@@ -78,8 +79,7 @@ impl DeterministicScorer {
             if freq == 0 {
                 continue;
             }
-            #[allow(clippy::cast_possible_truncation)]
-            let code = KeyCode(code_val as u16);
+            let code = KeyCode(code_val.try_into().unwrap_or_default());
             let indices = find_indices(layout_keys, code);
             if indices.is_empty() {
                 continue;
@@ -100,8 +100,8 @@ impl DeterministicScorer {
                     min_total_cost = total;
                 }
             }
-            #[allow(clippy::cast_possible_wrap)]
-            let contrib = min_total_cost.checked_mul(freq as i64).ok_or_else(|| {
+            let freq_i64: i64 = freq.try_into().unwrap_or_default();
+            let contrib = min_total_cost.checked_mul(freq_i64).ok_or_else(|| {
                 PhysicsError::ScoreOverflow {
                     context: format!("Monogram freq scale for code {code_val}"),
                 }
@@ -353,7 +353,7 @@ impl FixedPointRubric {
         }
     }
 
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_truncation)]
     fn calculate_pair_cost(
         &self,
         kb: &Keyboard,
@@ -362,23 +362,16 @@ impl FixedPointRubric {
         idx1: usize,
         idx2: usize,
     ) -> Result<i64, PhysicsError> {
-        if idx1 == idx2 {
+        if idx1 == idx2 || k1.hand != k2.hand {
             return Ok(0);
         }
-        if k1.hand != k2.hand {
-            return Ok(0);
-        } // Engine only scores same-hand travel
 
-        // Use pre-computed spatial cache from keyboard to match engine's source data
         let (dx2, dy2) = kb.spatial_cache[idx1 * kb.keys.len() + idx2];
-
-        // Intermediate geometric math in f64 (MUST MATCH mechanics.rs)
         let t_lat = f64::from(to_f32(self.travel_lat));
         let t_vert = f64::from(to_f32(self.travel_vert));
         let scale = f64::from(keyforge_model::constants::SCORE_SCALE);
 
         let dist_raw = ((f64::from(dx2) * t_lat) + (f64::from(dy2) * t_vert)) * scale;
-
         if dist_raw.is_nan() || dist_raw.is_infinite() {
             return Err(PhysicsError::InvalidInput {
                 message: format!("Oracle geometric distance between keys {idx1} and {idx2} is invalid (NaN or Infinite)")
@@ -386,62 +379,85 @@ impl FixedPointRubric {
         }
 
         let mut cost = dist_raw.round() as i64;
-
         if k1.finger == k2.finger {
-            let mut reach_k2 = 0.0f64;
-            if let Some(origin) = kb
-                .finger_origins
-                .get(k2.hand.as_usize())
-                .and_then(|h| h.get(k2.finger.as_usize()))
-            {
-                let rdx = f64::from(k2.x - origin.0);
-                let rdy = f64::from(k2.y - origin.1);
-                reach_k2 = ((rdx * rdx * t_lat) + (rdy * rdy * t_vert)) * scale;
-            }
-
-            cost = cost.checked_sub(reach_k2.round() as i64).ok_or_else(|| {
-                PhysicsError::ScoreOverflow {
-                    context: "Oracle SFB reach reduction".to_string(),
-                }
-            })?;
-
-            let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
-            let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
-
-            if col_diff == 1 {
-                let sfb_extra = if k1.finger.is_weak() {
-                    self.sfb_lateral_weak
-                } else {
-                    self.sfb_lateral
-                };
-                cost = cost
-                    .checked_add(sfb_extra)
-                    .ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: "Oracle SFB lateral".to_string(),
-                    })?;
-            } else if col_diff > 1 {
-                cost = cost.checked_add(self.sfb_diagonal).ok_or_else(|| {
-                    PhysicsError::ScoreOverflow {
-                        context: "Oracle SFB diagonal".to_string(),
-                    }
-                })?;
-            // The threshold is stored as i32 but represents a magnitude. Comparison with unsigned row_diff is safe.
-            } else if row_diff >= self.threshold_sfb_long_row_diff as u32 {
-                cost =
-                    cost.checked_add(self.sfb_long)
-                        .ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: "Oracle SFB long".to_string(),
-                        })?;
-            } else {
-                cost =
-                    cost.checked_add(self.sfb_base)
-                        .ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: "Oracle SFB base".to_string(),
-                        })?;
-            }
-            return Ok(cost);
+            cost = self.apply_sfb_oracle_logic(kb, k1, k2, cost, t_lat, t_vert, scale)?;
+        } else {
+            cost = self.apply_non_sfb_oracle_logic(k1, k2, cost);
         }
 
+        Ok(cost)
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    fn apply_sfb_oracle_logic(
+        &self,
+        kb: &Keyboard,
+        k1: &KeyNode,
+        k2: &KeyNode,
+        mut cost: i64,
+        t_lat: f64,
+        t_vert: f64,
+        scale: f64,
+    ) -> Result<i64, PhysicsError> {
+        let mut reach_k2 = 0.0f64;
+        if let Some(origin) = kb
+            .finger_origins
+            .get(k2.hand.as_usize())
+            .and_then(|h| h.get(k2.finger.as_usize()))
+        {
+            let rdx = f64::from(k2.x - origin.0);
+            let rdy = f64::from(k2.y - origin.1);
+            reach_k2 = ((rdx * rdx * t_lat) + (rdy * rdy * t_vert)) * scale;
+        }
+
+        cost = cost.checked_sub(reach_k2.round() as i64).ok_or_else(|| {
+            PhysicsError::ScoreOverflow {
+                context: "Oracle SFB reach reduction".to_string(),
+            }
+        })?;
+
+        let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
+        let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
+
+        if col_diff == 1 {
+            let sfb_extra = if k1.finger.is_weak() {
+                self.sfb_lateral_weak
+            } else {
+                self.sfb_lateral
+            };
+            cost = cost
+                .checked_add(sfb_extra)
+                .ok_or_else(|| PhysicsError::ScoreOverflow {
+                    context: "Oracle SFB lateral".to_string(),
+                })?;
+        } else if col_diff > 1 {
+            cost =
+                cost.checked_add(self.sfb_diagonal)
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: "Oracle SFB diagonal".to_string(),
+                    })?;
+        } else if row_diff
+            >= self
+                .threshold_sfb_long_row_diff
+                .try_into()
+                .unwrap_or_default()
+        {
+            cost = cost
+                .checked_add(self.sfb_long)
+                .ok_or_else(|| PhysicsError::ScoreOverflow {
+                    context: "Oracle SFB long".to_string(),
+                })?;
+        } else {
+            cost = cost
+                .checked_add(self.sfb_base)
+                .ok_or_else(|| PhysicsError::ScoreOverflow {
+                    context: "Oracle SFB base".to_string(),
+                })?;
+        }
+        Ok(cost)
+    }
+
+    fn apply_non_sfb_oracle_logic(&self, k1: &KeyNode, k2: &KeyNode, mut cost: i64) -> i64 {
         let finger_diff = k1.finger.distance(k2.finger);
         let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
 
@@ -449,42 +465,36 @@ impl FixedPointRubric {
             && k1.finger != keyforge_model::types::FingerIndex::THUMB
             && k2.finger != keyforge_model::types::FingerIndex::THUMB
         {
-            // The threshold is stored as i32 but represents a magnitude. Comparison with unsigned row_diff is safe.
-            #[allow(clippy::cast_sign_loss)]
-            if row_diff >= self.threshold_scissor_row_diff as u32 {
-                cost = cost.checked_add(self.penalty_scissor).ok_or_else(|| {
-                    PhysicsError::ScoreOverflow {
-                        context: "Oracle scissor penalty".to_string(),
-                    }
-                })?;
+            if row_diff
+                >= self
+                    .threshold_scissor_row_diff
+                    .try_into()
+                    .unwrap_or_default()
+            {
+                cost = cost.saturating_add(self.penalty_scissor);
             } else if row_diff == 0 {
                 let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
                 if col_diff > 1 {
-                    cost = cost.checked_add(self.sfb_lateral).ok_or_else(|| {
-                        PhysicsError::ScoreOverflow {
-                            context: "Oracle lateral SFB adjacent".to_string(),
-                        }
-                    })?;
+                    cost = cost.saturating_add(self.sfb_lateral);
                 }
             }
         }
-
-        Ok(cost)
+        cost
     }
 }
 
+/// Converts a float to fixed-point integer ticks.
+#[allow(clippy::cast_possible_truncation)]
 pub(crate) fn to_fixed(f: f32) -> i64 {
     // Intentional truncation: converting float score to fixed-point integer ticks.
-    #[allow(clippy::cast_possible_truncation)]
-    let val = (f * keyforge_model::constants::SCORE_SCALE) as i64;
-    val
+    (f * keyforge_model::constants::SCORE_SCALE) as i64
 }
 
+/// Converts fixed-point integer ticks back to a float.
+#[allow(clippy::cast_precision_loss)]
 fn to_f32(i: i64) -> f32 {
     // Precision loss acceptable for display/API values.
-    #[allow(clippy::cast_precision_loss)]
-    let val = (i as f32) / keyforge_model::constants::SCORE_SCALE;
-    val
+    (i as f32) / keyforge_model::constants::SCORE_SCALE
 }
 
 #[keyforge_testing_macros::kf_test]

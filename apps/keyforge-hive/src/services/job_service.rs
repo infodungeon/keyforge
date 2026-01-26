@@ -10,6 +10,9 @@ pub struct JobService;
 
 impl JobService {
     pub async fn register_job(state: &AppState, payload: JobRequest) -> AppResult<JobResponse> {
+        // 0. Sanity check
+        Self::validate_config(&payload)?;
+
         // 1. Convert DTO to Domain for ID generation
         let geometry = payload.config.to_domain_geometry();
         let weights = payload.config.to_domain_weights();
@@ -52,7 +55,6 @@ impl JobService {
         Ok(JobResponse { job_id, is_new })
     }
 
-    #[allow(dead_code)]
     pub fn validate_config(req: &JobRequest) -> AppResult<()> {
         match &req.config.cost_matrix {
             CostMatrixSourceDto::Predefined(name) => {

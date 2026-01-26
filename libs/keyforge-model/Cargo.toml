@@ -29,6 +29,7 @@ tracing.workspace = true
 async-trait.workspace = true
 clap = { workspace = true, optional = true }
 proptest = { workspace = true, optional = true }
+zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 keyforge-testing = { path = "../keyforge-testing" }

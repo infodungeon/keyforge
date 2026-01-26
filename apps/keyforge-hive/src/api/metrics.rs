@@ -34,8 +34,7 @@ pub(crate) async fn get_metrics(
         .count_active()
         .await
         .map(|c| {
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            let active = c as usize;
+            let active = c.try_into().unwrap_or_default();
             (active, 0, 0)
         })
         .unwrap_or((0, 0, 0));
@@ -46,8 +45,7 @@ pub(crate) async fn get_metrics(
     // 4. Count Online Nodes
     let nodes_online = state.coordinator.count_active_nodes().await.unwrap_or(0);
 
-    #[allow(clippy::cast_sign_loss)]
-    let total_results_u64 = total_results as u64;
+    let total_results_u64 = total_results.try_into().unwrap_or_default();
 
     Ok(Json(SystemMetrics {
         total_nodes,

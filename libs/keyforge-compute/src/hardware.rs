@@ -191,6 +191,7 @@ fn detect_macos_arm_topology() -> Option<CpuTopology> {
         let mut value: usize = 0;
         let mut size = std::mem::size_of::<usize>() as size_t;
         let c_name = std::ffi::CString::new(name).ok()?;
+        // SAFETY: We provide a valid pointer to a buffer and its size. sysctlbyname is a standard macOS system call.
         unsafe {
             if sysctlbyname(
                 c_name.as_ptr(),
@@ -231,6 +232,7 @@ fn detect_windows_arm_topology() -> Option<CpuTopology> {
     };
 
     let mut len: u32 = 0;
+    // SAFETY: We call with null to obtain the required buffer length.
     unsafe {
         GetLogicalProcessorInformationEx(RelationCache, ptr::null_mut(), &mut len);
     }
@@ -244,6 +246,7 @@ fn detect_windows_arm_topology() -> Option<CpuTopology> {
     )
     .ok()?;
 
+    // SAFETY: Layout is verified to be non-zero and properly aligned.
     let ptr = unsafe { alloc(layout) };
     if ptr.is_null() {
         return None;
@@ -252,6 +255,8 @@ fn detect_windows_arm_topology() -> Option<CpuTopology> {
     let mut topo = CpuTopology::default();
     topo.vendor = "Unknown (Windows ARM)".to_string();
 
+    // SAFETY: We provide a valid, sufficiently sized buffer and the correct length.
+    // Deallocation is handled correctly via dealloc.
     unsafe {
         if GetLogicalProcessorInformationEx(RelationCache, ptr as *mut _, &mut len) != 0 {
             let mut offset = 0;

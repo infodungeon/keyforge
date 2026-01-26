@@ -15,10 +15,15 @@ use utoipa::ToSchema;
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct SearchParamsDto {
+    /// Number of total iterations to perform.
     pub iterations: usize,
+    /// Number of reheating cycles.
     pub reheats: Option<usize>,
+    /// Number of threads to use.
     pub threads: Option<usize>,
+    /// Optional seed for reproducibility.
     pub seed: Option<u64>,
+    /// Whether to include thumb keys in the search.
     pub include_thumbs: bool,
 }
 
@@ -41,26 +46,32 @@ impl From<model::SearchParams> for SearchParamsDto {
 }
 
 impl SearchParamsDto {
+    /// Gets the number of search steps.
     #[must_use]
     pub fn get_search_steps(&self) -> usize {
         self.iterations
     }
+    /// Gets the maximum temperature.
     #[must_use]
     pub fn get_temp_max(&self) -> f32 {
         20.0
     }
+    /// Gets the minimum temperature.
     #[must_use]
     pub fn get_temp_min(&self) -> f32 {
         0.005
     }
+    /// Gets the search patience (iterations before reheating).
     #[must_use]
     pub fn get_search_patience(&self) -> usize {
         500
     }
+    /// Gets the number of reheats.
     #[must_use]
     pub fn get_reheats(&self) -> usize {
         self.reheats.unwrap_or(3)
     }
+    /// Gets the reheat factor.
     #[must_use]
     pub fn get_reheat_factor(&self) -> f32 {
         0.5
@@ -72,9 +83,13 @@ impl SearchParamsDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct EngineConfigDto {
+    /// L1 Data cache size.
     pub l1d_size: usize,
+    /// L2 cache size.
     pub l2_size: usize,
+    /// L3 cache size.
     pub l3_size: usize,
+    /// Whether to use SIMD prefetching.
     pub use_prefetch: bool,
 }
 
@@ -94,9 +109,12 @@ impl From<model::EngineConfig> for EngineConfigDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct ScoringWeightsDto {
+    /// Map of penalty keys to weights.
     #[serde(flatten)]
     pub weights: HashMap<String, f32>,
+    /// Array of scaling factors for each finger.
     pub finger_penalty_scale: [f32; 5],
+    /// String representation of comfortable scissor pairs.
     pub comfortable_scissors: String,
 }
 
@@ -121,7 +139,9 @@ impl From<model::ScoringWeights> for ScoringWeightsDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct KeyConstraintDto {
+    /// The physical index of the key.
     pub index: KeyIndexDto,
+    /// The label of the key allowed at this position.
     pub key: String,
 }
 
@@ -139,8 +159,11 @@ impl From<keyforge_model::config::KeyConstraint> for KeyConstraintDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct CorpusSourceDto {
+    /// Identifier for the corpus asset.
     pub id: String,
+    /// Weight multiplier for this corpus.
     pub weight: f32,
+    /// Optional hash for verification.
     pub hash: Option<String>,
 }
 
@@ -169,6 +192,7 @@ impl From<keyforge_model::config::CorpusSource> for CorpusSourceDto {
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum CostMatrixSourceDto {
+    /// A predefined model name.
     Predefined(String),
 }
 
@@ -185,10 +209,15 @@ impl From<keyforge_model::config::CostMatrixSource> for CostMatrixSourceDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct KeyboardMetaDto {
+    /// Display name.
     pub name: String,
+    /// Author name.
     pub author: String,
+    /// Version string.
     pub version: String,
+    /// Design notes.
     pub notes: String,
+    /// Keyboard type classification.
     pub kb_type: String,
 }
 
@@ -209,10 +238,15 @@ impl From<geometry::KeyboardMeta> for KeyboardMetaDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct KeyboardGeometryDto {
+    /// List of key nodes.
     pub keys: Vec<crate::assets::KeyNodeDto>,
+    /// Prime slot indices.
     pub prime_slots: Vec<KeyIndexDto>,
+    /// Medium slot indices.
     pub med_slots: Vec<KeyIndexDto>,
+    /// Low slot indices.
     pub low_slots: Vec<KeyIndexDto>,
+    /// Index of the home row.
     pub home_row: i8,
 }
 
@@ -233,8 +267,11 @@ impl From<geometry::KeyboardGeometry> for KeyboardGeometryDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct KeyboardDefinitionDto {
+    /// Metadata.
     pub meta: KeyboardMetaDto,
+    /// Geometry.
     pub geometry: KeyboardGeometryDto,
+    /// Map of layout names to strings.
     pub layouts: HashMap<String, String>,
 }
 
@@ -259,7 +296,9 @@ impl From<geometry::KeyboardDefinition> for KeyboardDefinitionDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
 pub struct ConfigAggregateDto {
+    /// Engine configuration.
     pub engine: EngineConfigDto,
+    /// Scoring weights.
     pub weights: ScoringWeightsDto,
 }
 

@@ -16,14 +16,20 @@
 //!
 //! The Wire Contract for the `KeyForge` system.
 
-#![allow(missing_docs)]
+#![warn(missing_docs)]
 
+/// Asset-related Data Transfer Objects (DTOs).
 pub mod assets;
+/// Configuration-related DTOs.
 pub mod config;
 pub(crate) mod error;
+/// Job-related DTOs and messaging.
 pub mod job;
+/// Node-related DTOs and messaging.
 pub mod node;
+/// Telemetry-related DTOs.
 pub mod telemetry;
+/// Primitive and shared protocol types.
 pub mod types;
 
 pub mod constants;

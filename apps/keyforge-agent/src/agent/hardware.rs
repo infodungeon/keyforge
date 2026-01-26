@@ -24,8 +24,7 @@ impl HardwareInfo {
             .map_or_else(|| "Unknown CPU".to_string(), |cpu| cpu.brand().to_string());
 
         let cores = sys.cpus().len();
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let cores_i32 = cores as i32;
+        let cores_i32: i32 = cores.try_into().unwrap_or_default();
 
         let l2_cache_kb = detect_l2_cache_kb();
         let capabilities = detect_capabilities();
@@ -67,7 +66,6 @@ fn detect_capabilities() -> Vec<String> {
     caps
 }
 
-#[allow(clippy::cast_possible_truncation)]
 fn detect_l2_cache_kb() -> Option<i32> {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
@@ -80,8 +78,7 @@ fn detect_l2_cache_kb() -> Option<i32> {
                             * (cache.physical_line_partitions() + 1)
                             * (cache.coherency_line_size() + 1)
                             * (cache.sets() + 1);
-                        #[allow(clippy::cast_possible_wrap)]
-                        return Some((size_bytes / 1024) as i32);
+                        return Some((size_bytes / 1024).try_into().unwrap_or_default());
                     }
                 }
             }

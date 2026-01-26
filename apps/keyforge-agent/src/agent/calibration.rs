@@ -128,8 +128,11 @@ fn run_benchmark(
     let rubric = Arc::new(Rubric::default());
     let cost_model = Arc::new(default_cost_model()?);
 
-    #[allow(clippy::cast_possible_truncation)]
-    let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
+    let layout = Layout::new_unchecked(
+        (0..key_count.try_into().unwrap_or_default())
+            .map(KeyCode)
+            .collect(),
+    );
 
     let engine = EngineFactory::new_generic(&EngineCompilationContext {
         keyboard: keyboard.clone(),
@@ -152,10 +155,7 @@ fn run_benchmark(
         for _ in 0..batch {
             let _ = engine.score(&layout);
         }
-        #[allow(clippy::cast_lossless)]
-        {
-            iterations += batch as u64;
-        }
+        iterations += batch as u64;
     }
 
     let elapsed = start.elapsed().as_secs_f64();
@@ -164,9 +164,7 @@ fn run_benchmark(
     }
 
     #[allow(clippy::cast_precision_loss)]
-    {
-        Ok(iterations as f64 / elapsed)
-    }
+    Ok(iterations as f64 / elapsed)
 }
 
 #[allow(clippy::cast_precision_loss)]

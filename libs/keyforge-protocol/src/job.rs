@@ -51,19 +51,29 @@ fn default_corpora() -> LimitedVec<CorpusSourceDto> {
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobConfig {
+    /// Physical keyboard definition.
     pub definition: KeyboardDefinitionDto,
+    /// Ergonomic weights and penalties.
     pub weights: ScoringWeightsDto,
+    /// Search and optimization parameters.
     pub params: SearchParamsDto,
+    /// List of keys pinned to specific indices.
     pub pinned_keys: LimitedVec<KeyConstraintDto>,
+    /// Linguistic corpora to use for scoring.
     #[serde(default = "default_corpora")]
     pub corpora: LimitedVec<CorpusSourceDto>,
+    /// Biomechanical cost model source.
     #[serde(default = "default_cost_matrix")]
     pub cost_matrix: CostMatrixSourceDto,
+    /// Collected user biometric samples for personalization.
     pub biometrics: LimitedVec<BiometricSample>,
+    /// Optional ID of a parent job.
     #[serde(default)]
     pub parent_job_id: Option<String>,
+    /// Optional baseline score for comparison.
     #[serde(default)]
     pub baseline_score: Option<f32>,
+    /// List of parent job hashes for lineage tracking.
     pub parents: LimitedVec<String>,
 }
 
@@ -85,6 +95,7 @@ impl Default for JobConfig {
 }
 
 impl JobConfig {
+    /// Converts protocol corpora to domain model corpora.
     #[must_use]
     pub fn to_domain_corpus_sources(&self) -> Vec<keyforge_model::config::CorpusSource> {
         self.corpora
@@ -97,6 +108,7 @@ impl JobConfig {
             .collect()
     }
 
+    /// Converts protocol weights to domain model weights.
     #[must_use]
     pub fn to_domain_weights(&self) -> keyforge_model::config::ScoringWeights {
         keyforge_model::config::ScoringWeights {
@@ -106,6 +118,7 @@ impl JobConfig {
         }
     }
 
+    /// Converts protocol search params to domain model params.
     #[must_use]
     pub fn to_domain_params(&self) -> keyforge_model::config::SearchParams {
         keyforge_model::config::SearchParams {
@@ -124,6 +137,7 @@ impl JobConfig {
         }
     }
 
+    /// Converts protocol pinned keys to domain model constraints.
     #[must_use]
     pub fn to_domain_pinned_keys(&self) -> Vec<keyforge_model::config::KeyConstraint> {
         self.pinned_keys
@@ -135,6 +149,7 @@ impl JobConfig {
             .collect()
     }
 
+    /// Converts protocol cost matrix to domain model source.
     #[must_use]
     pub fn to_domain_cost_matrix(&self) -> keyforge_model::config::CostMatrixSource {
         match &self.cost_matrix {
@@ -144,6 +159,7 @@ impl JobConfig {
         }
     }
 
+    /// Converts protocol geometry to domain model geometry.
     #[must_use]
     pub fn to_domain_geometry(&self) -> keyforge_model::geometry::KeyboardGeometry {
         keyforge_model::geometry::KeyboardGeometry {
@@ -228,11 +244,14 @@ impl Validator for JobConfig {
     }
 }
 
+/// A request to register a new job.
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobRequest {
+    /// Protocol version.
     #[serde(default = "default_version")]
     pub version: u32,
+    /// Job configuration.
     pub config: JobConfig,
 }
 
@@ -251,33 +270,49 @@ impl Validator for JobRequest {
     }
 }
 
+/// Response from job registration.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobResponse {
+    /// Unique ID of the job.
     pub job_id: String,
+    /// True if the job was newly created.
     pub is_new: bool,
 }
 
+/// Response containing a job for a worker.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobQueueResponse {
+    /// Unique ID of the job.
     pub job_id: Option<String>,
+    /// Configuration for the worker.
     pub config: Option<JobConfig>,
 }
 
+/// A result submission from a compute node.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct ResultSubmission {
+    /// Protocol version.
     #[serde(default = "default_version")]
     pub version: u32,
+    /// Target job ID.
     pub job_id: String,
+    /// Space-separated layout string.
     pub layout: String,
+    /// Achieved score (f32).
     pub score: f32,
+    /// Raw scaled score (i64).
     #[serde(default)]
     pub raw_score: i64,
+    /// Submission timestamp.
     pub timestamp: u64,
+    /// Security nonce.
     pub nonce: u64,
+    /// ID of the node that produced this result.
     pub node_id: String,
+    /// Cryptographic signature of the result.
     pub signature: String,
 }
 
@@ -291,12 +326,18 @@ impl Validator for ResultSubmission {
     }
 }
 
+/// Detailed status of a job including best result.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct JobDetailedStatus {
+    /// Job ID.
     pub job_id: String,
+    /// Current lifecycle status.
     pub status: JobStatusDto,
+    /// Best score found so far.
     pub best_score: Option<f32>,
+    /// Best layout string found so far.
     pub best_layout: Option<String>,
+    /// Total number of samples processed.
     pub total_samples: usize,
 }
