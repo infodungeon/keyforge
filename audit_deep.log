@@ -1,0 +1,13 @@
+MCP Bridge is managed automatically by the client configuration.
+To test manually: ./ops/scripts/mcp_bridge.py narsil-mcp --repos . --call-graph --persist --git
+Running Deep Structural Audit...
+cargo check --workspace --all-targets --all-features
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+    Checking keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
+    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+    Checking keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
+    Checking keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
+error: Recipe `audit-deep` was terminated on line 189 by signal 1

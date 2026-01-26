@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n\n                WITH locked_job AS (\n\n                    SELECT id \n\n                    FROM jobs \n\n                    WHERE status = 'active' \n\n                    ORDER BY priority DESC, created_at ASC \n\n                    LIMIT 1\n\n                    FOR UPDATE SKIP LOCKED\n\n                ),\n\n                updated_job AS (\n\n                    UPDATE jobs\n\n                    SET status = 'processing',\n\n                        started_at = CURRENT_TIMESTAMP\n\n                    FROM locked_job\n\n                    WHERE jobs.id = locked_job.id\n\n                    RETURNING jobs.id, jobs.keyboard_id, jobs.pinned_keys, jobs.corpus_name, jobs.cost_matrix, jobs.parent_job_id\n\n                )\n\n                SELECT \n\n                    j.id as \"id!\",\n\n                    j.keyboard_id as \"keyboard_id!\",\n\n                    sp.weights as \"weights_json!\",\n\n                    (to_jsonb(sc) - 'id' - 'config_hash') as \"params_json\",\n\n                    j.pinned_keys as \"pinned_keys!\", \n\n                    j.corpus_name as \"corpus_name!\", \n\n                    j.cost_matrix as \"cost_matrix!\",\n\n                    j.parent_job_id\n\n                FROM updated_job u\n\n                JOIN jobs j ON u.id = j.id\n\n                JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id\n\n                JOIN search_configs sc ON j.search_config_id = sc.id\n\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "keyboard_id!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "weights_json!",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 3,
+        "name": "params_json",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "pinned_keys!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "corpus_name!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "cost_matrix!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "parent_job_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "f17e804af7b0c2707b9591a83e61480019379d90079480d061970af3dc637b1a"
+}
