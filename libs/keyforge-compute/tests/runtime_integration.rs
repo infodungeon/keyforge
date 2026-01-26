@@ -30,7 +30,7 @@ mod runtime_tests {
                 let mut hand_def = keyforge_model::cost_model::HandDefinition::default();
                 for finger in &["thumb", "index", "middle", "ring", "pinky"] {
                     hand_def.fingers.insert(
-                        finger.to_string(),
+                        (*finger).to_string(),
                         keyforge_model::cost_model::FingerDefinition::Standard(
                             keyforge_model::cost_model::FingerReach::default(),
                         ),

@@ -6,7 +6,7 @@ use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
 use keyforge_model::config::EngineConfig;
-use keyforge_model::{AnalysisReport, KeyCode, Layout, Score, SwapSuggestion};
+use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ArmNeonScoringEngine {
@@ -169,6 +169,7 @@ unsafe fn score_layout_neon(
     layout: &ValidatedLayout<'_>,
     scratch: &mut PhysicsScratch,
 ) -> Result<i64, PhysicsError> {
+    use keyforge_model::types::KeyCode;
     let layout_slice = layout.as_slice();
     let (starts, counts, indices, offsets, used, _char_usage, flat_map) = scratch.get_mut_scratch();
 
