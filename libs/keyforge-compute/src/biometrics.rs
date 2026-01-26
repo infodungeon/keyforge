@@ -1,7 +1,7 @@
 // libs/keyforge-compute/src/biometrics.rs
 
-use keyforge_model::CostModel;
 use keyforge_model::types::LatencyMs;
+use keyforge_model::CostModel;
 use keyforge_protocol::BiometricSample;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
