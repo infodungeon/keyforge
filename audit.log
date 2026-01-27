@@ -2,7 +2,6 @@
 [0m[0m[1m[32m    Fetching[0m advisory database from `https://github.com/RustSec/advisory-db.git`
 [0m[0m[1m[32m      Loaded[0m 904 security advisories (from /home/robert/.cargo/advisory-db)
 [0m[0m[1m[32m    Updating[0m crates.io index
-[0m[0m[1m[33mwarning:[0m directory /home/robert/.cargo/advisory-db is locked, waiting for up to 300 seconds for it to become available
 [0m[0m[1m[32m    Scanning[0m Cargo.lock for vulnerabilities (1118 crate dependencies)
 [0m[0m[1m[33mCrate:    [0m bincode
 [0m[0m[1m[33mVersion:  [0m 1.3.3
@@ -26990,4 +26989,3573 @@ warning[duplicate]: found 2 duplicate entries for crate 'winnow'
           └── zvariant_derive v5.8.0 (*)
 
 advisories ok, bans ok, licenses ok, sources ok
+\n--- ast-grep scan ---
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/audit_slots.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/audit_slots.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/tests/common/mod.rs:61:5
+   │
+61 │     std::fs::create_dir_all(&user_kb_dir).expect("failed to create kb dir");
+   │     ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/tests/common/mod.rs:62:5
+   │
+62 │     std::fs::write(user_kb_dir.join("corne.json"), corne_json).expect("failed to write corne.json");
+   │     ^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-assets/tests/integration.rs:46:13
+   │  
+46 │ ╭             ValkeyDistributedCoordinator::new(&valkey_url)
+47 │ │                 .await
+48 │ │                 .unwrap(),
+   │ ╰─────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-assets/tests/integration.rs:56:24
+   │  
+56 │           let response = app
+   │ ╭────────────────────────^
+   · │
+64 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-assets/tests/integration.rs:58:17
+   │  
+58 │ ╭                 Request::builder()
+   · │
+61 │ │                     .unwrap(),
+   │ ╰─────────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/agent_integration.rs:14:14
+   │  
+14 │       let ws = keyforge_testing::HermeticWorkspace::new()
+   │ ╭──────────────^
+   · │
+19 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/agent_integration.rs:14:14
+   │  
+14 │       let ws = keyforge_testing::HermeticWorkspace::new()
+   │ ╭──────────────^
+15 │ │         .await
+16 │ │         .unwrap()
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/agent_integration.rs:64:19
+   │  
+64 │       let builder = keyforge_compute::SessionBuilder::new(loader)
+   │ ╭───────────────────^
+   · │
+77 │ │         .unwrap()
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/agent_integration.rs:64:19
+   │  
+64 │       let builder = keyforge_compute::SessionBuilder::new(loader)
+   │ ╭───────────────────^
+   · │
+74 │ │         .unwrap()
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/agent_integration.rs:64:19
+   │  
+64 │       let builder = keyforge_compute::SessionBuilder::new(loader)
+   │ ╭───────────────────^
+   · │
+71 │ │         .unwrap()
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/agent_integration.rs:86:19
+   │
+86 │     let session = builder.build().unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-cli/tests/integration/io.rs:13:20
+   │
+13 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-cli/tests/integration/io.rs:15:9
+   │
+15 │         fs::write(&file, "hello").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/api_public.rs:51:24
+   │
+51 │         let temp_dir = tempfile::tempdir().unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/api_public.rs:71:9
+   │
+71 │         "127.0.0.1:1234".parse().unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/api_public.rs:78:24
+   │  
+78 │           let response = app
+   │ ╭────────────────────────^
+   · │
+87 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/api_public.rs:80:17
+   │  
+80 │ ╭                 Request::builder()
+   · │
+84 │ │                     .unwrap(),
+   │ ╰─────────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_public.rs:96:24
+    │  
+ 96 │           let response = app
+    │ ╭────────────────────────^
+    · │
+105 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_public.rs:98:17
+    │  
+ 98 │ ╭                 Request::builder()
+    · │
+102 │ │                     .unwrap(),
+    │ ╰─────────────────────────────^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/api_public.rs:24:5
+   │
+24 │     use std::net::SocketAddr;
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/api_public.rs:24:9
+   │
+24 │     use std::net::SocketAddr;
+   │         ^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-cli/tests/integration/commands.rs:15:20
+   │
+15 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-assets/src/main.rs:39:16
+   │
+39 │     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], args.port));
+   │                ^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/calibration_integration.rs:15:19
+   │
+15 │         let dir = tempdir().unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/calibration_integration.rs:20:9
+   │
+20 │         fs::create_dir_all(&sys_kb_dir).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/calibration_integration.rs:35:9
+   │
+35 │         fs::write(sys_kb_dir.join("corne.json"), corne_json).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/calibration_integration.rs:48:19
+   │  
+48 │           let ips = calibration::calibrate(&asset_mgr, &data_root, &CalibrationConfig::default())
+   │ ╭───────────────────^
+49 │ │             .await
+50 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-agent/tests/calibration_integration.rs:58:19
+   │
+58 │         let dir = tempdir().unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/api_secure.rs:25:5
+   │
+25 │     use std::net::SocketAddr;
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/api_secure.rs:25:9
+   │
+25 │     use std::net::SocketAddr;
+   │         ^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/api_secure.rs:58:24
+   │
+58 │         let temp_dir = tempfile::tempdir().unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/api_secure.rs:81:9
+   │
+81 │         "127.0.0.1:1234".parse().unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:88:24
+    │  
+ 88 │           let response = app
+    │ ╭────────────────────────^
+    · │
+101 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/api_secure.rs:90:17
+   │  
+90 │ ╭                 Request::builder()
+   · │
+98 │ │                     .unwrap(),
+   │ ╰─────────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:110:24
+    │  
+110 │           let response = app
+    │ ╭────────────────────────^
+    · │
+124 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:112:17
+    │  
+112 │ ╭                 Request::builder()
+    · │
+121 │ │                     .unwrap(),
+    │ ╰─────────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:134:9
+    │
+134 │         state.users.create_user(&username).await.unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:136:24
+    │  
+136 │           let response = app
+    │ ╭────────────────────────^
+    · │
+151 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:138:17
+    │  
+138 │ ╭                 Request::builder()
+    · │
+148 │ │                     .unwrap(),
+    │ ╰─────────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:155:35
+    │  
+155 │           let exists: Option<i32> = sqlx::query_scalar("SELECT 1 FROM users WHERE username = $1")
+    │ ╭───────────────────────────────────^
+    · │
+159 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+    ┌─ apps/keyforge-hive/tests/api_secure.rs:155:35
+    │
+155 │         let exists: Option<i32> = sqlx::query_scalar("SELECT 1 FROM users WHERE username = $1")
+    │                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/generate_keycodes.rs:40:21
+   │
+40 │     let row_regex = Regex::new(r"^\|\s*`([^`]+)`\s*\|\s*([^|]*)\|\s*([^|]+)\|").unwrap();
+   │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/generate_keycodes.rs:41:22
+   │
+41 │     let code_regex = Regex::new(r"`([^`]+)`").unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/generate_keycodes.rs:82:17
+   │
+82 │                 id.chars().last().unwrap().to_string()
+   │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/compile_keycodes.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/compile_keycodes.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/websockets.rs:21:5
+   │
+21 │     use std::net::SocketAddr;
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/websockets.rs:21:9
+   │
+21 │     use std::net::SocketAddr;
+   │         ^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/websockets.rs:66:24
+   │
+66 │         let temp_dir = tempfile::tempdir().unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/websockets.rs:80:24
+   │
+80 │         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/websockets.rs:81:20
+   │
+81 │         let addr = listener.local_addr().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/websockets.rs:84:13
+   │  
+84 │ ╭             axum::serve(
+   · │
+89 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/websockets.rs:113:19
+    │  
+113 │           let url = Url::parse(&ws_base)
+    │ ╭───────────────────^
+    · │
+116 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/websockets.rs:113:19
+    │  
+113 │           let url = Url::parse(&ws_base)
+    │ ╭───────────────────^
+114 │ │             .unwrap()
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/websockets.rs:158:20
+    │
+158 │         let sink = ping_task.await.unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/websockets.rs:159:29
+    │
+159 │         let mut ws_stream = stream.reunite(sink).unwrap();
+    │                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/space_optimality.rs:28:5
+   │
+28 │     serde_json::from_str(json).unwrap()
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/space_optimality.rs:41:23
+   │
+41 │     let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/space_optimality.rs:46:19
+   │  
+46 │       let _engine = EngineFactory::new_generic(&EngineCompilationContext {
+   │ ╭───────────────────^
+   · │
+53 │ │     .unwrap();
+   │ ╰─────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:30:19
+   │
+30 │         let dir = tempdir().unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:33:9
+   │
+33 │         repo.save_layout("kb1", "name1", "layout1").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:37:9
+   │
+37 │         repo.delete_layout("kb1", "name1").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:45:19
+   │
+45 │         let dir = tempdir().unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:53:9
+   │
+53 │         repo.record_biometrics(vec![sample]).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:59:9
+   │
+59 │         repo.reset_biometrics().unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:69:19
+   │
+69 │         let dir = tempdir().unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:74:9
+   │  
+74 │ ╭         repo.load_stats_streaming(|s| builder.add_sample(&s))
+75 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:86:9
+   │
+86 │         repo.record_biometrics(samples).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/repository_integration.rs:89:9
+   │  
+89 │ ╭         repo.load_stats_streaming(|s| builder.add_sample(&s))
+90 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:102:19
+    │
+102 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:106:9
+    │
+106 │         repo.save_keyboard_definition("test_kb", &def).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:114:19
+    │
+114 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:117:9
+    │
+117 │         fs::create_dir_all(path.parent().unwrap()).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:117:28
+    │
+117 │         fs::create_dir_all(path.parent().unwrap()).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:120:9
+    │
+120 │         fs::write(&path, "{ invalid json }").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:128:9
+    │
+128 │         fs::write(&stats_path, format!("{line1}\n{{broken line}}\n{line2}")).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:137:19
+    │
+137 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:142:9
+    │  
+142 │ ╭         repo.save_keyboard_definition("../../../etc/passwd", &def)
+143 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:146:22
+    │  
+146 │           let exists = fs::read_dir(dir.path().join("user/keyboards"))
+    │ ╭──────────────────────^
+147 │ │             .unwrap()
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:148:22
+    │
+148 │             .any(|e| e.unwrap().file_name().to_str().unwrap().contains("passwd"));
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:148:22
+    │
+148 │             .any(|e| e.unwrap().file_name().to_str().unwrap().contains("passwd"));
+    │                      ^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:160:19
+    │
+160 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:169:19
+    │
+169 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:171:9
+    │  
+171 │ ╭         tokio::fs::write(&path, vec![0u8; MAX_SESSION_FILE_SIZE as usize + 1])
+172 │ │             .await
+173 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:182:19
+    │
+182 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:184:9
+    │
+184 │         tokio::fs::write(&path, "invalid json").await.unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:193:19
+    │
+193 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:197:29
+    │
+197 │             let mut state = service.state.lock().unwrap();
+    │                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:198:31
+    │
+198 │             state.last_save = Instant::now().checked_sub(Duration::from_secs(3)).unwrap();
+    │                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:209:19
+    │
+209 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:212:9
+    │
+212 │         std::fs::create_dir(&path).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:221:19
+    │
+221 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:227:9
+    │  
+227 │ ╭         tokio::fs::write(&path, serde_json::to_string(&snapshot).unwrap())
+228 │ │             .await
+229 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:227:33
+    │
+227 │         tokio::fs::write(&path, serde_json::to_string(&snapshot).unwrap())
+    │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:232:22
+    │
+232 │         let loaded = service.load().await.unwrap().unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:232:22
+    │
+232 │         let loaded = service.load().await.unwrap().unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:240:19
+    │
+240 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:246:9
+    │  
+246 │ ╭         tokio::fs::write(&path, serde_json::to_string(&persisted).unwrap())
+247 │ │             .await
+248 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:246:33
+    │
+246 │         tokio::fs::write(&path, serde_json::to_string(&persisted).unwrap())
+    │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:258:19
+    │
+258 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:273:22
+    │
+273 │         let loaded = service.load().await.unwrap().unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:273:22
+    │
+273 │         let loaded = service.load().await.unwrap().unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:281:19
+    │
+281 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ libs/keyforge-persistence/tests/repository_integration.rs:212:9
+    │
+212 │         std::fs::create_dir(&path).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:15:20
+   │
+15 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:32:22
+   │
+32 │         let client = HiveClient::new(config).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:35:9
+   │  
+35 │ ╭         ensure_file(
+   · │
+42 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:46:9
+   │  
+46 │ ╭         ensure_file(
+   · │
+53 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:57:9
+   │
+57 │         std::fs::remove_file(sidecar).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:58:9
+   │  
+58 │ ╭         ensure_file(
+   · │
+65 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:71:20
+   │
+71 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:83:22
+   │
+83 │         let client = HiveClient::new(config).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:85:19
+   │  
+85 │           let res = ensure_cost_matrix(&client, temp.path(), "cm.json")
+   │ ╭───────────────────^
+86 │ │             .await
+87 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:94:20
+   │
+94 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:107:22
+    │
+107 │         let client = HiveClient::new(config).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:122:20
+    │
+122 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:135:22
+    │
+135 │         let client = HiveClient::new(config).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:144:20
+    │
+144 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:157:22
+    │
+157 │         let client = HiveClient::new(config).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:166:20
+    │
+166 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:183:22
+    │
+183 │         let client = HiveClient::new(config).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/network_tests.rs:203:23
+    │
+203 │         let _client = HiveClient::new(config).unwrap();
+    │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:102:9
+    │
+102 │         std::fs::create_dir_all(&queue_dir).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:103:9
+    │
+103 │         std::fs::create_dir_all(data_path.join("system/config")).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:125:9
+    │
+125 │         std::fs::write(queue_dir.join(format!("{}.bin", Uuid::new_v4())), bytes).unwrap();
+    │         ^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/tests/network_tests.rs:57:9
+   │
+57 │         std::fs::remove_file(sidecar).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:62:21
+   │
+62 │         let reset = repo.prune_stale_jobs(10, 3).await.unwrap();
+   │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:68:30
+   │  
+68 │           let status: String = sqlx::query_scalar("SELECT status FROM jobs WHERE id = $1")
+   │ ╭──────────────────────────────^
+   · │
+72 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:99:24
+   │
+99 │         let temp_dir = tempfile::tempdir().unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:102:9
+    │
+102 │         std::fs::create_dir_all(&queue_dir).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:103:9
+    │
+103 │         std::fs::create_dir_all(data_path.join("system/config")).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:110:9
+    │  
+110 │ ╭         sqlx::query("INSERT INTO nodes (id, cpu_cores, performance_rating) VALUES ($1, 1, 1.0) ON CONFLICT (id) DO NOTHING")
+111 │ │         .bind(&node_id).execute(&pool).await.unwrap();
+    │ ╰─────────────────────────────────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:121:28
+    │
+121 │         let record_bytes = postcard::to_stdvec(&record).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:124:21
+    │
+124 │         let bytes = postcard::to_stdvec(&entry).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:125:9
+    │
+125 │         std::fs::write(queue_dir.join(format!("{}.bin", Uuid::new_v4())), bytes).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:139:13
+    │  
+139 │ ╭             ValkeyDistributedCoordinator::new(&valkey_url)
+140 │ │                 .await
+141 │ │                 .unwrap(),
+    │ ╰─────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:151:20
+    │
+151 │         let best = repo.get_best_score(&job_id).await.unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:33:26
+   │
+33 │         let kb_id: i32 = sqlx::query_scalar("INSERT INTO keyboards (name, author, version, unique_hash) VALUES ('dummy', 'tester', $1, $2) RETURNING id")
+   │                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:36:31
+   │  
+36 │           let profile_id: i32 = sqlx::query_scalar(
+   │ ╭───────────────────────────────^
+37 │ │         "INSERT INTO scoring_profiles (weights, config_hash) VALUES ('{}'::jsonb, $1) RETURNING id",
+38 │ │     )
+   │ ╰─────^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:44:30
+   │
+44 │         let config_id: i32 = sqlx::query_scalar("INSERT INTO search_configs (search_epochs, search_steps, search_patience, search_patience_threshold, temp_min, temp_max, opt_limit_fast, opt_limit_slow, config_hash) VALUES (1,1,1,0.1,0.1,0.1,1,1, $1) RETURNING id")
+   │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:47:9
+   │
+47 │         sqlx::query("INSERT INTO jobs (id, keyboard_id, scoring_profile_id, search_config_id, pinned_keys, corpus_name, cost_matrix, status, started_at, retry_count) VALUES ($1, $2, $3, $4, '[]', 'default', 'cost.json', 'processing', NOW() - INTERVAL '70 minutes', 0)")
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+   ┌─ apps/keyforge-hive/tests/integration_cron.rs:68:30
+   │
+68 │         let status: String = sqlx::query_scalar("SELECT status FROM jobs WHERE id = $1")
+   │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+    ┌─ apps/keyforge-hive/tests/integration_cron.rs:110:9
+    │
+110 │         sqlx::query("INSERT INTO nodes (id, cpu_cores, performance_rating) VALUES ($1, 1, 1.0) ON CONFLICT (id) DO NOTHING")
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_biometrics.rs:27:5
+   │
+27 │     serde_json::from_str(json).unwrap()
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_biometrics.rs:32:20
+   │
+32 │     let data_dir = keyforge_infra::fs::paths::resolve_root(None).unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_biometrics.rs:36:18
+   │
+36 │     let kb_def = loader.load::<KeyboardDefinition>(kb_name).await.unwrap();
+   │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_biometrics.rs:53:24
+   │
+53 │     let session_none = builder_none.build().unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_biometrics.rs:90:23
+   │
+90 │     let session_bio = builder_bio.build().unwrap();
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_biometrics.rs:98:22
+   │
+98 │     let score_none = engine_none.score(&layout).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_biometrics.rs:99:21
+   │
+99 │     let score_bio = engine_bio.score(&layout).unwrap();
+   │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/dump_ui_categories.rs:2:1
+  │
+2 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/dump_ui_categories.rs:2:5
+  │
+2 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/compiler_tests.rs:51:40
+   │
+51 │                 let model: CostModel = serde_json::from_str(json).unwrap();
+   │                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/compiler_tests.rs:136:44
+    │
+136 │                     let model: CostModel = serde_json::from_str(json).unwrap();
+    │                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-persistence/tests/compiler_tests.rs:169:19
+    │
+169 │         let res = compile_request(&loader, &config).await.unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/migration_test.rs:11:19
+   │
+11 │         let dir = tempdir().unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/migration_test.rs:16:9
+   │
+16 │         fs::create_dir_all(legacy_path.parent().unwrap()).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/migration_test.rs:16:28
+   │
+16 │         fs::create_dir_all(legacy_path.parent().unwrap()).unwrap();
+   │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/migration_test.rs:29:9
+   │
+29 │         fs::write(&legacy_path, serde_json::to_string(&legacy_data).unwrap()).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/migration_test.rs:29:33
+   │
+29 │         fs::write(&legacy_path, serde_json::to_string(&legacy_data).unwrap()).unwrap();
+   │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/migration_test.rs:60:23
+   │
+60 │         let content = fs::read_to_string(corne_file).unwrap();
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-persistence/tests/migration_test.rs:61:39
+   │
+61 │         let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+   │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/concurrency.rs:42:22
+   │  
+42 │           let client = Client::builder()
+   │ ╭──────────────────────^
+   · │
+46 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/concurrency.rs:164:37
+    │  
+164 │                       let timestamp = SystemTime::now()
+    │ ╭─────────────────────────────────────^
+165 │ │                         .duration_since(UNIX_EPOCH)
+166 │ │                         .unwrap()
+    │ ╰─────────────────────────────────^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-agent/src/main.rs:138:31
+    │
+138 │             let job_content = std::fs::read_to_string(&job_file)?;
+    │                               ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-agent/src/main.rs:146:31
+    │
+146 │             let job_content = std::fs::read_to_string(&job_file)?;
+    │                               ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:24:20
+   │
+24 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:28:9
+   │
+28 │         atomic_write(&path, "hello").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:32:9
+   │
+32 │         atomic_write(&path, "updated").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:40:20
+   │
+40 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:42:9
+   │
+42 │         fs::write(&path, "hello world").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:45:19
+   │
+45 │         let res = read_to_string_limited(&path, 100).unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:58:20
+   │
+58 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:60:9
+   │
+60 │         fs::write(&file_path, "not a dir").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:75:20
+   │
+75 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:81:9
+   │
+81 │         fs::create_dir_all(&sys_kb).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:82:9
+   │
+82 │         fs::create_dir_all(&user_kb).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:83:9
+   │
+83 │         fs::write(sys_kb.join("sys.mpk.zst"), "").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:84:9
+   │
+84 │         fs::write(user_kb.join("user.json"), "").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:86:20
+   │
+86 │         let list = list_keyboards(root).unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:94:9
+   │
+94 │         fs::create_dir_all(&sys_corp).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:95:9
+   │
+95 │         fs::create_dir_all(&user_corp).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:96:9
+   │
+96 │         fs::write(sys_corp.join("1grams.mpk.zst"), "").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:97:9
+   │
+97 │         fs::write(user_corp.join("1grams.json"), "").unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/fs_integration.rs:99:20
+   │
+99 │         let list = list_corpora(root).unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:107:9
+    │
+107 │         fs::create_dir_all(&sys_cm).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:108:9
+    │
+108 │         fs::create_dir_all(&user_cm).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:109:9
+    │
+109 │         fs::write(sys_cm.join("cm_sys.mpk.zst"), "").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:110:9
+    │
+110 │         fs::write(user_cm.join("cm_user.json"), "").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:112:20
+    │
+112 │         let list = list_cost_matrices(root).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:119:9
+    │
+119 │         fs::create_dir_all(&sys_extra).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:120:9
+    │
+120 │         fs::create_dir_all(&user_extra).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:121:9
+    │
+121 │         fs::write(sys_extra.join("extra_sys.mpk.zst"), "").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:122:9
+    │
+122 │         fs::write(user_extra.join("extra_user.json"), "").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:124:20
+    │
+124 │         let list = list_keymap_extras(root).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:133:20
+    │
+133 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:150:20
+    │
+150 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:152:9
+    │
+152 │         fs::File::create(&lock_path).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:170:20
+    │
+170 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:172:9
+    │
+172 │         fs::File::create(&lock_path).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:174:20
+    │
+174 │         let lock = WorkspaceLock::acquire(&lock_path).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/tests/fs_integration.rs:175:9
+    │
+175 │         lock.release().unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/infra_integration.rs:13:20
+   │
+13 │         let temp = tempfile::tempdir().unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/infra_integration.rs:18:9
+   │
+18 │         fs::create_dir_all(&kb_dir).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-infra/tests/infra_integration.rs:28:9
+   │
+28 │         fs::write(kb_dir.join("test_kb.json"), kb_json).unwrap();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/hardware/mod.rs:37:9
+   │
+37 │         std::fs::read_to_string(self.root.join(p))
+   │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/check_geometry.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/check_geometry.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/verification.rs:53:13
+   │  
+53 │ ╭             ValkeyDistributedCoordinator::new(&valkey_url)
+54 │ │                 .await
+55 │ │                 .unwrap(),
+   │ ╰─────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/verification.rs:75:9
+   │  
+75 │ ╭         node_repo
+   · │
+78 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/verification.rs:82:25
+   │  
+82 │           let timestamp = SystemTime::now()
+   │ ╭─────────────────────────^
+83 │ │             .duration_since(UNIX_EPOCH)
+84 │ │             .unwrap()
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/verification.rs:102:19
+    │  
+102 │           let sig = crypto::sign_result_fixed(&sk_hex, &job_id, &layout, 100_000_000, timestamp, 456)
+    │ ╭───────────────────^
+103 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/integration_valkey.rs:22:16
+   │
+22 │     let json = serde_json::to_string(&telemetry).unwrap();
+   │                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/integration_valkey.rs:23:39
+   │
+23 │     let deserialized: NodeTelemetry = serde_json::from_str(&json).unwrap();
+   │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-protocol/tests/contract_integration.rs:31:16
+   │
+31 │     let json = serde_json::to_string(&req).unwrap();
+   │                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-protocol/tests/contract_integration.rs:32:36
+   │
+32 │     let deserialized: JobRequest = serde_json::from_str(&json).unwrap();
+   │                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/identity.rs:14:9
+   │
+14 │         std::fs::create_dir_all(&config_dir)
+   │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/identity.rs:33:17
+   │
+33 │                 std::fs::read_to_string(&uuid_path).map_err(|e| {
+   │                 ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/identity.rs:38:17
+   │
+38 │                 std::fs::write(&uuid_path, &new_id).map_err(|e| {
+   │                 ^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/identity.rs:48:20
+   │
+48 │         let file = std::fs::File::open(&key_path)
+   │                    ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/identity.rs:90:28
+   │
+90 │             let mut file = std::fs::OpenOptions::new()
+   │                            ^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-agent/src/identity.rs:104:13
+    │
+104 │             std::fs::write(&key_path, &output).map_err(|e| {
+    │             ^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/src/main.rs:30:1
+   │
+30 │ use std::net::SocketAddr;
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/src/main.rs:30:5
+   │
+30 │ use std::net::SocketAddr;
+   │     ^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-hive/src/main.rs:148:29
+    │
+148 │             let data_path = std::fs::canonicalize(&resolved_path).unwrap_or(resolved_path);
+    │                             ^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/identity.rs:121:19
+    │
+121 │         let dir = tempdir().unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/identity.rs:124:9
+    │
+124 │         fs::write(&key_path, "dummy encrypted data").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/identity.rs:129:29
+    │
+129 │             let mut perms = fs::metadata(&key_path).unwrap().permissions();
+    │                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/identity.rs:131:13
+    │
+131 │             fs::set_permissions(&key_path, perms).unwrap();
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/identity.rs:133:31
+    │
+133 │             let final_perms = fs::metadata(&key_path).unwrap().permissions();
+    │                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/config.rs:125:20
+    │
+125 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/config.rs:127:9
+    │
+127 │         fs::write(&path, "data_dir = '/etc/kf'\ncores = 4").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/config.rs:129:19
+    │
+129 │         let cfg = CommonConfig::from_file(&path).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/config.rs:134:9
+    │
+134 │         fs::write(&path, "bad = invalid").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/config.rs:49:23
+   │
+49 │         let content = std::fs::read_to_string(path)?;
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:197:13
+    │
+197 │     let _ = sqlx::query("TRUNCATE results CASCADE").execute(&pool).await;
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:198:13
+    │
+198 │     let _ = sqlx::query("TRUNCATE nodes CASCADE").execute(&pool).await;
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-raw-sql]: ARCH-004: All database interactions must use sqlx macros (query! or query_as!) for compile-time verification. Raw strings are banned.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:199:13
+    │
+199 │     let _ = sqlx::query("TRUNCATE jobs CASCADE").execute(&pool).await;
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:47:5
+   │
+47 │     fs::create_dir_all(&kb_dir).unwrap();
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:49:5
+   │
+49 │     fs::create_dir_all(&weights_dir).unwrap();
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:51:5
+   │
+51 │     fs::create_dir_all(&corpus_dir).unwrap();
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:53:5
+   │
+53 │     fs::create_dir_all(&config_dir).unwrap();
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:57:9
+   │  
+57 │ ╭         fs::write(
+   · │
+61 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:65:9
+   │  
+65 │ ╭         fs::write(
+   · │
+69 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:70:9
+   │  
+70 │ ╭         fs::write(
+   · │
+74 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:75:9
+   │  
+75 │ ╭         fs::write(
+   · │
+79 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:80:9
+   │  
+80 │ ╭         fs::write(
+   · │
+84 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:89:9
+   │  
+89 │ ╭         fs::write(
+   · │
+93 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:113:13
+    │
+113 │             fs::write(path, json).unwrap();
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:137:34
+    │  
+137 │                       let packed = rmp_serde::to_vec(
+    │ ╭──────────────────────────────────^
+    · │
+140 │ │                     .unwrap();
+    │ ╰─────────────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:138:26
+    │
+138 │                         &serde_json::from_slice::<serde_json::Value>(&content).unwrap(),
+    │                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:142:25
+    │
+142 │                         zstd::stream::encode_all(std::io::Cursor::new(packed), 0).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:201:20
+    │
+201 │     let temp_dir = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:223:20
+    │
+223 │     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:224:16
+    │
+224 │     let addr = listener.local_addr().unwrap();
+    │                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/tests/common/mod.rs:228:9
+    │  
+228 │ ╭         axum::serve(
+    · │
+233 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:15:1
+   │
+15 │ use std::net::SocketAddr;
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/tests/common/mod.rs:15:5
+   │
+15 │ use std::net::SocketAddr;
+   │     ^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-protocol/src/serde_utils.rs:46:29
+   │
+46 │         let res: Vec<i32> = deserialize_limited_vec(data).unwrap();
+   │                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ libs/keyforge-persistence/src/store/autosave.rs:135:24
+    │
+135 │             let file = std::fs::File::open(path)?;
+    │                        ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ libs/keyforge-persistence/src/store/autosave.rs:240:40
+    │
+240 │                         let mut dest = std::fs::File::create(&path)?;
+    │                                        ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:155:20
+    │
+155 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:159:9
+    │
+159 │         fs::create_dir_all(sys_root.join("config")).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:160:9
+    │
+160 │         fs::create_dir_all(sys_root.join("weights")).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:161:9
+    │
+161 │         fs::create_dir_all(sys_root.join("corpora/text/en_std")).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:163:9
+    │
+163 │         fs::write(sys_root.join("config/keycodes.json"), "").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:164:9
+    │
+164 │         fs::write(sys_root.join("weights/cost_matrix.json"), "").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:165:9
+    │
+165 │         fs::write(sys_root.join("corpora/text/en_std/1grams.json"), "").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:167:9
+    │
+167 │         initialize_workspace(&root, InitMode::Create).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/fs/init.rs:176:20
+    │
+176 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/tests/ghost_parity.rs:34:9
+   │
+34 │         serde_json::from_str(json).unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/tests/ghost_parity.rs:58:27
+   │
+58 │         let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+   │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/tests/ghost_parity.rs:73:22
+   │  
+73 │           let engine = EngineFactory::new_scalar(&EngineCompilationContext {
+   │ ╭──────────────────────^
+   · │
+80 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/tests/ghost_parity.rs:102:24
+    │
+102 │         let prod_res = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
+    │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/tests/ghost_parity.rs:105:25
+    │
+105 │         let ghost_res = GhostOptimizer::optimize(engine.as_ref(), &config, &layout).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/check_keycodes.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/check_keycodes.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/check_keycodes.rs:13:16
+   │
+13 │     let file = File::open(path).unwrap();
+   │                ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/check_keycodes.rs:14:19
+   │
+14 │     let decoder = zstd::Decoder::new(file).unwrap();
+   │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/check_keycodes.rs:16:40
+   │
+16 │     let defs: Vec<KeycodeDefinition> = rmp_serde::from_read(decoder).unwrap();
+   │                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/check_keycodes.rs:79:29
+   │
+79 │             let char_code = def.label.chars().next().unwrap();
+   │                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/fs/io.rs:31:9
+   │
+31 │         std::fs::create_dir_all(parent).map_err(InfraError::Io)?;
+   │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/fs/io.rs:47:26
+   │
+47 │         if let Ok(dir) = std::fs::File::open(parent) {
+   │                          ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/fs/io.rs:64:16
+   │
+64 │     let file = std::fs::File::open(path).map_err(InfraError::Io)?;
+   │                ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/network/outbox.rs:24:9
+   │
+24 │         std::fs::create_dir_all(&wal_dir).ok();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/network/outbox.rs:25:9
+   │
+25 │         std::fs::create_dir_all(&dead_letter_dir).ok();
+   │         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/network/outbox.rs:36:9
+   │
+36 │         std::fs::write(path, json).map_err(AgentError::from)
+   │         ^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/network/outbox.rs:60:9
+   │
+60 │         std::fs::write(path, json).map_err(AgentError::from)
+   │         ^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/network/outbox.rs:65:30
+   │
+65 │         if let Ok(entries) = std::fs::read_dir(&self.wal_dir) {
+   │                              ^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/network/outbox.rs:69:42
+   │
+69 │                     if let Ok(content) = std::fs::read_to_string(&path) {
+   │                                          ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/network/outbox.rs:81:17
+   │
+81 │         let _ = std::fs::remove_file(path);
+   │                 ^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/fs/lock.rs:18:1
+   │
+18 │ use std::fs::File;
+   │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/fs/lock.rs:18:5
+   │
+18 │ use std::fs::File;
+   │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/tests/optimization_integration.rs:37:9
+   │
+37 │         serde_json::from_str(json).unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/tests/optimization_integration.rs:77:22
+   │
+77 │             Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap()),
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/tests/optimization_integration.rs:106:22
+    │
+106 │         let result = optimize(&req).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/tests/optimization_integration.rs:113:22
+    │  
+113 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+120 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/tests/optimization_integration.rs:132:22
+    │
+132 │         let result = evolve(&engine_arc, &config, NoOpCallback, None, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/tests/optimization_integration.rs:159:22
+    │
+159 │         let result = optimize(&req).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/tests/optimization_integration.rs:191:22
+    │
+191 │         let result = optimize(&req).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/src/verify.rs:30:22
+   │  
+30 │           let engine = EngineFactory::new_scalar(&EngineCompilationContext {
+   │ ╭──────────────────────^
+   · │
+37 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/src/verify.rs:80:20
+   │
+80 │         let res1 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-evolution/src/verify.rs:81:20
+   │
+81 │         let res2 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/repro_travel.rs:5:1
+  │
+5 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/repro_travel.rs:5:5
+  │
+5 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/repro_travel.rs:14:14
+   │
+14 │     let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row, "test".into()).unwrap();
+   │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/repro_travel.rs:43:18
+   │
+43 │     let engine = keyforge_physics::ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+   │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/repro_travel.rs:46:23
+   │
+46 │     let report_both = engine.analyze(&layout).unwrap();
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/repro_travel.rs:52:23
+   │
+52 │     let report_left = engine.analyze(&layout_left).unwrap();
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/repro_travel.rs:58:24
+   │
+58 │     let report_right = engine.analyze(&layout_right).unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/asset/fs_provider.rs:46:24
+   │
+46 │             let data = std::fs::read(full_path)?;
+   │                        ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/fix_keycodes.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/fix_keycodes.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/repro_score.rs:28:5
+   │
+28 │     serde_json::from_str(json).unwrap()
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/repro_score.rs:41:29
+   │
+41 │     let keyboard = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+   │                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/annealing.rs:471:22
+    │  
+471 │           let config = AnnealingConfig::new(
+    │ ╭──────────────────────^
+    · │
+480 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/annealing.rs:488:9
+    │
+488 │         optimizer.run(None, crate::NoOpCallback).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/annealing.rs:497:21
+    │
+497 │         let state = SearchState::new(layout, 0, Temperature(1.0)).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_weights.rs:28:5
+   │
+28 │     serde_json::from_str(json).unwrap()
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_weights.rs:43:18
+   │
+43 │         Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+   │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_weights.rs:57:22
+   │  
+57 │       let engine_def = EngineFactory::new_generic(&EngineCompilationContext {
+   │ ╭──────────────────────^
+   · │
+64 │ │     .unwrap();
+   │ ╰─────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_weights.rs:65:21
+   │
+65 │     let score_def = engine_def.score(&layout).unwrap();
+   │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_weights.rs:72:25
+   │  
+72 │       let engine_custom = EngineFactory::new_generic(&EngineCompilationContext {
+   │ ╭─────────────────────────^
+   · │
+79 │ │     .unwrap();
+   │ ╰─────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ ops/repros/verify_weights.rs:80:24
+   │
+80 │     let score_custom = engine_custom.score(&layout).unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/dump_layout.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/dump_layout.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-hive/src/infra/repositories/jobs/dto.rs:243:22
+    │
+243 │         let config = keyforge_protocol::JobConfig::project(projection).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/agent/compute.rs:130:13
+    │  
+130 │ ╭             Keyboard::new(
+    · │
+135 │ │             .unwrap(),
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/agent/compute.rs:156:51
+    │
+156 │         let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json).unwrap());
+    │                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/agent/compute.rs:159:13
+    │  
+159 │ ╭             keyforge_physics::EngineFactory::new_generic(
+    · │
+168 │ │             .unwrap()
+    │ ╰─────────────────────^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/audit_distances.rs:4:1
+  │
+4 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/audit_distances.rs:4:5
+  │
+4 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/audit_geometry.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/audit_geometry.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-agent/src/models.rs:211:28
+    │
+211 │                 let file = std::fs::File::open(path)?;
+    │                            ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+    ┌─ apps/keyforge-agent/src/models.rs:216:23
+    │
+216 │         let content = std::fs::read_to_string(path)?;
+    │                       ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/fix_szr35_geometry.rs:3:1
+  │
+3 │ use std::fs::File;
+  │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+  ┌─ ops/repros/fix_szr35_geometry.rs:3:5
+  │
+3 │ use std::fs::File;
+  │     ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-agent/src/agent/hardware.rs:93:13
+   │
+93 │             std::fs::read_to_string("/sys/devices/system/cpu/cpu0/cache/index2/size")
+   │             ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/optimizer.rs:201:18
+    │  
+201 │           let kb = Keyboard::new(
+    │ ╭──────────────────^
+    · │
+215 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/optimizer.rs:242:22
+    │  
+242 │           let engine = EngineFactory::new_scalar(&keyforge_physics::EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+249 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/optimizer.rs:266:19
+    │
+266 │         let res = evolve(&engine, &config, NoOpCallback, None, None).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/optimizer.rs:287:18
+    │
+287 │         let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/optimizer.rs:335:19
+    │
+335 │         let res = optimize(&req).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ tests/system/tests/physics_scenarios.rs:61:13
+   │  
+61 │ ╭             Keyboard::new(
+   · │
+66 │ │             .unwrap(),
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ tests/system/tests/physics_scenarios.rs:85:13
+   │
+85 │             conversion::parse_layout_string(qwerty, engine.key_count(), &registry).unwrap();
+   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ tests/system/tests/physics_scenarios.rs:87:23
+   │
+87 │         let report1 = engine.analyze(&layout).unwrap();
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ tests/system/tests/physics_scenarios.rs:88:23
+   │
+88 │         let report2 = engine.analyze(&layout).unwrap();
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ tests/system/tests/physics_scenarios.rs:89:22
+   │
+89 │         let score1 = engine.score(&layout).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ tests/system/tests/physics_scenarios.rs:90:22
+   │
+90 │         let score2 = engine.score(&layout).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/state.rs:167:25
+    │
+167 │         let mut state = SearchState::new(layout, 100, Temperature(1.0)).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/state.rs:180:25
+    │
+180 │         let mut state = SearchState::new(layout, 100, Temperature(0.1)).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/state.rs:192:25
+    │
+192 │         let mut state = SearchState::new(layout, 100, Temperature(0.1)).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/common.rs:139:20
+    │
+139 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/common.rs:141:9
+    │
+141 │         fs::write(&path, "hello").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/common.rs:143:20
+    │
+143 │         let hash = calculate_file_hash(&path).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/common.rs:150:20
+    │
+150 │         let temp = tempfile::tempdir().unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/common.rs:152:9
+    │  
+152 │ ╭         fs::write(
+    · │
+156 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/common.rs:158:19
+    │
+158 │         let reg = load_keycode_registry(&path).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/common.rs:163:9
+    │
+163 │         fs::write(&path, "invalid").unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/util/common.rs:17:1
+   │
+17 │ use std::fs::File;
+   │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/util/common.rs:17:5
+   │
+17 │ use std::fs::File;
+   │     ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ corpora/openbookcorpus/src/main.rs:679:9
+    │
+679 │         data.serialize(&mut ser).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ corpora/openbookcorpus/src/main.rs:681:17
+    │
+681 │         let s = String::from_utf8(out).unwrap();
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:29:9
+   │
+29 │         serde_json::from_str(json).unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:50:27
+   │
+50 │         let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+   │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:65:22
+   │
+65 │         let engine = EngineFactory::new_generic(&ctx).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:66:22
+   │
+66 │         let oracle = EngineFactory::new_exact(&ctx).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:71:28
+   │
+71 │         let score_engine = engine.score(&layout).unwrap();
+   │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:72:28
+   │
+72 │         let score_oracle = oracle.score(&layout).unwrap();
+   │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:102:27
+    │
+102 │         let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:120:22
+    │
+120 │         let engine = EngineFactory::new_generic(&ctx).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:121:22
+    │
+121 │         let oracle = EngineFactory::new_exact(&ctx).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:126:28
+    │
+126 │         let score_engine = engine.score(&layout).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:127:28
+    │
+127 │         let score_oracle = oracle.score(&layout).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:160:27
+    │
+160 │         let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:179:22
+    │
+179 │         let engine = EngineFactory::new_generic(&ctx).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:180:22
+    │
+180 │         let oracle = EngineFactory::new_exact(&ctx).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:185:28
+    │
+185 │         let score_engine = engine.score(&layout).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/tests/optimal_choice_parity.rs:186:28
+    │
+186 │         let score_oracle = oracle.score(&layout).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/api_integration.rs:22:9
+   │
+22 │         Keyboard::new(keys, 0, "test".into()).unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/api_integration.rs:44:9
+   │
+44 │         serde_json::from_str(json).unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/api_integration.rs:77:27
+   │
+77 │         let suggestions = keyforge_compute::suggest_improvements(&req).unwrap();
+   │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/api_integration.rs:81:22
+   │
+81 │         let result = keyforge_compute::score(&req).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/api_integration.rs:85:22
+   │
+85 │         let report = keyforge_compute::analyze(&req).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/strategies/group.rs:129:9
+    │
+129 │         serde_json::from_str(json).unwrap()
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/strategies/group.rs:147:27
+    │
+147 │         let kb = Arc::new(Keyboard::new(keys, 1, "test".into()).unwrap());
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/strategies/group.rs:166:9
+    │  
+166 │ ╭         EngineFactory::new_generic(&EngineCompilationContext {
+    · │
+173 │ │         .unwrap()
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/strategies/group.rs:229:19
+    │  
+229 │           let res = mutation
+    │ ╭───────────────────^
+230 │ │             .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)
+231 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/strategies/group.rs:239:17
+    │  
+239 │           let _ = mutation
+    │ ╭─────────────────^
+240 │ │             .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 100.0)
+241 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/strategies/group.rs:243:17
+    │  
+243 │           let _ = mutation
+    │ ╭─────────────────^
+244 │ │             .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 0.1)
+245 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-evolution/src/supervisor/strategies/group.rs:252:17
+    │  
+252 │           let _ = mutation_eq
+    │ ╭─────────────────^
+253 │ │             .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)
+254 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/engine_integration.rs:14:22
+   │  
+14 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+   │ ╭──────────────────────^
+   · │
+21 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/engine_integration.rs:28:21
+   │
+28 │         let score = engine.score(&layout).unwrap();
+   │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/engine_integration.rs:29:24
+   │
+29 │         let detailed = engine.score_detailed(&layout).unwrap();
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/engine_integration.rs:36:22
+   │  
+36 │           let engine = EngineFactory::new_exact(&EngineCompilationContext {
+   │ ╭──────────────────────^
+   · │
+43 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/tests/engine_integration.rs:57:22
+   │  
+57 │           let engine = EngineFactory::new_intel_comet_lake(
+   │ ╭──────────────────────^
+   · │
+67 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/benches/scoring_bench.rs:11:23
+   │
+11 │     let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-agent/src/hw_detect.rs:251:20
+    │
+251 │         let topo = detect_topology().await.unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-adapter/src/parsing.rs:201:15
+    │
+201 │         match parse_key("MO(1)").unwrap() {
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-adapter/src/parsing.rs:206:15
+    │
+206 │         match parse_key("LT(2, KC_SPC)").unwrap() {
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-wasm/src/lib.rs:251:38
+    │
+251 │         let val: serde_json::Value = serde_json::from_str(kb_json).unwrap();
+    │                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-wasm/src/lib.rs:252:22
+    │
+252 │         let js_val = to_value(&val).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-adapter/src/conversion/layout.rs:114:18
+    │
+114 │         let ok = parse_layout_string_strict("A", 2, &registry).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-adapter/src/conversion/layout.rs:138:18
+    │
+138 │         let ok = parse_layout_string_strict("MO(1)", 1, &reg).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-adapter/src/conversion/layout.rs:146:20
+    │
+146 │         let many = parse_layout_string_strict("MO(1) MO(2) MO(3)", 1, &reg).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/auth.rs:56:5
+   │
+56 │     std::fs::create_dir_all(&path).map_err(CliError::Io)?;
+   │     ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/auth.rs:69:5
+   │
+69 │     std::fs::write(&path, json).map_err(CliError::Io)?;
+   │     ^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/auth.rs:75:31
+   │
+75 │         if let Ok(metadata) = std::fs::metadata(&path) {
+   │                               ^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/auth.rs:78:29
+   │
+78 │             if let Err(e) = std::fs::set_permissions(&path, perms) {
+   │                             ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/auth.rs:98:19
+   │
+98 │     let content = std::fs::read_to_string(path).ok()?;
+   │                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:361:19
+    │
+361 │         let sig = sign_result(&secret, job_id, layout, score, timestamp, nonce).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:362:21
+    │
+362 │         let valid = verify_result(&public, job_id, layout, score, timestamp, nonce, &sig).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:373:19
+    │
+373 │         let sig = sign_result(&spaced_secret, "job", "layout", 1.0, 0, 0).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:374:21
+    │
+374 │         let valid = verify_result(&public, "job", "layout", 1.0, 0, 0, &sig).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:381:19
+    │
+381 │         let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:386:21
+    │
+386 │         let valid = verify_result(&spaced_public, "job", "layout", 1.0, 0, 0, &spaced_sig).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:402:19
+    │
+402 │         let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-security/src/lib.rs:405:21
+    │
+405 │         let valid = verify_result(&public, "job", "layout", 99.0, 0, 0, &sig).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-adapter/src/conversion/geometry.rs:188:20
+    │
+188 │         let pins = resolve_constraints(&constraints, 2, &reg).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/list.rs:58:20
+   │
+58 │         let meta = std::fs::metadata(&path)?;
+   │                    ^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ libs/keyforge-infra/src/net/sync.rs:63:17
+   │
+63 │                 std::fs::create_dir_all(parent).ok();
+   │                 ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/net/client.rs:222:22
+    │
+222 │         let client = HiveClient::new(config).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/net/client.rs:238:22
+    │
+238 │         let client = HiveClient::new(ClientConfig::default()).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-infra/src/util/corpus.rs:359:9
+    │
+359 │         populate_corpus_from_segments(&mut corpus, 1.0, segments).unwrap();
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-compute/tests/builder_integration.rs:97:23
+    │  
+ 97 │           let builder = SessionBuilder::new(&loader)
+    │ ╭───────────────────────^
+    · │
+107 │ │             .unwrap();
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-compute/tests/builder_integration.rs:97:23
+    │  
+ 97 │           let builder = SessionBuilder::new(&loader)
+    │ ╭───────────────────────^
+    · │
+104 │ │             .unwrap()
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-compute/tests/builder_integration.rs:97:23
+    │  
+ 97 │           let builder = SessionBuilder::new(&loader)
+    │ ╭───────────────────────^
+    · │
+101 │ │             .unwrap()
+    │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-compute/tests/builder_integration.rs:109:23
+    │
+109 │         let session = builder.build().unwrap();
+    │                       ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/zmk.rs:178:22
+    │
+178 │         let result = exporter.generate("Test", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/zmk.rs:198:22
+    │
+198 │         let result = exporter.generate("RecursionFail", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/zmk.rs:203:22
+    │
+203 │         let result = exporter.generate("RecursionFail", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/zmk.rs:211:22
+    │
+211 │         let result = exporter.generate("Multi", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/zmk.rs:220:22
+    │
+220 │         let result = exporter.generate("Long", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/mechanics.rs:269:9
+    │
+269 │         Keyboard::new(keys, 0, "test".into()).unwrap()
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/mechanics.rs:277:20
+    │
+277 │         let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/mechanics.rs:300:18
+    │
+300 │         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/mechanics.rs:303:20
+    │
+303 │         let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-compute/tests/runtime_integration.rs:81:23
+   │  
+81 │           let session = keyforge_compute::SessionBuilder::new(&loader)
+   │ ╭───────────────────────^
+   · │
+93 │ │             .unwrap();
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-compute/tests/runtime_integration.rs:81:23
+   │  
+81 │           let session = keyforge_compute::SessionBuilder::new(&loader)
+   │ ╭───────────────────────^
+   · │
+91 │ │             .unwrap()
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-compute/tests/runtime_integration.rs:81:23
+   │  
+81 │           let session = keyforge_compute::SessionBuilder::new(&loader)
+   │ ╭───────────────────────^
+   · │
+88 │ │             .unwrap()
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-compute/tests/runtime_integration.rs:81:23
+   │  
+81 │           let session = keyforge_compute::SessionBuilder::new(&loader)
+   │ ╭───────────────────────^
+   · │
+85 │ │             .unwrap()
+   │ ╰─────────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/qmk.rs:137:22
+    │
+137 │         let result = exporter.generate("Test Layout", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/qmk.rs:173:22
+    │
+173 │         let result = exporter.generate("Long", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-export/src/via.rs:85:22
+   │
+85 │         let result = exporter.generate("Test Layout", &layers, None).unwrap();
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-export/src/via.rs:86:39
+   │
+86 │         let json: serde_json::Value = serde_json::from_str(&result).unwrap();
+   │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/via.rs:107:22
+    │
+107 │         let result = exporter.generate("Test", &layers, None).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-export/src/via.rs:108:39
+    │
+108 │         let json: serde_json::Value = serde_json::from_str(&result).unwrap();
+    │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/keyboard.rs:180:18
+    │
+180 │         let kb = Keyboard::new(keys, crate::types::RowIndex(0), "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/stages/geometry.rs:124:18
+    │
+124 │         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/stages/geometry.rs:129:19
+    │
+129 │         let out = stage.execute(&kb).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/stages/costs.rs:181:20
+    │
+181 │         let cost = resolve_key_cost(&key, &static_costs).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/profile.rs:21:1
+   │
+21 │ use std::fs::File;
+   │ ^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/profile.rs:21:5
+   │
+21 │ use std::fs::File;
+   │     ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/profile.rs:61:31
+   │
+61 │                 let content = std::fs::read_to_string(&args.input).unwrap_or_default();
+   │                               ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-cli/src/cmd/profile.rs:90:5
+   │
+90 │     std::fs::write(&args.output, json).map_err(|e| format!("Failed to write output file: {e}"))?;
+   │     ^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-hive/src/bootstrap.rs:58:19
+   │
+58 │         let raw = std::fs::read_to_string(path)
+   │                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/geometry/kle.rs:191:20
+    │
+191 │         let geom = parse_kle_json(json).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/geometry/kle.rs:201:20
+    │
+201 │         let geom = parse_kle_json(json).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/geometry/kle.rs:208:20
+    │
+208 │         let geom = parse_kle_json(json).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/geometry/kle.rs:217:20
+    │
+217 │         let geom = parse_kle_json(json).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/geometry/kle.rs:241:20
+    │
+241 │         let json = to_kle_json(&geom).unwrap();
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-ui/src-tauri/src/lib.rs:59:28
+   │
+59 │                 let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+   │                            ^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-ui/src-tauri/src/commands/config.rs:48:20
+   │
+48 │         let file = std::fs::File::open(system_path)?;
+   │                    ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-ui/src-tauri/src/commands/config.rs:56:23
+   │
+56 │         let content = std::fs::read_to_string(user_path)?;
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-ui/src-tauri/src/commands/search.rs:157:27
+    │
+157 │     let mut child_guard = state.child.lock().unwrap();
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ apps/keyforge-ui/src-tauri/src/commands/search.rs:213:24
+    │
+213 │         let mut last = self.last_emit.lock().unwrap();
+    │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/job.rs:220:19
+    │  
+220 │           let id1 = JobIdentifier::try_from_parts(
+    │ ╭───────────────────^
+    · │
+228 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/job.rs:229:19
+    │  
+229 │           let id2 = JobIdentifier::try_from_parts(
+    │ ╭───────────────────^
+    · │
+237 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/job.rs:257:19
+    │  
+257 │           let id1 = JobIdentifier::try_from_parts(
+    │ ╭───────────────────^
+    · │
+265 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/job.rs:266:19
+    │  
+266 │           let id2 = JobIdentifier::try_from_parts(
+    │ ╭───────────────────^
+    · │
+274 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-ui/src-tauri/src/commands/analysis.rs:47:16
+   │
+47 │     let meta = std::fs::metadata(&path).map_err(|e| CommandError::Internal(e.to_string()))?;
+   │                ^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-ui/src-tauri/src/commands/analysis.rs:90:20
+   │
+90 │         let meta = std::fs::metadata(&file).map_err(|e| CommandError::Internal(e.to_string()))?;
+   │                    ^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-model/src/types/mod.rs:53:17
+   │
+53 │         let s = Score::from_f32(1.0).unwrap();
+   │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-ui/src-tauri/src/state.rs:72:20
+   │
+72 │         let data = std::fs::read(path).map_err(keyforge_model::error::ForgeError::Io)?;
+   │                    ^^^^^^^^^^^^^
+
+error[no-direct-io-in-kernels]: ARCH-005: Physics and Evolution kernels must be pure and are forbidden from performing direct IO.
+   ┌─ apps/keyforge-ui/src-tauri/src/state.rs:86:24
+   │
+86 │             let data = std::fs::read(path).map_err(keyforge_model::error::ForgeError::Io)?;
+   │                        ^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-model/src/config/constraints.rs:75:32
+   │
+75 │         let c: KeyConstraint = "0:KC_A".parse().unwrap();
+   │                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/analysis.rs:448:18
+    │
+448 │         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/analysis.rs:505:19
+    │
+505 │         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/analysis.rs:507:25
+    │
+507 │         let validated = ValidatedLayout::new(&layout_keys, kb.count()).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:25:9
+   │
+25 │         Keyboard::new(keys, 0, "test".into()).unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:47:9
+   │
+47 │         serde_json::from_str(json).unwrap()
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:171:22
+    │  
+171 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+178 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:179:21
+    │
+179 │         let score = engine.score(&layout).unwrap().to_f32();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:197:22
+    │  
+197 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+204 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:205:25
+    │
+205 │         let validated = ValidatedLayout::new(&layout.keys, engine.key_count()).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:231:22
+    │  
+231 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+238 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:264:18
+    │
+264 │         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:274:22
+    │  
+274 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+281 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:285:25
+    │
+285 │         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:301:28
+    │
+301 │         let score_before = engine.score(&layout).unwrap().0;
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:302:21
+    │
+302 │         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:307:27
+    │
+307 │         let score_after = engine.score(&swapped_layout).unwrap().0;
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:330:18
+    │
+330 │         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:340:22
+    │  
+340 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+347 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:351:25
+    │
+351 │         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:367:28
+    │
+367 │         let score_before = engine.score(&layout).unwrap().0;
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:368:21
+    │
+368 │         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:373:27
+    │
+373 │         let score_after = engine.score(&swapped_layout).unwrap().0;
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:390:22
+    │  
+390 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+397 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:405:25
+    │
+405 │         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:423:21
+    │
+423 │         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:435:18
+    │
+435 │         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:445:22
+    │  
+445 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+452 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:454:25
+    │
+454 │         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:471:21
+    │
+471 │         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:483:22
+    │  
+483 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+490 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:517:25
+    │
+517 │         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/kernel/compute/tests.rs:518:27
+    │
+518 │         let mut scratch = crate::kernel::compute::PhysicsScratch::try_new().unwrap();
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/config/definitions.rs:156:23
+    │
+156 │         let bigrams = def.get_critical_bigrams().unwrap();
+    │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/config/definitions.rs:173:19
+    │
+173 │         let def = LayoutDefinitions::try_from(config).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/config/source.rs:190:31
+    │
+190 │         let s: CorpusSource = "en".parse().unwrap();
+    │                               ^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/config/source.rs:195:31
+    │
+195 │         let s: CorpusSource = "en:0.5".parse().unwrap();
+    │                               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/arm_neon.rs:512:18
+    │
+512 │         let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/arm_neon.rs:522:19
+    │
+522 │         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/arm_neon.rs:529:25
+    │
+529 │         let score_res = engine.score(&layout).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/arm_neon.rs:532:28
+    │  
+532 │           let scalar_score = score_layout_scalar(
+    │ ╭────────────────────────────^
+    · │
+537 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/arm_neon.rs:534:14
+    │
+534 │             &ValidatedLayout::new(&layout.keys, 3).unwrap(),
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/arm_neon.rs:535:18
+    │
+535 │             &mut PhysicsScratch::try_new().unwrap(),
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/testing.rs:120:17
+    │
+120 │                 Keyboard::new(keys, 1, "test".into()).unwrap()
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/testing.rs:271:14
+    │
+271 │     let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-testing/src/lib.rs:436:18
+    │
+436 │         let ws = HermeticWorkspace::new().await.unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-model/src/config/search.rs:596:17
+    │
+596 │         let p = SearchParams::try_from(config).unwrap();
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/intel_comet_lake.rs:516:18
+    │
+516 │         let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/intel_comet_lake.rs:524:19
+    │  
+524 │           let ctx = Compiler::compile(
+    │ ╭───────────────────^
+    · │
+530 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/arm_sve.rs:229:18
+    │
+229 │             &mut PhysicsScratch::try_new().unwrap(),
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/analysis/fingerprint.rs:117:18
+    │
+117 │         let id = id.unwrap();
+    │                  ^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/src/analysis/heuristics.rs:43:27
+   │
+43 │         let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+   │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/src/analysis/heuristics.rs:82:22
+   │  
+82 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+   │ ╭──────────────────────^
+   · │
+89 │ │         .unwrap();
+   │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/wasm_simd.rs:496:18
+    │
+496 │         let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/wasm_simd.rs:506:19
+    │
+506 │         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/wasm_simd.rs:513:25
+    │
+513 │         let score_res = engine.score(&layout).unwrap();
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/wasm_simd.rs:516:28
+    │  
+516 │           let scalar_score = score_layout_scalar(
+    │ ╭────────────────────────────^
+    · │
+521 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/wasm_simd.rs:518:14
+    │
+518 │             &ValidatedLayout::new(&layout.keys, 3).unwrap(),
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/engines/wasm_simd.rs:519:18
+    │
+519 │             &mut PhysicsScratch::try_new().unwrap(),
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/verify.rs:514:28
+    │
+514 │         let oracle_score = scorer.score(&kb, &cp, &layout_keys).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/verify.rs:517:22
+    │  
+517 │           let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+524 │ │         .unwrap();
+    │ ╰─────────────────^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/verify.rs:526:28
+    │
+526 │         let engine_score = engine.score(&layout).unwrap();
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+   ┌─ libs/keyforge-physics/src/analysis/mod.rs:68:27
+   │
+68 │         let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
+   │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/analysis/mod.rs:108:22
+    │
+108 │         let layout = keyforge_adapter::conversion::parse_layout_string(qwerty, 30, &reg).unwrap();
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[no-unwrap-in-production]: TYPE-003: Production code must not use .unwrap(). Use Result and ForgeError instead.
+    ┌─ libs/keyforge-physics/src/analysis/mod.rs:118:22
+    │  
+118 │           let engine = EngineFactory::new_generic(&EngineCompilationContext {
+    │ ╭──────────────────────^
+    · │
+125 │ │         .unwrap();
+    │ ╰─────────────────^
+
+Error: 543 error(s) found in code.
+Help: Scan succeeded and found error level diagnostics in the codebase.
+
 \n--- cargo bloat ---
+   Compiling keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
+   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+   Compiling tantivy v0.22.1
+   Compiling octocrab v0.38.0
+   Compiling parquet v57.2.0
+   Compiling keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
+   Compiling keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+   Compiling keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
+   Compiling keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
+   Compiling keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
+   Compiling keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
+   Compiling keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
+   Compiling keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
+   Compiling keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
+   Compiling keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
+   Compiling keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
+   Compiling keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
+   Compiling keyforge-testing v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing)
+   Compiling openbookcorpus v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/corpora/openbookcorpus)
+   Compiling keyforge-repros v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/repros)
+   Compiling keyforge-tui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-tui)
+   Compiling keyforge-wasm v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm)
+   Compiling keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
+   Compiling narsil-mcp v1.3.1
+   Compiling keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
+    Finished `release` profile [optimized] target(s) in 29m 19s
+    Analyzing target/release/keyforge-hive
+
+ File  .text    Size               Crate Name
+ 0.1%   0.4% 46.9KiB       keyforge_hive keyforge_hive::main::{{closure}}
+ 0.1%   0.3% 43.5KiB       keyforge_hive keyforge_hive::infra::repositories::jobs::core::JobRepository::register::{{closure}}::{{closure}}
+ 0.1%   0.3% 43.3KiB       keyforge_hive keyforge_hive::infra::repositories::jobs::core::JobRepository::register::{{closure}}::{{closure}}
+ 0.1%   0.3% 40.5KiB       keyforge_hive keyforge_hive::create_app
+ 0.1%   0.3% 35.8KiB       keyforge_hive keyforge_hive::main::{{closure}}
+ 0.1%   0.3% 35.7KiB       keyforge_hive keyforge_hive::main::{{closure}}
+ 0.1%   0.2% 32.6KiB       keyforge_hive keyforge_hive::infra::repositories::jobs::core::JobRepository::register::{{closure}}::{{closure}}
+ 0.1%   0.2% 31.3KiB                fred fred::router::commands::write_command::{{closure}}
+ 0.1%   0.2% 29.5KiB       keyforge_hive keyforge_hive::infra::db::try_init_db::{{closure}}
+ 0.1%   0.2% 28.0KiB      keyforge_infra <keyforge_infra::net::distributed::ValkeyDistributedCoordinator as keyforge_infra::net::distributed::DistributedCoordinator>::get_cluster_stats::{{closure}}
+ 0.1%   0.2% 23.4KiB                  h2 h2::codec::framed_read::decode_frame
+ 0.1%   0.2% 22.7KiB       keyforge_hive keyforge_hive::infra::db::try_init_db::{{closure}}
+ 0.1%   0.2% 22.4KiB       keyforge_hive keyforge_hive::commands::handle_command::{{closure}}
+ 0.1%   0.2% 22.4KiB        clap_builder clap_builder::builder::command::Command::_build_self
+ 0.1%   0.2% 21.8KiB                fred fred::protocol::connection::ExclusiveConnection::setup::{{closure}}::{{closure}}
+ 0.1%   0.2% 21.2KiB       keyforge_hive moka::sync::base_cache::Inner<K,V,S>::do_run_pending_tasks
+ 0.0%   0.2% 21.0KiB opentelemetry_otlp? <opentelemetry_otlp::span::SpanExporter as opentelemetry_sdk::trace::export::SpanExporter>::export::{{closure}}
+ 0.0%   0.2% 21.0KiB        clap_builder clap_builder::parser::parser::Parser::get_matches_with
+ 0.0%   0.2% 20.4KiB                fred fred::router::clustered::sync::{{closure}}
+ 0.0%   0.2% 20.4KiB                fred fred::router::clustered::sync::{{closure}}
+29.3%  94.0% 12.1MiB                     And 27687 smaller methods. Use -n N to show more.
+31.2% 100.0% 12.9MiB                     .text section size, the file size is 41.4MiB
+\n--- Narsil Reference Check ---
+✅ Narsil Reference Found
