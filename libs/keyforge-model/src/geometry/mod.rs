@@ -173,13 +173,13 @@ pub struct KeyboardGeometry {
     pub low_slots: Vec<KeyIndex>,
     /// Logical index of the home row.
     #[serde(default)]
-    pub home_row: i8,
+    pub home_row: RowIndex,
 }
 
 impl Validator for KeyboardGeometry {
     fn validate(&self) -> Result<(), String> {
         let has_home_keys = self.keys.iter().any(|k| k.is_home);
-        let has_home_row_matches = self.keys.iter().any(|k| k.row.0 == self.home_row);
+        let has_home_row_matches = self.keys.iter().any(|k| k.row == self.home_row);
 
         if !has_home_keys && !has_home_row_matches {
             return Err(format!(

@@ -117,7 +117,7 @@ impl Arbitrary for Keyboard {
                     key.index = i;
                 }
                 #[allow(clippy::unwrap_used)]
-                Keyboard::new(keys, 1, "test".into()).unwrap()
+                Keyboard::new(keys, RowIndex(1), "test".into()).unwrap()
             })
             .boxed()
     }
@@ -268,7 +268,7 @@ pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
             ..Default::default()
         })
         .collect();
-    let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+    let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
 
     let mut corpus = Corpus::default();
     let mut freqs = corpus.char_freqs.to_vec();
