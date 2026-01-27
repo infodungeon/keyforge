@@ -1,127 +1,12 @@
-// libs/keyforge-model/src/config/search.rs
-
+// libs/keyforge-model/src/config/search/params.rs
 use crate::config::metadata::{ParamType, ParameterMetadata};
-use crate::error::ForgeError;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-/// Configuration for the optimization search strategy.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-
-pub enum SearchConfig {
-    /// Simulated Annealing strategy.
-    Annealing {
-        /// Total number of mutation steps.
-        steps: usize,
-        /// Initial temperature (higher = more chaotic).
-        start_temp: f32,
-        /// Final temperature (lower = more greedy).
-        end_temp: f32,
-        /// PRNG seed for deterministic replay.
-        seed: u64,
-        /// Steps without improvement before reheating.
-        patience: usize,
-        /// Number of times to reheat.
-        reheats: usize,
-        /// Multiplier for `start_temp` when reheating.
-        reheat_factor: f32,
-        /// Whether to include thumb keys in swap suggestions.
-        #[serde(default)]
-        include_thumbs: bool,
-    },
-}
-
-impl Default for SearchConfig {
-    fn default() -> Self {
-        Self::Annealing {
-            steps: 100_000,
-            start_temp: 100.0,
-            end_temp: 0.01,
-            seed: 42,
-            patience: 500,
-            reheats: 3,
-            reheat_factor: 0.5,
-            include_thumbs: false,
-        }
-    }
-}
-
-impl SearchConfig {
-    /// Validates that configuration parameters are within safe bounds.
-    ///
-    /// # Errors
-    /// Returns a `ForgeError` if the parameters are out of reasonable bounds.
-    pub fn validate(&self) -> Result<(), ForgeError> {
-        match self {
-            SearchConfig::Annealing {
-                steps,
-                start_temp,
-                end_temp,
-                reheat_factor,
-                ..
-            } => {
-                if *steps == 0 {
-                    return Err(ForgeError::InvalidData("Steps must be > 0".into()));
-                }
-                if *start_temp < 0.0 {
-                    return Err(ForgeError::InvalidData("Start temp must be >= 0".into()));
-                }
-                if *end_temp < 0.0 {
-                    return Err(ForgeError::InvalidData("End temp must be >= 0".into()));
-                }
-                if *reheat_factor <= 0.0 {
-                    return Err(ForgeError::InvalidData("Reheat factor must be > 0".into()));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Returns whether thumb keys should be included in swap suggestions.
-    #[must_use]
-    pub fn include_thumbs(&self) -> bool {
-        match self {
-            SearchConfig::Annealing { include_thumbs, .. } => *include_thumbs,
-        }
-    }
-}
-
-// --- Default Values (Search) ---
-
-/// Maximum allowed temperature for annealing.
-pub const MAX_TEMP: f32 = 1_000.0;
-/// Maximum number of search epochs.
-pub const MAX_SEARCH_EPOCHS: usize = 1_000_000;
-/// Maximum number of search steps per epoch.
-pub const MAX_SEARCH_STEPS: usize = 5_000_000;
-/// Maximum optimization limit for fast path.
-pub const MAX_OPT_LIMIT_FAST: usize = 10_000;
-
-/// Default number of search epochs.
-pub const DEFAULT_SEARCH_EPOCHS: usize = 10_000;
-/// Default number of search steps per epoch.
-pub const DEFAULT_SEARCH_STEPS: usize = 100_000;
-/// Default search patience.
-pub const DEFAULT_SEARCH_PATIENCE: usize = 500;
-/// Default search patience threshold.
-pub const DEFAULT_SEARCH_PATIENCE_THRESHOLD: f32 = 0.1;
-/// Default minimum temperature.
-pub const DEFAULT_TEMP_MIN: f32 = 0.005;
-/// Default maximum temperature.
-pub const DEFAULT_TEMP_MAX: f32 = 20.0;
-/// Default fast-path optimization limit.
-pub const DEFAULT_OPT_LIMIT_FAST: usize = 100;
-/// Default slow-path optimization limit.
-pub const DEFAULT_OPT_LIMIT_SLOW: usize = 1500;
-/// Default number of reheats.
-pub const DEFAULT_REHEATS: usize = 3;
-/// Default reheat factor.
-pub const DEFAULT_REHEAT_FACTOR: f32 = 0.5;
+use super::constants::*;
 
 /// Parameters controlling the Simulated Annealing algorithm.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-
 pub struct SearchParams {
     /// Dynamic parameters map.
     #[serde(flatten)]
@@ -201,10 +86,8 @@ impl Validator for SearchParams {
         if self.get_temp_min() < 0.0001 {
             return Err("temp_min too low (underflow risk)".into());
         }
-        if self.get_temp_min() < self.get_temp_max() {
-            // Corrected logic: must be < max
-        } else {
-            return Err("temp_min must be < temp_max".into());
+        if self.get_temp_min() >= self.get_temp_max() {
+             return Err("temp_min must be < temp_max".into());
         }
         if self.get_search_patience_threshold() < 0.0 || self.get_search_patience_threshold() > 1.0
         {
@@ -401,105 +284,9 @@ impl TryFrom<SearchParamsConfig> for SearchParams {
     }
 }
 
-#[keyforge_testing_macros::kf_test]
+#[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-
-    fn test_search_config_validation() {
-        // Valid default
-
-        let c = SearchConfig::default();
-
-        assert!(c.validate().is_ok());
-
-        // Invalid Steps
-
-        let invalid_steps = SearchConfig::Annealing {
-            steps: 0,
-
-            start_temp: 100.0,
-
-            end_temp: 0.01,
-
-            seed: 42,
-
-            patience: 500,
-
-            reheats: 3,
-
-            reheat_factor: 0.5,
-
-            include_thumbs: false,
-        };
-
-        assert!(invalid_steps.validate().is_err());
-
-        // Invalid Temp
-
-        let invalid_temp = SearchConfig::Annealing {
-            steps: 100,
-
-            start_temp: -1.0,
-
-            end_temp: 0.01,
-
-            seed: 42,
-
-            patience: 500,
-
-            reheats: 3,
-
-            reheat_factor: 0.5,
-
-            include_thumbs: false,
-        };
-
-        assert!(invalid_temp.validate().is_err());
-    }
-
-    #[test]
-    fn test_search_config_validation_extended() {
-        // end_temp < 0
-        let c = SearchConfig::Annealing {
-            steps: 100,
-            start_temp: 10.0,
-            end_temp: -1.0,
-            seed: 0,
-            patience: 10,
-            reheats: 0,
-            reheat_factor: 0.5,
-            include_thumbs: false,
-        };
-        assert!(c.validate().is_err());
-
-        // reheat_factor <= 0
-        let c = SearchConfig::Annealing {
-            steps: 100,
-            start_temp: 10.0,
-            end_temp: 0.1,
-            seed: 0,
-            patience: 10,
-            reheats: 1,
-            reheat_factor: 0.0,
-            include_thumbs: false,
-        };
-        assert!(c.validate().is_err());
-
-        assert!(!SearchConfig::default().include_thumbs());
-        assert!(SearchConfig::Annealing {
-            steps: 100,
-            start_temp: 10.0,
-            end_temp: 0.1,
-            seed: 0,
-            patience: 10,
-            reheats: 1,
-            reheat_factor: 0.5,
-            include_thumbs: true,
-        }
-        .include_thumbs());
-    }
 
     #[test]
     fn test_search_params_getters() {

@@ -4,8 +4,12 @@
 pub mod config;
 /// Default constants for scoring weights.
 pub mod constants;
+/// Weight accessors.
+pub mod accessors;
+/// CLI configuration for weights.
+pub mod cli;
 
 pub use config::ScoringWeights;
 #[cfg(feature = "cli")]
-pub use config::ScoringWeightsConfig;
+pub use cli::ScoringWeightsConfig;
 pub use constants::*;
