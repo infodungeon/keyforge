@@ -17,10 +17,10 @@ impl Projection<JobConfig> for keyforge_model::config::Config {
     fn project(source: JobConfig) -> Result<Self, keyforge_model::error::ForgeError> {
         Ok(Self {
             meta: keyforge_model::ProjectMeta {
-                name: source.definition.meta.name.clone(),
+                name: source.definition.name.clone(),
                 ..Default::default()
             },
-            keyboard: source.definition.meta.name.clone(),
+            keyboard: source.definition.name.clone(),
             corpora: source.to_domain_corpus_sources(),
             cost_matrix: source.to_domain_cost_matrix(),
             seed: None,

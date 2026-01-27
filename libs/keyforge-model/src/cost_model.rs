@@ -20,36 +20,36 @@ use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Metadata for the cost model.
+
+
+
+
+
+/// Validated and performance-optimized Cost Model (Domain Model).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CostModelMeta {
-    /// Schema version.
+pub struct CostModel {
+    /// Metadata about the model version.
     pub version: String,
     /// Human-readable description.
     pub description: String,
     /// Unit of measurement (e.g., "Effort Points").
     pub unit: String,
+    /// Definitions for different physical layouts (e.g., Row Staggered vs Columnar).
+    pub models: HashMap<String, ModelDefinition>,
+    /// Global dynamic rules and penalties.
+    pub dynamic_rules: DynamicRules,
 }
 
-impl Default for CostModelMeta {
+impl Default for CostModel {
     fn default() -> Self {
         Self {
             version: "2.0".to_string(),
             description: "Default Cost Model".to_string(),
             unit: "pts".to_string(),
+            models: HashMap::default(),
+            dynamic_rules: DynamicRules::default(),
         }
     }
-}
-
-/// Validated and performance-optimized Cost Model (Domain Model).
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CostModel {
-    /// Metadata about the model version.
-    pub meta: CostModelMeta,
-    /// Definitions for different physical layouts (e.g., Row Staggered vs Columnar).
-    pub models: HashMap<String, ModelDefinition>,
-    /// Global dynamic rules and penalties.
-    pub dynamic_rules: DynamicRules,
 }
 
 impl Asset for CostModel {
@@ -81,11 +81,7 @@ impl Validator for CostModel {
 }
 
 impl CostModel {
-    /// Returns the metadata for this model.
-    #[must_use]
-    pub fn meta(&self) -> &CostModelMeta {
-        &self.meta
-    }
+
 
     /// Returns a specific model definition by name.
     #[must_use]
@@ -290,10 +286,8 @@ mod tests {
 
     #[test]
     fn test_cost_model_defaults() {
-        let meta = CostModelMeta::default();
-        assert_eq!(meta.version, "2.0");
-
         let cm = CostModel::default();
+        assert_eq!(cm.version, "2.0");
         assert!(cm.models().is_empty());
     }
 

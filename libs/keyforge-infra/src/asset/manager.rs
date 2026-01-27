@@ -59,7 +59,7 @@ impl AssetManager {
     ///
     /// Returns an error if any asset cannot be retrieved.
     pub async fn sync_job_assets(&self, config: &JobConfig) -> InfraResult<()> {
-        let _ = self.ensure_keyboard(&config.definition.meta.name).await?;
+        let _ = self.ensure_keyboard(&config.definition.name).await?;
         for corpus in &config.corpora {
             self.ensure_corpus(&corpus.id, corpus.hash.as_deref())
                 .await?;

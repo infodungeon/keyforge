@@ -1,7 +1,7 @@
 // apps/keyforge-hive/src/infra/repositories/jobs/dto.rs
 
 use keyforge_model::error::ForgeError;
-use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
 use keyforge_model::mapping::Projection;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use keyforge_model::Asset;
@@ -84,13 +84,7 @@ pub struct HiveKeyboardProjection {
 
 impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
     fn project(source: HiveKeyboardProjection) -> Result<Self, ForgeError> {
-        let meta = KeyboardMeta {
-            name: source.meta.name,
-            author: source.meta.author.unwrap_or_default(),
-            version: source.meta.version.unwrap_or_default(),
-            notes: source.meta.notes.unwrap_or_default(),
-            kb_type: source.meta.kb_type.unwrap_or_default(),
-        };
+
 
         let mut keys = Vec::with_capacity(source.keys.len());
         let mut prime_slots = Vec::new();
@@ -134,7 +128,11 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
         }
 
         let mut def = KeyboardDefinition {
-            meta,
+            name: source.meta.name,
+            author: source.meta.author.unwrap_or_default(),
+            version: source.meta.version.unwrap_or_default(),
+            notes: source.meta.notes.unwrap_or_default(),
+            kb_type: source.meta.kb_type.unwrap_or_default(),
             geometry: KeyboardGeometry {
                 keys,
                 prime_slots,

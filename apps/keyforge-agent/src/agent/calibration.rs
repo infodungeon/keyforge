@@ -88,7 +88,7 @@ pub async fn calibrate(
     let keyboard = Arc::new(Keyboard::new(
         def.geometry.keys,
         def.geometry.home_row,
-        def.meta.kb_type.clone(),
+        def.kb_type.clone(),
     )?);
 
     let ips = if config.duration_ms == 0 {

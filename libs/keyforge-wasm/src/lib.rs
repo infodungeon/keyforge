@@ -213,7 +213,7 @@ impl KeyforgeEngine {
             keyforge_model::Keyboard::new(
                 kb_def.geometry.keys.clone(),
                 kb_def.geometry.home_row,
-                kb_def.meta.kb_type.clone(),
+                kb_def.kb_type.clone(),
             )
             .map_err(to_js_error)?,
         );

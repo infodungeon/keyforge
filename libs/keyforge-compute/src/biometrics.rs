@@ -98,11 +98,9 @@ impl StreamingProfileBuilder {
         }
 
         keyforge_model::CostModel {
-            meta: keyforge_model::cost_model::CostModelMeta {
-                version: "2.0".into(),
-                description: format!("Generated from {} biometric samples", self.sample_count),
-                unit: "pts".into(),
-            },
+            version: "2.0".into(),
+            description: format!("Generated from {} biometric samples", self.sample_count),
+            unit: "pts".into(),
             models: HashMap::new(),
             dynamic_rules: keyforge_model::cost_model::DynamicRules {
                 sequence_modifiers: modifiers,
@@ -149,9 +147,9 @@ impl BiometricProfiler {
                 .insert(bigram, modifier);
         }
 
-        cost_model.meta.description = format!(
+        cost_model.description = format!(
             "{} (Personalized with {} samples)",
-            cost_model.meta.description, builder.sample_count
+            cost_model.description, builder.sample_count
         );
         cost_model
     }

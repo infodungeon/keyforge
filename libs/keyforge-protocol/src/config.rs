@@ -205,11 +205,15 @@ impl From<keyforge_model::config::CostMatrixSource> for CostMatrixSourceDto {
     }
 }
 
-/// DTO for `KeyboardMeta`.
+
+
+
+
+/// DTO for `KeyboardDefinition`.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS))]
 #[cfg_attr(feature = "ts_bindings", ts(export))]
-pub struct KeyboardMetaDto {
+pub struct KeyboardDefinitionDto {
     /// Display name.
     pub name: String,
     /// Author name.
@@ -220,29 +224,6 @@ pub struct KeyboardMetaDto {
     pub notes: String,
     /// Keyboard type classification.
     pub kb_type: String,
-}
-
-impl From<geometry::KeyboardMeta> for KeyboardMetaDto {
-    fn from(val: geometry::KeyboardMeta) -> Self {
-        Self {
-            name: val.name,
-            author: val.author,
-            version: val.version,
-            notes: val.notes,
-            kb_type: val.kb_type,
-        }
-    }
-}
-
-
-
-/// DTO for `KeyboardDefinition`.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS))]
-#[cfg_attr(feature = "ts_bindings", ts(export))]
-pub struct KeyboardDefinitionDto {
-    /// Metadata.
-    pub meta: KeyboardMetaDto,
     /// Geometry.
     pub geometry: KeyboardGeometryDto,
     /// Map of layout names to strings.
@@ -258,7 +239,11 @@ impl Validator for KeyboardDefinitionDto {
 impl From<geometry::KeyboardDefinition> for KeyboardDefinitionDto {
     fn from(val: geometry::KeyboardDefinition) -> Self {
         Self {
-            meta: val.meta.into(),
+            name: val.name,
+            author: val.author,
+            version: val.version,
+            notes: val.notes,
+            kb_type: val.kb_type,
             geometry: val.geometry.into(),
             layouts: val.layouts,
         }

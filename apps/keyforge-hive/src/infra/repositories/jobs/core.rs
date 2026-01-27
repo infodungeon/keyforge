@@ -375,7 +375,7 @@ impl JobRepository {
         def: &KeyboardDefinitionDto,
         unique_hash: &str,
     ) -> Result<i32, sqlx::Error> {
-        let kb_meta = &def.meta;
+
         let row = sqlx::query!(
             r#"
             INSERT INTO keyboards (name, author, version, notes, kb_type, home_row, unique_hash)
@@ -383,11 +383,11 @@ impl JobRepository {
             ON CONFLICT (unique_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
             RETURNING id
             "#,
-            kb_meta.name,
-            kb_meta.author,
-            kb_meta.version,
-            kb_meta.notes,
-            kb_meta.kb_type,
+            def.name.clone(),
+            def.author.clone(),
+            def.version.clone(),
+            def.notes.clone(),
+            def.kb_type.clone(),
             i32::from(def.geometry.home_row),
             unique_hash
         )

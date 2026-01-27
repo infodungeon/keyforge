@@ -96,7 +96,7 @@ impl HermeticWorkspace {
         use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
         use keyforge_model::{
             cost_model::{CostModel, FingerDefinition, HandDefinition, ModelDefinition, RowCosts},
-            geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta},
+            geometry::{KeyboardDefinition, KeyboardGeometry},
             keycodes::KeycodeDefinition,
             Corpus, KeyNode,
         };
@@ -188,11 +188,9 @@ impl HermeticWorkspace {
         );
 
         let cost_model = CostModel {
-            meta: keyforge_model::cost_model::CostModelMeta {
-                version: "2.0".into(),
-                description: "Test".into(),
-                unit: "pts".into(),
-            },
+            version: "2.0".into(),
+            description: "Test".into(),
+            unit: "pts".into(),
             models,
             dynamic_rules: keyforge_model::cost_model::DynamicRules::default(),
         };
@@ -238,13 +236,11 @@ impl HermeticWorkspace {
         };
 
         let kb_def = KeyboardDefinition {
-            meta: KeyboardMeta {
-                name: "Test KB".into(),
-                author: "Test".into(),
-                version: "1.0".into(),
-                kb_type: "ortho".into(),
-                notes: String::new(),
-            },
+            name: "Test KB".into(),
+            author: "Test".into(),
+            version: "1.0".into(),
+            kb_type: "ortho".into(),
+            notes: String::new(),
             geometry,
             layouts: HashMap::from([("default".into(), "a b".into())]),
         };

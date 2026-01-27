@@ -339,36 +339,7 @@ pub struct PopulationResponse {
 }
 
 /// DTO for `CostModelMeta`.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct CostModelMetaDto {
-    /// Schema version of the cost model.
-    pub version: String,
-    /// Human-readable description of the model.
-    pub description: String,
-    /// Measurement unit for costs (e.g., 'pts').
-    pub unit: String,
-}
 
-impl From<keyforge_model::cost_model::CostModelMeta> for CostModelMetaDto {
-    fn from(val: keyforge_model::cost_model::CostModelMeta) -> Self {
-        Self {
-            version: val.version,
-            description: val.description,
-            unit: val.unit,
-        }
-    }
-}
-
-impl From<CostModelMetaDto> for keyforge_model::cost_model::CostModelMeta {
-    fn from(val: CostModelMetaDto) -> Self {
-        Self {
-            version: val.version,
-            description: val.description,
-            unit: val.unit,
-        }
-    }
-}
 
 /// DTO for `FingerReach`.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
@@ -539,7 +510,11 @@ impl From<DynamicRulesDto> for keyforge_model::cost_model::DynamicRules {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct CostModelDto {
     /// Model metadata.
-    pub meta: CostModelMetaDto,
+    pub version: String,
+    /// Human-readable description of the model.
+    pub description: String,
+    /// Measurement unit for costs (e.g., 'pts').
+    pub unit: String,
     /// Definitions for different physical layouts.
     pub models: std::collections::HashMap<String, ModelDefinitionDto>,
     /// Global dynamic rules and penalties.
@@ -549,7 +524,9 @@ pub struct CostModelDto {
 impl From<keyforge_model::cost_model::CostModel> for CostModelDto {
     fn from(val: keyforge_model::cost_model::CostModel) -> Self {
         Self {
-            meta: val.meta.into(),
+            version: val.version,
+            description: val.description,
+            unit: val.unit,
             models: val.models.into_iter().map(|(k, v)| (k, v.into())).collect(),
             dynamic_rules: val.dynamic_rules.into(),
         }
@@ -559,7 +536,9 @@ impl From<keyforge_model::cost_model::CostModel> for CostModelDto {
 impl From<CostModelDto> for keyforge_model::cost_model::CostModel {
     fn from(val: CostModelDto) -> Self {
         Self {
-            meta: val.meta.into(),
+            version: val.version,
+            description: val.description,
+            unit: val.unit,
             models: val.models.into_iter().map(|(k, v)| (k, v.into())).collect(),
             dynamic_rules: val.dynamic_rules.into(),
         }

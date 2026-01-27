@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let decoder = zstd::Decoder::new(file)?;
     let kb: KeyboardDefinition = rmp_serde::from_read(decoder)?;
 
-    println!("Keyboard: {}", kb.meta.name);
+    println!("Keyboard: {}", kb.name);
     println!("Home Row: {}", kb.geometry.home_row);
     println!("Keys:");
     for (i, k) in kb.geometry.keys.iter().enumerate() {

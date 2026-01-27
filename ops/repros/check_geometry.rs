@@ -14,7 +14,7 @@ fn main() {
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
     let kb: KeyboardDefinition = rmp_serde::from_read(decoder).expect("Failed to deserialize");
 
-    println!("Keyboard: {}", kb.meta.name);
+    println!("Keyboard: {}", kb.name);
     println!("Keys: {}", kb.geometry.keys.len());
     println!("Home Row: {}", kb.geometry.home_row);
     println!(

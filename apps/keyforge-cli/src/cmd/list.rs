@@ -37,9 +37,9 @@ async fn list_keyboards<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::Cl
         if let Ok(def) = loader.load::<KeyboardDefinition>(&name).await {
             table.add_row(vec![
                 name.to_string(),
-                def.meta.name.clone(),
-                def.meta.kb_type.clone(),
-                def.meta.author.clone(),
+                def.name.clone(),
+                def.kb_type.clone(),
+                def.author.clone(),
             ]);
         }
     }

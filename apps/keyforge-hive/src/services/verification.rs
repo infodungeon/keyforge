@@ -18,7 +18,7 @@ use keyforge_model::{
     constants::{
         DEFAULT_CORPUS_WEIGHT, VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO,
     },
-    CorpusSource, KeyboardDefinition, KeyboardMeta, KeycodeRegistry,
+    CorpusSource, KeyboardDefinition, KeycodeRegistry,
 };
 use keyforge_physics::ScoringEngine;
 use keyforge_protocol::ResultSubmission;
@@ -146,7 +146,11 @@ impl VerificationService {
 
         let builder = SessionBuilder::new(self.assets.as_ref())
             .with_keyboard_def(Arc::new(KeyboardDefinition {
-                meta: KeyboardMeta::default(),
+                name: String::default(),
+                author: String::default(),
+                version: String::default(),
+                notes: String::default(),
+                kb_type: String::default(),
                 geometry,
                 layouts: std::collections::HashMap::default(),
             }))

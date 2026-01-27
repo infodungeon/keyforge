@@ -46,7 +46,7 @@ pub use assets::{
 };
 pub use config::{
     ConfigAggregateDto, CorpusSourceDto, CostMatrixSourceDto, KeyConstraintDto,
-    KeyboardDefinitionDto, KeyboardMetaDto, ScoringWeightsDto, SearchParamsDto,
+    KeyboardDefinitionDto, ScoringWeightsDto, SearchParamsDto,
 };
 pub use job::{
     JobConfig, JobDetailedStatus, JobQueueResponse, JobRequest, JobResponse, ResultSubmission,

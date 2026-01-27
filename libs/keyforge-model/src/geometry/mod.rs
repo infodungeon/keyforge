@@ -30,9 +30,12 @@ use utoipa::ToSchema;
 pub mod kle;
 
 /// Metadata describing a keyboard definition.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 
-pub struct KeyboardMeta {
+
+/// Complete definition of a keyboard, including metadata and geometry.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct KeyboardDefinition {
     /// Display name of the keyboard.
     pub name: String,
     /// Author of the definition.
@@ -47,15 +50,6 @@ pub struct KeyboardMeta {
     /// Type of keyboard (e.g., "split", "ortho").
     #[serde(default, rename = "type")]
     pub kb_type: String,
-}
-
-/// Complete definition of a keyboard, including metadata and geometry.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
-#[serde(deny_unknown_fields)]
-pub struct KeyboardDefinition {
-    /// Metadata about the keyboard.
-    #[serde(default)]
-    pub meta: KeyboardMeta,
     /// Physical geometry of the keys.
     pub geometry: KeyboardGeometry,
     /// Pre-defined layouts available for this keyboard.
@@ -75,7 +69,7 @@ impl Asset for KeyboardDefinition {
 
 impl Validator for KeyboardDefinition {
     fn validate(&self) -> Result<(), String> {
-        if self.meta.name.len() > MAX_KEYBOARD_NAME_LEN {
+        if self.name.len() > MAX_KEYBOARD_NAME_LEN {
             return Err(format!(
                 "Keyboard name too long (max {MAX_KEYBOARD_NAME_LEN})"
             ));
@@ -274,11 +268,11 @@ impl KeyboardDefinition {
     #[must_use]
     pub fn from_geometry(geometry: KeyboardGeometry, name: &str) -> Self {
         Self {
-            meta: KeyboardMeta {
-                name: name.to_string(),
-                kb_type: "imported".to_string(),
-                ..Default::default()
-            },
+            name: name.to_string(),
+            author: String::new(),
+            version: String::new(),
+            notes: String::new(),
+            kb_type: "imported".to_string(),
             geometry,
             layouts: HashMap::new(),
         }
@@ -303,11 +297,11 @@ impl KeyboardDefinition {
             .collect();
 
         Self {
-            meta: KeyboardMeta {
-                name: format!("Test-{keys_count}"),
-                author: "system".to_string(),
-                ..Default::default()
-            },
+            name: format!("Test-{keys_count}"),
+            author: "system".to_string(),
+            version: "0.1.0".to_string(),
+            notes: "Generated test keyboard".to_string(),
+            kb_type: "standard".to_string(),
             geometry: KeyboardGeometry {
                 keys,
                 prime_slots: (0..keys_count as u16).map(KeyIndex).collect(),
