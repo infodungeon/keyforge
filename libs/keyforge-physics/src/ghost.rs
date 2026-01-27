@@ -245,7 +245,7 @@ impl GhostScorer {
         };
 
         self.cost_model
-            .models
+            .models()
             .get(model_key)
             .and_then(|m| {
                 m.static_costs
@@ -337,19 +337,19 @@ struct GhostRubric {
 impl GhostRubric {
     fn from_rubric(r: &Rubric) -> Result<Self, PhysicsError> {
         let finger_effort = r
-            .finger_effort
+            .finger_effort()
             .iter()
             .map(|&e| Score::from_f32(e).map_err(PhysicsError::Config))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
             finger_effort,
-            travel_lat: r.travel_lat,
-            travel_vert: r.travel_vert,
-            sfb_base: Score::from_f32(r.sfb_base).map_err(PhysicsError::Config)?,
-            redirect: Score::from_f32(r.redirect).map_err(PhysicsError::Config)?,
-            roll_bonus: Score::from_f32(r.roll_bonus).map_err(PhysicsError::Config)?,
-            roll_out_bonus: Score::from_f32(r.roll_out_bonus).map_err(PhysicsError::Config)?,
+            travel_lat: r.travel_lat(),
+            travel_vert: r.travel_vert(),
+            sfb_base: Score::from_f32(r.sfb_base()).map_err(PhysicsError::Config)?,
+            redirect: Score::from_f32(r.redirect()).map_err(PhysicsError::Config)?,
+            roll_bonus: Score::from_f32(r.roll_bonus()).map_err(PhysicsError::Config)?,
+            roll_out_bonus: Score::from_f32(r.roll_out_bonus()).map_err(PhysicsError::Config)?,
         })
     }
 }

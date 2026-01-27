@@ -32,7 +32,7 @@ mod builder_tests {
 
             // Special handling for cost model
             if tid == std::any::TypeId::of::<CostModel>() {
-                let mut model = CostModel::default();
+                let mut model = keyforge_model::cost_model::CostModel::default();
                 let mut hand_def = keyforge_model::cost_model::HandDefinition::default();
 
                 for finger in &["thumb", "index", "middle", "ring", "pinky"] {

@@ -30,4 +30,8 @@ pub enum EvolutionError {
     /// Optimization was aborted by the user or system via a callback.
     #[error("Optimization Aborted")]
     Aborted,
+
+    /// Internal logic or indexing error.
+    #[error("Internal Mutation Error: {0}")]
+    Internal(String),
 }

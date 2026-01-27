@@ -75,10 +75,18 @@ impl MutationOperator for GroupMutation {
 
                 let code_a = layout
                     .get(keyforge_model::KeyIndex::new(idx_a as u16))
-                    .unwrap();
+                    .ok_or_else(|| {
+                        crate::errors::EvolutionError::Internal(format!(
+                            "Key A {idx_a} missing in group mutation"
+                        ))
+                    })?;
                 let code_b = layout
                     .get(keyforge_model::KeyIndex::new(idx_b as u16))
-                    .unwrap();
+                    .ok_or_else(|| {
+                        crate::errors::EvolutionError::Internal(format!(
+                            "Key B {idx_b} missing in group mutation"
+                        ))
+                    })?;
                 if (code_a.0 as usize) < patched_pos_map.len() {
                     patched_pos_map[code_a.0 as usize] = KeyIndex::new(idx_b as u16);
                 }
@@ -87,7 +95,9 @@ impl MutationOperator for GroupMutation {
                 }
 
                 let temp_layout = Layout::new_unchecked(temp_keys.clone());
-                engine.calculate_swap_delta(&temp_layout, &patched_pos_map, idx_b, idx_c)
+                engine
+                    .calculate_swap_delta(&temp_layout, &patched_pos_map, idx_b, idx_c)
+                    .map_err(crate::errors::EvolutionError::Physics)
             })
         })?;
 
@@ -203,7 +213,7 @@ mod tests {
                         &mut rng_mutation,
                         1.0
                     ) {
-                        state.apply_mutation(proposal.action);
+                        state.apply_mutation(proposal.action).unwrap();
                         let score_after = engine.score(state.layout())?.0;
                         let actual_delta = score_after - score_before;
 

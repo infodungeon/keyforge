@@ -292,7 +292,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                 .acceptance
                 .should_accept(proposal.delta, state.temperature.0, &mut self.rng)
             {
-                state.apply_mutation(proposal.action);
+                state.apply_mutation(proposal.action)?;
                 state.current_score = state.current_score.checked_add(proposal.delta).unwrap_or(
                     if proposal.delta > 0 {
                         i64::MAX

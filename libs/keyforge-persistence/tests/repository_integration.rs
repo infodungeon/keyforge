@@ -90,8 +90,8 @@ mod integration_tests {
             .unwrap();
         assert!(builder.sample_count >= 5);
 
-        let model = builder.build_model();
-        assert!(repo.save_personal_cost_model(&model).is_ok());
+        let cost_model = builder.build_model();
+        assert!(repo.save_personal_cost_model(&cost_model).is_ok());
         assert!(dir.path().join("user/personal_cost.json").exists());
     }
 

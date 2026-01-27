@@ -71,7 +71,7 @@ impl From<FingerIndexDto> for model::FingerIndex {
 }
 
 /// DTO for `RowIndex`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct RowIndexDto(pub i8);
 
@@ -87,7 +87,7 @@ impl From<RowIndexDto> for model::RowIndex {
 }
 
 /// DTO for `ColIndex`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct ColIndexDto(pub i8);
 

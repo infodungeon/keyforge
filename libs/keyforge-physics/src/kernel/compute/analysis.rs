@@ -491,6 +491,7 @@ mod tests {
             keyforge_model::cost_model::FingerDefinition::Standard(other_zones),
         );
 
+        let mut cm = keyforge_model::cost_model::CostModel::default();
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {

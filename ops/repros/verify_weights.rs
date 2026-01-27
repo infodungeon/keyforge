@@ -65,10 +65,7 @@ fn main() {
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)
-    let rubric_custom = Arc::new(Rubric {
-        sfb_base: 5000.0,
-        ..Rubric::default()
-    });
+    let rubric_custom = Arc::new(Rubric::builder().sfb_base(5000.0).build());
     let engine_custom = EngineFactory::new_generic(&EngineCompilationContext {
         keyboard,
         corpus,

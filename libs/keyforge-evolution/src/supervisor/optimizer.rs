@@ -117,8 +117,23 @@ fn evolve_internal<CB: ProgressCallback>(
                 if i < layout.len() {
                     if let Some(pos) = layout.keys().iter().position(|&k| k == code) {
                         layout
-                            .swap(KeyIndex(i as u16), KeyIndex(pos as u16))
-                            .expect("Swap failure while applying pinned keys");
+                            .swap(
+                                KeyIndex(u16::try_from(i).map_err(|_| {
+                                    EvolutionError::Config(format!(
+                                        "Pinned index {i} out of bounds"
+                                    ))
+                                })?),
+                                KeyIndex(u16::try_from(pos).map_err(|_| {
+                                    EvolutionError::Config(format!(
+                                        "Key code position {pos} out of bounds"
+                                    ))
+                                })?),
+                            )
+                            .map_err(|e| {
+                                EvolutionError::Internal(format!(
+                                    "Swap failure while applying pinned keys: {e}"
+                                ))
+                            })?;
                     } else {
                         return Err(EvolutionError::Config(format!(
                             "Pinned key {code} not found in initial layout"
@@ -216,7 +231,8 @@ mod tests {
             "test".into(),
         )
         .unwrap();
-        let mut cm = CostModel::default();
+        use keyforge_model::cost_model::CostModel;
+        let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
@@ -232,7 +248,7 @@ mod tests {
                 ),
             );
         }
-        cm.models.insert(
+        cost_model.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
@@ -246,7 +262,7 @@ mod tests {
             keyboard: Arc::new(kb),
             corpus: Arc::new(Corpus::default()),
             rubric: Arc::new(Rubric::default()),
-            cost_model: Arc::new(cm),
+            cost_model: Arc::new(cost_model),
             engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
@@ -293,7 +309,8 @@ mod tests {
             "test".into(),
         )
         .unwrap();
-        let mut cm = CostModel::default();
+        use keyforge_model::cost_model::CostModel;
+        let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
@@ -309,7 +326,7 @@ mod tests {
                 ),
             );
         }
-        cm.models.insert(
+        cost_model.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
@@ -324,7 +341,7 @@ mod tests {
             keyboard: Arc::new(kb),
             corpus: Arc::new(Corpus::default()),
             rubric: Arc::new(Rubric::default()),
-            cost_model: Arc::new(cm),
+            cost_model: Arc::new(cost_model),
             engine_config: keyforge_model::config::EngineConfig::default(),
             config: SearchConfig::Annealing {
                 steps: 100,
