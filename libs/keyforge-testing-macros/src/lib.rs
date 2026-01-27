@@ -56,7 +56,9 @@ fn common_grace() -> syn::Attribute {
             clippy::too_many_lines,
             clippy::items_after_statements,
             clippy::similar_names,
-            clippy::semicolon_if_nothing_returned
+            clippy::semicolon_if_nothing_returned,
+            clippy::module_inception,
+            clippy::too_many_arguments
         )]
     }
 }

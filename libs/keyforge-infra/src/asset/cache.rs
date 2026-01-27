@@ -25,7 +25,10 @@ use keyforge_model::Corpus;
 use moka::sync::Cache;
 use std::sync::Arc;
 
-/// specialized cache container for `KeyForge` assets.
+/// Specialized cache container for `KeyForge` assets.
+///
+/// This structure provides thread-safe, in-memory caching for various asset types
+/// including keyboards, corpora, cost models, and keycode registries, using the `moka` cache.
 #[derive(Debug, Clone)]
 pub struct AssetCache {
     keyboards: Cache<String, Arc<KeyboardDefinition>>,
@@ -56,7 +59,7 @@ impl AssetCache {
         }
     }
 
-    /// Invalidates all cached entries.
+    /// Invalidates all cached entries across all internal caches.
     pub fn invalidate_all(&self) {
         self.keyboards.invalidate_all();
         self.corpora.invalidate_all();
@@ -68,88 +71,108 @@ impl AssetCache {
 
     // -- Typed Accessors --
 
+    /// Retrieves a keyboard definition from the cache if present.
     #[must_use]
     pub fn get_keyboard(&self, id: &str) -> Option<Arc<KeyboardDefinition>> {
         self.keyboards.get(id)
     }
 
+    /// Inserts a keyboard definition into the cache.
     pub fn insert_keyboard(&self, id: String, item: Arc<KeyboardDefinition>) {
         self.keyboards.insert(id, item);
     }
 
+    /// Invalidates a specific keyboard definition in the cache.
     pub fn invalidate_keyboard(&self, id: &str) {
         self.keyboards.invalidate(id);
     }
 
+    /// Clears all keyboard definitions from the cache.
     pub fn invalidate_all_keyboards(&self) {
         self.keyboards.invalidate_all();
     }
 
+    /// Retrieves a corpus from the cache if present.
     #[must_use]
     pub fn get_corpus(&self, key: &str) -> Option<Arc<Corpus>> {
         self.corpora.get(key)
     }
 
+    /// Inserts a corpus into the cache.
     pub fn insert_corpus(&self, key: String, item: Arc<Corpus>) {
         self.corpora.insert(key, item);
     }
 
+    /// Clears all corpora from the cache.
     pub fn invalidate_all_corpora(&self) {
         self.corpora.invalidate_all();
     }
 
+    /// Retrieves a cost model from the cache if present.
     #[must_use]
     pub fn get_cost_model(&self, id: &str) -> Option<Arc<CostModel>> {
         self.cost_models.get(id)
     }
 
+    /// Inserts a cost model into the cache.
     pub fn insert_cost_model(&self, id: String, item: Arc<CostModel>) {
         self.cost_models.insert(id, item);
     }
 
+    /// Invalidates a specific cost model in the cache.
     pub fn invalidate_cost_model(&self, id: &str) {
         self.cost_models.invalidate(id);
     }
 
+    /// Clears all cost models from the cache.
     pub fn invalidate_all_cost_models(&self) {
         self.cost_models.invalidate_all();
     }
 
+    /// Retrieves a keycode registry from the cache if present.
     #[must_use]
     pub fn get_keycodes(&self, id: &str) -> Option<Arc<KeycodeRegistry>> {
         self.keycodes.get(id)
     }
 
+    /// Inserts a keycode registry into the cache.
     pub fn insert_keycodes(&self, id: String, item: Arc<KeycodeRegistry>) {
         self.keycodes.insert(id, item);
     }
 
+    /// Clears all keycode registries from the cache.
     pub fn invalidate_all_keycodes(&self) {
         self.keycodes.invalidate_all();
     }
 
+    /// Retrieves raw file content from the cache if present.
     #[must_use]
     pub fn get_file(&self, path: &str) -> Option<Bytes> {
         self.file_cache.get(path)
     }
 
+    /// Inserts raw file content into the cache.
     pub fn insert_file(&self, path: String, content: Bytes) {
         self.file_cache.insert(path, content);
     }
 
+    /// Invalidates a specific file in the cache.
     pub fn invalidate_file(&self, path: &str) {
         self.file_cache.invalidate(path);
     }
 
+    /// Retrieves the server manifest from the cache if present.
     #[must_use]
     pub fn get_manifest(&self) -> Option<Arc<ServerManifest>> {
         self.manifest.get("default")
     }
 
+    /// Inserts the server manifest into the cache.
     pub fn insert_manifest(&self, item: Arc<ServerManifest>) {
         self.manifest.insert("default".into(), item);
     }
 
+    /// Clears the server manifest from the cache.
     pub fn invalidate_manifest(&self) {
         self.manifest.invalidate_all();
     }

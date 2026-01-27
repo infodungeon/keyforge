@@ -1,0 +1,17 @@
+[2m2026-01-26T05:20:47.413693Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Starting narsil-mcp v1.3.1
+[2m2026-01-26T05:20:47.413846Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Repos to index: ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"]
+[2m2026-01-26T05:20:47.413870Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Features: call_graph=true, git=true, watch=false, persist=true, lsp=false, streaming=false, remote=false, neural=false, cache=true, graph=false
+[2m2026-01-26T05:20:47.413964Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Index persistence enabled, storing in "/home/robert/.cache/narsil-mcp"
+[2m2026-01-26T05:20:47.529267Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Analysis cache enabled (TTL: 1800s, capacity: 1000)
+[2m2026-01-26T05:20:47.529437Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Query cache enabled (TTL: 1800s, capacity: 2000)
+[2m2026-01-26T05:20:47.529699Z[0m [32m INFO[0m [2mnarsil_mcp::persist[0m[2m:[0m Creating new index for "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-26T05:20:47.529716Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Call graph initialized for repository: keyforge
+[2m2026-01-26T05:20:47.529720Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Engine created (initialization deferred for 1 repos)
+[2m2026-01-26T05:20:47.529750Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Starting background initialization
+[2m2026-01-26T05:20:47.529766Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexing repository: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-26T05:20:47.529926Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP server starting on stdio
+[2m2026-01-26T05:20:47.530124Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m EOF received, shutting down
+[2m2026-01-26T05:20:48.872330Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexed 601 files, 6383 symbols in keyforge
+[2m2026-01-26T05:20:49.175963Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Built call graph for keyforge with 601 files
+[2m2026-01-26T05:20:49.230533Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Git enabled for repository: keyforge
+[2m2026-01-26T05:20:49.230557Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Background initialization complete

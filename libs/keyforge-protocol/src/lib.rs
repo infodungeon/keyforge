@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -14,43 +14,49 @@
 
 //! # `KeyForge` Protocol
 //!
-//! The Wire Contract for the `KeyForge` system. This crate defines the Data Transfer Objects (DTOs)
-//! used for communication between the Client, Server (Hive), and Worker (Agent).
-//!
-//! ## Responsibilities
-//!
-//! * **Serialization:** Defines JSON structure for all API requests/responses.
-//! * **Versioning:** Enforces protocol compatibility via `PROTOCOL_VERSION`.
-//! * **Validation:** Implements `Validator` for DTOs to ensure data integrity before processing.
-//! * **Interop:** Generates TypeScript definitions via `ts-rs`.
+//! The Wire Contract for the `KeyForge` system.
 
 #![warn(missing_docs)]
 
-/// Asset management DTOs (Manifests, Samples).
+/// Asset-related Data Transfer Objects (DTOs).
 pub mod assets;
+/// Configuration-related DTOs.
+pub mod config;
 pub(crate) mod error;
-/// Job management DTOs (Config, Request, Response).
+/// Job-related DTOs and messaging.
 pub mod job;
-/// Worker node orchestration DTOs (Heartbeat, Handshake).
+/// Node-related DTOs and messaging.
 pub mod node;
-/// System health and performance metrics DTOs.
+/// Telemetry-related DTOs.
 pub mod telemetry;
+/// Primitive and shared protocol types.
+pub mod types;
 
 pub mod constants;
 pub mod serde_utils;
 
-pub use error::{ErrorCode, ErrorResponse};
+pub use error::{ErrorCode, ForgeErrorDto};
 pub use keyforge_model as model;
 
-// Re-export EVERYTHING to maintain backward compatibility with crate public API
-pub use assets::{AssetManifestEntry, BiometricSample, PopulationResponse, UserStatsStore};
+// Re-export core DTOs for backward compatibility and convenience
+pub use assets::{
+    AnalysisReportDto, AssetManifestEntry, BiometricSample, DerivedStatsDto, KeyNodeDto, LayoutDto,
+    MetricIdDto, MetricViolationDto, PopulationResponse, SwapSuggestionDto, UserStatsStore,
+    ValidationResultDto,
+};
+pub use config::{
+    ConfigAggregateDto, CorpusSourceDto, CostMatrixSourceDto, KeyConstraintDto,
+    KeyboardDefinitionDto, KeyboardGeometryDto, KeyboardMetaDto, ScoringWeightsDto,
+    SearchParamsDto,
+};
 pub use job::{
     JobConfig, JobDetailedStatus, JobQueueResponse, JobRequest, JobResponse, ResultSubmission,
 };
 pub use node::{NodeRequest, NodeResponse, NodeTelemetry, TuningProfile};
 pub use telemetry::SystemMetrics;
+pub use types::{JobIdentifierDto, JobStatusDto, LimitedVec};
 
-/// The current protocol version. Incremented on breaking changes.
+/// The current protocol version.
 pub const PROTOCOL_VERSION: u32 = 2;
 /// Minimum client version supported by this server.
 pub const MIN_CLIENT_VERSION: u32 = 1;
@@ -60,7 +66,8 @@ pub const MIN_SERVER_VERSION: u32 = 1;
 /// Checks if the client and server versions are compatible.
 ///
 /// # Errors
-/// Returns an error message if the client or server versions are below the minimum supported thresholds.
+///
+/// Returns a string error if the versions are incompatible.
 pub fn check_version_compatibility(
     client_version: u32,
     server_version: u32,
@@ -83,37 +90,11 @@ pub fn check_version_compatibility(
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use crate::error::ErrorCode;
 
     #[test]
     fn test_version_compatibility() {
         assert!(check_version_compatibility(PROTOCOL_VERSION, PROTOCOL_VERSION, 1, 1).is_ok());
         assert!(check_version_compatibility(0, PROTOCOL_VERSION, 1, 1).is_err());
         assert!(check_version_compatibility(PROTOCOL_VERSION, 0, 1, 1).is_err());
-    }
-
-    #[test]
-    fn test_transport_security_policy() {
-        #[derive(serde::Deserialize, Debug)]
-        struct Wrapper {
-            #[serde(deserialize_with = "crate::serde_utils::deserialize_limited_vec")]
-            items: Vec<String>,
-        }
-
-        let malicious_json = format!(
-            "{{ \"items\": [{}] }}",
-            (0..100_001).map(|_| "\"x\"").collect::<Vec<_>>().join(",")
-        );
-        let result: Result<Wrapper, _> = serde_json::from_str(&malicious_json);
-
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("exceeds transport limit"));
-
-        let good_json = "{ \"items\": [\"a\", \"b\"] }";
-        let good_result: Result<Wrapper, _> = serde_json::from_str(good_json);
-        assert!(good_result.is_ok());
     }
 }

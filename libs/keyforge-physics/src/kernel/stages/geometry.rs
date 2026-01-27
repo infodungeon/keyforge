@@ -2,11 +2,10 @@ use super::CompilationStage;
 use crate::error::PhysicsError;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
 use keyforge_model::{Keyboard, Rubric};
-use std::sync::Arc;
 
 /// Intermediate state containing processed geometry and spatial math.
 #[derive(Debug)]
-pub struct GeometryOutput {
+pub(crate) struct GeometryOutput {
     pub hands: Vec<HandIndex>,
     pub fingers: Vec<FingerIndex>,
     pub rows: Vec<RowIndex>,
@@ -17,12 +16,12 @@ pub struct GeometryOutput {
 
 /// Stage 1: Geometry & Spatial Math.
 #[derive(Debug)]
-pub struct GeometryStage<'a> {
+pub(crate) struct GeometryStage<'a> {
     pub rubric: &'a Rubric,
 }
 
-impl CompilationStage for GeometryStage<'_> {
-    type Input = Arc<Keyboard>;
+impl<'a> CompilationStage for GeometryStage<'a> {
+    type Input = &'a Keyboard;
     type Output = GeometryOutput;
 
     #[allow(
@@ -40,7 +39,7 @@ impl CompilationStage for GeometryStage<'_> {
         let mut cols = Vec::with_capacity(key_count);
         let mut key_home_distances = Vec::with_capacity(key_count);
 
-        for k in &kb.keys {
+        for k in &*kb.keys {
             hands.push(k.hand);
             fingers.push(k.finger);
             rows.push(k.row);
@@ -55,7 +54,6 @@ impl CompilationStage for GeometryStage<'_> {
                 let dx = (k.x - origin.0).abs();
                 let dy = (k.y - origin.1).abs();
 
-                // Align with mechanics.rs: Weighted squared components
                 let dx2 = (dx * dx).round() as u32;
                 let dy2 = (dy * dy).round() as u32;
 
@@ -123,15 +121,14 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+        let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
         let mut rubric = Rubric::default();
         rubric.travel_lat = 1.0;
         rubric.travel_vert = 1.0;
         let stage = GeometryStage { rubric: &rubric };
-        let out = stage.execute(kb).unwrap();
+        let out = stage.execute(&kb).unwrap();
 
         assert_eq!(out.hands.len(), 2);
-        // With travel_lat/vert set to 1.0, dist remains 5.0
         assert_eq!(out.dist_matrix[1], 5.0);
     }
 }

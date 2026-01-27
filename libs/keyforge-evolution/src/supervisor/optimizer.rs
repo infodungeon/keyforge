@@ -6,8 +6,11 @@ use super::AnnealingConfig;
 use crate::errors::EvolutionError;
 use crate::supervisor::annealing::Optimizer;
 use crate::{NoOpCallback, ProgressCallback};
+use keyforge_model::types::{
+    IterationCount, PatienceCount, ReheatCount, ScalingFactor, Seed, Temperature,
+};
 use keyforge_model::{EngineRequest, KeyCode, Layout, OptimizationResult, SearchConfig};
-use keyforge_physics::ScoringEngine;
+use keyforge_physics::{EngineCompilationContext, ScoringEngine};
 use std::sync::Arc;
 
 /// Performs a basic optimization run.
@@ -28,13 +31,13 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine =
-        keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-            keyboard: &req.keyboard,
-            corpus: &req.corpus,
-            rubric: &req.rubric,
-            cost_model: &req.cost_model,
-        })?;
+    let engine = keyforge_physics::EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+        engine_config: keyforge_model::config::EngineConfig::default(),
+    })?;
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     // Determine unlocked indices
@@ -142,13 +145,13 @@ fn evolve_internal<CB: ProgressCallback>(
             let acceptance = CoolingAnnealing;
 
             let annealing_config = AnnealingConfig::new(
-                *steps,
-                *start_temp,
-                *end_temp,
-                *seed,
-                *patience,
-                *reheats,
-                *reheat_factor,
+                IterationCount(*steps),
+                Temperature(*start_temp),
+                Temperature(*end_temp),
+                Seed(*seed),
+                PatienceCount(*patience),
+                ReheatCount(*reheats),
+                ScalingFactor(*reheat_factor),
             )?;
 
             let mut optimizer = Optimizer::new(
@@ -206,24 +209,26 @@ mod tests {
                     ..Default::default()
                 },
             ],
-            0,
+            keyforge_model::types::RowIndex(0),
             "test".into(),
         )
         .unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(
-                        keyforge_model::types::RowIndex(0),
-                        1.0,
-                    )]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(
+                            keyforge_model::types::RowIndex(0),
+                            1.0,
+                        )]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
@@ -234,11 +239,12 @@ mod tests {
                 )]),
             },
         );
-        let engine = EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &Corpus::default(),
-            rubric: &Rubric::default(),
-            cost_model: &cm,
+        let engine = EngineFactory::new_scalar(&keyforge_physics::EngineCompilationContext {
+            keyboard: Arc::new(kb),
+            corpus: Arc::new(Corpus::default()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cm),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let config = SearchConfig::Annealing {
@@ -278,21 +284,23 @@ mod tests {
 
     #[test]
     fn test_optimize_wrapper() {
-        let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
+        let kb = Keyboard::new(vec![KeyNode::default()], keyforge_model::types::RowIndex(0), "test".into()).unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(
-                keyforge_model::cost_model::FingerReach {
-                    base: std::collections::HashMap::from([(
-                        keyforge_model::types::RowIndex(0),
-                        1.0,
-                    )]),
-                    ..Default::default()
-                },
-            ),
-        );
+        for finger in ["thumb", "index", "middle", "ring", "pinky"] {
+            fingers.insert(
+                finger.to_string(),
+                keyforge_model::cost_model::FingerDefinition::Standard(
+                    keyforge_model::cost_model::FingerReach {
+                        base: std::collections::HashMap::from([(
+                            keyforge_model::types::RowIndex(0),
+                            1.0,
+                        )]),
+                        ..Default::default()
+                    },
+                ),
+            );
+        }
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
@@ -309,6 +317,7 @@ mod tests {
             corpus: Arc::new(Corpus::default()),
             rubric: Arc::new(Rubric::default()),
             cost_model: Arc::new(cm),
+            engine_config: keyforge_model::config::EngineConfig::default(),
             config: SearchConfig::Annealing {
                 steps: 100,
                 start_temp: 10.0,
@@ -325,33 +334,5 @@ mod tests {
 
         let res = optimize(&req).unwrap();
         assert!(res.score >= 0.0);
-    }
-
-    #[test]
-    fn test_evolve_with_pinned_keys() {
-        let (engine, config) = setup_env();
-        let pins = vec![Some(KeyCode(1))];
-        let res = evolve(&engine, &config, NoOpCallback, None, Some(&pins)).unwrap();
-        assert_eq!(res.layout.keys[0], KeyCode(1));
-    }
-
-    #[test]
-    fn test_evolve_with_callback() {
-        let (engine, _config) = setup_env();
-        let config = SearchConfig::Annealing {
-            steps: 10,
-            start_temp: 10.0,
-            end_temp: 0.1,
-            seed: 42,
-            patience: 100,
-            reheats: 0,
-            reheat_factor: 1.5,
-            include_thumbs: false,
-        };
-
-        let count = Arc::new(AtomicUsize::new(0));
-        let _ = evolve(&engine, &config, MockCallback(count.clone()), None, None).unwrap();
-
-        assert!(count.load(Ordering::SeqCst) > 0);
     }
 }

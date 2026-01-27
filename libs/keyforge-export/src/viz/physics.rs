@@ -56,8 +56,8 @@ pub fn generate_physics_svg_with_theme(geo: &KeyboardGeometry, theme: &VizTheme)
         let w = key.w;
         let h = key.h;
 
-        let color = if key.row.0 == geo.home_row {
-            &theme.home_row_fill
+        let color = if key.row == geo.home_row {
+            "#ff0000" // Home row highlight
         } else {
             &theme.key_fill
         };

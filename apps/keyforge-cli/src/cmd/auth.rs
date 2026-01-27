@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use crate::constants::{CLI_CONFIG_FILENAME, CONFIG_DIR_NAME};
-use crate::error::{CliError, Result};
+use crate::error::{CliError, CliResult as Result};
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

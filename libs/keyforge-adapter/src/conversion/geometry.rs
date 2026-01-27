@@ -23,7 +23,7 @@ pub fn to_domain_keyboard(
             kn.index = i;
             // Task-adap-rev-001: Only override is_home if it's false in input
             if !k.is_home {
-                kn.is_home = k.row.0 == geo.home_row;
+                kn.is_home = k.row == geo.home_row;
             }
             kn
         })
@@ -162,7 +162,7 @@ mod tests {
             prime_slots: vec![KeyIndex(0)],
             med_slots: vec![KeyIndex(1)],
             low_slots: vec![],
-            home_row: 0,
+            home_row: RowIndex(0),
         };
 
         let domain_keyboard = to_domain_keyboard(&proto_geo).expect("Failed to convert keyboard");

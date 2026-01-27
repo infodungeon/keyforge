@@ -3,7 +3,7 @@
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use indicatif::ProgressBar;
-use keyforge_infra::resolve_root;
+use keyforge_infra::{fs::io::read_to_string_limited, resolve_root};
 use keyforge_model::KeyboardDefinition;
 use keyforge_protocol::JobConfig;
 use std::convert::TryFrom;
@@ -107,12 +107,9 @@ async fn run_app() -> Result<(), CliError> {
     let matches = Cli::command().get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
-    match &cli.command {
-        Commands::Completions(args) => {
-            cmd::completions::run(args);
-            return Ok(());
-        }
-        _ => {}
+    if let Commands::Completions(args) = &cli.command {
+        cmd::completions::run(args);
+        return Ok(());
     }
 
     let mut config = keyforge_infra::config::CommonConfig::default();
@@ -195,7 +192,7 @@ async fn run_app() -> Result<(), CliError> {
             return Ok(());
         }
         Commands::Validate(args) => {
-            cmd::validate::run(&args, &loader, &root).await?;
+            cmd::validate::run(&args, &loader).await?;
             return Ok(());
         }
         Commands::Benchmark(args) => {
@@ -211,7 +208,7 @@ async fn build_job_config(
     shared: &cmd::shared::SharedArgs,
     config_args: cli_args::config::ConfigArgs,
 ) -> Result<JobConfig, Box<dyn Error>> {
-    use keyforge_model::loader::AssetLoader;
+    use keyforge_adapter::loader::AssetLoader;
     let corpus_list = shared
         .corpus
         .clone()
@@ -225,10 +222,8 @@ async fn build_job_config(
 
     let weights = if let Some(w_input) = &shared.weights {
         let w_path = cli_parsers::resolve_path(w_input, None, loader.root())?;
-        let content = keyforge_infra::read_to_string_limited(
-            &w_path,
-            keyforge_model::constants::MAX_INPUT_FILE_SIZE,
-        )?;
+        let content =
+            read_to_string_limited(&w_path, keyforge_model::constants::MAX_INPUT_FILE_SIZE)?;
         serde_json::from_str(&content)?
     } else {
         keyforge_model::config::Config::try_from(config_args.clone())?.weights
@@ -238,19 +233,23 @@ async fn build_job_config(
     let cost_name = shared
         .cost
         .clone()
-        .unwrap_or_else(|| "default_costmatrix.json".to_string());
+        .unwrap_or_else(|| "cost_matrix.json".to_string());
 
-    Ok(JobConfig {
-        definition: (*definition).clone(),
-        weights,
-        params,
-        pinned_keys: shared.pinned_keys.clone(),
-        corpora,
-        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_name),
-        biometrics: vec![],
+    Ok(keyforge_protocol::JobConfig {
+        definition: (*definition).clone().into(),
+        weights: weights.into(),
+        params: params.into(),
+        pinned_keys: shared
+            .pinned_keys
+            .iter()
+            .map(|p| p.clone().into())
+            .collect(),
+        corpora: corpora.into_iter().map(Into::into).collect(),
+        cost_matrix: keyforge_model::CostMatrixSource::Predefined(cost_name).into(),
+        biometrics: vec![].into(),
         parent_job_id: None,
         baseline_score: None,
-        parents: vec![],
+        parents: vec![].into(),
     })
 }
 

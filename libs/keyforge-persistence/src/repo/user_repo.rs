@@ -215,17 +215,9 @@ impl UserRepo {
             return Ok("No samples to record.".to_string());
         }
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
         // 1. Prepare buffer in memory
         let mut buffer = Vec::new();
-        for mut s in samples {
-            if s.timestamp == 0 {
-                s.timestamp = now;
-            }
+        for s in samples {
             serde_json::to_writer(&mut buffer, &s).map_err(InfraError::Serde)?;
             buffer.push(b'\n');
         }
@@ -256,7 +248,7 @@ impl UserRepo {
     /// Retrieves all accumulated biometric samples.
     #[must_use]
     pub fn get_biometrics(&self) -> Vec<BiometricSample> {
-        self.load_stats_store().biometrics
+        self.load_stats_store().biometrics.0
     }
 
     /// Deletes all accumulated biometric samples from disk.

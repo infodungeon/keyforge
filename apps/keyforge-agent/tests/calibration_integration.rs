@@ -4,6 +4,7 @@
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use keyforge_agent::agent::calibration;
+    use keyforge_agent::models::CalibrationConfig;
     use keyforge_infra::net::client::ClientConfig;
     use keyforge_infra::{AssetManager, HiveClient};
     use std::fs;
@@ -15,23 +16,41 @@ mod tests {
         let data_root = dir.path().to_path_buf();
 
         // 1. Setup Mock Environment
-        let user_kb_dir = data_root.join("user/keyboards");
-        fs::create_dir_all(&user_kb_dir).unwrap();
+        let sys_kb_dir = data_root.join("system/keyboards");
+        fs::create_dir_all(&sys_kb_dir).unwrap();
+        let corne_json = r#"{
+            "meta": { "name": "corne", "author": "foostan", "version": "1", "notes": "", "type": "split" },
+            "geometry": {
+                "keys": [
+                    {"index":0, "label":"k0", "x":0, "y":0, "w":1, "h":1, "hand":0, "finger":1, "row":0, "col":0},
+                    {"index":1, "label":"k1", "x":1, "y":0, "w":1, "h":1, "hand":0, "finger":2, "row":0, "col":1}
+                ],
+                "prime_slots": [0, 1],
+                "med_slots": [],
+                "low_slots": [],
+                "home_row": 0
+            },
+            "layouts": { "default": "A B" }
+        }"#;
+        fs::write(sys_kb_dir.join("corne.json"), corne_json).unwrap();
 
         let client = HiveClient::new(ClientConfig {
-            base_url: "http://localhost:3002".to_string(),
-            api_key: "test-key".to_string(),
-            timeout_sec: 10,
-        });
-        let asset_mgr = AssetManager::new(data_root.clone(), client);
+            api_url: "http://localhost:3002".to_string(),
+            asset_url: "http://localhost:3001".to_string(),
+            secret: Some("test-key".to_string()),
+            timeout: std::time::Duration::from_secs(10),
+            ..Default::default()
+        })
+        .expect("Failed to create mock client");
+        let asset_mgr = AssetManager::new(client, data_root.clone());
 
         // 2. Perform Calibration
-        let report = calibration::calibrate_hardware(&asset_mgr).await.unwrap();
+        let ips = calibration::calibrate(&asset_mgr, &data_root, &CalibrationConfig::default())
+            .await
+            .unwrap();
 
         // 3. Verify
-        assert!(report.cpu_mhz > 0);
-        assert!(report.memory_total_gb > 0);
-        assert!(!report.node_id.is_empty());
+        assert!(ips > 0.0);
     }
 
     #[tokio::test]
@@ -41,13 +60,17 @@ mod tests {
 
         // Ensure invalid root handled gracefully
         let client = HiveClient::new(ClientConfig {
-            base_url: "http://localhost:3002".to_string(),
-            api_key: "test-key".to_string(),
-            timeout_sec: 1,
-        });
+            api_url: "http://localhost:3002".to_string(),
+            asset_url: "http://localhost:3001".to_string(),
+            secret: Some("test-key".to_string()),
+            timeout: std::time::Duration::from_secs(1),
+            ..Default::default()
+        })
+        .expect("Failed to create mock client");
 
-        let asset_mgr = AssetManager::new(data_root.join("non-existent"), client);
-        let res = calibration::calibrate_hardware(&asset_mgr).await;
+        let asset_mgr = AssetManager::new(client, data_root.join("non-existent"));
+        let res =
+            calibration::calibrate(&asset_mgr, &data_root, &CalibrationConfig::default()).await;
 
         assert!(res.is_err());
     }

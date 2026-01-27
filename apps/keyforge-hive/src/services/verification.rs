@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use keyforge_compute::{AssetLoader, SessionBuilder};
-use keyforge_infra::ValkeyProvider;
+use keyforge_infra::asset::ValkeyProvider;
 use keyforge_model::{
     constants::{
         DEFAULT_CORPUS_WEIGHT, VERIFICATION_TOLERANCE_ABS_MIN, VERIFICATION_TOLERANCE_RATIO,
@@ -77,7 +77,7 @@ impl VerificationService {
         // check_and_set_nonce returns true if it's NEW, false if it's a REPLAY
         let is_new = self
             .assets
-            .coordinator()
+            .get_coordinator()
             .check_and_set_nonce(
                 &sub.node_id,
                 sub.nonce,

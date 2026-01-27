@@ -1,7 +1,7 @@
 use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
-use keyforge_infra::AssetLoader;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::config::Config;
 // use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
@@ -20,13 +20,12 @@ pub fn cmd_get_default_config() -> Config {
 pub async fn cmd_get_keycodes(
     state: tauri::State<'_, SessionState>,
 ) -> Result<KeycodeRegistry, CommandError> {
-    match state.assets.load::<KeycodeRegistry>(ASSET_KEYCODES).await {
-        Ok(reg) => Ok(reg.as_ref().clone()),
-        Err(e) => {
-            tracing::error!("Failed to load keycodes from disk: {}", e);
-            Err(CommandError::Config(format!("Keycodes load failed: {e}")))
-        }
-    }
+    Ok(state
+        .assets
+        .load::<KeycodeRegistry>(ASSET_KEYCODES)
+        .await?
+        .as_ref()
+        .clone())
 }
 
 /// Retrieves UI category metadata from local configuration files.
@@ -36,7 +35,7 @@ pub fn cmd_get_ui_categories(
     app: AppHandle,
     _state: tauri::State<'_, SessionState>,
 ) -> Result<serde_json::Value, CommandError> {
-    let data_dir = get_data_dir(&app).map_err(CommandError::Config)?;
+    let data_dir = get_data_dir(&app)?;
     let provider = keyforge_infra::FsProvider::new(data_dir);
 
     let stem = ASSET_UI_CATEGORIES;
@@ -47,10 +46,8 @@ pub fn cmd_get_ui_categories(
 
     if system_path.exists() {
         let file = std::fs::File::open(system_path)?;
-        let decoder =
-            zstd::Decoder::new(file).map_err(|e| CommandError::Internal(e.to_string()))?;
-        let json: serde_json::Value =
-            rmp_serde::from_read(decoder).map_err(|e| CommandError::Internal(e.to_string()))?;
+        let decoder = zstd::Decoder::new(file)?;
+        let json: serde_json::Value = rmp_serde::from_read(decoder)?;
         return Ok(json);
     }
 

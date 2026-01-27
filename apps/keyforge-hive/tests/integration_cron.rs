@@ -18,7 +18,8 @@ mod integration_tests {
     use keyforge_hive::infra::{
         db::init_db, queue::WriteQueue, repositories::JobRepository, repositories::ResultRepository,
     };
-    use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
+    use keyforge_infra::asset::ValkeyProvider;
+    use keyforge_infra::net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
     use serde::{Deserialize, Serialize};
     use std::sync::Arc;
     use testcontainers_modules::redis::Redis;

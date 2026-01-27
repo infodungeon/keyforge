@@ -25,11 +25,11 @@ sha2.workspace = true
 hex.workspace = true
 postcard.workspace = true
 utoipa.workspace = true
-ts-rs = { workspace = true, optional = true }
 tracing.workspace = true
 async-trait.workspace = true
 clap = { workspace = true, optional = true }
 proptest = { workspace = true, optional = true }
+zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 keyforge-testing = { path = "../keyforge-testing" }
@@ -37,6 +37,5 @@ proptest.workspace = true
 
 [features]
 default = []
-ts_bindings = ["dep:ts-rs"]
 cli = ["dep:clap"]
 testing = ["dep:proptest"]

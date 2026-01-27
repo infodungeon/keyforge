@@ -10,6 +10,7 @@ mod unit_tests {
         types::{FingerIndex, HandIndex, KeyCode},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
     };
+    use std::sync::Arc;
 
     fn setup_kb_robust() -> Keyboard {
         let keys: Vec<KeyNode> = (0..5)
@@ -21,7 +22,7 @@ mod unit_tests {
                 ..Default::default()
             })
             .collect();
-        Keyboard::new(keys, 0, "test".into()).unwrap()
+        Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap()
     }
 
     fn mock_cost_model() -> CostModel {
@@ -57,7 +58,7 @@ mod unit_tests {
             KeyCode(101),
         ]);
         let mut corpus = Corpus::default();
-        corpus.bigrams.push((97, 98, 1000));
+        corpus.bigrams = Arc::from(vec![(97, 98, 1000)]);
 
         let rubric = Rubric {
             travel_lat: f32::INFINITY,
@@ -66,11 +67,12 @@ mod unit_tests {
 
         let cost_model = mock_cost_model();
         // Compilation or scoring should fail gracefully
-        let res = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cost_model,
+        let res = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(rubric.clone()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         });
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
@@ -92,7 +94,7 @@ mod unit_tests {
             KeyCode(101),
         ]);
         let mut corpus = Corpus::default();
-        corpus.bigrams.push((97, 98, 1000));
+        corpus.bigrams = Arc::from(vec![(97, 98, 1000)]);
 
         let rubric = Rubric {
             travel_lat: f32::NAN,
@@ -101,11 +103,12 @@ mod unit_tests {
 
         let cost_model = mock_cost_model();
         // Compilation or scoring should fail gracefully
-        let res = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cost_model,
+        let res = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(rubric.clone()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         });
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
@@ -127,7 +130,7 @@ mod unit_tests {
             KeyCode(101),
         ]);
         let mut corpus = Corpus::default();
-        corpus.bigrams.push((97, 98, u32::MAX));
+        corpus.bigrams = Arc::from(vec![(97, 98, u32::MAX)]);
 
         let rubric = Rubric {
             travel_lat: 1_000_000.0,
@@ -135,11 +138,12 @@ mod unit_tests {
         };
 
         let cost_model = mock_cost_model();
-        let res = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cost_model,
+        let res = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(rubric.clone()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         });
         if let Ok(engine) = res {
             let score_res = engine.score(&layout);
@@ -161,14 +165,15 @@ mod unit_tests {
             KeyCode(101),
         ]);
         let mut corpus = Corpus::default();
-        corpus.bigrams.push((97, 98, 100));
+        corpus.bigrams = Arc::from(vec![(97, 98, 100)]);
 
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &Rubric::default(),
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let score = engine.score(&layout).unwrap().to_f32();
@@ -186,20 +191,21 @@ mod unit_tests {
             KeyCode(101),
         ]);
         let mut corpus = Corpus::default();
-        corpus.bigrams.push((97, 98, 100));
+        corpus.bigrams = Arc::from(vec![(97, 98, 100)]);
 
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &Rubric::default(),
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let validated = ValidatedLayout::new(&layout.keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -222,11 +228,12 @@ mod unit_tests {
         let corpus = Corpus::default();
         let rubric = Rubric::default();
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(rubric.clone()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
 
@@ -254,21 +261,22 @@ mod unit_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
-        corpus.bigrams.push((0, 1, 100));
-        corpus.trigrams.push((0, 1, 2, 100));
+        corpus.bigrams = Arc::from(vec![(0, 1, 100)]);
+        corpus.trigrams = Arc::from(vec![(0, 1, 2, 100)]);
 
         let mut rubric = Rubric::default();
         rubric.travel_lat = 1.0;
 
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(rubric.clone()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
 
@@ -277,7 +285,7 @@ mod unit_tests {
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -319,21 +327,22 @@ mod unit_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
-        corpus.bigrams.push((0, 0, 100));
+        corpus.bigrams = Arc::from(vec![(0, 0, 100)]);
 
         let mut rubric = Rubric::default();
         rubric.travel_lat = 1.0;
         rubric.trigram_limit = 0;
 
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(rubric.clone()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
 
@@ -342,7 +351,7 @@ mod unit_tests {
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -375,14 +384,15 @@ mod unit_tests {
         let kb = setup_kb_robust();
         let mut corpus = Corpus::default();
         // Bigram with a char not in layout
-        corpus.bigrams.push((97, 255, 100));
+        corpus.bigrams = Arc::from(vec![(97, 255, 100)]);
 
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &Rubric::default(),
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let layout_keys = vec![
@@ -396,7 +406,7 @@ mod unit_tests {
 
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -422,19 +432,22 @@ mod unit_tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let mut cp = Corpus::default();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
+        let mut corpus = Corpus::default();
         // Trigrams like (a,a,x), (b,a,x), (x,a,a), etc.
-        cp.trigrams.push((97, 97, 98, 100));
-        cp.trigrams.push((98, 97, 99, 100));
-        cp.trigrams.push((97, 98, 97, 100));
+        corpus.trigrams = Arc::from(vec![
+            (97, 97, 98, 100),
+            (98, 97, 99, 100),
+            (97, 98, 97, 100),
+        ]);
 
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &cp,
-            rubric: &Rubric::default(),
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99)];
@@ -442,7 +455,7 @@ mod unit_tests {
 
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -463,15 +476,16 @@ mod unit_tests {
     #[test]
     fn test_score_bigram_modifier_overflow() {
         let kb = setup_kb_robust();
-        let mut cp = Corpus::default();
-        cp.bigrams.push((97, 98, 100));
+        let mut corpus = Corpus::default();
+        corpus.bigrams = Arc::from(vec![(97, 98, 100)]);
 
         let cost_model = mock_cost_model();
-        let engine = EngineFactory::new_generic(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &cp,
-            rubric: &Rubric::default(),
-            cost_model: &cost_model,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb.clone()),
+            corpus: Arc::new(corpus.clone()),
+            rubric: Arc::new(Rubric::default()),
+            cost_model: Arc::new(cost_model.clone()),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let mut ctx = engine.context().clone();
@@ -501,7 +515,7 @@ mod unit_tests {
             KeyCode(101),
         ];
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
-        let mut scratch = crate::kernel::compute::PhysicsScratch::new();
+        let mut scratch = crate::kernel::compute::PhysicsScratch::try_new().unwrap();
 
         let res = crate::kernel::compute::score_layout(&ctx, &validated, &mut scratch);
         assert!(matches!(res, Err(PhysicsError::ScoreOverflow { .. })));

@@ -48,7 +48,7 @@ pub enum MutationAction {
 pub struct MutationProposal {
     pub delta: i64,
     /// Enum describing the mutation to apply.
-    /// Replaces Box<dyn FnOnce> to avoid heap allocation.
+    /// Replaces Box\<dyn `FnOnce`\> to avoid heap allocation.
     pub action: MutationAction,
 }
 
@@ -62,7 +62,7 @@ pub trait MutationOperator: std::fmt::Debug {
         &self,
         engine: &dyn ScoringEngine,
         layout: &Layout,
-        pos_map: &[u16],
+        pos_map: &[keyforge_model::KeyIndex],
         rng: &mut impl Rng,
         temperature: f32,
     ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError>;

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use keyforge_model::{Corpus, Keyboard, Rubric};
 use keyforge_physics::ScoringEngine;
 use std::fs::File;

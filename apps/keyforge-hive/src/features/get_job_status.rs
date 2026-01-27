@@ -19,8 +19,8 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use keyforge_model::{Completed, JobStatus, Pending, Running, Score};
-use keyforge_protocol::JobDetailedStatus;
+use keyforge_protocol::types::ScoreDto;
+use keyforge_protocol::{JobDetailedStatus, JobStatusDto, LayoutDto};
 use std::sync::Arc;
 
 /// VSA Feature: Get Job Status
@@ -38,7 +38,8 @@ use std::sync::Arc;
     tag = "jobs"
 )]
 /// Handles a request to retrieve the status and statistics for a job.
-pub async fn handle(
+#[tracing::instrument(skip_all)]
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Path(job_id): Path<String>,
 ) -> AppResult<Json<JobDetailedStatus>> {
@@ -63,27 +64,36 @@ pub async fn handle(
         .map_err(AppError::Database)?;
 
     let status = match status_str.to_lowercase().as_str() {
-        "running" => JobStatus::Running(Running {
+        "running" | "processing" => JobStatusDto::Running {
             active_nodes: usize::try_from(nodes).unwrap_or(0),
-            current_best: best_score
-                .map(Score::from_f32)
-                .transpose()
-                .map_err(|e| AppError::Internal(format!("Invalid best score: {e}")))?
-                .or(Some(Score::ZERO)),
-        }),
-        "completed" => JobStatus::Completed(Completed {
-            final_score: best_score
-                .map(Score::from_f32)
-                .transpose()
-                .map_err(|e| AppError::Internal(format!("Invalid final score: {e}")))?
-                .unwrap_or(Score::ZERO),
-            final_layout: best_layout
+            current_best: best_score.map(|s| {
+                ScoreDto(
+                    keyforge_model::types::Score::from_f32(s)
+                        .unwrap_or_default()
+                        .0,
+                )
+            }),
+        },
+        "completed" => {
+            let score_val = best_score.map_or(0, |s| {
+                keyforge_model::types::Score::from_f32(s)
+                    .unwrap_or_default()
+                    .0
+            });
+            let layout = best_layout
                 .clone()
-                .and_then(|l| serde_json::from_str(&l).ok())
-                .unwrap_or_else(|| keyforge_model::Layout::new_unchecked(vec![])),
-            total_compute_sec: 0, // TODO: Aggregate from DB
-        }),
-        _ => JobStatus::Pending(Pending),
+                .and_then(|l| serde_json::from_str::<keyforge_model::Layout>(&l).ok())
+                .map(LayoutDto::from)
+                .unwrap_or_default();
+
+            JobStatusDto::Completed {
+                final_score: ScoreDto(score_val),
+                final_layout: layout,
+                // ESTIMATE: Assume average 50ms per sample until schema tracks duration
+                total_compute_sec: (u64::try_from(samples).unwrap_or(0) * 50) / 1000,
+            }
+        }
+        _ => JobStatusDto::Pending,
     };
 
     Ok(Json(JobDetailedStatus {

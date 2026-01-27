@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use keyforge_adapter::loader::LoaderResult;
 use keyforge_model::constants::{
     CORPUS_TOKEN_MAP, STD_CORPUS_BACKSPACE_FACTOR, STD_CORPUS_ERROR_RATE, STD_CORPUS_SENTENCE_RATIO,
 };
 use keyforge_model::error::ForgeError;
-use keyforge_model::loader::LoaderResult;
 use keyforge_model::Corpus;
 use serde_json::Value;
+use std::sync::Arc;
 
 /// Populates a corpus structure from raw n-gram segments with weighted frequencies.
 ///
@@ -28,7 +29,7 @@ use serde_json::Value;
 pub fn populate_corpus_from_segments(
     corpus: &mut Corpus,
     weight: f32,
-    segments: Vec<(&str, Vec<Value>)>, // This line was changed
+    segments: Vec<(&str, Vec<Value>)>,
 ) -> LoaderResult<()> {
     for (stem, part) in segments {
         match stem {
@@ -44,6 +45,7 @@ pub fn populate_corpus_from_segments(
 
 #[allow(clippy::cast_precision_loss, clippy::cast_sign_loss)]
 fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    let mut freqs = corpus.char_freqs.to_vec();
     for e in part {
         if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
             if (c as u32) > 0xFFFF {
@@ -61,10 +63,11 @@ fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRe
                 clippy::cast_possible_truncation
             )]
             {
-                corpus.char_freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
+                freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
             }
         }
     }
+    corpus.char_freqs = Arc::from(freqs);
     Ok(())
 }
 
@@ -74,6 +77,7 @@ fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRe
     clippy::cast_possible_truncation
 )]
 fn parse_bigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    let mut bigrams = corpus.bigrams.to_vec();
     for e in part {
         let freq = e["freq"].as_u64().ok_or_else(|| {
             ForgeError::InvalidData(format!("Missing frequency in 2gram entry: {e:?}"))
@@ -97,12 +101,13 @@ fn parse_bigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResu
             )));
         }
 
-        corpus.bigrams.push((
+        bigrams.push((
             c1_char as u16,
             c2_char as u16,
             (freq as f32 * weight).round() as u32,
         ));
     }
+    corpus.bigrams = Arc::from(bigrams);
     Ok(())
 }
 
@@ -112,6 +117,7 @@ fn parse_bigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResu
     clippy::cast_possible_truncation
 )]
 fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    let mut trigrams = corpus.trigrams.to_vec();
     for e in part {
         let freq = e["freq"].as_u64().ok_or_else(|| {
             ForgeError::InvalidData(format!("Missing frequency in 3gram entry: {e:?}"))
@@ -141,13 +147,14 @@ fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRes
             )));
         }
 
-        corpus.trigrams.push((
+        trigrams.push((
             c1_char as u16,
             c2_char as u16,
             c3_char as u16,
             (freq as f32 * weight).round() as u32,
         ));
     }
+    corpus.trigrams = Arc::from(trigrams);
     Ok(())
 }
 
@@ -157,16 +164,16 @@ fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRes
     clippy::cast_possible_truncation
 )]
 fn parse_words(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult<()> {
+    let mut words = corpus.words.to_vec();
     for e in part {
         let freq = e["freq"].as_u64().ok_or_else(|| {
             ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}"))
         })?;
         if let Some(w) = e["word"].as_str() {
-            corpus
-                .words
-                .push((w.to_string(), (freq as f32 * weight).round() as u32));
+            words.push((w.to_string(), (freq as f32 * weight).round() as u32));
         }
     }
+    corpus.words = Arc::from(words);
     Ok(())
 }
 
@@ -214,10 +221,9 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
         return;
     }
 
-    let total_chars: u64 = corpus.char_freqs.iter().sum();
-    let sentence_count: u64 = corpus.char_freqs['.' as usize]
-        + corpus.char_freqs['?' as usize]
-        + corpus.char_freqs['!' as usize];
+    let mut freqs = corpus.char_freqs.to_vec();
+    let total_chars: u64 = freqs.iter().sum();
+    let sentence_count: u64 = freqs['.' as usize] + freqs['?' as usize] + freqs['!' as usize];
 
     if total_chars == 0 {
         return;
@@ -227,9 +233,11 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     let bksp_count =
         (total_chars as f32 * STD_CORPUS_ERROR_RATE * STD_CORPUS_BACKSPACE_FACTOR).round() as u64;
 
-    corpus.char_freqs['\n' as usize] += enter_count;
-    corpus.char_freqs['\x08' as usize] += bksp_count;
+    freqs['\n' as usize] += enter_count;
+    freqs['\x08' as usize] += bksp_count;
+    corpus.char_freqs = Arc::from(freqs);
 
+    let mut bigrams = corpus.bigrams.to_vec();
     if bksp_count > 0 {
         let mut new_bigrams = Vec::new();
         for (char_code, &freq) in corpus.char_freqs.iter().enumerate() {
@@ -242,7 +250,7 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
                 }
             }
         }
-        corpus.bigrams.extend(new_bigrams);
+        bigrams.extend(new_bigrams);
     }
 
     if enter_count > 0 {
@@ -255,17 +263,20 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
                 let ratio = p_freq as f32 / total_punct as f32;
                 let share = (enter_count as f32 * ratio).round() as u32;
                 if share > 0 {
-                    corpus.bigrams.push((p as u16, '\n' as u16, share));
+                    bigrams.push((p as u16, '\n' as u16, share));
                 }
             }
         }
     }
+    bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    corpus.bigrams = Arc::from(bigrams);
 
+    let mut trigrams = corpus.trigrams.to_vec();
     if bksp_count > 0 {
         let total_bigrams: u64 = corpus.bigrams.iter().map(|(_, _, f)| u64::from(*f)).sum();
         if total_bigrams > 0 {
             let mut new_trigrams = Vec::new();
-            for (a, b, freq) in &corpus.bigrams {
+            for (a, b, freq) in &*corpus.bigrams {
                 if *a == '\x08' as u16
                     || *b == '\x08' as u16
                     || *a == '\n' as u16
@@ -281,7 +292,7 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
                     new_trigrams.push((*a, *b, '\x08' as u16, share));
                 }
             }
-            corpus.trigrams.extend(new_trigrams);
+            trigrams.extend(new_trigrams);
         }
     }
 
@@ -306,16 +317,12 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
                     new_trigrams.push((*a, *b, '\n' as u16, share));
                 }
             }
-            corpus.trigrams.extend(new_trigrams);
+            trigrams.extend(new_trigrams);
         }
     }
 
-    corpus
-        .bigrams
-        .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-    corpus
-        .trigrams
-        .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    corpus.trigrams = Arc::from(trigrams);
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -359,9 +366,12 @@ mod tests {
     #[test]
     fn test_inject_synthetic_data() {
         let mut corpus = Corpus::default();
-        corpus.char_freqs['a' as usize] = 1000;
-        corpus.char_freqs['.' as usize] = 10;
-        corpus.bigrams.push(('a' as u16, '.' as u16, 100));
+        let mut freqs = corpus.char_freqs.to_vec();
+        freqs['a' as usize] = 1000;
+        freqs['.' as usize] = 10;
+        corpus.char_freqs = Arc::from(freqs);
+
+        corpus.bigrams = Arc::from(vec![('a' as u16, '.' as u16, 100)]);
 
         inject_synthetic_data(&mut corpus, true);
 

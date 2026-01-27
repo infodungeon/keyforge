@@ -3,10 +3,11 @@ use std::collections::HashMap;
 
 // RE-EXPORTS from Protocol
 pub use keyforge_protocol::{
-    BiometricSample, JobConfig, JobRequest as RegisterJobRequest,
-    JobResponse as RegisterJobResponse, NodeRequest as RegisterNodeRequest,
-    NodeResponse as RegisterNodeResponse, PopulationResponse,
-    ResultSubmission as SubmitResultRequest, TuningProfile, UserStatsStore,
+    AnalysisReportDto, BiometricSample, ConfigAggregateDto, DerivedStatsDto, JobConfig,
+    JobRequest as RegisterJobRequest, JobResponse as RegisterJobResponse, KeyNodeDto, LayoutDto,
+    NodeRequest as RegisterNodeRequest, NodeResponse as RegisterNodeResponse, PopulationResponse,
+    ResultSubmission as SubmitResultRequest, ScoringWeightsDto, SearchParamsDto, SwapSuggestionDto,
+    TuningProfile, UserStatsStore, ValidationResultDto,
 };
 
 /// Periodic status update for a remote job running on the Hive.
@@ -39,9 +40,9 @@ pub struct StartSearchRequest {
     /// Encoded string representing pinned keys (positions that shouldn't move).
     pub pinned_keys: String,
     /// Configuration parameters for the optimization algorithm.
-    pub search_params: keyforge_model::config::SearchParams,
+    pub search_params: SearchParamsDto,
     /// Ergonomic weights used to calculate the physical score.
-    pub weights: keyforge_model::config::ScoringWeights,
+    pub weights: ScoringWeightsDto,
 }
 
 /// Manifest of files available on a remote server.
@@ -64,24 +65,8 @@ pub struct SyncStats {
     pub errors: Vec<String>,
 }
 
-/// Result of a layout validation and analysis operation.
-#[derive(Serialize, Clone, Debug)]
-pub struct ValidationResult {
-    /// Name of the layout that was validated.
-    pub layout_name: String,
-    /// Comprehensive analysis report including ergonomics metrics.
-    pub score: keyforge_model::AnalysisReport,
-    /// Physical geometry of the keyboard used for analysis.
-    pub geometry: keyforge_model::geometry::KeyboardGeometry,
-    /// Frequency heatmap indicating which keys are used most relative to their position.
-    pub heatmap: Vec<f32>,
-    /// Map of ergonomic penalties applied across the layout.
-    pub penalty_map: Vec<f32>,
-}
+/// Result of a layout validation and analysis operation (Legacy alias).
+pub type ValidationResult = ValidationResultDto;
 
-/// Statistics derived from raw analysis data for UI display.
-#[derive(Serialize, Clone, Debug)]
-pub struct DerivedStats {
-    /// Calculated balance between left and right hand usage (0.0 to 1.0).
-    pub hand_balance: f32,
-}
+/// Statistics derived from raw analysis data for UI display (Legacy alias).
+pub type DerivedStats = DerivedStatsDto;

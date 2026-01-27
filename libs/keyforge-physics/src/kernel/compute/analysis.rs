@@ -5,8 +5,7 @@ use crate::kernel::{
     EngineContext,
 };
 use keyforge_model::constants::MAX_REPORTED_VIOLATIONS;
-use keyforge_model::{AnalysisReport, MetricId, MetricViolation};
-use tracing::instrument;
+use keyforge_model::{AnalysisReport, KeyCode, MetricId, MetricViolation};
 
 /// Safely converts a u16 character code to a displayable character.
 /// Handles invalid Unicode surrogate pairs and control characters.
@@ -39,13 +38,20 @@ pub(crate) fn u16_to_char(code: u16) -> String {
     clippy::cast_possible_truncation,
     clippy::cast_lossless
 )]
-#[instrument(skip_all)]
-pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> AnalysisReport {
+/// Analyzes a layout and returns a detailed ergonomic report.
+///
+/// # Errors
+/// Returns `PhysicsError::Config` if scratch initialization fails.
+pub fn analyze_layout(
+    ctx: &EngineContext,
+    layout: &ValidatedLayout<'_>,
+) -> Result<AnalysisReport, crate::error::PhysicsError> {
     let mut report = AnalysisReport::default();
 
     super::state::with_scratch(|scratch| {
         let key_count = ctx.key_count;
-        let (starts, counts, indices, offsets, used, char_usage) = scratch.get_mut_scratch();
+        let (starts, counts, indices, offsets, used, char_usage, _flat_map) =
+            scratch.get_mut_scratch();
 
         let pm = PosMap::from_scratch(
             layout.as_slice(),
@@ -69,9 +75,9 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
         // 1. Pass 1: Trigrams (Flow ONLY)
         for &(c1, c2, c3, freq) in ctx.all_trigrams.iter() {
-            let candidates1 = pm.get(c1 as usize);
-            let candidates2 = pm.get(c2 as usize);
-            let candidates3 = pm.get(c3 as usize);
+            let candidates1 = pm.get(KeyCode(c1));
+            let candidates2 = pm.get(KeyCode(c2));
+            let candidates3 = pm.get(KeyCode(c3));
             if candidates1.is_empty() || candidates2.is_empty() || candidates3.is_empty() {
                 continue;
             }
@@ -85,16 +91,16 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                     for &p3 in candidates3 {
                         // Score includes flow penalty and travel costs
                         let mut cost =
-                            calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
-                        let idx12 = (p1 as usize) * key_count + (p2 as usize);
-                        let idx23 = (p2 as usize) * key_count + (p3 as usize);
+                            calculate_flow_cost(ctx, p1.as_usize(), p2.as_usize(), p3.as_usize());
+                        let idx12 = p1.as_usize() * key_count + p2.as_usize();
+                        let idx23 = p2.as_usize() * key_count + p3.as_usize();
                         cost = cost
                             + ctx.geometry.cost_matrix[idx12]
                             + ctx.geometry.cost_matrix[idx23];
 
                         if cost < min_cost_val {
                             min_cost_val = cost;
-                            best_triplet = (p1 as usize, p2 as usize, p3 as usize);
+                            best_triplet = (p1.as_usize(), p2.as_usize(), p3.as_usize());
                         }
                     }
                 }
@@ -132,8 +138,8 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
         // 2. Pass 2: Bigrams (ALL TRANSITIONS, DISTANCE, USAGE)
         for &(c1, c2, freq) in ctx.all_bigrams.iter() {
-            let candidates1 = pm.get(c1 as usize);
-            let candidates2 = pm.get(c2 as usize);
+            let candidates1 = pm.get(KeyCode(c1));
+            let candidates2 = pm.get(KeyCode(c2));
             if candidates1.is_empty() || candidates2.is_empty() {
                 continue;
             }
@@ -147,14 +153,14 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
             if candidates1.len() == 1 && candidates2.len() == 1 {
                 // Case 1: Single Key - Irrelevant to evaluate choice
-                best_pair = (candidates1[0] as usize, candidates2[0] as usize);
+                best_pair = (candidates1[0].as_usize(), candidates2[0].as_usize());
             } else {
                 // Case 2: Multiple Selection (Duplicated Keys like Space)
                 // Pick pair resulting in best score contribution
                 for &p1 in candidates1 {
                     for &p2 in candidates2 {
                         let mut cost =
-                            ctx.geometry.cost_matrix[(p1 as usize) * key_count + (p2 as usize)];
+                            ctx.geometry.cost_matrix[p1.as_usize() * key_count + p2.as_usize()];
 
                         if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1, c2)) {
                             cost = cost + mod_val;
@@ -162,7 +168,7 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
                         if cost < min_score {
                             min_score = cost;
-                            best_pair = (p1 as usize, p2 as usize);
+                            best_pair = (p1.as_usize(), p2.as_usize());
                         }
                     }
                 }
@@ -233,21 +239,19 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
 
         // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
         for &code in pm.used_keys() {
-            let c_val = code as usize;
-            #[allow(clippy::cast_precision_loss)]
-            let freq = ctx.corpus.char_freqs[c_val] as f32;
+            let freq = ctx.corpus.char_freqs[code.0 as usize] as f32;
             if freq <= 0.0 {
                 continue;
             }
 
-            let candidates = pm.get(c_val);
+            let candidates = pm.get(code);
 
             // Monogram Effort (Base Key Cost)
             // Attribute to keys based on their usage heatmap or unique position
-            let total_key_usage: f32 = candidates.iter().map(|&p| heatmap[p as usize]).sum();
+            let total_key_usage: f32 = candidates.iter().map(|&p| heatmap[p.as_usize()]).sum();
             if total_key_usage > 0.0 {
                 for &p in candidates {
-                    let p_idx = p as usize;
+                    let p_idx = p.as_usize();
                     let share = heatmap[p_idx] / total_key_usage;
                     penalty_map[p_idx] += freq * share * ctx.geometry.key_costs[p_idx].to_f32();
                 }
@@ -256,10 +260,10 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
                 let mut min_c = f32::MAX;
                 let mut bp = 0;
                 for &p in candidates {
-                    let c = ctx.geometry.key_costs[p as usize].to_f32();
+                    let c = ctx.geometry.key_costs[p.as_usize()].to_f32();
                     if c < min_c {
                         min_c = c;
-                        bp = p as usize;
+                        bp = p.as_usize();
                     }
                 }
                 heatmap[bp] += freq;
@@ -372,11 +376,11 @@ pub fn analyze_layout(ctx: &EngineContext, layout: &ValidatedLayout<'_>) -> Anal
         report
             .metrics
             .set(MetricId::HandBalance, report.hand_balance);
-
+        // Clean up
         scratch.clear_used();
-    });
+    })?;
 
-    report
+    Ok(report)
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -386,6 +390,7 @@ mod tests {
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     #[test]
     fn test_u16_to_char() {
@@ -440,12 +445,14 @@ mod tests {
             ..Default::default()
         });
 
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
         let mut corpus = Corpus::default();
-        corpus.char_freqs[97] = 100; // 'a'
-        corpus.char_freqs[98] = 200; // 'b'
-        corpus.bigrams.push((97, 98, 50));
-        corpus.trigrams.push((97, 98, 97, 10)); // Redirect: a -> b -> a (Index -> Middle -> Index)
+        let mut freqs = corpus.char_freqs.to_vec();
+        freqs[97] = 100; // 'a'
+        freqs[98] = 200; // 'b'
+        corpus.char_freqs = Arc::from(freqs);
+        corpus.bigrams = Arc::from(vec![(97, 98, 50)]);
+        corpus.trigrams = Arc::from(vec![(97, 98, 97, 10)]); // Redirect: a -> b -> a (Index -> Middle -> Index)
 
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
@@ -500,6 +507,7 @@ mod tests {
         let validated = ValidatedLayout::new(&layout_keys, kb.count()).unwrap();
 
         let report = analyze_layout(&ctx, &validated);
+        let report = report.unwrap();
         assert!(report.score > 0.0);
         assert!(report.redirects > 0.0);
     }

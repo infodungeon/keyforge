@@ -24,8 +24,6 @@ use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Keyboard Layout Editor (KLE) integration.
@@ -33,7 +31,7 @@ pub mod kle;
 
 /// Metadata describing a keyboard definition.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct KeyboardMeta {
     /// Display name of the keyboard.
     pub name: String,
@@ -54,7 +52,6 @@ pub struct KeyboardMeta {
 /// Complete definition of a keyboard, including metadata and geometry.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
 #[serde(deny_unknown_fields)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct KeyboardDefinition {
     /// Metadata about the keyboard.
     #[serde(default)]
@@ -89,7 +86,7 @@ impl Validator for KeyboardDefinition {
 
 /// Represents a single physical key on the keyboard.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct KeyNode {
     /// Zero-based index of the key in the layout.
     pub index: usize,
@@ -157,8 +154,11 @@ fn default_size() -> f32 {
 }
 
 /// Collection of keys and slot definitions defining the keyboard geometry.
+///
+/// NOTE: Uses `Vec<T>` for serialization compatibility with `utoipa` and `ts-rs`.
+/// The `Keyboard` runtime structure uses `Arc<[T]>` for performance.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct KeyboardGeometry {
     /// List of physical keys.
     pub keys: Vec<KeyNode>,
@@ -173,14 +173,13 @@ pub struct KeyboardGeometry {
     pub low_slots: Vec<KeyIndex>,
     /// Logical index of the home row.
     #[serde(default)]
-    pub home_row: i8,
+    pub home_row: RowIndex,
 }
 
 impl Validator for KeyboardGeometry {
     fn validate(&self) -> Result<(), String> {
-        // Task-prot-rev-011: Validate home row against keys
         let has_home_keys = self.keys.iter().any(|k| k.is_home);
-        let has_home_row_matches = self.keys.iter().any(|k| k.row.0 == self.home_row);
+        let has_home_row_matches = self.keys.iter().any(|k| k.row == self.home_row);
 
         if !has_home_keys && !has_home_row_matches {
             return Err(format!(
@@ -259,7 +258,6 @@ impl KeyboardDefinition {
     /// Parses a keyboard definition from JSON, supporting both `KeyForge` format and KLE format.
     ///
     /// # Errors
-    ///
     /// Returns an error if the content is not valid JSON or KLE format.
     pub fn parse(content: &str, name_hint: Option<&str>) -> Result<Self, String> {
         if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(content) {

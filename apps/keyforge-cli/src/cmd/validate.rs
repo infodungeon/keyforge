@@ -4,68 +4,76 @@
 use crate::build_job_config;
 use crate::error::CliError;
 use clap::Args;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_infra::FsProvider;
-use std::path::Path;
+use keyforge_model::KeyboardDefinition;
 
 #[derive(Args, Debug, Clone)]
 pub struct ValidateArgs {
-    #[arg(short, long)]
-    pub layout: Option<String>,
-
     #[command(flatten)]
     pub config: crate::cli_args::config::ConfigArgs,
+
+    #[arg(short, long)]
+    pub layout: String,
 
     #[command(flatten)]
     pub shared: crate::cmd::shared::SharedArgs,
 }
 
-pub async fn run(args: &ValidateArgs, loader: &FsProvider, _root: &Path) -> Result<(), CliError> {
+pub async fn run(args: &ValidateArgs, loader: &FsProvider) -> Result<(), CliError> {
     let job = build_job_config(loader, &args.shared, args.config.clone())
         .await
         .map_err(|e| CliError::Other(format!("Failed to build job: {e}")))?;
 
+    let keycodes_file = args
+        .shared
+        .keycodes
+        .as_deref()
+        .unwrap_or(keyforge_model::constants::ASSET_KEYCODES_FILENAME);
+
     let builder = keyforge_compute::SessionBuilder::new(loader)
-        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
-        .with_corpus(&job.corpora)
+        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
+            job.to_domain_geometry(),
+            "validate",
+        )))
+        .with_corpus(&job.to_domain_corpus_sources())
         .await
         .map_err(|e| CliError::Other(format!("Corpus load failed: {e}")))?
-        .with_cost_matrix(&job.cost_matrix)
+        .with_cost_matrix(&job.to_domain_cost_matrix())
         .await
         .map_err(|e| CliError::Other(format!("Cost matrix load failed: {e}")))?
-        .with_keycodes("keycodes.json")
+        .with_keycodes(keycodes_file)
         .await
         .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
-        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights));
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job.to_domain_weights(),
+        ));
 
     let session = builder
         .build()
         .map_err(|e| CliError::Other(format!("Failed to prepare session: {e}")))?;
 
-    let layout_name = args.layout.as_deref().unwrap_or("default");
-    let layout_parsed = if let Some(l_str) = job.definition.layouts.get(layout_name) {
-        keyforge_adapter::conversion::parse_layout_string(
-            l_str,
-            session.engine.key_count(),
-            &session.registry,
-        )
-        .map_err(|e| CliError::Other(format!("Parse Error: {e}")))?
-    } else {
-        keyforge_adapter::conversion::parse_layout_string(
-            layout_name,
-            session.engine.key_count(),
-            &session.registry,
-        )
-        .map_err(|e| CliError::Other(format!("Parse Error: {e}")))?
-    };
+    // Parse provided layout string
+    let layout_parsed = keyforge_adapter::conversion::parse_layout_string(
+        &args.layout,
+        session.engine.key_count(),
+        &session.registry,
+    )
+    .map_err(|e| CliError::Other(format!("Layout parsing error: {e}")))?;
 
-    let report = session
-        .engine
+    // Perform layout analysis for ergonomic metrics
+    let runtime = keyforge_compute::Runtime::from(session);
+    let report = runtime
         .analyze(&layout_parsed)
         .map_err(|e| CliError::Other(format!("Analysis Error: {e}")))?;
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&report)
-            .map_err(|e| CliError::Other(format!("JSON Error: {e}")))?
-    );
+
+    // Display standard scoring table
+    crate::reports::scoring(&[("Validation".to_string(), report.clone())]);
+
+    // Attempt Reality Check comparison
+    if let Some(baselines) = crate::reports::load_benchmarks(loader.root()) {
+        crate::reports::benchmark_comparison("Validation", &report, &baselines);
+    }
+
     Ok(())
 }

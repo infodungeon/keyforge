@@ -19,20 +19,20 @@
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
-    use crate::ghost::GhostOptimizer;
     use crate::{evolve, NoOpCallback};
     use keyforge_model::{KeyCode, Layout, SearchConfig};
-    use keyforge_physics::EngineFactory;
+    use keyforge_physics::{EngineCompilationContext, EngineFactory};
     use std::sync::Arc;
 
     fn setup_minimal() -> (Arc<dyn keyforge_physics::ScoringEngine>, Layout) {
         let (kb, corpus, rubric, cm) = keyforge_model::testing::setup_minimal_assets();
 
-        let engine = EngineFactory::new_scalar(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cm,
+        let engine = EngineFactory::new_scalar(&EngineCompilationContext {
+            keyboard: kb.into(),
+            corpus: corpus.into(),
+            rubric: rubric.into(),
+            cost_model: cm.into(),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
@@ -40,7 +40,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zero_step_invariance() {
+    fn test_zero_step_rejection() {
         let (engine, layout) = setup_minimal();
         let config = SearchConfig::Annealing {
             steps: 0,
@@ -53,17 +53,8 @@ mod tests {
             include_thumbs: false,
         };
 
-        // Production
-        let res_prod = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
-
-        // Ghost
-        let res_ghost = GhostOptimizer::optimize(engine.as_ref(), &config, &layout)
-            .expect("Ghost optimization failed");
-
-        // Invariant: At 0 steps, neither should change the layout
-        assert_eq!(res_prod.layout.keys, layout.keys);
-        assert_eq!(res_ghost.layout.keys, layout.keys);
-        assert_eq!(res_prod.score, res_ghost.score);
+        let res = evolve(&engine, &config, NoOpCallback, Some(layout), None);
+        assert!(res.is_err());
     }
 
     #[test]

@@ -28,8 +28,6 @@ pub mod nodes;
 pub mod results;
 /// General layout submission management.
 pub mod submission;
-/// Input validation helpers.
-pub mod validation;
 /// Real-time communication via `WebSockets`.
 pub mod ws;
 
@@ -59,10 +57,9 @@ pub fn auth_routes() -> Router<Arc<AppState>> {
             .finish()
             .unwrap_or_else(|| {
                 tracing::error!("Failed to initialize auth governor, using fallback");
-                #[allow(clippy::expect_used)]
                 GovernorConfigBuilder::default()
                     .finish()
-                    .expect("fallback governor must be valid")
+                    .unwrap_or_default()
             }),
     );
 

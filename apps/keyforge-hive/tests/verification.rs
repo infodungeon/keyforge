@@ -18,7 +18,8 @@ mod integration_tests {
     use keyforge_hive::cache::{CompiledEngineCache, ParsedLayoutCache};
     use keyforge_hive::infra::repositories::{JobRepository, NodeRepository};
     use keyforge_hive::VerificationService;
-    use keyforge_infra::{DistributedCoordinator, ValkeyDistributedCoordinator, ValkeyProvider};
+    use keyforge_infra::asset::ValkeyProvider;
+    use keyforge_infra::net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
     use keyforge_protocol::{ResultSubmission, PROTOCOL_VERSION};
     use keyforge_security as crypto;
     use std::sync::Arc;

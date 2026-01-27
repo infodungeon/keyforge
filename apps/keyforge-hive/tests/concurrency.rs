@@ -12,9 +12,6 @@ mod common;
 mod integration_tests {
     use super::*;
 
-    #[keyforge_testing_macros::kf_test]
-    // apps/keyforge-hive/tests/concurrency.rs
-
     // # Concurrency Tests for `KeyForge` Hive
     //
     // Stress testing suite for the Hive server under high concurrent loads.
@@ -32,8 +29,6 @@ mod integration_tests {
     const NODE_COUNT: usize = 50;
     const RESULTS_PER_NODE: usize = 100;
 
-    /// Performs a "thundering herd" stress test with multiple worker nodes
-    /// registering and submitting results simultaneously to ensure system stability.
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn test_heterogeneous_thundering_herd() {
         let (base_url, _state, _temp_dir, _valkey) = setup_server().await;
@@ -75,20 +70,22 @@ mod integration_tests {
             let req = JobRequest {
                 version: PROTOCOL_VERSION,
                 config: JobConfig {
-                    definition: kb,
-                    weights: w,
-                    params: SearchParams::default(),
-                    pinned_keys: vec![],
+                    definition: kb.into(),
+                    weights: w.into(),
+                    params: SearchParams::default().into(),
+                    pinned_keys: vec![].into(),
                     corpora: vec![CorpusSource {
                         id: "default".to_string(),
                         weight: 1.0,
                         hash: None,
-                    }],
-                    cost_matrix: CostMatrixSource::Predefined("cost_matrix.json".into()),
-                    biometrics: vec![],
+                    }
+                    .into()]
+                    .into(),
+                    cost_matrix: CostMatrixSource::Predefined("cost_matrix.json".into()).into(),
+                    biometrics: vec![].into(),
                     parent_job_id: None,
                     baseline_score: None,
-                    parents: vec![],
+                    parents: vec![].into(),
                 },
             };
 
@@ -127,7 +124,10 @@ mod integration_tests {
                 let register_req = NodeRequest {
                     version: PROTOCOL_VERSION,
                     node_id: node_id.clone(),
+                    hostname: "test-host".to_string(),
+                    cpu_cores: 8,
                     cpu_model: "RustTestCPU".into(),
+                    capabilities: vec![],
                     cores: 8,
                     l2_cache_kb: Some(1024),
                     ops_per_sec: 1_000_000.0,

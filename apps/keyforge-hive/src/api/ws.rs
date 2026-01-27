@@ -154,10 +154,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, node_id: String)
                 Message::Text(text) => {
                     // Process Node Telemetry
                     if let Ok(telemetry) = serde_json::from_str::<NodeTelemetry>(&text) {
-                        debug!(
-                            "📊 Telemetry [{}]: IPS={:.1}, Temp={:.2}",
-                            node_id, telemetry.ips, telemetry.temp
-                        );
+                        debug!("📊 Telemetry [{}]: IPS={:.1}", node_id, telemetry.ips);
 
                         // Persist to Coordination Layer (Valkey)
                         if let Err(e) = state

@@ -1,4 +1,5 @@
 pub mod core;
+pub mod dto;
 pub mod identity;
 pub mod queries;
 

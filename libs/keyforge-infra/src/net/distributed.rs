@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -366,7 +366,7 @@ impl DistributedCoordinator for ValkeyDistributedCoordinator {
                 vec![
                     ("hash", entry.hash.as_str()),
                     ("size", &entry.size_bytes.to_string()),
-                    ("updated", &entry.last_updated.to_string()),
+                    ("updated", &entry.updated_at.to_string()),
                 ],
             )
             .await

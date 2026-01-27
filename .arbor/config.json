@@ -1,0 +1,14 @@
+{
+  "ignore": [
+    "node_modules",
+    "target",
+    "dist",
+    "__pycache__"
+  ],
+  "languages": [
+    "typescript",
+    "rust",
+    "python"
+  ],
+  "version": "1.0"
+}

@@ -54,13 +54,13 @@ jobs:
 
       - name: Install Cargo Audit & Deny
         run: |
-          cargo install cargo-audit
-          cargo install cargo-deny
+          cargo install --force cargo-audit
+          cargo install --force cargo-deny
 
       - name: Security & Dependency Audit
         run: |
           cargo audit
-          cargo deny check
+          cargo deny check --config deny.toml
 
       - name: Lint
         run: cargo clippy --workspace -- -D warnings
@@ -68,11 +68,32 @@ jobs:
       - name: Architecture Guardrails
         run: python3 ops/scripts/check_arch.py
 
+      - name: 100x Master Audit
+        run: python3 ops/scripts/audit_master.py
+
+      - name: Upload Audit Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reports
+          path: docs/planning/audit_results/expanded/
+          retention-days: 30
+
       - name: Build Core/Hive/CLI
         run: cargo build --release --workspace --exclude keyforge-ui
 
       - name: Install just
         uses: extractions/setup-just@v2
+
+      - name: Install Node.js for UI Tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/keyforge-ui/package-lock.json
+
+      - name: Install UI Dependencies
+        run: cd apps/keyforge-ui && npm install
 
       - name: Run Tests
         env:
@@ -99,6 +120,32 @@ jobs:
         run: cd apps/keyforge-ui && npx tsc --noEmit
       - name: Check Formatting
         run: cd apps/keyforge-ui && npx prettier --check .
+
+  test-arm64:
+    name: ARM64 Test Suite
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-arm64-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Physics Tests (NEON)
+        run: |
+          cargo test -p keyforge-physics --lib engines::arm_neon
 
   coverage:
     name: Code Coverage
@@ -130,7 +177,7 @@ jobs:
           DATABASE_TIMEOUT_SECONDS: 15
           RATE_LIMIT_PER_SEC: 100
           SQLX_OFFLINE: true
-        run: cargo tarpaulin --workspace --exclude keyforge-ui --out Xml -- --test-threads 1
+        run: cargo tarpaulin --workspace --exclude keyforge-ui --exclude keyforge-hive --timeout 300 --out Xml -- --test-threads 1
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3

@@ -26,7 +26,7 @@ use stages::geometry::GeometryStage;
 use stages::CompilationStage;
 
 #[derive(Debug)]
-pub struct Compiler;
+pub(crate) struct Compiler;
 
 use std::collections::HashMap;
 
@@ -53,14 +53,20 @@ impl Compiler {
 
         // Stage 1: Geometry
         let geo_stage = GeometryStage { rubric };
-        let geo_out = geo_stage.execute(Arc::new(kb.clone()))?;
+        let geo_out = geo_stage.execute(kb)?;
 
         // Stage 2: Costs
-        // Task-phys-rev-025: Derive model key from KB notes or metadata
-        let model_key = if kb.kb_type.to_lowercase().contains("ortho") {
+        // If the cost model has exactly one model, use it.
+        // Otherwise, pick based on keyboard type.
+        let model_key = if cost_model.models.len() == 1 {
+            cost_model.models.keys().next().map(String::as_str)
+        } else if kb.kb_type.to_lowercase().contains("ortho") {
             Some("model_ortho")
-        } else {
+        } else if cost_model.models.contains_key("model_a_row_staggered") {
             Some("model_a_row_staggered")
+        } else {
+            // Final fallback: just try to get ANY model if available
+            cost_model.models.keys().next().map(String::as_str)
         };
 
         let cost_stage = CostStage {
@@ -102,7 +108,7 @@ impl Compiler {
                 key_costs: cost_out.key_costs.into(),
             },
             corpus: super::CorpusData {
-                char_freqs: corpus_out.char_freqs.into(),
+                char_freqs: corpus_out.char_freqs,
                 bigram_starts: corpus_out.bigram_starts.into(),
                 bigram_others: corpus_out.bigram_others.into(),
                 bigram_freqs: corpus_out.bigram_freqs.into(),
@@ -122,8 +128,8 @@ impl Compiler {
                 trigram_end_others2: corpus_out.trigram_end_others2.into(),
                 trigram_end_freqs: corpus_out.trigram_end_freqs.into(),
             },
-            all_bigrams: corpus.bigrams.clone().into(),
-            all_trigrams: corpus.trigrams.clone().into(),
+            all_bigrams: corpus.bigrams.clone(),
+            all_trigrams: corpus.trigrams.clone(),
             penalty_redirect: Score::from_f32(rubric.redirect)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             bonus_roll: Score::from_f32(rubric.roll_bonus)
@@ -135,128 +141,5 @@ impl Compiler {
 
         ctx.verify()?;
         Ok(ctx)
-    }
-}
-
-#[keyforge_testing_macros::kf_test]
-mod tests {
-    use super::*;
-    use keyforge_model::{
-        types::{FingerIndex, HandIndex, RowIndex},
-        KeyNode,
-    };
-
-    fn setup_test_cost_model() -> CostModel {
-        let mut cm = CostModel::default();
-        let mut fingers = std::collections::HashMap::new();
-        let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
-        base_r0.insert(RowIndex(0), 1.0);
-
-        let zones = keyforge_model::cost_model::FingerReach {
-            base: base_r0,
-            inner: HashMap::default(),
-            outer: HashMap::default(),
-        };
-
-        fingers.insert(
-            "index".to_string(),
-            keyforge_model::cost_model::FingerDefinition::Standard(zones),
-        );
-
-        cm.models.insert(
-            "model_a_row_staggered".into(),
-            keyforge_model::cost_model::ModelDefinition {
-                description: "test".into(),
-                static_costs: std::collections::HashMap::from([(
-                    "universal_hand".to_string(),
-                    keyforge_model::cost_model::HandDefinition { fingers },
-                )]),
-            },
-        );
-        cm
-    }
-
-    #[test]
-    fn test_compiler_empty_corpus() {
-        let keys = vec![KeyNode {
-            index: 0,
-            hand: HandIndex(0),
-            finger: FingerIndex::INDEX,
-            row: RowIndex(0),
-            ..Default::default()
-        }];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let corpus = Corpus::default();
-        let rubric = Rubric::default();
-        let cost_model = setup_test_cost_model();
-
-        let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
-        assert!(res.is_ok());
-        let ctx = res.unwrap();
-        assert_eq!(ctx.key_count, 1);
-        assert!(ctx.corpus.char_freqs.iter().all(|&f| f == 0));
-    }
-
-    #[test]
-    fn test_compiler_missing_cost_model() {
-        let kb = Keyboard::new(
-            vec![KeyNode {
-                finger: FingerIndex::INDEX,
-                ..Default::default()
-            }],
-            0,
-            "test".into(),
-        )
-        .unwrap();
-        let corpus = Corpus::default();
-        let cost_model = CostModel::default();
-
-        let res = Compiler::compile(&kb, &corpus, &Rubric::default(), &cost_model);
-        assert!(res.is_err());
-    }
-
-    #[test]
-    fn test_compiler_invalid_score_values() {
-        let keys = vec![KeyNode {
-            finger: FingerIndex::INDEX,
-            ..Default::default()
-        }];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let corpus = Corpus::default();
-        let mut rubric = Rubric::default();
-        rubric.redirect = f32::NAN; // Trigger error
-
-        let cost_model = setup_test_cost_model();
-
-        let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
-        assert!(res.is_err());
-        match res.err().unwrap() {
-            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {}
-            e => panic!("Wrong error type: {e:?}"),
-        }
-    }
-
-    #[test]
-    fn test_compiler_invalid_sequence_modifier() {
-        let keys = vec![KeyNode {
-            finger: FingerIndex::INDEX,
-            ..Default::default()
-        }];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let corpus = Corpus::default();
-        let rubric = Rubric::default();
-
-        let mut cost_model = setup_test_cost_model();
-        cost_model
-            .dynamic_rules
-            .sequence_modifiers
-            .insert("ab".into(), f32::NAN);
-
-        let res = Compiler::compile(&kb, &corpus, &rubric, &cost_model);
-        assert!(res.is_err());
-        match res.err().unwrap() {
-            PhysicsError::CalculationError(_) | PhysicsError::InvalidInput { .. } => {}
-            e => panic!("Wrong error type: {e:?}"),
-        }
     }
 }

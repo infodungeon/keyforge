@@ -6,13 +6,13 @@ use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 
 #[derive(Debug, Clone)]
-pub struct GenericScoringEngine {
+pub(crate) struct GenericScoringEngine {
     pub(crate) ctx: EngineContext,
 }
 
 impl GenericScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext) -> Self {
+    pub(crate) fn new(ctx: EngineContext) -> Self {
         Self { ctx }
     }
 }
@@ -25,11 +25,7 @@ impl ScoringEngine for GenericScoringEngine {
     fn capabilities(&self) -> EngineCapabilities {
         EngineCapabilities {
             is_exact: false,
-            features: EngineFeatures {
-                supports_avx2: false,
-                supports_neon: false,
-                supports_blocking: false,
-            },
+            features: EngineFeatures::NONE,
         }
     }
 
@@ -40,7 +36,7 @@ impl ScoringEngine for GenericScoringEngine {
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
         crate::kernel::compute::state::with_scratch(|scratch| {
             self.score_with_scratch(layout, scratch)
-        })
+        })?
     }
 
     fn score_with_scratch(
@@ -58,7 +54,8 @@ impl ScoringEngine for GenericScoringEngine {
 
         crate::kernel::compute::state::with_scratch(|scratch| {
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used, _char_usage) = scratch.get_mut_scratch();
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+                scratch.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,
                 key_count,
@@ -82,13 +79,13 @@ impl ScoringEngine for GenericScoringEngine {
             // Clean up scratch for next use (score_layout usually does this, but we called sub-functions)
             scratch.clear_used();
             Ok((mono, bigram, trigram))
-        })
+        })?
     }
 
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        pos_map: &[u16],
+        pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
@@ -100,9 +97,9 @@ impl ScoringEngine for GenericScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(crate::kernel::compute::analyze_layout(
+        crate::kernel::compute::analyze_layout(
             &self.ctx, &validated,
-        ))
+        )
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {

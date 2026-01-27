@@ -2,6 +2,7 @@
 mod integration_tests {
     use super::*;
     use keyforge_infra::net::client::ClientConfig;
+    use keyforge_infra::net::network::{ensure_cost_matrix, ensure_file};
     use keyforge_infra::*;
     use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
     use sha2::{Digest, Sha256};

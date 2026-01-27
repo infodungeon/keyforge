@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO keyboards (name, author, version, notes, kb_type, home_row, unique_hash)\n            VALUES ($1, $2, $3, $4, $5, $6, $7)\n            ON CONFLICT (unique_hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP\n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "209b09a73b891aeed74caf6469bdce6c64d64474030e49b254b01c59803d085d"
+}

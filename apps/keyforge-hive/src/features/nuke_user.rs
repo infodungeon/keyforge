@@ -46,7 +46,8 @@ pub struct NukeRequest {
     tag = "user"
 )]
 /// Handles a request to permanently delete all data associated with a user account.
-pub async fn handle(
+#[tracing::instrument(skip_all)]
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<NukeRequest>,
 ) -> AppResult<String> {

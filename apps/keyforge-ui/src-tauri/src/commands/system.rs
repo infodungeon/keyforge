@@ -43,7 +43,7 @@ pub async fn cmd_check_hive_health(hive_url: String) -> Result<String, CommandEr
         accept_invalid_certs: true,
         ..Default::default()
     };
-    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config)?;
 
     let resp = client
         .get("health")

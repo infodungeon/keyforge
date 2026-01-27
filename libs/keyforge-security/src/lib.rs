@@ -33,8 +33,11 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub enum SecurityError {
     /// Failed to encode or decode a cryptographic primitive (e.g., hex string parsing).
     #[error("Encoding Error: {0}")]
-    Encoding(String),
-    /// An issue with a secret or public key (e.g., invalid length or format).
+    Encoding(#[from] hex::FromHexError),
+    /// An issue with a dalek secret or public key.
+    #[error("Dalek Key Error: {0}")]
+    Dalek(#[from] ed25519_dalek::SignatureError),
+    /// A general key-related error.
     #[error("Key Error: {0}")]
     Key(String),
     /// Failed to create or verify a digital signature.
@@ -161,8 +164,7 @@ pub fn sign_result_fixed(
 ) -> SecurityResult<String> {
     let secret_hex = secret_hex.trim();
     let mut key_buf = [0u8; 32];
-    hex::decode_to_slice(secret_hex, &mut key_buf)
-        .map_err(|_| SecurityError::Encoding("Invalid secret key hex".into()))?;
+    hex::decode_to_slice(secret_hex, &mut key_buf)?;
 
     let signing_key = SigningKey::from_bytes(&key_buf);
     key_buf.zeroize();
@@ -176,7 +178,7 @@ pub fn sign_result_fixed(
 /// Returns the hex-encoded signature string.
 ///
 /// # Errors
-/// Returns `SecurityError::Encoding` if the secret key is not a valid 64-character hex string.
+/// Returns `SecurityError` if the secret key is not a valid 64-character hex string.
 pub fn sign_result(
     secret_hex: &str,
     job_id: &str,
@@ -228,25 +230,22 @@ pub fn verify_result_fixed(
     let public_hex = public_hex.trim();
     let signature_hex = signature_hex.trim();
 
-    let public_bytes = hex::decode(public_hex)
-        .map_err(|_| SecurityError::Encoding("Invalid public key hex".into()))?;
+    let public_bytes = hex::decode(public_hex)?;
 
     let verifying_key = VerifyingKey::from_bytes(
         public_bytes
             .as_slice()
             .try_into()
-            .map_err(|_| SecurityError::Key("Invalid key length".into()))?,
-    )
-    .map_err(|e| SecurityError::Key(e.to_string()))?;
+            .map_err(|_| SecurityError::Key("Invalid public key length".into()))?,
+    )?;
 
-    let signature_bytes = hex::decode(signature_hex)
-        .map_err(|_| SecurityError::Encoding("Invalid signature hex".into()))?;
+    let signature_bytes = hex::decode(signature_hex)?;
 
     let signature = Signature::from_bytes(
         signature_bytes
             .as_slice()
             .try_into()
-            .map_err(|_| SecurityError::Signature("Invalid signature length".into()))?,
+            .map_err(|_| SecurityError::Key("Invalid signature length".into()))?,
     );
 
     let payload = build_payload(job_id, layout, score_fixed, timestamp, nonce);
@@ -438,7 +437,8 @@ mod tests {
 
     #[test]
     fn test_security_error_display() {
-        assert!(format!("{}", SecurityError::Encoding("e".into())).contains("Encoding Error"));
+        let hex_err = hex::FromHexError::InvalidHexCharacter { c: 'g', index: 0 };
+        assert!(format!("{}", SecurityError::Encoding(hex_err)).contains("Encoding Error"));
         assert!(format!("{}", SecurityError::Key("k".into())).contains("Key Error"));
         assert!(format!("{}", SecurityError::Signature("s".into())).contains("Signature Error"));
     }

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE jobs\n            SET \n                status = CASE \n                    WHEN retry_count >= $2 THEN 'failed' \n                    ELSE 'active' \n                END,\n                node_id = NULL,\n                started_at = NULL,\n                retry_count = retry_count + 1\n            WHERE \n                status = 'processing' \n                AND (\n                    (node_id IS NULL AND started_at < NOW() - make_interval(mins => $1))\n                    OR node_id IN (SELECT id FROM nodes WHERE last_seen < NOW() - make_interval(mins => $1))\n                )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "87f019c12ed874c947e6838c1f66f4d79d353e7d032d69a5fb5554f1f1f59bc7"
+}

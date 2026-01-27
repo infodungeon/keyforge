@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use keyforge_model::{Corpus, Keyboard, Rubric, layout::Layout};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_physics::ScoringEngine;
