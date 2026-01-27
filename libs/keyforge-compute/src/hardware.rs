@@ -1,4 +1,6 @@
 // libs/keyforge-compute/src/hardware.rs
+// Hardware probing requires low-level system calls and pointer manipulation
+#![allow(unsafe_code)]
 
 use keyforge_physics::EngineConfig;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

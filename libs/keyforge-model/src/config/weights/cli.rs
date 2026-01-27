@@ -2,6 +2,7 @@
 #![cfg(feature = "cli")]
 
 use super::config::ScoringWeights;
+use crate::validator::Validator;
 
 /// CLI arguments mirroring `ScoringWeights`.
 #[derive(clap::Args, Debug, Clone)]

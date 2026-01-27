@@ -1,9 +1,9 @@
 // libs/keyforge-model/src/config/search/params.rs
+use super::constants::*;
 use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use super::constants::*;
 
 /// Parameters controlling the Simulated Annealing algorithm.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -87,7 +87,7 @@ impl Validator for SearchParams {
             return Err("temp_min too low (underflow risk)".into());
         }
         if self.get_temp_min() >= self.get_temp_max() {
-             return Err("temp_min must be < temp_max".into());
+            return Err("temp_min must be < temp_max".into());
         }
         if self.get_search_patience_threshold() < 0.0 || self.get_search_patience_threshold() > 1.0
         {
