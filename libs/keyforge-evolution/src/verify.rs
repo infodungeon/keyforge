@@ -80,7 +80,7 @@ mod tests {
         let res1 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
         let res2 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
 
-        assert_eq!(res1.layout.keys, res2.layout.keys);
+        assert_eq!(res1.layout.keys(), res2.layout.keys());
         assert_eq!(res1.score, res2.score);
     }
 }

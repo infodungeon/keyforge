@@ -27,7 +27,6 @@ use utoipa::ToSchema;
 #[serde(default)]
 pub struct ScoringWeights {
     /// Dynamic weights map.
-    #[serde(flatten)]
     pub weights: std::collections::HashMap<String, f32>,
 
     /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).

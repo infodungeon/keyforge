@@ -27,8 +27,10 @@ pub mod verify;
 
 // --- RE-EXPORTS ---
 
-pub use analysis::fingerprint::{Fingerprinter, LayoutIdentity};
+// --- RE-EXPORTS ---
+
 pub use analysis::heuristics::suggest_swaps;
+pub use keyforge_model::layout::LayoutIdentity;
 
 // Re-export unified engine configuration
 pub use keyforge_model::config::EngineConfig;
@@ -222,7 +224,7 @@ impl EngineFactory {
 /// Identifies a layout by comparing it to known standards.
 #[instrument(skip_all)]
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
-    Fingerprinter::identify(layout)
+    layout.identify()
 }
 
 /// Analyzes a layout and returns a detailed report.
@@ -265,7 +267,7 @@ pub fn analyze_with_context(
         return engine.analyze(layout);
     }
 
-    let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
+    let validated = ValidatedLayout::new(layout.keys(), ctx.key_count)?;
     kernel::compute::analyze_layout(ctx, &validated)
 }
 

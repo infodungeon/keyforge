@@ -39,8 +39,9 @@ pub fn run(args: &FmtArgs, _root: &Path) -> Result<(), Box<dyn std::error::Error
     .map_err(|e| format!("Failed to parse layout: {e}"))?;
 
     let valid_codes: Vec<KeyCode> = layout
-        .keys
-        .into_iter()
+        .keys()
+        .iter()
+        .copied()
         .filter(|&c| c != KeyCode(0))
         .collect();
 

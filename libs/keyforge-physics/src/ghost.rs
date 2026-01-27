@@ -221,7 +221,7 @@ impl GhostScorer {
     #[allow(clippy::unused_self)]
     fn find_all_positions(&self, layout: &Layout, code: KeyCode) -> Vec<usize> {
         layout
-            .keys
+            .keys()
             .iter()
             .enumerate()
             .filter(|(_, &k)| k == code)

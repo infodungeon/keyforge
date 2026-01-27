@@ -101,21 +101,24 @@ fn evolve_internal<CB: ProgressCallback>(
     });
 
     // Guardrail: Ensure layout matches engine geometry
-    if layout.keys.len() != engine.key_count() {
+    if layout.len() != engine.key_count() {
         return Err(EvolutionError::Config(format!(
             "Initial layout size {} does not match engine key count {}",
-            layout.keys.len(),
+            layout.len(),
             engine.key_count()
         )));
     }
 
     // Apply pinned keys to the initial layout if provided
     if let Some(pinned) = pinned_keys {
+        use keyforge_model::KeyIndex;
         for (i, &p) in pinned.iter().enumerate() {
             if let Some(code) = p {
-                if i < layout.keys.len() {
-                    if let Some(pos) = layout.keys.iter().position(|&k| k == code) {
-                        layout.keys.swap(i, pos);
+                if i < layout.len() {
+                    if let Some(pos) = layout.keys().iter().position(|&k| k == code) {
+                        layout
+                            .swap(KeyIndex(i as u16), KeyIndex(pos as u16))
+                            .expect("Swap failure while applying pinned keys");
                     } else {
                         return Err(EvolutionError::Config(format!(
                             "Pinned key {code} not found in initial layout"

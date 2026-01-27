@@ -1,6 +1,5 @@
 // libs/keyforge-physics/src/analysis/mod.rs
 
-pub mod fingerprint;
 pub mod heuristics;
 
 use crate::error::PhysicsError;
@@ -9,12 +8,13 @@ use crate::kernel::EngineContext;
 use keyforge_model::{AnalysisReport, Layout, SwapSuggestion};
 use tracing::instrument;
 
-pub use fingerprint::{Fingerprinter, LayoutIdentity};
 pub use heuristics::suggest_swaps;
+pub use keyforge_model::layout::LayoutIdentity;
 
+/// Identifies a layout by comparing it to known standards.
 #[instrument]
 pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
-    Fingerprinter::identify(layout)
+    layout.identify()
 }
 
 /// Analyzes a layout and returns a detailed ergonomic report.
@@ -25,7 +25,7 @@ pub fn analyze_with_context(
     ctx: &EngineContext,
     layout: &Layout,
 ) -> Result<AnalysisReport, PhysicsError> {
-    let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
+    let validated = ValidatedLayout::new(layout.keys(), ctx.key_count)?;
     crate::kernel::compute::analyze_layout(ctx, &validated)
 }
 
@@ -48,7 +48,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    fn setup_minimal() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>) {
+    fn setup_minimal() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<Arc<CostModel>>) {
         let keys = vec![
             KeyNode {
                 index: 0,
@@ -98,13 +98,13 @@ mod tests {
                 )]),
             },
         );
-        (kb, corpus, rubric, Arc::new(cm))
+        (kb, corpus, rubric, Arc::new(Arc::new(cm)))
     }
 
     #[test]
     fn test_identify_qwerty() {
         let qwerty = "Q W E R T Y U I O P A S D F G H J K L Z X C V B N M";
-        let reg = keyforge_model::KeycodeRegistry::new_with_alphas();
+        let reg = keyforge_model::keycodes::KeycodeRegistry::new_with_alphas();
         let layout = keyforge_adapter::conversion::parse_layout_string(qwerty, 30, &reg).unwrap();
 
         let identity = identify(&layout);
@@ -119,7 +119,7 @@ mod tests {
             keyboard,
             corpus,
             rubric,
-            cost_model,
+            cost_model: (*cost_model).clone(),
             engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();

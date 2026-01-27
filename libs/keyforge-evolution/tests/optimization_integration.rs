@@ -157,8 +157,8 @@ mod integration_tests {
             pinned_keys: pinned,
         };
         let result = optimize(&req).unwrap();
-        assert_eq!(result.layout.keys[0], KeyCode(2));
-        assert_eq!(result.layout.keys[2], KeyCode(0));
+        assert_eq!(result.layout.keys()[0], KeyCode(2));
+        assert_eq!(result.layout.keys()[2], KeyCode(0));
     }
 
     #[test]
@@ -196,7 +196,7 @@ mod integration_tests {
             &req.cost_model,
         );
         let raw_score = scorer
-            .score(&req.keyboard, &req.corpus, result.layout.keys.as_slice())
+            .score(&req.keyboard, &req.corpus, result.layout.keys())
             .expect("Oracle scoring failed");
 
         // Normalize logic from physics/lib.rs

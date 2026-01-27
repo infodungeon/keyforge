@@ -63,10 +63,15 @@ impl GhostOptimizer {
         for _ in 0..steps {
             // 1. Mutate (Simple random swap)
             let mut next_layout = current_layout.clone();
-            let a = rng.random_range(0..next_layout.keys.len());
-            let b = rng.random_range(0..next_layout.keys.len());
-            next_layout.keys.swap(a, b);
-
+            let len = next_layout.len();
+            let a = rng.random_range(0..len);
+            let b = rng.random_range(0..len);
+            next_layout
+                .swap(
+                    keyforge_model::types::KeyIndex(a as u16),
+                    keyforge_model::types::KeyIndex(b as u16),
+                )
+                .unwrap();
             // 2. Score
             let next_score = engine
                 .score(&next_layout)

@@ -9,7 +9,6 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SearchParams {
     /// Dynamic parameters map.
-    #[serde(flatten)]
     pub params: std::collections::HashMap<String, f32>,
     /// Random seed for deterministic replay (Optional).
     #[serde(default, skip_serializing_if = "Option::is_none")]

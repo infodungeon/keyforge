@@ -51,7 +51,7 @@ mod integration_tests {
 
                 // 1. Oracle (Ground Truth)
                 let oracle = DeterministicScorer::new(&kb, &rubric, &cost_model);
-                let oracle_score = oracle.score(&kb, &corpus, &layout.keys).unwrap_or(0); // Handle overflow in fuzzing
+                let oracle_score = oracle.score(&kb, &corpus, &layout.keys()).unwrap_or(0); // Handle overflow in fuzzing
 
                 // 2. Optimized Engine (System Under Test)
                 let ctx = EngineCompilationContext {

@@ -96,7 +96,7 @@ pub struct LayoutDto {
 impl From<keyforge_model::Layout> for LayoutDto {
     fn from(val: keyforge_model::Layout) -> Self {
         Self {
-            keys: val.keys.iter().map(|k| (*k).into()).collect(),
+            keys: val.keys().iter().map(|k| (*k).into()).collect(),
         }
     }
 }

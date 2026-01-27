@@ -45,7 +45,7 @@ impl ScoringEngine for IntelScoringEngine {
         layout: &Layout,
         scratch: &mut PhysicsScratch,
     ) -> Result<Score, PhysicsError> {
-        let v = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let v = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         if is_x86_feature_detected!("avx2") {
             // SAFETY: We have explicitly verified the presence of AVX2 extensions via cpuid before execution.
@@ -56,7 +56,7 @@ impl ScoringEngine for IntelScoringEngine {
         score_layout_scalar(&self.ctx, &v, scratch).map(Score)
     }
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        let v = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let v = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         let layout_slice = v.as_slice();
 
         crate::kernel::compute::state::with_scratch(|s| {
@@ -92,7 +92,7 @@ impl ScoringEngine for IntelScoringEngine {
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let v = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let v = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
 
         crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
@@ -115,7 +115,7 @@ impl ScoringEngine for IntelScoringEngine {
         })?
     }
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
-        let v = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let v = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         crate::kernel::compute::analyze_layout(&self.ctx, &v)
     }
     fn suggest_improvements(&self, layout: &Layout, thumbs: bool) -> Vec<SwapSuggestion> {
@@ -529,14 +529,12 @@ mod tests {
         )
         .unwrap();
         let engine = IntelScoringEngine::new(ctx.clone(), None);
-        let layout = Layout {
-            keys: vec![KeyCode(97), KeyCode(98), KeyCode(99)],
-        };
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
         assert_eq!(
             engine.score(&layout).unwrap().0,
             score_layout_scalar(
                 &ctx,
-                &ValidatedLayout::new(&layout.keys, 3).unwrap(),
+                &ValidatedLayout::new(layout.keys(), 3).unwrap(),
                 &mut PhysicsScratch::try_new().unwrap()
             )
             .unwrap()
