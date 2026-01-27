@@ -17,7 +17,7 @@ pub(crate) struct ExactScoringEngine {
 
 impl ExactScoringEngine {
     #[must_use]
-    pub fn new(
+    pub(crate) fn new(
         keyboard: Arc<Keyboard>,
         corpus: Arc<Corpus>,
         rubric: &Rubric,
@@ -72,7 +72,7 @@ impl ScoringEngine for ExactScoringEngine {
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        pos_map: &[u16],
+        pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
@@ -86,7 +86,7 @@ impl ScoringEngine for ExactScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(analyze_layout(&self.ctx, &validated))
+        analyze_layout(&self.ctx, &validated)
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {

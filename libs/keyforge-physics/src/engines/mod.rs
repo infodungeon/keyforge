@@ -82,7 +82,7 @@ pub trait ScoringEngine: Send + Sync + std::fmt::Debug {
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        pos_map: &[u16],
+        pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError>;

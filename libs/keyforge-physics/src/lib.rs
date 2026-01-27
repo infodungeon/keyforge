@@ -266,7 +266,7 @@ pub fn analyze_with_context(
     }
 
     let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
-    Ok(kernel::compute::analyze_layout(ctx, &validated))
+    kernel::compute::analyze_layout(ctx, &validated)
 }
 
 /// Suggests improvements for the layout.

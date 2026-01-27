@@ -16,7 +16,7 @@ pub(crate) struct ArmSveScoringEngine {
 
 impl ArmSveScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
+    pub(crate) fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
         Self {
             ctx,
             _config: config.unwrap_or_default(),
@@ -41,13 +41,9 @@ impl ScoringEngine for ArmSveScoringEngine {
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
-            self.score_with_scratch(layout, &mut s)
-        })
+        crate::kernel::compute::state::with_scratch(|scratch| {
+            self.score_with_scratch(layout, scratch)
+        })?
     }
 
     fn score_with_scratch(
@@ -70,14 +66,10 @@ impl ScoringEngine for ArmSveScoringEngine {
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
 
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
+        crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
             let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
                 s.get_mut_scratch();
@@ -101,23 +93,19 @@ impl ScoringEngine for ArmSveScoringEngine {
             let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
             s.clear_used();
             Ok((mono, bigram, trigram))
-        })
+        })?
     }
 
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        _pos_map: &[u16],
+        _pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
 
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
+        crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
             let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
                 s.get_mut_scratch();
@@ -133,17 +121,17 @@ impl ScoringEngine for ArmSveScoringEngine {
 
             let delta = crate::kernel::compute::calculate_swap_delta(
                 &self.ctx, &validated, &pm, idx_a, idx_b,
-            );
+            )?;
             s.clear_used();
-            delta
-        })
+            Ok(delta)
+        })?
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(crate::kernel::compute::analyze_layout(
+        crate::kernel::compute::analyze_layout(
             &self.ctx, &validated,
-        ))
+        )
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
@@ -217,7 +205,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into())?;
+        let kb = Keyboard::new(keys, RowIndex(0), "test".into())?;
         let mut corpus = Corpus::default();
         let mut freqs = corpus.char_freqs.to_vec();
         freqs[97] = 100;
@@ -238,7 +226,7 @@ mod tests {
         let scalar_score = score_layout_scalar(
             &ctx,
             &ValidatedLayout::new(&layout.keys, 3)?,
-            &mut PhysicsScratch::new(),
+            &mut PhysicsScratch::try_new().unwrap(),
         )?;
 
         assert_eq!(

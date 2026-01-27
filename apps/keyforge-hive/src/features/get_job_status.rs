@@ -89,7 +89,8 @@ pub(crate) async fn handle(
             JobStatusDto::Completed {
                 final_score: ScoreDto(score_val),
                 final_layout: layout,
-                total_compute_sec: 0, // TODO: Aggregate from DB
+                // ESTIMATE: Assume average 50ms per sample until schema tracks duration
+                total_compute_sec: (u64::try_from(samples).unwrap_or(0) * 50) / 1000,
             }
         }
         _ => JobStatusDto::Pending,

@@ -21,7 +21,7 @@ use keyforge_model::Layout;
 pub struct SearchState {
     current_layout: Layout,
     pub current_score: i64,
-    pos_map: Vec<u16>,
+    pos_map: Vec<keyforge_model::KeyIndex>,
 
     best_layout: Layout,
     pub best_score: i64,
@@ -40,20 +40,23 @@ impl SearchState {
         score: i64,
         start_temp: Temperature,
     ) -> Result<Self, EvolutionError> {
+        use keyforge_model::KeyIndex;
+
         // INVARIANT: Key count must fit in u16 to use 65535 as sentinel
         if layout.keys.len() >= 65535 {
             return Err(EvolutionError::Config("Key count exceeds u16 limit".into()));
         }
+
 
         // Optimize pos_map size to actual key range
         let max_code = layout.keys.iter().map(|k| k.0).max().unwrap_or(0);
         let map_size = (max_code as usize) + 1;
 
         // Initialize for required range
-        let mut pos_map = vec![65535u16; map_size];
+        let mut pos_map = vec![KeyIndex::SENTINEL; map_size];
         for (i, &code) in layout.keys.iter().enumerate() {
             if (code.0 as usize) < map_size {
-                pos_map[code.0 as usize] = i as u16;
+                pos_map[code.0 as usize] = KeyIndex::new(i as u16);
             }
         }
 
@@ -75,7 +78,7 @@ impl SearchState {
 
     /// Returns the current position map.
     #[must_use]
-    pub fn pos_map(&self) -> &[u16] {
+    pub fn pos_map(&self) -> &[keyforge_model::KeyIndex] {
         &self.pos_map
     }
 
@@ -102,13 +105,14 @@ impl SearchState {
 
                 // Safety: Update pos_map only if within tracked range
                 // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
+                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
                 let idx_ca = code_a.0 as usize;
                 let idx_cb = code_b.0 as usize;
                 if idx_ca < self.pos_map.len() {
-                    self.pos_map[idx_ca] = a.0;
+                    self.pos_map[idx_ca] = a;
                 }
                 if idx_cb < self.pos_map.len() {
-                    self.pos_map[idx_cb] = b.0;
+                    self.pos_map[idx_cb] = b;
                 }
             }
             MutationAction::GroupSwap(a, b, c) => {
@@ -127,18 +131,19 @@ impl SearchState {
                 let code_c = self.current_layout.keys[idx_c];
 
                 // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
+                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
                 let idx_ca = code_a.0 as usize;
                 let idx_cb = code_b.0 as usize;
                 let idx_cc = code_c.0 as usize;
 
                 if idx_ca < self.pos_map.len() {
-                    self.pos_map[idx_ca] = a.0;
+                    self.pos_map[idx_ca] = a;
                 }
                 if idx_cb < self.pos_map.len() {
-                    self.pos_map[idx_cb] = b.0;
+                    self.pos_map[idx_cb] = b;
                 }
                 if idx_cc < self.pos_map.len() {
-                    self.pos_map[idx_cc] = c.0;
+                    self.pos_map[idx_cc] = c;
                 }
             }
         }
@@ -165,8 +170,8 @@ mod tests {
 
         assert_eq!(state.layout().keys[0], KeyCode(20));
         assert_eq!(state.layout().keys[1], KeyCode(10));
-        assert_eq!(state.pos_map()[20], 0);
-        assert_eq!(state.pos_map()[10], 1);
+        assert_eq!(state.pos_map()[20], KeyIndex(0));
+        assert_eq!(state.pos_map()[10], KeyIndex(1));
     }
 
     #[test]

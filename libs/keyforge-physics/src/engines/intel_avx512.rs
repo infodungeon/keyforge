@@ -6,7 +6,7 @@ use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::{types::ValidatedLayout, EngineContext};
 use crate::PhysicsError;
 use keyforge_model::config::EngineConfig;
-use keyforge_model::{AnalysisReport, KeyCode, Layout, Score, SwapSuggestion};
+use keyforge_model::{AnalysisReport, Layout, Score, SwapSuggestion};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Avx512ScoringEngine {
@@ -16,7 +16,7 @@ pub(crate) struct Avx512ScoringEngine {
 
 impl Avx512ScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
+    pub(crate) fn new(ctx: EngineContext, config: Option<EngineConfig>) -> Self {
         Self {
             ctx,
             config: config.unwrap_or_default(),
@@ -38,8 +38,9 @@ impl ScoringEngine for Avx512ScoringEngine {
         self.ctx.key_count
     }
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        std::thread_local! { static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new()); }
-        SCRATCH.with(|scratch| self.score_with_scratch(layout, &mut scratch.borrow_mut()))
+        crate::kernel::compute::state::with_scratch(|scratch| {
+            self.score_with_scratch(layout, scratch)
+        })?
     }
     fn score_with_scratch(
         &self,
@@ -62,52 +63,68 @@ impl ScoringEngine for Avx512ScoringEngine {
         score_layout_scalar(&self.ctx, &validated, scratch).map(Score)
     }
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        let mut scratch = PhysicsScratch::new();
-        let (starts, counts, indices, offsets, used, _, _) = scratch.get_mut_scratch();
-        let pm = PosMap::from_scratch(
-            validated.as_slice(),
-            self.ctx.key_count,
-            starts,
-            counts,
-            indices,
-            offsets,
-            used,
-        );
-        let e_ctx = crate::kernel::EvaluationContext {
-            engine: &self.ctx,
-            pos_map: &pm,
-        };
-        Ok((
-            crate::kernel::compute::scoring::score_monograms(&e_ctx)?.0,
-            crate::kernel::compute::scoring::score_bigrams(&e_ctx)?.0,
-            crate::kernel::compute::scoring::score_trigrams(&e_ctx)?.0,
-        ))
+        let v = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let layout_slice = v.as_slice();
+
+        crate::kernel::compute::state::with_scratch(|s| {
+            let key_count = self.ctx.key_count;
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+                s.get_mut_scratch();
+            let pm = PosMap::from_scratch(
+                layout_slice,
+                key_count,
+                starts,
+                counts,
+                indices,
+                offsets,
+                used,
+            );
+
+            let eval_ctx = crate::kernel::EvaluationContext {
+                engine: &self.ctx,
+                pos_map: &pm,
+            };
+
+            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.0;
+            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.0;
+            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
+            s.clear_used();
+            Ok((mono, bigram, trigram))
+        })?
     }
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        _: &[u16],
+        _pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        let mut scratch = PhysicsScratch::new();
-        let (starts, counts, indices, offsets, used, _, _) = scratch.get_mut_scratch();
-        let pm = PosMap::from_scratch(
-            validated.as_slice(),
-            self.ctx.key_count,
-            starts,
-            counts,
-            indices,
-            offsets,
-            used,
-        );
-        crate::kernel::compute::calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b)
+
+        crate::kernel::compute::state::with_scratch(|s| {
+            let key_count = self.ctx.key_count;
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+                s.get_mut_scratch();
+            let pm = PosMap::from_scratch(
+                validated.as_slice(),
+                key_count,
+                starts,
+                counts,
+                indices,
+                offsets,
+                used,
+            );
+
+            let delta = crate::kernel::compute::calculate_swap_delta(
+                &self.ctx, &validated, &pm, idx_a, idx_b,
+            )?;
+            s.clear_used();
+            Ok(delta)
+        })?
     }
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let v = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(crate::kernel::compute::analyze_layout(&self.ctx, &v))
+        crate::kernel::compute::analyze_layout(&self.ctx, &v)
     }
     fn suggest_improvements(&self, layout: &Layout, thumbs: bool) -> Vec<SwapSuggestion> {
         crate::analysis::heuristics::suggest_swaps(&self.ctx, layout, thumbs)
@@ -143,21 +160,16 @@ unsafe fn score_layout_avx512(
         used,
     );
     for &code in pm.used_keys() {
-        let c = code as usize;
-        let c = KeyCode(c.try_into().unwrap_or_default());
-        let cand = pm.get(c);
+        let cand = pm.get(code);
         if !cand.is_empty() {
-            flat_map[c.0 as usize] = cand[0];
+            flat_map[code.0 as usize] = cand[0];
         }
     }
     let e_ctx = crate::kernel::EvaluationContext {
         engine: ctx,
         pos_map: &pm,
     };
-    let is_simple = pm
-        .used_keys()
-        .iter()
-        .all(|&c| pm.get(KeyCode(c)).len() == 1)
+    let is_simple = pm.used_keys().iter().all(|&c| pm.get(c).len() == 1)
         && ctx.sequence_modifiers.is_empty();
     let total = if is_simple {
         score_simple_avx512(&e_ctx, flat_map)?
@@ -172,7 +184,7 @@ unsafe fn score_layout_avx512(
 #[target_feature(enable = "avx512f,avx512dq,avx512bw")]
 unsafe fn score_simple_avx512(
     ctx: &crate::kernel::EvaluationContext<'_>,
-    flat_map: &[u16],
+    flat_map: &[keyforge_model::types::KeyIndex],
 ) -> Result<i64, PhysicsError> {
     let s1 = score_monograms_avx512(ctx, flat_map)?;
     let s2 = score_bigrams_avx512(ctx, flat_map, s1)?;
@@ -183,13 +195,13 @@ unsafe fn score_simple_avx512(
 #[target_feature(enable = "avx512f,avx512dq,avx512bw")]
 unsafe fn score_monograms_avx512(
     ctx: &crate::kernel::EvaluationContext<'_>,
-    flat_map: &[u16],
+    flat_map: &[keyforge_model::types::KeyIndex],
 ) -> Result<i64, PhysicsError> {
     let mut total_score = 0i64;
     for &code in ctx.pos_map.used_keys() {
-        let freq = ctx.engine.corpus.char_freqs[code as usize];
-        let p = flat_map[code as usize];
-        let cost = ctx.engine.geometry.key_costs[p as usize];
+        let freq = ctx.engine.corpus.char_freqs[code.0 as usize];
+        let p = flat_map[code.0 as usize];
+        let cost = ctx.engine.geometry.key_costs[p.as_usize()];
         #[allow(clippy::cast_possible_wrap)]
         let f_i64 = freq as i64;
         total_score =
@@ -210,7 +222,7 @@ unsafe fn score_monograms_avx512(
 #[target_feature(enable = "avx512f,avx512dq,avx512bw")]
 unsafe fn score_bigrams_avx512(
     ctx: &crate::kernel::EvaluationContext<'_>,
-    flat_map: &[u16],
+    flat_map: &[keyforge_model::types::KeyIndex],
     mut total_score: i64,
 ) -> Result<i64, PhysicsError> {
     use std::arch::x86_64::{
@@ -220,9 +232,9 @@ unsafe fn score_bigrams_avx512(
     let key_count = u16::try_from(ctx.engine.key_count).unwrap_or(u16::MAX);
     let key_count_usize = usize::from(key_count);
     for &code1 in ctx.pos_map.used_keys() {
-        let p1 = flat_map[code1 as usize] as usize;
-        let start = ctx.engine.corpus.bigram_starts[code1 as usize];
-        let end = ctx.engine.corpus.bigram_starts[code1 as usize + 1];
+        let p1 = flat_map[code1.0 as usize].as_usize();
+        let start = ctx.engine.corpus.bigram_starts[code1.0 as usize];
+        let end = ctx.engine.corpus.bigram_starts[code1.0 as usize + 1];
         let mut row_sum = _mm512_setzero_si512();
         let costs_ptr = ctx
             .engine
@@ -239,9 +251,9 @@ unsafe fn score_bigrams_avx512(
             for i in 0..8 {
                 // SAFETY: others_ptr is derived from a ValidatedLayout, and k+i < end ensures we stay within bounds of the bigram data.
                 let p2 = unsafe { flat_map[others_ptr.add(k + i).read().0 as usize] };
-                if p2 < key_count {
+                if p2.as_usize() < key_count_usize {
                     mask |= 1 << i;
-                    indices[i] = i32::from(p2);
+                    indices[i] = i32::from(p2.raw());
                 }
             }
             let p2_v = _mm256_loadu_si256(indices.as_ptr().cast());
@@ -267,12 +279,12 @@ unsafe fn score_bigrams_avx512(
         while k < end {
             // SAFETY: Manual fallback loop for remaining bigrams. Bounds are guaranteed by 'end'.
             let p2 = unsafe { flat_map[others_ptr.add(k).read().0 as usize] };
-            if p2 < key_count {
+            if p2.as_usize() < key_count_usize {
                 total_score = total_score
                     .checked_add(
                         // SAFETY: others_ptr and freqs_ptr are valid at offset k.
                         i64::from(unsafe { freqs_ptr.add(k).read() })
-                            * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2 as usize].0,
+                            * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2.as_usize()].0,
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: "AVX-512 Bigram rem".into(),
@@ -288,7 +300,7 @@ unsafe fn score_bigrams_avx512(
 #[target_feature(enable = "avx512f,avx512dq,avx512bw")]
 unsafe fn score_trigrams_avx512(
     ctx: &crate::kernel::EvaluationContext<'_>,
-    flat_map: &[u16],
+    flat_map: &[keyforge_model::types::KeyIndex],
     mut total_score: i64,
 ) -> Result<i64, PhysicsError> {
     use std::arch::x86_64::{
@@ -302,21 +314,20 @@ unsafe fn score_trigrams_avx512(
     }
     let flow_table = build_flow_table_avx512(ctx);
     let mut type_map = vec![255u8; 65536].into_boxed_slice();
-    let limit = u16::try_from(key_count_usize).unwrap_or(u16::MAX);
     for &code in ctx.pos_map.used_keys() {
-        let p = flat_map[code as usize];
-        if p < limit {
-            type_map[code as usize] = pos_types[p as usize];
+        let p = flat_map[code.0 as usize];
+        if p.as_usize() < key_count_usize {
+            type_map[code.0 as usize] = pos_types[p.as_usize()];
         }
     }
     for &code1 in ctx.pos_map.used_keys() {
-        let t1 = type_map[code1 as usize];
+        let t1 = type_map[code1.0 as usize];
         if t1 == 255 {
             continue;
         }
         let (start, end, t1_off) = (
-            ctx.engine.corpus.trigram_starts[code1 as usize],
-            ctx.engine.corpus.trigram_starts[code1 as usize + 1],
+            ctx.engine.corpus.trigram_starts[code1.0 as usize],
+            ctx.engine.corpus.trigram_starts[code1.0 as usize + 1],
             (t1 as usize) * 100,
         );
         let mut row_sum = _mm512_setzero_si512();
@@ -448,7 +459,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into())?;
+        let kb = Keyboard::new(keys, RowIndex(0), "test".into())?;
         let mut corpus = Corpus::default();
         let mut f = corpus.char_freqs.to_vec();
         f[97] = 100;
@@ -471,7 +482,7 @@ mod tests {
             score_layout_scalar(
                 &ctx,
                 &ValidatedLayout::new(&layout.keys, 3)?,
-                &mut PhysicsScratch::new()
+                &mut PhysicsScratch::try_new().unwrap()
             )?
         );
         Ok(())

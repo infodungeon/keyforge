@@ -13,6 +13,9 @@ use utoipa::ToSchema;
 pub struct KeyIndex(pub u16);
 
 impl KeyIndex {
+    /// Sentinel value for "Not Found" or "Unitialized".
+    pub const SENTINEL: KeyIndex = KeyIndex(65535);
+
     /// Creates a new `KeyIndex`.
     #[must_use]
     pub const fn new(val: u16) -> Self {

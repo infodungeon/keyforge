@@ -229,6 +229,7 @@ mod tests {
     use super::*;
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
     use keyforge_model::KeyNode;
+    use std::sync::Arc;
 
     fn setup_kb_pair() -> Keyboard {
         let keys = vec![
@@ -266,7 +267,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        Keyboard::new(keys, 0, "test".into()).unwrap()
+        Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap()
     }
 
     #[test]
@@ -297,7 +298,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
         let rubric = Rubric::default();
 
         let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();

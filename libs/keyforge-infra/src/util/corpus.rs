@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,7 +29,7 @@ use std::sync::Arc;
 pub fn populate_corpus_from_segments(
     corpus: &mut Corpus,
     weight: f32,
-    segments: Vec<(&str, Vec<Value>)>, // This line was changed
+    segments: Vec<(&str, Vec<Value>)>,
 ) -> LoaderResult<()> {
     for (stem, part) in segments {
         match stem {

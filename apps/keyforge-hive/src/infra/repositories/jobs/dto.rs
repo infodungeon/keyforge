@@ -140,7 +140,7 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
                 prime_slots,
                 med_slots,
                 low_slots,
-                home_row: i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0),
+                home_row: RowIndex(i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0)),
             },
             layouts: HashMap::new(),
         };

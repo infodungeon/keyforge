@@ -40,7 +40,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
         let mut cm = CostModel::default();

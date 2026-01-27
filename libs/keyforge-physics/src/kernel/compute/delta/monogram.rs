@@ -34,7 +34,7 @@ pub(crate) fn calculate_monogram_delta(
     let mut min_old_a = Score::INFINITY_SENTINEL;
     let mut min_new_a = Score::INFINITY_SENTINEL;
     for &p in candidates_a {
-        let p_idx = p as usize;
+        let p_idx = p.as_usize();
         let c_old = ctx
             .geometry
             .key_costs
@@ -61,7 +61,7 @@ pub(crate) fn calculate_monogram_delta(
     let mut min_old_b = Score::INFINITY_SENTINEL;
     let mut min_new_b = Score::INFINITY_SENTINEL;
     for &p in candidates_b {
-        let p_idx = p as usize;
+        let p_idx = p.as_usize();
         let c_old = ctx
             .geometry
             .key_costs

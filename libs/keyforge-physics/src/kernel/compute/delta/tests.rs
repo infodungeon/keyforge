@@ -44,7 +44,7 @@ mod tests {
                         ..Default::default()
                     })
                     .collect();
-                Keyboard::new(keys, 1, "test".into())
+                Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into())
                     .expect("Failed to create keyboard in strategy")
             });
 
@@ -126,14 +126,14 @@ mod tests {
             if score_before == i64::MAX { return Ok(()); }
 
             let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).expect("Failed to validate layout");
-            let mut scratch = PhysicsScratch::new();
+        let mut scratch = PhysicsScratch::try_new().unwrap();
             let pm = PosMap::from_scratch(
                 &layout_keys,
                 engine.key_count(),
-                scratch.starts.as_mut_slice(),
-                scratch.counts.as_mut_slice(),
+                &mut scratch.starts,
+                &mut scratch.counts,
                 scratch.indices.as_mut_slice(),
-                scratch.current_offsets.as_mut_slice(),
+                &mut scratch.current_offsets,
                 &mut scratch.used_keys,
             );
 
@@ -168,7 +168,7 @@ mod tests {
                 }
             })
             .collect();
-        let kb = Keyboard::new(keys, 1, "test".into()).expect("Failed to create keyboard");
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into()).expect("Failed to create keyboard");
 
         let mut cp = Corpus::default();
         let mut freqs = cp.char_freqs.to_vec();
@@ -220,14 +220,14 @@ mod tests {
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count())
             .expect("Failed to validate layout");
 
-        let mut scratch = PhysicsScratch::new();
+        let mut scratch = PhysicsScratch::try_new().unwrap();
         let pos_map = PosMap::from_scratch(
             &layout_keys,
             engine.key_count(),
-            scratch.starts.as_mut_slice(),
-            scratch.counts.as_mut_slice(),
+            &mut scratch.starts,
+            &mut scratch.counts,
             scratch.indices.as_mut_slice(),
-            scratch.current_offsets.as_mut_slice(),
+            &mut scratch.current_offsets,
             &mut scratch.used_keys,
         );
 

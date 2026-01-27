@@ -41,13 +41,9 @@ impl ScoringEngine for ArmNeonScoringEngine {
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
-            self.score_with_scratch(layout, &mut s)
-        })
+        crate::kernel::compute::state::with_scratch(|scratch| {
+            self.score_with_scratch(layout, scratch)
+        })?
     }
 
     fn score_with_scratch(
@@ -70,14 +66,10 @@ impl ScoringEngine for ArmNeonScoringEngine {
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
 
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
+        crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
             let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
                 s.get_mut_scratch();
@@ -101,23 +93,19 @@ impl ScoringEngine for ArmNeonScoringEngine {
             let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
             s.clear_used();
             Ok((mono, bigram, trigram))
-        })
+        })?
     }
 
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        _pos_map: &[u16],
+        _pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        std::thread_local! {
-            static SCRATCH: std::cell::RefCell<PhysicsScratch> = std::cell::RefCell::new(PhysicsScratch::new());
-        }
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
 
-        SCRATCH.with(|scratch| {
-            let mut s = scratch.borrow_mut();
+        crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
             let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
                 s.get_mut_scratch();
@@ -133,17 +121,17 @@ impl ScoringEngine for ArmNeonScoringEngine {
 
             let delta = crate::kernel::compute::calculate_swap_delta(
                 &self.ctx, &validated, &pm, idx_a, idx_b,
-            );
+            )?;
             s.clear_used();
-            delta
-        })
+            Ok(delta)
+        })?
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(crate::kernel::compute::analyze_layout(
+        crate::kernel::compute::analyze_layout(
             &self.ctx, &validated,
-        ))
+        )
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
@@ -185,9 +173,9 @@ unsafe fn score_layout_neon(
 
     // Populate flat_map for SIMD kernels (KeyCode -> KeyIndex)
     for &code in pm.used_keys() {
-        let candidates = pm.get(KeyCode(code));
+        let candidates = pm.get(code);
         if !candidates.is_empty() {
-            flat_map[code as usize] = candidates[0];
+            flat_map[code.0 as usize] = candidates[0];
         }
     }
 
@@ -196,10 +184,7 @@ unsafe fn score_layout_neon(
         pos_map: &pm,
     };
 
-    let is_simple = pm
-        .used_keys()
-        .iter()
-        .all(|&code| pm.get(KeyCode(code)).len() == 1)
+    let is_simple = pm.used_keys().iter().all(|&code| pm.get(code).len() == 1)
         && ctx.sequence_modifiers.is_empty();
 
     let total = if is_simple {
@@ -216,7 +201,7 @@ unsafe fn score_layout_neon(
 #[cfg(target_arch = "aarch64")]
 unsafe fn score_simple_neon(
     ctx: &crate::kernel::EvaluationContext<'_>,
-    flat_map: &[u16],
+    flat_map: &[keyforge_model::types::KeyIndex],
 ) -> Result<i64, PhysicsError> {
     use std::arch::aarch64::*;
 
@@ -224,9 +209,9 @@ unsafe fn score_simple_neon(
 
     // 1. Monograms
     for &code in ctx.pos_map.used_keys() {
-        let freq = ctx.engine.corpus.char_freqs[code as usize];
-        let p = flat_map[code as usize];
-        let cost = ctx.engine.geometry.key_costs[p as usize];
+        let freq = ctx.engine.corpus.char_freqs[code.0 as usize];
+        let p = flat_map[code.0 as usize];
+        let cost = ctx.engine.geometry.key_costs[p.as_usize()];
         total_score = total_score
             .checked_add(cost.0.checked_mul(freq as i64).ok_or_else(|| {
                 PhysicsError::ScoreOverflow {
@@ -240,8 +225,8 @@ unsafe fn score_simple_neon(
 
     // 2. Bigrams
     for &code1 in ctx.pos_map.used_keys() {
-        let c1_val = code1 as usize;
-        let p1 = flat_map[c1_val] as usize;
+        let c1_val = code1.0 as usize;
+        let p1 = flat_map[c1_val].as_usize();
         let start = ctx.engine.corpus.bigram_starts[c1_val];
         let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
 
@@ -261,8 +246,8 @@ unsafe fn score_simple_neon(
             let c2_0 = unsafe { others_ptr.add(k).read().0 as usize };
             let c2_1 = unsafe { others_ptr.add(k + 1).read().0 as usize };
 
-            let p2_0 = flat_map[c2_0];
-            let p2_1 = flat_map[c2_1];
+            let p2_0 = flat_map[c2_0].raw();
+            let p2_1 = flat_map[c2_1].raw();
 
             // Manual gather for costs
             // SAFETY: costs_ptr is valid for key_count elements in each row.
@@ -314,9 +299,9 @@ unsafe fn score_simple_neon(
             // SAFETY: others_ptr and freqs_ptr are valid at offset k < end.
             let c2 = unsafe { others_ptr.add(k).read() };
             let p2 = flat_map[c2.0 as usize];
-            if p2 < key_count as u16 {
+            if p2.as_usize() < key_count {
                 let freq = unsafe { freqs_ptr.add(k).read() as i64 };
-                let cost = ctx.engine.geometry.cost_matrix[p1 * key_count + p2 as usize].0;
+                let cost = ctx.engine.geometry.cost_matrix[p1 * key_count + p2.as_usize()].0;
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {
                         context: "NEON Bigram remainder accumulation".to_string(),
@@ -337,7 +322,7 @@ unsafe fn score_simple_neon(
 #[cfg(target_arch = "aarch64")]
 unsafe fn score_trigrams_neon(
     ctx: &crate::kernel::EvaluationContext<'_>,
-    flat_map: &[u16],
+    flat_map: &[keyforge_model::types::KeyIndex],
     mut total_score: i64,
 ) -> Result<i64, PhysicsError> {
     use crate::kernel::mechanics::calculate_flow_cost;
@@ -381,20 +366,20 @@ unsafe fn score_trigrams_neon(
 
     let mut type_map = [255u8; 65536];
     for &code in ctx.pos_map.used_keys() {
-        let p = flat_map[code as usize];
-        if p < key_count as u16 {
-            type_map[code as usize] = pos_types[p as usize];
+        let p = flat_map[code.0 as usize];
+        if p.as_usize() < key_count {
+            type_map[code.0 as usize] = pos_types[p.as_usize()];
         }
     }
 
-    for &code1 in ctx.pos_map.used_keys() {
-        let t1 = type_map[code1 as usize];
+        for &code1 in ctx.pos_map.used_keys() {
+        let t1 = type_map[code1.0 as usize];
         if t1 == 255 {
             continue;
         }
 
-        let start = ctx.engine.corpus.trigram_starts[code1 as usize];
-        let end = ctx.engine.corpus.trigram_starts[code1 as usize + 1];
+        let start = ctx.engine.corpus.trigram_starts[code1.0 as usize];
+        let end = ctx.engine.corpus.trigram_starts[code1.0 as usize + 1];
 
         let others1_ptr = ctx.engine.corpus.trigram_others1.as_ptr();
         let others2_ptr = ctx.engine.corpus.trigram_others2.as_ptr();
@@ -524,7 +509,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
         let mut corpus = Corpus::default();
         let mut freqs = corpus.char_freqs.to_vec();
         freqs[97] = 100;
@@ -547,7 +532,7 @@ mod tests {
         let scalar_score = score_layout_scalar(
             &ctx,
             &ValidatedLayout::new(&layout.keys, 3).unwrap(),
-            &mut PhysicsScratch::new(),
+            &mut PhysicsScratch::try_new().unwrap(),
         )
         .unwrap();
 

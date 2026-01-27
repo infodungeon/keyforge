@@ -257,7 +257,7 @@ impl From<geometry::KeyboardGeometry> for KeyboardGeometryDto {
             prime_slots: val.prime_slots.into_iter().map(Into::into).collect(),
             med_slots: val.med_slots.into_iter().map(Into::into).collect(),
             low_slots: val.low_slots.into_iter().map(Into::into).collect(),
-            home_row: val.home_row,
+            home_row: val.home_row.0,
         }
     }
 }

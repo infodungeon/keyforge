@@ -1,6 +1,6 @@
 use super::scratch::{KEYS_SCRATCH, POS_MAP_SCRATCH};
 use crate::supervisor::traits::{MutationAction, MutationOperator, MutationProposal};
-use keyforge_model::Layout;
+use keyforge_model::{KeyIndex, Layout};
 use keyforge_physics::ScoringEngine;
 use rand::seq::index::sample;
 use rand::Rng;
@@ -18,7 +18,7 @@ impl MutationOperator for GroupMutation {
         &self,
         engine: &dyn ScoringEngine,
         layout: &Layout,
-        pos_map: &[u16],
+        pos_map: &[keyforge_model::KeyIndex],
         rng: &mut impl Rng,
         temperature: f32,
     ) -> Result<Option<MutationProposal>, crate::errors::EvolutionError> {
@@ -69,17 +69,17 @@ impl MutationOperator for GroupMutation {
             POS_MAP_SCRATCH.with(|pm_scratch| {
                 let mut patched_pos_map = pm_scratch.borrow_mut();
                 if patched_pos_map.len() < pos_map.len() {
-                    patched_pos_map.resize(pos_map.len(), 65535);
+                    patched_pos_map.resize(pos_map.len(), keyforge_model::KeyIndex::SENTINEL);
                 }
                 patched_pos_map[..pos_map.len()].copy_from_slice(pos_map);
 
                 let code_a = layout.keys[idx_a];
                 let code_b = layout.keys[idx_b];
                 if (code_a.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_a.0 as usize] = idx_b as u16;
+                    patched_pos_map[code_a.0 as usize] = KeyIndex::new(idx_b as u16);
                 }
                 if (code_b.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_b.0 as usize] = idx_a as u16;
+                    patched_pos_map[code_b.0 as usize] = KeyIndex::new(idx_a as u16);
                 }
 
                 let temp_layout = Layout::new_unchecked(temp_keys.clone());
@@ -144,7 +144,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Arc::new(Keyboard::new(keys, 1, "test".into()).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into()).unwrap());
         let mut corpus_val = Corpus::default();
         let mut char_freqs = corpus_val.char_freqs.to_vec();
         let mut bigrams = Vec::new();
@@ -212,7 +212,13 @@ mod tests {
         let size = 5;
         let engine = setup_engine(size);
         let layout = Layout::new_unchecked((0..size as u16).map(KeyCode).collect());
-        let pos_map = vec![0, 1, 2, 3, 4];
+        let pos_map = vec![
+            KeyIndex(0),
+            KeyIndex(1),
+            KeyIndex(2),
+            KeyIndex(3),
+            KeyIndex(4),
+        ];
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
 
         let mutation = GroupMutation {

@@ -77,8 +77,8 @@ fn get_pair_delta(
     ctx: &EngineContext,
     c1: crate::kernel::types::KeyCode,
     c2: crate::kernel::types::KeyCode,
-    cand1: &[u16],
-    cand2: &[u16],
+    cand1: &[crate::kernel::types::KeyIndex],
+    cand2: &[crate::kernel::types::KeyIndex],
     idx_a: usize,
     idx_b: usize,
 ) -> i64 {
@@ -88,11 +88,11 @@ fn get_pair_delta(
     let mut min_old = Score::INFINITY_SENTINEL;
     let mut min_new = Score::INFINITY_SENTINEL;
     for &p1 in cand1 {
-        let p1_new = get_p_effective(p1 as usize, idx_a, idx_b);
+        let p1_new = get_p_effective(p1.as_usize(), idx_a, idx_b);
         for &p2 in cand2 {
-            let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
+            let p2_new = get_p_effective(p2.as_usize(), idx_a, idx_b);
             let mut cost_old =
-                ctx.geometry.cost_matrix[(p1 as usize) * ctx.key_count + (p2 as usize)];
+                ctx.geometry.cost_matrix[p1.as_usize() * ctx.key_count + p2.as_usize()];
             let mut cost_new = ctx.geometry.cost_matrix[p1_new * ctx.key_count + p2_new];
             if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1.0, c2.0)) {
                 cost_old = cost_old + mod_val;

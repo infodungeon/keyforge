@@ -38,7 +38,7 @@ async fn test_agent_job_orchestration() {
                 prime_slots: vec![KeyIndex(0)],
                 med_slots: vec![],
                 low_slots: vec![],
-                home_row: 0,
+                home_row: keyforge_model::types::RowIndex(0),
             },
             layouts: std::collections::HashMap::default(),
         }

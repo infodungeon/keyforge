@@ -31,6 +31,12 @@ impl RowIndex {
     }
 }
 
+impl fmt::Display for RowIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "r{}", self.0)
+    }
+}
+
 impl<'de> Deserialize<'de> for RowIndex {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -109,6 +115,32 @@ impl std::ops::Sub for RowIndex {
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct ColIndex(pub i8);
+
+impl ColIndex {
+    /// Creates a new `ColIndex`.
+    #[must_use]
+    pub const fn new(val: i8) -> Self {
+        Self(val)
+    }
+
+    /// Returns the raw `i8` value.
+    #[must_use]
+    pub const fn raw(self) -> i8 {
+        self.0
+    }
+
+    /// Returns the value as `usize`.
+    #[must_use]
+    pub fn as_usize(self) -> usize {
+        self.0.try_into().unwrap_or_default()
+    }
+}
+
+impl fmt::Display for ColIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "c{}", self.0)
+    }
+}
 
 impl From<ColIndex> for i8 {
     fn from(idx: ColIndex) -> i8 {
