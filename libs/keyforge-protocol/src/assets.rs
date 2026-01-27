@@ -76,13 +76,25 @@ pub struct KeyboardGeometryDto {
     /// List of key nodes in the geometry.
     pub keys: Vec<KeyNodeDto>,
     /// Indices of keys considered high-value (prime).
-    pub prime_slots: Vec<u16>,
+    pub prime_slots: Vec<crate::types::KeyIndexDto>,
     /// Indices of keys considered medium-value.
-    pub med_slots: Vec<u16>,
+    pub med_slots: Vec<crate::types::KeyIndexDto>,
     /// Indices of keys considered low-value.
-    pub low_slots: Vec<u16>,
+    pub low_slots: Vec<crate::types::KeyIndexDto>,
     /// Y-coordinate or index of the home row.
     pub home_row: i8,
+}
+
+impl From<keyforge_model::geometry::KeyboardGeometry> for KeyboardGeometryDto {
+    fn from(val: keyforge_model::geometry::KeyboardGeometry) -> Self {
+        Self {
+            keys: val.keys.into_iter().map(Into::into).collect(),
+            prime_slots: val.prime_slots.into_iter().map(Into::into).collect(),
+            med_slots: val.med_slots.into_iter().map(Into::into).collect(),
+            low_slots: val.low_slots.into_iter().map(Into::into).collect(),
+            home_row: val.home_row.0,
+        }
+    }
 }
 
 /// DTO for `Layout`.

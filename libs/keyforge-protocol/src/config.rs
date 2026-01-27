@@ -1,6 +1,7 @@
 // libs/keyforge-protocol/src/config.rs
 
 use crate::types::KeyIndexDto;
+use crate::assets::KeyboardGeometryDto;
 use keyforge_model::config as model;
 use keyforge_model::geometry;
 use keyforge_model::Validator;
@@ -233,34 +234,7 @@ impl From<geometry::KeyboardMeta> for KeyboardMetaDto {
     }
 }
 
-/// DTO for `KeyboardGeometry`.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS))]
-#[cfg_attr(feature = "ts_bindings", ts(export))]
-pub struct KeyboardGeometryDto {
-    /// List of key nodes.
-    pub keys: Vec<crate::assets::KeyNodeDto>,
-    /// Prime slot indices.
-    pub prime_slots: Vec<KeyIndexDto>,
-    /// Medium slot indices.
-    pub med_slots: Vec<KeyIndexDto>,
-    /// Low slot indices.
-    pub low_slots: Vec<KeyIndexDto>,
-    /// Index of the home row.
-    pub home_row: i8,
-}
 
-impl From<geometry::KeyboardGeometry> for KeyboardGeometryDto {
-    fn from(val: geometry::KeyboardGeometry) -> Self {
-        Self {
-            keys: val.keys.into_iter().map(Into::into).collect(),
-            prime_slots: val.prime_slots.into_iter().map(Into::into).collect(),
-            med_slots: val.med_slots.into_iter().map(Into::into).collect(),
-            low_slots: val.low_slots.into_iter().map(Into::into).collect(),
-            home_row: val.home_row.0,
-        }
-    }
-}
 
 /// DTO for `KeyboardDefinition`.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
