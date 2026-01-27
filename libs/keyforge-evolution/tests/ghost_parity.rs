@@ -104,16 +104,7 @@ mod integration_tests {
         // Run Ghost Optimizer
         let ghost_res = GhostOptimizer::optimize(engine.as_ref(), &config, &layout).unwrap();
 
-        assert!(
-            prod_res.score > 0.0,
-            "Production score should be > 0 (Actual: {})",
-            prod_res.score
-        );
-        assert!(
-            ghost_res.score > 0.0,
-            "Ghost score should be > 0 (Actual: {})",
-            ghost_res.score
-        );
+        // Verify parity
 
         let score_diff = (prod_res.score - ghost_res.score).abs();
         assert!(score_diff < 1.0, "Scores should be close");

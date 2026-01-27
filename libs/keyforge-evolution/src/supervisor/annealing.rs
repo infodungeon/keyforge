@@ -437,7 +437,9 @@ mod tests {
             .collect();
         let kb = {
             use keyforge_model::types::RowIndex;
-            Arc::new(Keyboard::new(keys, RowIndex(1), "test".into()).expect("Failed to create keyboard"))
+            Arc::new(
+                Keyboard::new(keys, RowIndex(1), "test".into()).expect("Failed to create keyboard"),
+            )
         };
         let mut corpus_val = Corpus::default();
         let mut bigrams = Vec::new();
