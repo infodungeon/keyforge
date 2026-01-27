@@ -5,7 +5,7 @@ mod integration_tests {
     use super::*;
     use keyforge_adapter::loader::{AssetLoader, LoaderResult};
     use keyforge_model::cost_model::CostModel;
-    use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+    use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
     use keyforge_model::keycodes::KeycodeRegistry;
     use keyforge_model::types::KeyIndex;
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
@@ -31,7 +31,7 @@ mod integration_tests {
 
             if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
                 let json = r#"{
-                    "meta": { "version": "2.0", "description": "T", "unit": "pts" },
+                    "version": "2.0", "description": "T", "unit": "pts",
                     "models": { 
                         "model_a_row_staggered": { 
                             "description": "t", 
@@ -74,7 +74,11 @@ mod integration_tests {
     #[tokio::test]
     async fn test_compile_request_basic() {
         let kb_def = KeyboardDefinition {
-            meta: KeyboardMeta::default(),
+            name: "Test KB".into(),
+            author: "Test".into(),
+            version: "1.0".into(),
+            kb_type: "standard".into(),
+            notes: String::new(),
             geometry: KeyboardGeometry {
                 keys: vec![KeyNode::default()],
                 prime_slots: vec![KeyIndex(0)],
@@ -116,7 +120,7 @@ mod integration_tests {
 
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
                     let json = r#"{
-                        "meta": { "version": "2.0", "description": "T", "unit": "pts" },
+                        "version": "2.0", "description": "T", "unit": "pts",
                         "models": { 
                             "model_a_row_staggered": { 
                                 "description": "t", 

@@ -1,7 +1,7 @@
 // libs/keyforge-protocol/src/config.rs
 
-use crate::types::KeyIndexDto;
 use crate::assets::KeyboardGeometryDto;
+use crate::types::KeyIndexDto;
 use keyforge_model::config as model;
 use keyforge_model::geometry;
 use keyforge_model::Validator;
@@ -204,10 +204,6 @@ impl From<keyforge_model::config::CostMatrixSource> for CostMatrixSourceDto {
         }
     }
 }
-
-
-
-
 
 /// DTO for `KeyboardDefinition`.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

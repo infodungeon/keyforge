@@ -31,7 +31,6 @@ pub mod kle;
 
 /// Metadata describing a keyboard definition.
 
-
 /// Complete definition of a keyboard, including metadata and geometry.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]

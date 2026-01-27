@@ -247,11 +247,9 @@ pub fn mock_cost_model() -> CostModel {
     );
 
     CostModel {
-        meta: crate::cost_model::CostModelMeta {
-            version: "2.0".into(),
-            description: "test".into(),
-            unit: "pts".into(),
-        },
+        version: "2.0".into(),
+        description: "test".into(),
+        unit: "pts".into(),
         models,
         dynamic_rules: crate::cost_model::DynamicRules::default(),
     }

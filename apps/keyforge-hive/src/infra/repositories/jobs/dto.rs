@@ -84,8 +84,6 @@ pub struct HiveKeyboardProjection {
 
 impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
     fn project(source: HiveKeyboardProjection) -> Result<Self, ForgeError> {
-
-
         let mut keys = Vec::with_capacity(source.keys.len());
         let mut prime_slots = Vec::new();
         let mut med_slots = Vec::new();

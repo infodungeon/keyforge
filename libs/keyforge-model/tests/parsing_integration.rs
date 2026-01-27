@@ -20,7 +20,7 @@ mod integration_tests {
         let def = KeyboardDefinition::parse(json, Some("Test Board"))
             .expect("KLE JSON should parse successfully");
 
-        assert_eq!(def.meta.name, "Test Board");
+        assert_eq!(def.name, "Test Board");
         assert_eq!(def.geometry.keys.len(), 2);
         assert_eq!(def.geometry.keys[0].label, "A");
         assert_eq!(def.geometry.keys[1].label, "B");

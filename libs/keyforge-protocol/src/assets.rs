@@ -340,7 +340,6 @@ pub struct PopulationResponse {
 
 /// DTO for `CostModelMeta`.
 
-
 /// DTO for `FingerReach`.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]

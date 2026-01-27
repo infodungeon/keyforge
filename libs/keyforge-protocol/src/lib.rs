@@ -40,9 +40,9 @@ pub use keyforge_model as model;
 
 // Re-export core DTOs for backward compatibility and convenience
 pub use assets::{
-    AnalysisReportDto, AssetManifestEntry, BiometricSample, DerivedStatsDto, KeyboardGeometryDto,
-    KeyNodeDto, LayoutDto, MetricIdDto, MetricViolationDto, PopulationResponse, SwapSuggestionDto,
-    UserStatsStore, ValidationResultDto,
+    AnalysisReportDto, AssetManifestEntry, BiometricSample, DerivedStatsDto, KeyNodeDto,
+    KeyboardGeometryDto, LayoutDto, MetricIdDto, MetricViolationDto, PopulationResponse,
+    SwapSuggestionDto, UserStatsStore, ValidationResultDto,
 };
 pub use config::{
     ConfigAggregateDto, CorpusSourceDto, CostMatrixSourceDto, KeyConstraintDto,

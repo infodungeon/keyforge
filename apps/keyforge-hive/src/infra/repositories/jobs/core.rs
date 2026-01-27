@@ -375,7 +375,6 @@ impl JobRepository {
         def: &KeyboardDefinitionDto,
         unique_hash: &str,
     ) -> Result<i32, sqlx::Error> {
-
         let row = sqlx::query!(
             r#"
             INSERT INTO keyboards (name, author, version, notes, kb_type, home_row, unique_hash)

@@ -27,8 +27,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-
-
 fn default_project_name() -> String {
     "Untitled Project".to_string()
 }

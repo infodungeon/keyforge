@@ -20,11 +20,6 @@ use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-
-
-
-
-
 /// Validated and performance-optimized Cost Model (Domain Model).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostModel {
@@ -81,8 +76,6 @@ impl Validator for CostModel {
 }
 
 impl CostModel {
-
-
     /// Returns a specific model definition by name.
     #[must_use]
     pub fn get_model(&self, name: &str) -> Option<&ModelDefinition> {
