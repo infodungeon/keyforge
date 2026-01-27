@@ -31,7 +31,7 @@ impl CompilationStage for CostStage<'_> {
         let model_key = self.model_key.unwrap_or("model_a_row_staggered");
         let phys_model = self
             .cost_model
-            .models
+            .models()
             .get(model_key)
             .ok_or_else(|| PhysicsError::Config(format!("Missing cost model: {model_key}")))?;
 
@@ -39,7 +39,7 @@ impl CompilationStage for CostStage<'_> {
         for k in &self.kb.keys {
             let static_cost = Score::from_f32(resolve_key_cost(k, &phys_model.static_costs)?)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?;
-            let finger_effort = Score::from_f32(self.rubric.finger_effort[k.finger.as_usize()])
+            let finger_effort = Score::from_f32(self.rubric.finger_effort()[k.finger.as_usize()])
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?;
 
             key_costs.push(static_cost.checked_add(finger_effort).ok_or_else(|| {

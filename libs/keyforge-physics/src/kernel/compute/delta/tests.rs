@@ -107,6 +107,7 @@ mod tests {
                 let f_name = match f { 0=>"thumb", 1=>"index", 2=>"middle", 3=>"ring", _=>"pinky" };
                 fingers.insert(f_name.to_string(), keyforge_model::cost_model::FingerDefinition::Thumb(std::collections::HashMap::from([("pos_1".into(), 1.0)])));
             }
+            let mut cm = keyforge_model::cost_model::CostModel::default();
             cm.models.insert("model_a_row_staggered".into(), keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
                 static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
@@ -196,6 +197,7 @@ mod tests {
                 ),
             );
         }
+        let mut cm = keyforge_model::cost_model::CostModel::default();
         cm.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {

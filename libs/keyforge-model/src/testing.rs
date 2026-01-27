@@ -175,19 +175,19 @@ impl Arbitrary for Rubric {
         )
             .prop_map(
                 |(effort, tlat, tvert, sfb, slat, slweak, sdiag, slong, pscis, redir, roll)| {
-                    let mut r = Rubric::default();
-                    r.finger_effort.copy_from_slice(&effort[..5]);
-                    r.travel_lat = tlat;
-                    r.travel_vert = tvert;
-                    r.sfb_base = sfb;
-                    r.sfb_lateral = slat;
-                    r.sfb_lateral_weak = slweak;
-                    r.sfb_diagonal = sdiag;
-                    r.sfb_long = slong;
-                    r.penalty_scissor = pscis;
-                    r.redirect = redir;
-                    r.roll_bonus = roll;
-                    r
+                    Rubric::builder()
+                        .finger_effort(effort.try_into().unwrap_or([0.0; 5]))
+                        .travel_lat(tlat)
+                        .travel_vert(tvert)
+                        .sfb_base(sfb)
+                        .sfb_lateral(slat)
+                        .sfb_lateral_weak(slweak)
+                        .sfb_diagonal(sdiag)
+                        .sfb_long(slong)
+                        .penalty_scissor(pscis)
+                        .redirect(redir)
+                        .roll_bonus(roll)
+                        .build()
                 },
             )
             .boxed()
@@ -198,8 +198,6 @@ impl Arbitrary for Rubric {
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
 pub fn mock_cost_model() -> CostModel {
-    let mut cm = CostModel::default();
-
     let mut base_zone = crate::cost_model::RowCosts::new();
     for r in -128..=127 {
         base_zone.insert(RowIndex(r as i8), 0.0);
@@ -239,14 +237,24 @@ pub fn mock_cost_model() -> CostModel {
         crate::cost_model::HandDefinition { fingers },
     );
 
-    cm.models.insert(
+    let mut models = std::collections::HashMap::new();
+    models.insert(
         "model_a_row_staggered".into(),
         crate::cost_model::ModelDefinition {
             description: "test".into(),
             static_costs,
         },
     );
-    cm
+
+    CostModel {
+        meta: crate::cost_model::CostModelMeta {
+            version: "2.0".into(),
+            description: "test".into(),
+            unit: "pts".into(),
+        },
+        models,
+        dynamic_rules: crate::cost_model::DynamicRules::default(),
+    }
 }
 
 /// Sets up a minimal environment with Keyboard, Corpus, Rubric, and `CostModel`.

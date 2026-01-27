@@ -70,7 +70,7 @@ impl StreamingProfileBuilder {
 
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
-    pub fn build_model(&self) -> CostModel {
+    pub fn build_model(&self) -> keyforge_model::CostModel {
         let mut modifiers = HashMap::new();
         let reliable_means: Vec<f64> = self
             .stats
@@ -97,7 +97,7 @@ impl StreamingProfileBuilder {
             }
         }
 
-        CostModel {
+        keyforge_model::CostModel {
             meta: keyforge_model::cost_model::CostModelMeta {
                 version: "2.0".into(),
                 description: format!("Generated from {} biometric samples", self.sample_count),
@@ -139,21 +139,21 @@ impl BiometricProfiler {
             builder.add_sample(s);
         }
 
-        let mut result = base_model.clone();
+        let mut cost_model = base_model.clone();
         let generated = builder.build_model();
 
         for (bigram, modifier) in generated.dynamic_rules.sequence_modifiers {
-            result
+            cost_model
                 .dynamic_rules
                 .sequence_modifiers
                 .insert(bigram, modifier);
         }
 
-        result.meta.description = format!(
+        cost_model.meta.description = format!(
             "{} (Personalized with {} samples)",
-            result.meta.description, builder.sample_count
+            cost_model.meta.description, builder.sample_count
         );
-        result
+        cost_model
     }
 }
 
@@ -165,7 +165,7 @@ mod tests {
     fn test_biometric_profiler_logic() {
         let base = CostModel::default();
         let model = BiometricProfiler::profile(&[], &base);
-        assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 0);
+        assert_eq!(model.dynamic_rules().sequence_modifiers.len(), 0);
 
         let samples = vec![
             BiometricSample {
@@ -176,7 +176,7 @@ mod tests {
             StreamingProfileBuilder::MIN_SAMPLES - 1
         ];
         let model = BiometricProfiler::profile(&samples, &base);
-        assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 0);
+        assert_eq!(model.dynamic_rules().sequence_modifiers.len(), 0);
 
         let mut samples = Vec::new();
         for _ in 0..10 {
@@ -193,6 +193,6 @@ mod tests {
         }
 
         let model = BiometricProfiler::profile(&samples, &base);
-        assert_eq!(model.dynamic_rules.sequence_modifiers.len(), 2);
+        assert_eq!(model.dynamic_rules().sequence_modifiers.len(), 2);
     }
 }

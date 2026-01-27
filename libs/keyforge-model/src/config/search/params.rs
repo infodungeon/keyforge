@@ -1,5 +1,10 @@
 // libs/keyforge-model/src/config/search/params.rs
-use super::constants::*;
+use super::constants::{
+    DEFAULT_OPT_LIMIT_FAST, DEFAULT_OPT_LIMIT_SLOW, DEFAULT_REHEATS, DEFAULT_REHEAT_FACTOR,
+    DEFAULT_SEARCH_EPOCHS, DEFAULT_SEARCH_PATIENCE, DEFAULT_SEARCH_PATIENCE_THRESHOLD,
+    DEFAULT_SEARCH_STEPS, DEFAULT_TEMP_MAX, DEFAULT_TEMP_MIN, MAX_OPT_LIMIT_FAST,
+    MAX_SEARCH_EPOCHS, MAX_SEARCH_STEPS, MAX_TEMP,
+};
 use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};

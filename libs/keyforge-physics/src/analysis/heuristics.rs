@@ -43,7 +43,7 @@ mod tests {
         let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
-        let mut cm = CostModel::default();
+        let mut cost_model = keyforge_model::cost_model::CostModel::default();
         let mut fingers = HashMap::new();
         fingers.insert(
             "index".to_string(),
@@ -63,7 +63,7 @@ mod tests {
                 },
             ),
         );
-        cm.models.insert(
+        cost_model.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
@@ -73,7 +73,7 @@ mod tests {
                 )]),
             },
         );
-        (kb, corpus, rubric, Arc::new(cm))
+        (kb, corpus, rubric, Arc::new(cost_model))
     }
 
     #[test]

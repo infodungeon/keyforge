@@ -31,8 +31,8 @@ impl<'a> CompilationStage for GeometryStage<'a> {
     )]
     fn execute(&self, kb: Self::Input) -> Result<Self::Output, PhysicsError> {
         let key_count = kb.count();
-        let t_lat = self.rubric.travel_lat;
-        let t_vert = self.rubric.travel_vert;
+        let t_lat = self.rubric.travel_lat();
+        let t_vert = self.rubric.travel_vert();
         let mut hands = Vec::with_capacity(key_count);
         let mut fingers = Vec::with_capacity(key_count);
         let mut rows = Vec::with_capacity(key_count);
@@ -122,9 +122,7 @@ mod tests {
             },
         ];
         let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
-        let mut rubric = Rubric::default();
-        rubric.travel_lat = 1.0;
-        rubric.travel_vert = 1.0;
+        let rubric = Rubric::builder().travel_lat(1.0).travel_vert(1.0).build();
         let stage = GeometryStage { rubric: &rubric };
         let out = stage.execute(&kb).unwrap();
 

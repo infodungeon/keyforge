@@ -60,10 +60,7 @@ mod unit_tests {
         let mut corpus = Corpus::default();
         corpus.bigrams = Arc::from(vec![(97, 98, 1000)]);
 
-        let rubric = Rubric {
-            travel_lat: f32::INFINITY,
-            ..Rubric::default()
-        };
+        let rubric = Rubric::builder().travel_lat(f32::INFINITY).build();
 
         let cost_model = mock_cost_model();
         // Compilation or scoring should fail gracefully
@@ -96,10 +93,7 @@ mod unit_tests {
         let mut corpus = Corpus::default();
         corpus.bigrams = Arc::from(vec![(97, 98, 1000)]);
 
-        let rubric = Rubric {
-            travel_lat: f32::NAN,
-            ..Rubric::default()
-        };
+        let rubric = Rubric::builder().travel_lat(f32::NAN).build();
 
         let cost_model = mock_cost_model();
         // Compilation or scoring should fail gracefully
@@ -132,10 +126,7 @@ mod unit_tests {
         let mut corpus = Corpus::default();
         corpus.bigrams = Arc::from(vec![(97, 98, u32::MAX)]);
 
-        let rubric = Rubric {
-            travel_lat: 1_000_000.0,
-            ..Rubric::default()
-        };
+        let rubric = Rubric::builder().travel_lat(1_000_000.0).build();
 
         let cost_model = mock_cost_model();
         let res = EngineFactory::new_generic(&EngineCompilationContext {
@@ -315,8 +306,7 @@ mod unit_tests {
         corpus.bigrams = Arc::from(vec![(0, 1, 100)]);
         corpus.trigrams = Arc::from(vec![(0, 1, 2, 100)]);
 
-        let mut rubric = Rubric::default();
-        rubric.travel_lat = 1.0;
+        let rubric = Rubric::builder().travel_lat(1.0).build();
 
         let cost_model = mock_cost_model();
         let engine = EngineFactory::new_generic(&EngineCompilationContext {
@@ -380,9 +370,7 @@ mod unit_tests {
         let mut corpus = Corpus::default();
         corpus.bigrams = Arc::from(vec![(0, 0, 100)]);
 
-        let mut rubric = Rubric::default();
-        rubric.travel_lat = 1.0;
-        rubric.trigram_limit = 0;
+        let rubric = Rubric::builder().travel_lat(1.0).trigram_limit(0).build();
 
         let cost_model = mock_cost_model();
         let engine = EngineFactory::new_generic(&EngineCompilationContext {

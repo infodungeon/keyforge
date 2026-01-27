@@ -9,24 +9,24 @@ pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource
 /// Converts protocol-level scoring weights into a domain-level evaluation rubric.
 #[must_use]
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
-    keyforge_model::Rubric {
-        finger_effort: w.get_finger_penalty_scale(),
-        travel_lat: w.get_weight_lateral_travel().to_f32(),
-        travel_vert: w.get_weight_vertical_travel().to_f32(),
-        sfb_base: w.get_penalty_sfb_base().to_f32(),
-        sfb_lateral: w.get_penalty_sfb_lateral().to_f32(),
-        sfb_lateral_weak: w.get_penalty_sfb_lateral_weak().to_f32(),
-        sfb_diagonal: w.get_penalty_sfb_diagonal().to_f32(),
-        sfb_long: w.get_penalty_sfb_long().to_f32(),
-        threshold_sfb_long_row_diff: w.get_threshold_sfb_long_row_diff(),
-        penalty_scissor: w.get_penalty_scissor().to_f32(),
-        threshold_scissor_row_diff: w.get_threshold_scissor_row_diff(),
-        redirect: w.get_penalty_redirect().to_f32(),
-        roll_bonus: w.get_bonus_bigram_roll_in().to_f32(),
-        roll_out_bonus: w.get_bonus_bigram_roll_out().to_f32(),
-        trigram_coverage: w.get_trigram_coverage().to_f32(),
-        trigram_limit: w.get_loader_trigram_limit(),
-    }
+    keyforge_model::Rubric::builder()
+        .finger_effort(w.get_finger_penalty_scale())
+        .travel_lat(w.get_weight_lateral_travel().to_f32())
+        .travel_vert(w.get_weight_vertical_travel().to_f32())
+        .sfb_base(w.get_penalty_sfb_base().to_f32())
+        .sfb_lateral(w.get_penalty_sfb_lateral().to_f32())
+        .sfb_lateral_weak(w.get_penalty_sfb_lateral_weak().to_f32())
+        .sfb_diagonal(w.get_penalty_sfb_diagonal().to_f32())
+        .sfb_long(w.get_penalty_sfb_long().to_f32())
+        .threshold_sfb_long_row_diff(w.get_threshold_sfb_long_row_diff())
+        .penalty_scissor(w.get_penalty_scissor().to_f32())
+        .threshold_scissor_row_diff(w.get_threshold_scissor_row_diff())
+        .redirect(w.get_penalty_redirect().to_f32())
+        .roll_bonus(w.get_bonus_bigram_roll_in().to_f32())
+        .roll_out_bonus(w.get_bonus_bigram_roll_out().to_f32())
+        .trigram_coverage(w.get_trigram_coverage().to_f32())
+        .trigram_limit(w.get_loader_trigram_limit())
+        .build()
 }
 
 /// Converts protocol-level search parameters into domain-level search configuration.
@@ -57,7 +57,7 @@ mod tests {
             .insert("penalty_sfb_base".to_string(), 100.0);
 
         let domain_rubric = to_domain_rubric(&proto_weights);
-        assert!((domain_rubric.sfb_base - 100.0).abs() < f32::EPSILON);
+        assert!((domain_rubric.sfb_base() - 100.0).abs() < f32::EPSILON);
     }
 
     #[test]

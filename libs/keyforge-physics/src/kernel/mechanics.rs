@@ -102,8 +102,8 @@ pub fn calculate_pair_cost(
     let (dx2, dy2) = kb.spatial_cache[i_idx * kb.keys.len() + j_idx];
 
     // Intermediate geometric math in f64
-    let t_lat = f64::from(rubric.travel_lat);
-    let t_vert = f64::from(rubric.travel_vert);
+    let t_lat = f64::from(rubric.travel_lat());
+    let t_vert = f64::from(rubric.travel_vert());
     let scale = f64::from(keyforge_model::constants::SCORE_SCALE);
 
     let dist_raw = ((f64::from(dx2) * t_lat) + (f64::from(dy2) * t_vert)) * scale;
@@ -163,9 +163,9 @@ fn calculate_sfb_cost(
 
     if col_diff == 1 {
         let sfb_extra = if k1.finger.is_weak() {
-            rubric.sfb_lateral_weak
+            rubric.sfb_lateral_weak()
         } else {
-            rubric.sfb_lateral
+            rubric.sfb_lateral()
         };
         cost = cost
             .checked_add(to_score_or_err(sfb_extra)?)
@@ -174,19 +174,19 @@ fn calculate_sfb_cost(
             })?;
     } else if col_diff > 1 {
         cost = cost
-            .checked_add(to_score_or_err(rubric.sfb_diagonal)?)
+            .checked_add(to_score_or_err(rubric.sfb_diagonal())?)
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "Pair cost SFB diagonal".to_string(),
             })?;
-    } else if row_diff >= u32::from(rubric.threshold_sfb_long_row_diff.unsigned_abs()) {
+    } else if row_diff >= u32::from(rubric.threshold_sfb_long_row_diff().unsigned_abs()) {
         cost = cost
-            .checked_add(to_score_or_err(rubric.sfb_long)?)
+            .checked_add(to_score_or_err(rubric.sfb_long())?)
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "Pair cost SFB long".to_string(),
             })?;
     } else {
         cost = cost
-            .checked_add(to_score_or_err(rubric.sfb_base)?)
+            .checked_add(to_score_or_err(rubric.sfb_base())?)
             .ok_or_else(|| PhysicsError::ScoreOverflow {
                 context: "Pair cost SFB base".to_string(),
             })?;
@@ -204,9 +204,9 @@ fn calculate_non_sfb_penalties(
     let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
 
     if finger_diff == 1 && k1.finger != FingerIndex::THUMB && k2.finger != FingerIndex::THUMB {
-        if row_diff >= u32::from(rubric.threshold_scissor_row_diff.unsigned_abs()) {
+        if row_diff >= u32::from(rubric.threshold_scissor_row_diff().unsigned_abs()) {
             cost = cost
-                .checked_add(to_score_or_err(rubric.penalty_scissor)?)
+                .checked_add(to_score_or_err(rubric.penalty_scissor())?)
                 .ok_or_else(|| PhysicsError::ScoreOverflow {
                     context: "Pair cost scissor".to_string(),
                 })?;
@@ -214,7 +214,7 @@ fn calculate_non_sfb_penalties(
             let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
             if col_diff > 1 {
                 cost = cost
-                    .checked_add(to_score_or_err(rubric.sfb_lateral)?)
+                    .checked_add(to_score_or_err(rubric.sfb_lateral())?)
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: "Pair cost lateral SFB adjacent".to_string(),
                     })?;
@@ -277,7 +277,7 @@ mod tests {
 
         let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
         assert!(
-            cost >= crate::verify::to_fixed(rubric.sfb_base),
+            cost >= crate::verify::to_fixed(rubric.sfb_base()),
             "SFB should be penalized"
         );
     }
@@ -310,14 +310,13 @@ mod tests {
     #[test]
     fn test_calculate_pair_cost_invalid_math() {
         let kb = setup_kb_pair();
-        let mut rubric = Rubric::default();
 
         // Force NaN via infinity * 0 or similar if possible, or just inject Infinity
-        rubric.travel_lat = f32::INFINITY;
+        let rubric = Rubric::builder().travel_lat(f32::INFINITY).build();
         let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. })));
 
-        rubric.travel_lat = f32::NAN;
+        let rubric = Rubric::builder().travel_lat(f32::NAN).build();
         let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. })));
     }
@@ -325,19 +324,10 @@ mod tests {
     #[test]
     fn test_calculate_pair_cost_overflows() {
         let kb = setup_kb_pair();
-        let mut rubric = Rubric::default();
 
         // 1. checked_add overflow (SFB base)
-        rubric.sfb_base = 1e20; // Massive value
+        let rubric = Rubric::builder().sfb_base(1e20).build();
         let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. }))); // Score::from_f32 fails first
-
-        // To hit ScoreOverflow we need Score::from_f32 to succeed but the i64 add to fail.
-        // Score::from_f32 checks bounds against Score::MAX.
-        // So we need cost + penalty > i64::MAX.
-        // If we set sfb_base to Score::MAX / 2 and dist_raw to Score::MAX / 2.
-
-        // Actually, Score::from_f32(1e20) returns Err(String).
-        // Mechanics maps this to PhysicsError::InvalidInput.
     }
 }

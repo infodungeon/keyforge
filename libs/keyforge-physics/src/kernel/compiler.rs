@@ -56,18 +56,8 @@ impl Compiler {
         let geo_out = geo_stage.execute(kb)?;
 
         // Stage 2: Costs
-        // If the cost model has exactly one model, use it.
-        // Otherwise, pick based on keyboard type.
-        let model_key = if cost_model.models.len() == 1 {
-            cost_model.models.keys().next().map(String::as_str)
-        } else if kb.kb_type.to_lowercase().contains("ortho") {
-            Some("model_ortho")
-        } else if cost_model.models.contains_key("model_a_row_staggered") {
-            Some("model_a_row_staggered")
-        } else {
-            // Final fallback: just try to get ANY model if available
-            cost_model.models.keys().next().map(String::as_str)
-        };
+        // Use preferred model if found, otherwise pick first available.
+        let model_key = cost_model.preferred_model_key();
 
         let cost_stage = CostStage {
             kb,
@@ -82,7 +72,7 @@ impl Compiler {
         let corpus_out = corpus_stage.execute(())?;
 
         let mut sequence_modifiers = HashMap::new();
-        for (bigram, &val) in &cost_model.dynamic_rules.sequence_modifiers {
+        for (bigram, &val) in &cost_model.dynamic_rules().sequence_modifiers {
             if bigram.len() == 2 {
                 let bytes = bigram.as_bytes();
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
@@ -130,11 +120,11 @@ impl Compiler {
             },
             all_bigrams: corpus.bigrams.clone(),
             all_trigrams: corpus.trigrams.clone(),
-            penalty_redirect: Score::from_f32(rubric.redirect)
+            penalty_redirect: Score::from_f32(rubric.redirect())
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
-            bonus_roll: Score::from_f32(rubric.roll_bonus)
+            bonus_roll: Score::from_f32(rubric.roll_bonus())
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
-            bonus_roll_out: Score::from_f32(rubric.roll_out_bonus)
+            bonus_roll_out: Score::from_f32(rubric.roll_out_bonus())
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             sequence_modifiers: Arc::new(sequence_modifiers),
         };

@@ -16,12 +16,32 @@
 //! rather than hardcoded logic.
 
 use crate::asset::{Asset, AssetCategory};
-use crate::types::RowIndex;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// The root structure of the cost matrix file.
+/// Metadata for the cost model.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostModelMeta {
+    /// Schema version.
+    pub version: String,
+    /// Human-readable description.
+    pub description: String,
+    /// Unit of measurement (e.g., "Effort Points").
+    pub unit: String,
+}
+
+impl Default for CostModelMeta {
+    fn default() -> Self {
+        Self {
+            version: "2.0".to_string(),
+            description: "Default Cost Model".to_string(),
+            unit: "pts".to_string(),
+        }
+    }
+}
+
+/// Validated and performance-optimized Cost Model (Domain Model).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CostModel {
     /// Metadata about the model version.
@@ -60,23 +80,130 @@ impl Validator for CostModel {
     }
 }
 
-/// Metadata for the cost model.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CostModelMeta {
-    /// Schema version.
-    pub version: String,
-    /// Human-readable description.
-    pub description: String,
-    /// Unit of measurement (e.g., "Effort Points").
-    pub unit: String,
+impl CostModel {
+    /// Returns the metadata for this model.
+    #[must_use]
+    pub fn meta(&self) -> &CostModelMeta {
+        &self.meta
+    }
+
+    /// Returns a specific model definition by name.
+    #[must_use]
+    pub fn get_model(&self, name: &str) -> Option<&ModelDefinition> {
+        self.models.get(name)
+    }
+
+    /// Returns the dynamic rules.
+    #[must_use]
+    pub fn dynamic_rules(&self) -> &DynamicRules {
+        &self.dynamic_rules
+    }
+
+    /// Returns the map of models.
+    #[must_use]
+    pub fn models(&self) -> &HashMap<String, ModelDefinition> {
+        &self.models
+    }
+
+    /// Helper to get a model key (picking the only one or a preferred one).
+    #[must_use]
+    pub fn preferred_model_key(&self) -> Option<&str> {
+        if self.models.len() == 1 {
+            self.models.keys().next().map(String::as_str)
+        } else if self.models.contains_key("model_a_row_staggered") {
+            Some("model_a_row_staggered")
+        } else {
+            self.models.keys().next().map(String::as_str)
+        }
+    }
+
+    /// Baked cost lookup for performance-critical loops.
+    /// Maps [Hand][Finger][Zone][Row] to f32.
+    #[must_use]
+    pub fn bake(&self, model_name: &str) -> Option<BakedModel> {
+        let model = self.get_model(model_name)?;
+        let mut baked = BakedModel::default();
+
+        for (hand_name, hand_def) in &model.static_costs {
+            let h_idx = match hand_name.as_str() {
+                "right_hand" => 1,
+                "left_hand" | "universal_hand" => 0, // Fallback
+                _ => continue,
+            };
+
+            for (finger_name, finger_def) in &hand_def.fingers {
+                let f_idx = match finger_name.as_str() {
+                    "thumb" => 0,
+                    "index" => 1,
+                    "middle" => 2,
+                    "ring" => 3,
+                    "pinky" => 4,
+                    _ => continue,
+                };
+
+                match finger_def {
+                    FingerDefinition::Standard(reach) => {
+                        Self::fill_reach(&mut baked.costs[h_idx][f_idx][0], &reach.base);
+                        Self::fill_reach(&mut baked.costs[h_idx][f_idx][1], &reach.inner);
+                        Self::fill_reach(&mut baked.costs[h_idx][f_idx][2], &reach.outer);
+                    }
+                    FingerDefinition::Thumb(map) => {
+                        // Map named thumb positions to rows (heuristic for now)
+                        for (pos, &cost) in map {
+                            let r_idx = match pos.as_str() {
+                                "pos_1" => 0,
+                                "pos_2" => 1,
+                                "pos_3" => 2,
+                                _ => continue,
+                            };
+                            baked.costs[h_idx][f_idx][0][r_idx] = cost;
+                        }
+                    }
+                }
+            }
+
+            // If universal, clone to right hand
+            if hand_name == "universal_hand" {
+                baked.costs[1] = baked.costs[0];
+            }
+        }
+        Some(baked)
+    }
+
+    fn fill_reach(target: &mut [f32; 8], source: &RowCosts) {
+        for (row, &cost) in source {
+            if let Ok(r_idx) = usize::try_from(row.0) {
+                if r_idx < 8 {
+                    target[r_idx] = cost;
+                }
+            }
+        }
+    }
 }
 
-impl Default for CostModelMeta {
+/// Performance-optimized baked model for O(1) lookups.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct BakedModel {
+    /// 4D array: [Hand index: 2][Finger index: 5][Zone index: 3][Row index: 8]
+    pub costs: [[[[f32; 8]; 3]; 5]; 2],
+}
+
+impl Default for BakedModel {
     fn default() -> Self {
         Self {
-            version: "2.0".to_string(),
-            description: "Default Cost Model".to_string(),
-            unit: "pts".to_string(),
+            costs: [[[[100.0; 8]; 3]; 5]; 2], // High default cost
+        }
+    }
+}
+
+impl BakedModel {
+    /// Returns the cost for a specific finger at a position.
+    #[must_use]
+    pub fn get_cost(&self, hand: usize, finger: usize, zone: usize, row: usize) -> f32 {
+        if hand < 2 && finger < 5 && zone < 3 && row < 8 {
+            self.costs[hand][finger][zone][row]
+        } else {
+            100.0 // Penalty for out of bounds
         }
     }
 }
@@ -108,7 +235,7 @@ pub struct HandDefinition {
 }
 
 /// A map of `RowIndex` to cost.
-pub type RowCosts = HashMap<RowIndex, f32>;
+pub type RowCosts = HashMap<crate::types::RowIndex, f32>;
 
 /// Definition of costs within a finger's reach.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -167,7 +294,7 @@ mod tests {
         assert_eq!(meta.version, "2.0");
 
         let cm = CostModel::default();
-        assert!(cm.models.is_empty());
+        assert!(cm.models().is_empty());
     }
 
     #[test]

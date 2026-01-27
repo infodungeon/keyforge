@@ -48,7 +48,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    fn setup_minimal() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<Arc<CostModel>>) {
+    fn setup_minimal() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>) {
         let keys = vec![
             KeyNode {
                 index: 0,
@@ -68,7 +68,7 @@ mod tests {
         let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
-        let mut cm = CostModel::default();
+        let mut cost_model = keyforge_model::cost_model::CostModel::default();
         let mut fingers = HashMap::new();
         fingers.insert(
             "index".to_string(),
@@ -88,7 +88,7 @@ mod tests {
                 },
             ),
         );
-        cm.models.insert(
+        cost_model.models.insert(
             "model_a_row_staggered".into(),
             keyforge_model::cost_model::ModelDefinition {
                 description: "test".into(),
@@ -98,7 +98,7 @@ mod tests {
                 )]),
             },
         );
-        (kb, corpus, rubric, Arc::new(Arc::new(cm)))
+        (kb, corpus, rubric, Arc::new(cost_model))
     }
 
     #[test]
@@ -119,7 +119,7 @@ mod tests {
             keyboard,
             corpus,
             rubric,
-            cost_model: (*cost_model).clone(),
+            cost_model,
             engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();

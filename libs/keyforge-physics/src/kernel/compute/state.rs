@@ -91,7 +91,6 @@ impl<'a> PosMap<'a> {
         // 5. Fill indices
         // Reset current_offsets and counts for used keys
         for &code in used_keys_scratch.iter() {
-            counts[code.0 as usize] = 0;
             current_offsets[code.0 as usize] = 0;
         }
 

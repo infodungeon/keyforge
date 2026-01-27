@@ -47,8 +47,8 @@ impl CompilationStage for CorpusStage<'_> {
 
         let pruned_trigrams = prune_trigrams(
             &self.corpus.trigrams,
-            self.rubric.trigram_coverage,
-            self.rubric.trigram_limit,
+            self.rubric.trigram_coverage(),
+            self.rubric.trigram_limit(),
         );
 
         let (trigram_starts, trigram_others1, trigram_others2, trigram_freqs) =

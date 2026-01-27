@@ -122,6 +122,7 @@ impl From<keyforge_evolution::EvolutionError> for CommandError {
             }
             keyforge_evolution::EvolutionError::Config(s) => CommandError::Config(s),
             keyforge_evolution::EvolutionError::Aborted => CommandError::Internal("Aborted".into()),
+            keyforge_evolution::EvolutionError::Internal(s) => CommandError::Internal(s),
         }
     }
 }

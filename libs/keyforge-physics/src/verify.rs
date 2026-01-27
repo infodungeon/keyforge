@@ -27,13 +27,13 @@ impl DeterministicScorer {
             "model_a_row_staggered"
         };
         let static_costs = cost_model
-            .models
+            .models()
             .get(model_key)
             .map(|m| Arc::new(m.static_costs.clone()))
             .unwrap_or_default();
 
         let mut sequence_modifiers = std::collections::HashMap::new();
-        for (bigram, &val) in &cost_model.dynamic_rules.sequence_modifiers {
+        for (bigram, &val) in &cost_model.dynamic_rules().sequence_modifiers {
             if bigram.len() == 2 {
                 let bytes = bigram.as_bytes();
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
@@ -45,9 +45,9 @@ impl DeterministicScorer {
             rubric: FixedPointRubric::from_rubric(rubric),
             static_costs,
             sequence_modifiers: Arc::new(sequence_modifiers),
-            penalty_redirect: to_fixed(rubric.redirect),
-            bonus_roll: to_fixed(rubric.roll_bonus),
-            bonus_roll_out: to_fixed(rubric.roll_out_bonus),
+            penalty_redirect: to_fixed(rubric.redirect()),
+            bonus_roll: to_fixed(rubric.roll_bonus()),
+            bonus_roll_out: to_fixed(rubric.roll_out_bonus()),
         }
     }
 
@@ -339,17 +339,17 @@ struct FixedPointRubric {
 impl FixedPointRubric {
     fn from_rubric(r: &Rubric) -> Self {
         Self {
-            finger_effort: r.finger_effort.iter().map(|&e| to_fixed(e)).collect(),
-            travel_lat: to_fixed(r.travel_lat),
-            travel_vert: to_fixed(r.travel_vert),
-            sfb_base: to_fixed(r.sfb_base),
-            sfb_lateral: to_fixed(r.sfb_lateral),
-            sfb_lateral_weak: to_fixed(r.sfb_lateral_weak),
-            sfb_diagonal: to_fixed(r.sfb_diagonal),
-            sfb_long: to_fixed(r.sfb_long),
-            penalty_scissor: to_fixed(r.penalty_scissor),
-            threshold_sfb_long_row_diff: i32::from(r.threshold_sfb_long_row_diff),
-            threshold_scissor_row_diff: i32::from(r.threshold_scissor_row_diff),
+            finger_effort: r.finger_effort().iter().map(|&e| to_fixed(e)).collect(),
+            travel_lat: to_fixed(r.travel_lat()),
+            travel_vert: to_fixed(r.travel_vert()),
+            sfb_base: to_fixed(r.sfb_base()),
+            sfb_lateral: to_fixed(r.sfb_lateral()),
+            sfb_lateral_weak: to_fixed(r.sfb_lateral_weak()),
+            sfb_diagonal: to_fixed(r.sfb_diagonal()),
+            sfb_long: to_fixed(r.sfb_long()),
+            penalty_scissor: to_fixed(r.penalty_scissor()),
+            threshold_sfb_long_row_diff: i32::from(r.threshold_sfb_long_row_diff()),
+            threshold_scissor_row_diff: i32::from(r.threshold_scissor_row_diff()),
         }
     }
 

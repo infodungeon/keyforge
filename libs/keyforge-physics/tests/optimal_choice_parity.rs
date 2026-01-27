@@ -108,8 +108,7 @@ mod integration_tests {
         corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
         let corpus = Arc::new(corpus_val);
 
-        let mut rubric = Rubric::default();
-        rubric.travel_lat = 1.0;
+        let rubric = Rubric::builder().travel_lat(1.0).build();
         let rubric_arc = Arc::new(rubric);
 
         let cm = Arc::new(mock_cost_model());
@@ -168,9 +167,7 @@ mod integration_tests {
         corpus_val.trigrams = Arc::from(vec![(97, 98, 99, 1000)]);
         let corpus = Arc::new(corpus_val);
 
-        let mut rubric = Rubric::default();
-        rubric.roll_bonus = 100.0;
-        rubric.redirect = 500.0;
+        let rubric = Rubric::builder().roll_bonus(100.0).redirect(500.0).build();
         let rubric_arc = Arc::new(rubric);
 
         let cm = Arc::new(mock_cost_model());

@@ -217,7 +217,6 @@ impl From<keyforge_model::AnalysisReport> for AnalysisReportDto {
             score: val.score,
             metrics: val
                 .metrics
-                .values
                 .iter()
                 .map(|(id, v)| (MetricIdDto::from(*id), *v))
                 .collect(),
@@ -325,6 +324,234 @@ impl Validator for UserStatsStore {
 pub struct PopulationResponse {
     /// List of layout strings in the current population.
     pub layouts: LimitedVec<String>,
+}
+
+/// DTO for `CostModelMeta`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct CostModelMetaDto {
+    /// Schema version of the cost model.
+    pub version: String,
+    /// Human-readable description of the model.
+    pub description: String,
+    /// Measurement unit for costs (e.g., 'pts').
+    pub unit: String,
+}
+
+impl From<keyforge_model::cost_model::CostModelMeta> for CostModelMetaDto {
+    fn from(val: keyforge_model::cost_model::CostModelMeta) -> Self {
+        Self {
+            version: val.version,
+            description: val.description,
+            unit: val.unit,
+        }
+    }
+}
+
+impl From<CostModelMetaDto> for keyforge_model::cost_model::CostModelMeta {
+    fn from(val: CostModelMetaDto) -> Self {
+        Self {
+            version: val.version,
+            description: val.description,
+            unit: val.unit,
+        }
+    }
+}
+
+/// DTO for `FingerReach`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct FingerReachDto {
+    /// Costs for basic row movements.
+    pub base: std::collections::HashMap<RowIndexDto, f32>,
+    /// Costs for inner column stretches.
+    pub inner: std::collections::HashMap<RowIndexDto, f32>,
+    /// Costs for outer column stretches.
+    pub outer: std::collections::HashMap<RowIndexDto, f32>,
+}
+
+impl From<keyforge_model::cost_model::FingerReach> for FingerReachDto {
+    fn from(val: keyforge_model::cost_model::FingerReach) -> Self {
+        Self {
+            base: val.base.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+            inner: val.inner.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+            outer: val.outer.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+        }
+    }
+}
+
+impl From<FingerReachDto> for keyforge_model::cost_model::FingerReach {
+    fn from(val: FingerReachDto) -> Self {
+        Self {
+            base: val.base.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+            inner: val.inner.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+            outer: val.outer.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+        }
+    }
+}
+
+/// DTO for `FingerDefinition`.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(untagged)]
+pub enum FingerDefinitionDto {
+    /// Reach-based costs for standard fingers.
+    Standard(FingerReachDto),
+    /// Coordinate-based costs for thumb keys.
+    Thumb(std::collections::HashMap<String, f32>),
+}
+
+impl From<keyforge_model::cost_model::FingerDefinition> for FingerDefinitionDto {
+    fn from(val: keyforge_model::cost_model::FingerDefinition) -> Self {
+        match val {
+            keyforge_model::cost_model::FingerDefinition::Standard(reach) => {
+                Self::Standard(reach.into())
+            }
+            keyforge_model::cost_model::FingerDefinition::Thumb(map) => Self::Thumb(map),
+        }
+    }
+}
+
+impl From<FingerDefinitionDto> for keyforge_model::cost_model::FingerDefinition {
+    fn from(val: FingerDefinitionDto) -> Self {
+        match val {
+            FingerDefinitionDto::Standard(reach) => Self::Standard(reach.into()),
+            FingerDefinitionDto::Thumb(map) => Self::Thumb(map),
+        }
+    }
+}
+
+/// DTO for `HandDefinition`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct HandDefinitionDto {
+    /// Mapping of finger IDs to their definitions.
+    #[serde(flatten)]
+    pub fingers: std::collections::HashMap<String, FingerDefinitionDto>,
+}
+
+impl From<keyforge_model::cost_model::HandDefinition> for HandDefinitionDto {
+    fn from(val: keyforge_model::cost_model::HandDefinition) -> Self {
+        Self {
+            fingers: val
+                .fingers
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        }
+    }
+}
+
+impl From<HandDefinitionDto> for keyforge_model::cost_model::HandDefinition {
+    fn from(val: HandDefinitionDto) -> Self {
+        Self {
+            fingers: val
+                .fingers
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        }
+    }
+}
+
+/// DTO for `ModelDefinition`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct ModelDefinitionDto {
+    /// Description of the physical layout model.
+    pub description: String,
+    /// Static costs mapped by hand ID.
+    pub static_costs: std::collections::HashMap<String, HandDefinitionDto>,
+}
+
+impl From<keyforge_model::cost_model::ModelDefinition> for ModelDefinitionDto {
+    fn from(val: keyforge_model::cost_model::ModelDefinition) -> Self {
+        Self {
+            description: val.description,
+            static_costs: val
+                .static_costs
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        }
+    }
+}
+
+impl From<ModelDefinitionDto> for keyforge_model::cost_model::ModelDefinition {
+    fn from(val: ModelDefinitionDto) -> Self {
+        Self {
+            description: val.description,
+            static_costs: val
+                .static_costs
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        }
+    }
+}
+
+/// DTO for `DynamicRules`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct DynamicRulesDto {
+    /// Modifiers for specific key sequences.
+    pub sequence_modifiers: std::collections::HashMap<String, f32>,
+    /// Penalties for general ergonomic violations.
+    pub penalties: std::collections::HashMap<String, f32>,
+    /// Hard constraints on layout properties.
+    pub constraints: std::collections::HashMap<String, f32>,
+}
+
+impl From<keyforge_model::cost_model::DynamicRules> for DynamicRulesDto {
+    fn from(val: keyforge_model::cost_model::DynamicRules) -> Self {
+        Self {
+            sequence_modifiers: val.sequence_modifiers,
+            penalties: val.penalties,
+            constraints: val.constraints,
+        }
+    }
+}
+
+impl From<DynamicRulesDto> for keyforge_model::cost_model::DynamicRules {
+    fn from(val: DynamicRulesDto) -> Self {
+        Self {
+            sequence_modifiers: val.sequence_modifiers,
+            penalties: val.penalties,
+            constraints: val.constraints,
+        }
+    }
+}
+
+/// DTO for `CostModel` (Raw representation).
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct CostModelDto {
+    /// Model metadata.
+    pub meta: CostModelMetaDto,
+    /// Definitions for different physical layouts.
+    pub models: std::collections::HashMap<String, ModelDefinitionDto>,
+    /// Global dynamic rules and penalties.
+    pub dynamic_rules: DynamicRulesDto,
+}
+
+impl From<keyforge_model::cost_model::CostModel> for CostModelDto {
+    fn from(val: keyforge_model::cost_model::CostModel) -> Self {
+        Self {
+            meta: val.meta.into(),
+            models: val.models.into_iter().map(|(k, v)| (k, v.into())).collect(),
+            dynamic_rules: val.dynamic_rules.into(),
+        }
+    }
+}
+
+impl From<CostModelDto> for keyforge_model::cost_model::CostModel {
+    fn from(val: CostModelDto) -> Self {
+        Self {
+            meta: val.meta.into(),
+            models: val.models.into_iter().map(|(k, v)| (k, v.into())).collect(),
+            dynamic_rules: val.dynamic_rules.into(),
+        }
+    }
 }
 
 /// Result of a layout validation and analysis operation.

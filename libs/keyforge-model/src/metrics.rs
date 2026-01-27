@@ -58,13 +58,19 @@ pub enum MetricId {
 
 /// A collection of metric values.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
-
 pub struct MetricSet {
     /// Map of metric ID to its calculated value.
-    pub values: HashMap<MetricId, f32>,
+    #[serde(default)]
+    values: HashMap<MetricId, f32>,
 }
 
 impl MetricSet {
+    /// Creates a new empty metric set.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Returns the value for a specific metric, or 0.0 if not found.
     #[must_use]
     pub fn get(&self, id: MetricId) -> f32 {
@@ -74,5 +80,23 @@ impl MetricSet {
     /// Sets the value for a specific metric.
     pub fn set(&mut self, id: MetricId, value: f32) {
         self.values.insert(id, value);
+    }
+
+    /// Adds the values from another metric set to this one.
+    pub fn accumulate(&mut self, other: &MetricSet) {
+        for (id, val) in &other.values {
+            let current = self.values.entry(*id).or_insert(0.0);
+            *current += val;
+        }
+    }
+
+    /// Returns an iterator over the metric values.
+    pub fn iter(&self) -> impl Iterator<Item = (&MetricId, &f32)> {
+        self.values.iter()
+    }
+
+    /// Clears all metric values.
+    pub fn clear(&mut self) {
+        self.values.clear();
     }
 }

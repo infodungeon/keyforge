@@ -68,10 +68,14 @@ impl GhostOptimizer {
             let b = rng.random_range(0..len);
             next_layout
                 .swap(
-                    keyforge_model::types::KeyIndex(a as u16),
-                    keyforge_model::types::KeyIndex(b as u16),
+                    keyforge_model::types::KeyIndex(u16::try_from(a).map_err(|_| {
+                        crate::EvolutionError::Internal("Index A out of u16 bounds".to_string())
+                    })?),
+                    keyforge_model::types::KeyIndex(u16::try_from(b).map_err(|_| {
+                        crate::EvolutionError::Internal("Index B out of u16 bounds".to_string())
+                    })?),
                 )
-                .unwrap();
+                .map_err(|e| crate::EvolutionError::Internal(format!("Swap failed: {e}")))?;
             // 2. Score
             let next_score = engine
                 .score(&next_layout)

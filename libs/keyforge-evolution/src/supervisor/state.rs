@@ -90,15 +90,24 @@ impl SearchState {
         self.best_layout = self.current_layout.clone();
     }
 
+    /// Applies a mutation to the current search state.
+    ///
+    /// # Errors
+    /// Returns `EvolutionError::Internal` if key lookups or swaps fail, usually indicating
+    /// state inconsistency.
     #[allow(clippy::similar_names)]
-    pub fn apply_mutation(&mut self, action: MutationAction) {
+    pub fn apply_mutation(&mut self, action: MutationAction) -> Result<(), EvolutionError> {
         match action {
             MutationAction::Swap(a, b) => {
-                self.current_layout
-                    .swap(a, b)
-                    .expect("Swap out of bounds in SearchState");
-                let code_a = self.current_layout.get(a).unwrap();
-                let code_b = self.current_layout.get(b).unwrap();
+                self.current_layout.swap(a, b).map_err(|e| {
+                    EvolutionError::Internal(format!("Swap failed in SearchState: {e}"))
+                })?;
+                let code_a = self.current_layout.get(a).ok_or_else(|| {
+                    EvolutionError::Internal(format!("Key {a:?} missing after swap"))
+                })?;
+                let code_b = self.current_layout.get(b).ok_or_else(|| {
+                    EvolutionError::Internal(format!("Key {b:?} missing after swap"))
+                })?;
 
                 // Safety: Update pos_map only if within tracked range
                 let idx_ca = code_a.0 as usize;
@@ -112,33 +121,42 @@ impl SearchState {
             }
             MutationAction::GroupSwap(a, b, c) => {
                 // A -> B, B -> C, C -> A
-                let code_a = self.current_layout.get(a).unwrap();
-                let code_b = self.current_layout.get(b).unwrap();
-                let code_c = self.current_layout.get(c).unwrap();
+                let code_a = self.current_layout.get(a).ok_or_else(|| {
+                    EvolutionError::Internal(format!("Key {a:?} missing before group swap"))
+                })?;
+                let code_b = self.current_layout.get(b).ok_or_else(|| {
+                    EvolutionError::Internal(format!("Key {b:?} missing before group swap"))
+                })?;
+                let code_c = self.current_layout.get(c).ok_or_else(|| {
+                    EvolutionError::Internal(format!("Key {c:?} missing before group swap"))
+                })?;
 
-                self.current_layout.set(b, code_a).unwrap();
-                self.current_layout.set(c, code_b).unwrap();
-                self.current_layout.set(a, code_c).unwrap();
-
-                let code_a = self.current_layout.get(a).unwrap();
-                let code_b = self.current_layout.get(b).unwrap();
-                let code_c = self.current_layout.get(c).unwrap();
+                self.current_layout.set(b, code_a).map_err(|e| {
+                    EvolutionError::Internal(format!("Set B failed in group swap: {e}"))
+                })?;
+                self.current_layout.set(c, code_b).map_err(|e| {
+                    EvolutionError::Internal(format!("Set C failed in group swap: {e}"))
+                })?;
+                self.current_layout.set(a, code_c).map_err(|e| {
+                    EvolutionError::Internal(format!("Set A failed in group swap: {e}"))
+                })?;
 
                 let idx_ca = code_a.0 as usize;
                 let idx_cb = code_b.0 as usize;
                 let idx_cc = code_c.0 as usize;
 
                 if idx_ca < self.pos_map.len() {
-                    self.pos_map[idx_ca] = a;
+                    self.pos_map[idx_ca] = b;
                 }
                 if idx_cb < self.pos_map.len() {
-                    self.pos_map[idx_cb] = b;
+                    self.pos_map[idx_cb] = c;
                 }
                 if idx_cc < self.pos_map.len() {
-                    self.pos_map[idx_cc] = c;
+                    self.pos_map[idx_cc] = a;
                 }
             }
         }
+        Ok(())
     }
 
     pub fn reheat_from_best(&mut self, start_temp: Temperature, reheat_factor: ScalingFactor) {
@@ -158,7 +176,9 @@ mod tests {
         let layout = Layout::new_unchecked(vec![KeyCode(10), KeyCode(20)]);
         let mut state = SearchState::new(layout, 100, Temperature(1.0)).unwrap();
 
-        state.apply_mutation(MutationAction::Swap(KeyIndex(0), KeyIndex(1)));
+        state
+            .apply_mutation(MutationAction::Swap(KeyIndex(0), KeyIndex(1)))
+            .unwrap();
 
         assert_eq!(state.layout().keys()[0], KeyCode(20));
         assert_eq!(state.layout().keys()[1], KeyCode(10));

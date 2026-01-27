@@ -26,7 +26,7 @@ mod runtime_tests {
             }
 
             if tid == std::any::TypeId::of::<keyforge_model::CostModel>() {
-                let mut model = keyforge_model::CostModel::default();
+                let mut model = keyforge_model::cost_model::CostModel::default();
                 let mut hand_def = keyforge_model::cost_model::HandDefinition::default();
                 for finger in &["thumb", "index", "middle", "ring", "pinky"] {
                     hand_def.fingers.insert(

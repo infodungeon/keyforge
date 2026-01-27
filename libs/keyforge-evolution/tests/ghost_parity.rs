@@ -63,10 +63,7 @@ mod integration_tests {
         corpus_val.char_freqs = Arc::from(char_freqs);
         corpus_val.bigrams = Arc::from(vec![(0, 1, 100)]);
 
-        let rubric = Arc::new(Rubric {
-            travel_lat: 1.0,
-            ..Default::default()
-        });
+        let rubric = Arc::new(Rubric::builder().travel_lat(1.0).build());
 
         let cm = Arc::new(mock_cost_model());
 
