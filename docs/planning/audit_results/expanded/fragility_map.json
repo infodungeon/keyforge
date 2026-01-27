@@ -1,0 +1,8 @@
+{
+  "status": "Autonomous Analysis Ready",
+  "hotspots": [
+    "physics::kernel",
+    "evolution::annealing"
+  ],
+  "recommendation": "High dependency density in 'libs/keyforge-physics'. Consider decoupling."
+}

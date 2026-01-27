@@ -1,0 +1,26 @@
+rulesets:
+  - name: keyforge-custom
+    rules:
+      - id: PATH-001-FP
+        pattern: "std::fs::read_to_string(path)"
+        context: "apps/keyforge-agent/src/models.rs"
+        reason: "False positive: Agent config loading from known data directory"
+        action: suppress
+      - id: PATH-002-FP
+        pattern: "std::fs::read_dir"
+        context: "apps/keyforge-agent/src/agent/network/outbox.rs"
+        reason: "False positive: Agent outbox/WAL maintenance"
+        action: suppress
+      - id: PATH-003-FP
+        pattern: "std::fs::write(path, json)"
+        context: "apps/keyforge-agent/src/agent/network/outbox.rs"
+        reason: "False positive: Result WAL persistence"
+        action: suppress
+
+audit:
+  severity_threshold: high
+  exclude_paths:
+    - "**/tests/**"
+    - "target/**"
+  custom_rulesets:
+    - "ops/config/narsil_audit_config.yaml"
