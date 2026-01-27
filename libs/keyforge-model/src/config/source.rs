@@ -92,7 +92,7 @@ impl FromStr for CorpusSource {
 
 /// Source for the cost matrix data.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
-#[serde(tag = "type", content = "data")]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum CostMatrixSource {
     /// A predefined cost matrix file (e.g. "`default_costmatrix.json`").
     Predefined(String),

@@ -52,7 +52,7 @@ impl ScoringEngine for ExactScoringEngine {
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
         self.scorer
-            .score(&self.keyboard, &self.corpus, layout.keys.as_slice())
+            .score(&self.keyboard, &self.corpus, layout.keys())
             .map(Score)
     }
 
@@ -66,7 +66,7 @@ impl ScoringEngine for ExactScoringEngine {
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
         self.scorer
-            .score_detailed(&self.keyboard, &self.corpus, layout.keys.as_slice())
+            .score_detailed(&self.keyboard, &self.corpus, layout.keys())
     }
 
     fn calculate_swap_delta(
@@ -76,7 +76,7 @@ impl ScoringEngine for ExactScoringEngine {
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         let pm = crate::kernel::compute::state::PosMap::from_slice(pos_map, self.ctx.key_count);
 
         crate::kernel::compute::delta::calculate_swap_delta(
@@ -85,7 +85,7 @@ impl ScoringEngine for ExactScoringEngine {
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         analyze_layout(&self.ctx, &validated)
     }
 

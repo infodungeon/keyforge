@@ -40,22 +40,20 @@ impl SearchState {
         score: i64,
         start_temp: Temperature,
     ) -> Result<Self, EvolutionError> {
-        use keyforge_model::KeyIndex;
-
         // INVARIANT: Key count must fit in u16 to use 65535 as sentinel
-        if layout.keys.len() >= 65535 {
+        if layout.len() >= 65535 {
             return Err(EvolutionError::Config("Key count exceeds u16 limit".into()));
         }
 
         // Optimize pos_map size to actual key range
-        let max_code = layout.keys.iter().map(|k| k.0).max().unwrap_or(0);
+        let max_code = layout.keys().iter().map(|k| k.0).max().unwrap_or(0);
         let map_size = (max_code as usize) + 1;
 
         // Initialize for required range
-        let mut pos_map = vec![KeyIndex::SENTINEL; map_size];
-        for (i, &code) in layout.keys.iter().enumerate() {
+        let mut pos_map = vec![keyforge_model::types::KeyIndex::SENTINEL; map_size];
+        for (i, &code) in layout.keys().iter().enumerate() {
             if (code.0 as usize) < map_size {
-                pos_map[code.0 as usize] = KeyIndex::new(i as u16);
+                pos_map[code.0 as usize] = keyforge_model::types::KeyIndex::new(i as u16);
             }
         }
 
@@ -77,7 +75,7 @@ impl SearchState {
 
     /// Returns the current position map.
     #[must_use]
-    pub fn pos_map(&self) -> &[keyforge_model::KeyIndex] {
+    pub fn pos_map(&self) -> &[keyforge_model::types::KeyIndex] {
         &self.pos_map
     }
 
@@ -96,15 +94,13 @@ impl SearchState {
     pub fn apply_mutation(&mut self, action: MutationAction) {
         match action {
             MutationAction::Swap(a, b) => {
-                let idx_a = usize::from(a);
-                let idx_b = usize::from(b);
-                self.current_layout.keys.swap(idx_a, idx_b);
-                let code_a = self.current_layout.keys[idx_a];
-                let code_b = self.current_layout.keys[idx_b];
+                self.current_layout
+                    .swap(a, b)
+                    .expect("Swap out of bounds in SearchState");
+                let code_a = self.current_layout.get(a).unwrap();
+                let code_b = self.current_layout.get(b).unwrap();
 
                 // Safety: Update pos_map only if within tracked range
-                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
-                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
                 let idx_ca = code_a.0 as usize;
                 let idx_cb = code_b.0 as usize;
                 if idx_ca < self.pos_map.len() {
@@ -115,22 +111,19 @@ impl SearchState {
                 }
             }
             MutationAction::GroupSwap(a, b, c) => {
-                let idx_a = usize::from(a);
-                let idx_b = usize::from(b);
-                let idx_c = usize::from(c);
-
                 // A -> B, B -> C, C -> A
-                let temp = self.current_layout.keys[idx_c];
-                self.current_layout.keys[idx_c] = self.current_layout.keys[idx_b];
-                self.current_layout.keys[idx_b] = self.current_layout.keys[idx_a];
-                self.current_layout.keys[idx_a] = temp;
+                let code_a = self.current_layout.get(a).unwrap();
+                let code_b = self.current_layout.get(b).unwrap();
+                let code_c = self.current_layout.get(c).unwrap();
 
-                let code_a = self.current_layout.keys[idx_a];
-                let code_b = self.current_layout.keys[idx_b];
-                let code_c = self.current_layout.keys[idx_c];
+                self.current_layout.set(b, code_a).unwrap();
+                self.current_layout.set(c, code_b).unwrap();
+                self.current_layout.set(a, code_c).unwrap();
 
-                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
-                // idx_ca/cb = Index of Code A/B. Naming reflects the symmetric nature of the swap.
+                let code_a = self.current_layout.get(a).unwrap();
+                let code_b = self.current_layout.get(b).unwrap();
+                let code_c = self.current_layout.get(c).unwrap();
+
                 let idx_ca = code_a.0 as usize;
                 let idx_cb = code_b.0 as usize;
                 let idx_cc = code_c.0 as usize;
@@ -167,8 +160,8 @@ mod tests {
 
         state.apply_mutation(MutationAction::Swap(KeyIndex(0), KeyIndex(1)));
 
-        assert_eq!(state.layout().keys[0], KeyCode(20));
-        assert_eq!(state.layout().keys[1], KeyCode(10));
+        assert_eq!(state.layout().keys()[0], KeyCode(20));
+        assert_eq!(state.layout().keys()[1], KeyCode(10));
         assert_eq!(state.pos_map()[20], KeyIndex(0));
         assert_eq!(state.pos_map()[10], KeyIndex(1));
     }

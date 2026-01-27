@@ -74,7 +74,7 @@ impl ProgressReporter {
             };
 
             let score_f32 = state.best_score as f32 / SCORE_SCALE;
-            let layout_snapshot = state.best_layout().keys.clone();
+            let layout_snapshot = state.best_layout().keys().to_vec();
 
             let _ = self.tx.try_send((step, score_f32, layout_snapshot, ips));
 

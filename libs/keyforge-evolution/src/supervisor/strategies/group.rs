@@ -57,11 +57,11 @@ impl MutationOperator for GroupMutation {
         let delta = KEYS_SCRATCH.with(|k_scratch| {
             let mut temp_keys = k_scratch.borrow_mut();
 
-            if temp_keys.len() == layout.keys.len() {
-                temp_keys.copy_from_slice(&layout.keys);
+            if temp_keys.len() == layout.len() {
+                temp_keys.copy_from_slice(layout.keys());
             } else {
                 temp_keys.clear();
-                temp_keys.extend_from_slice(&layout.keys);
+                temp_keys.extend_from_slice(layout.keys());
             }
 
             temp_keys.swap(idx_a, idx_b);
@@ -73,8 +73,12 @@ impl MutationOperator for GroupMutation {
                 }
                 patched_pos_map[..pos_map.len()].copy_from_slice(pos_map);
 
-                let code_a = layout.keys[idx_a];
-                let code_b = layout.keys[idx_b];
+                let code_a = layout
+                    .get(keyforge_model::KeyIndex::new(idx_a as u16))
+                    .unwrap();
+                let code_b = layout
+                    .get(keyforge_model::KeyIndex::new(idx_b as u16))
+                    .unwrap();
                 if (code_a.0 as usize) < patched_pos_map.len() {
                     patched_pos_map[code_a.0 as usize] = KeyIndex::new(idx_b as u16);
                 }

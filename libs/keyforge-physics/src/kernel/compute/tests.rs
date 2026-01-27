@@ -5,7 +5,7 @@ mod unit_tests {
     use crate::error::PhysicsError;
     use crate::kernel::compute::{calculate_swap_delta, PosMap};
     use crate::kernel::types::ValidatedLayout;
-    use crate::{EngineCompilationContext, EngineFactory};
+    use crate::{EngineCompilationContext, EngineFactory, ScoringEngine};
     use keyforge_model::{
         types::{FingerIndex, HandIndex, KeyCode},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
@@ -180,6 +180,53 @@ mod unit_tests {
         assert_eq!(score, 0.0);
     }
 
+    fn setup_engine() -> Box<dyn ScoringEngine> {
+        let kb = setup_kb_robust();
+        let corpus = Corpus::default();
+        let rubric = Rubric::default();
+        let cost_model = mock_cost_model();
+        EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: Arc::new(kb),
+            corpus: Arc::new(corpus),
+            rubric: Arc::new(rubric),
+            cost_model: Arc::new(cost_model),
+            engine_config: keyforge_model::config::EngineConfig::default(),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn test_validated_layout_construction() {
+        let engine = setup_engine();
+        let layout = Layout::new_unchecked(vec![
+            KeyCode(10),
+            KeyCode(20),
+            KeyCode(30),
+            KeyCode(40),
+            KeyCode(50),
+        ]);
+
+        let validated = ValidatedLayout::new(layout.keys(), engine.key_count()).unwrap();
+        assert_eq!(validated.as_slice().len(), 5);
+
+        let sub_slice = &layout.keys()[0..3];
+        let validated_partial = ValidatedLayout::new(sub_slice, 3).unwrap();
+        assert_eq!(validated_partial.as_slice().len(), 3);
+
+        // Underflow
+        let bad_layout = Layout::new_unchecked(vec![KeyCode(0)]);
+        let res = ValidatedLayout::new(bad_layout.keys(), engine.key_count());
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validated_layout_mismatch() {
+        let engine = setup_engine();
+        let layout = Layout::new_unchecked(vec![]);
+        let validated_res = ValidatedLayout::new(layout.keys(), engine.key_count());
+        assert!(validated_res.is_err());
+    }
+
     #[test]
     fn test_swap_delta_bounds() {
         let kb = setup_kb_robust();
@@ -202,14 +249,15 @@ mod unit_tests {
             engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
-        let validated = ValidatedLayout::new(&layout.keys, engine.key_count()).unwrap();
+
+        let validated = ValidatedLayout::new(layout.keys(), engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
         let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
-            &layout.keys,
+            layout.keys(),
             engine.key_count(),
             &mut starts,
             &mut counts,
@@ -238,7 +286,7 @@ mod unit_tests {
         .unwrap();
 
         let layout = Layout::new_unchecked(vec![]);
-        let validated_res = ValidatedLayout::new(&layout.keys, engine.key_count());
+        let validated_res = ValidatedLayout::new(layout.keys(), engine.key_count());
         assert!(validated_res.is_err());
     }
 
@@ -301,9 +349,9 @@ mod unit_tests {
         let score_before = engine.score(&layout).unwrap().0;
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 1, 2).unwrap();
 
-        let mut swapped_keys = layout_keys.clone();
-        swapped_keys.swap(1, 2);
-        let swapped_layout = Layout::new_unchecked(swapped_keys);
+        let mut next_keys = layout_keys.clone();
+        next_keys.swap(1, 2);
+        let swapped_layout = Layout::new_unchecked(next_keys);
         let score_after = engine.score(&swapped_layout).unwrap().0;
 
         assert_eq!(
@@ -367,9 +415,9 @@ mod unit_tests {
         let score_before = engine.score(&layout).unwrap().0;
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
 
-        let mut swapped_keys = layout_keys.clone();
-        swapped_keys.swap(0, 1);
-        let swapped_layout = Layout::new_unchecked(swapped_keys);
+        let mut next_keys = layout_keys.clone();
+        next_keys.swap(0, 1);
+        let swapped_layout = Layout::new_unchecked(next_keys);
         let score_after = engine.score(&swapped_layout).unwrap().0;
 
         assert_eq!(
@@ -419,7 +467,7 @@ mod unit_tests {
             &mut used_keys_scratch,
         );
 
-        // This should not panic and should handle missing candidates2
+        // This should not panic and should handle missing candidates
         let delta = calculate_swap_delta(engine.context(), &validated, &pm, 0, 1).unwrap();
         assert_eq!(delta, 0);
     }

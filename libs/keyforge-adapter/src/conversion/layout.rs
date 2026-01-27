@@ -112,8 +112,8 @@ mod tests {
         assert!(res.is_err(), "Strict should fail on unknown token 'B'");
 
         let ok = parse_layout_string_strict("A", 2, &registry).unwrap();
-        assert_eq!(ok.keys[0], KeyCode(10));
-        assert_eq!(ok.keys[1], KeyCode(0)); // Padded
+        assert_eq!(ok.keys()[0], KeyCode(10));
+        assert_eq!(ok.keys()[1], KeyCode(0)); // Padded
     }
 
     #[test]
@@ -136,7 +136,7 @@ mod tests {
         reg.rebuild_maps();
 
         let ok = parse_layout_string_strict("MO(1)", 1, &reg).unwrap();
-        assert_eq!(ok.keys[0], KeyCode(100));
+        assert_eq!(ok.keys()[0], KeyCode(100));
 
         // 3. malformed bracket - ends with ) but no (
         let err = parse_layout_string_strict("MO)", 1, &reg);
@@ -160,22 +160,22 @@ mod tests {
 
         // Exact match
         let ok = parse_layout_string_permissive("MO UNKNOWN", 2, &reg);
-        assert_eq!(ok.keys[0], KeyCode(100));
-        assert_eq!(ok.keys[1], KeyCode(0));
+        assert_eq!(ok.keys()[0], KeyCode(100));
+        assert_eq!(ok.keys()[1], KeyCode(0));
 
         // Argument stripping
         let ok = parse_layout_string_permissive("MO(1) UNKNOWN", 2, &reg);
-        assert_eq!(ok.keys[0], KeyCode(100));
-        assert_eq!(ok.keys[1], KeyCode(0));
+        assert_eq!(ok.keys()[0], KeyCode(100));
+        assert_eq!(ok.keys()[1], KeyCode(0));
 
         // Malformed bracket: ends with ) but no (
         let malformed = parse_layout_string_permissive("MO)", 1, &reg);
-        assert_eq!(malformed.keys[0], KeyCode(0));
+        assert_eq!(malformed.keys()[0], KeyCode(0));
 
         // Padding
         let padded = parse_layout_string_permissive("", 2, &reg);
         assert_eq!(padded.len(), 2);
-        assert_eq!(padded.keys[0], KeyCode(0));
+        assert_eq!(padded.keys()[0], KeyCode(0));
     }
 
     #[test]

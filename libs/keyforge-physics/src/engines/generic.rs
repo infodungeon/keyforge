@@ -44,12 +44,12 @@ impl ScoringEngine for GenericScoringEngine {
         layout: &Layout,
         scratch: &mut PhysicsScratch,
     ) -> Result<Score, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         Ok(Score(score_layout(&self.ctx, &validated, scratch)?))
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
 
         crate::kernel::compute::state::with_scratch(|scratch| {
@@ -89,14 +89,14 @@ impl ScoringEngine for GenericScoringEngine {
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         let pm = PosMap::from_slice(pos_map, self.ctx.key_count);
 
         calculate_swap_delta(&self.ctx, &validated, &pm, idx_a, idx_b)
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         crate::kernel::compute::analyze_layout(&self.ctx, &validated)
     }
 

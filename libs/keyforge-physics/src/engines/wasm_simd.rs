@@ -51,7 +51,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
         layout: &Layout,
         scratch: &mut PhysicsScratch,
     ) -> Result<Score, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         #[cfg(target_arch = "wasm32")]
         {
             // SAFETY: We have verified that the target architecture is wasm32, which supports WASM SIMD.
@@ -66,7 +66,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
 
         crate::kernel::compute::state::with_scratch(|s| {
@@ -103,7 +103,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
 
         crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
@@ -128,7 +128,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         crate::kernel::compute::analyze_layout(&self.ctx, &validated)
     }
 
@@ -504,16 +504,14 @@ mod tests {
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
         let engine = WasmSimdScoringEngine::new(ctx.clone(), None);
 
-        let layout = Layout {
-            keys: vec![KeyCode(97), KeyCode(98), KeyCode(99)],
-        };
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
         let score_res = engine.score(&layout).unwrap();
 
         // Parity check (native only if wasm32, otherwise scalar path is taken anyway)
         let scalar_score = score_layout_scalar(
             &ctx,
-            &ValidatedLayout::new(&layout.keys, 3).unwrap(),
+            &ValidatedLayout::new(layout.keys(), 3).unwrap(),
             &mut PhysicsScratch::try_new().unwrap(),
         )
         .unwrap();

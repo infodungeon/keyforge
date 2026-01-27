@@ -51,7 +51,7 @@ impl ScoringEngine for ArmSveScoringEngine {
         layout: &Layout,
         scratch: &mut PhysicsScratch,
     ) -> Result<Score, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         #[cfg(target_arch = "aarch64")]
         {
             // SAFETY: We have verified that the target architecture is aarch64.
@@ -66,7 +66,7 @@ impl ScoringEngine for ArmSveScoringEngine {
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         let layout_slice = validated.as_slice();
 
         crate::kernel::compute::state::with_scratch(|s| {
@@ -103,7 +103,7 @@ impl ScoringEngine for ArmSveScoringEngine {
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
 
         crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
@@ -128,7 +128,7 @@ impl ScoringEngine for ArmSveScoringEngine {
     }
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
-        let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
+        let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
         crate::kernel::compute::analyze_layout(&self.ctx, &validated)
     }
 
@@ -216,14 +216,12 @@ mod tests {
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm)?;
         let engine = ArmSveScoringEngine::new(ctx.clone(), None);
 
-        let layout = Layout {
-            keys: vec![KeyCode(97), KeyCode(98), KeyCode(99)],
-        };
+        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
 
         let score_res = engine.score(&layout)?;
         let scalar_score = score_layout_scalar(
             &ctx,
-            &ValidatedLayout::new(&layout.keys, 3)?,
+            &ValidatedLayout::new(layout.keys(), 3)?,
             &mut PhysicsScratch::try_new().unwrap(),
         )?;
 
