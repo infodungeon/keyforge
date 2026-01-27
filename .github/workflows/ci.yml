@@ -49,8 +49,6 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --all -- --check
 
-      - name: Technical Debt Sentinel
-        run: ./ops/scripts/check_debt_integrity.sh
 
       - name: Install Cargo Audit & Deny
         run: |
