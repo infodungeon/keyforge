@@ -27,27 +27,16 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-/// Metadata about a user project or session.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 
-pub struct ProjectMeta {
-    /// The display name of the project.
-    pub name: String,
-    /// The version string for the project.
-    pub version: String,
-    /// The author of the project.
-    #[serde(default)]
-    pub author: String,
+
+fn default_project_name() -> String {
+    "Untitled Project".to_string()
 }
-
-impl Default for ProjectMeta {
-    fn default() -> Self {
-        Self {
-            name: "Untitled Project".to_string(),
-            version: "0.1.0".to_string(),
-            author: "Anonymous".to_string(),
-        }
-    }
+fn default_project_version() -> String {
+    "0.1.0".to_string()
+}
+fn default_project_author() -> String {
+    "Anonymous".to_string()
 }
 
 /// The root configuration aggregate for a `KeyForge` session.
@@ -55,9 +44,15 @@ impl Default for ProjectMeta {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 
 pub struct Config {
-    /// Metadata about the configuration/project.
-    #[serde(default)]
-    pub meta: ProjectMeta,
+    /// The display name of the project.
+    #[serde(default = "default_project_name")]
+    pub name: String,
+    /// The version string for the project.
+    #[serde(default = "default_project_version")]
+    pub version: String,
+    /// The author of the project.
+    #[serde(default = "default_project_author")]
+    pub author: String,
 
     /// Name or Path of the keyboard definition (e.g. "corne", "`ansi_104`")
     pub keyboard: String,
@@ -90,7 +85,9 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            meta: ProjectMeta::default(),
+            name: default_project_name(),
+            version: default_project_version(),
+            author: default_project_author(),
             keyboard: "ortho_30".to_string(),
             corpora: vec![CorpusSource::default()],
             cost_matrix: CostMatrixSource::default(),

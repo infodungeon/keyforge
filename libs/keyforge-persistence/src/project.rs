@@ -17,7 +17,7 @@
 //! This module re-exports domain configuration types from `keyforge-model`
 //! and provides persistence-specific aliases and extensions.
 
-pub use keyforge_model::{Config, ProjectMeta};
+pub use keyforge_model::Config;
 
 /// Alias for `Config` when used in a persistable project context.
 pub type Project = Config;

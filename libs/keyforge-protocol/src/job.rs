@@ -16,10 +16,9 @@ use utoipa::ToSchema;
 impl Projection<JobConfig> for keyforge_model::config::Config {
     fn project(source: JobConfig) -> Result<Self, keyforge_model::error::ForgeError> {
         Ok(Self {
-            meta: keyforge_model::ProjectMeta {
-                name: source.definition.name.clone(),
-                ..Default::default()
-            },
+            name: source.definition.name.clone(),
+            version: "0.1.0".to_string(), // Default as source.definition is for KB not project
+            author: source.definition.author.clone(),
             keyboard: source.definition.name.clone(),
             corpora: source.to_domain_corpus_sources(),
             cost_matrix: source.to_domain_cost_matrix(),

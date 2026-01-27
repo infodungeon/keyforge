@@ -59,7 +59,7 @@ pub mod validator;
 pub mod testing;
 
 pub use asset::{Asset, AssetCategory};
-pub use config::aggregate::{Config, EngineRequest, ProjectMeta};
+pub use config::aggregate::{Config, EngineRequest};
 pub use config::constraints::KeyConstraint;
 pub use config::search::{SearchConfig, SearchParams};
 pub use config::source::{CorpusSource, CostMatrixSource};
