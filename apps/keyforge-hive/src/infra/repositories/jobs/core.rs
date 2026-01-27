@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::dto::{HiveJobConfigProjection, HiveJobConfigRow, HiveJobProjection, HiveJobRow};
 use super::identity;
-use keyforge_model::config::ScoringWeights;
 use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
-use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::mapping::Projection;
 use keyforge_model::types::KeyIndex;
 use keyforge_model::Validator;
-use keyforge_protocol::JobRequest;
+use keyforge_protocol::{JobRequest, KeyboardDefinitionDto, ScoringWeightsDto, SearchParamsDto};
 use sha2::{Digest, Sha256};
 use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;
@@ -34,12 +34,19 @@ impl JobRepository {
         Self { pool }
     }
 
+    #[tracing::instrument(skip_all, fields(job_id = %job_id, priority = priority))]
+
     pub async fn register(
         &self,
+
         job_id: &str,
+
         req: &JobRequest,
+
         owner_id: Option<Uuid>,
+
         parent_id: Option<String>,
+
         priority: i32,
     ) -> Result<bool, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
@@ -47,6 +54,7 @@ impl JobRepository {
         Self::validate_registration_request(req)?;
 
         let req_clone = req.clone();
+
         let unique_hash =
             tokio::task::spawn_blocking(move || identity::calculate_job_identity(&req_clone))
                 .await
@@ -58,9 +66,11 @@ impl JobRepository {
         let kb_id = self
             .ensure_keyboard(&mut tx, &req.config.definition, &unique_hash)
             .await?;
+
         let score_id = self
             .ensure_scoring_weights(&mut tx, &req.config.weights)
             .await?;
+
         let search_id = self
             .ensure_search_params(&mut tx, &req.config.params)
             .await?;
@@ -72,85 +82,100 @@ impl JobRepository {
             .await?;
 
         tx.commit().await?;
+
         Ok(is_new)
     }
 
+    #[tracing::instrument(skip_all)]
+
     pub async fn claim_job(&self) -> Result<Option<(String, JobRequest)>, sqlx::Error> {
-        let r = sqlx::query!(
-            r#"
-            WITH locked_job AS (
-                SELECT id 
-                FROM jobs 
-                WHERE status = 'active' 
-                ORDER BY priority DESC, created_at ASC 
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-            ),
-            updated_job AS (
-                UPDATE jobs
-                SET status = 'processing',
-                    started_at = CURRENT_TIMESTAMP
-                FROM locked_job
-                WHERE jobs.id = locked_job.id
-                RETURNING jobs.id, jobs.keyboard_id, jobs.pinned_keys, jobs.corpus_name, jobs.cost_matrix, jobs.parent_job_id
+        let r = sqlx::query_as!(
+
+                HiveJobRow,
+
+                r#"
+
+                WITH locked_job AS (
+
+                    SELECT id 
+
+                    FROM jobs 
+
+                    WHERE status = 'active' 
+
+                    ORDER BY priority DESC, created_at ASC 
+
+                    LIMIT 1
+
+                    FOR UPDATE SKIP LOCKED
+
+                ),
+
+                updated_job AS (
+
+                    UPDATE jobs
+
+                    SET status = 'processing',
+
+                        started_at = CURRENT_TIMESTAMP
+
+                    FROM locked_job
+
+                    WHERE jobs.id = locked_job.id
+
+                    RETURNING jobs.id, jobs.keyboard_id, jobs.pinned_keys, jobs.corpus_name, jobs.cost_matrix, jobs.parent_job_id
+
+                )
+
+                SELECT 
+
+                    j.id as "id!",
+
+                    j.keyboard_id as "keyboard_id!",
+
+                    sp.weights as "weights_json!",
+
+                    (to_jsonb(sc) - 'id' - 'config_hash') as "params_json",
+
+                    j.pinned_keys as "pinned_keys!", 
+
+                    j.corpus_name as "corpus_name!", 
+
+                    j.cost_matrix as "cost_matrix!",
+
+                    j.parent_job_id
+
+                FROM updated_job u
+
+                JOIN jobs j ON u.id = j.id
+
+                JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
+
+                JOIN search_configs sc ON j.search_config_id = sc.id
+
+                "#
+
             )
-            SELECT 
-                j.id,
-                j.keyboard_id,
-                sp.weights as weights_json,
-                (to_jsonb(sc) - 'id' - 'config_hash') as params_json,
-                j.pinned_keys, 
-                j.corpus_name, 
-                j.cost_matrix,
-                j.parent_job_id
-            FROM updated_job u
-            JOIN jobs j ON u.id = j.id
-            JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
-            JOIN search_configs sc ON j.search_config_id = sc.id
-            "#
-        )
-        .fetch_optional(&self.pool)
-        .await?;
 
-        if let Some(r) = r {
-            let id = r.id;
-            let keyboard_id = r.keyboard_id;
-            let weights_val = r.weights_json;
-            let params_val = r.params_json.unwrap_or_default();
-            let pinned_keys_str = r.pinned_keys;
-            let corpus_name = r.corpus_name;
-            let cost_matrix_str = r.cost_matrix;
+            .fetch_optional(&self.pool)
 
-            let definition = self.fetch_keyboard_definition(keyboard_id).await?;
+            .await?;
 
-            let weights = serde_json::from_value(weights_val)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid weights in DB: {e}")))?;
-            let params = serde_json::from_value(params_val)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid params in DB: {e}")))?;
-            let pinned_keys = serde_json::from_str(&pinned_keys_str)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid pins in DB: {e}")))?;
-            let cost_matrix = serde_json::from_str(&cost_matrix_str)
-                .map_err(|e| sqlx::Error::Protocol(format!("Invalid cost_matrix in DB: {e}")))?;
+        if let Some(row) = r {
+            let id = row.id.clone();
+
+            let definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
+
+            let config =
+                keyforge_protocol::JobConfig::project(HiveJobProjection { row, definition })
+                    .map_err(|e| sqlx::Error::Protocol(format!("Projection failed: {e}")))?;
 
             let req = JobRequest {
                 version: keyforge_protocol::PROTOCOL_VERSION,
-                config: keyforge_protocol::JobConfig {
-                    definition,
-                    weights,
-                    params,
-                    pinned_keys,
-                    corpora: vec![keyforge_model::CorpusSource {
-                        id: corpus_name,
-                        weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
-                        hash: None,
-                    }],
-                    cost_matrix,
-                    biometrics: vec![],
-                    parent_job_id: r.parent_job_id,
-                    baseline_score: None,
-                    parents: vec![],
-                },
+
+                config,
             };
+
             Ok(Some((id, req)))
         } else {
             Ok(None)
@@ -170,28 +195,33 @@ impl JobRepository {
         )
         .fetch_one(&self.pool)
         .await?;
+
         Ok(count.unwrap_or(0))
     }
 
+    #[tracing::instrument(skip_all, fields(job_id = %job_id))]
+
     pub async fn get_config(
         &self,
+
         job_id: &str,
     ) -> Result<
         Option<(
             keyforge_model::geometry::KeyboardGeometry,
-            ScoringWeights,
+            keyforge_model::config::ScoringWeights,
             String,
             keyforge_model::CostMatrixSource,
         )>,
         sqlx::Error,
     > {
-        let row = sqlx::query!(
+        let row = sqlx::query_as!(
+            HiveJobConfigRow,
             r#"
             SELECT 
-                j.keyboard_id,
-                sp.weights as weights_json,
-                j.corpus_name,
-                j.cost_matrix
+                j.keyboard_id as "keyboard_id!",
+                sp.weights as "weights_json!",
+                j.corpus_name as "corpus_name!",
+                j.cost_matrix as "cost_matrix!"
             FROM jobs j
             JOIN scoring_profiles sp ON j.scoring_profile_id = sp.id
             WHERE j.id = $1
@@ -201,19 +231,13 @@ impl JobRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        if let Some(r) = row {
-            let keyboard_id = r.keyboard_id;
-            let definition = self.fetch_keyboard_definition(keyboard_id).await?;
-            let geometry = definition.geometry;
+        if let Some(row) = row {
+            let definition = self.fetch_keyboard_definition(row.keyboard_id).await?;
+            let config =
+                super::dto::HiveConfigTuple::project(HiveJobConfigProjection { row, definition })
+                    .map_err(|e| sqlx::Error::Protocol(format!("Config projection failed: {e}")))?;
 
-            let weights: ScoringWeights =
-                serde_json::from_value(r.weights_json).unwrap_or_default();
-            let corpus = r.corpus_name;
-            let cost_raw = r.cost_matrix;
-            let cost: keyforge_model::CostMatrixSource = serde_json::from_str(&cost_raw)
-                .unwrap_or(keyforge_model::CostMatrixSource::Predefined(cost_raw));
-
-            Ok(Some((geometry, weights, corpus, cost)))
+            Ok(Some(config))
         } else {
             Ok(None)
         }
@@ -222,10 +246,14 @@ impl JobRepository {
     async fn fetch_keyboard_definition(
         &self,
         kb_id: i32,
-    ) -> Result<KeyboardDefinition, sqlx::Error> {
-        let meta_row = sqlx::query!(
+    ) -> Result<keyforge_model::geometry::KeyboardDefinition, sqlx::Error> {
+        use super::dto::{HiveKeyRow, HiveKeyboardMetaRow, HiveKeyboardProjection};
+        use keyforge_model::mapping::Projection;
+
+        let meta_row = sqlx::query_as!(
+            HiveKeyboardMetaRow,
             r#"
-            SELECT name, author, version, notes, kb_type, home_row 
+            SELECT name as "name!", author, version, notes, kb_type, home_row 
             FROM keyboards 
             WHERE id = $1
             "#,
@@ -234,18 +262,19 @@ impl JobRepository {
         .fetch_one(&self.pool)
         .await?;
 
-        let meta = keyforge_model::geometry::KeyboardMeta {
-            name: meta_row.name,
-            author: meta_row.author.unwrap_or_default(),
-            version: meta_row.version.unwrap_or_default(),
-            notes: meta_row.notes.unwrap_or_default(),
-            kb_type: meta_row.kb_type.unwrap_or_default(),
-        };
-        let home_row = meta_row.home_row.unwrap_or(0);
-
-        let keys_rows = sqlx::query!(
+        let keys_rows = sqlx::query_as!(
+            HiveKeyRow,
             r#"
-            SELECT idx, x, y, w, h, hand, finger, row_idx, col_idx, is_stretch, is_prime, is_med, is_low, r 
+            SELECT 
+                idx as "idx!", 
+                x as "x!", 
+                y as "y!", 
+                w, h, 
+                hand as "hand!", 
+                finger as "finger!", 
+                row_idx as "row_idx!", 
+                col_idx as "col_idx!", 
+                is_stretch, is_prime, is_med, is_low, r 
             FROM keyboard_keys 
             WHERE keyboard_id = $1 
             ORDER BY idx
@@ -255,60 +284,11 @@ impl JobRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        let mut keys = Vec::with_capacity(keys_rows.len());
-        let mut prime_slots = Vec::new();
-        let mut med_slots = Vec::new();
-        let mut low_slots = Vec::new();
-
-        for row in keys_rows {
-            let idx = row.idx;
-            #[allow(clippy::cast_possible_truncation)]
-            let kidx = KeyIndex(
-                u16::try_from(idx)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Key index overflow: {e}")))?,
-            );
-
-            keys.push(keyforge_model::KeyNode {
-                index: usize::try_from(idx)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Key index negative: {e}")))?,
-                label: format!("k{idx}"),
-                x: row.x,
-                y: row.y,
-                w: row.w.unwrap_or(1.0),
-                h: row.h.unwrap_or(1.0),
-                hand: keyforge_model::types::HandIndex(u8::try_from(row.hand).unwrap_or(0)),
-                finger: keyforge_model::types::FingerIndex::new_unchecked(
-                    u8::try_from(row.finger).unwrap_or(0),
-                ),
-                row: keyforge_model::types::RowIndex(i8::try_from(row.row_idx).unwrap_or(0)),
-                col: keyforge_model::types::ColIndex(i8::try_from(row.col_idx).unwrap_or(0)),
-                is_stretch: row.is_stretch.unwrap_or(false),
-                r: row.r.unwrap_or(0.0),
-                ..Default::default()
-            });
-
-            if row.is_prime.unwrap_or(false) {
-                prime_slots.push(kidx);
-            }
-            if row.is_med.unwrap_or(false) {
-                med_slots.push(kidx);
-            }
-            if row.is_low.unwrap_or(false) {
-                low_slots.push(kidx);
-            }
-        }
-
-        Ok(KeyboardDefinition {
-            meta,
-            geometry: keyforge_model::geometry::KeyboardGeometry {
-                keys,
-                prime_slots,
-                med_slots,
-                low_slots,
-                home_row: i8::try_from(home_row).unwrap_or(0),
-            },
-            layouts: std::collections::HashMap::new(),
+        keyforge_model::geometry::KeyboardDefinition::project(HiveKeyboardProjection {
+            meta: meta_row,
+            keys: keys_rows,
         })
+        .map_err(|e| sqlx::Error::Protocol(format!("Definition projection failed: {e}")))
     }
 
     fn validate_registration_request(req: &JobRequest) -> Result<(), sqlx::Error> {
@@ -392,7 +372,7 @@ impl JobRepository {
     async fn ensure_keyboard(
         &self,
         tx: &mut sqlx::Transaction<'_, Postgres>,
-        def: &KeyboardDefinition,
+        def: &KeyboardDefinitionDto,
         unique_hash: &str,
     ) -> Result<i32, sqlx::Error> {
         let kb_meta = &def.meta;
@@ -429,10 +409,8 @@ impl JobRepository {
             );
 
             qb.push_values(def.geometry.keys.iter().enumerate(), |mut b, (idx, key)| {
-                #[allow(clippy::cast_possible_truncation)]
-                let kidx = KeyIndex(idx as u16);
-                #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-                let idx_i32 = idx as i32;
+                let kidx = KeyIndex(idx.try_into().unwrap_or_default());
+                let idx_i32: i32 = idx.try_into().unwrap_or_default();
 
                 b.push_bind(kb_id)
                     .push_bind(idx_i32)
@@ -445,9 +423,9 @@ impl JobRepository {
                     .push_bind(i16::from(key.row.0))
                     .push_bind(i16::from(key.col.0))
                     .push_bind(key.is_stretch)
-                    .push_bind(def.geometry.prime_slots.contains(&kidx))
-                    .push_bind(def.geometry.med_slots.contains(&kidx))
-                    .push_bind(def.geometry.low_slots.contains(&kidx))
+                    .push_bind(def.geometry.prime_slots.iter().any(|&i| i.0 == kidx.0))
+                    .push_bind(def.geometry.med_slots.iter().any(|&i| i.0 == kidx.0))
+                    .push_bind(def.geometry.low_slots.iter().any(|&i| i.0 == kidx.0))
                     .push_bind(key.r);
             });
 
@@ -460,9 +438,15 @@ impl JobRepository {
     async fn ensure_scoring_weights(
         &self,
         tx: &mut sqlx::Transaction<'_, Postgres>,
-        weights: &keyforge_model::config::ScoringWeights,
+        weights: &ScoringWeightsDto,
     ) -> Result<i32, sqlx::Error> {
-        let w_json = serde_json::to_string(weights).unwrap_or_default();
+        let model_weights = keyforge_model::config::ScoringWeights {
+            weights: weights.weights.clone(),
+            finger_penalty_scale: weights.finger_penalty_scale,
+            comfortable_scissors: weights.comfortable_scissors.clone(),
+        };
+
+        let w_json = serde_json::to_string(&model_weights).unwrap_or_default();
         let mut hasher = Sha256::new();
         hasher.update(w_json.as_bytes());
         let hash = hex::encode(hasher.finalize());
@@ -476,7 +460,7 @@ impl JobRepository {
             RETURNING id
             "#,
             hash,
-            serde_json::to_value(weights).unwrap_or_default()
+            serde_json::to_value(&model_weights).unwrap_or_default()
         )
         .fetch_one(&mut **tx)
         .await?;
@@ -484,26 +468,50 @@ impl JobRepository {
         Ok(row.id)
     }
 
+    #[allow(clippy::cast_precision_loss)]
     async fn ensure_search_params(
         &self,
         tx: &mut sqlx::Transaction<'_, Postgres>,
-        params: &keyforge_model::config::SearchParams,
+        params: &SearchParamsDto,
     ) -> Result<i32, sqlx::Error> {
-        let p_json = serde_json::to_string(params).unwrap_or_default();
+        let model_params = keyforge_model::config::SearchParams {
+            params: {
+                let mut p = std::collections::HashMap::new();
+                p.insert("search_steps".into(), params.iterations as f32);
+                if let Some(r) = params.reheats {
+                    p.insert("reheats".into(), r as f32);
+                }
+                p
+            },
+            seed: params.seed,
+            include_thumbs: params.include_thumbs,
+        };
+
+        let p_json = serde_json::to_string(&model_params).unwrap_or_default();
         let mut hasher = Sha256::new();
         hasher.update(p_json.as_bytes());
         let hash = hex::encode(hasher.finalize());
 
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let epochs = params.get_search_epochs() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let steps = params.get_search_steps() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let patience = params.get_search_patience() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let opt_fast = params.get_opt_limit_fast() as i32;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let opt_slow = params.get_opt_limit_slow() as i32;
+        let epochs: i32 = model_params
+            .get_search_epochs()
+            .try_into()
+            .unwrap_or_default();
+        let steps: i32 = model_params
+            .get_search_steps()
+            .try_into()
+            .unwrap_or_default();
+        let patience: i32 = model_params
+            .get_search_patience()
+            .try_into()
+            .unwrap_or_default();
+        let opt_fast: i32 = model_params
+            .get_opt_limit_fast()
+            .try_into()
+            .unwrap_or_default();
+        let opt_slow: i32 = model_params
+            .get_opt_limit_slow()
+            .try_into()
+            .unwrap_or_default();
 
         let row = sqlx::query!(
             r#"
@@ -520,9 +528,9 @@ impl JobRepository {
             epochs,
             steps,
             patience,
-            params.get_search_patience_threshold(),
-            params.get_temp_min(),
-            params.get_temp_max(),
+            model_params.get_search_patience_threshold(),
+            model_params.get_temp_min(),
+            model_params.get_temp_max(),
             opt_fast,
             opt_slow
         )

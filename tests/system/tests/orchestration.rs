@@ -2,9 +2,14 @@
 // tests/system/tests/orchestration.rs
 use keyforge_testing::HermeticWorkspace;
 
-#[test]
-fn test_hermetic_workspace_bootstrap() {
-    let ws = HermeticWorkspace::new().with_default_assets();
+#[tokio::test]
+async fn test_hermetic_workspace_bootstrap() {
+    let ws = HermeticWorkspace::new()
+        .await
+        .expect("setup failed")
+        .with_default_assets()
+        .await
+        .expect("assets failed");
 
     // Verify system structure
     assert!(ws.root.join("system/config/keycodes.json").exists());

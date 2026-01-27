@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use keyforge_model::cost_model::{CostModel, FingerDefinition};
 use serde_json;
 

@@ -1,7 +1,8 @@
 // apps/keyforge-assets/src/main.rs
 
 use clap::Parser;
-use keyforge_infra::{ValkeyDistributedCoordinator, ValkeyProvider};
+use keyforge_infra::asset::valkey_provider::ValkeyProvider;
+use keyforge_infra::net::distributed::ValkeyDistributedCoordinator;
 use std::sync::Arc;
 use tracing::info;
 

@@ -55,22 +55,27 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let mut corpus = Corpus::default();
-        corpus.char_freqs[0] = 100;
-        corpus.char_freqs[1] = 100;
-        corpus.bigrams.push((0, 1, 100)); // Key 0 -> Key 1
+        let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
+        let mut corpus_val = Corpus::default();
+        let mut char_freqs = corpus_val.char_freqs.to_vec();
+        char_freqs[0] = 100;
+        char_freqs[1] = 100;
+        corpus_val.char_freqs = Arc::from(char_freqs);
+        corpus_val.bigrams = Arc::from(vec![(0, 1, 100)]);
 
-        let mut rubric = Rubric::default();
-        rubric.travel_lat = 1.0;
+        let rubric = Arc::new(Rubric {
+            travel_lat: 1.0,
+            ..Default::default()
+        });
 
-        let cm = mock_cost_model();
+        let cm = Arc::new(mock_cost_model());
 
-        let engine = EngineFactory::new_scalar(EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cm,
+        let engine = EngineFactory::new_scalar(&EngineCompilationContext {
+            keyboard: kb,
+            corpus: Arc::new(corpus_val),
+            rubric,
+            cost_model: cm,
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
 
@@ -110,18 +115,7 @@ mod integration_tests {
             ghost_res.score
         );
 
-        // Ghost and Prod should produce similar results (not necessarily identical due to RNG)
-        // But for a 2-key layout, they should likely both stay at optimal or swap.
-        // Optimal is likely current layout (distance 1.0) vs swapped (distance 1.0).
-        // Actually if keys are 0 and 1, bigram 0->1.
-        // If layout is [0, 1]: Key 0 at x=0, Key 1 at x=1. Dist=1.
-        // If layout is [1, 0]: Key 1 at x=0, Key 0 at x=1. Dist=1.
-        // Score should be same?
-        // Static costs are both 100.0.
-        // So both layouts are equivalent.
-
         let score_diff = (prod_res.score - ghost_res.score).abs();
-        // Allow some variance if they converged to different local minima (not possible here, but generally)
         assert!(score_diff < 1.0, "Scores should be close");
     }
 }

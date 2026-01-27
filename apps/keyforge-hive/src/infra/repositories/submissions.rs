@@ -29,6 +29,7 @@ impl SubmissionRepository {
     }
 
     /// Saves a newly submitted layout to the database.
+    #[tracing::instrument(skip_all, fields(name = %name, author = %author))]
     pub async fn save(&self, name: &str, layout: &str, author: &str) -> Result<i64, sqlx::Error> {
         let rec = sqlx::query!(
             "INSERT INTO submissions (name, layout_str, author) VALUES ($1, $2, $3) RETURNING id",

@@ -1,0 +1,12 @@
+target/
+node_modules/
+.git/
+.cargo/
+.rustup/
+.cache/
+.npm/
+.pnpm-store/
+build/
+dist/
+venv/
+.venv/

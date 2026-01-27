@@ -59,6 +59,7 @@ impl Fingerprinter {
     }
 
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn identify(layout: &Layout) -> Option<LayoutIdentity> {
         let standards = Self::get_standards();
         let mut best: Option<LayoutIdentity> = None;
@@ -76,8 +77,7 @@ impl Fingerprinter {
                 }
             }
 
-            #[allow(clippy::cast_precision_loss)]
-            let similarity = matches as f32 / len as f32;
+            let similarity = (matches as f32) / (len as f32);
             let distance = len - matches;
 
             if best.as_ref().is_none_or(|b| similarity > b.similarity) {

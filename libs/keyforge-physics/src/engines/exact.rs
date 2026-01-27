@@ -5,29 +5,30 @@ use crate::kernel::EngineContext;
 use crate::verify::DeterministicScorer;
 use crate::PhysicsError;
 use keyforge_model::{AnalysisReport, Corpus, Keyboard, Layout, Rubric, Score, SwapSuggestion};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub struct ExactScoringEngine {
+pub(crate) struct ExactScoringEngine {
     scorer: DeterministicScorer,
-    keyboard: Keyboard,
-    corpus: Corpus,
+    keyboard: Arc<Keyboard>,
+    corpus: Arc<Corpus>,
     ctx: EngineContext,
 }
 
 impl ExactScoringEngine {
     #[must_use]
-    pub fn new(
-        keyboard: &Keyboard,
-        corpus: &Corpus,
+    pub(crate) fn new(
+        keyboard: Arc<Keyboard>,
+        corpus: Arc<Corpus>,
         rubric: &Rubric,
         cost_model: &keyforge_model::CostModel,
         ctx: EngineContext,
     ) -> Self {
-        let scorer = DeterministicScorer::new(keyboard, rubric, cost_model);
+        let scorer = DeterministicScorer::new(&keyboard, rubric, cost_model);
         Self {
             scorer,
-            keyboard: keyboard.clone(),
-            corpus: corpus.clone(),
+            keyboard,
+            corpus,
             ctx,
         }
     }
@@ -41,11 +42,7 @@ impl ScoringEngine for ExactScoringEngine {
     fn capabilities(&self) -> EngineCapabilities {
         EngineCapabilities {
             is_exact: true,
-            features: EngineFeatures {
-                supports_avx2: false,
-                supports_neon: false,
-                supports_blocking: false,
-            },
+            features: EngineFeatures::NONE,
         }
     }
 
@@ -75,7 +72,7 @@ impl ScoringEngine for ExactScoringEngine {
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        pos_map: &[u16],
+        pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
@@ -89,7 +86,7 @@ impl ScoringEngine for ExactScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(analyze_layout(&self.ctx, &validated))
+        analyze_layout(&self.ctx, &validated)
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {

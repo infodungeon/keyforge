@@ -5,6 +5,7 @@ mod integration_tests {
     use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
+    use std::sync::Arc;
 
     fn mock_cost_model() -> CostModel {
         let json = r#"{
@@ -46,20 +47,23 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let mut corpus = Corpus::default();
-        corpus.char_freqs[97] = 1000; // 'a'
-
-        let cm = mock_cost_model();
+        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        let mut corpus_val = Corpus::default();
+        let mut freqs = corpus_val.char_freqs.to_vec();
+        freqs[97] = 1000;
+        corpus_val.char_freqs = Arc::from(freqs);
+        let corpus = Arc::new(corpus_val);
+        let cm = Arc::new(mock_cost_model());
         let ctx = EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &Rubric::default(),
-            cost_model: &cm,
+            keyboard: kb,
+            corpus,
+            rubric: Arc::new(Rubric::default()),
+            cost_model: cm,
+            engine_config: keyforge_model::config::EngineConfig::default(),
         };
 
-        let engine = EngineFactory::new_generic(ctx.clone()).unwrap();
-        let oracle = EngineFactory::new_exact(ctx).unwrap();
+        let engine = EngineFactory::new_generic(&ctx).unwrap();
+        let oracle = EngineFactory::new_exact(&ctx).unwrap();
 
         // Layout where 'a' is on BOTH keys
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(97)]);
@@ -68,13 +72,6 @@ mod integration_tests {
         let score_oracle = oracle.score(&layout).unwrap();
 
         assert_eq!(score_engine, score_oracle);
-        // Cost should be based on the cheaper key (index 0, cost 100 + finger effort 0)
-        // Scale is 1,000,000. 100 * 1000 = 100,000. Normalization factor 100,000 / 1000 = 100.
-        // So final score should be 100 * 100,000,000? No, check normalization.
-        // score = (sum / total_freq) * 100,000
-        // sum = 100 * 1,000,000 (fixed point) * 1000 (freq) = 100,000,000,000
-        // score = (100,000,000,000 / 1000) * 100,000 = 100,000,000 * 100,000 = 10,000,000,000,000?
-        // Let's just check they are equal and consistent.
     }
 
     #[test]
@@ -102,23 +99,26 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let mut corpus = Corpus::default();
-        corpus.bigrams.push((97, 98, 1000)); // 'a' -> 'b'
+        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        let mut corpus_val = Corpus::default();
+        corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
+        let corpus = Arc::new(corpus_val);
 
         let mut rubric = Rubric::default();
         rubric.travel_lat = 1.0;
+        let rubric_arc = Arc::new(rubric);
 
-        let cm = mock_cost_model();
+        let cm = Arc::new(mock_cost_model());
         let ctx = EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cm,
+            keyboard: kb,
+            corpus,
+            rubric: rubric_arc,
+            cost_model: cm,
+            engine_config: keyforge_model::config::EngineConfig::default(),
         };
 
-        let engine = EngineFactory::new_generic(ctx.clone()).unwrap();
-        let oracle = EngineFactory::new_exact(ctx).unwrap();
+        let engine = EngineFactory::new_generic(&ctx).unwrap();
+        let oracle = EngineFactory::new_exact(&ctx).unwrap();
 
         // Layout where 'a' is at index 0, and 'b' is at BOTH index 1 and 2
         let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(98)]);
@@ -127,7 +127,6 @@ mod integration_tests {
         let score_oracle = oracle.score(&layout).unwrap();
 
         assert_eq!(score_engine, score_oracle);
-        // It should have picked the pair (0, 1) instead of (0, 2)
     }
 
     #[test]
@@ -158,30 +157,28 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
-        let mut corpus = Corpus::default();
-        // 'a' -> 'b' -> 'c'
-        corpus.trigrams.push((97, 98, 99, 1000));
+        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        let mut corpus_val = Corpus::default();
+        corpus_val.trigrams = Arc::from(vec![(97, 98, 99, 1000)]);
+        let corpus = Arc::new(corpus_val);
 
         let mut rubric = Rubric::default();
         rubric.roll_bonus = 100.0;
         rubric.redirect = 500.0;
+        let rubric_arc = Arc::new(rubric);
 
-        let cm = mock_cost_model();
+        let cm = Arc::new(mock_cost_model());
         let ctx = EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &corpus,
-            rubric: &rubric,
-            cost_model: &cm,
+            keyboard: kb,
+            corpus,
+            rubric: rubric_arc,
+            cost_model: cm,
+            engine_config: keyforge_model::config::EngineConfig::default(),
         };
 
-        let engine = EngineFactory::new_generic(ctx.clone()).unwrap();
-        let oracle = EngineFactory::new_exact(ctx).unwrap();
+        let engine = EngineFactory::new_generic(&ctx).unwrap();
+        let oracle = EngineFactory::new_exact(&ctx).unwrap();
 
-        // Layout: 'a'=0, 'b'=1, 'c'=2 OR 3
-        // Sequence 0-1-2 is Pinky-Ring-Middle (Inward Roll)
-        // Sequence 0-1-3 is Pinky-Ring-Index (Inward Roll)
-        // If we had a redirect choice, it should avoid it.
         let layout =
             Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(99)]);
 

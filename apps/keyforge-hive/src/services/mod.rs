@@ -16,6 +16,5 @@ pub mod job_manager;
 pub mod job_service;
 pub mod node_service;
 pub mod result_service;
-pub mod runner;
 pub mod security;
 pub mod verification;

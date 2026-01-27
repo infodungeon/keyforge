@@ -1,6 +1,9 @@
 // libs/keyforge-model/src/mapping.rs
 
 use crate::error::ForgeError;
+use crate::geometry::KeyboardDefinition;
+use crate::validator::Validator;
+use crate::Asset;
 
 /// A trait for projecting domain models from external representations (SQLX, JSON, etc).
 ///
@@ -14,9 +17,36 @@ pub trait Projection<Source>: Sized {
     fn project(source: Source) -> Result<Self, ForgeError>;
 }
 
+impl Projection<serde_json::Value> for KeyboardDefinition {
+    fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
+        let mut def: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+        def.post_load()?;
+        Ok(def)
+    }
+}
+
+impl Projection<serde_json::Value> for crate::config::ScoringWeights {
+    fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
+        let weights: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+        weights.validate().map_err(ForgeError::Validation)?;
+        Ok(weights)
+    }
+}
+
+impl Projection<serde_json::Value> for crate::config::SearchParams {
+    fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
+        let params: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+        params.validate().map_err(ForgeError::Validation)?;
+        Ok(params)
+    }
+}
+
 /// Helper for bulk projections.
 pub trait BulkProjection<Source>: Sized {
     /// Projects a collection of sources.
+    ///
+    /// # Errors
+    /// Returns `ForgeError::Projection` if any source fails to project.
     fn project_all(sources: Vec<Source>) -> Result<Vec<Self>, ForgeError>;
 }
 

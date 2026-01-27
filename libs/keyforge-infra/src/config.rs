@@ -44,11 +44,10 @@ impl CommonConfig {
     ///
     /// # Errors
     ///
-    /// Returns an error string if the file cannot be read or parsed.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read config file: {e}"))?;
-        toml::from_str(&content).map_err(|e| format!("Failed to parse config file: {e}"))
+    /// Returns an `InfraError` if the file cannot be read or parsed.
+    pub fn from_file<P: AsRef<Path>>(path: P) -> crate::error::InfraResult<Self> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(toml::from_str(&content)?)
     }
 
     /// Loads configuration from environment variables.
@@ -86,6 +85,12 @@ impl CommonConfig {
 
         if let Ok(d) = env::var(ENV_DATA_DIR) {
             return PathBuf::from(d);
+        }
+
+        // Prioritize local "data" directory if present (common in dev/repo root)
+        let local_data = PathBuf::from("data");
+        if local_data.exists() && local_data.is_dir() {
+            return local_data;
         }
 
         // Use standard OS data directory as fallback
@@ -151,10 +156,12 @@ mod tests {
 
     #[test]
     fn test_common_config_resolve() {
-        let mut cfg = CommonConfig::default();
-        assert_eq!(cfg.resolve_data_dir(), PathBuf::from(DEFAULT_FALLBACK_PATH));
+        temp_env::with_var(ENV_DATA_DIR, Some("/tmp/keyforge_test"), || {
+            let mut cfg = CommonConfig::default();
+            assert_eq!(cfg.resolve_data_dir(), PathBuf::from("/tmp/keyforge_test"));
 
-        cfg.data_dir = Some(PathBuf::from("/custom"));
-        assert_eq!(cfg.resolve_data_dir(), PathBuf::from("/custom"));
+            cfg.data_dir = Some(PathBuf::from("/custom"));
+            assert_eq!(cfg.resolve_data_dir(), PathBuf::from("/custom"));
+        });
     }
 }

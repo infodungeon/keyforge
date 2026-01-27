@@ -5,7 +5,9 @@ use crate::error::CliError;
 use crate::{build_job_config, ProgressBarCallback};
 use clap::Args;
 use indicatif::{ProgressBar, ProgressStyle};
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_infra::FsProvider;
+use keyforge_model::KeyboardDefinition;
 use std::sync::Arc;
 
 #[derive(Args, Debug, Clone)]
@@ -45,17 +47,22 @@ pub async fn run(
         .unwrap_or(keyforge_model::constants::ASSET_KEYCODES_FILENAME);
 
     let builder = keyforge_compute::SessionBuilder::new(loader)
-        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
-        .with_corpus(&job.corpora)
+        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
+            job.to_domain_geometry(),
+            "optimized",
+        )))
+        .with_corpus(&job.to_domain_corpus_sources())
         .await
         .map_err(|e| CliError::Other(format!("Corpus load failed: {e}")))?
-        .with_cost_matrix(&job.cost_matrix)
+        .with_cost_matrix(&job.to_domain_cost_matrix())
         .await
         .map_err(|e| CliError::Other(format!("Cost matrix load failed: {e}")))?
         .with_keycodes(keycodes_file)
         .await
         .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
-        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job.to_domain_weights(),
+        ))
         .with_config(keyforge_model::SearchConfig::Annealing {
             steps: job.params.get_search_steps(),
             start_temp: job.params.get_temp_max(),
@@ -74,7 +81,7 @@ pub async fn run(
     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let timeout_sec = args.time.unwrap_or(0);
 
-    // Task-clii-rev-003: Setup Progress Bar
+    // Setup Progress Bar
     let pb = if timeout_sec > 0 {
         ProgressBar::new(timeout_sec)
     } else {
@@ -102,7 +109,7 @@ pub async fn run(
 
     let runtime = keyforge_compute::Runtime::from(session);
     let result: keyforge_model::OptimizationResult = runtime
-        .run_optimization(callback, &job.pinned_keys)
+        .run_optimization(callback, &job.to_domain_pinned_keys())
         .await
         .map_err(|e| CliError::Other(format!("Optimization Error: {e}")))?;
 
@@ -113,9 +120,13 @@ pub async fn run(
         .analyze(&result.layout)
         .map_err(|e| CliError::Other(format!("Analysis Error: {e}")))?;
 
-    // Use structured reports
-    crate::reports::scoring(&[("Optimized".to_string(), report)]);
+    // Display standard scoring table
+    crate::reports::scoring(&[("Optimized".to_string(), report.clone())]);
 
-    // JSON output if specifically requested (handled by main or global flag)
+    // Attempt Reality Check comparison
+    if let Some(baselines) = crate::reports::load_benchmarks(loader.root()) {
+        crate::reports::benchmark_comparison("Optimized", &report, &baselines);
+    }
+
     Ok(())
 }

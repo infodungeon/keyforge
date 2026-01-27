@@ -2,9 +2,9 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,8 @@ pub mod hardware;
 pub mod session;
 
 pub use builder::SessionBuilder;
-pub use keyforge_model::loader::{AssetLoader, InMemoryLoader, LoaderResult};
+pub use keyforge_adapter::loader::InMemoryLoader;
+pub use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 pub use session::ScoringSession;
 
 pub use keyforge_evolution::{EvolutionError, NoOpCallback, OptimizationControl, ProgressCallback};
@@ -49,11 +50,12 @@ use tracing::instrument;
 pub fn build_engine(
     req: &EngineRequest,
 ) -> Result<Box<dyn ScoringEngine>, keyforge_physics::PhysicsError> {
-    keyforge_physics::EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &req.keyboard,
-        corpus: &req.corpus,
-        rubric: &req.rubric,
-        cost_model: &req.cost_model,
+    keyforge_physics::EngineFactory::new_generic(&keyforge_physics::EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })
 }
 
@@ -78,11 +80,12 @@ pub fn optimize_with_engine<CB: ProgressCallback>(
 /// Returns a `keyforge_physics::PhysicsError` if the engine initialization or scoring fails.
 #[instrument(skip(req))]
 pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::PhysicsError> {
-    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &req.keyboard,
-        corpus: &req.corpus,
-        rubric: &req.rubric,
-        cost_model: &req.cost_model,
+    let engine = EngineFactory::new_generic(&keyforge_physics::EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })?;
     let layout = req
         .initial_layout
@@ -104,11 +107,12 @@ pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::Phy
 /// Returns a `keyforge_physics::PhysicsError` if the engine initialization or analysis fails.
 #[instrument(skip(req))]
 pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, keyforge_physics::PhysicsError> {
-    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &req.keyboard,
-        corpus: &req.corpus,
-        rubric: &req.rubric,
-        cost_model: &req.cost_model,
+    let engine = EngineFactory::new_generic(&keyforge_physics::EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })?;
     let layout = req
         .initial_layout
@@ -126,11 +130,12 @@ pub fn analyze(req: &EngineRequest) -> Result<AnalysisReport, keyforge_physics::
 pub fn suggest_improvements(
     req: &EngineRequest,
 ) -> Result<Vec<SwapSuggestion>, keyforge_physics::PhysicsError> {
-    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &req.keyboard,
-        corpus: &req.corpus,
-        rubric: &req.rubric,
-        cost_model: &req.cost_model,
+    let engine = EngineFactory::new_generic(&keyforge_physics::EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })?;
     let layout = req
         .initial_layout
@@ -165,11 +170,12 @@ pub fn suggest_improvements(
 /// # Errors
 /// Returns `EvolutionError` if optimization fails.
 pub fn optimize(req: &EngineRequest) -> Result<OptimizationResult, EvolutionError> {
-    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &req.keyboard,
-        corpus: &req.corpus,
-        rubric: &req.rubric,
-        cost_model: &req.cost_model,
+    let engine = EngineFactory::new_generic(&keyforge_physics::EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })
     .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);
@@ -190,11 +196,12 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &req.keyboard,
-        corpus: &req.corpus,
-        rubric: &req.rubric,
-        cost_model: &req.cost_model,
+    let engine = EngineFactory::new_generic(&keyforge_physics::EngineCompilationContext {
+        keyboard: req.keyboard.clone(),
+        corpus: req.corpus.clone(),
+        rubric: req.rubric.clone(),
+        cost_model: req.cost_model.clone(),
+        engine_config: req.engine_config,
     })
     .map_err(EvolutionError::Physics)?;
     let engine_arc: Arc<dyn ScoringEngine> = Arc::from(engine);

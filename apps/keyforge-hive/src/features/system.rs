@@ -15,8 +15,8 @@
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, routing::get, Json, Router};
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::config::ParameterMetadata;
-use keyforge_model::loader::AssetLoader;
 use keyforge_model::{Config, KeyboardDefinition};
 use serde::Serialize;
 use std::sync::Arc;
@@ -151,7 +151,6 @@ pub fn system_routes() -> Router<Arc<AppState>> {
         .route("/health", get(health))
         .route("/ws", get(crate::api::ws::handler))
         .route("/sys/metrics", get(crate::api::metrics::get_metrics))
-        .route("/sys/status", get(crate::api::metrics::get_system_status))
         .route("/api/keyboards", get(list_keyboards))
         .route("/api/keyboards/{name}", get(get_keyboard))
         .route("/api/corpora", get(list_corpora))

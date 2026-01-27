@@ -26,7 +26,7 @@ use keyforge_hive::constants::{
 use keyforge_hive::{
     bootstrap::HiveBootstrapConfig, create_app, cron, infra::db, observability, state::AppState,
 };
-use keyforge_infra::init::{ensure_dir, USER_RUNTIME_DIRS};
+use keyforge_infra::fs::init::{ensure_dir, USER_RUNTIME_DIRS};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;

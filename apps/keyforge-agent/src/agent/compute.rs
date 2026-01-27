@@ -5,7 +5,7 @@ use anyhow::Result;
 use keyforge_compute::{Runtime, ScoringSession};
 use keyforge_infra::AssetManager;
 use keyforge_model::OptimizationResult;
-use keyforge_protocol::JobConfig;
+use keyforge_protocol::{CostMatrixSourceDto, JobConfig};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -39,7 +39,15 @@ impl AssetSyncer for AssetManager {
         }
         self.sync_job_assets(config)
             .await
-            .map_err(|e| anyhow::anyhow!(e))
+            .map_err(|e: keyforge_infra::error::InfraError| anyhow::anyhow!(e))?;
+
+        // Extract cost matrix name and primary corpus
+        let cost_name = match &config.cost_matrix {
+            CostMatrixSourceDto::Predefined(s) => s.clone(),
+        };
+        let corpus_id = config.corpora[0].id.clone();
+
+        Ok((cost_name, corpus_id))
     }
 }
 
@@ -85,7 +93,7 @@ pub async fn run_optimization(
     // Use consolidated compute runner
     let runtime = Runtime::from(session);
     runtime
-        .run_optimization(logger, &config.pinned_keys)
+        .run_optimization(logger, &config.to_domain_pinned_keys())
         .await
         .map_err(|e| anyhow::anyhow!(e))
 }
@@ -95,11 +103,7 @@ mod tests {
     use super::*;
     use crate::models::AgentTelemetry;
     use keyforge_model::cost_model::CostModel;
-    use keyforge_model::{
-        CostMatrixSource, KeyIndex, KeyNode, Keyboard, KeycodeRegistry, ScoringWeights,
-        SearchConfig, SearchParams,
-    };
-    use keyforge_protocol::JobConfig;
+    use keyforge_model::{KeyIndex, KeyNode, Keyboard, KeycodeRegistry};
     use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
     use tokio::sync::Semaphore;
@@ -117,17 +121,19 @@ mod tests {
                 prime_slots: vec![KeyIndex(0)],
                 med_slots: vec![],
                 low_slots: vec![],
-                home_row: 0,
+                home_row: keyforge_model::types::RowIndex(0),
             },
             ..Default::default()
         };
 
-        let kb = Keyboard::new(
-            kb_def.geometry.keys.clone(),
-            kb_def.geometry.home_row,
-            "test".into(),
-        )
-        .unwrap();
+        let kb = Arc::new(
+            Keyboard::new(
+                kb_def.geometry.keys.clone(),
+                kb_def.geometry.home_row,
+                "test".into(),
+            )
+            .unwrap(),
+        );
 
         let cost_json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
@@ -147,21 +153,22 @@ mod tests {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
-        let cost_model: CostModel = serde_json::from_str(cost_json).unwrap();
+        let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json).unwrap());
 
         let engine: Arc<dyn keyforge_physics::ScoringEngine> =
             keyforge_physics::EngineFactory::new_generic(
-                keyforge_physics::EngineCompilationContext {
-                    keyboard: &kb,
-                    corpus: &keyforge_model::Corpus::default(),
-                    rubric: &keyforge_model::Rubric::default(),
-                    cost_model: &cost_model,
+                &keyforge_physics::EngineCompilationContext {
+                    keyboard: kb,
+                    corpus: Arc::new(keyforge_model::Corpus::default()),
+                    rubric: Arc::new(keyforge_model::Rubric::default()),
+                    cost_model,
+                    engine_config: keyforge_model::config::EngineConfig::default(),
                 },
             )
             .unwrap()
             .into();
 
-        let search_config = SearchConfig::Annealing {
+        let search_config = keyforge_model::SearchConfig::Annealing {
             steps: 10,
             start_temp: 10.0,
             end_temp: 0.1,
@@ -176,16 +183,16 @@ mod tests {
             ScoringSession::new(engine, Arc::new(KeycodeRegistry::default()), search_config);
 
         let job_config = JobConfig {
-            definition: kb_def,
-            weights: ScoringWeights::default(),
-            params: SearchParams::default(),
-            pinned_keys: vec![],
-            corpora: vec![],
-            cost_matrix: CostMatrixSource::Predefined("test".to_string()),
-            biometrics: vec![],
+            definition: kb_def.into(),
+            weights: keyforge_model::config::ScoringWeights::default().into(),
+            params: keyforge_model::config::SearchParams::default().into(),
+            pinned_keys: vec![].into(),
+            corpora: vec![].into(),
+            cost_matrix: CostMatrixSourceDto::Predefined("test".to_string()),
+            biometrics: vec![].into(),
             parent_job_id: None,
             baseline_score: None,
-            parents: vec![],
+            parents: vec![].into(),
         };
 
         let stop_flag = Arc::new(AtomicBool::new(false));

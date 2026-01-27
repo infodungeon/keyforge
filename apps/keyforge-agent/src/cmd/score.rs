@@ -1,71 +1,56 @@
-#![allow(clippy::print_stdout)]
-use anyhow::Result;
-use keyforge_compute::SessionBuilder;
-use keyforge_infra::FsProvider;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tracing::info;
+// apps/keyforge-agent/src/cmd/score.rs
 
-use crate::config_loader::read_job_config;
-use crate::models::AgentConfig;
+use crate::agent::compute::prepare_assets;
+use crate::models::ComputeConfig;
+use anyhow::Result;
+use keyforge_infra::AssetManager;
+use keyforge_model::KeyboardDefinition;
+use keyforge_protocol::JobConfig;
+use std::sync::Arc;
 
-/// Scores a specific layout configuration.
-///
-/// # Errors
-///
-/// Returns an error if the job or layout is invalid, or if scoring fails.
 pub async fn run(
-    mut config: AgentConfig,
-    job_file: PathBuf,
-    layout: String,
-    timeout: Option<u64>,
+    assets: &AssetManager,
+    job: &JobConfig,
+    config: &ComputeConfig,
+    layout_str: &str,
 ) -> Result<()> {
-    info!("Scoring layout: '{}'", layout);
+    let (_cost_name, _corpus_id) = prepare_assets(assets, job, config).await?;
 
-    let job = read_job_config(&job_file).await?;
+    let loader = keyforge_infra::FsProvider::new(assets.root().to_path_buf());
+    let mut builder = keyforge_compute::SessionBuilder::new(&loader);
 
-    if let Some(t) = timeout {
-        config.compute.job_timeout_sec = t;
-    }
+    builder = builder.with_keyboard_def(Arc::new(KeyboardDefinition::from_geometry(
+        job.to_domain_geometry(),
+        "score",
+    )));
+    builder = builder.with_corpus(&job.to_domain_corpus_sources()).await?;
+    builder = builder
+        .with_cost_matrix(&job.to_domain_cost_matrix())
+        .await?;
+    builder = builder.with_keycodes(&config.keycodes_file).await?;
 
-    let loader = FsProvider::new(config.data_dir.clone());
-
-    let session = SessionBuilder::new(&loader)
-        .with_keyboard_def(Arc::new(job.definition.clone()))
-        .with_corpus(&job.corpora)
-        .await?
-        .with_cost_matrix(&job.cost_matrix)
-        .await?
-        .with_keycodes(&config.compute.keycodes_file)
-        .await?
-        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
-        .with_config(keyforge_adapter::conversion::to_domain_config(
-            &job.params,
-            job.params.seed.unwrap_or(0),
+    let builder = builder
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job.to_domain_weights(),
         ))
-        .build()?;
+        .with_config(keyforge_adapter::conversion::to_domain_config(
+            &job.to_domain_params(),
+            job.params.seed.unwrap_or(0),
+        ));
 
-    // Try to resolve as layout name from definition first, then parse as raw string
-    let layout_parsed = if let Some(layout_str) = job.definition.layouts.get(&layout) {
-        keyforge_adapter::conversion::parse_layout_string(
-            layout_str,
-            session.engine.key_count(),
-            &session.registry,
-        )
-        .map_err(|e| anyhow::anyhow!("Invalid layout in definition: {e}"))?
-    } else {
-        keyforge_adapter::conversion::parse_layout_string(
-            &layout,
-            session.engine.key_count(),
-            &session.registry,
-        )
-        .map_err(|e| anyhow::anyhow!("Invalid layout string: {e}"))?
-    };
+    let session = builder.build()?;
+    let layout = keyforge_adapter::conversion::parse_layout_string(
+        layout_str,
+        session.engine.key_count(),
+        &session.registry,
+    )?;
 
-    let report = session.engine.analyze(&layout_parsed);
-    match report {
-        Ok(r) => println!("{}", serde_json::to_string_pretty(&r)?),
-        Err(e) => return Err(anyhow::anyhow!("Analysis failed: {e:?}")),
-    }
+    let result = session.engine.score(&layout)?;
+
+    #[allow(clippy::cast_precision_loss)]
+    let score_f32 = result.0 as f32;
+
+    info!("Score: {:.4}", score_f32 / 1_000_000.0);
     Ok(())
 }

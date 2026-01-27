@@ -3,45 +3,6 @@ FROM rust:slim-bookworm AS chef
 WORKDIR /app
 RUN cargo install cargo-chef
 COPY . .
-
-# ISOLATION: Overwrite workspace definition to exclude UI
-# Must include [workspace.lints] to satisfy inheritance
-RUN cat > Cargo.toml <<TOML
-[workspace]
-resolver = "2"
-members = [
-    "apps/keyforge-hive",
-    "libs/keyforge-adapter",
-    "libs/keyforge-compute",
-    "libs/keyforge-core",
-    "libs/keyforge-infra",
-    "libs/keyforge-model",
-    "libs/keyforge-persistence",
-    "libs/keyforge-physics",
-    "libs/keyforge-protocol",
-    "libs/keyforge-security"
-]
-
-[workspace.package]
-version = "0.9.0"
-authors = ["KeyForge Team"]
-license = "Apache-2.0"
-repository = "https://github.com/keyforge-project/keyforge"
-edition = "2021"
-
-[workspace.lints.rust]
-unsafe_code = "deny"
-missing_debug_implementations = "warn"
-rust_2018_idioms = "warn"
-
-[workspace.lints.clippy]
-expect_used = "deny"
-unwrap_used = "warn"
-panic = "warn"
-pedantic = { level = "warn", priority = -1 }
-too_many_arguments = "allow"
-TOML
-
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Builder
@@ -54,50 +15,17 @@ RUN cargo chef cook --release --recipe-path recipe.json
 
 # Stage 3: Compiler
 COPY . .
-# Re-apply isolation
-RUN cat > Cargo.toml <<TOML
-[workspace]
-resolver = "2"
-members = [
-    "apps/keyforge-hive",
-    "libs/keyforge-adapter",
-    "libs/keyforge-compute",
-    "libs/keyforge-core",
-    "libs/keyforge-infra",
-    "libs/keyforge-model",
-    "libs/keyforge-persistence",
-    "libs/keyforge-physics",
-    "libs/keyforge-protocol",
-    "libs/keyforge-security"
-]
-
-[workspace.package]
-version = "0.9.0"
-authors = ["KeyForge Team"]
-license = "Apache-2.0"
-repository = "https://github.com/keyforge-project/keyforge"
-edition = "2021"
-
-[workspace.lints.rust]
-unsafe_code = "deny"
-missing_debug_implementations = "warn"
-rust_2018_idioms = "warn"
-
-[workspace.lints.clippy]
-expect_used = "deny"
-unwrap_used = "warn"
-panic = "warn"
-pedantic = { level = "warn", priority = -1 }
-too_many_arguments = "allow"
-TOML
-
 ENV SQLX_OFFLINE=true
 COPY .sqlx .sqlx
-RUN cargo build --release --bin keyforge-hive
+RUN cargo build --release -p keyforge-hive
 
 # Stage 4: Runtime
 FROM gcr.io/distroless/cc-debian12
 WORKDIR /app
+
+# Explicitly use non-root UID (Distroless nonroot user is 65532)
+USER 65532:65532
+
 COPY --from=builder /app/target/release/keyforge-hive /app/keyforge-hive
 ENV RUST_LOG=info
 ENV KEYFORGE_DATA_DIR=/app/data

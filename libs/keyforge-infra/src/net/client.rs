@@ -13,12 +13,16 @@
 // limitations under the License.
 
 use crate::error::{InfraError, InfraResult};
+use crate::net::sync::ServerManifest;
 use keyforge_model::constants::{
     DEFAULT_ASSET_URL, DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_HIVE_URL,
     DEFAULT_REQUEST_TIMEOUT_SECS, DEFAULT_USER_AGENT,
 };
 use reqwest::{header, Client, RequestBuilder};
+use std::path::Path;
 use std::time::Duration;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 
 /// Configuration for the `HiveClient`.
 #[derive(Debug, Clone)]
@@ -41,6 +45,7 @@ pub struct ClientConfig {
 
 impl Default for ClientConfig {
     fn default() -> Self {
+        #[allow(clippy::redundant_clone)]
         Self {
             api_url: DEFAULT_HIVE_URL.to_string(),
             asset_url: DEFAULT_ASSET_URL.to_string(),
@@ -124,6 +129,72 @@ impl HiveClient {
     /// Starts a POST request to the API.
     pub fn post(&self, path: &str) -> RequestBuilder {
         self.inner.post(self.url(path))
+    }
+
+    /// Fetches the server manifest from the asset server.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the manifest cannot be retrieved or parsed.
+    pub async fn get_manifest(&self) -> InfraResult<ServerManifest> {
+        let url = self.asset_url("manifest");
+        let resp = self
+            .inner
+            .get(&url)
+            .send()
+            .await
+            .map_err(InfraError::Network)?;
+
+        if !resp.status().is_success() {
+            return Err(InfraError::NetworkString(format!(
+                "Failed to get manifest: {}",
+                resp.status()
+            )));
+        }
+
+        resp.json().await.map_err(InfraError::Network)
+    }
+
+    /// Downloads a specific asset by category and ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the asset cannot be downloaded or saved.
+    pub async fn download_asset(&self, category: &str, id: &str, dest: &Path) -> InfraResult<()> {
+        let url = self.asset_url(&format!("{category}/{id}"));
+        self.download_file(&url, dest).await
+    }
+
+    /// Downloads a specific asset by its relative path (ID).
+    ///
+    /// # Errors
+    ///
+    /// Returns `InfraError` if the asset cannot be downloaded or saved.
+    pub async fn download_asset_by_path(&self, path: &str, dest: &Path) -> InfraResult<()> {
+        let url = self.asset_url(path);
+        self.download_file(&url, dest).await
+    }
+
+    async fn download_file(&self, url: &str, dest: &Path) -> InfraResult<()> {
+        let resp = self
+            .inner
+            .get(url)
+            .send()
+            .await
+            .map_err(InfraError::Network)?;
+
+        if !resp.status().is_success() {
+            return Err(InfraError::NetworkString(format!(
+                "Failed to download asset: {}",
+                resp.status()
+            )));
+        }
+
+        let bytes = resp.bytes().await.map_err(InfraError::Network)?;
+
+        let mut file = File::create(dest).await?;
+        file.write_all(&bytes).await?;
+        Ok(())
     }
 }
 

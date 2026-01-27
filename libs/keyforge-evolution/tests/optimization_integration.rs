@@ -7,12 +7,12 @@ mod integration_tests {
     // These tests exercise full optimization loops, cross-module orchestration,
     // and `ScoringEngine` usage (per ADR-015).
 
-    use keyforge_evolution::{evolve, optimize, NoOpCallback};
+    use keyforge_evolution::{evolve, optimize};
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
     use keyforge_model::{
         Corpus, CostModel, EngineRequest, KeyNode, Keyboard, Rubric, SearchConfig,
     };
-    use keyforge_physics::{EngineFactory, ScoringEngine};
+    use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
     use std::sync::Arc;
 
     fn mock_cost_model() -> CostModel {
@@ -48,7 +48,6 @@ mod integration_tests {
                 col: ColIndex(0),
                 x: 0.0,
                 y: 0.0,
-                is_home: true,
                 ..Default::default()
             },
             KeyNode {
@@ -60,7 +59,6 @@ mod integration_tests {
                 col: ColIndex(1),
                 x: 1.0,
                 y: 0.0,
-                is_home: true,
                 ..Default::default()
             },
             KeyNode {
@@ -72,12 +70,11 @@ mod integration_tests {
                 col: ColIndex(2),
                 x: 2.0,
                 y: 0.0,
-                is_home: true,
                 ..Default::default()
             },
         ];
         (
-            Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap()),
+            Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap()),
             Arc::new(Corpus::default()),
             Arc::new(Rubric::default()),
             Arc::new(mock_cost_model()),
@@ -92,6 +89,7 @@ mod integration_tests {
             corpus: cp,
             rubric: rb,
             cost_model: cm,
+            engine_config: keyforge_model::config::EngineConfig::default(),
             config: SearchConfig::Annealing {
                 steps: 10,
                 start_temp: 10.0,
@@ -112,11 +110,12 @@ mod integration_tests {
     #[test]
     fn test_evolve_api_direct() {
         let (kb, cp, rb, cm) = setup_env();
-        let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-            keyboard: &kb,
-            corpus: &cp,
-            rubric: &rb,
-            cost_model: &cm,
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: kb.clone(),
+            corpus: cp.clone(),
+            rubric: rb.clone(),
+            cost_model: cm.clone(),
+            engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
         let engine_arc: Arc<dyn ScoringEngine> = engine.into();
@@ -143,6 +142,7 @@ mod integration_tests {
             corpus: cp,
             rubric: rb,
             cost_model: cm,
+            engine_config: keyforge_model::config::EngineConfig::default(),
             config: SearchConfig::Annealing {
                 steps: 10,
                 start_temp: 10.0,
@@ -182,6 +182,7 @@ mod integration_tests {
             corpus: cp.clone(),
             rubric: rb.clone(),
             cost_model: cm.clone(),
+            engine_config: keyforge_model::config::EngineConfig::default(),
             config,
             initial_layout: None,
             pinned_keys: vec![],
@@ -209,5 +210,18 @@ mod integration_tests {
         let final_reference = raw_score_f32 * norm_factor;
 
         assert!((result.score - final_reference).abs() < 1e-4);
+    }
+
+    struct NoOpCallback;
+    impl keyforge_evolution::ProgressCallback for NoOpCallback {
+        fn on_progress(
+            &self,
+            _epoch: usize,
+            _score: f32,
+            _layout: &[KeyCode],
+            _ips: f32,
+        ) -> keyforge_evolution::OptimizationControl {
+            keyforge_evolution::OptimizationControl::Continue
+        }
     }
 }

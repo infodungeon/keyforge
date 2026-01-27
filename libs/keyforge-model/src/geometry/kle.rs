@@ -143,7 +143,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
         prime_slots,
         med_slots,
         low_slots,
-        home_row: 1,
+        home_row: RowIndex(1),
     };
     Ok(geom)
 }

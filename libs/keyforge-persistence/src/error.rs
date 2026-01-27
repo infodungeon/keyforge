@@ -16,31 +16,41 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum PersistenceError {
+    /// Errors occurring during filesystem or stream I/O.
     #[error("IO Error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// Errors occurring during JSON or other serialization formats.
     #[error("Serialization Error: {0}")]
     Serde(#[from] serde_json::Error),
 
+    /// A project or session file could not be found.
     #[error("Project not found: {0}")]
     ProjectNotFound(String),
 
+    /// The requested operation is invalid for the current state.
     #[error("Invalid project state: {0}")]
     InvalidState(String),
 
+    /// Failed to load a required asset from persistence.
     #[error("Asset Load Error: {0}")]
     AssetLoad(String),
 
+    /// Data integrity or validation failure.
     #[error("Validation Error: {0}")]
     Validation(String),
 
-    /// Errors during domain translation.
+    /// Errors during translation between domain and persistence models.
     #[error("Adapter error: {0}")]
     Adapter(String),
 
-    /// Errors from the domain layer.
+    /// Re-wrapped errors from the domain layer.
     #[error("Domain error: {0}")]
     Forge(#[from] keyforge_model::error::ForgeError),
+
+    /// Errors originating from internal task spawning or joining.
+    #[error("Internal Task Error: {0}")]
+    Task(String),
 }
 
 pub type PersistenceResult<T> = Result<T, PersistenceError>;

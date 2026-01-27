@@ -7,9 +7,9 @@
 //! requests to core `KeyForge` libraries via Tauri commands.
 
 #![allow(clippy::missing_errors_doc)]
-use keyforge_infra::{initialize_workspace, InitMode};
+use keyforge_infra::fs::init::{initialize_workspace, InitMode};
 pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
 
@@ -51,12 +51,10 @@ pub fn run() {
             }
 
             // Start Embedded Asset Server
-            // Try to bind to 3004 (avoiding 3000-3003 used by Dev Mode stack)
             let provider = Arc::new(keyforge_infra::FsProvider::new(data_dir.clone()));
             let asset_app = keyforge_assets::create_app(provider);
 
             tauri::async_runtime::spawn(async move {
-                // Try a range of ports or specific one
                 let port = 3004;
                 let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
                 match tokio::net::TcpListener::bind(addr).await {
@@ -72,19 +70,19 @@ pub fn run() {
                 }
             });
 
-            let asset_cache = AssetCache::new(data_dir);
+            let asset_cache = AssetCache::new(app.handle())
+                .expect("Failed to initialize asset cache");
 
             app.manage(SessionState {
                 active_job: Arc::new(RwLock::new(None)),
                 assets: Arc::new(asset_cache),
-                client: Arc::new(RwLock::new(None)),
                 scoring_session: Arc::new(RwLock::new(None)),
             });
 
             Ok(())
         })
         .manage(LocalWorkerState {
-            child: Arc::new(Mutex::new(None)),
+            child: std::sync::Mutex::new(None),
         })
         .manage(SearchState {
             stop_flag: Arc::new(std::sync::atomic::AtomicBool::new(false)),

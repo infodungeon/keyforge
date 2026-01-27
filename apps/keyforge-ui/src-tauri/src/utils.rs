@@ -1,3 +1,4 @@
+use crate::error::CommandError;
 use keyforge_model::constants::CONFIG_DIR_NAME;
 use std::env;
 use std::path::PathBuf;
@@ -11,8 +12,8 @@ use tauri::AppHandle;
 ///
 /// # Errors
 ///
-/// Returns an error string if the data directory cannot be determined.
-pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
+/// Returns a `CommandError` if the data directory cannot be determined.
+pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, CommandError> {
     // Priority 1: Environment Variable (Dev/Sandbox)
     if let Ok(dir) = env::var("KEYFORGE_DATA_DIR") {
         return Ok(PathBuf::from(dir));
@@ -24,5 +25,7 @@ pub fn get_data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
         return Ok(dir);
     }
 
-    Err("Could not determine data directory".to_string())
+    Err(CommandError::Config(
+        "Could not determine data directory".to_string(),
+    ))
 }

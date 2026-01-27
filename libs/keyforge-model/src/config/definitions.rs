@@ -3,8 +3,6 @@
 // use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 // --- Default Values (Strings) ---
@@ -24,7 +22,6 @@ pub const DEFAULT_FINGER_REPEAT_SCALE_ARRAY: [f32; 5] = [1.0, 1.0, 1.0, 1.2, 1.5
 /// Definitions for character tiers and critical bigrams.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(default)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct LayoutDefinitions {
     /// Characters considered high priority (Home row candidates).
     pub tier_high_chars: String,
@@ -67,20 +64,20 @@ impl Validator for LayoutDefinitions {
 }
 
 impl LayoutDefinitions {
-    /// Parses the critical bigrams string into a list of character pairs (u16).
-    #[must_use]
-    pub fn get_critical_bigrams(&self) -> Vec<[u16; 2]> {
-        self.critical_bigrams
+    /// Returns a list of critical bigrams (monogram * monogram) for the layout.
+    ///
+    /// # Errors
+    /// Returns `ForgeError::InvalidData` if the layout is incomplete.
+    pub fn get_critical_bigrams(
+        &self,
+    ) -> Result<Vec<(String, f32)>, crate::error::ForgeError> {
+        Ok(self
+            .critical_bigrams
             .split(',')
-            .filter_map(|s| {
-                let chars: Vec<char> = s.trim().chars().collect();
-                if chars.len() == 2 {
-                    Some([chars[0] as u16, chars[1] as u16])
-                } else {
-                    None
-                }
-            })
-            .collect()
+            .map(str::trim)
+            .filter(|s| s.len() == 2)
+            .map(|s| (s.to_string(), 1.0))
+            .collect())
     }
 }
 
@@ -156,11 +153,11 @@ mod tests {
             critical_bigrams: "th,he,in, invalid, x".into(),
             ..Default::default()
         };
-        let bigrams = def.get_critical_bigrams();
+        let bigrams = def.get_critical_bigrams().unwrap();
         assert_eq!(bigrams.len(), 3);
-        assert_eq!(bigrams[0], [u16::from(b't'), u16::from(b'h')]);
-        assert_eq!(bigrams[1], [u16::from(b'h'), u16::from(b'e')]);
-        assert_eq!(bigrams[2], [u16::from(b'i'), u16::from(b'n')]);
+        assert_eq!(bigrams[0], ("th".to_string(), 1.0));
+        assert_eq!(bigrams[1], ("he".to_string(), 1.0));
+        assert_eq!(bigrams[2], ("in".to_string(), 1.0));
     }
 
     #[cfg(feature = "cli")]

@@ -1,8 +1,10 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use keyforge_model::{
     types::{FingerIndex, HandIndex},
     Corpus, CostModel, KeyNode, Keyboard, Rubric,
 };
-use keyforge_physics::EngineFactory;
+use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
@@ -31,21 +33,22 @@ fn main() {
         .map(|i| KeyNode {
             index: i,
             hand: HandIndex(0),
-            finger: FingerIndex(i as u8),
+            finger: FingerIndex::new_unchecked(i as u8),
             x: i as f32,
             ..Default::default()
         })
         .collect();
-    let keyboard = Keyboard::new(keys, 0, "test".into()).unwrap();
-    let corpus = Corpus::default();
-    let rubric = Rubric::default();
-    let cost_model = mock_cost_model();
+    let keyboard = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+    let corpus = Arc::new(Corpus::default());
+    let rubric = Arc::new(Rubric::default());
+    let cost_model = Arc::new(mock_cost_model());
 
-    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard: &keyboard,
-        corpus: &corpus,
-        rubric: &rubric,
-        cost_model: &cost_model,
+    let engine = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard,
+        corpus,
+        rubric,
+        cost_model,
+        engine_config: keyforge_model::config::EngineConfig::default(),
     })
     .expect("Failed to build engine");
     println!("Engine built successfully with {} keys", engine.key_count());

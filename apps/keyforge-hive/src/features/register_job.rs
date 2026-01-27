@@ -31,7 +31,8 @@ use crate::state::AppState;
     tag = "jobs"
 )]
 /// Handles a request to register a new optimization job.
-pub async fn handle(
+#[tracing::instrument(skip_all)]
+pub(crate) async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<JobRequest>,
 ) -> AppResult<Json<JobResponse>> {

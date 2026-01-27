@@ -15,9 +15,10 @@
 use keyforge_infra::AssetManager;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
-use keyforge_physics::EngineFactory;
+use keyforge_physics::{EngineCompilationContext, EngineFactory};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
@@ -31,7 +32,6 @@ struct CalibrationData {
 }
 
 fn default_cost_model() -> Result<CostModel, AgentError> {
-    // Minimal valid cost model for calibration
     let json = r#"{
         "meta": { "version": "2.0", "description": "Calibration", "unit": "pts" },
         "models": {
@@ -54,13 +54,6 @@ fn default_cost_model() -> Result<CostModel, AgentError> {
         .map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))
 }
 
-/// # Errors
-///
-/// Returns an error if asset loading, keyboard parsing, or benchmarking fails.
-///
-/// # Panics
-///
-/// Panics if JSON serialization of calibration data fails (should never happen with valid data).
 pub async fn calibrate(
     assets: &AssetManager,
     data_root: &Path,
@@ -92,12 +85,11 @@ pub async fn calibrate(
     let def: KeyboardDefinition = serde_json::from_str(&content)
         .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
 
-    let keyboard = Keyboard::new(
+    let keyboard = Arc::new(Keyboard::new(
         def.geometry.keys,
         def.geometry.home_row,
         def.meta.kb_type.clone(),
-    )
-    .map_err(|e| AgentError::Calibration(e.to_string()))?;
+    )?);
 
     let ips = if config.duration_ms == 0 {
         info!("Skipping hardware calibration (duration_ms=0)");
@@ -116,41 +108,39 @@ pub async fn calibrate(
     };
 
     if let Some(parent) = cal_path.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .map_err(|e| AgentError::Resource(e.to_string()))?;
+        tokio::fs::create_dir_all(parent).await?;
     }
 
     let json = serde_json::to_string(&data)
         .map_err(|e| AgentError::Calibration(format!("Failed to serialize calibration: {e}")))?;
-    tokio::fs::write(&cal_path, json)
-        .await
-        .map_err(|e| AgentError::Resource(e.to_string()))?;
+    tokio::fs::write(&cal_path, json).await?;
 
     info!("Calibration complete: {:.2} kOPS", ips / 1000.0);
     Ok(ips)
 }
 
-#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
-#[allow(clippy::needless_borrow)]
 fn run_benchmark(
-    keyboard: &Keyboard,
+    keyboard: &Arc<Keyboard>,
     config: &crate::models::CalibrationConfig,
 ) -> Result<f64, AgentError> {
     let key_count = keyboard.keys.len();
-    let corpus = Corpus::default();
-    let rubric = Rubric::default();
-    let cost_model = default_cost_model()?;
+    let corpus = Arc::new(Corpus::default());
+    let rubric = Arc::new(Rubric::default());
+    let cost_model = Arc::new(default_cost_model()?);
 
-    let layout = Layout::new_unchecked((0..key_count as u16).map(KeyCode).collect());
+    let layout = Layout::new_unchecked(
+        (0..key_count.try_into().unwrap_or_default())
+            .map(KeyCode)
+            .collect(),
+    );
 
-    let engine = EngineFactory::new_generic(keyforge_physics::EngineCompilationContext {
-        keyboard,
-        corpus: &corpus,
-        rubric: &rubric,
-        cost_model: &cost_model,
-    })
-    .map_err(|e| AgentError::Calibration(e.to_string()))?;
+    let engine = EngineFactory::new_generic(&EngineCompilationContext {
+        keyboard: keyboard.clone(),
+        corpus,
+        rubric,
+        cost_model,
+        engine_config: keyforge_model::config::EngineConfig::default(),
+    })?;
 
     for _ in 0..config.warmup_iterations {
         let _ = engine.score(&layout);
@@ -173,23 +163,22 @@ fn run_benchmark(
         return Ok(0.0);
     }
 
+    #[allow(clippy::cast_precision_loss)]
     Ok(iterations as f64 / elapsed)
 }
 
-#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+#[allow(clippy::cast_precision_loss)]
 pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let mut keys = Vec::with_capacity(config.key_count);
     for i in 0..config.key_count {
         keys.push(keyforge_model::geometry::KeyNode {
             index: i,
-            #[allow(clippy::cast_precision_loss)]
             x: i as f32,
             y: 0.0,
             ..Default::default()
         });
     }
-    let keyboard = Keyboard::new(keys, 0, "test".into())
-        .map_err(|e| AgentError::Calibration(e.to_string()))?;
+    let keyboard = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into())?);
     run_benchmark(&keyboard, config)
 }
 
@@ -206,7 +195,7 @@ mod tests {
             duration_ms: 100,
             batch_size: 10,
         };
-        let ops = measure_performance(&config).unwrap();
+        let ops = measure_performance(&config).expect("Performance measurement failed");
         assert!(ops > 0.0, "Calibration should report positive throughput");
     }
 }

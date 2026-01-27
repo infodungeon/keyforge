@@ -15,6 +15,8 @@ This document defines the strictly enforced architectural, type-system, and oper
 | **ARCH-003** | 🔴 | `keyforge-physics` | **No Floating Point Accumulators** | Scoring accumulation must use integer arithmetic (fixed point) to guarantee determinism across CPU architectures. |
 | **ARCH-004** | 🔴 | `Global` | **No Raw SQL** | All database interactions must use `sqlx::query!` or `sqlx::query_as!` macros for compile-time verification. String concatenation for SQL is banned. |
 | **ARCH-005** | 🔴 | `keyforge-core` | **No Direct IO in Kernels** | Physics kernels must be pure functions. They cannot read files, access the network, or print to stdout (except logging). |
+| **ARCH-006** | 🔴 | `Global` | **Structural Oracle** | Macros and Traits are the sole source of repetition. Do not vibepatch lint errors or boilerplate. |
+| **ARCH-007** | 🔴 | `Global` | **Information Preservation** | Prohibition of information-erasing error mapping (e.g., `.to_string()`). Errors must map to structured variants that preserve diagnostic context. |
 
 ## 2. Type System Constraints (The "Safety" Net)
 

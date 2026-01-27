@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use keyforge_model::geometry::KeyboardDefinition;
 use std::fs::File;
 use std::io::Write;

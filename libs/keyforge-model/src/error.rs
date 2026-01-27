@@ -16,8 +16,6 @@
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 
 /// The central error type for the `KeyForge` domain.
 #[derive(Error, Debug)]
@@ -79,9 +77,15 @@ pub enum ForgeError {
     Model(#[from] ModelError),
 }
 
+impl From<String> for ForgeError {
+    fn from(s: String) -> Self {
+        ForgeError::Validation(s)
+    }
+}
+
 /// Errors related to core model logic and integrity.
 #[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub enum ModelError {
     /// Failed to serialize a component.
     #[error("Serialization Failed: {0}")]
@@ -94,7 +98,7 @@ pub enum ModelError {
 
 /// Specific errors related to physical constraints and scoring.
 #[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub enum PhysicsError {
     /// Hand index out of bounds (must be 0 or 1).
     #[error("Hand index {0} is invalid (must be 0 or 1)")]

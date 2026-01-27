@@ -15,7 +15,6 @@
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, Json};
-use keyforge_protocol::JobConfig;
 use keyforge_protocol::JobQueueResponse;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration, Instant};
@@ -32,7 +31,10 @@ use tokio::time::{sleep, Duration, Instant};
     tag = "jobs"
 )]
 /// Handles a long-polling request to claim the next available job from the queue.
-pub async fn handle(State(state): State<Arc<AppState>>) -> AppResult<Json<JobQueueResponse>> {
+#[tracing::instrument(skip_all)]
+pub(crate) async fn handle(
+    State(state): State<Arc<AppState>>,
+) -> AppResult<Json<JobQueueResponse>> {
     // 1. Limit Concurrency via Semaphore (HIVE-006)
     let _permit = state
         .jobs
@@ -66,7 +68,7 @@ async fn poll_for_job(state: &AppState) -> AppResult<JobQueueResponse> {
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return Ok(JobQueueResponse {
                 job_id: Some(id),
-                config: Some(JobConfig::from(req)),
+                config: Some(req.config),
             });
         }
 

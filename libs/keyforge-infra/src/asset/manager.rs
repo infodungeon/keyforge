@@ -1,17 +1,27 @@
 // libs/keyforge-infra/src/asset/manager.rs
 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You    may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::error::InfraResult;
 use crate::net::client::HiveClient;
-use crate::net::network::ensure_file;
-use keyforge_model::constants::{
-    ASSET_1GRAMS_FILENAME, ASSET_2GRAMS_FILENAME, ASSET_3GRAMS_FILENAME, ASSET_WORDS_FILENAME,
-    DEFAULT_CORPUS_ID,
-};
-use keyforge_model::CostMatrixSource;
 use keyforge_protocol::JobConfig;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
+/// Orchestrates asset management, ensuring required files are present and synchronized.
+///
+/// `AssetManager` acts as a high-level controller that uses a `HiveClient` to interact with
+/// the remote Hive service and manages a local directory of assets.
 #[derive(Debug)]
 pub struct AssetManager {
     client: HiveClient,
@@ -19,188 +29,93 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
+    /// Creates a new `AssetManager` with the given client and root directory.
     #[must_use]
     pub fn new(client: HiveClient, root: PathBuf) -> Self {
         Self { client, root }
     }
 
-    fn check_system_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let sub = match category {
-            "keyboards" => "keyboards/models",
-            _ => category,
-        };
-        let p = self
-            .root
-            .join("system")
-            .join(sub)
-            .join(format!("{stem}.mpk.zst"));
-        if p.exists() {
-            Some(p)
-        } else {
-            None
-        }
+    /// Returns the root directory managed by this `AssetManager`.
+    #[must_use]
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
-    fn check_user_path(&self, category: &str, stem: &str) -> Option<PathBuf> {
-        let p = self
-            .root
-            .join("user")
-            .join(category)
-            .join(format!("{stem}.json"));
-        if p.exists() {
-            Some(p)
-        } else {
-            None
-        }
-    }
-
-    /// Ensures the specified keyboard file is present in the workspace.
+    /// Synchronizes the local asset library with the remote Hive.
     ///
     /// # Errors
     ///
-    /// Returns `InfraError` if the file cannot be downloaded or verified.
-    pub async fn ensure_keyboard(&self, name: &str) -> InfraResult<PathBuf> {
-        let stem = name.strip_suffix(".json").unwrap_or(name);
-
-        if let Some(p) = self.check_user_path("keyboards", stem) {
-            return Ok(p);
-        }
-        if let Some(p) = self.check_system_path("keyboards", stem) {
-            return Ok(p);
-        }
-
-        let local_path = self
-            .root
-            .join("user/keyboards")
-            .join(format!("{stem}.json"));
-        let remote_path = format!("data/keyboards/{stem}.json");
-        let url = self.client.asset_url(&remote_path);
-
-        ensure_file(&self.client, &url, &local_path, None).await?;
-        Ok(local_path)
+    /// Returns an error if the network request or file I/O fails.
+    pub async fn sync(&self) -> InfraResult<()> {
+        info!("🔄 Synchronizing assets with Hive...");
+        crate::net::sync::run_sync(&self.client, &self.root).await?;
+        info!("✅ Asset synchronization complete.");
+        Ok(())
     }
 
-    /// Ensures the specified cost matrix file is present in the workspace.
+    /// Ensures all assets required for a specific job are present locally.
     ///
     /// # Errors
     ///
-    /// Returns `InfraError` if the file cannot be downloaded or verified.
-    pub async fn ensure_cost_matrix(&self, filename: &str) -> InfraResult<PathBuf> {
-        let stem = filename.strip_suffix(".json").unwrap_or(filename);
-
-        if let Some(p) = self.check_user_path("weights", stem) {
-            return Ok(p);
-        }
-        if let Some(p) = self.check_system_path("weights", stem) {
-            return Ok(p);
-        }
-
-        let local_path = self.root.join("user/weights").join(format!("{stem}.json"));
-        let remote_path = format!("data/{stem}.json");
-        let url = self.client.asset_url(&remote_path);
-
-        ensure_file(&self.client, &url, &local_path, None).await?;
-        Ok(local_path)
-    }
-
-    /// Ensures the specified corpus bundle is present in the workspace.
-    ///
-    /// # Errors
-    ///
-    /// Returns `InfraError` if any file in the bundle cannot be downloaded or verified.
-    pub async fn ensure_corpus(
-        &self,
-        corpus_id: &str,
-        expected_hash: Option<&str>,
-    ) -> InfraResult<PathBuf> {
-        let bundle_id = if corpus_id.is_empty() || corpus_id == "default" {
-            DEFAULT_CORPUS_ID
-        } else {
-            corpus_id
-        };
-
-        // 1. Check System (Binary)
-        let sys_dir = self.root.join("system/corpora").join(bundle_id);
-        if sys_dir.join("1grams.mpk.zst").exists() {
-            if let Some(hash) = expected_hash {
-                let provider = crate::FsProvider::new(self.root.clone());
-                if let Ok(h) = provider.get_corpus_hash(bundle_id).await {
-                    if h == hash {
-                        return Ok(sys_dir);
-                    }
-                    info!(
-                        "System corpus '{}' hash mismatch. Falling back to User/Remote.",
-                        bundle_id
-                    );
-                }
-            } else {
-                return Ok(sys_dir);
-            }
-        }
-
-        // 2. Check User (JSON)
-        let user_dir = self.root.join("user/corpora").join(bundle_id);
-        let files = [
-            ASSET_1GRAMS_FILENAME,
-            ASSET_2GRAMS_FILENAME,
-            ASSET_3GRAMS_FILENAME,
-            ASSET_WORDS_FILENAME,
-        ];
-
-        let all_user_exist = files.iter().all(|f| user_dir.join(f).exists());
-
-        if all_user_exist {
-            if let Some(hash) = expected_hash {
-                let provider = crate::FsProvider::new(self.root.clone());
-                if let Ok(h) = provider.get_corpus_hash(bundle_id).await {
-                    if h == hash {
-                        return Ok(user_dir);
-                    }
-                }
-            } else {
-                return Ok(user_dir);
-            }
-        }
-
-        // Download missing or mismatched files to USER directory
-        for f in files {
-            let local_path = user_dir.join(f);
-            let remote_path = format!("data/corpora/{bundle_id}/{f}");
-            let url = self.client.asset_url(&remote_path);
-
-            ensure_file(&self.client, &url, &local_path, None).await?;
-        }
-
-        Ok(user_dir)
-    }
-
-    /// Synchronizes all assets required for a specific job.
-    ///
-    /// # Errors
-    ///
-    /// Returns `InfraError` if any asset fails to sync.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the cost matrix path does not have a filename.
-    pub async fn sync_job_assets(&self, config: &JobConfig) -> InfraResult<(String, String)> {
-        info!("📦 Syncing assets for job...");
-        let cost_path = match &config.cost_matrix {
-            CostMatrixSource::Predefined(filename) => {
-                let p = self.ensure_cost_matrix(filename).await?;
-                p.file_name()
-                    .ok_or_else(|| {
-                        crate::error::InfraError::Io(std::io::Error::other(
-                            "Invalid cost matrix path",
-                        ))
-                    })
-                    .map(|s| s.to_string_lossy().to_string())?
-            }
-        };
-        for source in &config.corpora {
-            self.ensure_corpus(&source.id, source.hash.as_deref())
+    /// Returns an error if any asset cannot be retrieved.
+    pub async fn sync_job_assets(&self, config: &JobConfig) -> InfraResult<()> {
+        let _ = self.ensure_keyboard(&config.definition.meta.name).await?;
+        for corpus in &config.corpora {
+            self.ensure_corpus(&corpus.id, corpus.hash.as_deref())
                 .await?;
         }
-        Ok((cost_path, "corpora".to_string()))
+        // Additional assets like custom cost matrices could be handled here.
+        Ok(())
+    }
+
+    /// Ensures a specific keyboard definition is present locally, downloading it if necessary.
+    /// Returns the local path to the asset.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the asset cannot be retrieved or saved.
+    pub async fn ensure_keyboard(&self, id: &str) -> InfraResult<PathBuf> {
+        let path = self
+            .root
+            .join("system/keyboards")
+            .join(format!("{id}.json"));
+        if !path.exists() {
+            info!("📥 Downloading missing keyboard: {}", id);
+            self.client.download_asset("keyboards", id, &path).await?;
+        }
+        Ok(path)
+    }
+
+    /// Ensures a specific corpus is present locally.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the corpus cannot be retrieved.
+    pub async fn ensure_corpus(&self, id: &str, _hash: Option<&str>) -> InfraResult<()> {
+        let path = self.root.join("system/corpora").join(id);
+        if !path.exists() {
+            info!("📥 Downloading missing corpus: {}", id);
+            self.client.download_asset("corpora", id, &path).await?;
+        }
+        Ok(())
+    }
+
+    /// Ensures a specific cost matrix is present locally.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cost matrix cannot be retrieved.
+    pub async fn ensure_cost_matrix(&self, id: &str) -> InfraResult<()> {
+        let path = self
+            .root
+            .join("system/cost_matrices")
+            .join(format!("{id}.json"));
+        if !path.exists() {
+            info!("📥 Downloading missing cost matrix: {}", id);
+            self.client
+                .download_asset("cost_matrices", id, &path)
+                .await?;
+        }
+        Ok(())
     }
 }

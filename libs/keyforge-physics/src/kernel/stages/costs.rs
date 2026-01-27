@@ -8,14 +8,14 @@ use keyforge_model::{CostModel, KeyNode, Keyboard, Rubric};
 
 /// Intermediate state containing key costs mapped from the cost model.
 #[derive(Debug)]
-pub struct CostOutput {
+pub(crate) struct CostOutput {
     pub key_costs: Vec<Score>,
     pub cost_matrix: Vec<Score>,
 }
 
 /// Stage 2: Static Costs.
 #[derive(Debug)]
-pub struct CostStage<'a> {
+pub(crate) struct CostStage<'a> {
     pub kb: &'a Keyboard,
     pub rubric: &'a Rubric,
     pub cost_model: &'a CostModel,

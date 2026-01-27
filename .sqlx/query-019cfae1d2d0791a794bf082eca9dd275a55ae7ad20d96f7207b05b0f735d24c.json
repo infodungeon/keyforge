@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT max_active_jobs, max_daily_jobs FROM users WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "max_active_jobs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "max_daily_jobs",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "019cfae1d2d0791a794bf082eca9dd275a55ae7ad20d96f7207b05b0f735d24c"
+}

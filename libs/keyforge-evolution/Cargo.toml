@@ -16,7 +16,6 @@ rand_xoshiro.workspace = true
 serde.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 keyforge-physics = { path = "../keyforge-physics" }
-keyforge-protocol = { path = "../keyforge-protocol" }
 tracing.workspace = true
 thiserror.workspace = true
 

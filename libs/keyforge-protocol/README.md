@@ -21,5 +21,12 @@ Deterministic hash logic.
 - A Job ID is derived from: `Hash(Geometry + Weights + Params + Corpus + PinnedKeys)`.
 - This ensures deduplication across the distributed network.
 
+## Error Handling
+Centralized `ErrorCode` enum for consistent error reporting across the stack:
+- `JobValidationFailed`: Bad config.
+- `UpstreamTimeout`: Valkey/DB delay.
+- `InternalError`: Unhandled edge case.
+- `NotFound`: Missing asset.
+
 ## Versioning
 This crate must strictly follow Semantic Versioning. Changes to structs here will break compatibility between Nodes and Hive.

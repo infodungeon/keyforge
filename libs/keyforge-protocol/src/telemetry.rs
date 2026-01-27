@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -17,23 +17,31 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utoipa::ToSchema;
 
-/// System-wide metrics.
-#[derive(Serialize, Deserialize, Debug, Default, Clone, ToSchema)]
+/// Global health and performance metrics for the Hive cluster.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct SystemMetrics {
-    /// Uptime in seconds.
+    /// Total number of nodes registered in the system.
+    pub total_nodes: usize,
+    /// Total aggregate operations per second across all nodes.
+    pub total_ips: f32,
+    /// Number of currently active (running) jobs.
+    pub active_jobs: usize,
+    /// Number of jobs waiting in the queue.
+    pub pending_jobs: usize,
+    /// Total number of jobs completed since startup.
+    pub completed_jobs: usize,
+    /// Total number of results processed.
+    pub total_results: u64,
+    /// System uptime in seconds.
     pub uptime_secs: u64,
-    /// Number of active jobs.
-    pub active_jobs: i64,
-    /// Total results processed.
-    pub total_results: i64,
-    /// Number of nodes online.
-    pub nodes_online: i64,
-    /// Total operations per second across the cluster.
+    /// Number of nodes currently heartbeating.
+    pub nodes_online: usize,
+    /// Total operations per second (deprecated, use `total_ips`).
     pub total_ops_per_sec: f32,
     /// Server memory used in bytes.
     pub server_memory_used: u64,
-    /// Server CPU usage percentage.
+    /// Server CPU usage percentage (0.0 to 100.0).
     pub server_cpu_usage: f32,
 }
 
@@ -44,13 +52,14 @@ mod tests {
     #[test]
     fn test_system_metrics_serde() {
         let metrics = SystemMetrics {
-            uptime_secs: 3600,
-            active_jobs: 5,
+            total_nodes: 10,
+            total_ips: 1500.5,
             ..Default::default()
         };
-        let json = serde_json::to_string(&metrics).unwrap();
-        let recovered: SystemMetrics = serde_json::from_str(&json).unwrap();
-        assert_eq!(recovered.uptime_secs, 3600);
-        assert_eq!(recovered.active_jobs, 5);
+
+        let json = serde_json::to_string(&metrics).expect("Failed to serialize");
+        let deserialized: SystemMetrics =
+            serde_json::from_str(&json).expect("Failed to deserialize");
+        assert!((metrics.total_ips - deserialized.total_ips).abs() < f32::EPSILON);
     }
 }

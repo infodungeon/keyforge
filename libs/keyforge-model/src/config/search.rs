@@ -4,13 +4,11 @@ use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::error::ForgeError;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
 use utoipa::ToSchema;
 
 /// Configuration for the optimization search strategy.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub enum SearchConfig {
     /// Simulated Annealing strategy.
     Annealing {
@@ -123,7 +121,7 @@ pub const DEFAULT_REHEAT_FACTOR: f32 = 0.5;
 
 /// Parameters controlling the Simulated Annealing algorithm.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+
 pub struct SearchParams {
     /// Dynamic parameters map.
     #[serde(flatten)]
@@ -219,6 +217,7 @@ impl Validator for SearchParams {
 impl SearchParams {
     /// Returns the schema for search parameters.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn schema() -> Vec<ParameterMetadata> {
         vec![
             ParameterMetadata {
@@ -227,9 +226,7 @@ impl SearchParams {
                 description: "Number of independent search runs to perform.".to_string(),
                 param_type: ParamType::Integer,
                 min: Some(1.0),
-                #[allow(clippy::cast_precision_loss)]
                 max: Some(MAX_SEARCH_EPOCHS as f32),
-                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_SEARCH_EPOCHS as f32,
             },
             ParameterMetadata {
@@ -238,9 +235,7 @@ impl SearchParams {
                 description: "Maximum mutations to attempt per epoch.".to_string(),
                 param_type: ParamType::Integer,
                 min: Some(1000.0),
-                #[allow(clippy::cast_precision_loss)]
                 max: Some(MAX_SEARCH_STEPS as f32),
-                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_SEARCH_STEPS as f32,
             },
             ParameterMetadata {
@@ -268,7 +263,6 @@ impl SearchParams {
                 param_type: ParamType::Integer,
                 min: Some(10.0),
                 max: Some(10000.0),
-                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_SEARCH_PATIENCE as f32,
             },
             ParameterMetadata {
@@ -278,7 +272,6 @@ impl SearchParams {
                 param_type: ParamType::Integer,
                 min: Some(0.0),
                 max: Some(10.0),
-                #[allow(clippy::cast_precision_loss)]
                 default: DEFAULT_REHEATS as f32,
             },
         ]
@@ -294,8 +287,8 @@ impl SearchParams {
     #[must_use]
     #[allow(
         clippy::cast_possible_truncation,
-        clippy::cast_precision_loss,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
     )]
     pub fn get_search_epochs(&self) -> usize {
         self.get_param("search_epochs", DEFAULT_SEARCH_EPOCHS as f32) as usize
@@ -304,8 +297,8 @@ impl SearchParams {
     #[must_use]
     #[allow(
         clippy::cast_possible_truncation,
-        clippy::cast_precision_loss,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
     )]
     pub fn get_search_steps(&self) -> usize {
         self.get_param("search_steps", DEFAULT_SEARCH_STEPS as f32) as usize
@@ -314,8 +307,8 @@ impl SearchParams {
     #[must_use]
     #[allow(
         clippy::cast_possible_truncation,
-        clippy::cast_precision_loss,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
     )]
     pub fn get_search_patience(&self) -> usize {
         self.get_param("search_patience", DEFAULT_SEARCH_PATIENCE as f32) as usize
@@ -342,8 +335,8 @@ impl SearchParams {
     #[must_use]
     #[allow(
         clippy::cast_possible_truncation,
-        clippy::cast_precision_loss,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
     )]
     pub fn get_opt_limit_fast(&self) -> usize {
         self.get_param("opt_limit_fast", DEFAULT_OPT_LIMIT_FAST as f32) as usize
@@ -352,8 +345,8 @@ impl SearchParams {
     #[must_use]
     #[allow(
         clippy::cast_possible_truncation,
-        clippy::cast_precision_loss,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
     )]
     pub fn get_opt_limit_slow(&self) -> usize {
         self.get_param("opt_limit_slow", DEFAULT_OPT_LIMIT_SLOW as f32) as usize
@@ -362,8 +355,8 @@ impl SearchParams {
     #[must_use]
     #[allow(
         clippy::cast_possible_truncation,
-        clippy::cast_precision_loss,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
     )]
     pub fn get_reheats(&self) -> usize {
         self.get_param("reheats", DEFAULT_REHEATS as f32) as usize

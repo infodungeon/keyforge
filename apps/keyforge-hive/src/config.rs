@@ -64,7 +64,7 @@ pub struct AppConfig {
 
     /// CORS allowed origins (comma separated or *).
     #[serde(default)]
-    pub cors_origins: String,
+    pub cors: keyforge_model::config::CorsConfig,
 
     /// Unique Server Identity Key (Machine ID).
     /// If not provided, one will be generated Ephemerally (WARNING: unstable across restarts).
@@ -105,7 +105,9 @@ impl AppConfig {
         // Optional / Defaulted
         let valkey_url = env::var("VALKEY_URL").unwrap_or_else(|_| default_valkey());
 
-        let cors_origins = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
+        let cors = keyforge_model::config::CorsConfig {
+            allowed_origins: env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default(),
+        };
         let server_key = env::var("HIVE_SERVER_KEY").ok();
         let population_limit = parse_env("POPULATION_LIMIT", DEFAULT_POPULATION_LIMIT);
         let max_concurrent_compilations = parse_env(
@@ -124,7 +126,7 @@ impl AppConfig {
             rate_limits,
             valkey_url,
 
-            cors_origins,
+            cors,
             server_key,
             population_limit,
             max_concurrent_compilations,
@@ -141,7 +143,9 @@ impl AppConfig {
             network: NetworkConfig::default(),
             rate_limits: RateLimitConfig::default(),
             valkey_url: DEFAULT_VALKEY_URL.to_string(),
-            cors_origins: "*".to_string(),
+            cors: keyforge_model::config::CorsConfig {
+                allowed_origins: "*".to_string(),
+            },
             server_key: Some("mock_server_key".to_string()),
             population_limit: DEFAULT_POPULATION_LIMIT,
             max_concurrent_compilations: DEFAULT_MAX_CONCURRENT_COMPILATIONS,

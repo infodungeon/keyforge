@@ -110,8 +110,8 @@ impl AutoSaveService {
     /// Loads the last saved session snapshot from disk.
     ///
     /// # Errors
-    /// Returns [`PersistenceError::Io`] if reading the file fails.
-    /// Returns [`PersistenceError::Serde`] if parsing JSON fails.
+    /// Returns [`crate::error::PersistenceError::Io`] if reading the file fails.
+    /// Returns [`crate::error::PersistenceError::Serde`] if parsing JSON fails.
     pub async fn load(&self) -> PersistenceResult<Option<SessionSnapshot>> {
         if !self.path.exists() {
             return Ok(None);
@@ -161,7 +161,7 @@ impl AutoSaveService {
             Ok(None)
         })
         .await
-        .map_err(|e| crate::error::PersistenceError::InvalidState(e.to_string()))?
+        .map_err(|e| crate::error::PersistenceError::Task(e.to_string()))?
     }
 
     /// Schedules a session snapshot to be saved to disk.

@@ -1,0 +1,6 @@
+{
+  "current_issue": null,
+  "phase": "IDLE",
+  "last_action": "initialized state-lock",
+  "allowed_tools": ["read_file", "search_file_content", "git grep", "list_issues"]
+}

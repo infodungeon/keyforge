@@ -22,6 +22,8 @@ pub struct NetworkManager {
     client: Client,
     config: AgentConfig,
     telemetry: SharedTelemetry,
+    hardware: crate::agent::hardware::HardwareInfo,
+    performance_ips: f64,
     job_tx: mpsc::Sender<(String, JobConfig)>,
     result_rx: mpsc::Receiver<ResultSubmission>,
     stop_tx: mpsc::Sender<()>,
@@ -46,6 +48,8 @@ impl NetworkManager {
     pub fn new(
         config: AgentConfig,
         telemetry: SharedTelemetry,
+        hardware: crate::agent::hardware::HardwareInfo,
+        performance_ips: f64,
         job_tx: mpsc::Sender<(String, JobConfig)>,
         result_rx: mpsc::Receiver<ResultSubmission>,
         stop_tx: mpsc::Sender<()>,
@@ -74,6 +78,8 @@ impl NetworkManager {
             client,
             config,
             telemetry,
+            hardware,
+            performance_ips,
             job_tx,
             result_rx,
             stop_tx,
@@ -85,7 +91,6 @@ impl NetworkManager {
     pub async fn run(mut self) {
         let mut backoff = Duration::from_secs(self.config.network.initial_backoff_seconds);
 
-        // --- STEP 1: REGISTRATION HANDSHAKE (Task-sec-022) ---
         while let Err(e) = self.register_with_hive().await {
             error!(
                 "🚨 Registration Failed: {}. Retrying in {:?}...",
@@ -96,7 +101,6 @@ impl NetworkManager {
                 (backoff * 2).min(Duration::from_secs(self.config.network.max_backoff_seconds));
         }
 
-        // Reset backoff for connection loop
         backoff = Duration::from_secs(self.config.network.initial_backoff_seconds);
 
         while let Err(e) = self.connect_and_loop().await {
@@ -114,10 +118,16 @@ impl NetworkManager {
         let req = NodeRequest {
             version: PROTOCOL_VERSION,
             node_id: self.config.node_id.clone(),
-            cpu_model: "Detected CPU".into(), // TODO: Use real detection
-            cores: i32::try_from(self.config.cores).unwrap_or(1),
-            l2_cache_kb: None,
-            ops_per_sec: 1_000_000.0, // Placeholder
+            hostname: hostname::get()
+                .map(|h| h.to_string_lossy().to_string())
+                .unwrap_or_default(),
+            cpu_cores: self.hardware.cores.try_into().unwrap_or_default(),
+            cpu_model: self.hardware.cpu_model.clone(),
+            capabilities: self.hardware.capabilities.clone(),
+            cores: self.hardware.cores,
+            l2_cache_kb: self.hardware.l2_cache_kb,
+            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+            ops_per_sec: self.performance_ips as f32,
             public_key: None,
         };
 
@@ -191,7 +201,11 @@ impl NetworkManager {
             tokio::select! {
                 _ = heartbeat.tick() => {
                     sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
-                    let memory_usage = if let Some(process) = sys.process(pid) { process.memory() } else { 0 };
+                    let (memory_bytes, cpu_usage) = if let Some(process) = sys.process(pid) {
+                        (process.memory(), process.cpu_usage())
+                    } else {
+                        (0, 0.0)
+                    };
 
                     let (ips, temp, best) = telemetry.snapshot();
                     let job_id = telemetry.get_job_id();
@@ -200,11 +214,15 @@ impl NetworkManager {
                     let best_opt = if best == 0.0 { None } else { Some(best) };
 
                     let payload = NodeTelemetry {
-                        job_id: job_id_opt,
+                        cpu_usage,
+                        memory_bytes,
                         ips,
+                        active_threads: 0, // Default for now
+                        job_id: job_id_opt,
                         temp,
                         current_best: best_opt,
-                        memory_usage,
+                        #[allow(clippy::cast_precision_loss)]
+                        memory_usage: format!("{:.2} MB", (memory_bytes as f64) / 1024.0 / 1024.0),
                         timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
                     };
 
@@ -287,7 +305,6 @@ impl NetworkManager {
                     if status.is_server_error() {
                         self.outbox.save_to_wal(&result)?;
                     } else if status.is_client_error() {
-                        // Task-agent-010: Save to Dead Letter instead of discarding
                         self.outbox.save_to_dead_letter(&result, &txt)?;
                     }
                     return Err(AgentError::Network(format!("Submission rejected: {txt}")));

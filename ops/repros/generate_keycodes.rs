@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // ops/repros/generate_keycodes.rs
 //
 // This script parses the `docs/data/QMK_Keycodes.md` file and generates a

@@ -2,12 +2,12 @@ use crate::error::CommandError;
 use crate::models::{JobStatusUpdate, RegisterJobRequest, SearchUpdate, StartSearchRequest};
 use crate::state::{LocalWorkerState, SearchState, SessionState};
 use crate::utils::get_data_dir;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
-use keyforge_infra::{AssetLoader, HiveClient};
-use keyforge_model::JobStatus;
-use keyforge_model::KeyCode;
-use keyforge_protocol::{JobRequest, JobResponse};
+use keyforge_infra::HiveClient;
+use keyforge_model::{KeyCode, KeyboardDefinition};
+use keyforge_protocol::{JobRequest, JobResponse, JobStatusDto};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Window};
@@ -35,7 +35,7 @@ pub async fn cmd_dispatch_job(
         secret: Some(hive_secret),
         ..Default::default()
     };
-    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config)?;
 
     let job_req: JobRequest = request;
     let resp = client
@@ -79,7 +79,7 @@ pub async fn cmd_poll_hive_status(
         secret: Some(hive_secret),
         ..Default::default()
     };
-    let client = HiveClient::new(config).map_err(|e| CommandError::Config(e.to_string()))?;
+    let client = HiveClient::new(config)?;
 
     let path = format!("jobs/{job_id}/status");
     let resp = client
@@ -95,25 +95,34 @@ pub async fn cmd_poll_hive_status(
         )));
     }
 
-    let status: JobStatus = resp
+    let status: JobStatusDto = resp
         .json()
         .await
         .map_err(|e| CommandError::Network(e.to_string()))?;
+
     Ok(JobStatusUpdate {
         active_nodes: match &status {
-            JobStatus::Running(r) => r.active_nodes,
-            JobStatus::Pending(_) | JobStatus::Completed(_) => 0,
+            JobStatusDto::Running { active_nodes, .. } => *active_nodes,
+            _ => 0,
         },
         best_score: match &status {
-            JobStatus::Running(r) => r.current_best.map_or(0.0, keyforge_model::Score::to_f32),
-            JobStatus::Completed(c) => c.final_score.to_f32(),
-            JobStatus::Pending(_) => 0.0,
+            JobStatusDto::Running { current_best, .. } => current_best.as_ref().map_or(0.0, |s| {
+                #[allow(clippy::cast_precision_loss)]
+                let val = s.0 as f32;
+                val / 1_000_000.0
+            }),
+            JobStatusDto::Completed { final_score, .. } => {
+                #[allow(clippy::cast_precision_loss)]
+                let val = final_score.0 as f32;
+                val / 1_000_000.0
+            }
+            JobStatusDto::Pending => 0.0,
         },
         best_layout: match &status {
-            JobStatus::Completed(c) => {
+            JobStatusDto::Completed { final_layout, .. } => {
                 use std::fmt::Write;
                 let mut s = String::new();
-                for &code in &c.final_layout.keys {
+                for code in &final_layout.keys {
                     let _ = write!(s, "{} ", code.0);
                 }
                 s.trim().to_string()
@@ -152,7 +161,7 @@ pub fn cmd_toggle_local_worker(
             return Ok("Worker already running".into());
         }
 
-        let data_dir = get_data_dir(&app).map_err(CommandError::Internal)?;
+        let data_dir = get_data_dir(&app)?;
 
         // Spawn sidecar
         let (mut _rx, child) = app
@@ -250,17 +259,19 @@ pub async fn cmd_start_search(
 
     // 2. Prepare Engine Request via SessionBuilder
     let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
-        .with_keyboard_def(std::sync::Arc::new(job.definition.clone()))
-        .with_corpus(&job.corpora)
-        .await
-        .map_err(|e| CommandError::Internal(format!("Corpus load failed: {e}")))?
-        .with_cost_matrix(&job.cost_matrix)
-        .await
-        .map_err(|e| CommandError::Internal(format!("Cost matrix load failed: {e}")))?
+        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
+            job.to_domain_geometry(),
+            "local",
+        )))
+        .with_corpus(&job.to_domain_corpus_sources())
+        .await?
+        .with_cost_matrix(&job.to_domain_cost_matrix())
+        .await?
         .with_keycodes("default")
-        .await
-        .map_err(|e| CommandError::Internal(format!("Keycodes load failed: {e}")))?
-        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.weights))
+        .await?
+        .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
+            &job.to_domain_weights(),
+        ))
         .with_config(keyforge_model::SearchConfig::Annealing {
             steps: request.search_params.get_search_steps(),
             start_temp: request.search_params.get_temp_max(),
@@ -272,9 +283,7 @@ pub async fn cmd_start_search(
             include_thumbs: request.search_params.include_thumbs,
         });
 
-    let session = builder
-        .build()
-        .map_err(|e| CommandError::Internal(e.to_string()))?;
+    let session = builder.build()?;
 
     // Reset stop flag
     search_state.stop_flag.store(false, Ordering::SeqCst);
@@ -299,7 +308,10 @@ pub async fn cmd_start_search(
 
     tokio::spawn(async move {
         let runtime = Runtime::from(session);
-        match runtime.run_optimization(callback, &job.pinned_keys).await {
+        match runtime
+            .run_optimization(callback, &job.to_domain_pinned_keys())
+            .await
+        {
             Ok(result) => {
                 let _ = window_handle.emit("search_finished", result);
             }

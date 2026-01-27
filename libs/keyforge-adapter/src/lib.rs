@@ -21,6 +21,8 @@
 pub mod conversion;
 /// Crate-specific error and result types.
 pub mod error;
+pub mod loader;
 pub mod parsing;
+pub mod utils;
 
 pub use error::{AdapterError, AdapterResult};

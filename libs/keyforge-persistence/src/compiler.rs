@@ -1,9 +1,9 @@
 use crate::error::PersistenceError;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::config::Config;
 use keyforge_model::constants::paths::ASSET_KEYCODES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::loader::AssetLoader;
 use keyforge_model::EngineRequest;
 use std::sync::Arc;
 
@@ -86,6 +86,7 @@ pub async fn compile_request<L: AssetLoader>(
         rubric: Arc::new(rubric),
         cost_model,
         config: adapter_config,
+        engine_config: config.engine,
         initial_layout,
         pinned_keys,
     })
