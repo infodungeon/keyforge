@@ -144,7 +144,9 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into()).unwrap());
+        let kb = Arc::new(
+            Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into()).unwrap(),
+        );
         let mut corpus_val = Corpus::default();
         let mut char_freqs = corpus_val.char_freqs.to_vec();
         let mut bigrams = Vec::new();

@@ -47,7 +47,6 @@ impl SearchState {
             return Err(EvolutionError::Config("Key count exceeds u16 limit".into()));
         }
 
-
         // Optimize pos_map size to actual key range
         let max_code = layout.keys.iter().map(|k| k.0).max().unwrap_or(0);
         let map_size = (max_code as usize) + 1;
