@@ -22,7 +22,7 @@ use std::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 // --- Constants ---
-pub const LOG_BUFFER_CAPACITY: usize = 50;
+pub(crate) const LOG_BUFFER_CAPACITY: usize = 50;
 pub const DEFAULT_ENV_FILTER: &str = "info,keyforge_hive=debug,tower_http=info";
 pub const DEFAULT_LOG_FILENAME: &str = "hive.log";
 
@@ -30,7 +30,7 @@ pub const DEFAULT_LOG_FILENAME: &str = "hive.log";
 
 /// A captured log entry stored in the in-memory buffer.
 #[derive(Clone, Serialize, Debug)]
-pub struct LogEntry {
+pub(crate) struct LogEntry {
     /// RFC3339 formatted timestamp of the event.
     pub timestamp: String,
     /// The tracing level (e.g., "WARN", "ERROR").
@@ -40,17 +40,8 @@ pub struct LogEntry {
 }
 
 /// Global in-memory log buffer for recent WARN/ERROR events.
-pub static LOG_BUFFER: std::sync::LazyLock<Mutex<VecDeque<LogEntry>>> =
+pub(crate) static LOG_BUFFER: std::sync::LazyLock<Mutex<VecDeque<LogEntry>>> =
     std::sync::LazyLock::new(|| Mutex::new(VecDeque::with_capacity(LOG_BUFFER_CAPACITY)));
-
-/// Returns a copy of the most recent logs from the capture buffer.
-pub fn get_recent_logs() -> Vec<LogEntry> {
-    if let Ok(buffer) = LOG_BUFFER.lock() {
-        buffer.iter().cloned().collect()
-    } else {
-        vec![]
-    }
-}
 
 /// Custom tracing layer that captures WARN and ERROR events into an in-memory buffer.
 struct LogCaptureLayer;
@@ -115,7 +106,7 @@ impl tracing::field::Visit for MessageVisitor {
 // --- Initialization ---
 
 /// Global handle to the Prometheus metrics recorder.
-pub static PROMETHEUS_HANDLE: std::sync::LazyLock<Option<PrometheusHandle>> =
+pub(crate) static PROMETHEUS_HANDLE: std::sync::LazyLock<Option<PrometheusHandle>> =
     std::sync::LazyLock::new(|| match PrometheusBuilder::new().install_recorder() {
         Ok(h) => Some(h),
         Err(e) => {
@@ -210,9 +201,4 @@ where
         subscriber.init();
         tracing::info!("📝 Local Logging Enabled");
     }
-}
-
-/// Returns a clone of the Prometheus metrics handle if it was successfully initialized.
-pub fn get_metrics_handle() -> Option<PrometheusHandle> {
-    PROMETHEUS_HANDLE.clone()
 }
