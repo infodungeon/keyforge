@@ -54,8 +54,8 @@ jobs:
 
       - name: Install Cargo Audit & Deny
         run: |
-          cargo install cargo-audit
-          cargo install cargo-deny
+          cargo install --force cargo-audit
+          cargo install --force cargo-deny
 
       - name: Security & Dependency Audit
         run: |
@@ -177,7 +177,7 @@ jobs:
           DATABASE_TIMEOUT_SECONDS: 15
           RATE_LIMIT_PER_SEC: 100
           SQLX_OFFLINE: true
-        run: cargo tarpaulin --workspace --exclude keyforge-ui --exclude-files apps/keyforge-hive/tests/* --timeout 300 --out Xml -- --test-threads 1
+        run: cargo tarpaulin --workspace --exclude keyforge-ui --exclude keyforge-hive --timeout 300 --out Xml -- --test-threads 1
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
