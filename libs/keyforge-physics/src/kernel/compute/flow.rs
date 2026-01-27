@@ -52,7 +52,7 @@ pub(crate) fn get_flow_delta(
     for &p1 in candidates1 {
         for &p2 in candidates2 {
             for &p3 in candidates3 {
-                let cost = calculate_flow_cost(ctx, p1 as usize, p2 as usize, p3 as usize);
+                let cost = calculate_flow_cost(ctx, p1.as_usize(), p2.as_usize(), p3.as_usize());
                 if cost < min_old {
                     min_old = cost;
                 }
@@ -64,9 +64,9 @@ pub(crate) fn get_flow_delta(
     for &p1 in candidates1 {
         for &p2 in candidates2 {
             for &p3 in candidates3 {
-                let p1_new = get_p_effective(p1 as usize, idx_a, idx_b);
-                let p2_new = get_p_effective(p2 as usize, idx_a, idx_b);
-                let p3_new = get_p_effective(p3 as usize, idx_a, idx_b);
+                let p1_new = get_p_effective(p1.as_usize(), idx_a, idx_b);
+                let p2_new = get_p_effective(p2.as_usize(), idx_a, idx_b);
+                let p3_new = get_p_effective(p3.as_usize(), idx_a, idx_b);
                 let cost = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
                 if cost < min_new {
                     min_new = cost;

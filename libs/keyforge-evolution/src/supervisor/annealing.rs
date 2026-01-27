@@ -372,7 +372,7 @@ mod tests {
             &self,
             _engine: &dyn ScoringEngine,
             _layout: &Layout,
-            _pos_map: &[u16],
+            _pos_map: &[keyforge_model::KeyIndex],
             _rng: &mut impl Rng,
             _temp: f32,
         ) -> Result<Option<MutationProposal>, EvolutionError> {
@@ -412,7 +412,7 @@ mod tests {
             &self,
             _engine: &dyn ScoringEngine,
             _layout: &Layout,
-            _pos_map: &[u16],
+            _pos_map: &[keyforge_model::KeyIndex],
             _rng: &mut impl Rng,
             _temp: f32,
         ) -> Result<Option<MutationProposal>, EvolutionError> {
@@ -435,8 +435,10 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        let kb =
-            Arc::new(Keyboard::new(keys, 1, "test".into()).expect("Failed to create keyboard"));
+        let kb = {
+            use keyforge_model::types::RowIndex;
+            Arc::new(Keyboard::new(keys, RowIndex(1), "test".into()).expect("Failed to create keyboard"))
+        };
         let mut corpus_val = Corpus::default();
         let mut bigrams = Vec::new();
         for i in 0..size.saturating_sub(1) {

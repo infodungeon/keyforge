@@ -25,11 +25,11 @@ pub struct Keyboard {
     /// The list of physical keys.
     pub keys: Vec<KeyNode>,
     /// The logical row index considered the "Home Row".
-    pub home_row: i8,
+    pub home_row: crate::types::RowIndex,
     /// Type of keyboard (e.g., "split", "ortho").
     #[serde(default)]
     pub kb_type: String,
-    /// Pre-calculated centers for fingers [hand][finger] -> (x, y).
+    /// Pre-calculated centers for fingers \[hand\]\[finger\] -> (x, y).
     /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<(f32, f32)>>,
     /// Pre-calculated squared distances between every pair of physical keys.
@@ -43,7 +43,11 @@ impl Keyboard {
     ///
     /// # Errors
     /// Returns a `ForgeError` if the key list is empty.
-    pub fn new(keys: Vec<KeyNode>, home_row: i8, kb_type: String) -> Result<Self, ForgeError> {
+    pub fn new(
+        keys: Vec<KeyNode>,
+        home_row: crate::types::RowIndex,
+        kb_type: String,
+    ) -> Result<Self, ForgeError> {
         if keys.is_empty() {
             return Err(ForgeError::InvalidData(
                 "Keyboard must have at least one key".into(),
@@ -125,7 +129,7 @@ impl Keyboard {
                         self.keys.iter().find(|k| {
                             k.hand.as_usize() == hand
                                 && k.finger.as_usize() == finger
-                                && k.row.0 == self.home_row
+                                && k.row == self.home_row
                         })
                     })
                     .or_else(|| {
@@ -173,7 +177,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, crate::types::RowIndex(0), "test".into()).unwrap();
 
         assert_eq!(kb.spatial_cache.len(), 4);
         assert_eq!(kb.spatial_cache[1], (9.0, 16.0));

@@ -74,7 +74,7 @@ mod integration_tests {
             },
         ];
         (
-            Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap()),
+            Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap()),
             Arc::new(Corpus::default()),
             Arc::new(Rubric::default()),
             Arc::new(mock_cost_model()),

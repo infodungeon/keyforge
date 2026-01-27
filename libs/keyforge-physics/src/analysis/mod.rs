@@ -26,7 +26,7 @@ pub fn analyze_with_context(
     layout: &Layout,
 ) -> Result<AnalysisReport, PhysicsError> {
     let validated = ValidatedLayout::new(&layout.keys, ctx.key_count)?;
-    Ok(crate::kernel::compute::analyze_layout(ctx, &validated))
+    crate::kernel::compute::analyze_layout(ctx, &validated)
 }
 
 /// Suggests improvements for the given layout.
@@ -65,7 +65,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
         let mut cm = CostModel::default();

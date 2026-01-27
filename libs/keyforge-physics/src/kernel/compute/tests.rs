@@ -22,7 +22,7 @@ mod unit_tests {
                 ..Default::default()
             })
             .collect();
-        Keyboard::new(keys, 0, "test".into()).unwrap()
+        Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap()
     }
 
     fn mock_cost_model() -> CostModel {
@@ -205,7 +205,7 @@ mod unit_tests {
         let validated = ValidatedLayout::new(&layout.keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -261,7 +261,7 @@ mod unit_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
         corpus.bigrams = Arc::from(vec![(0, 1, 100)]);
@@ -285,7 +285,7 @@ mod unit_tests {
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -327,7 +327,7 @@ mod unit_tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
 
         let mut corpus = Corpus::default();
         corpus.bigrams = Arc::from(vec![(0, 0, 100)]);
@@ -351,7 +351,7 @@ mod unit_tests {
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -406,7 +406,7 @@ mod unit_tests {
 
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -432,7 +432,7 @@ mod unit_tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
         let mut corpus = Corpus::default();
         // Trigrams like (a,a,x), (b,a,x), (x,a,a), etc.
         corpus.trigrams = Arc::from(vec![
@@ -455,7 +455,7 @@ mod unit_tests {
 
         let mut starts = [0u16; 65536];
         let mut counts = [0u8; 65536];
-        let mut indices = [0u16; 512];
+        let mut indices = [keyforge_model::types::KeyIndex::new(0); 512];
         let mut current_offsets = [0u8; 65536];
         let mut used_keys_scratch = Vec::new();
         let pm = PosMap::from_scratch(
@@ -515,7 +515,7 @@ mod unit_tests {
             KeyCode(101),
         ];
         let validated = ValidatedLayout::new(&layout_keys, engine.key_count()).unwrap();
-        let mut scratch = crate::kernel::compute::PhysicsScratch::new();
+        let mut scratch = crate::kernel::compute::PhysicsScratch::try_new().unwrap();
 
         let res = crate::kernel::compute::score_layout(&ctx, &validated, &mut scratch);
         assert!(matches!(res, Err(PhysicsError::ScoreOverflow { .. })));

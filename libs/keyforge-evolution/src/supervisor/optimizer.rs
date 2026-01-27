@@ -209,7 +209,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
-            0,
+            keyforge_model::types::RowIndex(0),
             "test".into(),
         )
         .unwrap();
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_optimize_wrapper() {
-        let kb = Keyboard::new(vec![KeyNode::default()], 0, "test".into()).unwrap();
+        let kb = Keyboard::new(vec![KeyNode::default()], keyforge_model::types::RowIndex(0), "test".into()).unwrap();
         let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {

@@ -55,7 +55,7 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, 0, "test".into()).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
         let mut corpus_val = Corpus::default();
         let mut char_freqs = corpus_val.char_freqs.to_vec();
         char_freqs[0] = 100;

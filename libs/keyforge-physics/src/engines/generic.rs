@@ -12,7 +12,7 @@ pub(crate) struct GenericScoringEngine {
 
 impl GenericScoringEngine {
     #[must_use]
-    pub fn new(ctx: EngineContext) -> Self {
+    pub(crate) fn new(ctx: EngineContext) -> Self {
         Self { ctx }
     }
 }
@@ -36,7 +36,7 @@ impl ScoringEngine for GenericScoringEngine {
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
         crate::kernel::compute::state::with_scratch(|scratch| {
             self.score_with_scratch(layout, scratch)
-        })
+        })?
     }
 
     fn score_with_scratch(
@@ -79,13 +79,13 @@ impl ScoringEngine for GenericScoringEngine {
             // Clean up scratch for next use (score_layout usually does this, but we called sub-functions)
             scratch.clear_used();
             Ok((mono, bigram, trigram))
-        })
+        })?
     }
 
     fn calculate_swap_delta(
         &self,
         layout: &Layout,
-        pos_map: &[u16],
+        pos_map: &[keyforge_model::types::KeyIndex],
         idx_a: usize,
         idx_b: usize,
     ) -> Result<i64, PhysicsError> {
@@ -97,9 +97,9 @@ impl ScoringEngine for GenericScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        Ok(crate::kernel::compute::analyze_layout(
+        crate::kernel::compute::analyze_layout(
             &self.ctx, &validated,
-        ))
+        )
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {

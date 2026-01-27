@@ -6,13 +6,11 @@ use crate::kernel::{
     EngineContext, EvaluationContext,
 };
 
-/// Scores a layout against the compiled context.
+/// Computes the total biomechanical score for a layout.
 ///
 /// # Errors
-/// Returns `PhysicsError` if:
-/// - Score accumulation overflows.
-/// - Any sub-component scoring (monograms, bigrams, trigrams) fails.
-#[allow(clippy::cast_possible_wrap)]
+/// Returns `PhysicsError::Config` if scratch initialization fails or
+/// `PhysicsError::ScoreOverflow` if arithmetic fails.
 pub fn score_layout(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
@@ -22,10 +20,10 @@ pub fn score_layout(
     let pm = PosMap::from_scratch(
         layout_slice,
         ctx.key_count,
-        scratch.starts.as_mut_slice(),
-        scratch.counts.as_mut_slice(),
+        scratch.starts.as_mut(),
+        scratch.counts.as_mut(),
         scratch.indices.as_mut_slice(),
-        scratch.current_offsets.as_mut_slice(),
+        scratch.current_offsets.as_mut(),
         &mut scratch.used_keys,
     );
 
@@ -59,18 +57,18 @@ pub fn score_layout(
 pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
     for &code in ctx.pos_map.used_keys() {
-        let freq = ctx.engine.corpus.char_freqs[code as usize];
+        let freq = ctx.engine.corpus.char_freqs[code.0 as usize];
         if freq == 0 {
             continue;
         }
-        let candidates = ctx.pos_map.get(keyforge_model::KeyCode(code));
+        let candidates = ctx.pos_map.get(code);
         if candidates.is_empty() {
             continue;
         }
 
         let mut min_cost = Score::INFINITY_SENTINEL;
         for &p in candidates {
-            let cost = ctx.engine.geometry.key_costs[p as usize];
+            let cost = ctx.engine.geometry.key_costs[p.as_usize()];
             if cost < min_cost {
                 min_cost = cost;
             }
@@ -81,12 +79,12 @@ pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsErro
                 min_cost
                     .checked_mul(freq as i64)
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Monogram freq scale for code {code}"),
+                        context: format!("Monogram freq scale for code {code:?}"),
                     })?;
             total = total
                 .checked_add(contrib)
                 .ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: format!("Monogram total accumulation at code {code}"),
+                    context: format!("Monogram total accumulation at code {code:?}"),
                 })?;
         }
     }
@@ -103,8 +101,8 @@ pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsErro
 pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
     for &code1 in ctx.pos_map.used_keys() {
-        let c1_val = code1 as usize;
-        let candidates1 = ctx.pos_map.get(keyforge_model::KeyCode(code1));
+        let c1_val = code1.0 as usize;
+        let candidates1 = ctx.pos_map.get(code1);
         let start = ctx.engine.corpus.bigram_starts[c1_val];
         let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
 
@@ -118,10 +116,10 @@ pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError>
             let mut min_cost = Score::INFINITY_SENTINEL;
             for &p1 in candidates1 {
                 for &p2 in candidates2 {
-                    let idx = (p1 as usize) * ctx.engine.key_count + (p2 as usize);
+                    let idx = p1.as_usize() * ctx.engine.key_count + p2.as_usize();
                     let mut cost = ctx.engine.geometry.cost_matrix[idx];
 
-                    if let Some(&mod_val) = ctx.engine.sequence_modifiers.get(&(code1, c2.0)) {
+                    if let Some(&mod_val) = ctx.engine.sequence_modifiers.get(&(code1.0, c2.0)) {
                         cost = cost.checked_add(mod_val).ok_or_else(|| {
                             PhysicsError::ScoreOverflow {
                                 context: format!("Bigram modifier for ({}, {})", code1, c2.0),
@@ -141,12 +139,12 @@ pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError>
                     min_cost
                         .checked_mul(freq)
                         .ok_or_else(|| PhysicsError::ScoreOverflow {
-                            context: format!("Bigram freq scale for ({}, {})", code1, c2.0),
+                            context: format!("Bigram freq scale for ({:?}, {:?})", code1, c2.0),
                         })?;
                 total = total
                     .checked_add(contrib)
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Bigram total accumulation at ({}, {})", code1, c2.0),
+                        context: format!("Bigram total accumulation at ({:?}, {:?})", code1, c2.0),
                     })?;
             }
         }
@@ -163,8 +161,8 @@ pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError>
 pub fn score_trigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError> {
     let mut total = Score::ZERO;
     for &code1 in ctx.pos_map.used_keys() {
-        let c1_val = code1 as usize;
-        let candidates1 = ctx.pos_map.get(keyforge_model::KeyCode(code1));
+        let c1_val = code1.0 as usize;
+        let candidates1 = ctx.pos_map.get(code1);
         let start = ctx.engine.corpus.trigram_starts[c1_val];
         let end = ctx.engine.corpus.trigram_starts[c1_val + 1];
 
@@ -183,7 +181,7 @@ pub fn score_trigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError
                 for &p2 in candidates2 {
                     for &p3 in candidates3 {
                         let cost =
-                            calculate_flow_cost(ctx.engine, p1 as usize, p2 as usize, p3 as usize);
+                            calculate_flow_cost(ctx.engine, p1.as_usize(), p2.as_usize(), p3.as_usize());
                         if cost < min_cost {
                             min_cost = cost;
                         }
@@ -198,14 +196,14 @@ pub fn score_trigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError
                         .checked_mul(freq)
                         .ok_or_else(|| PhysicsError::ScoreOverflow {
                             context: format!(
-                                "Trigram freq scale for sequence starting with {code1}"
+                                "Trigram freq scale for sequence starting with {code1:?}"
                             ),
                         })?;
                 total = total
                     .checked_add(contrib)
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: format!(
-                            "Trigram total accumulation for sequence starting with {code1}"
+                            "Trigram total accumulation for sequence starting with {code1:?}"
                         ),
                     })?;
             }

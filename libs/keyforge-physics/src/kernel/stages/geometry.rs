@@ -121,7 +121,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, 0, "test".into()).unwrap();
+        let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
         let mut rubric = Rubric::default();
         rubric.travel_lat = 1.0;
         rubric.travel_vert = 1.0;

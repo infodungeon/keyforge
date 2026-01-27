@@ -1,25 +1,23 @@
+// libs/keyforge-model/src/config/utils.rs
+
 /// Parses a "key=value" string into a tuple.
 ///
 /// Used by clap for `value_parser`.
-/// Expects value to be an f32.
-/// Parses a key=value pair.
+/// Parses a key-value pair string (e.g., "A:1.0") into a tuple.
 ///
 /// # Errors
-///
-/// Returns an error if the string is not in key=value format or if the value
-/// is not a valid float.
+/// Returns an error string if the format is invalid or values cannot be parsed.
 pub fn parse_key_val(s: &str) -> Result<(String, f32), String> {
     let pos = s
         .find('=')
-        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
-
+        .ok_or_else(|| format!("invalid KEY=VALUE: no '=' found in '{s}'"))?;
     let key = s[..pos].to_string();
-    let val_str = &s[pos + 1..];
-
-    let val = val_str
+    if key.is_empty() {
+        return Err("invalid KEY=VALUE: empty key".to_string());
+    }
+    let val = s[pos + 1..]
         .parse::<f32>()
-        .map_err(|e| format!("invalid float value for key `{key}`: {e}"))?;
-
+        .map_err(|e| format!("invalid value in '{s}': {e}"))?;
     Ok((key, val))
 }
 
