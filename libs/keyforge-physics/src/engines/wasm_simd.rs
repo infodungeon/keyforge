@@ -129,9 +129,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        crate::kernel::compute::analyze_layout(
-            &self.ctx, &validated,
-        )
+        crate::kernel::compute::analyze_layout(&self.ctx, &validated)
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {

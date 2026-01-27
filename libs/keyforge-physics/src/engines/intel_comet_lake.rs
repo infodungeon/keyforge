@@ -108,9 +108,8 @@ impl ScoringEngine for IntelScoringEngine {
                 used,
             );
 
-            let delta = crate::kernel::compute::calculate_swap_delta(
-                &self.ctx, &v, &pm, idx_a, idx_b,
-            )?;
+            let delta =
+                crate::kernel::compute::calculate_swap_delta(&self.ctx, &v, &pm, idx_a, idx_b)?;
             s.clear_used();
             Ok(delta)
         })?
@@ -295,7 +294,8 @@ unsafe fn score_bigrams_avx2(
                     .checked_add(
                         // SAFETY: others_ptr and freqs_ptr are valid at offset k.
                         i64::from(unsafe { freqs_ptr.add(k).read() })
-                            * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2.as_usize()].0,
+                            * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2.as_usize()]
+                                .0,
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: "AVX2 Bigram rem".into(),
