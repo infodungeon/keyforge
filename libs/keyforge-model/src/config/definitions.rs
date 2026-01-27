@@ -68,9 +68,7 @@ impl LayoutDefinitions {
     ///
     /// # Errors
     /// Returns `ForgeError::InvalidData` if the layout is incomplete.
-    pub fn get_critical_bigrams(
-        &self,
-    ) -> Result<Vec<(String, f32)>, crate::error::ForgeError> {
+    pub fn get_critical_bigrams(&self) -> Result<Vec<(String, f32)>, crate::error::ForgeError> {
         Ok(self
             .critical_bigrams
             .split(',')

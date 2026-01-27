@@ -168,7 +168,8 @@ mod tests {
                 }
             })
             .collect();
-        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into()).expect("Failed to create keyboard");
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into())
+            .expect("Failed to create keyboard");
 
         let mut cp = Corpus::default();
         let mut freqs = cp.char_freqs.to_vec();

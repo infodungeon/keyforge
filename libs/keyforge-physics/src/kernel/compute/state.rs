@@ -187,16 +187,30 @@ impl PhysicsScratch {
         let err = || crate::error::PhysicsError::Config("Scratch layout mismatch".into());
 
         Ok(Self {
-            starts: vec![0u16; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().map_err(|_| err())?,
-            counts: vec![0u8; MAX_KEYCODE_SPACE].into_boxed_slice().try_into().map_err(|_| err())?,
-            indices: vec![KeyIndex::new(0); MAX_KEYBOARD_KEYS].into_boxed_slice().try_into()
+            starts: vec![0u16; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
                 .map_err(|_| err())?,
-            current_offsets: vec![0u8; MAX_KEYCODE_SPACE].into_boxed_slice().try_into()
+            counts: vec![0u8; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
+                .map_err(|_| err())?,
+            indices: vec![KeyIndex::new(0); MAX_KEYBOARD_KEYS]
+                .into_boxed_slice()
+                .try_into()
+                .map_err(|_| err())?,
+            current_offsets: vec![0u8; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
                 .map_err(|_| err())?,
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
-            char_usage: vec![0.0f32; MAX_KEYCODE_SPACE].into_boxed_slice().try_into()
+            char_usage: vec![0.0f32; MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
                 .map_err(|_| err())?,
-            flat_map: vec![KeyIndex::new(u16::MAX); MAX_KEYCODE_SPACE].into_boxed_slice().try_into()
+            flat_map: vec![KeyIndex::new(u16::MAX); MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
                 .map_err(|_| err())?,
         })
     }

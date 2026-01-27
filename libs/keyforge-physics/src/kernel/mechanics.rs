@@ -298,7 +298,9 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        let kb = Arc::new(
+            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+        );
         let rubric = Rubric::default();
 
         let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();

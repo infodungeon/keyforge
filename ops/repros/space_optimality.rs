@@ -38,7 +38,8 @@ fn main() {
             ..Default::default()
         })
         .collect();
-    let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+    let kb =
+        Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
     let corpus = Arc::new(Corpus::default());
     let rubric = Arc::new(Rubric::default());
     let cost_model = Arc::new(mock_cost_model());

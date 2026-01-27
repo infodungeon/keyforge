@@ -47,7 +47,9 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        let kb = Arc::new(
+            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+        );
         let mut corpus_val = Corpus::default();
         let mut freqs = corpus_val.char_freqs.to_vec();
         freqs[97] = 1000;
@@ -99,7 +101,9 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        let kb = Arc::new(
+            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+        );
         let mut corpus_val = Corpus::default();
         corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
         let corpus = Arc::new(corpus_val);
@@ -157,7 +161,9 @@ mod integration_tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        let kb = Arc::new(
+            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+        );
         let mut corpus_val = Corpus::default();
         corpus_val.trigrams = Arc::from(vec![(97, 98, 99, 1000)]);
         let corpus = Arc::new(corpus_val);

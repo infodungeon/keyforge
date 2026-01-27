@@ -169,8 +169,8 @@ unsafe fn score_layout_avx512(
         engine: ctx,
         pos_map: &pm,
     };
-    let is_simple = pm.used_keys().iter().all(|&c| pm.get(c).len() == 1)
-        && ctx.sequence_modifiers.is_empty();
+    let is_simple =
+        pm.used_keys().iter().all(|&c| pm.get(c).len() == 1) && ctx.sequence_modifiers.is_empty();
     let total = if is_simple {
         score_simple_avx512(&e_ctx, flat_map)?
     } else {
@@ -284,7 +284,8 @@ unsafe fn score_bigrams_avx512(
                     .checked_add(
                         // SAFETY: others_ptr and freqs_ptr are valid at offset k.
                         i64::from(unsafe { freqs_ptr.add(k).read() })
-                            * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2.as_usize()].0,
+                            * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2.as_usize()]
+                                .0,
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: "AVX-512 Bigram rem".into(),

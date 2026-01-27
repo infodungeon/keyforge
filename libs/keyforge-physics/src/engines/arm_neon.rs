@@ -129,9 +129,7 @@ impl ScoringEngine for ArmNeonScoringEngine {
 
     fn analyze(&self, layout: &Layout) -> Result<AnalysisReport, PhysicsError> {
         let validated = ValidatedLayout::new(&layout.keys, self.ctx.key_count)?;
-        crate::kernel::compute::analyze_layout(
-            &self.ctx, &validated,
-        )
+        crate::kernel::compute::analyze_layout(&self.ctx, &validated)
     }
 
     fn suggest_improvements(&self, layout: &Layout, include_thumbs: bool) -> Vec<SwapSuggestion> {
@@ -372,7 +370,7 @@ unsafe fn score_trigrams_neon(
         }
     }
 
-        for &code1 in ctx.pos_map.used_keys() {
+    for &code1 in ctx.pos_map.used_keys() {
         let t1 = type_map[code1.0 as usize];
         if t1 == 255 {
             continue;
