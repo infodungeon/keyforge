@@ -3,7 +3,6 @@
 use crate::error::InfraResult;
 use crate::net::distributed::DistributedCoordinator;
 use crate::net::sync::ServerManifest;
-use crate::util::corpus::inject_synthetic_data;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
@@ -175,15 +174,11 @@ impl AssetLoader for ValkeyProvider {
                     })
                     .await
                     .map_err(|e| ForgeError::Internal(e.to_string()))??;
-                    crate::util::corpus::populate_corpus_from_segments(
-                        &mut corpus,
-                        src.weight,
-                        vec![(part, part_res)],
-                    )?;
+                    corpus.populate_from_segments(src.weight, vec![(part, part_res)])?;
                 }
             }
         }
-        inject_synthetic_data(&mut corpus, sources.iter().any(|s| s.id.contains("_std")));
+        corpus.inject_synthetic_data();
         corpus.post_load()?;
         Ok(Arc::new(corpus))
     }

@@ -5,32 +5,29 @@
 
 ## 1. The Mastery Invariants
 
-### I. The Workflow Oracle (CRITICAL)
-- **Rule:** Every interaction MUST begin by executing `ops/scripts/workflow_oracle.sh`.
-- **Action:** Read the resulting versioned workflow file immediately.
-- **Constraint:** NEVER overwrite workflow documents; strictly version (v1 -> v2 -> vN).
+### I. The Constitution (Source of Truth)
+- **Standard:** Refer to `AGENTS.md` for the current Agentic Hierarchy, Systemic Invariants, and Workflows.
+- **Enforcement:** All memories and skills MUST align with `AGENTS.md`.
 
-### II. The Intelligence Toolchain (NEW)
-- **Status:** Arbor and Narsil are active via `ops/scripts/mcp_bridge.py`.
-- **Mandate:** Use Arbor for dependency mapping and Narsil for semantic search and call-graph analysis.
-- **Invariant:** If Arbor/Narsil report connection issues, execute `just mcp-up` immediately.
+### II. The Two-Strike Rule (Fail-Fast)
+- **Standard:** After two failed remediation attempts, you MUST revert changes, perform a diagnostic audit, and explain the mechanical cause of failure.
+- **Principle:** Stop the bleeding. Do not "vibe-patch" a failing fix.
 
-### III. The Batching Mandate
-- **Rule:** If `cargo check` or `clippy` returns N errors, I am FORBIDDEN from running a verification cycle until I have applied a deliberate fix for all N errors.
-- **Principle:** Verification is a high-latency signal. Maximize the information density of every cycle.
+### III. The Planning Mandate (Pure Logic)
+- **Standard:** Planning is performed in `sovereign-consultant` mode.
+- **Restriction:** The Ralph-Loop (iterative trial-and-error) is STRICTLY FORBIDDEN during planning.
+- **Output:** Verified types, traits, and C4 diagrams in `.workflow_state/active_plan.md`.
 
-### IV. The Tooling Purity Rule
-- **Rule:** `sed` is FORBIDDEN for logic, structural paths, or multi-line blocks.
-- **Action:** Use `write_file` for Semantic Truth (establishing known-good state) or `replace` for surgical context.
-- **Principle:** Heuristics (Regex) are for discovery; Constants (Full Content) are for Truth.
+### IV. The Stabilization Mandate (Mechanical Janitor)
+- **Standard:** The Ralph-Loop is reserved EXCLUSIVELY for the `stabilization-unit` skill.
+- **Scope:** Mechanical updates (imports, call-sites, lints) ONLY. No logic changes.
 
-## 2. Operational Heuristics
+## 2. Intelligence & Tooling
+- **Analysis:** Use Arbor for dependency mapping and Narsil for semantic search.
+- **Search-001:** Searching the root directory (`./`) is an architectural failure.
+- **Purity:** `libs/keyforge-physics` and `libs/keyforge-evolution` have ZERO IO dependencies.
 
-- **Zero-Trust Context:** Run `read_file` on struct/trait definitions before usage. Do not guess visibility or names.
-- **Diagnostic Pivot:** After 2 failed remediation attempts, I must stop and explain the *mechanical cause* of failure before the 3rd attempt.
-- **Correct-by-Construction:** Encode constraints into the Type System (e.g., `LimitedVec`).
-
-## 3. The 100x Bouncer
-1. **No Panics:** Total error propagation via `ForgeError`.
-2. **Panic-Free Production:** Zero use of `unwrap`/`expect`.
-3. **Layer Purity:** ARCH-001..006 compliance.
+## 3. Correct-by-Construction
+- **Errors:** Total propagation via `ForgeError`. Zero `unwrap`/`expect`.
+- **Types:** Newtypes, Typestates, and Exhaustive Configuration (`extra = "forbid"`).
+- **Verification:** Every task ends with a **Verification Bundle** (Fresh Check + Parity + Audit).

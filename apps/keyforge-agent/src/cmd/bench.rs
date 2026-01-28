@@ -12,7 +12,7 @@ use std::sync::Arc;
 pub async fn run(assets: &AssetManager, job: &JobConfig, config: &ComputeConfig) -> Result<()> {
     let (cost_name, corpus_id) = prepare_assets(assets, job, config).await?;
 
-    let loader = keyforge_infra::FsProvider::new(assets.root().to_path_buf());
+    let loader = keyforge_infra::FsProvider::new(assets.root());
     let mut builder = keyforge_compute::SessionBuilder::new(&loader);
 
     builder = builder.with_keyboard_def(Arc::new(KeyboardDefinition::from_geometry(

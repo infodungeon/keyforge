@@ -90,9 +90,9 @@ impl From<keyforge_model::Corpus> for CorpusDto {
         Self {
             is_std: val.is_std,
             char_freqs: val.char_freqs.to_vec(),
-            bigrams: val.bigrams.entries.to_vec(),
-            trigrams: val.trigrams.entries.to_vec(),
-            words: val.words.to_vec(),
+            bigrams: val.frequencies.bigrams.entries.to_vec(),
+            trigrams: val.frequencies.trigrams.entries.to_vec(),
+            words: val.frequencies.words.to_vec(),
         }
     }
 }

@@ -26,4 +26,8 @@ pub mod store;
 
 pub use compiler::compile_request;
 pub use error::PersistenceError;
-pub use repo::user_repo::UserRepo;
+pub use repo::biometric_repo::BiometricRepository;
+pub use repo::community_repo::CommunityRepository;
+pub use repo::research_repo::ResearchRepository;
+pub use repo::session_repo::SessionRepository;
+pub use repo::user_repo::{PgUserRepository, UserRepo, UserRepository};

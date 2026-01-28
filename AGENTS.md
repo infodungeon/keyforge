@@ -1,40 +1,50 @@
-# AGENTS.md
+# KeyForge Workspace Constitution
 
-## Commands
-- **Build:** `cargo build --release` or `just build`
-- **Lint:** `cargo clippy --workspace -- -D warnings`
-- **Format:** `cargo fmt` (Rust), `cd apps/keyforge-ui && npm run format` (UI)
-- **Test all:** `just test-all` or individually: `cargo test -p <package>`
-- **Single test:** `cargo test -p keyforge-core test_name` or `cargo test -p keyforge-physics --lib verify::tests::test_oracle_parity`
-- **Coverage:** `just cover <package>`
+## 1. Systemic Invariants (The Law)
+*   **ARCH-005: Hexagonal Purity**: Core crates (`physics`, `evolution`, `model`) MUST have ZERO IO dependencies.
+*   **TYPE-003: Panic-Free**: No `unwrap()` or `expect()` in production code. Use `ForgeError`.
+*   **SEARCH-001: Surgical Discovery**: Searching the root directory (`./`) is an architectural failure. Use `include` or `dir_path`.
+*   **TWO-STRIKE RULE**: After two failed attempts to fix an error, you MUST revert and perform a diagnostic audit.
+*   **STRICT SCHEMA**: "Vibe-patching" configuration (e.g., `extra = "allow"` in Pydantic) is FORBIDDEN. All data models must be exhaustive (`extra = "forbid"`).
 
-## Context Budgeting & Safety
-- **SEARCH-001**: Searching the root directory (`./`) is an architectural failure. Always use `include` or `dir_path` (e.g., `libs/`, `apps/`).
-- **Minification**: For files > 200 lines, use `just context <FILE>` or `python3 ops/scripts/minify_context.py` to extract structural headers instead of reading the full content.
-- **Surgical Discovery**: Prefer `ast-grep` (sg) for structural discovery over broad text searches.
-- **Payload Audit**: If a tool returns > 100 lines of output, filter it using `grep` or `tail` before passing it back to the agent context.
-- **MCP Hygiene**: If `narsil` or `arbor` error out, it is often due to context overflow. Reduce the scope of the request (e.g., target a specific function instead of a crate).
+## 2. Agentic Hierarchy & Skills
+| Persona | Activation | Responsibility |
+| :--- | :--- | :--- |
+| **Consultant** | `sovereign-consultant` | Design, ADRs, C4 Visualization. |
+| **Conductor** | (Default) | Issue Locking, PR Orchestration. |
+| **Developer** | (Execution) | Atomic `write_file` implementations. |
+| **Janitor** | `stabilization-unit` | Ralph Loop mop-up (Mechanical only). |
+| **Oracle** | `verification-oracle` | Compliance & Gate-Function check. |
 
-## Architecture
-- **Workspace:** Rust monorepo with `apps/` (binaries) and `libs/` (shared crates)
-- **Apps:** `keyforge-hive` (Axum server), `keyforge-agent` (worker), `keyforge-cli`, `keyforge-ui` (Tauri+React)
-- **Core libs:** `keyforge-physics` (scoring), `keyforge-evolution` (GA), `keyforge-model` (types), `keyforge-protocol` (API/errors)
-- **Hexagonal:** Core crates (`physics`, `evolution`) have ZERO IO deps—no `std::fs`, `tokio`, `sqlx`
-- **Database:** PostgreSQL via sqlx; migrations in `apps/keyforge-hive/migrations/`; Valkey for coordination
-- **Infra:** Docker Compose in `ops/`, Justfile for automation
+## 3. Mandatory Workflows
 
-## Code Style
-- **Lints:** `unsafe_code = "deny"`, `unwrap_used = "warn"`, `expect_used = "deny"`, `clippy::pedantic` enabled
-- **Errors:** Use `ForgeError` enum from `keyforge-protocol`; no `anyhow!` or bare `unwrap()`
-- **Types:** Newtypes (`KeyIndex(usize)`, `FingerIndex(u8)`), typestate pattern, context structs over positional args
-- **Physics:** Fixed-point `Score` with checked arithmetic; `f64` for geometry, finalize to `i64` at kernel boundary
-- **Testing:** Oracle pattern (Exact vs Optimized parity), golden fixtures in `tests/fixtures/`, mutation testing (`cargo-mutants`)
-## Workflow
-- **Test-first:** SAGA loop, isolate debugging in `repro.rs`, 3-turn stop rule (revert if fix fails twice)
-- **Conductor Protocol (MANDATORY):**
-    1.  **Issue Lock:** Never edit code without a specific GitHub Issue ID locked in `.workflow_state/active_issue.md`.
-    2.  **Atomic Branching:** One Issue = One Branch = One PR.
-    3.  **State Sync:** Update GitHub Issue status *immediately* after verifying the fix.
-    4.  **Batch Limit:** If editing > 20 files, stop and split the issue.
+### Phase 1: Planning (Consultant)
+1.  Activate `sovereign-consultant`.
+2.  Run `just plan "Feature"`.
+3.  Draft in `.workflow_state/active_plan.md`.
+4.  If change affects `>3` crates, generate C4 Container Diagram.
 
+### Phase 2: Implementation (Developer)
+1.  Lock Issue in `.workflow_state/active_issue.md`.
+2.  **Verify RED**: Run the test/check and document the failure.
+3.  Implement fix using `write_file`.
 
+### Phase 3: Stabilization (Janitor)
+1.  If mechanical breakage is widespread, activate `stabilization-unit`.
+2.  Run `/ralph-loop` until compilation and lints are green.
+
+### Phase 4: Verification (Oracle)
+1.  Activate `verification-oracle`.
+2.  Provide the **Verification Bundle** (Fresh Check + Parity + Audit).
+
+## 5. Conductor Protocol (Stateful Orchestration)
+*   **Source of Truth**: The active track lives in `.agent/CONDUCTOR.json`.
+*   **Session Recovery**: Before starting any turn, read `CONDUCTOR.json`. If an `active_issue` is present, resume from the granular plan at `.agent/issues/<ID>/plan.md`.
+*   **Track Registry**: All work units must be registered in `.agent/tracks.md`.
+*   **Atomic State**: Every track must contain a `spec.md` (What/Why) and a `plan.md` (How/Tasks).
+
+## 6. Automation Commands
+*   **Build/Lint:** `just build` / `just lint`
+*   **Format:** `just fmt` (Workspace-wide)
+*   **Test:** `just test-all` or `cargo test -p <crate>`
+*   **Plan:** `just plan` (Initializes state)

@@ -21,6 +21,10 @@
 
 /// Asset management and loading markers.
 pub mod asset;
+/// Biometric profiling and timing models.
+pub mod biometrics;
+/// Community-driven entities and stateful analysis sessions.
+pub mod community;
 /// Configuration aggregates and parameter definitions.
 pub mod config;
 /// Global constants and safety limits.
@@ -49,6 +53,8 @@ pub mod rubric;
 /// Core domain types and newtypes.
 #[path = "types/mod.rs"]
 pub mod types;
+/// User identity and preference aggregates.
+pub mod user;
 /// Internal utilities (private).
 pub mod utils;
 /// Validation traits and helpers.
@@ -59,6 +65,8 @@ pub mod validator;
 pub mod testing;
 
 pub use asset::{Asset, AssetCategory};
+pub use biometrics::{BiometricProfile, BiometricSample, LatencyStats};
+pub use community::{AnalysisSession, AnalysisSessionEntry, KeyboardInventory, LayoutSubmission};
 pub use config::aggregate::{Config, EngineRequest};
 pub use config::constraints::KeyConstraint;
 pub use config::search::{SearchConfig, SearchParams};
@@ -80,4 +88,5 @@ pub use types::{
     KeyboardId, LayoutId, MetricBreakdown, MetricViolation, OptimizationResult, RowIndex, Score,
     ScoreSummary, ScoringResult, SpaceHandPreference, SwapSuggestion, TravelStatistics, UserId,
 };
+pub use user::{UserBiometricStatus, UserPreferences, UserProfile};
 pub use validator::{LayoutValidator, Validator};

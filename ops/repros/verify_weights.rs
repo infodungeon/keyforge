@@ -48,7 +48,7 @@ fn main() {
     char_freqs[97] = 1; // 'a'
     char_freqs[98] = 1; // 'b'
     corpus_val.char_freqs = Arc::from(char_freqs);
-    corpus_val.bigrams = vec![(97, 98, 1000)].into();
+    corpus_val.frequencies.bigrams = vec![(97, 98, 1000)].into();
     let corpus = Arc::new(corpus_val);
 
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);

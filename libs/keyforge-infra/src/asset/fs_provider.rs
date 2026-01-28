@@ -1,131 +1,78 @@
 // libs/keyforge-infra/src/asset/fs_provider.rs
 
-use crate::error::InfraResult;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
-use keyforge_model::{Asset, Corpus};
+use keyforge_model::corpus::CorpusMerger;
+use keyforge_model::error::ForgeError;
+use keyforge_model::{Asset, AssetCategory, Corpus};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::fs;
 
-/// A local filesystem provider for assets.
+/// A file-system based implementation of `AssetLoader`.
 #[derive(Debug, Clone)]
 pub struct FsProvider {
     root: PathBuf,
 }
 
 impl FsProvider {
-    /// Creates a new `FsProvider` with the given data root.
-    #[must_use]
-    pub fn new(root: PathBuf) -> Self {
-        Self { root }
-    }
-
-    /// Resolves a path relative to the root.
-    #[must_use]
-    pub fn resolve(&self, path: &str) -> PathBuf {
-        self.root.join(path)
-    }
-
-    /// Reads the content of a file relative to the root.
-    ///
-    /// # Errors
-    /// Returns `InfraError` if the file cannot be read.
-    pub async fn get_file_content(&self, path: &str) -> InfraResult<Option<Vec<u8>>> {
-        let full_path = self.resolve(path);
-        if full_path.exists() {
-            let data = tokio::fs::read(&full_path).await?;
-            Ok(Some(data))
-        } else {
-            Ok(None)
+    /// Creates a new `FsProvider` with the specified root directory.
+    pub fn new<P: AsRef<Path>>(root: P) -> Self {
+        Self {
+            root: root.as_ref().to_path_buf(),
         }
+    }
+
+    fn get_path<T: Asset>(&self, id: &str) -> PathBuf {
+        let category_dir = match T::category() {
+            AssetCategory::Keyboard => "keyboards",
+            AssetCategory::Corpus => "corpora",
+            AssetCategory::CostModel => "weights",
+            AssetCategory::Layout => "layouts",
+            AssetCategory::Rubric => "rubrics",
+            AssetCategory::Keycodes => "config",
+        };
+        self.root.join(category_dir).join(format!("{id}.json"))
     }
 }
 
 #[async_trait]
 impl AssetLoader for FsProvider {
     async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
-        let category = T::category();
-        let stem = id.strip_suffix(".json").unwrap_or(id);
+        let path = self.get_path::<T>(id);
+        let content = fs::read_to_string(&path).await.map_err(|e| {
+            ForgeError::NotFound(format!("Asset {id} not found at {}: {e}", path.display()))
+        })?;
 
-        // Try standard paths and extensions
-        let mut candidates = Vec::new();
-        let sub = category.as_str();
+        let mut asset = serde_json::from_str::<T>(&content)
+            .map_err(|e| ForgeError::InvalidData(format!("Failed to parse {id}: {e}")))?;
 
-        for prefix in ["system", "user"] {
-            // 1. Direct category path
-            candidates.push(format!("{prefix}/{sub}/{stem}.json"));
-            candidates.push(format!("{prefix}/{sub}/{stem}.mpk.zst"));
-
-            // 2. Models subfolder (common for keyboards)
-            candidates.push(format!("{prefix}/{sub}/models/{stem}.json"));
-            candidates.push(format!("{prefix}/{sub}/models/{stem}.mpk.zst"));
-        }
-        candidates.push(id.to_string());
-
-        for path in candidates {
-            if let Ok(Some(data)) = self.get_file_content(&path).await {
-                if path.ends_with(".mpk.zst") {
-                    let decoder = zstd::Decoder::new(&data[..])
-                        .map_err(keyforge_model::error::ForgeError::Io)?;
-                    return rmp_serde::from_read(decoder).map(Arc::new).map_err(|e| {
-                        keyforge_model::error::ForgeError::InvalidData(e.to_string())
-                    });
-                }
-                return serde_json::from_slice(&data)
-                    .map(Arc::new)
-                    .map_err(Into::into);
-            }
-        }
-
-        Err(keyforge_model::error::ForgeError::NotFound(id.to_string()))
+        asset.post_load()?;
+        Ok(Arc::new(asset))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-        let mut blended = Corpus::default();
-        for src in sources {
-            // 1. Try loading as a single bundled asset first
-            if let Ok(corpus) = self.load::<Corpus>(&src.id).await {
-                blended.merge(&corpus, src.weight);
-            } else {
-                // 2. Try loading as a directory-style corpus (segments)
-                let base_path = format!("system/corpora/{}", src.id);
-                let mut found_segments = false;
-                let mut segments = Vec::new();
-
-                for part in ["1grams", "2grams", "3grams", "words"] {
-                    // Try .json then .mpk.zst
-                    let part_json = format!("{base_path}/{part}.json");
-                    let part_mpk = format!("{base_path}/{part}.mpk.zst");
-
-                    if let Ok(Some(data)) = self.get_file_content(&part_json).await {
-                        let part_val: Vec<serde_json::Value> = serde_json::from_slice(&data)
-                            .map_err(Into::<keyforge_model::error::ForgeError>::into)?;
-                        segments.push((part, part_val));
-                        found_segments = true;
-                    } else if let Ok(Some(compressed)) = self.get_file_content(&part_mpk).await {
-                        let decoder = zstd::Decoder::new(&compressed[..])
-                            .map_err(keyforge_model::error::ForgeError::Io)?;
-                        let part_val: Vec<serde_json::Value> = rmp_serde::from_read(decoder)
-                            .map_err(|e| {
-                                keyforge_model::error::ForgeError::InvalidData(e.to_string())
-                            })?;
-                        segments.push((part, part_val));
-                        found_segments = true;
-                    }
-                }
-
-                if found_segments {
-                    crate::util::corpus::populate_corpus_from_segments(
-                        &mut blended,
-                        src.weight,
-                        segments,
-                    )?;
-                } else {
-                    return Err(keyforge_model::error::ForgeError::NotFound(src.id.clone()));
-                }
-            }
+        if sources.is_empty() {
+            return Err(ForgeError::InvalidData("No corpus sources provided".into()));
         }
+
+        let mut blended = Corpus::default();
+        let mut found_any = false;
+
+        for src in sources {
+            let corpus = self.load::<Corpus>(&src.id).await?;
+            CorpusMerger::merge(&mut blended, &corpus, src.weight);
+            found_any = true;
+        }
+
+        if !found_any {
+            return Err(ForgeError::NotFound("None of the corpora found".into()));
+        }
+
+        // Standard post-processing for prose
+        blended.inject_synthetic_data();
+
         Ok(Arc::new(blended))
     }
 
@@ -134,22 +81,39 @@ impl AssetLoader for FsProvider {
     }
 }
 
-use crate::asset::{AssetServerProvider, ServerManifest};
-
-use std::collections::HashMap;
-
 #[async_trait]
-impl AssetServerProvider for FsProvider {
-    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
-        // Basic manifest implementation for local FS provider
-        // This is a placeholder; a full implementation would walk the directory
-        Ok(ServerManifest {
-            files: HashMap::new(),
-        })
+impl crate::asset::AssetServerProvider for FsProvider {
+    async fn get_manifest(&self) -> crate::error::InfraResult<crate::net::sync::ServerManifest> {
+        // Naive implementation for local dev: scan the root directory recursively
+        let mut files = std::collections::HashMap::new();
+        let mut dir_stack = vec![self.root.clone()];
+
+        while let Some(dir) = dir_stack.pop() {
+            if let Ok(mut entries) = fs::read_dir(&dir).await {
+                while let Some(entry) = entries.next_entry().await.unwrap_or(None) {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        dir_stack.push(path);
+                    } else if let Ok(rel_path) = path.strip_prefix(&self.root) {
+                        let path_str = rel_path.to_string_lossy().into_owned();
+                        files.insert(path_str, "local".to_string());
+                    }
+                }
+            }
+        }
+
+        Ok(crate::net::sync::ServerManifest { files })
     }
 
-    async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
-        let res = self.get_file_content(path).await?;
-        Ok(res.map(bytes::Bytes::from))
+    async fn get_file_content(
+        &self,
+        path: &str,
+    ) -> crate::error::InfraResult<Option<bytes::Bytes>> {
+        let full_path = self.root.join(path);
+        if let Ok(data) = fs::read(&full_path).await {
+            Ok(Some(bytes::Bytes::from(data)))
+        } else {
+            Ok(None)
+        }
     }
 }

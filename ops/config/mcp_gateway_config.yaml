@@ -13,3 +13,10 @@ mcpServers:
     command: "/home/robert/.cargo/bin/arbor"
     args:
       - "bridge"
+  postgres:
+    command: "npx"
+    args:
+      - "-y"
+      - "@henkey/postgres-mcp-server"
+    env:
+      DATABASE_URL: "${DATABASE_URL}"

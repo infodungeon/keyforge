@@ -42,12 +42,12 @@ impl CompilationStage for CorpusStage<'_> {
 
     fn execute(&self, (): Self::Input) -> Result<Self::Output, PhysicsError> {
         let (bigram_starts, bigram_others, bigram_freqs) =
-            flatten_bigrams(&self.corpus.bigrams.entries);
+            flatten_bigrams(&self.corpus.frequencies.bigrams.entries);
         let (bigram_rev_starts, bigram_rev_others, bigram_rev_freqs) =
-            flatten_bigrams_rev(&self.corpus.bigrams.entries);
+            flatten_bigrams_rev(&self.corpus.frequencies.bigrams.entries);
 
         let pruned_trigrams = prune_trigrams(
-            &self.corpus.trigrams.entries,
+            &self.corpus.frequencies.trigrams.entries,
             self.rubric.trigram_coverage(),
             self.rubric.trigram_limit(),
         );

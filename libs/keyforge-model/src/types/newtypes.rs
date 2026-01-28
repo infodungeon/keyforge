@@ -117,20 +117,89 @@ impl From<u64> for Seed {
 #[serde(transparent)]
 pub struct CorpusId(pub String);
 
+impl CorpusId {
+    /// Returns the raw string representation.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for CorpusId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
 /// Unique identifier for a physical keyboard definition.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[serde(transparent)]
 pub struct KeyboardId(pub String);
+
+impl KeyboardId {
+    /// Returns the raw string representation.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for KeyboardId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
 
 /// Unique identifier for a specific key mapping.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[serde(transparent)]
 pub struct LayoutId(pub String);
 
+impl LayoutId {
+    /// Returns the raw string representation.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for LayoutId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
 /// Unique identifier for a system user.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 #[serde(transparent)]
 pub struct UserId(pub String);
+
+impl UserId {
+    /// Returns the raw string representation.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Converts the user ID to a UUID.
+    /// Returns a zero UUID if the string is not a valid UUID.
+    #[must_use]
+    pub fn as_uuid(&self) -> uuid::Uuid {
+        uuid::Uuid::parse_str(&self.0).unwrap_or_else(|_| uuid::Uuid::nil())
+    }
+}
+
+impl From<uuid::Uuid> for UserId {
+    fn from(u: uuid::Uuid) -> Self {
+        Self(u.to_string())
+    }
+}
+
+impl From<String> for UserId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
 
 /// A validated percentage value (0.0 to 100.0).
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]

@@ -44,7 +44,7 @@ async fn main() {
     char_freqs[116] = 1;
     char_freqs[104] = 1;
     corpus.char_freqs = Arc::from(char_freqs);
-    corpus.bigrams = vec![(116, 104, 1000)].into();
+    corpus.frequencies.bigrams = vec![(116, 104, 1000)].into();
     let corpus_arc = Arc::new(corpus);
 
     // 1. Without Biometrics

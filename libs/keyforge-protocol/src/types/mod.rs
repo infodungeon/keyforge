@@ -1,4 +1,4 @@
-// libs/keyforge-protocol/src/types.rs
+// libs/keyforge-protocol/src/types/mod.rs
 
 use keyforge_model::types as model;
 use serde::{Deserialize, Serialize};
@@ -130,6 +130,74 @@ impl From<model::Weight> for WeightDto {
 }
 impl From<WeightDto> for model::Weight {
     fn from(val: WeightDto) -> Self {
+        Self(val.0)
+    }
+}
+
+/// DTO for `UserId`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(transparent)]
+pub struct UserIdDto(pub String);
+
+impl From<model::UserId> for UserIdDto {
+    fn from(val: model::UserId) -> Self {
+        Self(val.0)
+    }
+}
+impl From<UserIdDto> for model::UserId {
+    fn from(val: UserIdDto) -> Self {
+        Self(val.0)
+    }
+}
+
+/// DTO for `KeyboardId`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(transparent)]
+pub struct KeyboardIdDto(pub String);
+
+impl From<model::KeyboardId> for KeyboardIdDto {
+    fn from(val: model::KeyboardId) -> Self {
+        Self(val.0)
+    }
+}
+impl From<KeyboardIdDto> for model::KeyboardId {
+    fn from(val: KeyboardIdDto) -> Self {
+        Self(val.0)
+    }
+}
+
+/// DTO for `LayoutId`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(transparent)]
+pub struct LayoutIdDto(pub String);
+
+impl From<model::LayoutId> for LayoutIdDto {
+    fn from(val: model::LayoutId) -> Self {
+        Self(val.0)
+    }
+}
+impl From<LayoutIdDto> for model::LayoutId {
+    fn from(val: LayoutIdDto) -> Self {
+        Self(val.0)
+    }
+}
+
+/// DTO for `CorpusId`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+#[serde(transparent)]
+pub struct CorpusIdDto(pub String);
+
+impl From<model::CorpusId> for CorpusIdDto {
+    fn from(val: model::CorpusId) -> Self {
+        Self(val.0)
+    }
+}
+impl From<CorpusIdDto> for model::CorpusId {
+    fn from(val: CorpusIdDto) -> Self {
         Self(val.0)
     }
 }

@@ -51,6 +51,10 @@ pub enum PersistenceError {
     /// Errors originating from internal task spawning or joining.
     #[error("Internal Task Error: {0}")]
     Task(String),
+
+    /// Errors occurring during database operations.
+    #[error("Database Error: {0}")]
+    Database(String),
 }
 
 pub type PersistenceResult<T> = Result<T, PersistenceError>;

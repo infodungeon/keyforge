@@ -1,0 +1,136 @@
+Starting Narsil at Wed Jan 28 01:23:25 PM CST 2026
+[2m2026-01-28T19:23:25.678051Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Starting narsil-mcp v1.3.1
+[2m2026-01-28T19:23:25.678087Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Repos to index: ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"]
+[2m2026-01-28T19:23:25.678096Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Features: call_graph=true, git=true, watch=false, persist=true, lsp=false, streaming=false, remote=false, neural=false, cache=true, graph=false
+[2m2026-01-28T19:23:25.678135Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Index persistence enabled, storing in "/home/robert/.cache/narsil-mcp"
+[2m2026-01-28T19:23:25.847845Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Analysis cache enabled (TTL: 1800s, capacity: 1000)
+[2m2026-01-28T19:23:25.848234Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Query cache enabled (TTL: 1800s, capacity: 2000)
+[2m2026-01-28T19:23:25.848762Z[0m [32m INFO[0m [2mnarsil_mcp::persist[0m[2m:[0m Creating new index for "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:23:25.848894Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Call graph initialized for repository: keyforge
+[2m2026-01-28T19:23:25.848988Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Engine created (initialization deferred for 1 repos)
+[2m2026-01-28T19:23:25.849405Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Starting background initialization
+[2m2026-01-28T19:23:25.849433Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP server starting on stdio
+[2m2026-01-28T19:23:25.849519Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexing repository: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:23:25.849728Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP client detected: gemini-cli-mcp-client Some("0.26.0")
+[2m2026-01-28T19:23:25.956956Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Returning 69 tools (filtered from 90 total)
+[2m2026-01-28T19:23:28.048051Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexed 622 files, 6637 symbols in keyforge
+[2m2026-01-28T19:23:28.346661Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Built call graph for keyforge with 622 files
+[2m2026-01-28T19:23:28.390471Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Git enabled for repository: keyforge
+[2m2026-01-28T19:23:28.390506Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Background initialization complete
+Starting Narsil at Wed Jan 28 01:24:04 PM CST 2026
+[2m2026-01-28T19:24:04.525476Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Starting narsil-mcp v1.3.1
+[2m2026-01-28T19:24:04.525505Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Repos to index: ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"]
+[2m2026-01-28T19:24:04.525513Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Features: call_graph=true, git=true, watch=false, persist=true, lsp=false, streaming=false, remote=false, neural=false, cache=true, graph=false
+[2m2026-01-28T19:24:04.525535Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Index persistence enabled, storing in "/home/robert/.cache/narsil-mcp"
+[2m2026-01-28T19:24:04.633456Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Analysis cache enabled (TTL: 1800s, capacity: 1000)
+[2m2026-01-28T19:24:04.633916Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Query cache enabled (TTL: 1800s, capacity: 2000)
+[2m2026-01-28T19:24:04.634549Z[0m [32m INFO[0m [2mnarsil_mcp::persist[0m[2m:[0m Creating new index for "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:24:04.634573Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Call graph initialized for repository: keyforge
+[2m2026-01-28T19:24:04.634580Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Engine created (initialization deferred for 1 repos)
+[2m2026-01-28T19:24:04.634714Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Starting background initialization
+[2m2026-01-28T19:24:04.634840Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexing repository: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:24:04.635137Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP server starting on stdio
+[2m2026-01-28T19:24:04.635678Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP client detected: mcp-test-client Some("0.0.1")
+[2m2026-01-28T19:24:04.639967Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m EOF received, shutting down
+[2m2026-01-28T19:24:06.591172Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexed 622 files, 6637 symbols in keyforge
+[2m2026-01-28T19:24:06.970425Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Built call graph for keyforge with 622 files
+[2m2026-01-28T19:24:07.023656Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Git enabled for repository: keyforge
+[2m2026-01-28T19:24:07.023694Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Background initialization complete
+[2m2026-01-28T19:24:50.889268Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"list_repos" [3mduration_ms[0m[2m=[0m0 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:27:48.383398Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m EOF received, shutting down
+Narsil exited with 0 at Wed Jan 28 01:27:48 PM CST 2026
+Starting Narsil at Wed Jan 28 01:27:59 PM CST 2026
+[2m2026-01-28T19:27:59.412553Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Starting narsil-mcp v1.3.1
+[2m2026-01-28T19:27:59.412618Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Repos to index: ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"]
+[2m2026-01-28T19:27:59.412635Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Features: call_graph=true, git=true, watch=false, persist=true, lsp=false, streaming=false, remote=false, neural=false, cache=true, graph=false
+[2m2026-01-28T19:27:59.412669Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Index persistence enabled, storing in "/home/robert/.cache/narsil-mcp"
+[2m2026-01-28T19:27:59.588553Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Analysis cache enabled (TTL: 1800s, capacity: 1000)
+[2m2026-01-28T19:27:59.588760Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Query cache enabled (TTL: 1800s, capacity: 2000)
+[2m2026-01-28T19:27:59.589215Z[0m [32m INFO[0m [2mnarsil_mcp::persist[0m[2m:[0m Creating new index for "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:27:59.589261Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Call graph initialized for repository: keyforge
+[2m2026-01-28T19:27:59.589274Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Engine created (initialization deferred for 1 repos)
+[2m2026-01-28T19:27:59.589413Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Starting background initialization
+[2m2026-01-28T19:27:59.589879Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP server starting on stdio
+[2m2026-01-28T19:27:59.590387Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexing repository: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:27:59.592573Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP client detected: gemini-cli-mcp-client Some("0.26.0")
+[2m2026-01-28T19:27:59.821981Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Returning 69 tools (filtered from 90 total)
+[2m2026-01-28T19:28:01.776114Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexed 622 files, 6637 symbols in keyforge
+[2m2026-01-28T19:28:02.081412Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Built call graph for keyforge with 622 files
+[2m2026-01-28T19:28:02.122923Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Git enabled for repository: keyforge
+[2m2026-01-28T19:28:02.122952Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Background initialization complete
+Starting Narsil at Wed Jan 28 01:29:20 PM CST 2026
+[2m2026-01-28T19:29:20.483305Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Starting narsil-mcp v1.3.1
+[2m2026-01-28T19:29:20.483334Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Repos to index: ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"]
+[2m2026-01-28T19:29:20.483341Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Features: call_graph=true, git=true, watch=false, persist=true, lsp=false, streaming=false, remote=false, neural=false, cache=true, graph=false
+[2m2026-01-28T19:29:20.483376Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Index persistence enabled, storing in "/home/robert/.cache/narsil-mcp"
+[2m2026-01-28T19:29:20.592443Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Analysis cache enabled (TTL: 1800s, capacity: 1000)
+[2m2026-01-28T19:29:20.592555Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Query cache enabled (TTL: 1800s, capacity: 2000)
+[2m2026-01-28T19:29:20.592809Z[0m [32m INFO[0m [2mnarsil_mcp::persist[0m[2m:[0m Creating new index for "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:29:20.592829Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Call graph initialized for repository: keyforge
+[2m2026-01-28T19:29:20.592834Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Engine created (initialization deferred for 1 repos)
+[2m2026-01-28T19:29:20.592869Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Starting background initialization
+[2m2026-01-28T19:29:20.592889Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexing repository: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:29:20.593048Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP server starting on stdio
+[2m2026-01-28T19:29:20.593180Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP client detected: mcp-test-client Some("0.0.1")
+[2m2026-01-28T19:29:20.596353Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m EOF received, shutting down
+[2m2026-01-28T19:29:22.448210Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexed 622 files, 6637 symbols in keyforge
+[2m2026-01-28T19:29:22.867698Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Built call graph for keyforge with 622 files
+[2m2026-01-28T19:29:22.943983Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Git enabled for repository: keyforge
+[2m2026-01-28T19:29:22.944012Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Background initialization complete
+[2m2026-01-28T19:29:38.715978Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"list_repos" [3mduration_ms[0m[2m=[0m0 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:41:04.023137Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"find_symbols" [3mduration_ms[0m[2m=[0m0 [3msuccess[0m[2m=[0mfalse
+[2m2026-01-28T19:41:08.348419Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"find_symbols" [3mduration_ms[0m[2m=[0m0 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:41:49.280803Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m13 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:41:49.339435Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m10 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:42:19.813742Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m13 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:42:23.704832Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m10 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:42:27.350687Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m0 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:43:03.337011Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m11 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:43:09.596551Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m12 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:43:16.316617Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m12 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T19:51:55.113942Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m EOF received, shutting down
+Narsil exited with 0 at Wed Jan 28 01:51:55 PM CST 2026
+Starting Narsil at Wed Jan 28 01:52:06 PM CST 2026
+[2m2026-01-28T19:52:07.001580Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Starting narsil-mcp v1.3.1
+[2m2026-01-28T19:52:07.001619Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Repos to index: ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"]
+[2m2026-01-28T19:52:07.001626Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Features: call_graph=true, git=true, watch=false, persist=true, lsp=false, streaming=false, remote=false, neural=false, cache=true, graph=false
+[2m2026-01-28T19:52:07.001653Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Index persistence enabled, storing in "/home/robert/.cache/narsil-mcp"
+[2m2026-01-28T19:52:07.169694Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Analysis cache enabled (TTL: 1800s, capacity: 1000)
+[2m2026-01-28T19:52:07.169898Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Query cache enabled (TTL: 1800s, capacity: 2000)
+[2m2026-01-28T19:52:07.170340Z[0m [32m INFO[0m [2mnarsil_mcp::persist[0m[2m:[0m Creating new index for "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:52:07.170400Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Call graph initialized for repository: keyforge
+[2m2026-01-28T19:52:07.170413Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Engine created (initialization deferred for 1 repos)
+[2m2026-01-28T19:52:07.170806Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP server starting on stdio
+[2m2026-01-28T19:52:07.171052Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP client detected: gemini-cli-mcp-client Some("0.26.0")
+[2m2026-01-28T19:52:07.171188Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Starting background initialization
+[2m2026-01-28T19:52:07.171243Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexing repository: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:52:07.305419Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Returning 69 tools (filtered from 90 total)
+[2m2026-01-28T19:52:09.461776Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexed 626 files, 6694 symbols in keyforge
+[2m2026-01-28T19:52:09.769153Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Built call graph for keyforge with 626 files
+[2m2026-01-28T19:52:09.811063Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Git enabled for repository: keyforge
+[2m2026-01-28T19:52:09.811101Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Background initialization complete
+[2m2026-01-28T19:52:26.090896Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m EOF received, shutting down
+Narsil exited with 0 at Wed Jan 28 01:52:26 PM CST 2026
+Starting Narsil at Wed Jan 28 01:52:31 PM CST 2026
+[2m2026-01-28T19:52:31.202530Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Starting narsil-mcp v1.3.1
+[2m2026-01-28T19:52:31.202562Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Repos to index: ["/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"]
+[2m2026-01-28T19:52:31.202573Z[0m [32m INFO[0m [2mnarsil_mcp[0m[2m:[0m Features: call_graph=true, git=true, watch=false, persist=true, lsp=false, streaming=false, remote=false, neural=false, cache=true, graph=false
+[2m2026-01-28T19:52:31.202632Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Index persistence enabled, storing in "/home/robert/.cache/narsil-mcp"
+[2m2026-01-28T19:52:31.363538Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Analysis cache enabled (TTL: 1800s, capacity: 1000)
+[2m2026-01-28T19:52:31.363764Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Query cache enabled (TTL: 1800s, capacity: 2000)
+[2m2026-01-28T19:52:31.364104Z[0m [32m INFO[0m [2mnarsil_mcp::persist[0m[2m:[0m Creating new index for "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:52:31.364389Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Call graph initialized for repository: keyforge
+[2m2026-01-28T19:52:31.364417Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Engine created (initialization deferred for 1 repos)
+[2m2026-01-28T19:52:31.364469Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Starting background initialization
+[2m2026-01-28T19:52:31.364499Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexing repository: "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge"
+[2m2026-01-28T19:52:31.364735Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP server starting on stdio
+[2m2026-01-28T19:52:31.364926Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m MCP client detected: gemini-cli-mcp-client Some("0.26.0")
+[2m2026-01-28T19:52:31.453254Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Returning 69 tools (filtered from 90 total)
+[2m2026-01-28T19:52:33.771451Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Indexed 626 files, 6694 symbols in keyforge
+[2m2026-01-28T19:52:34.089773Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Built call graph for keyforge with 626 files
+[2m2026-01-28T19:52:34.135683Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Git enabled for repository: keyforge
+[2m2026-01-28T19:52:34.135710Z[0m [32m INFO[0m [2mnarsil_mcp::index[0m[2m:[0m Background initialization complete
+[2m2026-01-28T20:00:08.920937Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m0 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T20:00:16.379947Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"search_code" [3mduration_ms[0m[2m=[0m12 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T20:30:49.328192Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"get_excerpt" [3mduration_ms[0m[2m=[0m8 [3msuccess[0m[2m=[0mtrue
+[2m2026-01-28T20:35:22.548083Z[0m [32m INFO[0m [2mnarsil_mcp::mcp[0m[2m:[0m Tool execution completed [3mtool[0m[2m=[0m"get_excerpt" [3mduration_ms[0m[2m=[0m0 [3msuccess[0m[2m=[0mtrue

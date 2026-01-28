@@ -132,6 +132,16 @@ cover package:
 
 # --- 100x WORKFLOW ---
 
+# Initialize a new planning session.
+plan name="":
+	@mkdir -p .workflow_state
+	@if [ -z "{{name}}" ]; then \
+		echo "Usage: just plan <NAME>"; \
+		exit 1; \
+	fi
+	@echo "# Active Plan: {{name}}\n*   **Status**: Discovery\n*   **Objective**: TBD" > .workflow_state/active_plan.md
+	@echo "Created .workflow_state/active_plan.md. Planning mode engaged."
+
 # The ultimate verification gate: Format, Check, Lint, Audit, and Test the entire workspace.
 check-100x: fmt audit
 	cargo check --workspace

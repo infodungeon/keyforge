@@ -66,6 +66,12 @@ impl Score {
         (self.0 as f32) / SCORE_SCALE
     }
 
+    /// Returns the raw fixed-point value.
+    #[must_use]
+    pub const fn as_fixed(&self) -> i64 {
+        self.0
+    }
+
     /// Checked addition.
     pub fn checked_add(self, other: Score) -> Option<Score> {
         self.0.checked_add(other.0).map(Score)
@@ -127,6 +133,12 @@ impl From<f32> for Weight {
 impl From<Weight> for f32 {
     fn from(w: Weight) -> Self {
         w.0
+    }
+}
+
+impl From<u32> for Score {
+    fn from(val: u32) -> Self {
+        Score(i64::from(val))
     }
 }
 

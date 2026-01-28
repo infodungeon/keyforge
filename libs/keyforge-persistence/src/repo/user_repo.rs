@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::{PersistenceError, PersistenceResult};
 use fs2::FileExt;
 use keyforge_infra::error::{InfraError, InfraResult};
 use keyforge_infra::fs::io::atomic_write;
@@ -19,25 +20,160 @@ use keyforge_infra::util::common::sanitize_filename;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_protocol::{BiometricSample, UserStatsStore};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use uuid::Uuid;
 
 /// A persistent store for user-created layouts, organized by keyboard ID.
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct UserLayoutStore {
-    layouts: HashMap<String, HashMap<String, String>>,
+    pub layouts: HashMap<String, HashMap<String, String>>,
+}
+
+/// Common interface for user data management across different backends.
+#[async_trait::async_trait]
+pub trait UserRepository: Send + Sync {
+    /// Retrieves a user profile by ID.
+    ///
+    /// # Errors
+    /// Returns `PersistenceError` if the backend operation fails.
+    async fn get_profile(
+        &self,
+        user_id: Uuid,
+    ) -> PersistenceResult<Option<keyforge_model::user::UserProfile>>;
+
+    /// Saves or updates a user profile.
+    ///
+    /// # Errors
+    /// Returns `PersistenceError` if the backend operation fails.
+    async fn save_profile(
+        &self,
+        profile: &keyforge_model::user::UserProfile,
+    ) -> PersistenceResult<()>;
 }
 
 /// A repository for managing user-specific persistent data on the local file system.
-///
-/// This handles the storage of custom layouts, biometric samples for personalization,
-/// and custom keyboard definitions.
 #[derive(Debug)]
 pub struct UserRepo {
     root: PathBuf,
+}
+
+#[async_trait::async_trait]
+impl UserRepository for UserRepo {
+    /// # Errors
+    /// Always returns an error as this is not yet implemented for the filesystem backend.
+    async fn get_profile(
+        &self,
+        _user_id: Uuid,
+    ) -> PersistenceResult<Option<keyforge_model::user::UserProfile>> {
+        // Legacy filesystem-based profiles are handled differently for now.
+        // This is a bridge for local mode.
+        Err(PersistenceError::Adapter(
+            "Filesystem user profiles not yet fully implemented via trait".into(),
+        ))
+    }
+
+    /// # Errors
+    /// Always returns an error as this is not yet implemented for the filesystem backend.
+    async fn save_profile(
+        &self,
+        _profile: &keyforge_model::user::UserProfile,
+    ) -> PersistenceResult<()> {
+        Err(PersistenceError::Adapter(
+            "Filesystem user profiles not yet fully implemented via trait".into(),
+        ))
+    }
+}
+
+/// `PostgreSQL` implementation of the user repository.
+#[derive(Debug, Clone)]
+pub struct PgUserRepository {
+    pool: PgPool,
+}
+
+impl PgUserRepository {
+    /// Creates a new `PgUserRepository`.
+    #[must_use]
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl UserRepository for PgUserRepository {
+    /// # Errors
+    /// Returns `PersistenceError::Database` if the database query fails.
+    async fn get_profile(
+        &self,
+        user_id: Uuid,
+    ) -> PersistenceResult<Option<keyforge_model::user::UserProfile>> {
+        let row = sqlx::query!(
+            r#"
+            SELECT id, name, biometric_status, preferences
+            FROM user_profiles
+            WHERE id = $1
+            "#,
+            user_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PersistenceError::Database(e.to_string()))?;
+
+        if let Some(r) = row {
+            let preferences: keyforge_model::user::UserPreferences =
+                serde_json::from_value(r.preferences)?;
+            let biometric_status = match r.biometric_status.as_str() {
+                "collecting" => keyforge_model::user::UserBiometricStatus::Collecting,
+                "ready" => keyforge_model::user::UserBiometricStatus::Ready,
+                "active" => keyforge_model::user::UserBiometricStatus::Active,
+                _ => keyforge_model::user::UserBiometricStatus::Empty,
+            };
+
+            Ok(Some(keyforge_model::user::UserProfile {
+                id: r.id.into(),
+                name: r.name,
+                preferences,
+                biometric_status,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// # Errors
+    /// Returns `PersistenceError::Database` if the insertion fails.
+    async fn save_profile(
+        &self,
+        profile: &keyforge_model::user::UserProfile,
+    ) -> PersistenceResult<()> {
+        let prefs = serde_json::to_value(&profile.preferences)?;
+        let status = format!("{:?}", profile.biometric_status).to_lowercase();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO user_profiles (id, name, biometric_status, preferences)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                biometric_status = EXCLUDED.biometric_status,
+                preferences = EXCLUDED.preferences,
+                updated_at = CURRENT_TIMESTAMP
+            "#,
+            profile.id.as_uuid(),
+            profile.name,
+            status,
+            prefs
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PersistenceError::Database(e.to_string()))?;
+
+        Ok(())
+    }
 }
 
 impl UserRepo {

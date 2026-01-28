@@ -14,3 +14,15 @@
 
 /// Implementation of the user-specific data repository.
 pub mod user_repo;
+
+/// Repository for community layout submissions and shared assets.
+pub mod community_repo;
+
+/// Repository for biometric typing profiles and timing data.
+pub mod biometric_repo;
+
+/// Repository for research metrics and token tracking.
+pub mod research_repo;
+
+/// Repository for managing optimization and analysis sessions.
+pub mod session_repo;

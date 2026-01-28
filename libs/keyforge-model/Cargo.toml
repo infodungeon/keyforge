@@ -21,6 +21,7 @@ smallvec.workspace = true
 regex.workspace = true
 strum.workspace = true
 kle-serial.workspace = true
+uuid = { workspace = true, features = ["v4", "serde"] }
 sha2.workspace = true
 hex.workspace = true
 postcard.workspace = true

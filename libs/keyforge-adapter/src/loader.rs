@@ -2,6 +2,7 @@
 
 use async_trait::async_trait;
 use keyforge_model::config::CorpusSource;
+use keyforge_model::corpus::CorpusMerger;
 use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, Corpus};
 use std::any::{Any, TypeId};
@@ -58,7 +59,7 @@ impl AssetLoader for InMemoryLoader {
         let mut found_any = false;
         for src in sources {
             if let Ok(corpus) = self.load::<Corpus>(&src.id).await {
-                blended.merge(&corpus, src.weight);
+                CorpusMerger::merge(&mut blended, &corpus, src.weight);
                 found_any = true;
             } else {
                 return Err(ForgeError::NotFound(src.id.clone()));

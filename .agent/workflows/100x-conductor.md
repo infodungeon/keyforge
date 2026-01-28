@@ -1,38 +1,25 @@
-# 100x Conductor: The Single-Issue Invariant
+# 100x Conductor: The Asynchronous Swarm
 
-**Version:** 1.0.0
-**Enforcement:** STRICT (Task Failure if violated)
+**Version:** 1.1.0
+**Enforcement:** STRICT
 
-## 1. The Issue Lock (Pre-Condition)
-*   **Rule:** No code modification (`write_file`, `replace`) is permitted without an active, locked GitHub Issue ID.
-*   **Action:** 
-    1.  `list_issues` to find the next priority.
-    2.  **Select ONE issue.**
-    3.  Create a fresh branch: `git checkout -b feature/issue-{id}-{desc}`.
-    4.  Create a tracking note: `.workflow_state/active_issue.md` containing the Issue ID and objectives.
+## 1. The Async Invariant
+*   **Rule:** Any task expected to take > 30 seconds (Builds, Full Audits, Heavy Tests) MUST be run in the background.
+*   **Mechanism:** `run_shell_command("command > .workflow_state/logs/{id}.log 2>&1 &")`.
+*   **Action:** Record the PID in `.workflow_state/active_jobs.json`.
 
-## 2. The Atomic Loop (Execution)
-*   **Scope:** Work ONLY on the files relevant to the locked Issue.
-*   **Prohibition:** Do not "fix while you're there" on unrelated files. If you see a bug, open a new Issue.
-*   **Cycle:**
-    1.  **Understand:** Read context for *this issue only*.
-    2.  **Plan:** Define the "Master Pivot" for *this issue*.
-    3.  **Execute:** Modify code.
-    4.  **Verify:** 
-        *   `just check-100x`
+## 2. Parallel Tracks (Swarm Mode)
+*   **Multi-Agent Delegation:** While a background task runs, the Conductor MUST initiate independent discovery or planning turns using `delegate_to_agent`.
+*   **Task Independence:** Only delegate tasks that do not share a file-write lock with the current track.
+*   **Example Swarm:** 
+    1. `just check-100x &` (Background Verification)
+    2. `delegate_to_agent(codebase_investigator, "Audit Issue #77 impacts")` (Parallel Discovery)
+    3. Start Planning for Issue #78 in the current turn.
 
+## 3. The Sync Gate
+*   No commit is permitted until all background jobs in `active_jobs.json` for that Issue ID return exit code 0.
+*   Check status via `tail -n 20 .workflow_state/logs/{id}.log`.
 
-
-
-## 3. The Commit Gate (Post-Condition)
-*   **Rule:** You cannot move to Issue N+1 until Issue N is "Checked In".
-*   **Action:**
-    1.  `git add .`
-    2.  `git commit -m "feat: [Issue-{id}] {description}"`
-    3.  **Push:** `git push origin feature/issue-{id}-{desc}`.
-    4.  **Sync:** Comment on the GitHub Issue: "Implemented in {commit_hash}. Ready for review." (or close it if authorized).
-    5.  **Clean:** Delete `.workflow_state/active_issue.md`.
-
-## 4. Failure Mode
-*   If you find yourself editing > 20 files, **STOP**.
-*   You have broken the "Atomic Loop". Revert and break the Issue into sub-tasks/issues on GitHub first.
+## 4. Background Conventions
+*   **Logs**: All background output must go to `.workflow_state/logs/`.
+*   **Persistence**: PIDs and Task IDs must be persisted to survive session restarts.

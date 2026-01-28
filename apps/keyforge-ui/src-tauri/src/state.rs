@@ -6,6 +6,7 @@ use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_compute::ScoringSession;
 use keyforge_infra::AssetManager;
 use keyforge_model::config::CorpusSource;
+use keyforge_model::corpus::CorpusMerger;
 use keyforge_model::{Asset, Corpus};
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -86,7 +87,7 @@ impl AssetLoader for AssetCache {
             let data = std::fs::read(path).map_err(keyforge_model::error::ForgeError::Io)?;
             let corpus: Corpus =
                 serde_json::from_slice(&data).map_err(keyforge_model::error::ForgeError::Serde)?;
-            blended.merge(&corpus, src.weight);
+            CorpusMerger::merge(&mut blended, &corpus, src.weight);
         }
         Ok(Arc::new(blended))
     }

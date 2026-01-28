@@ -267,9 +267,9 @@ impl HermeticWorkspace {
         freqs[116] = 1000; // 't'
         freqs[104] = 800; // 'h'
         en_small.char_freqs = Arc::from(freqs);
-        en_small.bigrams = keyforge_model::corpus::BigramFrequencyTable {
-            entries: Arc::from(vec![(116, 104, 500)]),
-        }; // 'th'
+        en_small.frequencies.bigrams = keyforge_model::corpus::BigramFrequencyTable {
+            entries: Arc::from(vec![(116, 104, 500)]), // 'th'
+        };
         let en_small_json = serde_json::to_string_pretty(&en_small)?;
         self.write_file("en_small.json", &en_small_json).await?;
 
@@ -324,7 +324,7 @@ impl HermeticWorkspace {
             .await?;
 
         // Cost Model
-        let cost_json = r#"{
+        let cost_json = r#"{ 
             "version": "2.0",
             "description": "Poison",
             "unit": "pts",
@@ -398,7 +398,7 @@ impl HermeticWorkspace {
     }
 
     #[must_use]
-    pub fn keycodes_path(&self) -> PathBuf {
+    pub fn keycodes_path(&self, _name: &str) -> PathBuf {
         self.root.join("user/config/keycodes.json")
     }
 }

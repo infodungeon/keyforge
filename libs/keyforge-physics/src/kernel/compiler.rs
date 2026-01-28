@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -118,8 +118,8 @@ impl Compiler {
                 trigram_end_others2: corpus_out.trigram_end_others2.into(),
                 trigram_end_freqs: corpus_out.trigram_end_freqs.into(),
             },
-            all_bigrams: corpus.bigrams.entries.clone(),
-            all_trigrams: corpus.trigrams.entries.clone(),
+            all_bigrams: corpus.frequencies.bigrams.entries.clone(),
+            all_trigrams: corpus.frequencies.trigrams.entries.clone(),
             penalty_redirect: Score::from_f32(rubric.redirect())
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             bonus_roll: Score::from_f32(rubric.roll_bonus())

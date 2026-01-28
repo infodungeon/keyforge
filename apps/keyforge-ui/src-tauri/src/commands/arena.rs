@@ -32,7 +32,7 @@ pub async fn cmd_get_typing_words(
         .await
         .map_err(|e| CommandError::Internal(format!("Failed to load corpora for Arena: {e}")))?;
 
-    if bundle.words.is_empty() {
+    if bundle.frequencies.words.is_empty() {
         return Err(CommandError::Validation(
             "The selected corpora contain no word data.".into(),
         ));
@@ -41,8 +41,8 @@ pub async fn cmd_get_typing_words(
     let mut rng = fastrand::Rng::new();
     let mut selected = Vec::with_capacity(count);
 
-    let top_n = ARENA_TOP_WORDS_LIMIT.min(bundle.words.len());
-    let candidates = &bundle.words[0..top_n];
+    let top_n = ARENA_TOP_WORDS_LIMIT.min(bundle.frequencies.words.len());
+    let candidates = &bundle.frequencies.words[0..top_n];
     let total_freq: f64 = candidates.iter().map(|(_, f)| f64::from(*f)).sum();
 
     for _ in 0..count {
@@ -149,7 +149,7 @@ pub async fn cmd_get_corpus_bigrams(
 
     let mut bigrams = Vec::new();
 
-    let mut sorted_bgs = bundle.bigrams.entries.to_vec();
+    let mut sorted_bgs = bundle.frequencies.bigrams.entries.to_vec();
     sorted_bgs.sort_by(|a, b| b.2.cmp(&a.2));
 
     for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {

@@ -26,12 +26,22 @@ sha2.workspace = true
 hex.workspace = true
 tempfile.workspace = true
 postcard.workspace = true
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "json"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
+chrono = { workspace = true, features = ["serde"] }
 
 [features]
 default = []
 server = []
 
 [dev-dependencies]
-tokio.workspace = true
+
+tokio = { workspace = true, features = ["full"] }
+
 serde_json.workspace = true
+
 keyforge-compute = { path = "../keyforge-compute" }
+
+testcontainers = { workspace = true }
+
+testcontainers-modules = { workspace = true, features = ["postgres"] }

@@ -17,7 +17,7 @@ pub async fn run(
 ) -> Result<()> {
     let (_cost_name, _corpus_id) = prepare_assets(assets, job, config).await?;
 
-    let loader = keyforge_infra::FsProvider::new(assets.root().to_path_buf());
+    let loader = keyforge_infra::FsProvider::new(assets.root());
     let mut builder = keyforge_compute::SessionBuilder::new(&loader);
 
     builder = builder.with_keyboard_def(Arc::new(KeyboardDefinition::from_geometry(

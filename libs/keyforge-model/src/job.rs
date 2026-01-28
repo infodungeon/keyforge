@@ -87,11 +87,30 @@ pub struct Completed {
 }
 impl JobState for Completed {}
 
+/// Metadata regarding the execution of a job.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct JobExecution {
+    /// Unique identifier for the job.
+    pub job_id: JobIdentifier,
+    /// When the job was first queued.
+    pub created_at: u64,
+    /// When the job execution started.
+    pub started_at: Option<u64>,
+    /// When the job reached a terminal state.
+    pub finished_at: Option<u64>,
+    /// Current best score and its finding timestamp.
+    pub best_score: Option<(crate::types::Score, u64)>,
+    /// ID of the worker currently leading the job (if any).
+    pub primary_worker: Option<String>,
+}
+
 /// A reified Optimization Job, following the Typestate Pattern.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Job<S: JobState> {
     /// Canonical identifier.
     pub id: JobIdentifier,
+    /// Execution metadata.
+    pub execution: JobExecution,
     /// Current state data.
     pub state: S,
 }

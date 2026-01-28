@@ -26,6 +26,9 @@ use crate::services::security::SecurityContext;
 use crate::services::verification::VerificationService;
 use keyforge_infra::asset::ValkeyProvider;
 use keyforge_infra::net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
+use keyforge_persistence::{
+    BiometricRepository, CommunityRepository, ResearchRepository, SessionRepository,
+};
 use sqlx::{Pool, Postgres};
 
 use std::path::PathBuf;
@@ -51,6 +54,14 @@ pub struct AppState {
     pub submissions: SubmissionRepository,
     /// Repository for user management.
     pub users: UserRepository,
+    /// Repository for biometric profiles.
+    pub biometrics: BiometricRepository,
+    /// Repository for community features.
+    pub community: CommunityRepository,
+    /// Repository for analysis sessions.
+    pub sessions: SessionRepository,
+    /// Repository for research metrics.
+    pub research: ResearchRepository,
     /// Repository for security audit logs.
     pub audit: AuditRepository,
     /// Queue for asynchronous result persistence.
@@ -91,6 +102,10 @@ impl AppState {
         let results = ResultRepository::new(db.clone(), config.population_limit);
         let submissions = SubmissionRepository::new(db.clone());
         let users = UserRepository::new(db.clone());
+        let biometrics = BiometricRepository::new(db.clone());
+        let community = CommunityRepository::new(db.clone());
+        let sessions = SessionRepository::new(db.clone());
+        let research = ResearchRepository::new(db.clone());
         let audit = AuditRepository::new(db.clone());
 
         let coordinator: Arc<dyn DistributedCoordinator> = Arc::new(
@@ -146,6 +161,10 @@ impl AppState {
             results,
             submissions,
             users,
+            biometrics,
+            community,
+            sessions,
+            research,
             audit,
             queue,
             assets,

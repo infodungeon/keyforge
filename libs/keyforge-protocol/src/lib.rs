@@ -20,6 +20,8 @@
 
 /// Asset-related Data Transfer Objects (DTOs).
 pub mod assets;
+/// Community-related DTOs.
+pub mod community;
 /// Configuration-related DTOs.
 pub mod config;
 pub(crate) mod error;
@@ -31,6 +33,8 @@ pub mod node;
 pub mod telemetry;
 /// Primitive and shared protocol types.
 pub mod types;
+/// User-related DTOs.
+pub mod user;
 
 pub mod constants;
 pub mod serde_utils;
@@ -45,6 +49,7 @@ pub use assets::{
     MetricIdDto, MetricViolationDto, OptimizationResultDto, PopulationResponse, RubricDto,
     ScoreSummaryDto, SwapSuggestionDto, TravelStatisticsDto, UserStatsStore, ValidationResultDto,
 };
+pub use community::{AnalysisSessionDto, AnalysisSessionEntryDto, LayoutSubmissionDto};
 pub use config::{
     ConfigAggregateDto, CorpusSourceDto, CostMatrixSourceDto, KeyConstraintDto,
     KeyboardDefinitionDto, LayoutCatalogDto, ScoringWeightsDto, SearchParamsDto,
@@ -54,7 +59,12 @@ pub use job::{
 };
 pub use node::{NodeRequest, NodeResponse, NodeTelemetry, TuningProfile};
 pub use telemetry::SystemMetrics;
-pub use types::{JobIdentifierDto, JobStatusDto, LimitedVec};
+pub use types::{
+    ColIndexDto, CorpusIdDto, FingerIndexDto, HandIndexDto, JobIdentifierDto, JobStatusDto,
+    KeyIndexDto, KeyboardIdDto, LayoutIdDto, LimitedVec, RowIndexDto, ScoreDto,
+    SpaceHandPreferenceDto, UserIdDto, WeightDto,
+};
+pub use user::{BiometricProfileDto, LatencyStatsDto, UserPreferencesDto, UserProfileDto};
 
 /// The current protocol version.
 pub const PROTOCOL_VERSION: u32 = 2;

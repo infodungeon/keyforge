@@ -127,7 +127,7 @@ impl DeterministicScorer {
         layout_keys: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let mut bigram_score = 0i64;
-        for (c1, c2, freq) in &*corpus.bigrams.entries {
+        for (c1, c2, freq) in &*corpus.frequencies.bigrams.entries {
             let freq = i64::from(*freq);
             let indices1 = find_indices(layout_keys, KeyCode(*c1));
             let indices2 = find_indices(layout_keys, KeyCode(*c2));
@@ -184,7 +184,7 @@ impl DeterministicScorer {
         layout_keys: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let mut trigram_score = 0i64;
-        for (c1, c2, c3, freq) in &*corpus.trigrams.entries {
+        for (c1, c2, c3, freq) in &*corpus.frequencies.trigrams.entries {
             let freq = i64::from(*freq);
             let indices1 = find_indices(layout_keys, KeyCode(*c1));
             let indices2 = find_indices(layout_keys, KeyCode(*c2));

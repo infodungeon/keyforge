@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -84,10 +84,8 @@ impl GhostScorer {
         }
 
         // 2. Bigrams (Movement)
-
-        for (c1, c2, freq) in &*corpus.bigrams.entries {
+        for (c1, c2, freq) in &*corpus.frequencies.bigrams.entries {
             let code1 = KeyCode(*c1);
-
             let code2 = KeyCode(*c2);
 
             if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY {
@@ -95,9 +93,7 @@ impl GhostScorer {
             }
 
             let min_cost = self.find_min_bigram_cost(layout, code1, code2);
-
             let freq_i64: i64 = (*freq).into();
-
             let contrib = min_cost
                 .checked_mul(freq_i64)
                 .ok_or(PhysicsError::ScoreOverflow {
@@ -112,12 +108,9 @@ impl GhostScorer {
         }
 
         // 3. Trigrams (Flow)
-
-        for (c1, c2, c3, freq) in &*corpus.trigrams.entries {
+        for (c1, c2, c3, freq) in &*corpus.frequencies.trigrams.entries {
             let code1 = KeyCode(*c1);
-
             let code2 = KeyCode(*c2);
-
             let code3 = KeyCode(*c3);
 
             if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY || code3 == KeyCode::EMPTY {
@@ -125,9 +118,7 @@ impl GhostScorer {
             }
 
             let min_cost = self.find_min_trigram_cost(layout, code1, code2, code3)?;
-
             let freq_i64: i64 = (*freq).into();
-
             let contrib = min_cost
                 .checked_mul(freq_i64)
                 .ok_or(PhysicsError::ScoreOverflow {
@@ -146,27 +137,21 @@ impl GhostScorer {
 
     fn find_min_monogram_cost(
         &self,
-
         layout: &Layout,
-
         code: KeyCode,
     ) -> Result<Score, PhysicsError> {
         let mut min = Score::MAX;
-
         let positions = self.find_all_positions(layout, code);
 
         for pos in positions {
             let key = &self.keyboard.keys[pos];
-
             let effort = self.rubric.finger_effort[key.finger.as_usize()];
 
             // In Ghost mode, we don't cache, we look up every time
-
             let static_cost =
                 Score::from_f32(self.resolve_static_cost(key)?).map_err(PhysicsError::Config)?;
 
             let total = effort + static_cost;
-
             if total < min {
                 min = total;
             }
@@ -177,15 +162,12 @@ impl GhostScorer {
 
     fn find_min_bigram_cost(&self, layout: &Layout, c1: KeyCode, c2: KeyCode) -> Score {
         let mut min = Score::MAX;
-
         let pos1 = self.find_all_positions(layout, c1);
-
         let pos2 = self.find_all_positions(layout, c2);
 
         for p1 in pos1 {
             for p2 in &pos2 {
                 let cost = self.calculate_pair_cost(p1, *p2);
-
                 if cost < min {
                     min = cost;
                 }
