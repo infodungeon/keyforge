@@ -24,21 +24,15 @@ use crate::validator::Validator;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::Arc;
 
-/// Metadata describing a text corpus.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CorpusMetadata {
-    /// If true, this corpus represents standard prose and supports synthetic data injection.
-    #[serde(default)]
-    pub is_std: bool,
-}
+
 
 /// Represents the statistical data of a language or text source.
 /// Contains frequency data for characters, bigrams, and trigrams.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Corpus {
-    /// Metadata about the corpus.
+    /// If true, this corpus represents standard prose and supports synthetic data injection.
     #[serde(default)]
-    pub meta: CorpusMetadata,
+    pub is_std: bool,
     /// Frequency of each character (index = char code).
     /// Must be exactly `MAX_KEYCODE_SPACE` elements long to cover all u16 values.
     #[serde(
@@ -96,7 +90,7 @@ impl Asset for Corpus {
 impl Default for Corpus {
     fn default() -> Self {
         Self {
-            meta: CorpusMetadata::default(),
+            is_std: false,
             char_freqs: Arc::from(vec![0; MAX_KEYCODE_SPACE]),
             bigrams: Arc::from(vec![]),
             trigrams: Arc::from(vec![]),

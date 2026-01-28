@@ -1,0 +1,15 @@
+# KeyForge Robust MCP Gateway Configuration
+# Replaces hacked mcp_bridge.py with acehoss/mcp-gateway
+mcpServers:
+  narsil:
+    command: "/home/robert/.cargo/bin/narsil-mcp"
+    args:
+      - "--repos"
+      - "."
+      - "--call-graph"
+      - "--persist"
+      - "--git"
+  arbor:
+    command: "/home/robert/.cargo/bin/arbor"
+    args:
+      - "bridge"

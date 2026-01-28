@@ -144,7 +144,7 @@ impl Arbitrary for Corpus {
                     .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
 
                 Corpus {
-                    meta: crate::corpus::CorpusMetadata::default(),
+                    is_std: false,
                     char_freqs: Arc::from(char_freqs_full),
                     bigrams: Arc::from(bigrams),
                     trigrams: Arc::from(trigrams),

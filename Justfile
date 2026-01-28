@@ -182,11 +182,13 @@ db-reset-prepare:
 
 # --- INTELLIGENCE TOOLCHAIN ---
 
-# Starts the Arbor/Narsil MCP Bridge for deep code intelligence
-mcp-up:
-	@echo "MCP Bridge is managed automatically by the client configuration."
-	@echo "To test manually: ./ops/scripts/mcp_bridge.py narsil-mcp --repos . --call-graph --persist --git"
+# Starts Narsil with robust MCP Proxy
+mcp-narsil:
+	mcp-proxy-tool --command /home/robert/.cargo/bin/narsil-mcp --args "--repos . --call-graph --persist --git"
 
+# Starts Arbor with robust MCP Proxy
+mcp-arbor:
+	mcp-proxy-tool --command /home/robert/.cargo/bin/arbor --args "bridge"
 # Performs the unified 100x Structural and Intelligence Audit
 audit-deep:
 	@echo "🚀 Initiating Autonomous 100x Master Audit..."

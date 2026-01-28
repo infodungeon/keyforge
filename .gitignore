@@ -69,3 +69,20 @@ Thumbs.db
 *.rej
 *.orig
 *.patch
+
+# === Gemini CLI & MCP (Local/Sensitive) ===
+.gemini/settings.json
+.gemini/installation_id
+.gemini/state.json
+.gemini/trustedFolders.json
+.gemini/tmp/
+.gemini_security/
+mcp_config.json
+handshake.json
+init.json
+.arbor/
+
+# gha-creds
+gha-creds-*.json
+
+.gemini/
