@@ -87,3 +87,4 @@ gha-creds-*.json
 
 .gemini/
 **/*.proptest-regressions
+.gemini/settings.json
