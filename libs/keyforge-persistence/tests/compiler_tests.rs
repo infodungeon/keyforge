@@ -86,7 +86,6 @@ mod integration_tests {
                 low_slots: vec![],
                 home_row: keyforge_model::types::RowIndex(0),
             },
-            layouts: HashMap::default(),
         };
 
         let loader = MockLoader {
@@ -112,10 +111,18 @@ mod integration_tests {
                         ..Default::default()
                     });
                     kb.geometry.prime_slots.push(keyforge_model::KeyIndex(0));
-                    kb.layouts.insert("qwerty".into(), "A".into());
 
                     let any_kb = Arc::new(kb) as Arc<dyn Any + Send + Sync>;
                     return Ok(any_kb.downcast::<T>().expect("Downcast failed"));
+                }
+
+                if std::any::TypeId::of::<T>()
+                    == std::any::TypeId::of::<keyforge_model::layout::LayoutCatalog>()
+                {
+                    let mut catalog = keyforge_model::layout::LayoutCatalog::default();
+                    catalog.layouts.insert("qwerty".into(), "A".into());
+                    let any_cat = Arc::new(catalog) as Arc<dyn Any + Send + Sync>;
+                    return Ok(any_cat.downcast::<T>().expect("Downcast failed"));
                 }
 
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {

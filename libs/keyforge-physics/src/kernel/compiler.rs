@@ -72,7 +72,7 @@ impl Compiler {
         let corpus_out = corpus_stage.execute(())?;
 
         let mut sequence_modifiers = HashMap::new();
-        for (bigram, &val) in &cost_model.dynamic_rules().sequence_modifiers {
+        for (bigram, &val) in &cost_model.dynamic_rules().sequence_modifiers.map {
             if bigram.len() == 2 {
                 let bytes = bigram.as_bytes();
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
@@ -118,8 +118,8 @@ impl Compiler {
                 trigram_end_others2: corpus_out.trigram_end_others2.into(),
                 trigram_end_freqs: corpus_out.trigram_end_freqs.into(),
             },
-            all_bigrams: corpus.bigrams.clone(),
-            all_trigrams: corpus.trigrams.clone(),
+            all_bigrams: corpus.bigrams.entries.clone(),
+            all_trigrams: corpus.trigrams.entries.clone(),
             penalty_redirect: Score::from_f32(rubric.redirect())
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?,
             bonus_roll: Score::from_f32(rubric.roll_bonus())

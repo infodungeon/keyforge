@@ -6,7 +6,7 @@ mod runtime_tests {
     use async_trait::async_trait;
     use keyforge_adapter::loader::{AssetLoader, LoaderResult};
     use keyforge_compute::Runtime;
-    use keyforge_model::geometry::{KeyboardDefinition, KeyboardMeta};
+    use keyforge_model::geometry::KeyboardDefinition;
     use keyforge_model::{Asset, Corpus};
     use std::path::Path;
     use std::sync::Arc;
@@ -47,7 +47,6 @@ mod runtime_tests {
             }
 
             let kb_any = Arc::new(KeyboardDefinition {
-                meta: KeyboardMeta::default(),
                 ..Default::default()
             }) as Arc<dyn std::any::Any + Send + Sync>;
             Ok(kb_any.downcast::<T>().expect("Downcast failed"))

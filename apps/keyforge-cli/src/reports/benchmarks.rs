@@ -14,7 +14,7 @@
 
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
-use keyforge_model::AnalysisReport;
+use keyforge_model::{AnalysisReport, MetricId};
 use serde::Deserialize;
 use std::fs;
 
@@ -84,7 +84,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
         ]);
 
     // SFB%
-    let current_sfb = report.sfb_ratio * 100.0;
+    let current_sfb = report.breakdown.sfb_ratio * 100.0;
     let min_baseline_sfb = baselines
         .iter()
         .map(|b| b.sfb_ratio)
@@ -104,7 +104,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
     ]);
 
     // Distance
-    let current_dist = report.travel_per_key;
+    let current_dist = report.travel.travel_per_key;
     let min_baseline_dist = baselines
         .iter()
         .map(|b| b.travel_per_key)
@@ -123,7 +123,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
     ]);
 
     // Scissors
-    let current_scissors = report.scissors;
+    let current_scissors = report.breakdown.metrics.get(MetricId::Scissor);
     let min_baseline_scissors = baselines
         .iter()
         .map(|b| b.scissors)
@@ -142,7 +142,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
     ]);
 
     // Redirects
-    let current_redirs = report.redirects;
+    let current_redirs = report.breakdown.metrics.get(MetricId::Redirect);
     let min_baseline_redirs = baselines
         .iter()
         .map(|b| b.redirects)

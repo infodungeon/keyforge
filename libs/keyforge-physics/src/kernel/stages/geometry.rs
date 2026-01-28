@@ -1,7 +1,7 @@
 use super::CompilationStage;
 use crate::error::PhysicsError;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
-use keyforge_model::{Keyboard, Rubric};
+use keyforge_model::{Keyboard, Rubric, SpatialIndex};
 
 /// Intermediate state containing processed geometry and spatial math.
 #[derive(Debug)]
@@ -39,6 +39,8 @@ impl<'a> CompilationStage for GeometryStage<'a> {
         let mut cols = Vec::with_capacity(key_count);
         let mut key_home_distances = Vec::with_capacity(key_count);
 
+        let spatial_index = SpatialIndex::build_from(kb);
+
         for k in &*kb.keys {
             hands.push(k.hand);
             fingers.push(k.finger);
@@ -46,7 +48,7 @@ impl<'a> CompilationStage for GeometryStage<'a> {
             cols.push(k.col);
 
             let mut dist_from_home = 0.0;
-            if let Some(origin) = kb
+            if let Some(origin) = spatial_index
                 .finger_origins
                 .get(k.hand.as_usize())
                 .and_then(|h| h.get(k.finger.as_usize()))

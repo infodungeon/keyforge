@@ -17,6 +17,7 @@
 //! A `Layout` represents a complete mapping of logical `KeyCode`s to physical
 //! `KeyIndex` positions on a keyboard.
 
+use crate::asset::{Asset, AssetCategory};
 use crate::types::{KeyCode, KeyIndex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,6 +26,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 
 /// Errors related to Layout construction and validation.
+// ... (existing LayoutError)
 #[derive(Error, Debug, Serialize, Deserialize, ToSchema)]
 pub enum LayoutError {
     /// Layout contains the same key code multiple times.
@@ -36,6 +38,23 @@ pub enum LayoutError {
     /// Invalid length.
     #[error("Invalid layout length: {0}")]
     InvalidLength(usize),
+}
+
+/// A catalog of named layouts for a specific keyboard.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+pub struct LayoutCatalog {
+    /// Mapping of layout names to their string representations (KLE or raw).
+    pub layouts: HashMap<String, String>,
+}
+
+impl Asset for LayoutCatalog {
+    fn category() -> AssetCategory {
+        AssetCategory::Layout
+    }
+
+    fn post_load(&mut self) -> Result<(), crate::error::ForgeError> {
+        Ok(())
+    }
 }
 
 /// A raw, unvalidated representation of a layout, used for I/O and serialization.

@@ -5,7 +5,7 @@ mod builder_tests {
     use super::*;
     use keyforge_adapter::loader::{AssetLoader, LoaderResult};
     use keyforge_compute::SessionBuilder;
-    use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
+    use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry};
     use keyforge_model::keycodes::KeycodeRegistry;
     use keyforge_model::{Asset, Corpus, CostModel};
     use std::any::Any;
@@ -79,7 +79,11 @@ mod builder_tests {
     #[tokio::test]
     async fn test_builder_full_chain() {
         let kb_def = KeyboardDefinition {
-            meta: KeyboardMeta::default(),
+            name: "Test".into(),
+            author: "System".into(),
+            version: "1.0".into(),
+            notes: "".into(),
+            kb_type: "ortho".into(),
             geometry: KeyboardGeometry {
                 keys: vec![keyforge_model::KeyNode::default()],
                 prime_slots: vec![keyforge_model::types::KeyIndex(0)],
@@ -87,7 +91,6 @@ mod builder_tests {
                 low_slots: vec![],
                 home_row: keyforge_model::types::RowIndex(0),
             },
-            layouts: HashMap::default(),
         };
 
         let loader = MockLoader {

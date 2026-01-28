@@ -123,7 +123,9 @@ mod tests {
 
     fn mock_cost_model() -> CostModel {
         let json = r#"{
-            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+            "version": "2.0",
+            "description": "Test",
+            "unit": "pts",
             "models": {
                 "model_a_row_staggered": {
                     "description": "Test Model",
@@ -175,17 +177,17 @@ mod tests {
             }
         }
         corpus_val.char_freqs = Arc::from(char_freqs);
-        corpus_val.bigrams = Arc::from(bigrams);
+        corpus_val.bigrams = bigrams.into();
         let corpus = Arc::new(corpus_val);
         let cost_model = Arc::new(mock_cost_model());
         let rubric = Arc::new(Rubric::default());
-        EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: kb,
+        EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+            kb,
             corpus,
             rubric,
             cost_model,
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .unwrap()
     }
 

@@ -18,12 +18,15 @@
 //! scoring logic, biomechanical modeling, and SIMD-accelerated physics engines.
 
 pub mod analysis;
+pub mod context;
 pub mod engines;
 pub mod error;
 /// Reference ghost models for verification.
 pub mod ghost;
 pub mod kernel;
 pub mod verify;
+
+pub use context::{Compiled, ScoringContext, Uncompiled};
 
 // --- RE-EXPORTS ---
 
@@ -48,29 +51,15 @@ use engines::generic::GenericScoringEngine as ScalarScoringEngine;
 use engines::intel_avx512::Avx512ScoringEngine;
 use engines::intel_comet_lake::IntelScoringEngine;
 use engines::wasm_simd::WasmSimdScoringEngine;
-use kernel::compiler::Compiler;
 
 // Re-export analysis types from keyforge-model for convenience
 pub use keyforge_model::{AnalysisReport, SwapSuggestion};
 
-use keyforge_model::{Corpus, CostModel, Keyboard, Layout, Rubric};
-use std::sync::Arc;
+use keyforge_model::Layout;
 use tracing::instrument;
 
-/// Context required to compile a scoring engine.
-#[derive(Debug, Clone)]
-pub struct EngineCompilationContext {
-    /// Physical keyboard definition.
-    pub keyboard: Arc<Keyboard>,
-    /// Language frequency data.
-    pub corpus: Arc<Corpus>,
-    /// Scoring weights and penalties.
-    pub rubric: Arc<Rubric>,
-    /// Biomechanical cost model.
-    pub cost_model: Arc<CostModel>,
-    /// Engine hardware optimization parameters.
-    pub engine_config: EngineConfig,
-}
+/// Type alias for backward compatibility during the transition to typestate.
+pub type EngineCompilationContext = ScoringContext<Uncompiled>;
 
 /// A factory for creating high-performance scoring engines.
 #[derive(Debug, Default)]
@@ -81,29 +70,29 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    #[instrument(skip_all, fields(kb = %ctx.keyboard.kb_type))]
+    #[instrument(skip_all, fields(kb = %ctx.state.keyboard.kb_type))]
     pub fn new_scalar(
         ctx: &EngineCompilationContext,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
-        Ok(Box::new(ScalarScoringEngine::new(compiled)))
+        let compiled = ctx.clone().compile()?;
+        Ok(Box::new(ScalarScoringEngine::new(compiled.state.inner)))
     }
 
     /// Compiles a new **Exact** (Oracle) scoring engine.
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    #[instrument(skip_all, fields(kb = %ctx.keyboard.kb_type))]
+    #[instrument(skip_all, fields(kb = %ctx.state.keyboard.kb_type))]
     pub fn new_exact(
         ctx: &EngineCompilationContext,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
+        let compiled = ctx.clone().compile()?;
         Ok(Box::new(ExactScoringEngine::new(
-            ctx.keyboard.clone(),
-            ctx.corpus.clone(),
-            &ctx.rubric,
-            &ctx.cost_model,
-            compiled,
+            ctx.state.keyboard.clone(),
+            ctx.state.corpus.clone(),
+            &ctx.state.rubric,
+            &ctx.state.cost_model,
+            compiled.state.inner,
         )))
     }
 
@@ -122,7 +111,7 @@ impl EngineFactory {
     ///
     /// # Errors
     /// Returns `PhysicsError` if compilation fails.
-    #[instrument(skip_all, fields(kb = %ctx.keyboard.kb_type))]
+    #[instrument(skip_all, fields(kb = %ctx.state.keyboard.kb_type))]
     pub fn new_optimized(
         ctx: &EngineCompilationContext,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
@@ -132,24 +121,24 @@ impl EngineFactory {
                 && is_x86_feature_detected!("avx512dq")
                 && is_x86_feature_detected!("avx512bw")
             {
-                return Self::new_intel_avx512(ctx, Some(ctx.engine_config));
+                return Self::new_intel_avx512(ctx, Some(ctx.state.engine_config));
             }
             if is_x86_feature_detected!("avx2") {
-                return Self::new_intel_comet_lake(ctx, Some(ctx.engine_config));
+                return Self::new_intel_comet_lake(ctx, Some(ctx.state.engine_config));
             }
         }
 
         #[cfg(target_arch = "aarch64")]
         {
             if std::arch::is_aarch64_feature_detected!("sve") {
-                return Self::new_arm_sve(ctx, Some(ctx.engine_config));
+                return Self::new_arm_sve(ctx, Some(ctx.state.engine_config));
             }
-            return Self::new_arm_neon(ctx, Some(ctx.engine_config));
+            return Self::new_arm_neon(ctx, Some(ctx.state.engine_config));
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            return Self::new_wasm_simd(ctx, Some(ctx.engine_config));
+            return Self::new_wasm_simd(ctx, Some(ctx.state.engine_config));
         }
 
         Self::new_scalar(ctx)
@@ -164,8 +153,11 @@ impl EngineFactory {
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
-        Ok(Box::new(WasmSimdScoringEngine::new(compiled, config)))
+        let compiled = ctx.clone().compile()?;
+        Ok(Box::new(WasmSimdScoringEngine::new(
+            compiled.state.inner,
+            config,
+        )))
     }
 
     /// Compiles a new **Intel AVX-512** scoring engine.
@@ -177,8 +169,11 @@ impl EngineFactory {
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
-        Ok(Box::new(Avx512ScoringEngine::new(compiled, config)))
+        let compiled = ctx.clone().compile()?;
+        Ok(Box::new(Avx512ScoringEngine::new(
+            compiled.state.inner,
+            config,
+        )))
     }
 
     /// Compiles a new **Intel AVX2** scoring engine.
@@ -190,8 +185,11 @@ impl EngineFactory {
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
-        Ok(Box::new(IntelScoringEngine::new(compiled, config)))
+        let compiled = ctx.clone().compile()?;
+        Ok(Box::new(IntelScoringEngine::new(
+            compiled.state.inner,
+            config,
+        )))
     }
 
     /// Compiles a new **ARM SVE** scoring engine.
@@ -203,8 +201,11 @@ impl EngineFactory {
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
-        Ok(Box::new(ArmSveScoringEngine::new(compiled, config)))
+        let compiled = ctx.clone().compile()?;
+        Ok(Box::new(ArmSveScoringEngine::new(
+            compiled.state.inner,
+            config,
+        )))
     }
 
     /// Compiles a new **ARM NEON** scoring engine.
@@ -216,8 +217,11 @@ impl EngineFactory {
         ctx: &EngineCompilationContext,
         config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
-        let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
-        Ok(Box::new(ArmNeonScoringEngine::new(compiled, config)))
+        let compiled = ctx.clone().compile()?;
+        Ok(Box::new(ArmNeonScoringEngine::new(
+            compiled.state.inner,
+            config,
+        )))
     }
 }
 

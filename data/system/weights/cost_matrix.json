@@ -1,9 +1,4 @@
 {
-    "meta": {
-        "version": "2.0",
-        "description": "KeyForge Physics Cost Matrix",
-        "unit": "Effort Points (100 = Index Home)"
-    },
     "models": {
         "model_a_row_staggered": {
             "description": "Standard ANSI/ISO Geometry",
@@ -185,24 +180,27 @@
     },
     "dynamic_rules": {
         "sequence_modifiers": {
-            "roll_inward": -0.30,
+            "roll_inward": -0.3,
             "roll_outward": 0.0,
             "roll_disjoint": -0.15,
-            "redirect": 0.50,
-            "double_tap_ratio": 0.80
+            "redirect": 0.5,
+            "double_tap_ratio": 0.8
         },
         "penalties": {
             "sfb_multiplier": 2.5,
             "scissor_standard": 1.0,
             "scissor_sympathetic": 1.5,
-            "lateral_bigram": 0.50,
-            "row_trill": 0.50,
+            "lateral_bigram": 0.5,
+            "row_trill": 0.5,
             "chord_overhead": 50
         },
         "constraints": {
             "hand_balance_tolerance": 0.05,
-            "max_pinky_load": 0.10,
+            "max_pinky_load": 0.1,
             "max_ring_load": 0.18
         }
-    }
+    },
+    "version": "2.0",
+    "description": "KeyForge Physics Cost Matrix",
+    "unit": "Effort Points (100 = Index Home)"
 }

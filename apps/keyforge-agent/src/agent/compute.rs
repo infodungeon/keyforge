@@ -136,7 +136,9 @@ mod tests {
         );
 
         let cost_json = r#"{
-            "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+            "version": "2.0",
+            "description": "Test",
+            "unit": "pts",
             "models": {
                 "model_a_row_staggered": {
                     "description": "Test Model",
@@ -156,15 +158,13 @@ mod tests {
         let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json).unwrap());
 
         let engine: Arc<dyn keyforge_physics::ScoringEngine> =
-            keyforge_physics::EngineFactory::new_generic(
-                &keyforge_physics::EngineCompilationContext {
-                    keyboard: kb,
-                    corpus: Arc::new(keyforge_model::Corpus::default()),
-                    rubric: Arc::new(keyforge_model::Rubric::default()),
-                    cost_model,
-                    engine_config: keyforge_model::config::EngineConfig::default(),
-                },
-            )
+            keyforge_physics::EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+                kb,
+                Arc::new(keyforge_model::Corpus::default()),
+                Arc::new(keyforge_model::Rubric::default()),
+                cost_model,
+                keyforge_model::config::EngineConfig::default(),
+            ))
             .unwrap()
             .into();
 
@@ -186,6 +186,7 @@ mod tests {
             definition: kb_def.into(),
             weights: keyforge_model::config::ScoringWeights::default().into(),
             params: keyforge_model::config::SearchParams::default().into(),
+            catalog: None,
             pinned_keys: vec![].into(),
             corpora: vec![].into(),
             cost_matrix: CostMatrixSourceDto::Predefined("test".to_string()),

@@ -519,8 +519,9 @@ mod tests {
         f[97] = 100;
         f[98] = 200;
         corpus.char_freqs = Arc::from(f);
-        corpus.bigrams = Arc::from(vec![(97, 98, 50)]);
-        corpus.trigrams = Arc::from(vec![(97, 98, 97, 10)]);
+        corpus.bigrams = vec![(97, 98, 50)].into();
+        corpus.trigrams = vec![(97, 98, 97, 10)].into();
+
         let ctx = Compiler::compile(
             &kb,
             &corpus,

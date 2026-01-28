@@ -48,7 +48,10 @@ impl HermeticWorkspace {
         let sys = root.join("system");
         let assets = [
             ("config/keycodes.json", "[]"),
-            ("weights/cost_matrix.json", "{}"),
+            (
+                "weights/cost_matrix.json",
+                r#"{"version":"2.0","description":"dummy","unit":"pts","models":{"model_a_row_staggered":{"description":"dummy","static_costs":{"universal_hand":{"thumb":{"pos_1":0.0},"index":{"base":{"r0":0.0}},"middle":{"base":{"r0":0.0}},"ring":{"base":{"r0":0.0}},"pinky":{"base":{"r0":0.0}}}}}},"dynamic_rules":{"sequence_modifiers":{},"penalties":{},"constraints":{}}}"#,
+            ),
             ("corpora/text/en_std/1grams.json", "[]"),
         ];
 
@@ -242,7 +245,6 @@ impl HermeticWorkspace {
             kb_type: "ortho".into(),
             notes: String::new(),
             geometry,
-            layouts: HashMap::from([("default".into(), "a b".into())]),
         };
         let kb_json = serde_json::to_string_pretty(&kb_def)?;
         self.write_file("user/keyboards/test_kb.json", &kb_json)
@@ -265,7 +267,9 @@ impl HermeticWorkspace {
         freqs[116] = 1000; // 't'
         freqs[104] = 800; // 'h'
         en_small.char_freqs = Arc::from(freqs);
-        en_small.bigrams = Arc::from(vec![(116, 104, 500)]); // 'th'
+        en_small.bigrams = keyforge_model::corpus::BigramFrequencyTable {
+            entries: Arc::from(vec![(116, 104, 500)]),
+        }; // 'th'
         let en_small_json = serde_json::to_string_pretty(&en_small)?;
         self.write_file("en_small.json", &en_small_json).await?;
 
@@ -281,7 +285,8 @@ impl HermeticWorkspace {
         // Key 0: Cost 0.
         // Key 1: Cost 1,000,000 (Poison).
         let kb_json = r#"{
-            "meta": { "name": "Poison KB", "type": "ortho" },
+            "name": "Poison KB",
+            "type": "ortho",
             "geometry": {
                 "keys": [
                     {"index": 0, "x": 0.0, "y": 0.0, "hand": 0, "finger": 1, "row": 0, "col": 0},
@@ -291,15 +296,18 @@ impl HermeticWorkspace {
                 "med_slots": [],
                 "low_slots": [1],
                 "home_row": 0
-            },
-            "layouts": {}
+            }
         }"#;
         self.write_file("user/keyboards/poison_keyboard.json", kb_json)
             .await?;
 
         // Poison Weights: Massive penalty for High-freq char in Low-tier slot.
         let weights_json = r#"{
-            "penalty_high_in_low": 1000000.0
+            "weights": {
+                "penalty_high_in_low": 1000000.0
+            },
+            "finger_penalty_scale": [1.0, 1.0, 1.0, 1.0, 1.0],
+            "comfortable_scissors": ""
         }"#;
         self.write_file("user/weights/poison_weights.json", weights_json)
             .await?;
@@ -317,7 +325,9 @@ impl HermeticWorkspace {
 
         // Cost Model
         let cost_json = r#"{
-            "meta": { "version": "2.0", "description": "Poison", "unit": "pts" },
+            "version": "2.0",
+            "description": "Poison",
+            "unit": "pts",
             "models": {
                 "model_a_row_staggered": {
                     "description": "Poison Model",
@@ -346,6 +356,7 @@ impl HermeticWorkspace {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
+
         self.write_file("user/weights/poison_cost.json", cost_json)
             .await?;
 

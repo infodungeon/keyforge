@@ -10,7 +10,7 @@ use keyforge_model::types::{
     IterationCount, PatienceCount, ReheatCount, ScalingFactor, Seed, Temperature,
 };
 use keyforge_model::{EngineRequest, KeyCode, Layout, OptimizationResult, SearchConfig};
-use keyforge_physics::{EngineCompilationContext, ScoringEngine};
+use keyforge_physics::ScoringEngine;
 use std::sync::Arc;
 
 /// Performs a basic optimization run.
@@ -31,13 +31,14 @@ pub fn optimize_with_callback<CB: ProgressCallback>(
     req: &EngineRequest,
     callback: CB,
 ) -> Result<OptimizationResult, EvolutionError> {
-    let engine = keyforge_physics::EngineFactory::new_generic(&EngineCompilationContext {
-        keyboard: req.keyboard.clone(),
-        corpus: req.corpus.clone(),
-        rubric: req.rubric.clone(),
-        cost_model: req.cost_model.clone(),
-        engine_config: keyforge_model::config::EngineConfig::default(),
-    })?;
+    let engine =
+        keyforge_physics::EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+            req.keyboard.clone(),
+            req.corpus.clone(),
+            req.rubric.clone(),
+            req.cost_model.clone(),
+            keyforge_model::config::EngineConfig::default(),
+        ))?;
     let engine_arc: Arc<dyn ScoringEngine> = engine.into();
 
     // Determine unlocked indices
@@ -258,13 +259,13 @@ mod tests {
                 )]),
             },
         );
-        let engine = EngineFactory::new_scalar(&keyforge_physics::EngineCompilationContext {
-            keyboard: Arc::new(kb),
-            corpus: Arc::new(Corpus::default()),
-            rubric: Arc::new(Rubric::default()),
-            cost_model: Arc::new(cost_model),
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+        let engine = EngineFactory::new_scalar(&keyforge_physics::ScoringContext::new(
+            Arc::new(kb),
+            Arc::new(Corpus::default()),
+            Arc::new(Rubric::default()),
+            Arc::new(cost_model),
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .unwrap();
         let config = SearchConfig::Annealing {
             steps: 100,

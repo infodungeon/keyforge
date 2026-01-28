@@ -5,7 +5,7 @@ mod integration_tests {
 
     // Licensed under the Apache License, Version 2.0 (the "License");
     // you may not use this file except in compliance with the License.
-    // You may obtain a copy of the License at
+    // You    may obtain a copy of the License at
     //
     //     http://www.apache.org/licenses/
     //
@@ -22,7 +22,7 @@ mod integration_tests {
     //
     // Intent: Verify "Oracle Parity" for metric breakdown (Distance, SFBs, etc.).
 
-    use keyforge_model::{Corpus, Keyboard, Layout, Rubric};
+    use keyforge_model::{Corpus, Keyboard, Layout, MetricId, Rubric};
     use keyforge_physics::{verify::DeterministicScorer, EngineCompilationContext, EngineFactory};
     use proptest::prelude::*;
     use std::sync::Arc;
@@ -54,19 +54,17 @@ mod integration_tests {
                 let oracle_score = oracle.score(&kb, &corpus, &layout.keys()).unwrap_or(0); // Handle overflow in fuzzing
 
                 // 2. Optimized Engine (System Under Test)
-                let ctx = EngineCompilationContext {
-                    keyboard: Arc::new(kb.clone()),
-                    corpus: Arc::new(corpus.clone()),
-                    rubric: Arc::new(rubric.clone()),
-                    cost_model: Arc::new(cost_model.clone()),
-                    engine_config: keyforge_model::config::EngineConfig::default(),
-                };
+                let ctx = keyforge_physics::ScoringContext::new(
+                    Arc::new(kb.clone()),
+                    Arc::new(corpus.clone()),
+                    Arc::new(rubric.clone()),
+                    Arc::new(cost_model.clone()),
+                    keyforge_model::config::EngineConfig::default(),
+                );
                 let engine = EngineFactory::new_generic(&ctx).unwrap();
 
                 // 3. Generate Report
                 let report = engine.analyze(&layout).unwrap();
-
-                // 4. Verification
 
                 // 4. Verification
 
@@ -84,7 +82,7 @@ mod integration_tests {
 
                 // Only compare if we have frequency data
                 if total_freq > 0 && oracle_score > 0 {
-                    let predicted_oracle = report.score * (total_freq as f32) * 10.0;
+                    let predicted_oracle = report.summary.score * (total_freq as f32) * 10.0;
                     let actual_oracle = oracle_score as f32;
 
                     // Allow 1.0% drift due to f32 accumulation errors vs i64 fixed point summation
@@ -92,7 +90,7 @@ mod integration_tests {
                     let diff = (predicted_oracle - actual_oracle).abs();
 
                     if diff > tolerance {
-                        println!("Debug: Report Score: {}", report.score);
+                        println!("Debug: Report Score: {}", report.summary.score);
                         println!("Debug: Total Freq: {}", total_freq);
                         println!("Debug: Predicted Oracle: {}", predicted_oracle);
                         println!("Debug: Actual Oracle: {}", actual_oracle);
@@ -106,23 +104,17 @@ mod integration_tests {
                 }
 
                 // B. Distance Parity
-                // We can't easily extract distance from DeterministicScorer without exposing internals,
-                // but we can sanity check it against the score components if we had them.
-                // For now, let's verify invariants.
-                prop_assert!(report.distance >= 0.0);
-                prop_assert!(report.sfb_total >= 0.0);
+                prop_assert!(report.travel.distance >= 0.0);
+                prop_assert!(report.breakdown.metrics.get(MetricId::Sfb) >= 0.0);
 
                 // C. Hand Balance Invariant
-                prop_assert!(report.hand_balance >= -1.0 && report.hand_balance <= 1.0);
+                prop_assert!(report.summary.hand_balance >= -1.0 && report.summary.hand_balance <= 1.0);
 
                 // D. Finger Usage Sum Invariant
                 // Heatmap should sum roughly to 100% (frequencies are normalized inside engine usually?)
-                // Actually, heatmap is per-key freq sum.
+
                 // E. Penalty Map Consistency
-                // Penalty map values can be negative due to bonuses (e.g. rolls)
-                for _p in &report.penalty_map {
-                    // No assertion needed here if any value is valid,
-                    // but we could assert they are finite.
+                for _p in &report.visualizations.effort {
                     prop_assert!(_p.is_finite());
                 }
             }

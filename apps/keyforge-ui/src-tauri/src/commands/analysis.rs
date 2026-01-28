@@ -161,6 +161,7 @@ pub async fn validate_layout_string(
         definition: (*definition).clone().into(),
         weights: keyforge_model::config::ScoringWeights::default().into(),
         params: keyforge_model::config::SearchParams::default().into(),
+        catalog: None,
         pinned_keys: vec![].into(),
         corpora: vec![CorpusSourceDto {
             id: corpus_filename,
@@ -229,15 +230,13 @@ pub async fn validate_layout_string(
 
     Ok(ValidationResultDto {
         layout_name: "Custom".to_string(),
-        score: report.clone().into(),
+        score: report.into(),
         geometry: job_config
             .to_domain_geometry()
             .keys
             .into_iter()
             .map(Into::into)
             .collect(),
-        heatmap: report.heatmap,
-        penalty_map: report.penalty_map,
     })
 }
 
@@ -264,6 +263,6 @@ pub async fn get_derived_stats(
         .map_err(|e| CommandError::Internal(e.to_string()))?;
 
     Ok(DerivedStatsDto {
-        hand_balance: report.hand_balance,
+        hand_balance: report.summary.hand_balance,
     })
 }

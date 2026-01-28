@@ -3,7 +3,7 @@
 use crate::assets::BiometricSample;
 use crate::config::{
     CorpusSourceDto, CostMatrixSourceDto, KeyConstraintDto, KeyboardDefinitionDto,
-    ScoringWeightsDto, SearchParamsDto,
+    LayoutCatalogDto, ScoringWeightsDto, SearchParamsDto,
 };
 use crate::types::{JobStatusDto, LimitedVec};
 use crate::PROTOCOL_VERSION;
@@ -56,8 +56,11 @@ pub struct JobConfig {
     pub weights: ScoringWeightsDto,
     /// Search and optimization parameters.
     pub params: SearchParamsDto,
+    /// Optional catalog of pre-defined layouts.
+    pub catalog: Option<LayoutCatalogDto>,
     /// List of keys pinned to specific indices.
     pub pinned_keys: LimitedVec<KeyConstraintDto>,
+
     /// Linguistic corpora to use for scoring.
     #[serde(default = "default_corpora")]
     pub corpora: LimitedVec<CorpusSourceDto>,
@@ -82,6 +85,7 @@ impl Default for JobConfig {
             definition: keyforge_model::geometry::KeyboardDefinition::default().into(),
             weights: keyforge_model::config::ScoringWeights::default().into(),
             params: keyforge_model::config::SearchParams::default().into(),
+            catalog: None,
             pinned_keys: LimitedVec(vec![]),
             corpora: default_corpora(),
             cost_matrix: default_cost_matrix(),

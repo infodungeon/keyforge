@@ -85,8 +85,12 @@ mod integration_tests {
 
         let list = list_keyboards(root).unwrap();
         assert_eq!(list.len(), 2);
-        assert!(list.contains(&"sys".into()));
-        assert!(list.contains(&"user".into()));
+        let stems: Vec<String> = list
+            .iter()
+            .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+            .collect();
+        assert!(stems.contains(&"sys.mpk".into()) || stems.contains(&"sys".into()));
+        assert!(stems.contains(&"user".into()));
 
         // 2. Corpora
         let sys_corp = root.join("system/corpora/en/std");
@@ -98,8 +102,13 @@ mod integration_tests {
 
         let list = list_corpora(root).unwrap();
         assert_eq!(list.len(), 2);
-        assert!(list.contains(&"en/std".into()));
-        assert!(list.contains(&"custom".into()));
+
+        let paths: Vec<String> = list
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
+        assert!(paths.iter().any(|p| p.contains("en/std")));
+        assert!(paths.iter().any(|p| p.contains("custom")));
 
         // 3. Cost Matrices
         let sys_cm = root.join("system/weights");
@@ -110,8 +119,12 @@ mod integration_tests {
         fs::write(user_cm.join("cm_user.json"), "").unwrap();
 
         let list = list_cost_matrices(root).unwrap();
-        assert!(list.contains(&"cm_sys".into()));
-        assert!(list.contains(&"cm_user".into()));
+        let stems: Vec<String> = list
+            .iter()
+            .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+            .collect();
+        assert!(stems.contains(&"cm_sys.mpk".into()) || stems.contains(&"cm_sys".into()));
+        assert!(stems.contains(&"cm_user".into()));
 
         // 4. Keymap Extras
         let sys_extra = root.join("system/keymap_extras");
@@ -122,8 +135,12 @@ mod integration_tests {
         fs::write(user_extra.join("extra_user.json"), "").unwrap();
 
         let list = list_keymap_extras(root).unwrap();
-        assert!(list.contains(&"extra_sys".into()));
-        assert!(list.contains(&"extra_user".into()));
+        let stems: Vec<String> = list
+            .iter()
+            .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+            .collect();
+        assert!(stems.contains(&"extra_sys.mpk".into()) || stems.contains(&"extra_sys".into()));
+        assert!(stems.contains(&"extra_user".into()));
     }
 
     /// Intent: Verify listing functions return empty sets for empty directories.

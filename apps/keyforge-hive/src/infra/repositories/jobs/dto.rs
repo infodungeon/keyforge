@@ -7,7 +7,6 @@ use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex
 use keyforge_model::Asset;
 use keyforge_protocol::CorpusSourceDto;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Database-aligned DTO for a Keyboard metadata row.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -138,7 +137,6 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
                 low_slots,
                 home_row: RowIndex(i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0)),
             },
-            layouts: HashMap::new(),
         };
 
         def.post_load()?;
@@ -162,6 +160,7 @@ impl Projection<HiveJobProjection> for keyforge_protocol::JobConfig {
             definition: source.definition.into(),
             weights: weights.into(),
             params: params.into(),
+            catalog: None,
             pinned_keys: pinned_keys
                 .into_iter()
                 .map(Into::into)

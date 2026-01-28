@@ -1,2 +1,20 @@
 # Explicitly ignore files causing Narsil parser crashes (minified Lunr language files)
 hosts/sites/keyforge/assets/javascripts/lunr/min/lunr.*.min.js
+
+# Context-Shattering Regressions (Extremely long lines)
+
+**/*.proptest-regressions
+
+**/proptest-regressions/**
+
+
+
+# Build Artifacts & Large Dependencies
+
+**/target/**
+
+**/node_modules/**
+
+**/dist/**
+
+**/*.map

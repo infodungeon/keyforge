@@ -3,12 +3,14 @@ use keyforge_model::{
     types::{FingerIndex, HandIndex},
     Corpus, CostModel, KeyNode, Keyboard, Rubric,
 };
-use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use keyforge_physics::EngineFactory;
 use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "version": "2.0",
+        "description": "Test",
+        "unit": "pts",
         "models": {
             "model_a_row_staggered": {
                 "description": "Test Model",
@@ -44,13 +46,13 @@ fn main() {
     let rubric = Arc::new(Rubric::default());
     let cost_model = Arc::new(mock_cost_model());
 
-    let _engine = EngineFactory::new_generic(&EngineCompilationContext {
-        keyboard: kb,
+    let _engine = EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+        kb,
         corpus,
         rubric,
         cost_model,
-        engine_config: keyforge_model::config::EngineConfig::default(),
-    })
+        keyforge_model::config::EngineConfig::default(),
+    ))
     .unwrap();
     println!("Engine built successfully");
 }

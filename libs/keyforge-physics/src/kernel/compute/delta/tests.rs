@@ -113,13 +113,13 @@ mod tests {
                 static_costs: std::collections::HashMap::from([("universal_hand".to_string(), keyforge_model::cost_model::HandDefinition { fingers })]),
             });
 
-            let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
-                keyboard: Arc::new(kb.clone()),
-                corpus: Arc::new(cp.clone()),
-                rubric: Arc::new(rubric.clone()),
-                cost_model: Arc::new(cm.clone()),
-                engine_config: keyforge_model::config::EngineConfig::default(),
-            })
+            let engine = crate::EngineFactory::new_generic(&crate::ScoringContext::new(
+                Arc::new(kb.clone()),
+                Arc::new(cp.clone()),
+                Arc::new(rubric.clone()),
+                Arc::new(cm.clone()),
+                keyforge_model::config::EngineConfig::default(),
+            ))
             .expect("Failed to compile generic engine");
 
             let layout_for_score = Layout::new_unchecked(layout_keys.clone());
@@ -177,7 +177,7 @@ mod tests {
         freqs[97] = 100; // 'a'
         freqs[98] = 100; // 'b'
         cp.char_freqs = Arc::from(freqs);
-        cp.bigrams = Arc::from(vec![(97, 98, 100)]);
+        cp.bigrams = vec![(97, 98, 100)].into();
 
         let rubric = Rubric::default();
         let mut cm = CostModel::default();
@@ -209,13 +209,13 @@ mod tests {
             },
         );
 
-        let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
-            keyboard: Arc::new(kb.clone()),
-            corpus: Arc::new(cp.clone()),
-            rubric: Arc::new(rubric.clone()),
-            cost_model: Arc::new(cm.clone()),
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+        let engine = crate::EngineFactory::new_generic(&crate::ScoringContext::new(
+            Arc::new(kb.clone()),
+            Arc::new(cp.clone()),
+            Arc::new(rubric.clone()),
+            Arc::new(cm.clone()),
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .expect("Failed to compile generic engine");
         let mut ctx = engine.context().clone();
 

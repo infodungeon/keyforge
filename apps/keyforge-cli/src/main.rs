@@ -219,6 +219,10 @@ async fn build_job_config(
         .clone()
         .unwrap_or_else(|| "ortho_30".to_string());
     let definition = loader.load::<KeyboardDefinition>(&kb_name).await?;
+    let catalog = loader
+        .load::<keyforge_model::layout::LayoutCatalog>(&kb_name)
+        .await
+        .ok();
 
     let weights = if let Some(w_input) = &shared.weights {
         let w_path = cli_parsers::resolve_path(w_input, None, loader.root())?;
@@ -239,6 +243,7 @@ async fn build_job_config(
         definition: (*definition).clone().into(),
         weights: weights.into(),
         params: params.into(),
+        catalog: catalog.map(|c| (*c).clone().into()),
         pinned_keys: shared
             .pinned_keys
             .iter()

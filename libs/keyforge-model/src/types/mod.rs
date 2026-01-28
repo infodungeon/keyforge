@@ -17,11 +17,12 @@ pub use biomechanical::{FingerIndex, HandIndex, SpaceHandPreference};
 pub use geometry::{ColIndex, RowIndex};
 pub use indices::{KeyCode, KeyIndex};
 pub use newtypes::{
-    DurationMs, IterationCount, LatencyMs, PatienceCount, ReheatCount, ScalingFactor, Seed,
-    Temperature,
+    CorpusId, DurationMs, IterationCount, KeyboardId, LatencyMs, LayoutId, PatienceCount,
+    Percentage, Ratio, ReheatCount, ScalingFactor, Seed, Temperature, UserId,
 };
 pub use results::{
-    AnalysisReport, MetricViolation, OptimizationResult, ScoringResult, SwapSuggestion,
+    AnalysisReport, Heatmaps, MetricBreakdown, MetricViolation, OptimizationResult, ScoreSummary,
+    ScoringResult, SwapSuggestion, TravelStatistics,
 };
 pub use scoring::{Score, Weight};
 
@@ -108,6 +109,16 @@ mod tests {
             SpaceHandPreference::default(),
             SpaceHandPreference::Bilateral
         );
+
+        // Percentage
+        assert!(Percentage::try_from(50.0).is_ok());
+        assert!(Percentage::try_from(101.0).is_err());
+        assert!(Percentage::try_from(-1.0).is_err());
+
+        // Ratio
+        assert!(Ratio::try_from(0.5).is_ok());
+        assert!(Ratio::try_from(1.1).is_err());
+        assert!(Ratio::try_from(-0.1).is_err());
     }
 
     #[test]

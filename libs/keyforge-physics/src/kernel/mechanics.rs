@@ -81,6 +81,7 @@ fn to_score_or_err(val: f32) -> Result<i64, PhysicsError> {
 /// - Score accumulation overflows.
 pub fn calculate_pair_cost(
     kb: &Keyboard,
+    spatial_index: &keyforge_model::keyboard::SpatialIndex,
     rubric: &Rubric,
     i: KeyIndex,
     j: KeyIndex,
@@ -99,7 +100,7 @@ pub fn calculate_pair_cost(
         return Ok(0);
     }
 
-    let (dx2, dy2) = kb.spatial_cache[i_idx * kb.keys.len() + j_idx];
+    let (dx2, dy2) = spatial_index.spatial_cache[i_idx * kb.keys.len() + j_idx];
 
     // Intermediate geometric math in f64
     let t_lat = f64::from(rubric.travel_lat());
@@ -120,7 +121,17 @@ pub fn calculate_pair_cost(
     let mut cost = dist_raw.round() as i64;
 
     if k1.finger == k2.finger {
-        cost = calculate_sfb_cost(kb, rubric, k1, k2, cost, scale, t_lat, t_vert)?;
+        cost = calculate_sfb_cost(
+            kb,
+            spatial_index,
+            rubric,
+            k1,
+            k2,
+            cost,
+            scale,
+            t_lat,
+            t_vert,
+        )?;
     } else {
         cost = calculate_non_sfb_penalties(rubric, k1, k2, cost)?;
     }
@@ -130,7 +141,8 @@ pub fn calculate_pair_cost(
 
 #[allow(clippy::too_many_arguments)]
 fn calculate_sfb_cost(
-    kb: &Keyboard,
+    _kb: &Keyboard,
+    spatial_index: &keyforge_model::keyboard::SpatialIndex,
     rubric: &Rubric,
     k1: &keyforge_model::KeyNode,
     k2: &keyforge_model::KeyNode,
@@ -140,7 +152,7 @@ fn calculate_sfb_cost(
     t_vert: f64,
 ) -> Result<i64, PhysicsError> {
     let mut reach_k2 = 0.0f64;
-    if let Some(origin) = kb
+    if let Some(origin) = spatial_index
         .finger_origins
         .get(k2.hand.as_usize())
         .and_then(|h| h.get(k2.finger.as_usize()))
@@ -273,9 +285,11 @@ mod tests {
     #[test]
     fn test_calculate_pair_cost_sfb() {
         let kb = setup_kb_pair();
+        let spatial_index = keyforge_model::keyboard::SpatialIndex::build_from(&kb);
         let rubric = Rubric::default();
 
-        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
+        let cost =
+            calculate_pair_cost(&kb, &spatial_index, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
         assert!(
             cost >= crate::verify::to_fixed(rubric.sfb_base()),
             "SFB should be penalized"
@@ -301,33 +315,37 @@ mod tests {
         let kb = Arc::new(
             Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
         );
+        let spatial_index = keyforge_model::keyboard::SpatialIndex::build_from(&kb);
         let rubric = Rubric::default();
 
-        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
+        let cost =
+            calculate_pair_cost(&kb, &spatial_index, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
         assert_eq!(cost, 0, "Different hands should have 0 cost");
     }
 
     #[test]
     fn test_calculate_pair_cost_invalid_math() {
         let kb = setup_kb_pair();
+        let spatial_index = keyforge_model::keyboard::SpatialIndex::build_from(&kb);
 
         // Force NaN via infinity * 0 or similar if possible, or just inject Infinity
         let rubric = Rubric::builder().travel_lat(f32::INFINITY).build();
-        let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+        let res = calculate_pair_cost(&kb, &spatial_index, &rubric, KeyIndex(0), KeyIndex(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. })));
 
         let rubric = Rubric::builder().travel_lat(f32::NAN).build();
-        let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+        let res = calculate_pair_cost(&kb, &spatial_index, &rubric, KeyIndex(0), KeyIndex(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. })));
     }
 
     #[test]
     fn test_calculate_pair_cost_overflows() {
         let kb = setup_kb_pair();
+        let spatial_index = keyforge_model::keyboard::SpatialIndex::build_from(&kb);
 
         // 1. checked_add overflow (SFB base)
         let rubric = Rubric::builder().sfb_base(1e20).build();
-        let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+        let res = calculate_pair_cost(&kb, &spatial_index, &rubric, KeyIndex(0), KeyIndex(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. }))); // Score::from_f32 fails first
     }
 }

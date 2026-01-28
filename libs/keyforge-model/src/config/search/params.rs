@@ -298,16 +298,16 @@ mod tests {
         assert_eq!(p.get_search_epochs(), DEFAULT_SEARCH_EPOCHS);
         assert_eq!(p.get_search_steps(), DEFAULT_SEARCH_STEPS);
         assert_eq!(p.get_search_patience(), DEFAULT_SEARCH_PATIENCE);
-        assert_eq!(
-            p.get_search_patience_threshold(),
-            DEFAULT_SEARCH_PATIENCE_THRESHOLD
+        assert!(
+            (p.get_search_patience_threshold() - DEFAULT_SEARCH_PATIENCE_THRESHOLD).abs()
+                < f32::EPSILON
         );
-        assert_eq!(p.get_temp_min(), DEFAULT_TEMP_MIN);
-        assert_eq!(p.get_temp_max(), DEFAULT_TEMP_MAX);
+        assert!((p.get_temp_min() - DEFAULT_TEMP_MIN).abs() < f32::EPSILON);
+        assert!((p.get_temp_max() - DEFAULT_TEMP_MAX).abs() < f32::EPSILON);
         assert_eq!(p.get_opt_limit_fast(), DEFAULT_OPT_LIMIT_FAST);
         assert_eq!(p.get_opt_limit_slow(), DEFAULT_OPT_LIMIT_SLOW);
         assert_eq!(p.get_reheats(), DEFAULT_REHEATS);
-        assert_eq!(p.get_reheat_factor(), DEFAULT_REHEAT_FACTOR);
+        assert!((p.get_reheat_factor() - DEFAULT_REHEAT_FACTOR).abs() < f32::EPSILON);
 
         // Test empty params fallback
         let empty = SearchParams {
@@ -326,14 +326,16 @@ mod tests {
         let mut p = SearchParams::default();
 
         // epochs exceeds limit
-        p.params
-            .insert("search_epochs".into(), (MAX_SEARCH_EPOCHS + 1) as f32);
+        #[allow(clippy::cast_precision_loss)]
+        let too_many_epochs = (MAX_SEARCH_EPOCHS + 1) as f32;
+        p.params.insert("search_epochs".into(), too_many_epochs);
         assert!(p.validate().is_err());
 
         // steps exceeds limit
         p = SearchParams::default();
-        p.params
-            .insert("search_steps".into(), (MAX_SEARCH_STEPS + 1) as f32);
+        #[allow(clippy::cast_precision_loss)]
+        let too_many_steps = (MAX_SEARCH_STEPS + 1) as f32;
+        p.params.insert("search_steps".into(), too_many_steps);
         assert!(p.validate().is_err());
 
         // opt_limit_fast 0
@@ -343,8 +345,9 @@ mod tests {
 
         // opt_limit_fast exceeds limit
         p = SearchParams::default();
-        p.params
-            .insert("opt_limit_fast".into(), (MAX_OPT_LIMIT_FAST + 1) as f32);
+        #[allow(clippy::cast_precision_loss)]
+        let too_many_fast = (MAX_OPT_LIMIT_FAST + 1) as f32;
+        p.params.insert("opt_limit_fast".into(), too_many_fast);
         assert!(p.validate().is_err());
 
         // opt_limit_slow < fast
@@ -379,13 +382,14 @@ mod tests {
 
     #[cfg(feature = "cli")]
     #[test]
+    #[allow(clippy::unwrap_used)]
     fn test_search_params_config_conversion() {
         let config = SearchParamsConfig {
             params: vec![("temp_max".to_string(), 50.0)],
             include_thumbs: true,
         };
         let p = SearchParams::try_from(config).unwrap();
-        assert_eq!(p.get_temp_max(), 50.0);
+        assert!((p.get_temp_max() - 50.0).abs() < f32::EPSILON);
         assert!(p.include_thumbs);
     }
 

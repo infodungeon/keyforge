@@ -146,6 +146,7 @@ impl ValkeyProvider {
             AssetCategory::Keycodes => format!("config/{stem}.mpk.zst"),
             AssetCategory::Corpus => format!("corpora/{stem}/bundle.mpk.zst"),
             AssetCategory::Rubric => format!("rubrics/{stem}.mpk.zst"),
+            AssetCategory::Layout => format!("layouts/{stem}.mpk.zst"),
         }
     }
 }

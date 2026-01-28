@@ -7,7 +7,9 @@ use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "version": "2.0",
+        "description": "Test",
+        "unit": "pts",
         "models": {
             "model_a_row_staggered": {
                 "description": "Test Model",
@@ -42,7 +44,7 @@ async fn main() {
     char_freqs[116] = 1;
     char_freqs[104] = 1;
     corpus.char_freqs = Arc::from(char_freqs);
-    corpus.bigrams = Arc::from(vec![(116, 104, 1000)]);
+    corpus.bigrams = vec![(116, 104, 1000)].into();
     let corpus_arc = Arc::new(corpus);
 
     // 1. Without Biometrics

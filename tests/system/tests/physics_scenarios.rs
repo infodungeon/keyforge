@@ -61,19 +61,19 @@ mod tests {
             Keyboard::new(
                 def.geometry.keys.clone(),
                 def.geometry.home_row,
-                def.meta.kb_type.clone(),
+                def.kb_type.clone(),
             )
             .unwrap(),
         );
         let rubric = Arc::new(conversion::to_domain_rubric(&weights));
 
-        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+        let engine = EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
             keyboard,
             corpus,
             rubric,
-            cost_model: cost_data,
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+            cost_data,
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .expect("Failed to create engine");
 
         let registry: Arc<KeycodeRegistry> = provider
@@ -90,7 +90,7 @@ mod tests {
         let score2 = engine.score(&layout).unwrap();
 
         assert!(
-            (report1.score - report2.score).abs() < 0.001,
+            (report1.summary.score - report2.summary.score).abs() < 0.001,
             "Report scores diverged!"
         );
         assert_eq!(score1, score2, "Engine scores diverged!");

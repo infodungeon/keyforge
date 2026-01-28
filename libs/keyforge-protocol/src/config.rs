@@ -222,8 +222,6 @@ pub struct KeyboardDefinitionDto {
     pub kb_type: String,
     /// Geometry.
     pub geometry: KeyboardGeometryDto,
-    /// Map of layout names to strings.
-    pub layouts: HashMap<String, String>,
 }
 
 impl Validator for KeyboardDefinitionDto {
@@ -241,6 +239,22 @@ impl From<geometry::KeyboardDefinition> for KeyboardDefinitionDto {
             notes: val.notes,
             kb_type: val.kb_type,
             geometry: val.geometry.into(),
+        }
+    }
+}
+
+/// DTO for `LayoutCatalog`.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS))]
+#[cfg_attr(feature = "ts_bindings", ts(export))]
+pub struct LayoutCatalogDto {
+    /// Map of layout names to strings.
+    pub layouts: HashMap<String, String>,
+}
+
+impl From<keyforge_model::layout::LayoutCatalog> for LayoutCatalogDto {
+    fn from(val: keyforge_model::layout::LayoutCatalog) -> Self {
+        Self {
             layouts: val.layouts,
         }
     }

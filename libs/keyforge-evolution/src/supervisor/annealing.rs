@@ -446,20 +446,20 @@ mod tests {
         for i in 0..size.saturating_sub(1) {
             bigrams.push((i as u16, (i + 1) as u16, 100));
         }
-        corpus_val.bigrams = Arc::from(bigrams);
+        corpus_val.bigrams = bigrams.into();
         let corpus = Arc::new(corpus_val);
-        let cost_json = r#"{"meta": {"version": "2.0", "description": "Test", "unit": "pts"}, "models": {"model_a_row_staggered": {"description": "Test", "static_costs": {"universal_hand": {"thumb": {"pos_1": 1.0}, "index": {"base": {"0": 1.0}}, "middle": {"base": {"0": 1.0}}, "ring": {"base": {"0": 1.0}}, "pinky": {"base": {"0": 1.0}}}}}}, "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}}"#;
+        let cost_json = r#"{"version": "2.0", "description": "Test", "unit": "pts", "models": {"model_a_row_staggered": {"description": "Test", "static_costs": {"universal_hand": {"thumb": {"pos_1": 1.0}, "index": {"base": {"0": 1.0}}, "middle": {"base": {"0": 1.0}}, "ring": {"base": {"0": 1.0}}, "pinky": {"base": {"0": 1.0}}}}}}, "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}}"#;
         let cost_model: Arc<CostModel> =
             Arc::new(serde_json::from_str(cost_json).expect("Failed to parse cost model"));
         let rubric = Arc::new(Rubric::default());
 
-        EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: kb,
+        EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+            kb,
             corpus,
             rubric,
             cost_model,
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .expect("Failed to compile engine")
     }
 

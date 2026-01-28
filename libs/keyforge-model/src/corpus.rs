@@ -24,7 +24,92 @@ use crate::validator::Validator;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::Arc;
 
+/// Wrapper for bigram frequency data.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BigramFrequencyTable {
+    /// List of bigrams (char1, char2, frequency).
+    #[serde(
+        serialize_with = "serialize_arc_slice",
+        deserialize_with = "deserialize_arc_slice"
+    )]
+    pub entries: Arc<[(u16, u16, u32)]>,
+}
 
+impl BigramFrequencyTable {
+    /// Merges another table into this one with a weight.
+    pub fn merge(&mut self, other: &Self, weight: f32) {
+        let mut new_entries = self.entries.to_vec();
+        for &(c1, c2, freq) in &*other.entries {
+            #[allow(
+                clippy::cast_precision_loss,
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss
+            )]
+            let merged_freq = (freq as f32 * weight).round() as u32;
+            new_entries.push((c1, c2, merged_freq));
+        }
+        new_entries.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        self.entries = Arc::from(new_entries);
+    }
+}
+
+impl From<Arc<[(u16, u16, u32)]>> for BigramFrequencyTable {
+    fn from(entries: Arc<[(u16, u16, u32)]>) -> Self {
+        Self { entries }
+    }
+}
+
+impl From<Vec<(u16, u16, u32)>> for BigramFrequencyTable {
+    fn from(entries: Vec<(u16, u16, u32)>) -> Self {
+        Self {
+            entries: Arc::from(entries),
+        }
+    }
+}
+
+/// Wrapper for trigram frequency data.
+// ... (TrigramFrequencyTable)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TrigramFrequencyTable {
+    /// List of trigrams (char1, char2, char3, frequency).
+    #[serde(
+        serialize_with = "serialize_arc_slice",
+        deserialize_with = "deserialize_arc_slice"
+    )]
+    pub entries: Arc<[(u16, u16, u16, u32)]>,
+}
+
+impl TrigramFrequencyTable {
+    /// Merges another table into this one with a weight.
+    pub fn merge(&mut self, other: &Self, weight: f32) {
+        let mut new_entries = self.entries.to_vec();
+        for &(c1, c2, c3, freq) in &*other.entries {
+            #[allow(
+                clippy::cast_precision_loss,
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss
+            )]
+            let merged_freq = (freq as f32 * weight).round() as u32;
+            new_entries.push((c1, c2, c3, merged_freq));
+        }
+        new_entries.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+        self.entries = Arc::from(new_entries);
+    }
+}
+
+impl From<Arc<[(u16, u16, u16, u32)]>> for TrigramFrequencyTable {
+    fn from(entries: Arc<[(u16, u16, u16, u32)]>) -> Self {
+        Self { entries }
+    }
+}
+
+impl From<Vec<(u16, u16, u16, u32)>> for TrigramFrequencyTable {
+    fn from(entries: Vec<(u16, u16, u16, u32)>) -> Self {
+        Self {
+            entries: Arc::from(entries),
+        }
+    }
+}
 
 /// Represents the statistical data of a language or text source.
 /// Contains frequency data for characters, bigrams, and trigrams.
@@ -41,17 +126,9 @@ pub struct Corpus {
     )]
     pub char_freqs: Arc<[u64]>,
     /// List of bigrams (char1, char2, frequency).
-    #[serde(
-        serialize_with = "serialize_arc_slice",
-        deserialize_with = "deserialize_arc_slice"
-    )]
-    pub bigrams: Arc<[(u16, u16, u32)]>,
+    pub bigrams: BigramFrequencyTable,
     /// List of trigrams (char1, char2, char3, frequency).
-    #[serde(
-        serialize_with = "serialize_arc_slice",
-        deserialize_with = "deserialize_arc_slice"
-    )]
-    pub trigrams: Arc<[(u16, u16, u16, u32)]>,
+    pub trigrams: TrigramFrequencyTable,
     /// List of common words and their frequencies.
     #[serde(
         serialize_with = "serialize_arc_slice",
@@ -92,8 +169,8 @@ impl Default for Corpus {
         Self {
             is_std: false,
             char_freqs: Arc::from(vec![0; MAX_KEYCODE_SPACE]),
-            bigrams: Arc::from(vec![]),
-            trigrams: Arc::from(vec![]),
+            bigrams: BigramFrequencyTable::default(),
+            trigrams: TrigramFrequencyTable::default(),
             words: Arc::from(vec![]),
         }
     }
@@ -138,31 +215,8 @@ impl Corpus {
         }
         self.char_freqs = Arc::from(new_char_freqs);
 
-        let mut new_bigrams = self.bigrams.to_vec();
-        for &(c1, c2, freq) in &*other.bigrams {
-            #[allow(
-                clippy::cast_precision_loss,
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss
-            )]
-            let merged_freq = (freq as f32 * weight).round() as u32;
-            new_bigrams.push((c1, c2, merged_freq));
-        }
-        new_bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-        self.bigrams = Arc::from(new_bigrams);
-
-        let mut new_trigrams = self.trigrams.to_vec();
-        for &(c1, c2, c3, freq) in &*other.trigrams {
-            #[allow(
-                clippy::cast_precision_loss,
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss
-            )]
-            let merged_freq = (freq as f32 * weight).round() as u32;
-            new_trigrams.push((c1, c2, c3, merged_freq));
-        }
-        new_trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
-        self.trigrams = Arc::from(new_trigrams);
+        self.bigrams.merge(&other.bigrams, weight);
+        self.trigrams.merge(&other.trigrams, weight);
 
         let mut new_words = self.words.to_vec();
         for (word, freq) in &*other.words {
@@ -189,15 +243,19 @@ mod tests {
         freqs['a' as usize] = 100;
         c.char_freqs = Arc::from(freqs);
 
-        c.bigrams = Arc::from(vec![('a' as u16, 'b' as u16, 50)]);
-        c.trigrams = Arc::from(vec![('a' as u16, 'b' as u16, 'c' as u16, 10)]);
+        c.bigrams = BigramFrequencyTable {
+            entries: Arc::from(vec![('a' as u16, 'b' as u16, 50)]),
+        };
+        c.trigrams = TrigramFrequencyTable {
+            entries: Arc::from(vec![('a' as u16, 'b' as u16, 'c' as u16, 10)]),
+        };
         c.words = Arc::from(vec![("test".to_string(), 5)]);
 
         let json = serde_json::to_string(&c).expect("Failed to serialize Corpus");
         let recovered: Corpus = serde_json::from_str(&json).expect("Failed to deserialize Corpus");
 
         assert_eq!(recovered.char_freqs['a' as usize], 100);
-        assert_eq!(recovered.bigrams.len(), 1);
-        assert_eq!(recovered.bigrams[0], ('a' as u16, 'b' as u16, 50));
+        assert_eq!(recovered.bigrams.entries.len(), 1);
+        assert_eq!(recovered.bigrams.entries[0], ('a' as u16, 'b' as u16, 50));
     }
 }

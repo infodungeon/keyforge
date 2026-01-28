@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -18,8 +18,7 @@ use crate::error::ForgeError;
 use crate::geometry::KeyNode;
 use serde::{Deserialize, Serialize};
 
-/// The physical reality of the device.
-/// Contains the set of keys and pre-calculated spatial data for scoring.
+/// Pure domain data representing the physical properties of a keyboard.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keyboard {
     /// The list of physical keys.
@@ -29,17 +28,19 @@ pub struct Keyboard {
     /// Type of keyboard (e.g., "split", "ortho").
     #[serde(default)]
     pub kb_type: String,
-    /// Pre-calculated centers for fingers \[hand\]\[finger\] -> (x, y).
-    /// Used for distance calculations relative to the resting position.
+}
+
+/// Performance-oriented spatial index for fast distance and origin lookups.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SpatialIndex {
+    /// Pre-calculated centers for fingers [hand][finger] -> (x, y).
     pub finger_origins: Vec<Vec<(f32, f32)>>,
     /// Pre-calculated squared distances between every pair of physical keys.
-    /// Index: [i * `key_count` + j] -> (dx^2, dy^2).
-    #[serde(skip)]
     pub spatial_cache: Vec<(f32, f32)>,
 }
 
 impl Keyboard {
-    /// Creates a new Keyboard and pre-calculates finger origins.
+    /// Creates a new Keyboard definition.
     ///
     /// # Errors
     /// Returns a `ForgeError` if the key list is empty.
@@ -54,61 +55,46 @@ impl Keyboard {
             ));
         }
 
-        let mut kb = Self {
+        Ok(Self {
             keys,
             home_row,
             kb_type,
-            finger_origins: Vec::new(),
-            spatial_cache: Vec::new(),
-        };
-        kb.calculate_origins();
-
-        // Validation of origins
-        for (h_idx, hand) in kb.finger_origins.iter().enumerate() {
-            for (f_idx, origin) in hand.iter().enumerate() {
-                let has_keys = kb
-                    .keys
-                    .iter()
-                    .any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
-                if has_keys && origin.0.abs() < f32::EPSILON && origin.1.abs() < f32::EPSILON {
-                    let key_at_zero = kb
-                        .keys
-                        .iter()
-                        .any(|k| k.x.abs() < f32::EPSILON && k.y.abs() < f32::EPSILON);
-                    if !key_at_zero {
-                        return Err(ForgeError::InvalidData(format!(
-                            "Finger origin calculation failed for hand {h_idx}, finger {f_idx}"
-                        )));
-                    }
-                }
-            }
-        }
-
-        kb.precompute_spatial_cache();
-        Ok(kb)
+        })
     }
 
-    fn precompute_spatial_cache(&mut self) {
-        let n = self.keys.len();
+    /// Returns the number of keys on the keyboard.
+    #[must_use]
+    pub fn count(&self) -> usize {
+        self.keys.len()
+    }
+}
+
+impl SpatialIndex {
+    /// Builds a spatial index from a keyboard definition.
+    #[must_use]
+    pub fn build_from(kb: &Keyboard) -> Self {
+        let mut index = Self::default();
+        index.calculate_origins(kb);
+        index.precompute_spatial_cache(kb);
+        index
+    }
+
+    fn precompute_spatial_cache(&mut self, kb: &Keyboard) {
+        let n = kb.keys.len();
         let mut cache = vec![(0.0, 0.0); n * n];
         for i in 0..n {
             for j in 0..n {
-                let dx = self.keys[i].x - self.keys[j].x;
-                let dy = self.keys[i].y - self.keys[j].y;
+                let dx = kb.keys[i].x - kb.keys[j].x;
+                let dy = kb.keys[i].y - kb.keys[j].y;
                 cache[i * n + j] = (dx * dx, dy * dy);
             }
         }
         self.spatial_cache = cache;
     }
 
-    fn calculate_origins(&mut self) {
-        let max_hand = self
-            .keys
-            .iter()
-            .map(|k| k.hand.as_usize())
-            .max()
-            .unwrap_or(0);
-        let max_finger = self
+    fn calculate_origins(&mut self, kb: &Keyboard) {
+        let max_hand = kb.keys.iter().map(|k| k.hand.as_usize()).max().unwrap_or(0);
+        let max_finger = kb
             .keys
             .iter()
             .map(|k| k.finger.as_usize())
@@ -119,21 +105,21 @@ impl Keyboard {
 
         for hand in 0..=max_hand {
             for finger in 0..=max_finger {
-                let origin = self
+                let origin = kb
                     .keys
                     .iter()
                     .find(|k| {
                         k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.is_home
                     })
                     .or_else(|| {
-                        self.keys.iter().find(|k| {
+                        kb.keys.iter().find(|k| {
                             k.hand.as_usize() == hand
                                 && k.finger.as_usize() == finger
-                                && k.row == self.home_row
+                                && k.row == kb.home_row
                         })
                     })
                     .or_else(|| {
-                        self.keys
+                        kb.keys
                             .iter()
                             .find(|k| k.hand.as_usize() == hand && k.finger.as_usize() == finger)
                     });
@@ -144,28 +130,22 @@ impl Keyboard {
             }
         }
     }
-
-    /// Returns the number of keys on the keyboard.
-    #[must_use]
-    pub fn count(&self) -> usize {
-        self.keys.len()
-    }
 }
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use crate::types::{FingerIndex, HandIndex};
+    use crate::types::{FingerIndex, HandIndex, RowIndex};
 
     #[test]
-    fn test_keyboard_spatial_precomputation() {
+    fn test_spatial_index_precomputation() {
         let keys = vec![
             KeyNode {
                 index: 0,
                 x: 0.0,
                 y: 0.0,
                 hand: HandIndex(0),
-                finger: FingerIndex(1),
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
@@ -173,13 +153,14 @@ mod tests {
                 x: 3.0,
                 y: 4.0,
                 hand: HandIndex(0),
-                finger: FingerIndex(2),
+                finger: FingerIndex::new_unchecked(2),
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, crate::types::RowIndex(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
+        let index = SpatialIndex::build_from(&kb);
 
-        assert_eq!(kb.spatial_cache.len(), 4);
-        assert_eq!(kb.spatial_cache[1], (9.0, 16.0));
+        assert_eq!(index.spatial_cache.len(), 4);
+        assert_eq!(index.spatial_cache[1], (9.0, 16.0));
     }
 }

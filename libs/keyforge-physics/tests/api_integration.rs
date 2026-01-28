@@ -24,7 +24,9 @@ mod integration_tests {
 
     fn mock_cost_model_wiring() -> CostModel {
         let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "version": "2.0",
+        "description": "Test",
+        "unit": "pts",
         "models": {
             "model_a_row_staggered": {
                 "description": "Test Model",
@@ -83,7 +85,7 @@ mod integration_tests {
 
         // Test analyze wrapper
         let report = keyforge_compute::analyze(&req).unwrap();
-        assert!(report.score > 0.0);
+        assert!(report.summary.score > 0.0);
 
         // Test identify
         if let Some(initial) = &req.initial_layout {

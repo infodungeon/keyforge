@@ -1,0 +1,260 @@
+[[rule]]
+toolName = "web_fetch"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "set", "echo", "xdg-open",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "git",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "ls", "find",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "mcp-proxy-tool",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "ls", "cat",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "find",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "ls", "sort", "tail",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "cat",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "cat",]
+
+[[rule]]
+toolName = "write_file"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "printf",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "printf",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "printf",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = "printf -- '---\nname: UI Performance Guard\ndescription: Enforces Vercel-standard performance optimizations for React and Next.js applications.\nversion: 1.0.0\n---\n\n# UI Performance Guard\n\nEnforces Vercel-standard performance optimizations for React and Next.js applications.\n\n## Instructions\n\n### 1. Eliminate Waterfalls (CRITICAL)\n- Defer `await` until the data is actually needed in the render tree.\n- Use `Promise.all()` for independent, concurrent data fetching.\n- Implement `Suspense` boundaries to unblock the initial paint of the shell.\n\n### 2. Bundle & Tree Shaking (CRITICAL)\n- AVOID barrel file imports (`import { x } from "@/components"`); use direct paths to ensure proper tree-shaking.\n- Use dynamic imports (`next/dynamic` or `React.lazy`) for heavy components or those below the fold.\n- Audit third-party libraries; prefer native browser APIs over heavy dependencies where possible.\n\n### 3. Render Optimization\n- Extract expensive computational work into memoized components or `useMemo`.\n- Use functional updates in `setState` (e.g., `setCount(c => c + 1)`) to avoid stale closure dependencies.\n- Deduplicate global event listeners and timers using `useRef` for persistence across renders.\n\n### 4. Asset Management\n- Optimize SVG precision and minimize path data.\n- Use `content-visibility: auto` for off-screen components in long lists.\n- Hoist static JSX elements out of the render loop to prevent unnecessary re-allocations.\n\n## Verification\n- Run `npm run lint` and check for performance-related warnings.\n- Verify that initial bundle size is within the project's performance budget.\n" > .gemini/skills/ui-performance-guard/SKILL.md
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "cat",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = "printf -- '---\nname: UI Performance Guard\ndescription: Enforces Vercel-standard performance optimizations for React and Next.js applications.\nversion: 1.0.0\n---\n\n# UI Performance Guard\n\nEnforces Vercel-standard performance optimizations for React and Next.js applications.\n\n## Instructions\n\n### 1. Eliminate Waterfalls (CRITICAL)\n- Defer await until the data is actually needed in the render tree.\n- Use Promise.all() for independent, concurrent data fetching.\n- Implement Suspense boundaries to unblock the initial paint of the shell.\n\n### 2. Bundle & Tree Shaking (CRITICAL)\n- AVOID barrel file imports (import { x } from \"@/components\"); use direct paths to ensure proper tree-shaking.\n- Use dynamic imports (next/dynamic or React.lazy) for heavy components or those below the fold.\n- Audit third-party libraries; prefer native browser APIs over heavy dependencies where possible.\n\n### 3. Render Optimization\n- Extract expensive computational work into memoized components or useMemo.\n- Use functional updates in setState (e.g., setCount(c => c + 1)) to avoid stale closure dependencies.\n- Deduplicate global event listeners and timers using useRef for persistence across renders.\n\n### 4. Asset Management\n- Optimize SVG precision and minimize path data.\n- Use content-visibility: auto for off-screen components in long lists.\n- Hoist static JSX elements out of the render loop to prevent unnecessary re-allocations.\n\n## Verification\n- Run npm run lint and check for performance-related warnings.\n- Verify that initial bundle size is within the project's performance budget.\n" 
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "head",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "chmod",]
+
+[[rule]]
+mcpName = "github"
+toolName = "list_issues"
+decision = "allow"
+priority = 200
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "echo",]
+
+[[rule]]
+toolName = "save_memory"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "replace"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "sg",]
+
+[[rule]]
+toolName = "activate_skill"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "python3",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "ls", "which",]
+
+[[rule]]
+mcpName = "narsil"
+toolName = "get_index_status"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "arbor"
+toolName = "analyze_impact"
+decision = "allow"
+priority = 200
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "just",]
+
+[[rule]]
+mcpName = "github"
+toolName = "get_issue"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "github"
+toolName = "search_issues"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "github"
+toolName = "search_repositories"
+decision = "allow"
+priority = 200
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "seq", "gh",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "cargo",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "rg",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "cargo", "true",]
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "gh", "jq", "head",]
+
+[[rule]]
+mcpName = "github"
+toolName = "get_pull_request"
+decision = "allow"
+priority = 200
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [ "du", "echo",]
+
+[[rule]]
+mcpName = "github"
+toolName = "search_code"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "github"
+toolName = "get_file_contents"
+decision = "allow"
+priority = 200
+
+[[rule]]
+name = "Allow git grep"
+decision = "allow"
+priority = 999
+toolName = "run_shell_command"
+commandRegex = "^git\s+grep.*"
+
+[[rule]]
+name = "Hard Block Raw Grep"
+decision = "deny"
+priority = 998
+toolName = "run_shell_command"
+commandRegex = ".*\bgrep\b.*"

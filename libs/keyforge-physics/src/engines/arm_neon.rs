@@ -513,8 +513,8 @@ mod tests {
         freqs[97] = 100;
         freqs[98] = 200;
         corpus.char_freqs = Arc::from(freqs);
-        corpus.bigrams = Arc::from(vec![(97, 98, 50)]);
-        corpus.trigrams = Arc::from(vec![(97, 98, 97, 10)]);
+        corpus.bigrams = vec![(97, 98, 50)].into();
+        corpus.trigrams = vec![(97, 98, 97, 10)].into();
 
         let cm = keyforge_model::testing::mock_cost_model();
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();

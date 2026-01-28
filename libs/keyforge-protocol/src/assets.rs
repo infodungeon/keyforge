@@ -69,6 +69,96 @@ impl From<keyforge_model::KeyNode> for KeyNodeDto {
     }
 }
 
+/// DTO for `Corpus`.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct CorpusDto {
+    /// True if this is a standard prose corpus.
+    pub is_std: bool,
+    /// Character frequencies.
+    pub char_freqs: Vec<u64>,
+    /// Bigram frequencies.
+    pub bigrams: Vec<(u16, u16, u32)>,
+    /// Trigram frequencies.
+    pub trigrams: Vec<(u16, u16, u16, u32)>,
+    /// Word frequencies.
+    pub words: Vec<(String, u32)>,
+}
+
+impl From<keyforge_model::Corpus> for CorpusDto {
+    fn from(val: keyforge_model::Corpus) -> Self {
+        Self {
+            is_std: val.is_std,
+            char_freqs: val.char_freqs.to_vec(),
+            bigrams: val.bigrams.entries.to_vec(),
+            trigrams: val.trigrams.entries.to_vec(),
+            words: val.words.to_vec(),
+        }
+    }
+}
+
+/// DTO for `Rubric`.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct RubricDto {
+    /// Finger effort multipliers.
+    pub finger_effort: [f32; 5],
+    /// Lateral travel weight.
+    pub travel_lat: f32,
+    /// Vertical travel weight.
+    pub travel_vert: f32,
+    /// Base SFB penalty.
+    pub sfb_base: f32,
+    /// Lateral SFB penalty.
+    pub sfb_lateral: f32,
+    /// Weak-finger lateral SFB penalty.
+    pub sfb_lateral_weak: f32,
+    /// Diagonal SFB penalty.
+    pub sfb_diagonal: f32,
+    /// Long-reach SFB penalty.
+    pub sfb_long: f32,
+    /// Row difference threshold for long SFBs.
+    pub threshold_sfb_long_row_diff: i8,
+    /// Scissor penalty.
+    pub penalty_scissor: f32,
+    /// Row difference threshold for scissors.
+    pub threshold_scissor_row_diff: i8,
+    /// Redirect penalty.
+    pub redirect: f32,
+    /// Inward roll bonus.
+    pub roll_bonus: f32,
+    /// Outward roll bonus.
+    pub roll_out_bonus: f32,
+    /// Trigram coverage requirement.
+    pub trigram_coverage: f32,
+    /// Maximum trigram count.
+    pub trigram_limit: usize,
+}
+
+impl From<keyforge_model::Rubric> for RubricDto {
+    fn from(val: keyforge_model::Rubric) -> Self {
+        let raw = keyforge_model::rubric::RawRubric::from(val);
+        Self {
+            finger_effort: raw.finger_effort,
+            travel_lat: raw.travel_lat,
+            travel_vert: raw.travel_vert,
+            sfb_base: raw.sfb_base,
+            sfb_lateral: raw.sfb_lateral,
+            sfb_lateral_weak: raw.sfb_lateral_weak,
+            sfb_diagonal: raw.sfb_diagonal,
+            sfb_long: raw.sfb_long,
+            threshold_sfb_long_row_diff: raw.threshold_sfb_long_row_diff,
+            penalty_scissor: raw.penalty_scissor,
+            threshold_scissor_row_diff: raw.threshold_scissor_row_diff,
+            redirect: raw.redirect,
+            roll_bonus: raw.roll_bonus,
+            roll_out_bonus: raw.roll_out_bonus,
+            trigram_coverage: raw.trigram_coverage,
+            trigram_limit: raw.trigram_limit,
+        }
+    }
+}
+
 /// DTO for `KeyboardGeometry`.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -97,6 +187,28 @@ impl From<keyforge_model::geometry::KeyboardGeometry> for KeyboardGeometryDto {
     }
 }
 
+/// DTO for `Keyboard`.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct KeyboardDto {
+    /// List of physical keys.
+    pub keys: Vec<KeyNodeDto>,
+    /// Logical index of the home row.
+    pub home_row: i8,
+    /// Keyboard type.
+    pub kb_type: String,
+}
+
+impl From<keyforge_model::Keyboard> for KeyboardDto {
+    fn from(val: keyforge_model::Keyboard) -> Self {
+        Self {
+            keys: val.keys.into_iter().map(Into::into).collect(),
+            home_row: val.home_row.0,
+            kb_type: val.kb_type,
+        }
+    }
+}
+
 /// DTO for `Layout`.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, Default)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
@@ -109,6 +221,28 @@ impl From<keyforge_model::Layout> for LayoutDto {
     fn from(val: keyforge_model::Layout) -> Self {
         Self {
             keys: val.keys().iter().map(|k| (*k).into()).collect(),
+        }
+    }
+}
+
+/// DTO for `OptimizationResult`.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct OptimizationResultDto {
+    /// Final normalized score.
+    pub score: f32,
+    /// Raw scaled score.
+    pub raw_score: i64,
+    /// The resulting layout.
+    pub layout: LayoutDto,
+}
+
+impl From<keyforge_model::types::OptimizationResult> for OptimizationResultDto {
+    fn from(val: keyforge_model::types::OptimizationResult) -> Self {
+        Self {
+            score: val.score,
+            raw_score: val.raw_score,
+            layout: val.layout.into(),
         }
     }
 }
@@ -197,36 +331,41 @@ impl From<&keyforge_model::types::MetricViolation> for MetricViolationDto {
     }
 }
 
-/// DTO for an analysis report.
+/// DTO for score summary.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
-pub struct AnalysisReportDto {
+pub struct ScoreSummaryDto {
     /// Final normalized ergonomic score.
     pub score: f32,
+    /// Hand balance (-1.0 to 1.0).
+    pub hand_balance: f32,
+}
+
+impl From<keyforge_model::types::ScoreSummary> for ScoreSummaryDto {
+    fn from(val: keyforge_model::types::ScoreSummary) -> Self {
+        Self {
+            score: val.score,
+            hand_balance: val.hand_balance,
+        }
+    }
+}
+
+/// DTO for metric breakdown.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct MetricBreakdownDto {
+    /// Ratio of Same Finger Bigrams to total bigrams.
+    pub sfb_ratio: f32,
     /// List of computed metric values.
     pub metrics: Vec<(MetricIdDto, f32)>,
     /// List of top violations grouped by metric.
     pub violations: Vec<(MetricIdDto, Vec<MetricViolationDto>)>,
-    /// Total travel distance.
-    pub distance: f32,
-    /// Travel per keypress.
-    pub travel_per_key: f32,
-    /// Total SFB cost.
-    pub sfb_total: f32,
-    /// SFB percentage of total bigrams.
-    pub sfb_ratio: f32,
-    /// Hand balance (-1.0 to 1.0).
-    pub hand_balance: f32,
-    /// Per-key usage frequency map.
-    pub heatmap: Vec<f32>,
-    /// Per-key ergonomic penalty map.
-    pub penalty_map: Vec<f32>,
 }
 
-impl From<keyforge_model::AnalysisReport> for AnalysisReportDto {
-    fn from(val: keyforge_model::AnalysisReport) -> Self {
+impl From<keyforge_model::types::MetricBreakdown> for MetricBreakdownDto {
+    fn from(val: keyforge_model::types::MetricBreakdown) -> Self {
         Self {
-            score: val.score,
+            sfb_ratio: val.sfb_ratio,
             metrics: val
                 .metrics
                 .iter()
@@ -237,13 +376,69 @@ impl From<keyforge_model::AnalysisReport> for AnalysisReportDto {
                 .iter()
                 .map(|(id, v)| (MetricIdDto::from(*id), v.iter().map(Into::into).collect()))
                 .collect(),
+        }
+    }
+}
+
+/// DTO for travel statistics.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct TravelStatisticsDto {
+    /// Total travel distance.
+    pub distance: f32,
+    /// Travel per keypress.
+    pub travel_per_key: f32,
+}
+
+impl From<keyforge_model::types::TravelStatistics> for TravelStatisticsDto {
+    fn from(val: keyforge_model::types::TravelStatistics) -> Self {
+        Self {
             distance: val.distance,
             travel_per_key: val.travel_per_key,
-            sfb_total: val.sfb_total,
-            sfb_ratio: val.sfb_ratio,
-            hand_balance: val.hand_balance,
-            heatmap: val.heatmap,
-            penalty_map: val.penalty_map,
+        }
+    }
+}
+
+/// DTO for heatmaps.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct HeatmapsDto {
+    /// Per-key usage frequency map.
+    pub usage: Vec<f32>,
+    /// Per-key ergonomic penalty map.
+    pub effort: Vec<f32>,
+}
+
+impl From<keyforge_model::types::Heatmaps> for HeatmapsDto {
+    fn from(val: keyforge_model::types::Heatmaps) -> Self {
+        Self {
+            usage: val.usage,
+            effort: val.effort,
+        }
+    }
+}
+
+/// DTO for an analysis report.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
+pub struct AnalysisReportDto {
+    /// High-level summary.
+    pub summary: ScoreSummaryDto,
+    /// Metric details and violations.
+    pub breakdown: MetricBreakdownDto,
+    /// Physical movement stats.
+    pub travel: TravelStatisticsDto,
+    /// Heatmap visualizations.
+    pub visualizations: HeatmapsDto,
+}
+
+impl From<keyforge_model::AnalysisReport> for AnalysisReportDto {
+    fn from(val: keyforge_model::AnalysisReport) -> Self {
+        Self {
+            summary: val.summary.into(),
+            breakdown: val.breakdown.into(),
+            travel: val.travel.into(),
+            visualizations: val.visualizations.into(),
         }
     }
 }
@@ -337,8 +532,6 @@ pub struct PopulationResponse {
     /// List of layout strings in the current population.
     pub layouts: LimitedVec<String>,
 }
-
-/// DTO for `CostModelMeta`.
 
 /// DTO for `FingerReach`.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
@@ -487,7 +680,7 @@ pub struct DynamicRulesDto {
 impl From<keyforge_model::cost_model::DynamicRules> for DynamicRulesDto {
     fn from(val: keyforge_model::cost_model::DynamicRules) -> Self {
         Self {
-            sequence_modifiers: val.sequence_modifiers,
+            sequence_modifiers: val.sequence_modifiers.map,
             penalties: val.penalties,
             constraints: val.constraints,
         }
@@ -497,7 +690,9 @@ impl From<keyforge_model::cost_model::DynamicRules> for DynamicRulesDto {
 impl From<DynamicRulesDto> for keyforge_model::cost_model::DynamicRules {
     fn from(val: DynamicRulesDto) -> Self {
         Self {
-            sequence_modifiers: val.sequence_modifiers,
+            sequence_modifiers: keyforge_model::cost_model::SequenceModifiers {
+                map: val.sequence_modifiers,
+            },
             penalties: val.penalties,
             constraints: val.constraints,
         }
@@ -554,10 +749,6 @@ pub struct ValidationResultDto {
     pub score: AnalysisReportDto,
     /// Physical geometry of the keyboard used for analysis.
     pub geometry: Vec<KeyNodeDto>,
-    /// Frequency heatmap indicating which keys are used most relative to their position.
-    pub heatmap: Vec<f32>,
-    /// Map of ergonomic penalties applied across the layout.
-    pub penalty_map: Vec<f32>,
 }
 
 /// Statistics derived from raw analysis data for UI display.

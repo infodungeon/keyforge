@@ -49,11 +49,14 @@ impl CompilationStage for CostStage<'_> {
             })?);
         }
 
+        let spatial_index = keyforge_model::keyboard::SpatialIndex::build_from(self.kb);
+
         let mut internal_cost_matrix = vec![Score::ZERO; key_count * key_count];
         for i in 0..key_count {
             for j in 0..key_count {
                 let cost = calculate_pair_cost(
                     self.kb,
+                    &spatial_index,
                     self.rubric,
                     KeyIndex::from(i),
                     KeyIndex::from(j),

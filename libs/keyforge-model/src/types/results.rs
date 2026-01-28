@@ -16,61 +16,61 @@ pub struct MetricViolation {
     pub freq: f32,
 }
 
-/// Detailed breakdown of a layout's performance.
+/// High-level ergonomic score summary.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct AnalysisReport {
-    /// Total weighted score.
+pub struct ScoreSummary {
+    /// Total normalized ergonomic score.
     pub score: f32,
-    /// Standard metric values.
-    #[serde(default)]
+    /// Hand balance (-1.0 Left, +1.0 Right, 0.0 Balanced).
+    pub hand_balance: f32,
+}
+
+/// Detailed breakdown of biomechanical metrics and violations.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MetricBreakdown {
+    /// Ratio of Same Finger Bigrams to total bigrams.
+    pub sfb_ratio: f32,
+    /// Count of scissors (normalized).
+    pub scissors: f32,
+    /// Count of redirects (normalized).
+    pub redirects: f32,
+    /// Count of rolls (normalized).
+    pub rolls: f32,
+    /// Standard metric values (SFB freq, roll freq, etc).
     pub metrics: MetricSet,
     /// Top offenders grouped by metric.
-    #[serde(default)]
     pub violations: HashMap<MetricId, Vec<MetricViolation>>,
+}
 
-    /// Total finger travel distance.
+/// Movement-related statistics.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TravelStatistics {
+    /// Total finger travel distance (normalized).
     pub distance: f32,
     /// Average travel distance per keypress.
     pub travel_per_key: f32,
-    /// Total Same Finger Bigram cost.
-    pub sfb_total: f32,
-    /// Ratio of SFBs to total bigrams.
-    pub sfb_ratio: f32,
-    /// Hand balance (-1.0 Left, +1.0 Right, 0.0 Balanced).
-    pub hand_balance: f32,
-    /// Scissor score.
-    pub scissors: f32,
-    /// Redirect score.
-    pub redirects: f32,
-    /// Inward roll score.
-    pub rolls: f32,
-    /// Total SFB penalty.
-    #[serde(default)]
-    pub sfb_penalty: f32,
-    /// Total scissor penalty.
-    #[serde(default)]
-    pub scissor_penalty: f32,
-    /// Total redirect penalty.
-    #[serde(default)]
-    pub redir_penalty: f32,
-    /// Total roll penalty.
-    #[serde(default)]
-    pub roll_penalty: f32,
-    /// Usage heatmap.
-    #[serde(default)]
-    pub heatmap: Vec<f32>,
-    /// Effort heatmap.
-    #[serde(default)]
-    pub penalty_map: Vec<f32>,
-    /// Top SFB offenders.
-    #[serde(default)]
-    pub top_sfbs: Vec<MetricViolation>,
-    /// Top Scissor offenders.
-    #[serde(default)]
-    pub top_scissors: Vec<MetricViolation>,
-    /// Top Redirect offenders.
-    #[serde(default)]
-    pub top_redirs: Vec<MetricViolation>,
+}
+
+/// Spatial data for visualization.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Heatmaps {
+    /// Per-key usage frequency map.
+    pub usage: Vec<f32>,
+    /// Per-key ergonomic penalty map.
+    pub effort: Vec<f32>,
+}
+
+/// Detailed breakdown of a layout's performance.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AnalysisReport {
+    /// High-level summary.
+    pub summary: ScoreSummary,
+    /// Metric details and violations.
+    pub breakdown: MetricBreakdown,
+    /// Physical movement stats.
+    pub travel: TravelStatistics,
+    /// Heatmap visualizations.
+    pub visualizations: Heatmaps,
 }
 
 /// The final output of an optimization run.

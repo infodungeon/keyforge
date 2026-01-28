@@ -173,13 +173,13 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             kb_def.kb_type.clone(),
         )?);
 
-        let compilation_ctx = keyforge_physics::EngineCompilationContext {
+        let compilation_ctx = keyforge_physics::ScoringContext::new(
             keyboard,
             corpus,
             rubric,
             cost_model,
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        };
+            keyforge_model::config::EngineConfig::default(),
+        );
 
         let hw_provider = keyforge_infra::hardware::FsHardwareProvider::default();
         let topo = HardwareProbe::probe_with_provider(Some(&hw_provider));

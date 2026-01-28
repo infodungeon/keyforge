@@ -218,16 +218,15 @@ impl KeyforgeEngine {
             .map_err(to_js_error)?,
         );
 
-        let engine = keyforge_physics::EngineFactory::new_generic(
-            &keyforge_physics::EngineCompilationContext {
+        let engine =
+            keyforge_physics::EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
                 keyboard,
-                corpus: corpus.clone(),
-                rubric: Arc::new(rubric.clone()),
-                cost_model: cost_model.clone(),
-                engine_config: keyforge_model::config::EngineConfig::default(),
-            },
-        )
-        .map_err(|e| map_physics_error(&e))?;
+                corpus.clone(),
+                Arc::new(rubric.clone()),
+                cost_model.clone(),
+                keyforge_model::config::EngineConfig::default(),
+            ))
+            .map_err(|e| map_physics_error(&e))?;
 
         let report = engine.analyze(&layout).map_err(|e| map_physics_error(&e))?;
 
@@ -244,9 +243,8 @@ mod tests {
     fn test_inject_keyboard() {
         let engine = KeyforgeEngine::new();
         let kb_json = r#"{
-            "meta": { "name": "Test" },
-            "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0 },
-            "layouts": {}
+            "name": "Test",
+            "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0 }
         }"#;
         let val: serde_json::Value = serde_json::from_str(kb_json).unwrap();
         let js_val = to_value(&val).unwrap();

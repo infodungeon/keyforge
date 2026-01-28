@@ -3,12 +3,14 @@ use keyforge_model::{
     types::{FingerIndex, HandIndex, KeyCode},
     Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric,
 };
-use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use keyforge_physics::EngineFactory;
 use std::sync::Arc;
 
 fn mock_cost_model() -> CostModel {
     let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "version": "2.0",
+        "description": "Test",
+        "unit": "pts",
         "models": {
             "model_a_row_staggered": {
                 "description": "Test Model",
@@ -46,7 +48,7 @@ fn main() {
     char_freqs[97] = 1; // 'a'
     char_freqs[98] = 1; // 'b'
     corpus_val.char_freqs = Arc::from(char_freqs);
-    corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
+    corpus_val.bigrams = vec![(97, 98, 1000)].into();
     let corpus = Arc::new(corpus_val);
 
     let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
@@ -54,25 +56,25 @@ fn main() {
 
     // 1. Default Rubric
     let rubric_def = Arc::new(Rubric::default());
-    let engine_def = EngineFactory::new_generic(&EngineCompilationContext {
-        keyboard: keyboard.clone(),
-        corpus: corpus.clone(),
-        rubric: rubric_def,
-        cost_model: cost_model.clone(),
-        engine_config: keyforge_model::config::EngineConfig::default(),
-    })
+    let engine_def = EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+        keyboard.clone(),
+        corpus.clone(),
+        rubric_def,
+        cost_model.clone(),
+        keyforge_model::config::EngineConfig::default(),
+    ))
     .unwrap();
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)
     let rubric_custom = Arc::new(Rubric::builder().sfb_base(5000.0).build());
-    let engine_custom = EngineFactory::new_generic(&EngineCompilationContext {
+    let engine_custom = EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
         keyboard,
         corpus,
-        rubric: rubric_custom,
+        rubric_custom,
         cost_model,
-        engine_config: keyforge_model::config::EngineConfig::default(),
-    })
+        keyforge_model::config::EngineConfig::default(),
+    ))
     .unwrap();
     let score_custom = engine_custom.score(&layout).unwrap();
 

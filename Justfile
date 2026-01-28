@@ -130,7 +130,19 @@ cover package:
 	mkdir -p target/coverage
 	cargo tarpaulin -p {{package}} --ignore-tests --outXml --output-dir target/coverage
 
+# --- 100x WORKFLOW ---
+
+# The ultimate verification gate: Format, Check, Lint, Audit, and Test the entire workspace.
+check-100x: fmt audit
+	cargo check --workspace
+	cargo test --workspace
+	just test-ui
+
 # --- UTILS ---
+
+# Safely search the codebase, excluding large regression files and capping line lengths.
+search pattern dir=".":
+	@rg --ignore-file .ignore -g "!**/proptest-regressions/**" -g "!**/*.proptest-regressions" {{pattern}} {{dir}} | cut -c 1-500
 
 fmt:
 	cargo fmt
@@ -189,6 +201,23 @@ mcp-narsil:
 # Starts Arbor with robust MCP Proxy
 mcp-arbor:
 	mcp-proxy-tool --command /home/robert/.cargo/bin/arbor --args "bridge"
+
+# Checks the health of MCP servers
+mcp-status:
+	python3 ops/scripts/check_mcp.py
+
+# Restarts all MCP servers
+mcp-restart:
+	-pkill -f mcp-proxy-tool
+	-pkill -f narsil-mcp
+	-pkill -f arbor
+	@echo "Restarting Narsil..."
+	nohup just mcp-narsil > /dev/null 2>&1 &
+	@echo "Restarting Arbor..."
+	nohup just mcp-arbor > /dev/null 2>&1 &
+	@sleep 2
+	just mcp-status
+
 # Performs the unified 100x Structural and Intelligence Audit
 audit-deep:
 	@echo "🚀 Initiating Autonomous 100x Master Audit..."

@@ -49,7 +49,11 @@ pub async fn cmd_get_loaded_layouts(
     let job = state.active_job.read().await;
     Ok(job
         .as_ref()
-        .map(|j| j.definition.layouts.keys().cloned().collect())
+        .and_then(|j| {
+            j.catalog
+                .as_ref()
+                .map(|c| c.layouts.keys().cloned().collect())
+        })
         .unwrap_or_default())
 }
 

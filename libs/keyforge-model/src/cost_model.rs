@@ -250,11 +250,19 @@ pub enum FingerDefinition {
     Thumb(HashMap<String, f32>),
 }
 
+/// Wrapper for sequence-based scoring modifiers.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct SequenceModifiers {
+    /// Mapping of sequence strings (e.g. "TH") to their cost modifiers.
+    pub map: HashMap<String, f32>,
+}
+
 /// Dynamic scoring rules and global constraints.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DynamicRules {
     /// Modifiers for key sequences (e.g., rolls).
-    pub sequence_modifiers: HashMap<String, f32>,
+    pub sequence_modifiers: SequenceModifiers,
     /// Penalties for biomechanical violations (e.g., scissors).
     pub penalties: HashMap<String, f32>,
     /// Global constraints (e.g., hand balance).
@@ -264,7 +272,7 @@ pub struct DynamicRules {
 impl Validator for DynamicRules {
     fn validate(&self) -> Result<(), String> {
         // Basic check to ensure no infinite/NaN values
-        for (k, v) in &self.sequence_modifiers {
+        for (k, v) in &self.sequence_modifiers.map {
             if !v.is_finite() {
                 return Err(format!("Sequence modifier '{k}' is not finite"));
             }

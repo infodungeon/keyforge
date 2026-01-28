@@ -40,13 +40,14 @@ pub use keyforge_model as model;
 
 // Re-export core DTOs for backward compatibility and convenience
 pub use assets::{
-    AnalysisReportDto, AssetManifestEntry, BiometricSample, DerivedStatsDto, KeyNodeDto,
-    KeyboardGeometryDto, LayoutDto, MetricIdDto, MetricViolationDto, PopulationResponse,
-    SwapSuggestionDto, UserStatsStore, ValidationResultDto,
+    AnalysisReportDto, AssetManifestEntry, BiometricSample, CorpusDto, DerivedStatsDto,
+    HeatmapsDto, KeyNodeDto, KeyboardDto, KeyboardGeometryDto, LayoutDto, MetricBreakdownDto,
+    MetricIdDto, MetricViolationDto, OptimizationResultDto, PopulationResponse, RubricDto,
+    ScoreSummaryDto, SwapSuggestionDto, TravelStatisticsDto, UserStatsStore, ValidationResultDto,
 };
 pub use config::{
     ConfigAggregateDto, CorpusSourceDto, CostMatrixSourceDto, KeyConstraintDto,
-    KeyboardDefinitionDto, ScoringWeightsDto, SearchParamsDto,
+    KeyboardDefinitionDto, LayoutCatalogDto, ScoringWeightsDto, SearchParamsDto,
 };
 pub use job::{
     JobConfig, JobDetailedStatus, JobQueueResponse, JobRequest, JobResponse, ResultSubmission,

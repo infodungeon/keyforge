@@ -1,0 +1,86 @@
+[[rule]]
+name = "Allow git grep"
+decision = "allow"
+priority = 999
+toolName = "run_shell_command"
+commandPrefix = "git grep"
+
+[[rule]]
+name = "Hard Block Raw Grep"
+decision = "deny"
+priority = 998
+toolName = "run_shell_command"
+# This regex matches 'grep' but we rely on the higher priority rule to allow 'git grep'
+commandRegex = "grep"
+
+[[rule]]
+name = "Block root search"
+decision = "deny"
+priority = 998
+toolName = "search_file_content"
+dirPathRegex = "^\\.$"
+
+[[rule]]
+toolName = "web_fetch"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "write_file"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "replace"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "save_memory"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "activate_skill"
+decision = "allow"
+priority = 100
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 100
+commandPrefix = [
+    "set", "echo", "ls", "find", "cat", "sort", "tail", 
+    "printf", "chmod", "mv", "ln", "du", "cargo", 
+    "just", "gh", "jq", "python3", "which", "ps", "sg", "git"
+]
+
+[[rule]]
+mcpName = "github"
+toolName = "list_issues"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "github"
+toolName = "get_issue"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "github"
+toolName = "search_issues"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "narsil"
+toolName = "get_index_status"
+decision = "allow"
+priority = 200
+
+[[rule]]
+mcpName = "arbor"
+toolName = "analyze_impact"
+decision = "allow"
+priority = 200

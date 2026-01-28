@@ -49,6 +49,30 @@ def main():
             }))
             return
 
+    # Rule 4: Block high-verbosity structural tools on root
+    heavy_tools = ["get_project_structure", "search_chunks", "search_code", "semantic_search", "hybrid_search"]
+    if tool_name in heavy_tools:
+        repo = tool_input.get("repo", ".")
+        if repo in [".", "./", "/"]:
+            print(json.dumps({
+                "continue": False,
+                "decision": "block",
+                "reason": f"CRITICAL: '{tool_name}' on root is forbidden. This tool returns high-verbosity metadata that causes context overflow. Target a specific subdirectory or crate (e.g., 'libs/keyforge-physics')."
+            }))
+            return
+
+    # Rule 5: Prevent massive file reads
+    if tool_name == "read_file":
+        # We can't check file size easily here without IO, but we can warn about certain patterns
+        path = tool_input.get("file_path", "")
+        if "Cargo.lock" in path or "package-lock.json" in path:
+            print(json.dumps({
+                "continue": False,
+                "decision": "block",
+                "reason": "CRITICAL: Reading large lockfiles directly is forbidden. Use 'get_dependencies' or grep for specific versions to save context."
+            }))
+            return
+
     # Default: Allow
     print(json.dumps({"continue": True}))
 

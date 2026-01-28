@@ -18,12 +18,11 @@ mod integration_tests {
         fs::create_dir_all(&kb_dir).unwrap();
 
         let kb_json = r#"{
-        "meta": { "name": "Test Board" },
+        "name": "Test Board",
         "geometry": { 
             "keys": [{"index":0, "label": "A", "x":0.0, "y":0.0, "hand":0, "finger":1, "row": 0, "col": 0}], 
             "prime_slots": [0], "med_slots": [], "low_slots": [], "home_row": 0
-        },
-        "layouts": {}
+        }
     }"#;
         fs::write(kb_dir.join("test_kb.json"), kb_json).unwrap();
 
@@ -32,7 +31,7 @@ mod integration_tests {
         // 1. Load existing asset
         let res = provider.load::<KeyboardDefinition>("test_kb").await;
         assert!(res.is_ok(), "Failed to load test_kb: {:?}", res.err());
-        assert_eq!(res.unwrap().meta.name, "Test Board");
+        assert_eq!(res.unwrap().name, "Test Board");
 
         // 2. Load missing asset
         let missing = provider.load::<KeyboardDefinition>("missing").await;

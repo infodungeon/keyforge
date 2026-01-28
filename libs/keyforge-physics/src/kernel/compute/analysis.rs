@@ -69,8 +69,19 @@ pub fn analyze_layout(
         let mut total_load = 0.0;
         let mut left_hand_load = 0.0;
         let mut total_bigrams = 0.0;
+
+        let mut distance = 0.0;
+        let mut sfb_total = 0.0;
+        let mut sfb_penalty = 0.0;
+        let mut scissors = 0.0;
+        let mut scissor_penalty = 0.0;
+        let mut redirects = 0.0;
+        let mut redir_penalty = 0.0;
+        let mut rolls = 0.0;
+        let mut roll_penalty = 0.0;
+
         let mut sfbs = Vec::new();
-        let mut scissors = Vec::new();
+        let mut scissor_violations = Vec::new();
         let mut redirs = Vec::new();
 
         // 1. Pass 1: Trigrams (Flow ONLY)
@@ -117,10 +128,10 @@ pub fn analyze_layout(
                 penalty_map[idx3] += flow_cost_f32 * freq_f * 0.33;
 
                 if flow_cost == ctx.penalty_redirect {
-                    report.redirects += freq_f;
+                    redirects += freq_f;
 
                     // Accumulate redirect penalty contribution
-                    report.redir_penalty += flow_cost_f32 * freq_f;
+                    redir_penalty += flow_cost_f32 * freq_f;
 
                     redirs.push(MetricViolation {
                         keys: format!("{}{}{}", u16_to_char(c1), u16_to_char(c2), u16_to_char(c3)),
@@ -128,10 +139,10 @@ pub fn analyze_layout(
                         freq: freq_f,
                     });
                 } else if flow_cost < Score::ZERO {
-                    report.rolls += freq_f;
+                    rolls += freq_f;
 
                     // Accumulate roll penalty contribution (negative, so it's a bonus)
-                    report.roll_penalty += flow_cost_f32 * freq_f;
+                    roll_penalty += flow_cost_f32 * freq_f;
                 }
             }
         }
@@ -186,25 +197,25 @@ pub fn analyze_layout(
                 // Same key: No movement
             } else if ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2] {
                 // Same Hand: Euclidean Distance
-                report.distance += ctx.geometry.dist_matrix[idx1 * key_count + idx2] * freq_f;
+                distance += ctx.geometry.dist_matrix[idx1 * key_count + idx2] * freq_f;
 
                 // SFB Check (Specific to same-finger move)
                 if ctx.geometry.fingers[idx1] == ctx.geometry.fingers[idx2] {
-                    report.sfb_total += freq_f;
+                    sfb_total += freq_f;
 
                     // Accumulate SFB penalty contribution
-                    let sfb_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2].to_f32();
-                    report.sfb_penalty += sfb_cost * freq_f;
+                    let cost_val = ctx.geometry.cost_matrix[idx1 * key_count + idx2].to_f32();
+                    sfb_penalty += cost_val * freq_f;
 
                     sfbs.push(MetricViolation {
                         keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
-                        score: sfb_cost * freq_f,
+                        score: cost_val * freq_f,
                         freq: freq_f,
                     });
                 }
             } else {
                 // Different Hand: Movement from home position
-                report.distance += ctx.geometry.key_home_distances[idx2] * freq_f;
+                distance += ctx.geometry.key_home_distances[idx2] * freq_f;
             }
 
             // Scissor Detection
@@ -218,15 +229,15 @@ pub fn analyze_layout(
                 && f1 != FingerIndex::THUMB
                 && f2 != FingerIndex::THUMB
             {
-                report.scissors += freq_f;
+                scissors += freq_f;
 
                 // Accumulate scissor penalty contribution
-                let scissor_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2].to_f32();
-                report.scissor_penalty += scissor_cost * freq_f;
+                let cost_val = ctx.geometry.cost_matrix[idx1 * key_count + idx2].to_f32();
+                scissor_penalty += cost_val * freq_f;
 
-                scissors.push(MetricViolation {
+                scissor_violations.push(MetricViolation {
                     keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
-                    score: scissor_cost * freq_f,
+                    score: cost_val * freq_f,
                     freq: freq_f,
                 });
             }
@@ -288,7 +299,7 @@ pub fn analyze_layout(
             v.truncate(MAX_REPORTED_VIOLATIONS);
         };
         sort_violations(&mut sfbs);
-        sort_violations(&mut scissors);
+        sort_violations(&mut scissor_violations);
         sort_violations(&mut redirs);
 
         // Normalization
@@ -297,22 +308,14 @@ pub fn analyze_layout(
         let mut norm_pct = 1.0;
 
         if total_freq > 0 {
-            #[allow(
-                clippy::cast_precision_loss,
-                clippy::cast_possible_truncation,
-                clippy::cast_lossless
-            )]
             let total_freq_f = total_freq as f64;
-            report.travel_per_key = (f64::from(report.distance) / total_freq_f) as f32;
+            report.travel.travel_per_key = (f64::from(distance) / total_freq_f) as f32;
             norm_100k = (100_000.0 / total_freq_f) as f32;
             norm_pct = (100.0 / total_freq_f) as f32;
         }
 
-        if total_bigrams > 0.0 {
-            report.sfb_ratio = report.sfb_total / total_bigrams;
-        }
         if total_load > 0.0 {
-            report.hand_balance = ((left_hand_load / total_load) - 0.5) * -2.0;
+            report.summary.hand_balance = ((left_hand_load / total_load) - 0.5) * -2.0;
         }
 
         for h in &mut heatmap {
@@ -325,7 +328,7 @@ pub fn analyze_layout(
             v.freq *= norm_pct;
             v.score *= norm_100k;
         }
-        for v in &mut scissors {
+        for v in &mut scissor_violations {
             v.freq *= norm_pct;
             v.score *= norm_100k;
         }
@@ -334,48 +337,72 @@ pub fn analyze_layout(
             v.score *= norm_100k;
         }
 
-        report.top_sfbs = sfbs;
-        report.top_scissors = scissors;
-        report.top_redirs = redirs;
-        report.heatmap = heatmap;
-        report.penalty_map = penalty_map;
+        report.breakdown.violations.insert(MetricId::Sfb, sfbs);
+        report
+            .breakdown
+            .violations
+            .insert(MetricId::Scissor, scissor_violations);
+        report
+            .breakdown
+            .violations
+            .insert(MetricId::Redirect, redirs);
+
+        report.visualizations.usage = heatmap;
+        report.visualizations.effort = penalty_map;
 
         // Final Score: Sum of context-aware normalized penalties
-        report.score = report.penalty_map.iter().sum();
+        report.summary.score = report.visualizations.effort.iter().sum();
 
         // Normalized metrics
-        report.distance *= norm_100k;
-        report.sfb_total *= norm_pct;
-        report.scissors *= norm_pct;
-        report.redirects *= norm_pct;
-        report.rolls *= norm_pct;
+        report.travel.distance = distance * norm_100k;
 
-        // Normalize penalty contributions to match score scale
-        report.sfb_penalty *= norm_100k;
-        report.scissor_penalty *= norm_100k;
-        report.redir_penalty *= norm_100k;
-        report.roll_penalty *= norm_100k;
+        report.breakdown.sfb_ratio = if total_bigrams > 0.0 {
+            sfb_total / total_bigrams
+        } else {
+            0.0
+        };
+        report.breakdown.scissors = scissors * norm_pct;
+        report.breakdown.redirects = redirects * norm_pct;
+        report.breakdown.rolls = rolls * norm_pct;
 
         // Populate unified MetricSet
         report
+            .breakdown
             .metrics
-            .set(MetricId::TravelDistance, report.distance);
-        report.metrics.set(MetricId::Sfb, report.sfb_total);
-        report.metrics.set(MetricId::SfbPenalty, report.sfb_penalty);
-        report.metrics.set(MetricId::Scissor, report.scissors);
+            .set(MetricId::TravelDistance, report.travel.distance);
         report
+            .breakdown
             .metrics
-            .set(MetricId::ScissorPenalty, report.scissor_penalty);
-        report.metrics.set(MetricId::Redirect, report.redirects);
+            .set(MetricId::Sfb, sfb_total * norm_pct);
         report
+            .breakdown
             .metrics
-            .set(MetricId::RedirectPenalty, report.redir_penalty);
+            .set(MetricId::SfbPenalty, sfb_penalty * norm_100k);
         report
+            .breakdown
             .metrics
-            .set(MetricId::RollPenalty, report.roll_penalty);
+            .set(MetricId::Scissor, report.breakdown.scissors);
         report
+            .breakdown
             .metrics
-            .set(MetricId::HandBalance, report.hand_balance);
+            .set(MetricId::ScissorPenalty, scissor_penalty * norm_100k);
+        report
+            .breakdown
+            .metrics
+            .set(MetricId::Redirect, report.breakdown.redirects);
+        report
+            .breakdown
+            .metrics
+            .set(MetricId::RedirectPenalty, redir_penalty * norm_100k);
+        report
+            .breakdown
+            .metrics
+            .set(MetricId::RollPenalty, roll_penalty * norm_100k);
+        report
+            .breakdown
+            .metrics
+            .set(MetricId::HandBalance, report.summary.hand_balance);
+
         // Clean up
         scratch.clear_used();
     })?;
@@ -451,10 +478,9 @@ mod tests {
         freqs[97] = 100; // 'a'
         freqs[98] = 200; // 'b'
         corpus.char_freqs = Arc::from(freqs);
-        corpus.bigrams = Arc::from(vec![(97, 98, 50)]);
-        corpus.trigrams = Arc::from(vec![(97, 98, 97, 10)]); // Redirect: a -> b -> a (Index -> Middle -> Index)
+        corpus.bigrams = vec![(97, 98, 50)].into();
+        corpus.trigrams = vec![(97, 98, 97, 10)].into(); // Redirect: a -> b -> a (Index -> Middle -> Index)
 
-        let mut cm = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
 
         let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
@@ -509,7 +535,7 @@ mod tests {
 
         let report = analyze_layout(&ctx, &validated);
         let report = report.unwrap();
-        assert!(report.score > 0.0);
-        assert!(report.redirects > 0.0);
+        assert!(report.summary.score > 0.0);
+        assert!(report.breakdown.metrics.get(MetricId::Redirect) > 0.0);
     }
 }

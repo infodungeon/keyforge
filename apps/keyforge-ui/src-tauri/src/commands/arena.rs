@@ -106,7 +106,7 @@ pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, CommandEr
         )));
     }
 
-    let model = keyforge_model::CostModel::from(builder.build_model());
+    let model = builder.build_model();
     user_data
         .save_personal_cost_model(&model)
         .map_err(|e| CommandError::Internal(e.to_string()))?;
@@ -149,7 +149,7 @@ pub async fn cmd_get_corpus_bigrams(
 
     let mut bigrams = Vec::new();
 
-    let mut sorted_bgs = bundle.bigrams.to_vec();
+    let mut sorted_bgs = bundle.bigrams.entries.to_vec();
     sorted_bgs.sort_by(|a, b| b.2.cmp(&a.2));
 
     for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {

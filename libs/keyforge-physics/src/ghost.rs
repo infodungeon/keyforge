@@ -28,6 +28,7 @@ use keyforge_model::{Corpus, KeyCode, Keyboard, Layout, Rubric, Score};
 #[derive(Debug)]
 pub struct GhostScorer {
     keyboard: Keyboard,
+    spatial_index: keyforge_model::keyboard::SpatialIndex,
     rubric: GhostRubric,
     cost_model: keyforge_model::CostModel,
 }
@@ -42,8 +43,10 @@ impl GhostScorer {
         rubric: &Rubric,
         cm: keyforge_model::CostModel,
     ) -> Result<Self, PhysicsError> {
+        let spatial_index = keyforge_model::keyboard::SpatialIndex::build_from(&kb);
         Ok(Self {
             keyboard: kb,
+            spatial_index,
             rubric: GhostRubric::from_rubric(rubric)?,
             cost_model: cm,
         })
@@ -82,7 +85,7 @@ impl GhostScorer {
 
         // 2. Bigrams (Movement)
 
-        for (c1, c2, freq) in &*corpus.bigrams {
+        for (c1, c2, freq) in &*corpus.bigrams.entries {
             let code1 = KeyCode(*c1);
 
             let code2 = KeyCode(*c2);
@@ -110,7 +113,7 @@ impl GhostScorer {
 
         // 3. Trigrams (Flow)
 
-        for (c1, c2, c3, freq) in &*corpus.trigrams {
+        for (c1, c2, c3, freq) in &*corpus.trigrams.entries {
             let code1 = KeyCode(*c1);
 
             let code2 = KeyCode(*c2);
@@ -289,7 +292,7 @@ impl GhostScorer {
             return Score::ZERO;
         }
 
-        let (dx2, dy2) = self.keyboard.spatial_cache[p1 * self.keyboard.keys.len() + p2];
+        let (dx2, dy2) = self.spatial_index.spatial_cache[p1 * self.keyboard.keys.len() + p2];
         let dist = (f64::from(dx2) * f64::from(self.rubric.travel_lat)
             + f64::from(dy2) * f64::from(self.rubric.travel_vert))
             * f64::from(keyforge_model::constants::SCORE_SCALE);

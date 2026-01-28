@@ -15,7 +15,7 @@
 use keyforge_infra::AssetManager;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
-use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use keyforge_physics::EngineFactory;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
@@ -33,7 +33,9 @@ struct CalibrationData {
 
 fn default_cost_model() -> Result<CostModel, AgentError> {
     let json = r#"{
-        "meta": { "version": "2.0", "description": "Calibration", "unit": "pts" },
+        "version": "2.0",
+        "description": "Calibration",
+        "unit": "pts",
         "models": {
             "model_a_row_staggered": {
                 "description": "Calibration Model",
@@ -134,13 +136,13 @@ fn run_benchmark(
             .collect(),
     );
 
-    let engine = EngineFactory::new_generic(&EngineCompilationContext {
-        keyboard: keyboard.clone(),
+    let engine = EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+        keyboard.clone(),
         corpus,
         rubric,
         cost_model,
-        engine_config: keyforge_model::config::EngineConfig::default(),
-    })?;
+        keyforge_model::config::EngineConfig::default(),
+    ))?;
 
     for _ in 0..config.warmup_iterations {
         let _ = engine.score(&layout);

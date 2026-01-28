@@ -10,6 +10,8 @@
 2.  **`ast-grep (sg)` (The Structural Scalpel):** Use for cross-crate transformations.
 3.  **`read_file` (The Lens of Truth):** Mandatory before any modification. You must see the code to fix the code.
 4.  **`sed` (The Toxic Artifact):** Restricted to single-word constant swaps in `Cargo.toml`. Usage for logic is a strike.
+5.  **`SEARCH-001` (Targeted Exploration):** Searching the root directory (`./`) is an architectural failure. Use `include` or `dir_path` for every operation. Enforcement is automated via `ops/scripts/context_safeguard.py`.
+6.  **`CONTEXT-001` (Structural Minification):** For complex files, use `just context <FILE>` to read headers first. Reading > 500 lines of raw code without minification is a strike.
 
 ## 2. The Semantic Stabilization Protocol
 

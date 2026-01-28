@@ -3,7 +3,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use keyforge_model::{Corpus, CostModel, KeyCode, KeyNode, Keyboard, Layout, Rubric};
-use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use keyforge_physics::{EngineFactory, ScoringContext};
 use std::sync::Arc;
 
 fn bench_scoring(c: &mut Criterion) {
@@ -14,14 +14,15 @@ fn bench_scoring(c: &mut Criterion) {
     let rubric = Arc::new(Rubric::default());
     let cm = Arc::new(CostModel::default());
 
-    let engine = EngineFactory::new_generic(&EngineCompilationContext {
-        keyboard: kb,
-        corpus: cp,
+    let ctx = ScoringContext::new(
+        kb,
+        cp,
         rubric,
-        cost_model: cm,
-        engine_config: keyforge_model::config::EngineConfig::default(),
-    })
-    .expect("Failed to compile engine");
+        cm,
+        keyforge_model::config::EngineConfig::default(),
+    );
+
+    let engine = EngineFactory::new_generic(&ctx).expect("Failed to compile engine");
 
     let layout = Layout::new_unchecked(vec![KeyCode(0); engine.key_count()]);
 

@@ -3,7 +3,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -36,12 +36,12 @@ pub fn scoring(results: &[(String, AnalysisReport)]) {
     for (name, d) in results {
         table.add_row(vec![
             Cell::new(name).add_attribute(Attribute::Bold),
-            Cell::new(format!("{:.0}", d.score)).fg(Color::Cyan),
-            Cell::new(format!("{:.2}%", d.sfb_ratio * 100.0)).fg(Color::Red),
-            Cell::new(format!("{:.0}", d.scissors)).fg(Color::Yellow),
-            Cell::new(format!("{:.0}", d.redirects)).fg(Color::Blue),
-            Cell::new(format!("{:.0}", d.rolls)).fg(Color::Green),
-            Cell::new(format!("{:.2}", d.hand_balance)),
+            Cell::new(format!("{:.0}", d.summary.score)).fg(Color::Cyan),
+            Cell::new(format!("{:.2}%", d.breakdown.sfb_ratio * 100.0)).fg(Color::Red),
+            Cell::new(format!("{:.0}", d.breakdown.scissors)).fg(Color::Yellow),
+            Cell::new(format!("{:.0}", d.breakdown.redirects)).fg(Color::Blue),
+            Cell::new(format!("{:.0}", d.breakdown.rolls)).fg(Color::Green),
+            Cell::new(format!("{:.2}", d.summary.hand_balance)),
         ]);
     }
     println!("\n{table}");

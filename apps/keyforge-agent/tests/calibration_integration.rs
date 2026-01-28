@@ -19,7 +19,7 @@ mod tests {
         let sys_kb_dir = data_root.join("system/keyboards");
         fs::create_dir_all(&sys_kb_dir).unwrap();
         let corne_json = r#"{
-            "meta": { "name": "corne", "author": "foostan", "version": "1", "notes": "", "type": "split" },
+            "name": "corne", "author": "foostan", "version": "1", "notes": "", "type": "split",
             "geometry": {
                 "keys": [
                     {"index":0, "label":"k0", "x":0, "y":0, "w":1, "h":1, "hand":0, "finger":1, "row":0, "col":0},
@@ -29,8 +29,7 @@ mod tests {
                 "med_slots": [],
                 "low_slots": [],
                 "home_row": 0
-            },
-            "layouts": { "default": "A B" }
+            }
         }"#;
         fs::write(sys_kb_dir.join("corne.json"), corne_json).unwrap();
 

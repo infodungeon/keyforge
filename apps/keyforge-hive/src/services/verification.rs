@@ -152,7 +152,6 @@ impl VerificationService {
                 notes: String::default(),
                 kb_type: String::default(),
                 geometry,
-                layouts: std::collections::HashMap::default(),
             }))
             .with_corpus(&[CorpusSource {
                 id: corpus_name,

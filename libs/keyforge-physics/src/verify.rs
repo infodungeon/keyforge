@@ -9,6 +9,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct DeterministicScorer {
     rubric: FixedPointRubric,
+    spatial_index: keyforge_model::keyboard::SpatialIndex,
     static_costs:
         Arc<std::collections::HashMap<String, keyforge_model::cost_model::HandDefinition>>,
     sequence_modifiers: Arc<std::collections::HashMap<(u16, u16), i64>>,
@@ -33,7 +34,7 @@ impl DeterministicScorer {
             .unwrap_or_default();
 
         let mut sequence_modifiers = std::collections::HashMap::new();
-        for (bigram, &val) in &cost_model.dynamic_rules().sequence_modifiers {
+        for (bigram, &val) in &cost_model.dynamic_rules().sequence_modifiers.map {
             if bigram.len() == 2 {
                 let bytes = bigram.as_bytes();
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
@@ -41,8 +42,11 @@ impl DeterministicScorer {
             }
         }
 
+        let spatial_index = keyforge_model::keyboard::SpatialIndex::build_from(kb);
+
         Self {
             rubric: FixedPointRubric::from_rubric(rubric),
+            spatial_index,
             static_costs,
             sequence_modifiers: Arc::new(sequence_modifiers),
             penalty_redirect: to_fixed(rubric.redirect()),
@@ -123,7 +127,7 @@ impl DeterministicScorer {
         layout_keys: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let mut bigram_score = 0i64;
-        for (c1, c2, freq) in &*corpus.bigrams {
+        for (c1, c2, freq) in &*corpus.bigrams.entries {
             let freq = i64::from(*freq);
             let indices1 = find_indices(layout_keys, KeyCode(*c1));
             let indices2 = find_indices(layout_keys, KeyCode(*c2));
@@ -134,6 +138,7 @@ impl DeterministicScorer {
                     for &idx2 in &indices2 {
                         let mut cost = self.rubric.calculate_pair_cost(
                             kb,
+                            &self.spatial_index,
                             &kb.keys[idx1],
                             &kb.keys[idx2],
                             idx1,
@@ -179,7 +184,7 @@ impl DeterministicScorer {
         layout_keys: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let mut trigram_score = 0i64;
-        for (c1, c2, c3, freq) in &*corpus.trigrams {
+        for (c1, c2, c3, freq) in &*corpus.trigrams.entries {
             let freq = i64::from(*freq);
             let indices1 = find_indices(layout_keys, KeyCode(*c1));
             let indices2 = find_indices(layout_keys, KeyCode(*c2));
@@ -357,6 +362,7 @@ impl FixedPointRubric {
     fn calculate_pair_cost(
         &self,
         kb: &Keyboard,
+        spatial_index: &keyforge_model::keyboard::SpatialIndex,
         k1: &KeyNode,
         k2: &KeyNode,
         idx1: usize,
@@ -366,7 +372,7 @@ impl FixedPointRubric {
             return Ok(0);
         }
 
-        let (dx2, dy2) = kb.spatial_cache[idx1 * kb.keys.len() + idx2];
+        let (dx2, dy2) = spatial_index.spatial_cache[idx1 * kb.keys.len() + idx2];
         let t_lat = f64::from(to_f32(self.travel_lat));
         let t_vert = f64::from(to_f32(self.travel_vert));
         let scale = f64::from(keyforge_model::constants::SCORE_SCALE);
@@ -380,7 +386,8 @@ impl FixedPointRubric {
 
         let mut cost = dist_raw.round() as i64;
         if k1.finger == k2.finger {
-            cost = self.apply_sfb_oracle_logic(kb, k1, k2, cost, t_lat, t_vert, scale)?;
+            cost =
+                self.apply_sfb_oracle_logic(spatial_index, k1, k2, cost, t_lat, t_vert, scale)?;
         } else {
             cost = self.apply_non_sfb_oracle_logic(k1, k2, cost);
         }
@@ -391,7 +398,7 @@ impl FixedPointRubric {
     #[allow(clippy::cast_possible_truncation)]
     fn apply_sfb_oracle_logic(
         &self,
-        kb: &Keyboard,
+        spatial_index: &keyforge_model::keyboard::SpatialIndex,
         k1: &KeyNode,
         k2: &KeyNode,
         mut cost: i64,
@@ -400,7 +407,7 @@ impl FixedPointRubric {
         scale: f64,
     ) -> Result<i64, PhysicsError> {
         let mut reach_k2 = 0.0f64;
-        if let Some(origin) = kb
+        if let Some(origin) = spatial_index
             .finger_origins
             .get(k2.hand.as_usize())
             .and_then(|h| h.get(k2.finger.as_usize()))
@@ -514,13 +521,13 @@ mod tests {
         let oracle_score = scorer.score(&kb, &cp, &layout_keys).unwrap();
 
         // Compare with generic engine
-        let engine = crate::EngineFactory::new_generic(&crate::EngineCompilationContext {
-            keyboard: Arc::new(kb),
-            corpus: Arc::new(cp),
-            rubric: Arc::new(rb),
-            cost_model: Arc::new(cm),
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+        let engine = crate::EngineFactory::new_generic(&crate::ScoringContext::new(
+            Arc::new(kb),
+            Arc::new(cp),
+            Arc::new(rb),
+            Arc::new(cm),
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .unwrap();
 
         let engine_score = engine.score(&layout).unwrap();

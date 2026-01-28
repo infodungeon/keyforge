@@ -1,7 +1,7 @@
 use keyforge_model::config::{CorpusSource, CostMatrixSource, ScoringWeights, SearchParams};
 #[keyforge_testing_macros::kf_test]
 // apps/keyforge-agent/tests/agent_integration.rs
-use keyforge_model::geometry::{KeyboardDefinition, KeyboardMeta};
+use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use keyforge_model::{KeyNode, KeyboardGeometry};
 use keyforge_protocol::JobConfig;
@@ -20,10 +20,11 @@ async fn test_agent_job_orchestration() {
 
     let config = JobConfig {
         definition: KeyboardDefinition {
-            meta: KeyboardMeta {
-                name: "AgentTest".into(),
-                ..Default::default()
-            },
+            name: "AgentTest".into(),
+            author: "".into(),
+            version: "".into(),
+            notes: "".into(),
+            kb_type: "ortho".into(),
             geometry: KeyboardGeometry {
                 keys: vec![KeyNode {
                     index: 0,
@@ -40,11 +41,11 @@ async fn test_agent_job_orchestration() {
                 low_slots: vec![],
                 home_row: keyforge_model::types::RowIndex(0),
             },
-            layouts: std::collections::HashMap::default(),
         }
         .into(),
         weights: ScoringWeights::default().into(),
         params: SearchParams::default().into(),
+        catalog: None,
         pinned_keys: vec![].into(),
         corpora: vec![CorpusSource {
             id: "en_small.json".into(),

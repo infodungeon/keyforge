@@ -103,7 +103,9 @@ impl StreamingProfileBuilder {
             unit: "pts".into(),
             models: HashMap::new(),
             dynamic_rules: keyforge_model::cost_model::DynamicRules {
-                sequence_modifiers: modifiers,
+                sequence_modifiers: keyforge_model::cost_model::SequenceModifiers {
+                    map: modifiers,
+                },
                 penalties: HashMap::new(),
                 constraints: HashMap::new(),
             },
@@ -140,10 +142,11 @@ impl BiometricProfiler {
         let mut cost_model = base_model.clone();
         let generated = builder.build_model();
 
-        for (bigram, modifier) in generated.dynamic_rules.sequence_modifiers {
+        for (bigram, modifier) in generated.dynamic_rules.sequence_modifiers.map {
             cost_model
                 .dynamic_rules
                 .sequence_modifiers
+                .map
                 .insert(bigram, modifier);
         }
 
@@ -163,7 +166,7 @@ mod tests {
     fn test_biometric_profiler_logic() {
         let base = CostModel::default();
         let model = BiometricProfiler::profile(&[], &base);
-        assert_eq!(model.dynamic_rules().sequence_modifiers.len(), 0);
+        assert_eq!(model.dynamic_rules().sequence_modifiers.map.len(), 0);
 
         let samples = vec![
             BiometricSample {
@@ -174,7 +177,7 @@ mod tests {
             StreamingProfileBuilder::MIN_SAMPLES - 1
         ];
         let model = BiometricProfiler::profile(&samples, &base);
-        assert_eq!(model.dynamic_rules().sequence_modifiers.len(), 0);
+        assert_eq!(model.dynamic_rules().sequence_modifiers.map.len(), 0);
 
         let mut samples = Vec::new();
         for _ in 0..10 {
@@ -191,6 +194,6 @@ mod tests {
         }
 
         let model = BiometricProfiler::profile(&samples, &base);
-        assert_eq!(model.dynamic_rules().sequence_modifiers.len(), 2);
+        assert_eq!(model.dynamic_rules().sequence_modifiers.map.len(), 2);
     }
 }

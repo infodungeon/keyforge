@@ -41,7 +41,13 @@ pub async fn compile_request<L: AssetLoader>(
             .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model {name}: {e}")))?,
     };
 
-    // 5. Translate to Physics entities using Adapter
+    // 5. Load Layout Catalog (Optional fallback for initial layout)
+    let layout_catalog = loader
+        .load::<keyforge_model::layout::LayoutCatalog>(&config.keyboard)
+        .await
+        .ok();
+
+    // 6. Translate to Physics entities using Adapter
     let keyboard =
         keyforge_adapter::conversion::to_domain_keyboard(&kb_def.geometry).map_err(|e| {
             keyforge_model::error::ForgeError::InvalidData(format!("Keyboard geometry: {e}"))
@@ -53,10 +59,9 @@ pub async fn compile_request<L: AssetLoader>(
         keyforge_adapter::conversion::to_domain_config(&config.search, config.seed.unwrap_or(0));
 
     // Initial layout: Use "default" or fallback to "qwerty" if present
-    let initial_layout_str = kb_def
-        .layouts
-        .get("default")
-        .or_else(|| kb_def.layouts.get("qwerty"));
+    let initial_layout_str = layout_catalog
+        .as_ref()
+        .and_then(|c| c.layouts.get("default").or_else(|| c.layouts.get("qwerty")));
 
     let initial_layout = if let Some(layout_str) = initial_layout_str {
         Some(

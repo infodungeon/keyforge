@@ -30,7 +30,7 @@ members = [
 version = "0.9.0"
 authors = ["KeyForge Team"]
 license = "Apache-2.0"
-repository = "https://github.com/keyforge-project/keyforge"
+repository = "https://github.com/infodungeon/keyforge"
 edition = "2021"
 
 [workspace.lints.rust]

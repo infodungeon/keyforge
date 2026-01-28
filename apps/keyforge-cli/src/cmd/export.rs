@@ -14,11 +14,10 @@
 // limitations under the License.
 
 use clap::{Args, Subcommand, ValueEnum};
-use keyforge_compute::AssetLoader;
+use keyforge_adapter::loader::AssetLoader;
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
-use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_infra::FsProvider;
-use keyforge_model::constants::{ASSET_KEYCODES, MAX_INPUT_FILE_SIZE};
+use keyforge_model::constants::ASSET_KEYCODES;
 use keyforge_model::geometry::kle::to_kle_json;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
@@ -64,17 +63,21 @@ pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Er
         } => {
             eprintln!("💾 Exporting '{layout}' to {format:?}...");
 
-            let root = loader.root();
-            let path = root.join(keyboard);
+            let def = loader
+                .load::<KeyboardDefinition>(&keyboard)
+                .await
+                .map_err(|e| format!("Failed to load keyboard '{keyboard}': {e}"))?;
 
-            let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
-                .map_err(|e| format!("Failed to read keyboard file {}: {e}", path.display()))?;
+            // Load Layout Catalog
+            let catalog = loader
+                .load::<keyforge_model::layout::LayoutCatalog>(&keyboard)
+                .await
+                .map_err(|e| format!("Failed to load layout catalog for '{keyboard}': {e}"))?;
 
-            let def: KeyboardDefinition = serde_json::from_str(&content)
-                .map_err(|e| format!("Failed to parse keyboard JSON: {e}"))?;
-
-            let Some(layout_str) = def.layouts.get(&layout) else {
-                return Err(format!("Layout '{layout}' not found in keyboard definition.").into());
+            let Some(layout_str) = catalog.layouts.get(&layout) else {
+                return Err(
+                    format!("Layout '{layout}' not found in catalog for '{keyboard}'.").into(),
+                );
             };
 
             let keys: Vec<String> = layout_str

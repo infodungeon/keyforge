@@ -146,8 +146,12 @@ impl Arbitrary for Corpus {
                 Corpus {
                     is_std: false,
                     char_freqs: Arc::from(char_freqs_full),
-                    bigrams: Arc::from(bigrams),
-                    trigrams: Arc::from(trigrams),
+                    bigrams: crate::corpus::BigramFrequencyTable {
+                        entries: Arc::from(bigrams),
+                    },
+                    trigrams: crate::corpus::TrigramFrequencyTable {
+                        entries: Arc::from(trigrams),
+                    },
                     words: Arc::from(vec![]),
                 }
             })
@@ -281,7 +285,9 @@ pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
     freqs[97] = 100;
     freqs[98] = 200;
     corpus.char_freqs = Arc::from(freqs);
-    corpus.bigrams = Arc::from(vec![(97, 98, 50)]);
+    corpus.bigrams = crate::corpus::BigramFrequencyTable {
+        entries: Arc::from(vec![(97, 98, 50)]),
+    };
 
     let cm = mock_cost_model();
     (kb, corpus, Rubric::default(), cm)

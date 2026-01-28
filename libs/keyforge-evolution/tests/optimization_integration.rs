@@ -17,7 +17,9 @@ mod integration_tests {
 
     fn mock_cost_model() -> CostModel {
         let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "version": "2.0",
+        "description": "Test",
+        "unit": "pts",
         "models": {
             "model_a_row_staggered": {
                 "description": "Test Model",
@@ -110,13 +112,13 @@ mod integration_tests {
     #[test]
     fn test_evolve_api_direct() {
         let (kb, cp, rb, cm) = setup_env();
-        let engine = EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: kb.clone(),
-            corpus: cp.clone(),
-            rubric: rb.clone(),
-            cost_model: cm.clone(),
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+        let engine = EngineFactory::new_generic(&keyforge_physics::ScoringContext::new(
+            kb.clone(),
+            cp.clone(),
+            rb.clone(),
+            cm.clone(),
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .unwrap();
         let engine_arc: Arc<dyn ScoringEngine> = engine.into();
         let config = SearchConfig::Annealing {

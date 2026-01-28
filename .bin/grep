@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "CRITICAL: Raw grep is forbidden to prevent context suicide. Use git grep or search_file_content."
+exit 1

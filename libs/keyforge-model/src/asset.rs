@@ -29,6 +29,8 @@ pub enum AssetCategory {
     Corpus,
     /// User preferences and scoring weights.
     Rubric,
+    /// Pre-defined logical mappings (Layouts).
+    Layout,
 }
 
 impl AssetCategory {
@@ -41,6 +43,7 @@ impl AssetCategory {
             AssetCategory::Keycodes => "config",
             AssetCategory::Corpus => "corpora",
             AssetCategory::Rubric => "rubrics",
+            AssetCategory::Layout => "layouts",
         }
     }
 }

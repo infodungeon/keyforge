@@ -111,3 +111,67 @@ impl From<u64> for Seed {
         Self(val)
     }
 }
+
+/// Unique identifier for a text corpus.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[serde(transparent)]
+pub struct CorpusId(pub String);
+
+/// Unique identifier for a physical keyboard definition.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[serde(transparent)]
+pub struct KeyboardId(pub String);
+
+/// Unique identifier for a specific key mapping.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[serde(transparent)]
+pub struct LayoutId(pub String);
+
+/// Unique identifier for a system user.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
+#[serde(transparent)]
+pub struct UserId(pub String);
+
+/// A validated percentage value (0.0 to 100.0).
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
+#[serde(try_from = "f32", into = "f32")]
+pub struct Percentage(pub f32);
+
+impl TryFrom<f32> for Percentage {
+    type Error = String;
+    fn try_from(val: f32) -> Result<Self, Self::Error> {
+        if (0.0..=100.0).contains(&val) {
+            Ok(Self(val))
+        } else {
+            Err(format!("Percentage must be between 0 and 100, got {val}"))
+        }
+    }
+}
+
+impl From<Percentage> for f32 {
+    fn from(val: Percentage) -> Self {
+        val.0
+    }
+}
+
+/// A validated ratio value (0.0 to 1.0).
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
+#[serde(try_from = "f32", into = "f32")]
+pub struct Ratio(pub f32);
+
+impl TryFrom<f32> for Ratio {
+    type Error = String;
+    fn try_from(val: f32) -> Result<Self, Self::Error> {
+        if (0.0..=1.0).contains(&val) {
+            Ok(Self(val))
+        } else {
+            Err(format!("Ratio must be between 0 and 1, got {val}"))
+        }
+    }
+}
+
+impl From<Ratio> for f32 {
+    fn from(val: Ratio) -> Self {
+        val.0
+    }
+}

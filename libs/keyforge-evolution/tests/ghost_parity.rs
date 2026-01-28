@@ -14,7 +14,9 @@ mod integration_tests {
 
     fn mock_cost_model() -> CostModel {
         let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+        "version": "2.0",
+        "description": "Test",
+        "unit": "pts",
         "models": {
             "model_a_row_staggered": {
                 "description": "Test Model",
@@ -61,19 +63,19 @@ mod integration_tests {
         char_freqs[0] = 100;
         char_freqs[1] = 100;
         corpus_val.char_freqs = Arc::from(char_freqs);
-        corpus_val.bigrams = Arc::from(vec![(0, 1, 100)]);
+        corpus_val.bigrams = vec![(0, 1, 100)].into();
 
         let rubric = Arc::new(Rubric::builder().travel_lat(1.0).build());
 
         let cm = Arc::new(mock_cost_model());
 
-        let engine = EngineFactory::new_scalar(&EngineCompilationContext {
-            keyboard: kb,
-            corpus: Arc::new(corpus_val),
+        let engine = EngineFactory::new_scalar(&keyforge_physics::ScoringContext::new(
+            kb,
+            Arc::new(corpus_val),
             rubric,
-            cost_model: cm,
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        })
+            cm,
+            keyforge_model::config::EngineConfig::default(),
+        ))
         .unwrap();
 
         let config = SearchConfig::Annealing {

@@ -23,13 +23,11 @@ use crate::error::ForgeError;
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use utoipa::ToSchema;
 
 /// Keyboard Layout Editor (KLE) integration.
 pub mod kle;
-
-/// Metadata describing a keyboard definition.
 
 /// Complete definition of a keyboard, including metadata and geometry.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
@@ -51,9 +49,6 @@ pub struct KeyboardDefinition {
     pub kb_type: String,
     /// Physical geometry of the keys.
     pub geometry: KeyboardGeometry,
-    /// Pre-defined layouts available for this keyboard.
-    #[serde(default)]
-    pub layouts: HashMap<String, String>,
 }
 
 impl Asset for KeyboardDefinition {
@@ -273,7 +268,6 @@ impl KeyboardDefinition {
             notes: String::new(),
             kb_type: "imported".to_string(),
             geometry,
-            layouts: HashMap::new(),
         }
     }
 
@@ -306,7 +300,6 @@ impl KeyboardDefinition {
                 prime_slots: (0..keys_count as u16).map(KeyIndex).collect(),
                 ..Default::default()
             },
-            ..Default::default()
         }
     }
 }

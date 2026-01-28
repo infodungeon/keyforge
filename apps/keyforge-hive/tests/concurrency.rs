@@ -73,6 +73,7 @@ mod integration_tests {
                     definition: kb.into(),
                     weights: w.into(),
                     params: SearchParams::default().into(),
+                    catalog: None,
                     pinned_keys: vec![].into(),
                     corpora: vec![CorpusSource {
                         id: "default".to_string(),

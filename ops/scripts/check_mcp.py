@@ -1,43 +1,44 @@
 #!/usr/bin/env python3
-import json
-import subprocess
 import os
+import subprocess
+import yaml
 import sys
 
-CONFIG_PATH = "mcp_config.json"
-BRIDGE_PATH = "ops/scripts/mcp_bridge.py"
-
-def check_mcp():
-    if not os.path.exists(CONFIG_PATH):
-        print(f"FAILED: {CONFIG_PATH} not found")
+def check_process(name):
+    try:
+        output = subprocess.check_output(["ps", "aux"]).decode()
+        return name in output
+    except:
         return False
 
-    with open(CONFIG_PATH, "r") as f:
-        config = json.load(f)
+def main():
+    config_path = "ops/config/mcp_gateway_config.yaml"
+    if not os.path.exists(config_path):
+        print(f"FAILED: {config_path} not found")
+        sys.exit(1)
 
-    all_pass = True
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+
     servers = config.get("mcpServers", {})
-    
-    for name, srv in servers.items():
-        args = srv.get("args", [])
-        if name in ["github", "copilot"]:
-            if BRIDGE_PATH not in args[0]:
-                 print(f"FAILED: {name} does not use unified bridge")
-                 all_pass = False
-            else:
-                 print(f"PASSED: {name} uses unified bridge")
-        
-        # Test if bridge script exists
-        if not os.path.exists(BRIDGE_PATH):
-            print(f"FAILED: Bridge script {BRIDGE_PATH} missing")
-            return False
+    all_ok = True
 
-    return all_pass
+    print("=== MCP Health Check ===")
+    for server_name in servers:
+        cmd = servers[server_name].get("command")
+        is_running = check_process(os.path.basename(cmd))
+        status = "✅ RUNNING" if is_running else "❌ DOWN"
+        print(f"{server_name:10}: {status}")
+        if not is_running:
+            all_ok = False
+
+    if not all_ok:
+        print("\nSuggestions:")
+        print("1. Run 'just mcp-restart' (if available)")
+        print("2. Check if mcp-proxy-tool is installed")
+        sys.exit(1)
+    else:
+        print("\nAll MCP servers are active.")
 
 if __name__ == "__main__":
-    if check_mcp():
-        print("\nMCP Configuration Stabilized Successfully.")
-        sys.exit(0)
-    else:
-        print("\nMCP Configuration Issues Detected.")
-        sys.exit(1)
+    main()

@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -69,14 +69,15 @@ pub use cost_model::CostModel;
 pub use error::ForgeError;
 pub use geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry};
 pub use job::{Completed, Job, JobIdentifier, JobState, JobStatus, Pending, Running};
-pub use keyboard::Keyboard;
+pub use keyboard::{Keyboard, SpatialIndex};
 pub use keycodes::KeycodeRegistry;
 pub use layout::Layout;
 pub use mapping::{BulkProjection, Projection};
 pub use metrics::{MetricId, MetricSet};
 pub use rubric::Rubric;
 pub use types::{
-    AnalysisReport, ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, MetricViolation,
-    OptimizationResult, RowIndex, Score, ScoringResult, SpaceHandPreference, SwapSuggestion,
+    AnalysisReport, ColIndex, CorpusId, FingerIndex, HandIndex, Heatmaps, KeyCode, KeyIndex,
+    KeyboardId, LayoutId, MetricBreakdown, MetricViolation, OptimizationResult, RowIndex, Score,
+    ScoreSummary, ScoringResult, SpaceHandPreference, SwapSuggestion, TravelStatistics, UserId,
 };
 pub use validator::{LayoutValidator, Validator};
