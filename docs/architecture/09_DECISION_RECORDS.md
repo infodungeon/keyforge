@@ -27,3 +27,5 @@
 | **[ADR-018](adr/adr-018.md)** | Typestate Pattern for Job Lifecycle | Accepted | 2026-01-22 |
 | **[ADR-019](adr/adr-019.md)** | Reified Actions (Hive Command Pattern) | Accepted | 2026-01-22 |
 | **[ADR-020](adr/adr-020.md)** | Foundation Hardening | Accepted | 2026-01-22 |
+| **[ADR-021](adr/adr-021.md)** | Unified Persistence & Protocol for Community Entities | Accepted | 2026-01-28 |
+| **[ADR-022](adr/adr-022.md)** | Rich Domain Entities and Clean Hexagonal Boundaries | Accepted | 2026-01-28 |
