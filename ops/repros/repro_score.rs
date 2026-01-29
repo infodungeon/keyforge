@@ -34,7 +34,7 @@ fn main() {
             index: i,
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(i as u8),
-            x: i as f32,
+            x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
             ..Default::default()
         })
         .collect();

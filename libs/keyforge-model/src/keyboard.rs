@@ -16,6 +16,7 @@
 
 use crate::error::ForgeError;
 use crate::geometry::KeyNode;
+use crate::types::{Movement, Point};
 use serde::{Deserialize, Serialize};
 
 /// The physical reality of the device.
@@ -29,13 +30,13 @@ pub struct Keyboard {
     /// Type of keyboard (e.g., "split", "ortho").
     #[serde(default)]
     pub kb_type: String,
-    /// Pre-calculated centers for fingers \[hand\]\[finger\] -> (x, y).
+    /// Pre-calculated centers for fingers \[hand\]\[finger\] -> Point.
     /// Used for distance calculations relative to the resting position.
-    pub finger_origins: Vec<Vec<(f32, f32)>>,
-    /// Pre-calculated squared distances between every pair of physical keys.
-    /// Index: [i * `key_count` + j] -> (dx^2, dy^2).
+    pub finger_origins: Vec<Vec<Point>>,
+    /// Pre-calculated movements between every pair of physical keys.
+    /// Index: [i * `key_count` + j] -> Movement.
     #[serde(skip)]
-    pub spatial_cache: Vec<(f32, f32)>,
+    pub spatial_cache: Vec<Movement>,
 }
 
 impl Keyboard {
@@ -70,11 +71,11 @@ impl Keyboard {
                     .keys
                     .iter()
                     .any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
-                if has_keys && origin.0.abs() < f32::EPSILON && origin.1.abs() < f32::EPSILON {
+                if has_keys && origin.x.raw() == 0 && origin.y.raw() == 0 {
                     let key_at_zero = kb
                         .keys
                         .iter()
-                        .any(|k| k.x.abs() < f32::EPSILON && k.y.abs() < f32::EPSILON);
+                        .any(|k| k.x.raw() == 0 && k.y.raw() == 0);
                     if !key_at_zero {
                         return Err(ForgeError::InvalidData(format!(
                             "Finger origin calculation failed for hand {h_idx}, finger {f_idx}"
@@ -90,12 +91,12 @@ impl Keyboard {
 
     fn precompute_spatial_cache(&mut self) {
         let n = self.keys.len();
-        let mut cache = vec![(0.0, 0.0); n * n];
+        let mut cache = vec![Movement::default(); n * n];
         for i in 0..n {
+            let p1 = Point::new(self.keys[i].x, self.keys[i].y);
             for j in 0..n {
-                let dx = self.keys[i].x - self.keys[j].x;
-                let dy = self.keys[i].y - self.keys[j].y;
-                cache[i * n + j] = (dx * dx, dy * dy);
+                let p2 = Point::new(self.keys[j].x, self.keys[j].y);
+                cache[i * n + j] = Movement::from_points(p1, p2);
             }
         }
         self.spatial_cache = cache;
@@ -115,7 +116,7 @@ impl Keyboard {
             .max()
             .unwrap_or(0);
 
-        self.finger_origins = vec![vec![(0.0, 0.0); max_finger + 1]; max_hand + 1];
+        self.finger_origins = vec![vec![Point::default(); max_finger + 1]; max_hand + 1];
 
         for hand in 0..=max_hand {
             for finger in 0..=max_finger {
@@ -139,7 +140,7 @@ impl Keyboard {
                     });
 
                 if let Some(k) = origin {
-                    self.finger_origins[hand][finger] = (k.x, k.y);
+                    self.finger_origins[hand][finger] = Point::new(k.x, k.y);
                 }
             }
         }
@@ -162,16 +163,16 @@ mod tests {
         let keys = vec![
             KeyNode {
                 index: 0,
-                x: 0.0,
-                y: 0.0,
+                x: crate::types::SpatialUnit::from_f32(0.0),
+                y: crate::types::SpatialUnit::from_f32(0.0),
                 hand: HandIndex(0),
                 finger: FingerIndex(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
-                x: 3.0,
-                y: 4.0,
+                x: crate::types::SpatialUnit::from_f32(3.0),
+                y: crate::types::SpatialUnit::from_f32(4.0),
                 hand: HandIndex(0),
                 finger: FingerIndex(2),
                 ..Default::default()
@@ -180,6 +181,7 @@ mod tests {
         let kb = Keyboard::new(keys, crate::types::RowIndex(0), "test".into()).unwrap();
 
         assert_eq!(kb.spatial_cache.len(), 4);
-        assert_eq!(kb.spatial_cache[1], (9.0, 16.0));
+        // (3-0)^2 + (4-0)^2 = 9 + 16 = 25
+        assert_eq!(kb.spatial_cache[1].dist_sq(), 25_000_000); // 1000^2 scaling for KU^2
     }
 }

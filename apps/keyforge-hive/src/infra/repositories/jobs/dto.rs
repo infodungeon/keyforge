@@ -107,8 +107,8 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
                 index: usize::try_from(idx)
                     .map_err(|_| ForgeError::Projection("Key index negative".into()))?,
                 label: format!("k{idx}"),
-                x: row.x,
-                y: row.y,
+                x: keyforge_model::types::SpatialUnit::from_f32(row.x),
+                y: keyforge_model::types::SpatialUnit::from_f32(row.y),
                 w: row.w.unwrap_or(1.0),
                 h: row.h.unwrap_or(1.0),
                 hand: HandIndex::new(u8::try_from(row.hand).unwrap_or(0)),

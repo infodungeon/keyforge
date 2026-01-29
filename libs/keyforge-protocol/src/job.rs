@@ -171,8 +171,8 @@ impl JobConfig {
                 .map(|k| keyforge_model::geometry::KeyNode {
                     index: k.index as usize,
                     label: k.label.clone(),
-                    x: k.x,
-                    y: k.y,
+                    x: keyforge_model::types::SpatialUnit::from_f32(k.x),
+                    y: keyforge_model::types::SpatialUnit::from_f32(k.y),
                     w: k.w,
                     h: k.h,
                     hand: k.hand.into(),
@@ -182,8 +182,8 @@ impl JobConfig {
                     is_home: k.is_home,
                     is_stretch: k.is_stretch,
                     r: k.r,
-                    rx: k.rx,
-                    ry: k.ry,
+                    rx: keyforge_model::types::SpatialUnit::from_f32(k.rx),
+                    ry: keyforge_model::types::SpatialUnit::from_f32(k.ry),
                 })
                 .collect(),
             prime_slots: self

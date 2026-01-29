@@ -289,10 +289,12 @@ impl GhostScorer {
             return Score::ZERO;
         }
 
-        let (dx2, dy2) = self.keyboard.spatial_cache[p1 * self.keyboard.keys.len() + p2];
-        let dist = (f64::from(dx2) * f64::from(self.rubric.travel_lat)
-            + f64::from(dy2) * f64::from(self.rubric.travel_vert))
-            * f64::from(keyforge_model::constants::SCORE_SCALE);
+        let movement = self.keyboard.spatial_cache[p1 * self.keyboard.keys.len() + p2];
+        let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
+        let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
+
+        let dist = dx2 as f64 * f64::from(self.rubric.travel_lat)
+            + dy2 as f64 * f64::from(self.rubric.travel_vert);
 
         let mut cost = Score::from_scaled_i64(dist.round() as i64);
 

@@ -1,6 +1,6 @@
 use super::CompilationStage;
 use crate::error::PhysicsError;
-use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, Movement, Point, RowIndex, Score};
 use keyforge_model::{Keyboard, Rubric};
 
 /// Intermediate state containing processed geometry and spatial math.
@@ -10,8 +10,8 @@ pub(crate) struct GeometryOutput {
     pub fingers: Vec<FingerIndex>,
     pub rows: Vec<RowIndex>,
     pub cols: Vec<ColIndex>,
-    pub dist_matrix: Vec<f32>,
-    pub key_home_distances: Vec<f32>,
+    pub dist_matrix: Vec<Score>,
+    pub key_home_distances: Vec<Score>,
 }
 
 /// Stage 1: Geometry & Spatial Math.
@@ -31,8 +31,8 @@ impl<'a> CompilationStage for GeometryStage<'a> {
     )]
     fn execute(&self, kb: Self::Input) -> Result<Self::Output, PhysicsError> {
         let key_count = kb.count();
-        let t_lat = self.rubric.travel_lat();
-        let t_vert = self.rubric.travel_vert();
+        let t_lat = f64::from(self.rubric.travel_lat());
+        let t_vert = f64::from(self.rubric.travel_vert());
         let mut hands = Vec::with_capacity(key_count);
         let mut fingers = Vec::with_capacity(key_count);
         let mut rows = Vec::with_capacity(key_count);
@@ -45,42 +45,34 @@ impl<'a> CompilationStage for GeometryStage<'a> {
             rows.push(k.row);
             cols.push(k.col);
 
-            let mut dist_from_home = 0.0;
+            let mut dist_from_home = Score::ZERO;
             if let Some(origin) = kb
                 .finger_origins
                 .get(k.hand.as_usize())
                 .and_then(|h| h.get(k.finger.as_usize()))
             {
-                let dx = (k.x - origin.0).abs();
-                let dy = (k.y - origin.1).abs();
+                let movement = Movement::from_points(*origin, Point::new(k.x, k.y));
+                let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
+                let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-                let dx2 = (dx * dx).round() as u32;
-                let dy2 = (dy * dy).round() as u32;
-
-                dist_from_home = ((f64::from(dx2) * f64::from(t_lat))
-                    + (f64::from(dy2) * f64::from(t_vert)))
-                .sqrt() as f32;
+                let d_val = (dx2 as f64 * t_lat + dy2 as f64 * t_vert).sqrt();
+                dist_from_home = Score::from_f32(d_val as f32)
+                    .map_err(|e| PhysicsError::InvalidInput { message: e })?;
             }
             key_home_distances.push(dist_from_home);
         }
 
-        let mut dist_matrix = vec![0.0f32; key_count * key_count];
+        let mut dist_matrix = vec![Score::ZERO; key_count * key_count];
         for i in 0..key_count {
             for j in 0..key_count {
-                if i == j {
-                    dist_matrix[i * key_count + j] = 0.0;
-                } else {
-                    let k1 = &kb.keys[i];
-                    let k2 = &kb.keys[j];
-                    let dx = (k1.x - k2.x).abs();
-                    let dy = (k1.y - k2.y).abs();
+                if i != j {
+                    let movement = kb.spatial_cache[i * key_count + j];
+                    let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
+                    let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-                    let dx2 = (dx * dx).round() as u32;
-                    let dy2 = (dy * dy).round() as u32;
-
-                    dist_matrix[i * key_count + j] = ((f64::from(dx2) * f64::from(t_lat))
-                        + (f64::from(dy2) * f64::from(t_vert)))
-                    .sqrt() as f32;
+                    let d_val = (dx2 as f64 * t_lat + dy2 as f64 * t_vert).sqrt();
+                    dist_matrix[i * key_count + j] = Score::from_f32(d_val as f32)
+                        .map_err(|e| PhysicsError::InvalidInput { message: e })?;
                 }
             }
         }
@@ -106,16 +98,16 @@ mod tests {
         let keys = vec![
             KeyNode {
                 index: 0,
-                x: 0.0,
-                y: 0.0,
+                x: keyforge_model::types::SpatialUnit::from_f32(0.0),
+                y: keyforge_model::types::SpatialUnit::from_f32(0.0),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
-                x: 3.0,
-                y: 4.0,
+                x: keyforge_model::types::SpatialUnit::from_f32(3.0),
+                y: keyforge_model::types::SpatialUnit::from_f32(4.0),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
@@ -127,6 +119,8 @@ mod tests {
         let out = stage.execute(&kb).unwrap();
 
         assert_eq!(out.hands.len(), 2);
-        assert_eq!(out.dist_matrix[1], 5.0);
+        // dist = sqrt((3*1000)^2 + (4*1000)^2) = sqrt(9M + 16M) = 5000 units = 5.0 KU.
+        // Score::from_f32(5.0) -> 5,000,000 raw.
+        assert_eq!(out.dist_matrix[1].to_f32(), 5.0);
     }
 }

@@ -14,8 +14,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "  Idx {:2}: x={:5.2}, y={:5.2}, h={:1}, f={:1}, r={:1}, c={:2}, home={:5}, label={}",
             i,
-            k.x,
-            k.y,
+            k.x.to_f32(),
+            k.y.to_f32(),
             k.hand.as_u8(),
             k.finger.as_u8(),
             k.row.0,

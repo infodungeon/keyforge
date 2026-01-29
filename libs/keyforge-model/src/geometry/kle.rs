@@ -18,7 +18,7 @@
 //! keyboard geometries in the KLE JSON format.
 
 use super::{KeyNode, KeyboardGeometry};
-use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
+use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, SpatialUnit};
 use kle_serial::Keyboard as KleKeyboard;
 use regex::Regex;
 use serde_json::json;
@@ -113,13 +113,13 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
             finger,
             row: RowIndex(key.y.round() as i8),
             col: ColIndex(key.x.round() as i8),
-            x: key.x as f32,
-            y: key.y as f32,
+            x: SpatialUnit::from_f32(key.x as f32),
+            y: SpatialUnit::from_f32(key.y as f32),
             w: key.width as f32,
             h: key.height as f32,
             r: key.rotation as f32,
-            rx: key.rx as f32,
-            ry: key.ry as f32,
+            rx: SpatialUnit::from_f32(key.rx as f32),
+            ry: SpatialUnit::from_f32(key.ry as f32),
             is_home: false,
             is_stretch: false,
         };
@@ -225,15 +225,15 @@ mod tests {
         let mut geom = KeyboardGeometry::default();
         geom.keys.push(KeyNode {
             label: "X".into(),
-            x: 1.0,
-            y: 2.0,
+            x: SpatialUnit::from_f32(1.0),
+            y: SpatialUnit::from_f32(2.0),
             hand: HandIndex::LEFT,
             ..Default::default()
         });
         geom.keys.push(KeyNode {
             label: "Y".into(),
-            x: 10.0,
-            y: 2.0,
+            x: SpatialUnit::from_f32(10.0),
+            y: SpatialUnit::from_f32(2.0),
             hand: HandIndex::RIGHT,
             ..Default::default()
         });

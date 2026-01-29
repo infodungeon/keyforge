@@ -32,8 +32,8 @@ pub struct GeometryData {
     pub(crate) rows: Arc<[RowIndex]>,
     pub(crate) cols: Arc<[ColIndex]>,
     pub(crate) cost_matrix: Arc<[Score]>,
-    pub(crate) dist_matrix: Arc<[f32]>,
-    pub(crate) key_home_distances: Arc<[f32]>,
+    pub(crate) dist_matrix: Arc<[Score]>,
+    pub(crate) key_home_distances: Arc<[Score]>,
     pub(crate) key_costs: Arc<[Score]>,
 }
 

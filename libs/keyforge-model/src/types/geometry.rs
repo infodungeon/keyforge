@@ -29,6 +29,18 @@ impl RowIndex {
     pub fn as_usize(self) -> usize {
         self.0.try_into().unwrap_or_default()
     }
+
+    /// Calculates the absolute distance between two rows.
+    #[must_use]
+    pub fn distance(self, other: Self) -> u8 {
+        self.0.abs_diff(other.0)
+    }
+
+    /// Calculates the signed difference between two rows.
+    #[must_use]
+    pub fn abs_diff(self, other: Self) -> i8 {
+        (i32::from(self.0) - i32::from(other.0)).abs() as i8
+    }
 }
 
 impl fmt::Display for RowIndex {
@@ -133,6 +145,18 @@ impl ColIndex {
     #[must_use]
     pub fn as_usize(self) -> usize {
         self.0.try_into().unwrap_or_default()
+    }
+
+    /// Calculates the absolute distance between two rows.
+    #[must_use]
+    pub fn distance(self, other: Self) -> u8 {
+        self.0.abs_diff(other.0)
+    }
+
+    /// Calculates the signed difference between two rows.
+    #[must_use]
+    pub fn abs_diff(self, other: Self) -> i8 {
+        (i32::from(self.0) - i32::from(other.0)).abs() as i8
     }
 }
 

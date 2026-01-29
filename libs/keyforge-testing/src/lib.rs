@@ -93,7 +93,7 @@ impl HermeticWorkspace {
     /// Returns `anyhow::Result` if serialization of default assets fails or IO error occurs.
     #[allow(clippy::too_many_lines)]
     pub async fn with_default_assets(self) -> anyhow::Result<Self> {
-        use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+        use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit};
         use keyforge_model::{
             cost_model::{CostModel, FingerDefinition, HandDefinition, ModelDefinition, RowCosts},
             geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta},
@@ -209,8 +209,8 @@ impl HermeticWorkspace {
             keys: vec![
                 KeyNode {
                     index: 0,
-                    x: 0.0,
-                    y: 0.0,
+                    x: SpatialUnit::from_f32(0.0),
+                    y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
                     finger: FingerIndex::new(1),
                     row: RowIndex::new(0),
@@ -219,8 +219,8 @@ impl HermeticWorkspace {
                 },
                 KeyNode {
                     index: 1,
-                    x: 1.0,
-                    y: 0.0,
+                    x: SpatialUnit::from_f32(1.0),
+                    y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
                     finger: FingerIndex::new(2),
                     row: RowIndex::new(0),
@@ -391,7 +391,7 @@ impl HermeticWorkspace {
     }
 
     #[must_use]
-    pub fn keycodes_path(&self, name: &str) -> PathBuf {
+    pub fn keycodes_path(&self, _name: &str) -> PathBuf {
         self.root.join("user/config/keycodes.json")
     }
 }

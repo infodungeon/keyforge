@@ -19,6 +19,15 @@
         "/home/robert/.cargo/bin/arbor",
         "bridge"
       ]
+    },
+    "github": {
+      "command": "node",
+      "args": [
+        "/home/robert/.npm-global/lib/node_modules/@modelcontextprotocol/server-github/dist/index.js"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_PERSONAL_ACCESS_TOKEN"
+      }
     }
   }
 }

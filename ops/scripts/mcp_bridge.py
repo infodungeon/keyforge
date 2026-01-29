@@ -11,9 +11,22 @@ import threading
 import queue
 import requests
 
+# Load .env if it exists
+def load_env():
+    env_path = "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/.env"
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    key, _, val = line.partition("=")
+                    os.environ[key.strip()] = val.strip().strip('"').strip("'")
+
+load_env()
+
 DEBUG_LOG = "/tmp/mcp_debug.log"
-GITHUB_TOKEN = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
-COPILOT_URL = "https://api.githubcopilot.com/mcp/"
+GITHUB_TOKEN_RAW = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+GITHUB_TOKEN = GITHUB_TOKEN_RAW.strip('"').strip("'") if GITHUB_TOKEN_RAW else None
 
 def log(msg):
     try:
@@ -21,6 +34,8 @@ def log(msg):
             f.write(f"[{time.ctime()}] [PID {os.getpid()}] {msg}\n")
     except:
         pass
+
+log(f"Token loaded: {'None' if not GITHUB_TOKEN else len(GITHUB_TOKEN)}")
 
 def find_and_kill_existing(target_id):
     """Kills any previous bridge instance for this specific target id."""
@@ -99,7 +114,13 @@ def main():
     
     if target == "github":
         log("Starting GitHub Mode")
-        env["GITHUB_PERSONAL_ACCESS_TOKEN"] = GITHUB_TOKEN
+        if GITHUB_TOKEN:
+            env["GITHUB_PERSONAL_ACCESS_TOKEN"] = GITHUB_TOKEN
+            env["GITHUB_TOKEN"] = GITHUB_TOKEN
+        
+        # Log keys for verification (NO VALUES)
+        log(f"Environment keys: {list(env.keys())}")
+        
         node_bin = shutil.which("node") or "/usr/bin/node"
         github_bin = "/home/robert/.npm-global/lib/node_modules/@modelcontextprotocol/server-github/dist/index.js"
         cmd = [node_bin, github_bin]

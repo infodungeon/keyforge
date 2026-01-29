@@ -173,8 +173,8 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
     for i in 0..config.key_count {
         keys.push(keyforge_model::geometry::KeyNode {
             index: i,
-            x: i as f32,
-            y: 0.0,
+            x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
+            y: keyforge_model::types::SpatialUnit::default(),
             ..Default::default()
         });
     }

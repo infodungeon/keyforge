@@ -20,7 +20,7 @@
 use crate::asset::{Asset, AssetCategory};
 use crate::constants::{MAX_KEYBOARD_KEYS, MAX_KEYBOARD_NAME_LEN};
 use crate::error::ForgeError;
-use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
+use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, SpatialUnit};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -93,9 +93,9 @@ pub struct KeyNode {
     /// Descriptive label for the key (e.g., "K01", "Thumb").
     pub label: String,
     /// X-coordinate of the key center in keyboard units.
-    pub x: f32,
+    pub x: SpatialUnit,
     /// Y-coordinate of the key center in keyboard units.
-    pub y: f32,
+    pub y: SpatialUnit,
     /// Width of the key in keyboard units (default 1.0).
     #[serde(default = "default_size")]
     pub w: f32,
@@ -121,10 +121,10 @@ pub struct KeyNode {
     pub r: f32,
     /// Rotation center X.
     #[serde(default)]
-    pub rx: f32,
+    pub rx: SpatialUnit,
     /// Rotation center Y.
     #[serde(default)]
-    pub ry: f32,
+    pub ry: SpatialUnit,
 }
 
 impl Default for KeyNode {
@@ -132,8 +132,8 @@ impl Default for KeyNode {
         Self {
             index: 0,
             label: String::new(),
-            x: 0.0,
-            y: 0.0,
+            x: SpatialUnit::default(),
+            y: SpatialUnit::default(),
             w: 1.0,
             h: 1.0,
             hand: HandIndex::new(0),
@@ -143,8 +143,8 @@ impl Default for KeyNode {
             is_home: false,
             is_stretch: false,
             r: 0.0,
-            rx: 0.0,
-            ry: 0.0,
+            rx: SpatialUnit::default(),
+            ry: SpatialUnit::default(),
         }
     }
 }
@@ -292,12 +292,12 @@ impl KeyboardDefinition {
             .map(|i| KeyNode {
                 index: i,
                 label: format!("K{i:02}"),
-                x: i as f32,
-                y: 0.0,
+                x: SpatialUnit::from_f32(i as f32),
+                y: SpatialUnit::default(),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(0),
                 row: RowIndex(0),
-                col: ColIndex(i as i8),
+                col: ColIndex::new(i as i8),
                 ..Default::default()
             })
             .collect();

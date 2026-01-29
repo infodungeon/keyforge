@@ -25,7 +25,15 @@ fn main() {
     for (i, key) in kb.geometry.keys.iter().enumerate() {
         println!(
             "{:<3} {:<8} {:<8?} {:<8?} {:<8} {:<8} {:<8} ({:.1}, {:.1})",
-            i, key.label, key.finger, key.hand, key.row.0, key.col.0, key.is_home, key.x, key.y
+            i,
+            key.label,
+            key.finger,
+            key.hand,
+            key.row.0,
+            key.col.0,
+            key.is_home,
+            key.x.to_f32(),
+            key.y.to_f32()
         );
     }
 }

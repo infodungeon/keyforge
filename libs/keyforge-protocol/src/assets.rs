@@ -52,8 +52,8 @@ impl From<keyforge_model::KeyNode> for KeyNodeDto {
             #[allow(clippy::cast_possible_truncation)]
             index: val.index as u16,
             label: val.label,
-            x: val.x,
-            y: val.y,
+            x: val.x.to_f32(),
+            y: val.y.to_f32(),
             w: val.w,
             h: val.h,
             hand: val.hand.into(),
@@ -63,8 +63,8 @@ impl From<keyforge_model::KeyNode> for KeyNodeDto {
             is_home: val.is_home,
             is_stretch: val.is_stretch,
             r: val.r,
-            rx: val.rx,
-            ry: val.ry,
+            rx: val.rx.to_f32(),
+            ry: val.ry.to_f32(),
         }
     }
 }

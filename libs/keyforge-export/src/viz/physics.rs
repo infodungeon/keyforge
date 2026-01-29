@@ -22,17 +22,19 @@ pub fn generate_physics_svg_with_theme(geo: &KeyboardGeometry, theme: &VizTheme)
     let mut max_y = f32::MIN;
 
     for key in &geo.keys {
-        if key.x < min_x {
-            min_x = key.x;
+        let kx = key.x.to_f32();
+        let ky = key.y.to_f32();
+        if kx < min_x {
+            min_x = kx;
         }
-        if key.y < min_y {
-            min_y = key.y;
+        if ky < min_y {
+            min_y = ky;
         }
-        if key.x + key.w > max_x {
-            max_x = key.x + key.w;
+        if kx + key.w > max_x {
+            max_x = kx + key.w;
         }
-        if key.y + key.h > max_y {
-            max_y = key.y + key.h;
+        if ky + key.h > max_y {
+            max_y = ky + key.h;
         }
     }
 
@@ -51,8 +53,8 @@ pub fn generate_physics_svg_with_theme(geo: &KeyboardGeometry, theme: &VizTheme)
     );
 
     for key in &geo.keys {
-        let x = key.x - min_x + padding;
-        let y = key.y - min_y + padding;
+        let x = key.x.to_f32() - min_x + padding;
+        let y = key.y.to_f32() - min_y + padding;
         let w = key.w;
         let h = key.h;
 

@@ -186,7 +186,7 @@ pub fn analyze_layout(
                 // Same key: No movement
             } else if ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2] {
                 // Same Hand: Euclidean Distance
-                report.distance += ctx.geometry.dist_matrix[idx1 * key_count + idx2] * freq_f;
+                report.distance += ctx.geometry.dist_matrix[idx1 * key_count + idx2].to_f32() * freq_f;
 
                 // SFB Check (Specific to same-finger move)
                 if ctx.geometry.fingers[idx1] == ctx.geometry.fingers[idx2] {
@@ -204,7 +204,7 @@ pub fn analyze_layout(
                 }
             } else {
                 // Different Hand: Movement from home position
-                report.distance += ctx.geometry.key_home_distances[idx2] * freq_f;
+                report.distance += ctx.geometry.key_home_distances[idx2].to_f32() * freq_f;
             }
 
             // Scissor Detection

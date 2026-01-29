@@ -99,14 +99,16 @@ pub fn calculate_pair_cost(
         return Ok(0);
     }
 
-    let (dx2, dy2) = kb.spatial_cache[i_idx * kb.keys.len() + j_idx];
+    let movement = kb.spatial_cache[i_idx * kb.keys.len() + j_idx];
 
     // Intermediate geometric math in f64
     let t_lat = f64::from(rubric.travel_lat());
     let t_vert = f64::from(rubric.travel_vert());
-    let scale = f64::from(keyforge_model::constants::SCORE_SCALE);
 
-    let dist_raw = ((f64::from(dx2) * t_lat) + (f64::from(dy2) * t_vert)) * scale;
+    let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
+    let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
+
+    let dist_raw = (dx2 as f64 * t_lat) + (dy2 as f64 * t_vert);
 
     if dist_raw.is_nan() || dist_raw.is_infinite() {
         return Err(PhysicsError::InvalidInput {
@@ -120,7 +122,7 @@ pub fn calculate_pair_cost(
     let mut cost = dist_raw.round() as i64;
 
     if k1.finger == k2.finger {
-        cost = calculate_sfb_cost(kb, rubric, k1, k2, cost, scale, t_lat, t_vert)?;
+        cost = calculate_sfb_cost(kb, rubric, k1, k2, cost, t_lat, t_vert)?;
     } else {
         cost = calculate_non_sfb_penalties(rubric, k1, k2, cost)?;
     }
@@ -135,7 +137,6 @@ fn calculate_sfb_cost(
     k1: &keyforge_model::KeyNode,
     k2: &keyforge_model::KeyNode,
     mut cost: i64,
-    scale: f64,
     t_lat: f64,
     t_vert: f64,
 ) -> Result<i64, PhysicsError> {
@@ -145,9 +146,13 @@ fn calculate_sfb_cost(
         .get(k2.hand.as_usize())
         .and_then(|h| h.get(k2.finger.as_usize()))
     {
-        let odx = f64::from(k2.x - origin.0);
-        let ody = f64::from(k2.y - origin.1);
-        reach_k2 = ((odx * odx * t_lat) + (ody * ody * t_vert)) * scale;
+        let movement = keyforge_model::types::Movement::from_points(
+            *origin,
+            keyforge_model::types::Point::new(k2.x, k2.y),
+        );
+        let odx2 = i64::from(movement.dx) * i64::from(movement.dx);
+        let ody2 = i64::from(movement.dy) * i64::from(movement.dy);
+        reach_k2 = (odx2 as f64 * t_lat) + (ody2 as f64 * t_vert);
     }
 
     #[allow(clippy::cast_possible_truncation)]

@@ -18,7 +18,7 @@ pub mod scoring;
 pub use biomechanical::{Finger, FingerIndex, Hand, HandIndex, SpaceHandPreference};
 pub use geometry::{ColIndex, RowIndex};
 pub use indices::{KeyCode, KeyIndex};
-pub use math::{FixedPointMath, Point, SpatialUnit};
+pub use math::{FixedPointMath, Movement, Point, SpatialUnit, TrigramFlow};
 pub use newtypes::{
     DurationMs, IterationCount, LatencyMs, PatienceCount, ReheatCount, ScalingFactor, Seed,
     Temperature,
