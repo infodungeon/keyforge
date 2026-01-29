@@ -48,7 +48,7 @@ pub(crate) fn get_flow_delta(
         return 0;
     }
 
-    let mut min_old = Score(i64::MAX);
+    let mut min_old = Score::from_scaled_i64(i64::MAX);
     for &p1 in candidates1 {
         for &p2 in candidates2 {
             for &p3 in candidates3 {
@@ -60,7 +60,7 @@ pub(crate) fn get_flow_delta(
         }
     }
 
-    let mut min_new = Score(i64::MAX);
+    let mut min_new = Score::from_scaled_i64(i64::MAX);
     for &p1 in candidates1 {
         for &p2 in candidates2 {
             for &p3 in candidates3 {
@@ -75,7 +75,7 @@ pub(crate) fn get_flow_delta(
         }
     }
 
-    min_new.0 - min_old.0
+    min_new.raw() - min_old.raw()
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -92,8 +92,8 @@ mod tests {
             geometry: crate::kernel::GeometryData {
                 hands: Arc::new([HandIndex::LEFT; 3]),
                 fingers: Arc::new([FingerIndex::INDEX, FingerIndex::MIDDLE, FingerIndex::RING]),
-                rows: Arc::new([RowIndex(0); 3]),
-                cols: Arc::new([ColIndex(0), ColIndex(1), ColIndex(2)]),
+                rows: Arc::new([RowIndex::new(0); 3]),
+                cols: Arc::new([ColIndex::new(0), ColIndex::new(1), ColIndex::new(2)]),
                 cost_matrix: Arc::new([]),
                 dist_matrix: Arc::new([]),
                 key_home_distances: Arc::new([]),
@@ -122,9 +122,9 @@ mod tests {
             },
             all_bigrams: Arc::new([]),
             all_trigrams: Arc::new([]),
-            penalty_redirect: Score(100),
-            bonus_roll: Score(50),
-            bonus_roll_out: Score(50),
+            penalty_redirect: Score::from_scaled_i64(100),
+            bonus_roll: Score::from_scaled_i64(50),
+            bonus_roll_out: Score::from_scaled_i64(50),
             sequence_modifiers: Arc::new(std::collections::HashMap::new()),
         }
     }
@@ -139,13 +139,13 @@ mod tests {
         // 3 -> 2 -> 1 is inward (negative diff).
 
         let cost = calculate_flow_cost(&ctx, 2, 1, 0); // Ring -> Middle -> Index
-        assert_eq!(cost.0, -50);
+        assert_eq!(cost.raw(), -50);
     }
 
     #[test]
     fn test_calculate_flow_cost_redirect() {
         let ctx = setup_mock_flow_ctx();
         let cost = calculate_flow_cost(&ctx, 0, 1, 0); // Index -> Middle -> Index
-        assert_eq!(cost.0, 100);
+        assert_eq!(cost.raw(), 100);
     }
 }

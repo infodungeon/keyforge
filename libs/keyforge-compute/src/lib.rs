@@ -95,7 +95,7 @@ pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::Phy
     let score = engine.score(&layout)?;
     Ok(ScoringResult {
         score: score.to_f32(),
-        raw_score: score.0,
+        raw_score: score.raw(),
         layout,
     })
 }
@@ -314,9 +314,9 @@ impl Runtime {
         } else {
             let mut p = vec![None; self.engine.key_count()];
             for c in pinned_keys {
-                if (c.index.0 as usize) < p.len() {
+                if (c.index.raw() as usize) < p.len() {
                     if let Some(code) = self.registry.get_code(&c.key) {
-                        p[c.index.0 as usize] = Some(code);
+                        p[c.index.raw() as usize] = Some(code);
                     } else {
                         return Err(EvolutionError::Config(format!(
                             "Pinned key '{}' not found in registry",

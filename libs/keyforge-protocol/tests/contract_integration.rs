@@ -16,7 +16,7 @@ fn test_contract_compatibility() {
         y: 0.0,
         w: 1.0,
         h: 1.0,
-        hand: HandIndex(0),
+        hand: HandIndex::new(0),
         ..Default::default()
     };
 

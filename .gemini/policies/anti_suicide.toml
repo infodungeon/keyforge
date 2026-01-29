@@ -1,0 +1,14 @@
+[[rules]]
+name = "Disallow raw grep"
+description = "Hard block on raw grep to prevent session-killing ingestion. Use 'git grep' or 'ast-grep' instead."
+toolName = "run_shell_command"
+decision = "deny"
+# Matches 'grep' as a command but uses a negative lookahead to allow 'git grep'
+commandRegex = "^(?!(.*git\s+grep)).*\bgrep\b.*"
+
+[[rules]]
+name = "Block root searches"
+description = "Prevent the agent from ever searching the root directory directly."
+toolName = "search_file_content"
+decision = "deny"
+dirPathRegex = "^\.$"

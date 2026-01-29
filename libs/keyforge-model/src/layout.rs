@@ -87,8 +87,8 @@ impl Layout {
     /// # Errors
     /// Returns `LayoutError::IndexOutOfBounds` if either index is invalid.
     pub fn swap(&mut self, a: KeyIndex, b: KeyIndex) -> Result<(), LayoutError> {
-        let idx_a = usize::from(a.0);
-        let idx_b = usize::from(b.0);
+        let idx_a = usize::from(a.raw());
+        let idx_b = usize::from(b.raw());
         if idx_a >= self.keys.len() {
             return Err(LayoutError::IndexOutOfBounds(idx_a));
         }
@@ -104,7 +104,7 @@ impl Layout {
     /// # Errors
     /// Returns `LayoutError::IndexOutOfBounds` if the index is invalid.
     pub fn set(&mut self, index: KeyIndex, key: KeyCode) -> Result<(), LayoutError> {
-        let idx = usize::from(index.0);
+        let idx = usize::from(index.raw());
         if idx >= self.keys.len() {
             return Err(LayoutError::IndexOutOfBounds(idx));
         }
@@ -115,7 +115,7 @@ impl Layout {
     /// Gets the key at a specific index.
     #[must_use]
     pub fn get(&self, index: KeyIndex) -> Option<KeyCode> {
-        self.keys.get(usize::from(index.0)).copied()
+        self.keys.get(usize::from(index.raw())).copied()
     }
 
     /// Identifies the similarity of this layout to known standard layouts.
@@ -220,7 +220,7 @@ impl LayoutIdentity {
 }
 
 fn to_codes(s: &str) -> Vec<KeyCode> {
-    s.chars().map(|c| KeyCode(c as u16)).collect()
+    s.chars().map(|c| KeyCode::new(c as u16)).collect()
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_layout_basic_methods() {
-        let keys = vec![KeyCode(65), KeyCode(66)];
+        let keys = vec![KeyCode::new(65), KeyCode::new(66)];
         let layout = Layout::new_unchecked(keys.clone());
         assert_eq!(layout.len(), 2);
         assert!(!layout.is_empty());
@@ -243,26 +243,26 @@ mod tests {
 
     #[test]
     fn test_layout_mutations() {
-        let mut layout = Layout::new_unchecked(vec![KeyCode(65), KeyCode(66)]);
+        let mut layout = Layout::new_unchecked(vec![KeyCode::new(65), KeyCode::new(66)]);
 
         // Swap
-        layout.swap(KeyIndex(0), KeyIndex(1)).unwrap();
-        assert_eq!(layout.get(KeyIndex(0)).unwrap(), KeyCode(66));
-        assert_eq!(layout.get(KeyIndex(1)).unwrap(), KeyCode(65));
+        layout.swap(KeyIndex::new(0), KeyIndex::new(1)).unwrap();
+        assert_eq!(layout.get(KeyIndex::new(0)).unwrap(), KeyCode::new(66));
+        assert_eq!(layout.get(KeyIndex::new(1)).unwrap(), KeyCode::new(65));
 
         // Set
-        layout.set(KeyIndex(0), KeyCode(67)).unwrap();
-        assert_eq!(layout.get(KeyIndex(0)).unwrap(), KeyCode(67));
+        layout.set(KeyIndex::new(0), KeyCode::new(67)).unwrap();
+        assert_eq!(layout.get(KeyIndex::new(0)).unwrap(), KeyCode::new(67));
 
         // Bounds check
-        assert!(layout.swap(KeyIndex(0), KeyIndex(2)).is_err());
-        assert!(layout.set(KeyIndex(2), KeyCode(68)).is_err());
+        assert!(layout.swap(KeyIndex::new(0), KeyIndex::new(2)).is_err());
+        assert!(layout.set(KeyIndex::new(2), KeyCode::new(68)).is_err());
     }
 
     #[test]
     fn test_layout_identification() {
         let qwerty_str = crate::constants::layouts::QWERTY;
-        let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode(c as u16)).collect();
+        let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode::new(c as u16)).collect();
         let layout = Layout::new_unchecked(keys);
 
         let id = layout.identify();
@@ -275,7 +275,7 @@ mod tests {
     proptest! {
         #[test]
         fn test_layout_validity(keys in prop::collection::vec(0u16..100, 0..50)) {
-            let key_codes: Vec<KeyCode> = keys.into_iter().map(KeyCode).collect();
+            let key_codes: Vec<KeyCode> = keys.into_iter().map(KeyCode::new).collect();
             let raw = RawLayout { keys: key_codes };
             let result = Layout::try_from(raw);
             prop_assert!(result.is_ok());

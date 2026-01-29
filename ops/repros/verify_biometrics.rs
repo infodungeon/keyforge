@@ -90,9 +90,9 @@ async fn main() {
     let session_bio = builder_bio.build().unwrap();
     let engine_bio = session_bio.engine;
 
-    let mut keys = vec![KeyCode(0); 30];
-    keys[0] = KeyCode(116);
-    keys[1] = KeyCode(104);
+    let mut keys = vec![KeyCode::new(0); 30];
+    keys[0] = KeyCode::new(116);
+    keys[1] = KeyCode::new(104);
     let layout = Layout::new_unchecked(keys);
 
     let score_none = engine_none.score(&layout).unwrap();

@@ -45,7 +45,7 @@ impl ScoringEngine for GenericScoringEngine {
         scratch: &mut PhysicsScratch,
     ) -> Result<Score, PhysicsError> {
         let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
-        Ok(Score(score_layout(&self.ctx, &validated, scratch)?))
+        Ok(Score::from_scaled_i64(score_layout(&self.ctx, &validated, scratch)?))
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
@@ -72,9 +72,9 @@ impl ScoringEngine for GenericScoringEngine {
             };
 
             // Access private kernels for breakdown
-            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.0;
-            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.0;
-            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
+            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.raw();
+            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.raw();
+            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.raw();
 
             // Clean up scratch for next use (score_layout usually does this, but we called sub-functions)
             scratch.clear_used();

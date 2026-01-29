@@ -32,7 +32,7 @@ fn main() {
     let keys: Vec<KeyNode> = (0..5)
         .map(|i| KeyNode {
             index: i,
-            hand: HandIndex(0),
+            hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(i as u8),
             x: i as f32,
             ..Default::default()

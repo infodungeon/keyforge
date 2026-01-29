@@ -58,7 +58,7 @@ impl CompilationStage for CostStage<'_> {
                     KeyIndex::from(i),
                     KeyIndex::from(j),
                 )?;
-                internal_cost_matrix[i * key_count + j] = Score(cost);
+                internal_cost_matrix[i * key_count + j] = Score::from_scaled_i64(cost);
             }
         }
 
@@ -131,7 +131,7 @@ fn resolve_standard_finger(key: &KeyNode, reach: &keyforge_model::cost_model::Fi
     const ZONE_INNER_THRESHOLD: u8 = 1;
     const ZONE_OUTER_THRESHOLD: u8 = 1;
 
-    let col_abs = key.col.0.unsigned_abs();
+    let col_abs = key.col.raw().unsigned_abs();
     let zone = match key.finger {
         FingerIndex::INDEX if col_abs > ZONE_INNER_THRESHOLD => &reach.inner,
         FingerIndex::PINKY if col_abs > ZONE_OUTER_THRESHOLD => &reach.outer,
@@ -171,7 +171,7 @@ mod tests {
 
         let key = KeyNode {
             index: 0,
-            hand: HandIndex(0),
+            hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(1),
             row: RowIndex(0),
             col: ColIndex(0),

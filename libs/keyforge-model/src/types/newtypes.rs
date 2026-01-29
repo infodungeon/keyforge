@@ -11,13 +11,39 @@ use utoipa::ToSchema;
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct DurationMs(pub u64);
+pub struct DurationMs(u64);
+
+impl DurationMs {
+    /// Creates a new `DurationMs`.
+    #[must_use]
+    pub const fn new(val: u64) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `u64` value.
+    #[must_use]
+    pub const fn raw(self) -> u64 {
+        self.0
+    }
+}
 
 /// High-precision latency measurement in milliseconds.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct LatencyMs(pub f64);
+pub struct LatencyMs(f64);
+
+impl LatencyMs {
+    /// Creates a new `LatencyMs`.
+    #[must_use]
+    pub const fn new(val: f64) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `f64` value.
+    #[must_use]
+    pub const fn raw(self) -> f64 {
+        self.0
+    }
+}
 
 /// Number of iterations for an optimization step.
 #[derive(
@@ -25,7 +51,20 @@ pub struct LatencyMs(pub f64);
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct IterationCount(pub usize);
+pub struct IterationCount(usize);
+
+impl IterationCount {
+    /// Creates a new `IterationCount`.
+    #[must_use]
+    pub const fn new(val: usize) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `usize` value.
+    #[must_use]
+    pub const fn raw(self) -> usize {
+        self.0
+    }
+}
 
 impl From<usize> for IterationCount {
     fn from(val: usize) -> Self {
@@ -37,7 +76,20 @@ impl From<usize> for IterationCount {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct Temperature(pub f32);
+pub struct Temperature(f32);
+
+impl Temperature {
+    /// Creates a new `Temperature`.
+    #[must_use]
+    pub const fn new(val: f32) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `f32` value.
+    #[must_use]
+    pub const fn raw(self) -> f32 {
+        self.0
+    }
+}
 
 impl std::ops::MulAssign<f32> for Temperature {
     fn mul_assign(&mut self, rhs: f32) {
@@ -64,7 +116,20 @@ impl From<f32> for Temperature {
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct PatienceCount(pub usize);
+pub struct PatienceCount(usize);
+
+impl PatienceCount {
+    /// Creates a new `PatienceCount`.
+    #[must_use]
+    pub const fn new(val: usize) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `usize` value.
+    #[must_use]
+    pub const fn raw(self) -> usize {
+        self.0
+    }
+}
 
 impl From<usize> for PatienceCount {
     fn from(val: usize) -> Self {
@@ -78,7 +143,20 @@ impl From<usize> for PatienceCount {
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct ReheatCount(pub usize);
+pub struct ReheatCount(usize);
+
+impl ReheatCount {
+    /// Creates a new `ReheatCount`.
+    #[must_use]
+    pub const fn new(val: usize) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `usize` value.
+    #[must_use]
+    pub const fn raw(self) -> usize {
+        self.0
+    }
+}
 
 impl From<usize> for ReheatCount {
     fn from(val: usize) -> Self {
@@ -90,7 +168,20 @@ impl From<usize> for ReheatCount {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct ScalingFactor(pub f32);
+pub struct ScalingFactor(f32);
+
+impl ScalingFactor {
+    /// Creates a new `ScalingFactor`.
+    #[must_use]
+    pub const fn new(val: f32) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `f32` value.
+    #[must_use]
+    pub const fn raw(self) -> f32 {
+        self.0
+    }
+}
 
 impl From<f32> for ScalingFactor {
     fn from(val: f32) -> Self {
@@ -104,7 +195,20 @@ impl From<f32> for ScalingFactor {
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct Seed(pub u64);
+pub struct Seed(u64);
+
+impl Seed {
+    /// Creates a new `Seed`.
+    #[must_use]
+    pub const fn new(val: u64) -> Self {
+        Self(val)
+    }
+    /// Returns the raw `u64` value.
+    #[must_use]
+    pub const fn raw(self) -> u64 {
+        self.0
+    }
+}
 
 impl From<u64> for Seed {
     fn from(val: u64) -> Self {

@@ -49,7 +49,7 @@ pub async fn run(
     let result = session.engine.score(&layout)?;
 
     #[allow(clippy::cast_precision_loss)]
-    let score_f32 = result.0 as f32;
+    let score_f32 = result.raw() as f32;
 
     info!("Score: {:.4}", score_f32 / 1_000_000.0);
     Ok(())

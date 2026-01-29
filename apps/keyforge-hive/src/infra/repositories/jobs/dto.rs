@@ -100,10 +100,8 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
         for row in source.keys {
             let idx = row.idx;
             #[allow(clippy::cast_possible_truncation)]
-            let kidx = KeyIndex(
-                u16::try_from(idx)
-                    .map_err(|_| ForgeError::Projection("Key index overflow".into()))?,
-            );
+            let kidx = KeyIndex::new(u16::try_from(idx)
+                .map_err(|_| ForgeError::Projection("Key index overflow".into()))?);
 
             keys.push(KeyNode {
                 index: usize::try_from(idx)
@@ -113,7 +111,7 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
                 y: row.y,
                 w: row.w.unwrap_or(1.0),
                 h: row.h.unwrap_or(1.0),
-                hand: HandIndex(u8::try_from(row.hand).unwrap_or(0)),
+                hand: HandIndex::new(u8::try_from(row.hand).unwrap_or(0)),
                 finger: FingerIndex::new_unchecked(u8::try_from(row.finger).unwrap_or(0)),
                 row: RowIndex(i8::try_from(row.row_idx).unwrap_or(0)),
                 col: ColIndex(i8::try_from(row.col_idx).unwrap_or(0)),

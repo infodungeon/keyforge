@@ -1,0 +1,17 @@
+{
+  "gemini-cli-prompt-library": {
+    "overrides": [
+      "/home/robert/*"
+    ]
+  },
+  "keyforge-100x": {
+    "overrides": [
+      "/home/robert/*"
+    ]
+  },
+  "gemini-cli-security": {
+    "overrides": [
+      "/home/robert/*"
+    ]
+  }
+}

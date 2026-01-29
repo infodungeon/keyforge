@@ -48,7 +48,7 @@ impl HermeticWorkspace {
         let sys = root.join("system");
         let assets = [
             ("config/keycodes.json", "[]"),
-            ("weights/cost_matrix.json", "{}"),
+            ("weights/cost_matrix.json", "{{}}"),
             ("corpora/text/en_std/1grams.json", "[]"),
         ];
 
@@ -106,37 +106,37 @@ impl HermeticWorkspace {
         // 1. Keycodes
         let keycodes = vec![
             KeycodeDefinition {
-                code: KeyCode(0),
+                code: KeyCode::new(0),
                 id: "KC_NO".into(),
                 label: " ".into(),
                 aliases: vec!["NO".into()],
             },
             KeycodeDefinition {
-                code: KeyCode(1),
+                code: KeyCode::new(1),
                 id: "KC_TRNS".into(),
                 label: "▽".into(),
                 aliases: vec!["TRNS".into()],
             },
             KeycodeDefinition {
-                code: KeyCode(97),
+                code: KeyCode::new(97),
                 id: "KC_A".into(),
                 label: "a".into(),
                 aliases: vec!["A".into()],
             },
             KeycodeDefinition {
-                code: KeyCode(98),
+                code: KeyCode::new(98),
                 id: "KC_B".into(),
                 label: "b".into(),
                 aliases: vec!["B".into()],
             },
             KeycodeDefinition {
-                code: KeyCode(116),
+                code: KeyCode::new(116),
                 id: "KC_T".into(),
                 label: "t".into(),
                 aliases: vec!["T".into()],
             },
             KeycodeDefinition {
-                code: KeyCode(104),
+                code: KeyCode::new(104),
                 id: "KC_H".into(),
                 label: "h".into(),
                 aliases: vec!["H".into()],
@@ -153,7 +153,7 @@ impl HermeticWorkspace {
         // 2. Cost Matrix
         let mut static_costs = HashMap::new();
         let mut base_costs = RowCosts::new();
-        base_costs.insert(RowIndex(0), 100.0);
+        base_costs.insert(RowIndex::new(0), 100.0);
 
         let fingers_def = FingerDefinition::Standard(keyforge_model::cost_model::FingerReach {
             base: base_costs,
@@ -211,30 +211,30 @@ impl HermeticWorkspace {
                     index: 0,
                     x: 0.0,
                     y: 0.0,
-                    hand: HandIndex(0),
-                    finger: FingerIndex::INDEX,
-                    row: RowIndex(0),
-                    col: ColIndex(0),
+                    hand: HandIndex::new(0),
+                    finger: FingerIndex::new(1),
+                    row: RowIndex::new(0),
+                    col: ColIndex::new(0),
                     ..Default::default()
                 },
                 KeyNode {
                     index: 1,
                     x: 1.0,
                     y: 0.0,
-                    hand: HandIndex(0),
-                    finger: FingerIndex::MIDDLE,
-                    row: RowIndex(0),
-                    col: ColIndex(1),
+                    hand: HandIndex::new(0),
+                    finger: FingerIndex::new(2),
+                    row: RowIndex::new(0),
+                    col: ColIndex::new(1),
                     ..Default::default()
                 },
             ],
             prime_slots: vec![
-                keyforge_model::types::KeyIndex(0),
-                keyforge_model::types::KeyIndex(1),
+                keyforge_model::types::KeyIndex::new(0),
+                keyforge_model::types::KeyIndex::new(1),
             ],
             med_slots: vec![],
             low_slots: vec![],
-            home_row: keyforge_model::types::RowIndex(0),
+            home_row: keyforge_model::types::RowIndex::new(0),
         };
 
         let kb_def = KeyboardDefinition {
@@ -391,7 +391,7 @@ impl HermeticWorkspace {
     }
 
     #[must_use]
-    pub fn keycodes_path(&self) -> PathBuf {
+    pub fn keycodes_path(&self, name: &str) -> PathBuf {
         self.root.join("user/config/keycodes.json")
     }
 }
@@ -422,10 +422,11 @@ mod tests {
         assert!(ws.keycodes_path().exists());
 
         // Check corpus dir
-        assert!(ws
-            .root
-            .join("user/corpora/test_corpus/1grams.json")
-            .exists());
+        assert!(
+            ws.root
+                .join("user/corpora/test_corpus/1grams.json")
+                .exists()
+        );
 
         // Check en_small
         assert!(ws.root.join("en_small.json").exists());

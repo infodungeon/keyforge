@@ -136,7 +136,7 @@ impl Default for KeyNode {
             y: 0.0,
             w: 1.0,
             h: 1.0,
-            hand: HandIndex(0),
+            hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(0),
             row: RowIndex(0),
             col: ColIndex(0),
@@ -226,7 +226,7 @@ impl Validator for KeyboardGeometry {
             .chain(&self.med_slots)
             .chain(&self.low_slots)
         {
-            if (idx.0 as usize) >= max_idx {
+            if (idx.raw() as usize) >= max_idx {
                 return Err(format!("Slot index {idx} out of bounds (keys: {max_idx})"));
             }
         }
@@ -294,7 +294,7 @@ impl KeyboardDefinition {
                 label: format!("K{i:02}"),
                 x: i as f32,
                 y: 0.0,
-                hand: HandIndex(0),
+                hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(0),
                 row: RowIndex(0),
                 col: ColIndex(i as i8),
@@ -310,7 +310,7 @@ impl KeyboardDefinition {
             },
             geometry: KeyboardGeometry {
                 keys,
-                prime_slots: (0..keys_count as u16).map(KeyIndex).collect(),
+                prime_slots: (0..keys_count as u16).map(KeyIndex::new).collect(),
                 ..Default::default()
             },
             ..Default::default()

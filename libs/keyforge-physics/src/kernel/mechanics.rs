@@ -69,7 +69,7 @@ pub fn calculate_flow_cost(
 
 fn to_score_or_err(val: f32) -> Result<i64, PhysicsError> {
     keyforge_model::types::Score::from_f32(val)
-        .map(|s| s.0)
+        .map(|s| s.raw())
         .map_err(|e| PhysicsError::InvalidInput { message: e })
 }
 
@@ -158,8 +158,8 @@ fn calculate_sfb_cost(
             context: "Pair cost reach reduction".to_string(),
         })?;
 
-    let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
-    let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
+    let row_diff = (i32::from(k1.row.raw()) - i32::from(k2.row.raw())).unsigned_abs();
+    let col_diff = (i32::from(k1.col.raw()) - i32::from(k2.col.raw())).unsigned_abs();
 
     if col_diff == 1 {
         let sfb_extra = if k1.finger.is_weak() {
@@ -201,7 +201,7 @@ fn calculate_non_sfb_penalties(
     mut cost: i64,
 ) -> Result<i64, PhysicsError> {
     let finger_diff = k1.finger.distance(k2.finger);
-    let row_diff = (i32::from(k1.row.0) - i32::from(k2.row.0)).unsigned_abs();
+    let row_diff = (i32::from(k1.row.raw()) - i32::from(k2.row.raw())).unsigned_abs();
 
     if finger_diff == 1 && k1.finger != FingerIndex::THUMB && k2.finger != FingerIndex::THUMB {
         if row_diff >= u32::from(rubric.threshold_scissor_row_diff().unsigned_abs()) {
@@ -211,7 +211,7 @@ fn calculate_non_sfb_penalties(
                     context: "Pair cost scissor".to_string(),
                 })?;
         } else if row_diff == 0 {
-            let col_diff = (i32::from(k1.col.0) - i32::from(k2.col.0)).unsigned_abs();
+            let col_diff = (i32::from(k1.col.raw()) - i32::from(k2.col.raw())).unsigned_abs();
             if col_diff > 1 {
                 cost = cost
                     .checked_add(to_score_or_err(rubric.sfb_lateral())?)
@@ -235,10 +235,10 @@ mod tests {
         let keys = vec![
             KeyNode {
                 index: 0,
-                hand: HandIndex(0),
-                finger: FingerIndex::new_unchecked(1),
-                row: RowIndex(0),
-                col: ColIndex(0),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new(1),
+                row: RowIndex::new(0),
+                col: ColIndex::new(0),
                 x: 0.0,
                 y: 0.0,
                 is_home: true,
@@ -246,10 +246,10 @@ mod tests {
             },
             KeyNode {
                 index: 1,
-                hand: HandIndex(0),
-                finger: FingerIndex::new_unchecked(1),
-                row: RowIndex(1),
-                col: ColIndex(0),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new(1),
+                row: RowIndex::new(1),
+                col: ColIndex::new(0),
                 x: 0.0,
                 y: 1.0,
                 is_home: false,
@@ -257,17 +257,17 @@ mod tests {
             },
             KeyNode {
                 index: 2,
-                hand: HandIndex(0),
-                finger: FingerIndex::new_unchecked(2),
-                row: RowIndex(1),
-                col: ColIndex(1),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new(2),
+                row: RowIndex::new(1),
+                col: ColIndex::new(1),
                 x: 1.0,
                 y: 1.0,
                 is_home: false,
                 ..Default::default()
             },
         ];
-        Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap()
+        Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap()
     }
 
     #[test]
@@ -275,9 +275,11 @@ mod tests {
         let kb = setup_kb_pair();
         let rubric = Rubric::default();
 
-        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
+        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1)).unwrap();
+        // Use a direct calculation for the assertion instead of reaching into verify.rs
+        let expected_min = (rubric.sfb_base() * 1_000_000.0) as i64;
         assert!(
-            cost >= crate::verify::to_fixed(rubric.sfb_base()),
+            cost >= expected_min,
             "SFB should be penalized"
         );
     }
@@ -287,23 +289,23 @@ mod tests {
         let keys = vec![
             KeyNode {
                 index: 0,
-                hand: HandIndex(0),
-                finger: FingerIndex::new_unchecked(1),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
-                hand: HandIndex(1),
-                finger: FingerIndex::new_unchecked(1),
+                hand: HandIndex::new(1),
+                finger: FingerIndex::new(1),
                 ..Default::default()
             },
         ];
         let kb = Arc::new(
-            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+            Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap(),
         );
         let rubric = Rubric::default();
 
-        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1)).unwrap();
+        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1)).unwrap();
         assert_eq!(cost, 0, "Different hands should have 0 cost");
     }
 
@@ -313,11 +315,11 @@ mod tests {
 
         // Force NaN via infinity * 0 or similar if possible, or just inject Infinity
         let rubric = Rubric::builder().travel_lat(f32::INFINITY).build();
-        let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+        let res = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. })));
 
         let rubric = Rubric::builder().travel_lat(f32::NAN).build();
-        let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+        let res = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. })));
     }
 
@@ -327,7 +329,7 @@ mod tests {
 
         // 1. checked_add overflow (SFB base)
         let rubric = Rubric::builder().sfb_base(1e20).build();
-        let res = calculate_pair_cost(&kb, &rubric, KeyIndex(0), KeyIndex(1));
+        let res = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1));
         assert!(matches!(res, Err(PhysicsError::InvalidInput { .. }))); // Score::from_f32 fails first
     }
 }

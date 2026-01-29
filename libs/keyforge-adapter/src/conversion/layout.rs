@@ -38,7 +38,7 @@ pub fn parse_layout_string_strict(
     }
 
     while keys.len() < size {
-        keys.push(KeyCode(0));
+        keys.push(KeyCode::new(0));
     }
 
     Ok(keyforge_model::Layout::new_unchecked(keys))
@@ -65,12 +65,12 @@ pub fn parse_layout_string_permissive(
         if let Some(code) = registry.resolve_token(token) {
             keys.push(code);
         } else {
-            keys.push(KeyCode(0));
+            keys.push(KeyCode::new(0));
         }
     }
 
     while keys.len() < size {
-        keys.push(KeyCode(0));
+        keys.push(KeyCode::new(0));
     }
 
     keyforge_model::Layout::new_unchecked(keys)
@@ -101,7 +101,7 @@ mod tests {
     fn test_parse_layout_string_strict() {
         let mut registry = KeycodeRegistry::new_with_defaults();
         registry.definitions.push(KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: "KC_A".into(),
             label: "A".into(),
             aliases: vec!["A".into()],
@@ -112,8 +112,8 @@ mod tests {
         assert!(res.is_err(), "Strict should fail on unknown token 'B'");
 
         let ok = parse_layout_string_strict("A", 2, &registry).unwrap();
-        assert_eq!(ok.keys()[0], KeyCode(10));
-        assert_eq!(ok.keys()[1], KeyCode(0)); // Padded
+        assert_eq!(ok.keys()[0], KeyCode::new(10));
+        assert_eq!(ok.keys()[1], KeyCode::new(0)); // Padded
     }
 
     #[test]
@@ -128,7 +128,7 @@ mod tests {
         // We need a registry that knows 'MO'
         let mut reg = KeycodeRegistry::new_with_defaults();
         reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(100),
+            code: KeyCode::new(100),
             id: "MO".into(),
             label: "MO".into(),
             aliases: vec![],
@@ -136,7 +136,7 @@ mod tests {
         reg.rebuild_maps();
 
         let ok = parse_layout_string_strict("MO(1)", 1, &reg).unwrap();
-        assert_eq!(ok.keys()[0], KeyCode(100));
+        assert_eq!(ok.keys()[0], KeyCode::new(100));
 
         // 3. malformed bracket - ends with ) but no (
         let err = parse_layout_string_strict("MO)", 1, &reg);
@@ -151,7 +151,7 @@ mod tests {
     fn test_parse_layout_string_permissive_extended() {
         let mut reg = KeycodeRegistry::new_with_defaults();
         reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(100),
+            code: KeyCode::new(100),
             id: "MO".into(),
             label: "MO".into(),
             aliases: vec![],
@@ -160,22 +160,22 @@ mod tests {
 
         // Exact match
         let ok = parse_layout_string_permissive("MO UNKNOWN", 2, &reg);
-        assert_eq!(ok.keys()[0], KeyCode(100));
-        assert_eq!(ok.keys()[1], KeyCode(0));
+        assert_eq!(ok.keys()[0], KeyCode::new(100));
+        assert_eq!(ok.keys()[1], KeyCode::new(0));
 
         // Argument stripping
         let ok = parse_layout_string_permissive("MO(1) UNKNOWN", 2, &reg);
-        assert_eq!(ok.keys()[0], KeyCode(100));
-        assert_eq!(ok.keys()[1], KeyCode(0));
+        assert_eq!(ok.keys()[0], KeyCode::new(100));
+        assert_eq!(ok.keys()[1], KeyCode::new(0));
 
         // Malformed bracket: ends with ) but no (
         let malformed = parse_layout_string_permissive("MO)", 1, &reg);
-        assert_eq!(malformed.keys()[0], KeyCode(0));
+        assert_eq!(malformed.keys()[0], KeyCode::new(0));
 
         // Padding
         let padded = parse_layout_string_permissive("", 2, &reg);
         assert_eq!(padded.len(), 2);
-        assert_eq!(padded.keys()[0], KeyCode(0));
+        assert_eq!(padded.keys()[0], KeyCode::new(0));
     }
 
     #[test]

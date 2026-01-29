@@ -87,11 +87,11 @@ impl MutationOperator for GroupMutation {
                             "Key B {idx_b} missing in group mutation"
                         ))
                     })?;
-                if (code_a.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_a.0 as usize] = KeyIndex::new(idx_b as u16);
+                if (code_a.raw() as usize) < patched_pos_map.len() {
+                    patched_pos_map[code_a.raw() as usize] = KeyIndex::new(idx_b as u16);
                 }
-                if (code_b.0 as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_b.0 as usize] = KeyIndex::new(idx_a as u16);
+                if (code_b.raw() as usize) < patched_pos_map.len() {
+                    patched_pos_map[code_b.raw() as usize] = KeyIndex::new(idx_a as u16);
                 }
 
                 let temp_layout = Layout::new_unchecked(temp_keys.clone());
@@ -148,8 +148,8 @@ mod tests {
             .map(|i| KeyNode {
                 index: i,
                 label: format!("k{i}"),
-                hand: HandIndex((i % 2) as u8),
-                finger: FingerIndex((i % 5) as u8),
+                hand: HandIndex::new((i % 2) as u8),
+                finger: FingerIndex::new((i % 5) as u8),
                 row: RowIndex((i / 10) as i8),
                 col: ColIndex((i % 10) as i8),
                 x: (i % 10) as f32,

@@ -82,7 +82,7 @@ mod builder_tests {
             meta: KeyboardMeta::default(),
             geometry: KeyboardGeometry {
                 keys: vec![keyforge_model::KeyNode::default()],
-                prime_slots: vec![keyforge_model::types::KeyIndex(0)],
+                prime_slots: vec![keyforge_model::types::KeyIndex::new(0)],
                 med_slots: vec![],
                 low_slots: vec![],
                 home_row: keyforge_model::types::RowIndex(0),

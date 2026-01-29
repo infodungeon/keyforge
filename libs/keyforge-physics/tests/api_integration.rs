@@ -13,7 +13,7 @@ mod integration_tests {
             .map(|i| KeyNode {
                 index: i,
                 label: format!("k{i}"),
-                hand: HandIndex(0),
+                hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(i as u8),
                 x: i as f32,
                 ..Default::default()
@@ -52,7 +52,7 @@ mod integration_tests {
         char_freqs[97] = 100;
         corpus_val.char_freqs = Arc::from(char_freqs);
         let corpus = Arc::new(corpus_val);
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
 
         let req = EngineRequest {
             keyboard: kb,

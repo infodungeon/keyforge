@@ -24,7 +24,7 @@ mod integration_tests {
         assert!(!engine.capabilities().is_exact);
         assert_eq!(engine.key_count(), 3);
 
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         let score = engine.score(&layout).unwrap();
         let detailed = engine.score_detailed(&layout).unwrap();
         assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);

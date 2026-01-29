@@ -14,8 +14,8 @@ pub(crate) fn calculate_bigram_delta(
     idx_b: usize,
 ) -> i64 {
     let mut delta = 0i64;
-    let ca_val = code_a.0 as usize;
-    let cb_val = code_b.0 as usize;
+    let ca_val = code_a.raw() as usize;
+    let cb_val = code_b.raw() as usize;
     let candidates_a = pos_map.get(code_a);
     let candidates_b = pos_map.get(code_b);
 
@@ -94,7 +94,7 @@ fn get_pair_delta(
             let mut cost_old =
                 ctx.geometry.cost_matrix[p1.as_usize() * ctx.key_count + p2.as_usize()];
             let mut cost_new = ctx.geometry.cost_matrix[p1_new * ctx.key_count + p2_new];
-            if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1.0, c2.0)) {
+            if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1.raw(), c2.raw())) {
                 cost_old = cost_old + mod_val;
                 cost_new = cost_new + mod_val;
             }
@@ -106,5 +106,5 @@ fn get_pair_delta(
             }
         }
     }
-    min_new.0 - min_old.0
+    min_new.raw() - min_old.raw()
 }

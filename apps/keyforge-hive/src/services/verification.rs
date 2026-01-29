@@ -211,10 +211,10 @@ impl VerificationService {
         let is_exact = engine.capabilities().is_exact;
 
         if is_exact {
-            if calculated_score.0 != sub.raw_score {
+            if calculated_score.raw() != sub.raw_score {
                 warn!(
                     "❌ Bit-perfect Mismatch: Claimed {} vs Calc {}",
-                    sub.raw_score, calculated_score.0
+                    sub.raw_score, calculated_score.raw()
                 );
                 return Err(AppError::Validation(
                     "Bit-perfect score verification failed".into(),

@@ -68,7 +68,7 @@ mod integration_tests {
         let oracle = EngineFactory::new_exact(&ctx).unwrap();
 
         // Layout where 'a' is on BOTH keys
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(97)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(97)]);
 
         let score_engine = engine.score(&layout).unwrap();
         let score_oracle = oracle.score(&layout).unwrap();
@@ -124,7 +124,7 @@ mod integration_tests {
         let oracle = EngineFactory::new_exact(&ctx).unwrap();
 
         // Layout where 'a' is at index 0, and 'b' is at BOTH index 1 and 2
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(98)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(98)]);
 
         let score_engine = engine.score(&layout).unwrap();
         let score_oracle = oracle.score(&layout).unwrap();
@@ -183,7 +183,7 @@ mod integration_tests {
         let oracle = EngineFactory::new_exact(&ctx).unwrap();
 
         let layout =
-            Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(99)]);
+            Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99), KeyCode::new(99)]);
 
         let score_engine = engine.score(&layout).unwrap();
         let score_oracle = oracle.score(&layout).unwrap();

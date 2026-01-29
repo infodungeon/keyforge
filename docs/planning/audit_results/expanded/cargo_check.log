@@ -1,6 +1,13 @@
 
 --- STDERR ---
+    Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
    Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
+    Checking keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
+    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
+    Checking keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
+    Checking keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
+    Checking keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
+    Checking keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
     Checking keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
     Checking keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
     Checking keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
@@ -12,12 +19,7 @@
     Checking keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
     Checking keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
     Checking keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
-    Checking keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
-    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
-    Checking openbookcorpus v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/corpora/openbookcorpus)
-    Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
-    Checking keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
-    Checking keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
     Checking keyforge-system-tests v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/tests/system)
+    Checking openbookcorpus v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/corpora/openbookcorpus)
     Checking keyforge-wasm v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 26.42s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.01s

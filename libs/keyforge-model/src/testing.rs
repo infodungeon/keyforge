@@ -24,7 +24,7 @@ impl Arbitrary for KeyCode {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (0u16..500).prop_map(KeyCode).boxed()
+        (0u16..500).prop_map(KeyCode::new).boxed()
     }
 }
 
@@ -33,7 +33,7 @@ impl Arbitrary for HandIndex {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (0u8..=1).prop_map(HandIndex).boxed()
+        (0u8..=1).prop_map(HandIndex::new).boxed()
     }
 }
 
@@ -51,7 +51,7 @@ impl Arbitrary for RowIndex {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (any::<i8>()).prop_map(RowIndex).boxed()
+        (any::<i8>()).prop_map(RowIndex::new).boxed()
     }
 }
 
@@ -60,7 +60,7 @@ impl Arbitrary for ColIndex {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (any::<i8>()).prop_map(ColIndex).boxed()
+        (any::<i8>()).prop_map(ColIndex::new).boxed()
     }
 }
 
@@ -117,7 +117,7 @@ impl Arbitrary for Keyboard {
                     key.index = i;
                 }
                 #[allow(clippy::unwrap_used)]
-                Keyboard::new(keys, RowIndex(1), "test".into()).unwrap()
+                Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap()
             })
             .boxed()
     }
@@ -200,7 +200,7 @@ impl Arbitrary for Rubric {
 pub fn mock_cost_model() -> CostModel {
     let mut base_zone = crate::cost_model::RowCosts::new();
     for r in -128..=127 {
-        base_zone.insert(RowIndex(r as i8), 0.0);
+        base_zone.insert(RowIndex::new(r as i8), 0.0);
     }
 
     let index_zones = crate::cost_model::FingerReach {
@@ -270,13 +270,13 @@ pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
         .map(|i| KeyNode {
             index: i,
             label: format!("k{i}"),
-            hand: HandIndex(0),
-            finger: FingerIndex::new_unchecked(i as u8),
+            hand: HandIndex::new(0),
+            finger: FingerIndex::new(i as u8),
             x: i as f32,
             ..Default::default()
         })
         .collect();
-    let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
+    let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
 
     let mut corpus = Corpus::default();
     let mut freqs = corpus.char_freqs.to_vec();

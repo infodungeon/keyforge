@@ -20,11 +20,11 @@ impl ExactScoringEngine {
     pub(crate) fn new(
         keyboard: Arc<Keyboard>,
         corpus: Arc<Corpus>,
-        rubric: &Rubric,
-        cost_model: &keyforge_model::CostModel,
+        _rubric: &Rubric,
+        _cost_model: &keyforge_model::CostModel,
         ctx: EngineContext,
     ) -> Self {
-        let scorer = DeterministicScorer::new(&keyboard, rubric, cost_model);
+        let scorer = DeterministicScorer::new(ctx.clone());
         Self {
             scorer,
             keyboard,
@@ -53,7 +53,7 @@ impl ScoringEngine for ExactScoringEngine {
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {
         self.scorer
             .score(&self.keyboard, &self.corpus, layout.keys())
-            .map(Score)
+            .map(Score::from_scaled_i64)
     }
 
     fn score_with_scratch(

@@ -56,7 +56,8 @@ impl Validator for KeycodeDefinition {
         if self.label.is_empty() {
             return Err(format!(
                 "Keycode {} ({}) has empty label",
-                self.code, self.id
+                self.code,
+                self.id
             ));
         }
         Ok(())
@@ -122,17 +123,17 @@ impl KeycodeRegistry {
     pub fn new(mut definitions: Vec<KeycodeDefinition>) -> Self {
         for def in &mut definitions {
             // 0. QMK to ASCII Remapping (Heuristic fix for physics scoring)
-            if let Some(ascii) = qmk_to_ascii(def.code.0) {
-                def.code = KeyCode(ascii);
+            if let Some(ascii) = qmk_to_ascii(def.code.raw()) {
+                def.code = KeyCode::new(ascii);
             }
 
             // 1. NORMALIZE: Force all Uppercase ASCII Alphas (A-Z) to Lowercase (a-z)
             // This ensures consistence between corpus text (which is lowercased for heatmaps)
             // and key definitions.
-            let val = def.code.0;
+            let val = def.code.raw();
             #[allow(clippy::cast_possible_truncation)]
             if (val as u8).is_ascii_uppercase() {
-                def.code = KeyCode(u16::from((val as u8).to_ascii_lowercase()));
+                def.code = KeyCode::new(u16::from((val as u8).to_ascii_lowercase()));
             }
         }
 
@@ -155,13 +156,13 @@ impl KeycodeRegistry {
     pub fn new_with_defaults() -> Self {
         let defs = vec![
             KeycodeDefinition {
-                code: KeyCode(0),
+                code: KeyCode::new(0),
                 id: "KC_NO".into(),
                 label: " ".into(),
                 aliases: vec![DEFAULT_NO_OP.into()],
             },
             KeycodeDefinition {
-                code: KeyCode(1),
+                code: KeyCode::new(1),
                 id: "KC_TRANSPARENT".into(),
                 label: "▽".into(),
                 aliases: vec!["KC_TRNS".into(), DEFAULT_TRANSPARENT.into()],
@@ -175,13 +176,13 @@ impl KeycodeRegistry {
     pub fn new_with_alphas() -> Self {
         let mut defs = vec![
             KeycodeDefinition {
-                code: KeyCode(0),
+                code: KeyCode::new(0),
                 id: "KC_NO".into(),
                 label: " ".into(),
                 aliases: vec![DEFAULT_NO_OP.into()],
             },
             KeycodeDefinition {
-                code: KeyCode(1),
+                code: KeyCode::new(1),
                 id: "KC_TRANSPARENT".into(),
                 label: "▽".into(),
                 aliases: vec!["KC_TRNS".into(), DEFAULT_TRANSPARENT.into()],
@@ -191,7 +192,7 @@ impl KeycodeRegistry {
         for c in b'A'..=b'Z' {
             let ch = c as char;
             defs.push(KeycodeDefinition {
-                code: KeyCode(u16::from(c)),
+                code: KeyCode::new(u16::from(c)),
                 id: format!("KC_{ch}"),
                 label: ch.to_string(),
                 aliases: vec![ch.to_string()],
@@ -240,15 +241,15 @@ impl KeycodeRegistry {
     ///
     /// let mut reg = KeycodeRegistry::new_with_defaults();
     /// reg.definitions.push(KeycodeDefinition {
-    ///     code: KeyCode(100),
+    ///     code: KeyCode::new(100),
     ///     id: "MO".into(),
     ///     label: "Layer".into(),
     ///     aliases: vec![],
     /// });
     /// reg.rebuild_maps();
     ///
-    /// assert_eq!(reg.resolve_token("MO(1)"), Some(KeyCode(100)));
-    /// assert_eq!(reg.resolve_token("KC_TRANSPARENT"), Some(KeyCode(1)));
+    /// assert_eq!(reg.resolve_token("MO(1)"), Some(KeyCode::new(100)));
+    /// assert_eq!(reg.resolve_token("KC_TRANSPARENT"), Some(KeyCode::new(1)));
     /// ```
     #[must_use]
     pub fn resolve_token(&self, token: &str) -> Option<KeyCode> {
@@ -290,7 +291,7 @@ fn qmk_to_ascii(qmk: u16) -> Option<u16> {
         48 => Some(93),                 // ]
         49 => Some(92),                 // \
         51 => Some(59),                 // ;
-        52 => Some(39),                 // '
+        52 => Some(39),                 // '\'
         53 => Some(96),                 // `
         54 => Some(44),                 // ,
         55 => Some(46),                 // .
@@ -306,7 +307,7 @@ mod tests {
     #[test]
     fn test_keycode_definition_validation() {
         let valid = KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: "KC_A".into(),
             label: "A".into(),
             aliases: vec![],
@@ -314,7 +315,7 @@ mod tests {
         assert!(valid.validate().is_ok());
 
         let empty_id = KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: " ".into(),
             label: "A".into(),
             aliases: vec![],
@@ -322,7 +323,7 @@ mod tests {
         assert!(empty_id.validate().is_err());
 
         let empty_label = KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: "KC_A".into(),
             label: String::new(),
             aliases: vec![],
@@ -333,7 +334,7 @@ mod tests {
     #[test]
     fn test_keycode_definition_display() {
         let def = KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: "KC_A".into(),
             label: "A".into(),
             aliases: vec![],
@@ -345,19 +346,19 @@ mod tests {
     fn test_keycode_registry_normalization() {
         let defs = vec![
             KeycodeDefinition {
-                code: KeyCode(65),
+                code: KeyCode::new(65),
                 id: "A".into(),
                 label: "A".into(),
                 aliases: vec![],
             }, // 'A' -> 'a'
             KeycodeDefinition {
-                code: KeyCode(97),
+                code: KeyCode::new(97),
                 id: "a_lower".into(),
                 label: "a".into(),
                 aliases: vec![],
             }, // Duplicate 'a'
             KeycodeDefinition {
-                code: KeyCode(4),
+                code: KeyCode::new(4),
                 id: "KC_A_QMK".into(),
                 label: "A".into(),
                 aliases: vec![],
@@ -370,7 +371,7 @@ mod tests {
 
         assert_eq!(reg.definitions.len(), 1);
 
-        assert_eq!(reg.definitions[0].code.0, 97);
+        assert_eq!(reg.definitions[0].code.raw(), 97);
     }
 
     #[test]
@@ -378,15 +379,15 @@ mod tests {
     fn test_keycode_registry_lookups() {
         let reg = KeycodeRegistry::new_with_defaults();
 
-        assert_eq!(reg.get_code("KC_NO"), Some(KeyCode(0)));
+        assert_eq!(reg.get_code("KC_NO"), Some(KeyCode::new(0)));
 
-        assert_eq!(reg.get_code("kc_no"), Some(KeyCode(0))); // Case insensitive
+        assert_eq!(reg.get_code("kc_no"), Some(KeyCode::new(0))); // Case insensitive
 
         assert_eq!(reg.get_code("NONEXISTENT"), None);
 
-        assert_eq!(reg.get_label(KeyCode(0)), " ");
+        assert_eq!(reg.get_label(KeyCode::new(0)), " ");
 
-        assert_eq!(reg.get_label(KeyCode(999)), "[999]"); // Fallback
+        assert_eq!(reg.get_label(KeyCode::new(999)), "[999]"); // Fallback
     }
 
     #[test]
@@ -435,13 +436,13 @@ mod tests {
     fn test_keycode_registry_validation_duplicates() {
         let mut reg = KeycodeRegistry::default();
         reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: "A".into(),
             label: "A".into(),
             aliases: vec![],
         });
         reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(11),
+            code: KeyCode::new(11),
             id: "a".into(),
             label: "B".into(),
             aliases: vec![],
@@ -453,13 +454,13 @@ mod tests {
 
         let mut reg = KeycodeRegistry::default();
         reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: "A".into(),
             label: "A".into(),
             aliases: vec![],
         });
         reg.definitions.push(KeycodeDefinition {
-            code: KeyCode(10),
+            code: KeyCode::new(10),
             id: "B".into(),
             label: "B".into(),
             aliases: vec![],

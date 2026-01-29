@@ -130,7 +130,7 @@ fn run_benchmark(
 
     let layout = Layout::new_unchecked(
         (0..key_count.try_into().unwrap_or_default())
-            .map(KeyCode)
+            .map(KeyCode::new)
             .collect(),
     );
 

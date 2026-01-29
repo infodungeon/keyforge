@@ -10,11 +10,11 @@ use utoipa::ToSchema;
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct KeyIndex(pub u16);
+pub struct KeyIndex(u16);
 
 impl KeyIndex {
     /// Sentinel value for "Not Found" or "Unitialized".
-    pub const SENTINEL: KeyIndex = KeyIndex(65535);
+    pub const SENTINEL: KeyIndex = KeyIndex::new(65535);
 
     /// Creates a new `KeyIndex`.
     #[must_use]
@@ -42,7 +42,7 @@ impl fmt::Display for KeyIndex {
 }
 impl From<usize> for KeyIndex {
     fn from(idx: usize) -> Self {
-        KeyIndex(idx.try_into().unwrap_or_default())
+        KeyIndex::new(idx.try_into().unwrap_or_default())
     }
 }
 impl From<KeyIndex> for usize {
@@ -57,7 +57,7 @@ impl From<KeyIndex> for usize {
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct KeyCode(pub u16);
+pub struct KeyCode(u16);
 
 impl KeyCode {
     /// Creates a new `KeyCode`.
@@ -73,10 +73,10 @@ impl KeyCode {
     }
 
     /// The canonical "Empty" or "No-Op" keycode (0).
-    pub const EMPTY: KeyCode = KeyCode(0);
+    pub const EMPTY: KeyCode = KeyCode::new(0);
     /// The canonical "Transparent" keycode (1).
     /// Used in multi-layer layouts to fall through to the layer below.
-    pub const TRANSPARENT: KeyCode = KeyCode(1);
+    pub const TRANSPARENT: KeyCode = KeyCode::new(1);
 }
 
 impl From<u16> for KeyCode {

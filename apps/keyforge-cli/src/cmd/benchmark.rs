@@ -53,11 +53,11 @@ pub async fn run(args: &BenchmarkArgs, loader: &FsProvider) -> Result<(), CliErr
         .map_err(|e| CliError::Other(format!("Failed to prepare session: {e}")))?;
 
     // Create a non-zero layout for representative benchmarking
-    let mut keycodes = vec![keyforge_model::KeyCode(0); session.engine.key_count()];
+    let mut keycodes = vec![keyforge_model::KeyCode::new(0); session.engine.key_count()];
     for (i, kc) in keycodes.iter_mut().enumerate() {
         #[allow(clippy::cast_possible_truncation)]
         if i < 65535 {
-            *kc = keyforge_model::KeyCode(i as u16);
+            *kc = keyforge_model::KeyCode::new(i as u16);
         }
     }
     let benchmark_layout = keyforge_model::Layout::new_unchecked(keycodes);

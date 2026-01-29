@@ -69,16 +69,14 @@ pub(crate) async fn handle(
             current_best: best_score.map(|s| {
                 ScoreDto(
                     keyforge_model::types::Score::from_f32(s)
-                        .unwrap_or_default()
-                        .0,
+                        .unwrap_or_default().raw(),
                 )
             }),
         },
         "completed" => {
             let score_val = best_score.map_or(0, |s| {
                 keyforge_model::types::Score::from_f32(s)
-                    .unwrap_or_default()
-                    .0
+                    .unwrap_or_default().raw()
             });
             let layout = best_layout
                 .clone()

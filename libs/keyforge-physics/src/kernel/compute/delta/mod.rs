@@ -7,7 +7,6 @@ mod trigram;
 #[cfg(test)]
 mod tests;
 
-use super::flow::get_flow_delta;
 pub(crate) use super::state::PosMap;
 use crate::error::PhysicsError;
 use crate::kernel::{types::ValidatedLayout, EngineContext};
@@ -47,7 +46,7 @@ pub(crate) fn calculate_swap_delta(
     delta += bigram::calculate_bigram_delta(ctx, pos_map, code_a, code_b, idx_a, idx_b);
 
     // 3. Trigrams
-    delta += trigram::calculate_trigram_delta(ctx, pos_map, code_a, code_b, idx_a, idx_b);
+    delta += trigram::calculate_trigram_delta(ctx, layout, pos_map, idx_a, idx_b);
 
     Ok(delta)
 }

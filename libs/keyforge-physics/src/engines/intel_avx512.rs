@@ -56,11 +56,10 @@ impl ScoringEngine for Avx512ScoringEngine {
             // SAFETY: We have explicitly verified the presence of AVX-512 foundation (F),
             // Doubleword/Quadword (DQ), and Byte/Word (BW) extensions via cpuid before execution.
             unsafe {
-                return score_layout_avx512(&self.ctx, &validated, scratch, &self.config)
-                    .map(Score);
+                return score_layout_avx512(&self.ctx, &validated, scratch, &self.config).map(Score::from_scaled_i64);
             }
         }
-        score_layout_scalar(&self.ctx, &validated, scratch).map(Score)
+        score_layout_scalar(&self.ctx, &validated, scratch).map(Score::from_scaled_i64)
     }
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {
         let v = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
@@ -85,9 +84,9 @@ impl ScoringEngine for Avx512ScoringEngine {
                 pos_map: &pm,
             };
 
-            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.0;
-            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.0;
-            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
+            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.raw();
+            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.raw();
+            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.raw();
             s.clear_used();
             Ok((mono, bigram, trigram))
         })?
@@ -162,7 +161,7 @@ unsafe fn score_layout_avx512(
     for &code in pm.used_keys() {
         let cand = pm.get(code);
         if !cand.is_empty() {
-            flat_map[code.0 as usize] = cand[0];
+            flat_map[code.raw() as usize] = cand[0];
         }
     }
     let e_ctx = crate::kernel::EvaluationContext {
@@ -199,14 +198,14 @@ unsafe fn score_monograms_avx512(
 ) -> Result<i64, PhysicsError> {
     let mut total_score = 0i64;
     for &code in ctx.pos_map.used_keys() {
-        let freq = ctx.engine.corpus.char_freqs[code.0 as usize];
-        let p = flat_map[code.0 as usize];
+        let freq = ctx.engine.corpus.char_freqs[code.raw() as usize];
+        let p = flat_map[code.raw() as usize];
         let cost = ctx.engine.geometry.key_costs[p.as_usize()];
         #[allow(clippy::cast_possible_wrap)]
         let f_i64 = freq as i64;
         total_score =
             total_score
-                .checked_add(cost.0.checked_mul(f_i64).ok_or_else(|| {
+                .checked_add(cost.raw().checked_mul(f_i64).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {
                         context: "AVX-512 Mono".into(),
                     }
@@ -232,9 +231,9 @@ unsafe fn score_bigrams_avx512(
     let key_count = u16::try_from(ctx.engine.key_count).unwrap_or(u16::MAX);
     let key_count_usize = usize::from(key_count);
     for &code1 in ctx.pos_map.used_keys() {
-        let p1 = flat_map[code1.0 as usize].as_usize();
-        let start = ctx.engine.corpus.bigram_starts[code1.0 as usize];
-        let end = ctx.engine.corpus.bigram_starts[code1.0 as usize + 1];
+        let p1 = flat_map[code1.raw() as usize].as_usize();
+        let start = ctx.engine.corpus.bigram_starts[code1.raw() as usize];
+        let end = ctx.engine.corpus.bigram_starts[code1.raw() as usize + 1];
         let mut row_sum = _mm512_setzero_si512();
         let costs_ptr = ctx
             .engine
@@ -250,7 +249,7 @@ unsafe fn score_bigrams_avx512(
             let mut indices = [0i32; 8];
             for i in 0..8 {
                 // SAFETY: others_ptr is derived from a ValidatedLayout, and k+i < end ensures we stay within bounds of the bigram data.
-                let p2 = unsafe { flat_map[others_ptr.add(k + i).read().0 as usize] };
+                let p2 = unsafe { flat_map[others_ptr.add(k + i).read().raw() as usize] };
                 if p2.as_usize() < key_count_usize {
                     mask |= 1 << i;
                     indices[i] = i32::from(p2.raw());
@@ -278,14 +277,14 @@ unsafe fn score_bigrams_avx512(
             })?;
         while k < end {
             // SAFETY: Manual fallback loop for remaining bigrams. Bounds are guaranteed by 'end'.
-            let p2 = unsafe { flat_map[others_ptr.add(k).read().0 as usize] };
+            let p2 = unsafe { flat_map[others_ptr.add(k).read().raw() as usize] };
             if p2.as_usize() < key_count_usize {
                 total_score = total_score
                     .checked_add(
                         // SAFETY: others_ptr and freqs_ptr are valid at offset k.
                         i64::from(unsafe { freqs_ptr.add(k).read() })
                             * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2.as_usize()]
-                                .0,
+                                .raw(),
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: "AVX-512 Bigram rem".into(),
@@ -316,19 +315,19 @@ unsafe fn score_trigrams_avx512(
     let flow_table = build_flow_table_avx512(ctx);
     let mut type_map = vec![255u8; 65536].into_boxed_slice();
     for &code in ctx.pos_map.used_keys() {
-        let p = flat_map[code.0 as usize];
+        let p = flat_map[code.raw() as usize];
         if p.as_usize() < key_count_usize {
-            type_map[code.0 as usize] = pos_types[p.as_usize()];
+            type_map[code.raw() as usize] = pos_types[p.as_usize()];
         }
     }
     for &code1 in ctx.pos_map.used_keys() {
-        let t1 = type_map[code1.0 as usize];
+        let t1 = type_map[code1.raw() as usize];
         if t1 == 255 {
             continue;
         }
         let (start, end, t1_off) = (
-            ctx.engine.corpus.trigram_starts[code1.0 as usize],
-            ctx.engine.corpus.trigram_starts[code1.0 as usize + 1],
+            ctx.engine.corpus.trigram_starts[code1.raw() as usize],
+            ctx.engine.corpus.trigram_starts[code1.raw() as usize + 1],
             (t1 as usize) * 100,
         );
         let mut row_sum = _mm512_setzero_si512();
@@ -344,8 +343,8 @@ unsafe fn score_trigrams_avx512(
                 // SAFETY: o1_ptr and o2_ptr are within corpus bounds [start, end).
                 let (t2, t3) = unsafe {
                     (
-                        type_map[o1_ptr.add(k + i).read().0 as usize],
-                        type_map[o2_ptr.add(k + i).read().0 as usize],
+                        type_map[o1_ptr.add(k + i).read().raw() as usize],
+                        type_map[o2_ptr.add(k + i).read().raw() as usize],
                     )
                 };
                 idx[i] = if t2 != 255 && t3 != 255 {
@@ -379,8 +378,8 @@ unsafe fn score_trigrams_avx512(
             // SAFETY: ki < end ensures we are within corpus bounds.
             let (t2, t3) = unsafe {
                 (
-                    type_map[o1_ptr.add(ki).read().0 as usize],
-                    type_map[o2_ptr.add(ki).read().0 as usize],
+                    type_map[o1_ptr.add(ki).read().raw() as usize],
+                    type_map[o2_ptr.add(ki).read().raw() as usize],
                 )
             };
             if t2 != 255 && t3 != 255 {
@@ -418,7 +417,7 @@ fn build_flow_table_avx512(ctx: &crate::kernel::EvaluationContext<'_>) -> Box<[i
                         ctx.engine.bonus_roll,
                         ctx.engine.bonus_roll_out,
                     )
-                    .0;
+                    .raw();
             }
         }
     }
@@ -439,28 +438,28 @@ mod tests {
                 index: 0,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                row: RowIndex(0),
-                col: ColIndex(0),
+                row: RowIndex::new(0),
+                col: ColIndex::new(0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
-                row: RowIndex(0),
-                col: ColIndex(1),
+                row: RowIndex::new(0),
+                col: ColIndex::new(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 2,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
-                row: RowIndex(0),
-                col: ColIndex(2),
+                row: RowIndex::new(0),
+                col: ColIndex::new(2),
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, RowIndex(0), "test".into())?;
+        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into())?;
         let mut corpus = Corpus::default();
         let mut f = corpus.char_freqs.to_vec();
         f[97] = 100;
@@ -475,9 +474,9 @@ mod tests {
             &keyforge_model::testing::mock_cost_model(),
         )?;
         let engine = Avx512ScoringEngine::new(ctx.clone(), None);
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         assert_eq!(
-            engine.score(&layout)?.0,
+            engine.score(&layout)?.raw(),
             score_layout_scalar(
                 &ctx,
                 &ValidatedLayout::new(layout.keys(), 3)?,

@@ -17,7 +17,7 @@ pub struct BigramStats {
 impl BigramStats {
     #[allow(clippy::cast_precision_loss)]
     pub fn add_sample(&mut self, ms: LatencyMs) {
-        let ms_raw = ms.0;
+        let ms_raw = ms.raw();
         self.count += 1;
         let delta = ms_raw - self.mean;
         self.mean += delta / (self.count as f64);
@@ -58,8 +58,8 @@ impl StreamingProfileBuilder {
     }
 
     pub fn add_sample(&mut self, sample: &BiometricSample) {
-        let ms = LatencyMs(f64::from(sample.duration_ms));
-        if ms.0 > 0.0 && ms.0 < Self::MAX_LATENCY_MS {
+        let ms = LatencyMs::new(f64::from(sample.duration_ms));
+        if ms.raw() > 0.0 && ms.raw() < Self::MAX_LATENCY_MS {
             self.stats
                 .entry((sample.key_a, sample.key_b))
                 .or_default()

@@ -17,8 +17,8 @@ mod verification {
     fn verify_score_addition_saturation() {
         let a: i64 = kani::any();
         let b: i64 = kani::any();
-        let s1 = Score(a);
-        let s2 = Score(b);
+        let s1 = Score::from_scaled_i64(a);
+        let s2 = Score::from_scaled_i64(b);
         let res = s1 + s2;
         
         // Manual verification of saturating property

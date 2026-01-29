@@ -108,7 +108,7 @@ mod tests {
                 index: 0,
                 x: 0.0,
                 y: 0.0,
-                hand: HandIndex(0),
+                hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
@@ -116,7 +116,7 @@ mod tests {
                 index: 1,
                 x: 3.0,
                 y: 4.0,
-                hand: HandIndex(0),
+                hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },

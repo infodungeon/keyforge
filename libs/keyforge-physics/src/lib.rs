@@ -27,8 +27,6 @@ pub mod verify;
 
 // --- RE-EXPORTS ---
 
-// --- RE-EXPORTS ---
-
 pub use analysis::heuristics::suggest_swaps;
 pub use keyforge_model::layout::LayoutIdentity;
 
@@ -46,7 +44,7 @@ use engines::arm_sve::ArmSveScoringEngine;
 use engines::exact::ExactScoringEngine;
 use engines::generic::GenericScoringEngine as ScalarScoringEngine;
 use engines::intel_avx512::Avx512ScoringEngine;
-use engines::intel_comet_lake::IntelScoringEngine;
+use engines::intel_comet_lake::CometLakeScoringEngine;
 use engines::wasm_simd::WasmSimdScoringEngine;
 use kernel::compiler::Compiler;
 
@@ -191,7 +189,7 @@ impl EngineFactory {
         config: Option<EngineConfig>,
     ) -> Result<Box<dyn ScoringEngine>, PhysicsError> {
         let compiled = Compiler::compile(&ctx.keyboard, &ctx.corpus, &ctx.rubric, &ctx.cost_model)?;
-        Ok(Box::new(IntelScoringEngine::new(compiled, config)))
+        Ok(Box::new(CometLakeScoringEngine::new(compiled, config)))
     }
 
     /// Compiles a new **ARM SVE** scoring engine.
@@ -246,7 +244,7 @@ pub fn analyze_with_context(
             return engine.analyze(layout);
         }
         if is_x86_feature_detected!("avx2") {
-            let engine = IntelScoringEngine::new(ctx.clone(), None);
+            let engine = CometLakeScoringEngine::new(ctx.clone(), None);
             return engine.analyze(layout);
         }
     }

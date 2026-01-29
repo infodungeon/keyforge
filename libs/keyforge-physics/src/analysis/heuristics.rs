@@ -88,7 +88,7 @@ mod tests {
         })
         .unwrap();
 
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98)]);
         let res = suggest_swaps(engine.context(), &layout, false);
         assert!(res.is_empty()); // Placeholder
     }

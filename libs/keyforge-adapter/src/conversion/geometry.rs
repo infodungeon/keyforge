@@ -121,8 +121,8 @@ mod tests {
             label: "A".to_string(),
             x: 10.0,
             y: 20.0,
-            hand: HandIndex(0),
-            finger: FingerIndex(1),
+            hand: HandIndex::new(0),
+            finger: FingerIndex::new(1),
             row: RowIndex(0),
             col: ColIndex(0),
             is_home: true,
@@ -174,7 +174,7 @@ mod tests {
         let mut reg = KeycodeRegistry::new_with_defaults();
         reg.definitions
             .push(keyforge_model::keycodes::KeycodeDefinition {
-                code: KeyCode(10),
+                code: KeyCode::new(10),
                 id: "A".into(),
                 label: "a".into(),
                 aliases: vec![],

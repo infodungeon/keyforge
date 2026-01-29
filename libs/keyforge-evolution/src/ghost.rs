@@ -1,110 +1,106 @@
 // libs/keyforge-evolution/src/ghost.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! # Evolution Ghost Model
-//!
-//! A simplified reference implementation of the Simulated Annealing loop.
-//! This module focuses on the core stochastic logic without performance
-//! optimizations or complex progress reporting.
-
-use keyforge_model::{Layout, OptimizationResult, SearchConfig};
+use crate::errors::EvolutionError;
+use crate::ProgressCallback;
+use keyforge_model::types::KeyIndex;
+use keyforge_model::{Layout, Score};
 use keyforge_physics::ScoringEngine;
 use rand::Rng;
+use std::time::Instant;
 
-/// Reference implementation of the annealing algorithm.
-#[derive(Debug)]
-pub struct GhostOptimizer;
+/// A simple, reference implementation of a local search optimizer (Hill Climbing).
+/// Intended for mathematical verification and baseline performance comparison.
+#[derive(Debug, Clone, Copy)]
+pub struct GhostHillClimber;
 
-impl GhostOptimizer {
-    /// Pure reference implementation of Simulated Annealing.
+impl GhostHillClimber {
+    /// Runs a hill-climbing search from the initial layout.
     ///
     /// # Errors
-    /// Returns `EvolutionError` if the scoring engine returns an error.
-    pub fn optimize(
+    /// Returns `EvolutionError` if scoring fails.
+    #[allow(clippy::cast_precision_loss)]
+    pub fn run<CB: ProgressCallback>(
+        &self,
         engine: &dyn ScoringEngine,
-        config: &SearchConfig,
-        initial_layout: &Layout,
-    ) -> Result<OptimizationResult, crate::EvolutionError> {
-        let (steps, mut temp, cooling) = match config {
-            SearchConfig::Annealing {
-                steps,
-                start_temp,
-                end_temp,
-                ..
-            } => {
-                let steps = *steps;
-                #[allow(clippy::cast_precision_loss)]
-                let cooling = (end_temp / start_temp).powf(1.0 / steps as f32);
-                (steps, *start_temp, cooling)
-            }
-        };
-
-        let mut current_layout = initial_layout.clone();
-        let mut current_score = engine
-            .score(&current_layout)
-            .map_err(crate::EvolutionError::Physics)?;
-
+        initial_layout: Layout,
+        steps: usize,
+        callback: &CB,
+    ) -> Result<Layout, EvolutionError> {
+        let mut current_layout = initial_layout;
+        let mut current_score = engine.score(&current_layout)?;
         let mut best_layout = current_layout.clone();
         let mut best_score = current_score;
 
-        let mut rng = rand::rng();
+        let start_time = Instant::now();
+        let mut rng = rand::thread_rng();
 
-        for _ in 0..steps {
-            // 1. Mutate (Simple random swap)
+        for step in 0..steps {
+            // 1. Propose a random swap
+            let key_count = engine.key_count();
+            if key_count < 2 {
+                break;
+            }
+
+            let a = rng.gen_range(0..key_count);
+            let mut b = rng.gen_range(0..key_count);
+            while a == b {
+                b = rng.gen_range(0..key_count);
+            }
+
             let mut next_layout = current_layout.clone();
-            let len = next_layout.len();
-            let a = rng.random_range(0..len);
-            let b = rng.random_range(0..len);
             next_layout
                 .swap(
-                    keyforge_model::types::KeyIndex(u16::try_from(a).map_err(|_| {
-                        crate::EvolutionError::Internal("Index A out of u16 bounds".to_string())
+                    KeyIndex::new(u16::try_from(a).map_err(|_| {
+                        EvolutionError::Internal("Key index overflow".into())
                     })?),
-                    keyforge_model::types::KeyIndex(u16::try_from(b).map_err(|_| {
-                        crate::EvolutionError::Internal("Index B out of u16 bounds".to_string())
+                    KeyIndex::new(u16::try_from(b).map_err(|_| {
+                        EvolutionError::Internal("Key index overflow".into())
                     })?),
                 )
-                .map_err(|e| crate::EvolutionError::Internal(format!("Swap failed: {e}")))?;
-            // 2. Score
-            let next_score = engine
-                .score(&next_layout)
-                .map_err(crate::EvolutionError::Physics)?;
-            let delta = next_score.0 - current_score.0;
+                .map_err(|e| EvolutionError::Internal(e.to_string()))?;
 
-            // 3. Accept/Reject (Metropolis Criterion)
-            #[allow(clippy::cast_precision_loss)]
-            if delta < 0
-                || rng.random::<f32>()
-                    < (-(delta as f32 / keyforge_model::constants::SCORE_SCALE) / temp).exp()
-            {
+            let next_score = engine.score(&next_layout)?;
+
+            // 2. Acceptance (Strictly improving)
+            if next_score < current_score {
                 current_layout = next_layout;
                 current_score = next_score;
 
                 if current_score < best_score {
-                    best_score = current_score;
                     best_layout = current_layout.clone();
+                    best_score = current_score;
                 }
             }
 
-            // 4. Cool
-            temp *= cooling;
+            // 3. Callback (Periodically)
+            if step % 1000 == 0 {
+                let elapsed = start_time.elapsed().as_secs_f32();
+                let ips = if elapsed > 0.0 {
+                    step as f32 / elapsed
+                } else {
+                    0.0
+                };
+
+                let score_f32 = best_score.raw() as f32 / 1_000_000.0;
+                let keys = best_layout.keys();
+
+                if callback.on_progress(step, score_f32, keys, ips)
+                    != crate::OptimizationControl::Continue
+                {
+                    return Err(EvolutionError::Aborted);
+                }
+            }
         }
 
-        Ok(OptimizationResult {
-            score: best_score.to_f32(),
-            raw_score: best_score.0,
-            layout: best_layout,
-        })
+        Ok(best_layout)
     }
+}
+
+/// Baseline result for verification tests.
+#[derive(Debug, Clone)]
+pub struct GhostResult {
+    /// Final best layout found.
+    pub layout: Layout,
+    /// Final best score achieved.
+    pub score: Score,
 }

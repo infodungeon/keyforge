@@ -76,7 +76,7 @@ mod runtime_tests {
         kb_def
             .geometry
             .prime_slots
-            .push(keyforge_model::types::KeyIndex(0));
+            .push(keyforge_model::types::KeyIndex::new(0));
 
         let session = keyforge_compute::SessionBuilder::new(&loader)
             .with_keyboard_def(Arc::new(kb_def))

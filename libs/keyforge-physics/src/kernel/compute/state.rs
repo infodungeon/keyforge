@@ -66,24 +66,24 @@ impl<'a> PosMap<'a> {
         for &code in layout.iter().take(limit) {
             used_keys_scratch.push(code);
         }
-        used_keys_scratch.sort_unstable_by_key(|k| k.0);
+        used_keys_scratch.sort_unstable_by_key(|k| k.raw());
         used_keys_scratch.dedup();
 
         // 2. Clear counts for used keys
         for &code in used_keys_scratch.iter() {
-            counts[code.0 as usize] = 0;
-            current_offsets[code.0 as usize] = 0;
+            counts[code.raw() as usize] = 0;
+            current_offsets[code.raw() as usize] = 0;
         }
 
         // 3. Count occurrences
         for &code in layout.iter().take(limit) {
-            counts[code.0 as usize] += 1;
+            counts[code.raw() as usize] += 1;
         }
 
         // 4. Calculate starts (prefix sum)
         let mut offset = 0;
         for &code in used_keys_scratch.iter() {
-            let c = code.0 as usize;
+            let c = code.raw() as usize;
             starts[c] = offset as u16;
             offset += counts[c] as usize;
         }
@@ -91,11 +91,11 @@ impl<'a> PosMap<'a> {
         // 5. Fill indices
         // Reset current_offsets and counts for used keys
         for &code in used_keys_scratch.iter() {
-            current_offsets[code.0 as usize] = 0;
+            current_offsets[code.raw() as usize] = 0;
         }
 
         for (i, &code) in layout.iter().enumerate().take(limit) {
-            let c_raw = code.0 as usize;
+            let c_raw = code.raw() as usize;
             let base = starts[c_raw] as usize;
             let off = current_offsets[c_raw] as usize;
             indices[base + off] = KeyIndex::new(i as u16);
@@ -119,7 +119,7 @@ impl<'a> PosMap<'a> {
     #[inline]
     #[must_use]
     pub fn get(&self, code: KeyCode) -> &[KeyIndex] {
-        let code_raw = code.0 as usize;
+        let code_raw = code.raw() as usize;
         match self {
             Self::Structured {
                 starts,
@@ -218,7 +218,7 @@ impl PhysicsScratch {
 impl PhysicsScratch {
     pub(crate) fn clear_used(&mut self) {
         for &code in &self.used_keys {
-            let c = code.0 as usize;
+            let c = code.raw() as usize;
             self.starts[c] = 0;
             self.counts[c] = 0;
             self.char_usage[c] = 0.0;

@@ -32,7 +32,7 @@ fn main() {
     let keys: Vec<KeyNode> = (0..2)
         .map(|i| KeyNode {
             index: i,
-            hand: HandIndex(0),
+            hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(1), // All index
             x: i as f32,
             y: 0.0,
@@ -49,7 +49,7 @@ fn main() {
     corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
     let corpus = Arc::new(corpus_val);
 
-    let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+    let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98)]);
     let cost_model = Arc::new(mock_cost_model());
 
     // 1. Default Rubric

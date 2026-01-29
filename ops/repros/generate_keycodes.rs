@@ -42,13 +42,13 @@ fn parse_markdown(content: &str) -> Vec<KeycodeDefinition> {
 
     // Start with special internal keys
     defs.push(KeycodeDefinition {
-        code: KeyCode(0),
+        code: KeyCode::new(0),
         id: "KC_NO".into(),
         label: " ".into(),
         aliases: vec!["XXXXXXX".into()],
     });
     defs.push(KeycodeDefinition {
-        code: KeyCode(1),
+        code: KeyCode::new(1),
         id: "KC_TRANSPARENT".into(),
         label: "▽".into(),
         aliases: vec!["KC_TRNS".into(), "_______".into()],
@@ -93,7 +93,7 @@ fn parse_markdown(content: &str) -> Vec<KeycodeDefinition> {
             };
 
             defs.push(KeycodeDefinition {
-                code: KeyCode(next_code),
+                code: KeyCode::new(next_code),
                 id,
                 label,
                 aliases,

@@ -44,7 +44,7 @@ impl FromStr for KeyConstraint {
             return Err(format!("Empty key in constraint '{s}'"));
         }
         Ok(KeyConstraint {
-            index: KeyIndex(index_val),
+            index: KeyIndex::new(index_val),
             key: key_clean.to_string(),
         })
     }
@@ -57,13 +57,13 @@ mod tests {
     #[test]
     fn test_key_constraint_validation() {
         let valid = KeyConstraint {
-            index: KeyIndex(0),
+            index: KeyIndex::new(0),
             key: "KC_A".into(),
         };
         assert!(valid.validate().is_ok());
 
         let invalid = KeyConstraint {
-            index: KeyIndex(0),
+            index: KeyIndex::new(0),
             key: " ".into(),
         };
         assert!(invalid.validate().is_err());

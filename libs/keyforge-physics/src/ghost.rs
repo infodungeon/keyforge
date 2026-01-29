@@ -61,7 +61,7 @@ impl GhostScorer {
             if freq == 0 {
                 continue;
             }
-            let code = KeyCode(code_val.try_into().unwrap_or_default());
+            let code = KeyCode::new(code_val.try_into().unwrap_or_default());
             if code == KeyCode::EMPTY || code == KeyCode::TRANSPARENT {
                 continue;
             }
@@ -83,9 +83,9 @@ impl GhostScorer {
         // 2. Bigrams (Movement)
 
         for (c1, c2, freq) in &*corpus.bigrams {
-            let code1 = KeyCode(*c1);
+            let code1 = KeyCode::new(*c1);
 
-            let code2 = KeyCode(*c2);
+            let code2 = KeyCode::new(*c2);
 
             if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY {
                 continue;
@@ -111,11 +111,11 @@ impl GhostScorer {
         // 3. Trigrams (Flow)
 
         for (c1, c2, c3, freq) in &*corpus.trigrams {
-            let code1 = KeyCode(*c1);
+            let code1 = KeyCode::new(*c1);
 
-            let code2 = KeyCode(*c2);
+            let code2 = KeyCode::new(*c2);
 
-            let code3 = KeyCode(*c3);
+            let code3 = KeyCode::new(*c3);
 
             if code1 == KeyCode::EMPTY || code2 == KeyCode::EMPTY || code3 == KeyCode::EMPTY {
                 continue;

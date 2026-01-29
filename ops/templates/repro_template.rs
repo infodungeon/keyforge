@@ -25,7 +25,7 @@ fn calculate_something(idx: KeyIndex) -> Score {
 fn main() {
     println!("Running Reproduction Harness...");
 
-    let input = KeyIndex(5);
+    let input = KeyIndex::new(5);
     let expected = Score(50);
     let actual = calculate_something(input);
 

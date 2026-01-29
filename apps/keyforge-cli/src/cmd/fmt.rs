@@ -42,7 +42,7 @@ pub fn run(args: &FmtArgs, _root: &Path) -> Result<(), Box<dyn std::error::Error
         .keys()
         .iter()
         .copied()
-        .filter(|&c| c != KeyCode(0))
+        .filter(|&c| c != KeyCode::new(0))
         .collect();
 
     if valid_codes.is_empty() {

@@ -46,25 +46,25 @@ impl ProgressReporter {
         start_time: Instant,
     ) -> Self {
         let report_interval =
-            IterationCount((total_steps.0 / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL));
+            IterationCount::new((total_steps.raw() / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL));
 
         Self {
             tx,
             report_interval,
             last_report_time: start_time,
-            last_report_step: IterationCount(0),
+            last_report_step: IterationCount::new(0),
         }
     }
 
     #[allow(clippy::cast_precision_loss)]
     fn report(&mut self, step: IterationCount, state: &SearchState, time_keeper: &impl TimeKeeper) {
-        if step.0.is_multiple_of(self.report_interval.0) {
+        if step.raw().is_multiple_of(self.report_interval.raw()) {
             let now = time_keeper.now();
             let elapsed = time_keeper.elapsed(self.last_report_time).as_secs_f32();
-            let steps_done = if step.0 == 0 {
+            let steps_done = if step.raw() == 0 {
                 0
             } else {
-                step.0 - self.last_report_step.0
+                step.raw() - self.last_report_step.raw()
             };
 
             let ips = if elapsed > 0.0 {
@@ -78,7 +78,7 @@ impl ProgressReporter {
 
             let _ = self.tx.try_send((step, score_f32, layout_snapshot, ips));
 
-            if step.0 > 0 {
+            if step.raw() > 0 {
                 self.last_report_time = now;
                 self.last_report_step = step;
             }
@@ -111,22 +111,22 @@ impl AnnealingConfig {
         reheats: ReheatCount,
         reheat_factor: ScalingFactor,
     ) -> Result<Self, EvolutionError> {
-        if steps.0 == 0 {
+        if steps.raw() == 0 {
             return Err(EvolutionError::Config(
                 "Steps must be greater than 0".into(),
             ));
         }
-        if reheats.0 > 0 && start_temp.0 <= f32::EPSILON {
+        if reheats.raw() > 0 && start_temp.raw() <= f32::EPSILON {
             return Err(EvolutionError::Config(
                 "Reheats require a positive start temperature".into(),
             ));
         }
-        if start_temp.0 < 0.0 || end_temp.0 < 0.0 {
+        if start_temp.raw() < 0.0 || end_temp.raw() < 0.0 {
             return Err(EvolutionError::Config(
                 "Temperatures must be non-negative".into(),
             ));
         }
-        if reheat_factor.0 <= 0.0 {
+        if reheat_factor.raw() <= 0.0 {
             return Err(EvolutionError::Config("Reheat factor must be > 0.0".into()));
         }
         Ok(Self {
@@ -160,10 +160,10 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         acceptance: A,
         time_keeper: T,
     ) -> Self {
-        let rng = if config.seed.0 == 0 {
+        let rng = if config.seed.raw() == 0 {
             Xoshiro256PlusPlus::from_os_rng()
         } else {
-            Xoshiro256PlusPlus::seed_from_u64(config.seed.0)
+            Xoshiro256PlusPlus::seed_from_u64(config.seed.raw())
         };
 
         Self {
@@ -197,7 +197,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         thread::scope(|s| {
             s.spawn(move || {
                 while let Ok((step, score, layout, ips)) = rx.recv() {
-                    match callback.on_progress(step.0, score, &layout, ips) {
+                    match callback.on_progress(step.raw(), score, &layout, ips) {
                         crate::OptimizationControl::Continue => {}
                         crate::OptimizationControl::Stop => {
                             status_ref.store(1, Ordering::Relaxed);
@@ -212,10 +212,10 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
             });
 
             let mut steps_since_improvement = 0;
-            let mut reheats_left = self.config.reheats.0;
+            let mut reheats_left = self.config.reheats.raw();
             let mut result = Ok(());
 
-            for step in 0..self.config.steps.0 {
+            for step in 0..self.config.steps.raw() {
                 if step % 1000 == 0 {
                     let status = abort_flag.load(Ordering::Relaxed);
                     if status == 1 {
@@ -233,14 +233,14 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
                     steps_since_improvement += 1;
                 }
 
-                if steps_since_improvement > self.config.patience.0 && reheats_left > 0 {
+                if steps_since_improvement > self.config.patience.raw() && reheats_left > 0 {
                     state.reheat_from_best(self.config.start_temp, self.config.reheat_factor);
                     reheats_left -= 1;
                     steps_since_improvement = 0;
                 }
 
                 Self::update_temperature(&mut state, cooling_rate);
-                reporter.report(IterationCount(step), &state, &self.time_keeper);
+                reporter.report(IterationCount::new(step), &state, &self.time_keeper);
             }
 
             drop(reporter);
@@ -261,20 +261,20 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         let layout = initial_layout.unwrap_or_else(|| {
             #[allow(clippy::cast_possible_truncation)]
             let keys: Vec<KeyCode> = (0..self.engine.key_count())
-                .map(|i| KeyCode(i as u16))
+                .map(|i| KeyCode::new(i as u16))
                 .collect();
             Layout::new_unchecked(keys)
         });
 
-        let initial_score = self.engine.score(&layout)?.0;
+        let initial_score = self.engine.score(&layout)?.raw();
         SearchState::new(layout, initial_score, self.config.start_temp)
     }
 
     fn calculate_cooling_rate(&self) -> f32 {
-        if self.config.steps.0 > 0 && self.config.start_temp.0 > f32::EPSILON {
+        if self.config.steps.raw() > 0 && self.config.start_temp.raw() > f32::EPSILON {
             #[allow(clippy::cast_precision_loss)]
-            let steps_f32 = self.config.steps.0 as f32;
-            (self.config.end_temp.0 / self.config.start_temp.0).powf(1.0 / steps_f32)
+            let steps_f32 = self.config.steps.raw() as f32;
+            (self.config.end_temp.raw() / self.config.start_temp.raw()).powf(1.0 / steps_f32)
         } else {
             0.0
         }
@@ -286,11 +286,11 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
             state.layout(),
             state.pos_map(),
             &mut self.rng,
-            state.temperature.0,
+            state.temperature.raw(),
         )? {
             if self
                 .acceptance
-                .should_accept(proposal.delta, state.temperature.0, &mut self.rng)
+                .should_accept(proposal.delta, state.temperature.raw(), &mut self.rng)
             {
                 state.apply_mutation(proposal.action)?;
                 state.current_score = state.current_score.checked_add(proposal.delta).unwrap_or(
@@ -312,8 +312,8 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
     fn update_temperature(state: &mut SearchState, cooling_rate: f32) {
         state.temperature *= cooling_rate;
-        if state.temperature.0 < TEMP_UNDERFLOW_THRESHOLD {
-            state.temperature = Temperature(0.0);
+        if state.temperature.raw() < TEMP_UNDERFLOW_THRESHOLD {
+            state.temperature = Temperature::new(0.0);
         }
     }
 }
@@ -346,7 +346,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
-            self.0.fetch_add(1, Ordering::SeqCst);
+            self.raw().fetch_add(1, Ordering::SeqCst);
             OptimizationControl::Continue
         }
     }
@@ -377,7 +377,7 @@ mod tests {
             _temp: f32,
         ) -> Result<Option<MutationProposal>, EvolutionError> {
             Ok(Some(MutationProposal {
-                action: MutationAction::Swap(KeyIndex(0), KeyIndex(1)),
+                action: MutationAction::Swap(KeyIndex::new(0), KeyIndex::new(1)),
                 delta: 0,
             }))
         }
@@ -425,7 +425,7 @@ mod tests {
             .map(|i| KeyNode {
                 index: i,
                 label: format!("k{i}"),
-                hand: HandIndex(u8::try_from(i % 2).unwrap_or(0)),
+                hand: HandIndex::new(u8::try_from(i % 2).unwrap_or(0)),
                 finger: FingerIndex::new_unchecked(u8::try_from(i % 5).unwrap_or(0)),
                 row: RowIndex(i8::try_from(i / 10).unwrap_or(0)),
                 col: ColIndex(i8::try_from(i % 10).unwrap_or(0)),
@@ -473,13 +473,13 @@ mod tests {
         };
         let acceptance = CoolingAnnealing;
         let config = AnnealingConfig::new(
-            IterationCount(100),
-            Temperature(100.0),
-            Temperature(0.1),
-            Seed(42),
-            PatienceCount(5),
-            ReheatCount(2),
-            ScalingFactor(2.0),
+            IterationCount::new(100),
+            Temperature::new(100.0),
+            Temperature::new(0.1),
+            Seed::new(42),
+            PatienceCount::new(5),
+            ReheatCount::new(2),
+            ScalingFactor::new(2.0),
         )
         .unwrap();
         let mut optimizer = Optimizer::new(
@@ -495,10 +495,10 @@ mod tests {
     #[test]
     fn test_ips_underflow() {
         let (tx, _rx) = std::sync::mpsc::sync_channel(1);
-        let mut reporter = ProgressReporter::new(tx, IterationCount(100), Instant::now());
+        let mut reporter = ProgressReporter::new(tx, IterationCount::new(100), Instant::now());
         let keys = vec![KeyCode(0); 10];
         let layout = Layout::new_unchecked(keys);
-        let state = SearchState::new(layout, 0, Temperature(1.0)).unwrap();
-        reporter.report(IterationCount(0), &state, &ZeroTime);
+        let state = SearchState::new(layout, 0, Temperature::new(1.0)).unwrap();
+        reporter.report(IterationCount::new(0), &state, &ZeroTime);
     }
 }

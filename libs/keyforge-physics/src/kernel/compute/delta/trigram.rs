@@ -1,121 +1,144 @@
-// libs/keyforge-physics/src/kernel/compute/delta/trigram.rs
-
-use super::get_flow_delta;
-use super::PosMap;
+use crate::kernel::compute::PosMap;
+use crate::kernel::types::{KeyCode, KeyIndex, ValidatedLayout};
 use crate::kernel::EngineContext;
+use crate::kernel::mechanics::calculate_flow_cost;
 
-#[allow(clippy::cast_possible_truncation)]
-pub(crate) fn calculate_trigram_delta(
+/// Calculates the change in score when two keys are swapped, considering trigrams.
+#[allow(clippy::too_many_lines)]
+#[must_use]
+pub fn calculate_trigram_delta(
     ctx: &EngineContext,
-    pos_map: &PosMap<'_>,
-    code_a: crate::kernel::types::KeyCode,
-    code_b: crate::kernel::types::KeyCode,
+    layout: &ValidatedLayout<'_>,
+    pm: &PosMap<'_>,
     idx_a: usize,
     idx_b: usize,
 ) -> i64 {
-    enum TrigramPos {
-        Start,
-        Mid,
-        End,
-    }
+    let mut delta = 0i64;
 
-    let mut total_delta = 0i64;
-    if ctx.corpus.trigram_freqs.is_empty() {
+    let keys = layout.as_slice();
+    let code_a = keys[idx_a];
+    let code_b = keys[idx_b];
+
+    if code_a == KeyCode::EMPTY && code_b == KeyCode::EMPTY {
         return 0;
     }
 
-    let mut seen = std::collections::HashSet::new();
-    let ca = code_a.0 as usize;
-    let cb = code_b.0 as usize;
+    let pos_a = KeyIndex::new(idx_a as u16);
+    let pos_b = KeyIndex::new(idx_b as u16);
 
-    let mut process_range = |starts: &[usize],
-                             others1: &[crate::kernel::types::KeyCode],
-                             others2: &[crate::kernel::types::KeyCode],
-                             freqs: &[u32],
-                             char_idx: usize,
-                             pos: TrigramPos| {
-        if let (Some(&s), Some(&e)) = (starts.get(char_idx), starts.get(char_idx + 1)) {
-            for k in s..e {
-                let (c1, c2, c3) = match pos {
-                    TrigramPos::Start => (
-                        crate::kernel::types::KeyCode(char_idx as u16),
-                        others1[k],
-                        others2[k],
-                    ),
-                    TrigramPos::Mid => (
-                        others1[k],
-                        crate::kernel::types::KeyCode(char_idx as u16),
-                        others2[k],
-                    ),
-                    TrigramPos::End => (
-                        others1[k],
-                        others2[k],
-                        crate::kernel::types::KeyCode(char_idx as u16),
-                    ),
-                };
-                // Triple u16 -> u64 for fast hash
-                let key = (u64::from(c1.0) << 32) | (u64::from(c2.0) << 16) | u64::from(c3.0);
-                if seen.insert(key) {
-                    total_delta += get_flow_delta(ctx, pos_map, c1, c2, c3, idx_a, idx_b)
-                        * i64::from(freqs[k]);
+    let ca = code_a.raw() as usize;
+    let cb = code_b.raw() as usize;
+
+    // 2. Trigrams involving A
+    let start_a = ctx.corpus.trigram_starts[ca];
+    let end_a = ctx.corpus.trigram_starts[ca + 1];
+
+    for i in start_a..end_a {
+        let c2 = ctx.corpus.trigram_others1[i];
+        let c3 = ctx.corpus.trigram_others2[i];
+        let freq = ctx.corpus.trigram_freqs[i];
+
+        let mut min_old = i64::MAX;
+        let mut min_new = i64::MAX;
+
+        for &p1 in pm.get(code_a) {
+            for &p2 in pm.get(c2) {
+                for &p3 in pm.get(c3) {
+                    let cost = calculate_flow_cost_at(ctx, p1, p2, p3);
+                    if cost < min_old {
+                        min_old = cost;
+                    }
+
+                    // New position for A
+                    let p1_new = swap_pos(p1, pos_a, pos_b);
+                    let p2_new = swap_pos(p2, pos_a, pos_b);
+                    let p3_new = swap_pos(p3, pos_a, pos_b);
+
+                    let cost_new = calculate_flow_cost_at(ctx, p1_new, p2_new, p3_new);
+                    if cost_new < min_new {
+                        min_new = cost_new;
+                    }
                 }
             }
         }
-    };
 
-    // 1. Starts
-    process_range(
-        &ctx.corpus.trigram_starts,
-        &ctx.corpus.trigram_others1,
-        &ctx.corpus.trigram_others2,
-        &ctx.corpus.trigram_freqs,
-        ca,
-        TrigramPos::Start,
-    );
-    process_range(
-        &ctx.corpus.trigram_starts,
-        &ctx.corpus.trigram_others1,
-        &ctx.corpus.trigram_others2,
-        &ctx.corpus.trigram_freqs,
-        cb,
-        TrigramPos::Start,
-    );
+        if min_old != i64::MAX && min_new != i64::MAX {
+            delta += (min_new - min_old) * i64::from(freq);
+        }
+    }
 
-    // 2. Mids
-    process_range(
-        &ctx.corpus.trigram_mid_starts,
-        &ctx.corpus.trigram_mid_others1,
-        &ctx.corpus.trigram_mid_others2,
-        &ctx.corpus.trigram_mid_freqs,
-        ca,
-        TrigramPos::Mid,
-    );
-    process_range(
-        &ctx.corpus.trigram_mid_starts,
-        &ctx.corpus.trigram_mid_others1,
-        &ctx.corpus.trigram_mid_others2,
-        &ctx.corpus.trigram_mid_freqs,
-        cb,
-        TrigramPos::Mid,
-    );
+    // 3. Trigrams involving B
+    let start_b = ctx.corpus.trigram_starts[cb];
+    let end_b = ctx.corpus.trigram_starts[cb + 1];
 
-    // 3. Ends
-    process_range(
-        &ctx.corpus.trigram_end_starts,
-        &ctx.corpus.trigram_end_others1,
-        &ctx.corpus.trigram_end_others2,
-        &ctx.corpus.trigram_end_freqs,
-        ca,
-        TrigramPos::End,
-    );
-    process_range(
-        &ctx.corpus.trigram_end_starts,
-        &ctx.corpus.trigram_end_others1,
-        &ctx.corpus.trigram_end_others2,
-        &ctx.corpus.trigram_end_freqs,
-        cb,
-        TrigramPos::End,
-    );
+    for i in start_b..end_b {
+        let c2 = ctx.corpus.trigram_others1[i];
+        let c3 = ctx.corpus.trigram_others2[i];
+        let freq = ctx.corpus.trigram_freqs[i];
 
-    total_delta
+        // Skip if already processed in A (would be redundant)
+        if c2 == code_a || c3 == code_a {
+            continue;
+        }
+
+        let mut min_old = i64::MAX;
+        let mut min_new = i64::MAX;
+
+        for &p1 in pm.get(code_b) {
+            for &p2 in pm.get(c2) {
+                for &p3 in pm.get(c3) {
+                    let cost = calculate_flow_cost_at(ctx, p1, p2, p3);
+                    if cost < min_old {
+                        min_old = cost;
+                    }
+
+                    // New position for B
+                    let p1_new = swap_pos(p1, pos_a, pos_b);
+                    let p2_new = swap_pos(p2, pos_a, pos_b);
+                    let p3_new = swap_pos(p3, pos_a, pos_b);
+
+                    let cost_new = calculate_flow_cost_at(ctx, p1_new, p2_new, p3_new);
+                    if cost_new < min_new {
+                        min_new = cost_new;
+                    }
+                }
+            }
+        }
+
+        if min_old != i64::MAX && min_new != i64::MAX {
+            delta += (min_new - min_old) * i64::from(freq);
+        }
+    }
+
+    delta
+}
+
+#[inline]
+fn swap_pos(p: KeyIndex, pos_a: KeyIndex, pos_b: KeyIndex) -> KeyIndex {
+    if p == pos_a {
+        pos_b
+    } else if p == pos_b {
+        pos_a
+    } else {
+        p
+    }
+}
+
+#[inline]
+fn calculate_flow_cost_at(ctx: &EngineContext, p1: KeyIndex, p2: KeyIndex, p3: KeyIndex) -> i64 {
+    let idx1 = p1.raw() as usize;
+    let idx2 = p2.raw() as usize;
+    let idx3 = p3.raw() as usize;
+    calculate_flow_cost(
+        ctx.geometry.hands[idx1],
+        ctx.geometry.hands[idx2],
+        ctx.geometry.hands[idx3],
+        ctx.geometry.fingers[idx1],
+        ctx.geometry.fingers[idx2],
+        ctx.geometry.fingers[idx3],
+        ctx.penalty_redirect,
+        ctx.bonus_roll,
+        ctx.bonus_roll_out,
+    )
+    .raw()
 }

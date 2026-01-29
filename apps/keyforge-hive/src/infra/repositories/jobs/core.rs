@@ -409,7 +409,7 @@ impl JobRepository {
             );
 
             qb.push_values(def.geometry.keys.iter().enumerate(), |mut b, (idx, key)| {
-                let kidx = KeyIndex(idx.try_into().unwrap_or_default());
+                let kidx = KeyIndex::new(idx.try_into().unwrap_or_default());
                 let idx_i32: i32 = idx.try_into().unwrap_or_default();
 
                 b.push_bind(kb_id)
@@ -423,9 +423,9 @@ impl JobRepository {
                     .push_bind(i16::from(key.row.0))
                     .push_bind(i16::from(key.col.0))
                     .push_bind(key.is_stretch)
-                    .push_bind(def.geometry.prime_slots.iter().any(|&i| i.0 == kidx.0))
-                    .push_bind(def.geometry.med_slots.iter().any(|&i| i.0 == kidx.0))
-                    .push_bind(def.geometry.low_slots.iter().any(|&i| i.0 == kidx.0))
+                    .push_bind(def.geometry.prime_slots.iter().any(|&i| i.0 == kidx.raw()))
+                    .push_bind(def.geometry.med_slots.iter().any(|&i| i.0 == kidx.raw()))
+                    .push_bind(def.geometry.low_slots.iter().any(|&i| i.0 == kidx.raw()))
                     .push_bind(key.r);
             });
 

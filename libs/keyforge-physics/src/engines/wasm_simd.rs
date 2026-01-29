@@ -56,12 +56,12 @@ impl ScoringEngine for WasmSimdScoringEngine {
         {
             // SAFETY: We have verified that the target architecture is wasm32, which supports WASM SIMD.
             unsafe {
-                return score_layout_wasm(&self.ctx, &validated, scratch).map(Score);
+                return score_layout_wasm(&self.ctx, &validated, scratch).map(Score::from_scaled_i64);
             }
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            score_layout_scalar(&self.ctx, &validated, scratch).map(Score)
+            score_layout_scalar(&self.ctx, &validated, scratch).map(Score::from_scaled_i64)
         }
     }
 
@@ -88,9 +88,9 @@ impl ScoringEngine for WasmSimdScoringEngine {
                 pos_map: &pm,
             };
 
-            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.0;
-            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.0;
-            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.0;
+            let mono = crate::kernel::compute::scoring::score_monograms(&eval_ctx)?.raw();
+            let bigram = crate::kernel::compute::scoring::score_bigrams(&eval_ctx)?.raw();
+            let trigram = crate::kernel::compute::scoring::score_trigrams(&eval_ctx)?.raw();
             s.clear_used();
             Ok((mono, bigram, trigram))
         })?
@@ -172,7 +172,7 @@ unsafe fn score_layout_wasm(
     for &code in pm.used_keys() {
         let candidates = pm.get(code);
         if !candidates.is_empty() {
-            flat_map[code.0 as usize] = candidates[0];
+            flat_map[code.raw() as usize] = candidates[0];
         }
     }
 
@@ -206,11 +206,11 @@ unsafe fn score_simple_wasm(
 
     // 1. Monograms
     for &code in ctx.pos_map.used_keys() {
-        let freq = ctx.engine.corpus.char_freqs[code.0 as usize];
-        let p = flat_map[code.0 as usize];
+        let freq = ctx.engine.corpus.char_freqs[code.raw() as usize];
+        let p = flat_map[code.raw() as usize];
         let cost = ctx.engine.geometry.key_costs[p.as_usize()];
         total_score = total_score
-            .checked_add(cost.0.checked_mul(freq as i64).ok_or_else(|| {
+            .checked_add(cost.raw().checked_mul(freq as i64).ok_or_else(|| {
                 PhysicsError::ScoreOverflow {
                     context: "WASM Monogram multiply".to_string(),
                 }
@@ -222,7 +222,7 @@ unsafe fn score_simple_wasm(
 
     // 2. Bigrams
     for &code1 in ctx.pos_map.used_keys() {
-        let c1_val = code1.0 as usize;
+        let c1_val = code1.raw() as usize;
         let p1 = flat_map[c1_val].as_usize();
         let start = ctx.engine.corpus.bigram_starts[c1_val];
         let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
@@ -240,8 +240,8 @@ unsafe fn score_simple_wasm(
         while k + 2 <= end {
             // Load 2 KeyCodes (u16)
             // SAFETY: others_ptr is within corpus bounds [start, end).
-            let c2_0 = unsafe { others_ptr.add(k).read().0 as usize };
-            let c2_1 = unsafe { others_ptr.add(k + 1).read().0 as usize };
+            let c2_0 = unsafe { others_ptr.add(k).read().raw() as usize };
+            let c2_1 = unsafe { others_ptr.add(k + 1).read().raw() as usize };
 
             let p2_0 = flat_map[c2_0].raw();
             let p2_1 = flat_map[c2_1].raw();
@@ -249,12 +249,12 @@ unsafe fn score_simple_wasm(
             // Manual gather for costs
             // SAFETY: costs_ptr is valid for key_count elements in each row.
             let cost0 = if p2_0 < key_count as u16 {
-                unsafe { costs_ptr.add(p1_offset + (p2_0 as usize)).read().0 }
+                unsafe { costs_ptr.add(p1_offset + (p2_0 as usize)).read().raw() }
             } else {
                 0
             };
             let cost1 = if p2_1 < key_count as u16 {
-                unsafe { costs_ptr.add(p1_offset + (p2_1 as usize)).read().0 }
+                unsafe { costs_ptr.add(p1_offset + (p2_1 as usize)).read().raw() }
             } else {
                 0
             };
@@ -294,10 +294,10 @@ unsafe fn score_simple_wasm(
         while k < end {
             // SAFETY: pointers are valid at offset k < end.
             let c2 = unsafe { others_ptr.add(k).read() };
-            let p2 = flat_map[c2.0 as usize];
+            let p2 = flat_map[c2.raw() as usize];
             if p2.as_usize() < key_count {
                 let freq = unsafe { freqs_ptr.add(k).read() as i64 };
-                let cost = ctx.engine.geometry.cost_matrix[p1 * key_count + p2.as_usize()].0;
+                let cost = ctx.engine.geometry.cost_matrix[p1 * key_count + p2.as_usize()].raw();
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {
                         context: "WASM Bigram remainder accumulation".to_string(),
@@ -326,8 +326,8 @@ unsafe fn score_trigrams_wasm(
     let key_count = ctx.engine.key_count;
     let mut pos_types = [0u8; 256];
     for i in 0..key_count {
-        let h = ctx.engine.geometry.hands[i].as_u8();
-        let f = ctx.engine.geometry.fingers[i].as_u8();
+        let h = ctx.engine.geometry.hands[i].index() as u8;
+        let f = ctx.engine.geometry.fingers[i].index() as u8;
         pos_types[i] = h * 5 + f;
     }
 
@@ -354,27 +354,27 @@ unsafe fn score_trigrams_wasm(
                         ctx.engine.bonus_roll,
                         ctx.engine.bonus_roll_out,
                     )
-                    .0;
+                    .raw();
             }
         }
     }
 
     let mut type_map = [255u8; 65536];
     for &code in ctx.pos_map.used_keys() {
-        let p = flat_map[code.0 as usize];
+        let p = flat_map[code.raw() as usize];
         if p.as_usize() < key_count {
-            type_map[code.0 as usize] = pos_types[p.as_usize()];
+            type_map[code.raw() as usize] = pos_types[p.as_usize()];
         }
     }
 
     for &code1 in ctx.pos_map.used_keys() {
-        let t1 = type_map[code1.0 as usize];
+        let t1 = type_map[code1.raw() as usize];
         if t1 == 255 {
             continue;
         }
 
-        let start = ctx.engine.corpus.trigram_starts[code1.0 as usize];
-        let end = ctx.engine.corpus.trigram_starts[code1.0 as usize + 1];
+        let start = ctx.engine.corpus.trigram_starts[code1.raw() as usize];
+        let end = ctx.engine.corpus.trigram_starts[code1.raw() as usize + 1];
 
         let others1_ptr = ctx.engine.corpus.trigram_others1.as_ptr();
         let others2_ptr = ctx.engine.corpus.trigram_others2.as_ptr();
@@ -387,11 +387,11 @@ unsafe fn score_trigrams_wasm(
         let mut k = start;
         while k + 2 <= end {
             // SAFETY: pointers are within corpus bounds [start, end).
-            let c2_0 = unsafe { others1_ptr.add(k).read().0 as usize };
-            let c2_1 = unsafe { others1_ptr.add(k + 1).read().0 as usize };
+            let c2_0 = unsafe { others1_ptr.add(k).read().raw() as usize };
+            let c2_1 = unsafe { others1_ptr.add(k + 1).read().raw() as usize };
 
-            let c3_0 = unsafe { others2_ptr.add(k).read().0 as usize };
-            let c3_1 = unsafe { others2_ptr.add(k + 1).read().0 as usize };
+            let c3_0 = unsafe { others2_ptr.add(k).read().raw() as usize };
+            let c3_1 = unsafe { others2_ptr.add(k + 1).read().raw() as usize };
 
             let t2_0 = type_map[c2_0];
             let t2_1 = type_map[c2_1];
@@ -436,8 +436,8 @@ unsafe fn score_trigrams_wasm(
             // SAFETY: pointers are valid at offset k < end.
             let c2 = unsafe { others1_ptr.add(k).read() };
             let c3 = unsafe { others2_ptr.add(k).read() };
-            let t2 = type_map[c2.0 as usize];
-            let t3 = type_map[c3.0 as usize];
+            let t2 = type_map[c2.raw() as usize];
+            let t3 = type_map[c3.raw() as usize];
             if t2 != 255 && t3 != 255 {
                 let freq = unsafe { freqs_ptr.add(k).read() as i64 };
                 let cost = flow_table[t1_offset + (t2 as usize) * 10 + (t3 as usize)];
@@ -470,28 +470,28 @@ mod tests {
                 index: 0,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                row: RowIndex(0),
-                col: ColIndex(0),
+                row: RowIndex::new(0),
+                col: ColIndex::new(0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
-                row: RowIndex(0),
-                col: ColIndex(1),
+                row: RowIndex::new(0),
+                col: ColIndex::new(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 2,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
-                row: RowIndex(0),
-                col: ColIndex(2),
+                row: RowIndex::new(0),
+                col: ColIndex::new(2),
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
         let mut corpus = Corpus::default();
         let mut freqs = corpus.char_freqs.to_vec();
         freqs[97] = 100;
@@ -504,7 +504,7 @@ mod tests {
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
         let engine = WasmSimdScoringEngine::new(ctx.clone(), None);
 
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
 
         let score_res = engine.score(&layout).unwrap();
 
@@ -517,7 +517,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            score_res.0, scalar_score,
+            score_res.raw(), scalar_score,
             "WASM and Scalar scores must match exactly"
         );
     }

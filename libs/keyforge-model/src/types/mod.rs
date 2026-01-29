@@ -6,6 +6,8 @@ pub mod biomechanical;
 pub mod geometry;
 /// Key identifiers (Indices, Codes).
 pub mod indices;
+/// Deterministic math types and traits.
+pub mod math;
 /// Domain-specific newtypes.
 pub mod newtypes;
 /// Optimization and analysis result types.
@@ -13,9 +15,10 @@ pub mod results;
 /// Scoring types (Score, Weight).
 pub mod scoring;
 
-pub use biomechanical::{FingerIndex, HandIndex, SpaceHandPreference};
+pub use biomechanical::{Finger, FingerIndex, Hand, HandIndex, SpaceHandPreference};
 pub use geometry::{ColIndex, RowIndex};
 pub use indices::{KeyCode, KeyIndex};
+pub use math::{FixedPointMath, Point, SpatialUnit};
 pub use newtypes::{
     DurationMs, IterationCount, LatencyMs, PatienceCount, ReheatCount, ScalingFactor, Seed,
     Temperature,
@@ -34,9 +37,9 @@ mod tests {
     fn test_score_overflow_saturation() {
         let max = Score::MAX;
         // Saturating add
-        assert_eq!(max + Score(1), Score::MAX);
+        assert_eq!(max + Score::from_scaled_i64(1), Score::MAX);
         // Saturating sub
-        assert_eq!(Score::MIN - Score(1), Score::MIN);
+        assert_eq!(Score::MIN - Score::from_scaled_i64(1), Score::MIN);
         // Saturating mul
         assert_eq!(max * 2, Score::MAX);
     }
@@ -44,15 +47,15 @@ mod tests {
     #[test]
     fn test_score_checked_ops() {
         let max = Score::MAX;
-        assert!(max.checked_add(Score(1)).is_none());
-        assert!(Score::MIN.checked_sub(Score(1)).is_none());
+        assert!(max.checked_add(Score::from_scaled_i64(1)).is_none());
+        assert!(Score::MIN.checked_sub(Score::from_scaled_i64(1)).is_none());
     }
 
     #[test]
     fn test_score_scaling() {
         let s = Score::from_f32(1.0).unwrap();
         assert_eq!(s.to_f32(), 1.0);
-        assert_eq!(s.0, SCORE_SCALE as i64);
+        assert_eq!(s.raw(), SCORE_SCALE as i64);
     }
 
     #[test]
@@ -65,20 +68,20 @@ mod tests {
     #[test]
     fn test_basic_types_coverage() {
         // KeyIndex
-        let ki = KeyIndex(10);
+        let ki = KeyIndex::new(10);
         assert_eq!(format!("{ki}"), "10");
         assert_eq!(usize::from(ki), 10);
         assert_eq!(KeyIndex::from(10usize), ki);
 
         // KeyCode
-        let kc = KeyCode(97);
+        let kc = KeyCode::new(97);
         assert_eq!(format!("{kc}"), "97");
         assert_eq!(u16::from(kc), 97);
         assert_eq!(KeyCode::from(97u16), kc);
 
         // HandIndex
         let hi = HandIndex::LEFT;
-        assert_eq!(hi.as_u8(), 0);
+        assert_eq!(hi.raw(), 0);
         assert_eq!(hi.as_usize(), 0);
         assert!(hi.is_left());
         assert!(!hi.is_right());
@@ -87,7 +90,7 @@ mod tests {
 
         // FingerIndex
         let fi = FingerIndex::INDEX;
-        assert_eq!(fi.as_u8(), 1);
+        assert_eq!(fi.raw(), 1);
         assert_eq!(fi.as_usize(), 1);
         assert_eq!(fi.distance(FingerIndex::PINKY), 3);
         assert_eq!(fi.diff(FingerIndex::PINKY), -3);
@@ -98,10 +101,10 @@ mod tests {
         assert!(FingerIndex::try_from(5).is_err());
 
         // Row/Col Index
-        assert_eq!(RowIndex(5) - RowIndex(2), 3);
-        assert_eq!(ColIndex(5) - ColIndex(2), 3);
-        assert_eq!(RowIndex::default().0, 0);
-        assert_eq!(ColIndex::default().0, 0);
+        assert_eq!(RowIndex::new(5) - RowIndex::new(2), 3);
+        assert_eq!(ColIndex::new(5) - ColIndex::new(2), 3);
+        assert_eq!(RowIndex::default().raw(), 0);
+        assert_eq!(ColIndex::default().raw(), 0);
 
         // SpaceHandPreference
         assert_eq!(
@@ -112,24 +115,24 @@ mod tests {
 
     #[test]
     fn test_score_extended() {
-        assert_eq!(Score::ZERO.0, 0);
-        assert_eq!(Score::MAX.0, i64::MAX);
-        assert_eq!(Score::MIN.0, i64::MIN);
+        assert_eq!(Score::ZERO.raw(), 0);
+        assert_eq!(Score::MAX.raw(), i64::MAX);
+        assert_eq!(Score::MIN.raw(), i64::MIN);
 
         let s = Score::from_scaled_i64(100);
-        assert_eq!(s.0, 100);
+        assert_eq!(s.raw(), 100);
 
         // Score::from_f32 errors
         assert!(Score::from_f32(f32::NAN).is_err());
         assert!(Score::from_f32(1e20).is_err()); // Overflow
 
         // Score Ops
-        let s1 = Score(100);
-        let s2 = Score(50);
-        assert_eq!((s1 + s2).0, 150);
-        assert_eq!((s1 - s2).0, 50);
-        assert_eq!((-s1).0, -100);
-        assert_eq!((s1 * 2).0, 200);
+        let s1 = Score::from_scaled_i64(100);
+        let s2 = Score::from_scaled_i64(50);
+        assert_eq!((s1 + s2).raw(), 150);
+        assert_eq!((s1 - s2).raw(), 50);
+        assert_eq!((-s1).raw(), -100);
+        assert_eq!((s1 * 2).raw(), 200);
     }
 }
 
@@ -145,8 +148,8 @@ mod fuzz {
     proptest! {
         #[test]
         fn fuzz_score_ops(a in score_strategy(), b in score_strategy()) {
-            let s1 = Score(a);
-            let s2 = Score(b);
+            let s1 = Score::from_scaled_i64(a);
+            let s2 = Score::from_scaled_i64(b);
             let _ = s1 + s2;
             let _ = s1 - s2;
             let _ = -s1;

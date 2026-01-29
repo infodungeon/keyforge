@@ -246,11 +246,11 @@ mod tests {
         let params = SearchParams::default();
 
         let pin_a = KeyConstraint {
-            index: KeyIndex(0),
+            index: KeyIndex::new(0),
             key: "A".into(),
         };
         let pin_b = KeyConstraint {
-            index: KeyIndex(1),
+            index: KeyIndex::new(1),
             key: "B".into(),
         };
 

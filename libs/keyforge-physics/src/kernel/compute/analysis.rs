@@ -75,15 +75,15 @@ pub fn analyze_layout(
 
         // 1. Pass 1: Trigrams (Flow ONLY)
         for &(c1, c2, c3, freq) in ctx.all_trigrams.iter() {
-            let candidates1 = pm.get(KeyCode(c1));
-            let candidates2 = pm.get(KeyCode(c2));
-            let candidates3 = pm.get(KeyCode(c3));
+            let candidates1 = pm.get(KeyCode::new(c1));
+            let candidates2 = pm.get(KeyCode::new(c2));
+            let candidates3 = pm.get(KeyCode::new(c3));
             if candidates1.is_empty() || candidates2.is_empty() || candidates3.is_empty() {
                 continue;
             }
 
             let freq_f = freq as f32;
-            let mut min_cost_val = Score(i64::MAX);
+            let mut min_cost_val = Score::from_scaled_i64(i64::MAX);
             let mut best_triplet = (0, 0, 0);
 
             for &p1 in candidates1 {
@@ -106,7 +106,7 @@ pub fn analyze_layout(
                 }
             }
 
-            if min_cost_val.0 != i64::MAX {
+            if min_cost_val.raw() != i64::MAX {
                 let (idx1, idx2, idx3) = best_triplet;
 
                 // Flow Effort (Redirects/Rolls) - distributed across triplet
@@ -138,8 +138,8 @@ pub fn analyze_layout(
 
         // 2. Pass 2: Bigrams (ALL TRANSITIONS, DISTANCE, USAGE)
         for &(c1, c2, freq) in ctx.all_bigrams.iter() {
-            let candidates1 = pm.get(KeyCode(c1));
-            let candidates2 = pm.get(KeyCode(c2));
+            let candidates1 = pm.get(KeyCode::new(c1));
+            let candidates2 = pm.get(KeyCode::new(c2));
             if candidates1.is_empty() || candidates2.is_empty() {
                 continue;
             }
@@ -148,7 +148,7 @@ pub fn analyze_layout(
             total_bigrams += freq_f;
 
             // Choose OPTIMAL key pair by evaluating candidate costs
-            let mut min_score = Score(i64::MAX);
+            let mut min_score = Score::from_scaled_i64(i64::MAX);
             let mut best_pair = (0, 0);
 
             if candidates1.len() == 1 && candidates2.len() == 1 {
@@ -239,7 +239,7 @@ pub fn analyze_layout(
 
         // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
         for &code in pm.used_keys() {
-            let freq = ctx.corpus.char_freqs[code.0 as usize] as f32;
+            let freq = ctx.corpus.char_freqs[code.raw() as usize] as f32;
             if freq <= 0.0 {
                 continue;
             }
@@ -504,7 +504,7 @@ mod tests {
         );
 
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
-        let layout_keys = vec![KeyCode(97), KeyCode(98), KeyCode(99), KeyCode(100)];
+        let layout_keys = vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99), KeyCode::new(100)];
         let validated = ValidatedLayout::new(&layout_keys, kb.count()).unwrap();
 
         let report = analyze_layout(&ctx, &validated);

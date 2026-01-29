@@ -13,12 +13,12 @@ pub struct KeyIndexDto(pub u16);
 
 impl From<model::KeyIndex> for KeyIndexDto {
     fn from(val: model::KeyIndex) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 impl From<KeyIndexDto> for model::KeyIndex {
     fn from(val: KeyIndexDto) -> Self {
-        Self(val.0)
+        Self::new(val.0)
     }
 }
 
@@ -29,12 +29,12 @@ pub struct KeyCodeDto(pub u16);
 
 impl From<model::KeyCode> for KeyCodeDto {
     fn from(val: model::KeyCode) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 impl From<KeyCodeDto> for model::KeyCode {
     fn from(val: KeyCodeDto) -> Self {
-        Self(val.0)
+        Self::new(val.0)
     }
 }
 
@@ -45,12 +45,12 @@ pub struct HandIndexDto(pub u8);
 
 impl From<model::HandIndex> for HandIndexDto {
     fn from(val: model::HandIndex) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 impl From<HandIndexDto> for model::HandIndex {
     fn from(val: HandIndexDto) -> Self {
-        Self(val.0)
+        Self::new(val.0)
     }
 }
 
@@ -61,12 +61,12 @@ pub struct FingerIndexDto(pub u8);
 
 impl From<model::FingerIndex> for FingerIndexDto {
     fn from(val: model::FingerIndex) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 impl From<FingerIndexDto> for model::FingerIndex {
     fn from(val: FingerIndexDto) -> Self {
-        Self(val.0)
+        Self::new(val.0)
     }
 }
 
@@ -77,12 +77,12 @@ pub struct RowIndexDto(pub i8);
 
 impl From<model::RowIndex> for RowIndexDto {
     fn from(val: model::RowIndex) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 impl From<RowIndexDto> for model::RowIndex {
     fn from(val: RowIndexDto) -> Self {
-        Self(val.0)
+        Self::new(val.0)
     }
 }
 
@@ -93,12 +93,12 @@ pub struct ColIndexDto(pub i8);
 
 impl From<model::ColIndex> for ColIndexDto {
     fn from(val: model::ColIndex) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 impl From<ColIndexDto> for model::ColIndex {
     fn from(val: ColIndexDto) -> Self {
-        Self(val.0)
+        Self::new(val.0)
     }
 }
 
@@ -109,12 +109,12 @@ pub struct ScoreDto(pub i64);
 
 impl From<model::Score> for ScoreDto {
     fn from(val: model::Score) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 impl From<ScoreDto> for model::Score {
     fn from(val: ScoreDto) -> Self {
-        Self(val.0)
+        model::Score::from_scaled_i64(val.0)
     }
 }
 
@@ -125,7 +125,7 @@ pub struct WeightDto(pub f32);
 
 impl From<model::Weight> for WeightDto {
     fn from(val: model::Weight) -> Self {
-        Self(val.0)
+        Self(val.to_f32())
     }
 }
 impl From<WeightDto> for model::Weight {

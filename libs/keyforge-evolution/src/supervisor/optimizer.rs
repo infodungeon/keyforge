@@ -96,7 +96,7 @@ fn evolve_internal<CB: ProgressCallback>(
 ) -> Result<OptimizationResult, EvolutionError> {
     let mut layout = initial_layout.unwrap_or_else(|| {
         #[allow(clippy::cast_possible_truncation)]
-        let keys: Vec<KeyCode> = (0..engine.key_count()).map(|i| KeyCode(i as u16)).collect();
+        let keys: Vec<KeyCode> = (0..engine.key_count()).map(|i| KeyCode::new(i as u16)).collect();
         Layout::new_unchecked(keys)
     });
 
@@ -118,12 +118,12 @@ fn evolve_internal<CB: ProgressCallback>(
                     if let Some(pos) = layout.keys().iter().position(|&k| k == code) {
                         layout
                             .swap(
-                                KeyIndex(u16::try_from(i).map_err(|_| {
+                                KeyIndex::new(u16::try_from(i).map_err(|_| {
                                     EvolutionError::Config(format!(
                                         "Pinned index {i} out of bounds"
                                     ))
                                 })?),
-                                KeyIndex(u16::try_from(pos).map_err(|_| {
+                                KeyIndex::new(u16::try_from(pos).map_err(|_| {
                                     EvolutionError::Config(format!(
                                         "Key code position {pos} out of bounds"
                                     ))
@@ -163,13 +163,13 @@ fn evolve_internal<CB: ProgressCallback>(
             let acceptance = CoolingAnnealing;
 
             let annealing_config = AnnealingConfig::new(
-                IterationCount(*steps),
-                Temperature(*start_temp),
-                Temperature(*end_temp),
-                Seed(*seed),
-                PatienceCount(*patience),
-                ReheatCount(*reheats),
-                ScalingFactor(*reheat_factor),
+                IterationCount::new(*steps),
+                Temperature::new(*start_temp),
+                Temperature::new(*end_temp),
+                Seed::new(*seed),
+                PatienceCount::new(*patience),
+                ReheatCount::new(*reheats),
+                ScalingFactor::new(*reheat_factor),
             )?;
 
             let mut optimizer = Optimizer::new(
@@ -187,7 +187,7 @@ fn evolve_internal<CB: ProgressCallback>(
 
             Ok(OptimizationResult {
                 score: exact_score.to_f32(),
-                raw_score: exact_score.0,
+                raw_score: exact_score.raw(),
                 layout: best_layout,
             })
         }
@@ -210,7 +210,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> crate::OptimizationControl {
-            self.0.fetch_add(1, Ordering::SeqCst);
+            self.raw().fetch_add(1, Ordering::SeqCst);
             crate::OptimizationControl::Continue
         }
     }

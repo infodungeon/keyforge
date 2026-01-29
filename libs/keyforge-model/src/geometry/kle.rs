@@ -129,14 +129,14 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
     let total = keys.len();
     #[allow(clippy::cast_possible_truncation)]
     let prime_slots = (0..std::cmp::min(8, total))
-        .map(|i| KeyIndex(i as u16))
+        .map(|i| KeyIndex::new(i as u16))
         .collect();
     #[allow(clippy::cast_possible_truncation)]
     let med_slots = (8..std::cmp::min(20, total))
-        .map(|i| KeyIndex(i as u16))
+        .map(|i| KeyIndex::new(i as u16))
         .collect();
     #[allow(clippy::cast_possible_truncation)]
-    let low_slots = (20..total).map(|i| KeyIndex(i as u16)).collect();
+    let low_slots = (20..total).map(|i| KeyIndex::new(i as u16)).collect();
 
     let geom = KeyboardGeometry {
         keys,

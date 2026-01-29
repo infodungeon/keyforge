@@ -124,7 +124,7 @@ mod tests {
         })
         .unwrap();
 
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98)]);
         let res = analyze_with_context(engine.context(), &layout);
         assert!(res.is_ok());
     }

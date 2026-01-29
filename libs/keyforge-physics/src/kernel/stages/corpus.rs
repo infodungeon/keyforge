@@ -98,7 +98,7 @@ fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec
             starts[current_char] = current_offset;
             current_char += 1;
         }
-        others.push(KeyCode(c2));
+        others.push(KeyCode::new(c2));
         freqs.push(freq);
         current_offset += 1;
     }
@@ -128,7 +128,7 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
             starts[current_char] = current_offset;
             current_char += 1;
         }
-        others.push(KeyCode(c1));
+        others.push(KeyCode::new(c1));
         freqs.push(freq);
         current_offset += 1;
     }
@@ -197,8 +197,8 @@ fn flatten_trigrams_start(
             starts[current_char] = current_offset;
             current_char += 1;
         }
-        o1.push(KeyCode(c2));
-        o2.push(KeyCode(c3));
+        o1.push(KeyCode::new(c2));
+        o2.push(KeyCode::new(c3));
         freqs.push(freq);
         current_offset += 1;
     }
@@ -231,8 +231,8 @@ fn flatten_trigrams_mid(
             starts[current_char] = current_offset;
             current_char += 1;
         }
-        o1.push(KeyCode(c1));
-        o2.push(KeyCode(c3));
+        o1.push(KeyCode::new(c1));
+        o2.push(KeyCode::new(c3));
         freqs.push(freq);
         current_offset += 1;
     }
@@ -265,8 +265,8 @@ fn flatten_trigrams_end(
             starts[current_char] = current_offset;
             current_char += 1;
         }
-        o1.push(KeyCode(c1));
-        o2.push(KeyCode(c2));
+        o1.push(KeyCode::new(c1));
+        o2.push(KeyCode::new(c2));
         freqs.push(freq);
         current_offset += 1;
     }

@@ -3,11 +3,112 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// The physical hand used for typing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Hand {
+    /// The left hand.
+    Left,
+    /// The right hand.
+    Right,
+}
+
+impl Hand {
+    /// Returns the index of the hand (Left=0, Right=1).
+    #[must_use]
+    pub const fn index(self) -> usize {
+        match self {
+            Self::Left => 0,
+            Self::Right => 1,
+        }
+    }
+}
+
+impl From<Hand> for HandIndex {
+    fn from(hand: Hand) -> Self {
+        Self(hand.index() as u8)
+    }
+}
+
+/// The finger used for typing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Finger {
+    /// The thumb.
+    Thumb,
+    /// The index finger.
+    Index,
+    /// The middle finger.
+    Middle,
+    /// The ring finger.
+    Ring,
+    /// The pinky finger.
+    Pinky,
+}
+
+impl Finger {
+    /// Returns the index of the finger (Thumb=0 to Pinky=4).
+    #[must_use]
+    pub const fn index(self) -> usize {
+        match self {
+            Self::Thumb => 0,
+            Self::Index => 1,
+            Self::Middle => 2,
+            Self::Ring => 3,
+            Self::Pinky => 4,
+        }
+    }
+
+    /// Returns true if this is considered a "weak" finger (Ring or Pinky).
+    #[must_use]
+    pub const fn is_weak(self) -> bool {
+        matches!(self, Self::Ring | Self::Pinky)
+    }
+
+    /// Calculates the absolute distance between two fingers.
+    #[must_use]
+    pub fn distance(self, other: Self) -> u8 {
+        (self.index() as u8).abs_diff(other.index() as u8)
+    }
+}
+
+impl From<Finger> for FingerIndex {
+    fn from(finger: Finger) -> Self {
+        Self(finger.index() as u8)
+    }
+}
+
+/// A physical zone on the keyboard relative to a finger's home position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Zone {
+    /// The home column for the finger.
+    Base,
+    /// A column closer to the center of the keyboard.
+    InnerReach,
+    /// A column closer to the edge of the keyboard.
+    OuterReach,
+}
+
+/// The direction of movement across the keyboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Direction {
+    /// Movement towards the center (Pinky -> Thumb).
+    Inward,
+    /// Movement towards the edge (Thumb -> Pinky).
+    Outward,
+    /// No horizontal movement (same finger or column).
+    Neutral,
+}
+
 /// Identifier for a hand (Left=0, Right=1).
+/// 
+/// [DEPRECATED] Use `Hand` enum instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct HandIndex(pub u8);
+pub struct HandIndex(u8);
 
 impl HandIndex {
     /// Left hand index (0).
@@ -64,10 +165,12 @@ impl TryFrom<u8> for HandIndex {
 }
 
 /// Identifier for a finger (Thumb=0 to Pinky=4).
+/// 
+/// [DEPRECATED] Use `Finger` enum instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct FingerIndex(pub u8);
+pub struct FingerIndex(u8);
 
 impl FingerIndex {
     /// Thumb index (0).
