@@ -39,13 +39,19 @@ impl SpatialUnit {
     /// Converts a float KU value to `SpatialUnit`.
     #[must_use]
     pub fn from_f32(val: f32) -> Self {
-        Self((f64::from(val) * Self::SCALE).round() as i32)
+        Self((val as f64 * Self::SCALE).round() as i32)
     }
 
     /// Converts `SpatialUnit` to a float KU value.
     #[must_use]
     pub fn to_f32(self) -> f32 {
-        (f64::from(self.0) / Self::SCALE) as f32
+        (self.0 as f64 / Self::SCALE) as f32
+    }
+}
+
+impl std::fmt::Display for SpatialUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.3}", self.to_f32())
     }
 }
 
