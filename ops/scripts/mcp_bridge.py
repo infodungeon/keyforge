@@ -13,6 +13,7 @@ import requests
 
 # Load .env if it exists
 def load_env():
+    # Use absolute path to ensure it's found
     env_path = "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/.env"
     if os.path.exists(env_path):
         with open(env_path, "r") as f:
@@ -25,7 +26,8 @@ def load_env():
 load_env()
 
 DEBUG_LOG = "/tmp/mcp_debug.log"
-GITHUB_TOKEN_RAW = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+# Look for KF_GITHUB_TOKEN first to bypass CLI masking
+GITHUB_TOKEN_RAW = os.getenv("KF_GITHUB_TOKEN") or os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
 GITHUB_TOKEN = GITHUB_TOKEN_RAW.strip('"').strip("'") if GITHUB_TOKEN_RAW else None
 
 def log(msg):
@@ -68,6 +70,8 @@ def run_copilot_bridge():
     log("Starting Copilot Remote Mode")
     input_queue = queue.Queue()
     threading.Thread(target=handle_stdin_to_queue, args=(input_queue,), daemon=True).start()
+    
+    COPILOT_URL = "https://api.github.com/copilot/chat/completions" 
     
     session = requests.Session()
     session.headers.update({
@@ -115,21 +119,33 @@ def main():
     if target == "github":
         log("Starting GitHub Mode")
         if GITHUB_TOKEN:
+            # Map the clean variable to the one expected by the server
             env["GITHUB_PERSONAL_ACCESS_TOKEN"] = GITHUB_TOKEN
             env["GITHUB_TOKEN"] = GITHUB_TOKEN
         
-        # Log keys for verification (NO VALUES)
-        log(f"Environment keys: {list(env.keys())}")
-        
         node_bin = shutil.which("node") or "/usr/bin/node"
         github_bin = "/home/robert/.npm-global/lib/node_modules/@modelcontextprotocol/server-github/dist/index.js"
+        if not os.path.exists(github_bin):
+            # Fallback to local node_modules if not global
+            github_bin = os.path.join(os.getcwd(), "node_modules/@modelcontextprotocol/server-github/dist/index.js")
+            
+        if not os.path.exists(github_bin):
+            log(f"Error: GitHub MCP server not found at {github_bin}")
+            sys.exit(1)
+            
         cmd = [node_bin, github_bin]
     else:
         resolved_bin = shutil.which(target)
         if not resolved_bin:
-            log(f"Error: Command {target} not found")
-            sys.exit(1)
+            # If target is already an absolute path that exists, use it
+            if os.path.isabs(target) and os.path.exists(target):
+                resolved_bin = target
+            else:
+                log(f"Error: Command {target} not found")
+                sys.exit(1)
         cmd = [resolved_bin] + sys.argv[2:]
+
+    log(f"Executing: {' '.join(cmd)}")
 
     try:
         proc = subprocess.Popen(
@@ -138,7 +154,8 @@ def main():
             stdout=sys.stdout,
             stderr=sys.stderr,
             env=env,
-            bufsize=0
+            bufsize=0,
+            universal_newlines=True
         )
         
         def sig_handler(sig, frame):

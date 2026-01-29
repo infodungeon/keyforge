@@ -21,13 +21,11 @@
       ]
     },
     "github": {
-      "command": "node",
+      "command": "python3",
       "args": [
-        "/home/robert/.npm-global/lib/node_modules/@modelcontextprotocol/server-github/dist/index.js"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_PERSONAL_ACCESS_TOKEN"
-      }
+        "ops/scripts/mcp_bridge.py",
+        "github"
+      ]
     }
   }
 }
