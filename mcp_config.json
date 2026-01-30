@@ -26,6 +26,13 @@
         "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py",
         "github"
       ]
+    },
+    "swarm": {
+      "command": "python3",
+      "args": [
+        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py",
+        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/mcp/swarm_router.py"
+      ]
     }
   }
 }

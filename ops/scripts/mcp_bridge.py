@@ -33,17 +33,21 @@ def main():
 
     target = sys.argv[1]
     
-    # Bypass Gemini CLI masking by preferring KF_GITHUB_TOKEN
-    clean_token = os.getenv("KF_GITHUB_TOKEN") or os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+    # Bypass Gemini CLI masking by identifying the strongest token
+    clean_token = os.getenv("KF_GH_AUTH_BLOB") or os.getenv("KF_GITHUB_TOKEN") or os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
     
     log(f"Bridge requested for: {' '.join(sys.argv[1:])}")
-    log(f"Clean token source: {'KF_GITHUB_TOKEN' if os.getenv('KF_GITHUB_TOKEN') else 'GITHUB_PERSONAL_ACCESS_TOKEN'}")
     log(f"Token present: {'Yes' if clean_token else 'No'}")
 
     env = os.environ.copy()
     if clean_token:
+        # Standardize for MCP servers that expect these specific names
         env["GITHUB_PERSONAL_ACCESS_TOKEN"] = clean_token
         env["GITHUB_TOKEN"] = clean_token
+        # Ensure KF specific tokens are preserved (os.environ.copy() already did this, 
+        # but let's be explicit about the critical ones)
+        if os.getenv("KF_GH_AUTH_BLOB"):
+            env["KF_GH_AUTH_BLOB"] = os.getenv("KF_GH_AUTH_BLOB")
 
     if target == "github":
         node_bin = shutil.which("node") or "/usr/bin/node"
@@ -59,8 +63,9 @@ def main():
     else:
         resolved_bin = shutil.which(target)
         if not resolved_bin:
-            if os.path.isabs(target) and os.path.exists(target):
-                resolved_bin = target
+            # Check for absolute path OR relative path in CWD
+            if os.path.exists(target):
+                resolved_bin = os.path.abspath(target)
             else:
                 log(f"Error: Command {target} not found")
                 sys.exit(1)
@@ -69,7 +74,6 @@ def main():
     log(f"Executing replacement (execvpe): {' '.join(cmd)}")
     
     # Replace the current process with the target command
-    # This is the most robust way to bridge stdio servers
     os.execvpe(cmd[0], cmd, env)
 
 if __name__ == "__main__":

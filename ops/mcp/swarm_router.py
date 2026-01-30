@@ -193,7 +193,7 @@ class SwarmRouter:
         ali_free_models = ["qwen-max", "qwen-plus", "qwen3-coder-plus", "qwen3-coder-plus-2025-07-22"]
 
         self.lanes = {
-            "studio": SwarmProvider("studio", "Google Studio", "models/gemini-3-flash", 
+            "studio": SwarmProvider("studio", "Google Studio", "models/gemini-2.0-flash-exp", 
                                     os.getenv("KF_STUDIO_KEY") or os.getenv("GEMINI_API_KEY"), 
                                     "https://generativelanguage.googleapis.com/v1beta", protocol="google", rpm=15),
             "groq_pro": SwarmProvider("groq_pro", "Groq Pro", "llama-3.3-70b-versatile", 
@@ -310,8 +310,8 @@ def main():
             if request.get("method") == "tools/list":
                 tools = [
                     {"name": "swarm_query", "description": "Parallel task execution.", "inputSchema": {"type": "object", "properties": {"prompt": {"type": "string"}, "capability": {"type": "string"}, "system_instruction": {"type": "string"}, "specific_lane": {"type": "string"}, "override_model": {"type": "string"}}, "required": ["prompt"]}},
-                    {"name": "swarm_status", "description": "Health report.", "inputSchema": {"type": "object", "properties": {}}},
-                    {"name": "swarm_available_models", "description": "Discover models.", "inputSchema": {"type": "object", "properties": {}}}
+                    {"name": "swarm_status", "description": "Health report.", "inputSchema": {"type": "object", "properties": {}, "required": []}},
+                    {"name": "swarm_available_models", "description": "Discover models.", "inputSchema": {"type": "object", "properties": {}, "required": []}}
                 ]
                 print(json.dumps({"jsonrpc": "2.0", "id": request.get("id"), "result": {"tools": tools}}), flush=True)
             elif request.get("method") == "tools/call":

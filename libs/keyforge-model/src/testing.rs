@@ -14,6 +14,7 @@ use crate::{
     ColIndex, Corpus, CostModel, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex,
     Rubric,
 };
+use crate::types::SpatialUnit;
 use proptest::arbitrary::Arbitrary;
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
@@ -84,13 +85,13 @@ impl Arbitrary for KeyNode {
                 |(index, label, x, y, hand, finger, row, col, is_home)| Self {
                     index,
                     label,
-                    x,
-                    y,
+                    x: SpatialUnit::from_f32(x),
+                    y: SpatialUnit::from_f32(y),
                     w: 1.0,
                     h: 1.0,
                     r: 0.0,
-                    rx: 0.0,
-                    ry: 0.0,
+                    rx: SpatialUnit::default(),
+                    ry: SpatialUnit::default(),
                     hand,
                     finger,
                     row,
@@ -272,7 +273,8 @@ pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
             label: format!("k{i}"),
             hand: HandIndex::new(0),
             finger: FingerIndex::new(i as u8),
-            x: i as f32,
+            x: SpatialUnit::from_f32(i as f32),
+            y: SpatialUnit::default(),
             ..Default::default()
         })
         .collect();

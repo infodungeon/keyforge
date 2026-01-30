@@ -138,8 +138,8 @@ impl Default for KeyNode {
             h: 1.0,
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(0),
-            row: RowIndex(0),
-            col: ColIndex(0),
+            row: RowIndex::new(0),
+            col: ColIndex::new(0),
             is_home: false,
             is_stretch: false,
             r: 0.0,
@@ -296,7 +296,7 @@ impl KeyboardDefinition {
                 y: SpatialUnit::default(),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(0),
-                row: RowIndex(0),
+                row: RowIndex::new(0),
                 col: ColIndex::new(i as i8),
                 ..Default::default()
             })
@@ -311,6 +311,7 @@ impl KeyboardDefinition {
             geometry: KeyboardGeometry {
                 keys,
                 prime_slots: (0..keys_count as u16).map(KeyIndex::new).collect(),
+                home_row: RowIndex::new(0),
                 ..Default::default()
             },
             ..Default::default()

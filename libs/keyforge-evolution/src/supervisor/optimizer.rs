@@ -198,6 +198,7 @@ fn evolve_internal<CB: ProgressCallback>(
 mod tests {
     use super::*;
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
+    use keyforge_model::types::RowIndex;
     use keyforge_physics::EngineFactory;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -210,7 +211,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> crate::OptimizationControl {
-            self.raw().fetch_add(1, Ordering::SeqCst);
+            self.0.fetch_add(1, Ordering::SeqCst);
             crate::OptimizationControl::Continue
         }
     }
@@ -227,7 +228,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
-            keyforge_model::types::RowIndex(0),
+            RowIndex::new(0),
             "test".into(),
         )
         .unwrap();
@@ -240,7 +241,7 @@ mod tests {
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
                         base: std::collections::HashMap::from([(
-                            keyforge_model::types::RowIndex(0),
+                            RowIndex::new(0),
                             1.0,
                         )]),
                         ..Default::default()
@@ -291,12 +292,12 @@ mod tests {
         let (engine, config) = setup_env();
 
         // 1. Size mismatch
-        let bad_layout = Layout::new_unchecked(vec![KeyCode(0)]);
+        let bad_layout = Layout::new_unchecked(vec![KeyCode::new(0)]);
         let res = evolve(&engine, &config, NoOpCallback, Some(bad_layout), None);
         assert!(res.is_err());
 
         // 2. Missing pinned key
-        let pins = vec![Some(KeyCode(999))];
+        let pins = vec![Some(KeyCode::new(999))];
         let res = evolve(&engine, &config, NoOpCallback, None, Some(&pins));
         assert!(res.is_err());
     }
@@ -305,7 +306,7 @@ mod tests {
     fn test_optimize_wrapper() {
         let kb = Keyboard::new(
             vec![KeyNode::default()],
-            keyforge_model::types::RowIndex(0),
+            RowIndex::new(0),
             "test".into(),
         )
         .unwrap();
@@ -318,7 +319,7 @@ mod tests {
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
                         base: std::collections::HashMap::from([(
-                            keyforge_model::types::RowIndex(0),
+                            RowIndex::new(0),
                             1.0,
                         )]),
                         ..Default::default()

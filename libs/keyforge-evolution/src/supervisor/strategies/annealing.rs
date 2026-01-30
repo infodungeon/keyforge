@@ -24,7 +24,6 @@ impl AcceptanceCriteria for CoolingAnnealing {
 impl CoolingAnnealing {
     #[allow(clippy::cast_precision_loss)]
     fn get_acceptance_prob(delta: i64, temp: f32) -> f32 {
-        // FIX: Use SCORE_SCALE instead of hardcoded 1,000,000.0
         let delta_f = delta as f32 / SCORE_SCALE;
         (-delta_f / temp).exp()
     }
@@ -39,10 +38,10 @@ mod tests {
     struct MockRng(u64);
     impl RngCore for MockRng {
         fn next_u32(&mut self) -> u32 {
-            self.raw() as u32
+            self.0 as u32
         }
         fn next_u64(&mut self) -> u64 {
-            self.raw()
+            self.0
         }
         fn fill_bytes(&mut self, _dest: &mut [u8]) {}
     }

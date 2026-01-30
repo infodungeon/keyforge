@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -328,7 +328,7 @@ mod tests {
     };
     use crate::supervisor::AnnealingConfig;
     use crate::{OptimizationControl, ProgressCallback};
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, SpatialUnit};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
     use rand::Rng;
@@ -346,7 +346,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
-            self.raw().fetch_add(1, Ordering::SeqCst);
+            self.0.fetch_add(1, Ordering::SeqCst);
             OptimizationControl::Continue
         }
     }
@@ -427,18 +427,17 @@ mod tests {
                 label: format!("k{i}"),
                 hand: HandIndex::new(u8::try_from(i % 2).unwrap_or(0)),
                 finger: FingerIndex::new_unchecked(u8::try_from(i % 5).unwrap_or(0)),
-                row: RowIndex(i8::try_from(i / 10).unwrap_or(0)),
-                col: ColIndex(i8::try_from(i % 10).unwrap_or(0)),
-                x: (i % 10) as f32,
-                y: (i / 10) as f32,
+                row: RowIndex::new(i8::try_from(i / 10).unwrap_or(0)),
+                col: ColIndex::new(i8::try_from(i % 10).unwrap_or(0)),
+                x: SpatialUnit::from_f32((i % 10) as f32),
+                y: SpatialUnit::from_f32((i / 10) as f32),
                 is_home: false,
                 ..Default::default()
             })
             .collect();
         let kb = {
-            use keyforge_model::types::RowIndex;
             Arc::new(
-                Keyboard::new(keys, RowIndex(1), "test".into()).expect("Failed to create keyboard"),
+                Keyboard::new(keys, RowIndex::new(1), "test".into()).expect("Failed to create keyboard"),
             )
         };
         let mut corpus_val = Corpus::default();
@@ -496,7 +495,7 @@ mod tests {
     fn test_ips_underflow() {
         let (tx, _rx) = std::sync::mpsc::sync_channel(1);
         let mut reporter = ProgressReporter::new(tx, IterationCount::new(100), Instant::now());
-        let keys = vec![KeyCode(0); 10];
+        let keys = vec![KeyCode::new(0); 10];
         let layout = Layout::new_unchecked(keys);
         let state = SearchState::new(layout, 0, Temperature::new(1.0)).unwrap();
         reporter.report(IterationCount::new(0), &state, &ZeroTime);

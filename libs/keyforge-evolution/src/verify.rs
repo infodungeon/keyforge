@@ -35,7 +35,7 @@ mod tests {
             engine_config: keyforge_model::config::EngineConfig::default(),
         })
         .unwrap();
-        let layout = Layout::new_unchecked(vec![KeyCode(97), KeyCode(98), KeyCode(99)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         (Arc::from(engine), layout)
     }
 

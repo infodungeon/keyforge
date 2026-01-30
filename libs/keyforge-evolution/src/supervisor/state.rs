@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -173,36 +173,36 @@ mod tests {
 
     #[test]
     fn test_search_state_mutation_swap() {
-        let layout = Layout::new_unchecked(vec![KeyCode(10), KeyCode(20)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(10), KeyCode::new(20)]);
         let mut state = SearchState::new(layout, 100, Temperature::new(1.0)).unwrap();
 
         state
             .apply_mutation(MutationAction::Swap(KeyIndex::new(0), KeyIndex::new(1)))
             .unwrap();
 
-        assert_eq!(state.layout().keys()[0], KeyCode(20));
-        assert_eq!(state.layout().keys()[1], KeyCode(10));
-        assert_eq!(state.pos_map()[20], KeyIndex(0));
-        assert_eq!(state.pos_map()[10], KeyIndex(1));
+        assert_eq!(state.layout().keys()[0], KeyCode::new(20));
+        assert_eq!(state.layout().keys()[1], KeyCode::new(10));
+        assert_eq!(state.pos_map()[20], KeyIndex::new(0));
+        assert_eq!(state.pos_map()[10], KeyIndex::new(1));
     }
 
     #[test]
     fn test_reheat_logic() {
-        let layout = Layout::new_unchecked(vec![KeyCode(10)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(10)]);
         let mut state = SearchState::new(layout, 100, Temperature::new(0.1)).unwrap();
         state.best_score = 50; // Manual override for test
 
         state.reheat_from_best(Temperature::new(1.0), ScalingFactor::new(0.5));
 
-        assert_eq!(state.temperature, Temperature(0.5));
+        assert_eq!(state.temperature, Temperature::new(0.5));
         assert_eq!(state.current_score, 50);
     }
 
     #[test]
     fn test_state_reheat_zero_temp() {
-        let layout = Layout::new_unchecked(vec![KeyCode(10)]);
+        let layout = Layout::new_unchecked(vec![KeyCode::new(10)]);
         let mut state = SearchState::new(layout, 100, Temperature::new(0.1)).unwrap();
         state.reheat_from_best(Temperature::new(0.0), ScalingFactor::new(0.5));
-        assert_eq!(state.temperature, Temperature(0.0));
+        assert_eq!(state.temperature, Temperature::new(0.0));
     }
 }

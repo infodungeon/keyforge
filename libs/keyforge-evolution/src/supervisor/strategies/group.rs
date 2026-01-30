@@ -47,7 +47,7 @@ impl MutationOperator for GroupMutation {
 
             return Ok(Some(MutationProposal {
                 delta,
-                action: MutationAction::Swap(idx_a.into(), idx_b.into()),
+                action: MutationAction::Swap(KeyIndex::new(idx_a as u16), KeyIndex::new(idx_b as u16)),
             }));
         }
 
@@ -103,7 +103,7 @@ impl MutationOperator for GroupMutation {
 
         Ok(Some(MutationProposal {
             delta: d1 + delta,
-            action: MutationAction::GroupSwap(idx_a.into(), idx_b.into(), idx_c.into()),
+            action: MutationAction::GroupSwap(KeyIndex::new(idx_a as u16), KeyIndex::new(idx_b as u16), KeyIndex::new(idx_c as u16)),
         }))
     }
 }
@@ -112,7 +112,7 @@ impl MutationOperator for GroupMutation {
 mod tests {
     use super::*;
     use crate::supervisor::state::SearchState;
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit, Temperature};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
     use proptest::prelude::*;
@@ -149,17 +149,17 @@ mod tests {
                 index: i,
                 label: format!("k{i}"),
                 hand: HandIndex::new((i % 2) as u8),
-                finger: FingerIndex::new((i % 5) as u8),
-                row: RowIndex((i / 10) as i8),
-                col: ColIndex((i % 10) as i8),
-                x: (i % 10) as f32,
-                y: (i / 10) as f32,
+                finger: FingerIndex::new_unchecked((i % 5) as u8),
+                row: RowIndex::new((i / 10) as i8),
+                col: ColIndex::new((i % 10) as i8),
+                x: SpatialUnit::from_f32((i % 10) as f32),
+                y: SpatialUnit::from_f32((i / 10) as f32),
                 is_home: false,
                 ..Default::default()
             })
             .collect();
         let kb = Arc::new(
-            Keyboard::new(keys, keyforge_model::types::RowIndex(1), "test".into()).unwrap(),
+            Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap(),
         );
         let mut corpus_val = Corpus::default();
         let mut char_freqs = corpus_val.char_freqs.to_vec();
@@ -197,12 +197,12 @@ mod tests {
     ) {
         let size = 10;
         let engine = setup_engine(size);
-        let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode).collect();
+        let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode::new).collect();
         let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
                     keys.shuffle(&mut rng_layout);
                     let layout = Layout::new_unchecked(keys);
-                    let mut state = SearchState::new(layout, 0, keyforge_model::types::Temperature(1.0)).unwrap();
-                    let score_before = engine.score(state.layout())?.0;
+                    let mut state = SearchState::new(layout, 0, Temperature::new(1.0)).unwrap();
+                    let score_before = engine.score(state.layout())?.raw();
                     let mutation = GroupMutation { unlocked_indices: (0..size).collect(), start_temp: 100.0, end_temp: 0.1 };
                     let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
                     if let Ok(Some(proposal)) = MutationOperator::propose(
@@ -214,7 +214,7 @@ mod tests {
                         1.0
                     ) {
                         state.apply_mutation(proposal.action).unwrap();
-                        let score_after = engine.score(state.layout())?.0;
+                        let score_after = engine.score(state.layout())?.raw();
                         let actual_delta = score_after - score_before;
 
                         let drift = (proposal.delta - actual_delta).abs();
@@ -227,13 +227,13 @@ mod tests {
     fn test_group_mutation_edge_cases() {
         let size = 5;
         let engine = setup_engine(size);
-        let layout = Layout::new_unchecked((0..size as u16).map(KeyCode).collect());
+        let layout = Layout::new_unchecked((0..size as u16).map(KeyCode::new).collect());
         let pos_map = vec![
-            KeyIndex(0),
-            KeyIndex(1),
-            KeyIndex(2),
-            KeyIndex(3),
-            KeyIndex(4),
+            KeyIndex::new(0),
+            KeyIndex::new(1),
+            KeyIndex::new(2),
+            KeyIndex::new(3),
+            KeyIndex::new(4),
         ];
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
 

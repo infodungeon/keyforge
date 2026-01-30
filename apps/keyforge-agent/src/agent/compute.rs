@@ -41,9 +41,11 @@ impl AssetSyncer for AssetManager {
             .await
             .map_err(|e: keyforge_infra::error::InfraError| anyhow::anyhow!(e))?;
 
+        # [allow(clippy::match_wildcard_for_single_variants)]
         // Extract cost matrix name and primary corpus
         let cost_name = match &config.cost_matrix {
             CostMatrixSourceDto::Predefined(s) => s.clone(),
+            _ => "default.json".to_string(),
         };
         let corpus_id = config.corpora[0].id.clone();
 
@@ -103,7 +105,8 @@ mod tests {
     use super::*;
     use crate::models::AgentTelemetry;
     use keyforge_model::cost_model::CostModel;
-    use keyforge_model::{KeyIndex, KeyNode, Keyboard, KeycodeRegistry};
+    use keyforge_model::types::{KeyIndex, SpatialUnit};
+    use keyforge_model::{KeyNode, Keyboard, KeycodeRegistry};
     use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
     use tokio::sync::Semaphore;
@@ -114,11 +117,11 @@ mod tests {
             geometry: keyforge_model::KeyboardGeometry {
                 keys: vec![KeyNode {
                     index: 0,
-                    x: 0.0,
-                    y: 0.0,
+                    x: SpatialUnit::from_f32(0.0),
+                    y: SpatialUnit::from_f32(0.0),
                     ..Default::default()
                 }],
-                prime_slots: vec![KeyIndex(0)],
+                prime_slots: vec![KeyIndex::new(0)],
                 med_slots: vec![],
                 low_slots: vec![],
                 home_row: keyforge_model::types::RowIndex(0),
@@ -151,7 +154,7 @@ mod tests {
                     }
                 }
             },
-            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {}}
         }"#;
         let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json).unwrap());
 

@@ -172,7 +172,7 @@ impl CostModel {
 
     fn fill_reach(target: &mut [f32; 8], source: &RowCosts) {
         for (row, &cost) in source {
-            if let Ok(r_idx) = usize::try_from(row.0) {
+            if let Ok(r_idx) = usize::try_from(row.raw()) {
                 if r_idx < 8 {
                     target[r_idx] = cost;
                 }

@@ -8,7 +8,7 @@ mod integration_tests {
     // and `ScoringEngine` usage (per ADR-015).
 
     use keyforge_evolution::{evolve, optimize};
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit};
     use keyforge_model::{
         Corpus, CostModel, EngineRequest, KeyNode, Keyboard, Rubric, SearchConfig,
     };
@@ -42,39 +42,39 @@ mod integration_tests {
             KeyNode {
                 index: 0,
                 label: "k0".to_string(),
-                hand: HandIndex(0),
-                finger: FingerIndex(1),
-                row: RowIndex(0),
-                col: ColIndex(0),
-                x: 0.0,
-                y: 0.0,
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new_unchecked(1),
+                row: RowIndex::new(0),
+                col: ColIndex::new(0),
+                x: SpatialUnit::from_f32(0.0),
+                y: SpatialUnit::from_f32(0.0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 label: "k1".to_string(),
-                hand: HandIndex(0),
-                finger: FingerIndex(2),
-                row: RowIndex(0),
-                col: ColIndex(1),
-                x: 1.0,
-                y: 0.0,
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new_unchecked(2),
+                row: RowIndex::new(0),
+                col: ColIndex::new(1),
+                x: SpatialUnit::from_f32(1.0),
+                y: SpatialUnit::from_f32(0.0),
                 ..Default::default()
             },
             KeyNode {
                 index: 2,
                 label: "k2".to_string(),
-                hand: HandIndex(0),
-                finger: FingerIndex(3),
-                row: RowIndex(0),
-                col: ColIndex(2),
-                x: 2.0,
-                y: 0.0,
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new_unchecked(3),
+                row: RowIndex::new(0),
+                col: ColIndex::new(2),
+                x: SpatialUnit::from_f32(2.0),
+                y: SpatialUnit::from_f32(0.0),
                 ..Default::default()
             },
         ];
         (
-            Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap()),
+            Arc::new(Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap()),
             Arc::new(Corpus::default()),
             Arc::new(Rubric::default()),
             Arc::new(mock_cost_model()),
@@ -136,7 +136,7 @@ mod integration_tests {
     #[test]
     fn test_pinned_key_swap() {
         let (kb, cp, rb, cm) = setup_env();
-        let pinned = vec![Some(KeyCode(2)), None, None];
+        let pinned = vec![Some(KeyCode::new(2)), None, None];
         let req = EngineRequest {
             keyboard: kb,
             corpus: cp,
@@ -157,8 +157,8 @@ mod integration_tests {
             pinned_keys: pinned,
         };
         let result = optimize(&req).unwrap();
-        assert_eq!(result.layout.keys()[0], KeyCode(2));
-        assert_eq!(result.layout.keys()[2], KeyCode(0));
+        assert_eq!(result.layout.keys()[0], KeyCode::new(2));
+        assert_eq!(result.layout.keys()[2], KeyCode::new(0));
     }
 
     #[test]
@@ -189,12 +189,16 @@ mod integration_tests {
         };
 
         let result = optimize(&req).unwrap();
+        
+        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+            keyboard: kb.clone(),
+            corpus: cp.clone(),
+            rubric: rb.clone(),
+            cost_model: cm.clone(),
+            engine_config: keyforge_model::config::EngineConfig::default(),
+        }).unwrap();
 
-        let scorer = keyforge_physics::verify::DeterministicScorer::new(
-            &req.keyboard,
-            &req.rubric,
-            &req.cost_model,
-        );
+        let scorer = keyforge_physics::verify::DeterministicScorer::new(engine.context().clone());
         let raw_score = scorer
             .score(&req.keyboard, &req.corpus, result.layout.keys())
             .expect("Oracle scoring failed");

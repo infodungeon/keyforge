@@ -111,8 +111,8 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
             },
             hand,
             finger,
-            row: RowIndex(key.y.round() as i8),
-            col: ColIndex(key.x.round() as i8),
+            row: RowIndex::new(key.y.round() as i8),
+            col: ColIndex::new(key.x.round() as i8),
             x: SpatialUnit::from_f32(key.x as f32),
             y: SpatialUnit::from_f32(key.y as f32),
             w: key.width as f32,
@@ -143,7 +143,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
         prime_slots,
         med_slots,
         low_slots,
-        home_row: RowIndex(1),
+        home_row: RowIndex::new(1),
     };
     Ok(geom)
 }
@@ -216,8 +216,8 @@ mod tests {
         ]"#;
         let geom = parse_kle_json(json).unwrap();
         assert_eq!(geom.keys[0].r, 15.0);
-        assert_eq!(geom.keys[0].rx, 5.0);
-        assert_eq!(geom.keys[0].ry, 5.0);
+        assert_eq!(geom.keys[0].rx.to_f32(), 5.0);
+        assert_eq!(geom.keys[0].ry.to_f32(), 5.0);
     }
 
     #[test]
