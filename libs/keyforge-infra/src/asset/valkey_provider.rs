@@ -67,7 +67,7 @@ impl ValkeyProvider {
     ) -> LoaderResult<T> {
         let compressed = self.fetch_blob(subpath).await?;
         tokio::task::spawn_blocking(move || {
-            let decoder = zstd::Decoder::new(&compressed[..]).map_err(ForgeError::Io)?;
+            let decoder = zstd::Decoder::new(&compressed[..]).map_err(|e| ForgeError::Io(e.to_string()))?;
             rmp_serde::from_read(decoder).map_err(|e| ForgeError::InvalidData(e.to_string()))
         })
         .await
@@ -168,7 +168,7 @@ impl AssetLoader for ValkeyProvider {
                 let path = format!("{base}/{part}.mpk.zst");
                 if let Ok(bytes) = self.fetch_blob(&path).await {
                     let part_res: Vec<serde_json::Value> = tokio::task::spawn_blocking(move || {
-                        let decoder = zstd::Decoder::new(&bytes[..]).map_err(ForgeError::Io)?;
+                        let decoder = zstd::Decoder::new(&bytes[..]).map_err(|e| ForgeError::Io(e.to_string()))?;
                         rmp_serde::from_read(decoder)
                             .map_err(|e| ForgeError::InvalidData(e.to_string()))
                     })

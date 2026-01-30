@@ -103,8 +103,8 @@ impl From<keyforge_model::error::ForgeError> for CommandError {
     fn from(e: keyforge_model::error::ForgeError) -> Self {
         use keyforge_model::error::ForgeError;
         match e {
-            ForgeError::Io(io) => CommandError::Io(io),
-            ForgeError::Serde(se) => CommandError::Serde(se),
+            ForgeError::Io(s) => CommandError::Io(std::io::Error::other(s)),
+            ForgeError::Serde(s) => CommandError::Serde(serde::de::Error::custom(s)),
             ForgeError::Physics(pe) => CommandError::Validation(pe.to_string()),
             ForgeError::Validation(s) | ForgeError::InvalidData(s) => CommandError::Validation(s),
             ForgeError::NotFound(_) => CommandError::NotFound,

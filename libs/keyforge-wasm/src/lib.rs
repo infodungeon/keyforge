@@ -43,23 +43,25 @@ struct WasmError {
 
 impl From<keyforge_model::error::ForgeError> for WasmError {
     fn from(e: keyforge_model::error::ForgeError) -> Self {
+        use keyforge_model::error::ForgeError;
         let (code, msg) = match &e {
-            keyforge_model::error::ForgeError::Io(io) => ("IO_ERROR", io.to_string()),
-            keyforge_model::error::ForgeError::Serde(se) => ("SERIALIZATION_ERROR", se.to_string()),
-            keyforge_model::error::ForgeError::Physics(pe) => ("PHYSICS_VIOLATION", pe.to_string()),
-            keyforge_model::error::ForgeError::PhysicsCompute(s) => ("COMPUTE_ERROR", s.clone()),
-            keyforge_model::error::ForgeError::Evolution(s) => ("EVOLUTION_ERROR", s.clone()),
-            keyforge_model::error::ForgeError::Persistence(s) => ("PERSISTENCE_ERROR", s.clone()),
-            keyforge_model::error::ForgeError::Validation(s) => ("VALIDATION_ERROR", s.clone()),
-            keyforge_model::error::ForgeError::Serialization(s) => {
+            ForgeError::Io(s) => ("IO_ERROR", s.clone()),
+            ForgeError::Serde(s) => ("SERIALIZATION_ERROR", s.clone()),
+            ForgeError::Physics(pe) => ("PHYSICS_VIOLATION", pe.to_string()),
+            ForgeError::PhysicsCompute(s) => ("COMPUTE_ERROR", s.clone()),
+            ForgeError::Evolution(s) => ("EVOLUTION_ERROR", s.clone()),
+            ForgeError::Persistence(s) => ("PERSISTENCE_ERROR", s.clone()),
+            ForgeError::Validation(s) => ("VALIDATION_ERROR", s.clone()),
+            ForgeError::Serialization(s) => {
                 ("SERIALIZATION_ERROR", s.clone())
             }
-            keyforge_model::error::ForgeError::NotFound(s) => ("NOT_FOUND", s.clone()),
-            keyforge_model::error::ForgeError::Internal(s) => ("INTERNAL_ERROR", s.clone()),
-            keyforge_model::error::ForgeError::InvalidData(s) => ("INVALID_DATA", s.clone()),
-            keyforge_model::error::ForgeError::Config(s) => ("CONFIG_ERROR", s.clone()),
-            keyforge_model::error::ForgeError::Projection(s) => ("PROJECTION_ERROR", s.clone()),
-            keyforge_model::error::ForgeError::Model(me) => ("MODEL_ERROR", me.to_string()),
+            ForgeError::NotFound(s) => ("NOT_FOUND", s.clone()),
+            ForgeError::Internal(s) => ("INTERNAL_ERROR", s.clone()),
+            ForgeError::InvalidData(s) => ("INVALID_DATA", s.clone()),
+            ForgeError::Config(s) => ("CONFIG_ERROR", s.clone()),
+            ForgeError::Projection(s) => ("PROJECTION_ERROR", s.clone()),
+            ForgeError::Model(me) => ("MODEL_ERROR", me.to_string()),
+            ForgeError::Infrastructure(s) => ("INFRASTRUCTURE_ERROR", s.clone()),
         };
 
         Self {

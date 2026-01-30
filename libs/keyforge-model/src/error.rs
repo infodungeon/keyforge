@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Centralized error types for the domain.
+//! Centralized error types for the domain nucleus.
+//!
+//! Following ARCH-005 and ADR-022, this module is pure and contains zero
+//! dependencies on infrastructure-layer error types (std::io, serde_json).
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -20,18 +23,6 @@ use thiserror::Error;
 /// The central error type for the `KeyForge` domain.
 #[derive(Error, Debug)]
 pub enum ForgeError {
-    /// Input/Output error.
-    #[error("IO Error: {0}")]
-    Io(#[from] std::io::Error),
-
-    /// Serialization/Deserialization error.
-    #[error("Serialization Error: {0}")]
-    Serde(#[from] serde_json::Error),
-
-    /// Error originating from the Physics engine.
-    #[error("Physics Violation: {0}")]
-    Physics(#[from] PhysicsError),
-
     /// High-level physics calculation error from the compute kernel.
     #[error("Physics Compute Error: {0}")]
     PhysicsCompute(String),
@@ -44,13 +35,9 @@ pub enum ForgeError {
     #[error("Persistence Error: {0}")]
     Persistence(String),
 
-    /// Data validation error.
+    /// Data validation error (Business Rule Violation).
     #[error("Validation Error: {0}")]
     Validation(String),
-
-    /// Serialization error.
-    #[error("Serialization Error: {0}")]
-    Serialization(String),
 
     /// Resource not found.
     #[error("Asset Not Found: {0}")]
@@ -64,17 +51,40 @@ pub enum ForgeError {
     #[error("Invalid Data: {0}")]
     InvalidData(String),
 
+    /// Error originating from JSON serialization/deserialization.
+    /// This is now a pure string to avoid coupling to Serde crates in the nucleus.
+    #[error("Serde Error: {0}")]
+    Serde(String),
+
+    /// Error originating from component serialization.
+    #[error("Serialization Error: {0}")]
+    Serialization(String),
+
     /// Configuration error.
     #[error("Configuration Error: {0}")]
     Config(String),
+
+    /// Input/Output error wrapped as a domain string.
+    /// ARCH-005: Decoupled from std::io::Error.
+    #[error("IO Error: {0}")]
+    Io(String),
 
     /// Error originating during data projection.
     #[error("Projection Error: {0}")]
     Projection(String),
 
+    /// Error originating from the Physics engine.
+    #[error("Physics Violation: {0}")]
+    Physics(#[from] PhysicsError),
+
     /// Error originating from the Model logic itself.
     #[error("Model Error: {0}")]
     Model(#[from] ModelError),
+
+    /// Infrastructure-layer error wrapped for domain propagation.
+    /// Used at boundaries to preserve diagnostic context without coupling the nucleus.
+    #[error("Infrastructure Failure: {0}")]
+    Infrastructure(String),
 }
 
 impl From<String> for ForgeError {
@@ -85,7 +95,6 @@ impl From<String> for ForgeError {
 
 /// Errors related to core model logic and integrity.
 #[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
-
 pub enum ModelError {
     /// Failed to serialize a component.
     #[error("Serialization Failed: {0}")]
@@ -94,11 +103,14 @@ pub enum ModelError {
     /// Failed to parse a keymap or key action.
     #[error("Parser Error: {0}")]
     Parser(String),
+
+    /// An invariant of the domain model was violated.
+    #[error("Invariant Violation: {0}")]
+    Invariant(String),
 }
 
 /// Specific errors related to physical constraints and scoring.
 #[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
-
 pub enum PhysicsError {
     /// Hand index out of bounds (must be 0 or 1).
     #[error("Hand index {0} is invalid (must be 0 or 1)")]

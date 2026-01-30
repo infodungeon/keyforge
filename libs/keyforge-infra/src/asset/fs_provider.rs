@@ -43,7 +43,7 @@ impl AssetServerProvider for FsProvider {
     async fn get_file_content(&self, path: &str) -> InfraResult<Option<Bytes>> {
         let full_path = self.root.join(path);
         if full_path.exists() {
-            let data = std::fs::read(full_path)?;
+            let data = std::fs::read(full_path).map_err(crate::error::InfraError::Io)?;
             Ok(Some(Bytes::from(data)))
         } else {
             Ok(None)
@@ -58,13 +58,13 @@ impl AssetLoader for FsProvider {
             .get_file_content(id)
             .await
             .map_err(|e| {
-                keyforge_model::error::ForgeError::Io(std::io::Error::other(e.to_string()))
+                keyforge_model::error::ForgeError::Io(e.to_string())
             })?
             .ok_or_else(|| keyforge_model::error::ForgeError::NotFound(id.to_string()))?;
 
         serde_json::from_slice(&data)
             .map(Arc::new)
-            .map_err(Into::into)
+            .map_err(|e| keyforge_model::error::ForgeError::Serde(e.to_string()))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {

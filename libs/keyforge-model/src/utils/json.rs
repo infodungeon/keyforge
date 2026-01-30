@@ -22,7 +22,7 @@ use serde::{de::DeserializeOwned, Serialize};
 /// # Errors
 /// Returns `ForgeError::Serde` if serialization fails.
 pub fn to_string_safe<T: Serialize>(value: &T) -> Result<String, ForgeError> {
-    Ok(serde_json::to_string(value)?)
+    serde_json::to_string(value).map_err(|e| ForgeError::Serde(e.to_string()))
 }
 
 /// Safe pretty-serialization wrapper.
@@ -30,7 +30,7 @@ pub fn to_string_safe<T: Serialize>(value: &T) -> Result<String, ForgeError> {
 /// # Errors
 /// Returns `ForgeError::Serde` if serialization fails.
 pub fn to_string_pretty_safe<T: Serialize>(value: &T) -> Result<String, ForgeError> {
-    Ok(serde_json::to_string_pretty(value)?)
+    serde_json::to_string_pretty(value).map_err(|e| ForgeError::Serde(e.to_string()))
 }
 
 /// Safe deserialization wrapper.
@@ -38,5 +38,5 @@ pub fn to_string_pretty_safe<T: Serialize>(value: &T) -> Result<String, ForgeErr
 /// # Errors
 /// Returns `ForgeError::Serde` if parsing fails.
 pub fn from_str_safe<T: DeserializeOwned>(s: &str) -> Result<T, ForgeError> {
-    Ok(serde_json::from_str(s)?)
+    serde_json::from_str(s).map_err(|e| ForgeError::Serde(e.to_string()))
 }

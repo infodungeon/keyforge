@@ -156,9 +156,9 @@ impl Projection<HiveJobProjection> for keyforge_protocol::JobConfig {
         )?;
 
         let pinned_keys: Vec<keyforge_model::config::KeyConstraint> =
-            serde_json::from_str(&source.row.pinned_keys).map_err(ForgeError::Serde)?;
+            serde_json::from_str(&source.row.pinned_keys).map_err(|e| ForgeError::Serde(e.to_string()))?;
         let cost_matrix: keyforge_model::config::CostMatrixSource =
-            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::Serde)?;
+            serde_json::from_str(&source.row.cost_matrix).map_err(|e| ForgeError::Serde(e.to_string()))?;
 
         Ok(Self {
             definition: source.definition.into(),
@@ -196,7 +196,7 @@ impl Projection<HiveJobConfigProjection> for HiveConfigTuple {
     fn project(source: HiveJobConfigProjection) -> Result<Self, ForgeError> {
         let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
         let cost_matrix =
-            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::Serde)?;
+            serde_json::from_str(&source.row.cost_matrix).map_err(|e| ForgeError::Serde(e.to_string()))?;
 
         Ok((
             source.definition.geometry,
