@@ -11,8 +11,13 @@ This document defines the technical "Law" of the KeyForge system. Deviations fro
 - **TYPE-001: Panic-Free Production**: The use of `unwrap()` or `expect()` is strictly forbidden in production code (`apps/` and `libs/`).
 - **TYPE-002: Total Error Propagation**: All fallible operations must return a `Result` and use the `ForgeError` or crate-specific error type.
 - **TYPE-003: Correct-by-Construction**: Use Newtypes (e.g., `KeyIndex`, `Score`) to prevent primitive obsession and argument-swapping.
+- **TYPE-004: Hexagonal Error Purity (ARCH-005)**: The `ForgeError` enum in the nucleus MUST NOT depend on infrastructure-layer error types (`std::io`, `serde_json`). All external errors must be mapped to semantic domain strings.
 
-## 3. Testing Invariants
+## 3. Biomechanical Invariants
+- **BIOM-001: Humanoid Constraints**: The system strictly assumes a 2-hand, 5-finger-per-hand physical model for its primary scoring heuristics.
+- **BIOM-002: Fixed-Point Determinism**: All scoring calculations MUST use `i64` fixed-point arithmetic (`Score`) to ensure bit-perfect parity across AVX-512, NEON, and WASM engines.
+
+## 4. Testing Invariants
 - **TEST-001: Explicit Error Handling**: Tests MUST NOT use `unwrap()`. Use `?` and return `Result<(), Box<dyn Error>>` (facilitated by `#[kf_test]`).
 - **TEST-002: Observable Mocking**: Mock filesystems MUST be explicitly mapped in `ASSET_RESOLUTION.md`. Guessing paths is a systemic failure.
 - **TEST-003: Parity Oracles**: Optimized engines MUST be verified against the `GhostScorer` (Oracle) for bit-perfect parity in fixed-point math.

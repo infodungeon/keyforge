@@ -1,6 +1,6 @@
 # Domain Dictionary (Ubiquitous Language)
 
-**Version:** 4.1
+**Version:** 5.0
 **Status:** Active
 **Source:** `libs/keyforge-model/src/lib.rs`
 
@@ -30,7 +30,7 @@ This document defines the strict terminology used throughout the KeyForge codeba
 | :--- | :--- | :--- | :--- |
 | **Corpus** | `Corpus` | Source text data. Contains N-gram frequencies (Bigrams, Trigrams). | `char_freqs` len == 65536. |
 | **Rubric** | `Rubric` | Configuration defining *how* to score. Weights for `sfb`, `distance`, `roll`, etc. | Weights must be finite & positive. |
-| **Score** | `f32` | The calculated "Cost" of a layout. **Lower is Better.** | Must be finite. |
+| **Score** | `Score(i64)` | The calculated "Cost" of a layout. **Lower is Better.** Represented as an i64 fixed-point integer to ensure bit-perfect determinism across CPU architectures. | Must be positive. |
 | **AnalysisReport** | `AnalysisReport` | Detailed breakdown including `sfb_ratio`, `heatmap`, `hand_balance`, and `top_sfbs`. | N/A (Output). |
 
 ## 4. Optimization Domain (The Evolution)
@@ -38,4 +38,4 @@ This document defines the strict terminology used throughout the KeyForge codeba
 | Term | Type | Definition | Validation Rule |
 | :--- | :--- | :--- | :--- |
 | **SearchConfig** | `SearchConfig` | Configuration for the Simulated Annealing loop (Temperature, Steps, Patience). | `steps > 0`, `temp_min < temp_max`. |
-| **OptimizationResult** | `OptimizationResult` | The final output tuple: `{ score: f32, layout: Layout }`. | N/A (Output). |
+| **OptimizationResult** | `OptimizationResult` | The final output tuple: `{ score: Score, layout: Layout }`. | N/A (Output). |
