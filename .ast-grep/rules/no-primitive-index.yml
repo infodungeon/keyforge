@@ -1,0 +1,21 @@
+id: no-primitive-index
+message: "Primitive Obsession: Use KeyIndex/RowIndex/ColIndex domain types instead of raw usize/isize/i32 for indices."
+severity: warning
+language: rust
+rule:
+  kind: field_declaration
+  all:
+    - has:
+        kind: field_identifier
+        regex: "^(index|idx|row|col)$"
+    - has:
+        kind: primitive_type
+        regex: "^(usize|i32|u32)$"
+paths:
+  include:
+    - "libs/keyforge-model/src/**/*.rs"
+    - "libs/keyforge-protocol/src/**/*.rs"
+  exclude:
+    - "**/tests.rs"
+    - "**/tests/**"
+    - "**/generated/**"
