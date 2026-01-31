@@ -45,7 +45,6 @@ impl AssetSyncer for AssetManager {
         // Extract cost matrix name and primary corpus
         let cost_name = match &config.cost_matrix {
             CostMatrixSourceDto::Predefined(s) => s.clone(),
-            _ => "default.json".to_string(),
         };
         let corpus_id = config.corpora[0].id.clone();
 
@@ -114,25 +113,25 @@ mod tests {
     #[tokio::test]
     async fn test_compute_optimization_run() {
         let kb_def = keyforge_model::KeyboardDefinition {
-            geometry: keyforge_model::KeyboardGeometry {
-                keys: vec![KeyNode {
+            geometry: keyforge_model::KeyboardGeometry::new(
+                vec![KeyNode {
                     index: 0,
                     x: SpatialUnit::from_f32(0.0),
                     y: SpatialUnit::from_f32(0.0),
                     ..Default::default()
                 }],
-                prime_slots: vec![KeyIndex::new(0)],
-                med_slots: vec![],
-                low_slots: vec![],
-                home_row: keyforge_model::types::RowIndex(0),
-            },
+                vec![KeyIndex::new(0)],
+                vec![],
+                vec![],
+                keyforge_model::types::RowIndex::new(0),
+            ),
             ..Default::default()
         };
 
         let kb = Arc::new(
             Keyboard::new(
-                kb_def.geometry.keys.clone(),
-                kb_def.geometry.home_row,
+                kb_def.geometry.keys().clone(),
+                kb_def.geometry.home_row(),
                 "test".into(),
             )
             .unwrap(),

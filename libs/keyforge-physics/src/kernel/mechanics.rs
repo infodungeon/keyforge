@@ -69,7 +69,7 @@ pub fn calculate_flow_cost(
 
 fn to_score_or_err(val: f32) -> Result<i64, PhysicsError> {
     keyforge_model::types::Score::from_f32(val)
-        .map(|s| s.raw())
+        .map(keyforge_model::Score::raw)
         .map_err(|e| PhysicsError::InvalidInput { message: e })
 }
 
@@ -108,6 +108,7 @@ pub fn calculate_pair_cost(
     let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
     let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
+    #[allow(clippy::cast_precision_loss)]
     let dist_raw = (dx2 as f64 * t_lat) + (dy2 as f64 * t_vert);
 
     if dist_raw.is_nan() || dist_raw.is_infinite() {
@@ -150,9 +151,12 @@ fn calculate_sfb_cost(
             *origin,
             keyforge_model::types::Point::new(k2.x, k2.y),
         );
-        let odx2 = i64::from(movement.dx) * i64::from(movement.dx);
-        let ody2 = i64::from(movement.dy) * i64::from(movement.dy);
-        reach_k2 = (odx2 as f64 * t_lat) + (ody2 as f64 * t_vert);
+        let horiz_reach_sq = i64::from(movement.dx) * i64::from(movement.dx);
+        let vert_reach_sq = i64::from(movement.dy) * i64::from(movement.dy);
+        #[allow(clippy::cast_precision_loss)]
+        {
+            reach_k2 = (horiz_reach_sq as f64 * t_lat) + (vert_reach_sq as f64 * t_vert);
+        }
     }
 
     #[allow(clippy::cast_possible_truncation)]

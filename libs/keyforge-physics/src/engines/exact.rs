@@ -47,7 +47,7 @@ impl ScoringEngine for ExactScoringEngine {
     }
 
     fn key_count(&self) -> usize {
-        self.keyboard.keys.len()
+        self.keyboard.keys().len()
     }
 
     fn score(&self, layout: &Layout) -> Result<Score, PhysicsError> {

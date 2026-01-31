@@ -106,7 +106,7 @@ pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, CommandEr
         )));
     }
 
-    let model = keyforge_model::CostModel::from(builder.build_model());
+    let model = builder.build_model();
     user_data
         .save_personal_cost_model(&model)
         .map_err(|e| CommandError::Internal(e.to_string()))?;

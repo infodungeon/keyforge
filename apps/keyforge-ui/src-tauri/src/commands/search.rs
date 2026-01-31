@@ -108,12 +108,12 @@ pub async fn cmd_poll_hive_status(
         best_score: match &status {
             JobStatusDto::Running { current_best, .. } => current_best.as_ref().map_or(0.0, |s| {
                 #[allow(clippy::cast_precision_loss)]
-                let val = s.0 as f32;
+                let val = s.raw() as f32;
                 val / 1_000_000.0
             }),
             JobStatusDto::Completed { final_score, .. } => {
                 #[allow(clippy::cast_precision_loss)]
-                let val = final_score.0 as f32;
+                let val = final_score.raw() as f32;
                 val / 1_000_000.0
             }
             JobStatusDto::Pending => 0.0,

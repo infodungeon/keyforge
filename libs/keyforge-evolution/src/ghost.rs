@@ -32,7 +32,7 @@ impl GhostHillClimber {
         let mut best_score = current_score;
 
         let start_time = Instant::now();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for step in 0..steps {
             // 1. Propose a random swap
@@ -41,10 +41,10 @@ impl GhostHillClimber {
                 break;
             }
 
-            let a = rng.gen_range(0..key_count);
-            let mut b = rng.gen_range(0..key_count);
+            let a = rng.random_range(0..key_count);
+            let mut b = rng.random_range(0..key_count);
             while a == b {
-                b = rng.gen_range(0..key_count);
+                b = rng.random_range(0..key_count);
             }
 
             let mut next_layout = current_layout.clone();

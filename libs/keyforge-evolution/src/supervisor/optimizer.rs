@@ -213,7 +213,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> crate::OptimizationControl {
-            self.0.fetch_add(1, Ordering::SeqCst);
+            self.raw().fetch_add(1, Ordering::SeqCst);
             crate::OptimizationControl::Continue
         }
     }

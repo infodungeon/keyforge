@@ -143,7 +143,7 @@ fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRes
 
         if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF || (c3_char as u32) > 0xFFFF {
             return Err(ForgeError::InvalidData(format!(
-                "Character outside BMP not supported: {c1_char}, {c2_char}, or {c3_char}"
+                "Character outside BMP not supported: {c1_char} or {c2_char} or {c3_char}"
             )));
         }
 

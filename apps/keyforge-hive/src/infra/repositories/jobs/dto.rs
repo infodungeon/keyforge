@@ -133,17 +133,17 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
             }
         }
 
+        let geometry = KeyboardGeometry::new(
+            keys,
+            prime_slots,
+            med_slots,
+            low_slots,
+            RowIndex::new(i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0)),
+        );
+
         let mut def = KeyboardDefinition {
             meta,
-            geometry: KeyboardGeometry {
-                keys,
-                prime_slots,
-                med_slots,
-                low_slots,
-                home_row: RowIndex::new(
-                    i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0),
-                ),
-            },
+            geometry,
             layouts: HashMap::new(),
         };
 

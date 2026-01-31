@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -65,7 +65,7 @@ pub enum ForgeError {
     Config(String),
 
     /// Input/Output error wrapped as a domain string.
-    /// ARCH-005: Decoupled from std::io::Error.
+    /// ARCH-005: Decoupled from `std::io::Error`.
     #[error("IO Error: {0}")]
     Io(String),
 

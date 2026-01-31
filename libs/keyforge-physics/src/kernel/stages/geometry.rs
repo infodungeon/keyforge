@@ -39,7 +39,7 @@ impl<'a> CompilationStage for GeometryStage<'a> {
         let mut cols = Vec::with_capacity(key_count);
         let mut key_home_distances = Vec::with_capacity(key_count);
 
-        for k in &*kb.keys {
+        for k in kb.keys() {
             hands.push(k.hand);
             fingers.push(k.finger);
             rows.push(k.row);
@@ -113,7 +113,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, RowIndex(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
         let rubric = Rubric::builder().travel_lat(1.0).travel_vert(1.0).build();
         let stage = GeometryStage { rubric: &rubric };
         let out = stage.execute(&kb).unwrap();

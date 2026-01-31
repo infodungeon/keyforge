@@ -253,11 +253,11 @@ pub struct KeyboardGeometryDto {
 impl From<geometry::KeyboardGeometry> for KeyboardGeometryDto {
     fn from(val: geometry::KeyboardGeometry) -> Self {
         Self {
-            keys: val.keys.into_iter().map(Into::into).collect(),
-            prime_slots: val.prime_slots.into_iter().map(Into::into).collect(),
-            med_slots: val.med_slots.into_iter().map(Into::into).collect(),
-            low_slots: val.low_slots.into_iter().map(Into::into).collect(),
-            home_row: val.home_row.raw(),
+            keys: val.keys().iter().map(|k| k.clone().into()).collect(),
+            prime_slots: val.prime_slots().iter().map(|&s| s.into()).collect(),
+            med_slots: val.med_slots().iter().map(|&s| s.into()).collect(),
+            low_slots: val.low_slots().iter().map(|&s| s.into()).collect(),
+            home_row: val.home_row().raw(),
         }
     }
 }

@@ -15,7 +15,7 @@ pub fn to_domain_keyboard(
     geo: &geometry::KeyboardGeometry,
 ) -> AdapterResult<keyforge_model::Keyboard> {
     let keys = geo
-        .keys
+        .keys()
         .iter()
         .enumerate()
         .map(|(i, k)| {
@@ -23,13 +23,13 @@ pub fn to_domain_keyboard(
             kn.index = i;
             // Task-adap-rev-001: Only override is_home if it's false in input
             if !k.is_home {
-                kn.is_home = k.row == geo.home_row;
+                kn.is_home = k.row == geo.home_row();
             }
             kn
         })
         .collect();
 
-    keyforge_model::Keyboard::new(keys, geo.home_row, String::new())
+    keyforge_model::Keyboard::new(keys, geo.home_row(), String::new())
         .map_err(|e| AdapterError::Validation(format!("Failed to create keyboard: {e}")))
 }
 
@@ -97,7 +97,7 @@ pub fn resolve_cost_matrix(
 ) -> Vec<(usize, usize, f32)> {
     let mut overrides = Vec::new();
     let mut id_map = std::collections::HashMap::new();
-    for (i, k) in geo.keys.iter().enumerate() {
+    for (i, k) in geo.keys().iter().enumerate() {
         id_map.insert(k.label.clone(), i);
     }
     for (from, to, cost) in raw {
@@ -123,8 +123,8 @@ mod tests {
             y: 20.0,
             hand: HandIndex::new(0),
             finger: FingerIndex::new(1),
-            row: RowIndex(0),
-            col: ColIndex(0),
+            row: RowIndex::new(0),
+            col: ColIndex::new(0),
             is_home: true,
             ..Default::default()
         };
@@ -136,34 +136,34 @@ mod tests {
 
     #[test]
     fn test_to_domain_keyboard_conversion() {
-        let proto_geo = KeyboardGeometry {
-            keys: vec![
+        let proto_geo = KeyboardGeometry::new(
+            vec![
                 KeyNode {
                     index: 0,
                     label: "A".to_string(),
-                    hand: HandIndex(0),
-                    finger: FingerIndex(1),
-                    row: RowIndex(0),
-                    col: ColIndex(0),
+                    hand: HandIndex::new(0),
+                    finger: FingerIndex::new(1),
+                    row: RowIndex::new(0),
+                    col: ColIndex::new(0),
                     is_home: true,
                     ..Default::default()
                 },
                 KeyNode {
                     index: 1,
                     label: "B".to_string(),
-                    hand: HandIndex(1),
-                    finger: FingerIndex(2),
-                    row: RowIndex(0),
-                    col: ColIndex(1),
+                    hand: HandIndex::new(1),
+                    finger: FingerIndex::new(2),
+                    row: RowIndex::new(0),
+                    col: ColIndex::new(1),
                     is_home: false,
                     ..Default::default()
                 },
             ],
-            prime_slots: vec![KeyIndex(0)],
-            med_slots: vec![KeyIndex(1)],
-            low_slots: vec![],
-            home_row: RowIndex(0),
-        };
+            vec![KeyIndex::new(0)],
+            vec![KeyIndex::new(1)],
+            vec![],
+            RowIndex::new(0),
+        );
 
         let domain_keyboard = to_domain_keyboard(&proto_geo).expect("Failed to convert keyboard");
         assert_eq!(domain_keyboard.count(), 2);
@@ -182,23 +182,23 @@ mod tests {
         reg.rebuild_maps();
 
         let constraints = vec![KeyConstraint {
-            index: KeyIndex(0),
+            index: KeyIndex::new(0),
             key: "A".into(),
         }];
         let pins = resolve_constraints(&constraints, 2, &reg).unwrap();
-        assert_eq!(pins[0], Some(KeyCode(10)));
+        assert_eq!(pins[0], Some(KeyCode::new(10)));
         assert_eq!(pins[1], None);
 
         // Fail: Unknown token
         let constraints = vec![KeyConstraint {
-            index: KeyIndex(0),
+            index: KeyIndex::new(0),
             key: "UNKNOWN".into(),
         }];
         assert!(resolve_constraints(&constraints, 2, &reg).is_err());
 
         // Fail: Out of bounds
         let constraints = vec![KeyConstraint {
-            index: KeyIndex(5),
+            index: KeyIndex::new(5),
             key: "A".into(),
         }];
         assert!(resolve_constraints(&constraints, 2, &reg).is_err());
@@ -206,8 +206,8 @@ mod tests {
 
     #[test]
     fn test_resolve_cost_matrix() {
-        let proto_geo = KeyboardGeometry {
-            keys: vec![
+        let proto_geo = KeyboardGeometry::new(
+            vec![
                 KeyNode {
                     label: "A".into(),
                     ..Default::default()
@@ -217,8 +217,11 @@ mod tests {
                     ..Default::default()
                 },
             ],
-            ..Default::default()
-        };
+            vec![],
+            vec![],
+            vec![],
+            RowIndex::new(0),
+        );
         let raw = vec![("A".to_string(), "B".to_string(), 10.0)];
         let overrides = resolve_cost_matrix(&raw, &proto_geo);
         assert_eq!(overrides.len(), 1);

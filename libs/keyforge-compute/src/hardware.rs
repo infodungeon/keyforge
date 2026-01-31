@@ -8,6 +8,7 @@ use raw_cpuid::{CacheType, CpuId};
 use std::env;
 
 #[derive(Debug, Clone, Copy, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct CpuCapabilities {
     pub has_avx2: bool,
     pub has_avx512: bool,

@@ -23,11 +23,11 @@ pub fn calculate_trigram_delta(
         return 0;
     }
 
-    let pos_a = KeyIndex::new(idx_a as u16);
-    let pos_b = KeyIndex::new(idx_b as u16);
+    let pos_a = KeyIndex::new(u16::try_from(idx_a).unwrap_or(0));
+    let pos_b = KeyIndex::new(u16::try_from(idx_b).unwrap_or(0));
 
-    let ca = code_a.raw() as usize;
-    let cb = code_b.raw() as usize;
+    let ca = code_a.as_usize();
+    let cb = code_b.as_usize();
 
     // 2. Trigrams involving A
     let start_a = ctx.corpus.trigram_starts[ca];
@@ -126,9 +126,9 @@ fn swap_pos(p: KeyIndex, pos_a: KeyIndex, pos_b: KeyIndex) -> KeyIndex {
 
 #[inline]
 fn calculate_flow_cost_at(ctx: &EngineContext, p1: KeyIndex, p2: KeyIndex, p3: KeyIndex) -> i64 {
-    let idx1 = p1.raw() as usize;
-    let idx2 = p2.raw() as usize;
-    let idx3 = p3.raw() as usize;
+    let idx1 = p1.as_usize();
+    let idx2 = p2.as_usize();
+    let idx3 = p3.as_usize();
     calculate_flow_cost(
         ctx.geometry.hands[idx1],
         ctx.geometry.hands[idx2],

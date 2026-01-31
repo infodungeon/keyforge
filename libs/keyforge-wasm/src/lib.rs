@@ -44,22 +44,21 @@ struct WasmError {
 impl From<keyforge_model::error::ForgeError> for WasmError {
     fn from(e: keyforge_model::error::ForgeError) -> Self {
         use keyforge_model::error::ForgeError;
-        let (code, msg) = match &e {
-            ForgeError::Io(s) => ("IO_ERROR", s.clone()),
-            ForgeError::Serde(s) => ("SERIALIZATION_ERROR", s.clone()),
+        let (code, msg) = match e {
+            ForgeError::Io(s) => ("IO_ERROR", s),
+            ForgeError::Serde(s) | ForgeError::Serialization(s) => ("SERIALIZATION_ERROR", s),
             ForgeError::Physics(pe) => ("PHYSICS_VIOLATION", pe.to_string()),
-            ForgeError::PhysicsCompute(s) => ("COMPUTE_ERROR", s.clone()),
-            ForgeError::Evolution(s) => ("EVOLUTION_ERROR", s.clone()),
-            ForgeError::Persistence(s) => ("PERSISTENCE_ERROR", s.clone()),
-            ForgeError::Validation(s) => ("VALIDATION_ERROR", s.clone()),
-            ForgeError::Serialization(s) => ("SERIALIZATION_ERROR", s.clone()),
-            ForgeError::NotFound(s) => ("NOT_FOUND", s.clone()),
-            ForgeError::Internal(s) => ("INTERNAL_ERROR", s.clone()),
-            ForgeError::InvalidData(s) => ("INVALID_DATA", s.clone()),
-            ForgeError::Config(s) => ("CONFIG_ERROR", s.clone()),
-            ForgeError::Projection(s) => ("PROJECTION_ERROR", s.clone()),
+            ForgeError::PhysicsCompute(s) => ("COMPUTE_ERROR", s),
+            ForgeError::Evolution(s) => ("EVOLUTION_ERROR", s),
+            ForgeError::Persistence(s) => ("PERSISTENCE_ERROR", s),
+            ForgeError::Validation(s) => ("VALIDATION_ERROR", s),
+            ForgeError::NotFound(s) => ("NOT_FOUND", s),
+            ForgeError::Internal(s) => ("INTERNAL_ERROR", s),
+            ForgeError::InvalidData(s) => ("INVALID_DATA", s),
+            ForgeError::Config(s) => ("CONFIG_ERROR", s),
+            ForgeError::Projection(s) => ("PROJECTION_ERROR", s),
             ForgeError::Model(me) => ("MODEL_ERROR", me.to_string()),
-            ForgeError::Infrastructure(s) => ("INFRASTRUCTURE_ERROR", s.clone()),
+            ForgeError::Infrastructure(s) => ("INFRASTRUCTURE_ERROR", s),
         };
 
         Self {
@@ -211,8 +210,8 @@ impl KeyforgeEngine {
 
         let keyboard = Arc::new(
             keyforge_model::Keyboard::new(
-                kb_def.geometry.keys.clone(),
-                kb_def.geometry.home_row,
+                kb_def.geometry.keys().to_vec(),
+                kb_def.geometry.home_row(),
                 kb_def.meta.kb_type.clone(),
             )
             .map_err(to_js_error)?,

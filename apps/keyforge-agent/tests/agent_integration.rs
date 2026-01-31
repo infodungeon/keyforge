@@ -24,22 +24,22 @@ async fn test_agent_job_orchestration() {
                 name: "AgentTest".into(),
                 ..Default::default()
             },
-            geometry: KeyboardGeometry {
-                keys: vec![KeyNode {
+            geometry: KeyboardGeometry::new(
+                vec![KeyNode {
                     index: 0,
                     x: 0.0,
                     y: 0.0,
-                    hand: HandIndex(0),
+                    hand: HandIndex::new(0),
                     finger: FingerIndex::INDEX,
-                    row: RowIndex(0),
-                    col: ColIndex(0),
+                    row: RowIndex::new(0),
+                    col: ColIndex::new(0),
                     ..Default::default()
                 }],
-                prime_slots: vec![KeyIndex(0)],
-                med_slots: vec![],
-                low_slots: vec![],
-                home_row: keyforge_model::types::RowIndex(0),
-            },
+                vec![KeyIndex::new(0)],
+                vec![],
+                vec![],
+                keyforge_model::types::RowIndex::new(0),
+            ),
             layouts: std::collections::HashMap::default(),
         }
         .into(),

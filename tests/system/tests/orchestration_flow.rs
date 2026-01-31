@@ -17,7 +17,7 @@ async fn test_full_orchestration_flow() {
 
     // 2. Mock Hive Request (Simulating CLI upload)
     let mut req = JobRequest::default();
-    req.config.definition.geometry.keys.push(
+    req.config.definition.geometry.keys().push(
         KeyNode {
             hand: HandIndex(0),
             w: 1.0,
@@ -26,7 +26,7 @@ async fn test_full_orchestration_flow() {
         }
         .into(),
     );
-    req.config.definition.geometry.home_row = 0;
+    req.config.definition.geometry.home_row() = 0;
     req.config
         .definition
         .geometry

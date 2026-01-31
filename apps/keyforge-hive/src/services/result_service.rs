@@ -14,7 +14,6 @@
 
 //! Service for orchestrating result submission and verification.
 
-use crate::config::DEFAULT_SUBMISSION_EXPIRATION_SECS;
 use crate::error::{AppError, AppResult};
 use crate::infra::queue::PersistedRecord;
 use crate::state::AppState;

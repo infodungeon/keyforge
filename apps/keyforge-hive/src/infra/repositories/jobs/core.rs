@@ -418,14 +418,29 @@ impl JobRepository {
                     .push_bind(key.y)
                     .push_bind(key.w)
                     .push_bind(key.h)
-                    .push_bind(i16::from(key.hand.0))
-                    .push_bind(i16::from(key.finger.0))
-                    .push_bind(i16::from(key.row.0))
-                    .push_bind(i16::from(key.col.0))
+                    .push_bind(i16::from(key.hand.raw()))
+                    .push_bind(i16::from(key.finger.raw()))
+                    .push_bind(i16::from(key.row.raw()))
+                    .push_bind(i16::from(key.col.raw()))
                     .push_bind(key.is_stretch)
-                    .push_bind(def.geometry.prime_slots.iter().any(|&i| i.0 == kidx.raw()))
-                    .push_bind(def.geometry.med_slots.iter().any(|&i| i.0 == kidx.raw()))
-                    .push_bind(def.geometry.low_slots.iter().any(|&i| i.0 == kidx.raw()))
+                    .push_bind(
+                        def.geometry
+                            .prime_slots
+                            .iter()
+                            .any(|&i| i.raw() == kidx.raw()),
+                    )
+                    .push_bind(
+                        def.geometry
+                            .med_slots
+                            .iter()
+                            .any(|&i| i.raw() == kidx.raw()),
+                    )
+                    .push_bind(
+                        def.geometry
+                            .low_slots
+                            .iter()
+                            .any(|&i| i.raw() == kidx.raw()),
+                    )
                     .push_bind(key.r);
             });
 

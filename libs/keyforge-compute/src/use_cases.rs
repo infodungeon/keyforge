@@ -28,6 +28,9 @@ impl OptimizationUseCase {
     /// Prepares a `ScoringSession` and `JobIdentifier` from a high-level request.
     ///
     /// This is the "Truth" implementation used by both Hive (Cloud) and CLI (Local).
+    ///
+    /// # Errors
+    /// Returns `ForgeError` if asset loading or session building fails.
     pub async fn prepare_session<L: AssetLoader>(
         loader: &L,
         req: &JobRequest,
@@ -63,9 +66,8 @@ impl OptimizationUseCase {
                 ))
             })?;
 
-        let cost_model_name = match &req.config.cost_matrix {
-            keyforge_protocol::config::CostMatrixSourceDto::Predefined(name) => name,
-        };
+        let keyforge_protocol::config::CostMatrixSourceDto::Predefined(cost_model_name) =
+            &req.config.cost_matrix;
 
         let cost_model = loader
             .load::<keyforge_model::CostModel>(cost_model_name)

@@ -153,7 +153,7 @@ impl GhostScorer {
         let positions = self.find_all_positions(layout, code);
 
         for pos in positions {
-            let key = &self.keyboard.keys[pos];
+            let key = &self.keyboard.keys()[pos];
 
             let effort = self.rubric.finger_effort[key.finger.as_usize()];
 
@@ -284,13 +284,13 @@ impl GhostScorer {
 
     #[allow(clippy::cast_possible_truncation)]
     fn calculate_pair_cost(&self, p1: usize, p2: usize) -> Score {
-        let k1 = &self.keyboard.keys[p1];
-        let k2 = &self.keyboard.keys[p2];
+        let k1 = &self.keyboard.keys()[p1];
+        let k2 = &self.keyboard.keys()[p2];
         if k1.hand != k2.hand {
             return Score::ZERO;
         }
 
-        let movement = self.keyboard.spatial_cache[p1 * self.keyboard.keys.len() + p2];
+        let movement = self.keyboard.spatial_cache[p1 * self.keyboard.keys().len() + p2];
         let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
         let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
@@ -311,9 +311,9 @@ impl GhostScorer {
     }
 
     fn calculate_flow_cost(&self, p1: usize, p2: usize, p3: usize) -> Score {
-        let k1 = &self.keyboard.keys[p1];
-        let k2 = &self.keyboard.keys[p2];
-        let k3 = &self.keyboard.keys[p3];
+        let k1 = &self.keyboard.keys()[p1];
+        let k2 = &self.keyboard.keys()[p2];
+        let k3 = &self.keyboard.keys()[p3];
 
         crate::kernel::mechanics::calculate_flow_cost(
             k1.hand,

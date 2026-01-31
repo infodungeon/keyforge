@@ -88,11 +88,11 @@ pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Er
             let code = if let FirmwareFormat::Kle = format {
                 // Special handling for KLE: Merge layout legends into geometry
                 let mut geom = def.geometry.clone();
-                if geom.keys.len() != keys.len() {
+                if geom.keys().len() != keys.len() {
                     eprintln!(
                         "⚠️  Warning: Layout key count ({}) does not match geometry key count ({}). Export may be incorrect.",
                         keys.len(),
-                        geom.keys.len()
+                        geom.keys().len()
                     );
                 }
                 for (i, key) in geom.keys.iter_mut().enumerate() {

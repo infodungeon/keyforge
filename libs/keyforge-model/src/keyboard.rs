@@ -86,6 +86,18 @@ impl Keyboard {
         Ok(kb)
     }
 
+    /// Returns a reference to the physical keys.
+    #[must_use]
+    pub fn keys(&self) -> &[KeyNode] {
+        &self.keys
+    }
+
+    /// Returns the home row index.
+    #[must_use]
+    pub fn home_row(&self) -> crate::types::RowIndex {
+        self.home_row
+    }
+
     fn precompute_spatial_cache(&mut self) {
         let n = self.keys.len();
         let mut cache = vec![Movement::default(); n * n];
@@ -162,20 +174,20 @@ mod tests {
                 index: 0,
                 x: crate::types::SpatialUnit::from_f32(0.0),
                 y: crate::types::SpatialUnit::from_f32(0.0),
-                hand: HandIndex(0),
-                finger: FingerIndex(1),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::INDEX,
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 x: crate::types::SpatialUnit::from_f32(3.0),
                 y: crate::types::SpatialUnit::from_f32(4.0),
-                hand: HandIndex(0),
-                finger: FingerIndex(2),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::MIDDLE,
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, crate::types::RowIndex(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, crate::types::RowIndex::new(0), "test".into()).unwrap();
 
         assert_eq!(kb.spatial_cache.len(), 4);
         // (3-0)^2 + (4-0)^2 = 9 + 16 = 25

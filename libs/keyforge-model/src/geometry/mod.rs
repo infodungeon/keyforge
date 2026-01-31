@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -176,6 +176,56 @@ pub struct KeyboardGeometry {
     /// Logical index of the home row.
     #[serde(default)]
     pub home_row: RowIndex,
+}
+
+impl KeyboardGeometry {
+    /// Creates a new `KeyboardGeometry`.
+    #[must_use]
+    pub fn new(
+        keys: Vec<KeyNode>,
+        prime_slots: Vec<KeyIndex>,
+        med_slots: Vec<KeyIndex>,
+        low_slots: Vec<KeyIndex>,
+        home_row: RowIndex,
+    ) -> Self {
+        Self {
+            keys,
+            prime_slots,
+            med_slots,
+            low_slots,
+            home_row,
+        }
+    }
+
+    /// Returns a reference to the keys.
+    #[must_use]
+    pub fn keys(&self) -> &[KeyNode] {
+        &self.keys
+    }
+
+    /// Returns the home row index.
+    #[must_use]
+    pub fn home_row(&self) -> RowIndex {
+        self.home_row
+    }
+
+    /// Returns the prime slots.
+    #[must_use]
+    pub fn prime_slots(&self) -> &[KeyIndex] {
+        &self.prime_slots
+    }
+
+    /// Returns the medium slots.
+    #[must_use]
+    pub fn med_slots(&self) -> &[KeyIndex] {
+        &self.med_slots
+    }
+
+    /// Returns the low slots.
+    #[must_use]
+    pub fn low_slots(&self) -> &[KeyIndex] {
+        &self.low_slots
+    }
 }
 
 impl Validator for KeyboardGeometry {

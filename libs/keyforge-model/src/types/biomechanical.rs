@@ -26,6 +26,7 @@ impl Hand {
 
 impl From<Hand> for HandIndex {
     fn from(hand: Hand) -> Self {
+        #[allow(clippy::cast_possible_truncation)]
         Self(hand.index() as u8)
     }
 }
@@ -68,12 +69,14 @@ impl Finger {
     /// Calculates the absolute distance between two fingers.
     #[must_use]
     pub fn distance(self, other: Self) -> u8 {
+        #[allow(clippy::cast_possible_truncation)]
         (self.index() as u8).abs_diff(other.index() as u8)
     }
 }
 
 impl From<Finger> for FingerIndex {
     fn from(finger: Finger) -> Self {
+        #[allow(clippy::cast_possible_truncation)]
         Self(finger.index() as u8)
     }
 }

@@ -240,7 +240,7 @@ pub fn analyze_layout(
 
         // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
         for &code in pm.used_keys() {
-            let freq = ctx.corpus.char_freqs[code.raw() as usize] as f32;
+            let freq = ctx.corpus.char_freqs[code.as_usize()] as f32;
             if freq <= 0.0 {
                 continue;
             }
@@ -440,8 +440,8 @@ mod tests {
             index: 3,
             hand: HandIndex::LEFT,
             finger: FingerIndex::INDEX,
-            row: RowIndex(1),
-            col: ColIndex(0),
+            row: RowIndex::new(1),
+            col: ColIndex::new(0),
             is_home: false,
             ..Default::default()
         });
@@ -459,9 +459,9 @@ mod tests {
         let mut fingers = std::collections::HashMap::new();
 
         let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
-        base_r0.insert(RowIndex(0), 1.0);
+        base_r0.insert(RowIndex::new(0), 1.0);
         let mut base_r1 = keyforge_model::cost_model::RowCosts::new();
-        base_r1.insert(RowIndex(1), 2.0);
+        base_r1.insert(RowIndex::new(1), 2.0);
 
         let mut index_base = base_r0.clone();
         index_base.extend(base_r1);

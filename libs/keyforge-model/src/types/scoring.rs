@@ -49,6 +49,7 @@ impl Score {
     ///
     /// # Errors
     /// Returns an error if the resulting value overflows `i64`.
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_f32(val: f32) -> Result<Self, String> {
         if val.is_nan() {
             return Err("Cannot create Score from NaN".to_string());
@@ -71,6 +72,7 @@ impl Score {
 
     /// Converts the Score back to a float, removing scaling.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn to_f32(self) -> f32 {
         (self.0 as f32) / SCORE_SCALE
     }
@@ -78,13 +80,13 @@ impl Score {
     /// Checked addition.
     #[must_use]
     pub fn checked_add(self, other: Score) -> Option<Score> {
-        self.0.checked_add(other.0).map(Score)
+        self.0.checked_add(other.raw()).map(Score)
     }
 
     /// Checked subtraction.
     #[must_use]
     pub fn checked_sub(self, other: Score) -> Option<Score> {
-        self.0.checked_sub(other.0).map(Score)
+        self.0.checked_sub(other.raw()).map(Score)
     }
 
     /// Checked multiplication by a scalar.
@@ -96,13 +98,13 @@ impl Score {
     /// Saturating addition.
     #[must_use]
     pub fn saturating_add(self, other: Score) -> Score {
-        Score::from_scaled_i64(self.0.saturating_add(other.0))
+        Score::from_scaled_i64(self.0.saturating_add(other.raw()))
     }
 
     /// Saturating subtraction.
     #[must_use]
     pub fn saturating_sub(self, other: Score) -> Score {
-        Score::from_scaled_i64(self.0.saturating_sub(other.0))
+        Score::from_scaled_i64(self.0.saturating_sub(other.raw()))
     }
 
     /// Saturating multiplication.

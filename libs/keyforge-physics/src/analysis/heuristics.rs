@@ -40,7 +40,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, RowIndex(0), "test".into()).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap());
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
         let mut cost_model = keyforge_model::cost_model::CostModel::default();
@@ -49,7 +49,7 @@ mod tests {
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
                 keyforge_model::cost_model::FingerReach {
-                    base: HashMap::from([(RowIndex(0), 1.0)]),
+                    base: HashMap::from([(RowIndex::new(0), 1.0)]),
                     ..Default::default()
                 },
             ),
@@ -58,7 +58,7 @@ mod tests {
             "middle".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
                 keyforge_model::cost_model::FingerReach {
-                    base: HashMap::from([(RowIndex(0), 1.0)]),
+                    base: HashMap::from([(RowIndex::new(0), 1.0)]),
                     ..Default::default()
                 },
             ),

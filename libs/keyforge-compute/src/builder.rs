@@ -168,8 +168,8 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
         let cost_model = Arc::new(cost_model_val);
 
         let keyboard = Arc::new(keyforge_model::Keyboard::new(
-            kb_def.geometry.keys.clone(),
-            kb_def.geometry.home_row,
+            kb_def.geometry.keys().to_vec(),
+            kb_def.geometry.home_row(),
             kb_def.meta.kb_type.clone(),
         )?);
 

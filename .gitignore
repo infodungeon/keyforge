@@ -70,3 +70,4 @@ Thumbs.db
 *.orig
 *.patch
 .gemini/extensions/gemini-cli-security/osv-scanner
+.gemini_cli_source

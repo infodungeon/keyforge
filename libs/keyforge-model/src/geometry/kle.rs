@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -138,13 +138,7 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
     #[allow(clippy::cast_possible_truncation)]
     let low_slots = (20..total).map(|i| KeyIndex::new(i as u16)).collect();
 
-    let geom = KeyboardGeometry {
-        keys,
-        prime_slots,
-        med_slots,
-        low_slots,
-        home_row: RowIndex::new(1),
-    };
+    let geom = KeyboardGeometry::new(keys, prime_slots, med_slots, low_slots, RowIndex::new(1));
     Ok(geom)
 }
 
@@ -167,7 +161,7 @@ pub fn to_kle_json(geom: &KeyboardGeometry) -> Result<String, Box<dyn Error>> {
     let mut json_rows = Vec::new();
     json_rows.push(json!({ "meta": { "name": "KeyForge Export", "author": "KeyForge" } }));
 
-    for k in &geom.keys {
+    for k in geom.keys() {
         let props = json!({
             "x": k.x, "y": k.y, "w": k.w, "h": k.h,
             "r": k.r, "rx": k.rx, "ry": k.ry,
@@ -189,9 +183,9 @@ mod tests {
     fn test_parse_kle_json_simple() {
         let json = r#"[["A", "B"]]"#;
         let geom = parse_kle_json(json).unwrap();
-        assert_eq!(geom.keys.len(), 2);
-        assert_eq!(geom.keys[0].label, "A");
-        assert_eq!(geom.keys[1].label, "B");
+        assert_eq!(geom.keys().len(), 2);
+        assert_eq!(geom.keys()[0].label, "A");
+        assert_eq!(geom.keys()[1].label, "B");
     }
 
     #[test]
@@ -199,14 +193,14 @@ mod tests {
         // Large gap (3 keys to hit gap logic)
         let json = r#"[["A", "B", {"x": 15}, "C"]]"#;
         let geom = parse_kle_json(json).unwrap();
-        assert_eq!(geom.keys[0].hand, HandIndex::LEFT);
-        assert_eq!(geom.keys[1].hand, HandIndex::LEFT);
-        assert_eq!(geom.keys[2].hand, HandIndex::RIGHT);
+        assert_eq!(geom.keys()[0].hand, HandIndex::LEFT);
+        assert_eq!(geom.keys()[1].hand, HandIndex::LEFT);
+        assert_eq!(geom.keys()[2].hand, HandIndex::RIGHT);
 
         // Small gap (ortho)
         let json = r#"[["A", "B", "C"]]"#;
         let geom = parse_kle_json(json).unwrap();
-        assert_eq!(geom.keys.len(), 3);
+        assert_eq!(geom.keys().len(), 3);
     }
 
     #[test]
@@ -215,28 +209,30 @@ mod tests {
             [{"r": 15, "rx": 5, "ry": 5}, "A"]
         ]"#;
         let geom = parse_kle_json(json).unwrap();
-        assert_eq!(geom.keys[0].r, 15.0);
-        assert_eq!(geom.keys[0].rx.to_f32(), 5.0);
-        assert_eq!(geom.keys[0].ry.to_f32(), 5.0);
+        assert_eq!(geom.keys()[0].r, 15.0);
+        assert_eq!(geom.keys()[0].rx.to_f32(), 5.0);
+        assert_eq!(geom.keys()[0].ry.to_f32(), 5.0);
     }
 
     #[test]
     fn test_to_kle_json() {
-        let mut geom = KeyboardGeometry::default();
-        geom.keys.push(KeyNode {
-            label: "X".into(),
-            x: SpatialUnit::from_f32(1.0),
-            y: SpatialUnit::from_f32(2.0),
-            hand: HandIndex::LEFT,
-            ..Default::default()
-        });
-        geom.keys.push(KeyNode {
-            label: "Y".into(),
-            x: SpatialUnit::from_f32(10.0),
-            y: SpatialUnit::from_f32(2.0),
-            hand: HandIndex::RIGHT,
-            ..Default::default()
-        });
+        let keys = vec![
+            KeyNode {
+                label: "X".into(),
+                x: SpatialUnit::from_f32(1.0),
+                y: SpatialUnit::from_f32(2.0),
+                hand: HandIndex::LEFT,
+                ..Default::default()
+            },
+            KeyNode {
+                label: "Y".into(),
+                x: SpatialUnit::from_f32(10.0),
+                y: SpatialUnit::from_f32(2.0),
+                hand: HandIndex::RIGHT,
+                ..Default::default()
+            },
+        ];
+        let geom = KeyboardGeometry::new(keys, vec![], vec![], vec![], RowIndex::new(1));
 
         let json = to_kle_json(&geom).unwrap();
         assert!(json.contains("meta"));

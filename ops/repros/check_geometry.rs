@@ -15,14 +15,14 @@ fn main() {
     let kb: KeyboardDefinition = rmp_serde::from_read(decoder).expect("Failed to deserialize");
 
     println!("Keyboard: {}", kb.meta.name);
-    println!("Keys: {}", kb.geometry.keys.len());
-    println!("Home Row: {}", kb.geometry.home_row);
+    println!("Keys: {}", kb.geometry.keys().len());
+    println!("Home Row: {}", kb.geometry.home_row());
     println!(
         "{:<3} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}",
         "Idx", "Label", "Finger", "Hand", "Row", "Col", "Home", "Pos"
     );
 
-    for (i, key) in kb.geometry.keys.iter().enumerate() {
+    for (i, key) in kb.geometry.keys().iter().enumerate() {
         println!(
             "{:<3} {:<8} {:<8?} {:<8?} {:<8} {:<8} {:<8} ({:.1}, {:.1})",
             i,

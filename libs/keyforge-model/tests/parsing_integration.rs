@@ -21,9 +21,9 @@ mod integration_tests {
             .expect("KLE JSON should parse successfully");
 
         assert_eq!(def.meta.name, "Test Board");
-        assert_eq!(def.geometry.keys.len(), 2);
-        assert_eq!(def.geometry.keys[0].label, "A");
-        assert_eq!(def.geometry.keys[1].label, "B");
+        assert_eq!(def.geometry.keys().len(), 2);
+        assert_eq!(def.geometry.keys()[0].label, "A");
+        assert_eq!(def.geometry.keys()[1].label, "B");
     }
 
     /// Intent: Verify KLE import handles rotation properties.
@@ -36,9 +36,9 @@ mod integration_tests {
 
         let def = KeyboardDefinition::parse(json, None).expect("Rotated KLE should parse");
 
-        assert_eq!(def.geometry.keys[0].r, 15.0);
-        assert_eq!(def.geometry.keys[0].rx, 5.0);
-        assert_eq!(def.geometry.keys[0].ry, 5.0);
+        assert_eq!(def.geometry.keys()[0].r, 15.0);
+        assert_eq!(def.geometry.keys()[0].rx, 5.0);
+        assert_eq!(def.geometry.keys()[0].ry, 5.0);
     }
 
     /// Intent: Verify hand split detection for split keyboards.
@@ -50,8 +50,8 @@ mod integration_tests {
 
         let def = KeyboardDefinition::parse(json, None).expect("Split KLE should parse");
 
-        assert_eq!(def.geometry.keys[0].hand, HandIndex::LEFT);
-        assert_eq!(def.geometry.keys[1].hand, HandIndex::LEFT);
-        assert_eq!(def.geometry.keys[2].hand, HandIndex::RIGHT);
+        assert_eq!(def.geometry.keys()[0].hand, HandIndex::LEFT);
+        assert_eq!(def.geometry.keys()[1].hand, HandIndex::LEFT);
+        assert_eq!(def.geometry.keys()[2].hand, HandIndex::RIGHT);
     }
 }

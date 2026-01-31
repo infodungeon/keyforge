@@ -86,8 +86,8 @@ pub async fn calibrate(
         .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
 
     let keyboard = Arc::new(Keyboard::new(
-        def.geometry.keys,
-        def.geometry.home_row,
+        def.geometry.keys().to_vec(),
+        def.geometry.home_row(),
         def.meta.kb_type.clone(),
     )?);
 
@@ -123,7 +123,7 @@ fn run_benchmark(
     keyboard: &Arc<Keyboard>,
     config: &crate::models::CalibrationConfig,
 ) -> Result<f64, AgentError> {
-    let key_count = keyboard.keys.len();
+    let key_count = keyboard.keys().len();
     let corpus = Arc::new(Corpus::default());
     let rubric = Arc::new(Rubric::default());
     let cost_model = Arc::new(default_cost_model()?);

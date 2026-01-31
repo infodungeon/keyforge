@@ -37,7 +37,7 @@ async fn test_load_resilience() -> anyhow::Result<()> {
         rmp_serde::from_slice(&zstd::decode_all(&kb_data[..])?)?;
     let kb = Keyboard::new(
         kb_def.geometry.keys,
-        kb_def.geometry.home_row,
+        kb_def.geometry.home_row(),
         "corne".into(),
     )?;
     let kb = Arc::new(kb);

@@ -1,4 +1,4 @@
-// libs/keyforge-protocol/src/types.rs
+// libs/keyforge-protocol/src/types/mod.rs
 
 use keyforge_model::types as model;
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,14 @@ use utoipa::ToSchema;
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct KeyIndexDto(pub u16);
 
+impl KeyIndexDto {
+    /// Returns the raw `u16` value.
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        self.0
+    }
+}
+
 impl From<model::KeyIndex> for KeyIndexDto {
     fn from(val: model::KeyIndex) -> Self {
         Self(val.raw())
@@ -18,7 +26,7 @@ impl From<model::KeyIndex> for KeyIndexDto {
 }
 impl From<KeyIndexDto> for model::KeyIndex {
     fn from(val: KeyIndexDto) -> Self {
-        Self::new(val.0)
+        Self::new(val.raw())
     }
 }
 
@@ -27,6 +35,14 @@ impl From<KeyIndexDto> for model::KeyIndex {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct KeyCodeDto(pub u16);
 
+impl KeyCodeDto {
+    /// Returns the raw `u16` value.
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        self.0
+    }
+}
+
 impl From<model::KeyCode> for KeyCodeDto {
     fn from(val: model::KeyCode) -> Self {
         Self(val.raw())
@@ -34,7 +50,7 @@ impl From<model::KeyCode> for KeyCodeDto {
 }
 impl From<KeyCodeDto> for model::KeyCode {
     fn from(val: KeyCodeDto) -> Self {
-        Self::new(val.0)
+        Self::new(val.raw())
     }
 }
 
@@ -43,6 +59,14 @@ impl From<KeyCodeDto> for model::KeyCode {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct HandIndexDto(pub u8);
 
+impl HandIndexDto {
+    /// Returns the raw `u8` value.
+    #[must_use]
+    pub const fn raw(self) -> u8 {
+        self.0
+    }
+}
+
 impl From<model::HandIndex> for HandIndexDto {
     fn from(val: model::HandIndex) -> Self {
         Self(val.raw())
@@ -50,7 +74,7 @@ impl From<model::HandIndex> for HandIndexDto {
 }
 impl From<HandIndexDto> for model::HandIndex {
     fn from(val: HandIndexDto) -> Self {
-        Self::new(val.0)
+        Self::new(val.raw())
     }
 }
 
@@ -59,6 +83,14 @@ impl From<HandIndexDto> for model::HandIndex {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct FingerIndexDto(pub u8);
 
+impl FingerIndexDto {
+    /// Returns the raw `u8` value.
+    #[must_use]
+    pub const fn raw(self) -> u8 {
+        self.0
+    }
+}
+
 impl From<model::FingerIndex> for FingerIndexDto {
     fn from(val: model::FingerIndex) -> Self {
         Self(val.raw())
@@ -66,7 +98,7 @@ impl From<model::FingerIndex> for FingerIndexDto {
 }
 impl From<FingerIndexDto> for model::FingerIndex {
     fn from(val: FingerIndexDto) -> Self {
-        Self::new(val.0)
+        Self::new(val.raw())
     }
 }
 
@@ -75,6 +107,14 @@ impl From<FingerIndexDto> for model::FingerIndex {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct RowIndexDto(pub i8);
 
+impl RowIndexDto {
+    /// Returns the raw `i8` value.
+    #[must_use]
+    pub const fn raw(self) -> i8 {
+        self.0
+    }
+}
+
 impl From<model::RowIndex> for RowIndexDto {
     fn from(val: model::RowIndex) -> Self {
         Self(val.raw())
@@ -82,7 +122,7 @@ impl From<model::RowIndex> for RowIndexDto {
 }
 impl From<RowIndexDto> for model::RowIndex {
     fn from(val: RowIndexDto) -> Self {
-        Self::new(val.0)
+        Self::new(val.raw())
     }
 }
 
@@ -91,6 +131,14 @@ impl From<RowIndexDto> for model::RowIndex {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 pub struct ColIndexDto(pub i8);
 
+impl ColIndexDto {
+    /// Returns the raw `i8` value.
+    #[must_use]
+    pub const fn raw(self) -> i8 {
+        self.0
+    }
+}
+
 impl From<model::ColIndex> for ColIndexDto {
     fn from(val: model::ColIndex) -> Self {
         Self(val.raw())
@@ -98,7 +146,7 @@ impl From<model::ColIndex> for ColIndexDto {
 }
 impl From<ColIndexDto> for model::ColIndex {
     fn from(val: ColIndexDto) -> Self {
-        Self::new(val.0)
+        Self::new(val.raw())
     }
 }
 
@@ -107,6 +155,14 @@ impl From<ColIndexDto> for model::ColIndex {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "bigint"))]
 pub struct ScoreDto(pub i64);
 
+impl ScoreDto {
+    /// Returns the raw `i64` value.
+    #[must_use]
+    pub const fn raw(self) -> i64 {
+        self.0
+    }
+}
+
 impl From<model::Score> for ScoreDto {
     fn from(val: model::Score) -> Self {
         Self(val.raw())
@@ -114,7 +170,7 @@ impl From<model::Score> for ScoreDto {
 }
 impl From<ScoreDto> for model::Score {
     fn from(val: ScoreDto) -> Self {
-        model::Score::from_scaled_i64(val.0)
+        model::Score::from_scaled_i64(val.raw())
     }
 }
 
@@ -123,6 +179,14 @@ impl From<ScoreDto> for model::Score {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct WeightDto(pub f32);
 
+impl WeightDto {
+    /// Returns the raw `f32` value.
+    #[must_use]
+    pub const fn raw(self) -> f32 {
+        self.0
+    }
+}
+
 impl From<model::Weight> for WeightDto {
     fn from(val: model::Weight) -> Self {
         Self(val.to_f32())
@@ -130,7 +194,7 @@ impl From<model::Weight> for WeightDto {
 }
 impl From<WeightDto> for model::Weight {
     fn from(val: WeightDto) -> Self {
-        Self(val.0)
+        Self(val.raw())
     }
 }
 

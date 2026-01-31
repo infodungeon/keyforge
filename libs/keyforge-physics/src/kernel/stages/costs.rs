@@ -36,7 +36,7 @@ impl CompilationStage for CostStage<'_> {
             .ok_or_else(|| PhysicsError::Config(format!("Missing cost model: {model_key}")))?;
 
         let mut key_costs = Vec::with_capacity(key_count);
-        for k in &self.kb.keys {
+        for k in self.kb.keys() {
             let static_cost = Score::from_f32(resolve_key_cost(k, &phys_model.static_costs)?)
                 .map_err(|e| PhysicsError::InvalidInput { message: e })?;
             let finger_effort = Score::from_f32(self.rubric.finger_effort()[k.finger.as_usize()])
@@ -206,7 +206,7 @@ mod tests {
         // Index finger, col 0 (base)
         let k_base = KeyNode {
             finger: FingerIndex::INDEX,
-            col: ColIndex(0),
+            col: ColIndex::new(0),
             ..Default::default()
         };
         assert_eq!(resolve_key_cost(&k_base, &static_costs).unwrap(), 1.0);
@@ -214,7 +214,7 @@ mod tests {
         // Index finger, col 2 (inner)
         let k_inner = KeyNode {
             finger: FingerIndex::INDEX,
-            col: ColIndex(2),
+            col: ColIndex::new(2),
             ..Default::default()
         };
         assert_eq!(resolve_key_cost(&k_inner, &static_costs).unwrap(), 5.0);
@@ -222,7 +222,7 @@ mod tests {
         // Index finger, col -128 (inner, via unsigned_abs)
         let k_min = KeyNode {
             finger: FingerIndex::INDEX,
-            col: ColIndex(-128),
+            col: ColIndex::new(-128),
             ..Default::default()
         };
         assert_eq!(resolve_key_cost(&k_min, &static_costs).unwrap(), 5.0);

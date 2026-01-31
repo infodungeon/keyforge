@@ -38,10 +38,10 @@ mod tests {
     struct MockRng(u64);
     impl RngCore for MockRng {
         fn next_u32(&mut self) -> u32 {
-            self.0 as u32
+            self.raw() as u32
         }
         fn next_u64(&mut self) -> u64 {
-            self.0
+            self.raw()
         }
         fn fill_bytes(&mut self, _dest: &mut [u8]) {}
     }

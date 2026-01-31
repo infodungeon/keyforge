@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -67,13 +67,13 @@ impl Layout {
     /// Returns the number of keys in the layout.
     #[must_use]
     pub fn len(&self) -> usize {
-        self.keys.len()
+        self.keys().len()
     }
 
     /// Returns true if the layout has no keys.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.keys.is_empty()
+        self.keys().is_empty()
     }
 
     /// Returns a reference to the keys in the layout.

@@ -14,8 +14,8 @@ pub(crate) fn calculate_bigram_delta(
     idx_b: usize,
 ) -> i64 {
     let mut delta = 0i64;
-    let ca_val = code_a.raw() as usize;
-    let cb_val = code_b.raw() as usize;
+    let ca_val = code_a.as_usize();
+    let cb_val = code_b.as_usize();
     let candidates_a = pos_map.get(code_a);
     let candidates_b = pos_map.get(code_b);
 

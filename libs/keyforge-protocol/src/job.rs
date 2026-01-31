@@ -18,7 +18,8 @@ impl Projection<JobConfig> for keyforge_model::config::Config {
         Ok(Self {
             meta: keyforge_model::ProjectMeta {
                 name: source.definition.meta.name.clone(),
-                ..Default::default()
+                author: source.definition.meta.author.clone(),
+                version: source.definition.meta.version.clone(),
             },
             keyboard: source.definition.meta.name.clone(),
             corpora: source.to_domain_corpus_sources(),
@@ -162,53 +163,59 @@ impl JobConfig {
     /// Converts protocol geometry to domain model geometry.
     #[must_use]
     pub fn to_domain_geometry(&self) -> keyforge_model::geometry::KeyboardGeometry {
-        keyforge_model::geometry::KeyboardGeometry {
-            keys: self
-                .definition
-                .geometry
-                .keys
-                .iter()
-                .map(|k| keyforge_model::geometry::KeyNode {
-                    index: k.index as usize,
-                    label: k.label.clone(),
-                    x: keyforge_model::types::SpatialUnit::from_f32(k.x),
-                    y: keyforge_model::types::SpatialUnit::from_f32(k.y),
-                    w: k.w,
-                    h: k.h,
-                    hand: k.hand.into(),
-                    finger: k.finger.into(),
-                    row: k.row.into(),
-                    col: k.col.into(),
-                    is_home: k.is_home,
-                    is_stretch: k.is_stretch,
-                    r: k.r,
-                    rx: keyforge_model::types::SpatialUnit::from_f32(k.rx),
-                    ry: keyforge_model::types::SpatialUnit::from_f32(k.ry),
-                })
-                .collect(),
-            prime_slots: self
-                .definition
-                .geometry
-                .prime_slots
-                .iter()
-                .map(|&i| i.into())
-                .collect(),
-            med_slots: self
-                .definition
-                .geometry
-                .med_slots
-                .iter()
-                .map(|&i| i.into())
-                .collect(),
-            low_slots: self
-                .definition
-                .geometry
-                .low_slots
-                .iter()
-                .map(|&i| i.into())
-                .collect(),
-            home_row: keyforge_model::types::RowIndex::new(self.definition.geometry.home_row),
-        }
+        let keys = self
+            .definition
+            .geometry
+            .keys
+            .iter()
+            .map(|k| keyforge_model::geometry::KeyNode {
+                index: k.index as usize,
+                label: k.label.clone(),
+                x: keyforge_model::types::SpatialUnit::from_f32(k.x),
+                y: keyforge_model::types::SpatialUnit::from_f32(k.y),
+                w: k.w,
+                h: k.h,
+                hand: k.hand.into(),
+                finger: k.finger.into(),
+                row: k.row.into(),
+                col: k.col.into(),
+                is_home: k.is_home,
+                is_stretch: k.is_stretch,
+                r: k.r,
+                rx: keyforge_model::types::SpatialUnit::from_f32(k.rx),
+                ry: keyforge_model::types::SpatialUnit::from_f32(k.ry),
+            })
+            .collect();
+
+        let prime_slots = self
+            .definition
+            .geometry
+            .prime_slots
+            .iter()
+            .map(|&i| i.into())
+            .collect();
+        let med_slots = self
+            .definition
+            .geometry
+            .med_slots
+            .iter()
+            .map(|&i| i.into())
+            .collect();
+        let low_slots = self
+            .definition
+            .geometry
+            .low_slots
+            .iter()
+            .map(|&i| i.into())
+            .collect();
+
+        keyforge_model::geometry::KeyboardGeometry::new(
+            keys,
+            prime_slots,
+            med_slots,
+            low_slots,
+            keyforge_model::types::RowIndex::new(self.definition.geometry.home_row),
+        )
     }
 
     /// Generates a unique identifier for the job configuration.

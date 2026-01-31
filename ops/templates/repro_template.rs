@@ -17,7 +17,7 @@ struct Score(i64);
 // Paste the suspicious function here.
 
 fn calculate_something(idx: KeyIndex) -> Score {
-    Score((idx.0 * 10) as i64)
+    Score((idx.raw() * 10) as i64)
 }
 
 // === VERIFICATION (The Test) ===

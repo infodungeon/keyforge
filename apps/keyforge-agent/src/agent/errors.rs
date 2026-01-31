@@ -100,7 +100,7 @@ impl From<keyforge_model::error::ForgeError> for AgentError {
         use keyforge_model::error::ForgeError;
         match e {
             ForgeError::Serialization(s) => Self::Serialization(s),
-            ForgeError::Serde(s) => Self::Serialization(s.to_string()),
+            ForgeError::Serde(s) => Self::Serialization(s.clone()),
             ForgeError::NotFound(s) => Self::Resource(s),
             ForgeError::InvalidData(s) => Self::Calibration(s),
             _ => Self::Internal(e.to_string()),
@@ -123,6 +123,7 @@ impl From<keyforge_infra::error::InfraError> for AgentError {
             InfraError::LockError(s) | InfraError::Config(s) | InfraError::Validation(s) => {
                 Self::Internal(s)
             }
+            InfraError::Model(e) => Self::from(e),
         }
     }
 }

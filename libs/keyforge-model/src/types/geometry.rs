@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -54,8 +54,8 @@ impl RowIndex {
 impl std::str::FromStr for RowIndex {
     type Err = std::num::ParseIntError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let val = if s.starts_with('r') {
-            s[1..].parse()?
+        let val = if let Some(stripped) = s.strip_prefix('r') {
+            stripped.parse()?
         } else {
             s.parse()?
         };
@@ -118,8 +118,8 @@ impl ColIndex {
 impl std::str::FromStr for ColIndex {
     type Err = std::num::ParseIntError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let val = if s.starts_with('c') {
-            s[1..].parse()?
+        let val = if let Some(stripped) = s.strip_prefix('c') {
+            stripped.parse()?
         } else {
             s.parse()?
         };

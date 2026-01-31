@@ -1,72 +1,64 @@
 // libs/keyforge-infra/src/asset/fs_provider.rs
 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You    may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::asset::AssetServerProvider;
 use crate::error::InfraResult;
 use crate::net::sync::ServerManifest;
 use async_trait::async_trait;
-use bytes::Bytes;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
-use keyforge_model::config::CorpusSource;
-use keyforge_model::{Asset, AssetCategory, Corpus};
+use keyforge_model::Asset;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::fs;
 
-/// A local filesystem-based asset provider.
+/// Local filesystem asset provider.
+///
+/// Implements `AssetLoader` for local file access and `AssetServerProvider`
+/// for serving assets over HTTP.
 #[derive(Debug, Clone)]
 pub struct FsProvider {
     root: PathBuf,
 }
 
 impl FsProvider {
-    /// Creates a new `FsProvider` rooted at the given directory.
+    /// Creates a new `FsProvider` with the specified root directory.
     #[must_use]
     pub fn new(root: PathBuf) -> Self {
         Self { root }
     }
 
-    /// Returns the SHA-256 hash of a local corpus file.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the file cannot be read.
-    pub fn get_corpus_hash(&self, id: &str) -> LoaderResult<String> {
-        use sha2::{Digest, Sha256};
-        let full_path = self.root.join(id);
-        let data = std::fs::read(full_path).map_err(|e| {
-            keyforge_model::error::ForgeError::Io(format!("Failed to hash asset {id}: {e}"))
-        })?;
-        let mut hasher = Sha256::new();
-        hasher.update(&data);
-        Ok(hex::encode(hasher.finalize()))
-    }
-}
-
-#[async_trait]
-impl AssetServerProvider for FsProvider {
-    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
-        let mut manifest = ServerManifest::default();
-        if let Ok(entries) = std::fs::read_dir(&self.root) {
-            for entry in entries.flatten() {
-                if let Ok(file_type) = entry.file_type() {
-                    if file_type.is_file() {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        if let Ok(hash) = self.get_corpus_hash(&name) {
-                            manifest.files.insert(name, hash);
-                        }
-                    }
-                }
-            }
-        }
-        Ok(manifest)
-    }
-
-    async fn get_file_content(&self, path: &str) -> InfraResult<Option<Bytes>> {
-        let full_path = self.root.join(path);
-        if full_path.exists() {
-            let data = std::fs::read(full_path).map_err(crate::error::InfraError::Io)?;
-            Ok(Some(Bytes::from(data)))
+    fn resolve_path(&self, id: &str) -> LoaderResult<PathBuf> {
+        let path = self.root.join(id);
+        if path.exists() {
+            Ok(path)
         } else {
-            Ok(None)
+            // Try extensions
+            let json = path.with_extension("json");
+            if json.exists() {
+                return Ok(json);
+            }
+            let mpk = path.with_extension("mpk");
+            if mpk.exists() {
+                return Ok(mpk);
+            }
+            let mpk_zst = path.with_extension("mpk.zst");
+            if mpk_zst.exists() {
+                return Ok(mpk_zst);
+            }
+
+            Err(keyforge_model::error::ForgeError::NotFound(id.to_string()))
         }
     }
 }
@@ -74,63 +66,71 @@ impl AssetServerProvider for FsProvider {
 #[async_trait]
 impl AssetLoader for FsProvider {
     async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
-        let category = T::category();
-        let mut final_id = id.to_string();
+        let path = self.resolve_path(id)?;
+        let content = fs::read(&path).await.map_err(|e| {
+            keyforge_model::error::ForgeError::Io(format!("Failed to read {id}: {e}"))
+        })?;
 
-        if category == AssetCategory::CostModel {
-            final_id = "weights/cost_matrix.json".to_string();
-        }
+        let final_id = path.to_string_lossy().to_string();
 
-        let full_path = self.root.join(&final_id);
-        let mut data = if full_path.exists() {
-            std::fs::read(&full_path).map_err(|e| {
-                keyforge_model::error::ForgeError::Io(format!(
-                    "Failed to load asset {final_id}: {e}"
-                ))
-            })?
-        } else if category == AssetCategory::CostModel {
-            // Try .mpk.zst if .json is missing for CostModel
-            let mpk_path = self.root.join("weights/cost_matrix.mpk.zst");
-            final_id = "weights/cost_matrix.mpk.zst".to_string();
-            std::fs::read(mpk_path).map_err(|e| {
-                keyforge_model::error::ForgeError::Io(format!("Failed to load cost matrix: {e}"))
-            })?
-        } else {
-            return Err(keyforge_model::error::ForgeError::NotFound(final_id));
-        };
-
-        // Handle compressed assets
-        if final_id.ends_with(".zst") || final_id.ends_with(".mpk.zst") {
-            data = zstd::decode_all(std::io::Cursor::new(data)).map_err(|e| {
-                keyforge_model::error::ForgeError::Io(format!(
-                    "Failed to decompress {final_id}: {e}"
-                ))
+        if final_id.to_lowercase().ends_with(".zst")
+            || final_id.to_lowercase().ends_with(".mpk.zst")
+        {
+            let decoder = zstd::Decoder::new(&content[..]).map_err(|e| {
+                keyforge_model::error::ForgeError::Io(format!("Zstd decoder error: {e}"))
             })?;
+            let asset: T = rmp_serde::from_read(decoder).map_err(|e| {
+                keyforge_model::error::ForgeError::Serde(format!("MsgPack decode error: {e}"))
+            })?;
+            return Ok(Arc::new(asset));
         }
 
-        if final_id.ends_with(".json") {
-            serde_json::from_slice(&data).map(Arc::new).map_err(|e| {
-                keyforge_model::error::ForgeError::Serde(format!("Failed to parse {final_id}: {e}"))
-            })
-        } else {
-            rmp_serde::from_slice(&data).map(Arc::new).map_err(|e| {
-                keyforge_model::error::ForgeError::InvalidData(format!(
-                    "Failed to parse {final_id}: {e}"
-                ))
-            })
+        if final_id.to_lowercase().ends_with(".json") {
+            let asset: T = serde_json::from_slice(&content).map_err(|e| {
+                keyforge_model::error::ForgeError::Serde(format!("JSON decode error: {e}"))
+            })?;
+            return Ok(Arc::new(asset));
         }
+
+        Err(keyforge_model::error::ForgeError::Serialization(format!(
+            "Unsupported asset format for {id}"
+        )))
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-        let mut blended = Corpus::default();
-        for src in sources {
-            let corpus = self.load::<Corpus>(&src.id).await?;
-            blended.merge(&corpus, src.weight);
+    async fn load_corpus(
+        &self,
+        sources: &[keyforge_model::config::CorpusSource],
+    ) -> LoaderResult<Arc<keyforge_model::Corpus>> {
+        let mut corpus = keyforge_model::Corpus::default();
+        for source in sources {
+            let part = self.load::<keyforge_model::Corpus>(&source.id).await?;
+            corpus.merge(&part, source.weight);
         }
-        Ok(Arc::new(blended))
+        Ok(Arc::new(corpus))
     }
 
     fn root(&self) -> &Path {
         &self.root
+    }
+}
+
+#[async_trait]
+impl AssetServerProvider for FsProvider {
+    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
+        // FsProvider doesn't currently support generating a full manifest on the fly.
+        // It returns an empty manifest.
+        Ok(ServerManifest {
+            files: HashMap::new(),
+        })
+    }
+
+    async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
+        let full_path = self.root.join(path);
+        if !full_path.exists() || !full_path.is_file() {
+            return Ok(None);
+        }
+
+        let content = fs::read(full_path).await?;
+        Ok(Some(bytes::Bytes::from(content)))
     }
 }

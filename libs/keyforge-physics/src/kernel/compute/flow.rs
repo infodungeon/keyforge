@@ -1,9 +1,5 @@
-use super::state::PosMap;
 use crate::kernel::mechanics::calculate_flow_cost as shared_calculate_flow_cost;
-use crate::kernel::{
-    types::{KeyCode, Score},
-    EngineContext,
-};
+use crate::kernel::{types::Score, EngineContext};
 
 #[inline]
 pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3: usize) -> Score {
@@ -18,64 +14,6 @@ pub(crate) fn calculate_flow_cost(ctx: &EngineContext, p1: usize, p2: usize, p3:
         ctx.bonus_roll,
         ctx.bonus_roll_out,
     )
-}
-
-#[inline]
-pub(crate) fn get_p_effective(p: usize, idx_a: usize, idx_b: usize) -> usize {
-    if p == idx_a {
-        idx_b
-    } else if p == idx_b {
-        idx_a
-    } else {
-        p
-    }
-}
-
-#[inline]
-pub(crate) fn get_flow_delta(
-    ctx: &EngineContext,
-    pos_map: &PosMap<'_>,
-    c1: KeyCode,
-    c2: KeyCode,
-    c3: KeyCode,
-    idx_a: usize,
-    idx_b: usize,
-) -> i64 {
-    let candidates1 = pos_map.get(c1);
-    let candidates2 = pos_map.get(c2);
-    let candidates3 = pos_map.get(c3);
-    if candidates1.is_empty() || candidates2.is_empty() || candidates3.is_empty() {
-        return 0;
-    }
-
-    let mut min_old = Score::from_scaled_i64(i64::MAX);
-    for &p1 in candidates1 {
-        for &p2 in candidates2 {
-            for &p3 in candidates3 {
-                let cost = calculate_flow_cost(ctx, p1.as_usize(), p2.as_usize(), p3.as_usize());
-                if cost < min_old {
-                    min_old = cost;
-                }
-            }
-        }
-    }
-
-    let mut min_new = Score::from_scaled_i64(i64::MAX);
-    for &p1 in candidates1 {
-        for &p2 in candidates2 {
-            for &p3 in candidates3 {
-                let p1_new = get_p_effective(p1.as_usize(), idx_a, idx_b);
-                let p2_new = get_p_effective(p2.as_usize(), idx_a, idx_b);
-                let p3_new = get_p_effective(p3.as_usize(), idx_a, idx_b);
-                let cost = calculate_flow_cost(ctx, p1_new, p2_new, p3_new);
-                if cost < min_new {
-                    min_new = cost;
-                }
-            }
-        }
-    }
-
-    min_new.raw() - min_old.raw()
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -111,14 +49,6 @@ mod tests {
                 trigram_others1: Arc::new([]),
                 trigram_others2: Arc::new([]),
                 trigram_freqs: Arc::new([]),
-                trigram_mid_starts: Arc::new([]),
-                trigram_mid_others1: Arc::new([]),
-                trigram_mid_others2: Arc::new([]),
-                trigram_mid_freqs: Arc::new([]),
-                trigram_end_starts: Arc::new([]),
-                trigram_end_others1: Arc::new([]),
-                trigram_end_others2: Arc::new([]),
-                trigram_end_freqs: Arc::new([]),
             },
             all_bigrams: Arc::new([]),
             all_trigrams: Arc::new([]),
@@ -132,12 +62,6 @@ mod tests {
     #[test]
     fn test_calculate_flow_cost_roll() {
         let ctx = setup_mock_flow_ctx();
-        // Index -> Middle -> Ring (Outward in our coordinate system? diff > 0)
-        // Wait, calculate_flow_cost says: if dir1 < 0 { return sub(bonus_roll) }
-        // diff(Middle, Index) = 2 - 1 = 1.
-        // So 1 -> 2 -> 3 is outward (positive diff).
-        // 3 -> 2 -> 1 is inward (negative diff).
-
         let cost = calculate_flow_cost(&ctx, 2, 1, 0); // Ring -> Middle -> Index
         assert_eq!(cost.raw(), -50);
     }

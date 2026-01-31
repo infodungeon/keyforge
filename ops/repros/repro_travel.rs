@@ -11,7 +11,7 @@ fn main() {
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
     let kb_def: KeyboardDefinition = rmp_serde::from_read(decoder).expect("Failed to deserialize");
     
-    let kb = Keyboard::new(kb_def.geometry.keys.clone(), kb_def.geometry.home_row, "test".into()).unwrap();
+    let kb = Keyboard::new(kb_def.geometry.keys().clone(), kb_def.geometry.home_row(), "test".into()).unwrap();
 
     // Simple corpus: 
     // 'q' (idx 0), 'a' (idx 5), Space (idx 16/34)
@@ -46,13 +46,13 @@ fn main() {
     let report_both = engine.analyze(&layout).unwrap();
     
     // 2. Left Only
-    let mut layout_left_codes = layout.keys.clone();
+    let mut layout_left_codes = layout.keys().clone();
     layout_left_codes[34] = keyforge_model::types::KeyCode(0); // Mask right space
     let layout_left = Layout::new_unchecked(layout_left_codes);
     let report_left = engine.analyze(&layout_left).unwrap();
 
     // 3. Right Only
-    let mut layout_right_codes = layout.keys.clone();
+    let mut layout_right_codes = layout.keys().clone();
     layout_right_codes[16] = keyforge_model::types::KeyCode(0); // Mask left space
     let layout_right = Layout::new_unchecked(layout_right_codes);
     let report_right = engine.analyze(&layout_right).unwrap();

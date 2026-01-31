@@ -38,14 +38,16 @@ impl SpatialUnit {
 
     /// Converts a float KU value to `SpatialUnit`.
     #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub fn from_f32(val: f32) -> Self {
-        Self((val as f64 * Self::SCALE).round() as i32)
+        Self((f64::from(val) * Self::SCALE).round() as i32)
     }
 
     /// Converts `SpatialUnit` to a float KU value.
     #[must_use]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub fn to_f32(self) -> f32 {
-        (self.0 as f64 / Self::SCALE) as f32
+        ((f64::from(self.0)) / Self::SCALE) as f32
     }
 }
 

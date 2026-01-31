@@ -46,7 +46,7 @@ impl DeterministicScorer {
         corpus: &keyforge_model::Corpus,
         layout: &[KeyCode],
     ) -> Result<(i64, i64, i64), PhysicsError> {
-        let key_count = keyboard.keys.len();
+        let key_count = keyboard.keys().len();
         let _validated = ValidatedLayout::new(layout, key_count)?;
 
         // Component 1: Monograms
@@ -71,7 +71,7 @@ impl DeterministicScorer {
             }
 
             if min_cost != i64::MAX {
-                monogram_score += min_cost * (freq as i64);
+                monogram_score += min_cost * (i64::try_from(freq).unwrap_or(0));
             }
         }
 
@@ -144,7 +144,7 @@ fn find_indices(layout: &[KeyCode], code: KeyCode) -> Vec<KeyIndex> {
         .iter()
         .enumerate()
         .filter(|(_, &c)| c == code)
-        .map(|(i, _)| KeyIndex::new(i as u16))
+        .map(|(i, _)| KeyIndex::new(u16::try_from(i).unwrap_or(0)))
         .collect()
 }
 

@@ -20,8 +20,8 @@ fn test_contract_compatibility() {
         ..Default::default()
     };
 
-    req.config.definition.geometry.keys.push(node.into());
-    req.config.definition.geometry.home_row = 0;
+    req.config.definition.geometry.keys().push(node.into());
+    req.config.definition.geometry.home_row() = 0;
     req.config
         .definition
         .geometry
@@ -31,5 +31,5 @@ fn test_contract_compatibility() {
     let json = serde_json::to_string(&req).unwrap();
     let deserialized: JobRequest = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.config.definition.geometry.keys.len(), 1);
+    assert_eq!(deserialized.config.definition.geometry.keys().len(), 1);
 }

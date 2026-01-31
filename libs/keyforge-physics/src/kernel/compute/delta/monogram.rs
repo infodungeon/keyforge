@@ -17,13 +17,13 @@ pub(crate) fn calculate_monogram_delta(
     let freq_a = ctx
         .corpus
         .char_freqs
-        .get(code_a.raw() as usize)
+        .get(code_a.as_usize())
         .copied()
         .unwrap_or(0) as i64;
     let freq_b = ctx
         .corpus
         .char_freqs
-        .get(code_b.raw() as usize)
+        .get(code_b.as_usize())
         .copied()
         .unwrap_or(0) as i64;
 

@@ -51,14 +51,6 @@ pub struct CorpusData {
     pub(crate) trigram_others1: Arc<[KeyCode]>,
     pub(crate) trigram_others2: Arc<[KeyCode]>,
     pub(crate) trigram_freqs: Arc<[u32]>,
-    pub(crate) trigram_mid_starts: Arc<[usize]>,
-    pub(crate) trigram_mid_others1: Arc<[KeyCode]>,
-    pub(crate) trigram_mid_others2: Arc<[KeyCode]>,
-    pub(crate) trigram_mid_freqs: Arc<[u32]>,
-    pub(crate) trigram_end_starts: Arc<[usize]>,
-    pub(crate) trigram_end_others1: Arc<[KeyCode]>,
-    pub(crate) trigram_end_others2: Arc<[KeyCode]>,
-    pub(crate) trigram_end_freqs: Arc<[u32]>,
 }
 
 /// Compiled, high-performance context used by the physics engine for scoring.

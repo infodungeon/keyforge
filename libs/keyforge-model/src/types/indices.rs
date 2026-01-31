@@ -36,7 +36,7 @@ impl KeyIndex {
 }
 
 impl fmt::Display for KeyIndex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -47,7 +47,7 @@ impl From<usize> for KeyIndex {
 }
 impl From<KeyIndex> for usize {
     fn from(idx: KeyIndex) -> Self {
-        idx.0 as usize
+        idx.raw() as usize
     }
 }
 
@@ -72,6 +72,12 @@ impl KeyCode {
         self.0
     }
 
+    /// Returns the value as `usize`.
+    #[must_use]
+    pub const fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+
     /// The canonical "Empty" or "No-Op" keycode (0).
     pub const EMPTY: KeyCode = KeyCode::new(0);
     /// The canonical "Transparent" keycode (1).
@@ -86,11 +92,11 @@ impl From<u16> for KeyCode {
 }
 impl From<KeyCode> for u16 {
     fn from(val: KeyCode) -> u16 {
-        val.0
+        val.raw()
     }
 }
 impl fmt::Display for KeyCode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }

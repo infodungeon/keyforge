@@ -95,6 +95,7 @@ impl From<keyforge_infra::error::InfraError> for CommandError {
             )),
             InfraError::LockError(s) | InfraError::Config(s) => CommandError::Config(s),
             InfraError::Validation(s) => CommandError::Validation(s),
+            InfraError::Model(e) => CommandError::Internal(e.to_string()),
         }
     }
 }

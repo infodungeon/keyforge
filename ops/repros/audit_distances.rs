@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let kb_file = File::open(kb_path)?;
     let kb: Keyboard = rmp_serde::from_read(zstd::Decoder::new(kb_file)?)?;
 
-    println!("Keyboard: SZR35 (Home Row: {})", kb.home_row);
+    println!("Keyboard: SZR35 (Home Row: {})", kb.home_row());
 
     let corpus = Corpus::default();
     let rubric = Rubric::default();
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = engine.context();
 
     println!("\nKey Distances from Home:");
-    for (i, k) in kb.keys.iter().enumerate() {
+    for (i, k) in kb.keys().iter().enumerate() {
         let dist = ctx.key_home_distances[i];
         if dist < 0.001 || k.is_home {
             println!("  [HOME] Idx {}: {} (Finger {:?}, Hand {:?}) dist: {:.4}", 

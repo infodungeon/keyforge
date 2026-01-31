@@ -207,8 +207,8 @@ impl HermeticWorkspace {
         self.write_file("cost_matrix.json", &cost_json).await?;
 
         // 3. Keyboard
-        let geometry = KeyboardGeometry {
-            keys: vec![
+        let geometry = KeyboardGeometry::new(
+            vec![
                 KeyNode {
                     index: 0,
                     x: SpatialUnit::from_f32(0.0),
@@ -230,14 +230,14 @@ impl HermeticWorkspace {
                     ..Default::default()
                 },
             ],
-            prime_slots: vec![
+            vec![
                 keyforge_model::types::KeyIndex::new(0),
                 keyforge_model::types::KeyIndex::new(1),
             ],
-            med_slots: vec![],
-            low_slots: vec![],
-            home_row: keyforge_model::types::RowIndex::new(0),
-        };
+            vec![],
+            vec![],
+            keyforge_model::types::RowIndex::new(0),
+        );
 
         let kb_def = KeyboardDefinition {
             meta: KeyboardMeta {

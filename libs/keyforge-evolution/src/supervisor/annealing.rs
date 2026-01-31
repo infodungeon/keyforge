@@ -349,7 +349,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
-            self.0.fetch_add(1, Ordering::SeqCst);
+            self.raw().fetch_add(1, Ordering::SeqCst);
             OptimizationControl::Continue
         }
     }

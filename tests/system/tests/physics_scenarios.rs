@@ -59,8 +59,8 @@ mod tests {
         let weights = ScoringWeights::default();
         let keyboard = Arc::new(
             Keyboard::new(
-                def.geometry.keys.clone(),
-                def.geometry.home_row,
+                def.geometry.keys().clone(),
+                def.geometry.home_row(),
                 def.meta.kb_type.clone(),
             )
             .unwrap(),

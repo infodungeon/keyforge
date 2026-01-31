@@ -57,7 +57,7 @@ pub async fn run(args: DebugArgs, loader: &FsProvider) -> Result<(), Box<dyn std
                 .await
                 .map_err(|e| format!("Failed to load keyboard '{keyboard}': {e}"))?;
 
-            let svg_content = generate_physics_svg(&def.geometry);
+            let svg_content = generate_physics_svg(&def.geometry, &[], &[])?;
             fs::write(&output, svg_content).map_err(|e| format!("Failed to write SVG: {e}"))?;
             eprintln!("✅ Physics visualization saved to {}", output.display());
         }

@@ -57,6 +57,10 @@ pub enum InfraError {
     /// Data validation failed during asset loading.
     #[error("Validation Error: {0}")]
     Validation(String),
+
+    /// Error originating from the core domain model.
+    #[error("Model Error: {0}")]
+    Model(#[from] keyforge_model::error::ForgeError),
 }
 
 impl InfraError {
