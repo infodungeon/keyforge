@@ -1,0 +1,14 @@
+id: no-derive-serialize-in-model
+message: "Domain Purity: keyforge-model should not derive Serialize directly. Use explicit DTOs or manual mapping to prevent coupling domain logic to specific wire formats."
+severity: error
+language: rust
+rule:
+  any:
+    - pattern: "#[derive(Serialize)]"
+    - pattern: "#[derive(serde::Serialize)]"
+paths:
+  include:
+    - "libs/keyforge-model/src/**/*.rs"
+  exclude:
+    - "**/tests.rs"
+    - "**/tests/**"
