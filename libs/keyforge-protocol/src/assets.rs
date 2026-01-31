@@ -399,6 +399,8 @@ pub enum FingerDefinitionDto {
     Standard(FingerReachDto),
     /// Coordinate-based costs for thumb keys.
     Thumb(std::collections::HashMap<String, f32>),
+    /// Unknown or complex finger definitions.
+    Fallback(serde_json::Value),
 }
 
 impl From<keyforge_model::cost_model::FingerDefinition> for FingerDefinitionDto {
@@ -408,6 +410,7 @@ impl From<keyforge_model::cost_model::FingerDefinition> for FingerDefinitionDto 
                 Self::Standard(reach.into())
             }
             keyforge_model::cost_model::FingerDefinition::Thumb(map) => Self::Thumb(map),
+            keyforge_model::cost_model::FingerDefinition::Fallback(v) => Self::Fallback(v),
         }
     }
 }
@@ -417,6 +420,7 @@ impl From<FingerDefinitionDto> for keyforge_model::cost_model::FingerDefinition 
         match val {
             FingerDefinitionDto::Standard(reach) => Self::Standard(reach.into()),
             FingerDefinitionDto::Thumb(map) => Self::Thumb(map),
+            FingerDefinitionDto::Fallback(v) => Self::Fallback(v),
         }
     }
 }

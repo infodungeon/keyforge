@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::SearchConfig;
 use keyforge_physics::ScoringEngine;
@@ -23,6 +24,8 @@ use std::sync::Arc;
 pub struct ScoringSession {
     /// The pre-compiled evaluation engine.
     pub engine: Arc<dyn ScoringEngine>,
+    /// The physical keyboard definition.
+    pub keyboard: Arc<KeyboardDefinition>,
     /// The registry used for resolving key labels.
     pub registry: Arc<KeycodeRegistry>,
     /// The search parameters used for this session.
@@ -34,11 +37,13 @@ impl ScoringSession {
     #[must_use]
     pub fn new(
         engine: Arc<dyn ScoringEngine>,
+        keyboard: Arc<KeyboardDefinition>,
         registry: Arc<KeycodeRegistry>,
         search_config: SearchConfig,
     ) -> Self {
         Self {
             engine,
+            keyboard,
             registry,
             search_config,
         }

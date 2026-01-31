@@ -89,8 +89,10 @@ impl Validator for KeyboardDefinition {
 
 pub struct KeyNode {
     /// Zero-based index of the key in the layout.
+    #[serde(default)]
     pub index: usize,
     /// Descriptive label for the key (e.g., "K01", "Thumb").
+    #[serde(alias = "id")]
     pub label: String,
     /// X-coordinate of the key center in keyboard units.
     pub x: SpatialUnit,

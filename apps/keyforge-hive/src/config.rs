@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -103,7 +103,9 @@ impl AppConfig {
             .map_err(|_| AppError::Config("Missing required env var: HIVE_SECRET".into()))?;
 
         // Optional / Defaulted
-        let valkey_url = env::var("VALKEY_URL").unwrap_or_else(|_| default_valkey());
+        let valkey_url = env::var("KEYFORGE_VALKEY_URL")
+            .or_else(|_| env::var("VALKEY_URL"))
+            .unwrap_or_else(|_| default_valkey());
 
         let cors = keyforge_model::config::CorsConfig {
             allowed_origins: env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default(),

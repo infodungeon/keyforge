@@ -142,7 +142,7 @@ impl ValkeyProvider {
         let stem = id.strip_suffix(".json").unwrap_or(id);
         match category {
             AssetCategory::Keyboard => format!("keyboards/models/{stem}.mpk.zst"),
-            AssetCategory::CostModel => format!("weights/{stem}.mpk.zst"),
+            AssetCategory::CostModel => "weights/cost_matrix.mpk.zst".to_string(),
             AssetCategory::Keycodes => format!("config/{stem}.mpk.zst"),
             AssetCategory::Corpus => format!("corpora/{stem}/bundle.mpk.zst"),
             AssetCategory::Rubric => format!("rubrics/{stem}.mpk.zst"),

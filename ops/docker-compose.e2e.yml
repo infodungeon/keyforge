@@ -1,0 +1,84 @@
+services:
+  # Isolated Database for Tests
+  db_test:
+    image: postgres:16-alpine
+    container_name: keyforge_db_test
+    environment:
+      POSTGRES_USER: keyforge
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: keyforge_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keyforge"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  # Isolated Valkey for Tests
+  valkey_test:
+    image: valkey/valkey:8
+    container_name: keyforge_valkey_test
+    command: valkey-server --requirepass "test_valkey_secret" --save ""
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "test_valkey_secret", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  # Asset Seeder (Temporary container to populate Valkey)
+  seeder:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.assetmgr
+    container_name: keyforge_seeder_test
+    depends_on:
+      valkey_test:
+        condition: service_healthy
+    environment:
+      KEYFORGE_VALKEY_URL: redis://:test_valkey_secret@valkey_test:6379
+      KEYFORGE_DATA_DIR: /app/data
+    volumes:
+      - ../data:/app/data:ro
+    command: ["seed"]
+
+  # Hive Instance under Test
+  hive_test:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.hive.e2e
+    container_name: keyforge_hive_test
+    depends_on:
+      db_test:
+        condition: service_healthy
+      valkey_test:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://keyforge:test_password@db_test:5432/keyforge_test
+      HIVE_SECRET: "test_secret"
+      KEYFORGE_VALKEY_URL: redis://:test_valkey_secret@valkey_test:6379
+      RUST_LOG: info
+      KEYFORGE_DATA_DIR: /app/data
+    volumes:
+      - hive_test_user_data:/app/data/user
+      - ../data/system:/app/data/system:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  # E2E Test Runner
+  runner:
+    image: alpine:3.19
+    container_name: keyforge_test_runner
+    depends_on:
+      hive_test:
+        condition: service_healthy
+    command: >
+      sh -c "apk add --no-cache curl jq && 
+             echo '🚀 Starting E2E System Tests...' &&
+             /app/tests/system/run_e2e.sh http://hive_test:3000"
+    volumes:
+      - ../tests/system:/app/tests/system:ro
+
+volumes:
+  hive_test_user_data:

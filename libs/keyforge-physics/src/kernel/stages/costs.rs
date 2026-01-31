@@ -83,6 +83,7 @@ fn resolve_key_cost(
             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .copied()
             .unwrap_or(0.0)),
+        FingerDefinition::Fallback(_) => Ok(0.0),
     }
 }
 
@@ -156,7 +157,7 @@ mod tests {
             fingers: std::collections::HashMap::new(),
         };
         let mut base_zone = keyforge_model::cost_model::RowCosts::new();
-        base_zone.insert(RowIndex(0), 10.0);
+        base_zone.insert(RowIndex::new(0), 10.0);
 
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_zone,
@@ -173,8 +174,8 @@ mod tests {
             index: 0,
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(1),
-            row: RowIndex(0),
-            col: ColIndex(0),
+            row: RowIndex::new(0),
+            col: ColIndex::new(0),
             ..Default::default()
         };
 
@@ -188,10 +189,10 @@ mod tests {
         let mut fingers = std::collections::HashMap::new();
 
         let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
-        base_r0.insert(RowIndex(0), 1.0);
+        base_r0.insert(RowIndex::new(0), 1.0);
 
         let mut inner_r0 = keyforge_model::cost_model::RowCosts::new();
-        inner_r0.insert(RowIndex(0), 5.0);
+        inner_r0.insert(RowIndex::new(0), 5.0);
 
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_r0,

@@ -51,9 +51,21 @@ impl RowIndex {
     }
 }
 
+impl std::str::FromStr for RowIndex {
+    type Err = std::num::ParseIntError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let val = if s.starts_with('r') {
+            s[1..].parse()?
+        } else {
+            s.parse()?
+        };
+        Ok(Self(val))
+    }
+}
+
 impl std::fmt::Display for RowIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "r{}", self.0)
     }
 }
 
@@ -103,9 +115,21 @@ impl ColIndex {
     }
 }
 
+impl std::str::FromStr for ColIndex {
+    type Err = std::num::ParseIntError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let val = if s.starts_with('c') {
+            s[1..].parse()?
+        } else {
+            s.parse()?
+        };
+        Ok(Self(val))
+    }
+}
+
 impl std::fmt::Display for ColIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "c{}", self.0)
     }
 }
 

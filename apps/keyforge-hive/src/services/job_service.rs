@@ -2,36 +2,27 @@
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-use keyforge_model::job::JobIdentifier;
+use keyforge_compute::use_cases::OptimizationUseCase;
 use keyforge_protocol::{CostMatrixSourceDto, JobRequest, JobResponse};
 use tracing::info;
 
 pub struct JobService;
 
 impl JobService {
-    pub async fn register_job(state: &AppState, payload: JobRequest) -> AppResult<JobResponse> {
+    pub async fn register_job(state: &AppState, mut payload: JobRequest) -> AppResult<JobResponse> {
         // 0. Sanity check
         Self::validate_config(&payload)?;
 
-        // 1. Convert DTO to Domain for ID generation
-        let geometry = payload.config.to_domain_geometry();
-        let weights = payload.config.to_domain_weights();
-        let params = payload.config.to_domain_params();
-        let pinned = payload.config.to_domain_pinned_keys();
-        let corpora = payload.config.to_domain_corpus_sources();
-        let cost_matrix = payload.config.to_domain_cost_matrix();
+        // 1. Convert DTO to Domain for ID generation using Unified Use Case
+        // In Hive, we only need the ID for registration, but the Use Case ensures
+        // consistency with the CLI.
+        let (id, session) = OptimizationUseCase::prepare_session(state.assets.as_ref(), &payload)
+            .await
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
-        let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&corpora);
-
-        let id = JobIdentifier::try_from_parts(
-            &geometry,
-            &weights,
-            &params,
-            &pinned,
-            &corpora_fingerprint,
-            &cost_matrix,
-        )
-        .map_err(|e| AppError::Validation(e.to_string()))?;
+        // 2. Enrich the payload with the full geometry from the loader if it was missing
+        // This ensures the database gets the full definition even if the client sent a sparse one.
+        payload.config.definition = (*session.keyboard).clone().into();
 
         let job_id = id.hash;
         info!("📝 Registering Job: {}", job_id);

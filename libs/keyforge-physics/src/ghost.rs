@@ -272,6 +272,7 @@ impl GhostScorer {
                     .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .copied()
                     .unwrap_or(0.0),
+                keyforge_model::cost_model::FingerDefinition::Fallback(_) => 0.0,
             })
             .ok_or_else(|| {
                 PhysicsError::Config(format!(
@@ -293,9 +294,12 @@ impl GhostScorer {
         let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
         let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-        let dist = dx2 as f64 * f64::from(self.rubric.travel_lat)
-            + dy2 as f64 * f64::from(self.rubric.travel_vert);
+        // SAFETY: i64 to f64 precision loss is acceptable for reference distance.
+        #[allow(clippy::cast_precision_loss)]
+        let dist = (dx2 as f64 * f64::from(self.rubric.travel_lat))
+            + (dy2 as f64 * f64::from(self.rubric.travel_vert));
 
+        #[allow(clippy::cast_possible_truncation)]
         let mut cost = Score::from_scaled_i64(dist.round() as i64);
 
         if k1.finger == k2.finger {

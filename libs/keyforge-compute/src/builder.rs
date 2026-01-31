@@ -181,17 +181,21 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             engine_config: keyforge_model::config::EngineConfig::default(),
         };
 
-        let hw_provider = keyforge_infra::hardware::FsHardwareProvider::default();
-        let topo = HardwareProbe::probe_with_provider(Some(&hw_provider));
-        let engine = if topo.vendor == "GenuineIntel" {
+        let topo = HardwareProbe::probe();
+        let engine = if topo.capabilities.has_avx512 {
             keyforge_physics::EngineFactory::new_intel_comet_lake(&compilation_ctx, None)
-        } else if topo.vendor == "ARM" {
+        } else if topo.capabilities.has_neon {
             keyforge_physics::EngineFactory::new_arm_neon(&compilation_ctx, None)
         } else {
             keyforge_physics::EngineFactory::new_generic(&compilation_ctx)
         }
         .map_err(|e| keyforge_model::error::ForgeError::PhysicsCompute(e.to_string()))?;
 
-        Ok(ScoringSession::new(Arc::from(engine), registry, config))
+        Ok(ScoringSession::new(
+            Arc::from(engine),
+            kb_def,
+            registry,
+            config,
+        ))
     }
 }

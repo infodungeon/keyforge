@@ -112,6 +112,19 @@ web-down:
 
 # --- TEST ---
 
+build-image-hive-e2e:
+	just docker-build keyforge-hive ops/Dockerfile.hive.e2e keyforge-hive-e2e:latest
+
+test-e2e: build-image-hive-e2e
+	docker-compose -f ops/docker-compose.e2e.yml up -d db_test valkey_test
+	docker-compose -f ops/docker-compose.e2e.yml run --rm seeder
+	docker-compose -f ops/docker-compose.e2e.yml up --build --exit-code-from runner
+	docker-compose -f ops/docker-compose.e2e.yml down -v
+
+# Force background execution for long builds
+test-e2e-bg:
+	nohup just test-e2e > e2e.log 2>&1 & disown
+
 test-compute:
 	cargo test -p keyforge-compute
 
