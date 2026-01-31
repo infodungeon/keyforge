@@ -9,6 +9,10 @@ publish = false
 [dev-dependencies]
 keyforge-testing-macros = { path = "../../libs/keyforge-testing-macros" }
 anyhow = "1.0"
+fastrand = "2.3"
+postcard = { workspace = true }
+rmp-serde = { workspace = true }
+zstd = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
@@ -16,7 +20,8 @@ keyforge-compute = { path = "../../libs/keyforge-compute" }
 keyforge-physics = { path = "../../libs/keyforge-physics" }
 keyforge-evolution = { path = "../../libs/keyforge-evolution" }
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
-keyforge-model = { path = "../../libs/keyforge-model" }
+keyforge-security = { path = "../../libs/keyforge-security" }
+keyforge-model = { path = "../../libs/keyforge-model", features = ["testing"] }
 keyforge-persistence = { path = "../../libs/keyforge-persistence" }
 keyforge-testing = { path = "../../libs/keyforge-testing" }
 serde_json = "1.0"

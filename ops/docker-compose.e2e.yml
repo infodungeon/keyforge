@@ -46,6 +46,8 @@ services:
       context: ..
       dockerfile: ops/Dockerfile.hive.e2e
     container_name: keyforge_hive_test
+    ports:
+      - "3000:3000"
     depends_on:
       db_test:
         condition: service_healthy

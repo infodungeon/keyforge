@@ -43,22 +43,6 @@ impl ResultService {
         payload.validate().map_err(AppError::Validation)?;
         state.verification.verify_submission(payload).await?;
 
-        // Replay Protection
-        #[allow(clippy::cast_possible_wrap)]
-        let is_new = state
-            .coordinator
-            .check_and_set_nonce(
-                &payload.node_id,
-                payload.nonce,
-                DEFAULT_SUBMISSION_EXPIRATION_SECS as i64,
-            )
-            .await
-            .map_err(|e| AppError::Any(anyhow::anyhow!("Valkey Error: {e}")))?;
-
-        if !is_new {
-            return Err(AppError::Validation("Replay detected".into()));
-        }
-
         Ok(())
     }
 
