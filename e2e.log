@@ -1,0 +1,309 @@
+just docker-build keyforge-hive ops/Dockerfile.hive keyforge-hive:latest
+python3 ops/scripts/isolate.py keyforge-hive target/docker-context/keyforge-hive
+🔍 Analyzing dependencies for keyforge-hive...
+📦 Staging 13 local members to target/docker-context/keyforge-hive...
+✅ Isolation complete. Context ready at target/docker-context/keyforge-hive
+cp ops/Dockerfile.hive target/docker-context/keyforge-hive/Dockerfile
+if [ -d ".sqlx" ]; then cp -r .sqlx target/docker-context/keyforge-hive/.sqlx; fi
+docker build -t keyforge-hive:latest target/docker-context/keyforge-hive
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.22kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/rust:slim-bookworm
+#2 ...
+
+#3 [internal] load metadata for gcr.io/distroless/cc-debian12:latest
+#3 DONE 0.2s
+
+#2 [internal] load metadata for docker.io/library/rust:slim-bookworm
+#2 DONE 0.5s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [stage-2 1/4] FROM gcr.io/distroless/cc-debian12:latest@sha256:72344f7f909a8bf003c67f55687e6d51a441b49661af8f660aa7b285f00e57df
+#5 resolve gcr.io/distroless/cc-debian12:latest@sha256:72344f7f909a8bf003c67f55687e6d51a441b49661af8f660aa7b285f00e57df 0.0s done
+#5 DONE 0.0s
+
+#6 [chef 1/5] FROM docker.io/library/rust:slim-bookworm@sha256:38d9e7c33a262bf1c58aecfbdf778205491d703a2196d4abf459e81cfe9f95e4
+#6 resolve docker.io/library/rust:slim-bookworm@sha256:38d9e7c33a262bf1c58aecfbdf778205491d703a2196d4abf459e81cfe9f95e4 0.0s done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 348.04kB 0.0s done
+#7 DONE 0.0s
+
+#8 [chef 2/5] WORKDIR /app
+#8 CACHED
+
+#9 [chef 3/5] RUN cargo install cargo-chef
+#9 CACHED
+
+#10 [chef 4/5] COPY . .
+#10 DONE 0.2s
+
+#11 [chef 5/5] RUN cargo chef prepare --recipe-path recipe.json --bin keyforge-hive
+#11 DONE 0.3s
+
+#12 [builder 3/9] RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make unzip && rm -rf /var/lib/apt/lists/*
+#12 CACHED
+
+#13 [builder 4/9] RUN cargo install cargo-chef
+#13 CACHED
+
+#14 [builder 5/9] COPY --from=chef /app/recipe.json recipe.json
+#14 CACHED
+
+#15 [builder 6/9] RUN cargo chef cook --release --recipe-path recipe.json --bin keyforge-hive
+#15 CACHED
+
+#16 [builder 7/9] COPY . .
+#16 DONE 0.1s
+
+#17 [builder 8/9] COPY .sqlx .sqlx
+#17 DONE 0.0s
+
+#18 [builder 9/9] RUN cargo build --release -p keyforge-hive
+#18 0.874    Compiling keyforge-testing-macros v0.9.0 (/app/libs/keyforge-testing-macros)
+#18 0.880    Compiling keyforge-infra v0.9.0 (/app/libs/keyforge-infra)
+#18 1.219    Compiling keyforge-model v0.9.0 (/app/libs/keyforge-model)
+#18 3.427    Compiling keyforge-protocol v0.9.0 (/app/libs/keyforge-protocol)
+#18 3.427    Compiling keyforge-security v0.9.0 (/app/libs/keyforge-security)
+#18 7.080    Compiling keyforge-adapter v0.9.0 (/app/libs/keyforge-adapter)
+#18 7.080    Compiling keyforge-physics v0.9.0 (/app/libs/keyforge-physics)
+#18 9.512    Compiling keyforge-evolution v0.9.0 (/app/libs/keyforge-evolution)
+#18 15.10    Compiling keyforge-assets v0.9.0 (/app/apps/keyforge-assets)
+#18 15.10    Compiling keyforge-compute v0.9.0 (/app/libs/keyforge-compute)
+#18 15.10    Compiling keyforge-persistence v0.9.0 (/app/libs/keyforge-persistence)
+#18 17.92    Compiling keyforge-hive v0.9.0 (/app/apps/keyforge-hive)
+#18 70.52     Finished `release` profile [optimized] target(s) in 1m 10s
+#18 DONE 70.6s
+
+#19 [stage-2 2/4] WORKDIR /app
+#19 CACHED
+
+#20 [stage-2 3/4] COPY --from=builder --chown=65532:65532 /tmp /app/data
+#20 CACHED
+
+#21 [stage-2 4/4] COPY --from=builder /app/target/release/keyforge-hive /app/keyforge-hive
+#21 DONE 0.1s
+
+#22 exporting to image
+#22 exporting layers
+#22 exporting layers 2.2s done
+#22 exporting manifest sha256:dfaaeb71ff4996de1765af8e2b7f07803488babc4700b9bc439ffb72dff7b031 done
+#22 exporting config sha256:29840bfa14c38f638773773e335bab8d53c299fdb22a1dc48ca6e564fe654bf6 done
+#22 exporting attestation manifest sha256:e01153bf67fa50799cfd24ba721ea151d436309fd85c0f355b8249587a55b1d1 0.0s done
+#22 exporting manifest list sha256:177721a14f998d020e512f38d13e5b57f9af9523be26236ee93b76e718a1cefc done
+#22 naming to docker.io/library/keyforge-hive:latest done
+#22 unpacking to docker.io/library/keyforge-hive:latest
+#22 unpacking to docker.io/library/keyforge-hive:latest 0.5s done
+#22 DONE 2.8s
+docker-compose -f ops/docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from runner
+ Image ops-hive_test Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 597B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile.hive
+#2 transferring dockerfile: 1.22kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/rust:slim-bookworm
+#3 DONE 0.3s
+
+#4 [internal] load metadata for gcr.io/distroless/cc-debian12:latest
+#4 DONE 0.5s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 223B done
+#5 DONE 0.0s
+
+#6 [chef 1/5] FROM docker.io/library/rust:slim-bookworm@sha256:38d9e7c33a262bf1c58aecfbdf778205491d703a2196d4abf459e81cfe9f95e4
+#6 resolve docker.io/library/rust:slim-bookworm@sha256:38d9e7c33a262bf1c58aecfbdf778205491d703a2196d4abf459e81cfe9f95e4 0.0s done
+#6 DONE 0.0s
+
+#7 [stage-2 1/4] FROM gcr.io/distroless/cc-debian12:latest@sha256:72344f7f909a8bf003c67f55687e6d51a441b49661af8f660aa7b285f00e57df
+#7 resolve gcr.io/distroless/cc-debian12:latest@sha256:72344f7f909a8bf003c67f55687e6d51a441b49661af8f660aa7b285f00e57df 0.0s done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 7.10MB 3.2s done
+#8 DONE 3.3s
+
+#9 [chef 2/5] WORKDIR /app
+#9 CACHED
+
+#10 [chef 3/5] RUN cargo install cargo-chef
+#10 CACHED
+
+#11 [chef 4/5] COPY . .
+#11 DONE 55.0s
+
+#12 [chef 5/5] RUN cargo chef prepare --recipe-path recipe.json --bin keyforge-hive
+#12 DONE 1.7s
+
+#13 [builder 3/9] RUN apt-get update && apt-get install -y pkg-config libssl-dev curl make unzip && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [builder 4/9] RUN cargo install cargo-chef
+#14 CACHED
+
+#15 [builder 5/9] COPY --from=chef /app/recipe.json recipe.json
+#15 CACHED
+
+#16 [builder 6/9] RUN cargo chef cook --release --recipe-path recipe.json --bin keyforge-hive
+#16 CACHED
+
+#17 [builder 7/9] COPY . .
+#17 DONE 47.9s
+
+#18 [builder 8/9] COPY .sqlx .sqlx
+#18 DONE 0.6s
+
+#19 [builder 9/9] RUN cargo build --release -p keyforge-hive
+#19 0.679     Updating crates.io index
+#19 7.615    Compiling keyforge-testing-macros v0.9.0 (/app/libs/keyforge-testing-macros)
+#19 7.627    Compiling keyforge-infra v0.9.0 (/app/libs/keyforge-infra)
+#19 8.081    Compiling keyforge-model v0.9.0 (/app/libs/keyforge-model)
+#19 10.43    Compiling keyforge-protocol v0.9.0 (/app/libs/keyforge-protocol)
+#19 10.43    Compiling keyforge-security v0.9.0 (/app/libs/keyforge-security)
+#19 13.78    Compiling keyforge-adapter v0.9.0 (/app/libs/keyforge-adapter)
+#19 13.78    Compiling keyforge-physics v0.9.0 (/app/libs/keyforge-physics)
+#19 15.90    Compiling keyforge-evolution v0.9.0 (/app/libs/keyforge-evolution)
+#19 21.39    Compiling keyforge-persistence v0.9.0 (/app/libs/keyforge-persistence)
+#19 21.39    Compiling keyforge-compute v0.9.0 (/app/libs/keyforge-compute)
+#19 21.39    Compiling keyforge-assets v0.9.0 (/app/apps/keyforge-assets)
+#19 24.58    Compiling keyforge-hive v0.9.0 (/app/apps/keyforge-hive)
+#19 73.04     Finished `release` profile [optimized] target(s) in 1m 12s
+#19 DONE 73.2s
+
+#20 [stage-2 2/4] WORKDIR /app
+#20 CACHED
+
+#21 [stage-2 3/4] COPY --from=builder --chown=65532:65532 /tmp /app/data
+#21 CACHED
+
+#22 [stage-2 4/4] COPY --from=builder /app/target/release/keyforge-hive /app/keyforge-hive
+#22 DONE 0.2s
+
+#23 exporting to image
+#23 exporting layers
+#23 exporting layers 2.0s done
+#23 exporting manifest sha256:00fdb0cb65586c71713ee7dfcb935b100fed5e83be54b1188158fde5c4fd5678 0.0s done
+#23 exporting config sha256:e103416f90419aa4a86421781970f4ff9dbca042968bd980bbf9521742c50590 0.0s done
+#23 exporting attestation manifest sha256:e6ea0a22f94ffa1d7ff9860e4d6d876d49b5903f71c896ab9defad84c6d6d69b 0.1s done
+#23 exporting manifest list sha256:0e23b7b2474b80d794b3f55a297049f64a392806166bd5079a64be28261b403b
+#23 exporting manifest list sha256:0e23b7b2474b80d794b3f55a297049f64a392806166bd5079a64be28261b403b 0.0s done
+#23 naming to docker.io/library/ops-hive_test:latest done
+#23 unpacking to docker.io/library/ops-hive_test:latest
+#23 unpacking to docker.io/library/ops-hive_test:latest 0.5s done
+#23 DONE 2.7s
+
+#24 resolving provenance for metadata file
+#24 DONE 0.1s
+ Image ops-hive_test Built 
+time="2026-01-30T11:05:25-06:00" level=warning msg="Found orphan containers ([keyforge_db ops-hive_proxy-1 ops-assets_proxy-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container keyforge_hive_test Recreate 
+ Container keyforge_hive_test Recreated 
+Attaching to keyforge_db_test, keyforge_hive_test, keyforge_test_runner, keyforge_valkey_test
+ Container keyforge_valkey_test Starting 
+ Container keyforge_db_test Starting 
+ Container keyforge_db_test Started 
+ Container keyforge_valkey_test Started 
+ Container keyforge_valkey_test Waiting 
+ Container keyforge_db_test Waiting 
+ Container keyforge_valkey_test Waiting 
+ Container keyforge_db_test Waiting 
+keyforge_db_test  | 
+keyforge_db_test  | PostgreSQL Database directory appears to contain a database; Skipping initialization
+keyforge_db_test  | 
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.032 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.032 * oO0OoO0OoO0Oo Valkey is starting oO0OoO0OoO0Oo
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.032 * Valkey version=8.1.5, bits=64, commit=00000000, modified=0, pid=1, just started
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.032 * Configuration loaded
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.033 * Increased maximum number of open files to 10032 (it was originally set to 1024).
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.033 * monotonic clock: POSIX clock_gettime
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.034 * Running mode=standalone, port=6379.
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.035 * Server initialized
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:26.036 * Ready to accept connections tcp
+keyforge_db_test      | 2026-01-30 17:05:26.062 UTC [1] LOG:  starting PostgreSQL 16.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+keyforge_db_test      | 2026-01-30 17:05:26.063 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+keyforge_db_test      | 2026-01-30 17:05:26.063 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+keyforge_db_test      | 2026-01-30 17:05:26.069 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+keyforge_db_test      | 2026-01-30 17:05:26.077 UTC [29] LOG:  database system was shut down at 2026-01-30 16:30:56 UTC
+keyforge_db_test      | 2026-01-30 17:05:26.086 UTC [1] LOG:  database system is ready to accept connections
+keyforge_db_test      | 2026-01-30 17:05:28.017 UTC [39] FATAL:  database "keyforge" does not exist
+ Container keyforge_valkey_test Healthy 
+ Container keyforge_db_test Healthy 
+ Container keyforge_db_test Healthy 
+ Container keyforge_test_runner Starting 
+ Container keyforge_valkey_test Healthy 
+ Container keyforge_hive_test Starting 
+ Container keyforge_hive_test Started 
+ Container keyforge_test_runner Started 
+keyforge_hive_test    | [2m2026-01-30T17:05:28.679984Z[0m [32m INFO[0m [2mkeyforge_hive::observability[0m[2m:[0m 📝 Local Logging Enabled
+keyforge_hive_test    | [2m2026-01-30T17:05:28.680001Z[0m [32m INFO[0m [2mkeyforge_hive[0m[2m:[0m 🐝 KeyForge Hive is initializing...
+keyforge_hive_test    | [2m2026-01-30T17:05:28.680010Z[0m [32m INFO[0m [2mkeyforge_hive::infra::db[0m[2m:[0m 🔌 Connecting to PostgreSQL...
+keyforge_hive_test    | [2m2026-01-30T17:05:28.680012Z[0m [32m INFO[0m [2mkeyforge_hive::infra::db[0m[2m:[0m    Pool Config: Max Conns=100, Timeout=10s
+keyforge_test_runner  | fetch https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/APKINDEX.tar.gz
+keyforge_hive_test    | [2m2026-01-30T17:05:28.703487Z[0m [32m INFO[0m [2mkeyforge_hive::infra::db[0m[2m:[0m 🔄 Applying database migrations...
+keyforge_hive_test    | [2m2026-01-30T17:05:28.709495Z[0m [32m INFO[0m [2msqlx::postgres::notice[0m[2m:[0m relation "_sqlx_migrations" already exists, skipping
+keyforge_hive_test    | [2m2026-01-30T17:05:28.716208Z[0m [32m INFO[0m [2mkeyforge_hive::infra::db[0m[2m:[0m ✅ Database connected and migrations applied.
+keyforge_hive_test    | [2m2026-01-30T17:05:28.716266Z[0m [32m INFO[0m [2mkeyforge_hive[0m[2m:[0m 🐝 Data root: "/app/data/run"
+keyforge_hive_test    | [2m2026-01-30T17:05:28.716283Z[0m [33m WARN[0m [2mkeyforge_hive[0m[2m:[0m ⚠️ No HIVE_SERVER_KEY configured. Generating ephemeral identity.
+keyforge_hive_test    | [2m2026-01-30T17:05:28.716781Z[0m [33m WARN[0m [2mkeyforge_hive::state[0m[2m:[0m ⚠️ Failed to connect to Valkey (IO Error: Valkey connection failed: IO Error: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" }). Falling back to LocalCoordinator.
+keyforge_hive_test    | [2m2026-01-30T17:05:28.717241Z[0m [32m INFO[0m [2mkeyforge_hive::cron[0m[2m:[0m ⏰ Starting background maintenance (Interval: 60s)...
+keyforge_hive_test    | [2m2026-01-30T17:05:28.717298Z[0m [32m INFO[0m [2mkeyforge_hive[0m[2m:[0m 🚀 Embedded Asset Server listening on http://0.0.0.0:3001
+keyforge_hive_test    | [2m2026-01-30T17:05:28.717325Z[0m [32m INFO[0m [2mkeyforge_hive[0m[2m:[0m 🔒 CORS: Dev Mode (allowing localhost:5173, localhost:1420, tauri://localhost)
+keyforge_hive_test    | [2m2026-01-30T17:05:28.719115Z[0m [32m INFO[0m [2mkeyforge_hive[0m[2m:[0m 🚀 Hive listening on 0.0.0.0:3000 (HTTP Mode)
+keyforge_test_runner  | fetch https://dl-cdn.alpinelinux.org/alpine/v3.19/community/x86_64/APKINDEX.tar.gz
+keyforge_test_runner  | OK: 13 MiB in 26 packages
+keyforge_test_runner  | 🚀 Waiting for Hive to respond...
+keyforge_hive_test    | [2m2026-01-30T17:05:29.451207Z[0m [32m INFO[0m [1mrequest[0m[1m{[0m[3mmethod[0m[2m=[0mGET [3muri[0m[2m=[0m/health [3mversion[0m[2m=[0mHTTP/1.1 [3mheaders[0m[2m=[0m{"host": "hive_test:3000", "user-agent": "curl/8.14.1", "accept": "*/*", "x-request-id": "dca34b4e-3cfb-4702-8a22-82a6b865ed4a"}[1m}[0m[2m:[0m [2mtower_http::trace::on_response[0m[2m:[0m finished processing request [3mlatency[0m[2m=[0m0 ms [3mstatus[0m[2m=[0m200 [3mresponse_headers[0m[2m=[0m{"content-type": "application/json", "vary": "origin, access-control-request-method, access-control-request-headers"}
+keyforge_test_runner  | 🚀 Starting E2E System Tests...
+keyforge_test_runner  | 🌐 Using Hive URL: http://hive_test:3000
+keyforge_test_runner  | 🔍 Checking Hive Health...
+keyforge_test_runner  |   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+keyforge_test_runner  |                                  Dload  Upload   Total   Spent    Left  Speed
+keyforge_hive_test    | [2m2026-01-30T17:05:29.552771Z[0m [32m INFO[0m [1mrequest[0m[1m{[0m[3mmethod[0m[2m=[0mGET [3muri[0m[2m=[0m/health [3mversion[0m[2m=[0mHTTP/1.1 [3mheaders[0m[2m=[0m{"host": "hive_test:3000", "user-agent": "curl/8.14.1", "accept": "*/*", "x-request-id": "7cc74cdd-4fcf-4062-b234-e19a7456037a"}[1m}[0m[2m:[0m [2mtower_http::trace::on_response[0m[2m:[0m finished processing request [3mlatency[0m[2m=[0m0 ms [3mstatus[0m[2m=[0m200 [3mresponse_headers[0m[2m=[0m{"content-type": "application/json", "vary": "origin, access-control-request-method, access-control-request-headers"}
+keyforge_test_runner  |   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   114  100   114    0     0   1164      0 --:--:-- --:--:-- --:--:--  1175
+keyforge_test_runner  | {"status":"ok","version":"0.9.0","message":"Genetic Reservoir Active","db":"online","queue_depth":0,"assets":"ok"}✅ Hive is Healthy.
+keyforge_test_runner  | 📝 Testing Job Registration...
+keyforge_hive_test    | [2m2026-01-30T17:05:29.648261Z[0m [32m INFO[0m [1mrequest[0m[1m{[0m[3mmethod[0m[2m=[0mPOST [3muri[0m[2m=[0m/jobs [3mversion[0m[2m=[0mHTTP/1.1 [3mheaders[0m[2m=[0m{"host": "hive_test:3000", "user-agent": "curl/8.14.1", "accept": "*/*", "content-type": "application/json", "x-keyforge-secret": "test_secret", "content-length": "939", "x-request-id": "58a43030-95b2-43c2-97a7-1e22a8b4def4"}[1m}[0m[2m:[0m [2mtower_http::trace::on_response[0m[2m:[0m finished processing request [3mlatency[0m[2m=[0m0 ms [3mstatus[0m[2m=[0m400 [3mresponse_headers[0m[2m=[0m{"content-type": "application/json", "vary": "origin, access-control-request-method, access-control-request-headers"}
+keyforge_test_runner  | ❌ Job registration failed with status 400!
+keyforge_test_runner  | Response body: {"code":"JOB_VALIDATION_FAILED","message":"IO Error: Failed to load keyboard corne: Asset Not Found: keyboards/models/corne.mpk.zst","details":null}
+[Kkeyforge_test_runner exited with code 1
+ Compose Stopping Aborting on container exit...
+ Container keyforge_test_runner Stopping 
+ Container keyforge_hive_test Stopping 
+ Container keyforge_test_runner Stopped 
+keyforge_db_test      | 2026-01-30 17:05:30.061 UTC [47] FATAL:  database "keyforge" does not exist
+keyforge_db_test      | 2026-01-30 17:05:32.098 UTC [54] FATAL:  database "keyforge" does not exist
+keyforge_db_test      | 2026-01-30 17:05:34.138 UTC [61] FATAL:  database "keyforge" does not exist
+keyforge_db_test      | 2026-01-30 17:05:36.175 UTC [68] FATAL:  database "keyforge" does not exist
+keyforge_db_test      | 2026-01-30 17:05:38.212 UTC [75] FATAL:  database "keyforge" does not exist
+ Container keyforge_hive_test Stopped 
+ Container keyforge_db_test Stopping 
+ Container keyforge_valkey_test Stopping 
+[Kkeyforge_hive_test exited with code 137
+keyforge_db_test      | 2026-01-30 17:05:39.941 UTC [1] LOG:  received fast shutdown request
+keyforge_db_test      | 2026-01-30 17:05:39.943 UTC [1] LOG:  aborting any active transactions
+keyforge_valkey_test  | 1:signal-handler (1769792739) Received SIGTERM scheduling shutdown...
+keyforge_db_test      | 2026-01-30 17:05:39.945 UTC [1] LOG:  background worker "logical replication launcher" (PID 32) exited with exit code 1
+keyforge_db_test      | 2026-01-30 17:05:39.945 UTC [27] LOG:  shutting down
+keyforge_db_test      | 2026-01-30 17:05:39.949 UTC [27] LOG:  checkpoint starting: shutdown immediate
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:39.972 * User requested shutdown...
+keyforge_valkey_test  | 1:M 30 Jan 2026 17:05:39.972 # Valkey is now ready to exit, bye bye...
+keyforge_db_test      | 2026-01-30 17:05:39.975 UTC [27] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.006 s, sync=0.005 s, total=0.030 s; sync files=2, longest=0.004 s, average=0.003 s; distance=0 kB, estimate=0 kB; lsn=0/1A73DF0, redo lsn=0/1A73DF0
+keyforge_db_test      | 2026-01-30 17:05:39.979 UTC [1] LOG:  database system is shut down
+ Container keyforge_db_test Stopped 
+[Kkeyforge_db_test exited with code 0
+ Container keyforge_valkey_test Stopped 
+[Kkeyforge_valkey_test exited with code 0
+
+error: Recipe `test-e2e` failed on line 116 with exit code 1

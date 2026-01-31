@@ -39,8 +39,9 @@ fn main() {
             ..Default::default()
         })
         .collect();
-    let keyboard =
-        Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+    let keyboard = Arc::new(
+        Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap(),
+    );
     let mut corpus_val = Corpus::default();
     let mut char_freqs = corpus_val.char_freqs.to_vec();
     char_freqs[97] = 1; // 'a'

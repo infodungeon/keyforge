@@ -186,7 +186,8 @@ pub fn analyze_layout(
                 // Same key: No movement
             } else if ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2] {
                 // Same Hand: Euclidean Distance
-                report.distance += ctx.geometry.dist_matrix[idx1 * key_count + idx2].to_f32() * freq_f;
+                report.distance +=
+                    ctx.geometry.dist_matrix[idx1 * key_count + idx2].to_f32() * freq_f;
 
                 // SFB Check (Specific to same-finger move)
                 if ctx.geometry.fingers[idx1] == ctx.geometry.fingers[idx2] {
@@ -504,7 +505,12 @@ mod tests {
         );
 
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
-        let layout_keys = vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99), KeyCode::new(100)];
+        let layout_keys = vec![
+            KeyCode::new(97),
+            KeyCode::new(98),
+            KeyCode::new(99),
+            KeyCode::new(100),
+        ];
         let validated = ValidatedLayout::new(&layout_keys, kb.count()).unwrap();
 
         let report = analyze_layout(&ctx, &validated);

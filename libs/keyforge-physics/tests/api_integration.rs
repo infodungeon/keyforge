@@ -52,7 +52,8 @@ mod integration_tests {
         char_freqs[97] = 100;
         corpus_val.char_freqs = Arc::from(char_freqs);
         let corpus = Arc::new(corpus_val);
-        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
+        let layout =
+            Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
 
         let req = EngineRequest {
             keyboard: kb,

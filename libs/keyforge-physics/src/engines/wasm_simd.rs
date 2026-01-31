@@ -56,7 +56,8 @@ impl ScoringEngine for WasmSimdScoringEngine {
         {
             // SAFETY: We have verified that the target architecture is wasm32, which supports WASM SIMD.
             unsafe {
-                return score_layout_wasm(&self.ctx, &validated, scratch).map(Score::from_scaled_i64);
+                return score_layout_wasm(&self.ctx, &validated, scratch)
+                    .map(Score::from_scaled_i64);
             }
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -504,7 +505,8 @@ mod tests {
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
         let engine = WasmSimdScoringEngine::new(ctx.clone(), None);
 
-        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
+        let layout =
+            Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
 
         let score_res = engine.score(&layout).unwrap();
 
@@ -517,7 +519,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            score_res.raw(), scalar_score,
+            score_res.raw(),
+            scalar_score,
             "WASM and Scalar scores must match exactly"
         );
     }

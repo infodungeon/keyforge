@@ -93,7 +93,9 @@ impl HermeticWorkspace {
     /// Returns `anyhow::Result` if serialization of default assets fails or IO error occurs.
     #[allow(clippy::too_many_lines)]
     pub async fn with_default_assets(self) -> anyhow::Result<Self> {
-        use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit};
+        use keyforge_model::types::{
+            ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit,
+        };
         use keyforge_model::{
             cost_model::{CostModel, FingerDefinition, HandDefinition, ModelDefinition, RowCosts},
             geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta},
@@ -422,11 +424,10 @@ mod tests {
         assert!(ws.keycodes_path().exists());
 
         // Check corpus dir
-        assert!(
-            ws.root
-                .join("user/corpora/test_corpus/1grams.json")
-                .exists()
-        );
+        assert!(ws
+            .root
+            .join("user/corpora/test_corpus/1grams.json")
+            .exists());
 
         // Check en_small
         assert!(ws.root.join("en_small.json").exists());

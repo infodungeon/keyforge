@@ -26,6 +26,8 @@ pub mod builder;
 pub mod hardware;
 /// High-level session management for optimization runs.
 pub mod session;
+/// Unified Use Case implementations.
+pub mod use_cases;
 
 pub use builder::SessionBuilder;
 pub use keyforge_adapter::loader::InMemoryLoader;

@@ -56,7 +56,8 @@ impl ScoringEngine for Avx512ScoringEngine {
             // SAFETY: We have explicitly verified the presence of AVX-512 foundation (F),
             // Doubleword/Quadword (DQ), and Byte/Word (BW) extensions via cpuid before execution.
             unsafe {
-                return score_layout_avx512(&self.ctx, &validated, scratch, &self.config).map(Score::from_scaled_i64);
+                return score_layout_avx512(&self.ctx, &validated, scratch, &self.config)
+                    .map(Score::from_scaled_i64);
             }
         }
         score_layout_scalar(&self.ctx, &validated, scratch).map(Score::from_scaled_i64)
@@ -203,16 +204,15 @@ unsafe fn score_monograms_avx512(
         let cost = ctx.engine.geometry.key_costs[p.as_usize()];
         #[allow(clippy::cast_possible_wrap)]
         let f_i64 = freq as i64;
-        total_score =
-            total_score
-                .checked_add(cost.raw().checked_mul(f_i64).ok_or_else(|| {
-                    PhysicsError::ScoreOverflow {
-                        context: "AVX-512 Mono".into(),
-                    }
-                })?)
-                .ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: "AVX-512 Mono Acc".into(),
-                })?;
+        total_score = total_score
+            .checked_add(cost.raw().checked_mul(f_i64).ok_or_else(|| {
+                PhysicsError::ScoreOverflow {
+                    context: "AVX-512 Mono".into(),
+                }
+            })?)
+            .ok_or_else(|| PhysicsError::ScoreOverflow {
+                context: "AVX-512 Mono Acc".into(),
+            })?;
     }
     Ok(total_score)
 }
@@ -474,7 +474,8 @@ mod tests {
             &keyforge_model::testing::mock_cost_model(),
         )?;
         let engine = Avx512ScoringEngine::new(ctx.clone(), None);
-        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
+        let layout =
+            Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         assert_eq!(
             engine.score(&layout)?.raw(),
             score_layout_scalar(

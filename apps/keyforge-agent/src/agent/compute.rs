@@ -41,7 +41,7 @@ impl AssetSyncer for AssetManager {
             .await
             .map_err(|e: keyforge_infra::error::InfraError| anyhow::anyhow!(e))?;
 
-        # [allow(clippy::match_wildcard_for_single_variants)]
+        #[allow(clippy::match_wildcard_for_single_variants)]
         // Extract cost matrix name and primary corpus
         let cost_name = match &config.cost_matrix {
             CostMatrixSourceDto::Predefined(s) => s.clone(),

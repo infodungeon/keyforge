@@ -52,9 +52,7 @@ impl From<keyforge_model::error::ForgeError> for WasmError {
             ForgeError::Evolution(s) => ("EVOLUTION_ERROR", s.clone()),
             ForgeError::Persistence(s) => ("PERSISTENCE_ERROR", s.clone()),
             ForgeError::Validation(s) => ("VALIDATION_ERROR", s.clone()),
-            ForgeError::Serialization(s) => {
-                ("SERIALIZATION_ERROR", s.clone())
-            }
+            ForgeError::Serialization(s) => ("SERIALIZATION_ERROR", s.clone()),
             ForgeError::NotFound(s) => ("NOT_FOUND", s.clone()),
             ForgeError::Internal(s) => ("INTERNAL_ERROR", s.clone()),
             ForgeError::InvalidData(s) => ("INVALID_DATA", s.clone()),

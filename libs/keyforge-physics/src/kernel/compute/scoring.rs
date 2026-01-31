@@ -119,7 +119,9 @@ pub fn score_bigrams(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsError>
                     let idx = p1.as_usize() * ctx.engine.key_count + p2.as_usize();
                     let mut cost = ctx.engine.geometry.cost_matrix[idx];
 
-                    if let Some(&mod_val) = ctx.engine.sequence_modifiers.get(&(code1.raw(), c2.raw())) {
+                    if let Some(&mod_val) =
+                        ctx.engine.sequence_modifiers.get(&(code1.raw(), c2.raw()))
+                    {
                         cost = cost.checked_add(mod_val).ok_or_else(|| {
                             PhysicsError::ScoreOverflow {
                                 context: format!("Bigram modifier for ({}, {})", code1, c2.raw()),

@@ -72,10 +72,7 @@ impl Keyboard {
                     .iter()
                     .any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
                 if has_keys && origin.x.raw() == 0 && origin.y.raw() == 0 {
-                    let key_at_zero = kb
-                        .keys
-                        .iter()
-                        .any(|k| k.x.raw() == 0 && k.y.raw() == 0);
+                    let key_at_zero = kb.keys.iter().any(|k| k.x.raw() == 0 && k.y.raw() == 0);
                     if !key_at_zero {
                         return Err(ForgeError::InvalidData(format!(
                             "Finger origin calculation failed for hand {h_idx}, finger {f_idx}"

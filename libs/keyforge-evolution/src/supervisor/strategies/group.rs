@@ -47,7 +47,10 @@ impl MutationOperator for GroupMutation {
 
             return Ok(Some(MutationProposal {
                 delta,
-                action: MutationAction::Swap(KeyIndex::new(idx_a as u16), KeyIndex::new(idx_b as u16)),
+                action: MutationAction::Swap(
+                    KeyIndex::new(idx_a as u16),
+                    KeyIndex::new(idx_b as u16),
+                ),
             }));
         }
 
@@ -103,7 +106,11 @@ impl MutationOperator for GroupMutation {
 
         Ok(Some(MutationProposal {
             delta: d1 + delta,
-            action: MutationAction::GroupSwap(KeyIndex::new(idx_a as u16), KeyIndex::new(idx_b as u16), KeyIndex::new(idx_c as u16)),
+            action: MutationAction::GroupSwap(
+                KeyIndex::new(idx_a as u16),
+                KeyIndex::new(idx_b as u16),
+                KeyIndex::new(idx_c as u16),
+            ),
         }))
     }
 }
@@ -112,7 +119,9 @@ impl MutationOperator for GroupMutation {
 mod tests {
     use super::*;
     use crate::supervisor::state::SearchState;
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit, Temperature};
+    use keyforge_model::types::{
+        ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit, Temperature,
+    };
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
     use proptest::prelude::*;
@@ -158,9 +167,7 @@ mod tests {
                 ..Default::default()
             })
             .collect();
-        let kb = Arc::new(
-            Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap(),
-        );
+        let kb = Arc::new(Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap());
         let mut corpus_val = Corpus::default();
         let mut char_freqs = corpus_val.char_freqs.to_vec();
         let mut bigrams = Vec::new();

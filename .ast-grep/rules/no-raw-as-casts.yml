@@ -1,0 +1,15 @@
+id: no-raw-as-casts
+message: "Precision Leakage: Avoid raw 'as' casts in physics kernels. Use deterministic conversion traits or f32::from/f64::from instead."
+severity: error
+language: rust
+rule:
+  any:
+    - pattern: "$X as i64"
+    - pattern: "$X as f32"
+    - pattern: "$X as f64"
+paths:
+  include:
+    - "libs/keyforge-physics/src/**/*.rs"
+  exclude:
+    - "**/tests.rs"
+    - "**/tests/**"

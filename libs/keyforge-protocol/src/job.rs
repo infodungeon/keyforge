@@ -207,7 +207,7 @@ impl JobConfig {
                 .iter()
                 .map(|&i| i.into())
                 .collect(),
-            home_row: keyforge_model::types::RowIndex(self.definition.geometry.home_row),
+            home_row: keyforge_model::types::RowIndex::new(self.definition.geometry.home_row),
         }
     }
 

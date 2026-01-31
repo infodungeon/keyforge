@@ -1,0 +1,14 @@
+id: no-newtype-internal-access
+message: "Encapsulation Bypass: Avoid direct access to newtype internal fields (.0). Use semantic methods like .raw() or .as_usize() instead."
+severity: error
+language: rust
+rule:
+  any:
+    - pattern: "$X.0"
+    - pattern: "$X.1"
+paths:
+  exclude:
+    - "**/tests.rs"
+    - "**/tests/**"
+    - "libs/keyforge-model/src/types/*.rs"
+    - "libs/keyforge-protocol/src/types.rs"

@@ -45,8 +45,9 @@ impl ProgressReporter {
         total_steps: IterationCount,
         start_time: Instant,
     ) -> Self {
-        let report_interval =
-            IterationCount::new((total_steps.raw() / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL));
+        let report_interval = IterationCount::new(
+            (total_steps.raw() / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL),
+        );
 
         Self {
             tx,
@@ -328,7 +329,9 @@ mod tests {
     };
     use crate::supervisor::AnnealingConfig;
     use crate::{OptimizationControl, ProgressCallback};
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, SpatialUnit};
+    use keyforge_model::types::{
+        ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, SpatialUnit,
+    };
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
     use rand::Rng;
@@ -437,7 +440,8 @@ mod tests {
             .collect();
         let kb = {
             Arc::new(
-                Keyboard::new(keys, RowIndex::new(1), "test".into()).expect("Failed to create keyboard"),
+                Keyboard::new(keys, RowIndex::new(1), "test".into())
+                    .expect("Failed to create keyboard"),
             )
         };
         let mut corpus_val = Corpus::default();

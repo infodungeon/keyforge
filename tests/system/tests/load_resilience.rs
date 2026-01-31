@@ -1,9 +1,9 @@
 use keyforge_infra::net::client::{ClientConfig, HiveClient};
-use keyforge_protocol::{JobRequest, ResultSubmission, NodeRequest, JobResponse, PROTOCOL_VERSION};
-use keyforge_security as crypto;
-use keyforge_physics::{EngineCompilationContext, EngineFactory};
-use keyforge_model::{Corpus, Keyboard, Rubric, KeycodeRegistry, Layout};
 use keyforge_model::types::KeyCode;
+use keyforge_model::{Corpus, Keyboard, KeycodeRegistry, Layout, Rubric};
+use keyforge_physics::{EngineCompilationContext, EngineFactory};
+use keyforge_protocol::{JobRequest, JobResponse, NodeRequest, ResultSubmission, PROTOCOL_VERSION};
+use keyforge_security as crypto;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::task::JoinSet;
@@ -29,18 +29,23 @@ async fn test_load_resilience() -> anyhow::Result<()> {
     // We'll use a minimal setup to match what Hive produces for a default JobRequest
     let registry = Arc::new(KeycodeRegistry::new_with_alphas());
     let kb_def = keyforge_model::geometry::KeyboardDefinition::default(); // Should match Hive default if we don't change name
-    // Actually, I changed name to "corne" in previous turn.
-    // Let's use standard assets from data/system
-    
+                                                                          // Actually, I changed name to "corne" in previous turn.
+                                                                          // Let's use standard assets from data/system
+
     let kb_data = std::fs::read("../../data/system/keyboards/models/corne.mpk.zst")?;
-    let kb_def: keyforge_model::geometry::KeyboardDefinition = rmp_serde::from_slice(&zstd::decode_all(&kb_data[..])?)?;
-    let kb = Keyboard::new(kb_def.geometry.keys, kb_def.geometry.home_row, "corne".into())?;
+    let kb_def: keyforge_model::geometry::KeyboardDefinition =
+        rmp_serde::from_slice(&zstd::decode_all(&kb_data[..])?)?;
+    let kb = Keyboard::new(
+        kb_def.geometry.keys,
+        kb_def.geometry.home_row,
+        "corne".into(),
+    )?;
     let kb = Arc::new(kb);
-    
+
     let corpus = Arc::new(Corpus::default()); // en_small empty by default but matches Hive if not seeded
     let rubric = Arc::new(Rubric::default());
     let cost_model = Arc::new(keyforge_model::testing::mock_cost_model());
-    
+
     let ctx = EngineCompilationContext {
         keyboard: kb.clone(),
         corpus: corpus.clone(),
@@ -49,12 +54,15 @@ async fn test_load_resilience() -> anyhow::Result<()> {
         engine_config: keyforge_model::config::EngineConfig::default(),
     };
     let engine = Arc::new(EngineFactory::new_scalar(&ctx)?);
-    println!("⚙️ Local Verification Engine Compiled ({} keys)", engine.key_count());
+    println!(
+        "⚙️ Local Verification Engine Compiled ({} keys)",
+        engine.key_count()
+    );
 
     // 3. Register Job
     let mut job_req = JobRequest::default();
     job_req.config.definition.meta.name = "corne".into();
-    
+
     let resp = client.post("jobs").json(&job_req).send().await?;
     if !resp.status().is_success() {
         let status = resp.status();
@@ -75,11 +83,11 @@ async fn test_load_resilience() -> anyhow::Result<()> {
         let eng = engine.clone();
         let reg = registry.clone();
         let run_id = fastrand::u32(..);
-        
+
         set.spawn(async move {
             let node_id = format!("load-worker-{}-{:x}", i, run_id);
             let (sk, pk) = crypto::generate_keypair();
-            
+
             // Register Node
             let reg_req = NodeRequest {
                 version: PROTOCOL_VERSION,
@@ -93,31 +101,41 @@ async fn test_load_resilience() -> anyhow::Result<()> {
                 ops_per_sec: 1000.0,
                 public_key: Some(pk),
             };
-            
-            let reg_resp = c.post("nodes/register").json(&reg_req).send().await.unwrap();
+
+            let reg_resp = c
+                .post("nodes/register")
+                .json(&reg_req)
+                .send()
+                .await
+                .unwrap();
             if !reg_resp.status().is_success() {
                 let status = reg_resp.status();
                 let txt = reg_resp.text().await.unwrap();
                 panic!("Node registration failed ({}): {}", status, txt);
             }
-            
+
             // Generate valid layout for this keyboard
             let code_a = reg.resolve_token("A").unwrap();
             let key_codes: Vec<KeyCode> = vec![code_a; eng.key_count()];
             let layout_struct = Layout::new_unchecked(key_codes);
             let layout_str = vec!["A"; eng.key_count()].join(" ");
-            
+
             // Calculate real score
             let score_obj = eng.score(&layout_struct).unwrap();
             let raw_score = score_obj.raw();
             let score_f32 = score_obj.to_f32();
 
             for k in 0..RESULTS_PER_WORKER {
-                let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
                 let nonce = (i * 10000 + k) as u64;
-                
-                let sig = crypto::sign_result_fixed(&sk, &jid, &layout_str, raw_score, timestamp, nonce).unwrap();
-                
+
+                let sig =
+                    crypto::sign_result_fixed(&sk, &jid, &layout_str, raw_score, timestamp, nonce)
+                        .unwrap();
+
                 let sub = ResultSubmission {
                     version: PROTOCOL_VERSION,
                     job_id: jid.clone(),
@@ -129,7 +147,7 @@ async fn test_load_resilience() -> anyhow::Result<()> {
                     node_id: node_id.clone(),
                     signature: sig,
                 };
-                
+
                 let resp = c.post("results").json(&sub).send().await.unwrap();
                 if !resp.status().is_success() {
                     let status = resp.status();
@@ -146,16 +164,26 @@ async fn test_load_resilience() -> anyhow::Result<()> {
 
     let elapsed = start.elapsed();
     let total_reqs = CONCURRENT_WORKERS * RESULTS_PER_WORKER;
-    println!("✅ Load Test Complete. {} signed reqs in {:.2?}", total_reqs, elapsed);
-    
+    println!(
+        "✅ Load Test Complete. {} signed reqs in {:.2?}",
+        total_reqs, elapsed
+    );
+
     // 5. Verify results reach Hive
     tokio::time::sleep(Duration::from_millis(1000)).await;
-    
+
     let status_url = format!("jobs/{}/status", job_id);
-    let status_resp: keyforge_protocol::JobDetailedStatus = client.get(&status_url).send().await?.json().await?;
-    
-    println!("📊 Hive Final Status: Total Samples = {}", status_resp.total_samples);
-    assert!(status_resp.total_samples > 0, "No samples reached the database!");
-    
+    let status_resp: keyforge_protocol::JobDetailedStatus =
+        client.get(&status_url).send().await?.json().await?;
+
+    println!(
+        "📊 Hive Final Status: Total Samples = {}",
+        status_resp.total_samples
+    );
+    assert!(
+        status_resp.total_samples > 0,
+        "No samples reached the database!"
+    );
+
     Ok(())
 }

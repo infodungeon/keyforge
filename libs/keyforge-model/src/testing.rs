@@ -10,11 +10,11 @@
     )
 )]
 
+use crate::types::SpatialUnit;
 use crate::{
     ColIndex, Corpus, CostModel, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex,
     Rubric,
 };
-use crate::types::SpatialUnit;
 use proptest::arbitrary::Arbitrary;
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;

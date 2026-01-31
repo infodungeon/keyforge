@@ -1,7 +1,7 @@
 use crate::kernel::compute::PosMap;
+use crate::kernel::mechanics::calculate_flow_cost;
 use crate::kernel::types::{KeyCode, KeyIndex, ValidatedLayout};
 use crate::kernel::EngineContext;
-use crate::kernel::mechanics::calculate_flow_cost;
 
 /// Calculates the change in score when two keys are swapped, considering trigrams.
 #[allow(clippy::too_many_lines)]

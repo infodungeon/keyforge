@@ -84,7 +84,9 @@ impl AssetLoader for FsProvider {
         let full_path = self.root.join(&final_id);
         let mut data = if full_path.exists() {
             std::fs::read(&full_path).map_err(|e| {
-                keyforge_model::error::ForgeError::Io(format!("Failed to load asset {final_id}: {e}"))
+                keyforge_model::error::ForgeError::Io(format!(
+                    "Failed to load asset {final_id}: {e}"
+                ))
             })?
         } else if category == AssetCategory::CostModel {
             // Try .mpk.zst if .json is missing for CostModel
@@ -99,18 +101,23 @@ impl AssetLoader for FsProvider {
 
         // Handle compressed assets
         if final_id.ends_with(".zst") || final_id.ends_with(".mpk.zst") {
-            data = zstd::decode_all(std::io::Cursor::new(data))
-                .map_err(|e| keyforge_model::error::ForgeError::Io(format!("Failed to decompress {final_id}: {e}")))?;
+            data = zstd::decode_all(std::io::Cursor::new(data)).map_err(|e| {
+                keyforge_model::error::ForgeError::Io(format!(
+                    "Failed to decompress {final_id}: {e}"
+                ))
+            })?;
         }
 
         if final_id.ends_with(".json") {
-            serde_json::from_slice(&data)
-                .map(Arc::new)
-                .map_err(|e| keyforge_model::error::ForgeError::Serde(format!("Failed to parse {final_id}: {e}")))
+            serde_json::from_slice(&data).map(Arc::new).map_err(|e| {
+                keyforge_model::error::ForgeError::Serde(format!("Failed to parse {final_id}: {e}"))
+            })
         } else {
-            rmp_serde::from_slice(&data)
-                .map(Arc::new)
-                .map_err(|e| keyforge_model::error::ForgeError::InvalidData(format!("Failed to parse {final_id}: {e}")))
+            rmp_serde::from_slice(&data).map(Arc::new).map_err(|e| {
+                keyforge_model::error::ForgeError::InvalidData(format!(
+                    "Failed to parse {final_id}: {e}"
+                ))
+            })
         }
     }
 

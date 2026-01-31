@@ -45,7 +45,9 @@ impl ScoringEngine for GenericScoringEngine {
         scratch: &mut PhysicsScratch,
     ) -> Result<Score, PhysicsError> {
         let validated = ValidatedLayout::new(layout.keys(), self.ctx.key_count)?;
-        Ok(Score::from_scaled_i64(score_layout(&self.ctx, &validated, scratch)?))
+        Ok(Score::from_scaled_i64(score_layout(
+            &self.ctx, &validated, scratch,
+        )?))
     }
 
     fn score_detailed(&self, layout: &Layout) -> Result<(i64, i64, i64), PhysicsError> {

@@ -7,6 +7,14 @@ use keyforge_physics::EngineConfig;
 use raw_cpuid::{CacheType, CpuId};
 use std::env;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CpuCapabilities {
+    pub has_avx2: bool,
+    pub has_avx512: bool,
+    pub has_neon: bool,
+    pub has_sve: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct CpuTopology {
     pub vendor: String,
@@ -15,6 +23,7 @@ pub struct CpuTopology {
     pub l1d_size_bytes: usize,
     pub l2_size_bytes: usize,
     pub l3_size_bytes: usize,
+    pub capabilities: CpuCapabilities,
 }
 
 impl From<CpuTopology> for EngineConfig {
@@ -37,6 +46,7 @@ impl Default for CpuTopology {
             l1d_size_bytes: 32 * 1024,      // 32 KiB Safe default
             l2_size_bytes: 256 * 1024,      // 256 KiB
             l3_size_bytes: 8 * 1024 * 1024, // 8 MiB
+            capabilities: CpuCapabilities::default(),
         }
     }
 }
@@ -84,16 +94,26 @@ impl HardwareProbe {
                     }
                 }
             }
+
+            if let Some(finfo) = cpuid.get_feature_info() {
+                topology.capabilities.has_avx2 = finfo.has_avx(); // Close enough for base AVX2 check in many libs
+            }
+            if let Some(ext) = cpuid.get_extended_feature_info() {
+                topology.capabilities.has_avx2 = ext.has_avx2();
+                topology.capabilities.has_avx512 = ext.has_avx512f();
+            }
         }
 
         #[cfg(target_arch = "aarch64")]
         {
             topology.vendor = "ARM".to_string();
+            topology.capabilities.has_neon = true; // Always on aarch64
 
             #[cfg(target_os = "macos")]
             {
                 if let Some(topo) = detect_macos_arm_topology() {
                     topology = topo;
+                    topology.capabilities.has_neon = true;
                 }
             }
 
@@ -101,6 +121,7 @@ impl HardwareProbe {
             {
                 if let Some(topo) = detect_windows_arm_topology() {
                     topology = topo;
+                    topology.capabilities.has_neon = true;
                 }
             }
         }

@@ -18,8 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             k.y.to_f32(),
             k.hand.as_u8(),
             k.finger.as_u8(),
-            k.row.0,
-            k.col.0,
+            k.row.raw(),
+            k.col.raw(),
             k.is_home,
             k.label
         );

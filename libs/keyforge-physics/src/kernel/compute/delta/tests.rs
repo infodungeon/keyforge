@@ -1,15 +1,15 @@
 // libs/keyforge-physics/src/kernel/compute/delta/tests.rs
 
 use super::*;
+use crate::engines::generic::GenericScoringEngine;
+use crate::engines::ScoringEngine;
 use crate::kernel::compiler::Compiler;
 use crate::kernel::compute::{PhysicsScratch, PosMap};
-use crate::kernel::types::{ValidatedLayout};
-use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, KeyIndex};
+use crate::kernel::types::ValidatedLayout;
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
 use proptest::prelude::*;
 use std::sync::Arc;
-use crate::engines::generic::GenericScoringEngine;
-use crate::engines::ScoringEngine;
 
 fn setup_test_ctx(keys: Vec<KeyNode>, bigrams: Vec<(u16, u16, u32)>) -> EngineContext {
     let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();

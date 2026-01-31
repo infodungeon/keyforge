@@ -88,7 +88,17 @@ impl FixedPointMath for SpatialUnit {
 }
 
 /// A 2D point in deterministic spatial units.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+)]
 pub struct Point {
     /// X coordinate.
     pub x: SpatialUnit,

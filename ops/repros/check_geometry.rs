@@ -29,8 +29,8 @@ fn main() {
             key.label,
             key.finger,
             key.hand,
-            key.row.0,
-            key.col.0,
+            key.row.raw(),
+            key.col.raw(),
             key.is_home,
             key.x.to_f32(),
             key.y.to_f32()

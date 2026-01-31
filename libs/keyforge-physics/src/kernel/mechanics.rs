@@ -283,10 +283,7 @@ mod tests {
         let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1)).unwrap();
         // Use a direct calculation for the assertion instead of reaching into verify.rs
         let expected_min = (rubric.sfb_base() * 1_000_000.0) as i64;
-        assert!(
-            cost >= expected_min,
-            "SFB should be penalized"
-        );
+        assert!(cost >= expected_min, "SFB should be penalized");
     }
 
     #[test]

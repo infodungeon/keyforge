@@ -214,7 +214,8 @@ impl VerificationService {
             if calculated_score.raw() != sub.raw_score {
                 warn!(
                     "❌ Bit-perfect Mismatch: Claimed {} vs Calc {}",
-                    sub.raw_score, calculated_score.raw()
+                    sub.raw_score,
+                    calculated_score.raw()
                 );
                 return Err(AppError::Validation(
                     "Bit-perfect score verification failed".into(),

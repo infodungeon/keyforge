@@ -4474,6 +4474,7 @@ name = "keyforge-system-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "fastrand",
  "keyforge-adapter",
  "keyforge-compute",
  "keyforge-evolution",
@@ -4482,10 +4483,14 @@ dependencies = [
  "keyforge-persistence",
  "keyforge-physics",
  "keyforge-protocol",
+ "keyforge-security",
  "keyforge-testing",
  "keyforge-testing-macros",
+ "postcard",
+ "rmp-serde",
  "serde_json",
  "tokio",
+ "zstd",
 ]
 
 [[package]]

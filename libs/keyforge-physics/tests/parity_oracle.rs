@@ -1,8 +1,8 @@
 // libs/keyforge-physics/tests/parity_oracle.rs
 
-use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
+use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, RowIndex};
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, Score};
-use keyforge_model::types::{RowIndex, HandIndex, FingerIndex, KeyCode};
+use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
 use std::sync::Arc;
 
 fn setup_test_keyboard() -> Arc<Keyboard> {
@@ -26,19 +26,19 @@ fn setup_test_corpus() -> Arc<Corpus> {
         freqs[i] = (i * 10) as u64;
     }
     corpus.char_freqs = Arc::from(freqs);
-    
+
     let mut bigrams = Vec::new();
     for i in 33..62 {
         bigrams.push((i as u16, (i + 1) as u16, 100));
     }
     corpus.bigrams = Arc::from(bigrams);
-    
+
     let mut trigrams = Vec::new();
     for i in 33..61 {
         trigrams.push((i as u16, (i + 1) as u16, (i + 2) as u16, 50));
     }
     corpus.trigrams = Arc::from(trigrams);
-    
+
     Arc::new(corpus)
 }
 
@@ -49,7 +49,7 @@ fn test_parity_oracle() {
     let corpus = setup_test_corpus();
     let rubric = Arc::new(Rubric::default());
     let cost_model = Arc::new(keyforge_model::testing::mock_cost_model());
-    
+
     let ctx = EngineCompilationContext {
         keyboard: kb.clone(),
         corpus: corpus.clone(),
@@ -60,10 +60,10 @@ fn test_parity_oracle() {
 
     // 1. Compile all available engines
     let mut engines: Vec<Box<dyn ScoringEngine>> = Vec::new();
-    
+
     // Always include Scalar
     engines.push(EngineFactory::new_scalar(&ctx).expect("Failed to create Scalar engine"));
-    
+
     // Include Exact (Oracle)
     engines.push(EngineFactory::new_exact(&ctx).expect("Failed to create Exact engine"));
 
@@ -71,18 +71,26 @@ fn test_parity_oracle() {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         if is_x86_feature_detected!("avx2") {
-            engines.push(EngineFactory::new_intel_comet_lake(&ctx, None).expect("Failed to create AVX2 engine"));
+            engines.push(
+                EngineFactory::new_intel_comet_lake(&ctx, None)
+                    .expect("Failed to create AVX2 engine"),
+            );
         }
         if is_x86_feature_detected!("avx512f") {
-            engines.push(EngineFactory::new_intel_avx512(&ctx, None).expect("Failed to create AVX-512 engine"));
+            engines.push(
+                EngineFactory::new_intel_avx512(&ctx, None)
+                    .expect("Failed to create AVX-512 engine"),
+            );
         }
     }
 
     #[cfg(target_arch = "aarch64")]
     {
-        engines.push(EngineFactory::new_arm_neon(&ctx, None).expect("Failed to create NEON engine"));
+        engines
+            .push(EngineFactory::new_arm_neon(&ctx, None).expect("Failed to create NEON engine"));
         if std::arch::is_aarch64_feature_detected!("sve") {
-            engines.push(EngineFactory::new_arm_sve(&ctx, None).expect("Failed to create SVE engine"));
+            engines
+                .push(EngineFactory::new_arm_sve(&ctx, None).expect("Failed to create SVE engine"));
         }
     }
 
@@ -95,10 +103,10 @@ fn test_parity_oracle() {
     for i in 0..10 {
         fastrand::seed(i as u64);
         fastrand::shuffle(&mut chars);
-        
+
         let keys: Vec<KeyCode> = chars.iter().map(|&c| KeyCode::new(c)).collect();
         let layout = Layout::new_unchecked(keys);
-        
+
         let mut first_score: Option<Score> = None;
         let mut first_engine_name = "";
 
@@ -110,7 +118,11 @@ fn test_parity_oracle() {
                     score.raw(),
                     expected.raw(),
                     "Parity mismatch at iteration {} between {} and {}! Score: {} vs {}",
-                    i, first_engine_name, engine.name(), score.raw(), expected.raw()
+                    i,
+                    first_engine_name,
+                    engine.name(),
+                    score.raw(),
+                    expected.raw()
                 );
             } else {
                 first_score = Some(score);
@@ -118,6 +130,6 @@ fn test_parity_oracle() {
             }
         }
     }
-    
+
     println!("✅ Parity Oracle Verification Passed.");
 }

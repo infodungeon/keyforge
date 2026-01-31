@@ -50,12 +50,14 @@ impl GhostHillClimber {
             let mut next_layout = current_layout.clone();
             next_layout
                 .swap(
-                    KeyIndex::new(u16::try_from(a).map_err(|_| {
-                        EvolutionError::Internal("Key index overflow".into())
-                    })?),
-                    KeyIndex::new(u16::try_from(b).map_err(|_| {
-                        EvolutionError::Internal("Key index overflow".into())
-                    })?),
+                    KeyIndex::new(
+                        u16::try_from(a)
+                            .map_err(|_| EvolutionError::Internal("Key index overflow".into()))?,
+                    ),
+                    KeyIndex::new(
+                        u16::try_from(b)
+                            .map_err(|_| EvolutionError::Internal("Key index overflow".into()))?,
+                    ),
                 )
                 .map_err(|e| EvolutionError::Internal(e.to_string()))?;
 

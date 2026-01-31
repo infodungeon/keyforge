@@ -56,7 +56,8 @@ impl ScoringEngine for ArmNeonScoringEngine {
         {
             // SAFETY: We have verified that the target architecture is aarch64, which supports NEON instructions.
             unsafe {
-                return score_layout_neon(&self.ctx, &validated, scratch).map(Score::from_scaled_i64);
+                return score_layout_neon(&self.ctx, &validated, scratch)
+                    .map(Score::from_scaled_i64);
             }
         }
         #[cfg(not(target_arch = "aarch64"))]
@@ -329,8 +330,8 @@ unsafe fn score_trigrams_neon(
     let key_count = ctx.engine.key_count;
     let mut pos_types = [0u8; 256];
     for i in 0..key_count {
-        let h = ctx.engine.geometry.hands[i].index() as u8;
-        let f = ctx.engine.geometry.fingers[i].index() as u8;
+        let h = ctx.engine.geometry.hands[i].as_usize() as u8;
+        let f = ctx.engine.geometry.fingers[i].as_usize() as u8;
         pos_types[i] = h * 5 + f;
     }
 
@@ -520,7 +521,8 @@ mod tests {
         let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
         let engine = ArmNeonScoringEngine::new(ctx.clone(), None);
 
-        let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
+        let layout =
+            Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
 
         let score_res = engine.score(&layout).unwrap();
 
@@ -533,7 +535,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            score_res.raw(), scalar_score,
+            score_res.raw(),
+            scalar_score,
             "NEON and Scalar scores must match exactly"
         );
     }

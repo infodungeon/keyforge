@@ -103,7 +103,7 @@ pub enum Direction {
 }
 
 /// Identifier for a hand (Left=0, Right=1).
-/// 
+///
 /// [DEPRECATED] Use `Hand` enum instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(transparent)]
@@ -165,7 +165,7 @@ impl TryFrom<u8> for HandIndex {
 }
 
 /// Identifier for a finger (Thumb=0 to Pinky=4).
-/// 
+///
 /// [DEPRECATED] Use `Finger` enum instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(transparent)]

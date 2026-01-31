@@ -180,7 +180,7 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
     }
     let keyboard = Arc::new(Keyboard::new(
         keys,
-        keyforge_model::types::RowIndex(0),
+        keyforge_model::types::RowIndex::new(0),
         "test".into(),
     )?);
     run_benchmark(&keyboard, config)

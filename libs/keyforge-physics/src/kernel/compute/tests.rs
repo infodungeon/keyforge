@@ -1,14 +1,14 @@
 // libs/keyforge-physics/src/kernel/compute/tests.rs
 
 use super::*;
+use crate::engines::ScoringEngine;
 use crate::kernel::compiler::Compiler;
 use crate::kernel::compute::state::PhysicsScratch;
 use crate::kernel::types::{KeyCode, KeyIndex, RowIndex, Score};
+use crate::PhysicsError;
 use keyforge_model::testing::mock_cost_model;
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
 use std::sync::Arc;
-use crate::PhysicsError;
-use crate::engines::ScoringEngine;
 
 fn setup_kb_robust() -> Keyboard {
     let keys: Vec<KeyNode> = (0..5)
@@ -134,7 +134,8 @@ mod tests {
             &Corpus::default(),
             &Rubric::default(),
             &mock_cost_model(),
-        ).unwrap();
+        )
+        .unwrap();
 
         // 1. Mono overflow
         {
@@ -147,7 +148,10 @@ mod tests {
 
             let engine = crate::engines::generic::GenericScoringEngine::new(ctx.clone());
             let layout = Layout::new_unchecked(vec![KeyCode::new(97); 5]);
-            assert!(matches!(engine.score(&layout), Err(PhysicsError::ScoreOverflow { .. })));
+            assert!(matches!(
+                engine.score(&layout),
+                Err(PhysicsError::ScoreOverflow { .. })
+            ));
         }
 
         // 2. Bigram overflow
@@ -167,7 +171,10 @@ mod tests {
                 KeyCode::new(100),
                 KeyCode::new(101),
             ]);
-            assert!(matches!(engine.score(&layout), Err(PhysicsError::ScoreOverflow { .. })));
+            assert!(matches!(
+                engine.score(&layout),
+                Err(PhysicsError::ScoreOverflow { .. })
+            ));
         }
     }
 }

@@ -189,14 +189,15 @@ mod integration_tests {
         };
 
         let result = optimize(&req).unwrap();
-        
+
         let engine = EngineFactory::new_generic(&EngineCompilationContext {
             keyboard: kb.clone(),
             corpus: cp.clone(),
             rubric: rb.clone(),
             cost_model: cm.clone(),
             engine_config: keyforge_model::config::EngineConfig::default(),
-        }).unwrap();
+        })
+        .unwrap();
 
         let scorer = keyforge_physics::verify::DeterministicScorer::new(engine.context().clone());
         let raw_score = scorer
