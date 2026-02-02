@@ -152,6 +152,32 @@ fmt:
 lint:
 	cargo clippy --workspace -- -D warnings
 
+# Granular Audit tasks for the Auditor instance
+audit-vulnerabilities:
+	-cargo audit
+
+audit-dependencies:
+	-cargo deny check
+
+audit-structure:
+	-sg scan
+	python3 ops/scripts/bouncer_100x.py
+
+audit-architecture:
+	python3 ops/scripts/check_arch.py
+
+audit-fragility:
+	# Verifies SIMD visibility narrowing and Narsil hardening
+	-grep -r 'pub fn new' libs/keyforge-physics/src/engines/ | grep -v 'pub(crate)'
+	@if [ -f "ops/config/narsil_audit_config.yaml" ]; then echo "✅ Narsil config found"; else echo "❌ Narsil config missing"; fi
+
+audit-debt:
+	# Find TODOs that lack a '#' issue reference
+	-grep -rn "TODO" libs apps | grep -v "#" || true
+
+audit-bloat:
+	-cargo bloat --release -n 20
+
 # Finds structural debt: security holes, duplicate dependencies, and binary bloat.
 audit: lint
 	@echo "🔍 Starting structural audit. Full output redirected to audit.log"
