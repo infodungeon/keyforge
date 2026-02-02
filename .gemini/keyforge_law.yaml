@@ -64,3 +64,18 @@ rules:
     enabled: false # Disabled until regex is tuned
     tags: ["architecture", "clean-code"]
 
+  # VERIFICATION-001: Independent Verification
+  - id: VERIFICATION-001
+    name: Independent Verification Violation
+    severity: Critical
+    rule_type:
+      type: pattern
+      patterns:
+        - 'GhostScorer \{.*mechanics::.*\}'
+        - 'DeterministicScorer \{.*mechanics::.*\}'
+    languages: ["rust"]
+    message: "Verification models must remain mathematically independent. Unifying Oracle and Production kernels is a failure of redundancy."
+    remediation: "Restore the independent mathematical implementation in the verification model."
+    enabled: true
+    tags: ["verification", "integrity", "ghost-model"]
+

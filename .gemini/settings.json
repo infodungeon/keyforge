@@ -26,6 +26,13 @@
         "ops/scripts/mcp_bridge.py",
         "github"
       ]
+    },
+    "swarm": {
+      "command": "python3",
+      "args": [
+        "ops/scripts/mcp_bridge.py",
+        "ops/mcp/swarm_router.py"
+      ]
     }
   }
 }
