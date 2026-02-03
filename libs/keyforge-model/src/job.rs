@@ -115,7 +115,7 @@ pub struct Job<S: JobState> {
 /// use keyforge_model::{JobStatus, Running, Score};
 /// let status = JobStatus::Running(Running {
 ///     active_nodes: 5,
-///     current_best: Some(Score(100)),
+///     current_best: Some(Score::from_scaled_i64(100)),
 /// });
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

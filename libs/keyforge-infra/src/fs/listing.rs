@@ -17,10 +17,13 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> InfraResult<Vec<PathBuf>
 
     for entry in WalkDir::new(dir).into_iter().filter_map(Result::ok) {
         if entry.file_type().is_file() {
-            if let Some(ext) = entry.path().extension() {
-                let ext_str = ext.to_string_lossy().to_string();
-                if extensions.contains(&ext_str) {
+            let path = entry.path();
+            let path_str = path.to_string_lossy();
+            
+            for ext in extensions {
+                if path_str.ends_with(ext) {
                     results.push(entry.into_path());
+                    break;
                 }
             }
         }
@@ -28,42 +31,94 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> InfraResult<Vec<PathBuf>
     Ok(results)
 }
 
-/// Lists all available corpora in the system root.
-///
-/// # Errors
-///
-/// Returns `InfraError` if the corpora directory is unreachable.
-pub fn list_corpora(root: &Path) -> InfraResult<Vec<PathBuf>> {
-    let dir = root.join("system/corpora");
-    list_files(&dir, &["json".to_string(), "txt".to_string()])
+enum IdStrategy {
+    /// ID is the relative path minus extension (e.g. "models/sys").
+    RelativePath,
+    /// ID is the filename stem, ignoring directory structure (e.g. "sys").
+    /// Used if the asset ID is unique by filename regardless of folder.
+    FilenameStem,
+    /// ID is the parent directory relative to root (e.g. "en/std" for "en/std/1grams.json").
+    ParentDir,
+}
+
+fn list_assets(root: &Path, category: &str, extensions: &[&str], strategy: IdStrategy) -> InfraResult<Vec<String>> {
+    let mut assets = Vec::new();
+    let ext_strings: Vec<String> = extensions.iter().map(|s| s.to_string()).collect();
+
+    let process_path = |path: PathBuf, base: &Path| -> Option<String> {
+        let rel = path.strip_prefix(base).ok()?;
+        match strategy {
+            IdStrategy::RelativePath => {
+                let rel_str = rel.to_string_lossy();
+                let mut id = rel_str.to_string();
+                for ext in extensions {
+                    if id.ends_with(ext) {
+                        id = id.trim_end_matches(ext).trim_end_matches('.').to_string();
+                        break;
+                    }
+                }
+                Some(id)
+            }
+            IdStrategy::FilenameStem => {
+                // Extracts "sys" from "models/sys.mpk.zst"
+                // Note: file_stem() handles one extension. "sys.mpk.zst" -> "sys.mpk".
+                // We need to handle multiple extensions.
+                let filename = path.file_name()?.to_string_lossy();
+                let mut id = filename.to_string();
+                for ext in extensions {
+                    if id.ends_with(ext) {
+                        id = id.trim_end_matches(ext).trim_end_matches('.').to_string();
+                        break;
+                    }
+                }
+                Some(id)
+            }
+            IdStrategy::ParentDir => {
+                let parent = rel.parent()?;
+                Some(parent.to_string_lossy().to_string())
+            }
+        }
+    };
+
+    // 1. System Assets
+    let sys_path = root.join("system").join(category);
+    let sys_files = list_files(&sys_path, &ext_strings)?;
+    for path in sys_files {
+        if let Some(id) = process_path(path, &sys_path) {
+            assets.push(id);
+        }
+    }
+
+    // 2. User Assets
+    let user_path = root.join("user").join(category);
+    let user_files = list_files(&user_path, &ext_strings)?;
+    for path in user_files {
+        if let Some(id) = process_path(path, &user_path) {
+            assets.push(id);
+        }
+    }
+
+    Ok(assets)
+}
+
+/// Lists all available corpora.
+pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
+    // Corpora are defined by the folder containing 1grams/etc.
+    list_assets(root, "corpora", &["1grams.json", "1grams.mpk.zst"], IdStrategy::ParentDir)
 }
 
 /// Lists all available cost matrices.
-///
-/// # Errors
-///
-/// Returns `InfraError` if the weights directory is unreachable.
-pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<PathBuf>> {
-    let dir = root.join("system/weights");
-    list_files(&dir, &["json".to_string()])
+pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
+    list_assets(root, "weights", &["json", "mpk", "mpk.zst"], IdStrategy::FilenameStem)
 }
 
 /// Lists all available keyboard models.
-///
-/// # Errors
-///
-/// Returns `InfraError` if the keyboards directory is unreachable.
-pub fn list_keyboards(root: &Path) -> InfraResult<Vec<PathBuf>> {
-    let dir = root.join("system/keyboards");
-    list_files(&dir, &["json".to_string()])
+pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
+    // Test expects "sys" from "models/sys.mpk.zst", so FilenameStem.
+    list_assets(root, "keyboards", &["json", "mpk", "mpk.zst"], IdStrategy::FilenameStem)
 }
 
 /// Lists all available keymap extra configurations.
-///
-/// # Errors
-///
-/// Returns `InfraError` if the extras directory is unreachable.
-pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<PathBuf>> {
-    let dir = root.join("system/keymap_extras");
-    list_files(&dir, &["json".to_string()])
+pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
+    list_assets(root, "keymap_extras", &["json", "mpk", "mpk.zst"], IdStrategy::FilenameStem)
 }
