@@ -32,16 +32,27 @@ pub fn calculate_corpora_fingerprint(sources: &[CorpusSource]) -> String {
     let mut sorted = sources.to_vec();
     sorted.sort_by(|a, b| a.id.cmp(&b.id));
 
-    // 2. Hash the sorted list
+    // 2. Hash the sorted list deterministically
     let mut hasher = Sha256::new();
-    if let Ok(bytes) = serde_json::to_vec(&sorted) {
-        hasher.update(bytes);
-    } else {
-        // Fallback: use raw ID list
-        for s in &sorted {
-            hasher.update(s.id.as_bytes());
+    for s in &sorted {
+        hasher.update(s.id.as_bytes());
+        // Use separator to prevent concatenation collisions
+        hasher.update([0xFF]);
+        
+        // Hash weight bits for strict equality
+        hasher.update(s.weight.to_bits().to_be_bytes());
+        hasher.update([0xFF]);
+
+        // Incorporate hash field if present
+        if let Some(h) = &s.hash {
+            hasher.update([0x01]); // Marker for Some
+            hasher.update(h.as_bytes());
+        } else {
+            hasher.update([0x00]); // Marker for None
         }
+        hasher.update([0xFF]); // End of item separator
     }
+    
     hex::encode(hasher.finalize())
 }
 
@@ -213,7 +224,7 @@ mod tests {
         let weights = ScoringWeights::default();
         let params = SearchParams::default();
         let pins = vec![KeyConstraint {
-            index: KeyIndex(0),
+            index: KeyIndex::new(0),
             key: "A".into(),
         }];
 
@@ -277,6 +288,28 @@ mod tests {
             id1.hash, id2.hash,
             "Hash must be same regardless of pin order"
         );
+    }
+
+    #[test]
+    fn test_calculate_corpora_fingerprint_content_addressing() {
+        let s1 = vec![CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: Some("hash1".into()),
+        }];
+        let s2 = vec![CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: Some("hash2".into()),
+        }];
+        assert_ne!(calculate_corpora_fingerprint(&s1), calculate_corpora_fingerprint(&s2));
+
+        let s3 = vec![CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: None,
+        }];
+        assert_ne!(calculate_corpora_fingerprint(&s1), calculate_corpora_fingerprint(&s3));
     }
 
     #[test]
