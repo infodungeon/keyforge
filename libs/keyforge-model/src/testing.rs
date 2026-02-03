@@ -140,10 +140,9 @@ impl Arbitrary for Corpus {
                     char_freqs_full[i] = f;
                 }
                 // Sorting required by Corpus::validate/merge but not strictly for existence
-                bigrams.sort_unstable_by(|a, b| a.raw().cmp(&b.raw()).then(a.1.cmp(&b.1)));
+                bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
                 trigrams.sort_unstable_by(|a, b| {
-                    a.raw()
-                        .cmp(&b.raw())
+                    a.0.cmp(&b.0)
                         .then(a.1.cmp(&b.1))
                         .then(a.2.cmp(&b.2))
                 });

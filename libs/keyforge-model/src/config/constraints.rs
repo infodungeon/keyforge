@@ -73,7 +73,7 @@ mod tests {
     fn test_key_constraint_from_str() {
         // Valid
         let c: KeyConstraint = "0:KC_A".parse().unwrap();
-        assert_eq!(c.index.0, 0);
+        assert_eq!(c.index.raw(), 0);
         assert_eq!(c.key, "KC_A");
 
         // Invalid: Empty
