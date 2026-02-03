@@ -68,21 +68,7 @@ use keyforge_model::config::CorpusSource;
 /// Generates a deterministic fingerprint for a set of corpora sources.
 #[must_use]
 pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
-    // 1. Sort by ID for canonicalization
-    let mut sorted = sources.to_vec();
-    sorted.sort_by(|a, b| a.id.cmp(&b.id));
-
-    // 2. Hash the sorted list
-    let mut hasher = Sha256::new();
-    if let Ok(bytes) = serde_json::to_vec(&sorted) {
-        hasher.update(bytes);
-    } else {
-        // Fallback: use raw ID list
-        for s in &sorted {
-            hasher.update(s.id.as_bytes());
-        }
-    }
-    hex::encode(hasher.finalize())
+    keyforge_model::job::calculate_corpora_fingerprint(sources)
 }
 
 /// Aggregately sanitizes filenames to prevent traversal or shell issues.
@@ -177,6 +163,41 @@ mod tests {
             hash: None,
         }];
         assert_eq!(calculate_fingerprint(&s1), calculate_fingerprint(&s2));
+    }
+
+    #[test]
+    fn test_calculate_fingerprint_content_addressing() {
+        // Same ID/Weight, different Hash
+        let s1 = vec![CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: Some("hash1".into()),
+        }];
+        let s2 = vec![CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: Some("hash2".into()),
+        }];
+        assert_ne!(calculate_fingerprint(&s1), calculate_fingerprint(&s2));
+
+        // Same ID/Weight, one Hash, one None
+        let s3 = vec![CorpusSource {
+            id: "a".into(),
+            weight: 1.0,
+            hash: None,
+        }];
+        assert_ne!(calculate_fingerprint(&s1), calculate_fingerprint(&s3));
+        
+        // Same content, different order (should be same due to sorting)
+        let set_a = vec![
+            CorpusSource { id: "a".into(), weight: 1.0, hash: Some("h1".into()) },
+            CorpusSource { id: "b".into(), weight: 2.0, hash: None },
+        ];
+        let set_b = vec![
+            CorpusSource { id: "b".into(), weight: 2.0, hash: None },
+            CorpusSource { id: "a".into(), weight: 1.0, hash: Some("h1".into()) },
+        ];
+        assert_eq!(calculate_fingerprint(&set_a), calculate_fingerprint(&set_b));
     }
 
     #[test]
