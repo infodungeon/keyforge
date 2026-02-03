@@ -1,64 +1,52 @@
 // libs/keyforge-infra/src/asset/fs_provider.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You    may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use crate::asset::AssetServerProvider;
 use crate::error::InfraResult;
 use crate::net::sync::ServerManifest;
 use async_trait::async_trait;
+use bytes::Bytes;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
-use keyforge_model::Asset;
-use std::collections::HashMap;
+use keyforge_model::config::CorpusSource;
+use keyforge_model::{Asset, Corpus};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::fs;
 
-/// Local filesystem asset provider.
-///
-/// Implements `AssetLoader` for local file access and `AssetServerProvider`
-/// for serving assets over HTTP.
+/// A local filesystem-based asset provider.
 #[derive(Debug, Clone)]
 pub struct FsProvider {
     root: PathBuf,
 }
 
 impl FsProvider {
-    /// Creates a new `FsProvider` with the specified root directory.
+    /// Creates a new `FsProvider` rooted at the given directory.
     #[must_use]
     pub fn new(root: PathBuf) -> Self {
         Self { root }
     }
 
-    fn resolve_path(&self, id: &str) -> LoaderResult<PathBuf> {
-        let path = self.root.join(id);
-        if path.exists() {
-            Ok(path)
-        } else {
-            // Try extensions
-            let json = path.with_extension("json");
-            if json.exists() {
-                return Ok(json);
-            }
-            let mpk = path.with_extension("mpk");
-            if mpk.exists() {
-                return Ok(mpk);
-            }
-            let mpk_zst = path.with_extension("mpk.zst");
-            if mpk_zst.exists() {
-                return Ok(mpk_zst);
-            }
+    /// Returns a placeholder hash for local files.
+    ///
+    /// # Errors
+    ///
+    /// This implementation currently always returns a successful placeholder.
+    pub fn get_corpus_hash(&self, _id: &str) -> LoaderResult<String> {
+        Ok("local-dev".to_string())
+    }
+}
 
-            Err(keyforge_model::error::ForgeError::NotFound(id.to_string()))
+#[async_trait]
+impl AssetServerProvider for FsProvider {
+    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
+        Ok(ServerManifest::default())
+    }
+
+    async fn get_file_content(&self, path: &str) -> InfraResult<Option<Bytes>> {
+        let full_path = self.root.join(path);
+        if full_path.exists() {
+            let data = std::fs::read(full_path)?;
+            Ok(Some(Bytes::from(data)))
+        } else {
+            Ok(None)
         }
     }
 }
@@ -66,71 +54,29 @@ impl FsProvider {
 #[async_trait]
 impl AssetLoader for FsProvider {
     async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
-        let path = self.resolve_path(id)?;
-        let content = fs::read(&path).await.map_err(|e| {
-            keyforge_model::error::ForgeError::Io(format!("Failed to read {id}: {e}"))
-        })?;
+        let data = self
+            .get_file_content(id)
+            .await
+            .map_err(|e| {
+                keyforge_model::error::ForgeError::from(std::io::Error::other(e.to_string()))
+            })?
+            .ok_or_else(|| keyforge_model::error::ForgeError::NotFound(id.to_string()))?;
 
-        let final_id = path.to_string_lossy().to_string();
-
-        if final_id.to_lowercase().ends_with(".zst")
-            || final_id.to_lowercase().ends_with(".mpk.zst")
-        {
-            let decoder = zstd::Decoder::new(&content[..]).map_err(|e| {
-                keyforge_model::error::ForgeError::Io(format!("Zstd decoder error: {e}"))
-            })?;
-            let asset: T = rmp_serde::from_read(decoder).map_err(|e| {
-                keyforge_model::error::ForgeError::Serde(format!("MsgPack decode error: {e}"))
-            })?;
-            return Ok(Arc::new(asset));
-        }
-
-        if final_id.to_lowercase().ends_with(".json") {
-            let asset: T = serde_json::from_slice(&content).map_err(|e| {
-                keyforge_model::error::ForgeError::Serde(format!("JSON decode error: {e}"))
-            })?;
-            return Ok(Arc::new(asset));
-        }
-
-        Err(keyforge_model::error::ForgeError::Serialization(format!(
-            "Unsupported asset format for {id}"
-        )))
+        serde_json::from_slice(&data)
+            .map(Arc::new)
+            .map_err(Into::into)
     }
 
-    async fn load_corpus(
-        &self,
-        sources: &[keyforge_model::config::CorpusSource],
-    ) -> LoaderResult<Arc<keyforge_model::Corpus>> {
-        let mut corpus = keyforge_model::Corpus::default();
-        for source in sources {
-            let part = self.load::<keyforge_model::Corpus>(&source.id).await?;
-            corpus.merge(&part, source.weight);
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
+        let mut blended = Corpus::default();
+        for src in sources {
+            let corpus = self.load::<Corpus>(&src.id).await?;
+            blended.merge(&corpus, src.weight);
         }
-        Ok(Arc::new(corpus))
+        Ok(Arc::new(blended))
     }
 
     fn root(&self) -> &Path {
         &self.root
-    }
-}
-
-#[async_trait]
-impl AssetServerProvider for FsProvider {
-    async fn get_manifest(&self) -> InfraResult<ServerManifest> {
-        // FsProvider doesn't currently support generating a full manifest on the fly.
-        // It returns an empty manifest.
-        Ok(ServerManifest {
-            files: HashMap::new(),
-        })
-    }
-
-    async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
-        let full_path = self.root.join(path);
-        if !full_path.exists() || !full_path.is_file() {
-            return Ok(None);
-        }
-
-        let content = fs::read(full_path).await?;
-        Ok(Some(bytes::Bytes::from(content)))
     }
 }

@@ -2,7 +2,7 @@ use keyforge_model::config::{CorpusSource, CostMatrixSource, ScoringWeights, Sea
 #[keyforge_testing_macros::kf_test]
 // apps/keyforge-agent/tests/agent_integration.rs
 use keyforge_model::geometry::{KeyboardDefinition, KeyboardMeta};
-use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, SpatialUnit};
 use keyforge_model::{KeyNode, KeyboardGeometry};
 use keyforge_protocol::JobConfig;
 use std::sync::Arc;
@@ -24,22 +24,22 @@ async fn test_agent_job_orchestration() {
                 name: "AgentTest".into(),
                 ..Default::default()
             },
-            geometry: KeyboardGeometry::new(
-                vec![KeyNode {
+            geometry: KeyboardGeometry {
+                keys: vec![KeyNode {
                     index: 0,
-                    x: 0.0,
-                    y: 0.0,
+                    x: SpatialUnit::from_f32(0.0),
+                    y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
                     finger: FingerIndex::INDEX,
                     row: RowIndex::new(0),
                     col: ColIndex::new(0),
                     ..Default::default()
                 }],
-                vec![KeyIndex::new(0)],
-                vec![],
-                vec![],
-                keyforge_model::types::RowIndex::new(0),
-            ),
+                prime_slots: vec![KeyIndex::new(0)],
+                med_slots: vec![],
+                low_slots: vec![],
+                home_row: keyforge_model::types::RowIndex::new(0),
+            },
             layouts: std::collections::HashMap::default(),
         }
         .into(),

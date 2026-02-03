@@ -1,12 +1,12 @@
+// libs/keyforge-evolution/tests/ghost_parity.rs
+
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
-    // libs/keyforge-evolution/tests/ghost_parity.rs
-
     use keyforge_evolution::ghost::GhostHillClimber;
     use keyforge_evolution::{evolve, NoOpCallback};
     use keyforge_model::{
-        types::{FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit, Temperature},
+        types::{FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit},
         Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
     };
     use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
@@ -100,16 +100,11 @@ mod integration_tests {
 
         // Run Ghost Optimizer (Hill Climber)
         let ghost = GhostHillClimber;
-        let ghost_layout = ghost
-            .run(engine.as_ref(), layout, 100, &NoOpCallback)
-            .unwrap();
-        let ghost_score = engine.score(&ghost_layout).unwrap();
+        let ghost_res_layout = ghost.run(engine.as_ref(), layout, 100, &NoOpCallback).unwrap();
+        let ghost_score = engine.score(&ghost_res_layout).unwrap();
 
         // Verify parity
         let score_diff = (prod_res.score - ghost_score.to_f32()).abs();
-        assert!(
-            score_diff < 100.0,
-            "Scores should be within reasonable bounds"
-        );
+        assert!(score_diff < 100.0, "Scores should be reasonably close for limited steps");
     }
 }

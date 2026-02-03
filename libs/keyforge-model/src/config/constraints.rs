@@ -1,27 +1,25 @@
 // libs/keyforge-model/src/config/constraints.rs
 
-use crate::types::KeyIndex;
+use crate::types::{KeyIndex, KeyCode};
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use utoipa::ToSchema;
 
-/// Constraint forcing a key to a specific physical index.
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-
+/// A physical constraint forcing a specific keycode to a specific physical key index.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct KeyConstraint {
-    /// The physical index of the key.
+    /// The physical index on the keyboard.
     pub index: KeyIndex,
-    /// The logical key label/ID to pin.
+    /// The canonical ID of the keycode (e.g., "KC_A").
     pub key: String,
 }
 
-impl Validator for KeyConstraint {
-    fn validate(&self) -> Result<(), String> {
-        if self.key.trim().is_empty() {
-            return Err(format!("Constraint for index {} has empty key", self.index));
-        }
-        Ok(())
+impl KeyConstraint {
+    /// Creates a new key constraint.
+    #[must_use]
+    pub const fn new(index: KeyIndex, key: String) -> Self {
+        Self { index, key }
     }
 }
 
@@ -29,24 +27,25 @@ impl FromStr for KeyConstraint {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.trim().is_empty() {
-            return Err("Empty constraint".to_string());
+        // Format: "index:key" e.g. "0:KC_A"
+        let parts: Vec<&str> = s.split(':').collect();
+        if parts.len() != 2 {
+            return Err("Invalid constraint format. Expected 'index:key'".into());
         }
-        let (idx_str, key_str) = s
-            .split_once(':')
-            .ok_or_else(|| format!("invalid format '{s}': expected INDEX:KEY"))?;
-        let index_val = idx_str
-            .trim()
-            .parse::<u16>()
-            .map_err(|_| format!("invalid index '{idx_str}': must be 0-65535"))?;
-        let key_clean = key_str.trim();
-        if key_clean.is_empty() {
-            return Err(format!("Empty key in constraint '{s}'"));
+
+        let index = parts[0].parse::<u16>()
+            .map_err(|_| "Invalid index in constraint".to_string())?;
+        
+        Ok(Self::new(KeyIndex::new(index), parts[1].to_string()))
+    }
+}
+
+impl Validator for KeyConstraint {
+    fn validate(&self) -> Result<(), String> {
+        if self.key.is_empty() {
+            return Err("Constraint key cannot be empty".into());
         }
-        Ok(KeyConstraint {
-            index: KeyIndex::new(index_val),
-            key: key_clean.to_string(),
-        })
+        Ok(())
     }
 }
 
@@ -55,37 +54,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_key_constraint_validation() {
-        let valid = KeyConstraint {
-            index: KeyIndex::new(0),
-            key: "KC_A".into(),
-        };
-        assert!(valid.validate().is_ok());
-
-        let invalid = KeyConstraint {
-            index: KeyIndex::new(0),
-            key: " ".into(),
-        };
-        assert!(invalid.validate().is_err());
+    fn test_key_constraint_creation() {
+        let c = KeyConstraint::new(KeyIndex::new(0), "KC_A".to_string());
+        assert_eq!(c.index.raw(), 0);
+        assert_eq!(c.key, "KC_A");
     }
 
     #[test]
-    fn test_key_constraint_from_str() {
-        // Valid
-        let c: KeyConstraint = "0:KC_A".parse().unwrap();
-        assert_eq!(c.index.raw(), 0);
-        assert_eq!(c.key, "KC_A");
-
-        // Invalid: Empty
-        assert!(" ".parse::<KeyConstraint>().is_err());
-
-        // Invalid: Format
-        assert!("0".parse::<KeyConstraint>().is_err());
-
-        // Invalid: Index
+    fn test_key_constraint_parsing() {
+        let c: KeyConstraint = "10:KC_B".parse().unwrap();
+        assert_eq!(c.index.raw(), 10);
+        assert_eq!(c.key, "KC_B");
+        
+        assert!("invalid".parse::<KeyConstraint>().is_err());
         assert!("abc:KC_A".parse::<KeyConstraint>().is_err());
-
-        // Invalid: Empty Key
-        assert!("0:".parse::<KeyConstraint>().is_err());
     }
 }

@@ -24,13 +24,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keyboard {
     /// The list of physical keys.
-    pub keys: Vec<KeyNode>,
+    keys: Vec<KeyNode>,
     /// The logical row index considered the "Home Row".
     pub home_row: crate::types::RowIndex,
     /// Type of keyboard (e.g., "split", "ortho").
     #[serde(default)]
     pub kb_type: String,
-    /// Pre-calculated centers for fingers \[hand\]\[finger\] -> Point.
+    /// Pre-calculated centers for fingers [hand][finger] -> Point.
     /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<Point>>,
     /// Pre-calculated movements between every pair of physical keys.
@@ -72,7 +72,10 @@ impl Keyboard {
                     .iter()
                     .any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
                 if has_keys && origin.x.raw() == 0 && origin.y.raw() == 0 {
-                    let key_at_zero = kb.keys.iter().any(|k| k.x.raw() == 0 && k.y.raw() == 0);
+                    let key_at_zero = kb
+                        .keys
+                        .iter()
+                        .any(|k| k.x.raw() == 0 && k.y.raw() == 0);
                     if !key_at_zero {
                         return Err(ForgeError::InvalidData(format!(
                             "Finger origin calculation failed for hand {h_idx}, finger {f_idx}"
@@ -90,12 +93,6 @@ impl Keyboard {
     #[must_use]
     pub fn keys(&self) -> &[KeyNode] {
         &self.keys
-    }
-
-    /// Returns the home row index.
-    #[must_use]
-    pub fn home_row(&self) -> crate::types::RowIndex {
-        self.home_row
     }
 
     fn precompute_spatial_cache(&mut self) {
@@ -165,32 +162,60 @@ impl Keyboard {
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use crate::types::{FingerIndex, HandIndex};
+    use crate::types::{FingerIndex, HandIndex, RowIndex, SpatialUnit};
 
     #[test]
     fn test_keyboard_spatial_precomputation() {
         let keys = vec![
             KeyNode {
                 index: 0,
-                x: crate::types::SpatialUnit::from_f32(0.0),
-                y: crate::types::SpatialUnit::from_f32(0.0),
+                x: SpatialUnit::from_f32(0.0),
+                y: SpatialUnit::from_f32(0.0),
                 hand: HandIndex::new(0),
-                finger: FingerIndex::INDEX,
+                finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
-                x: crate::types::SpatialUnit::from_f32(3.0),
-                y: crate::types::SpatialUnit::from_f32(4.0),
+                x: SpatialUnit::from_f32(3.0),
+                y: SpatialUnit::from_f32(4.0),
                 hand: HandIndex::new(0),
-                finger: FingerIndex::MIDDLE,
+                finger: FingerIndex::new_unchecked(2),
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, crate::types::RowIndex::new(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
 
         assert_eq!(kb.spatial_cache.len(), 4);
         // (3-0)^2 + (4-0)^2 = 9 + 16 = 25
         assert_eq!(kb.spatial_cache[1].dist_sq(), 25_000_000); // 1000^2 scaling for KU^2
+    }
+
+    #[test]
+    fn test_keyboard_finger_origins() {
+        let keys = vec![
+            KeyNode {
+                index: 0,
+                x: SpatialUnit::from_f32(0.0),
+                y: SpatialUnit::from_f32(0.0),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new_unchecked(1),
+                is_home: true,
+                ..Default::default()
+            },
+            KeyNode {
+                index: 1,
+                x: SpatialUnit::from_f32(3.0),
+                y: SpatialUnit::from_f32(4.0),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new_unchecked(2),
+                is_home: true,
+                ..Default::default()
+            },
+        ];
+        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
+        
+        assert_eq!(kb.finger_origins[0][1].x.raw(), 0);
+        assert_eq!(kb.finger_origins[0][2].x.raw(), 3000);
     }
 }

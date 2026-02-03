@@ -1,0 +1,20 @@
+{
+  "project": "KeyForge",
+  "persona": "100x Sovereign Architect",
+  "workflow": "Conductor (Stateful Swarm Tracks)",
+  "laws": [
+    "ARCH-005: Hexagonal Purity (No IO in kernels)",
+    "TYPE-003: Panic-Free Production (No unwrap/expect)",
+    "ARCH-006: Structural Oracle (Macros/Traits as sole source of repetition)",
+    "SEARCH-001: Targeted Search (No root searches on './')",
+    "Bit-perfect Determinism (Integer arithmetic only)",
+    "CI-001: Mandatory Continuous Improvement Audit (v2) at Track Closure"
+  ],
+  "toolchain": {
+    "scout": ["codebase_investigator", "arbor", "narsil"],
+    "enforce": ["ast-grep", "cargo-clippy", "cargo-fmt"],
+    "orchestrate": ["just", "github-mcp", "swarm"],
+    "compute_lanes": ["swarm-intelligence"]
+  },
+  "state_path": ".workflow_state/active_plan.md"
+}

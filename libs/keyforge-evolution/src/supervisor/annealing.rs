@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You    may obtain a copy of the License at
+// You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -45,9 +45,8 @@ impl ProgressReporter {
         total_steps: IterationCount,
         start_time: Instant,
     ) -> Self {
-        let report_interval = IterationCount::new(
-            (total_steps.raw() / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL),
-        );
+        let report_interval =
+            IterationCount::new((total_steps.raw() / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL));
 
         Self {
             tx,
@@ -329,9 +328,7 @@ mod tests {
     };
     use crate::supervisor::AnnealingConfig;
     use crate::{OptimizationControl, ProgressCallback};
-    use keyforge_model::types::{
-        ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, SpatialUnit,
-    };
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, SpatialUnit};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
     use rand::Rng;
@@ -349,7 +346,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
-            self.raw().fetch_add(1, Ordering::SeqCst);
+            self.0.fetch_add(1, Ordering::SeqCst);
             OptimizationControl::Continue
         }
     }
@@ -439,9 +436,9 @@ mod tests {
             })
             .collect();
         let kb = {
+            use keyforge_model::types::RowIndex;
             Arc::new(
-                Keyboard::new(keys, RowIndex::new(1), "test".into())
-                    .expect("Failed to create keyboard"),
+                Keyboard::new(keys, RowIndex::new(1), "test".into()).expect("Failed to create keyboard"),
             )
         };
         let mut corpus_val = Corpus::default();

@@ -1,18 +1,14 @@
+// libs/keyforge-evolution/tests/optimization_integration.rs
+
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
-    // libs/keyforge-evolution/tests/optimization_integration.rs
-    //
-    // Integration tests for the evolution module.
-    // These tests exercise full optimization loops, cross-module orchestration,
-    // and `ScoringEngine` usage (per ADR-015).
-
     use keyforge_evolution::{evolve, optimize};
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit};
     use keyforge_model::{
         Corpus, CostModel, EngineRequest, KeyNode, Keyboard, Rubric, SearchConfig,
     };
-    use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
+    use keyforge_physics::{EngineCompilationContext, EngineContext, EngineFactory, ScoringEngine};
     use std::sync::Arc;
 
     fn mock_cost_model() -> CostModel {
@@ -190,16 +186,15 @@ mod integration_tests {
 
         let result = optimize(&req).unwrap();
 
-        let engine = EngineFactory::new_generic(&EngineCompilationContext {
+        let ctx = keyforge_physics::EngineFactory::new_scalar(&EngineCompilationContext {
             keyboard: kb.clone(),
             corpus: cp.clone(),
             rubric: rb.clone(),
             cost_model: cm.clone(),
             engine_config: keyforge_model::config::EngineConfig::default(),
-        })
-        .unwrap();
+        }).unwrap().context().clone();
 
-        let scorer = keyforge_physics::verify::DeterministicScorer::new(engine.context().clone());
+        let scorer = keyforge_physics::verify::DeterministicScorer::new(ctx);
         let raw_score = scorer
             .score(&req.keyboard, &req.corpus, result.layout.keys())
             .expect("Oracle scoring failed");

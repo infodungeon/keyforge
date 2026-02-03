@@ -16,7 +16,7 @@ fn setup_kb_robust() -> Keyboard {
             index: i,
             hand: keyforge_model::types::HandIndex::new(0),
             finger: keyforge_model::types::FingerIndex::new(i as u8),
-            x: i as f32,
+            x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
             ..Default::default()
         })
         .collect();

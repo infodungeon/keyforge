@@ -43,22 +43,24 @@ struct WasmError {
 
 impl From<keyforge_model::error::ForgeError> for WasmError {
     fn from(e: keyforge_model::error::ForgeError) -> Self {
-        use keyforge_model::error::ForgeError;
-        let (code, msg) = match e {
-            ForgeError::Io(s) => ("IO_ERROR", s),
-            ForgeError::Serde(s) | ForgeError::Serialization(s) => ("SERIALIZATION_ERROR", s),
-            ForgeError::Physics(pe) => ("PHYSICS_VIOLATION", pe.to_string()),
-            ForgeError::PhysicsCompute(s) => ("COMPUTE_ERROR", s),
-            ForgeError::Evolution(s) => ("EVOLUTION_ERROR", s),
-            ForgeError::Persistence(s) => ("PERSISTENCE_ERROR", s),
-            ForgeError::Validation(s) => ("VALIDATION_ERROR", s),
-            ForgeError::NotFound(s) => ("NOT_FOUND", s),
-            ForgeError::Internal(s) => ("INTERNAL_ERROR", s),
-            ForgeError::InvalidData(s) => ("INVALID_DATA", s),
-            ForgeError::Config(s) => ("CONFIG_ERROR", s),
-            ForgeError::Projection(s) => ("PROJECTION_ERROR", s),
-            ForgeError::Model(me) => ("MODEL_ERROR", me.to_string()),
-            ForgeError::Infrastructure(s) => ("INFRASTRUCTURE_ERROR", s),
+        let (code, msg) = match &e {
+            keyforge_model::error::ForgeError::Io(io) => ("IO_ERROR", io.to_string()),
+            keyforge_model::error::ForgeError::Serde(se) => ("SERIALIZATION_ERROR", se.to_string()),
+            keyforge_model::error::ForgeError::Physics(pe) => ("PHYSICS_VIOLATION", pe.to_string()),
+            keyforge_model::error::ForgeError::PhysicsCompute(s) => ("COMPUTE_ERROR", s.clone()),
+            keyforge_model::error::ForgeError::Evolution(s) => ("EVOLUTION_ERROR", s.clone()),
+            keyforge_model::error::ForgeError::Persistence(s) => ("PERSISTENCE_ERROR", s.clone()),
+            keyforge_model::error::ForgeError::Validation(s) => ("VALIDATION_ERROR", s.clone()),
+            keyforge_model::error::ForgeError::Serialization(s) => {
+                ("SERIALIZATION_ERROR", s.clone())
+            }
+            keyforge_model::error::ForgeError::NotFound(s) => ("NOT_FOUND", s.clone()),
+            keyforge_model::error::ForgeError::Internal(s) => ("INTERNAL_ERROR", s.clone()),
+            keyforge_model::error::ForgeError::InvalidData(s) => ("INVALID_DATA", s.clone()),
+            keyforge_model::error::ForgeError::Config(s) => ("CONFIG_ERROR", s.clone()),
+            keyforge_model::error::ForgeError::Projection(s) => ("PROJECTION_ERROR", s.clone()),
+            keyforge_model::error::ForgeError::Model(me) => ("MODEL_ERROR", me.to_string()),
+            keyforge_model::error::ForgeError::Infrastructure(s) => ("INFRA_ERROR", s.clone()),
         };
 
         Self {
@@ -210,8 +212,8 @@ impl KeyforgeEngine {
 
         let keyboard = Arc::new(
             keyforge_model::Keyboard::new(
-                kb_def.geometry.keys().to_vec(),
-                kb_def.geometry.home_row(),
+                kb_def.geometry.keys.clone(),
+                kb_def.geometry.home_row,
                 kb_def.meta.kb_type.clone(),
             )
             .map_err(to_js_error)?,

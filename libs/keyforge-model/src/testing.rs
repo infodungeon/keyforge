@@ -10,7 +10,6 @@
     )
 )]
 
-use crate::types::SpatialUnit;
 use crate::{
     ColIndex, Corpus, CostModel, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex,
     Rubric,
@@ -85,13 +84,13 @@ impl Arbitrary for KeyNode {
                 |(index, label, x, y, hand, finger, row, col, is_home)| Self {
                     index,
                     label,
-                    x: SpatialUnit::from_f32(x),
-                    y: SpatialUnit::from_f32(y),
+                    x: crate::types::SpatialUnit::from_f32(x),
+                    y: crate::types::SpatialUnit::from_f32(y),
                     w: 1.0,
                     h: 1.0,
                     r: 0.0,
-                    rx: SpatialUnit::default(),
-                    ry: SpatialUnit::default(),
+                    rx: crate::types::SpatialUnit::default(),
+                    ry: crate::types::SpatialUnit::default(),
                     hand,
                     finger,
                     row,
@@ -141,11 +140,8 @@ impl Arbitrary for Corpus {
                 }
                 // Sorting required by Corpus::validate/merge but not strictly for existence
                 bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-                trigrams.sort_unstable_by(|a, b| {
-                    a.0.cmp(&b.0)
-                        .then(a.1.cmp(&b.1))
-                        .then(a.2.cmp(&b.2))
-                });
+                trigrams
+                    .sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
 
                 Corpus {
                     meta: crate::corpus::CorpusMetadata::default(),
@@ -276,8 +272,7 @@ pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
             label: format!("k{i}"),
             hand: HandIndex::new(0),
             finger: FingerIndex::new(i as u8),
-            x: SpatialUnit::from_f32(i as f32),
-            y: SpatialUnit::default(),
+            x: crate::types::SpatialUnit::from_f32(i as f32),
             ..Default::default()
         })
         .collect();

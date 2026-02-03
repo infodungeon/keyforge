@@ -93,6 +93,18 @@ impl From<String> for ForgeError {
     }
 }
 
+impl From<serde_json::Error> for ForgeError {
+    fn from(err: serde_json::Error) -> Self {
+        ForgeError::Serde(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for ForgeError {
+    fn from(err: std::io::Error) -> Self {
+        ForgeError::Io(err.to_string())
+    }
+}
+
 /// Errors related to core model logic and integrity.
 #[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ModelError {

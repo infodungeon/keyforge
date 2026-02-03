@@ -54,14 +54,14 @@ mod tests {
                 index: 0,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                row: RowIndex(0),
+                row: RowIndex::new(0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
-                row: RowIndex(0),
+                row: RowIndex::new(0),
                 ..Default::default()
             },
         ];

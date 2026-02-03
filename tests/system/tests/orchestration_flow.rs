@@ -19,7 +19,7 @@ async fn test_full_orchestration_flow() {
     let mut req = JobRequest::default();
     req.config.definition.geometry.keys().push(
         KeyNode {
-            hand: HandIndex(0),
+            hand: HandIndex::new(0),
             w: 1.0,
             h: 1.0,
             ..Default::default()
@@ -31,7 +31,7 @@ async fn test_full_orchestration_flow() {
         .definition
         .geometry
         .prime_slots
-        .push(keyforge_model::types::KeyIndex(0).into());
+        .push(keyforge_model::types::KeyIndex::new(0).into());
 
     assert!(req.validate().is_ok());
 

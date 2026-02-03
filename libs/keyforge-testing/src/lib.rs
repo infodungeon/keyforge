@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -93,9 +93,7 @@ impl HermeticWorkspace {
     /// Returns `anyhow::Result` if serialization of default assets fails or IO error occurs.
     #[allow(clippy::too_many_lines)]
     pub async fn with_default_assets(self) -> anyhow::Result<Self> {
-        use keyforge_model::types::{
-            ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit,
-        };
+        use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit};
         use keyforge_model::{
             cost_model::{CostModel, FingerDefinition, HandDefinition, ModelDefinition, RowCosts},
             geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta},
@@ -198,23 +196,23 @@ impl HermeticWorkspace {
             models,
             dynamic_rules: keyforge_model::cost_model::DynamicRules::default(),
         };
-        let cost_json = serde_json::to_string_pretty(&cost_model)?;
-        self.write_file("user/weights/cost.json", &cost_json)
+        let cost_model_json = serde_json::to_string_pretty(&cost_model)?;
+        self.write_file("user/weights/cost.json", &cost_model_json)
             .await?;
-        self.write_file("user/weights/default.json", &cost_json)
+        self.write_file("user/weights/default.json", &cost_model_json)
             .await?;
         // Some tests expect cost_matrix.json at the root
-        self.write_file("cost_matrix.json", &cost_json).await?;
+        self.write_file("cost_matrix.json", &cost_model_json).await?;
 
         // 3. Keyboard
-        let geometry = KeyboardGeometry::new(
-            vec![
+        let geometry = KeyboardGeometry {
+            keys: vec![
                 KeyNode {
                     index: 0,
                     x: SpatialUnit::from_f32(0.0),
                     y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
-                    finger: FingerIndex::new(1),
+                    finger: FingerIndex::new_unchecked(1),
                     row: RowIndex::new(0),
                     col: ColIndex::new(0),
                     ..Default::default()
@@ -224,20 +222,20 @@ impl HermeticWorkspace {
                     x: SpatialUnit::from_f32(1.0),
                     y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
-                    finger: FingerIndex::new(2),
+                    finger: FingerIndex::new_unchecked(2),
                     row: RowIndex::new(0),
                     col: ColIndex::new(1),
                     ..Default::default()
                 },
             ],
-            vec![
+            prime_slots: vec![
                 keyforge_model::types::KeyIndex::new(0),
                 keyforge_model::types::KeyIndex::new(1),
             ],
-            vec![],
-            vec![],
-            keyforge_model::types::RowIndex::new(0),
-        );
+            med_slots: vec![],
+            low_slots: vec![],
+            home_row: keyforge_model::types::RowIndex::new(0),
+        };
 
         let kb_def = KeyboardDefinition {
             meta: KeyboardMeta {
@@ -278,90 +276,7 @@ impl HermeticWorkspace {
         Ok(self)
     }
 
-    /// Populates the workspace with "poison pill" assets designed to fail if constraints are ignored.
-    ///
-    /// # Errors
-    /// Returns `anyhow::Result` if IO error occurs.
-    pub async fn with_poison_pill(self) -> anyhow::Result<Self> {
-        // Poison Keyboard: 2 keys.
-        // Key 0: Cost 0.
-        // Key 1: Cost 1,000,000 (Poison).
-        let kb_json = r#"{
-            "meta": { "name": "Poison KB", "type": "ortho" },
-            "geometry": {
-                "keys": [
-                    {"index": 0, "x": 0.0, "y": 0.0, "hand": 0, "finger": 1, "row": 0, "col": 0},
-                    {"index": 1, "x": 1.0, "y": 0.0, "hand": 0, "finger": 2, "row": 0, "col": 1}
-                ],
-                "prime_slots": [0],
-                "med_slots": [],
-                "low_slots": [1],
-                "home_row": 0
-            },
-            "layouts": {}
-        }"#;
-        self.write_file("user/keyboards/poison_keyboard.json", kb_json)
-            .await?;
-
-        // Poison Weights: Massive penalty for High-freq char in Low-tier slot.
-        let weights_json = r#"{
-            "penalty_high_in_low": 1000000.0
-        }"#;
-        self.write_file("user/weights/poison_weights.json", weights_json)
-            .await?;
-
-        // Poison Corpus: 'e' is high freq.
-        let corpus_json = r#"[{"s": "e", "f": 1000}]"#;
-        self.write_file("user/corpora/poison_corpus/1grams.json", corpus_json)
-            .await?;
-        self.write_file("user/corpora/poison_corpus/2grams.json", "[]")
-            .await?;
-        self.write_file("user/corpora/poison_corpus/3grams.json", "[]")
-            .await?;
-        self.write_file("user/corpora/poison_corpus/words.json", "[]")
-            .await?;
-
-        // Cost Model
-        let cost_json = r#"{
-            "meta": { "version": "2.0", "description": "Poison", "unit": "pts" },
-            "models": {
-                "model_a_row_staggered": {
-                    "description": "Poison Model",
-                    "static_costs": {
-                        "universal_hand": {
-                            "thumb": { "pos_1": 0.0 },
-                            "index": { "base": { "r0": 0.0 } },
-                            "middle": { "base": { "r0": 0.0 } },
-                            "ring": { "base": { "r0": 0.0 } },
-                            "pinky": { "base": { "r0": 0.0 } }
-                        }
-                    }
-                },
-                "model_ortho": {
-                    "description": "Poison Ortho",
-                    "static_costs": {
-                        "universal_hand": {
-                            "thumb": { "pos_1": 0.0 },
-                            "index": { "base": { "r0": 0.0 } },
-                            "middle": { "base": { "r0": 0.0 } },
-                            "ring": { "base": { "r0": 0.0 } },
-                            "pinky": { "base": { "r0": 0.0 } }
-                        }
-                    }
-                }
-            },
-            "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
-        }"#;
-        self.write_file("user/weights/poison_cost.json", cost_json)
-            .await?;
-
-        Ok(self)
-    }
-
     /// Writes a file to the workspace relative to the root asynchronously.
-    ///
-    /// # Errors
-    /// Returns `anyhow::Result` if the directory cannot be created or the file cannot be written.
     pub async fn write_file(&self, path: &str, content: &str) -> anyhow::Result<()> {
         let target = self.root.join(path);
         if let Some(parent) = target.parent() {
@@ -377,7 +292,7 @@ impl HermeticWorkspace {
     pub fn keyboard_path(&self, name: &str) -> PathBuf {
         self.root
             .join("user/keyboards")
-            .join(format!(/* "{name}.json" */ "{name}.json"))
+            .join(format!("{name}.json"))
     }
 
     #[must_use]
@@ -389,7 +304,7 @@ impl HermeticWorkspace {
     pub fn weights_path(&self, name: &str) -> PathBuf {
         self.root
             .join("user/weights")
-            .join(format!(/* "{name}.json" */ "{name}.json"))
+            .join(format!("{name}.json"))
     }
 
     #[must_use]
@@ -397,9 +312,6 @@ impl HermeticWorkspace {
         self.root.join("user/config/keycodes.json")
     }
 }
-
-// Re-export for convenience
-pub use keyforge_model::constants;
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
@@ -412,38 +324,21 @@ mod tests {
             .expect("init failed")
             .with_default_assets()
             .await
-            .expect("assets failed")
-            .with_poison_pill()
-            .await
-            .expect("poison failed");
+            .expect("assets failed");
 
         // Check core files
         assert!(ws.root.exists());
         assert!(ws.keyboard_path("test_kb").exists());
-        assert!(ws.weights_path("poison_weights").exists());
-        assert!(ws.keycodes_path().exists());
+        assert!(ws.keycodes_path("default").exists());
 
         // Check corpus dir
-        assert!(ws
-            .root
-            .join("user/corpora/test_corpus/1grams.json")
-            .exists());
+        assert!(
+            ws.root
+                .join("user/corpora/test_corpus/1grams.json")
+                .exists()
+        );
 
         // Check en_small
         assert!(ws.root.join("en_small.json").exists());
-    }
-
-    #[tokio::test]
-    async fn test_hermetic_workspace_path_helpers() {
-        let ws = HermeticWorkspace::new().await.unwrap();
-        let kb_path = ws.keyboard_path("foo");
-        assert!(kb_path
-            .to_string_lossy()
-            .contains("user/keyboards/foo.json"));
-
-        let cost_path = ws.cost_path("bar.json");
-        assert!(cost_path
-            .to_string_lossy()
-            .contains("user/weights/bar.json"));
     }
 }

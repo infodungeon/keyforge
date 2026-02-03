@@ -36,6 +36,11 @@ mod tests {
 
     #[derive(Debug)]
     struct MockRng(u64);
+    impl MockRng {
+        fn raw(&self) -> u64 {
+            self.0
+        }
+    }
     impl RngCore for MockRng {
         fn next_u32(&mut self) -> u32 {
             self.raw() as u32

@@ -63,12 +63,12 @@ pub fn analyze_layout(
             used,
         );
 
-        let mut heatmap = vec![0.0; key_count];
-        let mut penalty_map = vec![0.0; key_count];
+        let mut heatmap = vec![Score::ZERO; key_count];
+        let mut penalty_map = vec![Score::ZERO; key_count];
 
-        let mut total_load = 0.0;
-        let mut left_hand_load = 0.0;
-        let mut total_bigrams = 0.0;
+        let mut total_load = Score::ZERO;
+        let mut left_hand_load = Score::ZERO;
+        let mut total_bigrams = Score::ZERO;
         let mut sfbs = Vec::new();
         let mut scissors = Vec::new();
         let mut redirs = Vec::new();
@@ -83,7 +83,7 @@ pub fn analyze_layout(
             }
 
             let freq_f = freq as f32;
-            let mut min_cost_val = Score::from_scaled_i64(i64::MAX);
+            let mut min_cost_val = Score::MAX;
             let mut best_triplet = (0, 0, 0);
 
             for &p1 in candidates1 {
@@ -94,9 +94,9 @@ pub fn analyze_layout(
                             calculate_flow_cost(ctx, p1.as_usize(), p2.as_usize(), p3.as_usize());
                         let idx12 = p1.as_usize() * key_count + p2.as_usize();
                         let idx23 = p2.as_usize() * key_count + p3.as_usize();
-                        cost = cost
-                            + ctx.geometry.cost_matrix[idx12]
-                            + ctx.geometry.cost_matrix[idx23];
+                        
+                        // Saturating add to prevent overflow during search
+                        cost = cost + ctx.geometry.cost_matrix[idx12] + ctx.geometry.cost_matrix[idx23];
 
                         if cost < min_cost_val {
                             min_cost_val = cost;
@@ -106,32 +106,40 @@ pub fn analyze_layout(
                 }
             }
 
-            if min_cost_val.raw() != i64::MAX {
+            if min_cost_val != Score::MAX {
                 let (idx1, idx2, idx3) = best_triplet;
 
                 // Flow Effort (Redirects/Rolls) - distributed across triplet
                 let flow_cost = calculate_flow_cost(ctx, idx1, idx2, idx3);
-                let flow_cost_f32 = flow_cost.to_f32();
-                penalty_map[idx1] += flow_cost_f32 * freq_f * 0.33;
-                penalty_map[idx2] += flow_cost_f32 * freq_f * 0.33;
-                penalty_map[idx3] += flow_cost_f32 * freq_f * 0.33;
+                
+                // Weight distribution: 1/3 to each key. 
+                // We multiply by freq then divide by 3 to stay in integer domain as long as possible.
+                // Score(i64) doesn't impl Div<i64>, so we operate on raw.
+                let partial_raw = (flow_cost.raw() * i64::from(freq)) / 3;
+                let partial_cost = Score::from_scaled_i64(partial_raw);
+                
+                penalty_map[idx1] = penalty_map[idx1] + partial_cost;
+                penalty_map[idx2] = penalty_map[idx2] + partial_cost;
+                penalty_map[idx3] = penalty_map[idx3] + partial_cost;
 
                 if flow_cost == ctx.penalty_redirect {
                     report.redirects += freq_f;
 
                     // Accumulate redirect penalty contribution
-                    report.redir_penalty += flow_cost_f32 * freq_f;
+                    let penalty_val = (flow_cost * i64::from(freq)).to_f32();
+                    report.redir_penalty += penalty_val;
 
                     redirs.push(MetricViolation {
                         keys: format!("{}{}{}", u16_to_char(c1), u16_to_char(c2), u16_to_char(c3)),
-                        score: flow_cost_f32 * freq_f,
+                        score: penalty_val,
                         freq: freq_f,
                     });
                 } else if flow_cost < Score::ZERO {
                     report.rolls += freq_f;
 
                     // Accumulate roll penalty contribution (negative, so it's a bonus)
-                    report.roll_penalty += flow_cost_f32 * freq_f;
+                    let penalty_val = (flow_cost * i64::from(freq)).to_f32();
+                    report.roll_penalty += penalty_val;
                 }
             }
         }
@@ -144,11 +152,11 @@ pub fn analyze_layout(
                 continue;
             }
 
-            let freq_f = freq as f32;
-            total_bigrams += freq_f;
+            let freq_s = Score::from_scaled_i64(i64::from(freq));
+            total_bigrams = total_bigrams + freq_s;
 
             // Choose OPTIMAL key pair by evaluating candidate costs
-            let mut min_score = Score::from_scaled_i64(i64::MAX);
+            let mut min_score = Score::MAX;
             let mut best_pair = (0, 0);
 
             if candidates1.len() == 1 && candidates2.len() == 1 {
@@ -178,34 +186,36 @@ pub fn analyze_layout(
 
             // --- TRANSITION ACCOUNTING ---
             // Usage (Heatmap) attributed to target character c2
-            heatmap[idx2] += freq_f;
-            char_usage[c2 as usize] += freq_f;
+            heatmap[idx2] = heatmap[idx2] + freq_s;
+            char_usage[c2 as usize] += freq as f32;
 
             // Distance Calculation
             if idx1 == idx2 {
                 // Same key: No movement
             } else if ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2] {
                 // Same Hand: Euclidean Distance
-                report.distance +=
-                    ctx.geometry.dist_matrix[idx1 * key_count + idx2].to_f32() * freq_f;
+                let dist_score = ctx.geometry.dist_matrix[idx1 * key_count + idx2];
+                report.distance += (dist_score * i64::from(freq)).to_f32();
 
                 // SFB Check (Specific to same-finger move)
                 if ctx.geometry.fingers[idx1] == ctx.geometry.fingers[idx2] {
-                    report.sfb_total += freq_f;
+                    report.sfb_total += freq as f32;
 
                     // Accumulate SFB penalty contribution
-                    let sfb_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2].to_f32();
-                    report.sfb_penalty += sfb_cost * freq_f;
+                    let sfb_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2];
+                    let penalty_val = (sfb_cost * i64::from(freq)).to_f32();
+                    report.sfb_penalty += penalty_val;
 
                     sfbs.push(MetricViolation {
                         keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
-                        score: sfb_cost * freq_f,
-                        freq: freq_f,
+                        score: penalty_val,
+                        freq: freq as f32,
                     });
                 }
             } else {
                 // Different Hand: Movement from home position
-                report.distance += ctx.geometry.key_home_distances[idx2].to_f32() * freq_f;
+                let dist_score = ctx.geometry.key_home_distances[idx2];
+                report.distance += (dist_score * i64::from(freq)).to_f32();
             }
 
             // Scissor Detection
@@ -219,64 +229,78 @@ pub fn analyze_layout(
                 && f1 != FingerIndex::THUMB
                 && f2 != FingerIndex::THUMB
             {
-                report.scissors += freq_f;
+                report.scissors += freq as f32;
 
                 // Accumulate scissor penalty contribution
-                let scissor_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2].to_f32();
-                report.scissor_penalty += scissor_cost * freq_f;
+                let scissor_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2];
+                let penalty_val = (scissor_cost * i64::from(freq)).to_f32();
+                report.scissor_penalty += penalty_val;
 
                 scissors.push(MetricViolation {
                     keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
-                    score: scissor_cost * freq_f,
-                    freq: freq_f,
+                    score: penalty_val,
+                    freq: freq as f32,
                 });
             }
 
             // Effort Attribution
-            let trans_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2].to_f32();
-            penalty_map[idx1] += trans_cost * freq_f * 0.5;
-            penalty_map[idx2] += trans_cost * freq_f * 0.5;
+            let trans_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2];
+            // Score(i64) doesn't impl Div<i64>, use raw
+            let half_raw = (trans_cost.raw() * i64::from(freq)) / 2;
+            let half_cost = Score::from_scaled_i64(half_raw);
+            penalty_map[idx1] = penalty_map[idx1] + half_cost;
+            penalty_map[idx2] = penalty_map[idx2] + half_cost;
         }
 
         // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
         for &code in pm.used_keys() {
-            let freq = ctx.corpus.char_freqs[code.as_usize()] as f32;
-            if freq <= 0.0 {
+            let freq = ctx.corpus.char_freqs[code.as_usize()];
+            if freq == 0 {
                 continue;
             }
+            let freq_s = Score::from_scaled_i64(freq as i64);
 
             let candidates = pm.get(code);
 
             // Monogram Effort (Base Key Cost)
             // Attribute to keys based on their usage heatmap or unique position
-            let total_key_usage: f32 = candidates.iter().map(|&p| heatmap[p.as_usize()]).sum();
-            if total_key_usage > 0.0 {
+            let total_key_usage: Score = candidates.iter().fold(Score::ZERO, |acc, &p| acc + heatmap[p.as_usize()]);
+            
+            if total_key_usage > Score::ZERO {
                 for &p in candidates {
                     let p_idx = p.as_usize();
-                    let share = heatmap[p_idx] / total_key_usage;
-                    penalty_map[p_idx] += freq * share * ctx.geometry.key_costs[p_idx].to_f32();
+                    let cost = ctx.geometry.key_costs[p_idx];
+                    
+                    // Fixed-point weighted distribution
+                    // share = heatmap[p] / total_usage
+                    // contrib = cost * freq * share
+                    let share_fp = (heatmap[p_idx].raw() as i128 * 1_000_000) / (total_key_usage.raw() as i128);
+                    let base_cost_total = cost.raw() as i128 * freq as i128;
+                    let contrib = (base_cost_total * share_fp) / 1_000_000;
+                    
+                    penalty_map[p_idx] = penalty_map[p_idx] + Score::from_scaled_i64(contrib as i64);
                 }
             } else {
                 // Unused in transitions (e.g. monogram only): use best static key
-                let mut min_c = f32::MAX;
+                let mut min_c = Score::MAX;
                 let mut bp = 0;
                 for &p in candidates {
-                    let c = ctx.geometry.key_costs[p.as_usize()].to_f32();
+                    let c = ctx.geometry.key_costs[p.as_usize()];
                     if c < min_c {
                         min_c = c;
                         bp = p.as_usize();
                     }
                 }
-                heatmap[bp] += freq;
-                penalty_map[bp] += freq * ctx.geometry.key_costs[bp].to_f32();
+                heatmap[bp] = heatmap[bp] + freq_s;
+                penalty_map[bp] = penalty_map[bp] + (min_c * (freq as i64));
             }
         }
 
         // Pass 4: Finalize Load Metrics
         for (i, &val) in heatmap.iter().enumerate() {
-            total_load += val;
+            total_load = total_load + val;
             if ctx.geometry.hands[i].is_left() {
-                left_hand_load += val;
+                left_hand_load = left_hand_load + val;
             }
         }
 
@@ -309,39 +333,20 @@ pub fn analyze_layout(
             norm_pct = (100.0 / total_freq_f) as f32;
         }
 
-        if total_bigrams > 0.0 {
-            report.sfb_ratio = report.sfb_total / total_bigrams;
+        if total_bigrams > Score::ZERO {
+            report.sfb_ratio = report.sfb_total / total_bigrams.raw() as f32;
         }
-        if total_load > 0.0 {
-            report.hand_balance = ((left_hand_load / total_load) - 0.5) * -2.0;
-        }
-
-        for h in &mut heatmap {
-            *h *= norm_pct;
-        }
-        for p in &mut penalty_map {
-            *p *= norm_100k;
-        }
-        for v in &mut sfbs {
-            v.freq *= norm_pct;
-            v.score *= norm_100k;
-        }
-        for v in &mut scissors {
-            v.freq *= norm_pct;
-            v.score *= norm_100k;
-        }
-        for v in &mut redirs {
-            v.freq *= norm_pct;
-            v.score *= norm_100k;
+        if total_load > Score::ZERO {
+            let left = left_hand_load.raw() as f32;
+            let total = total_load.raw() as f32;
+            report.hand_balance = ((left / total) - 0.5) * -2.0;
         }
 
-        report.top_sfbs = sfbs;
-        report.top_scissors = scissors;
-        report.top_redirs = redirs;
-        report.heatmap = heatmap;
-        report.penalty_map = penalty_map;
+        report.heatmap = heatmap.iter().map(|s| s.to_f32() * norm_pct).collect();
+        report.penalty_map = penalty_map.iter().map(|s| s.to_f32() * norm_100k).collect();
 
         // Final Score: Sum of context-aware normalized penalties
+        // Note: Using f32 sum here for report, but raw score uses integers
         report.score = report.penalty_map.iter().sum();
 
         // Normalized metrics
@@ -411,8 +416,8 @@ mod tests {
                 index: 0,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                row: RowIndex(0),
-                col: ColIndex(0),
+                row: RowIndex::new(0),
+                col: ColIndex::new(0),
                 is_home: true,
                 ..Default::default()
             },
@@ -420,8 +425,8 @@ mod tests {
                 index: 1,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
-                row: RowIndex(0),
-                col: ColIndex(1),
+                row: RowIndex::new(0),
+                col: ColIndex::new(1),
                 is_home: true,
                 ..Default::default()
             },
@@ -429,8 +434,8 @@ mod tests {
                 index: 2,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
-                row: RowIndex(0),
-                col: ColIndex(2),
+                row: RowIndex::new(0),
+                col: ColIndex::new(2),
                 is_home: true,
                 ..Default::default()
             },
@@ -446,7 +451,7 @@ mod tests {
             ..Default::default()
         });
 
-        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap();
         let mut corpus = Corpus::default();
         let mut freqs = corpus.char_freqs.to_vec();
         freqs[97] = 100; // 'a'

@@ -7,7 +7,7 @@ mod integration_tests {
     use keyforge_model::cost_model::CostModel;
     use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
     use keyforge_model::keycodes::KeycodeRegistry;
-    use keyforge_model::types::{KeyCode, KeyIndex};
+    use keyforge_model::types::KeyIndex;
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
     use keyforge_persistence::compiler::compile_request;
     use std::any::Any;
@@ -48,8 +48,7 @@ mod integration_tests {
                     },
                     "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
                 }"#;
-                let model: CostModel = serde_json::from_str(json)
-                    .map_err(|e| keyforge_model::error::ForgeError::Serde(e.to_string()))?;
+                let model: CostModel = serde_json::from_str(json).unwrap();
                 let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
                 return Ok(any_model.downcast::<T>().expect("Downcast failed"));
             }
@@ -76,13 +75,13 @@ mod integration_tests {
     async fn test_compile_request_basic() {
         let kb_def = KeyboardDefinition {
             meta: KeyboardMeta::default(),
-            geometry: KeyboardGeometry::new(
-                vec![KeyNode::default()],
-                vec![KeyIndex::new(0)],
-                vec![],
-                vec![],
-                keyforge_model::types::RowIndex::new(0),
-            ),
+            geometry: KeyboardGeometry {
+                keys: vec![KeyNode::default()],
+                prime_slots: vec![KeyIndex::new(0)],
+                med_slots: vec![],
+                low_slots: vec![],
+                home_row: keyforge_model::types::RowIndex::new(0),
+            },
             layouts: HashMap::default(),
         };
 
@@ -104,13 +103,11 @@ mod integration_tests {
             async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeyboardDefinition>() {
                     let mut kb = KeyboardDefinition::default();
-                    kb.geometry.keys().push(keyforge_model::KeyNode {
+                    kb.geometry.keys.push(keyforge_model::KeyNode {
                         label: "A".into(),
                         ..Default::default()
                     });
-                    kb.geometry
-                        .prime_slots
-                        .push(keyforge_model::KeyIndex::new(0));
+                    kb.geometry.prime_slots.push(keyforge_model::KeyIndex::new(0));
                     kb.layouts.insert("qwerty".into(), "A".into());
 
                     let any_kb = Arc::new(kb) as Arc<dyn Any + Send + Sync>;
@@ -136,8 +133,7 @@ mod integration_tests {
                         },
                         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
                     }"#;
-                    let model: CostModel = serde_json::from_str(json)
-                        .map_err(|e| keyforge_model::error::ForgeError::Serde(e.to_string()))?;
+                    let model: CostModel = serde_json::from_str(json).unwrap();
                     let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
                     return Ok(any_model.downcast::<T>().expect("Downcast failed"));
                 }
@@ -146,7 +142,7 @@ mod integration_tests {
                     let mut reg = KeycodeRegistry::new_with_defaults();
                     reg.definitions
                         .push(keyforge_model::keycodes::KeycodeDefinition {
-                            code: KeyCode::new(10),
+                            code: keyforge_model::KeyCode::new(10),
                             id: "A".into(),
                             label: "a".into(),
                             aliases: vec![],

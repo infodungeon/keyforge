@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You    may obtain a copy of the License at
+// You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -194,7 +194,7 @@ mod tests {
 
         state.reheat_from_best(Temperature::new(1.0), ScalingFactor::new(0.5));
 
-        assert_eq!(state.temperature, Temperature::new(0.5));
+        assert!((state.temperature.raw() - 0.5).abs() < f32::EPSILON);
         assert_eq!(state.current_score, 50);
     }
 
@@ -203,6 +203,6 @@ mod tests {
         let layout = Layout::new_unchecked(vec![KeyCode::new(10)]);
         let mut state = SearchState::new(layout, 100, Temperature::new(0.1)).unwrap();
         state.reheat_from_best(Temperature::new(0.0), ScalingFactor::new(0.5));
-        assert_eq!(state.temperature, Temperature::new(0.0));
+        assert!((state.temperature.raw() - 0.0).abs() < f32::EPSILON);
     }
 }

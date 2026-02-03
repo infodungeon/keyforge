@@ -96,9 +96,7 @@ fn evolve_internal<CB: ProgressCallback>(
 ) -> Result<OptimizationResult, EvolutionError> {
     let mut layout = initial_layout.unwrap_or_else(|| {
         #[allow(clippy::cast_possible_truncation)]
-        let keys: Vec<KeyCode> = (0..engine.key_count())
-            .map(|i| KeyCode::new(i as u16))
-            .collect();
+        let keys: Vec<KeyCode> = (0..engine.key_count()).map(|i| KeyCode::new(i as u16)).collect();
         Layout::new_unchecked(keys)
     });
 
@@ -199,7 +197,6 @@ fn evolve_internal<CB: ProgressCallback>(
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use keyforge_model::types::RowIndex;
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use keyforge_physics::EngineFactory;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -213,7 +210,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> crate::OptimizationControl {
-            self.raw().fetch_add(1, Ordering::SeqCst);
+            self.0.fetch_add(1, Ordering::SeqCst);
             crate::OptimizationControl::Continue
         }
     }
@@ -230,7 +227,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
-            RowIndex::new(0),
+            keyforge_model::types::RowIndex::new(0),
             "test".into(),
         )
         .unwrap();
@@ -242,7 +239,10 @@ mod tests {
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex::new(0), 1.0)]),
+                        base: std::collections::HashMap::from([(
+                            keyforge_model::types::RowIndex::new(0),
+                            1.0,
+                        )]),
                         ..Default::default()
                     },
                 ),
@@ -303,7 +303,15 @@ mod tests {
 
     #[test]
     fn test_optimize_wrapper() {
-        let kb = Keyboard::new(vec![KeyNode::default()], RowIndex::new(0), "test".into()).unwrap();
+        let kb = Keyboard::new(
+            vec![KeyNode {
+                index: 0,
+                ..Default::default()
+            }],
+            keyforge_model::types::RowIndex::new(0),
+            "test".into(),
+        )
+        .unwrap();
         use keyforge_model::cost_model::CostModel;
         let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
@@ -312,7 +320,10 @@ mod tests {
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex::new(0), 1.0)]),
+                        base: std::collections::HashMap::from([(
+                            keyforge_model::types::RowIndex::new(0),
+                            1.0,
+                        )]),
                         ..Default::default()
                     },
                 ),

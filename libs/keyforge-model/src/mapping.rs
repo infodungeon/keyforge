@@ -19,8 +19,7 @@ pub trait Projection<Source>: Sized {
 
 impl Projection<serde_json::Value> for KeyboardDefinition {
     fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
-        let mut def: Self =
-            serde_json::from_value(source).map_err(|e| ForgeError::Serde(e.to_string()))?;
+        let mut def: Self = serde_json::from_value(source).map_err(ForgeError::from)?;
         def.post_load()?;
         Ok(def)
     }
@@ -28,8 +27,7 @@ impl Projection<serde_json::Value> for KeyboardDefinition {
 
 impl Projection<serde_json::Value> for crate::config::ScoringWeights {
     fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
-        let weights: Self =
-            serde_json::from_value(source).map_err(|e| ForgeError::Serde(e.to_string()))?;
+        let weights: Self = serde_json::from_value(source).map_err(ForgeError::from)?;
         weights.validate().map_err(ForgeError::Validation)?;
         Ok(weights)
     }
@@ -37,8 +35,7 @@ impl Projection<serde_json::Value> for crate::config::ScoringWeights {
 
 impl Projection<serde_json::Value> for crate::config::SearchParams {
     fn project(source: serde_json::Value) -> Result<Self, ForgeError> {
-        let params: Self =
-            serde_json::from_value(source).map_err(|e| ForgeError::Serde(e.to_string()))?;
+        let params: Self = serde_json::from_value(source).map_err(ForgeError::from)?;
         params.validate().map_err(ForgeError::Validation)?;
         Ok(params)
     }

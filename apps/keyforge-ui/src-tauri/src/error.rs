@@ -95,7 +95,7 @@ impl From<keyforge_infra::error::InfraError> for CommandError {
             )),
             InfraError::LockError(s) | InfraError::Config(s) => CommandError::Config(s),
             InfraError::Validation(s) => CommandError::Validation(s),
-            InfraError::Model(e) => CommandError::Internal(e.to_string()),
+            InfraError::Model(e) => CommandError::from(e),
         }
     }
 }
@@ -104,12 +104,13 @@ impl From<keyforge_model::error::ForgeError> for CommandError {
     fn from(e: keyforge_model::error::ForgeError) -> Self {
         use keyforge_model::error::ForgeError;
         match e {
-            ForgeError::Io(s) => CommandError::Io(std::io::Error::other(s)),
-            ForgeError::Serde(s) => CommandError::Serde(serde::de::Error::custom(s)),
+            ForgeError::Io(io) => CommandError::Internal(format!("IO Error: {io}")),
+            ForgeError::Serde(se) => CommandError::Internal(format!("Serde Error: {se}")),
             ForgeError::Physics(pe) => CommandError::Validation(pe.to_string()),
             ForgeError::Validation(s) | ForgeError::InvalidData(s) => CommandError::Validation(s),
             ForgeError::NotFound(_) => CommandError::NotFound,
             ForgeError::Config(s) => CommandError::Config(s),
+            ForgeError::Serialization(s) => CommandError::Internal(format!("Serialization Error: {s}")),
             _ => CommandError::Internal(e.to_string()),
         }
     }

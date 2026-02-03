@@ -6,7 +6,6 @@ use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_compute::ScoringSession;
 use keyforge_infra::AssetManager;
 use keyforge_model::config::CorpusSource;
-use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, Corpus};
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -65,15 +64,15 @@ impl AssetLoader for AssetCache {
         self.manager
             .ensure_keyboard(id)
             .await
-            .map_err(|e| ForgeError::NotFound(e.to_string()))?;
+            .map_err(|e| keyforge_model::error::ForgeError::NotFound(e.to_string()))?;
         let path = self
             .root
             .join("system/keyboards")
             .join(format!("{id}.json"));
-        let data = std::fs::read(path).map_err(|e| ForgeError::Io(e.to_string()))?;
+        let data = std::fs::read(path).map_err(keyforge_model::error::ForgeError::from)?;
         serde_json::from_slice(&data)
             .map(Arc::new)
-            .map_err(|e| ForgeError::Serde(e.to_string()))
+            .map_err(Into::into)
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
@@ -82,11 +81,11 @@ impl AssetLoader for AssetCache {
             self.manager
                 .ensure_corpus(&src.id, None)
                 .await
-                .map_err(|e| ForgeError::NotFound(e.to_string()))?;
+                .map_err(|e| keyforge_model::error::ForgeError::NotFound(e.to_string()))?;
             let path = self.root.join("system/corpora").join(&src.id);
-            let data = std::fs::read(path).map_err(|e| ForgeError::Io(e.to_string()))?;
+            let data = std::fs::read(path).map_err(keyforge_model::error::ForgeError::from)?;
             let corpus: Corpus =
-                serde_json::from_slice(&data).map_err(|e| ForgeError::Serde(e.to_string()))?;
+                serde_json::from_slice(&data).map_err(keyforge_model::error::ForgeError::from)?;
             blended.merge(&corpus, src.weight);
         }
         Ok(Arc::new(blended))

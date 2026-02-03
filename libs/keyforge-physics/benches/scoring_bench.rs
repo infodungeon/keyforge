@@ -9,10 +9,10 @@ use std::sync::Arc;
 fn bench_scoring(c: &mut Criterion) {
     let keys = vec![KeyNode::default()];
     let kb =
-        Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+        Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap());
     let cp = Arc::new(Corpus::default());
     let rubric = Arc::new(Rubric::default());
-    let cm = Arc::new(CostModel::default());
+    let cm = Arc::new(keyforge_model::testing::mock_cost_model());
 
     let engine = EngineFactory::new_generic(&EngineCompilationContext {
         keyboard: kb,
@@ -23,7 +23,7 @@ fn bench_scoring(c: &mut Criterion) {
     })
     .expect("Failed to compile engine");
 
-    let layout = Layout::new_unchecked(vec![KeyCode(0); engine.key_count()]);
+    let layout = Layout::new_unchecked(vec![KeyCode::new(0); engine.key_count()]);
 
     c.bench_function("scalar_score", |b| {
         b.iter(|| engine.score(black_box(&layout)));

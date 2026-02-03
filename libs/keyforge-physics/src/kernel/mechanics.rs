@@ -92,14 +92,14 @@ pub fn calculate_pair_cost(
         return Ok(0);
     }
 
-    let k1 = &kb.keys[i_idx];
-    let k2 = &kb.keys[j_idx];
+    let k1 = &kb.keys()[i_idx];
+    let k2 = &kb.keys()[j_idx];
 
     if k1.hand != k2.hand {
         return Ok(0);
     }
 
-    let movement = kb.spatial_cache[i_idx * kb.keys.len() + j_idx];
+    let movement = kb.spatial_cache[i_idx * kb.keys().len() + j_idx];
 
     // Intermediate geometric math in f64
     let t_lat = f64::from(rubric.travel_lat());
@@ -236,7 +236,7 @@ fn calculate_non_sfb_penalties(
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex, SpatialUnit};
     use keyforge_model::KeyNode;
     use std::sync::Arc;
 
@@ -248,8 +248,8 @@ mod tests {
                 finger: FingerIndex::new(1),
                 row: RowIndex::new(0),
                 col: ColIndex::new(0),
-                x: 0.0,
-                y: 0.0,
+                x: SpatialUnit::from_f32(0.0),
+                y: SpatialUnit::from_f32(0.0),
                 is_home: true,
                 ..Default::default()
             },
@@ -259,8 +259,8 @@ mod tests {
                 finger: FingerIndex::new(1),
                 row: RowIndex::new(1),
                 col: ColIndex::new(0),
-                x: 0.0,
-                y: 1.0,
+                x: SpatialUnit::from_f32(0.0),
+                y: SpatialUnit::from_f32(1.0),
                 is_home: false,
                 ..Default::default()
             },
@@ -270,8 +270,8 @@ mod tests {
                 finger: FingerIndex::new(2),
                 row: RowIndex::new(1),
                 col: ColIndex::new(1),
-                x: 1.0,
-                y: 1.0,
+                x: SpatialUnit::from_f32(1.0),
+                y: SpatialUnit::from_f32(1.0),
                 is_home: false,
                 ..Default::default()
             },

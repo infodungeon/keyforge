@@ -100,10 +100,8 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
         for row in source.keys {
             let idx = row.idx;
             #[allow(clippy::cast_possible_truncation)]
-            let kidx = KeyIndex::new(
-                u16::try_from(idx)
-                    .map_err(|_| ForgeError::Projection("Key index overflow".into()))?,
-            );
+            let kidx = KeyIndex::new(u16::try_from(idx)
+                .map_err(|_| ForgeError::Projection("Key index overflow".into()))?);
 
             keys.push(KeyNode {
                 index: usize::try_from(idx)
@@ -133,17 +131,15 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
             }
         }
 
-        let geometry = KeyboardGeometry::new(
-            keys,
-            prime_slots,
-            med_slots,
-            low_slots,
-            RowIndex::new(i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0)),
-        );
-
         let mut def = KeyboardDefinition {
             meta,
-            geometry,
+            geometry: KeyboardGeometry {
+                keys,
+                prime_slots,
+                med_slots,
+                low_slots,
+                home_row: RowIndex::new(i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0)),
+            },
             layouts: HashMap::new(),
         };
 
@@ -160,11 +156,9 @@ impl Projection<HiveJobProjection> for keyforge_protocol::JobConfig {
         )?;
 
         let pinned_keys: Vec<keyforge_model::config::KeyConstraint> =
-            serde_json::from_str(&source.row.pinned_keys)
-                .map_err(|e| ForgeError::Serde(e.to_string()))?;
+            serde_json::from_str(&source.row.pinned_keys).map_err(ForgeError::from)?;
         let cost_matrix: keyforge_model::config::CostMatrixSource =
-            serde_json::from_str(&source.row.cost_matrix)
-                .map_err(|e| ForgeError::Serde(e.to_string()))?;
+            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::from)?;
 
         Ok(Self {
             definition: source.definition.into(),
@@ -201,8 +195,8 @@ pub type HiveConfigTuple = (
 impl Projection<HiveJobConfigProjection> for HiveConfigTuple {
     fn project(source: HiveJobConfigProjection) -> Result<Self, ForgeError> {
         let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
-        let cost_matrix = serde_json::from_str(&source.row.cost_matrix)
-            .map_err(|e| ForgeError::Serde(e.to_string()))?;
+        let cost_matrix =
+            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::from)?;
 
         Ok((
             source.definition.geometry,

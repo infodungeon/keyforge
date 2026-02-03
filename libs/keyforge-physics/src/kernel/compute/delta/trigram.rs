@@ -42,7 +42,9 @@ pub fn calculate_trigram_delta(
         let mut min_new = i64::MAX;
 
         for &p1 in pm.get(code_a) {
+            let p1_new = swap_pos(p1, pos_a, pos_b);
             for &p2 in pm.get(c2) {
+                let p2_new = swap_pos(p2, pos_a, pos_b);
                 for &p3 in pm.get(c3) {
                     let cost = calculate_flow_cost_at(ctx, p1, p2, p3);
                     if cost < min_old {
@@ -50,8 +52,6 @@ pub fn calculate_trigram_delta(
                     }
 
                     // New position for A
-                    let p1_new = swap_pos(p1, pos_a, pos_b);
-                    let p2_new = swap_pos(p2, pos_a, pos_b);
                     let p3_new = swap_pos(p3, pos_a, pos_b);
 
                     let cost_new = calculate_flow_cost_at(ctx, p1_new, p2_new, p3_new);
@@ -85,7 +85,9 @@ pub fn calculate_trigram_delta(
         let mut min_new = i64::MAX;
 
         for &p1 in pm.get(code_b) {
+            let p1_new = swap_pos(p1, pos_a, pos_b);
             for &p2 in pm.get(c2) {
+                let p2_new = swap_pos(p2, pos_a, pos_b);
                 for &p3 in pm.get(c3) {
                     let cost = calculate_flow_cost_at(ctx, p1, p2, p3);
                     if cost < min_old {
@@ -93,8 +95,6 @@ pub fn calculate_trigram_delta(
                     }
 
                     // New position for B
-                    let p1_new = swap_pos(p1, pos_a, pos_b);
-                    let p2_new = swap_pos(p2, pos_a, pos_b);
                     let p3_new = swap_pos(p3, pos_a, pos_b);
 
                     let cost_new = calculate_flow_cost_at(ctx, p1_new, p2_new, p3_new);

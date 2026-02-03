@@ -67,8 +67,7 @@ impl ValkeyProvider {
     ) -> LoaderResult<T> {
         let compressed = self.fetch_blob(subpath).await?;
         tokio::task::spawn_blocking(move || {
-            let decoder =
-                zstd::Decoder::new(&compressed[..]).map_err(|e| ForgeError::Io(e.to_string()))?;
+            let decoder = zstd::Decoder::new(&compressed[..]).map_err(ForgeError::from)?;
             rmp_serde::from_read(decoder).map_err(|e| ForgeError::InvalidData(e.to_string()))
         })
         .await
@@ -143,7 +142,7 @@ impl ValkeyProvider {
         let stem = id.strip_suffix(".json").unwrap_or(id);
         match category {
             AssetCategory::Keyboard => format!("keyboards/models/{stem}.mpk.zst"),
-            AssetCategory::CostModel => "weights/cost_matrix.mpk.zst".to_string(),
+            AssetCategory::CostModel => format!("weights/{stem}.mpk.zst"),
             AssetCategory::Keycodes => format!("config/{stem}.mpk.zst"),
             AssetCategory::Corpus => format!("corpora/{stem}/bundle.mpk.zst"),
             AssetCategory::Rubric => format!("rubrics/{stem}.mpk.zst"),
@@ -169,8 +168,7 @@ impl AssetLoader for ValkeyProvider {
                 let path = format!("{base}/{part}.mpk.zst");
                 if let Ok(bytes) = self.fetch_blob(&path).await {
                     let part_res: Vec<serde_json::Value> = tokio::task::spawn_blocking(move || {
-                        let decoder = zstd::Decoder::new(&bytes[..])
-                            .map_err(|e| ForgeError::Io(e.to_string()))?;
+                        let decoder = zstd::Decoder::new(&bytes[..]).map_err(ForgeError::from)?;
                         rmp_serde::from_read(decoder)
                             .map_err(|e| ForgeError::InvalidData(e.to_string()))
                     })

@@ -1,27 +1,27 @@
+// libs/keyforge-physics/tests/analysis_verification.rs
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// # Analysis Report Verification
+//
+// This test suite ensures that the high-level `AnalysisReport` produced by the
+// optimized scoring engines matches the ground truth provided by the `DeterministicScorer`.
+//
+// Intent: Verify "Oracle Parity" for metric breakdown (Distance, SFBs, etc.).
+
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
-    // libs/keyforge-physics/tests/analysis_verification.rs
-
-    // Licensed under the Apache License, Version 2.0 (the "License");
-    // you may not use this file except in compliance with the License.
-    // You may obtain a copy of the License at
-    //
-    //     http://www.apache.org/licenses/
-    //
-    // Unless required by applicable law or agreed to in writing, software
-    // distributed under the License is distributed on an "AS IS" BASIS,
-    // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    // See the License for the specific language governing permissions and
-    // limitations under the License.
-
-    // # Analysis Report Verification
-    //
-    // This test suite ensures that the high-level `AnalysisReport` produced by the
-    // optimized scoring engines matches the ground truth provided by the `DeterministicScorer`.
-    //
-    // Intent: Verify "Oracle Parity" for metric breakdown (Distance, SFBs, etc.).
-
     use keyforge_model::{Corpus, Keyboard, Layout, Rubric};
     use keyforge_physics::{verify::DeterministicScorer, EngineCompilationContext, EngineFactory};
     use proptest::prelude::*;
@@ -43,30 +43,29 @@ mod integration_tests {
                 let key_count = kb.count();
                 // Generate a valid layout for this keyboard
                 let layout_keys: Vec<keyforge_model::KeyCode> = (0..key_count)
-                    .map(|i| keyforge_model::KeyCode(i as u16))
+                    .map(|i| keyforge_model::KeyCode::new(i as u16))
                     .collect();
                 let layout = Layout::new_unchecked(layout_keys.clone());
 
                 let cost_model = mock_cost_model();
 
                 // 1. Oracle (Ground Truth)
-                let oracle = DeterministicScorer::new(&kb, &rubric, &cost_model);
-                let oracle_score = oracle.score(&kb, &corpus, &layout.keys()).unwrap_or(0); // Handle overflow in fuzzing
-
-                // 2. Optimized Engine (System Under Test)
-                let ctx = EngineCompilationContext {
+                let ctx_comp = EngineCompilationContext {
                     keyboard: Arc::new(kb.clone()),
                     corpus: Arc::new(corpus.clone()),
                     rubric: Arc::new(rubric.clone()),
                     cost_model: Arc::new(cost_model.clone()),
                     engine_config: keyforge_model::config::EngineConfig::default(),
                 };
-                let engine = EngineFactory::new_generic(&ctx).unwrap();
+                let engine_scalar = EngineFactory::new_scalar(&ctx_comp).unwrap();
+                let oracle = DeterministicScorer::new(engine_scalar.context().clone());
+                let oracle_score = oracle.score(&kb, &corpus, &layout.keys()).unwrap_or(0); // Handle overflow in fuzzing
+
+                // 2. Optimized Engine (System Under Test)
+                let engine = EngineFactory::new_generic(&ctx_comp).unwrap();
 
                 // 3. Generate Report
                 let report = engine.analyze(&layout).unwrap();
-
-                // 4. Verification
 
                 // 4. Verification
 

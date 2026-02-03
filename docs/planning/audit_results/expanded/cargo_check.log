@@ -2,24 +2,132 @@
 --- STDERR ---
     Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
    Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
-    Checking keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
-    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
-    Checking keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
-    Checking keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
-    Checking keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
-    Checking keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
-    Checking keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
-    Checking keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
-    Checking keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
-    Checking keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
-    Checking keyforge-tui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-tui)
-    Checking keyforge-testing v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing)
-    Checking keyforge-repros v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/repros)
-    Checking keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
-    Checking keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
-    Checking keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
-    Checking keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
-    Checking keyforge-system-tests v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/tests/system)
-    Checking openbookcorpus v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/corpora/openbookcorpus)
-    Checking keyforge-wasm v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.01s
+error[E0599]: no variant or associated item named `Serde` found for enum `ForgeError` in the current scope
+  --> libs/keyforge-model/src/mapping.rs:22:80
+   |
+22 |         let mut def: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+   |                                                                                ^^^^^ variant or associated item not found in `ForgeError`
+   |
+  ::: libs/keyforge-model/src/error.rs:25:1
+   |
+25 | pub enum ForgeError {
+   | ------------------- variant or associated item `Serde` not found for this enum
+
+error[E0599]: no variant or associated item named `Serde` found for enum `ForgeError` in the current scope
+  --> libs/keyforge-model/src/mapping.rs:30:80
+   |
+30 |         let weights: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+   |                                                                                ^^^^^ variant or associated item not found in `ForgeError`
+   |
+  ::: libs/keyforge-model/src/error.rs:25:1
+   |
+25 | pub enum ForgeError {
+   | ------------------- variant or associated item `Serde` not found for this enum
+
+error[E0599]: no variant or associated item named `Serde` found for enum `ForgeError` in the current scope
+  --> libs/keyforge-model/src/mapping.rs:38:79
+   |
+38 |         let params: Self = serde_json::from_value(source).map_err(ForgeError::Serde)?;
+   |                                                                               ^^^^^ variant or associated item not found in `ForgeError`
+   |
+  ::: libs/keyforge-model/src/error.rs:25:1
+   |
+25 | pub enum ForgeError {
+   | ------------------- variant or associated item `Serde` not found for this enum
+
+error[E0277]: `?` couldn't convert the error to `ForgeError`
+  --> libs/keyforge-model/src/utils/json.rs:25:36
+   |
+24 | pub fn to_string_safe<T: Serialize>(value: &T) -> Result<String, ForgeError> {
+   |                                                   -------------------------- expected `ForgeError` because of this
+25 |     Ok(serde_json::to_string(value)?)
+   |        ----------------------------^ the trait `From<serde_json::Error>` is not implemented for `ForgeError`
+   |        |
+   |        this can't be annotated with `?` because it has type `Result<_, serde_json::Error>`
+   |
+note: `ForgeError` needs to implement `From<serde_json::Error>`
+  --> libs/keyforge-model/src/error.rs:25:1
+   |
+25 | pub enum ForgeError {
+   | ^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = help: the following other types implement trait `From<T>`:
+             `ForgeError` implements `From<ModelError>`
+             `ForgeError` implements `From<PhysicsError>`
+             `ForgeError` implements `From<std::string::String>`
+
+error[E0277]: `?` couldn't convert the error to `ForgeError`
+  --> libs/keyforge-model/src/utils/json.rs:33:43
+   |
+32 | pub fn to_string_pretty_safe<T: Serialize>(value: &T) -> Result<String, ForgeError> {
+   |                                                          -------------------------- expected `ForgeError` because of this
+33 |     Ok(serde_json::to_string_pretty(value)?)
+   |        -----------------------------------^ the trait `From<serde_json::Error>` is not implemented for `ForgeError`
+   |        |
+   |        this can't be annotated with `?` because it has type `Result<_, serde_json::Error>`
+   |
+note: `ForgeError` needs to implement `From<serde_json::Error>`
+  --> libs/keyforge-model/src/error.rs:25:1
+   |
+25 | pub enum ForgeError {
+   | ^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = help: the following other types implement trait `From<T>`:
+             `ForgeError` implements `From<ModelError>`
+             `ForgeError` implements `From<PhysicsError>`
+             `ForgeError` implements `From<std::string::String>`
+
+error[E0277]: `?` couldn't convert the error to `ForgeError`
+  --> libs/keyforge-model/src/utils/json.rs:41:31
+   |
+40 | pub fn from_str_safe<T: DeserializeOwned>(s: &str) -> Result<T, ForgeError> {
+   |                                                       --------------------- expected `ForgeError` because of this
+41 |     Ok(serde_json::from_str(s)?)
+   |        -----------------------^ the trait `From<serde_json::Error>` is not implemented for `ForgeError`
+   |        |
+   |        this can't be annotated with `?` because it has type `Result<_, serde_json::Error>`
+   |
+note: `ForgeError` needs to implement `From<serde_json::Error>`
+  --> libs/keyforge-model/src/error.rs:25:1
+   |
+25 | pub enum ForgeError {
+   | ^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = help: the following other types implement trait `From<T>`:
+             `ForgeError` implements `From<ModelError>`
+             `ForgeError` implements `From<PhysicsError>`
+             `ForgeError` implements `From<std::string::String>`
+
+error[E0308]: mismatched types
+  --> libs/keyforge-model/src/testing.rs:87:21
+   |
+87 |                     x,
+   |                     ^ expected `SpatialUnit`, found `f32`
+
+error[E0308]: mismatched types
+  --> libs/keyforge-model/src/testing.rs:88:21
+   |
+88 |                     y,
+   |                     ^ expected `SpatialUnit`, found `f32`
+
+error[E0308]: mismatched types
+  --> libs/keyforge-model/src/testing.rs:92:25
+   |
+92 |                     rx: 0.0,
+   |                         ^^^ expected `SpatialUnit`, found floating-point number
+
+error[E0308]: mismatched types
+  --> libs/keyforge-model/src/testing.rs:93:25
+   |
+93 |                     ry: 0.0,
+   |                         ^^^ expected `SpatialUnit`, found floating-point number
+
+error[E0308]: mismatched types
+   --> libs/keyforge-model/src/testing.rs:275:16
+    |
+275 |             x: i as f32,
+    |                ^^^^^^^^ expected `SpatialUnit`, found `f32`
+
+Some errors have detailed explanations: E0277, E0308, E0599.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `keyforge-model` (lib) due to 11 previous errors
