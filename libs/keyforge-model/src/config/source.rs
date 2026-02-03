@@ -22,7 +22,8 @@ pub struct CorpusSource {
     pub id: String,
     /// The weight multiplier for this corpus.
     pub weight: f32,
-    /// Optional hash for integrity verification.
+    /// Optional hash for integrity verification and content-addressing.
+    /// When present, this is included in the job fingerprint calculation.
     #[serde(default, skip_serializing_if = "crate::utils::is_none")]
     pub hash: Option<String>,
 }
