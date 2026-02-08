@@ -1,8 +1,10 @@
 // libs/keyforge-model/src/types/scoring.rs
 
-use crate::constants::SCORE_SCALE;
+use crate::constants::{SCORE_SCALE, WEIGHT_SCALE};
 use crate::types::FixedPointMath;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts_bindings")]
+use ts_rs::TS;
 use std::ops::{Add, Mul, Neg, Sub};
 use utoipa::ToSchema;
 
@@ -12,6 +14,7 @@ use utoipa::ToSchema;
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
 )]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct Score(i64);
@@ -25,7 +28,7 @@ impl FixedPointMath for Score {
         Self(val)
     }
     fn scale() -> f64 {
-        f64::from(SCORE_SCALE)
+        SCORE_SCALE as f64
     }
 }
 
@@ -54,7 +57,7 @@ impl Score {
         if val.is_nan() {
             return Err("Cannot create Score from NaN".to_string());
         }
-        let scaled = f64::from(val) * f64::from(SCORE_SCALE);
+        let scaled = f64::from(val) * (SCORE_SCALE as f64);
         if scaled > i64::MAX as f64 || scaled < i64::MIN as f64 {
             return Err(format!(
                 "Score overflow: {val} * {SCORE_SCALE} exceeds i64 range"
@@ -70,11 +73,20 @@ impl Score {
         Score(val)
     }
 
+    /// Creates a Score from a FixedWeight.
+    #[must_use]
+    pub fn from_weight(weight: FixedWeight) -> Self {
+        // WEIGHT_SCALE is 1,000, SCORE_SCALE is 1,000,000.
+        // Ratio is 1,000.
+        let ratio = SCORE_SCALE / i64::from(WEIGHT_SCALE);
+        Self::from_scaled_i64(i64::from(weight.raw()) * ratio)
+    }
+
     /// Converts the Score back to a float, removing scaling.
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
     pub fn to_f32(self) -> f32 {
-        (self.0 as f32) / SCORE_SCALE
+        (self.0 as f32) / (SCORE_SCALE as f32)
     }
 
     /// Checked addition.
@@ -112,6 +124,30 @@ impl Score {
     pub fn saturating_mul(self, factor: i64) -> Score {
         Score::from_scaled_i64(self.0.saturating_mul(factor))
     }
+
+    /// Checked multiplication by a FixedWeight.
+    #[must_use]
+    pub fn checked_mul_weight(self, weight: FixedWeight) -> Option<Score> {
+        let raw_score = i128::from(self.raw());
+        let raw_weight = i128::from(weight.raw());
+        let scaled = (raw_score.checked_mul(raw_weight)?) / i128::from(WEIGHT_SCALE);
+        if scaled > i128::from(i64::MAX) || scaled < i128::from(i64::MIN) {
+            None
+        } else {
+            #[allow(clippy::cast_possible_truncation)]
+            Some(Score::from_scaled_i64(scaled as i64))
+        }
+    }
+
+    /// Saturating multiplication by a FixedWeight.
+    #[must_use]
+    pub fn saturating_mul_weight(self, weight: FixedWeight) -> Score {
+        let raw_score = i128::from(self.raw());
+        let raw_weight = i128::from(weight.raw());
+        let scaled = (raw_score.saturating_mul(raw_weight)) / i128::from(WEIGHT_SCALE);
+        #[allow(clippy::cast_possible_truncation)]
+        Score::from_scaled_i64(scaled.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64)
+    }
 }
 
 impl Add for Score {
@@ -135,6 +171,13 @@ impl Mul<i64> for Score {
     }
 }
 
+impl Mul<FixedWeight> for Score {
+    type Output = Self;
+    fn mul(self, rhs: FixedWeight) -> Self::Output {
+        self.saturating_mul_weight(rhs)
+    }
+}
+
 impl Neg for Score {
     type Output = Self;
     fn neg(self) -> Self::Output {
@@ -145,6 +188,18 @@ impl Neg for Score {
 impl std::fmt::Display for Score {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:.4}", self.to_f32())
+    }
+}
+
+impl std::iter::Sum for Score {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Score::ZERO, |a, b| a + b)
+    }
+}
+
+impl<'a> std::iter::Sum<&'a Score> for Score {
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.fold(Score::ZERO, |a, b| a + *b)
     }
 }
 
@@ -168,5 +223,92 @@ impl Weight {
 impl From<f32> for Weight {
     fn from(val: f32) -> Self {
         Self(val)
+    }
+}
+
+/// Represents a relative weight for a scoring metric in deterministic fixed-point units.
+///
+/// Scaling: 1,000 units = 1.0 Weight.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, utoipa::ToSchema,
+)]
+#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[repr(transparent)]
+pub struct FixedWeight(i32);
+
+impl serde::Serialize for FixedWeight {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_f32(self.to_f32())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for FixedWeight {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let val = f32::deserialize(deserializer)?;
+        Ok(Self::from_f32(val).map_err(serde::de::Error::custom)?)
+    }
+}
+
+impl FixedPointMath for FixedWeight {
+    type Raw = i32;
+    fn raw(self) -> Self::Raw {
+        self.0
+    }
+    fn from_raw(val: Self::Raw) -> Self {
+        Self(val)
+    }
+    fn scale() -> f64 {
+        f64::from(WEIGHT_SCALE)
+    }
+}
+
+impl std::fmt::Display for FixedWeight {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.3}", self.to_f32())
+    }
+}
+
+impl FixedWeight {
+    /// Zero weight.
+    pub const ZERO: FixedWeight = FixedWeight(0);
+    /// Unit weight (1.0).
+    pub const UNIT: FixedWeight = FixedWeight(WEIGHT_SCALE);
+
+    /// Creates a FixedWeight from a float value, applying scaling.
+    ///
+    /// # Errors
+    /// Returns an error if the resulting value overflows `i32` or is NaN.
+    #[allow(clippy::cast_precision_loss)]
+    pub fn from_f32(val: f32) -> Result<Self, String> {
+        if val.is_nan() {
+            return Err("Cannot create FixedWeight from NaN".to_string());
+        }
+        let scaled = f64::from(val) * f64::from(WEIGHT_SCALE);
+        if scaled > f64::from(i32::MAX) || scaled < f64::from(i32::MIN) {
+            return Err(format!(
+                "Weight overflow: {val} * {WEIGHT_SCALE} exceeds i32 range"
+            ));
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Ok(FixedWeight(scaled.round() as i32))
+    }
+
+    /// Converts the FixedWeight back to a float, removing scaling.
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
+    pub fn to_f32(self) -> f32 {
+        (self.0 as f32) / (WEIGHT_SCALE as f32)
+    }
+
+    /// Returns the raw `i32` value.
+    #[must_use]
+    pub const fn raw(self) -> i32 {
+        self.0
     }
 }

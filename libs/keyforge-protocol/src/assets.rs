@@ -170,9 +170,9 @@ pub struct MetricViolationDto {
     /// String representation of the keys involved (e.g. "QU").
     pub keys: String,
     /// Raw cost contribution.
-    pub score: f32,
+    pub score: keyforge_model::types::Score,
     /// Frequency of occurrence in the corpus.
-    pub freq: f32,
+    pub freq: keyforge_model::types::Score,
 }
 
 impl From<&keyforge_model::types::MetricViolation> for MetricViolationDto {
@@ -190,25 +190,25 @@ impl From<&keyforge_model::types::MetricViolation> for MetricViolationDto {
 #[cfg_attr(feature = "ts_bindings", derive(TS), ts(export))]
 pub struct AnalysisReportDto {
     /// Final normalized ergonomic score.
-    pub score: f32,
+    pub score: keyforge_model::types::Score,
     /// List of computed metric values.
-    pub metrics: Vec<(MetricIdDto, f32)>,
+    pub metrics: Vec<(MetricIdDto, keyforge_model::types::Score)>,
     /// List of top violations grouped by metric.
     pub violations: Vec<(MetricIdDto, Vec<MetricViolationDto>)>,
     /// Total travel distance.
-    pub distance: f32,
+    pub distance: keyforge_model::types::Score,
     /// Travel per keypress.
-    pub travel_per_key: f32,
+    pub travel_per_key: keyforge_model::types::Score,
     /// Total SFB cost.
-    pub sfb_total: f32,
+    pub sfb_total: keyforge_model::types::Score,
     /// SFB percentage of total bigrams.
-    pub sfb_ratio: f32,
+    pub sfb_ratio: keyforge_model::types::Score,
     /// Hand balance (-1.0 to 1.0).
-    pub hand_balance: f32,
+    pub hand_balance: keyforge_model::types::Score,
     /// Per-key usage frequency map.
-    pub heatmap: Vec<f32>,
+    pub heatmap: Vec<keyforge_model::types::Score>,
     /// Per-key ergonomic penalty map.
-    pub penalty_map: Vec<f32>,
+    pub penalty_map: Vec<keyforge_model::types::Score>,
 }
 
 impl From<keyforge_model::AnalysisReport> for AnalysisReportDto {
@@ -230,8 +230,8 @@ impl From<keyforge_model::AnalysisReport> for AnalysisReportDto {
             sfb_total: val.sfb_total,
             sfb_ratio: val.sfb_ratio,
             hand_balance: val.hand_balance,
-            heatmap: val.heatmap,
-            penalty_map: val.penalty_map,
+            heatmap: val.heatmap.clone(),
+            penalty_map: val.penalty_map.clone(),
         }
     }
 }
@@ -249,9 +249,9 @@ pub struct SwapSuggestionDto {
     /// Label of the second key.
     pub key_b: String,
     /// Score change (negative is better).
-    pub score_delta: f32,
+    pub score_delta: keyforge_model::types::Score,
     /// Percentage relative improvement.
-    pub improvement_pct: f32,
+    pub improvement_pct: keyforge_model::types::Score,
 }
 
 impl From<keyforge_model::types::SwapSuggestion> for SwapSuggestionDto {
@@ -373,9 +373,9 @@ pub struct FingerReachDto {
 impl From<keyforge_model::cost_model::FingerReach> for FingerReachDto {
     fn from(val: keyforge_model::cost_model::FingerReach) -> Self {
         Self {
-            base: val.base.into_iter().map(|(k, v)| (k.into(), v)).collect(),
-            inner: val.inner.into_iter().map(|(k, v)| (k.into(), v)).collect(),
-            outer: val.outer.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+            base: val.base.into_iter().map(|(k, v)| (k.into(), v.to_f32())).collect(),
+            inner: val.inner.into_iter().map(|(k, v)| (k.into(), v.to_f32())).collect(),
+            outer: val.outer.into_iter().map(|(k, v)| (k.into(), v.to_f32())).collect(),
         }
     }
 }
@@ -383,9 +383,9 @@ impl From<keyforge_model::cost_model::FingerReach> for FingerReachDto {
 impl From<FingerReachDto> for keyforge_model::cost_model::FingerReach {
     fn from(val: FingerReachDto) -> Self {
         Self {
-            base: val.base.into_iter().map(|(k, v)| (k.into(), v)).collect(),
-            inner: val.inner.into_iter().map(|(k, v)| (k.into(), v)).collect(),
-            outer: val.outer.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+            base: val.base.into_iter().map(|(k, v)| (k.into(), keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect(),
+            inner: val.inner.into_iter().map(|(k, v)| (k.into(), keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect(),
+            outer: val.outer.into_iter().map(|(k, v)| (k.into(), keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect(),
         }
     }
 }
@@ -400,6 +400,7 @@ pub enum FingerDefinitionDto {
     /// Coordinate-based costs for thumb keys.
     Thumb(std::collections::HashMap<String, f32>),
     /// Unknown or complex finger definitions.
+    #[cfg_attr(feature = "ts_bindings", ts(type = "any"))]
     Fallback(serde_json::Value),
 }
 
@@ -409,7 +410,9 @@ impl From<keyforge_model::cost_model::FingerDefinition> for FingerDefinitionDto 
             keyforge_model::cost_model::FingerDefinition::Standard(reach) => {
                 Self::Standard(reach.into())
             }
-            keyforge_model::cost_model::FingerDefinition::Thumb(map) => Self::Thumb(map),
+            keyforge_model::cost_model::FingerDefinition::Thumb(map) => {
+                Self::Thumb(map.into_iter().map(|(k, v)| (k, v.to_f32())).collect())
+            }
             keyforge_model::cost_model::FingerDefinition::Fallback(v) => Self::Fallback(v),
         }
     }
@@ -419,7 +422,9 @@ impl From<FingerDefinitionDto> for keyforge_model::cost_model::FingerDefinition 
     fn from(val: FingerDefinitionDto) -> Self {
         match val {
             FingerDefinitionDto::Standard(reach) => Self::Standard(reach.into()),
-            FingerDefinitionDto::Thumb(map) => Self::Thumb(map),
+            FingerDefinitionDto::Thumb(map) => {
+                Self::Thumb(map.into_iter().map(|(k, v)| (k, keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect())
+            }
             FingerDefinitionDto::Fallback(v) => Self::Fallback(v),
         }
     }
@@ -509,19 +514,20 @@ pub struct DynamicRulesDto {
 impl From<keyforge_model::cost_model::DynamicRules> for DynamicRulesDto {
     fn from(val: keyforge_model::cost_model::DynamicRules) -> Self {
         Self {
-            sequence_modifiers: val.sequence_modifiers,
-            penalties: val.penalties,
-            constraints: val.constraints,
+            sequence_modifiers: val.sequence_modifiers.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
+            penalties: val.penalties.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
+            constraints: val.constraints.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
         }
     }
 }
 
 impl From<DynamicRulesDto> for keyforge_model::cost_model::DynamicRules {
     fn from(val: DynamicRulesDto) -> Self {
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
         Self {
-            sequence_modifiers: val.sequence_modifiers,
-            penalties: val.penalties,
-            constraints: val.constraints,
+            sequence_modifiers: val.sequence_modifiers.into_iter().map(|(k, v)| (k, fw(v))).collect(),
+            penalties: val.penalties.into_iter().map(|(k, v)| (k, fw(v))).collect(),
+            constraints: val.constraints.into_iter().map(|(k, v)| (k, fw(v))).collect(),
         }
     }
 }
