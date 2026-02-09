@@ -194,9 +194,9 @@ pub async fn setup_server() -> (
     });
 
     let pool = init_db(&db_url).await;
-    let _ = sqlx::query("TRUNCATE results CASCADE").execute(&pool).await;
-    let _ = sqlx::query("TRUNCATE nodes CASCADE").execute(&pool).await;
-    let _ = sqlx::query("TRUNCATE jobs CASCADE").execute(&pool).await;
+    let _ = sqlx::query!("TRUNCATE results CASCADE").execute(&pool).await;
+    let _ = sqlx::query!("TRUNCATE nodes CASCADE").execute(&pool).await;
+    let _ = sqlx::query!("TRUNCATE jobs CASCADE").execute(&pool).await;
 
     let temp_dir = tempfile::tempdir().unwrap();
     let data_path = temp_dir.path().to_path_buf();

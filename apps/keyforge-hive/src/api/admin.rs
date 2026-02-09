@@ -133,7 +133,7 @@ pub struct FullBackup {
 /// Generates a comprehensive backup of the database state.
 pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<FullBackup>> {
     // 1. Keyboards
-    let keyboards = sqlx::query!("SELECT * FROM keyboards")
+    let keyboards = sqlx::query!("SELECT id, name, author, unique_hash FROM keyboards")
         .fetch_all(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?
@@ -149,7 +149,7 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
         .collect();
 
     // 2. Active Jobs
-    let jobs = sqlx::query!("SELECT * FROM jobs WHERE status = 'active'")
+    let jobs = sqlx::query!("SELECT id, status, created_at FROM jobs WHERE status = 'active'")
         .fetch_all(&state.jobs.repo.pool)
         .await
         .map_err(AppError::Database)?
@@ -165,7 +165,7 @@ pub async fn backup_db(State(state): State<Arc<AppState>>) -> AppResult<Json<Ful
 
     // 3. Recent Results (Sample) - Enforce Limit to prevent OOM
     let results = sqlx::query!(
-        "SELECT * FROM results ORDER BY created_at DESC LIMIT $1",
+        "SELECT job_id, score, layout FROM results ORDER BY created_at DESC LIMIT $1",
         BACKUP_RESULTS_LIMIT
     )
     .fetch_all(&state.jobs.repo.pool)

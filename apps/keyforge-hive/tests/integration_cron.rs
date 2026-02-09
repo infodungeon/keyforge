@@ -30,23 +30,41 @@ mod integration_tests {
     async fn seed_min_job(pool: &sqlx::PgPool, job_id: &str) {
         let hash = Uuid::new_v4().to_string();
 
-        let kb_id: i32 = sqlx::query_scalar("INSERT INTO keyboards (name, author, version, unique_hash) VALUES ('dummy', 'tester', $1, $2) RETURNING id")
-        .bind(&hash).bind(&hash).fetch_one(pool).await.expect("Failed to seed Keyboard");
+        let kb_id: i32 = sqlx::query_scalar!(
+            "INSERT INTO keyboards (name, author, version, unique_hash) VALUES ('dummy', 'tester', $1, $2) RETURNING id",
+            hash,
+            hash
+        )
+        .fetch_one(pool)
+        .await
+        .expect("Failed to seed Keyboard");
 
-        let profile_id: i32 = sqlx::query_scalar(
-        "INSERT INTO scoring_profiles (weights, config_hash) VALUES ('{}'::jsonb, $1) RETURNING id",
-    )
-    .bind(&hash)
-    .fetch_one(pool)
-    .await
-    .expect("Failed to seed Profile");
+        let profile_id: i32 = sqlx::query_scalar!(
+            "INSERT INTO scoring_profiles (weights, config_hash) VALUES ('{}'::jsonb, $1) RETURNING id",
+            hash
+        )
+        .fetch_one(pool)
+        .await
+        .expect("Failed to seed Profile");
 
-        let config_id: i32 = sqlx::query_scalar("INSERT INTO search_configs (search_epochs, search_steps, search_patience, search_patience_threshold, temp_min, temp_max, opt_limit_fast, opt_limit_slow, config_hash) VALUES (1,1,1,0.1,0.1,0.1,1,1, $1) RETURNING id")
-        .bind(&hash).fetch_one(pool).await.expect("Failed to seed SearchConfig");
+        let config_id: i32 = sqlx::query_scalar!(
+            "INSERT INTO search_configs (search_epochs, search_steps, search_patience, search_patience_threshold, temp_min, temp_max, opt_limit_fast, opt_limit_slow, config_hash) VALUES (1,1,1,0.1,0.1,0.1,1,1, $1) RETURNING id",
+            hash
+        )
+        .fetch_one(pool)
+        .await
+        .expect("Failed to seed SearchConfig");
 
-        sqlx::query("INSERT INTO jobs (id, keyboard_id, scoring_profile_id, search_config_id, pinned_keys, corpus_name, cost_matrix, status, started_at, retry_count) VALUES ($1, $2, $3, $4, '[]', 'default', 'cost.json', 'processing', NOW() - INTERVAL '70 minutes', 0)")
-        .bind(job_id).bind(kb_id).bind(profile_id).bind(config_id)
-        .execute(pool).await.expect("Failed to seed Job");
+        sqlx::query!(
+            "INSERT INTO jobs (id, keyboard_id, scoring_profile_id, search_config_id, pinned_keys, corpus_name, cost_matrix, status, started_at, retry_count) VALUES ($1, $2, $3, $4, '[]', 'default', 'cost.json', 'processing', NOW() - INTERVAL '70 minutes', 0)",
+            job_id,
+            kb_id,
+            profile_id,
+            config_id
+        )
+        .execute(pool)
+        .await
+        .expect("Failed to seed Job");
     }
 
     #[tokio::test]
@@ -65,11 +83,14 @@ mod integration_tests {
         // Note: If schema is fully migrated, this tests normal behavior.
         assert!(reset >= 1);
 
-        let status: String = sqlx::query_scalar("SELECT status FROM jobs WHERE id = $1")
-            .bind(&job_id)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let status: String = sqlx::query_scalar!(
+            "SELECT status FROM jobs WHERE id = $1",
+            job_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .expect("Job status missing");
         assert_eq!(status, "active");
     }
 
@@ -107,8 +128,8 @@ mod integration_tests {
 
         // Seed Job dependencies for foreign key constraints
         seed_min_job(&pool, &job_id).await;
-        sqlx::query("INSERT INTO nodes (id, cpu_cores, performance_rating) VALUES ($1, 1, 1.0) ON CONFLICT (id) DO NOTHING")
-        .bind(&node_id).execute(&pool).await.unwrap();
+        sqlx::query!("INSERT INTO nodes (id, cpu_cores, performance_rating) VALUES ($1, 1, 1.0) ON CONFLICT (id) DO NOTHING", node_id)
+        .execute(&pool).await.unwrap();
 
         // Create WAL file
         let record = PersistedRecord {
