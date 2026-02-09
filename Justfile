@@ -202,6 +202,10 @@ docker-down:
 	-docker stop keyforge_valkey keyforge_db keyforge_hive keyforge_assets keyforge_assetmgr keyforge_web keyforge_hive_proxy keyforge_assets_proxy 2>/dev/null || true
 	-docker rm keyforge_valkey keyforge_db keyforge_hive keyforge_assets keyforge_assetmgr keyforge_web keyforge_hive_proxy keyforge_assets_proxy 2>/dev/null || true
 
+POSTGRES_USER := env_var_or_default("POSTGRES_USER", "keyforge")
+POSTGRES_PASSWORD := env_var_or_default("POSTGRES_PASSWORD", "forge_password")
+POSTGRES_DB := env_var_or_default("POSTGRES_DB", "keyforge_hive")
+
 DATABASE_URL := "postgres://" + POSTGRES_USER + ":" + POSTGRES_PASSWORD + "@localhost:5432/" + POSTGRES_DB
 
 db-reset:
