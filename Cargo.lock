@@ -4442,6 +4442,7 @@ dependencies = [
 name = "keyforge-infra"
 version = "0.9.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "backon",
  "bytes",

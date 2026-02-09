@@ -150,13 +150,16 @@ test-compute:
 test-cli:
 	cargo test --manifest-path apps/keyforge-cli/Cargo.toml
 
+test-infra:
+	cargo test -p keyforge-infra
+
 verify-parity:
 	cargo test -p keyforge-physics --test parity_oracle
 
 test-ui:
 	cd apps/keyforge-ui && npx vitest run
 
-test-all: test-compute test-cli verify-parity test-ui
+test-all: test-infra test-compute test-cli verify-parity test-ui
 
 cover package:
 	mkdir -p target/coverage

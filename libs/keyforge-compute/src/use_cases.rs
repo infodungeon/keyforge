@@ -49,25 +49,22 @@ impl OptimizationUseCase {
         // 1.5. Resolve hashes for content-addressable Job ID
         for src in &mut corpora {
             if src.hash.is_none() {
-                if let Ok(h) = loader
-                    .get_hash(keyforge_model::AssetCategory::Corpus, &src.id)
-                    .await
-                {
-                    src.hash = Some(h);
-                }
+                src.hash = Some(
+                    loader
+                        .get_hash(keyforge_model::AssetCategory::Corpus, &src.id)
+                        .await?,
+                );
             }
         }
 
-        let mut cost_matrix_hash = None;
         let keyforge_model::CostMatrixSource::Predefined(ref name) = cost_matrix;
-        if let Ok(h) = loader
-            .get_hash(keyforge_model::AssetCategory::CostModel, name)
-            .await
-        {
-            cost_matrix_hash = Some(h);
-        }
+        let cost_matrix_hash = Some(
+            loader
+                .get_hash(keyforge_model::AssetCategory::CostModel, name)
+                .await?,
+        );
 
-        let corpora_hash = keyforge_model::job::calculate_corpora_hash(&corpora);
+        let corpora_hash = keyforge_infra::util::common::calculate_fingerprint(&corpora);
 
         let id = JobIdentifier::try_from_parts(
             &geometry,

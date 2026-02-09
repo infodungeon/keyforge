@@ -46,6 +46,7 @@ dirs.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]
+anyhow.workspace = true
 wiremock.workspace = true
 temp-env.workspace = true
 tokio.workspace = true

@@ -68,14 +68,20 @@ impl ValkeyProvider {
     ) -> LoaderResult<(T, [u8; 32])> {
         let compressed = self.fetch_blob(subpath).await?;
 
-        let mut hasher = sha2::Sha256::new();
-        sha2::Digest::update(&mut hasher, &compressed);
-        let hash = hasher.finalize().into();
-
-        let asset = tokio::task::spawn_blocking(move || {
-            let decoder =
+        let (asset, hash) = tokio::task::spawn_blocking(move || -> LoaderResult<(T, [u8; 32])> {
+            let mut decoder =
                 zstd::Decoder::new(&compressed[..]).map_err(|e| ForgeError::Io(e.to_string()))?;
-            rmp_serde::from_read(decoder).map_err(|e| ForgeError::InvalidData(e.to_string()))
+            let mut decompressed = Vec::new();
+            std::io::copy(&mut decoder, &mut decompressed)
+                .map_err(|e| ForgeError::Io(e.to_string()))?;
+
+            let mut hasher = sha2::Sha256::new();
+            sha2::Digest::update(&mut hasher, &decompressed);
+            let hash = hasher.finalize().into();
+
+            let asset = rmp_serde::from_read(&decompressed[..])
+                .map_err(|e| ForgeError::InvalidData(e.to_string()))?;
+            Ok((asset, hash))
         })
         .await
         .map_err(|e| ForgeError::Internal(e.to_string()))??;
@@ -175,11 +181,20 @@ impl AssetLoader for ValkeyProvider {
             let base = format!("corpora/{}", src.id);
             for part in ["1grams", "2grams", "3grams", "words"] {
                 let path = format!("{base}/{part}.mpk.zst");
-                if let Ok(bytes) = self.fetch_blob(&path).await {
+                if let Ok(compressed) = self.fetch_blob(&path).await {
                     let part_res: Vec<serde_json::Value> = tokio::task::spawn_blocking(move || {
-                        let decoder = zstd::Decoder::new(&bytes[..])
+                        let mut decoder = zstd::Decoder::new(&compressed[..])
                             .map_err(|e| ForgeError::Io(e.to_string()))?;
-                        rmp_serde::from_read(decoder)
+                        let mut decompressed = Vec::new();
+                        std::io::copy(&mut decoder, &mut decompressed)
+                            .map_err(|e| ForgeError::Io(e.to_string()))?;
+
+                        // Compute hash for verification (DATA-005)
+                        let mut hasher = sha2::Sha256::new();
+                        sha2::Digest::update(&mut hasher, &decompressed);
+                        let _hash: [u8; 32] = hasher.finalize().into();
+
+                        rmp_serde::from_read(&decompressed[..])
                             .map_err(|e| ForgeError::InvalidData(e.to_string()))
                     })
                     .await
