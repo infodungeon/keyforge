@@ -205,7 +205,9 @@ pub async fn validate_layout_string(
                     .with_keycodes("default")
                     .await?
                     .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-                        &job_config.to_domain_weights(),
+                        &job_config
+                            .to_domain_weights()
+                            .map_err(|e| CommandError::Internal(format!("Invalid weights: {e}")))?,
                     ));
 
                 let session = builder.build()?;

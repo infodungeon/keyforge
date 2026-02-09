@@ -26,7 +26,9 @@ impl Projection<JobConfig> for keyforge_model::config::Config {
             cost_matrix: source.to_domain_cost_matrix(),
             seed: None,
             search: source.to_domain_params(),
-            weights: source.to_domain_weights(),
+            weights: source
+                .to_domain_weights()
+                .map_err(keyforge_model::error::ForgeError::InvalidData)?,
             defs: keyforge_model::config::LayoutDefinitions::default(),
             engine: keyforge_model::config::EngineConfig::default(),
             pinned_keys: source.to_domain_pinned_keys(),
@@ -110,19 +112,25 @@ impl JobConfig {
     }
 
     /// Converts protocol weights to domain model weights.
-    #[must_use]
-    pub fn to_domain_weights(&self) -> keyforge_model::config::ScoringWeights {
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
-        keyforge_model::config::ScoringWeights {
-            weights: self
-                .weights
-                .weights
-                .iter()
-                .map(|(k, &v)| (k.clone(), fw(v)))
-                .collect(),
-            finger_penalty_scale: self.weights.finger_penalty_scale.map(fw),
-            comfortable_scissors: self.weights.comfortable_scissors.clone(),
+    ///
+    /// # Errors
+    /// Returns an error if any weight value is invalid.
+    pub fn to_domain_weights(&self) -> Result<keyforge_model::config::ScoringWeights, String> {
+        let mut weights = std::collections::HashMap::new();
+        for (k, &v) in &self.weights.weights {
+            weights.insert(k.clone(), keyforge_model::types::Score::from_f32(v)?);
         }
+
+        let mut finger_penalty_scale = [keyforge_model::types::Score::default(); 5];
+        for (i, &v) in self.weights.finger_penalty_scale.iter().enumerate() {
+            finger_penalty_scale[i] = keyforge_model::types::Score::from_f32(v)?;
+        }
+
+        Ok(keyforge_model::config::ScoringWeights {
+            weights,
+            finger_penalty_scale,
+            comfortable_scissors: self.weights.comfortable_scissors.clone(),
+        })
     }
 
     /// Converts protocol search params to domain model params.
@@ -175,7 +183,7 @@ impl JobConfig {
             .keys
             .iter()
             .map(|k| keyforge_model::geometry::KeyNode {
-                index: k.index as usize,
+                index: k.index.into(),
                 label: k.label.clone(),
                 x: keyforge_model::types::SpatialUnit::from_f32(k.x),
                 y: keyforge_model::types::SpatialUnit::from_f32(k.y),
@@ -235,7 +243,9 @@ impl JobConfig {
 
         keyforge_model::job::JobIdentifier::from_parts(
             &self.to_domain_geometry(),
-            &self.to_domain_weights(),
+            &self
+                .to_domain_weights()
+                .map_err(keyforge_model::error::ModelError::Invariant)?,
             &self.to_domain_params(),
             &self.to_domain_pinned_keys(),
             &corpora_hash,

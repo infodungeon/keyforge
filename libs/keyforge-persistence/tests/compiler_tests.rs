@@ -71,7 +71,11 @@ mod integration_tests {
             Path::new(".")
         }
 
-        async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
+        async fn get_hash(
+            &self,
+            _category: keyforge_model::asset::AssetCategory,
+            _id: &str,
+        ) -> LoaderResult<String> {
             Ok("mock".to_string())
         }
     }
@@ -168,7 +172,11 @@ mod integration_tests {
             fn root(&self) -> &Path {
                 Path::new(".")
             }
-            async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
+            async fn get_hash(
+                &self,
+                _category: keyforge_model::asset::AssetCategory,
+                _id: &str,
+            ) -> LoaderResult<String> {
                 Ok("qwerty".to_string())
             }
         }
@@ -198,8 +206,14 @@ mod integration_tests {
             fn root(&self) -> &Path {
                 Path::new(".")
             }
-            async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
-                Err(keyforge_model::error::ForgeError::NotFound("hash".to_string()))
+            async fn get_hash(
+                &self,
+                _category: keyforge_model::asset::AssetCategory,
+                _id: &str,
+            ) -> LoaderResult<String> {
+                Err(keyforge_model::error::ForgeError::NotFound(
+                    "hash".to_string(),
+                ))
             }
         }
 

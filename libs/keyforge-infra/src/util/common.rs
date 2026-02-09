@@ -113,47 +113,50 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn test_calculate_file_hash() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_calculate_file_hash() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let path = temp.path().join("test.txt");
-        fs::write(&path, "hello").unwrap();
+        fs::write(&path, "hello")?;
 
-        let hash = calculate_file_hash(&path).unwrap();
+        let hash = calculate_file_hash(&path)?;
         assert!(!hash.is_empty());
         assert!(calculate_file_hash("nonexistent").is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_load_keycode_registry() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_load_keycode_registry() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let path = temp.path().join("keycodes.json");
         fs::write(
             &path,
             r#"[{"code": 97, "id": "KC_A", "label": "a", "aliases": []}]"#,
-        )
-        .unwrap();
+        )?;
 
-        let reg = load_keycode_registry(&path).unwrap();
+        let reg = load_keycode_registry(&path)?;
         assert_eq!(reg.definitions.len(), 1);
         assert!(load_keycode_registry(&temp.path().join("missing")).is_err());
 
         // Invalid JSON
-        fs::write(&path, "invalid").unwrap();
+        fs::write(&path, "invalid")?;
         assert!(load_keycode_registry(&path).is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_sanitize_filename() {
+    fn test_sanitize_filename() -> anyhow::Result<()> {
         assert_eq!(sanitize_filename("valid.txt"), "valid.txt");
         assert_eq!(sanitize_filename("invalid/path"), "invalid_path");
+        Ok(())
     }
 
     #[test]
-    fn test_normalize_path() {
+    fn test_normalize_path() -> anyhow::Result<()> {
         assert_eq!(normalize_path("a/b/c"), Some("a/b/c".into()));
         assert_eq!(normalize_path("a/../b"), Some("b".into()));
         assert_eq!(normalize_path("../outside"), None);
         assert_eq!(normalize_path("/absolute"), None);
         assert_eq!(normalize_path(""), None);
+        Ok(())
     }
 }

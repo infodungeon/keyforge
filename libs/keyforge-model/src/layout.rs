@@ -198,7 +198,8 @@ impl LayoutIdentity {
                 }
             }
 
-            let similarity = (matches as f32) / (len as f32);
+            let similarity = f32::from(u16::try_from(matches).unwrap_or(u16::MAX))
+                / f32::from(u16::try_from(len).unwrap_or(u16::MAX));
             let distance = len - matches;
 
             if best.as_ref().is_none_or(|b| similarity > b.similarity) {
@@ -220,7 +221,9 @@ impl LayoutIdentity {
 }
 
 fn to_codes(s: &str) -> Vec<KeyCode> {
-    s.chars().map(|c| KeyCode::new(c as u16)).collect()
+    s.chars()
+        .map(|c| KeyCode::new(u16::try_from(u32::from(c)).unwrap_or(0)))
+        .collect()
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -242,34 +245,54 @@ mod tests {
     }
 
     #[test]
-    fn test_layout_mutations() {
+    fn test_layout_mutations() -> anyhow::Result<()> {
         let mut layout = Layout::new_unchecked(vec![KeyCode::new(65), KeyCode::new(66)]);
 
         // Swap
-        layout.swap(KeyIndex::new(0), KeyIndex::new(1)).unwrap();
-        assert_eq!(layout.get(KeyIndex::new(0)).unwrap(), KeyCode::new(66));
-        assert_eq!(layout.get(KeyIndex::new(1)).unwrap(), KeyCode::new(65));
+        layout.swap(KeyIndex::new(0), KeyIndex::new(1))?;
+        assert_eq!(
+            layout
+                .get(KeyIndex::new(0))
+                .ok_or_else(|| anyhow::anyhow!("Missing key"))?,
+            KeyCode::new(66)
+        );
+        assert_eq!(
+            layout
+                .get(KeyIndex::new(1))
+                .ok_or_else(|| anyhow::anyhow!("Missing key"))?,
+            KeyCode::new(65)
+        );
 
         // Set
-        layout.set(KeyIndex::new(0), KeyCode::new(67)).unwrap();
-        assert_eq!(layout.get(KeyIndex::new(0)).unwrap(), KeyCode::new(67));
+        layout.set(KeyIndex::new(0), KeyCode::new(67))?;
+        assert_eq!(
+            layout
+                .get(KeyIndex::new(0))
+                .ok_or_else(|| anyhow::anyhow!("Missing key"))?,
+            KeyCode::new(67)
+        );
 
         // Bounds check
         assert!(layout.swap(KeyIndex::new(0), KeyIndex::new(2)).is_err());
         assert!(layout.set(KeyIndex::new(2), KeyCode::new(68)).is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_layout_identification() {
+    fn test_layout_identification() -> anyhow::Result<()> {
         let qwerty_str = crate::constants::layouts::QWERTY;
-        let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode::new(c as u16)).collect();
+        let keys: Vec<KeyCode> = qwerty_str
+            .chars()
+            .map(|c| KeyCode::new(u16::try_from(u32::from(c)).unwrap_or(0)))
+            .collect();
         let layout = Layout::new_unchecked(keys);
 
         let id = layout.identify();
         assert!(id.is_some());
-        let id = id.unwrap();
+        let id = id.ok_or_else(|| anyhow::anyhow!("Identification failed"))?;
         assert_eq!(id.name, "Qwerty");
         assert!(id.similarity > 0.9);
+        Ok(())
     }
 
     proptest! {

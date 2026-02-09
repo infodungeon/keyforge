@@ -6,7 +6,18 @@ use utoipa::ToSchema;
 
 /// Unique identifier for a physical key position on the keyboard.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    Default,
 )]
 #[serde(transparent)]
 #[repr(transparent)]
@@ -30,30 +41,51 @@ impl KeyIndex {
 
     /// Returns the value as `usize`.
     #[must_use]
-    pub const fn as_usize(self) -> usize {
-        self.0 as usize
+    pub fn as_usize(self) -> usize {
+        usize::from(self.0)
     }
 }
 
 impl fmt::Display for KeyIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+impl From<u16> for KeyIndex {
+    fn from(val: u16) -> Self {
+        Self(val)
+    }
+}
+impl From<KeyIndex> for u16 {
+    fn from(val: KeyIndex) -> u16 {
+        val.raw()
     }
 }
 impl From<usize> for KeyIndex {
     fn from(idx: usize) -> Self {
-        KeyIndex::new(idx.try_into().unwrap_or_default())
+        KeyIndex::new(u16::try_from(idx).unwrap_or(u16::MAX))
     }
 }
 impl From<KeyIndex> for usize {
     fn from(idx: KeyIndex) -> Self {
-        idx.raw() as usize
+        usize::from(idx.raw())
     }
 }
 
 /// Logical identifier for a character or action (e.g., 'A', 'Shift').
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    Default,
 )]
 #[serde(transparent)]
 #[repr(transparent)]
@@ -74,8 +106,8 @@ impl KeyCode {
 
     /// Returns the value as `usize`.
     #[must_use]
-    pub const fn as_usize(self) -> usize {
-        self.0 as usize
+    pub fn as_usize(self) -> usize {
+        usize::from(self.0)
     }
 
     /// The canonical "Empty" or "No-Op" keycode (0).
@@ -96,7 +128,7 @@ impl From<KeyCode> for u16 {
     }
 }
 impl fmt::Display for KeyCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }

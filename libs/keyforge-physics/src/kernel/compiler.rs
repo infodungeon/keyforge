@@ -75,10 +75,7 @@ impl Compiler {
             if bigram.len() == 2 {
                 let bytes = bigram.as_bytes();
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
-                sequence_modifiers.insert(
-                    key,
-                    val,
-                );
+                sequence_modifiers.insert(key, val);
             }
         }
 

@@ -240,16 +240,17 @@ mod tests {
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test]
-    fn test_inject_keyboard() {
+    fn test_inject_keyboard() -> anyhow::Result<()> {
         let engine = KeyforgeEngine::new();
         let kb_json = r#"{
             "meta": { "name": "Test" },
             "geometry": { "keys": [], "prime_slots": [], "med_slots": [], "low_slots": [], "home_row": 0 },
             "layouts": {}
         }"#;
-        let val: serde_json::Value = serde_json::from_str(kb_json).unwrap();
-        let js_val = to_value(&val).unwrap();
+        let val: serde_json::Value = serde_json::from_str(kb_json)?;
+        let js_val = to_value(&val).map_err(|e| anyhow::anyhow!(e))?;
 
         assert!(engine.inject_keyboard("test", js_val).is_err());
+        Ok(())
     }
 }

@@ -29,9 +29,9 @@ fn mock_cost_model() -> CostModel {
 }
 
 fn main() {
-    let keys: Vec<KeyNode> = (0..5)
+    let keys: Vec<KeyNode> = (0u16..5)
         .map(|i| KeyNode {
-            index: i,
+            index: i.into(),
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(i as u8),
             x: keyforge_model::types::SpatialUnit::from_f32(i as f32),

@@ -32,7 +32,7 @@ pub async fn run(
 
     let builder = builder
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &job.to_domain_weights(),
+            &job.to_domain_weights().map_err(|e| anyhow::anyhow!(e))?,
         ))
         .with_config(keyforge_adapter::conversion::to_domain_config(
             &job.to_domain_params(),

@@ -8,7 +8,6 @@ rule:
     - kind: type_annotation
       has:
         pattern: "any"
-paths:
-  include:
-    - "apps/keyforge-ui/src/**/*.ts"
-    - "apps/keyforge-ui/src/**/*.tsx"
+files:
+  - "apps/keyforge-ui/src/**/*.ts"
+  - "apps/keyforge-ui/src/**/*.tsx"

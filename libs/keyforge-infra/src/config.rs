@@ -121,18 +121,19 @@ mod tests {
     }
 
     #[test]
-    fn test_common_config_from_file() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_common_config_from_file() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let path = temp.path().join("config.toml");
-        fs::write(&path, "data_dir = '/etc/kf'\ncores = 4").unwrap();
+        fs::write(&path, "data_dir = '/etc/kf'\ncores = 4")?;
 
-        let cfg = CommonConfig::from_file(&path).unwrap();
+        let cfg = CommonConfig::from_file(&path)?;
         assert_eq!(cfg.data_dir, Some(PathBuf::from("/etc/kf")));
         assert_eq!(cfg.cores, Some(4));
 
         assert!(CommonConfig::from_file("missing.toml").is_err());
-        fs::write(&path, "bad = invalid").unwrap();
+        fs::write(&path, "bad = invalid")?;
         assert!(CommonConfig::from_file(&path).is_err());
+        Ok(())
     }
 
     #[test]

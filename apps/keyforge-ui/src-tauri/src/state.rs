@@ -93,8 +93,15 @@ impl AssetLoader for AssetCache {
         Ok(Arc::new(blended))
     }
 
-    async fn get_hash(&self, _category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String> {
-        let path = self.root.join("system/keyboards").join(format!("{id}.json"));
+    async fn get_hash(
+        &self,
+        _category: keyforge_model::AssetCategory,
+        id: &str,
+    ) -> LoaderResult<String> {
+        let path = self
+            .root
+            .join("system/keyboards")
+            .join(format!("{id}.json"));
         if path.exists() {
             let data = std::fs::read(path).map_err(|e| ForgeError::Io(e.to_string()))?;
             let mut hasher = sha2::Sha256::new();

@@ -168,7 +168,7 @@ mod tests {
     use crate::types::{FingerIndex, HandIndex};
 
     #[test]
-    fn test_keyboard_spatial_precomputation() {
+    fn test_keyboard_spatial_precomputation() -> anyhow::Result<()> {
         let keys = vec![
             KeyNode {
                 index: 0,
@@ -187,10 +187,11 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, crate::types::RowIndex::new(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, crate::types::RowIndex::new(0), "test".into())?;
 
         assert_eq!(kb.spatial_cache.len(), 4);
         // (3-0)^2 + (4-0)^2 = 9 + 16 = 25
-        assert_eq!(kb.spatial_cache[1].dist_sq(), 25_000_000); // 1000^2 scaling for KU^2
+        assert_eq!(kb.spatial_cache[1].dist_sq(), 25_000_000);
+        Ok(())
     }
 }

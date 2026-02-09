@@ -44,7 +44,7 @@ impl GhostScorer {
     ) -> Result<Self, PhysicsError> {
         Ok(Self {
             keyboard: kb,
-            rubric: GhostRubric::from_rubric(rubric)?,
+            rubric: GhostRubric::from_rubric(rubric),
             cost_model: cm,
         })
     }
@@ -243,7 +243,8 @@ impl GhostScorer {
             "right_hand"
         };
 
-        let val = self.cost_model
+        let val = self
+            .cost_model
             .models()
             .get(model_key)
             .and_then(|m| {
@@ -266,11 +267,9 @@ impl GhostScorer {
                 keyforge_model::cost_model::FingerDefinition::Standard(reach) => {
                     reach.base.get(&key.row).copied().unwrap_or(Score::ZERO)
                 }
-                keyforge_model::cost_model::FingerDefinition::Thumb(pos) => pos
-                    .values()
-                    .min()
-                    .copied()
-                    .unwrap_or(Score::ZERO),
+                keyforge_model::cost_model::FingerDefinition::Thumb(pos) => {
+                    pos.values().min().copied().unwrap_or(Score::ZERO)
+                }
                 keyforge_model::cost_model::FingerDefinition::Fallback(_) => Score::ZERO,
             })
             .ok_or_else(|| {
@@ -298,7 +297,9 @@ impl GhostScorer {
         let t_lat_i = i128::from(self.rubric.travel_lat.raw());
         let t_vert_i = i128::from(self.rubric.travel_vert.raw());
         let dist_sq_weighted = i128::from(dx2) * t_lat_i + i128::from(dy2) * t_vert_i;
-        let mut cost = Score::from_scaled_i64(crate::kernel::mechanics::integer_sqrt_i128(dist_sq_weighted));
+        let mut cost = Score::from_scaled_i64(crate::kernel::mechanics::integer_sqrt_i128(
+            dist_sq_weighted,
+        ));
 
         if k1.finger == k2.finger {
             // SFB Handling
@@ -339,19 +340,23 @@ struct GhostRubric {
 }
 
 impl GhostRubric {
-    fn from_rubric(r: &Rubric) -> Result<Self, PhysicsError> {
-        let finger_effort = r
-            .finger_effort()
-            .to_vec();
+    fn from_rubric(r: &Rubric) -> Self {
+        let finger_effort = r.finger_effort().to_vec();
 
-        Ok(Self {
+        Self {
             finger_effort,
+
             travel_lat: r.travel_lat(),
+
             travel_vert: r.travel_vert(),
+
             sfb_base: r.sfb_base(),
+
             redirect: r.redirect(),
+
             roll_bonus: r.roll_bonus(),
+
             roll_out_bonus: r.roll_out_bonus(),
-        })
+        }
     }
 }

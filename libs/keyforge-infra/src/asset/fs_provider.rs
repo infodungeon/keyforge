@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::asset::AssetServerProvider;
+use crate::asset::{resolver::PathResolver, AssetServerProvider};
 use crate::error::InfraResult;
 use crate::net::sync::ServerManifest;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
-use keyforge_model::Asset;
+use keyforge_model::{Asset, AssetCategory};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -39,34 +39,33 @@ impl FsProvider {
         Self { root }
     }
 
-    fn resolve_path(&self, id: &str) -> LoaderResult<PathBuf> {
-        let path = self.root.join(id);
-        if path.exists() {
-            Ok(path)
-        } else {
-            // Try extensions
-            let json = path.with_extension("json");
-            if json.exists() {
-                return Ok(json);
-            }
-            let mpk = path.with_extension("mpk");
-            if mpk.exists() {
-                return Ok(mpk);
-            }
-            let mpk_zst = path.with_extension("mpk.zst");
-            if mpk_zst.exists() {
-                return Ok(mpk_zst);
-            }
+    fn resolve_asset_path(&self, category: AssetCategory, id: &str) -> LoaderResult<PathBuf> {
+        let resolver = PathResolver::new(self.root.clone());
+        let cat_str = category.as_str();
 
-            Err(keyforge_model::error::ForgeError::NotFound(id.to_string()))
+        // 1. Try direct path first (to support existing tests/absolute paths)
+        if let Some(p) = resolver.resolve_direct_path(id) {
+            return Ok(p);
         }
+
+        // 2. Try system scope
+        if let Some(p) = resolver.resolve_system_path(cat_str, id) {
+            return Ok(p);
+        }
+
+        // 3. Try user scope
+        if let Some(p) = resolver.resolve_user_path(cat_str, id) {
+            return Ok(p);
+        }
+
+        Err(keyforge_model::error::ForgeError::NotFound(id.to_string()))
     }
 }
 
 #[async_trait]
 impl AssetLoader for FsProvider {
     async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
-        let path = self.resolve_path(id)?;
+        let path = self.resolve_asset_path(T::category(), id)?;
         let content = fs::read(&path).await.map_err(|e| {
             keyforge_model::error::ForgeError::Io(format!("Failed to read {id}: {e}"))
         })?;
@@ -109,8 +108,12 @@ impl AssetLoader for FsProvider {
         Ok(Arc::new(corpus))
     }
 
-    async fn get_hash(&self, _category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String> {
-        let path = self.resolve_path(id)?;
+    async fn get_hash(
+        &self,
+        category: keyforge_model::AssetCategory,
+        id: &str,
+    ) -> LoaderResult<String> {
+        let path = self.resolve_asset_path(category, id)?;
         crate::util::common::calculate_file_hash(&path)
             .map_err(|e| keyforge_model::error::ForgeError::Io(e.to_string()))
     }

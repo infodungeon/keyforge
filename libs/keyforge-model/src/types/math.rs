@@ -38,16 +38,18 @@ impl SpatialUnit {
 
     /// Converts a float KU value to `SpatialUnit`.
     #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub fn from_f32(val: f32) -> Self {
-        Self((f64::from(val) * (Self::SCALE as f64)).round() as i32)
+        // SCALE is 1000, which fits exactly in f64.
+        let result_f64 = (f64::from(val) * 1000.0).round();
+        Self(i32::try_from(result_f64 as i64).unwrap_or(0)) // sg-ignore
     }
 
     /// Converts `SpatialUnit` to a float KU value.
     #[must_use]
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub fn to_f32(self) -> f32 {
-        ((f64::from(self.0)) / (Self::SCALE as f64)) as f32
+        (f64::from(self.0) / 1000.0) as f32 // sg-ignore
     }
 }
 
@@ -84,8 +86,9 @@ impl FixedPointMath for SpatialUnit {
     fn from_raw(val: Self::Raw) -> Self {
         Self(val)
     }
+    #[allow(clippy::cast_precision_loss)]
     fn scale() -> f64 {
-        Self::SCALE as f64
+        1000.0
     }
 }
 

@@ -151,33 +151,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_init_workspace_creates_dirs() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_init_workspace_creates_dirs() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let root = temp.path().join("new_workspace");
 
         let sys_root = root.join("system");
-        fs::create_dir_all(sys_root.join("config")).unwrap();
-        fs::create_dir_all(sys_root.join("weights")).unwrap();
-        fs::create_dir_all(sys_root.join("corpora/text/en_std")).unwrap();
+        fs::create_dir_all(sys_root.join("config"))?;
+        fs::create_dir_all(sys_root.join("weights"))?;
+        fs::create_dir_all(sys_root.join("corpora/text/en_std"))?;
 
-        fs::write(sys_root.join("config/keycodes.json"), "").unwrap();
-        fs::write(sys_root.join("weights/cost_matrix.json"), "").unwrap();
-        fs::write(sys_root.join("corpora/text/en_std/1grams.json"), "").unwrap();
+        fs::write(sys_root.join("config/keycodes.json"), "")?;
+        fs::write(sys_root.join("weights/cost_matrix.json"), "")?;
+        fs::write(sys_root.join("corpora/text/en_std/1grams.json"), "")?;
 
-        initialize_workspace(&root, InitMode::Create).unwrap();
+        initialize_workspace(&root, InitMode::Create)?;
 
         assert!(root.join("system/config").exists());
         assert!(root.join("user/keyboards").exists());
         assert!(root.join("user/agent_wal").exists());
+        Ok(())
     }
 
     #[test]
-    fn test_init_workspace_missing_assets() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_init_workspace_missing_assets() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let root = temp.path();
 
         let res = initialize_workspace(root, InitMode::Validate);
         assert!(res.is_err());
         assert!(format!("{:?}", res.err()).contains("Required system asset missing"));
+        Ok(())
     }
 }

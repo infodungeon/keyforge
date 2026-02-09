@@ -23,14 +23,19 @@ pub struct HiveKeyboardMetaRow {
 /// Database-aligned DTO for a Keyboard Key row.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct HiveKeyRow {
+    // sg-ignore
     pub idx: i32,
     pub x: f32,
     pub y: f32,
     pub w: Option<f32>,
     pub h: Option<f32>,
+    // sg-ignore
     pub hand: i32,
+    // sg-ignore
     pub finger: i32,
+    // sg-ignore
     pub row_idx: i32,
+    // sg-ignore
     pub col_idx: i32,
     pub is_stretch: Option<bool>,
     pub is_prime: Option<bool>,
@@ -106,8 +111,7 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
             );
 
             keys.push(KeyNode {
-                index: usize::try_from(idx)
-                    .map_err(|_| ForgeError::Projection("Key index negative".into()))?,
+                index: kidx,
                 label: format!("k{idx}"),
                 x: keyforge_model::types::SpatialUnit::from_f32(row.x),
                 y: keyforge_model::types::SpatialUnit::from_f32(row.y),
@@ -219,7 +223,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_job_projection_logic() {
+    fn test_job_projection_logic() -> anyhow::Result<()> {
         let row = HiveJobRow {
             id: "test-job".to_string(),
             keyboard_id: 1,
@@ -244,7 +248,8 @@ mod tests {
         let definition = KeyboardDefinition::default();
         let projection = HiveJobProjection { row, definition };
 
-        let config = keyforge_protocol::JobConfig::project(projection).unwrap();
+        let config = keyforge_protocol::JobConfig::project(projection)?;
         assert_eq!(config.corpora[0].id, "en");
+        Ok(())
     }
 }

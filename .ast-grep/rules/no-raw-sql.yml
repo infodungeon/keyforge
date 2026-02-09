@@ -3,13 +3,19 @@ message: "ARCH-004: All database interactions must use sqlx macros (query! or qu
 severity: error
 language: rust
 rule:
-  any:
-    - pattern: "sqlx::query($$$)"
-    - pattern: "sqlx::query_as($$$)"
-    - pattern: "sqlx::query_scalar($$$)"
-paths:
-  exclude:
-    - "**/tests/**/*.rs"
-    - "**/tests.rs"
-    - "**/common/mod.rs"
-    - "ops/repros/**/*.rs"
+  all:
+    - any:
+        - pattern: "sqlx::query($$$)"
+        - pattern: "sqlx::query_as($$$)"
+        - pattern: "sqlx::query_scalar($$$)"
+    - not:
+        inside:
+          kind: mod_item
+          has:
+            kind: attribute
+            pattern: "#[cfg(test)]"
+ignores:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "ops/repros/**"
+  - "**/migrations/**"

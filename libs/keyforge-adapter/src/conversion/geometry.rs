@@ -20,7 +20,7 @@ pub fn to_domain_keyboard(
         .enumerate()
         .map(|(i, k)| {
             let mut kn = to_domain_keynode(k);
-            kn.index = i;
+            kn.index = i.into();
             // Task-adap-rev-001: Only override is_home if it's false in input
             if !k.is_home {
                 kn.is_home = k.row == geo.home_row();
@@ -115,7 +115,7 @@ mod tests {
     use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 
     #[test]
-    fn test_to_domain_keynode_conversion() {
+    fn test_to_domain_keynode_conversion() -> anyhow::Result<()> {
         let proto_key = KeyNode {
             index: 0,
             label: "A".to_string(),
@@ -132,10 +132,11 @@ mod tests {
         let domain_key = to_domain_keynode(&proto_key);
         assert_eq!(domain_key.index, proto_key.index);
         assert_eq!(domain_key.label, proto_key.label);
+        Ok(())
     }
 
     #[test]
-    fn test_to_domain_keyboard_conversion() {
+    fn test_to_domain_keyboard_conversion() -> anyhow::Result<()> {
         let proto_geo = KeyboardGeometry::new(
             vec![
                 KeyNode {
@@ -165,12 +166,13 @@ mod tests {
             RowIndex::new(0),
         );
 
-        let domain_keyboard = to_domain_keyboard(&proto_geo).expect("Failed to convert keyboard");
+        let domain_keyboard = to_domain_keyboard(&proto_geo)?;
         assert_eq!(domain_keyboard.count(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_resolve_constraints() {
+    fn test_resolve_constraints() -> anyhow::Result<()> {
         let mut reg = KeycodeRegistry::new_with_defaults();
         reg.definitions
             .push(keyforge_model::keycodes::KeycodeDefinition {
@@ -185,7 +187,7 @@ mod tests {
             index: KeyIndex::new(0),
             key: "A".into(),
         }];
-        let pins = resolve_constraints(&constraints, 2, &reg).unwrap();
+        let pins = resolve_constraints(&constraints, 2, &reg)?;
         assert_eq!(pins[0], Some(KeyCode::new(10)));
         assert_eq!(pins[1], None);
 
@@ -202,10 +204,11 @@ mod tests {
             key: "A".into(),
         }];
         assert!(resolve_constraints(&constraints, 2, &reg).is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_resolve_cost_matrix() {
+    fn test_resolve_cost_matrix() -> anyhow::Result<()> {
         let proto_geo = KeyboardGeometry::new(
             vec![
                 KeyNode {
@@ -226,5 +229,6 @@ mod tests {
         let overrides = resolve_cost_matrix(&raw, &proto_geo);
         assert_eq!(overrides.len(), 1);
         assert_eq!(overrides[0], (0, 1, 10.0));
+        Ok(())
     }
 }

@@ -117,7 +117,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_corpus_source_validation() {
+    fn test_corpus_source_validation() -> anyhow::Result<()> {
         // 1. Valid
         let valid = CorpusSource {
             id: "en".into(),
@@ -157,10 +157,11 @@ mod tests {
             hash: None,
         };
         assert!(nan_weight.validate().is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_corpus_source_hash_and_default() {
+    fn test_corpus_source_hash_and_default() -> anyhow::Result<()> {
         use std::hash::Hasher;
         let default = CorpusSource::default();
         assert_eq!(default.id, "text/en_std");
@@ -182,17 +183,18 @@ mod tests {
         s1.hash(&mut h1);
         s2.hash(&mut h2);
         assert_eq!(h1.finish(), h2.finish());
+        Ok(())
     }
 
     #[test]
-    fn test_corpus_source_from_str() {
+    fn test_corpus_source_from_str() -> anyhow::Result<()> {
         // Simple
-        let s: CorpusSource = "en".parse().unwrap();
+        let s: CorpusSource = "en".parse().map_err(|e: String| anyhow::anyhow!(e))?;
         assert_eq!(s.id, "en");
         assert_eq!(s.weight, 1.0);
 
         // With weight
-        let s: CorpusSource = "en:0.5".parse().unwrap();
+        let s: CorpusSource = "en:0.5".parse().map_err(|e: String| anyhow::anyhow!(e))?;
         assert_eq!(s.id, "en");
         assert_eq!(s.weight, 0.5);
 
@@ -202,12 +204,14 @@ mod tests {
         // Invalid weight value
         assert!("en:-1.0".parse::<CorpusSource>().is_err());
         assert!("en:0.0".parse::<CorpusSource>().is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_cost_matrix_source() {
+    fn test_cost_matrix_source() -> anyhow::Result<()> {
         let default = CostMatrixSource::default();
         assert!(matches!(default, CostMatrixSource::Predefined(_)));
         assert_eq!(format!("{default}"), ASSET_COST_MATRIX);
+        Ok(())
     }
 }

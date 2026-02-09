@@ -155,7 +155,7 @@ impl JobIdentifier {
             let bytes = serde_json::to_vec(&canonical)
                 .map_err(|e| ModelError::Serialization(e.to_string()))?;
 
-            hasher.update((bytes.len() as u64).to_le_bytes());
+            hasher.update(u64::try_from(bytes.len()).unwrap_or(0).to_le_bytes());
             hasher.update(&bytes);
             Ok(())
         }
@@ -171,7 +171,7 @@ impl JobIdentifier {
         sorted_pins.sort_by(|a, b| a.index.cmp(&b.index));
         feed(&mut hasher, &sorted_pins)?;
 
-        hasher.update((corpora_hash.len() as u64).to_le_bytes());
+        hasher.update(u64::try_from(corpora_hash.len()).unwrap_or(0).to_le_bytes());
         hasher.update(corpora_hash.as_bytes());
 
         match cost_matrix {
@@ -225,7 +225,7 @@ mod tests {
     use crate::types::KeyIndex;
 
     #[test]
-    fn test_job_id_determinism() {
+    fn test_job_id_determinism() -> anyhow::Result<()> {
         let geo = KeyboardGeometry::default();
         let weights = ScoringWeights::default();
         let params = SearchParams::default();
@@ -242,8 +242,7 @@ mod tests {
             "en",
             &CostMatrixSource::default(),
             None,
-        )
-        .unwrap();
+        )?;
         let id2 = JobIdentifier::try_from_parts(
             &geo,
             &weights,
@@ -252,14 +251,14 @@ mod tests {
             "en",
             &CostMatrixSource::default(),
             None,
-        )
-        .unwrap();
+        )?;
 
         assert_eq!(id1.hash, id2.hash);
+        Ok(())
     }
 
     #[test]
-    fn test_job_id_pin_sorting_determinism() {
+    fn test_job_id_pin_sorting_determinism() -> anyhow::Result<()> {
         let geo = KeyboardGeometry::default();
         let weights = ScoringWeights::default();
         let params = SearchParams::default();
@@ -281,8 +280,7 @@ mod tests {
             "en",
             &CostMatrixSource::default(),
             None,
-        )
-        .unwrap();
+        )?;
         let id2 = JobIdentifier::try_from_parts(
             &geo,
             &weights,
@@ -291,17 +289,17 @@ mod tests {
             "en",
             &CostMatrixSource::default(),
             None,
-        )
-        .unwrap();
+        )?;
 
         assert_eq!(
             id1.hash, id2.hash,
             "Hash must be same regardless of pin order"
         );
+        Ok(())
     }
 
     #[test]
-    fn test_calculate_corpora_hash_content_addressing() {
+    fn test_calculate_corpora_hash_content_addressing() -> anyhow::Result<()> {
         let s1 = vec![CorpusSource {
             id: "a".into(),
             weight: 1.0,
@@ -320,10 +318,11 @@ mod tests {
             hash: None,
         }];
         assert_ne!(calculate_corpora_hash(&s1), calculate_corpora_hash(&s3));
+        Ok(())
     }
 
     #[test]
-    fn test_job_id_from_parts() {
+    fn test_job_id_from_parts() -> anyhow::Result<()> {
         let geo = KeyboardGeometry::default();
         let weights = ScoringWeights::default();
         let params = SearchParams::default();
@@ -338,5 +337,6 @@ mod tests {
             None,
         );
         assert!(id.is_ok());
+        Ok(())
     }
 }

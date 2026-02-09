@@ -20,12 +20,27 @@ rule:
               has:
                 kind: attribute
                 pattern: "#[tokio::test]"
-paths:
-  exclude:
-    - "**/tests/**"
-    - "**/tests.rs"
-    - "ops/repros/**"
-    - "**/common/**"
-    - "**/testing.rs"
-    - "**/*_tests.rs"
-    - "**/*_test.rs"
+            - kind: function_item
+              has:
+                kind: attribute
+                pattern: "#[keyforge_testing_macros::kf_test]"
+            - kind: function_item
+              has:
+                kind: attribute
+                pattern: "#[bench]"
+files:
+  - "libs/**/*.rs"
+  - "apps/**/*.rs"
+ignores:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "ops/repros/**"
+  - "**/common/**"
+  - "**/testing.rs"
+  - "**/mock.rs"
+  - "**/*_tests.rs"
+  - "**/*_test.rs"
+  - "libs/keyforge-testing/**"
+  - "**/*_bench.rs"
+  - "**/benches/**"
+  - "**/main.rs" # Sometimes allowed in binaries for setup, but we prefer handling. Keeping for now to avoid noise.

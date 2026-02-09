@@ -202,6 +202,7 @@ impl Formatter for StrictEscapeFormatter {
             writer.write_all(fragment.as_bytes())?;
         } else {
             for c in fragment.chars() {
+                // SAFETY: TYPE-001 Exception: Character normalization.
                 let c_u32 = c as u32;
                 if c_u32 <= 0xFFFF {
                     write!(writer, "\\u{c_u32:04x}")?;
@@ -360,9 +361,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &data_dir,
         "2grams.json",
         &final_stats.c2,
-        |k, v| Char2Stats {
-            char1: k.0.to_string(),
-            char2: k.1.to_string(),
+        |&(char1, char2), v| Char2Stats {
+            char1: char1.to_string(),
+            char2: char2.to_string(),
             freq: *v,
         },
         true,
@@ -371,10 +372,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &data_dir,
         "3grams.json",
         &final_stats.c3,
-        |k, v| Char3Stats {
-            char1: k.0.to_string(),
-            char2: k.1.to_string(),
-            char3: k.2.to_string(),
+        |&(char1, char2, char3), v| Char3Stats {
+            char1: char1.to_string(),
+            char2: char2.to_string(),
+            char3: char3.to_string(),
             freq: *v,
         },
         true,
@@ -585,7 +586,7 @@ where
     F: Fn(&K, &V) -> S,
 {
     let mut vec: Vec<_> = map.iter().collect();
-    vec.sort_by(|a, b| b.1.cmp(a.1));
+    vec.sort_by(|(_, a_val), (_, b_val)| b_val.cmp(a_val));
     let json_out: Vec<S> = vec.iter().map(|(k, v)| mapper(k, v)).collect();
 
     let file_path = dir.join(filename);
@@ -613,14 +614,15 @@ mod tests {
     }
 
     #[test]
-    fn test_validity() {
+    fn test_validity() -> anyhow::Result<()> {
         assert!(is_valid_word("hello"));
         assert!(!is_valid_word("123"));
         assert!(!is_valid_word("café"));
+        Ok(())
     }
 
     #[test]
-    fn test_process_token_buffer_complex() {
+    fn test_process_token_buffer_complex() -> anyhow::Result<()> {
         let mut stats = get_mock_stats();
         let mut tracker = get_mock_tracker();
         let mut last_space = true;
@@ -634,11 +636,41 @@ mod tests {
             &mut last_space,
         );
 
-        assert_eq!(*stats.words.get("please").unwrap(), 1);
-        assert_eq!(*stats.words.get("state").unwrap(), 1);
-        assert_eq!(*stats.words.get("of").unwrap(), 1);
-        assert_eq!(*stats.words.get("the").unwrap(), 1);
-        assert_eq!(*stats.words.get("art").unwrap(), 1);
+        assert_eq!(
+            *stats
+                .words
+                .get("please")
+                .ok_or_else(|| anyhow::anyhow!("missing word"))?,
+            1
+        );
+        assert_eq!(
+            *stats
+                .words
+                .get("state")
+                .ok_or_else(|| anyhow::anyhow!("missing word"))?,
+            1
+        );
+        assert_eq!(
+            *stats
+                .words
+                .get("of")
+                .ok_or_else(|| anyhow::anyhow!("missing word"))?,
+            1
+        );
+        assert_eq!(
+            *stats
+                .words
+                .get("the")
+                .ok_or_else(|| anyhow::anyhow!("missing word"))?,
+            1
+        );
+        assert_eq!(
+            *stats
+                .words
+                .get("art")
+                .ok_or_else(|| anyhow::anyhow!("missing word"))?,
+            1
+        );
 
         // Ensure the compound wasn't kept
         assert!(!stats.words.contains_key("please--state-of-the-art"));
@@ -650,11 +682,18 @@ mod tests {
         let mut last_space2 = true;
 
         process_token_buffer("well-known", &mut stats2, &mut tracker2, &mut last_space2);
-        assert_eq!(*stats2.words.get("well-known").unwrap(), 1);
+        assert_eq!(
+            *stats2
+                .words
+                .get("well-known")
+                .ok_or_else(|| anyhow::anyhow!("missing word"))?,
+            1
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_ngram_tracker() {
+    fn test_ngram_tracker() -> anyhow::Result<()> {
         let mut stats = CorpusStats::new();
         let mut tracker = NgramTracker::new();
 
@@ -662,29 +701,49 @@ mod tests {
         tracker.feed('b', &mut stats);
         tracker.feed('c', &mut stats);
 
-        assert_eq!(*stats.c1.get(&'a').unwrap(), 1);
-        assert_eq!(*stats.c2.get(&('a', 'b')).unwrap(), 1);
-        assert_eq!(*stats.c3.get(&('a', 'b', 'c')).unwrap(), 1);
+        assert_eq!(
+            *stats
+                .c1
+                .get(&'a')
+                .ok_or_else(|| anyhow::anyhow!("missing char"))?,
+            1
+        );
+        assert_eq!(
+            *stats
+                .c2
+                .get(&('a', 'b'))
+                .ok_or_else(|| anyhow::anyhow!("missing bigram"))?,
+            1
+        );
+        assert_eq!(
+            *stats
+                .c3
+                .get(&('a', 'b', 'c'))
+                .ok_or_else(|| anyhow::anyhow!("missing trigram"))?,
+            1
+        );
 
         tracker.reset();
         tracker.feed('d', &mut stats);
         assert!(!stats.c2.contains_key(&('c', 'd')));
+        Ok(())
     }
 
     #[test]
-    fn test_strict_escape_formatter() {
+    fn test_strict_escape_formatter() -> anyhow::Result<()> {
         let mut out = Vec::new();
         let mut ser = Serializer::with_formatter(&mut out, StrictEscapeFormatter::new());
         let data = serde_json::json!({"k": "v"});
-        data.serialize(&mut ser).unwrap();
+        data.serialize(&mut ser)?;
 
-        let s = String::from_utf8(out).unwrap();
+        let s = String::from_utf8(out)?;
         // Check that value is escaped as \uXXXX
         assert!(s.contains("\"v\"") || s.contains("\\u0076"));
+        Ok(())
     }
 
     #[test]
-    fn test_validation_heuristics() {
+    fn test_validation_heuristics() -> anyhow::Result<()> {
         assert!(is_keyboard_char('a'));
         assert!(is_keyboard_char('!'));
         assert!(!is_keyboard_char('©'));
@@ -697,5 +756,6 @@ mod tests {
 
         assert!(has_consonant_cluster_7("stschbr")); // 7 consonants
         assert!(!has_consonant_cluster_7("stschb")); // 6 consonants
+        Ok(())
     }
 }

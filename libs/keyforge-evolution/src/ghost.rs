@@ -2,7 +2,7 @@
 
 use crate::errors::EvolutionError;
 use crate::ProgressCallback;
-use keyforge_model::types::KeyIndex;
+use keyforge_model::types::{IterationCount, KeyIndex};
 use keyforge_model::{Layout, Score};
 use keyforge_physics::ScoringEngine;
 use rand::Rng;
@@ -18,12 +18,11 @@ impl GhostHillClimber {
     ///
     /// # Errors
     /// Returns `EvolutionError` if scoring fails.
-    #[allow(clippy::cast_precision_loss)]
     pub fn run<CB: ProgressCallback>(
         &self,
         engine: &dyn ScoringEngine,
         initial_layout: Layout,
-        steps: usize,
+        steps: IterationCount,
         callback: &CB,
     ) -> Result<Layout, EvolutionError> {
         let mut current_layout = initial_layout;
@@ -34,7 +33,7 @@ impl GhostHillClimber {
         let start_time = Instant::now();
         let mut rng = rand::rng();
 
-        for step in 0..steps {
+        for step in 0..steps.raw() {
             // 1. Propose a random swap
             let key_count = engine.key_count();
             if key_count < 2 {
@@ -78,15 +77,16 @@ impl GhostHillClimber {
             if step % 1000 == 0 {
                 let elapsed = start_time.elapsed().as_secs_f32();
                 let ips = if elapsed > 0.0 {
-                    step as f32 / elapsed
+                    let steps_i64 = i64::try_from(step).unwrap_or(i64::MAX);
+                    let steps_count_f32 = Score::from_scaled_i64(steps_i64).to_f32() * 1_000_000.0;
+                    steps_count_f32 / elapsed
                 } else {
                     0.0
                 };
 
-                let score_f32 = best_score.raw() as f32 / 1_000_000.0;
                 let keys = best_layout.keys();
 
-                if callback.on_progress(step, score_f32, keys, ips)
+                if callback.on_progress(step, best_score.to_f32(), keys, ips)
                     != crate::OptimizationControl::Continue
                 {
                     return Err(EvolutionError::Aborted);

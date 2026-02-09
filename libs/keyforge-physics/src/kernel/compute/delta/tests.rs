@@ -6,7 +6,7 @@ use crate::engines::ScoringEngine;
 use crate::kernel::compiler::Compiler;
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::types::ValidatedLayout;
-use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
 use proptest::prelude::*;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ fn setup_test_ctx(keys: Vec<KeyNode>, bigrams: Vec<(u16, u16, u32)>) -> EngineCo
 fn setup_basic_kb() -> Vec<KeyNode> {
     vec![
         KeyNode {
-            index: 0,
+            index: KeyIndex::new(0),
             hand: HandIndex::new(0),
             finger: FingerIndex::new(1),
             row: RowIndex::new(0),
@@ -35,7 +35,7 @@ fn setup_basic_kb() -> Vec<KeyNode> {
             ..Default::default()
         },
         KeyNode {
-            index: 1,
+            index: KeyIndex::new(1),
             hand: HandIndex::new(0),
             finger: FingerIndex::new(2),
             row: RowIndex::new(0),
@@ -56,7 +56,7 @@ proptest! {
     ) {
         let keys: Vec<KeyNode> = (0..layout_codes.len())
             .map(|i| KeyNode {
-                index: i,
+                index: KeyIndex::new(i as u16),
                 hand: HandIndex::new(hand),
                 finger: FingerIndex::new(finger),
                 row: RowIndex::new(row),

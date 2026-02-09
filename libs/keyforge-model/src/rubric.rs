@@ -17,6 +17,14 @@
 //! A `Rubric` defines the cost parameters used by the physics engine
 //! to evaluate the efficiency of a layout.
 
+use crate::config::weights::constants::{
+    DEFAULT_BONUS_INWARD_ROLL, DEFAULT_FINGER_PENALTY_SCALE_ARRAY, DEFAULT_LOADER_TRIGRAM_LIMIT,
+    DEFAULT_PENALTY_REDIRECT, DEFAULT_PENALTY_SCISSOR, DEFAULT_PENALTY_SFB_BASE,
+    DEFAULT_PENALTY_SFB_DIAGONAL, DEFAULT_PENALTY_SFB_LATERAL, DEFAULT_PENALTY_SFB_LATERAL_WEAK,
+    DEFAULT_PENALTY_SFB_LONG, DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF,
+    DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF, DEFAULT_TRIGRAM_COVERAGE, DEFAULT_WEIGHT_LATERAL_TRAVEL,
+    DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+};
 use crate::error::ForgeError;
 use crate::types::Score;
 use serde::{Deserialize, Serialize};
@@ -67,24 +75,23 @@ pub struct RawRubric {
 
 impl Default for RawRubric {
     fn default() -> Self {
-        let sc = |v: f32| Score::from_f32(v).expect("Default rubric values must be valid");
         Self {
-            finger_effort: [sc(1.0), sc(1.0), sc(1.1), sc(1.3), sc(1.6)],
-            travel_lat: sc(3.5),
-            travel_vert: sc(1.0),
-            sfb_base: sc(400.0),
-            sfb_lateral: sc(65.0),
-            sfb_lateral_weak: sc(160.0),
-            sfb_diagonal: sc(240.0),
-            sfb_long: sc(280.0),
-            threshold_sfb_long_row_diff: 2,
-            penalty_scissor: sc(25.0),
-            threshold_scissor_row_diff: 2,
-            redirect: sc(65.0),
-            roll_bonus: sc(35.0),
-            roll_out_bonus: sc(15.0),
-            trigram_coverage: sc(0.99),
-            trigram_limit: 50_000,
+            finger_effort: DEFAULT_FINGER_PENALTY_SCALE_ARRAY,
+            travel_lat: DEFAULT_WEIGHT_LATERAL_TRAVEL,
+            travel_vert: DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+            sfb_base: DEFAULT_PENALTY_SFB_BASE,
+            sfb_lateral: DEFAULT_PENALTY_SFB_LATERAL,
+            sfb_lateral_weak: DEFAULT_PENALTY_SFB_LATERAL_WEAK,
+            sfb_diagonal: DEFAULT_PENALTY_SFB_DIAGONAL,
+            sfb_long: DEFAULT_PENALTY_SFB_LONG,
+            threshold_sfb_long_row_diff: DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF,
+            penalty_scissor: DEFAULT_PENALTY_SCISSOR,
+            threshold_scissor_row_diff: DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF,
+            redirect: DEFAULT_PENALTY_REDIRECT,
+            roll_bonus: DEFAULT_BONUS_INWARD_ROLL,
+            roll_out_bonus: Score::from_scaled_i64(15_000_000), // 15.0
+            trigram_coverage: DEFAULT_TRIGRAM_COVERAGE,
+            trigram_limit: DEFAULT_LOADER_TRIGRAM_LIMIT,
         }
     }
 }
@@ -99,8 +106,6 @@ pub struct Rubric {
 
 impl From<RawRubric> for Rubric {
     fn from(raw: RawRubric) -> Self {
-        // Note: In production, we might want to return Result,
-        // but since this is used in #[serde(from)], we fallback to validation at usage or panic-free defaults.
         Self { inner: raw }
     }
 }
@@ -126,58 +131,64 @@ impl RubricBuilder {
 
     /// Sets the per-finger effort weights.
     #[must_use]
-    pub fn finger_effort(mut self, effort: [f32; 5]) -> Self {
-        let sc = |v: f32| Score::from_f32(v).expect("Rubric effort must be valid");
-        self.raw.finger_effort = [sc(effort[0]), sc(effort[1]), sc(effort[2]), sc(effort[3]), sc(effort[4])];
+    pub fn finger_effort(mut self, effort: [i64; 5]) -> Self {
+        let sc = |v: i64| Score::from_scaled_i64(v);
+        self.raw.finger_effort = [
+            sc(effort[0]),
+            sc(effort[1]),
+            sc(effort[2]),
+            sc(effort[3]),
+            sc(effort[4]),
+        ];
         self
     }
 
     /// Sets the lateral travel weight.
     #[must_use]
-    pub fn travel_lat(mut self, travel: f32) -> Self {
-        self.raw.travel_lat = Score::from_f32(travel).expect("Rubric weight must be valid");
+    pub fn travel_lat(mut self, travel: i64) -> Self {
+        self.raw.travel_lat = Score::from_scaled_i64(travel);
         self
     }
 
     /// Sets the vertical travel weight.
     #[must_use]
-    pub fn travel_vert(mut self, travel: f32) -> Self {
-        self.raw.travel_vert = Score::from_f32(travel).expect("Rubric weight must be valid");
+    pub fn travel_vert(mut self, travel: i64) -> Self {
+        self.raw.travel_vert = Score::from_scaled_i64(travel);
         self
     }
 
     /// Sets the base SFB penalty.
     #[must_use]
-    pub fn sfb_base(mut self, penalty: f32) -> Self {
-        self.raw.sfb_base = Score::from_f32(penalty).expect("Rubric weight must be valid");
+    pub fn sfb_base(mut self, penalty: i64) -> Self {
+        self.raw.sfb_base = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the lateral SFB penalty.
     #[must_use]
-    pub fn sfb_lateral(mut self, penalty: f32) -> Self {
-        self.raw.sfb_lateral = Score::from_f32(penalty).expect("Rubric weight must be valid");
+    pub fn sfb_lateral(mut self, penalty: i64) -> Self {
+        self.raw.sfb_lateral = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the weak-finger lateral SFB penalty.
     #[must_use]
-    pub fn sfb_lateral_weak(mut self, penalty: f32) -> Self {
-        self.raw.sfb_lateral_weak = Score::from_f32(penalty).expect("Rubric weight must be valid");
+    pub fn sfb_lateral_weak(mut self, penalty: i64) -> Self {
+        self.raw.sfb_lateral_weak = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the diagonal SFB penalty.
     #[must_use]
-    pub fn sfb_diagonal(mut self, penalty: f32) -> Self {
-        self.raw.sfb_diagonal = Score::from_f32(penalty).expect("Rubric weight must be valid");
+    pub fn sfb_diagonal(mut self, penalty: i64) -> Self {
+        self.raw.sfb_diagonal = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the long-reach SFB penalty.
     #[must_use]
-    pub fn sfb_long(mut self, penalty: f32) -> Self {
-        self.raw.sfb_long = Score::from_f32(penalty).expect("Rubric weight must be valid");
+    pub fn sfb_long(mut self, penalty: i64) -> Self {
+        self.raw.sfb_long = Score::from_scaled_i64(penalty);
         self
     }
 
@@ -190,8 +201,8 @@ impl RubricBuilder {
 
     /// Sets the scissor penalty.
     #[must_use]
-    pub fn penalty_scissor(mut self, penalty: f32) -> Self {
-        self.raw.penalty_scissor = Score::from_f32(penalty).expect("Rubric weight must be valid");
+    pub fn penalty_scissor(mut self, penalty: i64) -> Self {
+        self.raw.penalty_scissor = Score::from_scaled_i64(penalty);
         self
     }
 
@@ -204,29 +215,29 @@ impl RubricBuilder {
 
     /// Sets the redirect penalty.
     #[must_use]
-    pub fn redirect(mut self, penalty: f32) -> Self {
-        self.raw.redirect = Score::from_f32(penalty).expect("Rubric weight must be valid");
+    pub fn redirect(mut self, penalty: i64) -> Self {
+        self.raw.redirect = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the inward roll bonus.
     #[must_use]
-    pub fn roll_bonus(mut self, bonus: f32) -> Self {
-        self.raw.roll_bonus = Score::from_f32(bonus).expect("Rubric weight must be valid");
+    pub fn roll_bonus(mut self, bonus: i64) -> Self {
+        self.raw.roll_bonus = Score::from_scaled_i64(bonus);
         self
     }
 
     /// Sets the outward roll bonus.
     #[must_use]
-    pub fn roll_out_bonus(mut self, bonus: f32) -> Self {
-        self.raw.roll_out_bonus = Score::from_f32(bonus).expect("Rubric weight must be valid");
+    pub fn roll_out_bonus(mut self, bonus: i64) -> Self {
+        self.raw.roll_out_bonus = Score::from_scaled_i64(bonus);
         self
     }
 
     /// Sets the trigram coverage requirement.
     #[must_use]
-    pub fn trigram_coverage(mut self, coverage: f32) -> Self {
-        self.raw.trigram_coverage = Score::from_f32(coverage).expect("Rubric weight must be valid");
+    pub fn trigram_coverage(mut self, coverage: i64) -> Self {
+        self.raw.trigram_coverage = Score::from_scaled_i64(coverage);
         self
     }
 
@@ -275,7 +286,6 @@ impl Rubric {
     }
 
     /// Returns the weak-finger lateral SFB penalty.
-    /// Returns the lateral SFB penalty on a weak finger.
     #[must_use]
     pub fn sfb_lateral_weak(&self) -> Score {
         self.inner.sfb_lateral_weak
@@ -348,7 +358,9 @@ impl Rubric {
     /// Returns a `ForgeError` if the trigram coverage is out of range, or if
     /// trigram limits/penalties are invalid.
     pub fn validate(&self) -> Result<(), ForgeError> {
-        if self.inner.trigram_coverage < Score::ZERO || self.inner.trigram_coverage > Score::from_f32(1.0).unwrap() {
+        if self.inner.trigram_coverage < Score::ZERO
+            || self.inner.trigram_coverage > Score::from_scaled_i64(1_000_000)
+        {
             return Err(ForgeError::InvalidData(format!(
                 "Trigram coverage must be between 0.0 and 1.0, found {}",
                 self.inner.trigram_coverage
@@ -366,10 +378,9 @@ impl Rubric {
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use crate::types::FixedPointMath;
 
     #[test]
-    fn test_rubric_lifecycle() {
+    fn test_rubric_lifecycle() -> anyhow::Result<()> {
         // 1. Default Construction
         let r = Rubric::default();
 
@@ -380,30 +391,32 @@ mod tests {
         assert_eq!(r.finger_effort().len(), 5);
 
         // 2. Serialization Round-trip
-        let json = serde_json::to_string(&r).expect("Failed to serialize Rubric");
-        let recovered: Rubric = serde_json::from_str(&json).expect("Failed to deserialize Rubric");
+        let json = serde_json::to_string(&r)?;
+        let recovered: Rubric = serde_json::from_str(&json)?;
 
         // 3. Verification
         assert_eq!(r.sfb_base(), recovered.sfb_base());
         assert_eq!(r.finger_effort(), recovered.finger_effort());
+        Ok(())
     }
 
     #[test]
-    fn test_rubric_modification() {
+    fn test_rubric_modification() -> anyhow::Result<()> {
         let mut raw = RawRubric::default();
-        let sc = |v: f32| Score::from_f32(v).unwrap();
-        raw.sfb_base = sc(1000.0);
-        raw.finger_effort[4] = sc(5.0); // Pinky penalty
+        let sc = |v: i64| Score::from_scaled_i64(v);
+        raw.sfb_base = sc(1_000_000_000); // 1000.0
+        raw.finger_effort[4] = sc(5_000_000); // Pinky penalty 5.0
 
         let r = Rubric::from(raw);
-        assert_eq!(r.sfb_base(), sc(1000.0));
-        assert_eq!(r.finger_effort()[4], sc(5.0));
+        assert_eq!(r.sfb_base(), sc(1_000_000_000));
+        assert_eq!(r.finger_effort()[4], sc(5_000_000));
+        Ok(())
     }
 
     #[test]
-    fn test_rubric_validation() {
+    fn test_rubric_validation() -> anyhow::Result<()> {
         let mut raw = RawRubric::default();
-        let sc = |v: f32| Score::from_f32(v).unwrap();
+        let sc = |v: i64| Score::from_scaled_i64(v);
         assert!(Rubric::from(raw.clone()).validate().is_ok());
 
         // Coverage bounds
@@ -413,7 +426,7 @@ mod tests {
         assert!(Rubric::from(raw.clone()).validate().is_err());
 
         // Reset to valid
-        raw.trigram_coverage = sc(0.99);
+        raw.trigram_coverage = sc(990_000); // 0.99
 
         // Limits
         raw.trigram_limit = 0;
@@ -424,8 +437,9 @@ mod tests {
         raw.sfb_base = Score::from_scaled_i64(-10_000_000); // Negative penalty
         assert!(Rubric::from(raw.clone()).validate().is_err());
 
-        raw.sfb_base = sc(400.0);
+        raw.sfb_base = sc(400_000_000); // 400.0
         raw.sfb_lateral = Score::from_scaled_i64(-1_000_000);
         assert!(Rubric::from(raw).validate().is_err());
+        Ok(())
     }
 }

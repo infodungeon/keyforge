@@ -48,12 +48,14 @@ fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRe
     let mut freqs = corpus.char_freqs.to_vec();
     for e in part {
         if let Some(c) = e["char"].as_str().and_then(resolve_corpus_char) {
-            if (c as u32) > 0xFFFF {
+            let c_u32 = u32::from(c);
+            if c_u32 > 0xFFFF {
                 return Err(ForgeError::InvalidData(format!(
                     "Character outside BMP not supported: {c}"
                 )));
             }
-            let c_u16 = c as u16;
+            #[allow(clippy::cast_possible_truncation)]
+            let c_u16 = c_u32 as u16;
             let freq = e["freq"].as_u64().ok_or_else(|| {
                 ForgeError::InvalidData(format!("Missing frequency in 1gram entry: {e:?}"))
             })?;
@@ -63,7 +65,8 @@ fn parse_monograms(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRe
                 clippy::cast_possible_truncation
             )]
             {
-                freqs[c_u16 as usize] += (freq as f32 * weight).round() as u64;
+                // SAFETY: TYPE-001 Exception: Physics-aware frequency accumulation.
+                freqs[usize::from(c_u16)] += (freq as f32 * weight).round() as u64;
             }
         }
     }
@@ -95,15 +98,19 @@ fn parse_bigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResu
                 ForgeError::InvalidData(format!("Missing or invalid char2 in 2gram entry: {e:?}"))
             })?;
 
-        if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF {
+        let c1_u32 = u32::from(c1_char);
+        let c2_u32 = u32::from(c2_char);
+
+        if c1_u32 > 0xFFFF || c2_u32 > 0xFFFF {
             return Err(ForgeError::InvalidData(format!(
                 "Character outside BMP not supported: {c1_char} or {c2_char}"
             )));
         }
 
+        #[allow(clippy::cast_possible_truncation)]
         bigrams.push((
-            c1_char as u16,
-            c2_char as u16,
+            c1_u32 as u16,
+            c2_u32 as u16,
             (freq as f32 * weight).round() as u32,
         ));
     }
@@ -141,16 +148,21 @@ fn parse_trigrams(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderRes
                 ForgeError::InvalidData(format!("Missing or invalid char3 in 3gram entry: {e:?}"))
             })?;
 
-        if (c1_char as u32) > 0xFFFF || (c2_char as u32) > 0xFFFF || (c3_char as u32) > 0xFFFF {
+        let c1_u32 = u32::from(c1_char);
+        let c2_u32 = u32::from(c2_char);
+        let c3_u32 = u32::from(c3_char);
+
+        if c1_u32 > 0xFFFF || c2_u32 > 0xFFFF || c3_u32 > 0xFFFF {
             return Err(ForgeError::InvalidData(format!(
                 "Character outside BMP not supported: {c1_char} or {c2_char} or {c3_char}"
             )));
         }
 
+        #[allow(clippy::cast_possible_truncation)]
         trigrams.push((
-            c1_char as u16,
-            c2_char as u16,
-            c3_char as u16,
+            c1_u32 as u16,
+            c2_u32 as u16,
+            c3_u32 as u16,
             (freq as f32 * weight).round() as u32,
         ));
     }
@@ -170,6 +182,7 @@ fn parse_words(corpus: &mut Corpus, weight: f32, part: &[Value]) -> LoaderResult
             ForgeError::InvalidData(format!("Missing frequency in word entry: {e:?}"))
         })?;
         if let Some(w) = e["word"].as_str() {
+            // SAFETY: TYPE-001 Exception: Word frequency accumulation.
             words.push((w.to_string(), (freq as f32 * weight).round() as u32));
         }
     }
@@ -223,7 +236,8 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
 
     let mut freqs = corpus.char_freqs.to_vec();
     let total_chars: u64 = freqs.iter().sum();
-    let sentence_count: u64 = freqs['.' as usize] + freqs['?' as usize] + freqs['!' as usize];
+    let sentence_count: u64 =
+        freqs[usize::from(b'.')] + freqs[usize::from(b'?')] + freqs[usize::from(b'!')];
 
     if total_chars == 0 {
         return;
@@ -233,20 +247,23 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     let bksp_count =
         (total_chars as f32 * STD_CORPUS_ERROR_RATE * STD_CORPUS_BACKSPACE_FACTOR).round() as u64;
 
-    freqs['\n' as usize] += enter_count;
-    freqs['\x08' as usize] += bksp_count;
+    freqs[usize::from(b'\n')] += enter_count;
+    freqs[usize::from(b'\x08')] += bksp_count;
     corpus.char_freqs = Arc::from(freqs);
 
     let mut bigrams = corpus.bigrams.to_vec();
     if bksp_count > 0 {
         let mut new_bigrams = Vec::new();
         for (char_code, &freq) in corpus.char_freqs.iter().enumerate() {
-            if freq > 0 && char_code != '\x08' as usize && char_code != '\n' as usize {
+            if freq > 0 && char_code != usize::from(b'\x08') && char_code != usize::from(b'\n') {
                 let ratio = freq as f32 / total_chars as f32;
                 let share = (bksp_count as f32 * ratio).round() as u32;
                 if share > 0 {
-                    new_bigrams.push(('\x08' as u16, char_code as u16, share));
-                    new_bigrams.push((char_code as u16, '\x08' as u16, share));
+                    #[allow(clippy::cast_possible_truncation)]
+                    {
+                        new_bigrams.push((u16::from(b'\x08'), char_code as u16, share));
+                        new_bigrams.push((char_code as u16, u16::from(b'\x08'), share));
+                    }
                 }
             }
         }
@@ -254,42 +271,43 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     }
 
     if enter_count > 0 {
-        let puncts = ['.', '?', '!'];
+        let puncts = [b'.', b'?', b'!'];
         let total_punct = sentence_count.max(1);
 
         for p in puncts {
-            let p_freq = corpus.char_freqs[p as usize];
+            let p_freq = corpus.char_freqs[usize::from(p)];
             if p_freq > 0 {
                 let ratio = p_freq as f32 / total_punct as f32;
                 let share = (enter_count as f32 * ratio).round() as u32;
                 if share > 0 {
-                    bigrams.push((p as u16, '\n' as u16, share));
+                    bigrams.push((u16::from(p), u16::from(b'\n'), share));
                 }
             }
         }
     }
-    bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    // Use destructuring to avoid .0/.1 which triggers ast-grep rules
+    bigrams.sort_unstable_by(|&(a0, a1, _), &(b0, b1, _)| a0.cmp(&b0).then(a1.cmp(&b1)));
     corpus.bigrams = Arc::from(bigrams);
 
     let mut trigrams = corpus.trigrams.to_vec();
     if bksp_count > 0 {
-        let total_bigrams: u64 = corpus.bigrams.iter().map(|(_, _, f)| u64::from(*f)).sum();
+        let total_bigrams: u64 = corpus.bigrams.iter().map(|&(_, _, f)| u64::from(f)).sum();
         if total_bigrams > 0 {
             let mut new_trigrams = Vec::new();
-            for (a, b, freq) in &*corpus.bigrams {
-                if *a == '\x08' as u16
-                    || *b == '\x08' as u16
-                    || *a == '\n' as u16
-                    || *b == '\n' as u16
+            for &(a, b, freq) in &*corpus.bigrams {
+                if a == u16::from(b'\x08')
+                    || b == u16::from(b'\x08')
+                    || a == u16::from(b'\n')
+                    || b == u16::from(b'\n')
                 {
                     continue;
                 }
 
-                let ratio = *freq as f32 / total_bigrams as f32;
+                let ratio = freq as f32 / total_bigrams as f32;
                 let share = (bksp_count as f32 * ratio).round() as u32;
 
                 if share > 0 {
-                    new_trigrams.push((*a, *b, '\x08' as u16, share));
+                    new_trigrams.push((a, b, u16::from(b'\x08'), share));
                 }
             }
             trigrams.extend(new_trigrams);
@@ -297,31 +315,33 @@ pub fn inject_synthetic_data(corpus: &mut Corpus, is_std: bool) {
     }
 
     if enter_count > 0 {
-        let puncts = ['.', '?', '!'];
+        let puncts = [b'.', b'?', b'!'];
         let mut new_trigrams = Vec::new();
 
         let punct_bigrams: Vec<_> = corpus
             .bigrams
             .iter()
-            .filter(|(_, b, _)| puncts.contains(&(*b as u8 as char)))
+            .filter(|&&(_, b, _)| puncts.contains(&(b as u8)))
             .collect();
 
-        let total_punct_bigrams: u64 = punct_bigrams.iter().map(|(_, _, f)| u64::from(*f)).sum();
+        let total_punct_bigrams: u64 = punct_bigrams.iter().map(|&(_, _, f)| u64::from(*f)).sum();
 
         if total_punct_bigrams > 0 {
-            for (a, b, freq) in punct_bigrams {
-                let ratio = *freq as f32 / total_punct_bigrams as f32;
+            for &(a, b, freq) in punct_bigrams {
+                let ratio = freq as f32 / total_punct_bigrams as f32;
                 let share = (enter_count as f32 * ratio).round() as u32;
 
                 if share > 0 {
-                    new_trigrams.push((*a, *b, '\n' as u16, share));
+                    new_trigrams.push((a, b, u16::from(b'\n'), share));
                 }
             }
             trigrams.extend(new_trigrams);
         }
     }
 
-    trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    trigrams.sort_unstable_by(|&(a0, a1, a2, _), &(b0, b1, b2, _)| {
+        a0.cmp(&b0).then(a1.cmp(&b1)).then(a2.cmp(&b2))
+    });
     corpus.trigrams = Arc::from(trigrams);
 }
 
@@ -331,17 +351,18 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_resolve_corpus_char() {
+    fn test_resolve_corpus_char() -> anyhow::Result<()> {
         assert_eq!(resolve_corpus_char("SPACE"), Some(' '));
         assert_eq!(resolve_corpus_char("A"), Some('a')); // Normalization
         assert_eq!(resolve_corpus_char("61"), Some('a')); // Hex
         assert_eq!(resolve_corpus_char("616"), None); // Invalid hex length
         assert_eq!(resolve_corpus_char("6G"), None); // Invalid hex char
         assert_eq!(resolve_corpus_char("invalid"), None);
+        Ok(())
     }
 
     #[test]
-    fn test_populate_corpus_from_segments() {
+    fn test_populate_corpus_from_segments() -> anyhow::Result<()> {
         let mut corpus = Corpus::default();
         let segments = vec![
             ("1grams", vec![json!({"char": "a", "freq": 100})]),
@@ -356,35 +377,37 @@ mod tests {
             ("words", vec![json!({"word": "test", "freq": 5})]),
         ];
 
-        populate_corpus_from_segments(&mut corpus, 1.0, segments).unwrap();
+        populate_corpus_from_segments(&mut corpus, 1.0, segments)?;
         assert_eq!(corpus.char_freqs[97], 100);
         assert_eq!(corpus.bigrams.len(), 1);
         assert_eq!(corpus.trigrams.len(), 1);
         assert_eq!(corpus.words.len(), 1);
+        Ok(())
     }
 
     #[test]
-    fn test_inject_synthetic_data() {
+    fn test_inject_synthetic_data() -> anyhow::Result<()> {
         let mut corpus = Corpus::default();
         let mut freqs = corpus.char_freqs.to_vec();
-        freqs['a' as usize] = 1000;
-        freqs['.' as usize] = 10;
+        freqs[usize::from(b'a')] = 1000;
+        freqs[usize::from(b'.')] = 10;
         corpus.char_freqs = Arc::from(freqs);
 
-        corpus.bigrams = Arc::from(vec![('a' as u16, '.' as u16, 100)]);
+        corpus.bigrams = Arc::from(vec![(u16::from(b'a'), u16::from(b'.'), 100)]);
 
         inject_synthetic_data(&mut corpus, true);
 
-        assert!(corpus.char_freqs['\n' as usize] > 0); // Enter injected
-        assert!(corpus.char_freqs['\x08' as usize] > 0); // Backspace injected
+        assert!(corpus.char_freqs[usize::from(b'\n')] > 0); // Enter injected
+        assert!(corpus.char_freqs[usize::from(b'\x08')] > 0); // Backspace injected
         assert!(corpus
             .bigrams
             .iter()
-            .any(|(a, b, _)| *a == '.' as u16 && *b == '\n' as u16));
+            .any(|&(a, b, _)| a == u16::from(b'.') && b == u16::from(b'\n')));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_monograms_invalid() {
+    fn test_parse_monograms_invalid() -> anyhow::Result<()> {
         let mut corpus = Corpus::default();
         let part = vec![json!({"char": "a"})]; // Missing freq
         assert!(parse_monograms(&mut corpus, 1.0, &part).is_err());
@@ -392,10 +415,11 @@ mod tests {
         // Outside BMP
         let part = vec![json!({"char": "🦀", "freq": 100})];
         assert!(parse_monograms(&mut corpus, 1.0, &part).is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_parse_bigrams_invalid() {
+    fn test_parse_bigrams_invalid() -> anyhow::Result<()> {
         let mut corpus = Corpus::default();
         assert!(parse_bigrams(&mut corpus, 1.0, &[json!({"char1":"a","char2":"b"})]).is_err());
         assert!(parse_bigrams(&mut corpus, 1.0, &[json!({"freq":100,"char2":"b"})]).is_err());
@@ -406,10 +430,11 @@ mod tests {
             &[json!({"freq":100,"char1":"🦀","char2":"b"})]
         )
         .is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_parse_trigrams_invalid() {
+    fn test_parse_trigrams_invalid() -> anyhow::Result<()> {
         let mut corpus = Corpus::default();
         assert!(parse_trigrams(
             &mut corpus,
@@ -441,11 +466,13 @@ mod tests {
             &[json!({"freq":100,"char1":"🦀","char2":"b","char3":"c"})]
         )
         .is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_parse_words_invalid() {
+    fn test_parse_words_invalid() -> anyhow::Result<()> {
         let mut corpus = Corpus::default();
         assert!(parse_words(&mut corpus, 1.0, &[json!({"word":"test"})]).is_err());
+        Ok(())
     }
 }

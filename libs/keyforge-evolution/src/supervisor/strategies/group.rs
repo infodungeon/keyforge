@@ -45,12 +45,14 @@ impl MutationOperator for GroupMutation {
         if use_swap {
             let delta = engine.calculate_swap_delta(layout, pos_map, idx_a, idx_b)?;
 
+            let a_u16 = u16::try_from(idx_a)
+                .map_err(|_| crate::errors::EvolutionError::Internal("Index A overflow".into()))?;
+            let b_u16 = u16::try_from(idx_b)
+                .map_err(|_| crate::errors::EvolutionError::Internal("Index B overflow".into()))?;
+
             return Ok(Some(MutationProposal {
                 delta,
-                action: MutationAction::Swap(
-                    KeyIndex::new(idx_a as u16),
-                    KeyIndex::new(idx_b as u16),
-                ),
+                action: MutationAction::Swap(KeyIndex::new(a_u16), KeyIndex::new(b_u16)),
             }));
         }
 
@@ -76,25 +78,36 @@ impl MutationOperator for GroupMutation {
                 }
                 patched_pos_map[..pos_map.len()].copy_from_slice(pos_map);
 
+                let a_u16 = u16::try_from(idx_a).map_err(|_| {
+                    crate::errors::EvolutionError::Internal("Index A overflow".into())
+                })?;
+                let b_u16 = u16::try_from(idx_b).map_err(|_| {
+                    crate::errors::EvolutionError::Internal("Index B overflow".into())
+                })?;
+
                 let code_a = layout
-                    .get(keyforge_model::KeyIndex::new(idx_a as u16))
+                    .get(keyforge_model::KeyIndex::new(a_u16))
                     .ok_or_else(|| {
                         crate::errors::EvolutionError::Internal(format!(
                             "Key A {idx_a} missing in group mutation"
                         ))
                     })?;
                 let code_b = layout
-                    .get(keyforge_model::KeyIndex::new(idx_b as u16))
+                    .get(keyforge_model::KeyIndex::new(b_u16))
                     .ok_or_else(|| {
                         crate::errors::EvolutionError::Internal(format!(
                             "Key B {idx_b} missing in group mutation"
                         ))
                     })?;
-                if (code_a.raw() as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_a.raw() as usize] = KeyIndex::new(idx_b as u16);
+
+                let usize_a = usize::from(code_a.raw());
+                let usize_b = usize::from(code_b.raw());
+
+                if usize_a < patched_pos_map.len() {
+                    patched_pos_map[usize_a] = KeyIndex::new(b_u16);
                 }
-                if (code_b.raw() as usize) < patched_pos_map.len() {
-                    patched_pos_map[code_b.raw() as usize] = KeyIndex::new(idx_a as u16);
+                if usize_b < patched_pos_map.len() {
+                    patched_pos_map[usize_b] = KeyIndex::new(a_u16);
                 }
 
                 let temp_layout = Layout::new_unchecked(temp_keys.clone());
@@ -104,12 +117,19 @@ impl MutationOperator for GroupMutation {
             })
         })?;
 
+        let a_u16 = u16::try_from(idx_a)
+            .map_err(|_| crate::errors::EvolutionError::Internal("Index A overflow".into()))?;
+        let b_u16 = u16::try_from(idx_b)
+            .map_err(|_| crate::errors::EvolutionError::Internal("Index B overflow".into()))?;
+        let c_u16 = u16::try_from(idx_c)
+            .map_err(|_| crate::errors::EvolutionError::Internal("Index C overflow".into()))?;
+
         Ok(Some(MutationProposal {
             delta: d1 + delta,
             action: MutationAction::GroupSwap(
-                KeyIndex::new(idx_a as u16),
-                KeyIndex::new(idx_b as u16),
-                KeyIndex::new(idx_c as u16),
+                KeyIndex::new(a_u16),
+                KeyIndex::new(b_u16),
+                KeyIndex::new(c_u16),
             ),
         }))
     }
@@ -130,7 +150,7 @@ mod tests {
     use rand_xoshiro::Xoshiro256PlusPlus;
     use std::sync::Arc;
 
-    fn mock_cost_model() -> CostModel {
+    fn mock_cost_model() -> anyhow::Result<CostModel> {
         let json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
             "models": {
@@ -149,25 +169,34 @@ mod tests {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
-        serde_json::from_str(json).unwrap()
+        Ok(serde_json::from_str(json)?)
     }
 
-    fn setup_engine(size: usize) -> Box<dyn ScoringEngine> {
+    fn setup_engine(size: usize) -> anyhow::Result<Box<dyn ScoringEngine>> {
         let keys: Vec<_> = (0..size)
-            .map(|i| KeyNode {
-                index: i,
-                label: format!("k{i}"),
-                hand: HandIndex::new((i % 2) as u8),
-                finger: FingerIndex::new_unchecked((i % 5) as u8),
-                row: RowIndex::new((i / 10) as i8),
-                col: ColIndex::new((i % 10) as i8),
-                x: SpatialUnit::from_f32((i % 10) as f32),
-                y: SpatialUnit::from_f32((i / 10) as f32),
-                is_home: false,
-                ..Default::default()
+            .map(|i| {
+                let h = u8::try_from(i % 2).unwrap_or(0);
+                let f = u8::try_from(i % 5).unwrap_or(0);
+                let r = i8::try_from(i / 10).unwrap_or(0);
+                let c = i8::try_from(i % 10).unwrap_or(0);
+                let x = f32::from(u8::try_from(i % 10).unwrap_or(0));
+                let y = f32::from(u8::try_from(i / 10).unwrap_or(0));
+
+                KeyNode {
+                    index: KeyIndex::new(u16::try_from(i).unwrap_or(0)),
+                    label: format!("k{i}"),
+                    hand: HandIndex::new(h),
+                    finger: FingerIndex::new_unchecked(f),
+                    row: RowIndex::new(r),
+                    col: ColIndex::new(c),
+                    x: SpatialUnit::from_f32(x),
+                    y: SpatialUnit::from_f32(y),
+                    is_home: false,
+                    ..Default::default()
+                }
             })
             .collect();
-        let kb = Arc::new(Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, RowIndex::new(1), "test".into())?);
         let mut corpus_val = Corpus::default();
         let mut char_freqs = corpus_val.char_freqs.to_vec();
         let mut bigrams = Vec::new();
@@ -177,23 +206,26 @@ mod tests {
             }
             for j in 0..size {
                 if i != j {
-                    bigrams.push((i as u16, j as u16, 10));
+                    bigrams.push((
+                        u16::try_from(i).unwrap_or(0),
+                        u16::try_from(j).unwrap_or(0),
+                        10,
+                    ));
                 }
             }
         }
         corpus_val.char_freqs = Arc::from(char_freqs);
         corpus_val.bigrams = Arc::from(bigrams);
         let corpus = Arc::new(corpus_val);
-        let cost_model = Arc::new(mock_cost_model());
+        let cost_model = Arc::new(mock_cost_model()?);
         let rubric = Arc::new(Rubric::default());
-        EngineFactory::new_generic(&EngineCompilationContext {
+        Ok(EngineFactory::new_generic(&EngineCompilationContext {
             keyboard: kb,
             corpus,
             rubric,
             cost_model,
             engine_config: keyforge_model::config::EngineConfig::default(),
-        })
-        .unwrap()
+        })?)
     }
 
     proptest! {
@@ -203,13 +235,13 @@ mod tests {
         layout_seed in any::<u64>()
     ) {
         let size = 10;
-        let engine = setup_engine(size);
-        let mut keys: Vec<KeyCode> = (0..size as u16).map(KeyCode::new).collect();
+        let engine = setup_engine(size).map_err(|e| anyhow::anyhow!(e)).unwrap();
+        let mut keys: Vec<KeyCode> = (0..u16::try_from(size).unwrap()).map(KeyCode::new).collect();
         let mut rng_layout = Xoshiro256PlusPlus::seed_from_u64(layout_seed);
                     keys.shuffle(&mut rng_layout);
                     let layout = Layout::new_unchecked(keys);
                     let mut state = SearchState::new(layout, 0, Temperature::new(1.0)).unwrap();
-                    let score_before = engine.score(state.layout())?.raw();
+                    let score_before = engine.score(state.layout()).unwrap().raw();
                     let mutation = GroupMutation { unlocked_indices: (0..size).collect(), start_temp: 100.0, end_temp: 0.1 };
                     let mut rng_mutation = Xoshiro256PlusPlus::seed_from_u64(seed);
                     if let Ok(Some(proposal)) = MutationOperator::propose(
@@ -221,7 +253,7 @@ mod tests {
                         1.0
                     ) {
                         state.apply_mutation(proposal.action).unwrap();
-                        let score_after = engine.score(state.layout())?.raw();
+                        let score_after = engine.score(state.layout()).unwrap().raw();
                         let actual_delta = score_after - score_before;
 
                         let drift = (proposal.delta - actual_delta).abs();
@@ -231,10 +263,10 @@ mod tests {
             }
 
     #[test]
-    fn test_group_mutation_edge_cases() {
+    fn test_group_mutation_edge_cases() -> anyhow::Result<()> {
         let size = 5;
-        let engine = setup_engine(size);
-        let layout = Layout::new_unchecked((0..size as u16).map(KeyCode::new).collect());
+        let engine = setup_engine(size).map_err(|e| anyhow::anyhow!(e))?;
+        let layout = Layout::new_unchecked((0..u16::try_from(size)?).map(KeyCode::new).collect());
         let pos_map = vec![
             KeyIndex::new(0),
             KeyIndex::new(1),
@@ -249,9 +281,7 @@ mod tests {
             start_temp: 100.0,
             end_temp: 0.1,
         };
-        let res = mutation
-            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)
-            .unwrap();
+        let res = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)?;
         assert!(res.is_none());
 
         let mutation = GroupMutation {
@@ -259,21 +289,16 @@ mod tests {
             start_temp: 100.0,
             end_temp: 0.1,
         };
-        let _ = mutation
-            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 100.0)
-            .unwrap();
+        let _ = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 100.0)?;
 
-        let _ = mutation
-            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 0.1)
-            .unwrap();
+        let _ = mutation.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 0.1)?;
 
         let mutation_eq = GroupMutation {
             unlocked_indices: (0..size).collect(),
             start_temp: 1.0,
             end_temp: 1.0,
         };
-        let _ = mutation_eq
-            .propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)
-            .unwrap();
+        let _ = mutation_eq.propose(engine.as_ref(), &layout, &pos_map, &mut rng, 1.0)?;
+        Ok(())
     }
 }

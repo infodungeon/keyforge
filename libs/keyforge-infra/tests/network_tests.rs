@@ -10,9 +10,9 @@ mod integration_tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
-    async fn test_ensure_file_basic() {
+    async fn test_ensure_file_basic() -> anyhow::Result<()> {
         let server = MockServer::start().await;
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir()?;
         let local_path = temp.path().join("test.txt");
 
         let content = "hello world";
@@ -29,7 +29,7 @@ mod integration_tests {
             asset_url: server.uri(),
             ..Default::default()
         };
-        let client = HiveClient::new(config).unwrap();
+        let client = HiveClient::new(config)?;
 
         // 1. First download
         ensure_file(
@@ -38,9 +38,8 @@ mod integration_tests {
             &local_path,
             Some(&expected_hash),
         )
-        .await
-        .unwrap();
-        assert_eq!(std::fs::read_to_string(&local_path).unwrap(), content);
+        .await?;
+        assert_eq!(std::fs::read_to_string(&local_path)?, content);
 
         // 2. Reuse existing (trusted by sidecar)
         ensure_file(
@@ -49,26 +48,25 @@ mod integration_tests {
             &local_path,
             Some(&expected_hash),
         )
-        .await
-        .unwrap();
+        .await?;
 
         // 3. Fallback to full content verification (delete sidecar)
         let sidecar = local_path.with_extension("txt.sha256");
-        std::fs::remove_file(sidecar).unwrap();
+        std::fs::remove_file(sidecar)?;
         ensure_file(
             &client,
             &client.url("/data/test.txt"),
             &local_path,
             Some(&expected_hash),
         )
-        .await
-        .unwrap();
+        .await?;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_ensure_cost_matrix() {
+    async fn test_ensure_cost_matrix() -> anyhow::Result<()> {
         let server = MockServer::start().await;
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir()?;
 
         Mock::given(method("GET"))
             .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
@@ -80,18 +78,17 @@ mod integration_tests {
             asset_url: server.uri(),
             ..Default::default()
         };
-        let client = HiveClient::new(config).unwrap();
+        let client = HiveClient::new(config)?;
 
-        let res = ensure_cost_matrix(&client, temp.path(), "cm.json")
-            .await
-            .unwrap();
+        let res = ensure_cost_matrix(&client, temp.path(), "cm.json").await?;
         assert!(res.exists());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_ensure_file_hash_mismatch() {
+    async fn test_ensure_file_hash_mismatch() -> anyhow::Result<()> {
         let server = MockServer::start().await;
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir()?;
         let local_path = temp.path().join("test.txt");
 
         Mock::given(method("GET"))
@@ -104,7 +101,7 @@ mod integration_tests {
             asset_url: server.uri(),
             ..Default::default()
         };
-        let client = HiveClient::new(config).unwrap();
+        let client = HiveClient::new(config)?;
 
         let res = ensure_file(
             &client,
@@ -114,12 +111,13 @@ mod integration_tests {
         )
         .await;
         assert!(matches!(res, Err(InfraError::HashMismatch { .. })));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_ensure_file_server_error() {
+    async fn test_ensure_file_server_error() -> anyhow::Result<()> {
         let server = MockServer::start().await;
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir()?;
         let local_path = temp.path().join("test.txt");
 
         Mock::given(method("GET"))
@@ -132,16 +130,17 @@ mod integration_tests {
             asset_url: server.uri(),
             ..Default::default()
         };
-        let client = HiveClient::new(config).unwrap();
+        let client = HiveClient::new(config)?;
 
         let res = ensure_file(&client, &client.url("/data/test.txt"), &local_path, None).await;
         assert!(res.is_err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_ensure_file_not_found() {
+    async fn test_ensure_file_not_found() -> anyhow::Result<()> {
         let server = MockServer::start().await;
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir()?;
         let local_path = temp.path().join("test.txt");
 
         Mock::given(method("GET"))
@@ -154,16 +153,17 @@ mod integration_tests {
             asset_url: server.uri(),
             ..Default::default()
         };
-        let client = HiveClient::new(config).unwrap();
+        let client = HiveClient::new(config)?;
 
         let res = ensure_file(&client, &client.url("/data/test.txt"), &local_path, None).await;
         assert!(res.is_err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_ensure_file_too_large() {
+    async fn test_ensure_file_too_large() -> anyhow::Result<()> {
         let server = MockServer::start().await;
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir()?;
         let local_path = temp.path().join("test.txt");
 
         Mock::given(method("GET"))
@@ -180,14 +180,15 @@ mod integration_tests {
             asset_url: server.uri(),
             ..Default::default()
         };
-        let client = HiveClient::new(config).unwrap();
+        let client = HiveClient::new(config)?;
 
         let res = ensure_file(&client, &client.url("/data/test.txt"), &local_path, None).await;
         assert!(res.is_err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_ensure_corpus_bundle() {
+    async fn test_ensure_corpus_bundle() -> anyhow::Result<()> {
         let server = MockServer::start().await;
 
         Mock::given(method("GET"))
@@ -200,14 +201,7 @@ mod integration_tests {
             asset_url: server.uri(),
             ..Default::default()
         };
-        let _client = HiveClient::new(config).unwrap();
-
-        // This test might fail because it tries to write to "data/corpora/..." relative to CWD
-        // We'll skip actual file check here or mock it if it uses relative paths.
-        // Actually ensure_corpus_bundle uses Path::new which is relative.
-        // We can just verify it compiles for now, or use a temp dir if ensure_corpus_bundle allowed it.
-        // ensure_corpus_bundle hardcodes "data/corpora".
-        // We will leave it as is, expecting it might fail if dir doesn't exist, but we can't easily change the hardcoded path without changing the function signature.
-        // The original test didn't assert anything, just called it.
+        let _client = HiveClient::new(config)?;
+        Ok(())
     }
 }

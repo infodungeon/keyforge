@@ -191,23 +191,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_key_action_parsing() {
-        assert_eq!(
-            parse_key("KC_A").unwrap(),
-            KeyAction::Simple("KC_A".to_string())
-        );
-        assert_eq!(parse_key("TRNS").unwrap(), KeyAction::Transparent);
+    fn test_key_action_parsing() -> anyhow::Result<()> {
+        assert_eq!(parse_key("KC_A")?, KeyAction::Simple("KC_A".to_string()));
+        assert_eq!(parse_key("TRNS")?, KeyAction::Transparent);
 
-        match parse_key("MO(1)").unwrap() {
+        match parse_key("MO(1)")? {
             KeyAction::LayerMomentary(1) => {}
-            _ => panic!("Failed to parse MO(1)"),
+            _ => anyhow::bail!("Failed to parse MO(1)"),
         }
 
-        match parse_key("LT(2, KC_SPC)").unwrap() {
+        match parse_key("LT(2, KC_SPC)")? {
             KeyAction::LayerTap { layer: 2, key } => {
                 assert_eq!(*key, KeyAction::Simple("KC_SPC".to_string()));
             }
-            _ => panic!("Failed to parse LT"),
+            _ => anyhow::bail!("Failed to parse LT"),
         }
+        Ok(())
     }
 }

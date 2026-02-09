@@ -32,15 +32,21 @@ static LABEL_CLEANER: OnceLock<Regex> = OnceLock::new();
 /// # Errors
 ///
 /// Returns an error if the JSON is malformed or doesn't match the expected schema.
+#[allow(clippy::too_many_lines)]
 pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>> {
     let keyboard: KleKeyboard = serde_json::from_str(content)?;
 
     // Pass 1: Collect X coordinates for clustering
-    #[allow(clippy::cast_possible_truncation)]
     let mut x_coords: Vec<f32> = keyboard
         .keys
         .iter()
-        .map(|k| k.x as f32 + (k.width as f32 / 2.0))
+        .map(|k| {
+            #[allow(clippy::cast_possible_truncation)]
+            let x_coord = k.x as f32;
+            #[allow(clippy::cast_possible_truncation)]
+            let width_val = k.width as f32;
+            x_coord + (width_val / 2.0)
+        })
         .collect();
     x_coords.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -82,10 +88,11 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
     let mut keys = Vec::new();
 
     for (current_id, key) in keyboard.keys.into_iter().enumerate() {
-        let center_x = key.x + (key.width / 2.0);
-        // Dynamic hand assignment
         #[allow(clippy::cast_possible_truncation)]
-        let hand = if center_x as f32 > split_x {
+        let center_x_raw = (key.x + (key.width / 2.0)) as f32;
+        let center_x = center_x_raw;
+        // Dynamic hand assignment
+        let hand = if center_x > split_x {
             HandIndex::RIGHT
         } else {
             HandIndex::LEFT
@@ -102,8 +109,22 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
         let label = sanitize_label(label);
 
         #[allow(clippy::cast_possible_truncation)]
+        let key_x = key.x as f32;
+        #[allow(clippy::cast_possible_truncation)]
+        let key_y = key.y as f32;
+        #[allow(clippy::cast_possible_truncation)]
+        let key_w = key.width as f32;
+        #[allow(clippy::cast_possible_truncation)]
+        let key_h = key.height as f32;
+        #[allow(clippy::cast_possible_truncation)]
+        let key_r = key.rotation as f32;
+        #[allow(clippy::cast_possible_truncation)]
+        let key_rx_val = key.rx as f32;
+        #[allow(clippy::cast_possible_truncation)]
+        let key_ry_coord = key.ry as f32;
+
         let node = KeyNode {
-            index: current_id,
+            index: KeyIndex::new(u16::try_from(current_id).unwrap_or(u16::MAX)),
             label: if label.is_empty() {
                 format!("k{current_id}")
             } else {
@@ -111,15 +132,31 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
             },
             hand,
             finger,
-            row: RowIndex::new(key.y.round() as i8),
-            col: ColIndex::new(key.x.round() as i8),
-            x: SpatialUnit::from_f32(key.x as f32),
-            y: SpatialUnit::from_f32(key.y as f32),
-            w: key.width as f32,
-            h: key.height as f32,
-            r: key.rotation as f32,
-            rx: SpatialUnit::from_f32(key.rx as f32),
-            ry: SpatialUnit::from_f32(key.ry as f32),
+            row: RowIndex::new(
+                i8::try_from(
+                    crate::types::Score::from_f32(key_y)
+                        .unwrap_or_default()
+                        .raw()
+                        / 1_000_000,
+                )
+                .unwrap_or(0),
+            ),
+            col: ColIndex::new(
+                i8::try_from(
+                    crate::types::Score::from_f32(key_x)
+                        .unwrap_or_default()
+                        .raw()
+                        / 1_000_000,
+                )
+                .unwrap_or(0),
+            ),
+            x: SpatialUnit::from_f32(key_x),
+            y: SpatialUnit::from_f32(key_y),
+            w: key_w,
+            h: key_h,
+            r: key_r,
+            rx: SpatialUnit::from_f32(key_rx_val),
+            ry: SpatialUnit::from_f32(key_ry_coord),
             is_home: false,
             is_stretch: false,
         };
@@ -127,16 +164,15 @@ pub fn parse_kle_json(content: &str) -> Result<KeyboardGeometry, Box<dyn Error>>
     }
 
     let total = keys.len();
-    #[allow(clippy::cast_possible_truncation)]
     let prime_slots = (0..std::cmp::min(8, total))
-        .map(|i| KeyIndex::new(i as u16))
+        .map(|i| KeyIndex::new(u16::try_from(i).unwrap_or(0)))
         .collect();
-    #[allow(clippy::cast_possible_truncation)]
     let med_slots = (8..std::cmp::min(20, total))
-        .map(|i| KeyIndex::new(i as u16))
+        .map(|i| KeyIndex::new(u16::try_from(i).unwrap_or(0)))
         .collect();
-    #[allow(clippy::cast_possible_truncation)]
-    let low_slots = (20..total).map(|i| KeyIndex::new(i as u16)).collect();
+    let low_slots = (20..total)
+        .map(|i| KeyIndex::new(u16::try_from(i).unwrap_or(0)))
+        .collect();
 
     let geom = KeyboardGeometry::new(keys, prime_slots, med_slots, low_slots, RowIndex::new(1));
     Ok(geom)
@@ -180,42 +216,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_kle_json_simple() {
+    fn test_parse_kle_json_simple() -> anyhow::Result<()> {
         let json = r#"[["A", "B"]]"#;
-        let geom = parse_kle_json(json).unwrap();
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
         assert_eq!(geom.keys().len(), 2);
         assert_eq!(geom.keys()[0].label, "A");
         assert_eq!(geom.keys()[1].label, "B");
+        Ok(())
     }
 
     #[test]
-    fn test_parse_kle_json_split_heuristic() {
+    fn test_parse_kle_json_split_heuristic() -> anyhow::Result<()> {
         // Large gap (3 keys to hit gap logic)
         let json = r#"[["A", "B", {"x": 15}, "C"]]"#;
-        let geom = parse_kle_json(json).unwrap();
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
         assert_eq!(geom.keys()[0].hand, HandIndex::LEFT);
         assert_eq!(geom.keys()[1].hand, HandIndex::LEFT);
         assert_eq!(geom.keys()[2].hand, HandIndex::RIGHT);
 
         // Small gap (ortho)
         let json = r#"[["A", "B", "C"]]"#;
-        let geom = parse_kle_json(json).unwrap();
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
         assert_eq!(geom.keys().len(), 3);
+        Ok(())
     }
 
     #[test]
-    fn test_kle_rotation_parsing() {
+    fn test_kle_rotation_parsing() -> anyhow::Result<()> {
         let json = r#"[
             [{"r": 15, "rx": 5, "ry": 5}, "A"]
         ]"#;
-        let geom = parse_kle_json(json).unwrap();
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
         assert_eq!(geom.keys()[0].r, 15.0);
         assert_eq!(geom.keys()[0].rx.to_f32(), 5.0);
         assert_eq!(geom.keys()[0].ry.to_f32(), 5.0);
+        Ok(())
     }
 
     #[test]
-    fn test_to_kle_json() {
+    fn test_to_kle_json() -> anyhow::Result<()> {
         let keys = vec![
             KeyNode {
                 label: "X".into(),
@@ -234,23 +273,26 @@ mod tests {
         ];
         let geom = KeyboardGeometry::new(keys, vec![], vec![], vec![], RowIndex::new(1));
 
-        let json = to_kle_json(&geom).unwrap();
+        let json = to_kle_json(&geom).map_err(|e| anyhow::anyhow!(e))?;
         assert!(json.contains("meta"));
         assert!(json.contains("\"X\""));
         assert!(json.contains("\"Y\""));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_kle_invalid() {
+    fn test_parse_kle_invalid() -> anyhow::Result<()> {
         assert!(parse_kle_json("invalid").is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_sanitize_label() {
+    fn test_sanitize_label() -> anyhow::Result<()> {
         assert_eq!(sanitize_label("A"), "A");
         assert_eq!(sanitize_label("<b>A</b>"), "A");
         assert_eq!(sanitize_label("<i class='fa fa-home'></i>"), "");
         assert_eq!(sanitize_label("Shift<br/>Tab"), "ShiftTab");
         assert_eq!(sanitize_label("  Space  "), "Space");
+        Ok(())
     }
 }

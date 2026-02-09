@@ -31,7 +31,7 @@ pub fn generate_physics_svg(
         let w = key.w * 45.0;
         let h = key.h * 45.0;
 
-        let freq = heatmap.get(key.index).copied().unwrap_or(0.0);
+        let freq: f32 = heatmap.get(key.index.as_usize()).copied().unwrap_or(0.0);
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let intensity = (freq * 255.0).min(255.0) as u8;
         let color = format!("rgb({}, {}, {})", 255 - intensity, 255 - intensity, 255);

@@ -48,34 +48,35 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    fn setup_minimal() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>) {
+    fn setup_minimal() -> anyhow::Result<(Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>)>
+    {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex::new(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(0),
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex::new(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
                 row: RowIndex::new(0),
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap());
+        let kb = Arc::new(Keyboard::new(keys, RowIndex::new(0), "test".into())?);
         let corpus = Arc::new(Corpus::default());
         let rubric = Arc::new(Rubric::default());
         let mut cost_model = keyforge_model::cost_model::CostModel::default();
         let mut fingers = HashMap::new();
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
+        let sc = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         fingers.insert(
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
                 keyforge_model::cost_model::FingerReach {
-                    base: HashMap::from([(RowIndex::new(0), fw(1.0))]),
+                    base: HashMap::from([(RowIndex::new(0), sc(1.0))]),
                     ..Default::default()
                 },
             ),
@@ -84,7 +85,7 @@ mod tests {
             "middle".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
                 keyforge_model::cost_model::FingerReach {
-                    base: HashMap::from([(RowIndex::new(0), fw(1.0))]),
+                    base: HashMap::from([(RowIndex::new(0), sc(1.0))]),
                     ..Default::default()
                 },
             ),
@@ -99,34 +100,40 @@ mod tests {
                 )]),
             },
         );
-        (kb, corpus, rubric, Arc::new(cost_model))
+        Ok((kb, corpus, rubric, Arc::new(cost_model)))
     }
 
     #[test]
-    fn test_identify_qwerty() {
+    fn test_identify_qwerty() -> anyhow::Result<()> {
         let qwerty = "Q W E R T Y U I O P A S D F G H J K L Z X C V B N M";
         let reg = keyforge_model::keycodes::KeycodeRegistry::new_with_alphas();
-        let layout = keyforge_adapter::conversion::parse_layout_string(qwerty, 30, &reg).unwrap();
+        let layout = keyforge_adapter::conversion::parse_layout_string(qwerty, 30, &reg)?;
 
         let identity = identify(&layout);
         assert!(identity.is_some());
-        assert_eq!(identity.unwrap().name, "Qwerty");
+        assert_eq!(
+            identity
+                .ok_or_else(|| anyhow::anyhow!("missing identity"))?
+                .name,
+            "Qwerty"
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_analyze_with_context() {
-        let (keyboard, corpus, rubric, cost_model) = setup_minimal();
+    fn test_analyze_with_context() -> anyhow::Result<()> {
+        let (keyboard, corpus, rubric, cost_model) = setup_minimal()?;
         let engine = EngineFactory::new_generic(&EngineCompilationContext {
             keyboard,
             corpus,
             rubric,
             cost_model,
             engine_config: keyforge_model::config::EngineConfig::default(),
-        })
-        .unwrap();
+        })?;
 
         let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98)]);
         let res = analyze_with_context(engine.context(), &layout);
         assert!(res.is_ok());
+        Ok(())
     }
 }

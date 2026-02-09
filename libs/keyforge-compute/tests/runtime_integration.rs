@@ -64,7 +64,11 @@ mod runtime_tests {
             Path::new(".")
         }
 
-        async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
+        async fn get_hash(
+            &self,
+            _category: keyforge_model::asset::AssetCategory,
+            _id: &str,
+        ) -> LoaderResult<String> {
             Ok("mock".to_string())
         }
     }

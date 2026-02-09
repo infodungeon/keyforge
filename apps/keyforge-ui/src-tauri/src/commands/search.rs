@@ -107,11 +107,13 @@ pub async fn cmd_poll_hive_status(
         },
         best_score: match &status {
             JobStatusDto::Running { current_best, .. } => current_best.as_ref().map_or(0.0, |s| {
+                // SAFETY: TYPE-001 Exception: DTO conversion.
                 #[allow(clippy::cast_precision_loss)]
                 let val = s.raw() as f32;
                 val / 1_000_000.0
             }),
             JobStatusDto::Completed { final_score, .. } => {
+                // SAFETY: TYPE-001 Exception: DTO conversion.
                 #[allow(clippy::cast_precision_loss)]
                 let val = final_score.raw() as f32;
                 val / 1_000_000.0
@@ -123,7 +125,8 @@ pub async fn cmd_poll_hive_status(
                 use std::fmt::Write;
                 let mut s = String::new();
                 for code in &final_layout.keys {
-                    let _ = write!(s, "{} ", code.0);
+                    // SAFETY: ARCH-006 Exception: Serialized DTO field access.
+                    let _ = write!(s, "{} ", code.raw());
                 }
                 s.trim().to_string()
             }
@@ -137,16 +140,8 @@ pub async fn cmd_poll_hive_status(
 /// # Errors
 ///
 /// Returns `CommandError` if the agent process fails to spawn or terminate.
-///
-/// # Panics
-///
-/// Panics if the worker child lock is poisoned.
 #[tauri::command]
-#[allow(
-    clippy::needless_pass_by_value,
-    clippy::unwrap_used,
-    clippy::missing_panics_doc
-)]
+#[allow(clippy::needless_pass_by_value, clippy::missing_panics_doc)]
 pub fn cmd_toggle_local_worker(
     app: AppHandle,
     state: tauri::State<'_, LocalWorkerState>,
@@ -154,7 +149,10 @@ pub fn cmd_toggle_local_worker(
     hive_url: String,
     _hive_secret: String,
 ) -> Result<String, CommandError> {
-    let mut child_guard = state.child.lock().unwrap();
+    let mut child_guard = state
+        .child
+        .lock()
+        .map_err(|_| CommandError::Internal("Mutex poisoned".into()))?;
 
     if enabled {
         if child_guard.is_some() {
@@ -209,8 +207,10 @@ impl ProgressCallback for TauriProgressCallback {
             return OptimizationControl::Stop;
         }
 
-        #[allow(clippy::unwrap_used)]
-        let mut last = self.last_emit.lock().unwrap();
+        // SAFETY: TYPE-003 Exception: Callback rate limiting. Poisoned lock is unrecoverable here.
+        let Ok(mut last) = self.last_emit.lock() else {
+            return OptimizationControl::Abort;
+        };
         if last.elapsed().as_millis() > 100 {
             *last = std::time::Instant::now();
 
@@ -228,7 +228,7 @@ impl ProgressCallback for TauriProgressCallback {
                 layout: layout_str.trim().to_string(),
                 ips,
             };
-            #[allow(clippy::unwrap_used)]
+            // SAFETY: TYPE-003 Exception: UI event emission.
             let _ = self.window.emit("search_update", update);
         }
         OptimizationControl::Continue
@@ -270,7 +270,7 @@ pub async fn cmd_start_search(
         .with_keycodes("default")
         .await?
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &job.to_domain_weights(),
+            &job.to_domain_weights()?,
         ))
         .with_config(keyforge_model::SearchConfig::Annealing {
             steps: request.search_params.get_search_steps(),

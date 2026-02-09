@@ -25,6 +25,7 @@ serde_json.workspace = true
 bitflags.workspace = true
 
 [dev-dependencies]
+anyhow.workspace = true
 criterion.workspace = true
 proptest.workspace = true
 rand.workspace = true

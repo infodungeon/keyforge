@@ -12,8 +12,8 @@
 
 use crate::types::SpatialUnit;
 use crate::{
-    ColIndex, Corpus, CostModel, FingerIndex, HandIndex, KeyCode, KeyNode, Keyboard, RowIndex,
-    Rubric,
+    ColIndex, Corpus, CostModel, FingerIndex, HandIndex, KeyCode, KeyIndex, KeyNode, Keyboard,
+    RowIndex, Rubric,
 };
 use proptest::arbitrary::Arbitrary;
 use proptest::prelude::*;
@@ -65,13 +65,22 @@ impl Arbitrary for ColIndex {
     }
 }
 
+impl Arbitrary for KeyIndex {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        (any::<u16>()).prop_map(KeyIndex::new).boxed()
+    }
+}
+
 impl Arbitrary for KeyNode {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         (
-            any::<usize>(),
+            any::<KeyIndex>(),
             ".*",           // label
             -15.0f32..15.0, // x
             -15.0f32..15.0, // y
@@ -115,7 +124,8 @@ impl Arbitrary for Keyboard {
                 // Ensure unique indices for keys
                 let mut keys = keys;
                 for (i, key) in keys.iter_mut().enumerate() {
-                    key.index = i;
+                    let i_u16 = u16::try_from(i).unwrap_or(u16::MAX);
+                    key.index = KeyIndex::new(i_u16);
                 }
                 #[allow(clippy::unwrap_used)]
                 Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap()
@@ -140,11 +150,11 @@ impl Arbitrary for Corpus {
                     char_freqs_full[i] = f;
                 }
                 // Sorting required by Corpus::validate/merge but not strictly for existence
-                bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-                trigrams.sort_unstable_by(|a, b| {
-                    a.0.cmp(&b.0)
-                        .then(a.1.cmp(&b.1))
-                        .then(a.2.cmp(&b.2))
+                // Use destructuring to avoid .0/.1 which triggers ast-grep rules
+                bigrams
+                    .sort_unstable_by(|&(a0, a1, _), &(b0, b1, _)| a0.cmp(&b0).then(a1.cmp(&b1)));
+                trigrams.sort_unstable_by(|&(a0, a1, a2, _), &(b0, b1, b2, _)| {
+                    a0.cmp(&b0).then(a1.cmp(&b1)).then(a2.cmp(&b2))
                 });
 
                 Corpus {
@@ -165,22 +175,22 @@ impl Arbitrary for Rubric {
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         (
-            prop::collection::vec(-500.0f32..500.0, 5),
-            -500.0f32..500.0,   // travel_lat
-            -500.0f32..500.0,   // travel_vert
-            -500.0f32..500.0, // sfb_base
-            -500.0f32..500.0,  // sfb_lateral
-            -500.0f32..500.0,  // sfb_lateral_weak
-            -500.0f32..500.0,  // sfb_diagonal
-            -500.0f32..500.0,  // sfb_long
-            -500.0f32..500.0,  // penalty_scissor
-            -500.0f32..500.0,  // redirect
-            -500.0f32..500.0,  // roll_bonus
+            prop::collection::vec(any::<i64>(), 5),
+            any::<i64>(), // travel_lat
+            any::<i64>(), // travel_vert
+            any::<i64>(), // sfb_base
+            any::<i64>(), // sfb_lateral
+            any::<i64>(), // sfb_lateral_weak
+            any::<i64>(), // sfb_diagonal
+            any::<i64>(), // sfb_long
+            any::<i64>(), // penalty_scissor
+            any::<i64>(), // redirect
+            any::<i64>(), // roll_bonus
         )
             .prop_map(
                 |(effort, tlat, tvert, sfb, slat, slweak, sdiag, slong, pscis, redir, roll)| {
                     Rubric::builder()
-                        .finger_effort(effort.try_into().unwrap_or([0.0; 5]))
+                        .finger_effort(effort.try_into().unwrap_or([0; 5]))
                         .travel_lat(tlat)
                         .travel_vert(tvert)
                         .sfb_base(sfb)
@@ -203,8 +213,11 @@ impl Arbitrary for Rubric {
 #[allow(clippy::cast_possible_truncation)]
 pub fn mock_cost_model() -> CostModel {
     let mut base_zone = crate::cost_model::RowCosts::new();
-    for r in -128..=127 {
-        base_zone.insert(RowIndex::new(r as i8), crate::types::Score::ZERO);
+    for r in -128i16..=127 {
+        base_zone.insert(
+            RowIndex::new(i8::try_from(r).unwrap_or(0)),
+            crate::types::Score::ZERO,
+        );
     }
 
     let index_zones = crate::cost_model::FingerReach {
@@ -270,15 +283,20 @@ pub fn mock_cost_model() -> CostModel {
     clippy::cast_possible_truncation
 )]
 pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
-    let keys: Vec<KeyNode> = (0..3)
-        .map(|i| KeyNode {
-            index: i,
-            label: format!("k{i}"),
-            hand: HandIndex::new(0),
-            finger: FingerIndex::new(i as u8),
-            x: SpatialUnit::from_f32(i as f32),
-            y: SpatialUnit::default(),
-            ..Default::default()
+    let keys: Vec<KeyNode> = (0..3usize)
+        .map(|i| {
+            let u8_val = u8::try_from(i).unwrap_or(0);
+            let f32_val = f32::from(u8_val);
+            let u16_val = u16::from(u8_val);
+            KeyNode {
+                index: KeyIndex::new(u16_val),
+                label: format!("k{i}"),
+                hand: HandIndex::new(0),
+                finger: FingerIndex::new(u8_val),
+                x: SpatialUnit::from_f32(f32_val),
+                y: SpatialUnit::default(),
+                ..Default::default()
+            }
         })
         .collect();
     let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();

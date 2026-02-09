@@ -455,14 +455,23 @@ impl JobRepository {
         tx: &mut sqlx::Transaction<'_, Postgres>,
         weights: &ScoringWeightsDto,
     ) -> Result<i32, sqlx::Error> {
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
+        let mut weights_map = std::collections::HashMap::new();
+        for (k, &v) in &weights.weights {
+            weights_map.insert(
+                k.clone(),
+                keyforge_model::types::Score::from_f32(v).map_err(sqlx::Error::Protocol)?,
+            );
+        }
+
+        let mut finger_penalty_scale = [keyforge_model::types::Score::default(); 5];
+        for (i, &v) in weights.finger_penalty_scale.iter().enumerate() {
+            finger_penalty_scale[i] =
+                keyforge_model::types::Score::from_f32(v).map_err(sqlx::Error::Protocol)?;
+        }
+
         let model_weights = keyforge_model::config::ScoringWeights {
-            weights: weights
-                .weights
-                .iter()
-                .map(|(k, &v)| (k.clone(), fw(v)))
-                .collect(),
-            finger_penalty_scale: weights.finger_penalty_scale.map(fw),
+            weights: weights_map,
+            finger_penalty_scale,
             comfortable_scissors: weights.comfortable_scissors.clone(),
         };
 

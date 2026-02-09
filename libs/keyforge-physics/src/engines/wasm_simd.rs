@@ -173,7 +173,7 @@ unsafe fn score_layout_wasm(
     for &code in pm.used_keys() {
         let candidates = pm.get(code);
         if !candidates.is_empty() {
-            flat_map[code.raw() as usize] = candidates[0];
+            flat_map[code.as_usize()] = candidates[0];
         }
     }
 
@@ -207,11 +207,11 @@ unsafe fn score_simple_wasm(
 
     // 1. Monograms
     for &code in ctx.pos_map.used_keys() {
-        let freq = ctx.engine.corpus.char_freqs[code.raw() as usize];
-        let p = flat_map[code.raw() as usize];
+        let freq = ctx.engine.corpus.char_freqs[code.as_usize()];
+        let p = flat_map[code.as_usize()];
         let cost = ctx.engine.geometry.key_costs[p.as_usize()];
         total_score = total_score
-            .checked_add(cost.raw().checked_mul(freq as i64).ok_or_else(|| {
+            .checked_add(cost.raw().checked_mul(i64::from(freq)).ok_or_else(|| {
                 PhysicsError::ScoreOverflow {
                     context: "WASM Monogram multiply".to_string(),
                 }
@@ -223,7 +223,7 @@ unsafe fn score_simple_wasm(
 
     // 2. Bigrams
     for &code1 in ctx.pos_map.used_keys() {
-        let c1_val = code1.raw() as usize;
+        let c1_val = code1.as_usize();
         let p1 = flat_map[c1_val].as_usize();
         let start = ctx.engine.corpus.bigram_starts[c1_val];
         let end = ctx.engine.corpus.bigram_starts[c1_val + 1];
@@ -240,36 +240,30 @@ unsafe fn score_simple_wasm(
         let mut k = start;
         while k + 2 <= end {
             // Load 2 KeyCodes (u16)
-            // SAFETY: others_ptr is within corpus bounds [start, end).
-            let c2_0 = unsafe { others_ptr.add(k).read().raw() as usize };
-            let c2_1 = unsafe { others_ptr.add(k + 1).read().raw() as usize };
+            let c2_0 = unsafe { others_ptr.add(k).read().as_usize() };
+            let c2_1 = unsafe { others_ptr.add(k + 1).read().as_usize() };
 
             let p2_0 = flat_map[c2_0].raw();
             let p2_1 = flat_map[c2_1].raw();
 
             // Manual gather for costs
-            // SAFETY: costs_ptr is valid for key_count elements in each row.
-            let cost0 = if p2_0 < key_count as u16 {
-                unsafe { costs_ptr.add(p1_offset + (p2_0 as usize)).read().raw() }
+            let key_count_u16 = u16::try_from(key_count).unwrap_or(u16::MAX);
+            let cost0 = if p2_0 < key_count_u16 {
+                unsafe { costs_ptr.add(p1_offset + usize::from(p2_0)).read().raw() }
             } else {
                 0
             };
-            let cost1 = if p2_1 < key_count as u16 {
-                unsafe { costs_ptr.add(p1_offset + (p2_1 as usize)).read().raw() }
+            let cost1 = if p2_1 < key_count_u16 {
+                unsafe { costs_ptr.add(p1_offset + usize::from(p2_1)).read().raw() }
             } else {
                 0
             };
 
             // Load 2 frequencies (u32 -> i64)
-            // SAFETY: freqs_ptr is valid up to 'end'.
-            let freq0 = unsafe { freqs_ptr.add(k).read() as i64 };
-            let freq1 = unsafe { freqs_ptr.add(k + 1).read() as i64 };
+            let freq0 = i64::from(unsafe { freqs_ptr.add(k).read() });
+            let freq1 = i64::from(unsafe { freqs_ptr.add(k + 1).read() });
 
             // Multiply and accumulate
-            // WASM doesn't have i64x2_mul, so we must mul individual lanes or use a different strategy
-            // But wait, it HAS i64x2_mul in some proposals, but maybe not standard yet.
-            // Let's check std::arch::wasm32
-            // For now, let's use scalar mul and then pack if i64x2_mul is missing.
             let res0 = cost0 * freq0;
             let res1 = cost1 * freq1;
             // SAFETY: i64x2 and i64x2_add are safe on wasm32.
@@ -293,11 +287,10 @@ unsafe fn score_simple_wasm(
 
         // Remainder
         while k < end {
-            // SAFETY: pointers are valid at offset k < end.
             let c2 = unsafe { others_ptr.add(k).read() };
-            let p2 = flat_map[c2.raw() as usize];
+            let p2 = flat_map[c2.as_usize()];
             if p2.as_usize() < key_count {
-                let freq = unsafe { freqs_ptr.add(k).read() as i64 };
+                let freq = i64::from(unsafe { freqs_ptr.add(k).read() });
                 let cost = ctx.engine.geometry.cost_matrix[p1 * key_count + p2.as_usize()].raw();
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {
@@ -327,23 +320,24 @@ unsafe fn score_trigrams_wasm(
     let key_count = ctx.engine.key_count;
     let mut pos_types = [0u8; 256];
     for i in 0..key_count {
-        let h = ctx.engine.geometry.hands[i].index() as u8;
-        let f = ctx.engine.geometry.fingers[i].index() as u8;
+        let h = ctx.engine.geometry.hands[i].as_u8();
+        let f = ctx.engine.geometry.fingers[i].as_u8();
         pos_types[i] = h * 5 + f;
     }
 
     let mut flow_table = [0i64; 1000];
-    for t1 in 0..10 {
-        for t2 in 0..10 {
-            for t3 in 0..10 {
-                let h1 = keyforge_model::types::HandIndex::new(t1 / 5);
-                let h2 = keyforge_model::types::HandIndex::new(t2 / 5);
-                let h3 = keyforge_model::types::HandIndex::new(t3 / 5);
-                let f1 = keyforge_model::types::FingerIndex::new(t1 % 5);
-                let f2 = keyforge_model::types::FingerIndex::new(t2 % 5);
-                let f3 = keyforge_model::types::FingerIndex::new(t3 % 5);
+    for t1 in 0u8..10 {
+        for t2 in 0u8..10 {
+            for t3 in 0u8..10 {
+                let (t1_u, t2_u, t3_u) = (t1, t2, t3);
+                let h1 = keyforge_model::types::HandIndex::new(t1_u / 5);
+                let h2 = keyforge_model::types::HandIndex::new(t2_u / 5);
+                let h3 = keyforge_model::types::HandIndex::new(t3_u / 5);
+                let f1 = keyforge_model::types::FingerIndex::new(t1_u % 5);
+                let f2 = keyforge_model::types::FingerIndex::new(t2_u % 5);
+                let f3 = keyforge_model::types::FingerIndex::new(t3_u % 5);
 
-                flow_table[(t1 as usize) * 100 + (t2 as usize) * 10 + (t3 as usize)] =
+                flow_table[usize::from(t1) * 100 + usize::from(t2) * 10 + usize::from(t3)] =
                     calculate_flow_cost(
                         h1,
                         h2,
@@ -362,37 +356,36 @@ unsafe fn score_trigrams_wasm(
 
     let mut type_map = [255u8; 65536];
     for &code in ctx.pos_map.used_keys() {
-        let p = flat_map[code.raw() as usize];
+        let p = flat_map[code.as_usize()];
         if p.as_usize() < key_count {
-            type_map[code.raw() as usize] = pos_types[p.as_usize()];
+            type_map[code.as_usize()] = pos_types[p.as_usize()];
         }
     }
 
     for &code1 in ctx.pos_map.used_keys() {
-        let t1 = type_map[code1.raw() as usize];
+        let t1 = type_map[code1.as_usize()];
         if t1 == 255 {
             continue;
         }
 
-        let start = ctx.engine.corpus.trigram_starts[code1.raw() as usize];
-        let end = ctx.engine.corpus.trigram_starts[code1.raw() as usize + 1];
+        let start = ctx.engine.corpus.trigram_starts[code1.as_usize()];
+        let end = ctx.engine.corpus.trigram_starts[code1.as_usize() + 1];
 
         let others1_ptr = ctx.engine.corpus.trigram_others1.as_ptr();
         let others2_ptr = ctx.engine.corpus.trigram_others2.as_ptr();
         let freqs_ptr = ctx.engine.corpus.trigram_freqs.as_ptr();
 
-        let t1_offset = (t1 as usize) * 100;
+        let t1_offset = usize::from(t1) * 100;
         // SAFETY: i64x2_splat is safe on wasm32.
         let mut row_sum_v = unsafe { i64x2_splat(0) };
 
         let mut k = start;
         while k + 2 <= end {
-            // SAFETY: pointers are within corpus bounds [start, end).
-            let c2_0 = unsafe { others1_ptr.add(k).read().raw() as usize };
-            let c2_1 = unsafe { others1_ptr.add(k + 1).read().raw() as usize };
+            let c2_0 = unsafe { others1_ptr.add(k).read().as_usize() };
+            let c2_1 = unsafe { others1_ptr.add(k + 1).read().as_usize() };
 
-            let c3_0 = unsafe { others2_ptr.add(k).read().raw() as usize };
-            let c3_1 = unsafe { others2_ptr.add(k + 1).read().raw() as usize };
+            let c3_0 = unsafe { others2_ptr.add(k).read().as_usize() };
+            let c3_1 = unsafe { others2_ptr.add(k + 1).read().as_usize() };
 
             let t2_0 = type_map[c2_0];
             let t2_1 = type_map[c2_1];
@@ -400,19 +393,18 @@ unsafe fn score_trigrams_wasm(
             let t3_1 = type_map[c3_1];
 
             let cost0 = if t2_0 != 255 && t3_0 != 255 {
-                flow_table[t1_offset + (t2_0 as usize) * 10 + (t3_0 as usize)]
+                flow_table[t1_offset + usize::from(t2_0) * 10 + usize::from(t3_0)]
             } else {
                 0
             };
             let cost1 = if t2_1 != 255 && t3_1 != 255 {
-                flow_table[t1_offset + (t2_1 as usize) * 10 + (t3_1 as usize)]
+                flow_table[t1_offset + usize::from(t2_1) * 10 + usize::from(t3_1)]
             } else {
                 0
             };
 
-            // SAFETY: freqs_ptr is within bounds.
-            let freq0 = unsafe { freqs_ptr.add(k).read() as i64 };
-            let freq1 = unsafe { freqs_ptr.add(k + 1).read() as i64 };
+            let freq0 = i64::from(unsafe { freqs_ptr.add(k).read() });
+            let freq1 = i64::from(unsafe { freqs_ptr.add(k + 1).read() });
 
             // SAFETY: i64x2_add and i64x2 are safe on wasm32.
             row_sum_v = unsafe { i64x2_add(row_sum_v, i64x2(cost0 * freq0, cost1 * freq1)) };
@@ -434,14 +426,13 @@ unsafe fn score_trigrams_wasm(
             })?;
 
         while k < end {
-            // SAFETY: pointers are valid at offset k < end.
             let c2 = unsafe { others1_ptr.add(k).read() };
             let c3 = unsafe { others2_ptr.add(k).read() };
-            let t2 = type_map[c2.raw() as usize];
-            let t3 = type_map[c3.raw() as usize];
+            let t2 = type_map[c2.as_usize()];
+            let t3 = type_map[c3.as_usize()];
             if t2 != 255 && t3 != 255 {
-                let freq = unsafe { freqs_ptr.add(k).read() as i64 };
-                let cost = flow_table[t1_offset + (t2 as usize) * 10 + (t3 as usize)];
+                let freq = i64::from(unsafe { freqs_ptr.add(k).read() });
+                let cost = flow_table[t1_offset + usize::from(t2) * 10 + usize::from(t3)];
                 total_score = total_score.checked_add(cost * freq).ok_or_else(|| {
                     PhysicsError::ScoreOverflow {
                         context: "WASM Trigram remainder accumulation".to_string(),
@@ -460,15 +451,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_wasm_simd_parity() {
+    fn test_wasm_simd_parity() -> anyhow::Result<()> {
         use crate::kernel::compiler::Compiler;
-        use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+        use keyforge_model::types::{
+            ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex,
+        };
         use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
         use std::sync::Arc;
 
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex::new(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(0),
@@ -476,7 +469,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex::new(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
                 row: RowIndex::new(0),
@@ -484,7 +477,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 2,
+                index: KeyIndex::new(2),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
                 row: RowIndex::new(0),
@@ -492,7 +485,7 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into())?;
         let mut corpus = Corpus::default();
         let mut freqs = corpus.char_freqs.to_vec();
         freqs[97] = 100;
@@ -502,26 +495,26 @@ mod tests {
         corpus.trigrams = Arc::from(vec![(97, 98, 97, 10)]);
 
         let cm = keyforge_model::testing::mock_cost_model();
-        let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
+        let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm)?;
         let engine = WasmSimdScoringEngine::new(ctx.clone(), None);
 
         let layout =
             Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
 
-        let score_res = engine.score(&layout).unwrap();
+        let score_res = engine.score(&layout)?;
 
         // Parity check (native only if wasm32, otherwise scalar path is taken anyway)
         let scalar_score = score_layout_scalar(
             &ctx,
-            &ValidatedLayout::new(layout.keys(), 3).unwrap(),
-            &mut PhysicsScratch::try_new().unwrap(),
-        )
-        .unwrap();
+            &ValidatedLayout::new(layout.keys(), 3)?,
+            &mut PhysicsScratch::try_new()?,
+        )?;
 
         assert_eq!(
             score_res.raw(),
             scalar_score,
             "WASM and Scalar scores must match exactly"
         );
+        Ok(())
     }
 }

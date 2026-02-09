@@ -5,7 +5,7 @@ use crate::kernel::{
     EngineContext,
 };
 use keyforge_model::constants::{MAX_REPORTED_VIOLATIONS, SCORE_SCALE};
-use keyforge_model::types::FixedPointMath;
+use keyforge_model::types::{FixedPointMath, IterationCount, ScalingFactor};
 use keyforge_model::{AnalysisReport, KeyCode, MetricId, MetricViolation};
 
 /// Safely converts a u16 character code to a displayable character.
@@ -36,15 +36,19 @@ pub(crate) fn u16_to_char(code: u16) -> String {
 /// Mandated bit-perfect normalization for the `KeyForge` physical model.
 /// This implementation ensures symmetric rounding and is overflow-proof at i128 scale.
 #[must_use]
-#[allow(clippy::cast_possible_wrap)]
-pub fn deterministic_normalize(accumulated: Score, scale: u64, total_freq: u64) -> Score {
-    if total_freq == 0 {
+pub fn deterministic_normalize(
+    accumulated: Score,
+    scale: ScalingFactor,
+    total_freq: IterationCount,
+) -> Score {
+    let t_raw = total_freq.raw();
+    if t_raw == 0 {
         return Score::ZERO;
     }
 
     let a_128 = i128::from(accumulated.raw());
-    let s_128 = i128::from(scale);
-    let t_128 = i128::from(total_freq);
+    let s_128 = i128::from(scale.raw());
+    let t_128 = i128::from(u64::try_from(t_raw).unwrap_or(0));
 
     let product = a_128 * s_128;
     let half = t_128 / 2;
@@ -59,7 +63,9 @@ pub fn deterministic_normalize(accumulated: Score, scale: u64, total_freq: u64) 
 
     // Clamp to i64 range to ensure the final Score remains valid even under extreme scaling
     #[allow(clippy::cast_possible_truncation)]
-    Score::from_raw(result_raw.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64)
+    Score::from_raw(
+        i64::try_from(result_raw.clamp(i128::from(i64::MIN), i128::from(i64::MAX))).unwrap_or(0),
+    )
 }
 
 struct MetricsAccumulator {
@@ -188,9 +194,7 @@ fn process_trigrams(ctx: &EngineContext, pm: &PosMap<'_>, acc: &mut MetricsAccum
                         calculate_flow_cost(ctx, p1.as_usize(), p2.as_usize(), p3.as_usize());
                     let idx12 = p1.as_usize() * key_count + p2.as_usize();
                     let idx23 = p2.as_usize() * key_count + p3.as_usize();
-                    cost = cost
-                        + ctx.geometry.cost_matrix[idx12]
-                        + ctx.geometry.cost_matrix[idx23];
+                    cost = cost + ctx.geometry.cost_matrix[idx12] + ctx.geometry.cost_matrix[idx23];
 
                     if cost < min_cost_val {
                         min_cost_val = cost;
@@ -270,10 +274,11 @@ fn process_bigrams(
 
         let (idx1, idx2) = best_pair;
         acc.heatmap[idx2] += u64::from(freq);
-        char_usage[c2 as usize] += u64::from(freq);
+        char_usage[usize::from(c2)] += u64::from(freq);
 
         if idx1 != idx2 && ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2] {
-            acc.dist_accum = acc.dist_accum + ctx.geometry.dist_matrix[idx1 * key_count + idx2] * freq_i;
+            acc.dist_accum =
+                acc.dist_accum + ctx.geometry.dist_matrix[idx1 * key_count + idx2] * freq_i;
             if ctx.geometry.fingers[idx1] == ctx.geometry.fingers[idx2] {
                 acc.sfb_total_freq += u64::from(freq);
                 let sfb_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2];
@@ -363,19 +368,20 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
     sort_violations(&mut acc.redirs);
 
     let total_freq = ctx.corpus.char_freqs.iter().sum::<u64>();
-    // SAFETY: SCORE_SCALE is a positive constant (1_000_000).
-    #[allow(clippy::cast_sign_loss)]
-    let score_scale = SCORE_SCALE as u64;
+    let total_freq_it = IterationCount::new(usize::try_from(total_freq).unwrap_or(0));
+    let score_scale = SCORE_SCALE;
 
     if total_freq > 0 {
-        report.travel_per_key = deterministic_normalize(acc.dist_accum, 1, total_freq);
+        report.travel_per_key =
+            deterministic_normalize(acc.dist_accum, ScalingFactor::new(1), total_freq_it);
 
-        let norm_100k = |val: Score| deterministic_normalize(val, 100_000, total_freq);
+        let norm_100k =
+            |val: Score| deterministic_normalize(val, ScalingFactor::new(100_000), total_freq_it);
         let norm_pct = |val: u64| {
             deterministic_normalize(
                 Score::from_raw(i64::try_from(val).unwrap_or(i64::MAX)),
-                100 * score_scale,
-                total_freq,
+                ScalingFactor::new(100 * score_scale),
+                total_freq_it,
             )
         };
 
@@ -395,15 +401,15 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
         if acc.total_bigrams > 0 {
             report.sfb_ratio = deterministic_normalize(
                 Score::from_raw(i64::try_from(acc.sfb_total_freq).unwrap_or(i64::MAX)),
-                score_scale,
-                acc.total_bigrams,
+                ScalingFactor::new(score_scale),
+                IterationCount::new(usize::try_from(acc.total_bigrams).unwrap_or(0)),
             );
         }
         if acc.total_load > 0 {
             let left_share = deterministic_normalize(
                 Score::from_raw(i64::try_from(acc.left_hand_load).unwrap_or(i64::MAX)),
-                score_scale,
-                acc.total_load,
+                ScalingFactor::new(score_scale),
+                IterationCount::new(usize::try_from(acc.total_load).unwrap_or(0)),
             );
             let balance = (left_share.raw() - 500_000) * -2;
             report.hand_balance = Score::from_raw(balance);
@@ -432,15 +438,25 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
     report.top_scissors = acc.scissors;
     report.top_redirs = acc.redirs;
 
-    report.metrics.set(MetricId::TravelDistance, report.distance);
+    report
+        .metrics
+        .set(MetricId::TravelDistance, report.distance);
     report.metrics.set(MetricId::Sfb, report.sfb_total);
     report.metrics.set(MetricId::SfbPenalty, report.sfb_penalty);
     report.metrics.set(MetricId::Scissor, report.scissors);
-    report.metrics.set(MetricId::ScissorPenalty, report.scissor_penalty);
+    report
+        .metrics
+        .set(MetricId::ScissorPenalty, report.scissor_penalty);
     report.metrics.set(MetricId::Redirect, report.redirects);
-    report.metrics.set(MetricId::RedirectPenalty, report.redir_penalty);
-    report.metrics.set(MetricId::RollPenalty, report.roll_penalty);
-    report.metrics.set(MetricId::HandBalance, report.hand_balance);
+    report
+        .metrics
+        .set(MetricId::RedirectPenalty, report.redir_penalty);
+    report
+        .metrics
+        .set(MetricId::RollPenalty, report.roll_penalty);
+    report
+        .metrics
+        .set(MetricId::HandBalance, report.hand_balance);
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -453,7 +469,7 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn test_u16_to_char() {
+    fn test_u16_to_char() -> anyhow::Result<()> {
         assert_eq!(u16_to_char(97), "a");
         assert_eq!(u16_to_char(8), "⌫");
         assert_eq!(u16_to_char(9), "⇥");
@@ -461,13 +477,14 @@ mod tests {
         assert_eq!(u16_to_char(32), "␣");
         assert_eq!(u16_to_char(0), "[0x00]");
         assert_eq!(u16_to_char(0xD800), "[0xD800]"); // Invalid surrogate
+        Ok(())
     }
 
     #[test]
-    fn test_analyze_layout_branches() {
+    fn test_analyze_layout_branches() -> anyhow::Result<()> {
         let mut keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex::new(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(0),
@@ -476,7 +493,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex::new(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
                 row: RowIndex::new(0),
@@ -485,7 +502,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 2,
+                index: KeyIndex::new(2),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
                 row: RowIndex::new(0),
@@ -496,7 +513,7 @@ mod tests {
         ];
         // Add a duplicate key for space load sharing
         keys.push(KeyNode {
-            index: 3,
+            index: KeyIndex::new(3),
             hand: HandIndex::LEFT,
             finger: FingerIndex::INDEX,
             row: RowIndex::new(1),
@@ -505,7 +522,7 @@ mod tests {
             ..Default::default()
         });
 
-        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap();
+        let kb = Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into())?;
         let mut corpus = Corpus::default();
         let mut freqs = corpus.char_freqs.to_vec();
         freqs[97] = 100; // 'a'
@@ -515,12 +532,12 @@ mod tests {
         corpus.trigrams = Arc::from(vec![(97, 98, 97, 10)]); // Redirect: a -> b -> a (Index -> Middle -> Index)
 
         let mut fingers = std::collections::HashMap::new();
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
+        let sc = |v: i64| keyforge_model::types::Score::from_scaled_i64(v);
 
         let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
-        base_r0.insert(RowIndex::new(0), fw(1.0));
+        base_r0.insert(RowIndex::new(0), sc(1_000_000));
         let mut base_r1 = keyforge_model::cost_model::RowCosts::new();
-        base_r1.insert(RowIndex::new(1), fw(2.0));
+        base_r1.insert(RowIndex::new(1), sc(2_000_000));
 
         let mut index_base = base_r0.clone();
         index_base.extend(base_r1);
@@ -563,48 +580,49 @@ mod tests {
             },
         );
 
-        let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm).unwrap();
+        let ctx = Compiler::compile(&kb, &corpus, &Rubric::default(), &cm)?;
         let layout_keys = vec![
             KeyCode::new(97),
             KeyCode::new(98),
             KeyCode::new(99),
             KeyCode::new(100),
         ];
-        let validated = ValidatedLayout::new(&layout_keys, kb.count()).unwrap();
+        let validated = ValidatedLayout::new(&layout_keys, kb.count())?;
 
-        let report = analyze_layout(&ctx, &validated);
-        let report = report.unwrap();
-        assert!(report.score > Score::ZERO);
-        assert!(report.redirects > Score::ZERO);
+        let report = analyze_layout(&ctx, &validated)?;
+        assert!(report.score.raw() > 0);
+        assert!(report.redirects.raw() > 0);
+        Ok(())
     }
 
     #[test]
-    fn test_deterministic_normalize_symmetry() {
-        let scale = 10;
-        let total_freq = 100;
-        
+    fn test_deterministic_normalize_symmetry() -> anyhow::Result<()> {
+        let scale = ScalingFactor::new(10);
+        let total_freq = IterationCount::new(100);
+
         // Input Score(25) * scale(10) / total_freq(100) = 2.5 -> 3
         assert_eq!(
             deterministic_normalize(Score::from_raw(25), scale, total_freq).raw(),
             3
         );
-        
+
         // -2.5 -> -3
         assert_eq!(
             deterministic_normalize(Score::from_raw(-25), scale, total_freq).raw(),
             -3
         );
-        
+
         // 2.4 -> 2
         assert_eq!(
             deterministic_normalize(Score::from_raw(24), scale, total_freq).raw(),
             2
         );
-        
+
         // -2.4 -> -2
         assert_eq!(
             deterministic_normalize(Score::from_raw(-24), scale, total_freq).raw(),
             -2
         );
+        Ok(())
     }
 }

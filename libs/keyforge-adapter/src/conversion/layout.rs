@@ -98,7 +98,7 @@ mod tests {
     use keyforge_model::keycodes::KeycodeDefinition;
 
     #[test]
-    fn test_parse_layout_string_strict() {
+    fn test_parse_layout_string_strict() -> anyhow::Result<()> {
         let mut registry = KeycodeRegistry::new_with_defaults();
         registry.definitions.push(KeycodeDefinition {
             code: KeyCode::new(10),
@@ -111,13 +111,14 @@ mod tests {
         let res = parse_layout_string_strict("A B", 2, &registry);
         assert!(res.is_err(), "Strict should fail on unknown token 'B'");
 
-        let ok = parse_layout_string_strict("A", 2, &registry).unwrap();
+        let ok = parse_layout_string_strict("A", 2, &registry)?;
         assert_eq!(ok.keys()[0], KeyCode::new(10));
         assert_eq!(ok.keys()[1], KeyCode::new(0)); // Padded
+        Ok(())
     }
 
     #[test]
-    fn test_parse_layout_string_strict_extended() {
+    fn test_parse_layout_string_strict_extended() -> anyhow::Result<()> {
         let registry = KeycodeRegistry::new_with_defaults();
 
         // 1. Too long
@@ -135,7 +136,7 @@ mod tests {
         });
         reg.rebuild_maps();
 
-        let ok = parse_layout_string_strict("MO(1)", 1, &reg).unwrap();
+        let ok = parse_layout_string_strict("MO(1)", 1, &reg)?;
         assert_eq!(ok.keys()[0], KeyCode::new(100));
 
         // 3. malformed bracket - ends with ) but no (
@@ -143,12 +144,13 @@ mod tests {
         assert!(err.is_err());
 
         // 4. Token limit
-        let many = parse_layout_string_strict("MO(1) MO(2) MO(3)", 1, &reg).unwrap();
+        let many = parse_layout_string_strict("MO(1) MO(2) MO(3)", 1, &reg)?;
         assert_eq!(many.len(), 1);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_layout_string_permissive_extended() {
+    fn test_parse_layout_string_permissive_extended() -> anyhow::Result<()> {
         let mut reg = KeycodeRegistry::new_with_defaults();
         reg.definitions.push(KeycodeDefinition {
             code: KeyCode::new(100),
@@ -176,11 +178,13 @@ mod tests {
         let padded = parse_layout_string_permissive("", 2, &reg);
         assert_eq!(padded.len(), 2);
         assert_eq!(padded.keys()[0], KeyCode::new(0));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_layout_string_alias() {
+    fn test_parse_layout_string_alias() -> anyhow::Result<()> {
         let registry = KeycodeRegistry::new_with_defaults();
         assert!(parse_layout_string("A", 1, &registry).is_err());
+        Ok(())
     }
 }

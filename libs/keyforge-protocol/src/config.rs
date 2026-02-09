@@ -135,8 +135,12 @@ impl Validator for ScoringWeightsDto {
 impl From<model::ScoringWeights> for ScoringWeightsDto {
     fn from(val: model::ScoringWeights) -> Self {
         Self {
-            weights: val.weights.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
-            finger_penalty_scale: val.finger_penalty_scale.map(|v| v.to_f32()),
+            weights: val
+                .weights
+                .into_iter()
+                .map(|(k, v)| (k, v.to_f32()))
+                .collect(),
+            finger_penalty_scale: val.finger_penalty_scale.map(keyforge_model::Score::to_f32),
             comfortable_scissors: val.comfortable_scissors,
         }
     }

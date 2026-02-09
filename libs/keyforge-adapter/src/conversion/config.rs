@@ -10,21 +10,21 @@ pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource
 #[must_use]
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
     keyforge_model::Rubric::builder()
-        .finger_effort(w.get_finger_penalty_scale().map(|v| v.to_f32()))
-        .travel_lat(w.get_weight_lateral_travel().to_f32())
-        .travel_vert(w.get_weight_vertical_travel().to_f32())
-        .sfb_base(w.get_penalty_sfb_base().to_f32())
-        .sfb_lateral(w.get_penalty_sfb_lateral().to_f32())
-        .sfb_lateral_weak(w.get_penalty_sfb_lateral_weak().to_f32())
-        .sfb_diagonal(w.get_penalty_sfb_diagonal().to_f32())
-        .sfb_long(w.get_penalty_sfb_long().to_f32())
+        .finger_effort(w.get_finger_penalty_scale().map(keyforge_model::Score::raw))
+        .travel_lat(w.get_weight_lateral_travel().raw())
+        .travel_vert(w.get_weight_vertical_travel().raw())
+        .sfb_base(w.get_penalty_sfb_base().raw())
+        .sfb_lateral(w.get_penalty_sfb_lateral().raw())
+        .sfb_lateral_weak(w.get_penalty_sfb_lateral_weak().raw())
+        .sfb_diagonal(w.get_penalty_sfb_diagonal().raw())
+        .sfb_long(w.get_penalty_sfb_long().raw())
         .threshold_sfb_long_row_diff(w.get_threshold_sfb_long_row_diff())
-        .penalty_scissor(w.get_penalty_scissor().to_f32())
+        .penalty_scissor(w.get_penalty_scissor().raw())
         .threshold_scissor_row_diff(w.get_threshold_scissor_row_diff())
-        .redirect(w.get_penalty_redirect().to_f32())
-        .roll_bonus(w.get_bonus_bigram_roll_in().to_f32())
-        .roll_out_bonus(w.get_bonus_bigram_roll_out().to_f32())
-        .trigram_coverage(w.get_trigram_coverage().to_f32())
+        .redirect(w.get_penalty_redirect().raw())
+        .roll_bonus(w.get_bonus_bigram_roll_in().raw())
+        .roll_out_bonus(w.get_bonus_bigram_roll_out().raw())
+        .trigram_coverage(w.get_trigram_coverage().raw())
         .trigram_limit(w.get_loader_trigram_limit())
         .build()
 }
@@ -52,12 +52,13 @@ mod tests {
     #[test]
     fn test_to_domain_rubric_conversion() {
         let mut proto_weights = ScoringWeights::default();
-        proto_weights
-            .weights
-            .insert("penalty_sfb_base".to_string(), keyforge_model::types::FixedWeight::from_f32(100.0).unwrap());
+        proto_weights.weights.insert(
+            "penalty_sfb_base".to_string(),
+            keyforge_model::types::Score::from_f32(100.0).unwrap_or_default(),
+        );
 
         let domain_rubric = to_domain_rubric(&proto_weights);
-        assert!((domain_rubric.sfb_base().to_f32() - 100.0).abs() < f32::EPSILON);
+        assert_eq!(domain_rubric.sfb_base().raw(), 100_000_000);
     }
 
     #[test]

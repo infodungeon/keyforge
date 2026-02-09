@@ -47,7 +47,6 @@ pub enum PosMap<'a> {
     },
 }
 
-#[allow(clippy::cast_possible_truncation)]
 impl<'a> PosMap<'a> {
     /// Creates a `PosMap` by manually populating the provided scratch buffers.
     pub(crate) fn from_scratch(
@@ -81,11 +80,11 @@ impl<'a> PosMap<'a> {
         }
 
         // 4. Calculate starts (prefix sum)
-        let mut offset = 0;
+        let mut offset: usize = 0;
         for &code in used_keys_scratch.iter() {
             let c = code.as_usize();
-            starts[c] = offset as u16;
-            offset += counts[c] as usize;
+            starts[c] = u16::try_from(offset).unwrap_or(u16::MAX);
+            offset += usize::from(counts[c]);
         }
 
         // 5. Fill indices
@@ -96,9 +95,9 @@ impl<'a> PosMap<'a> {
 
         for (i, &code) in layout.iter().enumerate().take(limit) {
             let c_raw = code.as_usize();
-            let base = starts[c_raw] as usize;
-            let off = current_offsets[c_raw] as usize;
-            indices[base + off] = KeyIndex::new(i as u16);
+            let base = usize::from(starts[c_raw]);
+            let off = usize::from(current_offsets[c_raw]);
+            indices[base + off] = KeyIndex::new(u16::try_from(i).unwrap_or(0));
             current_offsets[c_raw] += 1;
         }
 
@@ -130,8 +129,8 @@ impl<'a> PosMap<'a> {
                 if code_raw >= MAX_KEYCODE_SPACE {
                     return &[];
                 }
-                let start = starts[code_raw] as usize;
-                let count = counts[code_raw] as usize;
+                let start = usize::from(starts[code_raw]);
+                let count = usize::from(counts[code_raw]);
                 if count == 0 {
                     return &[];
                 }

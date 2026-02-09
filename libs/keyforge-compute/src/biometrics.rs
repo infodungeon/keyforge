@@ -95,7 +95,7 @@ impl StreamingProfileBuilder {
                 let ratio = s.mean / global_avg;
                 modifiers.insert(
                     format!("{}_{}", bigram.0, bigram.1),
-                    keyforge_model::types::FixedWeight::from_f32(ratio as f32).unwrap_or_default(),
+                    keyforge_model::types::Score::from_f32(ratio as f32).unwrap_or_default(),
                 );
             }
         }

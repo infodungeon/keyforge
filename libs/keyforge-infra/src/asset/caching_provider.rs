@@ -56,7 +56,11 @@ impl<L: AssetLoader> AssetLoader for CachingProvider<L> {
         self.provider.load_corpus(sources).await
     }
 
-    async fn get_hash(&self, category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String> {
+    async fn get_hash(
+        &self,
+        category: keyforge_model::AssetCategory,
+        id: &str,
+    ) -> LoaderResult<String> {
         self.provider.get_hash(category, id).await
     }
 

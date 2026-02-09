@@ -45,7 +45,8 @@ pub async fn run(args: &BenchmarkArgs, loader: &FsProvider) -> Result<(), CliErr
         .await
         .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &job.to_domain_weights(),
+            &job.to_domain_weights()
+                .map_err(|e| CliError::Other(format!("Invalid weights: {e}")))?,
         ));
 
     let session = builder
@@ -55,9 +56,8 @@ pub async fn run(args: &BenchmarkArgs, loader: &FsProvider) -> Result<(), CliErr
     // Create a non-zero layout for representative benchmarking
     let mut keycodes = vec![keyforge_model::KeyCode::new(0); session.engine.key_count()];
     for (i, kc) in keycodes.iter_mut().enumerate() {
-        #[allow(clippy::cast_possible_truncation)]
-        if i < 65535 {
-            *kc = keyforge_model::KeyCode::new(i as u16);
+        if let Ok(i_u16) = u16::try_from(i) {
+            *kc = keyforge_model::KeyCode::new(i_u16);
         }
     }
     let benchmark_layout = keyforge_model::Layout::new_unchecked(keycodes);

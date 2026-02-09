@@ -12,7 +12,7 @@ use std::sync::Arc;
 fn setup_kb_robust() -> Keyboard {
     let keys: Vec<KeyNode> = (0..5)
         .map(|i| KeyNode {
-            index: i,
+            index: KeyIndex::new(i as u16),
             hand: keyforge_model::types::HandIndex::new(0),
             finger: keyforge_model::types::FingerIndex::new(i as u8),
             x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
@@ -30,14 +30,8 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_math_boundaries_infinity() {
-        let _ = Rubric::builder().travel_lat(f32::INFINITY).build();
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_math_boundaries_nan() {
-        let _ = Rubric::builder().travel_lat(f32::NAN).build();
+    fn test_math_boundaries_overflow() {
+        let _ = Rubric::builder().travel_lat(i64::MAX).build();
     }
 
     #[test]
@@ -55,7 +49,7 @@ mod tests {
         corpus.bigrams = Arc::from(vec![(97, 101, u32::MAX)]);
 
         // Max possible weight in FixedWeight is ~2.1M
-        let rubric = Rubric::builder().travel_lat(2_000_000.0).build();
+        let rubric = Rubric::builder().travel_lat(2_000_000).build();
 
         let cost_model = mock_cost_model();
         let res = EngineFactory::new_generic(&EngineCompilationContext {
@@ -98,10 +92,7 @@ mod tests {
             let engine = crate::engines::generic::GenericScoringEngine::new(ctx.clone());
             let layout = Layout::new_unchecked(vec![KeyCode::new(97); 5]);
             let res = engine.score(&layout);
-            assert!(matches!(
-                res,
-                Err(PhysicsError::ScoreOverflow { .. })
-            ));
+            assert!(matches!(res, Err(PhysicsError::ScoreOverflow { .. })));
         }
 
         // 2. Bigram overflow

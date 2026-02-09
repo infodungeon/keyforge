@@ -95,9 +95,8 @@ fn evolve_internal<CB: ProgressCallback>(
     pinned_keys: Option<&[Option<KeyCode>]>,
 ) -> Result<OptimizationResult, EvolutionError> {
     let mut layout = initial_layout.unwrap_or_else(|| {
-        #[allow(clippy::cast_possible_truncation)]
         let keys: Vec<KeyCode> = (0..engine.key_count())
-            .map(|i| KeyCode::new(i as u16))
+            .map(|i| KeyCode::new(u16::try_from(i).unwrap_or(0)))
             .collect();
         Layout::new_unchecked(keys)
     });
@@ -171,7 +170,7 @@ fn evolve_internal<CB: ProgressCallback>(
                 Seed::new(*seed),
                 PatienceCount::new(*patience),
                 ReheatCount::new(*reheats),
-                ScalingFactor::new(*reheat_factor),
+                ScalingFactor::from_f32(*reheat_factor),
             )?;
 
             let mut optimizer = Optimizer::new(
@@ -203,21 +202,23 @@ mod tests {
     use keyforge_physics::EngineFactory;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    struct MockCallback(Arc<AtomicUsize>);
+    struct MockCallback {
+        counter: Arc<AtomicUsize>,
+    }
     impl ProgressCallback for MockCallback {
         fn on_progress(
             &self,
             _epoch: usize,
-            _score: f32,
+            _score: keyforge_model::Score,
             _layout: &[KeyCode],
             _ips: f32,
         ) -> crate::OptimizationControl {
-            self.0.fetch_add(1, Ordering::SeqCst);
+            self.counter.fetch_add(1, Ordering::SeqCst);
             crate::OptimizationControl::Continue
         }
     }
 
-    fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig) {
+    fn setup_env() -> anyhow::Result<(Arc<dyn ScoringEngine>, SearchConfig)> {
         let kb = Keyboard::new(
             vec![
                 KeyNode {
@@ -231,12 +232,11 @@ mod tests {
             ],
             RowIndex::new(0),
             "test".into(),
-        )
-        .unwrap();
+        )?;
         use keyforge_model::cost_model::CostModel;
         let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
@@ -264,8 +264,7 @@ mod tests {
             rubric: Arc::new(Rubric::default()),
             cost_model: Arc::new(cost_model),
             engine_config: keyforge_model::config::EngineConfig::default(),
-        })
-        .unwrap();
+        })?;
         let config = SearchConfig::Annealing {
             steps: 100,
             start_temp: 10.0,
@@ -276,19 +275,20 @@ mod tests {
             reheat_factor: 0.5,
             include_thumbs: false,
         };
-        (Arc::from(engine), config)
+        Ok((Arc::from(engine), config))
     }
 
     #[test]
-    fn test_evolve_basic() {
-        let (engine, config) = setup_env();
-        let res = evolve(&engine, &config, NoOpCallback, None, None).unwrap();
+    fn test_evolve_basic() -> anyhow::Result<()> {
+        let (engine, config) = setup_env()?;
+        let res = evolve(&engine, &config, NoOpCallback, None, None)?;
         assert_eq!(res.layout.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_evolve_error_branches() {
-        let (engine, config) = setup_env();
+    fn test_evolve_error_branches() -> anyhow::Result<()> {
+        let (engine, config) = setup_env()?;
 
         // 1. Size mismatch
         let bad_layout = Layout::new_unchecked(vec![KeyCode::new(0)]);
@@ -299,15 +299,16 @@ mod tests {
         let pins = vec![Some(KeyCode::new(999))];
         let res = evolve(&engine, &config, NoOpCallback, None, Some(&pins));
         assert!(res.is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_optimize_wrapper() {
-        let kb = Keyboard::new(vec![KeyNode::default()], RowIndex::new(0), "test".into()).unwrap();
+    fn test_optimize_wrapper() -> anyhow::Result<()> {
+        let kb = Keyboard::new(vec![KeyNode::default()], RowIndex::new(0), "test".into())?;
         use keyforge_model::cost_model::CostModel;
         let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
@@ -343,15 +344,16 @@ mod tests {
                 seed: 42,
                 patience: 10,
                 reheats: 0,
-                reheat_factor: 0.5,
+                reheat_factor: 1,
                 include_thumbs: false,
             },
             initial_layout: None,
             pinned_keys: vec![],
         };
 
-        let res = optimize(&req).unwrap();
+        let res = optimize(&req)?;
         use keyforge_model::Score;
         assert!(res.score >= Score::ZERO);
+        Ok(())
     }
 }

@@ -111,7 +111,7 @@ mod tests {
     use tokio::sync::Semaphore;
 
     #[tokio::test]
-    async fn test_compute_optimization_run() {
+    async fn test_compute_optimization_run() -> anyhow::Result<()> {
         let kb_def = keyforge_model::KeyboardDefinition {
             geometry: keyforge_model::KeyboardGeometry::new(
                 vec![KeyNode {
@@ -128,14 +128,11 @@ mod tests {
             ..Default::default()
         };
 
-        let kb = Arc::new(
-            Keyboard::new(
-                kb_def.geometry.keys().to_vec(),
-                kb_def.geometry.home_row(),
-                "test".into(),
-            )
-            .unwrap(),
-        );
+        let kb = Arc::new(Keyboard::new(
+            kb_def.geometry.keys().to_vec(),
+            kb_def.geometry.home_row(),
+            "test".into(),
+        )?);
 
         let cost_json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
@@ -155,7 +152,7 @@ mod tests {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {}}
         }"#;
-        let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json).unwrap());
+        let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json)?);
 
         let engine: Arc<dyn keyforge_physics::ScoringEngine> =
             keyforge_physics::EngineFactory::new_generic(
@@ -166,8 +163,7 @@ mod tests {
                     cost_model,
                     engine_config: keyforge_model::config::EngineConfig::default(),
                 },
-            )
-            .unwrap()
+            )?
             .into();
 
         let search_config = keyforge_model::SearchConfig::Annealing {
@@ -181,8 +177,12 @@ mod tests {
             include_thumbs: false,
         };
 
-        let session =
-            ScoringSession::new(engine, Arc::new(kb_def.clone()), Arc::new(KeycodeRegistry::default()), search_config);
+        let session = ScoringSession::new(
+            engine,
+            Arc::new(kb_def.clone()),
+            Arc::new(KeycodeRegistry::default()),
+            search_config,
+        );
 
         let job_config = JobConfig {
             definition: kb_def.into(),
@@ -211,9 +211,9 @@ mod tests {
             100,
             &job_config,
         )
-        .await
-        .expect("Optimization should complete successfully");
+        .await?;
 
         assert!(result.score >= keyforge_model::types::Score::ZERO);
+        Ok(())
     }
 }

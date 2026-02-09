@@ -49,8 +49,7 @@ pub struct KeyNodeDto {
 impl From<keyforge_model::KeyNode> for KeyNodeDto {
     fn from(val: keyforge_model::KeyNode) -> Self {
         Self {
-            #[allow(clippy::cast_possible_truncation)]
-            index: val.index as u16,
+            index: val.index.raw(),
             label: val.label,
             x: val.x.to_f32(),
             y: val.y.to_f32(),
@@ -373,9 +372,21 @@ pub struct FingerReachDto {
 impl From<keyforge_model::cost_model::FingerReach> for FingerReachDto {
     fn from(val: keyforge_model::cost_model::FingerReach) -> Self {
         Self {
-            base: val.base.into_iter().map(|(k, v)| (k.into(), v.to_f32())).collect(),
-            inner: val.inner.into_iter().map(|(k, v)| (k.into(), v.to_f32())).collect(),
-            outer: val.outer.into_iter().map(|(k, v)| (k.into(), v.to_f32())).collect(),
+            base: val
+                .base
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.to_f32()))
+                .collect(),
+            inner: val
+                .inner
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.to_f32()))
+                .collect(),
+            outer: val
+                .outer
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.to_f32()))
+                .collect(),
         }
     }
 }
@@ -384,9 +395,21 @@ impl From<FingerReachDto> for keyforge_model::cost_model::FingerReach {
     fn from(val: FingerReachDto) -> Self {
         let sc = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         Self {
-            base: val.base.into_iter().map(|(k, v)| (k.into(), sc(v))).collect(),
-            inner: val.inner.into_iter().map(|(k, v)| (k.into(), sc(v))).collect(),
-            outer: val.outer.into_iter().map(|(k, v)| (k.into(), sc(v))).collect(),
+            base: val
+                .base
+                .into_iter()
+                .map(|(k, v)| (k.into(), sc(v)))
+                .collect(),
+            inner: val
+                .inner
+                .into_iter()
+                .map(|(k, v)| (k.into(), sc(v)))
+                .collect(),
+            outer: val
+                .outer
+                .into_iter()
+                .map(|(k, v)| (k.into(), sc(v)))
+                .collect(),
         }
     }
 }
@@ -516,9 +539,21 @@ pub struct DynamicRulesDto {
 impl From<keyforge_model::cost_model::DynamicRules> for DynamicRulesDto {
     fn from(val: keyforge_model::cost_model::DynamicRules) -> Self {
         Self {
-            sequence_modifiers: val.sequence_modifiers.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
-            penalties: val.penalties.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
-            constraints: val.constraints.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
+            sequence_modifiers: val
+                .sequence_modifiers
+                .into_iter()
+                .map(|(k, v)| (k, v.to_f32()))
+                .collect(),
+            penalties: val
+                .penalties
+                .into_iter()
+                .map(|(k, v)| (k, v.to_f32()))
+                .collect(),
+            constraints: val
+                .constraints
+                .into_iter()
+                .map(|(k, v)| (k, v.to_f32()))
+                .collect(),
         }
     }
 }
@@ -527,9 +562,17 @@ impl From<DynamicRulesDto> for keyforge_model::cost_model::DynamicRules {
     fn from(val: DynamicRulesDto) -> Self {
         let sc = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         Self {
-            sequence_modifiers: val.sequence_modifiers.into_iter().map(|(k, v)| (k, sc(v))).collect(),
+            sequence_modifiers: val
+                .sequence_modifiers
+                .into_iter()
+                .map(|(k, v)| (k, sc(v)))
+                .collect(),
             penalties: val.penalties.into_iter().map(|(k, v)| (k, sc(v))).collect(),
-            constraints: val.constraints.into_iter().map(|(k, v)| (k, sc(v))).collect(),
+            constraints: val
+                .constraints
+                .into_iter()
+                .map(|(k, v)| (k, sc(v)))
+                .collect(),
         }
     }
 }

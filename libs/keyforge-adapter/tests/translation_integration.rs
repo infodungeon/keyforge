@@ -14,6 +14,9 @@ mod integration_tests {
             .insert("penalty_sfb_base".to_string(), 1234.5);
 
         let rubric = conversion::to_domain_rubric(&weights);
-        assert_eq!(rubric.sfb_base(), keyforge_model::types::FixedWeight::from_f32(1234.5).unwrap());
+        assert_eq!(
+            rubric.sfb_base(),
+            keyforge_model::types::FixedWeight::from_f32(1234.5).unwrap()
+        );
     }
 }

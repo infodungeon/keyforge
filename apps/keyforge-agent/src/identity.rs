@@ -117,25 +117,26 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_identity_file_hardening() {
-        let dir = tempdir().unwrap();
+    fn test_identity_file_hardening() -> anyhow::Result<()> {
+        let dir = tempdir()?;
         let key_path = dir.path().join("agent.key.age");
 
-        fs::write(&key_path, "dummy encrypted data").unwrap();
+        fs::write(&key_path, "dummy encrypted data")?;
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&key_path).unwrap().permissions();
+            let mut perms = fs::metadata(&key_path)?.permissions();
             perms.set_mode(0o600);
-            fs::set_permissions(&key_path, perms).unwrap();
+            fs::set_permissions(&key_path, perms)?;
 
-            let final_perms = fs::metadata(&key_path).unwrap().permissions();
+            let final_perms = fs::metadata(&key_path)?.permissions();
             assert_eq!(
                 final_perms.mode() & 0o777,
                 0o600,
                 "Identity file must be owner-readable only"
             );
         }
+        Ok(())
     }
 }

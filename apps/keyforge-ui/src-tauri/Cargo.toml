@@ -19,6 +19,7 @@ tauri-build.workspace = true
 [dependencies]
 keyforge-testing-macros.workspace = true
 tauri.workspace = true
+glib.workspace = true
 sysinfo.workspace = true
 tauri-plugin-opener.workspace = true
 tauri-plugin-shell.workspace = true

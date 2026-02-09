@@ -20,8 +20,8 @@ use crate::types::Score;
 impl ScoringWeights {
     /// Retrieves a weight by key, falling back to a default value if not found.
     #[must_use]
-    pub fn get_weight(&self, key: &str, default: f32) -> Score {
-        self.weights.get(key).copied().unwrap_or_else(|| Score::from_f32(default).unwrap())
+    pub fn get_weight(&self, key: &str, default: Score) -> Score {
+        self.weights.get(key).copied().unwrap_or(default)
     }
 
     /// Gets the penalty for Same Finger Repeat on a weak finger.
@@ -87,21 +87,21 @@ impl ScoringWeights {
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
     pub fn get_threshold_sfb_long_row_diff(&self) -> i8 {
-        self.get_weight(
+        let val = self.get_weight(
             "threshold_sfb_long_row_diff",
-            f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF),
-        )
-        .to_f32() as i8
+            Score::from_scaled_i64(i64::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF) * 1_000_000),
+        );
+        i8::try_from(val.raw() / 1_000_000).unwrap_or(0)
     }
     /// Gets the row difference threshold for scissors.
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
     pub fn get_threshold_scissor_row_diff(&self) -> i8 {
-        self.get_weight(
+        let val = self.get_weight(
             "threshold_scissor_row_diff",
-            f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF),
-        )
-        .to_f32() as i8
+            Score::from_scaled_i64(i64::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF) * 1_000_000),
+        );
+        i8::try_from(val.raw() / 1_000_000).unwrap_or(0)
     }
     /// Gets the distance threshold for reach stretches.
     #[must_use]
@@ -228,11 +228,17 @@ impl ScoringWeights {
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_precision_loss,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::cast_possible_wrap
     )]
     pub fn get_loader_trigram_limit(&self) -> usize {
-        self.get_weight("loader_trigram_limit", DEFAULT_LOADER_TRIGRAM_LIMIT as f32)
-            .to_f32() as usize
+        let val = self.get_weight(
+            "loader_trigram_limit",
+            Score::from_scaled_i64(
+                i64::try_from(DEFAULT_LOADER_TRIGRAM_LIMIT).unwrap_or_default() * 1_000_000,
+            ),
+        );
+        usize::try_from(val.raw() / 1_000_000).unwrap_or(0)
     }
     /// Gets the required trigram coverage.
     #[must_use]

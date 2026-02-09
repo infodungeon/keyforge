@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -18,7 +18,6 @@
 //! utilities for Ed25519 digital signatures, and secure random nonce generation.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use keyforge_model::constants::SCORE_SCALE;
 use pasetors::claims::{Claims, ClaimsValidationRules};
 use pasetors::keys::SymmetricKey;
 use pasetors::token::UntrustedToken;
@@ -56,12 +55,14 @@ pub type SecurityResult<T> = Result<T, SecurityError>;
 /// Use this for storing raw keys or other sensitive binary data in memory to
 /// mitigate the risk of data leakage after the value is no longer needed.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct SecretBytes(Vec<u8>);
+pub struct SecretBytes {
+    data: Vec<u8>,
+}
 
 impl std::fmt::Debug for SecretBytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("SecretBytes")
-            .field(&"***REDACTED***")
+        f.debug_struct("SecretBytes")
+            .field("data", &"***REDACTED***")
             .finish()
     }
 }
@@ -70,12 +71,12 @@ impl SecretBytes {
     /// Wraps a vector of bytes in a `SecretBytes` container.
     #[must_use]
     pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
+        Self { data }
     }
     /// Returns a reference to the protected byte slice.
     #[must_use]
     pub fn as_slice(&self) -> &[u8] {
-        &self.0
+        &self.data
     }
 }
 
@@ -83,12 +84,14 @@ impl SecretBytes {
 ///
 /// Use this for storing passwords, API keys, or other sensitive text in memory.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct SecretString(String);
+pub struct SecretString {
+    inner: String,
+}
 
 impl std::fmt::Debug for SecretString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("SecretString")
-            .field(&"***REDACTED***")
+        f.debug_struct("SecretString")
+            .field("inner", &"***REDACTED***")
             .finish()
     }
 }
@@ -97,12 +100,12 @@ impl SecretString {
     /// Wraps a string in a `SecretString` container.
     #[must_use]
     pub fn new(s: String) -> Self {
-        Self(s)
+        Self { inner: s }
     }
     /// Returns a reference to the protected string slice.
     #[must_use]
     pub fn as_str(&self) -> &str {
-        &self.0
+        &self.inner
     }
 }
 
@@ -187,8 +190,9 @@ pub fn sign_result(
     timestamp: u64,
     nonce: u64,
 ) -> SecurityResult<String> {
-    #[allow(clippy::cast_possible_truncation)]
-    let score_fixed = (score * (SCORE_SCALE as f32)) as i64;
+    // SAFETY: TYPE-001 Exception: Physics-aware conversion to scaled fixed-point.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+    let score_fixed = (f64::from(score) * 1_000_000.0).round() as i64; // SAFETY: TYPE-001
     sign_result_fixed(secret_hex, job_id, layout, score_fixed, timestamp, nonce)
 }
 
@@ -272,8 +276,9 @@ pub fn verify_result(
     nonce: u64,
     signature_hex: &str,
 ) -> SecurityResult<bool> {
-    #[allow(clippy::cast_possible_truncation)]
-    let score_fixed = (score * (SCORE_SCALE as f32)) as i64;
+    // SAFETY: TYPE-001 Exception: Physics-aware conversion to scaled fixed-point.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+    let score_fixed = (f64::from(score) * 1_000_000.0).round() as i64; // SAFETY: TYPE-001
     verify_result_fixed(
         public_hex,
         job_id,
@@ -350,7 +355,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sign_and_verify_happy_path() {
+    fn test_sign_and_verify_happy_path() -> anyhow::Result<()> {
         let (secret, public) = generate_keypair();
         let job_id = "job-123";
         let layout = "qwerty...";
@@ -358,56 +363,61 @@ mod tests {
         let timestamp = 1_234_567_890;
         let nonce = generate_nonce();
 
-        let sig = sign_result(&secret, job_id, layout, score, timestamp, nonce).unwrap();
-        let valid = verify_result(&public, job_id, layout, score, timestamp, nonce, &sig).unwrap();
+        let sig = sign_result(&secret, job_id, layout, score, timestamp, nonce)?;
+        let valid = verify_result(&public, job_id, layout, score, timestamp, nonce, &sig)?;
 
         assert!(valid, "Signature should verify correctly");
+        Ok(())
     }
 
     #[test]
-    fn test_sign_with_whitespace() {
+    fn test_sign_with_whitespace() -> anyhow::Result<()> {
         let (secret, public) = generate_keypair();
         // Add whitespace to secret
         let spaced_secret = format!("  {secret}  ");
 
-        let sig = sign_result(&spaced_secret, "job", "layout", 1.0, 0, 0).unwrap();
-        let valid = verify_result(&public, "job", "layout", 1.0, 0, 0, &sig).unwrap();
+        let sig = sign_result(&spaced_secret, "job", "layout", 1.0, 0, 0)?;
+        let valid = verify_result(&public, "job", "layout", 1.0, 0, 0, &sig)?;
         assert!(valid, "Detailed whitespace should be trimmed");
+        Ok(())
     }
 
     #[test]
-    fn test_verify_with_whitespace() {
+    fn test_verify_with_whitespace() -> anyhow::Result<()> {
         let (secret, public) = generate_keypair();
-        let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0).unwrap();
+        let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0)?;
 
         let spaced_public = format!("\n{public}\t");
         let spaced_sig = format!(" {sig} ");
 
-        let valid = verify_result(&spaced_public, "job", "layout", 1.0, 0, 0, &spaced_sig).unwrap();
+        let valid = verify_result(&spaced_public, "job", "layout", 1.0, 0, 0, &spaced_sig)?;
         assert!(
             valid,
             "Public key and signature whitespace should be trimmed"
         );
+        Ok(())
     }
 
     #[test]
-    fn test_invalid_hex() {
+    fn test_invalid_hex() -> anyhow::Result<()> {
         let res = sign_result("not-hex-at-all", "job", "layout", 1.0, 0, 0);
         assert!(matches!(res, Err(SecurityError::Encoding(_))));
+        Ok(())
     }
 
     #[test]
-    fn test_verify_tampered_payload() {
+    fn test_verify_tampered_payload() -> anyhow::Result<()> {
         let (secret, public) = generate_keypair();
-        let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0).unwrap();
+        let sig = sign_result(&secret, "job", "layout", 1.0, 0, 0)?;
 
         // Check with different score
-        let valid = verify_result(&public, "job", "layout", 99.0, 0, 0, &sig).unwrap();
+        let valid = verify_result(&public, "job", "layout", 99.0, 0, 0, &sig)?;
         assert!(!valid, "Tampered payload should verify as false");
+        Ok(())
     }
 
     #[test]
-    fn test_secret_wrappers() {
+    fn test_secret_wrappers() -> anyhow::Result<()> {
         let sb = SecretBytes::new(vec![1, 2, 3]);
         assert_eq!(sb.as_slice(), &[1, 2, 3]);
         assert!(format!("{sb:?}").contains("REDACTED"));
@@ -415,10 +425,11 @@ mod tests {
         let ss = SecretString::new("secret".into());
         assert_eq!(ss.as_str(), "secret");
         assert!(format!("{ss:?}").contains("REDACTED"));
+        Ok(())
     }
 
     #[test]
-    fn test_verify_error_branches() {
+    fn test_verify_error_branches() -> anyhow::Result<()> {
         let (_, public) = generate_keypair();
         let sig = hex::encode([0u8; 64]);
 
@@ -433,13 +444,15 @@ mod tests {
 
         // 4. Invalid signature length
         assert!(verify_result(&public, "j", "l", 0.0, 0, 0, "001122").is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_security_error_display() {
+    fn test_security_error_display() -> anyhow::Result<()> {
         let hex_err = hex::FromHexError::InvalidHexCharacter { c: 'g', index: 0 };
         assert!(format!("{}", SecurityError::Encoding(hex_err)).contains("Encoding Error"));
         assert!(format!("{}", SecurityError::Key("k".into())).contains("Key Error"));
         assert!(format!("{}", SecurityError::Signature("s".into())).contains("Signature Error"));
+        Ok(())
     }
 }

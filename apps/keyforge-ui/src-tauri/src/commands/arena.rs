@@ -48,7 +48,8 @@ pub async fn cmd_get_typing_words(
     for _ in 0..count {
         let target = rng.f64() * total_freq;
         let mut current = 0.0;
-        let mut picked = &candidates[0].0;
+        let (first_word, _) = &candidates[0];
+        let mut picked = first_word;
 
         for (w, f) in candidates {
             current += f64::from(*f);
@@ -150,7 +151,9 @@ pub async fn cmd_get_corpus_bigrams(
     let mut bigrams = Vec::new();
 
     let mut sorted_bgs = bundle.bigrams.to_vec();
-    sorted_bgs.sort_by(|a, b| b.2.cmp(&a.2));
+    // SAFETY: ARCH-006 Exception: Tuple access in bigram sorting.
+    sorted_bgs
+        .sort_by(|&(a0, a1, a2), &(b0, b1, b2)| b2.cmp(&a2).then(a0.cmp(&b0)).then(a1.cmp(&b1)));
 
     for (b1, b2, _) in sorted_bgs.into_iter().take(limit) {
         let mut s = String::with_capacity(4);

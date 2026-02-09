@@ -14,18 +14,22 @@ pub(crate) fn calculate_monogram_delta(
     idx_b: usize,
 ) -> i64 {
     let mut delta = 0i64;
-    let freq_a = ctx
-        .corpus
-        .char_freqs
-        .get(code_a.as_usize())
-        .copied()
-        .unwrap_or(0) as i64;
-    let freq_b = ctx
-        .corpus
-        .char_freqs
-        .get(code_b.as_usize())
-        .copied()
-        .unwrap_or(0) as i64;
+    let freq_a = i64::try_from(
+        ctx.corpus
+            .char_freqs
+            .get(code_a.as_usize())
+            .copied()
+            .unwrap_or(0),
+    )
+    .unwrap_or(i64::MAX);
+    let freq_b = i64::try_from(
+        ctx.corpus
+            .char_freqs
+            .get(code_b.as_usize())
+            .copied()
+            .unwrap_or(0),
+    )
+    .unwrap_or(i64::MAX);
 
     let candidates_a = pos_map.get(code_a);
     let candidates_b = pos_map.get(code_b);

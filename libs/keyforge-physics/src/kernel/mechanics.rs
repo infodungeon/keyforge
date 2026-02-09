@@ -83,10 +83,7 @@ pub(crate) fn integer_sqrt_i128(val: i128) -> i64 {
     if val - x * x > x {
         x += 1;
     }
-    #[allow(clippy::cast_possible_truncation)]
-    {
-        x as i64
-    }
+    i64::try_from(x).unwrap_or(i64::MAX)
 }
 
 /// Calculates the cost for a pair of keys (bigram or jump), handling geometry and SFBs.
@@ -160,7 +157,8 @@ fn calculate_sfb_cost(
 
         let t_lat_i = i128::from(rubric.travel_lat().raw());
         let t_vert_i = i128::from(rubric.travel_vert().raw());
-        let reach_sq_weighted = i128::from(horiz_reach_sq) * t_lat_i + i128::from(vert_reach_sq) * t_vert_i;
+        let reach_sq_weighted =
+            i128::from(horiz_reach_sq) * t_lat_i + i128::from(vert_reach_sq) * t_vert_i;
         reach_k2 = integer_sqrt_i128(reach_sq_weighted);
     }
 
@@ -191,17 +189,17 @@ fn calculate_sfb_cost(
                 context: "Pair cost SFB diagonal".to_string(),
             })?;
     } else if row_diff >= u32::from(rubric.threshold_sfb_long_row_diff().unsigned_abs()) {
-        cost = cost
-            .checked_add(rubric.sfb_long().raw())
-            .ok_or_else(|| PhysicsError::ScoreOverflow {
+        cost = cost.checked_add(rubric.sfb_long().raw()).ok_or_else(|| {
+            PhysicsError::ScoreOverflow {
                 context: "Pair cost SFB long".to_string(),
-            })?;
+            }
+        })?;
     } else {
-        cost = cost
-            .checked_add(rubric.sfb_base().raw())
-            .ok_or_else(|| PhysicsError::ScoreOverflow {
+        cost = cost.checked_add(rubric.sfb_base().raw()).ok_or_else(|| {
+            PhysicsError::ScoreOverflow {
                 context: "Pair cost SFB base".to_string(),
-            })?;
+            }
+        })?;
     }
     Ok(cost)
 }
@@ -239,14 +237,16 @@ fn calculate_non_sfb_penalties(
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, RowIndex, SpatialUnit};
+    use keyforge_model::types::{
+        ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, SpatialUnit,
+    };
     use keyforge_model::KeyNode;
     use std::sync::Arc;
 
-    fn setup_kb_pair() -> Keyboard {
+    fn setup_kb_pair() -> anyhow::Result<Keyboard> {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex::new(0),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new(1),
                 row: RowIndex::new(0),
@@ -257,7 +257,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex::new(1),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new(1),
                 row: RowIndex::new(1),
@@ -268,7 +268,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 2,
+                index: KeyIndex::new(2),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new(2),
                 row: RowIndex::new(1),
@@ -279,56 +279,65 @@ mod tests {
                 ..Default::default()
             },
         ];
-        Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap()
+        Ok(Keyboard::new(
+            keys,
+            keyforge_model::types::RowIndex::new(0),
+            "test".into(),
+        )?)
     }
 
     #[test]
-    fn test_calculate_pair_cost_sfb() {
-        let kb = setup_kb_pair();
+    fn test_calculate_pair_cost_sfb() -> anyhow::Result<()> {
+        let kb = setup_kb_pair()?;
         let rubric = Rubric::default();
 
-        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1)).unwrap();
+        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1))?;
         // Use a direct calculation for the assertion instead of reaching into verify.rs
         let expected_min = rubric.sfb_base().raw();
         assert!(cost >= expected_min, "SFB should be penalized");
+        Ok(())
     }
 
     #[test]
-    fn test_calculate_pair_cost_different_hands() {
+    fn test_calculate_pair_cost_different_hands() -> anyhow::Result<()> {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex::new(0),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new(1),
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex::new(1),
                 hand: HandIndex::new(1),
                 finger: FingerIndex::new(1),
                 ..Default::default()
             },
         ];
-        let kb = Arc::new(
-            Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap(),
-        );
+        let kb = Arc::new(Keyboard::new(
+            keys,
+            keyforge_model::types::RowIndex::new(0),
+            "test".into(),
+        )?);
         let rubric = Rubric::default();
 
-        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1)).unwrap();
+        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1))?;
         assert_eq!(cost, 0, "Different hands should have 0 cost");
+        Ok(())
     }
 
     #[test]
     #[should_panic]
     fn test_calculate_pair_cost_invalid_math_panic() {
-        let _ = Rubric::builder().travel_lat(f32::INFINITY).build();
+        let _ = Rubric::builder().travel_lat(i64::MAX).build();
     }
 
     #[test]
-    fn test_calculate_pair_cost_large_values() {
-        let kb = setup_kb_pair();
-        let rubric = Rubric::builder().sfb_base(2_000_000.0).build();
-        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1)).unwrap();
+    fn test_calculate_pair_cost_large_values() -> anyhow::Result<()> {
+        let kb = setup_kb_pair()?;
+        let rubric = Rubric::builder().sfb_base(2_000_000).build();
+        let cost = calculate_pair_cost(&kb, &rubric, KeyIndex::new(0), KeyIndex::new(1))?;
         assert!(cost > 0);
+        Ok(())
     }
 }

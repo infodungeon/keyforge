@@ -32,11 +32,10 @@ async fn list_keyboards<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::Cl
     let mut table = Table::new();
     table.set_header(vec!["ID", "Name", "Type", "Author"]);
 
-    for path in keyboards {
-        let name = path.file_stem().unwrap_or_default().to_string_lossy();
-        if let Ok(def) = loader.load::<KeyboardDefinition>(&name).await {
+    for id in keyboards {
+        if let Ok(def) = loader.load::<KeyboardDefinition>(&id).await {
             table.add_row(vec![
-                name.to_string(),
+                id,
                 def.meta.name.clone(),
                 def.meta.kb_type.clone(),
                 def.meta.author.clone(),
@@ -51,21 +50,18 @@ async fn list_keyboards<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::Cl
 fn list_corpora<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::CliResult<()> {
     let corpora = keyforge_infra::fs::listing::list_corpora(loader.root())?;
     let mut table = Table::new();
-    table.set_header(vec!["Filename", "Type", "Size"]);
+    table.set_header(vec!["ID", "Type"]);
 
-    for path in corpora {
-        let name = path.file_name().unwrap_or_default().to_string_lossy();
-        let meta = std::fs::metadata(&path)?;
-        let kind = if name.ends_with(".json") {
+    for id in corpora {
+        let kind = if std::path::Path::new(&id)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+        {
             "JSON"
         } else {
             "Text"
         };
-        table.add_row(vec![
-            name.to_string(),
-            kind.to_string(),
-            format!("{} bytes", meta.len()),
-        ]);
+        table.add_row(vec![id, kind.to_string()]);
     }
 
     println!("{table}");

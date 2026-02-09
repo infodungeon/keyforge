@@ -61,7 +61,8 @@ pub async fn run(
         .await
         .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &job.to_domain_weights(),
+            &job.to_domain_weights()
+                .map_err(|e| CliError::Other(format!("Invalid weights: {e}")))?,
         ))
         .with_config(keyforge_model::SearchConfig::Annealing {
             steps: job.params.get_search_steps(),

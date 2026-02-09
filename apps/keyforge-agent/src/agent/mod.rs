@@ -153,8 +153,16 @@ impl Agent {
                             }
                         };
 
+                        let weights = match job.to_domain_weights() {
+                            Ok(w) => w,
+                            Err(e) => {
+                                error!("Job {} Invalid weights: {}", job_id, e);
+                                return;
+                            }
+                        };
+
                         let builder = builder
-                            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.to_domain_weights()))
+                            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&weights))
                             .with_biometrics(job.biometrics.to_vec())
                             .with_config(keyforge_model::SearchConfig::Annealing {
                                 steps: job.params.get_search_steps(),

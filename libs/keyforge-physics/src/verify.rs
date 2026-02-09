@@ -32,9 +32,7 @@ impl DeterministicScorer {
         layout: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let (mono, bigram, trigram) = self.score_detailed(keyboard, corpus, layout)?;
-        Ok(mono
-            .saturating_add(bigram)
-            .saturating_add(trigram))
+        Ok(mono.saturating_add(bigram).saturating_add(trigram))
     }
 
     /// Scores a layout and returns detailed components (monograms, bigrams, trigrams).
@@ -66,7 +64,7 @@ impl DeterministicScorer {
             // Find minimum usage cost across all duplicate keys
             let mut min_cost = i64::MAX;
             for &idx in &indices {
-                let cost = self.ctx.geometry.key_costs[idx.raw() as usize].raw();
+                let cost = self.ctx.geometry.key_costs[idx.as_usize()].raw();
                 if cost < min_cost {
                     min_cost = cost;
                 }
@@ -74,7 +72,7 @@ impl DeterministicScorer {
 
             if min_cost != i64::MAX {
                 monogram_score = monogram_score.saturating_add(
-                    min_cost.saturating_mul(i64::try_from(freq).unwrap_or(i64::MAX))
+                    min_cost.saturating_mul(i64::try_from(freq).unwrap_or(i64::MAX)),
                 );
             }
         }
@@ -91,8 +89,8 @@ impl DeterministicScorer {
                 for &idx1 in &indices1 {
                     for &idx2 in &indices2 {
                         let base_cost = self.ctx.geometry.cost_matrix
-                            [(idx1.raw() as usize) * key_count + (idx2.raw() as usize)]
-                            .raw();
+                            [idx1.as_usize() * key_count + idx2.as_usize()]
+                        .raw();
 
                         // Apply sequence modifier if any
                         let mut final_cost = base_cost;
@@ -128,12 +126,13 @@ impl DeterministicScorer {
                     for &idx2 in &indices2 {
                         for &idx3 in &indices3 {
                             let flow_cost = calculate_trigram_cost(&self.ctx, idx1, idx2, idx3);
-                            let idx12_raw = (idx1.raw() as usize) * key_count + (idx2.raw() as usize);
-                            let idx23_raw = (idx2.raw() as usize) * key_count + (idx3.raw() as usize);
-                            
-                            let segment_cost = self.ctx.geometry.cost_matrix[idx12_raw].raw()
+                            let idx12_raw = idx1.as_usize() * key_count + idx2.as_usize();
+                            let idx23_raw = idx2.as_usize() * key_count + idx3.as_usize();
+
+                            let segment_cost = self.ctx.geometry.cost_matrix[idx12_raw]
+                                .raw()
                                 .saturating_add(self.ctx.geometry.cost_matrix[idx23_raw].raw());
-                            
+
                             let total_path_cost = flow_cost.saturating_add(segment_cost);
 
                             if total_path_cost < min_total_path_cost {
@@ -145,7 +144,8 @@ impl DeterministicScorer {
                 }
 
                 if min_total_path_cost != i64::MAX {
-                    trigram_score = trigram_score.saturating_add(best_flow_cost.saturating_mul(freq));
+                    trigram_score =
+                        trigram_score.saturating_add(best_flow_cost.saturating_mul(freq));
                 }
             }
         }

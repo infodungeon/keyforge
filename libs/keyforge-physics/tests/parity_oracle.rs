@@ -1,6 +1,6 @@
 // libs/keyforge-physics/tests/parity_oracle.rs
 
-use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, RowIndex};
+use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric, Score};
 use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
 use std::sync::Arc;
@@ -8,7 +8,7 @@ use std::sync::Arc;
 fn setup_test_keyboard() -> Arc<Keyboard> {
     let keys: Vec<_> = (0..30)
         .map(|i| KeyNode {
-            index: i,
+            index: KeyIndex(i),
             label: format!("k{i}"),
             hand: HandIndex::new(u8::try_from(i % 2).unwrap_or(0)),
             finger: FingerIndex::new_unchecked(u8::try_from(i % 5).unwrap_or(0)),

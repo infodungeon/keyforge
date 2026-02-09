@@ -97,7 +97,7 @@ mod integration_tests {
                     } else {
                         (product / tf) + (product % tf - half) / tf
                     };
-                    
+
                     let actual_score_raw = report.score.raw();
 
                     // Enforcement: Parity must be preserved through normalization

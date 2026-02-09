@@ -95,10 +95,7 @@ pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::Phy
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
 
     let score = engine.score(&layout)?;
-    Ok(ScoringResult {
-        score,
-        layout,
-    })
+    Ok(ScoringResult { score, layout })
 }
 
 /// Performs a one-off analysis operation for the given request.

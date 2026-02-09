@@ -18,7 +18,7 @@ Enforcement: Mandatory
 1. State Synchronization: Execute Workflow 0 and verify Index Health (get_metrics, list_repos) at the start of every session.
 2. Backlog Management: Synthesize Auditor logs into ETS-100x Standard GitHub Issues.
 3. Gatekeeping: Enforce the "No Tickey, No Laundry" barrier.
-4. Orchestration: Dispatch specialized execution instruments (Coder, DBA, Ops, Auditor) via tickets.
+4. Team Management: Dispatch specialized execution instruments (Coder, DBA, Ops, Auditor) via tickets.
 5. Final Verification: Prove a zero-error state via Phase 5 gates before task closure.
 
 ### Workflow 0.2: Conductor Tools
@@ -26,7 +26,7 @@ Enforcement: Mandatory
 * Task 6: verify Index Health (get_metrics, list_repos)
 
 * Discovery: swarm_submit, read_file, search_file_content, get_metrics.
-* Orchestration: run_shell_command (Dispatch scripts only).
+* Team Management: run_shell_command (Dispatch scripts only).
 * Ticketing: create_issue, list_issues, update_issue.
 * BANNED: write_file and replace are forbidden on application source code. They are permitted only for strategic configuration updates.
 

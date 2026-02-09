@@ -88,9 +88,9 @@ impl Validator for KeyboardDefinition {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 
 pub struct KeyNode {
-    /// Zero-based index of the key in the layout.
+    /// Unique index of the key in the layout.
     #[serde(default)]
-    pub index: usize,
+    pub index: KeyIndex,
     /// Descriptive label for the key (e.g., "K01", "Thumb").
     #[serde(alias = "id")]
     pub label: String,
@@ -132,7 +132,7 @@ pub struct KeyNode {
 impl Default for KeyNode {
     fn default() -> Self {
         Self {
-            index: 0,
+            index: KeyIndex::new(0),
             label: String::new(),
             x: SpatialUnit::default(),
             y: SpatialUnit::default(),
@@ -278,7 +278,7 @@ impl Validator for KeyboardGeometry {
             .chain(&self.med_slots)
             .chain(&self.low_slots)
         {
-            if (idx.raw() as usize) >= max_idx {
+            if usize::from(idx.raw()) >= max_idx {
                 return Err(format!("Slot index {idx} out of bounds (keys: {max_idx})"));
             }
         }
@@ -341,16 +341,21 @@ impl KeyboardDefinition {
     #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     pub fn generate_test(keys_count: usize) -> Self {
         let keys: Vec<KeyNode> = (0..keys_count)
-            .map(|i| KeyNode {
-                index: i,
-                label: format!("K{i:02}"),
-                x: SpatialUnit::from_f32(i as f32),
-                y: SpatialUnit::default(),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new_unchecked(0),
-                row: RowIndex::new(0),
-                col: ColIndex::new(i as i8),
-                ..Default::default()
+            .map(|i| {
+                let u16_val = u16::try_from(i).unwrap_or(u16::MAX);
+                let f32_val = f32::from(u16_val);
+                let i8_val = i8::try_from(i % 128).unwrap_or(0);
+                KeyNode {
+                    index: KeyIndex::new(u16_val),
+                    label: format!("K{i:02}"),
+                    x: SpatialUnit::from_f32(f32_val),
+                    y: SpatialUnit::default(),
+                    hand: HandIndex::new(0),
+                    finger: FingerIndex::new_unchecked(0),
+                    row: RowIndex::new(0),
+                    col: ColIndex::new(i8_val),
+                    ..Default::default()
+                }
             })
             .collect();
 
@@ -362,7 +367,9 @@ impl KeyboardDefinition {
             },
             geometry: KeyboardGeometry {
                 keys,
-                prime_slots: (0..keys_count as u16).map(KeyIndex::new).collect(),
+                prime_slots: (0..u16::try_from(keys_count).unwrap_or(0))
+                    .map(KeyIndex::new)
+                    .collect(),
                 home_row: RowIndex::new(0),
                 ..Default::default()
             },

@@ -130,15 +130,15 @@ impl Corpus {
 
     /// Merges another corpus into this one with a specific weight.
     pub fn merge(&mut self, other: &Self, weight: f32) {
+        let w_fixed = crate::types::FixedWeight::from_f32(weight).unwrap_or_default();
+
         let mut new_char_freqs = self.char_freqs.to_vec();
         for (i, &freq) in other.char_freqs.iter().enumerate() {
             if i < new_char_freqs.len() {
-                #[allow(
-                    clippy::cast_precision_loss,
-                    clippy::cast_possible_truncation,
-                    clippy::cast_sign_loss
-                )]
-                let merged_freq = (freq as f32 * weight).round() as u64;
+                let f_score =
+                    crate::types::Score::from_scaled_i64(i64::try_from(freq).unwrap_or(i64::MAX));
+                let merged = f_score.saturating_mul_weight(w_fixed);
+                let merged_freq = u64::try_from(merged.raw()).unwrap_or(0);
                 new_char_freqs[i] += merged_freq;
             }
         }
@@ -146,38 +146,33 @@ impl Corpus {
 
         let mut new_bigrams = self.bigrams.to_vec();
         for &(c1, c2, freq) in &*other.bigrams {
-            #[allow(
-                clippy::cast_precision_loss,
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss
-            )]
-            let merged_freq = (freq as f32 * weight).round() as u32;
+            let f_score = crate::types::Score::from_scaled_i64(i64::from(freq));
+            let merged = f_score.saturating_mul_weight(w_fixed);
+            let merged_freq = u32::try_from(merged.raw()).unwrap_or(0);
             new_bigrams.push((c1, c2, merged_freq));
         }
-        new_bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        // Use destructuring to avoid .0/.1 which triggers ast-grep rules
+        new_bigrams.sort_unstable_by(|&(a0, a1, _), &(b0, b1, _)| a0.cmp(&b0).then(a1.cmp(&b1)));
         self.bigrams = Arc::from(new_bigrams);
 
         let mut new_trigrams = self.trigrams.to_vec();
         for &(c1, c2, c3, freq) in &*other.trigrams {
-            #[allow(
-                clippy::cast_precision_loss,
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss
-            )]
-            let merged_freq = (freq as f32 * weight).round() as u32;
+            let f_score = crate::types::Score::from_scaled_i64(i64::from(freq));
+            let merged = f_score.saturating_mul_weight(w_fixed);
+            let merged_freq = u32::try_from(merged.raw()).unwrap_or(0);
             new_trigrams.push((c1, c2, c3, merged_freq));
         }
-        new_trigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+        // Use destructuring to avoid .0/.1 which triggers ast-grep rules
+        new_trigrams.sort_unstable_by(|&(a0, a1, a2, _), &(b0, b1, b2, _)| {
+            a0.cmp(&b0).then(a1.cmp(&b1)).then(a2.cmp(&b2))
+        });
         self.trigrams = Arc::from(new_trigrams);
 
         let mut new_words = self.words.to_vec();
         for (word, freq) in &*other.words {
-            #[allow(
-                clippy::cast_precision_loss,
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss
-            )]
-            let merged_freq = (*freq as f32 * weight).round() as u32;
+            let f_score = crate::types::Score::from_scaled_i64(i64::from(*freq));
+            let merged = f_score.saturating_mul_weight(w_fixed);
+            let merged_freq = u32::try_from(merged.raw()).unwrap_or(0);
             new_words.push((word.clone(), merged_freq));
         }
         self.words = Arc::from(new_words);
@@ -189,21 +184,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_corpus_lifecycle() {
+    fn test_corpus_lifecycle() -> anyhow::Result<()> {
         let mut c = Corpus::default();
         let mut freqs = c.char_freqs.to_vec();
-        freqs['a' as usize] = 100;
+        freqs[usize::from(b'a')] = 100;
         c.char_freqs = Arc::from(freqs);
 
-        c.bigrams = Arc::from(vec![('a' as u16, 'b' as u16, 50)]);
-        c.trigrams = Arc::from(vec![('a' as u16, 'b' as u16, 'c' as u16, 10)]);
+        c.bigrams = Arc::from(vec![(u16::from(b'a'), u16::from(b'b'), 50)]);
+        c.trigrams = Arc::from(vec![(
+            u16::from(b'a'),
+            u16::from(b'b'),
+            u16::from(b'c'),
+            10,
+        )]);
         c.words = Arc::from(vec![("test".to_string(), 5)]);
 
-        let json = serde_json::to_string(&c).expect("Failed to serialize Corpus");
-        let recovered: Corpus = serde_json::from_str(&json).expect("Failed to deserialize Corpus");
+        let json = serde_json::to_string(&c)?;
+        let recovered: Corpus = serde_json::from_str(&json)?;
 
-        assert_eq!(recovered.char_freqs['a' as usize], 100);
+        assert_eq!(recovered.char_freqs[usize::from(b'a')], 100);
         assert_eq!(recovered.bigrams.len(), 1);
-        assert_eq!(recovered.bigrams[0], ('a' as u16, 'b' as u16, 50));
+        assert_eq!(recovered.bigrams[0], (u16::from(b'a'), u16::from(b'b'), 50));
+        Ok(())
     }
 }

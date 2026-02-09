@@ -56,6 +56,27 @@ rules:
     enabled: true
     tags: ["architecture", "determinism", "physics"]
 
+  - id: ARCH-003-PRECISION
+    name: Intermediate Precision Guard
+    severity: Critical
+    rule_type:
+      type: pattern
+      patterns:
+        - '\.raw\(\)\s*\*'
+        - '\*.*\.raw\(\)'
+        - 'i64\s*\*\s*i64'
+      safe_patterns:
+        - 'i128::from'
+        - 'as i128'
+        - '#\[cfg\(test\)\]'
+        - '// SAFETY: i128'
+        - 'libs/keyforge-infra'
+    languages: ["rust"]
+    message: "Potential overflow in fixed-point math. Raw i64 multiplication detected in compute kernel."
+    remediation: "Promote operands to `i128` before multiplication or use `Score` domain methods (e.g., `checked_mul_weight`)."
+    enabled: true
+    tags: ["architecture", "determinism", "physics"]
+
   - id: ARCH-004
     name: Compile-Time SQL
     severity: Critical

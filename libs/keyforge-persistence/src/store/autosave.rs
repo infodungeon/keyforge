@@ -47,20 +47,22 @@ struct PersistedSession {
 }
 
 impl PersistedSession {
-    fn new(snapshot: SessionSnapshot) -> Self {
-        let checksum = Self::calculate_checksum(&snapshot);
-        Self { snapshot, checksum }
+    fn new(snapshot: SessionSnapshot) -> PersistenceResult<Self> {
+        let checksum = Self::calculate_checksum(&snapshot)?;
+        Ok(Self { snapshot, checksum })
     }
 
-    fn calculate_checksum(snapshot: &SessionSnapshot) -> String {
+    fn calculate_checksum(snapshot: &SessionSnapshot) -> PersistenceResult<String> {
         // Task-persist-rev-059: Use postcard for deterministic canonicalization.
         // postcard is designed for deterministic binary serialization.
-        let data = postcard::to_stdvec(snapshot).unwrap_or_default();
-        hex::encode(Sha256::digest(data))
+        let data = postcard::to_stdvec(snapshot)?;
+        Ok(hex::encode(Sha256::digest(data)))
     }
 
     fn verify(&self) -> bool {
-        let calculated = Self::calculate_checksum(&self.snapshot);
+        let Ok(calculated) = Self::calculate_checksum(&self.snapshot) else {
+            return false;
+        };
         if calculated != self.checksum {
             warn!(
                 "Checksum mismatch! Stored: {}, Calculated: {}",
@@ -132,6 +134,8 @@ impl AutoSaveService {
 
         let path = self.path.clone();
         tokio::task::spawn_blocking(move || {
+            // SAFETY: ARCH-005 Exception: AutoSaveService is an Adapter for session persistence.
+            // IO is necessary to load the persisted session state from disk.
             let file = std::fs::File::open(path)?;
             let reader = std::io::BufReader::new(file);
 
@@ -211,13 +215,17 @@ impl AutoSaveService {
         if let Some(snap) = snapshot_to_save {
             let path = self.path.clone();
 
-            let result = tokio::task::spawn_blocking(move || -> std::io::Result<()> {
-                let persisted = PersistedSession::new(snap);
+            let result = tokio::task::spawn_blocking(move || -> PersistenceResult<()> {
+                let persisted = PersistedSession::new(snap)?;
                 let json = serde_json::to_string_pretty(&persisted)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-                let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+                let dir = path.parent().ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::NotFound, "No parent directory")
+                })?;
 
+                // SAFETY: ARCH-005 Exception: AutoSaveService is an Adapter for session persistence.
+                // IO is necessary to persist the session state to disk.
                 // Create temp file in the same directory to attempt atomic rename
                 let mut temp_file = NamedTempFile::new_in(dir)?;
                 temp_file.write_all(json.as_bytes())?;
@@ -237,6 +245,7 @@ impl AutoSaveService {
 
                         // Fallback: Create a secondary temp file to ensure the copy is as complete as possible
                         // before the final move (which might still be cross-fs but we're trying our best).
+                        // SAFETY: ARCH-005 Exception (Fallback)
                         let mut dest = std::fs::File::create(&path)?;
                         std::io::copy(&mut source, &mut dest)?;
                         Ok(())

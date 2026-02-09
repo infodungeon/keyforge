@@ -67,7 +67,7 @@ impl ValkeyProvider {
         subpath: &str,
     ) -> LoaderResult<(T, [u8; 32])> {
         let compressed = self.fetch_blob(subpath).await?;
-        
+
         let mut hasher = sha2::Sha256::new();
         sha2::Digest::update(&mut hasher, &compressed);
         let hash = hasher.finalize().into();
@@ -197,7 +197,11 @@ impl AssetLoader for ValkeyProvider {
         Ok(Arc::new(corpus))
     }
 
-    async fn get_hash(&self, category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String> {
+    async fn get_hash(
+        &self,
+        category: keyforge_model::AssetCategory,
+        id: &str,
+    ) -> LoaderResult<String> {
         let subpath = Self::id_to_subpath(category, id);
         let key = format!("{ASSET_PREFIX}:{subpath}");
         match self.coordinator.get_manifest_hash(&key).await {

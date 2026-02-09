@@ -70,9 +70,9 @@ mod tests {
     }
 
     #[test]
-    fn test_key_constraint_from_str() {
+    fn test_key_constraint_from_str() -> anyhow::Result<()> {
         // Valid
-        let c: KeyConstraint = "0:KC_A".parse().unwrap();
+        let c: KeyConstraint = "0:KC_A".parse()?;
         assert_eq!(c.index.raw(), 0);
         assert_eq!(c.key, "KC_A");
 
@@ -87,5 +87,6 @@ mod tests {
 
         // Invalid: Empty Key
         assert!("0:".parse::<KeyConstraint>().is_err());
+        Ok(())
     }
 }

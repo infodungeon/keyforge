@@ -155,8 +155,10 @@ impl HermeticWorkspace {
         // 2. Cost Matrix
         let mut static_costs = HashMap::new();
         let mut base_costs = RowCosts::new();
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
-        base_costs.insert(RowIndex::new(0), fw(100.0));
+        base_costs.insert(
+            RowIndex::new(0),
+            keyforge_model::types::Score::from_f32(100.0).map_err(|e| anyhow::anyhow!(e))?,
+        );
 
         let fingers_def = FingerDefinition::Standard(keyforge_model::cost_model::FingerReach {
             base: base_costs,
@@ -167,7 +169,10 @@ impl HermeticWorkspace {
         let mut fingers = HashMap::new();
         fingers.insert(
             "thumb".into(),
-            FingerDefinition::Thumb(HashMap::from([("pos_1".into(), fw(100.0))])),
+            FingerDefinition::Thumb(HashMap::from([(
+                "pos_1".into(),
+                keyforge_model::types::Score::from_f32(100.0).map_err(|e| anyhow::anyhow!(e))?,
+            )])),
         );
         fingers.insert("index".into(), fingers_def.clone());
         fingers.insert("middle".into(), fingers_def.clone());
@@ -211,7 +216,7 @@ impl HermeticWorkspace {
         let geometry = KeyboardGeometry::new(
             vec![
                 KeyNode {
-                    index: 0,
+                    index: keyforge_model::types::KeyIndex::new(0),
                     x: SpatialUnit::from_f32(0.0),
                     y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
@@ -221,7 +226,7 @@ impl HermeticWorkspace {
                     ..Default::default()
                 },
                 KeyNode {
-                    index: 1,
+                    index: keyforge_model::types::KeyIndex::new(1),
                     x: SpatialUnit::from_f32(1.0),
                     y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),

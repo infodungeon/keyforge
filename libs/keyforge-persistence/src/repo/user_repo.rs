@@ -248,7 +248,7 @@ impl UserRepo {
     /// Retrieves all accumulated biometric samples.
     #[must_use]
     pub fn get_biometrics(&self) -> Vec<BiometricSample> {
-        self.load_stats_store().biometrics.0
+        self.load_stats_store().biometrics.into_inner()
     }
 
     /// Deletes all accumulated biometric samples from disk.

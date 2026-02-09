@@ -89,6 +89,9 @@ fn detect_l2_cache_kb() -> Option<i32> {
     // On Linux we could read /sys/devices/system/cpu/cpu0/cache/index2/size
     #[cfg(target_os = "linux")]
     {
+        // SAFETY: ARCH-005 Exception: Hardware detection requires direct filesystem access
+        // to system sysfs nodes. This is platform-specific initialization code,
+        // not part of a pure physics or evolution kernel.
         if let Ok(content) =
             std::fs::read_to_string("/sys/devices/system/cpu/cpu0/cache/index2/size")
         {

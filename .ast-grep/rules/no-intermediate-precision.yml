@@ -1,0 +1,30 @@
+id: no-intermediate-precision
+message: "ARCH-003-PRECISION: Potential overflow in fixed-point math. Raw i64 multiplication detected in compute kernel."
+severity: error
+language: rust
+rule:
+  all:
+    - kind: binary_expression
+    - any:
+        - pattern: "$X.raw() * $Y"
+        - pattern: "$X * $Y.raw()"
+        - pattern: "$X: i64 * $Y: i64"
+    - not:
+        any:
+          - inside:
+              kind: mod_item
+              has:
+                kind: attribute
+                pattern: "#[cfg(test)]"
+          - pattern: "i128::from($$$)"
+          - pattern: "$X as i128"
+          - inside:
+              kind: source_file
+              regex: "// SAFETY: ARCH-003"
+files:
+  - "libs/keyforge-physics/src/**/*.rs"
+  - "libs/keyforge-evolution/src/**/*.rs"
+ignores:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "ops/repros/**"
