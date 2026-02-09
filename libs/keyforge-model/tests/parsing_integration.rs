@@ -37,8 +37,8 @@ mod integration_tests {
         let def = KeyboardDefinition::parse(json, None).expect("Rotated KLE should parse");
 
         assert_eq!(def.geometry.keys()[0].r, 15.0);
-        assert_eq!(def.geometry.keys()[0].rx, 5.0);
-        assert_eq!(def.geometry.keys()[0].ry, 5.0);
+        assert_eq!(def.geometry.keys()[0].rx, keyforge_model::types::SpatialUnit::from_f32(5.0));
+        assert_eq!(def.geometry.keys()[0].ry, keyforge_model::types::SpatialUnit::from_f32(5.0));
     }
 
     /// Intent: Verify hand split detection for split keyboards.

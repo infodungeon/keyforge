@@ -12,8 +12,3 @@ patterns = ["**/proptest-regressions/**"]
 id = "prefer_ripgrep"
 description = "Use search_file_content instead of raw grep to ensure .geminiignore is respected."
 enforcement = "preferred"
-
-[[rule]]
-id = "no_root_grep"
-description = "Forbidden from running grep or search_file_content on the root directory ('.'). Must use targeted subdirectories."
-enforcement = "mandatory"

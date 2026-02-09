@@ -4370,6 +4370,7 @@ dependencies = [
  "strum",
  "thiserror 2.0.17",
  "tracing",
+ "ts-rs",
  "utoipa",
  "zeroize",
 ]
@@ -4543,6 +4544,7 @@ dependencies = [
  "axum",
  "dirs",
  "fastrand",
+ "hex",
  "keyforge-adapter",
  "keyforge-assets",
  "keyforge-compute",
@@ -4559,6 +4561,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_json",
+ "sha2",
  "sysinfo",
  "tauri",
  "tauri-build",

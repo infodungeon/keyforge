@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::types::Score;
 use super::EngineContext;
 use crate::error::PhysicsError;
 use keyforge_model::{Corpus, CostModel, Keyboard, Rubric};
@@ -78,7 +77,7 @@ impl Compiler {
                 let key = (u16::from(bytes[0]), u16::from(bytes[1]));
                 sequence_modifiers.insert(
                     key,
-                    Score::from_f32(val).map_err(|e| PhysicsError::InvalidInput { message: e })?,
+                    val,
                 );
             }
         }
@@ -112,12 +111,9 @@ impl Compiler {
             },
             all_bigrams: corpus.bigrams.clone(),
             all_trigrams: corpus.trigrams.clone(),
-            penalty_redirect: Score::from_f32(rubric.redirect())
-                .map_err(|e| PhysicsError::InvalidInput { message: e })?,
-            bonus_roll: Score::from_f32(rubric.roll_bonus())
-                .map_err(|e| PhysicsError::InvalidInput { message: e })?,
-            bonus_roll_out: Score::from_f32(rubric.roll_out_bonus())
-                .map_err(|e| PhysicsError::InvalidInput { message: e })?,
+            penalty_redirect: rubric.redirect(),
+            bonus_roll: rubric.roll_bonus(),
+            bonus_roll_out: rubric.roll_out_bonus(),
             sequence_modifiers: Arc::new(sequence_modifiers),
         };
 

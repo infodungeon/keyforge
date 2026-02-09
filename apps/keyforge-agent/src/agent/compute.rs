@@ -130,7 +130,7 @@ mod tests {
 
         let kb = Arc::new(
             Keyboard::new(
-                kb_def.geometry.keys().clone(),
+                kb_def.geometry.keys().to_vec(),
                 kb_def.geometry.home_row(),
                 "test".into(),
             )
@@ -182,7 +182,7 @@ mod tests {
         };
 
         let session =
-            ScoringSession::new(engine, Arc::new(KeycodeRegistry::default()), search_config);
+            ScoringSession::new(engine, Arc::new(kb_def.clone()), Arc::new(KeycodeRegistry::default()), search_config);
 
         let job_config = JobConfig {
             definition: kb_def.into(),
@@ -214,6 +214,6 @@ mod tests {
         .await
         .expect("Optimization should complete successfully");
 
-        assert!(result.score >= 0.0);
+        assert!(result.score >= keyforge_model::types::Score::ZERO);
     }
 }

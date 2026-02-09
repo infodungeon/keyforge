@@ -106,9 +106,9 @@ mod integration_tests {
         let ghost_score = engine.score(&ghost_layout).unwrap();
 
         // Verify parity
-        let score_diff = (prod_res.score - ghost_score.to_f32()).abs();
+        let score_diff = (prod_res.score.raw() - ghost_score.raw()).abs();
         assert!(
-            score_diff < 100.0,
+            score_diff < 100_000_000,
             "Scores should be within reasonable bounds"
         );
     }

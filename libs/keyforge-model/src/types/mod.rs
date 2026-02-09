@@ -6,6 +6,8 @@ pub mod biomechanical;
 pub mod geometry;
 /// Key identifiers (Indices, Codes).
 pub mod indices;
+/// Deterministic rational types.
+pub mod fraction;
 /// Deterministic math types and traits.
 pub mod math;
 /// Domain-specific newtypes.
@@ -18,6 +20,7 @@ pub mod scoring;
 pub use biomechanical::{Finger, FingerIndex, Hand, HandIndex, SpaceHandPreference};
 pub use geometry::{ColIndex, RowIndex};
 pub use indices::{KeyCode, KeyIndex};
+pub use fraction::Fraction;
 pub use math::{FixedPointMath, Movement, Point, SpatialUnit, TrigramFlow};
 pub use newtypes::{
     DurationMs, IterationCount, LatencyMs, PatienceCount, ReheatCount, ScalingFactor, Seed,
@@ -26,7 +29,7 @@ pub use newtypes::{
 pub use results::{
     AnalysisReport, MetricViolation, OptimizationResult, ScoringResult, SwapSuggestion,
 };
-pub use scoring::{Score, Weight};
+pub use scoring::{FixedWeight, Score, Weight};
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
@@ -55,7 +58,7 @@ mod tests {
     fn test_score_scaling() {
         let s = Score::from_f32(1.0).unwrap();
         assert_eq!(s.to_f32(), 1.0);
-        assert_eq!(s.raw(), SCORE_SCALE as i64);
+        assert_eq!(s.raw(), SCORE_SCALE);
     }
 
     #[test]

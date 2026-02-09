@@ -54,14 +54,14 @@ mod tests {
                 index: 0,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                row: RowIndex(0),
+                row: RowIndex::new(0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
-                row: RowIndex(0),
+                row: RowIndex::new(0),
                 ..Default::default()
             },
         ];
@@ -70,11 +70,12 @@ mod tests {
         let rubric = Arc::new(Rubric::default());
         let mut cost_model = keyforge_model::cost_model::CostModel::default();
         let mut fingers = HashMap::new();
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
         fingers.insert(
             "index".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
                 keyforge_model::cost_model::FingerReach {
-                    base: HashMap::from([(RowIndex::new(0), 1.0)]),
+                    base: HashMap::from([(RowIndex::new(0), fw(1.0))]),
                     ..Default::default()
                 },
             ),
@@ -83,7 +84,7 @@ mod tests {
             "middle".to_string(),
             keyforge_model::cost_model::FingerDefinition::Standard(
                 keyforge_model::cost_model::FingerReach {
-                    base: HashMap::from([(RowIndex::new(0), 1.0)]),
+                    base: HashMap::from([(RowIndex::new(0), fw(1.0))]),
                     ..Default::default()
                 },
             ),

@@ -16,6 +16,7 @@
 //! rather than hardcoded logic.
 
 use crate::asset::{Asset, AssetCategory};
+use crate::types::Score;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -145,7 +146,7 @@ pub struct HandDefinition {
 }
 
 /// A map of `RowIndex` to cost.
-pub type RowCosts = HashMap<crate::types::RowIndex, f32>;
+pub type RowCosts = HashMap<crate::types::RowIndex, Score>;
 
 /// Definition of costs within a finger's reach.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -168,7 +169,7 @@ pub enum FingerDefinition {
     /// Standard finger with Reach zones.
     Standard(FingerReach),
     /// Thumb with named positions (backward compatible).
-    Thumb(HashMap<String, f32>),
+    Thumb(HashMap<String, Score>),
     /// Fallback for unknown or complex finger definitions.
     Fallback(serde_json::Value),
 }
@@ -177,21 +178,17 @@ pub enum FingerDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DynamicRules {
     /// Modifiers for key sequences (e.g., rolls).
-    pub sequence_modifiers: HashMap<String, f32>,
+    pub sequence_modifiers: HashMap<String, Score>,
     /// Penalties for biomechanical violations (e.g., scissors).
-    pub penalties: HashMap<String, f32>,
+    pub penalties: HashMap<String, Score>,
     /// Global constraints (e.g., hand balance).
-    pub constraints: HashMap<String, f32>,
+    pub constraints: HashMap<String, Score>,
 }
 
 impl Validator for DynamicRules {
     fn validate(&self) -> Result<(), String> {
         // Basic check to ensure no infinite/NaN values
-        for (k, v) in &self.sequence_modifiers {
-            if !v.is_finite() {
-                return Err(format!("Sequence modifier '{k}' is not finite"));
-            }
-        }
+        // FixedWeight ensures bit-perfect determinism and cannot be NaN.
         Ok(())
     }
 }

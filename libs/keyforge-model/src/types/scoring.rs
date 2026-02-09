@@ -148,6 +148,36 @@ impl Score {
         #[allow(clippy::cast_possible_truncation)]
         Score::from_scaled_i64(scaled.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64)
     }
+
+    /// Performs deterministic normalization (e.g., Score per 100k keys).
+    /// Formula: (Accumulated * Scale + (Divisor / 2)) / Divisor
+    ///
+    /// # Errors
+    /// Returns an error if the divisor is zero.
+    pub fn normalized(self, scale: i64, divisor: u64) -> Result<Self, String> {
+        if divisor == 0 {
+            return Err("Division by zero in normalization".to_string());
+        }
+        let accumulated = i128::from(self.raw());
+        let scale_128 = i128::from(scale);
+        let divisor_128 = i128::from(divisor);
+
+        let product = accumulated * scale_128;
+        let rounding = if product >= 0 {
+            divisor_128 / 2
+        } else {
+            -(divisor_128 / 2)
+        };
+
+        let result = (product + rounding) / divisor_128;
+
+        if result > i128::from(i64::MAX) || result < i128::from(i64::MIN) {
+            return Err("Normalization overflowed i64".to_string());
+        }
+
+        #[allow(clippy::cast_possible_truncation)]
+        Ok(Score::from_scaled_i64(result as i64))
+    }
 }
 
 impl Add for Score {

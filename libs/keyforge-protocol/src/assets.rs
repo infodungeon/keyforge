@@ -382,10 +382,11 @@ impl From<keyforge_model::cost_model::FingerReach> for FingerReachDto {
 
 impl From<FingerReachDto> for keyforge_model::cost_model::FingerReach {
     fn from(val: FingerReachDto) -> Self {
+        let sc = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         Self {
-            base: val.base.into_iter().map(|(k, v)| (k.into(), keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect(),
-            inner: val.inner.into_iter().map(|(k, v)| (k.into(), keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect(),
-            outer: val.outer.into_iter().map(|(k, v)| (k.into(), keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect(),
+            base: val.base.into_iter().map(|(k, v)| (k.into(), sc(v))).collect(),
+            inner: val.inner.into_iter().map(|(k, v)| (k.into(), sc(v))).collect(),
+            outer: val.outer.into_iter().map(|(k, v)| (k.into(), sc(v))).collect(),
         }
     }
 }
@@ -420,10 +421,11 @@ impl From<keyforge_model::cost_model::FingerDefinition> for FingerDefinitionDto 
 
 impl From<FingerDefinitionDto> for keyforge_model::cost_model::FingerDefinition {
     fn from(val: FingerDefinitionDto) -> Self {
+        let sc = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         match val {
             FingerDefinitionDto::Standard(reach) => Self::Standard(reach.into()),
             FingerDefinitionDto::Thumb(map) => {
-                Self::Thumb(map.into_iter().map(|(k, v)| (k, keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default())).collect())
+                Self::Thumb(map.into_iter().map(|(k, v)| (k, sc(v))).collect())
             }
             FingerDefinitionDto::Fallback(v) => Self::Fallback(v),
         }
@@ -523,11 +525,11 @@ impl From<keyforge_model::cost_model::DynamicRules> for DynamicRulesDto {
 
 impl From<DynamicRulesDto> for keyforge_model::cost_model::DynamicRules {
     fn from(val: DynamicRulesDto) -> Self {
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
+        let sc = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         Self {
-            sequence_modifiers: val.sequence_modifiers.into_iter().map(|(k, v)| (k, fw(v))).collect(),
-            penalties: val.penalties.into_iter().map(|(k, v)| (k, fw(v))).collect(),
-            constraints: val.constraints.into_iter().map(|(k, v)| (k, fw(v))).collect(),
+            sequence_modifiers: val.sequence_modifiers.into_iter().map(|(k, v)| (k, sc(v))).collect(),
+            penalties: val.penalties.into_iter().map(|(k, v)| (k, sc(v))).collect(),
+            constraints: val.constraints.into_iter().map(|(k, v)| (k, sc(v))).collect(),
         }
     }
 }

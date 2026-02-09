@@ -70,6 +70,10 @@ mod integration_tests {
         fn root(&self) -> &Path {
             Path::new(".")
         }
+
+        async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
+            Ok("mock".to_string())
+        }
     }
 
     #[tokio::test]
@@ -104,7 +108,7 @@ mod integration_tests {
             async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeyboardDefinition>() {
                     let mut kb = KeyboardDefinition::default();
-                    kb.geometry.keys().push(keyforge_model::KeyNode {
+                    kb.geometry.keys.push(keyforge_model::KeyNode {
                         label: "A".into(),
                         ..Default::default()
                     });
@@ -164,6 +168,9 @@ mod integration_tests {
             fn root(&self) -> &Path {
                 Path::new(".")
             }
+            async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
+                Ok("qwerty".to_string())
+            }
         }
 
         let loader = QwertyLoader;
@@ -190,6 +197,9 @@ mod integration_tests {
             }
             fn root(&self) -> &Path {
                 Path::new(".")
+            }
+            async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
+                Err(keyforge_model::error::ForgeError::NotFound("hash".to_string()))
             }
         }
 

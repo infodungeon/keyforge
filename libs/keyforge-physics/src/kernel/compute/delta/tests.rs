@@ -6,7 +6,7 @@ use crate::engines::ScoringEngine;
 use crate::kernel::compiler::Compiler;
 use crate::kernel::compute::{PhysicsScratch, PosMap};
 use crate::kernel::types::ValidatedLayout;
-use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
+use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
 use keyforge_model::{Corpus, KeyNode, Keyboard, Layout, Rubric};
 use proptest::prelude::*;
 use std::sync::Arc;

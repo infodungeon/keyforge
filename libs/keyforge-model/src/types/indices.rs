@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct KeyIndex(u16);
+pub struct KeyIndex(pub u16);
 
 impl KeyIndex {
     /// Sentinel value for "Not Found" or "Unitialized".
@@ -57,7 +57,7 @@ impl From<KeyIndex> for usize {
 )]
 #[serde(transparent)]
 #[repr(transparent)]
-pub struct KeyCode(u16);
+pub struct KeyCode(pub u16);
 
 impl KeyCode {
     /// Creates a new `KeyCode`.

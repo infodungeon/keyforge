@@ -112,9 +112,15 @@ impl JobConfig {
     /// Converts protocol weights to domain model weights.
     #[must_use]
     pub fn to_domain_weights(&self) -> keyforge_model::config::ScoringWeights {
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
         keyforge_model::config::ScoringWeights {
-            weights: self.weights.weights.clone(),
-            finger_penalty_scale: self.weights.finger_penalty_scale,
+            weights: self
+                .weights
+                .weights
+                .iter()
+                .map(|(k, &v)| (k.clone(), fw(v)))
+                .collect(),
+            finger_penalty_scale: self.weights.finger_penalty_scale.map(fw),
             comfortable_scissors: self.weights.comfortable_scissors.clone(),
         }
     }
@@ -224,16 +230,17 @@ impl JobConfig {
     ///
     /// Returns `ModelError` if the configuration parts cannot be hashed or are invalid.
     pub fn id(&self) -> Result<String, keyforge_model::error::ModelError> {
-        let corpora_fingerprint =
-            keyforge_model::job::calculate_corpora_fingerprint(&self.to_domain_corpus_sources());
+        let corpora_hash =
+            keyforge_model::job::calculate_corpora_hash(&self.to_domain_corpus_sources());
 
         keyforge_model::job::JobIdentifier::from_parts(
             &self.to_domain_geometry(),
             &self.to_domain_weights(),
             &self.to_domain_params(),
             &self.to_domain_pinned_keys(),
-            &corpora_fingerprint,
+            &corpora_hash,
             &self.to_domain_cost_matrix(),
+            None,
         )
         .map(|ident| ident.hash)
     }

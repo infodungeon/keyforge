@@ -155,7 +155,8 @@ impl HermeticWorkspace {
         // 2. Cost Matrix
         let mut static_costs = HashMap::new();
         let mut base_costs = RowCosts::new();
-        base_costs.insert(RowIndex::new(0), 100.0);
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
+        base_costs.insert(RowIndex::new(0), fw(100.0));
 
         let fingers_def = FingerDefinition::Standard(keyforge_model::cost_model::FingerReach {
             base: base_costs,
@@ -166,7 +167,7 @@ impl HermeticWorkspace {
         let mut fingers = HashMap::new();
         fingers.insert(
             "thumb".into(),
-            FingerDefinition::Thumb(HashMap::from([("pos_1".into(), 100.0)])),
+            FingerDefinition::Thumb(HashMap::from([("pos_1".into(), fw(100.0))])),
         );
         fingers.insert("index".into(), fingers_def.clone());
         fingers.insert("middle".into(), fingers_def.clone());
@@ -421,7 +422,7 @@ mod tests {
         assert!(ws.root.exists());
         assert!(ws.keyboard_path("test_kb").exists());
         assert!(ws.weights_path("poison_weights").exists());
-        assert!(ws.keycodes_path().exists());
+        assert!(ws.keycodes_path("default").exists());
 
         // Check corpus dir
         assert!(ws

@@ -22,7 +22,7 @@ pub struct SpatialUnit(i32);
 
 impl SpatialUnit {
     /// Scaling factor for spatial units (1000).
-    pub const SCALE: f64 = 1000.0;
+    pub const SCALE: i64 = 1000;
 
     /// Creates a new `SpatialUnit`.
     #[must_use]
@@ -40,14 +40,14 @@ impl SpatialUnit {
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
     pub fn from_f32(val: f32) -> Self {
-        Self((f64::from(val) * Self::SCALE).round() as i32)
+        Self((f64::from(val) * (Self::SCALE as f64)).round() as i32)
     }
 
     /// Converts `SpatialUnit` to a float KU value.
     #[must_use]
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub fn to_f32(self) -> f32 {
-        ((f64::from(self.0)) / Self::SCALE) as f32
+        ((f64::from(self.0)) / (Self::SCALE as f64)) as f32
     }
 }
 
@@ -85,7 +85,7 @@ impl FixedPointMath for SpatialUnit {
         Self(val)
     }
     fn scale() -> f64 {
-        Self::SCALE
+        Self::SCALE as f64
     }
 }
 

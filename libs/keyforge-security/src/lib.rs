@@ -188,7 +188,7 @@ pub fn sign_result(
     nonce: u64,
 ) -> SecurityResult<String> {
     #[allow(clippy::cast_possible_truncation)]
-    let score_fixed = (score * SCORE_SCALE) as i64;
+    let score_fixed = (score * (SCORE_SCALE as f32)) as i64;
     sign_result_fixed(secret_hex, job_id, layout, score_fixed, timestamp, nonce)
 }
 
@@ -273,7 +273,7 @@ pub fn verify_result(
     signature_hex: &str,
 ) -> SecurityResult<bool> {
     #[allow(clippy::cast_possible_truncation)]
-    let score_fixed = (score * SCORE_SCALE) as i64;
+    let score_fixed = (score * (SCORE_SCALE as f32)) as i64;
     verify_result_fixed(
         public_hex,
         job_id,

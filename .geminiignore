@@ -40,6 +40,11 @@ Thumbs.db
 # --- Logs & Temp ---
 *.log
 *.tmp
+*.profraw
+**/proptest-regressions/**
+**/.proptest-regressions/**
+delta.txt
+verify.txt
 temp/
 tmp/
 .aitk/

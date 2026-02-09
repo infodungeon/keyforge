@@ -33,6 +33,8 @@ tokio.workspace = true
 fastrand.workspace = true
 zstd.workspace = true
 rmp-serde.workspace = true
+sha2.workspace = true
+hex.workspace = true
 keyforge-protocol = { path = "../../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../../libs/keyforge-adapter" }
 keyforge-persistence = { path = "../../../libs/keyforge-persistence" }

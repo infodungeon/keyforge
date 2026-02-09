@@ -172,7 +172,7 @@ pub struct PhysicsScratch {
     pub(crate) indices: Box<[KeyIndex; MAX_KEYBOARD_KEYS]>,
     pub(crate) current_offsets: Box<[u8; MAX_KEYCODE_SPACE]>, // Helper buffer
     pub(crate) used_keys: Vec<KeyCode>,
-    pub(crate) char_usage: Box<[f32; MAX_KEYCODE_SPACE]>,
+    pub(crate) char_usage: Box<[u64; MAX_KEYCODE_SPACE]>,
     /// A flat mapping for SIMD kernels (`KeyCode` -> `KeyIndex`).
     pub(crate) flat_map: Box<[KeyIndex; MAX_KEYCODE_SPACE]>,
 }
@@ -203,7 +203,7 @@ impl PhysicsScratch {
                 .try_into()
                 .map_err(|_| err())?,
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
-            char_usage: vec![0.0f32; MAX_KEYCODE_SPACE]
+            char_usage: vec![0u64; MAX_KEYCODE_SPACE]
                 .into_boxed_slice()
                 .try_into()
                 .map_err(|_| err())?,
@@ -221,7 +221,7 @@ impl PhysicsScratch {
             let c = code.as_usize();
             self.starts[c] = 0;
             self.counts[c] = 0;
-            self.char_usage[c] = 0.0;
+            self.char_usage[c] = 0;
             self.flat_map[c] = KeyIndex::new(u16::MAX);
         }
     }
@@ -237,7 +237,7 @@ impl PhysicsScratch {
         &mut [KeyIndex],
         &mut [u8; MAX_KEYCODE_SPACE],
         &mut Vec<KeyCode>,
-        &mut [f32; MAX_KEYCODE_SPACE],
+        &mut [u64; MAX_KEYCODE_SPACE],
         &mut [KeyIndex; MAX_KEYCODE_SPACE],
     ) {
         (

@@ -1,0 +1,13 @@
+DROP VIEW IF EXISTS v_active_jobs;
+DROP FUNCTION IF EXISTS register_node_heartbeat(TEXT, TEXT, TEXT, INTEGER, INTEGER, REAL);
+DROP TABLE IF EXISTS results;
+DROP TABLE IF EXISTS nodes;
+DROP TABLE IF EXISTS hardware_profiles;
+DROP TABLE IF EXISTS jobs;
+DROP TABLE IF EXISTS search_configs;
+DROP TABLE IF EXISTS scoring_profiles;
+DROP TABLE IF EXISTS keyboard_keys;
+DROP TABLE IF EXISTS keyboards;
+DROP TABLE IF EXISTS submissions;
+DROP EXTENSION IF EXISTS "uuid-ossp";
+DROP EXTENSION IF EXISTS "pgcrypto";

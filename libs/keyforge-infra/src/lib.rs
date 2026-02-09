@@ -21,6 +21,8 @@
 
 /// Asset management and loading providers.
 pub mod asset;
+/// Content-addressable asset wrappers.
+pub mod assets;
 /// Configuration structures and environment variable handling.
 pub mod config;
 /// Error and Result types for infrastructure operations.

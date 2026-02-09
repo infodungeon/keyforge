@@ -140,10 +140,9 @@ impl Arbitrary for Corpus {
                     char_freqs_full[i] = f;
                 }
                 // Sorting required by Corpus::validate/merge but not strictly for existence
-                bigrams.sort_unstable_by(|a, b| a.raw().cmp(&b.raw()).then(a.1.cmp(&b.1)));
+                bigrams.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
                 trigrams.sort_unstable_by(|a, b| {
-                    a.raw()
-                        .cmp(&b.raw())
+                    a.0.cmp(&b.0)
                         .then(a.1.cmp(&b.1))
                         .then(a.2.cmp(&b.2))
                 });
@@ -166,17 +165,17 @@ impl Arbitrary for Rubric {
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         (
-            prop::collection::vec(0.0f32..10.0, 5),
-            0.0f32..20.0,   // travel_lat
-            0.0f32..20.0,   // travel_vert
-            0.0f32..1000.0, // sfb_base
-            0.0f32..500.0,  // sfb_lateral
-            0.0f32..500.0,  // sfb_lateral_weak
-            0.0f32..500.0,  // sfb_diagonal
-            0.0f32..500.0,  // sfb_long
-            0.0f32..500.0,  // penalty_scissor
-            0.0f32..500.0,  // redirect
-            0.0f32..500.0,  // roll_bonus
+            prop::collection::vec(-500.0f32..500.0, 5),
+            -500.0f32..500.0,   // travel_lat
+            -500.0f32..500.0,   // travel_vert
+            -500.0f32..500.0, // sfb_base
+            -500.0f32..500.0,  // sfb_lateral
+            -500.0f32..500.0,  // sfb_lateral_weak
+            -500.0f32..500.0,  // sfb_diagonal
+            -500.0f32..500.0,  // sfb_long
+            -500.0f32..500.0,  // penalty_scissor
+            -500.0f32..500.0,  // redirect
+            -500.0f32..500.0,  // roll_bonus
         )
             .prop_map(
                 |(effort, tlat, tvert, sfb, slat, slweak, sdiag, slong, pscis, redir, roll)| {
@@ -205,7 +204,7 @@ impl Arbitrary for Rubric {
 pub fn mock_cost_model() -> CostModel {
     let mut base_zone = crate::cost_model::RowCosts::new();
     for r in -128..=127 {
-        base_zone.insert(RowIndex::new(r as i8), 0.0);
+        base_zone.insert(RowIndex::new(r as i8), crate::types::Score::ZERO);
     }
 
     let index_zones = crate::cost_model::FingerReach {

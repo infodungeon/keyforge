@@ -32,7 +32,9 @@ impl DeterministicScorer {
         layout: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let (mono, bigram, trigram) = self.score_detailed(keyboard, corpus, layout)?;
-        Ok(mono + bigram + trigram)
+        Ok(mono
+            .saturating_add(bigram)
+            .saturating_add(trigram))
     }
 
     /// Scores a layout and returns detailed components (monograms, bigrams, trigrams).
@@ -71,7 +73,9 @@ impl DeterministicScorer {
             }
 
             if min_cost != i64::MAX {
-                monogram_score += min_cost * (i64::try_from(freq).unwrap_or(0));
+                monogram_score = monogram_score.saturating_add(
+                    min_cost.saturating_mul(i64::try_from(freq).unwrap_or(i64::MAX))
+                );
             }
         }
 
@@ -103,7 +107,7 @@ impl DeterministicScorer {
                 }
 
                 if min_cost != i64::MAX {
-                    bigram_score += min_cost * freq;
+                    bigram_score = bigram_score.saturating_add(min_cost.saturating_mul(freq));
                 }
             }
         }
@@ -117,20 +121,31 @@ impl DeterministicScorer {
             let indices3 = find_indices(layout, KeyCode::new(*c3));
 
             if !indices1.is_empty() && !indices2.is_empty() && !indices3.is_empty() {
-                let mut min_cost = i64::MAX;
+                let mut min_total_path_cost = i64::MAX;
+                let mut best_flow_cost = 0i64;
+
                 for &idx1 in &indices1 {
                     for &idx2 in &indices2 {
                         for &idx3 in &indices3 {
-                            let cost = calculate_trigram_cost(&self.ctx, idx1, idx2, idx3);
-                            if cost < min_cost {
-                                min_cost = cost;
+                            let flow_cost = calculate_trigram_cost(&self.ctx, idx1, idx2, idx3);
+                            let idx12_raw = (idx1.raw() as usize) * key_count + (idx2.raw() as usize);
+                            let idx23_raw = (idx2.raw() as usize) * key_count + (idx3.raw() as usize);
+                            
+                            let segment_cost = self.ctx.geometry.cost_matrix[idx12_raw].raw()
+                                .saturating_add(self.ctx.geometry.cost_matrix[idx23_raw].raw());
+                            
+                            let total_path_cost = flow_cost.saturating_add(segment_cost);
+
+                            if total_path_cost < min_total_path_cost {
+                                min_total_path_cost = total_path_cost;
+                                best_flow_cost = flow_cost;
                             }
                         }
                     }
                 }
 
-                if min_cost != i64::MAX {
-                    trigram_score += min_cost * freq;
+                if min_total_path_cost != i64::MAX {
+                    trigram_score = trigram_score.saturating_add(best_flow_cost.saturating_mul(freq));
                 }
             }
         }
@@ -154,37 +169,26 @@ fn calculate_trigram_cost(
     idx2: KeyIndex,
     idx3: KeyIndex,
 ) -> i64 {
-    let h1 = ctx.geometry.hands[idx1.raw() as usize];
-    let h2 = ctx.geometry.hands[idx2.raw() as usize];
-    let h3 = ctx.geometry.hands[idx3.raw() as usize];
+    let h1 = ctx.geometry.hands[idx1.as_usize()];
+    let h2 = ctx.geometry.hands[idx2.as_usize()];
+    let h3 = ctx.geometry.hands[idx3.as_usize()];
 
-    let f1 = ctx.geometry.fingers[idx1.raw() as usize];
-    let f2 = ctx.geometry.fingers[idx2.raw() as usize];
-    let f3 = ctx.geometry.fingers[idx3.raw() as usize];
+    let f1 = ctx.geometry.fingers[idx1.as_usize()];
+    let f2 = ctx.geometry.fingers[idx2.as_usize()];
+    let f3 = ctx.geometry.fingers[idx3.as_usize()];
 
-    // Simple reference trigram logic (Redirects)
-    if h1 == h3 && h1 != h2 {
-        // Change hand and back (Redirect)
-        return ctx.penalty_redirect.raw();
-    }
-
-    // Rolls
-    if h1 == h2 && h2 == h3 {
-        let d1 = i16::from(f2.raw()) - i16::from(f1.raw());
-        let d2 = i16::from(f3.raw()) - i16::from(f2.raw());
-
-        if d1.signum() == d2.signum() && d1 != 0 && d2 != 0 {
-            // All same direction
-            if d1 > 0 {
-                // Inward
-                return -ctx.bonus_roll.raw();
-            }
-            // Outward
-            return -ctx.bonus_roll_out.raw();
-        }
-    }
-
-    0
+    crate::kernel::mechanics::calculate_flow_cost(
+        h1,
+        h2,
+        h3,
+        f1,
+        f2,
+        f3,
+        ctx.penalty_redirect,
+        ctx.bonus_roll,
+        ctx.bonus_roll_out,
+    )
+    .raw()
 }
 
 /// Verification result for a single layout.

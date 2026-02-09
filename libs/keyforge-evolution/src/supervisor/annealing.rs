@@ -74,7 +74,7 @@ impl ProgressReporter {
                 0.0
             };
 
-            let score_f32 = state.best_score as f32 / SCORE_SCALE;
+            let score_f32 = state.best_score as f32 / (SCORE_SCALE as f32);
             let layout_snapshot = state.best_layout().keys().to_vec();
 
             let _ = self.tx.try_send((step, score_f32, layout_snapshot, ips));
@@ -349,7 +349,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
-            self.raw().fetch_add(1, Ordering::SeqCst);
+            self.0.fetch_add(1, Ordering::SeqCst);
             OptimizationControl::Continue
         }
     }

@@ -188,7 +188,7 @@ impl Agent {
                             &job
                         ).await {
                             Ok(opt_res) => {
-                                info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
+                                info!("✅ Job {} Completed. Score: {}", job_id, opt_res.score);
                                 let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
 
                                 let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
@@ -199,7 +199,7 @@ impl Agent {
                                     &private_key,
                                     &job_id,
                                     &layout_str,
-                                    opt_res.raw_score,
+                                    opt_res.score.raw(),
                                     timestamp,
                                     nonce
                                 ) {
@@ -214,8 +214,8 @@ impl Agent {
                                     version: 1,
                                     job_id: job_id.clone(),
                                     layout: layout_str,
-                                    score: opt_res.score,
-                                    raw_score: opt_res.raw_score,
+                                    score: opt_res.score.to_f32(),
+                                    raw_score: opt_res.score.raw(),
                                     node_id,
                                     timestamp,
                                     nonce,

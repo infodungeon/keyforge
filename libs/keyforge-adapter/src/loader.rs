@@ -22,6 +22,9 @@ pub trait AssetLoader: Send + Sync + Debug {
     /// Loads one or more corpora and merges them into a single bundle.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
 
+    /// Returns the content hash of an asset without loading the full object.
+    async fn get_hash(&self, category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String>;
+
     /// Returns the root directory of the asset source.
     fn root(&self) -> &Path;
 }
@@ -68,6 +71,10 @@ impl AssetLoader for InMemoryLoader {
             return Err(ForgeError::NotFound("Empty corpus source list".into()));
         }
         Ok(Arc::new(blended))
+    }
+
+    async fn get_hash(&self, _category: keyforge_model::AssetCategory, _id: &str) -> LoaderResult<String> {
+        Ok("in-memory-hash".to_string())
     }
 
     fn root(&self) -> &Path {

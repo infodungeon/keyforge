@@ -1,5 +1,6 @@
 use super::CompilationStage;
 use crate::error::PhysicsError;
+use crate::kernel::mechanics::integer_sqrt_i128;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, Movement, Point, RowIndex, Score};
 use keyforge_model::{Keyboard, Rubric};
 
@@ -31,8 +32,9 @@ impl<'a> CompilationStage for GeometryStage<'a> {
     )]
     fn execute(&self, kb: Self::Input) -> Result<Self::Output, PhysicsError> {
         let key_count = kb.count();
-        let t_lat = f64::from(self.rubric.travel_lat());
-        let t_vert = f64::from(self.rubric.travel_vert());
+        let t_lat_i = i128::from(self.rubric.travel_lat().raw());
+        let t_vert_i = i128::from(self.rubric.travel_vert().raw());
+
         let mut hands = Vec::with_capacity(key_count);
         let mut fingers = Vec::with_capacity(key_count);
         let mut rows = Vec::with_capacity(key_count);
@@ -55,9 +57,8 @@ impl<'a> CompilationStage for GeometryStage<'a> {
                 let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
                 let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-                let d_val = (dx2 as f64 * t_lat + dy2 as f64 * t_vert).sqrt();
-                dist_from_home = Score::from_f32(d_val as f32)
-                    .map_err(|e| PhysicsError::InvalidInput { message: e })?;
+                let dist_sq_weighted = i128::from(dx2) * t_lat_i + i128::from(dy2) * t_vert_i;
+                dist_from_home = Score::from_scaled_i64(integer_sqrt_i128(dist_sq_weighted));
             }
             key_home_distances.push(dist_from_home);
         }
@@ -70,9 +71,8 @@ impl<'a> CompilationStage for GeometryStage<'a> {
                     let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
                     let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-                    let d_val = (dx2 as f64 * t_lat + dy2 as f64 * t_vert).sqrt();
-                    dist_matrix[i * key_count + j] = Score::from_f32(d_val as f32)
-                        .map_err(|e| PhysicsError::InvalidInput { message: e })?;
+                    let dist_sq_weighted = i128::from(dx2) * t_lat_i + i128::from(dy2) * t_vert_i;
+                    dist_matrix[i * key_count + j] = Score::from_scaled_i64(integer_sqrt_i128(dist_sq_weighted));
                 }
             }
         }

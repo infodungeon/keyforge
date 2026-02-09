@@ -12,24 +12,24 @@ fn test_contract_compatibility() {
     let node = KeyNode {
         index: 0,
         label: "A".to_string(),
-        x: 0.0,
-        y: 0.0,
+        x: keyforge_model::types::SpatialUnit::from_f32(0.0),
+        y: keyforge_model::types::SpatialUnit::from_f32(0.0),
         w: 1.0,
         h: 1.0,
         hand: HandIndex::new(0),
         ..Default::default()
     };
 
-    req.config.definition.geometry.keys().push(node.into());
-    req.config.definition.geometry.home_row() = 0;
+    req.config.definition.geometry.keys.push(node.into());
+    req.config.definition.geometry.home_row = 0;
     req.config
         .definition
         .geometry
         .prime_slots
-        .push(keyforge_model::types::KeyIndex(0).into());
+        .push(keyforge_model::types::KeyIndex::new(0).into());
 
     let json = serde_json::to_string(&req).unwrap();
     let deserialized: JobRequest = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.config.definition.geometry.keys().len(), 1);
+    assert_eq!(deserialized.config.definition.geometry.keys.len(), 1);
 }

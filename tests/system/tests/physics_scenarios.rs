@@ -59,7 +59,7 @@ mod tests {
         let weights = ScoringWeights::default();
         let keyboard = Arc::new(
             Keyboard::new(
-                def.geometry.keys().clone(),
+                def.geometry.keys().to_vec(),
                 def.geometry.home_row(),
                 def.meta.kb_type.clone(),
             )
@@ -90,7 +90,7 @@ mod tests {
         let score2 = engine.score(&layout).unwrap();
 
         assert!(
-            (report1.score - report2.score).abs() < 0.001,
+            (report1.score.raw() - report2.score.raw()).abs() < 1000,
             "Report scores diverged!"
         );
         assert_eq!(score1, score2, "Engine scores diverged!");

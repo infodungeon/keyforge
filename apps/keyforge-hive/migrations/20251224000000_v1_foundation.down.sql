@@ -1,0 +1,5 @@
+DROP INDEX IF EXISTS idx_users_quotas;
+DROP INDEX IF EXISTS idx_jobs_public;
+ALTER TABLE jobs DROP COLUMN IF EXISTS is_public;
+ALTER TABLE api_keys DROP COLUMN IF EXISTS scopes;
+ALTER TABLE users DROP COLUMN IF EXISTS quota_limits;

@@ -10,6 +10,7 @@ use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, AssetCategory, Corpus};
+use sha2::Digest;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -64,15 +65,22 @@ impl ValkeyProvider {
     async fn hydrate_mpk<T: serde::de::DeserializeOwned + Send + 'static>(
         &self,
         subpath: &str,
-    ) -> LoaderResult<T> {
+    ) -> LoaderResult<(T, [u8; 32])> {
         let compressed = self.fetch_blob(subpath).await?;
-        tokio::task::spawn_blocking(move || {
+        
+        let mut hasher = sha2::Sha256::new();
+        sha2::Digest::update(&mut hasher, &compressed);
+        let hash = hasher.finalize().into();
+
+        let asset = tokio::task::spawn_blocking(move || {
             let decoder =
                 zstd::Decoder::new(&compressed[..]).map_err(|e| ForgeError::Io(e.to_string()))?;
             rmp_serde::from_read(decoder).map_err(|e| ForgeError::InvalidData(e.to_string()))
         })
         .await
-        .map_err(|e| ForgeError::Internal(e.to_string()))?
+        .map_err(|e| ForgeError::Internal(e.to_string()))??;
+
+        Ok((asset, hash))
     }
 
     /// Invalidates all local caches (no-op for stateless distributed provider).
@@ -131,7 +139,7 @@ impl ValkeyProvider {
         name: &str,
     ) -> Arc<T> {
         let mpk_path = format!("config/{name}.mpk.zst");
-        if let Ok(cfg) = self.hydrate_mpk::<T>(&mpk_path).await {
+        if let Ok((cfg, _hash)) = self.hydrate_mpk::<T>(&mpk_path).await {
             return Arc::new(cfg);
         }
         Arc::new(T::default())
@@ -156,7 +164,7 @@ impl AssetLoader for ValkeyProvider {
     async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
         let category = T::category();
         let subpath = Self::id_to_subpath(category, id);
-        let mut asset: T = self.hydrate_mpk(&subpath).await?;
+        let (mut asset, _hash): (T, [u8; 32]) = self.hydrate_mpk(&subpath).await?;
         asset.post_load()?;
         Ok(Arc::new(asset))
     }
@@ -187,6 +195,15 @@ impl AssetLoader for ValkeyProvider {
         inject_synthetic_data(&mut corpus, sources.iter().any(|s| s.id.contains("_std")));
         corpus.post_load()?;
         Ok(Arc::new(corpus))
+    }
+
+    async fn get_hash(&self, category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String> {
+        let subpath = Self::id_to_subpath(category, id);
+        let key = format!("{ASSET_PREFIX}:{subpath}");
+        match self.coordinator.get_manifest_hash(&key).await {
+            Ok(Some(h)) => Ok(h),
+            _ => Err(ForgeError::NotFound(id.to_string())),
+        }
     }
 
     fn root(&self) -> &Path {

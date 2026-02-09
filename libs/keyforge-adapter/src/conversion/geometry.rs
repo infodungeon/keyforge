@@ -119,8 +119,8 @@ mod tests {
         let proto_key = KeyNode {
             index: 0,
             label: "A".to_string(),
-            x: 10.0,
-            y: 20.0,
+            x: keyforge_model::types::SpatialUnit::from_f32(10.0),
+            y: keyforge_model::types::SpatialUnit::from_f32(20.0),
             hand: HandIndex::new(0),
             finger: FingerIndex::new(1),
             row: RowIndex::new(0),

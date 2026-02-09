@@ -17,7 +17,9 @@ use super::constants::{
     DEFAULT_WEIGHT_VERTICAL_TRAVEL, DEFAULT_WEIGHT_WEAK_FINGER_SFB, MAX_LOADER_TRIGRAM_LIMIT,
     MAX_SAFE_WEIGHT,
 };
+
 use crate::config::metadata::{ParamType, ParameterMetadata};
+use crate::types::Score;
 use crate::validator::Validator;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -27,10 +29,10 @@ use utoipa::ToSchema;
 #[serde(default)]
 pub struct ScoringWeights {
     /// Dynamic weights map.
-    pub weights: std::collections::HashMap<String, f32>,
+    pub weights: std::collections::HashMap<String, Score>,
 
     /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
-    pub finger_penalty_scale: [f32; 5],
+    pub finger_penalty_scale: [Score; 5],
     /// Comma-separated list of comfortable scissor pairs.
     pub comfortable_scissors: String,
 }
@@ -43,135 +45,139 @@ impl Default for ScoringWeights {
         Self::insert_dynamic_rules(&mut weights);
         Self::insert_loader_defaults(&mut weights);
 
+        let sc = |v: f32| Score::from_f32(v).expect("Default weights must be valid");
         Self {
             weights,
-            finger_penalty_scale: DEFAULT_FINGER_PENALTY_SCALE_ARRAY,
+            finger_penalty_scale: DEFAULT_FINGER_PENALTY_SCALE_ARRAY.map(sc),
             comfortable_scissors: DEFAULT_COMFORTABLE_SCISSORS.to_string(),
         }
     }
 }
 
 impl ScoringWeights {
-    fn insert_sfb_penalties(weights: &mut std::collections::HashMap<String, f32>) {
+    fn insert_sfb_penalties(weights: &mut std::collections::HashMap<String, Score>) {
+        let sc = |v: f32| Score::from_f32(v).expect("Default weights must be valid");
         weights.insert(
             "penalty_sfr_weak_finger".to_string(),
-            DEFAULT_PENALTY_SFR_WEAK_FINGER,
+            sc(DEFAULT_PENALTY_SFR_WEAK_FINGER),
         );
         weights.insert(
             "penalty_sfr_bad_row".to_string(),
-            DEFAULT_PENALTY_SFR_BAD_ROW,
+            sc(DEFAULT_PENALTY_SFR_BAD_ROW),
         );
-        weights.insert("penalty_sfr_lat".to_string(), DEFAULT_PENALTY_SFR_LAT);
+        weights.insert("penalty_sfr_lat".to_string(), sc(DEFAULT_PENALTY_SFR_LAT));
         weights.insert(
             "penalty_sfb_lateral".to_string(),
-            DEFAULT_PENALTY_SFB_LATERAL,
+            sc(DEFAULT_PENALTY_SFB_LATERAL),
         );
         weights.insert(
             "penalty_sfb_lateral_weak".to_string(),
-            DEFAULT_PENALTY_SFB_LATERAL_WEAK,
+            sc(DEFAULT_PENALTY_SFB_LATERAL_WEAK),
         );
-        weights.insert("penalty_sfb_base".to_string(), DEFAULT_PENALTY_SFB_BASE);
+        weights.insert("penalty_sfb_base".to_string(), sc(DEFAULT_PENALTY_SFB_BASE));
         weights.insert(
             "penalty_sfb_outward_adder".to_string(),
-            DEFAULT_PENALTY_SFB_OUTWARD_ADDER,
+            sc(DEFAULT_PENALTY_SFB_OUTWARD_ADDER),
         );
         weights.insert(
             "penalty_sfb_diagonal".to_string(),
-            DEFAULT_PENALTY_SFB_DIAGONAL,
+            sc(DEFAULT_PENALTY_SFB_DIAGONAL),
         );
-        weights.insert("penalty_sfb_long".to_string(), DEFAULT_PENALTY_SFB_LONG);
-        weights.insert("penalty_sfb_bottom".to_string(), DEFAULT_PENALTY_SFB_BOTTOM);
+        weights.insert("penalty_sfb_long".to_string(), sc(DEFAULT_PENALTY_SFB_LONG));
+        weights.insert("penalty_sfb_bottom".to_string(), sc(DEFAULT_PENALTY_SFB_BOTTOM));
         weights.insert(
             "weight_weak_finger_sfb".to_string(),
-            DEFAULT_WEIGHT_WEAK_FINGER_SFB,
+            sc(DEFAULT_WEIGHT_WEAK_FINGER_SFB),
         );
         weights.insert(
             "threshold_sfb_long_row_diff".to_string(),
-            f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF),
+            sc(f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF)),
         );
     }
 
-    fn insert_movement_penalties(weights: &mut std::collections::HashMap<String, f32>) {
+    fn insert_movement_penalties(weights: &mut std::collections::HashMap<String, Score>) {
+        let sc = |v: f32| Score::from_f32(v).expect("Default weights must be valid");
         weights.insert(
             "threshold_scissor_row_diff".to_string(),
-            f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF),
+            sc(f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF)),
         );
         weights.insert(
             "threshold_reach_stretch".to_string(),
-            DEFAULT_THRESHOLD_REACH_STRETCH,
+            sc(DEFAULT_THRESHOLD_REACH_STRETCH),
         );
-        weights.insert("penalty_scissor".to_string(), DEFAULT_PENALTY_SCISSOR);
-        weights.insert("penalty_ring_pinky".to_string(), DEFAULT_PENALTY_RING_PINKY);
-        weights.insert("penalty_lateral".to_string(), DEFAULT_PENALTY_LATERAL);
+        weights.insert("penalty_scissor".to_string(), sc(DEFAULT_PENALTY_SCISSOR));
+        weights.insert("penalty_ring_pinky".to_string(), sc(DEFAULT_PENALTY_RING_PINKY));
+        weights.insert("penalty_lateral".to_string(), sc(DEFAULT_PENALTY_LATERAL));
         weights.insert(
             "penalty_monogram_stretch".to_string(),
-            DEFAULT_PENALTY_MONOGRAM_STRETCH,
+            sc(DEFAULT_PENALTY_MONOGRAM_STRETCH),
         );
-        weights.insert("penalty_skip".to_string(), DEFAULT_PENALTY_SKIP);
+        weights.insert("penalty_skip".to_string(), sc(DEFAULT_PENALTY_SKIP));
         weights.insert(
             "weight_vertical_travel".to_string(),
-            DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+            sc(DEFAULT_WEIGHT_VERTICAL_TRAVEL),
         );
         weights.insert(
             "weight_lateral_travel".to_string(),
-            DEFAULT_WEIGHT_LATERAL_TRAVEL,
+            sc(DEFAULT_WEIGHT_LATERAL_TRAVEL),
         );
         weights.insert(
             "weight_finger_effort".to_string(),
-            DEFAULT_WEIGHT_FINGER_EFFORT,
+            sc(DEFAULT_WEIGHT_FINGER_EFFORT),
         );
     }
 
-    fn insert_dynamic_rules(weights: &mut std::collections::HashMap<String, f32>) {
-        weights.insert("penalty_redirect".to_string(), DEFAULT_PENALTY_REDIRECT);
-        weights.insert("penalty_hand_run".to_string(), DEFAULT_PENALTY_HAND_RUN);
-        weights.insert("bonus_inward_roll".to_string(), DEFAULT_BONUS_INWARD_ROLL);
+    fn insert_dynamic_rules(weights: &mut std::collections::HashMap<String, Score>) {
+        let sc = |v: f32| Score::from_f32(v).expect("Default weights must be valid");
+        weights.insert("penalty_redirect".to_string(), sc(DEFAULT_PENALTY_REDIRECT));
+        weights.insert("penalty_hand_run".to_string(), sc(DEFAULT_PENALTY_HAND_RUN));
+        weights.insert("bonus_inward_roll".to_string(), sc(DEFAULT_BONUS_INWARD_ROLL));
         weights.insert(
             "bonus_bigram_roll_in".to_string(),
-            DEFAULT_BONUS_BIGRAM_ROLL_IN,
+            sc(DEFAULT_BONUS_BIGRAM_ROLL_IN),
         );
         weights.insert(
             "bonus_bigram_roll_out".to_string(),
-            DEFAULT_BONUS_BIGRAM_ROLL_OUT,
+            sc(DEFAULT_BONUS_BIGRAM_ROLL_OUT),
         );
         weights.insert(
             "penalty_high_in_med".to_string(),
-            DEFAULT_PENALTY_HIGH_IN_MED,
+            sc(DEFAULT_PENALTY_HIGH_IN_MED),
         );
         weights.insert(
             "penalty_high_in_low".to_string(),
-            DEFAULT_PENALTY_HIGH_IN_LOW,
+            sc(DEFAULT_PENALTY_HIGH_IN_LOW),
         );
         weights.insert(
             "penalty_med_in_prime".to_string(),
-            DEFAULT_PENALTY_MED_IN_PRIME,
+            sc(DEFAULT_PENALTY_MED_IN_PRIME),
         );
-        weights.insert("penalty_med_in_low".to_string(), DEFAULT_PENALTY_MED_IN_LOW);
+        weights.insert("penalty_med_in_low".to_string(), sc(DEFAULT_PENALTY_MED_IN_LOW));
         weights.insert(
             "penalty_low_in_prime".to_string(),
-            DEFAULT_PENALTY_LOW_IN_PRIME,
+            sc(DEFAULT_PENALTY_LOW_IN_PRIME),
         );
-        weights.insert("penalty_low_in_med".to_string(), DEFAULT_PENALTY_LOW_IN_MED);
-        weights.insert("penalty_imbalance".to_string(), DEFAULT_PENALTY_IMBALANCE);
-        weights.insert("max_hand_imbalance".to_string(), DEFAULT_MAX_HAND_IMBALANCE);
+        weights.insert("penalty_low_in_med".to_string(), sc(DEFAULT_PENALTY_LOW_IN_MED));
+        weights.insert("penalty_imbalance".to_string(), sc(DEFAULT_PENALTY_IMBALANCE));
+        weights.insert("max_hand_imbalance".to_string(), sc(DEFAULT_MAX_HAND_IMBALANCE));
     }
 
-    fn insert_loader_defaults(weights: &mut std::collections::HashMap<String, f32>) {
-        weights.insert("default_cost_ms".to_string(), DEFAULT_COST_MS);
+    fn insert_loader_defaults(weights: &mut std::collections::HashMap<String, Score>) {
+        let sc = |v: f32| Score::from_f32(v).expect("Default weights must be valid");
+        weights.insert("default_cost_ms".to_string(), sc(DEFAULT_COST_MS));
         #[allow(clippy::cast_precision_loss)]
         weights.insert(
             "loader_trigram_limit".to_string(),
-            DEFAULT_LOADER_TRIGRAM_LIMIT as f32,
+            sc(DEFAULT_LOADER_TRIGRAM_LIMIT as f32),
         );
-        weights.insert("trigram_coverage".to_string(), DEFAULT_TRIGRAM_COVERAGE);
+        weights.insert("trigram_coverage".to_string(), sc(DEFAULT_TRIGRAM_COVERAGE));
     }
 }
 
 impl Validator for ScoringWeights {
     fn validate(&self) -> Result<(), String> {
         if let Some(&limit) = self.weights.get("loader_trigram_limit") {
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            if limit as usize > MAX_LOADER_TRIGRAM_LIMIT {
+            if limit.to_f32() as usize > MAX_LOADER_TRIGRAM_LIMIT {
                 return Err(format!(
                     "loader_trigram_limit exceeds safety maximum ({MAX_LOADER_TRIGRAM_LIMIT})"
                 ));
@@ -179,10 +185,11 @@ impl Validator for ScoringWeights {
         }
 
         for (key, &val) in &self.weights {
-            if val < 0.0 && !key.contains("bonus") {
+            let v_f32 = val.to_f32();
+            if v_f32 < 0.0 && !key.contains("bonus") {
                 return Err(format!("Penalty weight '{key}' cannot be negative"));
             }
-            if val > MAX_SAFE_WEIGHT {
+            if v_f32 > MAX_SAFE_WEIGHT {
                 return Err(format!(
                     "Weight '{key}' exceeds safety maximum ({MAX_SAFE_WEIGHT:.0})"
                 ));
@@ -190,7 +197,7 @@ impl Validator for ScoringWeights {
         }
 
         for (i, &w) in self.finger_penalty_scale.iter().enumerate() {
-            if w < 0.0 {
+            if w.to_f32() < 0.0 {
                 return Err(format!("finger_penalty_scale[{i}] cannot be negative"));
             }
         }

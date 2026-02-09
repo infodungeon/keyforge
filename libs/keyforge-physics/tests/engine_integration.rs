@@ -28,7 +28,7 @@ mod integration_tests {
             Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         let score = engine.score(&layout).unwrap();
         let detailed = engine.score_detailed(&layout).unwrap();
-        assert_eq!(score.0, detailed.0 + detailed.1 + detailed.2);
+        assert_eq!(score.raw(), detailed.0 + detailed.1 + detailed.2);
     }
 
     #[test]
@@ -67,7 +67,7 @@ mod integration_tests {
         )
         .unwrap();
 
-        assert_eq!(engine.name(), "Intel Comet Lake (AVX2 Optimized)");
+        assert_eq!(engine.name(), "Intel Comet Lake (AVX2) Optimized");
         // bitflags API: contains()
         assert!(engine
             .capabilities()

@@ -36,19 +36,19 @@ mod integration_tests {
                 index: 0,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                row: RowIndex(0), // cost 100
+                row: RowIndex::new(0), // cost 100
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                row: RowIndex(1), // cost 200
+                row: RowIndex::new(1), // cost 200
                 ..Default::default()
             },
         ];
         let kb = Arc::new(
-            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+            Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap(),
         );
         let mut corpus_val = Corpus::default();
         let mut freqs = corpus_val.char_freqs.to_vec();
@@ -83,26 +83,26 @@ mod integration_tests {
                 index: 0,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                x: 0.0,
+                x: keyforge_model::types::SpatialUnit::from_f32(0.0),
                 ..Default::default()
             },
             KeyNode {
                 index: 1,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
-                x: 1.0,
+                x: keyforge_model::types::SpatialUnit::from_f32(1.0),
                 ..Default::default()
             },
             KeyNode {
                 index: 2,
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
-                x: 10.0, // Far away
+                x: keyforge_model::types::SpatialUnit::from_f32(10.0), // Far away
                 ..Default::default()
             },
         ];
         let kb = Arc::new(
-            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+            Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap(),
         );
         let mut corpus_val = Corpus::default();
         corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
@@ -162,7 +162,7 @@ mod integration_tests {
             },
         ];
         let kb = Arc::new(
-            Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap(),
+            Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap(),
         );
         let mut corpus_val = Corpus::default();
         corpus_val.trigrams = Arc::from(vec![(97, 98, 99, 1000)]);

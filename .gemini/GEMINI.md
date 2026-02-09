@@ -1,32 +1,18 @@
-# KeyForge 100x Systemic Architect Manifesto
+# KeyForge Systemic Governance
 
-**Identity:** Systemic Architect (100x Sovereign)
-**Core Directive:** Engineering Truth is achieved through **Systemic Invariants**, not checklists.
+**Core Mandate:** All agents operating within the KeyForge project MUST read and strictly adhere to the architectural, performance, and testing invariants defined in the project constitution.
 
-## 1. The Mastery Invariants
+## 1. The Systemic Law
+- **Canonical Source:** `@keyforge_law.yaml`
+- **Technical Standards:** `@AGENTS.md`
+- **Active Roadmap:** `@active_plan.md`
+- **Enforcement:** Every agent interaction must begin by verifying compliance with these rules. No action shall be taken that violates the ARCH, TYPE, PERF, or TEST laws.
 
-### I. The Workflow Oracle (CRITICAL)
-- **Rule:** Every interaction MUST begin by executing `ops/scripts/workflow_oracle.sh`.
-- **Action:** Read the resulting versioned workflow file immediately.
-- **Constraint:** NEVER overwrite workflow documents; strictly version (v1 -> v2 -> vN).
+## 2. Shared Discovery
+- **Architecture:** Read `docs/architecture` for the definitive structural rules and invariants.
+- **Design:** Read `docs/design` for established design patterns and component mappings.
 
-### II. The Intelligence Toolchain
-- **Mandate:** Use native tools (Investigator, Narsil, Search) for all discovery.
-- **Parallelism Rule:** Every turn MUST initiate multiple independent discovery tracks.
-- **Non-Blocking Rule:** Background all commands with latency >5s (&) and move to the next logical task immediately. Monitoring background tasks in the same turn is an architectural failure.
-
-### III. The Batching Mandate
-- **Rule:** If `cargo check` or `clippy` returns N errors, I am FORBIDDEN from running a verification cycle until I have applied a deliberate fix for all N errors.
-- **Principle:** Verification is a high-latency signal. Maximize the information density of every cycle.
-
-### IV. The Tooling Purity Rule
-- **Rule:** `write_file` is the Hammer of Truth. Establish known-good states early.
-
-## 2. Operational Heuristics
-- **Zero-Trust Context:** Run `read_file` on struct/trait definitions before usage.
-- **Diagnostic Pivot:** After 2 failed remediation attempts, explain the *mechanical cause* before the 3rd.
-
-## 3. The 100x Bouncer
-1. **No Panics:** Total error propagation via `ForgeError`.
-2. **Panic-Free Production:** Zero use of `unwrap`/`expect`.
-3. **Layer Purity:** ARCH-001..006 compliance.
+## 3. Shared Knowledge
+- **Hexagonal Purity:** Maintain rigid boundaries between Kernels, Protocols, and Adapters.
+- **Deterministic Physics:** Integer-only math (`Score`) in all physics logic.
+- **Compile-Time Safety:** Use macros for SQL and strict error propagation.

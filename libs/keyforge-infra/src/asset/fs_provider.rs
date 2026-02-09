@@ -109,6 +109,12 @@ impl AssetLoader for FsProvider {
         Ok(Arc::new(corpus))
     }
 
+    async fn get_hash(&self, _category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String> {
+        let path = self.resolve_path(id)?;
+        crate::util::common::calculate_file_hash(&path)
+            .map_err(|e| keyforge_model::error::ForgeError::Io(e.to_string()))
+    }
+
     fn root(&self) -> &Path {
         &self.root
     }

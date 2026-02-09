@@ -10,7 +10,7 @@ pub fn to_domain_corpus_source(s: &config::CorpusSource) -> config::CorpusSource
 #[must_use]
 pub fn to_domain_rubric(w: &config::ScoringWeights) -> keyforge_model::Rubric {
     keyforge_model::Rubric::builder()
-        .finger_effort(w.get_finger_penalty_scale())
+        .finger_effort(w.get_finger_penalty_scale().map(|v| v.to_f32()))
         .travel_lat(w.get_weight_lateral_travel().to_f32())
         .travel_vert(w.get_weight_vertical_travel().to_f32())
         .sfb_base(w.get_penalty_sfb_base().to_f32())
@@ -54,10 +54,10 @@ mod tests {
         let mut proto_weights = ScoringWeights::default();
         proto_weights
             .weights
-            .insert("penalty_sfb_base".to_string(), 100.0);
+            .insert("penalty_sfb_base".to_string(), keyforge_model::types::FixedWeight::from_f32(100.0).unwrap());
 
         let domain_rubric = to_domain_rubric(&proto_weights);
-        assert!((domain_rubric.sfb_base() - 100.0).abs() < f32::EPSILON);
+        assert!((domain_rubric.sfb_base().to_f32() - 100.0).abs() < f32::EPSILON);
     }
 
     #[test]

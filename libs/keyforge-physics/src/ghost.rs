@@ -159,8 +159,7 @@ impl GhostScorer {
 
             // In Ghost mode, we don't cache, we look up every time
 
-            let static_cost =
-                Score::from_f32(self.resolve_static_cost(key)?).map_err(PhysicsError::Config)?;
+            let static_cost = self.resolve_static_cost(key)?;
 
             let total = effort + static_cost;
 
@@ -229,7 +228,7 @@ impl GhostScorer {
             .collect()
     }
 
-    fn resolve_static_cost(&self, key: &keyforge_model::KeyNode) -> Result<f32, PhysicsError> {
+    fn resolve_static_cost(&self, key: &keyforge_model::KeyNode) -> Result<Score, PhysicsError> {
         // Ghost implementation of static cost resolution
         // Simplified version of verify.rs logic
         let model_key = if self.keyboard.kb_type.to_lowercase().contains("ortho") {
@@ -244,7 +243,7 @@ impl GhostScorer {
             "right_hand"
         };
 
-        self.cost_model
+        let val = self.cost_model
             .models()
             .get(model_key)
             .and_then(|m| {
@@ -265,21 +264,23 @@ impl GhostScorer {
             })
             .map(|f| match f {
                 keyforge_model::cost_model::FingerDefinition::Standard(reach) => {
-                    reach.base.get(&key.row).copied().unwrap_or(0.0)
+                    reach.base.get(&key.row).copied().unwrap_or(Score::ZERO)
                 }
                 keyforge_model::cost_model::FingerDefinition::Thumb(pos) => pos
                     .values()
-                    .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .min()
                     .copied()
-                    .unwrap_or(0.0),
-                keyforge_model::cost_model::FingerDefinition::Fallback(_) => 0.0,
+                    .unwrap_or(Score::ZERO),
+                keyforge_model::cost_model::FingerDefinition::Fallback(_) => Score::ZERO,
             })
             .ok_or_else(|| {
                 PhysicsError::Config(format!(
                     "Could not resolve static cost for key at index {}",
                     key.index
                 ))
-            })
+            })?;
+
+        Ok(val)
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -294,13 +295,10 @@ impl GhostScorer {
         let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
         let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-        // SAFETY: i64 to f64 precision loss is acceptable for reference distance.
-        #[allow(clippy::cast_precision_loss)]
-        let dist = (dx2 as f64 * f64::from(self.rubric.travel_lat))
-            + (dy2 as f64 * f64::from(self.rubric.travel_vert));
-
-        #[allow(clippy::cast_possible_truncation)]
-        let mut cost = Score::from_scaled_i64(dist.round() as i64);
+        let t_lat_i = i128::from(self.rubric.travel_lat.raw());
+        let t_vert_i = i128::from(self.rubric.travel_vert.raw());
+        let dist_sq_weighted = i128::from(dx2) * t_lat_i + i128::from(dy2) * t_vert_i;
+        let mut cost = Score::from_scaled_i64(crate::kernel::mechanics::integer_sqrt_i128(dist_sq_weighted));
 
         if k1.finger == k2.finger {
             // SFB Handling
@@ -332,8 +330,8 @@ impl GhostScorer {
 #[derive(Debug)]
 struct GhostRubric {
     finger_effort: Vec<Score>,
-    travel_lat: f32,
-    travel_vert: f32,
+    travel_lat: Score,
+    travel_vert: Score,
     sfb_base: Score,
     redirect: Score,
     roll_bonus: Score,
@@ -344,18 +342,16 @@ impl GhostRubric {
     fn from_rubric(r: &Rubric) -> Result<Self, PhysicsError> {
         let finger_effort = r
             .finger_effort()
-            .iter()
-            .map(|&e| Score::from_f32(e).map_err(PhysicsError::Config))
-            .collect::<Result<Vec<_>, _>>()?;
+            .to_vec();
 
         Ok(Self {
             finger_effort,
             travel_lat: r.travel_lat(),
             travel_vert: r.travel_vert(),
-            sfb_base: Score::from_f32(r.sfb_base()).map_err(PhysicsError::Config)?,
-            redirect: Score::from_f32(r.redirect()).map_err(PhysicsError::Config)?,
-            roll_bonus: Score::from_f32(r.roll_bonus()).map_err(PhysicsError::Config)?,
-            roll_out_bonus: Score::from_f32(r.roll_out_bonus()).map_err(PhysicsError::Config)?,
+            sfb_base: r.sfb_base(),
+            redirect: r.redirect(),
+            roll_bonus: r.roll_bonus(),
+            roll_out_bonus: r.roll_out_bonus(),
         })
     }
 }

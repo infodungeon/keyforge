@@ -188,8 +188,7 @@ fn evolve_internal<CB: ProgressCallback>(
             let exact_score = engine.score(&best_layout)?;
 
             Ok(OptimizationResult {
-                score: exact_score.to_f32(),
-                raw_score: exact_score.raw(),
+                score: exact_score,
                 layout: best_layout,
             })
         }
@@ -213,7 +212,7 @@ mod tests {
             _layout: &[KeyCode],
             _ips: f32,
         ) -> crate::OptimizationControl {
-            self.raw().fetch_add(1, Ordering::SeqCst);
+            self.0.fetch_add(1, Ordering::SeqCst);
             crate::OptimizationControl::Continue
         }
     }
@@ -237,12 +236,13 @@ mod tests {
         use keyforge_model::cost_model::CostModel;
         let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex::new(0), 1.0)]),
+                        base: std::collections::HashMap::from([(RowIndex::new(0), fw(1.0))]),
                         ..Default::default()
                     },
                 ),
@@ -307,12 +307,13 @@ mod tests {
         use keyforge_model::cost_model::CostModel;
         let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex::new(0), 1.0)]),
+                        base: std::collections::HashMap::from([(RowIndex::new(0), fw(1.0))]),
                         ..Default::default()
                     },
                 ),
@@ -350,6 +351,7 @@ mod tests {
         };
 
         let res = optimize(&req).unwrap();
-        assert!(res.score >= 0.0);
+        use keyforge_model::Score;
+        assert!(res.score >= Score::ZERO);
     }
 }

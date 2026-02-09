@@ -120,6 +120,14 @@ pub struct ScoringWeightsDto {
 
 impl Validator for ScoringWeightsDto {
     fn validate(&self) -> Result<(), String> {
+        for (key, &val) in &self.weights {
+            keyforge_model::types::FixedWeight::from_f32(val)
+                .map_err(|e| format!("Weight '{key}' is invalid: {e}"))?;
+        }
+        for (i, &val) in self.finger_penalty_scale.iter().enumerate() {
+            keyforge_model::types::FixedWeight::from_f32(val)
+                .map_err(|e| format!("Finger penalty scale #{i} is invalid: {e}"))?;
+        }
         Ok(())
     }
 }
@@ -127,8 +135,8 @@ impl Validator for ScoringWeightsDto {
 impl From<model::ScoringWeights> for ScoringWeightsDto {
     fn from(val: model::ScoringWeights) -> Self {
         Self {
-            weights: val.weights,
-            finger_penalty_scale: val.finger_penalty_scale,
+            weights: val.weights.into_iter().map(|(k, v)| (k, v.to_f32())).collect(),
+            finger_penalty_scale: val.finger_penalty_scale.map(|v| v.to_f32()),
             comfortable_scissors: val.comfortable_scissors,
         }
     }

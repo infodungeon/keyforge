@@ -21,6 +21,8 @@ pub struct ScoringWeightsConfig {
     pub comfortable_scissors: String,
 }
 
+use crate::types::FixedWeight;
+
 impl TryFrom<ScoringWeightsConfig> for ScoringWeights {
     type Error = String;
     fn try_from(args: ScoringWeightsConfig) -> Result<Self, Self::Error> {
@@ -28,7 +30,7 @@ impl TryFrom<ScoringWeightsConfig> for ScoringWeights {
 
         // Overlay dynamic CLI overrides
         for (key, value) in args.overrides {
-            w.weights.insert(key, value);
+            w.weights.insert(key, FixedWeight::from_f32(value)?);
         }
 
         w.finger_penalty_scale = vec_to_array_5(&args.finger_penalty_scale)?;
@@ -39,13 +41,13 @@ impl TryFrom<ScoringWeightsConfig> for ScoringWeights {
     }
 }
 
-fn vec_to_array_5(v: &[f32]) -> Result<[f32; 5], String> {
+fn vec_to_array_5(v: &[f32]) -> Result<[FixedWeight; 5], String> {
     if v.len() != 5 {
         return Err(format!("Expected 5 values, got {}", v.len()));
     }
-    let mut arr = [0.0; 5];
+    let mut arr = [FixedWeight::default(); 5];
     for (i, &val) in v.iter().enumerate() {
-        arr[i] = val;
+        arr[i] = FixedWeight::from_f32(val)?;
     }
     Ok(arr)
 }

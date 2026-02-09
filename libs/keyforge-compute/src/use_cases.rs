@@ -40,18 +40,34 @@ impl OptimizationUseCase {
         let weights = req.config.to_domain_weights();
         let params = req.config.to_domain_params();
         let pinned = req.config.to_domain_pinned_keys();
-        let corpora = req.config.to_domain_corpus_sources();
+        let mut corpora = req.config.to_domain_corpus_sources();
         let cost_matrix = req.config.to_domain_cost_matrix();
 
-        let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&corpora);
+        // 1.5. Resolve hashes for content-addressable Job ID
+        for src in &mut corpora {
+            if src.hash.is_none() {
+                if let Ok(h) = loader.get_hash(keyforge_model::AssetCategory::Corpus, &src.id).await {
+                    src.hash = Some(h);
+                }
+            }
+        }
+
+        let mut cost_matrix_hash = None;
+        let keyforge_model::CostMatrixSource::Predefined(ref name) = cost_matrix;
+        if let Ok(h) = loader.get_hash(keyforge_model::AssetCategory::CostModel, name).await {
+            cost_matrix_hash = Some(h);
+        }
+
+        let corpora_hash = keyforge_model::job::calculate_corpora_hash(&corpora);
 
         let id = JobIdentifier::try_from_parts(
             &geometry,
             &weights,
             &params,
             &pinned,
-            &corpora_fingerprint,
+            &corpora_hash,
             &cost_matrix,
+            cost_matrix_hash.as_deref(),
         )
         .map_err(|e| keyforge_model::error::ForgeError::Validation(e.to_string()))?;
 

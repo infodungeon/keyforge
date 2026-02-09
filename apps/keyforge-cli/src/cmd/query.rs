@@ -68,7 +68,7 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     for s in corpora_input {
         domain_corpora.push(s.parse::<keyforge_model::config::CorpusSource>()?);
     }
-    let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&domain_corpora);
+    let corpora_hash = keyforge_model::job::calculate_corpora_hash(&domain_corpora);
     let constraints = args.shared.pinned_keys;
 
     let config = keyforge_model::config::Config::try_from(args.config)?;
@@ -85,8 +85,9 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
         &config.weights,
         &config.search,
         &constraints,
-        &corpora_fingerprint,
+        &corpora_hash,
         &cost_source,
+        None,
     )
     .map_err(|e| format!("Failed to compute job id: {e}"))?
     .hash;

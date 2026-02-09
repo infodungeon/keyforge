@@ -16,25 +16,27 @@ mod integration_tests {
     use std::sync::Arc;
 
     fn mock_cost_model() -> CostModel {
-        let json = r#"{
-        "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
-        "models": {
-            "model_a_row_staggered": {
+        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap();
+        let json = format!(r#"{{
+        "meta": {{ "version": "2.0", "description": "Test", "unit": "pts" }},
+        "models": {{
+            "model_a_row_staggered": {{
                 "description": "Test Model",
-                "static_costs": {
-                    "universal_hand": {
-                        "thumb": { "pos_1": 100.0 },
-                        "index": { "base": { "r0": 100.0 } },
-                        "middle": { "base": { "r0": 100.0 } },
-                        "ring": { "base": { "r0": 100.0 } },
-                        "pinky": { "base": { "r0": 100.0 } }
-                    }
-                }
-            }
-        },
-        "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
-    }"#;
-        serde_json::from_str(json).unwrap()
+                "static_costs": {{
+                    "universal_hand": {{
+                        "thumb": {{ "pos_1": 100.0 }},
+                        "index": {{ "base": {{ "r0": 100.0 }} }},
+                        "middle": {{ "base": {{ "r0": 100.0 }} }},
+                        "ring": {{ "base": {{ "r0": 100.0 }} }},
+                        "pinky": {{ "base": {{ "r0": 100.0 }} }}
+                    }}
+                }}
+            }}
+        }},
+        "dynamic_rules": {{ "sequence_modifiers": {{}}, "penalties": {{}}, "constraints": {{}} }}
+    }}"#);
+        // Note: The JSON still uses floats, which is fine because FixedWeight implements Deserialize from float.
+        serde_json::from_str(&json).unwrap()
     }
 
     fn setup_env() -> (Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>) {
@@ -104,7 +106,8 @@ mod integration_tests {
             pinned_keys: vec![],
         };
         let result = optimize(&req).unwrap();
-        assert!(result.score >= 0.0);
+        use keyforge_model::Score;
+        assert!(result.score >= Score::ZERO);
     }
 
     #[test]
@@ -130,7 +133,8 @@ mod integration_tests {
             include_thumbs: false,
         };
         let result = evolve(&engine_arc, &config, NoOpCallback, None, None).unwrap();
-        assert!(result.score >= 0.0);
+        use keyforge_model::Score;
+        assert!(result.score >= Score::ZERO);
     }
 
     #[test]
@@ -204,17 +208,15 @@ mod integration_tests {
             .score(&req.keyboard, &req.corpus, result.layout.keys())
             .expect("Oracle scoring failed");
 
-        // Normalize logic from physics/lib.rs
-        let raw_score_f32 = (raw_score as f32) / keyforge_model::constants::SCORE_SCALE;
+        // Normalize logic from physics/analysis.rs
         let total_freq: u64 = req.corpus.char_freqs.iter().sum();
-        let norm_factor = if total_freq > 0 {
-            100_000.0 / total_freq as f32
-        } else {
-            1.0
-        };
-        let final_reference = raw_score_f32 * norm_factor;
+        let expected_score = keyforge_physics::kernel::compute::analysis::deterministic_normalize(
+            keyforge_model::types::Score::from_scaled_i64(raw_score),
+            100_000,
+            total_freq
+        );
 
-        assert!((result.score - final_reference).abs() < 1e-4);
+        assert_eq!(result.score.raw(), expected_score.raw());
     }
 
     struct NoOpCallback;

@@ -1,25 +1,105 @@
 
 --- STDERR ---
-    Checking keyforge-model v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-model)
-   Compiling keyforge-infra v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-infra)
-    Checking keyforge-protocol v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-protocol)
-    Checking keyforge-physics v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-physics)
-    Checking keyforge-security v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-security)
-    Checking keyforge-evolution v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-evolution)
-    Checking keyforge-adapter v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-adapter)
-    Checking keyforge-export v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-export)
-    Checking keyforge-compute v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-compute)
-    Checking keyforge-persistence v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-persistence)
-    Checking keyforge-assets v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assets)
-    Checking keyforge-assetmgr v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-assetmgr)
-    Checking keyforge-tui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-tui)
-    Checking keyforge-testing v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-testing)
-    Checking keyforge-repros v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/repros)
-    Checking keyforge-hive v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-hive)
-    Checking keyforge-agent v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-agent)
-    Checking keyforge-ui v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-ui/src-tauri)
-    Checking keyforge-cli v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/apps/keyforge-cli)
-    Checking keyforge-system-tests v0.1.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/tests/system)
-    Checking openbookcorpus v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/corpora/openbookcorpus)
-    Checking keyforge-wasm v0.9.0 (/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/libs/keyforge-wasm)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.01s
+    Checking rand_chacha v0.9.0
+    Checking hyper v1.8.1
+    Checking wait-timeout v0.2.1
+    Checking rand_xorshift v0.4.0
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+    Checking itertools v0.14.0
+    Checking ureq-proto v0.5.3
+    Checking prost-types v0.14.1
+   Compiling structmeta-derive v0.3.0
+    Checking num-rational v0.4.2
+    Checking num-iter v0.1.45
+   Compiling async-stream-impl v0.3.6
+    Checking rustls-pemfile v2.2.0
+    Checking xattr v1.6.1
+    Checking rusty-fork v0.3.1
+    Checking filetime v0.2.26
+    Checking rand v0.9.2
+    Checking docker_credential v1.3.2
+    Checking etcetera v0.11.0
+    Checking ciborium-ll v0.2.2
+    Checking astral-tokio-tar v0.5.6
+    Checking num v0.4.3
+    Checking itertools v0.10.5
+    Checking plotters v0.3.7
+    Checking ureq v3.1.4
+    Checking tinytemplate v1.2.1
+    Checking ciborium v0.2.2
+    Checking async-stream v0.3.6
+    Checking is-terminal v0.4.17
+    Checking deadpool-runtime v0.1.4
+    Checking assert-json-diff v2.0.2
+    Checking deadpool v0.12.3
+    Checking proptest v1.9.0
+    Checking tungstenite v0.28.0
+    Checking opentelemetry_sdk v0.31.0
+    Checking ferroid v0.8.9
+    Checking governor v0.10.4
+    Checking hyper-util v0.1.19
+    Checking metrics-util v0.19.1
+    Checking governor v0.8.1
+   Compiling structmeta v0.3.0
+    Checking temp-env v0.3.6
+    Checking ratatui-core v0.1.0
+   Compiling wasm-bindgen-test-macro v0.3.56
+    Checking keyforge-testing-macros v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing-macros)
+   Compiling parse-display-derive v0.9.1
+    Checking tokio-tungstenite v0.28.0
+    Checking criterion-plot v0.5.0
+    Checking wasm-bindgen-test v0.3.56
+    Checking criterion v0.5.1
+    Checking ratatui-widgets v0.3.0
+    Checking ratatui-crossterm v0.1.0
+    Checking parse-display v0.9.1
+    Checking hyper-rustls v0.27.7
+    Checking axum v0.8.8
+    Checking hyper-timeout v0.5.2
+    Checking hyper-tls v0.6.0
+    Checking hyperlocal v0.9.1
+    Checking axum-server v0.8.0
+    Checking wiremock v0.6.5
+    Checking reqwest v0.13.1
+    Checking metrics-exporter-prometheus v0.16.2
+    Checking reqwest v0.12.28
+    Checking keyforge-model v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-model)
+    Checking ratatui-macros v0.7.0
+    Checking ratatui v0.30.0
+    Checking tracing-opentelemetry v0.32.0
+    Checking openbookcorpus v0.9.0 (/home/robert/projects/keyforge/corpora/openbookcorpus)
+    Checking opentelemetry-http v0.31.0
+    Checking self_update v0.41.0
+    Checking keyforge-protocol v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-protocol)
+    Checking keyforge-physics v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-physics)
+    Checking keyforge-security v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-security)
+    Checking tonic v0.14.2
+    Checking utoipa-swagger-ui v9.0.2
+error: #[derive(RustEmbed)] folder '/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/debug/build/utoipa-swagger-ui-1b874d87c0df499e/out/swagger-ui-5.17.14/dist/' does not exist. cwd: '/home/robert/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/utoipa-swagger-ui-9.0.2'
+ --> /home/robert/projects/keyforge/target/debug/build/utoipa-swagger-ui-1b874d87c0df499e/out/embed.rs:4:1
+  |
+4 | / #[folder = r"/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/target/debug/build/utoipa-swagger-ui-1b874d87c0df499e/out...
+5 | | struct SwaggerUiDist;
+  | |_____________________^
+
+    Checking keyforge-evolution v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-evolution)
+error[E0599]: no function or associated item named `get` found for struct `SwaggerUiDist` in the current scope
+    --> /home/robert/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/utoipa-swagger-ui-9.0.2/src/lib.rs:1468:40
+     |
+1468 |     if let Some(file) = SwaggerUiDist::get(file_path) {
+     |                                        ^^^ function or associated item not found in `SwaggerUiDist`
+     |
+    ::: /home/robert/projects/keyforge/target/debug/build/utoipa-swagger-ui-1b874d87c0df499e/out/embed.rs:5:1
+     |
+   5 | struct SwaggerUiDist;
+     | -------------------- function or associated item `get` not found for this struct
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following traits define an item `get`, perhaps you need to implement one of them:
+             candidate #1: `Embed`
+             candidate #2: `SliceIndex`
+             candidate #3: `log::kv::source::Source`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `utoipa-swagger-ui` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...

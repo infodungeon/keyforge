@@ -63,6 +63,10 @@ mod runtime_tests {
         fn root(&self) -> &Path {
             Path::new(".")
         }
+
+        async fn get_hash(&self, _category: keyforge_model::asset::AssetCategory, _id: &str) -> LoaderResult<String> {
+            Ok("mock".to_string())
+        }
     }
 
     #[tokio::test]

@@ -3,7 +3,6 @@
 use super::*;
 use crate::engines::ScoringEngine;
 use crate::kernel::compiler::Compiler;
-use crate::kernel::compute::state::PhysicsScratch;
 use crate::kernel::types::{KeyCode, KeyIndex, RowIndex, Score};
 use crate::PhysicsError;
 use keyforge_model::testing::mock_cost_model;
@@ -16,7 +15,7 @@ fn setup_kb_robust() -> Keyboard {
             index: i,
             hand: keyforge_model::types::HandIndex::new(0),
             finger: keyforge_model::types::FingerIndex::new(i as u8),
-            x: i as f32,
+            x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
             ..Default::default()
         })
         .collect();
@@ -30,69 +29,15 @@ mod tests {
     use crate::EngineFactory;
 
     #[test]
+    #[should_panic]
     fn test_math_boundaries_infinity() {
-        let kb = setup_kb_robust();
-        let layout = Layout::new_unchecked(vec![
-            KeyCode::new(97),
-            KeyCode::new(98),
-            KeyCode::new(99),
-            KeyCode::new(100),
-            KeyCode::new(101),
-        ]);
-        let mut corpus = Corpus::default();
-        corpus.bigrams = Arc::from(vec![(97, 98, 1000)]);
-
-        let rubric = Rubric::builder().travel_lat(f32::INFINITY).build();
-
-        let cost_model = mock_cost_model();
-        // Compilation or scoring should fail gracefully
-        let res = EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: Arc::new(kb.clone()),
-            corpus: Arc::new(corpus.clone()),
-            rubric: Arc::new(rubric.clone()),
-            cost_model: Arc::new(cost_model.clone()),
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        });
-        if let Ok(engine) = res {
-            let score_res = engine.score(&layout);
-            assert!(
-                score_res.is_err(),
-                "Scoring should fail with INFINITY travel cost"
-            );
-        }
+        let _ = Rubric::builder().travel_lat(f32::INFINITY).build();
     }
 
     #[test]
+    #[should_panic]
     fn test_math_boundaries_nan() {
-        let kb = setup_kb_robust();
-        let layout = Layout::new_unchecked(vec![
-            KeyCode::new(97),
-            KeyCode::new(98),
-            KeyCode::new(99),
-            KeyCode::new(100),
-            KeyCode::new(101),
-        ]);
-        let mut corpus = Corpus::default();
-        corpus.bigrams = Arc::from(vec![(97, 98, 1000)]);
-
-        let rubric = Rubric::builder().travel_lat(f32::NAN).build();
-
-        let cost_model = mock_cost_model();
-        // Compilation or scoring should fail gracefully
-        let res = EngineFactory::new_generic(&EngineCompilationContext {
-            keyboard: Arc::new(kb.clone()),
-            corpus: Arc::new(corpus.clone()),
-            rubric: Arc::new(rubric.clone()),
-            cost_model: Arc::new(cost_model.clone()),
-            engine_config: keyforge_model::config::EngineConfig::default(),
-        });
-        if let Ok(engine) = res {
-            let score_res = engine.score(&layout);
-            assert!(
-                score_res.is_err(),
-                "Scoring should fail with NAN travel cost"
-            );
-        }
+        let _ = Rubric::builder().travel_lat(f32::NAN).build();
     }
 
     #[test]
@@ -106,9 +51,11 @@ mod tests {
             KeyCode::new(101),
         ]);
         let mut corpus = Corpus::default();
-        corpus.bigrams = Arc::from(vec![(97, 98, u32::MAX)]);
+        // Use codes 97 ('a') and 101 ('e') which are at indices 0 and 4 in the layout (dist = 4000)
+        corpus.bigrams = Arc::from(vec![(97, 101, u32::MAX)]);
 
-        let rubric = Rubric::builder().travel_lat(1_000_000.0).build();
+        // Max possible weight in FixedWeight is ~2.1M
+        let rubric = Rubric::builder().travel_lat(2_000_000.0).build();
 
         let cost_model = mock_cost_model();
         let res = EngineFactory::new_generic(&EngineCompilationContext {
@@ -140,7 +87,9 @@ mod tests {
         // 1. Mono overflow
         {
             let mut key_costs = (*ctx.geometry.key_costs).to_vec();
-            key_costs[0] = Score::from_scaled_i64(i64::MAX / 2);
+            for cost in &mut key_costs {
+                *cost = Score::from_scaled_i64(i64::MAX / 2);
+            }
             ctx.geometry.key_costs = Arc::from(key_costs);
             let mut freqs = [0u64; 65536];
             freqs[97] = 3;
@@ -148,8 +97,9 @@ mod tests {
 
             let engine = crate::engines::generic::GenericScoringEngine::new(ctx.clone());
             let layout = Layout::new_unchecked(vec![KeyCode::new(97); 5]);
+            let res = engine.score(&layout);
             assert!(matches!(
-                engine.score(&layout),
+                res,
                 Err(PhysicsError::ScoreOverflow { .. })
             ));
         }

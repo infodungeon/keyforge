@@ -2,6 +2,7 @@
 
 use crate::layout::Layout;
 use crate::metrics::{MetricId, MetricSet};
+use crate::types::Score;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -11,16 +12,19 @@ pub struct MetricViolation {
     /// The keys involved (e.g., "TH").
     pub keys: String,
     /// The cost contribution.
-    pub score: f32,
+    pub score: Score,
     /// The frequency.
-    pub freq: f32,
+    pub freq: Score,
 }
 
 /// Detailed breakdown of a layout's performance.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AnalysisReport {
     /// Total weighted score.
-    pub score: f32,
+    pub score: Score,
+    /// Raw unnormalized score (for verification).
+    #[serde(default)]
+    pub raw_score: Score,
     /// Standard metric values.
     #[serde(default)]
     pub metrics: MetricSet,
@@ -29,39 +33,39 @@ pub struct AnalysisReport {
     pub violations: HashMap<MetricId, Vec<MetricViolation>>,
 
     /// Total finger travel distance.
-    pub distance: f32,
+    pub distance: Score,
     /// Average travel distance per keypress.
-    pub travel_per_key: f32,
+    pub travel_per_key: Score,
     /// Total Same Finger Bigram cost.
-    pub sfb_total: f32,
+    pub sfb_total: Score,
     /// Ratio of SFBs to total bigrams.
-    pub sfb_ratio: f32,
+    pub sfb_ratio: Score,
     /// Hand balance (-1.0 Left, +1.0 Right, 0.0 Balanced).
-    pub hand_balance: f32,
+    pub hand_balance: Score,
     /// Scissor score.
-    pub scissors: f32,
+    pub scissors: Score,
     /// Redirect score.
-    pub redirects: f32,
+    pub redirects: Score,
     /// Inward roll score.
-    pub rolls: f32,
+    pub rolls: Score,
     /// Total SFB penalty.
     #[serde(default)]
-    pub sfb_penalty: f32,
+    pub sfb_penalty: Score,
     /// Total scissor penalty.
     #[serde(default)]
-    pub scissor_penalty: f32,
+    pub scissor_penalty: Score,
     /// Total redirect penalty.
     #[serde(default)]
-    pub redir_penalty: f32,
+    pub redir_penalty: Score,
     /// Total roll penalty.
     #[serde(default)]
-    pub roll_penalty: f32,
+    pub roll_penalty: Score,
     /// Usage heatmap.
     #[serde(default)]
-    pub heatmap: Vec<f32>,
+    pub heatmap: Vec<Score>,
     /// Effort heatmap.
     #[serde(default)]
-    pub penalty_map: Vec<f32>,
+    pub penalty_map: Vec<Score>,
     /// Top SFB offenders.
     #[serde(default)]
     pub top_sfbs: Vec<MetricViolation>,
@@ -76,11 +80,8 @@ pub struct AnalysisReport {
 /// The final output of an optimization run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizationResult {
-    /// The final score achieved (normalized f32).
-    pub score: f32,
-    /// The raw scaled score (fixed-point i64).
-    #[serde(default)]
-    pub raw_score: i64,
+    /// The final score achieved.
+    pub score: Score,
     /// The optimized layout.
     pub layout: Layout,
 }
@@ -100,7 +101,7 @@ pub struct SwapSuggestion {
     /// Label of the second key.
     pub key_b: String,
     /// Change in score (negative is improvement).
-    pub score_delta: f32,
+    pub score_delta: Score,
     /// Percentage improvement.
-    pub improvement_pct: f32,
+    pub improvement_pct: Score,
 }

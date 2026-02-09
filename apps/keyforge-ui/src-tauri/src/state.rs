@@ -8,6 +8,7 @@ use keyforge_infra::AssetManager;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, Corpus};
+use sha2::Digest;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -90,6 +91,18 @@ impl AssetLoader for AssetCache {
             blended.merge(&corpus, src.weight);
         }
         Ok(Arc::new(blended))
+    }
+
+    async fn get_hash(&self, _category: keyforge_model::AssetCategory, id: &str) -> LoaderResult<String> {
+        let path = self.root.join("system/keyboards").join(format!("{id}.json"));
+        if path.exists() {
+            let data = std::fs::read(path).map_err(|e| ForgeError::Io(e.to_string()))?;
+            let mut hasher = sha2::Sha256::new();
+            sha2::Digest::update(&mut hasher, &data);
+            Ok(hex::encode(hasher.finalize()))
+        } else {
+            Ok("ui-placeholder-hash".to_string())
+        }
     }
 
     fn root(&self) -> &Path {

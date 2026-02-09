@@ -124,7 +124,7 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
 #[allow(clippy::cast_sign_loss, clippy::cast_precision_loss)]
 fn prune_trigrams(
     source: &[(u16, u16, u16, u32)],
-    coverage: f32,
+    coverage: Score,
     limit: usize,
 ) -> Vec<(u16, u16, u16, u32)> {
     if source.is_empty() {
@@ -140,8 +140,10 @@ fn prune_trigrams(
             .then_with(|| a.2.cmp(&b.2))
     });
     let total_freq: u64 = source.iter().map(|x| u64::from(x.3)).sum();
+    // Deterministic coverage calculation using Score (basis: SCORE_SCALE)
+    let coverage_scaled = coverage.raw() as u64; 
     #[allow(clippy::cast_possible_truncation)]
-    let target = (total_freq as f64 * f64::from(coverage)) as u64;
+    let target = (u128::from(total_freq) * u128::from(coverage_scaled) / 1_000_000) as u64;
     let mut acc = 0;
     let mut cutoff = source.len();
     for (i, item) in source.iter().enumerate() {

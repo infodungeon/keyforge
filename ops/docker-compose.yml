@@ -6,7 +6,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: keyforge
-      POSTGRES_PASSWORD: forge_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: keyforge_hive
     ports:
       - "5432:5432"
@@ -25,9 +25,9 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    command: valkey-server --requirepass "dev_valkey_secret" --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
+    command: valkey-server --requirepass "${VALKEY_PASSWORD}" --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
     healthcheck:
-      test: ["CMD", "valkey-cli", "-a", "dev_valkey_secret", "ping"]
+      test: ["CMD", "valkey-cli", "-a", "${VALKEY_PASSWORD}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -43,7 +43,7 @@ services:
       valkey:
         condition: service_healthy
     environment:
-      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+      KEYFORGE_VALKEY_URL: redis://:${VALKEY_PASSWORD}@valkey:6379
       KEYFORGE_DATA_DIR: /app/data
     volumes:
       - ../data:/app/data
@@ -61,7 +61,7 @@ services:
       valkey:
         condition: service_healthy
     environment:
-      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+      KEYFORGE_VALKEY_URL: redis://:${VALKEY_PASSWORD}@valkey:6379
       PORT: 3001
     networks:
       default:
@@ -81,10 +81,10 @@ services:
       valkey:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://keyforge:forge_password@db:5432/keyforge_hive
+      DATABASE_URL: postgres://keyforge:${POSTGRES_PASSWORD}@db:5432/keyforge_hive
       HIVE_SECRET: ${HIVE_SECRET:-}
       RUST_LOG: info,keyforge_hive=debug
-      KEYFORGE_VALKEY_URL: redis://:dev_valkey_secret@valkey:6379
+      KEYFORGE_VALKEY_URL: redis://:${VALKEY_PASSWORD}@valkey:6379
     volumes:
       - ../data:/app/data
     networks:

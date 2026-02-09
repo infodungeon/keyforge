@@ -2,11 +2,77 @@
 # Enforces architectural invariants via Narsil Security Engine
 
 name: KeyForge Systemic Law
-version: "1.0.0"
-description: Enforcement of Hexagonal Purity, Panic Freedom, and Determinism
+version: "1.1.0"
+description: Consolidated enforcement of Hexagonal Purity, Determinism, Safety, and Performance.
 
 rules:
-  # ARCH-005: Hexagonal Purity (No IO in Kernels)
+  # --- ARCHITECTURAL LAWS (ARCH-00x) ---
+
+  - id: ARCH-001
+    name: UI Purity
+    severity: High
+    rule_type:
+      type: pattern
+      patterns:
+        - '\.split\(.*\)\.map\(.*\)' # heuristic for data transformation in components
+        - 'JSON\.parse\(.*\)'
+      safe_patterns:
+        - 'useJobDispatch'
+        - 'useArena'
+    languages: ["typescript", "typescriptreact"]
+    message: "Data transformation detected in UI component. Components must be pure views."
+    remediation: "Move transformation logic to a dedicated service layer or custom hook."
+    enabled: true
+    tags: ["architecture", "ui", "purity"]
+
+  - id: ARCH-002
+    name: Slim Handlers
+    severity: High
+    rule_type:
+      type: pattern
+      patterns:
+        - 'pub async fn \w+\(.*\) -> .* \{(\n\s+.*){10,}\}' # strict: >10 lines
+    languages: ["rust"]
+    message: "Fat Handler detected (>10 lines). API handlers must delegate to domain services."
+    remediation: "Extract logic into a Domain Service or Use Case in `keyforge-model`."
+    enabled: true
+    tags: ["architecture", "clean-code"]
+
+  - id: ARCH-003
+    name: Deterministic Physics
+    severity: Critical
+    rule_type:
+      type: pattern
+      patterns:
+        - 'f32'
+        - 'f64'
+      safe_patterns:
+        - '#[cfg(test)]'
+        - 'libs/keyforge-infra'
+        - 'apps/keyforge-ui'
+    languages: ["rust"]
+    message: "Floating point detected in logic kernel. Physics must be bit-perfect deterministic."
+    remediation: "Use `i64` fixed-point math via the `Score` type."
+    enabled: true
+    tags: ["architecture", "determinism", "physics"]
+
+  - id: ARCH-004
+    name: Compile-Time SQL
+    severity: Critical
+    rule_type:
+      type: pattern
+      patterns:
+        - 'sqlx::query\('
+        - 'query\("'
+      safe_patterns:
+        - 'sqlx::query!\('
+        - 'sqlx::query_as!\('
+    languages: ["rust"]
+    message: "Raw SQL string or unverified query detected. All SQL must be verified at compile time."
+    remediation: "Use `sqlx::query!` or `sqlx::query_as!` macros."
+    enabled: true
+    tags: ["architecture", "security", "sql"]
+
   - id: ARCH-005
     name: Hexagonal Purity Violation
     severity: Critical
@@ -24,12 +90,28 @@ rules:
       safe_patterns:
         - '#[cfg(test)]'
     languages: ["rust"]
-    message: "IO or Side-Effect detected in Pure Kernel. Physics/Evolution must be pure logic."
+    message: "IO or Side-Effect detected in Pure Kernel."
     remediation: "Move IO to `keyforge-infra` or `keyforge-adapter`. Inject dependencies via Traits."
     enabled: true
     tags: ["architecture", "purity", "hexagonal"]
 
-  # TYPE-003: Panic Freedom (No Unwrap)
+  - id: ARCH-006
+    name: Structural Oracle
+    severity: High
+    rule_type:
+      type: pattern
+      patterns:
+        - 'const \w+: &str = ".*"' # heuristic for hardcoded system nouns
+      safe_patterns:
+        - 'keyforge_protocol::'
+    languages: ["rust", "typescript"]
+    message: "Potential hardcoded system noun or contract string. Use the Structural Oracle."
+    remediation: "Define constants/types in `keyforge-protocol` and use shared traits/bindings."
+    enabled: true
+    tags: ["architecture", "structural-oracle"]
+
+  # --- TYPE & RELIABILITY LAWS (TYPE-00x) ---
+
   - id: TYPE-003
     name: Panic-Free Production
     severity: Critical
@@ -50,17 +132,68 @@ rules:
     enabled: true
     tags: ["reliability", "panic-free", "production"]
 
-  # ARCH-002: No Fat Handlers
-  - id: ARCH-002
-    name: Fat Handler Detection
+  - id: TYPE-002
+    name: Total Error Propagation
     severity: High
     rule_type:
       type: pattern
       patterns:
-        - 'pub async fn \w+\(.*\) -> .* \{(\n\s+.*){20,}\}' # heuristic: >20 lines
+        - 'Box<dyn Error>'
+      safe_patterns:
+        - 'ForgeError'
     languages: ["rust"]
-    message: "Potential Fat Handler detected. Handlers should delegate to Core Logic immediately."
-    remediation: "Extract logic into a Domain Service or Use Case in `keyforge-model`."
-    enabled: false # Disabled until regex is tuned
-    tags: ["architecture", "clean-code"]
+    message: "Generic error type detected. Use the project-standard ForgeError."
+    remediation: "Implement `From` for your error type into `ForgeError` or use `ForgeError` directly."
+    enabled: true
+    tags: ["reliability", "error-handling"]
 
+  # --- PERFORMANCE LAWS (PERF-00x) ---
+
+  - id: PERF-001
+    name: Shared Ownership for Large Data
+    severity: Medium
+    rule_type:
+      type: pattern
+      patterns:
+        - '\[.*;\s*[1-9]\d{3,}\]' # heuristic for large arrays > 1000
+        - 'Vec<.*>'
+      safe_patterns:
+        - 'Arc<\[.*\]>'
+    languages: ["rust"]
+    message: "Large data structure detected without shared ownership. High allocation risk."
+    remediation: "Wrap large arrays or vectors in `Arc<[T]>` to minimize cloning."
+    enabled: true
+    tags: ["performance", "allocation"]
+
+  - id: PERF-002
+    name: Zero-Clone Hot Loops
+    severity: High
+    rule_type:
+      type: pattern
+      patterns:
+        - '\.clone\(\)'
+      safe_patterns:
+        - 'libs/keyforge-infra'
+        - 'apps/'
+    languages: ["rust"]
+    message: "Clone detected in potential hot loop (physics/evolution)."
+    remediation: "Use references or `Arc` to avoid expensive clones in compute kernels."
+    enabled: true
+    tags: ["performance", "hot-loop"]
+
+  # --- TESTING LAWS (TEST-00x) ---
+
+  - id: TEST-001
+    name: Explicit Error Handling in Tests
+    severity: Medium
+    rule_type:
+      type: pattern
+      patterns:
+        - '#\[test\]'
+      safe_patterns:
+        - '#\[kf_test\]'
+    languages: ["rust"]
+    message: "Standard #[test] used. Use the project-standard #[kf_test] for Result-based testing."
+    remediation: "Switch to `#[keyforge_testing_macros::kf_test]` and return `Result`."
+    enabled: true
+    tags: ["testing", "quality"]

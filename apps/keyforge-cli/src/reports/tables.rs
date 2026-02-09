@@ -36,12 +36,12 @@ pub fn scoring(results: &[(String, AnalysisReport)]) {
     for (name, d) in results {
         table.add_row(vec![
             Cell::new(name).add_attribute(Attribute::Bold),
-            Cell::new(format!("{:.0}", d.score)).fg(Color::Cyan),
-            Cell::new(format!("{:.2}%", d.sfb_ratio * 100.0)).fg(Color::Red),
-            Cell::new(format!("{:.0}", d.scissors)).fg(Color::Yellow),
-            Cell::new(format!("{:.0}", d.redirects)).fg(Color::Blue),
-            Cell::new(format!("{:.0}", d.rolls)).fg(Color::Green),
-            Cell::new(format!("{:.2}", d.hand_balance)),
+            Cell::new(format!("{:.0}", d.score.to_f32())).fg(Color::Cyan),
+            Cell::new(format!("{:.2}%", d.sfb_ratio.to_f32() * 100.0)).fg(Color::Red),
+            Cell::new(format!("{:.0}", d.scissors.to_f32())).fg(Color::Yellow),
+            Cell::new(format!("{:.0}", d.redirects.to_f32())).fg(Color::Blue),
+            Cell::new(format!("{:.0}", d.rolls.to_f32())).fg(Color::Green),
+            Cell::new(format!("{:.2}", d.hand_balance.to_f32())),
         ]);
     }
     println!("\n{table}");
